@@ -40,6 +40,14 @@ Revision History:
 #include <mach-o/dyld.h>
 #endif // __APPLE__
 
+#if HAVE_SYS_GETRANDOM
+#include <sys/syscall.h>
+
+#ifndef GRND_NONBLOCK
+#define GRND_NONBLOCK 0x01
+#endif // GRND_NONBLOCK
+#endif // HAVE_SYS_GETRANDOM
+
 SET_DEFAULT_DEBUG_CHANNEL(MISC);
 
 static const char URANDOM_DEVICE_NAME[]="/dev/urandom";
@@ -285,31 +293,89 @@ PAL_RandomFromUrandom(
     return TRUE;
 }
 
+#if HAVE_SYS_GETRANDOM
+static
+BOOL
+PAL_RandomFromGetRandom(
+        IN OUT LPVOID lpBuffer,
+        IN DWORD dwLength)
+{
+    ssize_t length = (ssize_t)dwLength;
+    static BOOL sMissingGetRandom;
+
+    if (sMissingGetRandom)
+    {
+        return FALSE;
+    }
+
+    do
+    {
+        ssize_t res = syscall(SYS_getrandom, lpBuffer, length,
+                              GRND_NONBLOCK);
+        if (res == -1)
+        {
+            if (errno == ENOSYS)
+            {
+                sMissingGetRandom = TRUE;
+                return FALSE;
+            }
+            else if (errno == EINTR)
+            {
+                continue;
+            }
+            else
+            {
+                return FALSE;
+            }
+        }
+
+        length -= res;
+        lpBuffer = (char *)lpBuffer + res;
+    }
+    while (length);
+
+    return TRUE;
+}
+#endif // HAVE_SYS_GETRANDOM
+
 VOID
 PALAPI
 PAL_Random(
         IN OUT LPVOID lpBuffer,
         IN DWORD dwLength)
 {
-    DWORD i;
-    long num = 0;
     static BOOL sInitializedMRand;
+    BOOL needSrand = TRUE;
 
     PERF_ENTRY(PAL_Random);
     ENTRY("PAL_Random(lpBuffer=%p, dwLength=%d)\n", lpBuffer, dwLength);
 
-    if (!PAL_RandomFromUrandom(lpBuffer, dwLength))
+#if HAVE_SYS_GETRANDOM
+    if (PAL_RandomFromGetRandom(lpBuffer, dwLength))
     {
+        needSrand = FALSE;
+    }
+    else
+#endif // HAVE_SYS_GETRANDOM
+    if (PAL_RandomFromUrandom(lpBuffer, dwLength))
+    {
+        needSrand = FALSE;
+    }
+
+    if (needSrand)
+    {
+        long num;
+
         if (!sInitializedMRand)
         {
+            // FIXME: There's not enough entropy in time(NULL) to
+            // initialize the PRNG.  Might be a good idea to leverage
+            // other sources of entropy at this point.
             srand48(time(NULL));
             sInitializedMRand = TRUE;
         }
 
-        // always xor srand48 over the whole buffer to get some randomness
-        // in case /dev/urandom is not really random
-
-        for (i = 0; i < dwLength; i++)
+        for (DWORD i = 0; i < dwLength; i++)
         {
             if (i % sizeof(long) == 0) {
                 num = mrand48();
