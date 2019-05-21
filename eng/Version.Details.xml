@@ -39,5 +39,9 @@
       <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
       <Sha>d2be6e027cb7d128e710a8f2efa97fff82ecff20</Sha>
     </Dependency>
+    <Dependency Name="Microsoft.DotNet.Build.Tasks.Packaging" Version="1.0.0-beta.19229.8">
+      <Uri>https://github.com/dotnet/arcade</Uri>
+      <Sha>a7a250e9c13147134543c35fef2fb81f19592edf</Sha>
+    </Dependency>
   </ToolsetDependencies>
 </Dependencies>
