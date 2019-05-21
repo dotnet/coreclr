@@ -1106,6 +1106,77 @@ FieldDesc * ZapSig::DecodeField(Module *pReferencingModule,
     return pField;
 }
 
+// Copy single type signature, adding ELEMENT_TYPE_MODULE_ZAPSIG to types that are encoded using tokens.
+// The source signature originates from the module with index specified by the parameter moduleIndex.
+// Passing moduleIndex set to MODULE_INDEX_NONE results in pure copy of the signature.
+//
+void ZapSig::CopyTypeSignature(SigParser* pSigParser, SigBuilder* pSigBuilder, DWORD moduleIndex)
+{
+    if (moduleIndex != MODULE_INDEX_NONE)
+    {
+        SigParser peekParser(*pSigParser);
+
+        BYTE byteType;
+        IfFailThrow(peekParser.GetByte(&byteType));
+        CorElementType type = (CorElementType)byteType;
+
+        // Some element types have sub-type that is what we are interested in
+        switch (type)
+        {
+            case ELEMENT_TYPE_BYREF:
+            case ELEMENT_TYPE_PTR:
+            case ELEMENT_TYPE_PINNED:
+            case ELEMENT_TYPE_SZARRAY:
+            case ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG:
+            case ELEMENT_TYPE_NATIVE_VALUETYPE_ZAPSIG:
+            case ELEMENT_TYPE_ARRAY:
+                IfFailThrow(peekParser.GetByte(&byteType));
+                type = (CorElementType)byteType;
+                break;
+        }
+
+        // Add the module zapsig only for types that are encoded using a token
+        if (type >= ELEMENT_TYPE_PTR && type != ELEMENT_TYPE_I && type != ELEMENT_TYPE_U && type != ELEMENT_TYPE_OBJECT &&
+            type != ELEMENT_TYPE_VAR && type != ELEMENT_TYPE_MVAR && type != ELEMENT_TYPE_TYPEDBYREF)
+        {
+            pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
+            pSigBuilder->AppendData(moduleIndex);
+        }
+
+        if (type == ELEMENT_TYPE_GENERICINST)
+        {
+            IfFailThrow(pSigParser->GetByte(&byteType));
+            _ASSERTE((CorElementType)byteType == ELEMENT_TYPE_GENERICINST);
+            pSigBuilder->AppendElementType(ELEMENT_TYPE_GENERICINST);
+
+            IfFailThrow(pSigParser->GetByte(&byteType));
+            type = (CorElementType)byteType;
+            _ASSERTE((type == ELEMENT_TYPE_CLASS) || (type == ELEMENT_TYPE_VALUETYPE));
+            pSigBuilder->AppendElementType(type);
+
+            mdToken token;
+            IfFailThrow(pSigParser->GetToken(&token));
+            pSigBuilder->AppendToken(token);
+
+            ULONG argCnt; // Get number of generic parameters
+            IfFailThrow(pSigParser->GetData(&argCnt));
+            pSigBuilder->AppendData(argCnt);
+
+            while (argCnt--)
+            {
+                CopyTypeSignature(pSigParser, pSigBuilder, moduleIndex);
+            }
+
+            return;
+        }
+    }
+
+    PCCOR_SIGNATURE typeSigStart = pSigParser->GetPtr();
+    IfFailThrow(pSigParser->SkipExactlyOne());
+    PCCOR_SIGNATURE typeSigEnd = pSigParser->GetPtr();
+    pSigBuilder->AppendBlob((PVOID)typeSigStart, typeSigEnd - typeSigStart);
+}
+
 /* static */
 BOOL ZapSig::EncodeMethod(
                     MethodDesc *          pMethod,
@@ -1333,14 +1404,14 @@ BOOL ZapSig::EncodeMethod(
         {
             _ASSERTE(pResolvedToken->cbTypeSpec > 0);
 
-            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope)
+            DWORD moduleIndex = MODULE_INDEX_NONE;
+            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope))
             {
-                pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
-                DWORD index = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
-                pSigBuilder->AppendData(index);
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
             }
 
-            pSigBuilder->AppendBlob((PVOID)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
+            SigParser sigParser(pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
+            CopyTypeSignature(&sigParser, pSigBuilder, moduleIndex);
         }
         else
         {
@@ -1367,7 +1438,7 @@ BOOL ZapSig::EncodeMethod(
             _ASSERTE(pResolvedToken->cbMethodSpec > 1);
 
             // Copy the pResolvedToken->pMethodSpec, inserting ELEMENT_TYPE_MODULE_ZAPSIG in front of each type parameter in needed
-            SigParser sigParser(pResolvedToken->pMethodSpec);
+            SigParser sigParser(pResolvedToken->pMethodSpec, pResolvedToken->cbMethodSpec);
             BYTE callingConvention;
             IfFailThrow(sigParser.GetByte(&callingConvention));
             if (callingConvention != (BYTE)IMAGE_CEE_CS_CALLCONV_GENERICINST)
@@ -1379,25 +1450,15 @@ BOOL ZapSig::EncodeMethod(
             IfFailThrow(sigParser.GetData(&numGenArgs));
             pSigBuilder->AppendData(numGenArgs);
 
-            DWORD moduleIndex;
-            bool addModuleZapSig = (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope);
-            if (addModuleZapSig)
+            DWORD moduleIndex = MODULE_INDEX_NONE;
+            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope))
             {
                 moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
             }
 
             while (numGenArgs != 0)
             {
-                if (addModuleZapSig)
-                {
-                    pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
-                    pSigBuilder->AppendData(moduleIndex);
-                }
-
-                PCCOR_SIGNATURE typeSigStart = sigParser.GetPtr();
-                IfFailThrow(sigParser.SkipExactlyOne());
-                PCCOR_SIGNATURE typeSigEnd = sigParser.GetPtr();
-                pSigBuilder->AppendBlob((PVOID)typeSigStart, typeSigEnd - typeSigStart);
+                CopyTypeSignature(&sigParser, pSigBuilder, moduleIndex);
                 numGenArgs--;
             }
         }
@@ -1427,14 +1488,14 @@ BOOL ZapSig::EncodeMethod(
         {
             _ASSERTE(pConstrainedResolvedToken->cbTypeSpec > 0);
 
+            DWORD moduleIndex = (DWORD)-1;
             if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pConstrainedResolvedToken->tokenScope)
             {
-                pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
-                DWORD index = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pConstrainedResolvedToken->tokenScope);
-                pSigBuilder->AppendData(index);
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pConstrainedResolvedToken->tokenScope);
             }
 
-            pSigBuilder->AppendBlob((PVOID)pConstrainedResolvedToken->pTypeSpec, pConstrainedResolvedToken->cbTypeSpec);
+            SigParser sigParser(pConstrainedResolvedToken->pTypeSpec, pConstrainedResolvedToken->cbTypeSpec);
+            CopyTypeSignature(&sigParser, pSigBuilder, moduleIndex);
         }
         else
         {
@@ -1538,7 +1599,15 @@ void ZapSig::EncodeField(
         if (fEncodeUsingResolvedTokenSpecStreams && pResolvedToken != NULL && pResolvedToken->pTypeSpec != NULL)
         {
             _ASSERTE(pResolvedToken->cbTypeSpec > 0);
-            pSigBuilder->AppendBlob((PVOID)pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
+
+            DWORD moduleIndex = MODULE_INDEX_NONE;
+            if ((IsReadyToRunCompilation() && pField->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pResolvedToken->tokenScope))
+            {
+                moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pResolvedToken->tokenScope);
+            }
+
+            SigParser sigParser(pResolvedToken->pTypeSpec, pResolvedToken->cbTypeSpec);
+            CopyTypeSignature(&sigParser, pSigBuilder, moduleIndex);
         }
         else
         {
