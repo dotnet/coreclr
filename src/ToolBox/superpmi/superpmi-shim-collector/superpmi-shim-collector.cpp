@@ -65,15 +65,11 @@ void SetLogPath()
 void SetLogPathName()
 {
     // NOTE: under PAL, we don't get the command line, so we depend on the random number generator to give us a unique
-    // filename.
-    const WCHAR* originalExecutableName = GetCommandLineW();
-    size_t       executableNameLength   = wcslen(originalExecutableName);
-    WCHAR*       executableName         = new WCHAR[executableNameLength + 1];
-    wcscpy_s(executableName, executableNameLength + 1, originalExecutableName);
-    executableName[executableNameLength] = W('\0');
+    // filename
+    const WCHAR* fileName  = GetCommandLineW();
+    const WCHAR* extension = W(".mc");
 
-    const WCHAR* DataFileExtension = W(".mc");
-    g_dataFileName                 = getResultFileName(g_logPath, executableName, DataFileExtension);
+    g_dataFileName = GetResultFileName(g_logPath, fileName, extension);
 }
 
 // TODO: this only works for ANSI file paths...
@@ -86,10 +82,11 @@ void SetLogFilePath()
     }
 }
 
-extern "C" BOOL
-#ifndef FEATURE_PAL
-    APIENTRY
-#endif // !FEATURE_PAL
+extern "C"
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
+    BOOL
     DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserved)
 {
     switch (ul_reason_for_call)
@@ -123,8 +120,7 @@ extern "C" BOOL
     return TRUE;
 }
 
-// Exported via def file
-extern "C" void __stdcall jitStartup(ICorJitHost* host)
+extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* host)
 {
     SetDefaultPaths();
     SetLibName();
@@ -147,8 +143,7 @@ extern "C" void __stdcall jitStartup(ICorJitHost* host)
     pnjitStartup(g_ourJitHost);
 }
 
-// Exported via def file
-extern "C" ICorJitCompiler* __stdcall getJit()
+extern "C" DLLEXPORT ICorJitCompiler* __stdcall getJit()
 {
     DWORD             dwRetVal = 0;
     PgetJit           pngetJit;
@@ -194,8 +189,7 @@ extern "C" ICorJitCompiler* __stdcall getJit()
     return pJitInstance;
 }
 
-// Exported via def file
-extern "C" void __stdcall sxsJitStartup(CoreClrCallbacks const& original_cccallbacks)
+extern "C" DLLEXPORT void __stdcall sxsJitStartup(CoreClrCallbacks const& original_cccallbacks)
 {
     PsxsJitStartup pnsxsJitStartup;
 

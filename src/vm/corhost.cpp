@@ -742,6 +742,12 @@ HRESULT CorHost2::_CreateAppDomain(
             pwzAppNiPaths = pPropertyValues[i];
         }
         else
+        if (wcscmp(pPropertyNames[i], W("DEFAULT_STACK_SIZE")) == 0)
+        {
+            extern void ParseDefaultStackSize(LPCWSTR value);
+            ParseDefaultStackSize(pPropertyValues[i]);
+        }
+        else
         if (wcscmp(pPropertyNames[i], W("USE_ENTRYPOINT_FILTER")) == 0)
         {
             extern void ParseUseEntryPointFilter(LPCWSTR value);
@@ -2341,12 +2347,6 @@ void CExecutionEngine::GetLastThrownObjectExceptionFromThread(void **ppvExceptio
     GetLastThrownObjectExceptionFromThread_Internal(ppException);
 
 } // HRESULT CExecutionEngine::GetLastThrownObjectExceptionFromThread()
-
-
-LocaleID RuntimeGetFileSystemLocale()
-{
-    return PEImage::GetFileSystemLocale();
-};
 
 HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName, IActivationFactory ** factory)
 {
