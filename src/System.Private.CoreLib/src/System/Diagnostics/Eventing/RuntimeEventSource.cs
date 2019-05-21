@@ -22,6 +22,7 @@ namespace System.Diagnostics.Tracing
         private PollingCounter? _workingSetCounter;
         private PollingCounter? _threadPoolThreadCounter;
         private IncrementingPollingCounter? _monitorContentionCounter;
+        private PollingCounter? _threadPoolQueueCounter;
         private IncrementingPollingCounter? _completedItemsCounter;
         private PollingCounter? _assemblyCounter;
 
