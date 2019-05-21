@@ -7927,13 +7927,7 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
 
     OBJECTREF pCurrentCulture;
-    MethodDescCallSite propGet(METHOD__CULTURE_INFO__GET_CURRENT_CULTURE);
-    if (bUICulture)
-    {
-        // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
-        propGet = MethodDescCallSite(METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE);
-    }
-
+    MethodDescCallSite propGet(bUICulture ? METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE : METHOD__CULTURE_INFO__GET_CURRENT_CULTURE);
     ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
     pCurrentCulture = ArgSlotToObj(retVal);
     return pCurrentCulture;
