@@ -80,7 +80,6 @@ VOID ParseNativeType(Module*                     pModule,
                          LayoutRawFieldInfo*         pfwalk,
                          PCCOR_SIGNATURE             pNativeType,
                          ULONG                       cbNativeType,
-                         IMDInternalImport*          pInternalImport,
                          mdTypeDef                   cl,
                          const SigTypeContext *      pTypeContext,
                          BOOL                       *pfDisqualifyFromManagedSequential  // set to TRUE if needed (never set to FALSE, it may come in as TRUE!)
@@ -171,7 +170,7 @@ VOID ParseNativeType(Module*                     pModule,
             {
                 if (fAnsi)
                 {
-                    ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
+                    ReadBestFitCustomAttribute(pModule, cl, &BestFit, &ThrowOnUnmappableChar);
                     selectedNft = InitFieldMarshaler<FieldMarshaler_Ansi>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, BestFit, ThrowOnUnmappableChar);
                 }
                 else
@@ -181,8 +180,9 @@ VOID ParseNativeType(Module*                     pModule,
             }
             else if (ntype == NATIVE_TYPE_I1 || ntype == NATIVE_TYPE_U1)
             {
-                ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
+                ReadBestFitCustomAttribute(pModule, cl, &BestFit, &ThrowOnUnmappableChar);
                 selectedNft = InitFieldMarshaler<FieldMarshaler_Ansi>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, BestFit, ThrowOnUnmappableChar);
+
             }
             else if (ntype == NATIVE_TYPE_I2 || ntype == NATIVE_TYPE_U2)
             {
@@ -472,7 +472,7 @@ VOID ParseNativeType(Module*                     pModule,
                     if (IsStructMarshalable(thNestedType))
                     {
 #ifdef _DEBUG
-                        selectedNft = InitFieldMarshaler<FieldMarshaler_NestedValueClass>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS, thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pInternalImport));
+                        selectedNft = InitFieldMarshaler<FieldMarshaler_NestedValueClass>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS, thNestedType.GetMethodTable(), IsFixedBuffer(pfwalk->m_MD, pModule->GetMDImport()));
 #else
                         selectedNft = InitFieldMarshaler<FieldMarshaler_NestedValueClass>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS, thNestedType.GetMethodTable());
 #endif
@@ -578,7 +578,7 @@ VOID ParseNativeType(Module*                     pModule,
 #endif // FEATURE_COMINTEROP
                     if (fAnsi)
                     {
-                        ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
+                        ReadBestFitCustomAttribute(pModule, cl, &BestFit, &ThrowOnUnmappableChar);
                         selectedNft = InitFieldMarshaler<FieldMarshaler_StringAnsi>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, BestFit, ThrowOnUnmappableChar);
                     }
                     else
@@ -591,7 +591,7 @@ VOID ParseNativeType(Module*                     pModule,
                     switch (ntype)
                     {
                         case NATIVE_TYPE_LPSTR:
-                            ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
+                            ReadBestFitCustomAttribute(pModule, cl, &BestFit, &ThrowOnUnmappableChar);
                             selectedNft = InitFieldMarshaler<FieldMarshaler_StringAnsi>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, BestFit, ThrowOnUnmappableChar);
                             break;
 
@@ -636,7 +636,7 @@ VOID ParseNativeType(Module*                     pModule,
 
                                 if (fAnsi)
                                 {
-                                    ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
+                                    ReadBestFitCustomAttribute(pModule, cl, &BestFit, &ThrowOnUnmappableChar);
                                     selectedNft = InitFieldMarshaler<FieldMarshaler_FixedStringAnsi>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, nchars, BestFit, ThrowOnUnmappableChar);
                                 }
                                 else
@@ -740,7 +740,7 @@ VOID ParseNativeType(Module*                     pModule,
                     // Since these always export to arrays of BSTRs, we don't need to fetch the native type.
 
                     // Compat: FixedArrays of System.Arrays map to fixed arrays of BSTRs.
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, pInternalImport, cl, numElements, VT_BSTR, g_pStringClass);
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, pModule, cl, numElements, VT_BSTR, g_pStringClass);
                 }
             }
 #endif // FEATURE_CLASSIC_COMINTEROP
@@ -883,7 +883,7 @@ VOID ParseNativeType(Module*                     pModule,
                     // We need to special case fixed sized arrays of ANSI chars since the OleVariant code
                     // that is used by the generic fixed size array marshaller doesn't support them
                     // properly. 
-                    ReadBestFitCustomAttribute(pInternalImport, cl, &BestFit, &ThrowOnUnmappableChar);
+                    ReadBestFitCustomAttribute(pModule, cl, &BestFit, &ThrowOnUnmappableChar);
                     selectedNft = InitFieldMarshaler<FieldMarshaler_FixedCharArrayAnsi>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_INTEGER_LIKE, numElements, BestFit, ThrowOnUnmappableChar);
                     break;                    
                 }
@@ -891,7 +891,7 @@ VOID ParseNativeType(Module*                     pModule,
                 {
                     VARTYPE elementVT = arrayMarshalInfo.GetElementVT();
 
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, pInternalImport, cl, numElements, elementVT, arrayMarshalInfo.GetElementTypeHandle().GetMethodTable());
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_FixedArray>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED, pModule, cl, numElements, elementVT, arrayMarshalInfo.GetElementTypeHandle().GetMethodTable());
                     break;
                 }
             }
@@ -2742,7 +2742,7 @@ VOID FieldMarshaler_FixedCharArrayAnsi::UpdateCLRImpl(const VOID *pNativeValue, 
 // Embedded array
 // See FieldMarshaler for details.
 //=======================================================================
-FieldMarshaler_FixedArray::FieldMarshaler_FixedArray(IMDInternalImport *pMDImport, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT)
+FieldMarshaler_FixedArray::FieldMarshaler_FixedArray(Module *pModule, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT)
 : m_numElems(numElems)
 , m_vt(vt)
 , m_BestFitMap(FALSE)
@@ -2764,7 +2764,7 @@ FieldMarshaler_FixedArray::FieldMarshaler_FixedArray(IMDInternalImport *pMDImpor
     {
         BOOL BestFitMap = FALSE;
         BOOL ThrowOnUnmappableChar = FALSE;
-        ReadBestFitCustomAttribute(pMDImport, cl, &BestFitMap, &ThrowOnUnmappableChar);      
+        ReadBestFitCustomAttribute(pModule, cl, &BestFitMap, &ThrowOnUnmappableChar);      
         m_BestFitMap = !!BestFitMap;
         m_ThrowOnUnmappableChar = !!ThrowOnUnmappableChar;
     }

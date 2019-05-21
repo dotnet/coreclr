@@ -134,11 +134,21 @@ jobs:
         - Windows_NT_arm64
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra') }}:
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra', 'coreclr-outerloop-r2r-extra') }}:
         platforms:
         - Linux_arm
         - Linux_arm64
         - Linux_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
+        platforms:
+        - Linux_arm64
+        - Windows_NT_arm64
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-x86') }}:
+        platforms:
+        - Linux_x64
+        - OSX_x64
         - Windows_NT_x64
         - Windows_NT_x86
 
@@ -200,11 +210,21 @@ jobs:
         - Windows_NT_arm64
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra') }}:
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra', 'coreclr-outerloop-r2r-extra') }}:
         platforms:
         - Linux_arm
         - Linux_arm64
         - Linux_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
+        platforms:
+        - Linux_arm64
+        - Windows_NT_arm64
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-x86') }}:
+        platforms:
+        - Linux_x64
+        - OSX_x64
         - Windows_NT_x64
         - Windows_NT_x86
       jobParameters:
@@ -214,6 +234,10 @@ jobs:
           testGroup: outerloop
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress') }}:
           testGroup: outerloop-jitstress
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
+          testGroup: outerloop-jitstress-isas-arm
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-x86') }}:
+          testGroup: outerloop-jitstress-isas-x86
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstressregs') }}:
           testGroup: outerloop-jitstressregs
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress2-jitstressregs') }}:
@@ -222,6 +246,10 @@ jobs:
           testGroup: outerloop-gcstress0x3-gcstress0xc
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress-extra') }}:
           testGroup: outerloop-gcstress-extra
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r-extra') }}:
+          testGroup: outerloop-r2r-extra
+          readyToRun: true
+          displayNameArgs: R2R
 
 # The ReadyToRun test jobs that are triggered by default from a PR.
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:

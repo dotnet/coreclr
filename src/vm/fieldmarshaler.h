@@ -107,7 +107,6 @@ VOID ParseNativeType(Module*    pModule,
     LayoutRawFieldInfo*         pfwalk,
     PCCOR_SIGNATURE             pNativeType,
     ULONG                       cbNativeType,
-    IMDInternalImport*          pInternalImport,
     mdTypeDef                   cl,
     const SigTypeContext *      pTypeContext,
     BOOL                       *pfDisqualifyFromManagedSequential
@@ -1096,7 +1095,7 @@ class FieldMarshaler_FixedArray : public FieldMarshaler_NestedType
 public:
     static constexpr NStructFieldType s_nft = NFT_FIXEDARRAY;
 
-    FieldMarshaler_FixedArray(IMDInternalImport *pMDImport, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT);
+    FieldMarshaler_FixedArray(Module *pModule, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT);
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
