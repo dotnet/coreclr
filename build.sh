@@ -1018,6 +1018,14 @@ if [ $__CrossBuild == 1 ]; then
 fi
 __CrossGenCoreLibLog="$__LogsDir/CrossgenCoreLib_$__BuildOS.$__BuildArch.$__BuildType.log"
 
+# Configure environment if we are doing a cross compile.
+if [ $__CrossBuild == 1 ]; then
+    export CROSSCOMPILE=1
+    if ! [[ -n "$ROOTFS_DIR" ]]; then
+        export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
+    fi
+fi
+
 # init the target distro name
 initTargetDistroRid
 
@@ -1037,14 +1045,6 @@ fi
 # Specify path to be set for CMAKE_INSTALL_PREFIX.
 # This is where all built CoreClr libraries will copied to.
 export __CMakeBinDir="$__BinDir"
-
-# Configure environment if we are doing a cross compile.
-if [ $__CrossBuild == 1 ]; then
-    export CROSSCOMPILE=1
-    if ! [[ -n "$ROOTFS_DIR" ]]; then
-        export ROOTFS_DIR="$__ProjectRoot/cross/rootfs/$__BuildArch"
-    fi
-fi
 
 # Make the directories necessary for build if they don't exist
 setup_dirs
