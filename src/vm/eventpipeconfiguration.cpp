@@ -427,8 +427,6 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     }
     CONTRACTL_END;
 
-    // FIXME: Per-session tracking whether event metadata has been emitted.
-
     // The payload of the event should contain:
     // - Metadata ID
     // - GUID ProviderID.
