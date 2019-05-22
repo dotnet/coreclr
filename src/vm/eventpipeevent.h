@@ -55,74 +55,31 @@ public:
     ~EventPipeEvent();
 
     // Get the provider associated with this event.
-    EventPipeProvider *GetProvider() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pProvider;
-    }
+    EventPipeProvider *GetProvider() const;
 
     // Get the keywords that enable the event.
-    INT64 GetKeywords() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_keywords;
-    }
+    INT64 GetKeywords() const;
 
     // Get the ID (within the provider) of the event.
-    unsigned int GetEventID() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_eventID;
-    }
+    unsigned int GetEventID() const;
 
     // Get the version of the event.
-    unsigned int GetEventVersion() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_eventVersion;
-    }
+    unsigned int GetEventVersion() const;
 
     // Get the verbosity of the event.
-    EventPipeEventLevel GetLevel() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_level;
-    }
+    EventPipeEventLevel GetLevel() const;
 
     // True if a call stack should be captured when writing the event.
-    bool NeedStack() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_needStack;
-    }
+    bool NeedStack() const;
 
     // True if the event is currently enabled.
-    bool IsEnabled() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_enabled;
-    }
+    bool IsEnabled() const;
 
-    BYTE *GetMetadata() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pMetadata;
-    }
+    BYTE *GetMetadata() const;
 
-    unsigned int GetMetadataLength() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_metadataLength;
-    }
+    unsigned int GetMetadataLength() const;
 
-    bool BelongToSession(uint64_t sessionId) const
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERT(m_pProvider != nullptr);
-        const bool IsProviderEnabled = m_pProvider->IsEnabled(sessionId);
-        const bool IsEventEnabled = m_pProvider->EventEnabled(m_keywords, m_level);
-        return (IsProviderEnabled && IsEventEnabled);
-    }
+    bool BelongToSession(uint64_t sessionId) const;
 
 private:
     // used when Metadata is not provided

@@ -99,10 +99,73 @@ BYTE *EventPipeEvent::BuildMinimumMetadata()
     return minmumMetadata;
 }
 
+EventPipeProvider *EventPipeEvent::GetProvider() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_pProvider;
+}
+
+INT64 EventPipeEvent::GetKeywords() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_keywords;
+}
+
+unsigned int EventPipeEvent::GetEventID() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_eventID;
+}
+
+unsigned int EventPipeEvent::GetEventVersion() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_eventVersion;
+}
+
+EventPipeEventLevel EventPipeEvent::GetLevel() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_level;
+}
+
+bool EventPipeEvent::NeedStack() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_needStack;
+}
+
+bool EventPipeEvent::IsEnabled() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_enabled;
+}
+
+BYTE *EventPipeEvent::GetMetadata() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_pMetadata;
+}
+
+unsigned int EventPipeEvent::GetMetadataLength() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_metadataLength;
+}
+
 void EventPipeEvent::RefreshState()
 {
     LIMITED_METHOD_CONTRACT;
     m_enabled = m_pProvider->EventEnabled(m_keywords, m_level);
+}
+
+bool EventPipeEvent::BelongToSession(uint64_t sessionId) const
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERT(m_pProvider != nullptr);
+    const bool IsProviderEnabled = m_pProvider->IsEnabled(sessionId);
+    const bool IsEventEnabled = m_pProvider->EventEnabled(m_keywords, m_level);
+    return (IsProviderEnabled && IsEventEnabled);
 }
 
 #endif // FEATURE_PERFTRACING
