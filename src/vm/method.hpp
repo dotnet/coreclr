@@ -1650,16 +1650,11 @@ public:
     MethodDesc *ResolveGenericVirtualMethod(OBJECTREF *orThis);
 
 
+private:
+    ReturnKind ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors = false));
+
 public:
-
-    // does this function return an object reference?
-    ReturnKind ReturnsObject(INDEBUG(bool supportStringConstructors = false));
-
-    ReturnKind GetReturnKindFromMethodTable(Thread* pThread
-#ifdef _DEBUG
-        , bool supportStringConstructors = false
-#endif
-    );
+    ReturnKind GetReturnKind(INDEBUG(bool supportStringConstructors = false));
 
 public:
     // In general you don't want to call GetCallTarget - you want to

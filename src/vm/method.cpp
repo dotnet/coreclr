@@ -1213,14 +1213,11 @@ COR_ILMETHOD* MethodDesc::GetILHeader(BOOL fAllowOverrides /*=FALSE*/)
 }
 
 //*******************************************************************************
-ReturnKind MethodDesc::ReturnsObject(INDEBUG(bool supportStringConstructors))
+ReturnKind MethodDesc::ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors))
 {
     CONTRACTL
     {
-        if (FORBIDGC_LOADER_USE_ENABLED()) 
-            NOTHROW; 
-        else 
-            THROWS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         FORBID_FAULT;
     }
@@ -1320,11 +1317,7 @@ ReturnKind MethodDesc::ReturnsObject(INDEBUG(bool supportStringConstructors))
     return RT_Scalar;
 }
 
-ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread
-#ifdef _DEBUG
-    , bool supportStringConstructors
-#endif
-)
+ReturnKind MethodDesc::GetReturnKind(INDEBUG(bool supportStringConstructors))
 {
 #ifdef _WIN64
     // For simplicity, we don't hijack in funclets, but if you ever change that, 
@@ -1335,7 +1328,7 @@ ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
     // Mark that we are performing a stackwalker like operation on the current thread.
     // This is necessary to allow the signature parsing functions to work without triggering any loads
-    ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, pThread);
+    ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, GetThread());
 
 #ifdef _TARGET_X86_
     MetaSig msig(this);
@@ -1349,7 +1342,7 @@ ReturnKind MethodDesc::GetReturnKindFromMethodTable(Thread* pThread
     }
 #endif // _TARGET_X86_
     
-    return ReturnsObject(INDEBUG(supportStringConstructors));
+    return ParseReturnKindFromSig(INDEBUG(supportStringConstructors));
 }
 
 #ifdef FEATURE_COMINTEROP

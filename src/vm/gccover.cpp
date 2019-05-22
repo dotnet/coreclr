@@ -533,7 +533,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
         if (prevDirectCallTargetMD != 0)
         {
             Thread* pThread = GetThread();
-            ReturnKind returnKind = prevDirectCallTargetMD->GetReturnKindFromMethodTable(pThread, true);
+            ReturnKind returnKind = prevDirectCallTargetMD->GetReturnKind(true);
             if (IsPointerReturnKind(returnKind))
                 *cur = INTERRUPT_INSTR_PROTECT_RET;  
             else
@@ -761,16 +761,16 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
                 // never requires restore, however it is possible that it is initially in an invalid state
                 // and remains invalid until one or more eager fixups are applied.
                 //
-                // GetReturnKindFromMethodTable consults the method signature, meaning it consults the
+                // GetReturnKind consults the method signature, meaning it consults the
                 // metadata in the owning module.  For generic instantiations stored in non-preferred
                 // modules, reaching the owning module requires following the module override pointer for
                 // the enclosing MethodTable.  In this case, the module override pointer is generally
                 // invalid until an associated eager fixup is applied.
                 //
-                // In situations like this, GetReturnKindFromMethodTable will try to dereference an
+                // In situations like this, GetReturnKind will try to dereference an
                 // unresolved fixup and will AV.
                 //
-                // Given all of this, skip the GetReturnKindFromMethodTable call by default to avoid
+                // Given all of this, skip the GetReturnKind call by default to avoid
                 // unexpected AVs.  This implies leaving out the GC coverage breakpoints for direct calls
                 // unless COMPlus_GcStressOnDirectCalls=1 is explicitly set in the environment.
                 //
@@ -779,8 +779,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
 
                 if (fGcStressOnDirectCalls.val(CLRConfig::INTERNAL_GcStressOnDirectCalls))
                 {
-                    Thread* pThread = GetThread();
-                    ReturnKind returnKind = targetMD->GetReturnKindFromMethodTable(pThread, true);
+                    ReturnKind returnKind = targetMD->GetReturnKind(true);
 
                     // If the method returns an object then should protect the return object
                     if (IsPointerReturnKind(returnKind))
@@ -1617,7 +1616,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
                     // OK, we have the MD, mark the instruction after the CALL
                     // appropriately
 
-                    ReturnKind returnKind = targetMD->GetReturnKindFromMethodTable(pThread, true);
+                    ReturnKind returnKind = targetMD->GetReturnKind(true);
                     bool protectReturn = IsPointerReturnKind(returnKind);
 #ifdef _TARGET_ARM_
                     size_t instrLen = GetARMInstructionLength(nextInstr);

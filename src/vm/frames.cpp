@@ -1434,9 +1434,8 @@ void ComPlusMethodFrame::GcScanRoots(promote_func* fn, ScanContext* sc)
 
 
     // Promote the returned object
-    Thread* pThread = GetThread();
     MethodDesc* methodDesc = GetFunction();
-    ReturnKind returnKind = methodDesc->GetReturnKindFromMethodTable(pThread);
+    ReturnKind returnKind = methodDesc->GetReturnKind();
     if (returnKind == RT_Object)
     {
         (*fn)(GetReturnObjectPtr(), sc, CHECK_APP_DOMAIN);
