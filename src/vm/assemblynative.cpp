@@ -778,8 +778,6 @@ BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
     return retVal;
 }
 
-#ifdef FEATURE_EVENT_TRACE
-
 extern volatile uint32_t g_cAssemblies;
 
 FCIMPL0(uint32_t, AssemblyNative::GetAssemblyCount)
@@ -789,8 +787,6 @@ FCIMPL0(uint32_t, AssemblyNative::GetAssemblyCount)
     return g_cAssemblies;
 }
 FCIMPLEND
-
-#endif // FEATURE_EVENT_TRACE
 
 void QCALLTYPE AssemblyNative::GetModule(QCall::AssemblyHandle pAssembly, LPCWSTR wszFileName, QCall::ObjectHandleOnStack retModule)
 {
