@@ -780,7 +780,7 @@ BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
 
 #ifdef FEATURE_EVENT_TRACE
 
-extern uint32_t g_cAssemblies;
+extern volatile uint32_t g_cAssemblies;
 
 FCIMPL0(uint32_t, AssemblyNative::GetAssemblyCount)
 {
