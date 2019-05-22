@@ -42,7 +42,7 @@ namespace System.Threading
             _executionContext = executionContext;
         }
         // Context callback: same sig for SendOrPostCallback and ContextCallback
-        internal static ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context);
+        internal static ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/35896
         internal static void IOCompletionCallback_Context(object state)
         {
             _IOCompletionCallback helper = (_IOCompletionCallback)state;

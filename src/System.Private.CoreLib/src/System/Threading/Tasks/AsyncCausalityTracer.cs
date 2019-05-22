@@ -69,7 +69,7 @@ namespace System.Threading.Tasks
 
                 s_TracerFactory = (WFD.IAsyncCausalityTracerStatics)factory;
 
-                EventRegistrationToken token = s_TracerFactory.add_TracingStatusChanged(new EventHandler<WFD.TracingStatusChangedEventArgs>(TracingStatusChangedHandler));
+                EventRegistrationToken token = s_TracerFactory.add_TracingStatusChanged(new EventHandler<WFD.TracingStatusChangedEventArgs>(TracingStatusChangedHandler!)); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/35896
                 Debug.Assert(token != default, "EventRegistrationToken is null");
             }
             catch (Exception ex)
