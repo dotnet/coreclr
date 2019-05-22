@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Collections
 {
@@ -15,10 +15,11 @@ namespace System.Collections
         // Interfaces are not serializable
         // The Item property provides methods to read and edit entries 
         // in the Dictionary.
+        [DisallowNull]
         object? this[object key]
         {
             get;
-            [DisallowNull] set;
+            set;
         }
 
         // Returns a collections of the keys in this dictionary.

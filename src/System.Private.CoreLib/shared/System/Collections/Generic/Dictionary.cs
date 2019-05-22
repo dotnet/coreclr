@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 
@@ -1064,6 +1065,7 @@ namespace System.Collections.Generic
 
         ICollection IDictionary.Values => (ICollection)Values;
 
+        [DisallowNull]
         object? IDictionary.this[object key]
         {
             get
@@ -1078,7 +1080,6 @@ namespace System.Collections.Generic
                 }
                 return null;
             }
-            [DisallowNull]
             set
             {
                 if (key == null)

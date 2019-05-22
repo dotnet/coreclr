@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using Encoding = System.Text.Encoding;
 
 using Microsoft.Reflection;
+using System.Diagnostics.CodeAnalysis;
 
 #if ES_BUILD_STANDALONE
 using Environment = Microsoft.Diagnostics.Tracing.Internal.Environment;

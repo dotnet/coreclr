@@ -5,7 +5,7 @@
 // Do not remove this, it is needed to retain calls to these conditional methods in release builds
 #define DEBUG
 
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace System.Diagnostics

@@ -5,6 +5,7 @@
 using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Threading
 {

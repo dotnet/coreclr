@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 
 using Internal.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 #if BIT64
 using nuint = System.UInt64;

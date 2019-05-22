@@ -18,8 +18,8 @@
 #define DEBUG // The behavior of this contract library should be consistent regardless of build type.
 
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 
 namespace System.Diagnostics.Contracts
 {

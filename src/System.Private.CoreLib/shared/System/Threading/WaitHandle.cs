@@ -3,7 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Win32.SafeHandles;
 
 namespace System.Threading
@@ -79,6 +79,7 @@ namespace System.Threading
             }
         }
 
+        [AllowNull]
         public SafeWaitHandle SafeWaitHandle
         {
             get
@@ -89,7 +90,6 @@ namespace System.Threading
                 }
                 return _waitHandle;
             }
-            [AllowNull]
             set
             {
                 _waitHandle = value;

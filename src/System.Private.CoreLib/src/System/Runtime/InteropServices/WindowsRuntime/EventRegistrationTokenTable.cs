@@ -4,7 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -32,14 +32,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // The InvocationList property provides access to a delegate which will invoke every registered event handler
         // in this table.  If the property is set, the new value will replace any existing token registrations.
+        [MaybeNull]
         public T InvocationList
         {
-            [MaybeNull]
             get
             {
                 return m_invokeList;
             }
-
             set
             {
                 lock (m_tokens)

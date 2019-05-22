@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Buffers;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.IO
 {
@@ -117,10 +118,10 @@ namespace System.IO
         /// the TextWriter to be readable by a TextReader, only one of the following line
         /// terminator strings should be used: "\r", "\n", or "\r\n".
         /// </remarks>
+        [AllowNull]
         public virtual string NewLine
         {
             get { return CoreNewLineStr; }
-            [AllowNull]
             set
             {
                 if (value == null)
@@ -767,11 +768,11 @@ namespace System.IO
 
             public override IFormatProvider FormatProvider => _out.FormatProvider;
 
+            [AllowNull]
             public override string NewLine
             {
                 [MethodImpl(MethodImplOptions.Synchronized)]
                 get { return _out.NewLine; }
-                [AllowNull]
                 [MethodImpl(MethodImplOptions.Synchronized)]
                 set { _out.NewLine = value; }
             }

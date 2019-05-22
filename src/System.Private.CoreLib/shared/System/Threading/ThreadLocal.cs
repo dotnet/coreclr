@@ -4,7 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 // A class that provides a simple, lightweight implementation of thread-local lazy-initialization, where a value is initialized once per accessing 
 // thread; this provides an alternative to using a ThreadStatic static variable and having 
@@ -249,9 +249,9 @@ namespace System.Threading
         /// <typeparamref name="T"/> will be used.
         /// </remarks>
         [DebuggerBrowsable(DebuggerBrowsableState.Never)]
+        [MaybeNull]
         public T Value
         {
-            [MaybeNull]
             get
             {
                 LinkedSlotVolatile[]? slotArray = ts_slotArray;
@@ -539,9 +539,9 @@ namespace System.Threading
 
         /// <summary>Gets the value of the ThreadLocal&lt;T&gt; for debugging display purposes. It takes care of getting
         /// the value for the current thread in the ThreadLocal mode.</summary>
+        [MaybeNull]
         internal T ValueForDebugDisplay
         {
-            [MaybeNull]
             get
             {
                 LinkedSlotVolatile[]? slotArray = ts_slotArray;

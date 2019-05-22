@@ -4,7 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Threading
 {
@@ -57,9 +57,9 @@ namespace System.Threading
             m_valueChangedHandler = valueChangedHandler;
         }
 
+        [MaybeNull]
         public T Value
         {
-            [MaybeNull]
             get
             {
                 object? obj = ExecutionContext.GetLocalValue(this);
@@ -90,8 +90,8 @@ namespace System.Threading
 
     public readonly struct AsyncLocalValueChangedArgs<T>
     {
-        public T PreviousValue { [MaybeNull] get; }
-        public T CurrentValue { [MaybeNull] get; }
+        [MaybeNull] public T PreviousValue { get; }
+        [MaybeNull] public T CurrentValue { get; }
 
         //
         // If the value changed because we changed to a different ExecutionContext, this is true.  If it changed

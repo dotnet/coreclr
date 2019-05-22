@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 
 using Internal.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.InteropServices
 {

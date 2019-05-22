@@ -2,9 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics.CodeAnalysis;
+
 namespace System.Runtime.CompilerServices
 {
-    
+
     /// <summary>
     /// Helpers that allows VM to call into ICastable methods without having to deal with RuntimeTypeHandle.
     /// RuntimeTypeHandle is a struct and is always passed in stack in x86, which our VM call helpers don't
