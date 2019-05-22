@@ -1121,7 +1121,7 @@ void ZapSig::CopyTypeSignature(SigParser* pSigParser, SigBuilder* pSigBuilder, D
         CorElementType type = (CorElementType)byteType;
 
         // Some element types have sub-type that is what we are interested in
-        switch (type)
+        switch ((DWORD)type)
         {
             case ELEMENT_TYPE_BYREF:
             case ELEMENT_TYPE_PTR:
