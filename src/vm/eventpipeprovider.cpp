@@ -122,7 +122,7 @@ EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
     }
     CONTRACTL_END;
 
-    m_sessions ^= sessionId;
+    m_sessions |= sessionId;
 
     // Set Keywords to be the union of all keywords
     m_keywords |= keywords;
