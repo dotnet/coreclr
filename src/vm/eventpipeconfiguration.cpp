@@ -125,7 +125,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
         PRECONDITION(pProvider != NULL);
     }
     CONTRACTL_END;
@@ -198,7 +198,7 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 

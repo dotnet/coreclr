@@ -43,9 +43,6 @@ private:
     // Metadata length;
     unsigned int m_metadataLength;
 
-    // Bit mask of sessions for which this event is enabled.
-    uint64_t m_sessions;
-
     // Refreshes the runtime state for this event.
     // Called by EventPipeProvider when the provider configuration changes.
     void RefreshState();
@@ -53,7 +50,6 @@ private:
         uint64_t sessionId,
         INT64 keywords,
         EventPipeEventLevel providerLevel);
-    void LazyRemoveSession(uint64_t sessionId);
 
     // Only EventPipeProvider can create events.
     // The provider is responsible for allocating and freeing events.
@@ -123,10 +119,13 @@ public:
         return m_metadataLength;
     }
 
-    uint64_t GetListeningSessions() const
+    bool BelongToSession(uint64_t sessionId) const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_sessions;
+        _ASSERT(m_pProvider != nullptr);
+        const bool IsProviderEnabled = m_pProvider->IsEnabled(sessionId);
+        const bool IsEventEnabled = m_pProvider->EventEnabled(m_keywords, m_level);
+        return (IsProviderEnabled && IsEventEnabled);
     }
 
 private:

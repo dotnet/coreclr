@@ -214,11 +214,15 @@ void EventPipe::Shutdown()
         GC_TRIGGERS;
         MODE_ANY;
         // These 3 pointers are initialized once on EventPipe::Initialize
-        PRECONDITION(s_pConfig != nullptr);
-        PRECONDITION(s_pEventSource != nullptr);
-        PRECONDITION(s_pSessions != nullptr);
+        // FIXME: Why is shutdown called more than once?
+        //PRECONDITION(s_pConfig != nullptr);
+        //PRECONDITION(s_pEventSource != nullptr);
+        //PRECONDITION(s_pSessions != nullptr);
     }
     CONTRACTL_END;
+
+    if (s_pConfig == nullptr || s_pEventSource == nullptr || s_pSessions == nullptr)
+        return;
 
     if (g_fProcessDetach)
     {
@@ -590,11 +594,13 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(s_pConfig != nullptr);
-        PRECONDITION(s_pSessions != nullptr);
+        // FIXME: EventPipe::WriteEvent seems to be invoked after EventPipe::Shutdown
+        // PRECONDITION(s_pConfig != nullptr);
+        // PRECONDITION(s_pSessions != nullptr);
     }
     CONTRACTL_END;
 
+    // We can't procede without a configuration or sessions.
     if (s_pConfig == nullptr || s_pSessions == nullptr)
         return;
 

@@ -146,14 +146,8 @@ EventPipeProviderCallbackData EventPipeProvider::UnsetConfiguration(uint64_t ses
     }
     CONTRACTL_END;
 
-    m_sessions &= ~sessionId;
-    SListElem<EventPipeEvent *> *pElem = m_pEventList->GetHead();
-    while (pElem != NULL)
-    {
-        EventPipeEvent *pEvent = pElem->GetValue();
-        pEvent->LazyRemoveSession(sessionId);
-        pElem = m_pEventList->GetNext(pElem);
-    }
+    if (m_sessions & sessionId)
+        m_sessions &= ~sessionId;
     return PrepareCallbackData(nullptr);
 }
 

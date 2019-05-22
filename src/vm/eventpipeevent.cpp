@@ -23,8 +23,7 @@ EventPipeEvent::EventPipeEvent(
                                    m_level(level),
                                    m_needStack(needStack),
                                    m_enabled(false),
-                                   m_pMetadata(nullptr),
-                                   m_sessions(0)
+                                   m_pMetadata(nullptr)
 {
     CONTRACTL
     {
@@ -113,20 +112,6 @@ void EventPipeEvent::RefreshState(
 {
     LIMITED_METHOD_CONTRACT;
     RefreshState();
-
-    // If event is enabled, then we need to check if applicable to this session.
-    const bool areKeywordsSet = (m_keywords == 0) || (sessionKeywords == 0) || ((m_keywords & sessionKeywords) != 0);
-    const bool isAppropriateLevel = (sessionLevel == EventPipeEventLevel::LogAlways) || (sessionLevel >= m_level);
-    m_sessions = (m_enabled && areKeywordsSet && isAppropriateLevel) ?
-        (m_sessions | sessionId) : (m_sessions & ~sessionId);
-}
-
-// TODO: Refresh Provider/Events {SessionIds, Keywords, Level} after removing a session.
-void EventPipeEvent::LazyRemoveSession(uint64_t sessionId)
-{
-    LIMITED_METHOD_CONTRACT;
-    if (m_sessions & sessionId)
-        m_sessions &= ~sessionId;
 }
 
 #endif // FEATURE_PERFTRACING
