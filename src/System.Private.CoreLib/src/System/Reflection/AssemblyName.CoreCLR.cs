@@ -82,6 +82,8 @@ namespace System.Reflection
                         return ProcessorArchitecture.IA64;
                     case ImageFileMachine.AMD64:
                         return ProcessorArchitecture.Amd64;
+                    case ImageFileMachine.ARM64:
+                        return ProcessorArchitecture.Arm64;
                     case ImageFileMachine.I386:
                         if ((pek & PortableExecutableKinds.ILOnly) == PortableExecutableKinds.ILOnly)
                             return ProcessorArchitecture.MSIL;
