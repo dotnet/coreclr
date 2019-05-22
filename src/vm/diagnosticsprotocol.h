@@ -87,8 +87,6 @@ namespace DiagnosticsIpc
         UnknownCommand   = 0x00000002,
         UnknownMagic     = 0x00000003,
         BadInput         = 0x00000004,
-
-        ServerError      = 0x00000005,
         // future
 
         UnknownError     = 0xFFFFFFFF,
