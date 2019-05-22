@@ -11577,7 +11577,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             if (op2->IsCnsFltOrDbl())
             {
                 double divisor = op2->AsDblCon()->gtDconVal;
-                if ((typ == TYP_FLOAT && isPow2f((float)divisor)) || (typ == TYP_DOUBLE && isPow2d(divisor)))
+                if ((typ == TYP_FLOAT || typ == TYP_DOUBLE) && FloatingPointUtils::hasInverse(divisor))
                 {
                     oper = GT_MUL;
                     tree->ChangeOper(oper);

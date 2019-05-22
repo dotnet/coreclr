@@ -1954,6 +1954,12 @@ float FloatingPointUtils::round(float x)
     return _copysignf(flrTempVal, x);
 }
 
+bool FloatingPointUtils::hasInverse(double x)
+{
+    int exp;
+    return (frexp(x, &exp) != 0) && (exp != 0) && isnormal(1.0 / x);
+}
+
 namespace MagicDivide
 {
 template <int TableBase = 0, int TableSize, typename Magic>
