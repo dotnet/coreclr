@@ -303,7 +303,7 @@ bool EventPipeSession::WriteEvent(
     CONTRACTL_END;
 
     // Filter events specific to "this" session based on precomputed flag on provider/events.
-    return event.BelongToSession(GetId()) ?
+    return event.IsEnabled(GetId()) ?
         m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId) :
         false;
 }

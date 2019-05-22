@@ -159,7 +159,7 @@ void EventPipeEvent::RefreshState()
     m_enabled = m_pProvider->EventEnabled(m_keywords, m_level);
 }
 
-bool EventPipeEvent::BelongToSession(uint64_t sessionId) const
+bool EventPipeEvent::IsEnabled(uint64_t sessionId) const
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERT(m_pProvider != nullptr);
