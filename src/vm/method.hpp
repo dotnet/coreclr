@@ -210,16 +210,13 @@ class MethodDesc
 
 public:
 
-    enum
-    {
 #ifdef _WIN64
-        ALIGNMENT_SHIFT = 3,
+    static const int ALIGNMENT_SHIFT = 3;
 #else
-        ALIGNMENT_SHIFT = 2,
+    static const int ALIGNMENT_SHIFT = 2;
 #endif
-        ALIGNMENT       = (1<<ALIGNMENT_SHIFT),
-        ALIGNMENT_MASK  = (ALIGNMENT-1)
-    };
+    static const size_t ALIGNMENT = (1 << ALIGNMENT_SHIFT);
+    static const size_t ALIGNMENT_MASK = (ALIGNMENT - 1);
 
 #ifdef _DEBUG 
 
@@ -867,6 +864,16 @@ public:
         Module *pModule = GetModule();
         PREFIX_ASSUME(pModule != NULL);
         return pModule->GetMDImport();
+    }
+
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData) const
+    {
+        WRAPPER_NO_CONTRACT;
+        Module *pModule = GetModule();
+        PREFIX_ASSUME(pModule != NULL);
+        return pModule->GetCustomAttribute(GetMemberDef(), attribute, ppData, pcbData);
     }
 
 #ifndef DACCESS_COMPILE 
@@ -3023,10 +3030,10 @@ public:
     //  Find the entry point name and function address
     //  based on the module and data from NDirectMethodDesc
     //
-    LPVOID FindEntryPoint(HINSTANCE hMod) const;
+    LPVOID FindEntryPoint(NATIVE_LIBRARY_HANDLE hMod) const;
 
 private:
-    FARPROC FindEntryPointWithMangling(HINSTANCE mod, PTR_CUTF8 entryPointName) const;
+    FARPROC FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE mod, PTR_CUTF8 entryPointName) const;
 
 public:
 

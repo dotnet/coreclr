@@ -76,6 +76,8 @@ public:
     // Gets the amount of bytes objects currently occupy on the GC heap.
     size_t  GetCurrentObjSize();
 
+    uint64_t GetTotalAllocatedBytes();
+
     size_t  GetLastGCStartTime(int generation);
     size_t  GetLastGCDuration(int generation);
     size_t  GetNow();
@@ -206,7 +208,6 @@ public:
     PER_HEAP_ISOLATED size_t GetFinalizablePromotedCount();
 
     void SetFinalizeQueueForShutdown(bool fHasLock);
-    bool FinalizeAppDomain(void *pDomain, bool fRunFinalizers);
     bool ShouldRestartFinalizerWatchDog();
 
     void DiagWalkObject (Object* obj, walk_fn fn, void* context);

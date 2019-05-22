@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -143,7 +142,7 @@ namespace Internal.Runtime.InteropServices
         /// </summary>
         /// <param name="cxt">Reference to a <see cref="ComActivationContext"/> instance</param>
         /// <param name="register">true if called for register or false to indicate unregister</param>
-        public static void ClassRegisterationScenarioForType(ComActivationContext cxt, bool register)
+        public static void ClassRegistrationScenarioForType(ComActivationContext cxt, bool register)
         {
             // Retrieve the attribute type to use to determine if a function is the requested user defined
             // registration function.
@@ -281,7 +280,7 @@ $@"{nameof(RegisterClassForTypeInternal)} arguments:
             try
             {
                 var cxt = ComActivationContext.Create(ref cxtInt);
-                ClassRegisterationScenarioForType(cxt, register: true);
+                ClassRegistrationScenarioForType(cxt, register: true);
             }
             catch (Exception e)
             {
@@ -318,7 +317,7 @@ $@"{nameof(UnregisterClassForTypeInternal)} arguments:
             try
             {
                 var cxt = ComActivationContext.Create(ref cxtInt);
-                ClassRegisterationScenarioForType(cxt, register: false);
+                ClassRegistrationScenarioForType(cxt, register: false);
             }
             catch (Exception e)
             {

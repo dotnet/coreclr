@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -121,5 +120,8 @@ namespace System.Reflection
         // Exists to faciliate code sharing between CoreCLR and CoreRT.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern uint GetAssemblyCount();
     }
 }

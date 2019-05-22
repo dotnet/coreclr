@@ -235,6 +235,7 @@
 -nomethod System.Numerics.Tests.Vector4Tests.Vector4ClampTest
 -noclass System.Diagnostics.Tests.DebugTests
 -nomethod System.Text.Tests.StringBuilderTests.Equals
+-nomethod System.Text.Tests.StringBuilderTests.AppendFormat
 -nomethod System.Tests.DecimalTests.Remainder
 -nomethod System.Tests.DecimalTests.Remainder_Invalid
 -nomethod System.Tests.DecimalTests+BigIntegerMod.Test
@@ -324,6 +325,11 @@
 -nomethod System.CodeDom.Compiler.Tests.VBCodeGenerationTests.MetadataAttributes
 -nomethod System.CodeDom.Compiler.Tests.VBCodeGenerationTests.ProviderSupports
 -nomethod System.Runtime.InteropServices.RuntimeInformationTests.DescriptionNameTests.VerifyRuntimeDebugNameOnNetCoreApp
+-nomethod System.Tests.AppDomainTests.MonitoringIsEnabled
+-nomethod System.Tests.AppDomainTests.MonitoringSurvivedMemorySize
+-nomethod System.Tests.AppDomainTests.MonitoringSurvivedProcessMemorySize
+-nomethod System.Tests.AppDomainTests.MonitoringTotalAllocatedMemorySize
+-nomethod System.Tests.AppDomainTests.MonitoringTotalProcessorTime
 
 # Disable Tests from SqlClient entirely
 -nonamespace System.Data.SqlClient.Tests
@@ -432,3 +438,6 @@
 -nomethod System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests.DisplayCertificate_InvalidInput
 -nomethod System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests.SelectFromCollection_InvalidInput
 -nomethod System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests.SelectFromCollection_InvalidInput_WithHwnd
+
+# Disable Microsoft.Bcl.AsyncInterfaces tests
+-noclass System.Threading.Tasks.Sources.Tests.ManualResetValueTaskSourceTests

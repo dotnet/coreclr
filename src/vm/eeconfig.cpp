@@ -704,6 +704,8 @@ HRESULT EEConfig::sync()
     // Note the global variable is not updated directly by the GetRegKey function
     // so we only update it once (to avoid reentrancy windows)
 
+fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_TrackDynamicMethodDebugInfo);
+
 #ifdef _DEBUG
     iFastGCStress       = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_FastGCStress, iFastGCStress);
 
@@ -711,11 +713,6 @@ HRESULT EEConfig::sync()
     pszGcCoverageOnMethod = NarrowWideChar((LPWSTR)pszGcCoverageOnMethod);
     iGCLatencyMode = GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_GCLatencyMode, iGCLatencyMode);
 #endif
-
-    if (CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_ARMEnabled))
-    {
-        g_fEnableARM = TRUE;
-    }
 
     bool gcConcurrentWasForced = false;
     // The CLRConfig value for UNSUPPORTED_gcConcurrent defaults to -1, and treats any

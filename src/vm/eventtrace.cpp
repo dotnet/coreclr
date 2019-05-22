@@ -61,83 +61,83 @@ Volatile<LONGLONG> ETW::GCLog::s_l64LastClientSequenceNumber = 0;
 //---------------------------------------------------------------------------------------
 // Helper macros to determine which version of the Method events to use
 //
-// The V2 versions of these events include the ReJITID, the V1 versions do not.
+// The V2 versions of these events include the NativeCodeId, the V1 versions do not.
 // Historically, when we version events, we'd just stop sending the old version and only
 // send the new one. However, now that we have xperf in heavy use internally and soon to be
 // used externally, we need to be a bit careful. In particular, we'd like to allow
-// current xperf to continue working without knowledge of ReJITIDs, and allow future
+// current xperf to continue working without knowledge of NativeCodeIds, and allow future
 // xperf to decode symbols in ReJITted functions. Thus,
 //    * During a first-JIT, only issue the existing V1 MethodLoad, etc. events (NOT v0,
-//        NOT v2). This event does not include a ReJITID, and can thus continue to be
+//        NOT v2). This event does not include a NativeCodeId, and can thus continue to be
 //        parsed by older decoders.
 //    * During a rejit, only issue the new V2 events (NOT v0 or v1), which will include a
-//        nonzero ReJITID. Thus, your unique key for a method extent would be MethodID +
-//        ReJITID + extent (hot/cold). These events will be ignored by older decoders
+//        nonzero NativeCodeId. Thus, your unique key for a method extent would be MethodID +
+//        NativeCodeId + extent (hot/cold). These events will be ignored by older decoders
 //        (including current xperf) because of the version number, but xperf will be
 //        updated to decode these in the future.
 
-#define FireEtwMethodLoadVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID) \
+#define FireEtwMethodLoadVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodLoadVerbose_V1(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID); } \
     else \
-        { FireEtwMethodLoadVerbose_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID); } \
+        { FireEtwMethodLoadVerbose_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodLoad_V1_or_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, clrInstanceID, rejitID) \
+#define FireEtwMethodLoad_V1_or_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodLoad_V1(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, clrInstanceID); } \
     else \
-        { FireEtwMethodLoad_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, clrInstanceID, rejitID); } \
+        { FireEtwMethodLoad_V2(ullMethodIdentifier, ullModuleID, ullMethodStartAddress, ulMethodSize, ulMethodToken, ulMethodFlags, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodUnloadVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID) \
+#define FireEtwMethodUnloadVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodUnloadVerbose_V1(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID); } \
     else \
-        { FireEtwMethodUnloadVerbose_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID); } \
+        { FireEtwMethodUnloadVerbose_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodUnload_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, rejitID) \
+#define FireEtwMethodUnload_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodUnload_V1(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID); } \
     else \
-        { FireEtwMethodUnload_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, rejitID); } \
+        { FireEtwMethodUnload_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodDCStartVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID) \
+#define FireEtwMethodDCStartVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodDCStartVerbose_V1(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID); } \
     else \
-        { FireEtwMethodDCStartVerbose_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID); } \
+        { FireEtwMethodDCStartVerbose_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodDCStart_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, rejitID) \
+#define FireEtwMethodDCStart_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodDCStart_V1(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID); } \
     else \
-        { FireEtwMethodDCStart_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, rejitID); } \
+        { FireEtwMethodDCStart_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodDCEndVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID) \
+#define FireEtwMethodDCEndVerbose_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodDCEndVerbose_V1(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID);  } \
     else \
-        { FireEtwMethodDCEndVerbose_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, rejitID); } \
+        { FireEtwMethodDCEndVerbose_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, szDtraceOutput1, szDtraceOutput2, szDtraceOutput3, clrInstanceID, nativeCodeId); } \
 }
 
-#define FireEtwMethodDCEnd_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, rejitID) \
+#define FireEtwMethodDCEnd_V1_or_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, nativeCodeId) \
 {   \
-    if (rejitID == 0)   \
+    if (nativeCodeId == 0)   \
         { FireEtwMethodDCEnd_V1(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID);  } \
     else \
-        { FireEtwMethodDCEnd_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, rejitID); } \
+        { FireEtwMethodDCEnd_V2(ullMethodIdentifier, ullModuleID, ullColdMethodStartAddress, ulColdMethodSize, ulMethodToken, ulColdMethodFlags, clrInstanceID, nativeCodeId); } \
 }
 
 // Module load / unload events:
@@ -676,7 +676,7 @@ void ETW::GCLog::MovedReference(
     // ProfAPI
     if (fAllowProfApiNotification)
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
+        BEGIN_PIN_PROFILER(CORProfilerTrackGC() || CORProfilerTrackGCMovedObjects());
         g_profControlBlock.pProfInterface->MovedReference(pbMemBlockStart,
                                                           pbMemBlockEnd,
                                                           cbRelocDistance,
@@ -802,7 +802,7 @@ VOID ETW::GCLog::EndMovedReferences(size_t profilingContext, BOOL fAllowProfApiN
     // ProfAPI
     if (fAllowProfApiNotification)
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackGC());
+        BEGIN_PIN_PROFILER(CORProfilerTrackGC() || CORProfilerTrackGCMovedObjects());
         g_profControlBlock.pProfInterface->EndMovedReferences(&(pCtxForEtwAndProfapi->pctxProfAPI));
         END_PIN_PROFILER();
     }
@@ -3844,9 +3844,6 @@ VOID ETW::EnumerationLog::StartRundown()
 
     EX_TRY
     {
-        BOOL bIsArmRundownEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context,
-                                                                 TRACE_LEVEL_INFORMATION,
-                                                                 CLR_RUNDOWNAPPDOMAINRESOURCEMANAGEMENT_KEYWORD);
         BOOL bIsPerfTrackRundownEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context,
                                                                  TRACE_LEVEL_INFORMATION,
                                                                  CLR_RUNDOWNPERFTRACK_KEYWORD);
@@ -3868,8 +3865,6 @@ VOID ETW::EnumerationLog::StartRundown()
            ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, 
                                         TRACE_LEVEL_INFORMATION, 
                                         CLR_RUNDOWNJITTEDMETHODILTONATIVEMAP_KEYWORD)
-           ||
-           bIsArmRundownEnabled
            ||
            bIsPerfTrackRundownEnabled
            ||
@@ -3909,17 +3904,7 @@ VOID ETW::EnumerationLog::StartRundown()
 
             ETW::EnumerationLog::EnumerationHelper(NULL, NULL, enumerationOptions);
             
-            if (bIsArmRundownEnabled)
-            {
-                // When an ETW event consumer asks for ARM rundown, that not only enables
-                // the ETW events, but also causes some minor behavioral changes in the
-                // CLR, such as gathering CPU usage baselines for each thread right now,
-                // and also gathering resource usage information later on (keyed off of
-                // g_fEnableARM, which we'll set right now).
-                EnableARM();
-            }
-
-            if (bIsArmRundownEnabled || bIsThreadingRundownEnabled)
+            if (bIsThreadingRundownEnabled)
             {
                 SendThreadRundownEvent();
             }
@@ -5227,7 +5212,7 @@ VOID ETW::MethodLog::GetR2RGetEntryPoint(MethodDesc *pMethodDesc, PCODE pEntryPo
 /*******************************************************/
 /* This is called by the runtime when a method is jitted completely */
 /*******************************************************/
-VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
+VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, ReJITID ilCodeId, NativeCodeVersionId nativeCodeId, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         NOTHROW;
@@ -5240,7 +5225,7 @@ VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrC
                                         TRACE_LEVEL_INFORMATION, 
                                         CLR_JIT_KEYWORD))
         {
-            ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodLoad, TRUE, namespaceOrClassName, methodName, methodSignature, pCode, rejitID, bProfilerRejectedPrecompiledCode, bReadyToRunRejectedPrecompiledCode); 
+            ETW::MethodLog::SendMethodEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodLoad, TRUE, namespaceOrClassName, methodName, methodSignature, pNativeCodeStartAddress, nativeCodeId, bProfilerRejectedPrecompiledCode, bReadyToRunRejectedPrecompiledCode);
         }
 
         if(ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
@@ -5255,7 +5240,7 @@ VOID ETW::MethodLog::MethodJitted(MethodDesc *pMethodDesc, SString *namespaceOrC
             _ASSERTE(g_pDebugInterface != NULL);
             g_pDebugInterface->InitializeLazyDataIfNecessary();
             
-            ETW::MethodLog::SendMethodILToNativeMapEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodILToNativeMap, pCode, rejitID);
+            ETW::MethodLog::SendMethodILToNativeMapEvent(pMethodDesc, ETW::EnumerationLog::EnumerationStructs::JitMethodILToNativeMap, pNativeCodeStartAddress, ilCodeId);
         }
 
     } EX_CATCH { } EX_END_CATCH(SwallowAllExceptions);
@@ -6263,7 +6248,7 @@ VOID ETW::MethodLog::SendMethodJitStartEvent(MethodDesc *pMethodDesc, SString *n
 /****************************************************************************/
 /* This routine is used to send a method load/unload or rundown event                              */
 /****************************************************************************/
-VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, SIZE_T pCode, ReJITID rejitID, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
+VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptions, BOOL bIsJit, SString *namespaceOrClassName, SString *methodName, SString *methodSignature, PCODE pNativeCodeStartAddress, NativeCodeVersionId nativeCodeId, BOOL bProfilerRejectedPrecompiledCode, BOOL bReadyToRunRejectedPrecompiledCode)
 {
     CONTRACTL {
         THROWS;
@@ -6346,7 +6331,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
     ulMethodFlags = ulMethodFlags | ETW::MethodLog::MethodStructs::HotSection;         // Method Extent (bits 28, 29, 30, 31)
 
     // MethodDesc ==> Code Address ==>JitMananger 
-    TADDR start = pCode ? pCode : PCODEToPINSTR(pMethodDesc->GetNativeCode());
+    TADDR start = PCODEToPINSTR(pNativeCodeStartAddress ? pNativeCodeStartAddress : pMethodDesc->GetNativeCode());
     if(start == 0) {
         // this method hasn't been jitted
         return;
@@ -6424,7 +6409,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 szDtraceOutput2, 
                 szDtraceOutput3, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         else
         {
@@ -6435,7 +6420,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 ulMethodToken, 
                 ulMethodFlags, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         if(bFireEventForColdSection)
         {
@@ -6451,7 +6436,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     szDtraceOutput2, 
                     szDtraceOutput3, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
             else
             {
@@ -6462,7 +6447,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     ulMethodToken, 
                     ulColdMethodFlags, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
         }
     }
@@ -6481,7 +6466,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 szDtraceOutput2, 
                 szDtraceOutput3, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         else
         {
@@ -6492,7 +6477,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 ulMethodToken, 
                 ulMethodFlags, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         if(bFireEventForColdSection)
         {
@@ -6508,7 +6493,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     szDtraceOutput2, 
                     szDtraceOutput3, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
             else
             {
@@ -6519,7 +6504,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     ulMethodToken, 
                     ulColdMethodFlags, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
         }
     }
@@ -6538,7 +6523,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 szDtraceOutput2, 
                 szDtraceOutput3, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         else
         {
@@ -6549,7 +6534,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 ulMethodToken, 
                 ulMethodFlags, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         if(bFireEventForColdSection)
         {
@@ -6565,7 +6550,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     szDtraceOutput2, 
                     szDtraceOutput3, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
             else
             {
@@ -6576,7 +6561,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     ulMethodToken, 
                     ulColdMethodFlags, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
         }
     }
@@ -6595,7 +6580,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 szDtraceOutput2, 
                 szDtraceOutput3, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         else
         {
@@ -6606,7 +6591,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                 ulMethodToken, 
                 ulMethodFlags, 
                 GetClrInstanceId(),
-                rejitID);
+                nativeCodeId);
         }
         if(bFireEventForColdSection)
         {
@@ -6622,7 +6607,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     szDtraceOutput2, 
                     szDtraceOutput3, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
             else
             {
@@ -6633,7 +6618,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
                     ulMethodToken, 
                     ulColdMethodFlags, 
                     GetClrInstanceId(),
-                    rejitID);
+                    nativeCodeId);
             }
         }
     }
@@ -6662,7 +6647,7 @@ VOID ETW::MethodLog::SendMethodEvent(MethodDesc *pMethodDesc, DWORD dwEventOptio
 //
 
 // static
-VOID ETW::MethodLog::SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, SIZE_T pCode, ReJITID rejitID)
+VOID ETW::MethodLog::SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWORD dwEventOptions, PCODE pNativeCodeStartAddress, ReJITID ilCodeId)
 {
     CONTRACTL
     {
@@ -6695,7 +6680,7 @@ VOID ETW::MethodLog::SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWOR
 
     HRESULT hr = g_pDebugInterface->GetILToNativeMappingIntoArrays(
         pMethodDesc,
-        pCode,
+        pNativeCodeStartAddress,
         kMapEntriesMax,
         &cMap,
         &rguiILOffset,
@@ -6711,7 +6696,7 @@ VOID ETW::MethodLog::SendMethodILToNativeMapEvent(MethodDesc * pMethodDesc, DWOR
     {
         FireEtwMethodILToNativeMap(
             ullMethodIdentifier, 
-            rejitID,
+            ilCodeId,
             0,          // Extent:  This event is only sent for JITted (not NGENd) methods, and
             //          currently there is only one extent (hot) for JITted methods.
             cMap,
@@ -6803,19 +6788,21 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
 
 // Called be ETW::MethodLog::SendEventsForJitMethods
 // Sends the ETW events once our caller determines whether or not rejit locks can be acquired
-VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
-                                                   LoaderAllocator *pLoaderAllocatorFilter,
+VOID ETW::MethodLog::SendEventsForJitMethodsHelper(LoaderAllocator *pLoaderAllocatorFilter,
                                                    DWORD dwEventOptions,
                                                    BOOL fLoadOrDCStart,
                                                    BOOL fUnloadOrDCEnd,
                                                    BOOL fSendMethodEvent,
                                                    BOOL fSendILToNativeMapEvent,
-                                                   BOOL fGetReJitIDs)
+                                                   BOOL fGetCodeIds)
 {
     CONTRACTL{
         THROWS;
         GC_NOTRIGGER;
     } CONTRACTL_END;
+
+    _ASSERTE(pLoaderAllocatorFilter == nullptr || pLoaderAllocatorFilter->IsCollectible());
+    _ASSERTE(pLoaderAllocatorFilter == nullptr || !fGetCodeIds);
 
     EEJitManager::CodeHeapIterator heapIterator(pLoaderAllocatorFilter);
     while (heapIterator.Next())
@@ -6824,16 +6811,40 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
         if (pMD == NULL)
             continue;
 
-        TADDR codeStart = heapIterator.GetMethodCode();
+        PCODE codeStart = PINSTRToPCODE(heapIterator.GetMethodCode());
 
-        // Grab rejitID from the rejit manager. In some cases, such as collectible loader
-        // allocators, we don't support rejit so we need to short circuit the call.
-        // This also allows our caller to avoid having to pre-enter the rejit
-        // manager locks.
+        // Get the IL and native code IDs. In some cases, such as collectible loader
+        // allocators, we don't support code versioning so we need to short circuit the call.
+        // This also allows our caller to avoid having to pre-enter the relevant locks.
         // see code:#TableLockHolder
-        ReJITID rejitID =
-            fGetReJitIDs ? ReJitManager::GetReJitIdNoLock(pMD, codeStart) : 0;
-
+        ReJITID ilCodeId = 0;
+        NativeCodeVersionId nativeCodeId = 0;
+#ifdef FEATURE_CODE_VERSIONING
+        if (fGetCodeIds)
+        {
+            CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+            _ASSERTE(pCodeVersionManager->LockOwnedByCurrentThread());
+            NativeCodeVersion nativeCodeVersion = pCodeVersionManager->GetNativeCodeVersion(pMD, codeStart);
+            if (nativeCodeVersion.IsNull())
+            {
+                // The code version manager hasn't been updated with the jitted code
+                if (codeStart != pMD->GetNativeCode())
+                {
+                    continue;
+                }
+            }
+            else
+            {
+                nativeCodeId = nativeCodeVersion.GetVersionId();
+                ilCodeId = nativeCodeVersion.GetILCodeVersionId();
+            }
+        }
+        else
+#endif
+        if (codeStart != pMD->GetNativeCode())
+        {
+            continue;
+        }
 
         // When we're called to announce loads, then the methodload event itself must
         // precede any supplemental events, so that the method load or method jitting
@@ -6851,41 +6862,13 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
                     NULL,           // methodName
                     NULL,           // methodSignature
                     codeStart,
-                    rejitID);
+                    nativeCodeId);
             }
         }
 
-        // The filtering line below excludes all methods that don't go directly to the 
-        // native body (And that includes all Tiered JIT methods).   In V3.0 Tiered JIT
-        // is only by default which means important methods are filtered out.
-        //
-        // This filter used to exclude all events for a particular method, but has been
-        // moved here so it only applies to the IL->Native map.   
-        // This filter needs to be removed in its entirety, because right now all Tiered
-        // methods don't have a IL->Native map (and thus can't support source line profiling)
-        // moving it here at least minimizes the damage.  
-        //
-        // We did not remove the filter right now because currently 
-        // SendMethodILToNativeMapEvent relies on a fragile invariant where all lazy data is 
-        // known to be populated (see  g_pDebugInterface->InitializeLazyDataIfNecessary(); above)
-        // and this may not be true for tiered methods.    
-        // 
-        // There was also concern that there are races where the heap-iterator might see
-        // data between the time that the code was created and the debug information was set
-        // (there is a lock that protects the code manager data, however the JIT does not
-        // let all the data in one go (in particular the debug data is set latter).  
-        //
-        // Note that currently the  rejitID variable is likely always 0 because it seems that
-        // fGetReJitIDs=false except in the case that an appdomain is being unloaded (which I
-        // think never happens in .NET core) 
-        // 
-        // Issue #22904 tracks the work to fix the IL->Native mapping.  
-        if ((rejitID != 0) || (codeStart == PCODEToPINSTR(pMD->GetNativeCode())))
-        {
-            // Send any supplemental events requested for this MethodID
-            if (fSendILToNativeMapEvent)
-                ETW::MethodLog::SendMethodILToNativeMapEvent(pMD, dwEventOptions, codeStart, rejitID);
-        }
+        // Send any supplemental events requested for this MethodID
+        if (fSendILToNativeMapEvent)
+            ETW::MethodLog::SendMethodILToNativeMapEvent(pMD, dwEventOptions, codeStart, ilCodeId);
 
         // When we're called to announce unloads, then the methodunload event itself must
         // come after any supplemental events, so that the method unload event is the
@@ -6902,7 +6885,7 @@ VOID ETW::MethodLog::SendEventsForJitMethodsHelper(BaseDomain *pDomainFilter,
                     NULL,           // methodName
                     NULL,           // methodSignature
                     codeStart,
-                    rejitID);
+                    nativeCodeId);
             }
         }
     }
@@ -6958,7 +6941,7 @@ VOID ETW::MethodLog::SendEventsForJitMethods(BaseDomain *pDomainFilter, LoaderAl
         // #TableLockHolder:
         // 
         // A word about ReJitManager::TableLockHolder... As we enumerate through the functions,
-        // we may need to grab their ReJITIDs. The ReJitManager grabs its table Crst in order to
+        // we may need to grab their code IDs. The ReJitManager grabs its table Crst in order to
         // fetch these. However, several other kinds of locks are being taken during this
         // enumeration, such as the SystemDomain lock and the EEJitManager::CodeHeapIterator's
         // lock. In order to avoid lock-leveling issues, we grab the appropriate ReJitManager
@@ -6974,10 +6957,11 @@ VOID ETW::MethodLog::SendEventsForJitMethods(BaseDomain *pDomainFilter, LoaderAl
         //
 
         // We only support getting rejit IDs when filtering by domain.
+#ifdef FEATURE_CODE_VERSIONING
         if (pDomainFilter)
         {
             CodeVersionManager::TableLockHolder lkRejitMgrModule(pDomainFilter->GetCodeVersionManager());
-            SendEventsForJitMethodsHelper(pDomainFilter,
+            SendEventsForJitMethodsHelper(
                 pLoaderAllocatorFilter,
                 dwEventOptions,
                 fLoadOrDCStart,
@@ -6987,8 +6971,9 @@ VOID ETW::MethodLog::SendEventsForJitMethods(BaseDomain *pDomainFilter, LoaderAl
                 TRUE);
         }
         else
+#endif
         {
-            SendEventsForJitMethodsHelper(pDomainFilter,
+            SendEventsForJitMethodsHelper(
                 pLoaderAllocatorFilter,
                 dwEventOptions,
                 fLoadOrDCStart,

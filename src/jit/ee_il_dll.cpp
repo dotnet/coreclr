@@ -43,21 +43,6 @@ HINSTANCE g_hInst = nullptr;
 
 /*****************************************************************************/
 
-#ifdef DEBUG
-
-JitOptions jitOpts = {
-    nullptr, // methodName
-    nullptr, // className
-    0.1,     // CGknob
-    0,       // testMask
-
-    (JitOptions*)nullptr // lastDummyField.
-};
-
-#endif // DEBUG
-
-/*****************************************************************************/
-
 extern "C" DLLEXPORT void __stdcall jitStartup(ICorJitHost* jitHost)
 {
     if (g_jitInitialized)
@@ -419,8 +404,8 @@ unsigned CILJit::getMaxIntrinsicSIMDVectorLength(CORJIT_FLAGS cpuCompileFlags)
         // disabling SSE also disables SSE2 through AVX2), we need to check each ISA in the hierarchy to
         // ensure that AVX2 is actually supported. Otherwise, we will end up getting asserts downstream.
         if ((JitConfig.EnableAVX2() != 0) && (JitConfig.EnableAVX() != 0) && (JitConfig.EnableSSE42() != 0) &&
-            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3() != 0) &&
-            (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0))
+            (JitConfig.EnableSSE41() != 0) && (JitConfig.EnableSSSE3() != 0) && (JitConfig.EnableSSE3_4() != 0) &&
+            (JitConfig.EnableSSE3() != 0) && (JitConfig.EnableSSE2() != 0) && (JitConfig.EnableSSE() != 0))
         {
             if (GetJitTls() != nullptr && JitTls::GetCompiler() != nullptr)
             {

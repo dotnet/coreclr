@@ -1,22 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project>
   <PropertyGroup>
-    <!-- The .NET Core product branding version -->
-    <ProductVersion>3.0.0</ProductVersion>
-    <!-- Version numbers for both managed & native binaries -->
-    <MajorVersion>4</MajorVersion>
-    <MinorVersion>6</MinorVersion>
+    <!-- This repo version -->
+    <VersionPrefix>3.0.0</VersionPrefix>
+    <!-- Always use shipping version instead of dummy versions -->
+    <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
     <PreReleaseVersionLabel>preview6</PreReleaseVersionLabel>
     <!-- Opt-out repo features -->
     <UsingToolXliff>false</UsingToolXliff>
     <UsingToolNetFrameworkReferenceAssemblies>true</UsingToolNetFrameworkReferenceAssemblies>
-    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19179.4</MicrosoftDotNetXUnitConsoleRunnerVersion>
+    <!-- Package versions -->
+    <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19264.13</MicrosoftDotNetXUnitConsoleRunnerVersion>
+    <!-- arcade -->
+    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19229.8</MicrosoftDotNetBuildTasksPackagingVersion>
+    <!-- corefx -->
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19229.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19229.1</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftNETCoreAppVersion>3.0.0-preview5-27620-01</MicrosoftNETCoreAppVersion>
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190505.1</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190505.1</optimizationPGOCoreCLRVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19264.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19264.9</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19264.9</MicrosoftBclAsyncInterfacesVersion>
+    <!-- core-setup -->
+    <MicrosoftNETCoreAppVersion>3.0.0-preview6-27720-09</MicrosoftNETCoreAppVersion>
+    <!-- dotnet-core-internal-tooling -->
+    <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
+    <!-- dotnet-optimization -->
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19229.8</MicrosoftDotNetBuildTasksFeedVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190521.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190521.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>

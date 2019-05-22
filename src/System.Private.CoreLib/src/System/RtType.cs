@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -3867,7 +3866,7 @@ namespace System
                 }
             }
 
-#if FEATURE_COMINTEROP && FEATURE_USE_LCID
+#if FEATURE_COMINTEROP
             if (target != null && target.GetType().IsCOMObject)
             {
                 if ((bindingFlags & ClassicBindingMask) == 0)
@@ -3899,7 +3898,7 @@ namespace System
 
                 return InvokeDispMethod(name, bindingFlags, target, providedArgs, isByRef, lcid, namedParams);
             }
-#endif // FEATURE_COMINTEROP && FEATURE_USE_LCID
+#endif // FEATURE_COMINTEROP
 
             if (namedParams != null && Array.IndexOf(namedParams, null!) != -1)
                 throw new ArgumentException(SR.Arg_NamedParamNull, nameof(namedParams));
