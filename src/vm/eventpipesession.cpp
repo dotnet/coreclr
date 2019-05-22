@@ -446,9 +446,6 @@ void EventPipeSession::Disable()
         WriteAllBuffersToFile();
         m_pProviderList->Clear();
     }
-    // Allow WriteEvent to begin accepting work again so that sometime in the future
-    // we can re-enable events and they will be recorded
-    m_pBufferManager->ResumeWriteEvent();
 }
 
 void EventPipeSession::ExecuteRundown()
