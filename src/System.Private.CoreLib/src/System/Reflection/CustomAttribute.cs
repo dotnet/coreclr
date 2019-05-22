@@ -1588,10 +1588,13 @@ namespace System.Reflection
 
             RuntimeTypeHandle attributeTypeHandle = attributeType.TypeHandle;
 
-            return RuntimeMethodHandle.IsCAVisibleFromDecoratedType(JitHelpers.GetQCallTypeHandleOnStack(ref attributeTypeHandle),
-                                                                    ctor!,
+            bool result = RuntimeMethodHandle.IsCAVisibleFromDecoratedType(JitHelpers.GetQCallTypeHandleOnStack(ref attributeTypeHandle),
+                                                                    ctor != null ? ctor.Value : RuntimeMethodHandleInternal.EmptyHandle,
                                                                     JitHelpers.GetQCallTypeHandleOnStack(ref parentTypeHandle),
-                                                                    JitHelpers.GetQCallModuleOnStack(ref decoratedModule));
+                                                                    JitHelpers.GetQCallModuleOnStack(ref decoratedModule)) != Interop.BOOL.FALSE;
+
+            GC.KeepAlive(ctor);
+            return result;
         }
         #endregion
 

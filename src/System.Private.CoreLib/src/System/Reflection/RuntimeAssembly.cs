@@ -218,15 +218,14 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetIsCollectible(QCallAssembly assembly);
+        internal static extern Interop.BOOL GetIsCollectible(QCallAssembly assembly);
 
         public override bool IsCollectible
         {
             get
             {
                 RuntimeAssembly runtimeAssembly = this;
-                return GetIsCollectible(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly));
+                return GetIsCollectible(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly)) != Interop.BOOL.FALSE;
             }
         }
 

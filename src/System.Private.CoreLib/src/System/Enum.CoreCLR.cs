@@ -12,7 +12,7 @@ namespace System
     public abstract partial class Enum
     {
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetEnumValuesAndNames(QCallTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
+        private static extern void GetEnumValuesAndNames(QCallTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, Interop.BOOL getNames);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public override extern bool Equals(object? obj);
@@ -60,7 +60,7 @@ namespace System
                     JitHelpers.GetQCallTypeHandleOnStack(ref enumTypeHandle),
                     JitHelpers.GetObjectHandleOnStack(ref values),
                     JitHelpers.GetObjectHandleOnStack(ref names),
-                    getNames);
+                    getNames ? Interop.BOOL.TRUE : Interop.BOOL.FALSE);
                 bool hasFlagsAttribute = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
 
                 entry = new EnumInfo(hasFlagsAttribute, values!, names!);

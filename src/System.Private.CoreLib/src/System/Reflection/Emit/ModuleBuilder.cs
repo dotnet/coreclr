@@ -155,14 +155,16 @@ namespace System.Reflection.Emit
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern int GetMemberRefOfMethodInfo(QCallModule module, int tr, IRuntimeMethodInfo method);
+        private static extern int GetMemberRefOfMethodInfo(QCallModule module, int tr, RuntimeMethodHandleInternal method);
 
         private int GetMemberRefOfMethodInfo(int tr, RuntimeMethodInfo method)
         {
             Debug.Assert(method != null);
 
             ModuleBuilder thisModule = this;
-            return GetMemberRefOfMethodInfo(JitHelpers.GetQCallModuleOnStack(ref thisModule), tr, method);
+            int result = GetMemberRefOfMethodInfo(JitHelpers.GetQCallModuleOnStack(ref thisModule), tr, ((IRuntimeMethodInfo)method).Value);
+            GC.KeepAlive(method);
+            return result;
         }
 
         private int GetMemberRefOfMethodInfo(int tr, RuntimeConstructorInfo method)
@@ -170,7 +172,9 @@ namespace System.Reflection.Emit
             Debug.Assert(method != null);
 
             ModuleBuilder thisModule = this;
-            return GetMemberRefOfMethodInfo(JitHelpers.GetQCallModuleOnStack(ref thisModule), tr, method);
+            int result = GetMemberRefOfMethodInfo(JitHelpers.GetQCallModuleOnStack(ref thisModule), tr, ((IRuntimeMethodInfo)method).Value);
+            GC.KeepAlive(method);
+            return result;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

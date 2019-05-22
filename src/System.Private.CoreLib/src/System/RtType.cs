@@ -3071,7 +3071,7 @@ namespace System
             get
             {
                 RuntimeType thisType = this;
-                return RuntimeTypeHandle.IsCollectible(JitHelpers.GetQCallTypeHandleOnStack(ref thisType));
+                return RuntimeTypeHandle.IsCollectible(JitHelpers.GetQCallTypeHandleOnStack(ref thisType)) != Interop.BOOL.FALSE;
             }
         }
 
