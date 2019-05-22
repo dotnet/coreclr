@@ -46,7 +46,7 @@ private:
     // has been deferred until tracing is stopped.
     bool m_deleteDeferred;
 
-    // Bit mask of sessions for which this event is enabled.
+    // Bit mask of sessions for which this provider is enabled.
     uint64_t m_sessions;
 
     // Private constructor because all providers are created through EventPipe::CreateProvider.
