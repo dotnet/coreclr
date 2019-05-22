@@ -12,7 +12,7 @@
     <!-- Package versions -->
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19264.13</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19229.8</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19271.7</MicrosoftDotNetBuildTasksPackagingVersion>
     <!-- corefx -->
     <MicrosoftNetFrameworkReferenceAssembliesVersion>1.0.0-alpha-004</MicrosoftNetFrameworkReferenceAssembliesVersion>
     <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview6.19264.9</MicrosoftPrivateCoreFxNETCoreAppVersion>
@@ -23,7 +23,7 @@
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
-    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19229.8</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19271.7</MicrosoftDotNetBuildTasksFeedVersion>
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190521.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190521.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
