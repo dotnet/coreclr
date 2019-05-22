@@ -234,7 +234,7 @@ namespace System.Runtime.InteropServices
 
             if (m is RuntimeModule rtModule)
             {
-                return GetHINSTANCE(rtModule.GetNativeHandle());
+                return GetHINSTANCE(JitHelpers.GetQCallModuleOnStack(ref rtModule));
             }
 
             return (IntPtr)(-1);
