@@ -451,7 +451,7 @@ void EventPipeSession::Disable()
     m_pBufferManager->ResumeWriteEvent();
 }
 
-void EventPipeSession::DisableRundown()
+void EventPipeSession::ExecuteRundown()
 {
     CONTRACTL
     {

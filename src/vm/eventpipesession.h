@@ -162,7 +162,7 @@ public:
     void Disable();
 
     void EnableRundown();
-    void DisableRundown();
+    void ExecuteRundown();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
     bool IsValid() /* This is not const because CrtsHolder does not take a const* */;

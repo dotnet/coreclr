@@ -445,7 +445,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     pSession->EnableRundown();
     s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
-    pSession->DisableRundown();
+    pSession->ExecuteRundown();
     s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     // Remove the session.
