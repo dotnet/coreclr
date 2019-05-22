@@ -4159,7 +4159,7 @@ void Thread::UserSleep(INT32 time)
     DWORD   res;
 
     // if we are about to enter a blocking wait, report that in case it is a threadpool worker.
-    ThreadpoolMgr::BlockedWorkerHolder blocked = ThreadpoolMgr::BlockedWorkerHolder(time > 0 || time == INFINITE ? this : NULL);
+    ThreadpoolMgr::BlockedWorkerHolder blocked = ThreadpoolMgr::BlockedWorkerHolder(time > 1 || time == INFINITE ? this : NULL);
 
     // Before going to pre-emptive mode the thread needs to be flagged as waiting for
     // the debugger. This used to be accomplished by the TS_Interruptible flag but that
