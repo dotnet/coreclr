@@ -11,43 +11,6 @@ parameters:
   corefxTests: false
   displayNameArgs: ''
 
-variables:
-# Create some useful global variables
-
-# Display name for "innerloop" and "outerloop"
-- name: testGroupDisplayArg
-  value: ''
-- ${{ if eq(parameters.testGroup, 'innerloop') }}:
-  - name: testGroupDisplayArg
-    value: 'Pri0'
-- ${{ if ne(parameters.testGroup, 'innerloop') }}:
-  - name: testGroupDisplayArg
-    value: 'Pri1'
-
-# Filename for "innerloop" and "outerloop". Use a short name, for easier typing, and because AzDO UI sometimes
-# crops filename.
-- name: testGroupFilenameArg
-  value: ''
-- ${{ if eq(parameters.testGroup, 'innerloop') }}:
-  - name: testGroupFilenameArg
-    value: 'p0'
-- ${{ if ne(parameters.testGroup, 'innerloop') }}:
-  - name: testGroupFilenameArg
-    value: 'p1'
-
-# Filename component to indicate R2R or CoreFX job.
-- name: testTypeFilenameArg
-  value: ''
-  ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-  - name: testTypeFilenameArg
-    value: '_r2r_corefx'
-  ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-  - name: testTypeFilenameArg
-    value: '_corefx'
-  ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-  - name: testTypeFilenameArg
-    value: '_r2r'
-
 ### Test job
 
 ### Each test job depends on a corresponding build job with the same
@@ -63,8 +26,13 @@ jobs:
     helixType: 'build/tests/'
 
     # Compute job name from template parameters
-    name: ${{ format('test_{0}_{1}_{2}_{3}_{4}', $(testGroupFilenameArg), parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-    displayName: ${{ format('Test {0} {1} {2} {3} {4}', $(testGroupDisplayArg), parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if eq(parameters.testGroup, 'innerloop') }}:
+      name: ${{ format('test_{0}_{1}_{2}_{3}_{4}', 'p0', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test {0} {1} {2} {3} {4}', 'Pri0', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    ${{ if ne(parameters.testGroup, 'innerloop') }}:
+      name: ${{ format('test_{0}_{1}_{2}_{3}_{4}', 'p1', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test {0} {1} {2} {3} {4}', 'Pri1', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
@@ -182,12 +150,16 @@ jobs:
         helixBuild: $(Build.BuildNumber)
         helixSource: $(_HelixSource)
 
-        ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, false)) }}:
-          helixType: 'test/functional/cli/'
+        # REVIEW: not sure why "cli" is part of the names here. Leave it for the ones that already had it,
+        # but don't add it to new ones.
+        ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
+          helixType: 'test/functional/r2r_corefx/'
+        ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
+          helixType: 'test/functional/corefx/'
         ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
           helixType: 'test/functional/r2r/cli/'
-        ${{ if eq(parameters.corefxTests, true) }}:
-          helixType: 'test/functional/corefx/'
+        ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
+          helixType: 'test/functional/cli/'
 
         helixQueues: ${{ parameters.helixQueues }}
 
@@ -338,7 +310,14 @@ jobs:
     - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
-        artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, $(testTypeFilenameArg)) }}
+        ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
+          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '_r2r_corefx') }}
+        ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
+          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '_corefx') }}
+        ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
+          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '_r2r') }}
+        ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
+          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '') }}
         targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()
