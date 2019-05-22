@@ -128,7 +128,8 @@ EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
     m_keywords |= keywords;
 
     // Set the provider level to "Log Always" or the biggest verbosity.
-    m_providerLevel = (providerLevel == EventPipeEventLevel::LogAlways) ? providerLevel : ((providerLevel < m_providerLevel) ? m_providerLevel : providerLevel);
+    if (m_providerLevel != EventPipeEventLevel::LogAlways)
+        m_providerLevel = (providerLevel == EventPipeEventLevel::LogAlways) ? providerLevel : ((providerLevel < m_providerLevel) ? m_providerLevel : providerLevel);
 
     RefreshAllEvents(sessionId, keywords, providerLevel);
     return PrepareCallbackData(pFilterData);
