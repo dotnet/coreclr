@@ -105,13 +105,4 @@ void EventPipeEvent::RefreshState()
     m_enabled = m_pProvider->EventEnabled(m_keywords, m_level);
 }
 
-void EventPipeEvent::RefreshState(
-    uint64_t sessionId,
-    INT64 sessionKeywords,
-    EventPipeEventLevel sessionLevel)
-{
-    LIMITED_METHOD_CONTRACT;
-    RefreshState();
-}
-
 #endif // FEATURE_PERFTRACING

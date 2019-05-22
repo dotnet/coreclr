@@ -46,10 +46,6 @@ private:
     // Refreshes the runtime state for this event.
     // Called by EventPipeProvider when the provider configuration changes.
     void RefreshState();
-    void RefreshState(
-        uint64_t sessionId,
-        INT64 keywords,
-        EventPipeEventLevel providerLevel);
 
     // Only EventPipeProvider can create events.
     // The provider is responsible for allocating and freeing events.

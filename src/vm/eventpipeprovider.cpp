@@ -304,7 +304,7 @@ void EventPipeProvider::RefreshAllEvents(
     while (pElem != NULL)
     {
         EventPipeEvent *pEvent = pElem->GetValue();
-        pEvent->RefreshState(sessionId, keywords, providerLevel);
+        pEvent->RefreshState();
         pElem = m_pEventList->GetNext(pElem);
     }
 }
