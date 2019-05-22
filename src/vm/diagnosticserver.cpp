@@ -68,7 +68,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
                 EventPipeProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 
-            case DiagnosticsIpc::DiagnosticServerCommandSet::Miscellaneous:
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Diagnostic:
 #ifdef FEATURE_PAL
                 DiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;

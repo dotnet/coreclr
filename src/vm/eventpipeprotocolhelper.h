@@ -18,12 +18,9 @@ class IpcStream;
 // see diagnosticsipc.h and diagnosticserver.h for more details
 enum class EventPipeCommandId : uint8_t
 {
-    OK             = 0x00,
     StopTracing    = 0x01,
     CollectTracing = 0x02,
     // future
-
-    Error          = 0xFF,
 };
 
 // Command = 0x0202

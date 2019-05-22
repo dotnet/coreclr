@@ -66,8 +66,8 @@ namespace DiagnosticsIpc
 
     enum class DiagnosticServerCommandSet : uint8_t
     {
-        // Debug      = 0x00,
-        Miscellaneous = 0x01,
+        // reserved   = 0x00,
+        Diagnostic    = 0x01,
         EventPipe     = 0x02,
 
         Server        = 0xFF,

@@ -13,8 +13,8 @@
 
 class IpcStream;
 
-// The Miscellaneous command set is 0x01
-enum class MiscellaneousCommandId : uint8_t
+// The Diagnostic command set is 0x01
+enum class DiagnosticCommandId : uint8_t
 {
     // reserved      = 0x00,
     GenerateCoreDump = 0x01,
