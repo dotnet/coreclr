@@ -685,7 +685,7 @@ HRESULT BaseAssemblySpec::CreateFusionName(
         {
             DWORD dwPEkind = (DWORD)PAIndex(m_dwFlags);
             // Note: Value 0x07 = code:afPA_NoPlatform falls through
-            if ((dwPEkind >= peMSIL) && (dwPEkind <= peARM))
+            if ((dwPEkind >= peMSIL) && (dwPEkind <= peARM64))
             {
                 PEKIND peKind = (PEKIND)dwPEkind;
                 IfFailGo(pFusionAssemblyName->SetProperty(ASM_NAME_ARCHITECTURE, 

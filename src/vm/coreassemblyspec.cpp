@@ -433,6 +433,9 @@ HRESULT BaseAssemblySpec::ParseName()
             case peARM:
                 m_dwFlags |= afPA_ARM;
                 break;
+            case peARM64:
+                m_dwFlags |= afPA_ARM64;
+                break;
             case peMSIL:
                 m_dwFlags |= afPA_MSIL;
                 break;
@@ -576,6 +579,8 @@ VOID BaseAssemblySpec::GetFileOrDisplayName(DWORD flags, SString &result) const
             assemblyIdentity.m_kProcessorArchitecture = peAMD64;
         else if (m_dwFlags & afPA_ARM)
             assemblyIdentity.m_kProcessorArchitecture = peARM;
+        else if (m_dwFlags & afPA_ARM64)
+            assemblyIdentity.m_kProcessorArchitecture = peARM64;
     }
 
     if ((flags & ASM_DISPLAYF_RETARGET) && (m_dwFlags & afRetargetable))
