@@ -459,6 +459,8 @@ function_name() to call the system's implementation
 #undef cos
 #undef cosh
 #undef exp
+#undef frexp
+#undef isnormal
 #undef fabs
 #undef floor
 #undef fmod

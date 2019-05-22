@@ -1954,10 +1954,11 @@ float FloatingPointUtils::round(float x)
     return _copysignf(flrTempVal, x);
 }
 
-bool FloatingPointUtils::hasInverse(double x)
+bool FloatingPointUtils::isPow2(double x)
 {
     int exp;
-    return (frexp(x, &exp) != 0) && (exp != 0) && isnormal(1.0 / x);
+    double f = frexp(x, &exp);
+    return abs(f) == 0.5 && x != 0 && isnormal(1.0 / x);
 }
 
 namespace MagicDivide
