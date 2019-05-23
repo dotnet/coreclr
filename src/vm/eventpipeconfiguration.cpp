@@ -239,8 +239,8 @@ EventPipeProvider *EventPipeConfiguration::GetProvider(const SString &providerNa
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
