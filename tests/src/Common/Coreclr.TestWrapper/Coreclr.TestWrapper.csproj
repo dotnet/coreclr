@@ -13,6 +13,7 @@
     <Compile Include="CoreclrTestWrapperLib.cs" />
     <!-- Workaround for https://github.com/dotnet/core-setup/pull/5893 -->
     <PackageReference Include="Microsoft.NETCore.App.Internal" Version="$(MicrosoftNETCoreAppVersion)" />
+    <PackageReference Include="Microsoft.NETCore.Platforms" Version="$(MicrosoftNETCoreAppVersion)" />
   </ItemGroup>
 
   <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
