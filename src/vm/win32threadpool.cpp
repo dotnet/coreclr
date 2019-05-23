@@ -1051,12 +1051,13 @@ void ThreadpoolMgr::MaybeAddWorkingWorker()
     while (true)
     {
         newCounts = counts;
-        newCounts.NumWorking = max(counts.NumWorking, min(counts.NumWorking + 1, counts.MaxWorking));
+
+        if (counts.NumWorking + 1 > counts.MaxWorking)
+            return;
+
+        newCounts.NumWorking++;
         newCounts.NumActive = max(counts.NumActive, newCounts.NumWorking);
         newCounts.NumRetired = max(0, counts.NumRetired - (newCounts.NumActive - counts.NumActive));
-
-        if (newCounts == counts)
-            return;
 
         ThreadCounter::Counts oldCounts = WorkerCounter.CompareExchangeCounts(newCounts, counts);
 
