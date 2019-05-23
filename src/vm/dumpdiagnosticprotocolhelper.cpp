@@ -10,6 +10,8 @@
 
 #ifdef FEATURE_PERFTRACING
 
+#ifdef FEATURE_PAL
+
 void DumpDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream)
 {
     CONTRACTL
@@ -33,9 +35,7 @@ void DumpDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& 
         delete pStream;
         break;
     }
-}
-
-#ifdef FEATURE_PAL
+}S
 
 const GenerateCoreDumpCommandPayload* GenerateCoreDumpCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
 {

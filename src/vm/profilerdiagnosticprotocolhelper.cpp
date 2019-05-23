@@ -2,12 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#if defined(FEATURE_PROFAPI_ATTACH_DETACH) && !defined(DACCESS_COMPILE)
 #include "common.h"
 #include "fastserializer.h"
 #include "profilerdiagnosticprotocolhelper.h"
 #include "diagnosticsipc.h"
 #include "diagnosticsprotocol.h"
+
+#if defined(FEATURE_PERFTRACING) && defined(FEATURE_PROFAPI_ATTACH_DETACH) && !defined(DACCESS_COMPILE)
 #include "profilinghelper.h"
 #include "profilinghelper.inl"
 
@@ -22,10 +23,10 @@ void ProfilerDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessa
     }
     CONTRACTL_END;
 
-    switch ((ProfilferCommandId)message.GetHeader().CommandId)
+    switch ((ProfilerCommandId)message.GetHeader().CommandId)
     {
-    case ProfilferCommandId::AttachProfiler:
-        ProfilferDiagnosticProtocolHelper::AttachProfiler(message, pStream);
+    case ProfilerCommandId::AttachProfiler:
+        ProfilerDiagnosticProtocolHelper::AttachProfiler(message, pStream);
         break;
 
     default:
@@ -36,7 +37,7 @@ void ProfilerDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessa
     }
 }
 
-const ProfilerAttachCommandPayload* ProfilerAttachCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
+const AttachProfilerCommandPayload* AttachProfilerCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
 {
     CONTRACTL
     {
@@ -47,7 +48,7 @@ const ProfilerAttachCommandPayload* ProfilerAttachCommandPayload::TryParse(BYTE*
     }
     CONTRACTL_END;
 
-    ProfilerAttachCommandPayload* payload = new (nothrow) ProfilerAttachCommandPayload;
+    AttachProfilerCommandPayload* payload = new (nothrow) AttachProfilerCommandPayload;
     if (payload == nullptr)
     {
         // OOM
@@ -110,10 +111,9 @@ void ProfilerDiagnosticProtocolHelper::AttachProfiler(DiagnosticsIpc::IpcMessage
                                                     payload->dwAttachTimeout);
 ErrExit:
     DiagnosticsIpc::IpcMessage profilerAttachResponse;
-    DiagnosticsIpc::IpcHeader header = hr == S_OK ? DiagnosticsIpc::GenericSuccessHeader : DiagnosticsIpc::GenericErrorHeader;
-    if (profilerAttachResponse.Initialize(header, (uint32_t)hr))
-        profilerAttachResponse.Send(pStream)
+    if (profilerAttachResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, (uint32_t)hr))
+        profilerAttachResponse.Send(pStream);
     delete pStream;
 }
 
-#endif // defined(FEATURE_PROFAPI_ATTACH_DETACH) && !defined(DACCESS_COMPILE)
+#endif // defined(FEATURE_PERFTRACING) && defined(FEATURE_PROFAPI_ATTACH_DETACH) && !defined(DACCESS_COMPILE)

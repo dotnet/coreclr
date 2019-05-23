@@ -46,10 +46,6 @@ public:
     static void HandleIpcMessage(DiagnosticsIpc::IpcMessage& message, IpcStream* pStream);
 #endif
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
-    static void AttachProfiler(IpcStream *pStream);
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
-
 private:
     const static uint32_t IpcStreamReadBufferSize = 8192;
 };
