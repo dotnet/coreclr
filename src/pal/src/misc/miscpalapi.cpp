@@ -364,8 +364,6 @@ PAL_Random(
 
     if (needSrand)
     {
-        long num;
-
         if (!sInitializedMRand)
         {
             // FIXME: There's not enough entropy in time(NULL) to
@@ -375,14 +373,22 @@ PAL_Random(
             sInitializedMRand = TRUE;
         }
 
-        for (DWORD i = 0; i < dwLength; i++)
+        while (dwLength)
         {
-            if (i % sizeof(long) == 0) {
-                num = mrand48();
-            }
+            const auto num = mrand48();
 
-            *(((BYTE*)lpBuffer) + i) ^= num;
-            num >>= 8;
+            if (dwLength >= sizeof(num))
+            {
+                memcpy(lpBuffer, &num, sizeof(num));
+
+                lpBuffer = (char *)lpBuffer + sizeof(num);
+                dwLength -= sizeof(num);
+            }
+            else
+            {
+                memcpy(lpBuffer, &num, dwLength);
+                break;
+            }
         }
     }
 
