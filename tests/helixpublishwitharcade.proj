@@ -174,7 +174,6 @@
     <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
     <TimeoutPerTestInMilliseconds Condition=" '$(TimeoutPerTestInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestInMinutes)).TotalMilliseconds)</TimeoutPerTestInMilliseconds>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
-    <XUnitRunnerArgs>-parallel collections -nocolor -noshadow -xml testResults.xml</XUnitRunnerArgs>
   </PropertyGroup>
 
   <!-- WARNING: HelixPreCommand ItemGroup is intentionally minimal and should be kept that way. -->
@@ -186,6 +185,7 @@
     <HelixPreCommand Include="set CLRCustomTestLauncher=%HELIX_CORRELATION_PAYLOAD%\runincontext.cmd" Condition=" '$(RunInUnloadableContext)' == 'true' " />
     <HelixPreCommand Include="set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\$(TestEnvFileName)" />
     <HelixPreCommand Include="set __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
+    <HelixPreCommand Include="set /a __MaxNumberOfThreads=((%NUMBER_OF_PROCESSORS%)+1)/2" />
     <HelixPreCommand Include="type %__TestEnv%" />
   </ItemGroup>
 
@@ -196,21 +196,26 @@
     <HelixPreCommand Include="export CLRCustomTestLauncher=$HELIX_CORRELATION_PAYLOAD/runincontext.sh" Condition=" '$(RunInUnloadableContext)' == 'true' " />
     <HelixPreCommand Include="export __TestEnv=$HELIX_WORKITEM_PAYLOAD/$(TestEnvFileName)" />
     <HelixPreCommand Include="export __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
+    <HelixPreCommand Include="export __NumberOfProcessors=%24(grep -c ^processor /proc/cpuinfo 2>/dev/null || sysctl -n hw.ncpu)" />
+    <HelixPreCommand Include="export __MaxNumberOfThreads=%24(( %24((%24__NumberOfProcessors + 1)) / 2))" />
     <HelixPreCommand Include="cat $__TestEnv" />
   </ItemGroup>
-
-  <PropertyGroup>
-    <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
-  </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetsWindows)' == 'true' ">
     <CoreRun>%CORE_ROOT%\CoreRun.exe</CoreRun>
     <XUnitRunnerDll>%CORE_ROOT%\xunit.console.dll</XUnitRunnerDll>
+    <MaxNumberOfThreads>%__MaxNumberOfThreads%</MaxNumberOfThreads>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetsWindows)' != 'true' ">
     <CoreRun>$CORE_ROOT/corerun</CoreRun>
     <XUnitRunnerDll>$CORE_ROOT/xunit.console.dll</XUnitRunnerDll>
+    <MaxNumberOfThreads>$__MaxNumberOfThreads</MaxNumberOfThreads>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
+    <XUnitRunnerArgs>-parallel collections -nocolor -noshadow -xml testResults.xml -maxthreads $(MaxNumberOfThreads)</XUnitRunnerArgs>
   </PropertyGroup>
 
   <ItemGroup Condition=" '$(UsesHelixSdk)' == 'true' ">
