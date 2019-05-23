@@ -1,9 +1,62 @@
-<Project InitialTargets="BuildHelixWorkItems" Sdk="Microsoft.DotNet.Helix.Sdk">
-  <Import Project="$(NuGetPackageRoot)microsoft.dotnet.build.tasks.feed\$(MicrosoftDotNetBuildTasksFeedVersion)\build\Microsoft.DotNet.Build.Tasks.Feed.targets" />
+<Project InitialTargets="BuildHelixWorkItems" DefaultTargets="RunInParallelForEachScenario">
+
+  <!-- This project uses the helix SDK, documented at
+       https://github.com/dotnet/arcade/tree/master/src/Microsoft.DotNet.Helix/Sdk,
+       to send test jobs to helix. -->
+
+  <Import Sdk="Microsoft.DotNet.Helix.Sdk" Project="Sdk.props" Condition=" '$(UsesHelixSdk)' == 'true' " />
+
+  <!-- Import Microsoft.DotNet.Build.Tasks.Feed.targets for `ParseBuildManifest` -->
+  <Import Project="..\dir.props" Condition=" '$(NuGetPackageRoot)'=='' "/>
+  <Import Project="$(NuGetPackageRoot)microsoft.dotnet.build.tasks.feed\$(MicrosoftDotNetBuildTasksFeedVersion)\build\Microsoft.DotNet.Build.Tasks.Feed.targets" />  
+
+  <!-- This project is copies much logic from helixpublishwitharcade.proj, used to send coreclr tests to Helix. -->
+
+  <Target Name="RunInParallelForEachScenario">
+    <PropertyGroup>
+      <!-- This specifies what properties are needed to be passed down as global properties to a child project. -->
+
+      <_PropertiesToPass>
+        __BuildArch=$(__BuildArch);
+        __BuildOS=$(__BuildOS);
+        __BuildType=$(__BuildType);
+        Creator=$(_Creator);
+        HelixAccessToken=$(_HelixAccessToken);
+        HelixBuild=$(_HelixBuild);
+        HelixSource=$(_HelixSource);
+        HelixTargetQueues=$(_HelixTargetQueues);
+        HelixType=$(_HelixType);
+        PublishTestResults=$(_PublishTestResults);
+        RunCrossGen=$(_RunCrossGen);
+        TimeoutPerTestCollectionInMinutes=$(_TimeoutPerTestCollectionInMinutes);
+        TimeoutPerTestInMinutes=$(_TimeoutPerTestInMinutes)
+      </_PropertiesToPass>
+    </PropertyGroup>
+
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="PrepareCorrelationPayloadDirectory" />
+    <MSBuild Projects="$(MSBuildProjectFile)" Targets="CreateAllTestEnvFiles" Properties="Scenarios=$(_Scenarios)" StopOnFirstFailure="true" />
+
+    <ItemGroup>
+      <_Scenarios Include="$(_Scenarios.Split(','))" />
+
+      <!-- MSBuild creates a new instance of the project for each %(_Scenarios.Identity) and can build them in parallel. -->
+      <_ProjectsToBuild Include="$(MSBuildProjectFile)">
+        <AdditionalProperties>$(_PropertiesToPass);Scenario=%(_Scenarios.Identity)</AdditionalProperties>
+      </_ProjectsToBuild>
+    </ItemGroup>
+
+    <PropertyGroup>
+      <_BuildInParallel>false</_BuildInParallel>
+      <_BuildInParallel Condition=" '@(_ProjectsToBuild->Count())' &gt; '1' ">true</_BuildInParallel>
+    </PropertyGroup>
+
+    <MSBuild Projects="@(_ProjectsToBuild)" Targets="Test" BuildInParallel="$(_BuildInParallel)" StopOnFirstFailure="false" Properties="UsesHelixSdk=true" />
+    <!-- <MSBuild Projects="@(_ProjectsToBuild)" Targets="FakeTest" BuildInParallel="false" StopOnFirstFailure="false" Properties="UsesHelixSdk=true" /> -->
+  </Target>
 
   <PropertyGroup>
     <!-- Set the TargetFramework just to make the SDK happy -->
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <!-- NEEDED? <TargetFramework>netstandard2.0</TargetFramework> -->
   </PropertyGroup>
 
   <PropertyGroup>
@@ -27,7 +80,6 @@
     <TestHostRootPath>$(TestWorkingDir)testhost\</TestHostRootPath>
     <TestArchiveRuntimeRoot>$(TestWorkingDir)helix\</TestArchiveRuntimeRoot>
     <TestArchiveRuntimeFile>$(TestArchiveRuntimeRoot)testhost-runtime.zip</TestArchiveRuntimeFile>
-    <HelixCorrelationPayload></HelixCorrelationPayload>
 
     <EnableAzurePipelinesReporter>$(_PublishTestResults)</EnableAzurePipelinesReporter>
     <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' == '' ">false</EnableAzurePipelinesReporter>
@@ -43,9 +95,9 @@
 
   <PropertyGroup>
     <!--
-      For windows we need to use call, since the command is going to be called from a bat script created by Helix
-      and we exit /b at the end of RunTests.cmd, Helix runs some other commands after ours within the bat script,
-      if we don't use call, then we cause the parent script to exit, and anything after will not be executed.
+      For Windows we need to use "call", since the command is going to be called from a batch script created by Helix.
+      We "exit /b" at the end of RunTests.cmd. Helix runs some other commands after ours within the batch script,
+      so if we don't use call, then we cause the parent script to exit, and anything after will not be executed.
       The arguments passed in to the run script in order are the runtime directory, the dotnet root directory (for
       helix submissions same as the runtime directory) and the global tools directory.
     -->
@@ -61,6 +113,36 @@
     <Copy
       SourceFiles="$(ProjectDir)\tests\CoreFX\CoreFX.issues.rsp"
       DestinationFolder="$(TestHostRootPath)" />
+  </Target>
+
+  <PropertyGroup>
+    <TestEnvFileName Condition=" '$(TargetsWindows)' == 'true' ">SetStressModes_$(Scenario).cmd</TestEnvFileName>
+    <TestEnvFileName Condition=" '$(TargetsWindows)' != 'true' ">SetStressModes_$(Scenario).sh</TestEnvFileName>
+  </PropertyGroup>
+
+  <Target Name="CreateTestEnvFiles">
+    <!-- This target creates one __TestEnv file for the $(Scenario). -->
+
+    <ItemGroup>
+      <_ProjectsToBuild Include="..\tests\testenvironment.proj">
+        <Properties>Scenario=$(Scenario);TestEnvFileName=$(TestHostRootPath)\$(TestEnvFileName);TargetsWindows=$(TargetsWindows)</Properties>
+      </_ProjectsToBuild>
+    </ItemGroup>
+
+    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFile" StopOnFirstFailure="true" />
+  </Target>
+
+  <Target Name="CreateAllTestEnvFiles">
+    <!-- This target creates one __TestEnv file for each of the $(Scenarios). -->
+
+    <ItemGroup>
+      <_Scenario Include="$(Scenarios.Split(','))" />
+      <_ProjectsToBuild Include="$(MSBuildProjectFile)">
+        <AdditionalProperties>Scenario=%(_Scenario.Identity)</AdditionalProperties>
+      </_ProjectsToBuild>
+    </ItemGroup>
+
+    <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFiles" StopOnFirstFailure="true" />
   </Target>
 
   <Target Name="CompressRuntimeDirectory"
@@ -82,13 +164,34 @@
     <TestAssetBlobFeedUrl>https://dotnetfeed.blob.core.windows.net/dotnet-core</TestAssetBlobFeedUrl>
   </PropertyGroup>
 
-  <Target Name="GetTestAssetManifest" 
-          Returns="@(TestAssetBlobInfos)">
+  <!-- WARNING: HelixPreCommand ItemGroup is intentionally minimal and should be kept that way. -->
+
+  <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
+    <HelixPreCommand Include="set __TestEnv=%HELIX_CORRELATION_PAYLOAD%\$(TestEnvFileName)" />
+    <HelixPreCommand Include="type %__TestEnv%" />
+    <HelixPreCommand Include="call %__TestEnv%" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
+    <HelixPreCommand Include="export __TestEnv=$HELIX_CORRELATION_PAYLOAD/$(TestEnvFileName)" />
+    <HelixPreCommand Include="cat $__TestEnv" />
+    <HelixPreCommand Include="source $__TestEnv" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
+  </PropertyGroup>
+
+  <Target Name="PrepareCorrelationPayloadDirectory"
+          DependsOnTargets="CompressRuntimeDirectory">
+  </Target>
+
+  <Target Name="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
 
     <!--
        Parse the test asset manifest at, e.g.,
            https://dotnetfeed.blob.core.windows.net/dotnet-core/corefx-tests/4.6.0-preview6.19264.9/Linux.arm64/netcoreapp/corefx-test-assets.xml
-       to figure out the tests to run.
+       to figure out the tests to run. This manifest is created by the corefx official build, for use in the coreclr repo.
      -->
 
     <PropertyGroup>
@@ -99,14 +202,14 @@
     <ParseBuildManifest AssetManifestPath="$(_AssetManifestPath)">
       <Output TaskParameter="BlobInfos" ItemName="TestAssetBlobInfos" />
     </ParseBuildManifest>
+
+    <!-- <Message Importance="High" Text="%(TestAssetBlobInfos.Identity): %(FileName)" /> -->
+
   </Target>
 
-  <Target Name="BuildHelixWorkItems"
-          Inputs="$(TestArchiveRuntimeFile);@(TestAssetBlobInfos)"
-          Outputs="@(HelixCorrelationPayload);@(HelixWorkItem)"
-          DependsOnTargets="CompressRuntimeDirectory;GetTestAssetManifest">
+  <Target Name="BuildHelixWorkItems" DependsOnTargets="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
 
-    <ItemGroup>
+    <ItemGroup Condition=" '$(UsesHelixSdk)' == 'true' ">
       <HelixCorrelationPayload 
         Include="$(TestArchiveRuntimeFile)" />
 
@@ -117,6 +220,21 @@
       </HelixWorkItem>
     </ItemGroup>
 
-    <Message Importance="High" Text="@(HelixWorkItem -> '%(PayloadUri)')" />
   </Target>
+
+  <!-- for testing! -->
+  <Target Name="FakeTest" Condition=" '$(UsesHelixSdk)' == 'true' " >
+    <Message Importance="High" Text="Starting FakeTest" />  
+    <Message Importance="High" Text="Scenario = $(Scenario)" />  
+    <Message Importance="High" Text="TestHostRootPath = $(TestHostRootPath)" />  
+    <Message Importance="High" Text="TestArchiveRuntimeFile = $(TestArchiveRuntimeFile)" />  
+    <Message Importance="High" Text="BuildInParallel = $(BuildInParallel)" />  
+    <Message Importance="High" Text="UsesHelixSdk = $(UsesHelixSdk)" />  
+    <Message Importance="High" Text="%(HelixWorkItem.Identity): %(Command)" />  
+    <Message Importance="High" Text="Pre commands: $(HelixPreCommands)" />  
+    <Message Importance="High" Text="Ending FakeTest" />  
+  </Target>
+
+  <Import Sdk="Microsoft.DotNet.Helix.Sdk" Project="Sdk.targets" Condition=" '$(UsesHelixSdk)' == 'true' " />
+
 </Project>
