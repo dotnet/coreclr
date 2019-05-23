@@ -911,8 +911,8 @@ namespace System.Threading
         private WaitOrTimerCallback _waitOrTimerCallback;
         private ExecutionContext? _executionContext;
         private object? _state;
-        private static readonly ContextCallback _ccbt = new ContextCallback(WaitOrTimerCallback_Context_t!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/35896
-        private static readonly ContextCallback _ccbf = new ContextCallback(WaitOrTimerCallback_Context_f!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/35896
+        private static readonly ContextCallback _ccbt = new ContextCallback(WaitOrTimerCallback_Context_t);
+        private static readonly ContextCallback _ccbf = new ContextCallback(WaitOrTimerCallback_Context_f);
 
         internal _ThreadPoolWaitOrTimerCallback(WaitOrTimerCallback waitOrTimerCallback, object? state, bool flowExecutionContext)
         {
@@ -926,15 +926,15 @@ namespace System.Threading
             }
         }
 
-        private static void WaitOrTimerCallback_Context_t(object state) =>
+        private static void WaitOrTimerCallback_Context_t(object? state) =>
             WaitOrTimerCallback_Context(state, timedOut: true);
 
-        private static void WaitOrTimerCallback_Context_f(object state) =>
+        private static void WaitOrTimerCallback_Context_f(object? state) =>
             WaitOrTimerCallback_Context(state, timedOut: false);
 
-        private static void WaitOrTimerCallback_Context(object state, bool timedOut)
+        private static void WaitOrTimerCallback_Context(object? state, bool timedOut)
         {
-            _ThreadPoolWaitOrTimerCallback helper = (_ThreadPoolWaitOrTimerCallback)state;
+            _ThreadPoolWaitOrTimerCallback helper = (_ThreadPoolWaitOrTimerCallback)state!;
             helper._waitOrTimerCallback(helper._state, timedOut);
         }
 

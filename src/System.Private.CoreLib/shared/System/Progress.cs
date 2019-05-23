@@ -34,7 +34,7 @@ namespace System
             // If there is no current context, we use a default instance targeting the ThreadPool.
             _synchronizationContext = SynchronizationContext.Current ?? ProgressStatics.DefaultContext;
             Debug.Assert(_synchronizationContext != null);
-            _invokeHandlers = new SendOrPostCallback(InvokeHandlers!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/35896
+            _invokeHandlers = new SendOrPostCallback(InvokeHandlers);
         }
 
         /// <summary>Initializes the <see cref="Progress{T}"/> with the specified callback.</summary>
@@ -81,9 +81,9 @@ namespace System
 
         /// <summary>Invokes the action and event callbacks.</summary>
         /// <param name="state">The progress value.</param>
-        private void InvokeHandlers(object state)
+        private void InvokeHandlers(object? state)
         {
-            T value = (T)state;
+            T value = (T)state!;
 
             Action<T>? handler = _handler;
             EventHandler<T> changedEvent = ProgressChanged;
