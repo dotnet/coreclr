@@ -61,7 +61,7 @@ class EventPipeThread
     static bool AllValuesAreNull(T &map)
     {
         LIMITED_METHOD_CONTRACT;
-        for (T::Iterator iter = map.Begin(); iter != map.End(); ++iter)
+        for (typename T::Iterator iter = map.Begin(); iter != map.End(); ++iter)
             if (iter->Value() != nullptr)
                 return false;
         return true;
