@@ -677,8 +677,6 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(s_pConfig != nullptr);
-        PRECONDITION(s_pSessions != nullptr);
     }
     CONTRACTL_END;
 
