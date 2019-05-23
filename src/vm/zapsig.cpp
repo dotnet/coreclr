@@ -1107,8 +1107,8 @@ FieldDesc * ZapSig::DecodeField(Module *pReferencingModule,
 }
 
 // Copy single type signature, adding ELEMENT_TYPE_MODULE_ZAPSIG to types that are encoded using tokens.
-// The check for types that use token is conservative, which means that we end up adding unnecessary
-// module zapsig in rare edge cases (like nested array of arrays).
+// The check for types that use token is conservative in the sense that it adds the override for types
+// it doesn't explicitly recognize.
 // The source signature originates from the module with index specified by the parameter moduleIndex.
 // Passing moduleIndex set to MODULE_INDEX_NONE results in pure copy of the signature.
 //
@@ -1119,32 +1119,65 @@ void ZapSig::CopyTypeSignature(SigParser* pSigParser, SigBuilder* pSigBuilder, D
 {
     if (moduleIndex != MODULE_INDEX_NONE)
     {
-        SigParser peekParser(*pSigParser);
+        BYTE type;
+        IfFailThrow(pSigParser->PeekByte(&type));
 
-        BYTE byteType;
-        IfFailThrow(peekParser.GetByte(&byteType));
-        CorElementType type = (CorElementType)byteType;
-
-        switch ((DWORD)type)
+        // Handle single and multidimensional arrays
+        if (type == ELEMENT_TYPE_SZARRAY || type == ELEMENT_TYPE_ARRAY)
         {
-            // The following elements are not expected in the signatures this function processes.
-            case ELEMENT_TYPE_BYREF:
-            case ELEMENT_TYPE_PTR:
-            case ELEMENT_TYPE_PINNED:
-            case ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG:
-            case ELEMENT_TYPE_NATIVE_VALUETYPE_ZAPSIG:
-                _ASSERTE(FALSE);
-                break;
-            // The following element types have element type that we use for the decision whether
-            // to insert the module zapsig or not.
-            case ELEMENT_TYPE_SZARRAY:
-            case ELEMENT_TYPE_ARRAY:
-                IfFailThrow(peekParser.GetByte(&byteType));
-                type = (CorElementType)byteType;
-                break;
+            IfFailThrow(pSigParser->GetByte(&type));
+            pSigBuilder->AppendElementType((CorElementType)type);
+
+            // Copy the element type signature
+            CopyTypeSignature(pSigParser, pSigBuilder, moduleIndex);
+
+            if (type == ELEMENT_TYPE_ARRAY)
+            {
+                // Copy rank
+                ULONG rank;
+                IfFailThrow(pSigParser->GetData(&rank));
+                pSigBuilder->AppendData(rank);
+
+                if (rank)
+                {
+                    // Copy # of sizes
+                    ULONG nsizes;
+                    IfFailThrow(pSigParser->GetData(&nsizes));
+                    pSigBuilder->AppendData(nsizes);
+
+                    while (nsizes--)
+                    {
+                        // Copy size
+                        ULONG size;
+                        IfFailThrow(pSigParser->GetData(&size));
+                        pSigBuilder->AppendData(size);
+                    }
+
+                    // Copy # of lower bounds
+                    ULONG nlbounds;
+                    IfFailThrow(pSigParser->GetData(&nlbounds));
+                    pSigBuilder->AppendData(nlbounds);
+                    while (nlbounds--)
+                    {
+                        // Copy lower bound
+                        ULONG lbound;
+                        IfFailThrow(pSigParser->GetData(&lbound));
+                        pSigBuilder->AppendData(lbound);
+                    }
+                }
+            }
+
+            return;
         }
 
-        // Add the module zapsig for types that may have use tokens.
+        // The following elements are not expected in the signatures this function processes. They are followed by
+        if (type == ELEMENT_TYPE_BYREF || type == ELEMENT_TYPE_PTR || type == ELEMENT_TYPE_PINNED ||
+            type == ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG || type == ELEMENT_TYPE_NATIVE_VALUETYPE_ZAPSIG)
+        {
+            _ASSERTE(FALSE);
+        }
+
+        // Add the module zapsig only for types that use tokens.
         if (type >= ELEMENT_TYPE_PTR && type != ELEMENT_TYPE_I && type != ELEMENT_TYPE_U && type != ELEMENT_TYPE_OBJECT &&
             type != ELEMENT_TYPE_VAR && type != ELEMENT_TYPE_MVAR && type != ELEMENT_TYPE_TYPEDBYREF)
         {
@@ -1152,16 +1185,16 @@ void ZapSig::CopyTypeSignature(SigParser* pSigParser, SigBuilder* pSigBuilder, D
             pSigBuilder->AppendData(moduleIndex);
         }
 
+        // Generic instantiation requires processing each nesting level separately
         if (type == ELEMENT_TYPE_GENERICINST)
         {
-            IfFailThrow(pSigParser->GetByte(&byteType));
-            _ASSERTE((CorElementType)byteType == ELEMENT_TYPE_GENERICINST);
-            pSigBuilder->AppendElementType(ELEMENT_TYPE_GENERICINST);
+            IfFailThrow(pSigParser->GetByte(&type));
+            _ASSERTE(type == ELEMENT_TYPE_GENERICINST);
+            pSigBuilder->AppendElementType((CorElementType)type);
 
-            IfFailThrow(pSigParser->GetByte(&byteType));
-            type = (CorElementType)byteType;
+            IfFailThrow(pSigParser->GetByte(&type));
             _ASSERTE((type == ELEMENT_TYPE_CLASS) || (type == ELEMENT_TYPE_VALUETYPE));
-            pSigBuilder->AppendElementType(type);
+            pSigBuilder->AppendElementType((CorElementType)type);
 
             mdToken token;
             IfFailThrow(pSigParser->GetToken(&token));
