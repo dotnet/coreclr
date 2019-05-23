@@ -54,11 +54,6 @@
 // Undefine all of the windows wrappers so you can't use them.
 //*****************************************************************************
 
-// wincrypt.h
-#undef CryptAcquireContext
-#undef CryptSignHash
-#undef CryptVerifySignature
-
 // winbase.h
 #undef GetBinaryType
 #undef GetShortPathName
@@ -139,23 +134,12 @@
 #undef GetTimeFormat
 #undef LCMapString
 
-// winnetwk.h
-#undef WNetGetConnection
-
-// Win32 Fusion API's
-#undef QueryActCtxW
-
 #endif // !defined(__TODO_PORT_TO_WRAPPERS__)
 
 //
 // NT supports the wide entry points.  So we redefine the wrappers right back
 // to the *W entry points as macros.  This way no client code needs a wrapper on NT.
 //
-
-// wincrypt.h
-#define WszCryptAcquireContext CryptAcquireContextW
-#define WszCryptSignHash CryptSignHashW
-#define WszCryptVerifySignature CryptVerifySignatureW
 
 // winbase.h
 #define WszGetEnvironmentStrings   GetEnvironmentStringsW
@@ -219,7 +203,6 @@
 #define WszMultiByteToWideChar MultiByteToWideChar
 #define WszWideCharToMultiByte WideCharToMultiByte
 #define WszCreateSemaphore CreateSemaphoreW
-#define WszQueryActCtxW QueryActCtxW
 
 
 #ifdef FEATURE_CORESYSTEM

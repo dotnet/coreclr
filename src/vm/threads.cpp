@@ -744,7 +744,7 @@ Thread* SetupThread(BOOL fInternal)
 
 #ifdef FEATURE_INTEROP_DEBUGGING
     // Ensure that debugger word slot is allocated
-    UnsafeTlsSetValue(g_debuggerWordTLSIndex, 0);
+    TlsSetValue(g_debuggerWordTLSIndex, 0);
 #endif
 
     // We now have a Thread object visable to the RS. unmark special status.
@@ -1105,7 +1105,7 @@ void InitThreadManager()
 #endif // !FEATURE_PAL
 
 #ifdef FEATURE_INTEROP_DEBUGGING
-    g_debuggerWordTLSIndex = UnsafeTlsAlloc();
+    g_debuggerWordTLSIndex = TlsAlloc();
     if (g_debuggerWordTLSIndex == TLS_OUT_OF_INDEXES)
         COMPlusThrowWin32();
 #endif
@@ -1368,9 +1368,9 @@ Thread::Thread()
     m_debuggerCantStop = 0;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+#ifdef PROFILING_SUPPORTED
     m_dwProfilerEvacuationCounter = 0;
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#endif // PROFILING_SUPPORTED
 
     m_pProfilerFilterContext = NULL;
 
