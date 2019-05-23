@@ -1,8 +1,12 @@
 -notrait category=OuterLoop 
 -notrait category=RequiresElevation
 
-# Wrong Microsoft.Bcl.AsyncInterfaces version
+# Wrong Microsoft.Bcl.AsyncInterfaces binary (netcoreapp vs. netstandard)
 -noclass System.Threading.Tasks.Sources.Tests.ManualResetValueTaskSourceTests
+
+# Old System.Composition.Runtime
+-nomethod System.Composition.Runtime.Tests.CompositionContractTests.Equals_Object_ReturnsExpected
+-noclass System.Composition.Hosting.Tests.ContainerConfigurationTests
 
 # Missing OOB dependencies
 -nonamespace System.Numerics.Tensors.Tests
@@ -12,6 +16,7 @@
 -nonamespace System.Data.SqlClient.ManualTesting.Tests
 -nonamespace System.Drawing.Printing.Tests
 -nonamespace System.Media.Test
+-noclass System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests
 
 # Missing OOB dependencies - Disable UTF8 string tests
 -noclass System.Net.Http.Tests.Utf8StringContentTests
@@ -35,8 +40,6 @@
 -nonamespace System.ComponentModel.Design.Tests
 -nonamespace System.ComponentModel.TypeConverterTests
 -nonamespace Tests.Integration
-
--noclass System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests
 
 # Temporarily disabled tests waiting for CoreCLR/CoreFX changes to propagate 
 -nomethod System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.ValidateAgainstBlobs
