@@ -1107,8 +1107,13 @@ FieldDesc * ZapSig::DecodeField(Module *pReferencingModule,
 }
 
 // Copy single type signature, adding ELEMENT_TYPE_MODULE_ZAPSIG to types that are encoded using tokens.
+// The check for types that use token is conservative, which means that we end up adding unnecessary
+// module zapsig in rare edge cases (like nested array of arrays).
 // The source signature originates from the module with index specified by the parameter moduleIndex.
 // Passing moduleIndex set to MODULE_INDEX_NONE results in pure copy of the signature.
+//
+// NOTE: This function is meant to process only generic signatures that occur as owner type,
+// constraint types and method instantiation in the EncodeMethod and EncodeField methods below.
 //
 void ZapSig::CopyTypeSignature(SigParser* pSigParser, SigBuilder* pSigBuilder, DWORD moduleIndex)
 {
@@ -1120,22 +1125,26 @@ void ZapSig::CopyTypeSignature(SigParser* pSigParser, SigBuilder* pSigBuilder, D
         IfFailThrow(peekParser.GetByte(&byteType));
         CorElementType type = (CorElementType)byteType;
 
-        // Some element types have sub-type that is what we are interested in
         switch ((DWORD)type)
         {
+            // The following elements are not expected in the signatures this function processes.
             case ELEMENT_TYPE_BYREF:
             case ELEMENT_TYPE_PTR:
             case ELEMENT_TYPE_PINNED:
-            case ELEMENT_TYPE_SZARRAY:
             case ELEMENT_TYPE_NATIVE_ARRAY_TEMPLATE_ZAPSIG:
             case ELEMENT_TYPE_NATIVE_VALUETYPE_ZAPSIG:
+                _ASSERTE(FALSE);
+                break;
+            // The following element types have element type that we use for the decision whether
+            // to insert the module zapsig or not.
+            case ELEMENT_TYPE_SZARRAY:
             case ELEMENT_TYPE_ARRAY:
                 IfFailThrow(peekParser.GetByte(&byteType));
                 type = (CorElementType)byteType;
                 break;
         }
 
-        // Add the module zapsig only for types that are encoded using a token
+        // Add the module zapsig for types that may have use tokens.
         if (type >= ELEMENT_TYPE_PTR && type != ELEMENT_TYPE_I && type != ELEMENT_TYPE_U && type != ELEMENT_TYPE_OBJECT &&
             type != ELEMENT_TYPE_VAR && type != ELEMENT_TYPE_MVAR && type != ELEMENT_TYPE_TYPEDBYREF)
         {
