@@ -59,6 +59,14 @@ __attribute__((constructor (200)))
 static void
 PAL_InitializeTracing(void)
 {
+    int shouldDisableLoad = 0;
+    // Check if loading the LTTng providers should be disabled.
+    char *disableValue = getenv("COMPlus_DisableLttngLibraryLoad");
+    if (disableValue != NULL)
+    {
+        shouldDisableLoad = strtol(disableValue, NULL, 10);
+    }
+
     // Get the path to the currently executing shared object (libcoreclr.so).
     Dl_info info;
     int succeeded = dladdr((void *)PAL_InitializeTracing, &info);
@@ -99,7 +107,8 @@ PAL_InitializeTracing(void)
         return;
     }
     
-    if (CLRConfig::GetConfigValue(CLRConfig::UNSUPORTED_DisableLttngLibraryLoad) == 0)
+    
+    if (!shouldDisableLoad)
     {
         // Load the tracepoint provider.
         // It's OK if this fails - that just means that tracing dependencies aren't available.
