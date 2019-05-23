@@ -256,8 +256,8 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     CONTRACTL
     {
         THROWS;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        GC_NOTRIGGER;
+        MODE_ANY;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
