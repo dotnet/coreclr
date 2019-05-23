@@ -31,7 +31,7 @@ void DumpDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& 
 
     default:
         STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommand);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_COMMAND);
         delete pStream;
         break;
     }
@@ -86,7 +86,7 @@ void DumpDiagnosticProtocolHelper::GenerateCoreDump(DiagnosticsIpc::IpcMessage& 
     NewHolder<const GenerateCoreDumpCommandPayload> payload = message.TryParsePayload<GenerateCoreDumpCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
         delete pStream;
         return;
     }
@@ -96,20 +96,20 @@ void DumpDiagnosticProtocolHelper::GenerateCoreDump(DiagnosticsIpc::IpcMessage& 
     {
         if (!PAL_GenerateCoreDump(szDumpName, payload->dumpType, payload->diagnostics))
         {
-            DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownError);
+            DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, E_FAIL);
             delete pStream;
             return;
         }
     }
     else 
     {
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownError);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, E_OUTOFMEMORY);
         delete pStream;
         return;
     }
 
     DiagnosticsIpc::IpcMessage successResponse;
-    if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, DiagnosticsIpc::DiagnosticServerErrorCode::OK))
+    if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, S_OK))
         successResponse.Send(pStream);
     delete pStream;
 }

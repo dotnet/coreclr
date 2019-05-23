@@ -10,6 +10,7 @@
 #include "clr_std/type_traits"
 #include "new.hpp"
 #include "diagnosticsipc.h"
+#include "corerror.h"
 
 #define DOTNET_IPC_V1_MAGIC "DOTNET_IPC_V1"
 
@@ -78,19 +79,6 @@ namespace DiagnosticsIpc
     {
         OK    = 0x00,
         Error = 0xFF,
-    };
-
-    enum class DiagnosticServerErrorCode : uint32_t
-    {
-        OK               = 0x00000000,
-
-        BadEncoding      = 0x00000001,
-        UnknownCommand   = 0x00000002,
-        UnknownMagic     = 0x00000003,
-        BadInput         = 0x00000004,
-        // future
-
-        UnknownError     = 0xFFFFFFFF,
     };
 
     struct MagicVersion
@@ -234,7 +222,7 @@ namespace DiagnosticsIpc
         };
 
         // Initialize an outgoing IpcMessage for an error
-        bool Initialize(DiagnosticServerErrorCode error)
+        bool Initialize(HRESULT error)
         {
             CONTRACTL
             {
@@ -332,7 +320,7 @@ namespace DiagnosticsIpc
         // dictates that the connection be closed on error,
         // so the user is expected to delete the IpcStream
         // after handling error cases.
-        static bool SendErrorMessage(IpcStream* pStream, DiagnosticServerErrorCode error)
+        static bool SendErrorMessage(IpcStream* pStream, HRESULT error)
         {
             CONTRACTL
             {
@@ -344,8 +332,10 @@ namespace DiagnosticsIpc
             CONTRACTL_END;
 
             IpcMessage errorMessage;
-            errorMessage.Initialize(error);
-            return errorMessage.Send(pStream);
+            bool success = errorMessage.Initialize((int32_t)error);
+            if (success)
+                success = errorMessage.Send(pStream);
+            return success;
         };
     private:
         // Pointer to flattened buffer filled with:

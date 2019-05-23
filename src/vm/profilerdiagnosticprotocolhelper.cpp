@@ -31,7 +31,7 @@ void ProfilerDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessa
 
     default:
         STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommand);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_COMMAND);
         delete pStream;
         break;
     }
@@ -62,7 +62,7 @@ const AttachProfilerCommandPayload* AttachProfilerCommandPayload::TryParse(BYTE*
         !::TryParse(pBufferCursor, bufferLen, payload->profilerGuid) ||
         !TryParseString(pBufferCursor, bufferLen, payload->pwszProfilerPath) ||
         !::TryParse(pBufferCursor, bufferLen, payload->cbClientData) ||
-        !(bufferLen < payload->cbClientData))
+        !(bufferLen <= payload->cbClientData))
     {
         delete payload;
         return nullptr;
@@ -93,9 +93,8 @@ void ProfilerDiagnosticProtocolHelper::AttachProfiler(DiagnosticsIpc::IpcMessage
     NewHolder<const AttachProfilerCommandPayload> payload = message.TryParsePayload<AttachProfilerCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding);
-        delete pStream;
-        return;
+        hr = CORDIAGIPC_E_BAD_ENCODING;
+        goto ErrExit;
     }
 
     if (!g_profControlBlock.fProfControlBlockInitialized)
@@ -110,9 +109,16 @@ void ProfilerDiagnosticProtocolHelper::AttachProfiler(DiagnosticsIpc::IpcMessage
                                                     payload->cbClientData,
                                                     payload->dwAttachTimeout);
 ErrExit:
-    DiagnosticsIpc::IpcMessage profilerAttachResponse;
-    if (profilerAttachResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, (uint32_t)hr))
-        profilerAttachResponse.Send(pStream);
+    if (hr != S_OK)
+    {
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, hr);
+    }
+    else
+    {
+        DiagnosticsIpc::IpcMessage profilerAttachResponse;
+        if (profilerAttachResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, hr))
+            profilerAttachResponse.Send(pStream);
+    }
     delete pStream;
 }
 

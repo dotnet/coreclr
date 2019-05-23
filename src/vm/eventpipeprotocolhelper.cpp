@@ -87,7 +87,7 @@ void EventPipeProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& messa
 
     default:
         STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownCommand);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_COMMAND);
         delete pStream;
         break;
     }
@@ -148,7 +148,7 @@ void EventPipeProtocolHelper::StopTracing(DiagnosticsIpc::IpcMessage& message, I
     NewHolder<const EventPipeStopTracingCommandPayload> payload = message.TryParsePayload<EventPipeStopTracingCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
         delete pStream;
         return;
     }
@@ -181,7 +181,7 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
     const EventPipeCollectTracingCommandPayload* payload = message.TryParsePayload<EventPipeCollectTracingCommandPayload>();
     if (payload == nullptr)
     {
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
         delete payload;
         delete pStream;
         return;
@@ -198,7 +198,7 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
 
     if (sessionId == 0)
     {
-        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::UnknownError);
+        DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, E_FAIL);
         delete payload;
         delete pStream;
     }
