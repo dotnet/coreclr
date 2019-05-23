@@ -95,7 +95,7 @@
 
 #define NGEN_STATICS_ALLCLASSES_WERE_LOADED -1
 
-BOOL Module::HasInlineTrackingMap()
+BOOL Module::HasNativeOrReadyToRunInlineTrackingMap()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 #ifdef FEATURE_READYTORUN
@@ -107,7 +107,7 @@ BOOL Module::HasInlineTrackingMap()
     return (m_pPersistentInlineTrackingMapNGen != NULL);
 }
 
-COUNT_T Module::GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData)
+COUNT_T Module::GetNativeOrReadyToRunInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData)
 {
     WRAPPER_NO_CONTRACT;
 #ifdef FEATURE_READYTORUN
@@ -123,11 +123,28 @@ COUNT_T Module::GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, 
     return 0;
 }
 
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+BOOL Module::HasJitInlineTrackingMap()
+{
+    LIMITED_METHOD_CONTRACT;
 
-#ifndef DACCESS_COMPILE 
+    return m_pJitInlinerTrackingMap != NULL;
+}
 
+void Module::AddInlining(MethodDesc *inliner, MethodDesc *inlinee)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(inliner != NULL && inlinee != NULL);
+    _ASSERTE(inlinee->GetModule() == this);
 
+    if (m_pJitInlinerTrackingMap != NULL)
+    {
+        m_pJitInlinerTrackingMap->AddInlining(inliner, inlinee);
+    }
+}
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
+#ifndef DACCESS_COMPILE
 // ===========================================================================
 // Module
 // ===========================================================================
@@ -202,6 +219,7 @@ void Module::UpdateNewlyAddedTypes()
 
     DWORD countTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
     DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+    DWORD countCustomAttributeCount = GetMDImport()->GetCountWithTokenKind(mdtCustomAttribute);
 
     // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
     for (DWORD typeDefRid = m_dwTypeCount + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
@@ -215,8 +233,15 @@ void Module::UpdateNewlyAddedTypes()
         GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
     }
 
+    if ((countCustomAttributeCount != m_dwCustomAttributeCount) && IsReadyToRun())
+    {
+        // Set of custom attributes has changed. Disable the cuckoo filter from ready to run, and do normal custom attribute parsing
+        GetReadyToRunInfo()->DisableCustomAttributeFilter();
+    }
+
     m_dwTypeCount = countTypesAfterProfilerUpdate;
     m_dwExportedTypeCount = countExportedTypesAfterProfilerUpdate;
+    m_dwCustomAttributeCount = countCustomAttributeCount;
 }
 
 void Module::NotifyProfilerLoadFinished(HRESULT hr)
@@ -240,6 +265,7 @@ void Module::NotifyProfilerLoadFinished(HRESULT hr)
         {
             m_dwTypeCount = GetMDImport()->GetCountWithTokenKind(mdtTypeDef);
             m_dwExportedTypeCount = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
+            m_dwCustomAttributeCount = GetMDImport()->GetCountWithTokenKind(mdtCustomAttribute);
         }
 
         // Notify the profiler, this may cause metadata to be updated
@@ -605,6 +631,7 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     // a safe initial value now.
     m_dwTypeCount = 0;
     m_dwExportedTypeCount = 0;
+    m_dwCustomAttributeCount = 0;
 
     // Prepare statics that are known at module load time
     AllocateStatics(pamTracker);
@@ -636,6 +663,14 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     // module has EnC turned on.
     if (g_pConfig->ForceEnc() && IsEditAndContinueCapable())
         EnableEditAndContinue();
+
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    m_pJitInlinerTrackingMap = NULL;
+    if (ReJitManager::IsReJITInlineTrackingEnabled())
+    {
+        m_pJitInlinerTrackingMap = new JITInlineTrackingMap(GetLoaderAllocator());
+    }
+#endif // defined (PROFILING_SUPPORTED) &&!defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
     LOG((LF_CLASSLOADER, LL_INFO10, "Loaded pModule: \"%ws\".\n", GetDebugName()));
 
@@ -2510,10 +2545,9 @@ BOOL Module::HasDefaultDllImportSearchPathsAttribute()
     {
         return (m_dwPersistedFlags & DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS) != 0 ;
     }
-    IMDInternalImport *mdImport = GetAssembly()->GetManifestImport();
 
     BOOL attributeIsFound = FALSE;
-    attributeIsFound = GetDefaultDllImportSearchPathsAttributeValue(mdImport, TokenFromRid(1, mdtAssembly),&m_DefaultDllImportSearchPathsAttributeValue);
+    attributeIsFound = GetDefaultDllImportSearchPathsAttributeValue(this, TokenFromRid(1, mdtAssembly),&m_DefaultDllImportSearchPathsAttributeValue);
     if(attributeIsFound)
     {
         FastInterlockOr(&m_dwPersistedFlags, DEFAULT_DLL_IMPORT_SEARCH_PATHS_IS_CACHED | DEFAULT_DLL_IMPORT_SEARCH_PATHS_STATUS);
@@ -7154,7 +7188,9 @@ TypeHandle Module::LoadIBCTypeHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_SIG
     }
     EX_CATCH
     {
-        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+        if (g_CorCompileVerboseLevel >= CORCOMPILE_VERBOSE)
+            image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+
         loadedType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -7211,7 +7247,9 @@ MethodDesc* Module::LoadIBCMethodHelper(DataImage *image, CORBBTPROF_BLOB_PARAM_
     }
     EX_CATCH
     {
-        image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+        if (g_CorCompileVerboseLevel >= CORCOMPILE_VERBOSE)
+            image->GetPreloader()->Error(pBlobSigEntry->blob.token, GET_EXCEPTION());
+
         enclosingType = TypeHandle();
     }
     EX_END_CATCH(SwallowAllExceptions)
@@ -11770,7 +11808,7 @@ static void ProfileDataAllocateScenarioInfo(ProfileEmitter * pEmitter, LPCSTR sc
         // Get the managed command line.
         LPCWSTR pCmdLine = GetManagedCommandLine();
 
-        // If this process started as a service we won't have a managed command line
+        // Checkout https://github.com/dotnet/coreclr/pull/24433 for more information about this fall back.
         if (pCmdLine == nullptr)
         {
             // Use the result from GetCommandLineW() instead

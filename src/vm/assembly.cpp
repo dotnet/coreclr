@@ -229,8 +229,7 @@ BOOL Assembly::IsDisabledPrivateReflection()
 
     if (m_isDisabledPrivateReflection == UNINITIALIZED)
     {
-        IMDInternalImport *pImport = GetManifestImport();
-        HRESULT hr = pImport->GetCustomAttributeByName(GetManifestToken(), DISABLED_PRIVATE_REFLECTION_TYPE, NULL, 0);
+        HRESULT hr = GetManifestModule()->GetCustomAttribute(GetManifestToken(), WellKnownAttribute::DisablePrivateReflectionType, NULL, 0);
         IfFailThrow(hr);
 
         if (hr == S_OK)
@@ -1150,11 +1149,11 @@ Module *Assembly::FindModuleByName(LPCSTR pszModuleName)
     }
     CONTRACT_END;
 
-    CQuickBytes qbLC;
+    SString moduleName(SString::Utf8, pszModuleName);
+    moduleName.LowerCase();
 
-    // Need to perform case insensitive hashing.
-    UTF8_TO_LOWER_CASE(pszModuleName, qbLC);
-    pszModuleName = (LPUTF8) qbLC.Ptr();
+    StackScratchBuffer buffer;
+    pszModuleName = moduleName.GetUTF8(buffer);
 
     mdFile kFile = GetManifestFileToken(pszModuleName);
     if (kFile == mdTokenNil)

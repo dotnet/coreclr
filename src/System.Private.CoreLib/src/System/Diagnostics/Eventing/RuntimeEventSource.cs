@@ -23,6 +23,7 @@ namespace System.Diagnostics.Tracing
         private PollingCounter? _threadPoolThreadCounter;
         private IncrementingPollingCounter? _monitorContentionCounter;
         private PollingCounter? _threadPoolQueueCounter;
+        private IncrementingPollingCounter? _completedItemsCounter;
         private PollingCounter? _gcTimeCounter;
         private PollingCounter? _gen0SizeCounter;
         private PollingCounter? _gen1SizeCounter;
@@ -60,6 +61,7 @@ namespace System.Diagnostics.Tracing
                 _threadPoolThreadCounter = _threadPoolThreadCounter ?? new PollingCounter("threadpool-thread-count", this, () => ThreadPool.ThreadCount) { DisplayName = "ThreadPool Thread Count" };
                 _monitorContentionCounter = _monitorContentionCounter ?? new IncrementingPollingCounter("monitor-lock-contention-count", this, () => Monitor.LockContentionCount) { DisplayName = "Monitor Lock Contention Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) }; 
                 _threadPoolQueueCounter = _threadPoolQueueCounter ?? new PollingCounter("threadpool-queue-length", this, () => ThreadPool.PendingWorkItemCount) { DisplayName = "ThreadPool Queue Length" };
+                _completedItemsCounter = _completedItemsCounter ?? new IncrementingPollingCounter("threadpool-completed-items-count", this, () => ThreadPool.CompletedWorkItemCount) { DisplayName = "ThreadPool Completed Work Item Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
                 _gcTimeCounter = _gcTimeCounter ?? new PollingCounter("time-in-gc", this, () => GC.GetLastGCPercentTimeInGC()) { DisplayName = "Time in GC" };
                 _gen0SizeCounter = _gen0SizeCounter ?? new PollingCounter("gen-0-size", this, () => GC.GetGenerationSize(0)) { DisplayName = "Gen 0 Size" };
                 _gen1SizeCounter = _gen1SizeCounter ?? new PollingCounter("gen-1-size", this, () => GC.GetGenerationSize(1)) { DisplayName = "Gen 1 Size" };

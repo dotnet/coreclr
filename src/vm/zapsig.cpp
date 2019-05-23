@@ -1426,6 +1426,14 @@ BOOL ZapSig::EncodeMethod(
         if (fEncodeUsingResolvedTokenSpecStreams && pConstrainedResolvedToken->pTypeSpec != NULL)
         {
             _ASSERTE(pConstrainedResolvedToken->cbTypeSpec > 0);
+
+            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != (Module *) pConstrainedResolvedToken->tokenScope)
+            {
+                pSigBuilder->AppendElementType((CorElementType)ELEMENT_TYPE_MODULE_ZAPSIG);
+                DWORD index = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, (Module *) pConstrainedResolvedToken->tokenScope);
+                pSigBuilder->AppendData(index);
+            }
+
             pSigBuilder->AppendBlob((PVOID)pConstrainedResolvedToken->pTypeSpec, pConstrainedResolvedToken->cbTypeSpec);
         }
         else
@@ -1462,7 +1470,7 @@ void ZapSig::EncodeField(
     DWORD fieldFlags = ENCODE_FIELD_SIG_OwnerType;
 
 #ifdef FEATURE_READYTORUN_COMPILER
-    if (IsReadyToRunCompilation())
+    if (IsReadyToRunCompilation() && (!IsLargeVersionBubbleEnabled() || !pField->GetModule()->IsInCurrentVersionBubble()))
     {
         if (pResolvedToken == NULL)
         {

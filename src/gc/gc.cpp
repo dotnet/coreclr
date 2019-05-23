@@ -11528,14 +11528,6 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     acontext->alloc_bytes += added_bytes;
     total_alloc_bytes     += added_bytes;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordAllocatedBytesForHeap(limit_size, heap_number);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
-
     uint8_t* saved_used = 0;
 
     if (seg)
@@ -12084,13 +12076,6 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
                                  heap_segment* seg)
 {
     make_unused_array (alloc_start, size);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordAllocatedBytesForHeap(size, heap_number);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     size_t size_of_array_base = sizeof(ArrayBase);
 
@@ -19084,10 +19069,6 @@ gc_heap::scan_background_roots (promote_func* fn, int hn, ScanContext *pSC)
 
     pSC->thread_number = hn;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    pSC->pCurrentDomain = 0;
-#endif
-
     BOOL relocate_p = (fn == &GCHeap::Relocate);
 
     dprintf (3, ("Scanning background mark list"));
@@ -20294,22 +20275,6 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
         // scan for deleted entries in the syncblk cache
         GCScan::GcWeakPtrScanBySingleThread (condemned_gen_number, max_generation, &sc);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableAppDomainMonitoring)
-        {
-            size_t promoted_all_heaps = 0;
-#ifdef MULTIPLE_HEAPS
-            for (int i = 0; i < n_heaps; i++)
-            {
-                promoted_all_heaps += promoted_bytes (i);
-            }
-#else
-            promoted_all_heaps = promoted_bytes (heap_number);
-#endif //MULTIPLE_HEAPS
-            GCToEEInterface::RecordTotalSurvivedBytes(promoted_all_heaps);
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 #ifdef MULTIPLE_HEAPS
 
@@ -28077,15 +28042,7 @@ BOOL gc_heap::find_card(uint32_t* card_table,
             {
                 card_word_value = *(++last_card_word);
             } while ((last_card_word < &card_table [card_word_end]) &&
-
-#ifdef _MSC_VER
-                     (card_word_value == (1 << card_word_width)-1)
-#else
-                     // if left shift count >= width of type,
-                     // gcc reports error.
-                     (card_word_value == ~0u)
-#endif // _MSC_VER
-                );
+                     (card_word_value == ~0u /* (1 << card_word_width)-1 */));
             bit_position = 0;
         }
     } while (card_word_value & 1);
@@ -30477,7 +30434,7 @@ size_t gc_heap::joined_youngest_desired (size_t new_allocation)
             uint32_t memory_load = 0;
             get_memory_info (&memory_load);
             settings.exit_memory_load = memory_load;
-            dprintf (2, ("Current emory load: %d", memory_load));
+            dprintf (2, ("Current memory load: %d", memory_load));
 
             size_t final_total = 
                 trim_youngest_desired (memory_load, total_new_allocation, total_min_allocation);
@@ -34597,25 +34554,10 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
             hp->pin_object (o, (uint8_t**) ppObject, hp->gc_low, hp->gc_high);
 #endif //STRESS_PINNING
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_begin = hp->promoted_bytes (thread);
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     if ((o >= hp->gc_low) && (o < hp->gc_high))
     {
         hpt->mark_object_simple (&o THREAD_NUMBER_ARG);
     }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_end = hp->promoted_bytes (thread);
-    if (g_fEnableAppDomainMonitoring)
-    {
-        if (sc->pCurrentDomain)
-        {
-            GCToEEInterface::RecordSurvivedBytesForHeap((promoted_size_end - promoted_size_begin), thread, sc->pCurrentDomain);
-        }
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     STRESS_LOG_ROOT_PROMOTE(ppObject, o, o ? header(o)->GetMethodTable() : NULL);
 }
@@ -35552,13 +35494,6 @@ void gc_heap::do_pre_gc()
 #endif //BACKGROUND_GC
         }
     }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::ResetTotalSurvivedBytes();
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 }
 
 #ifdef GC_CONFIG_DRIVEN
@@ -35806,13 +35741,6 @@ void gc_heap::do_post_gc()
     }
 
     GCHeap::UpdatePostGCCounters();
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    //if (g_fEnableARM)
-    //{
-    //    SystemDomain::GetADSurvivedBytes();
-    //}
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef STRESS_LOG
     STRESS_LOG_GC_END(VolatileLoad(&settings.gc_index),
                       (uint32_t)settings.condemned_generation,
@@ -36559,23 +36487,6 @@ size_t GCHeap::GetFinalizablePromotedCount()
 #endif //MULTIPLE_HEAPS
 }
 
-bool GCHeap::FinalizeAppDomain(void *pDomain, bool fRunFinalizers)
-{
-#ifdef MULTIPLE_HEAPS
-    bool foundp = false;
-    for (int hn = 0; hn < gc_heap::n_heaps; hn++)
-    {
-        gc_heap* hp = gc_heap::g_heaps [hn];
-        if (hp->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers))
-            foundp = true;
-    }
-    return foundp;
-
-#else //MULTIPLE_HEAPS
-    return pGenGCHeap->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers);
-#endif //MULTIPLE_HEAPS
-}
-
 bool GCHeap::ShouldRestartFinalizerWatchDog()
 {
     // This condition was historically used as part of the condition to detect finalizer thread timeouts
@@ -36880,88 +36791,6 @@ CFinalize::GetNumberFinalizableObjects()
         (g_fFinalizerRunOnShutDown ? m_Array : SegQueue(FinalizerListSeg));
 }
 
-BOOL
-CFinalize::FinalizeSegForAppDomain (void *pDomain, 
-                                    BOOL fRunFinalizers, 
-                                    unsigned int Seg)
-{
-    BOOL finalizedFound = FALSE;
-    Object** endIndex = SegQueue (Seg);
-    for (Object** i = SegQueueLimit (Seg)-1; i >= endIndex ;i--)
-    {
-        CObjectHeader* obj = (CObjectHeader*)*i;
-
-        // Objects are put into the finalization queue before they are complete (ie their methodtable
-        // may be null) so we must check that the object we found has a method table before checking
-        // if it has the index we are looking for. If the methodtable is null, it can't be from the
-        // unloading domain, so skip it.
-        if (method_table(obj) == NULL)
-        {
-            continue;
-        }
-
-        // does the EE actually want us to finalize this object?
-        if (!GCToEEInterface::ShouldFinalizeObjectForUnload(pDomain, obj))
-        {
-            continue;
-        }
-
-        if (!fRunFinalizers || (obj->GetHeader()->GetBits()) & BIT_SBLK_FINALIZER_RUN)
-        {
-            //remove the object because we don't want to
-            //run the finalizer
-            MoveItem (i, Seg, FreeList);
-            //Reset the bit so it will be put back on the queue
-            //if resurrected and re-registered.
-            obj->GetHeader()->ClrBit (BIT_SBLK_FINALIZER_RUN);
-        }
-        else
-        {
-            if (method_table(obj)->HasCriticalFinalizer())
-            {
-                finalizedFound = TRUE;
-                MoveItem (i, Seg, CriticalFinalizerListSeg);
-            }
-            else
-            {
-                if (GCToEEInterface::AppDomainIsRudeUnload(pDomain))
-                {
-                    MoveItem (i, Seg, FreeList);
-                }
-                else
-                {
-                    finalizedFound = TRUE;
-                    MoveItem (i, Seg, FinalizerListSeg);
-                }
-            }
-        }
-    }
-
-    return finalizedFound;
-}
-
-bool
-CFinalize::FinalizeAppDomain (void *pDomain, bool fRunFinalizers)
-{
-    bool finalizedFound = false;
-
-    unsigned int startSeg = gen_segment (max_generation);
-
-    EnterFinalizeLock();
-
-    for (unsigned int Seg = startSeg; Seg <= gen_segment (0); Seg++)
-    {
-        if (FinalizeSegForAppDomain (pDomain, fRunFinalizers, Seg))
-        {
-            finalizedFound = true;
-        }
-    }
-
-    LeaveFinalizeLock();
-
-    return finalizedFound;
-}
-
 void
 CFinalize::MoveItem (Object** fromIndex,
                      unsigned int fromSeg,
@@ -37009,12 +36838,6 @@ CFinalize::GcScanRoots (promote_func* fn, int hn, ScanContext *pSC)
         Object* o = *po;
         //dprintf (3, ("scan freacheable %Ix", (size_t)o));
         dprintf (3, ("scan f %Ix", (size_t)o));
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableAppDomainMonitoring)
-        {
-            pSC->pCurrentDomain = GCToEEInterface::GetAppDomainForObject(o);
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
         (*fn)(po, pSC, 0);
     }
@@ -37418,7 +37241,7 @@ void GCHeap::DiagScanDependentHandles (handle_scan_fn fn, int gen_number, ScanCo
 // Go through and touch (read) each page straddled by a memory block.
 void TouchPages(void * pStart, size_t cb)
 {
-    const uint32_t pagesize = OS_PAGE_SIZE;
+    const size_t pagesize = OS_PAGE_SIZE;
     _ASSERTE(0 == (pagesize & (pagesize-1))); // Must be a power of 2.
     if (cb)
     {

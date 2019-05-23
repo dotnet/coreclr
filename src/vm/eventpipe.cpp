@@ -196,6 +196,20 @@ void EventPipe::Shutdown()
     }
     CONTRACTL_END;
 
+    if (g_fProcessDetach)
+    {
+        // If g_fProcessDetach is true, all threads except this got ripped because someone called ExitProcess(). 
+        // This check is an attempt recognize that case and skip all unsafe cleanup work. 
+
+        // Since event reading/writing could happen while that ExitProcess happened, the stream is probably 
+        // screwed anyway. Therefore we do NOT attempt to flush buffer, do rundown. Cleaning up memory at this
+        // point is rather meaningless too since the process is going to terminate soon. Therefore we simply 
+        // quickly exit here
+        
+        // TODO: Consider releasing the resources that could last longer than the process (e.g. the files)
+        return;
+    }
+
     // Mark tracing as no longer initialized.
     s_tracingInitialized = false;
 
@@ -374,9 +388,19 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     {
         // Disable the profiler.
         SampleProfiler::Disable();
+        
+        // Get the managed command line.
+        LPCWSTR pCmdLine = GetManagedCommandLine();
+
+        // Checkout https://github.com/dotnet/coreclr/pull/24433 for more information about this fall back.
+        if (pCmdLine == nullptr)
+        {
+            // Use the result from GetCommandLineW() instead
+            pCmdLine = GetCommandLineW();
+        }
 
         // Log the process information event.
-        s_pEventSource->SendProcessInfo(GetManagedCommandLine());
+        s_pEventSource->SendProcessInfo(pCmdLine);
 
         // Log the runtime information event.
         ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
