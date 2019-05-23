@@ -670,9 +670,13 @@ public:
 
     static float round(float x);
 
+    static bool isNormal(double x);
+
+    static bool isNormal(float x);
+
     static bool isPow2(double x);
 
-    static bool isPow2f(float x);
+    static bool isPow2(float x);
 };
 
 // The CLR requires that critical section locks be initialized via its ClrCreateCriticalSection API...but

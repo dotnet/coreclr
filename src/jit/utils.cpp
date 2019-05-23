@@ -1954,21 +1954,35 @@ float FloatingPointUtils::round(float x)
     return _copysignf(flrTempVal, x);
 }
 
+bool FloatingPointUtils::isNormal(double x)
+{
+    int64_t bits = *(int64_t*)&x;
+    bits &= 0x7FFFFFFFFFFFFFFF;
+    return (bits < 0x7FF0000000000000) && (bits != 0) && ((bits & 0x7FF0000000000000) != 0);
+}
+
+bool FloatingPointUtils::isNormal(float x)
+{
+    int32_t bits = *(int32_t*)&x;
+    bits &= 0x7FFFFFFF;
+    return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
+}
+
 bool FloatingPointUtils::isPow2(double x)
 {
-    if (!_finite(x))
+    if (!_finite(x) || !isNormal(x))
         return false;
 
     uint64_t i = *(uint64_t*)&x;	
     uint32_t exponent = (uint32_t)(i >> 52);	
-    uint64_t mantissa =  i & 0x8ffffffffffff;	
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFF;	
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
 
 
-bool FloatingPointUtils::isPow2f(float x)
+bool FloatingPointUtils::isPow2(float x)
 {
-    if (!_finitef(x))
+    if (!_finitef(x) || !isNormal(x))
         return false;
 
     uint32_t i = *(uint32_t*)&x;	
