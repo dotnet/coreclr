@@ -4129,8 +4129,6 @@ PAL_GetCurrentThreadAffinitySet(SIZE_T size, UINT_PTR* data);
 #define asinh         PAL_asinh
 #define atan2         PAL_atan2
 #define exp           PAL_exp
-#define frexp         PAL_frexp
-#define isnormal      PAL_isnormal
 #define fma           PAL_fma
 #define ilogb         PAL_ilogb
 #define log           PAL_log
@@ -4410,8 +4408,6 @@ PALIMPORT double __cdecl ceil(double);
 PALIMPORT double __cdecl cos(double);
 PALIMPORT double __cdecl cosh(double);
 PALIMPORT double __cdecl exp(double);
-PALIMPORT double __cdecl frexp(double,int*);
-PALIMPORT bool __cdecl isnormal(double);
 PALIMPORT double __cdecl fabs(double);
 PALIMPORT double __cdecl floor(double);
 PALIMPORT double __cdecl fmod(double, double);

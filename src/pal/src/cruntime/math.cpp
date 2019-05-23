@@ -311,44 +311,6 @@ PALIMPORT double __cdecl PAL_exp(double x)
 
 /*++
 Function:
-    frexp
-
-See MSDN.
---*/
-PALIMPORT double __cdecl PAL_frexp(double x, int* exp)
-{
-    double ret;
-    PERF_ENTRY(frexp);
-    ENTRY("frexp (x=%f)\n", x);
-
-    ret = frexp(x, exp);
-
-    LOGEXIT("frexp returns double %f and exp=%d\n", ret, *exp);
-    PERF_EXIT(frexp);
-    return ret;
-}
-
-/*++
-Function:
-    isnormal
-
-See MSDN.
---*/
-PALIMPORT bool __cdecl PAL_isnormal(double x)
-{
-    bool ret;
-    PERF_ENTRY(isnormal);
-    ENTRY("isnormal (x=%f)\n", x);
-
-    ret = isnormal(x);
-
-    LOGEXIT("isnormal returns bool %d\n", ret);
-    PERF_EXIT(isnormal);
-    return ret;
-}
-
-/*++
-Function:
     fma
 
 See MSDN.

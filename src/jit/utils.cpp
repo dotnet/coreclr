@@ -1956,9 +1956,25 @@ float FloatingPointUtils::round(float x)
 
 bool FloatingPointUtils::isPow2(double x)
 {
-    int exp;
-    double f = frexp(x, &exp);
-    return abs(f) == 0.5 && x != 0 && isnormal(1.0 / x);
+    if (!_finite(x))
+        return false;
+
+    uint64_t i = *(uint64_t*)&x;	
+    uint32_t exponent = (uint32_t)(i >> 52);	
+    uint64_t mantissa =  i & 0x8ffffffffffff;	
+    return mantissa == 0 && exponent != 0 && exponent != 1023;
+}
+
+
+bool FloatingPointUtils::isPow2f(float x)
+{
+    if (!_finitef(x))
+        return false;
+
+    uint32_t i = *(uint32_t*)&x;	
+    uint8_t exponent = (uint8_t)(i >> 23);	
+    uint32_t mantissa =  i & 0x7fffff;	
+    return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
 namespace MagicDivide
