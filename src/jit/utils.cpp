@@ -1973,8 +1973,8 @@ bool FloatingPointUtils::isPow2(double x)
     if (!_finite(x) || !isNormal(x))
         return false;
 
-    uint64_t i = *(uint64_t*)&x;	
-    uint64_t exponent = (i >> 52) && 0x7FFul;	
+    uint64_t i = *(uint64_t*)&x;
+    uint64_t exponent = (i >> 52) && 0x7FFul;
     uint64_t mantissa = i & 0xFFFFFFFFFFFFFul;
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
@@ -1984,9 +1984,9 @@ bool FloatingPointUtils::isPow2(float x)
     if (!_finitef(x) || !isNormal(x))
         return false;
 
-    uint32_t i = *(uint32_t*)&x;	
-    uint8_t exponent = (uint8_t)(i >> 23);	
-    uint32_t mantissa = i & 0x7fffff;	
+    uint32_t i = *(uint32_t*)&x;
+    uint8_t exponent = (uint8_t)(i >> 23);
+    uint32_t mantissa = i & 0x7fffff;
     return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
