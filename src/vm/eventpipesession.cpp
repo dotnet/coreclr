@@ -391,6 +391,7 @@ void EventPipeSession::EnableRundown()
             Config.GetFilterData()));
     }
 
+    m_pRundownThread = GetThread();
     m_rundownEnabled = true;
 }
 

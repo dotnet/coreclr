@@ -637,6 +637,9 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         }
         else
         {
+            if (!pSession->IsRundownThread())
+                return;
+
             _ASSERTE(pThread != nullptr);
             BYTE *pData = payload.GetFlatData();
             if (pData != NULL)

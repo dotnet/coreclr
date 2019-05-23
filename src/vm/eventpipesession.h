@@ -65,6 +65,9 @@ private:
     //
     CLREvent m_threadShutdownEvent;
 
+    //
+    Thread *m_pRundownThread = nullptr;
+
     void CreateIpcStreamingThread();
 
     static DWORD WINAPI ThreadProc(void *args);
@@ -119,6 +122,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_sessionStartTime;
+    }
+
+    bool IsRundownThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return (m_pRundownThread == GetThread());
     }
 
     // Get the session start timestamp.
