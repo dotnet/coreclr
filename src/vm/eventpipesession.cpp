@@ -461,28 +461,12 @@ void EventPipeSession::ExecuteRundown()
     if (m_pFile == nullptr)
         return;
 
-    // Force all in-progress writes to either finish or cancel
-    // This is required to ensure we can safely flush and delete the buffers
-    m_pBufferManager->SuspendWriteEvent();
+    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
     {
-        WriteAllBuffersToFile();
-
-        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
-        {
-            // Before closing the file, do rundown. We have to re-enable event writing for this.
-            m_pBufferManager->ResumeWriteEvent();
-
-            // Ask the runtime to emit rundown events.
-            if (g_fEEStarted && !g_fEEShutDown)
-                ETW::EnumerationLog::EndRundown();
-
-            // Suspend again after rundown session
-            m_pBufferManager->SuspendWriteEvent();
-        }
+        // Ask the runtime to emit rundown events.
+        if (g_fEEStarted && !g_fEEShutDown)
+            ETW::EnumerationLog::EndRundown();
     }
-    // Allow WriteEvent to begin accepting work again so that sometime in the future
-    // we can re-enable events and they will be recorded
-    m_pBufferManager->ResumeWriteEvent();
 }
 
 #endif // FEATURE_PERFTRACING
