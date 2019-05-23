@@ -133,9 +133,6 @@ void SampleProfiler::Disable()
     {
         _ASSERTE(!g_fProcessDetach);
 
-        // Reset the event before shutdown.
-        s_threadShutdownEvent.Reset();
-
         // The sampling thread will watch this value and exit
         // when profiling is disabled.
         s_profilingEnabled = false;
