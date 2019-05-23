@@ -49,12 +49,12 @@ namespace System.Globalization
             uint langCount = 0;
             uint bufLen = 0;
 
-            if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, null, ref bufLen))
+            if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &langCount, null, &bufLen) != Interop.BOOL.FALSE)
             {
                 char[] languages = new char[bufLen];
                 fixed (char* pLanguages = languages)
                 {
-                    if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, out langCount, pLanguages, ref bufLen))
+                    if (Interop.Kernel32.GetUserPreferredUILanguages(MUI_LANGUAGE_NAME, &langCount, pLanguages, &bufLen) != Interop.BOOL.FALSE)
                     {
                         int index = 0;
                         while (languages[index] != (char)0 && index < languages.Length)
