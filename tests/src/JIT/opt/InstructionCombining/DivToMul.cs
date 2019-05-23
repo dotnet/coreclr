@@ -60,7 +60,6 @@ public class Program
         AssertEquals(expected: x / ConstToVar(536870912),       actual: x / 536870912);
         AssertEquals(expected: x / ConstToVar(1073741824),      actual: x / 1073741824);
 
-        // < 1
         AssertEquals(expected: x / ConstToVar(0.5f),            actual: x / 0.5f);
         AssertEquals(expected: x / ConstToVar(0.25f),           actual: x / 0.25f);
         AssertEquals(expected: x / ConstToVar(0.125f),          actual: x / 0.125f);
@@ -70,8 +69,6 @@ public class Program
         AssertEquals(expected: x / ConstToVar(0.00024414062f),  actual: x / 0.00024414062f);
         AssertEquals(expected: x / ConstToVar(0.00012207031f),  actual: x / 0.00012207031f);
 
-
-        // < 0
         AssertEquals(expected: x / ConstToVar(-1073741824),     actual: x / -1073741824);
         AssertEquals(expected: x / ConstToVar(-0.00012207031f), actual: x / -0.00012207031f);
         AssertEquals(expected: x / ConstToVar(-2147483648),     actual: x / -2147483648);
@@ -90,7 +87,6 @@ public class Program
         AssertEquals(expected: x / ConstToVar(536870912),       actual: x / 536870912);
         AssertEquals(expected: x / ConstToVar(1073741824),      actual: x / 1073741824);
 
-        // < 1
         AssertEquals(expected: x / ConstToVar(0.5),             actual: x / 0.5);
         AssertEquals(expected: x / ConstToVar(0.25),            actual: x / 0.25);
         AssertEquals(expected: x / ConstToVar(0.125),           actual: x / 0.125);
@@ -100,7 +96,6 @@ public class Program
         AssertEquals(expected: x / ConstToVar(0.0009765625),    actual: x / 0.0009765625);
         AssertEquals(expected: x / ConstToVar(0.00048828125),   actual: x / 0.00048828125);
 
-        // < 0
         AssertEquals(expected: x / ConstToVar(-1073741824),     actual: x / -1073741824);
         AssertEquals(expected: x / ConstToVar(-0.00012207031f), actual: x / -0.00012207031f);
         AssertEquals(expected: x / ConstToVar(-2147483648),     actual: x / -2147483648);
@@ -109,7 +104,7 @@ public class Program
     private static void TestNotPowOfTwo_Single(float x)
     {
         // TestNotPowOfTwo_Single should not contain 'mul' instructions
-        AssertEquals(expected: x / ConstToVar(3),       actual: x / 3);
+        AssertEquals(expected: x / ConstToVar(3),      actual: x / 3);
         AssertEquals(expected: x / ConstToVar(9),      actual: x / 9);
         AssertEquals(expected: x / ConstToVar(2.5f),   actual: x / 2.5f);
         AssertEquals(expected: x / ConstToVar(0.51f),  actual: x / 0.51f);
