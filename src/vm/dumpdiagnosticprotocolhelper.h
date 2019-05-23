@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#ifndef __DIAGNOSTIC_PROTOCOL_HELPER_H__
-#define __DIAGNOSTIC_PROTOCOL_HELPER_H__
+#ifndef __DUMP_DIAGNOSTIC_PROTOCOL_HELPER_H__
+#define __DUMP_DIAGNOSTIC_PROTOCOL_HELPER_H__
 
 #ifdef FEATURE_PERFTRACING
 
@@ -23,6 +23,8 @@ enum class DumpCommandId : uint8_t
 
 struct GenerateCoreDumpCommandPayload
 {
+    NewArrayHolder<BYTE> incomingBuffer;
+
     // The protocol buffer is defined as:
     //   string - dumpName (UTF16)
     //   int - dumpType
@@ -35,7 +37,7 @@ struct GenerateCoreDumpCommandPayload
     static const GenerateCoreDumpCommandPayload* TryParse(BYTE* lpBuffer, uint16_t& BufferSize);
 };
 
-class DiagnosticProtocolHelper
+class DumpDiagnosticProtocolHelper
 {
 public:
     // IPC event handlers.
@@ -54,4 +56,4 @@ private:
 
 #endif // FEATURE_PERFTRACING
 
-#endif // __DIAGNOSTIC_PROTOCOL_HELPER_H__
+#endif // __DUMP_DIAGNOSTIC_PROTOCOL_HELPER_H__

@@ -44,12 +44,22 @@ const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPaylo
     CONTRACTL_END;
 
     EventPipeCollectTracingCommandPayload *payload = new (nothrow) EventPipeCollectTracingCommandPayload;
-    uint8_t* pBufferCursor = lpBuffer;
+    if (payload == nullptr)
+    {
+        // OOM
+        return nullptr;
+    }
+
+    payload->incomingBuffer = lpBuffer;
+    uint8_t* pBufferCursor = payload->incomingBuffer;
     uint32_t bufferLen = BufferSize;
     if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, payload->circularBufferSizeInMB) ||
         !TryParseString(pBufferCursor, bufferLen, payload->outputPath) ||
         !EventPipeProtocolHelper::TryParseProviderConfiguration(pBufferCursor, bufferLen, payload->providerConfigs))
+    {
+        delete payload;
         return nullptr;
+    }
 
     return payload;
 }
@@ -135,11 +145,10 @@ void EventPipeProtocolHelper::StopTracing(DiagnosticsIpc::IpcMessage& message, I
     }
     CONTRACTL_END;
 
-    const EventPipeStopTracingCommandPayload* payload = message.TryParsePayload<EventPipeStopTracingCommandPayload>();
+    NewHolder<const EventPipeStopTracingCommandPayload> payload = message.TryParsePayload<EventPipeStopTracingCommandPayload>();
     if (payload == nullptr)
     {
         DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, DiagnosticsIpc::DiagnosticServerErrorCode::BadEncoding);
-        delete payload;
         delete pStream;
         return;
     }
@@ -155,7 +164,6 @@ void EventPipeProtocolHelper::StopTracing(DiagnosticsIpc::IpcMessage& message, I
     {
         // TODO: Add error handling.
     }
-    delete payload;
     delete pStream;
 }
 

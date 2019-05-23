@@ -26,6 +26,8 @@ enum class EventPipeCommandId : uint8_t
 // Command = 0x0202
 struct EventPipeCollectTracingCommandPayload
 {
+    NewArrayHolder<BYTE> incomingBuffer;
+
     // The protocol buffer is defined as:
     // X, Y, Z means encode bytes for X followed by bytes for Y followed by bytes for Z
     // message = uint circularBufferMB, string outputPath, array<provider_config> providers

@@ -5,7 +5,8 @@
 #include "common.h"
 #include "diagnosticserver.h"
 #include "eventpipeprotocolhelper.h"
-#include "diagnosticprotocolhelper.h"
+#include "dumpdiagnosticprotocolhelper.h"
+#include "profilerdiagnosticprotocolhelper.h"
 #include "diagnosticsprotocol.h"
 
 #ifdef FEATURE_PAL
@@ -68,15 +69,15 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
                 EventPipeProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 
-            case DiagnosticsIpc::DiagnosticServerCommandSet::Dump:
 #ifdef FEATURE_PAL
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Dump:
                 DiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 #endif
 
 #ifdef FEATURE_PROFAPI_ATTACH_DETACH
-            case DiagnosticMessageType::AttachProfiler:
-                DiagnosticProtocolHelper::AttachProfiler(pStream);
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Profiler:
+                ProfilerDiagnosticProtocolHelper::AttachProfiler(message, pStream);
                 break;
 #endif // FEATURE_PROFAPI_ATTACH_DETACH
 

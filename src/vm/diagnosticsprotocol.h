@@ -69,6 +69,7 @@ namespace DiagnosticsIpc
         // reserved   = 0x00,
         Dump          = 0x01,
         EventPipe     = 0x02,
+        Profiler      = 0x03,
 
         Server        = 0xFF,
     };
@@ -514,7 +515,9 @@ namespace DiagnosticsIpc
             CONTRACTL_END;
 
             uint16_t payloadSize = m_Size - (uint16_t)sizeof(IpcHeader);
-            return U::TryParse(m_pData, payloadSize);
+            const U* payload = U::TryParse(m_pData, payloadSize);
+            m_pData = nullptr; // user is expected to clean up buffer when finished with it
+            return payload;
         };
 
         template <typename U,
@@ -530,7 +533,7 @@ namespace DiagnosticsIpc
             CONTRACTL_END;
 
             const U* payload = reinterpret_cast<const U*>(m_pData);
-            m_pData = nullptr;
+            m_pData = nullptr; // user is expected to clean up buffer when finished with it
             return payload;
         };
     };
