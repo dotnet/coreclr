@@ -273,7 +273,7 @@ inline bool IsScalarReturnKind(ReturnKind returnKind)
 
 inline bool IsPointerReturnKind(ReturnKind returnKind)
 {
-    return !IsScalarReturnKind(returnKind);
+    return IsValidReturnKind(returnKind) && !IsScalarReturnKind(returnKind);
 }
 
 // Helpers for combining/extracting individual ReturnKinds from/to Struct ReturnKinds.
