@@ -454,6 +454,7 @@ namespace DiagnosticsIpc
 
             payload.Flatten(temp_buffer_cursor);
 
+            ASSERT(m_pData == nullptr);
             m_pData = temp_buffer;
 
             return true;
@@ -497,6 +498,7 @@ namespace DiagnosticsIpc
 
             memcpy(temp_buffer_cursor, &payload, sizeof(payload));
 
+            ASSERT(m_pData == nullptr);
             m_pData = temp_buffer;
 
             return true;
