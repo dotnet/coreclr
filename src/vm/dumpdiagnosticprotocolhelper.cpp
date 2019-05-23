@@ -35,7 +35,7 @@ void DumpDiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& 
         delete pStream;
         break;
     }
-}S
+}
 
 const GenerateCoreDumpCommandPayload* GenerateCoreDumpCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
 {
