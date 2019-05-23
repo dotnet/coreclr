@@ -14,6 +14,11 @@
     <NativeMinorVersion>30</NativeMinorVersion>
     <MajorVersion>$(NativeMajorVersion)</MajorVersion>
     <MinorVersion>$(NativeMinorVersion)</MinorVersion>
+
+    <!-- This is necessary as we are using a mix of Arcade and BuildTools versioning.
+        Otherwise, local-dev packages won't produce long-named assets-->
+    <OfficialBuildId Condition="'$(OfficialBuildId)' == ''">19991212.0</OfficialBuildId>
+    <BuildVersionFile>$(RootBinDir)obj/BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
   </PropertyGroup>
 
   <!-- This file contains build properties that apply to product
