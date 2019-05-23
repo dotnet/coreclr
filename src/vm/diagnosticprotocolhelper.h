@@ -14,7 +14,7 @@
 class IpcStream;
 
 // The Diagnostic command set is 0x01
-enum class DiagnosticCommandId : uint8_t
+enum class DumpCommandId : uint8_t
 {
     // reserved      = 0x00,
     GenerateCoreDump = 0x01,

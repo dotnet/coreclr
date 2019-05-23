@@ -25,9 +25,9 @@ void DiagnosticProtocolHelper::HandleIpcMessage(DiagnosticsIpc::IpcMessage& mess
     }
     CONTRACTL_END;
 
-    switch ((DiagnosticCommandId)message.GetHeader().CommandId)
+    switch ((DumpCommandId)message.GetHeader().CommandId)
     {
-    case DiagnosticCommandId::GenerateCoreDump:
+    case DumpCommandId::GenerateCoreDump:
         DiagnosticProtocolHelper::GenerateCoreDump(message, pStream);
         break;
 
