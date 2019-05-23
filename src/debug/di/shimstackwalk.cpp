@@ -1663,6 +1663,11 @@ HRESULT ShimChain::GetStackRange(CORDB_ADDRESS * pStart, CORDB_ADDRESS * pEnd)
         {
             *pEnd = PTR_TO_CORDB_ADDRESS(m_fpRoot.GetSPValue());
         }
+
+        if (m_fpRoot.GetSPValue() < CORDbgGetSP(&m_context))
+        {
+            hr = E_FAIL;
+        }
     }
     EX_CATCH_HRESULT(hr);
     return hr;
