@@ -317,10 +317,7 @@ build_Tests()
     fi
 
     if [ $__SkipNative != 1 ]; then
-        export CROSSCOMPILEREAL=${CROSSCOMPILE}
-        export CROSSCOMPILE=0
         build_native_projects "$__BuildArch" "${__NativeTestIntermediatesDir}"
-        export CROSSCOMPILE=${CROSSCOMPILEREAL}
 
         if [ $? -ne 0 ]; then
             echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
@@ -950,6 +947,15 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
         __ClangMajorVersion=3
         __ClangMinorVersion=9
     fi
+fi
+
+if [[ "$__BuildArch" == "armel" ]]; then
+    # Armel cross build is Tizen specific and does not support Portable RID build
+    __PortableBuild=0
+fi
+
+if [ $__PortableBuild == 0 ]; then
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
 fi
 
 # Set dependent variables
