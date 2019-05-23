@@ -532,7 +532,6 @@ void GCCoverageInfo::SprinkleBreakpoints(
 
         if (prevDirectCallTargetMD != 0)
         {
-            Thread* pThread = GetThread();
             ReturnKind returnKind = prevDirectCallTargetMD->GetReturnKind(true);
             if (IsPointerReturnKind(returnKind))
                 *cur = INTERRUPT_INSTR_PROTECT_RET;  
