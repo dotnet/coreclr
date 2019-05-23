@@ -71,7 +71,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
 
 #ifdef FEATURE_PAL
             case DiagnosticsIpc::DiagnosticServerCommandSet::Dump:
-                DiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
+                DumpDiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 #endif
 
