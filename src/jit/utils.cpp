@@ -1974,11 +1974,10 @@ bool FloatingPointUtils::isPow2(double x)
         return false;
 
     uint64_t i = *(uint64_t*)&x;	
-    uint32_t exponent = (uint32_t)(i >> 52);	
-    uint64_t mantissa = i & 0xFFFFFFFFFFFFF;	
+    uint64_t exponent = (i >> 52) && 0x7FFul;	
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul;
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
-
 
 bool FloatingPointUtils::isPow2(float x)
 {
@@ -1987,7 +1986,7 @@ bool FloatingPointUtils::isPow2(float x)
 
     uint32_t i = *(uint32_t*)&x;	
     uint8_t exponent = (uint8_t)(i >> 23);	
-    uint32_t mantissa =  i & 0x7fffff;	
+    uint32_t mantissa = i & 0x7fffff;	
     return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
