@@ -409,9 +409,6 @@ void EventPipeSession::DisableIpcStreamingThread()
     {
         _ASSERTE(!g_fProcessDetach);
 
-        // Reset the event before shutdown.
-        m_threadShutdownEvent.Reset();
-
         // The IPC streaming thread will watch this value and exit
         // when profiling is disabled.
         m_ipcStreamingEnabled = false;
