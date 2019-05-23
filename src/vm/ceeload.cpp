@@ -221,22 +221,35 @@ void Module::UpdateNewlyAddedTypes()
     DWORD countExportedTypesAfterProfilerUpdate = GetMDImport()->GetCountWithTokenKind(mdtExportedType);
     DWORD countCustomAttributeCount = GetMDImport()->GetCountWithTokenKind(mdtCustomAttribute);
 
-    // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
-    for (DWORD typeDefRid = m_dwTypeCount + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
+    // R2R pre-computes an export table and tries to avoid populating a class hash at runtime. However the profiler can
+    // still add new types on the fly by calling here. If that occurs we fallback to the slower path of creating the
+    // in memory hashtable as usual.
+    if (!IsResource() && GetAvailableClassHash() == NULL)
     {
-        GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
+        // This call will populate the hash tables with anything that is in metadata already.
+        GetClassLoader()->LazyPopulateCaseSensitiveHashTablesDontHaveLock();
     }
-
-    // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
-    for (DWORD exportedTypeDef = m_dwExportedTypeCount + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
+    else
     {
-        GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
-    }
+        // If the hash tables already exist (either R2R and we've previously populated the ) we need to manually add the types.
 
-    if ((countCustomAttributeCount != m_dwCustomAttributeCount) && IsReadyToRun())
-    {
-        // Set of custom attributes has changed. Disable the cuckoo filter from ready to run, and do normal custom attribute parsing
-        GetReadyToRunInfo()->DisableCustomAttributeFilter();
+        // typeDefs rids 0 and 1 aren't included in the count, thus X typeDefs before means rid X+1 was valid and our incremental addition should start at X+2
+        for (DWORD typeDefRid = m_dwTypeCount + 2; typeDefRid < countTypesAfterProfilerUpdate + 2; typeDefRid++)
+        {
+            GetAssembly()->AddType(this, TokenFromRid(typeDefRid, mdtTypeDef));
+        }
+
+        // exportedType rid 0 isn't included in the count, thus X exportedTypes before means rid X was valid and our incremental addition should start at X+1
+        for (DWORD exportedTypeDef = m_dwExportedTypeCount + 1; exportedTypeDef < countExportedTypesAfterProfilerUpdate + 1; exportedTypeDef++)
+        {
+            GetAssembly()->AddExportedType(TokenFromRid(exportedTypeDef, mdtExportedType));
+        }
+
+        if ((countCustomAttributeCount != m_dwCustomAttributeCount) && IsReadyToRun())
+        {
+            // Set of custom attributes has changed. Disable the cuckoo filter from ready to run, and do normal custom attribute parsing
+            GetReadyToRunInfo()->DisableCustomAttributeFilter();
+        }
     }
 
     m_dwTypeCount = countTypesAfterProfilerUpdate;
@@ -10424,6 +10437,10 @@ ZapHeader.ImportTable        |                    |         |     non-NULL      
 
 #endif // 0
 
+#endif
+#endif
+
+#ifndef DACCESS_COMPILE
 //-----------------------------------------------------------------------------
 
 void Module::RunEagerFixups()
@@ -10507,7 +10524,11 @@ void Module::RunEagerFixups()
         }
     }
 }
+#endif // !DACCESS_COMPILE
 
+#ifdef FEATURE_PREJIT
+
+#ifndef DACCESS_COMPILE
 void Module::LoadTokenTables()
 {
     CONTRACTL
@@ -10701,7 +10722,6 @@ BOOL Module::FixupNativeEntry(CORCOMPILE_IMPORT_SECTION* pSection, SIZE_T fixupI
     return TRUE;
 }
 
-#ifdef FEATURE_PREJIT 
 //
 // Profile data management
 //
@@ -11649,7 +11669,6 @@ ExternalMethodBlobEntry::ExternalMethodBlobEntry(mdToken _nestedClass,
     return static_cast<const ExternalMethodBlobEntry *>(pEntry);
 }
 
-
 static bool GetBasename(LPCWSTR _src, __out_ecount(dstlen) __out_z LPWSTR _dst, int dstlen)
 {
     LIMITED_METHOD_CONTRACT;
@@ -12387,7 +12406,6 @@ void Module::DeleteProfilingData()
     
     // the metadataProfileData is free'ed in destructor of the corresponding MetaDataTracker
 }
-#endif //FEATURE_PREJIT
 
 void Module::SetIsIJWFixedUp()
 {
@@ -12395,7 +12413,6 @@ void Module::SetIsIJWFixedUp()
     FastInterlockOr(&m_dwTransientFlags, IS_IJW_FIXED_UP);
 }
 
-#ifdef FEATURE_PREJIT
 /* static */
 Module::TokenProfileData *Module::TokenProfileData::CreateNoThrow(void)
 {
@@ -12421,8 +12438,6 @@ Module::TokenProfileData *Module::TokenProfileData::CreateNoThrow(void)
     return tpd;
 }
 
-#endif // FEATURE_PREJIT
-
 #endif // !DACCESS_COMPILE
 
 #ifndef DACCESS_COMPILE
@@ -12433,7 +12448,6 @@ void Module::SetBeingUnloaded()
 }
 #endif
 
-#ifdef FEATURE_PREJIT 
 void Module::LogTokenAccess(mdToken token, SectionFormat format, ULONG flagnum)
 {
     CONTRACTL
@@ -12545,10 +12559,8 @@ void Module::LogTokenAccess(mdToken token, ULONG flagNum)
         LogTokenAccess(token, format, flagNum);
     }
 }
-#endif // FEATURE_PREJIT
 
 #ifndef DACCESS_COMPILE
-#ifdef FEATURE_PREJIT
 
 //
 // Encoding callbacks
@@ -12808,7 +12820,6 @@ idMethodSpec Module::LogInstantiatedMethod(const MethodDesc * md, ULONG flagNum)
     RETURN result;
 }
 #endif // DACCESS_COMPILE
-#endif //FEATURE_PREJIT
 
 #ifndef DACCESS_COMPILE
 

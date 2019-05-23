@@ -1368,9 +1368,9 @@ Thread::Thread()
     m_debuggerCantStop = 0;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
-#ifdef PROFILING_SUPPORTED
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     m_dwProfilerEvacuationCounter = 0;
-#endif // PROFILING_SUPPORTED
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
     m_pProfilerFilterContext = NULL;
 
@@ -1464,9 +1464,7 @@ Thread::Thread()
 
     m_pPendingTypeLoad = NULL;
 
-#ifdef FEATURE_PREJIT
     m_pIBCInfo = NULL;
-#endif
 
     m_dwAVInRuntimeImplOkayCount = 0;
 
@@ -1551,6 +1549,8 @@ Thread::Thread()
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
     m_DeserializationTracker = NULL;
+
+    m_currentPrepareCodeConfig = nullptr;
 }
 
 //--------------------------------------------------------------------
@@ -2630,11 +2630,9 @@ Thread::~Thread()
 
     g_pThinLockThreadIdDispenser->DisposeId(GetThreadId());
 
-#ifdef FEATURE_PREJIT
     if (m_pIBCInfo) {
         delete m_pIBCInfo;
     }
-#endif
 
 #ifdef FEATURE_EVENT_TRACE
     // Destruct the thread local type cache for allocation sampling
