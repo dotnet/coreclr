@@ -79,14 +79,14 @@ enum EtwThreadFlags
 // if the fields in the event are not cheap to calculate
 //
 #define ETW_EVENT_ENABLED(Context, EventDescriptor) \
-    ((MCGEN_ENABLE_CHECK(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
+    ((MCGEN_ENABLE_CHECK(Context.EtwProvider, EventDescriptor)) || EVENT_PIPE_ENABLED())
 
 //
 // Use this macro to check if a category of events is enabled
 //
 
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((Context.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
 
 
 // This macro only checks if a provider is enabled
@@ -176,7 +176,7 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the event is enabled
 //
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) \
-    ((Context.IsEnabled && ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider.IsEnabled && ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
 
 //
 // Using KEYWORDZERO means when checking the events category ignore the keyword
@@ -187,7 +187,7 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the category is enabled
 //
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((ETW_TRACING_INITIALIZED(Context.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
+    ((ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
 
     #define ETWOnStartup(StartEventName, EndEventName) \
         ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
@@ -493,7 +493,7 @@ namespace ETW
         VOID Append(SIZE_T currentFrame);
         EtwStackWalkStatus SaveCurrentStack(int skipTopNFrames=1);
     public:
-        static ULONG SendStackTrace(MCGEN_TRACE_CONTEXT TraceContext, PCEVENT_DESCRIPTOR Descriptor, LPCGUID EventGuid);
+        static ULONG SendStackTrace(DOTNET_TRACE_CONTEXT TraceContext, PCEVENT_DESCRIPTOR Descriptor, LPCGUID EventGuid);
         EtwStackWalkStatus GetCurrentThreadsCallStack(UINT32 *frameCount, PVOID **Stack);
 #endif // FEATURE_EVENT_TRACE && !defined(FEATURE_PAL)
     };
@@ -1044,7 +1044,7 @@ public:
     }
     static void StartupTraceEvent(REGHANDLE _TraceHandle, PCEVENT_DESCRIPTOR _EventDescriptor, LPCGUID _EventGuid) {
         EVENT_DESCRIPTOR desc = *_EventDescriptor;
-        if(ETW_TRACING_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, desc))
+        if(ETW_TRACING_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, desc))
         {
             CoMofTemplate_h(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context.RegistrationHandle, _EventDescriptor, _EventGuid, GetClrInstanceId());
         }
@@ -1056,7 +1056,7 @@ public:
 FORCEINLINE
 BOOLEAN __stdcall
 McGenEventTracingEnabled(
-    __in PMCGEN_TRACE_CONTEXT EnableInfo,
+    __in PDOTNET_TRACE_CONTEXT EnableInfo,
     __in PCEVENT_DESCRIPTOR EventDescriptor
     )
 {
@@ -1073,16 +1073,16 @@ McGenEventTracingEnabled(
     // all levels are enabled.
     //
 
-    if ((EventDescriptor->Level <= EnableInfo->Level) || // This also covers the case of Level == 0.
-        (EnableInfo->Level == 0)) {
+    if ((EventDescriptor->Level <= EnableInfo->EtwProvider.Level) || // This also covers the case of Level == 0.
+        (EnableInfo->EtwProvider.Level == 0)) {
 
         //
         // Check if Keyword is enabled
         //
 
         if ((EventDescriptor->Keyword == (ULONGLONG)0) ||
-            ((EventDescriptor->Keyword & EnableInfo->MatchAnyKeyword) &&
-             ((EventDescriptor->Keyword & EnableInfo->MatchAllKeyword) == EnableInfo->MatchAllKeyword))) {
+            ((EventDescriptor->Keyword & EnableInfo->EtwProvider.MatchAnyKeyword) &&
+             ((EventDescriptor->Keyword & EnableInfo->EtwProvider.MatchAllKeyword) == EnableInfo->EtwProvider.MatchAllKeyword))) {
             return TRUE;
         }
     }
@@ -1094,7 +1094,7 @@ McGenEventTracingEnabled(
 ETW_INLINE
 ULONG
 ETW::SamplingLog::SendStackTrace(
-    MCGEN_TRACE_CONTEXT TraceContext,
+    DOTNET_TRACE_CONTEXT TraceContext,
     PCEVENT_DESCRIPTOR Descriptor,
     LPCGUID EventGuid)
 {
@@ -1105,8 +1105,8 @@ typedef struct _MCGEN_TRACE_BUFFER {
     EVENT_DATA_DESCRIPTOR EventData[ARGUMENT_COUNT_CLRStackWalk];
 } MCGEN_TRACE_BUFFER;
 
-    REGHANDLE RegHandle = TraceContext.RegistrationHandle;
-    if(!TraceContext.IsEnabled || !McGenEventTracingEnabled(&TraceContext, Descriptor))
+    REGHANDLE RegHandle = TraceContext.EtwProvider.RegistrationHandle;
+    if(!TraceContext.EtwProvider.IsEnabled || !McGenEventTracingEnabled(&TraceContext, Descriptor))
     {
         return Result;
     }
@@ -1151,7 +1151,7 @@ struct CallStackFrame
 FORCEINLINE
 BOOLEAN __stdcall
 McGenEventProviderEnabled(
-    __in PMCGEN_TRACE_CONTEXT Context,
+    __in PDOTNET_TRACE_CONTEXT Context,
     __in UCHAR Level,
     __in ULONGLONG Keyword
     )
@@ -1167,16 +1167,16 @@ McGenEventProviderEnabled(
     // all levels are enabled.
     //
 
-    if ((Level <= Context->Level) || // This also covers the case of Level == 0.
-        (Context->Level == 0)) {
+    if ((Level <= Context->EtwProvider.Level) || // This also covers the case of Level == 0.
+        (Context->EtwProvider.Level == 0)) {
 
         //
         // Check if Keyword is enabled
         //
 
         if ((Keyword == (ULONGLONG)0) ||
-            ((Keyword & Context->MatchAnyKeyword) &&
-             ((Keyword & Context->MatchAllKeyword) == Context->MatchAllKeyword))) {
+            ((Keyword & Context->EtwProvider.MatchAnyKeyword) &&
+             ((Keyword & Context->EtwProvider.MatchAllKeyword) == Context->EtwProvider.MatchAllKeyword))) {
             return TRUE;
         }
     }
