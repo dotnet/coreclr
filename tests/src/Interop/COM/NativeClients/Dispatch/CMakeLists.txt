@@ -15,4 +15,4 @@ target_link_libraries(COMClientDispatch ${LINK_LIBRARIES_ADDITIONAL})
 file(GENERATE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/CoreShim.X.manifest INPUT ${CMAKE_CURRENT_SOURCE_DIR}/CoreShim.X.manifest)
 
 # add the install targets
-install (TARGETS COMClientPrimitives DESTINATION bin)
+install (TARGETS COMClientDispatch DESTINATION bin)
