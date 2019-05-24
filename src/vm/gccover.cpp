@@ -254,9 +254,12 @@ void SetupGcCoverageForNativeImage(Module* module)
 void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
 {
     ReturnKind returnKind = callMD->GetReturnKind(true);
-    bool protectReturn = IsPointerReturnKind(returnKind);
+    _ASSERTE(IsValidReturnKind(returnKind));
+
+    bool pointerKind = IsPointerReturnKind(returnKind);
 #ifdef _TARGET_ARM_
-    size_t instrLen = GetARMInstructionLength(nextInstr);
+    size_t instrLen = GetARMInstructionLength(instrToReplace);
+    bool protectReturn = pointerKind;
     if (protectReturn)
         if (instrLen == 2)
             *(WORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
@@ -268,15 +271,48 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
         else
             *(DWORD*)instrToReplace = INTERRUPT_INSTR_32;
 #elif defined(_TARGET_ARM64_)
+    bool protectReturn = pointerKind;
     if (protectReturn)
         *(DWORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
     else
         *(DWORD*)instrToReplace = INTERRUPT_INSTR;
-#else
-    if (protectReturn)
-        * instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
+#elif defined(_TARGET_AMD64_) || defined(_TARGET_X86)
+
+
+    if (pointerKind)
+    {
+        bool protectRegister[2] = { false };
+
+        int regNo = 0;
+        bool moreRegisters = false;
+        do
+        {
+            ReturnKind fieldKind = ExtractRegReturnKind(returnKind, regNo, moreRegisters);
+            if (IsPointerFieldReturnKind(fieldKind))
+            {
+                protectRegister[regNo] = true;
+            }
+            regNo++;
+        } while (moreRegisters);
+
+        if (protectRegister[0] && !protectRegister[1])
+        {
+            *instrToReplace = INTERRUPT_INSTR_PROTECT_FIRST_RET;
+        }
+        else
+        {
+#if !defined(_TARGET_AMD64_) || !defined(PLATFORM_UNIX)
+            _ASSERTE(!"Not expected multi reg return with pointers.");
+#endif // !_TARGET_AMD64_ || !PLATFORM_UNIX
+            // Skip gc stress coverage for now, do not do replacement.
+        }
+    }
     else
+    {
         *instrToReplace = INTERRUPT_INSTR;
+    }
+#else
+    _ASSERTE(!"not implemented for platform");
 #endif
 }
 
@@ -1249,7 +1285,11 @@ bool IsGcCoverageInterrupt(LPVOID ip)
     {
         case INTERRUPT_INSTR:
         case INTERRUPT_INSTR_CALL:
+#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
         case INTERRUPT_INSTR_PROTECT_RET:
+#else
+        case INTERRUPT_INSTR_PROTECT_FIRST_RET:
+#endif
             return true;
 
         default:
@@ -1378,13 +1418,13 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     
     if (instrVal != INTERRUPT_INSTR && 
         instrVal != INTERRUPT_INSTR_CALL && 
-        instrVal != INTERRUPT_INSTR_PROTECT_RET) {
+        instrVal != INTERRUPT_INSTR_PROTECT_FIRST_RET) {
         _ASSERTE(instrVal == gcCover->savedCode[offset]);  // someone beat us to it.
         return;       // Someone beat us to it, just go on running
     }
 
     bool atCall = (instrVal == INTERRUPT_INSTR_CALL);
-    bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
+    bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_FIRST_RET);
 
 #elif defined(_TARGET_ARM_)
 
