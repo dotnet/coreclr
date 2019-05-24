@@ -89,7 +89,7 @@ EventPipeSessionProviderList::EventPipeSessionProviderList(
         if ((wcscmp(W("*"), pConfig->GetProviderName()) == 0) && (pConfig->GetKeywords() == 0xFFFFFFFFFFFFFFFF) && ((EventPipeEventLevel)pConfig->GetLevel() == EventPipeEventLevel::Verbose) && (m_pCatchAllProvider == NULL))
         {
             m_pCatchAllProvider = new EventPipeSessionProvider(
-                NULL, // FIXME: This should be "*".
+                NULL,
                 0xFFFFFFFFFFFFFFFF,
                 EventPipeEventLevel::Verbose,
                 NULL);
@@ -133,8 +133,6 @@ void EventPipeSessionProviderList::AddSessionProvider(EventPipeSessionProvider *
     }
     CONTRACTL_END;
 
-    // TODO: No validation on input. For example, (provider name == null)?
-    // FIXME: This pointer is not ours, but we deallocate it later.
     if (pProvider != nullptr)
         m_pProviders->InsertTail(new SListElem<EventPipeSessionProvider *>(pProvider));
 }

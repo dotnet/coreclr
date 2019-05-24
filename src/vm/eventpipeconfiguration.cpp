@@ -366,7 +366,6 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
             if (pSessionProvider != NULL)
             {
-                // FIXME: With multiple sessions we need to do better than this (combine/union keywords for an existing/already enabled provider).
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
                     pProvider->SetConfiguration(
                         session.GetId(),
@@ -394,8 +393,6 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
     }
     CONTRACTL_END;
 
-    // TODO: m_pSessions->ForEach([=](Iterator pair){});
-
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
@@ -404,7 +401,6 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         {
             EventPipeProvider *pProvider = pElem->GetValue();
 
-            // TODO: if no more sessions: {0, 0, Critical, nullptr}, else {everything but this session}
             if (pProvider->IsEnabled(session.GetId()))
             {
                 EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(

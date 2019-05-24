@@ -133,7 +133,6 @@ static void PlatformSleep()
     // Wait until it's time to sample again.
     const uint32_t PeriodInNanoSeconds = 100000000; // 100 msec.
 
-    // FIXME: Poors man sleep
 #ifdef FEATURE_PAL
     PAL_nanosleep(PeriodInNanoSeconds);
 #else  //FEATURE_PAL
@@ -183,7 +182,7 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
             pEventPipeSession->SetThreadShutdownEvent();
 
             if (!fSuccess)
-                pEventPipeSession->Disable(); // FIXME: We should notify EventPipe itself to remove this session from the list.
+                pEventPipeSession->Disable();
         }
         EX_CATCH
         {

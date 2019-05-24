@@ -201,7 +201,6 @@ void EventPipe::Initialize()
     InitProvidersAndEvents();
 
     // Set the sampling rate for the sample profiler.
-    // TODO: Maybe add a way to configure this value with a COMPlus_* var?
     const unsigned long DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
     SampleProfiler::SetSamplingRate(DefaultProfilerSamplingRateInNanoseconds);
 }
@@ -214,7 +213,6 @@ void EventPipe::Shutdown()
         GC_TRIGGERS;
         MODE_ANY;
         // These 3 pointers are initialized once on EventPipe::Initialize
-        // FIXME: Why is shutdown called more than once?
         //PRECONDITION(s_pConfig != nullptr);
         //PRECONDITION(s_pEventSource != nullptr);
         //PRECONDITION(s_pSessions != nullptr);
@@ -246,7 +244,6 @@ void EventPipe::Shutdown()
     {
         if (s_pSessions != nullptr)
         {
-            // FIXME: Calling disable here does not seem safe.
             //  The sessions collection is modified inside Disable.
             for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
                  iterator != s_pSessions->End();
@@ -301,7 +298,6 @@ EventPipeSessionID EventPipe::Enable(
 
     EventPipeSessionID sessionId = 0;
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        // TODO: Maybe "rundownEnabled" param should be user input.
         EventPipeSession *pSession = s_pConfig->CreateSession(
             strOutputPath,
             pStream,
@@ -416,10 +412,6 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     }
     CONTRACTL_END;
 
-    // TODO: breaking the lock when doing EventPipe::Disable, otherwise
-    //  disabling session A will be able to block all other sessions from doing
-    //  work for a long time.
-
     if (s_pConfig == nullptr || !s_pConfig->Enabled())
         return;
 
@@ -431,7 +423,6 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     SampleProfiler::Disable();
 
     // Log the process information event.
-    // TODO: Isn't this a global setting and applies to all active sessions?
     LogProcessInformationEvent(*s_pEventSource);
 
     // Log the runtime information event.
@@ -594,7 +585,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        // FIXME: EventPipe::WriteEvent seems to be invoked after EventPipe::Shutdown
         // PRECONDITION(s_pConfig != nullptr);
         // PRECONDITION(s_pSessions != nullptr);
     }
@@ -617,8 +607,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     {
         pActivityId = pThread->GetActivityId();
     }
-
-    // FIXME: We do need to protect this.
 
     for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
          iterator != s_pSessions->End();

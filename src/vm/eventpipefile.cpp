@@ -42,7 +42,6 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter) : FastSerializableObje
 
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
 
-    // FIXME: Where is this deleted?
     m_pMetadataIds = new MapSHashWithRemove<EventPipeEvent*, unsigned int>();
 
     // Start and 0 - The value is always incremented prior to use, so the first ID will be 1.
@@ -67,6 +66,7 @@ EventPipeFile::~EventPipeFile()
 
     delete m_pBlock;
     delete m_pSerializer;
+    delete m_pMetadataIds;
 }
 
 bool EventPipeFile::HasErrors() const

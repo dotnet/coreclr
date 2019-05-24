@@ -121,12 +121,10 @@ void EventPipeThread::SetWriteBuffer(EventPipeBufferManager *pBufferManager, Eve
 
     EX_TRY
     {
-        // FIXME: This part of the code is in a NOTHROW contract, thus the try/catch.
         m_pWriteBuffers->Add(pBufferManager, pNewBuffer);
     }
     EX_CATCH
     {
-        // TODO: STRESS_LOG ?
     }
     EX_END_CATCH(SwallowAllExceptions);
 }
@@ -154,12 +152,10 @@ void EventPipeThread::SetBufferList(EventPipeBufferManager *pBufferManager, Even
 
     EX_TRY
     {
-        // FIXME: This part of the code is in a NOTHROW contract, thus the try/catch.
         m_pBufferLists->Add(pBufferManager, pNewBufferList);
     }
     EX_CATCH
     {
-        // TODO: STRESS_LOG ?
     }
     EX_END_CATCH(SwallowAllExceptions);
 }

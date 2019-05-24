@@ -24,7 +24,7 @@ private:
     const SString m_providerName;
 
     // Bit vector containing the currently enabled keywords.
-    INT64 m_keywords; // FIXME: Why is this INT64 and not UINT64?
+    INT64 m_keywords;
 
     // The current verbosity of the provider.
     EventPipeEventLevel m_providerLevel;

@@ -51,8 +51,6 @@ void SampleProfiler::Initialize(EventPipeProviderCallbackDataQueue* pEventPipePr
     if (s_pEventPipeProvider == nullptr)
     {
         s_pEventPipeProvider = EventPipe::CreateProvider(SL(s_providerName), nullptr, nullptr, pEventPipeProviderCallbackDataQueue);
-        // FIXME: This could be NULL.
-
         s_pThreadTimeEvent = s_pEventPipeProvider->AddEvent(
             0, /* eventID */
             0, /* keywords */
@@ -77,7 +75,7 @@ void SampleProfiler::Enable(EventPipeProviderCallbackDataQueue *pEventPipeProvid
     }
     CONTRACTL_END;
 
-    const bool fSuccess = LoadDependencies(); // FIXME: Assuming function always succeed.
+    const bool fSuccess = LoadDependencies();
 
 #ifndef FEATURE_PAL
     _ASSERTE(fSuccess);
