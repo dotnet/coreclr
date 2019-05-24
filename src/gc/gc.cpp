@@ -17786,7 +17786,7 @@ uint8_t* gc_heap::next_end (heap_segment* seg, uint8_t* f)
 #define ignore_start 0
 #define use_start 1
 
-#define go_through_object(mt,o,size,parm,start,start_useful,limit,exp)      \
+#define go_through_object_MACRO(mt,o,size,parm,start,start_useful,limit,exp)\
 {                                                                           \
     CGCDesc* map = CGCDesc::GetCGCDescFromMT((MethodTable*)(mt));           \
     CGCDescSeries* cur = map->GetHighestSeries();                           \
@@ -17846,21 +17846,21 @@ uint8_t* gc_heap::next_end (heap_segment* seg, uint8_t* f)
     }                                                                       \
 }
 
-#define go_through_object_nostart(mt,o,size,parm,exp) {go_through_object(mt,o,size,parm,o,ignore_start,(o + size),exp); }
+#define go_through_object_nostart_MACRO(mt,o,size,parm,exp) {go_through_object_MACRO(mt,o,size,parm,o,ignore_start,(o + size),exp); }
 
 // 1 thing to note about this macro:
 // 1) you can use *parm safely but in general you don't want to use parm 
 // because for the collectible types it's not an address on the managed heap.
 #ifndef COLLECTIBLE_CLASS
-#define go_through_object_cl(mt,o,size,parm,exp)                            \
+#define go_through_object_cl_MACRO(mt,o,size,parm,exp)                            \
 {                                                                           \
     if (header(o)->ContainsPointers())                                      \
     {                                                                       \
-        go_through_object_nostart(mt,o,size,parm,exp);                      \
+        go_through_object_nostart_MACRO(mt,o,size,parm,exp);                      \
     }                                                                       \
 }
 #else //COLLECTIBLE_CLASS
-#define go_through_object_cl(mt,o,size,parm,exp)                            \
+#define go_through_object_cl_MACRO(mt,o,size,parm,exp)                            \
 {                                                                           \
     if (header(o)->Collectible())                                           \
     {                                                                       \
@@ -17870,10 +17870,121 @@ uint8_t* gc_heap::next_end (heap_segment* seg, uint8_t* f)
     }                                                                       \
     if (header(o)->ContainsPointers())                                      \
     {                                                                       \
-        go_through_object_nostart(mt,o,size,parm,exp);                      \
+        go_through_object_nostart_MACRO(mt,o,size,parm,exp);                      \
     }                                                                       \
 }
 #endif //COLLECTIBLE_CLASS
+
+#ifndef _DEBUG
+// Use lambda's in checked and debug builds
+#define USE_GO_THROUGH_OBJECT_MACROS
+#endif
+
+#ifdef USE_GO_THROUGH_OBJECT_MACROS
+#define LAMBDA_PARM1(parm) parm
+#define LAMBDA_PARM2(parm)
+#define LAMBDA_START_PARM2(parm)
+#define BEGIN_CONDITIONAL_SCANNING
+#define RESTART_FROM_START() break
+#define FINISH_SCAN_GOTO_INCOMPLETE() goto finish_incomplete
+#define FINISH_SCAN_GOTO_INCOMPLETE2() goto finish_incomplete2
+#define CONTINUE_SCAN() do {} while(false)
+#define END_CONDITIONAL_SCANNING(label) if (false) { finish_incomplete: goto label; }
+#define END_CONDITIONAL_SCANNING2(label, label2) if (false) { finish_incomplete: goto label; finish_incomplete2: goto label2; }
+
+#define go_through_object(mt,o,size,limit,start,parm,exp) go_through_object_MACRO(mt,o,size,parm,start,use_start,limit,exp)
+#define go_through_object_update_start_ppstop_and_parm(mt,o,size,limit,start,parm,exp) go_through_object_MACRO(mt,o,size,parm,start,use_start,limit,exp)
+#define go_through_object_nostart(mt,o,size,parm,exp) go_through_object_nostart_MACRO(mt,o,size,parm,exp)
+#define go_through_object_cl(mt,o,size,parm,exp) go_through_object_cl_MACRO(mt,o,size,parm,exp)
+#else
+#define LAMBDA_PARM1(parm) true
+#define LAMBDA_PARM2(parm) [&](uint8_t ** const parm)
+#define LAMBDA_START_PARM2(parm) [&](uint8_t**&ppstop, uint8_t **&parm)
+#define BEGIN_CONDITIONAL_SCANNING int conditionalScanBehavior = 
+#define RESTART_FROM_START() return go_through_object_next_behavior::new_start
+#define FINISH_SCAN_GOTO_INCOMPLETE() return go_through_object_next_behavior::finish_incomplete
+#define FINISH_SCAN_GOTO_INCOMPLETE2() return go_through_object_next_behavior::finish_incomplete2
+#define CONTINUE_SCAN() return go_through_object_next_behavior::continue_scanning
+#define END_CONDITIONAL_SCANNING(label) if (conditionalScanBehavior == 1) { goto label; } assert(conditionalScanBehavior == 0);
+#define END_CONDITIONAL_SCANNING2(label, label2) if (conditionalScanBehavior == 1) { goto label; } if (conditionalScanBehavior == 2) { goto label2; } assert(conditionalScanBehavior == 0);
+
+enum class go_through_object_next_behavior
+{
+    continue_scanning,
+    new_start,
+    finish_incomplete,
+    finish_incomplete2
+};
+
+template <class lambda_t>
+int go_through_object(MethodTable* mt, uint8_t* o, size_t size, uint8_t* limit, uint8_t* start, bool ignored, lambda_t exp)
+{
+    go_through_object_MACRO(mt,o,size,parm,start,use_start,limit,
+    {
+        go_through_object_next_behavior nextBehavior = exp(parm);
+        if (nextBehavior == go_through_object_next_behavior::new_start) { assert(!"Doesn't make sense when start can't be updated"); break; }
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete) return 1;
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete2) return 2;
+    }
+    );
+    return 0;
+}
+
+template <class lambda_t>
+int go_through_object_update_start_ppstop_and_parm(MethodTable* mt, uint8_t* o, size_t size, uint8_t* limit, uint8_t*& start, bool ignored, lambda_t exp)
+{
+    go_through_object_MACRO(mt,o,size,parm,start,use_start,limit,
+    {
+        go_through_object_next_behavior nextBehavior = exp(ppstop, parm);
+        if (nextBehavior == go_through_object_next_behavior::new_start) { break; }
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete) return 1;
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete2) return 2;
+    }
+    );
+    return 0;
+}
+
+template <class lambda_t>
+int go_through_object_nostart(MethodTable* mt, uint8_t* o, size_t size, bool ignored, lambda_t exp)
+{
+    go_through_object_nostart_MACRO(mt,o,size,parm,
+    {
+        go_through_object_next_behavior nextBehavior = exp(parm);
+        if (nextBehavior == go_through_object_next_behavior::new_start) { assert(!"Doesn't make sense when start can't be updated"); break; }
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete) return 1;
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete2) return 2;
+    }
+    );
+    return 0;
+}
+
+template <class lambda_t>
+int go_through_object_cl(MethodTable* mt, uint8_t* o, size_t size, bool ignored, lambda_t exp)
+{
+    go_through_object_cl_MACRO(mt,o,size,parm,
+    {
+        go_through_object_next_behavior nextBehavior = exp(parm);
+        if (nextBehavior == go_through_object_next_behavior::new_start) { assert(!"Doesn't make sense when start can't be updated"); break; }
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete) return 1;
+        if (nextBehavior == go_through_object_next_behavior::finish_incomplete2) return 2;
+    }
+    );
+    return 0;
+}
+
+#endif // USE_GO_THROUGH_OBJECT_MACROS
+
+#if defined (MULTIPLE_HEAPS)
+#define CAPTURE_HEAP_AND(...) this, __VA_ARGS__
+#define CAPTURE_HEAP_AND_THREAD_AND(...) this, thread, __VA_ARGS__
+#define CAPTURE_HEAP this
+#define CAPTURE_HEAP_AND_THREAD this, thread
+#else
+#define CAPTURE_HEAP
+#define CAPTURE_HEAP_AND(...) __VA_ARGS__
+#define CAPTURE_HEAP_AND_THREAD_AND(...) __VA_ARGS__
+#define CAPTURE_HEAP_AND_THREAD
+#endif
 
 // This starts a plug. But mark_stack_tos isn't increased until set_pinned_info is called.
 void gc_heap::enque_pinned_plug (uint8_t* plug,
@@ -17940,11 +18051,12 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
             {
                 dprintf (3, ("short object: %Ix(%Ix)", last_object_in_last_plug, last_obj_size));
 
-                go_through_object_nostart (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, pval,
+                go_through_object_nostart (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, LAMBDA_PARM1(pval), LAMBDA_PARM2(pval)
                     {
                         size_t gap_offset = (((size_t)pval - (size_t)(plug - sizeof (gap_reloc_pair) - plug_skew))) / sizeof (uint8_t*);
                         dprintf (3, ("member: %Ix->%Ix, %Id ptrs from beginning of gap", (uint8_t*)pval, *pval, gap_offset));
                         m.set_pre_short_bit (gap_offset);
+                        CONTINUE_SCAN();
                     }
                 );
             }
@@ -18011,11 +18123,12 @@ void gc_heap::save_post_plug_info (uint8_t* last_pinned_plug, uint8_t* last_obje
 
             // TODO: since we won't be able to walk this object in relocation, we still need to
             // take care of collectible assemblies here.
-            go_through_object_nostart (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, pval,
+            go_through_object_nostart (method_table(last_object_in_last_plug), last_object_in_last_plug, last_obj_size, LAMBDA_PARM1(pval), LAMBDA_PARM2(pval)
                 {
                     size_t gap_offset = (((size_t)pval - (size_t)(post_plug - sizeof (gap_reloc_pair) - plug_skew))) / sizeof (uint8_t*);
                     dprintf (3, ("member: %Ix->%Ix, %Id ptrs from beginning of gap", (uint8_t*)pval, *pval, gap_offset));
                     m.set_post_short_bit (gap_offset);
+                    CONTINUE_SCAN();
                 }
             );
         }
@@ -18136,7 +18249,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                 {
                     dprintf(3,("pushing mark for %Ix ", (size_t)oo));
 
-                    go_through_object_cl (method_table(oo), oo, s, ppslot,
+                    go_through_object_cl (method_table(oo), oo, s, LAMBDA_PARM1(ppslot), LAMBDA_PARM2(ppslot)
                                           {
                                               uint8_t* o = *ppslot;
                                               Prefetch(o);
@@ -18157,6 +18270,7 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                                                       *(mark_stack_tos++) = o;
                                                   }
                                               }
+                                              CONTINUE_SCAN();
                                           }
                         );
                 }
@@ -18235,8 +18349,9 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                     int i = num_partial_refs; 
                     uint8_t* ref_to_continue = 0;
 
-                    go_through_object (method_table(oo), oo, s, ppslot,
-                                       start, use_start, (oo + s),
+                    BEGIN_CONDITIONAL_SCANNING 
+                        go_through_object (method_table(oo), oo, s,
+                                       (oo + s), start, LAMBDA_PARM1(ppslot), LAMBDA_PARM2(ppslot)
                                        {
                                            uint8_t* o = *ppslot;
                                            Prefetch(o);
@@ -18258,14 +18373,15 @@ void gc_heap::mark_object_simple1 (uint8_t* oo, uint8_t* start THREAD_NUMBER_DCL
                                                     if (--i == 0)
                                                     {
                                                         ref_to_continue = (uint8_t*)((size_t)(ppslot+1) | partial);
-                                                        goto more_to_do;
+                                                        FINISH_SCAN_GOTO_INCOMPLETE();
                                                     }
 
                                                 }
                                            }
+                                           CONTINUE_SCAN();
+                                       });
+                    END_CONDITIONAL_SCANNING(more_to_do)
 
-                                       }
-                        );
                     //we are finished with this object
                     assert (ref_to_continue == 0);
 #ifdef MH_SC_MARK
@@ -18679,7 +18795,7 @@ gc_heap::mark_object_simple (uint8_t** po THREAD_NUMBER_DCL)
             size_t s = size (o);
             promoted_bytes (thread) += s;
             {
-                go_through_object_cl (method_table(o), o, s, poo,
+                go_through_object_cl (method_table(o), o, s, LAMBDA_PARM1(poo), LAMBDA_PARM2(poo)
                                         {
                                             uint8_t* oo = *poo;
                                             if (gc_mark (oo, gc_low, gc_high))
@@ -18691,6 +18807,7 @@ gc_heap::mark_object_simple (uint8_t** po THREAD_NUMBER_DCL)
                                                 if (contain_pointers_or_collectible (oo))
                                                     mark_object_simple1 (oo, oo THREAD_NUMBER_ARG);
                                             }
+                                            CONTINUE_SCAN();
                                         }
                     );
             }
@@ -18763,7 +18880,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                 {
                     dprintf(3,("pushing mark for %Ix ", (size_t)oo));
 
-                    go_through_object_cl (method_table(oo), oo, s, ppslot,
+                    go_through_object_cl (method_table(oo), oo, s, LAMBDA_PARM1(ppslot), LAMBDA_PARM2(ppslot)
                     {
                         uint8_t* o = *ppslot;
                         Prefetch(o);
@@ -18780,6 +18897,7 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
 
                             }
                         }
+                        CONTINUE_SCAN();
                     }
                         );
                 }
@@ -18856,8 +18974,8 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
 
                     int i = num_partial_refs; 
 
-                    go_through_object (method_table(oo), oo, s, ppslot,
-                                       start, use_start, (oo + s),
+                    BEGIN_CONDITIONAL_SCANNING go_through_object (method_table(oo), oo, s,
+                                       (oo + s), start, LAMBDA_PARM1(ppslot), LAMBDA_PARM2(ppslot)
                     {
                         uint8_t* o = *ppslot;
                         Prefetch(o);
@@ -18876,14 +18994,15 @@ void gc_heap::background_mark_simple1 (uint8_t* oo THREAD_NUMBER_DCL)
                                 {
                                     //update the start
                                     *place = (uint8_t*)(ppslot+1);
-                                    goto more_to_do;
+                                    FINISH_SCAN_GOTO_INCOMPLETE();
                                 }
 
                             }
                         }
+                        CONTINUE_SCAN();
+                    });
+                    END_CONDITIONAL_SCANNING(more_to_do)
 
-                    }
-                        );
                     //we are finished with this object
                     *place = 0; 
                     *(place+1) = 0;
@@ -19141,11 +19260,12 @@ void gc_heap::background_mark_through_object (uint8_t* oo THREAD_NUMBER_DCL)
     {
         size_t total_refs = 0;
         size_t s = size (oo);
-        go_through_object_nostart (method_table(oo), oo, s, po,
+        go_through_object_nostart (method_table(oo), oo, s, LAMBDA_PARM1(po), LAMBDA_PARM2(po)
                           {
                             uint8_t* o = *po;
                             total_refs++;
                             background_mark_object (o THREAD_NUMBER_ARG);
+                            CONTINUE_SCAN();
                           }
             );
 
@@ -19278,12 +19398,15 @@ void gc_heap::background_process_mark_overflow_internal (int condemned_gen_numbe
                     s = size (o);
                 }
 
-                if (background_object_marked (o, FALSE) && contain_pointers_or_collectible (o))
+                if (background_object_marked(o, FALSE) && contain_pointers_or_collectible(o))
                 {
                     total_marked_objects++;
-                    go_through_object_cl (method_table(o), o, s, poo,
-                                          uint8_t* oo = *poo;
-                                          background_mark_object (oo THREAD_NUMBER_ARG);
+                    go_through_object_cl(method_table(o), o, s, LAMBDA_PARM1(poo), LAMBDA_PARM2(poo)
+                    {
+                        uint8_t* oo = *poo;
+                        background_mark_object(oo THREAD_NUMBER_ARG);
+                        CONTINUE_SCAN();
+                    }
                                          );
                 }
 
@@ -19469,10 +19592,12 @@ void gc_heap::mark_through_object (uint8_t* oo, BOOL mark_class_object_p THREAD_
 
         if (contain_pointers (oo))
         {
-            go_through_object_nostart (method_table(oo), oo, s, po,
+            go_through_object_nostart (method_table(oo), oo, s, LAMBDA_PARM1(po), LAMBDA_PARM2(po)
+                            {
                                 uint8_t* o = *po;
                                 mark_object (o THREAD_NUMBER_ARG);
-                                );
+                                CONTINUE_SCAN();
+                            });
         }
     }
 }
@@ -21670,9 +21795,10 @@ void gc_heap::relocate_in_loh_compact()
             check_class_object_demotion (o);
             if (contain_pointers (o))
             {
-                go_through_object_nostart (method_table (o), o, size(o), pval,
+                go_through_object_nostart (method_table (o), o, size(o), LAMBDA_PARM1(pval), LAMBDA_PARM2(pval)
                 {
                     reloc_survivor_helper (pval);
+                    CONTINUE_SCAN();
                 });
             }
 
@@ -24049,7 +24175,6 @@ gc_heap::check_class_object_demotion_internal (uint8_t* obj)
         // been relocated by other GC threads. 
         set_card (card_of (obj));
 #else
-        THREAD_FROM_HEAP;
         uint8_t* class_obj = get_class_object (obj);
         dprintf (3, ("%Ix: got classobj %Ix", obj, class_obj));
         uint8_t* temp_class_obj = class_obj;
@@ -24111,7 +24236,7 @@ gc_heap::relocate_obj_helper (uint8_t* x, size_t s)
     {
         dprintf (3, ("$%Ix$", (size_t)x));
 
-        go_through_object_nostart (method_table(x), x, s, pval,
+        go_through_object_nostart (method_table(x), x, s, LAMBDA_PARM1(pval), LAMBDA_PARM2(pval)
                             {
                                 uint8_t* child = *pval;
                                 reloc_survivor_helper (pval);
@@ -24119,6 +24244,7 @@ gc_heap::relocate_obj_helper (uint8_t* x, size_t s)
                                 {
                                     dprintf (3, ("%Ix->%Ix->%Ix", (uint8_t*)pval, child, *pval));
                                 }
+                                CONTINUE_SCAN();
                             });
 
     }
@@ -24233,7 +24359,7 @@ void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end,
     {
         dprintf (3,("$%Ix$", (size_t)x));
 
-        go_through_object_nostart (method_table(x), x, s, pval,
+        go_through_object_nostart (method_table(x), x, s, LAMBDA_PARM1(pval), LAMBDA_PARM2(pval)
         {
             dprintf (3, ("obj %Ix, member: %Ix->%Ix", x, (uint8_t*)pval, *pval));
 
@@ -24249,6 +24375,7 @@ void gc_heap::relocate_shortened_obj_helper (uint8_t* x, size_t s, uint8_t* end,
             {
                 reloc_survivor_helper (pval);
             }
+            CONTINUE_SCAN();
         });
     }
 
@@ -26808,17 +26935,21 @@ void gc_heap::revisit_written_page (uint8_t* page,
                 background_marked (o)))
             {
                 dprintf (3, ("going through %Ix", (size_t)o));
-                go_through_object (method_table(o), o, s, poo, start_address, use_start, (o + s),
+                BEGIN_CONDITIONAL_SCANNING go_through_object (method_table(o), o, s, (o + s), start_address, LAMBDA_PARM1(poo), LAMBDA_PARM2(poo)
+                {
                                     if ((uint8_t*)poo >= min (high_address, page + WRITE_WATCH_UNIT_SIZE))
                                     {
                                         no_more_loop_p = TRUE;
-                                        goto end_limit;
+                                        FINISH_SCAN_GOTO_INCOMPLETE();
                                     }
                                     uint8_t* oo = *poo;
 
                                     num_marked_objects++;
                                     background_mark_object (oo THREAD_NUMBER_ARG);
-                                );
+                                    CONTINUE_SCAN();
+                }
+                                    );
+                END_CONDITIONAL_SCANNING(end_limit)
             }
             else if (
                 concurrent_p &&
@@ -28426,9 +28557,8 @@ go_through_refs:
 
                     {
                         dprintf (4, ("normal object path"));
-                        go_through_object
-                            (method_table(o), o, s, poo,
-                             start_address, use_start, (o + s),
+                        BEGIN_CONDITIONAL_SCANNING go_through_object_update_start_ppstop_and_parm
+                            (method_table(o), o, s, (o + s), start_address, LAMBDA_PARM1(poo), LAMBDA_START_PARM2(poo)
                              {
                                  dprintf (4, ("<%Ix>:%Ix", (size_t)poo, (size_t)*poo));
                                  if (card_of ((uint8_t*)poo) > card)
@@ -28448,7 +28578,7 @@ go_through_refs:
                                              //new_start();
                                              {
                                                  if (ppstop <= (uint8_t**)start_address)
-                                                     {break;}
+                                                     {RESTART_FROM_START();}
                                                  else if (poo < (uint8_t**)start_address)
                                                      {poo = (uint8_t**)start_address;}
                                              }
@@ -28456,18 +28586,19 @@ go_through_refs:
                                         else if (foundp && (start_address < limit))
                                         {
                                             next_o = find_first_object (start_address, o);
-                                            goto end_object;
+                                            FINISH_SCAN_GOTO_INCOMPLETE(); // goto end_object
                                         }
                                          else
-                                            goto end_limit;
+                                            FINISH_SCAN_GOTO_INCOMPLETE2(); // goto end_limit
                                      }
                                  }
 
                                  mark_through_cards_helper (poo, n_gen,
                                                             cg_pointers_found, fn,
                                                             nhigh, next_boundary);
-                             }
-                            );
+                                CONTINUE_SCAN();
+                             });
+                        END_CONDITIONAL_SCANNING2(end_object, end_limit)
                     }
                 }
 
@@ -32363,9 +32494,10 @@ void gc_heap::relocate_in_large_objects ()
             if (contain_pointers (o))
             {
                 dprintf(3, ("Relocating through large object %Ix", (size_t)o));
-                go_through_object_nostart (method_table (o), o, size(o), pval,
+                go_through_object_nostart (method_table (o), o, size(o), LAMBDA_PARM1(pval), LAMBDA_PARM2(pval)
                         {
                             reloc_survivor_helper (pval);
+                            CONTINUE_SCAN();
                         });
             }
             o = o + AlignQword (size (o));
@@ -32554,8 +32686,9 @@ go_through_refs:
                 {
                     dprintf(3,("Going through %Ix", (size_t)o));
 
-                    go_through_object (method_table(o), o, s, poo,
-                                       start_address, use_start, (o + s),
+                    BEGIN_CONDITIONAL_SCANNING 
+                    go_through_object_update_start_ppstop_and_parm (method_table(o), o, s,
+                                       (o + s), start_address, LAMBDA_PARM1(poo), LAMBDA_START_PARM2(poo)
                        {
                            if (card_of ((uint8_t*)poo) > card)
                            {
@@ -32574,14 +32707,16 @@ go_through_refs:
                                         //new_start();
                                         {
                                             if (ppstop <= (uint8_t**)start_address)
-                                            {break;}
+                                            {
+                                                RESTART_FROM_START();
+                                            }
                                             else if (poo < (uint8_t**)start_address)
                                             {poo = (uint8_t**)start_address;}
                                         }
                                     }
                                     else
                                     {
-                                        goto end_object;
+                                        FINISH_SCAN_GOTO_INCOMPLETE(); // goto end_object;
                                     }
                                 }
                             }
@@ -32589,8 +32724,10 @@ go_through_refs:
                            mark_through_cards_helper (poo, n_gen,
                                                       cg_pointers_found, fn,
                                                       nhigh, next_boundary);
-                       }
-                        );
+                           CONTINUE_SCAN();
+                        }
+                    );
+                    END_CONDITIONAL_SCANNING(end_object)
                 }
 
             end_object:
@@ -33360,7 +33497,7 @@ void gc_heap::verify_partial ()
 
             if (marked_p)
             {
-                go_through_object_cl (method_table (o), o, s, oo,
+                go_through_object_cl (method_table (o), o, s, LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
                     {
                         if (*oo)
                         {
@@ -33390,6 +33527,7 @@ void gc_heap::verify_partial ()
                                 }
                             }
                         }
+                        CONTINUE_SCAN();
                     }
                                     );
             }
@@ -33854,7 +33992,7 @@ gc_heap::verify_heap (BOOL begin_gc_p)
                         if (contain_pointers(curr_object))
                         {
                             go_through_object_nostart
-                                (method_table(curr_object), curr_object, s, oo,
+                                (method_table(curr_object), curr_object, s, LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
                                 {
                                     if ((crd != card_of ((uint8_t*)oo)) && !found_card_p)
                                     {
@@ -33875,6 +34013,7 @@ gc_heap::verify_heap (BOOL begin_gc_p)
                                                     card_of (curr_object+Align(s, align_const)), (size_t)curr_object+Align(s, align_const)));
                                         FATAL_GC_ERROR();
                                     }
+                                    CONTINUE_SCAN();
                                 }
                                     );
                         }
@@ -33971,7 +34110,7 @@ void GCHeap::ValidateObjectMember (Object* obj)
     size_t s = size (obj);
     uint8_t* o = (uint8_t*)obj;
 
-    go_through_object_cl (method_table (obj), o, s, oo,
+    go_through_object_cl (method_table (obj), o, s, LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
                                 {
                                     uint8_t* child_o = *oo;
                                     if (child_o)
@@ -33985,6 +34124,7 @@ void GCHeap::ValidateObjectMember (Object* obj)
                                             FATAL_GC_ERROR();
                                         }
                                     }
+                                    CONTINUE_SCAN();
                                 } );
 #endif // VERIFY_HEAP
 }
@@ -37166,17 +37306,21 @@ void GCHeap::DiagWalkObject (Object* obj, walk_fn fn, void* context)
     uint8_t* o = (uint8_t*)obj;
     if (o)
     {
-        go_through_object_cl (method_table (o), o, size(o), oo,
+        BEGIN_CONDITIONAL_SCANNING
+        go_through_object_cl (method_table (o), o, size(o), LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
                                     {
                                         if (*oo)
                                         {
                                             Object *oh = (Object*)*oo;
                                             if (!fn (oh, context))
-                                                return;
+                                                FINISH_SCAN_GOTO_INCOMPLETE();
                                         }
+                                        CONTINUE_SCAN();
                                     }
             );
+        END_CONDITIONAL_SCANNING(end)
     }
+end:;
 }
 
 void GCHeap::DiagWalkObject2 (Object* obj, walk_fn2 fn, void* context)
@@ -37184,16 +37328,20 @@ void GCHeap::DiagWalkObject2 (Object* obj, walk_fn2 fn, void* context)
     uint8_t* o = (uint8_t*)obj;
     if (o)
     {
-        go_through_object_cl (method_table (o), o, size(o), oo,
+        BEGIN_CONDITIONAL_SCANNING
+        go_through_object_cl (method_table (o), o, size(o), LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
                                     {
                                         if (*oo)
                                         {
                                             if (!fn (obj, oo, context))
-                                                return;
+                                                FINISH_SCAN_GOTO_INCOMPLETE();
                                         }
+                                        CONTINUE_SCAN();
                                     }
             );
+        END_CONDITIONAL_SCANNING(end)
     }
+end:;
 }
 
 void GCHeap::DiagWalkSurvivorsWithType (void* gc_context, record_surv_fn fn, void* diag_context, walk_surv_type type)
@@ -37393,8 +37541,8 @@ void testGCShadowHelper (uint8_t* x)
     size_t s = size (x);
     if (contain_pointers (x))
     {
-        go_through_object_nostart (method_table(x), x, s, oo,
-                           { testGCShadow((Object**) oo); });
+        go_through_object_nostart (method_table(x), x, s, LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
+                           { testGCShadow((Object**) oo); CONTINUE_SCAN(); });
     }
 }
 
@@ -37473,10 +37621,11 @@ void gc_heap::walk_read_only_segment(heap_segment *seg, void *pvContext, object_
 
         if (contain_pointers (o))
         {
-            go_through_object_nostart (method_table (o), o, size(o), oo,
+            go_through_object_nostart (method_table (o), o, size(o), LAMBDA_PARM1(oo), LAMBDA_PARM2(oo)
                    {
                        if (*oo)
                            pfnObjRef(pvContext, oo);
+                        CONTINUE_SCAN();
                    }
             );
         }
