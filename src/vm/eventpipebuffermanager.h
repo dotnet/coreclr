@@ -81,6 +81,7 @@ public:
     void SetWriteBuffer(EventPipeBufferManager *pBufferManager, EventPipeBuffer *pNewBuffer);
     EventPipeBufferList *GetBufferList(EventPipeBufferManager *pBufferManager);
     void SetBufferList(EventPipeBufferManager *pBufferManager, EventPipeBufferList *pBufferList);
+    void Remove(EventPipeBufferManager *pBufferManager);
 };
 
 class EventPipeBufferManager

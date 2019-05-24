@@ -160,6 +160,25 @@ void EventPipeThread::SetBufferList(EventPipeBufferManager *pBufferManager, Even
     EX_END_CATCH(SwallowAllExceptions);
 }
 
+void EventPipeThread::Remove(EventPipeBufferManager *pBufferManager)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(pBufferManager != nullptr);
+    }
+    CONTRACTL_END;
+
+    if (pBufferManager == nullptr)
+        return;
+
+    EventPipeBufferList *pBufferList = nullptr;
+    if (m_pBufferLists->Lookup(pBufferManager, &pBufferList))
+        m_pBufferLists->Remove(pBufferManager);
+}
+
 EventPipeBufferManager::EventPipeBufferManager()
 {
     CONTRACTL
@@ -751,6 +770,16 @@ void EventPipeBufferManager::SuspendWriteEvent()
                 YIELD_WHILE(pBuffer->GetVolatileState() != EventPipeBufferState::READ_ONLY);
             }
             pElem = m_pPerThreadBufferList->GetNext(pElem);
+        }
+    }
+
+    // Iterate through all the threads, and remove this buffer manager.
+    for (size_t i = 0 ; i < threadList.Size(); i++)
+    {
+        EventPipeThread* pThread = threadList[i];
+        {
+            SpinLockHolder _slh(pThread->GetLock());
+            pThread->Remove(this);
         }
     }
 }
