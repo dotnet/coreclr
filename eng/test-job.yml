@@ -195,9 +195,9 @@ jobs:
           # DotNet-HelixApi-Access variable group
           helixAccessToken: $(HelixApiAccessToken)
 
-        # Sets up the template to run the corefx tests
+        # Choose which tests to send to Helix: CoreFX or CoreCLR.
         ${{ if eq(parameters.corefxTests, true) }}:
-          helixProjectArguments: 'eng/helixcorefxtests.proj /t:Test /p:ArcadeBuild=True'
+          helixProjectArguments: 'eng/helixcorefxtests.proj'
         ${{ if eq(parameters.corefxTests, false) }}:
           helixProjectArguments: 'tests/helixpublishwitharcade.proj'
 
