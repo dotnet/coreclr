@@ -8,7 +8,7 @@
 
   <!-- Import Microsoft.DotNet.Build.Tasks.Feed.targets for `ParseBuildManifest` -->
   <Import Project="..\dir.props" Condition=" '$(NuGetPackageRoot)'=='' "/>
-  <Import Project="$(NuGetPackageRoot)microsoft.dotnet.build.tasks.feed\$(MicrosoftDotNetBuildTasksFeedVersion)\build\Microsoft.DotNet.Build.Tasks.Feed.targets" />  
+  <Import Project="$(NuGetPackageRoot)microsoft.dotnet.build.tasks.feed\$(MicrosoftDotNetBuildTasksFeedVersion)\build\Microsoft.DotNet.Build.Tasks.Feed.targets" />
 
   <!-- This project is copies much logic from helixpublishwitharcade.proj, used to send coreclr tests to Helix. -->
 
@@ -222,6 +222,61 @@
   </Target>
 
   <!--
+    The following item and property groups are setting things needed by Helix, to describe the jobs
+    we are creating. Ideally, we would put them inside the "BuildHelixWorkItems" task, which is what
+    we run to create the Helix correlation payload and work item groups. However, the Helix SDK
+    references some of these in "InitialTargets", and we don't have control over the order of
+    InitialTargets running, so we need to make these "global". All the "global" item and property
+    groups will be evaluated before the Helix InitialTargets are run.
+  -->
+
+  <!-- HelixPreCommands is a set of commands run before the work item command. We use it here to inject
+       setting up the per-scenario environment.
+  -->
+
+  <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
+    <HelixPreCommand Include="set __TestEnv=%HELIX_CORRELATION_PAYLOAD%\$(TestEnvFileName)" />
+    <HelixPreCommand Include="type %__TestEnv%" />
+    <HelixPreCommand Include="call %__TestEnv%" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
+    <HelixPreCommand Include="export __TestEnv=$HELIX_CORRELATION_PAYLOAD/$(TestEnvFileName)" />
+    <HelixPreCommand Include="cat $__TestEnv" />
+    <HelixPreCommand Include="source $__TestEnv" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <HelixArchitecture>$(__BuildArch)</HelixArchitecture>
+
+    <HelixConfiguration Condition=" '$(Scenario)' == 'normal' ">$(BuildType)</HelixConfiguration>
+    <HelixConfiguration Condition=" '$(Scenario)' != 'normal' ">$(BuildType)-$(Scenario)</HelixConfiguration>
+
+    <TestRunNamePrefix Condition=" '$(Scenario)' == 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
+    <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
+
+    <!-- REVIEW: it seems like this should be referencing "PublishTestResults" instead (without the underscore) -->
+    <EnableAzurePipelinesReporter>$(_PublishTestResults)</EnableAzurePipelinesReporter>
+    <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' == '' ">false</EnableAzurePipelinesReporter>
+
+    <EnableXUnitReporter>true</EnableXUnitReporter>
+    <FailOnMissionControlTestFailure>true</FailOnMissionControlTestFailure>
+    <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
+    <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
+
+    <!-- REVIEW: should we be using "TimeoutPerTestInMinutes" or "TimeoutPerTestCollectionInMinutes"? -->
+    <TimeoutInSeconds Condition="'$(TimeoutInSeconds)' == ''">600</TimeoutInSeconds>
+    <CommandTimeoutSpan>$([System.TimeSpan]::FromSeconds($(TimeoutInSeconds)))</CommandTimeoutSpan>
+
+    <!-- Specify the retry policy for Helix jobs: -->
+    <MaxRetryCount Condition="'$(MaxRetryCount)' == ''">4</MaxRetryCount>
+  </PropertyGroup>
+
+  <!--
     Create all the Helix data to start a set of jobs. This is invoked once for each Scenario (see
     target "RunInParallelForEachScenario"). Create a set of work items, one for each CoreFX test assembly.
     All will have the same Scenario specific command line.  Note that this target is listed in the
@@ -231,53 +286,6 @@
     during the other invocations of this Project, such as when "RunInParallelForEachScenario" is run.
   -->
   <Target Name="BuildHelixWorkItems" DependsOnTargets="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
-
-    <!-- HelixPreCommands is a set of commands run before the work item command. We use it here to inject
-         setting up the per-scenario environment.
-    -->
-
-    <ItemGroup Condition=" '$(TargetsWindows)' == 'true' ">
-      <HelixPreCommand Include="set __TestEnv=%HELIX_CORRELATION_PAYLOAD%\$(TestEnvFileName)" />
-      <HelixPreCommand Include="type %__TestEnv%" />
-      <HelixPreCommand Include="call %__TestEnv%" />
-    </ItemGroup>
-
-    <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
-      <HelixPreCommand Include="export __TestEnv=$HELIX_CORRELATION_PAYLOAD/$(TestEnvFileName)" />
-      <HelixPreCommand Include="cat $__TestEnv" />
-      <HelixPreCommand Include="source $__TestEnv" />
-    </ItemGroup>
-
-    <PropertyGroup>
-      <HelixPreCommands>@(HelixPreCommand)</HelixPreCommands>
-    </PropertyGroup>
-
-    <PropertyGroup>
-      <HelixArchitecture>$(__BuildArch)</HelixArchitecture>
-
-      <HelixConfiguration Condition=" '$(Scenario)' == 'normal' ">$(BuildType)</HelixConfiguration>
-      <HelixConfiguration Condition=" '$(Scenario)' != 'normal' ">$(BuildType)-$(Scenario)</HelixConfiguration>
-
-      <TestRunNamePrefix Condition=" '$(Scenario)' == 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
-      <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
-
-      <!-- REVIEW: it seems like this should be referencing "PublishTestResults" instead (without the underscore) -->
-      <EnableAzurePipelinesReporter>$(_PublishTestResults)</EnableAzurePipelinesReporter>
-      <EnableAzurePipelinesReporter Condition=" '$(EnableAzurePipelinesReporter)' == '' ">false</EnableAzurePipelinesReporter>
-
-      <EnableXUnitReporter>true</EnableXUnitReporter>
-      <FailOnMissionControlTestFailure>true</FailOnMissionControlTestFailure>
-      <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
-      <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
-
-      <!-- REVIEW: should we be using "TimeoutPerTestInMinutes" or "TimeoutPerTestCollectionInMinutes"? -->
-      <TimeoutInSeconds Condition="'$(TimeoutInSeconds)' == ''">600</TimeoutInSeconds>
-      <CommandTimeoutSpan>$([System.TimeSpan]::FromSeconds($(TimeoutInSeconds)))</CommandTimeoutSpan>
-
-      <!-- Specify the retry policy for Helix jobs: -->
-      <MaxRetryCount Condition="'$(MaxRetryCount)' == ''">4</MaxRetryCount>
-    </PropertyGroup>
-
     <ItemGroup Condition=" '$(UsesHelixSdk)' == 'true' ">
       <HelixCorrelationPayload 
         Include="$(TestArchiveRuntimeFile)" />
@@ -288,7 +296,6 @@
         <Timeout>$(CommandTimeoutSpan)</Timeout>
       </HelixWorkItem>
     </ItemGroup>
-
   </Target>
 
   <Import Sdk="Microsoft.DotNet.Helix.Sdk" Project="Sdk.targets" Condition=" '$(UsesHelixSdk)' == 'true' " />
