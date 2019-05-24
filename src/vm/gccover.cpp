@@ -73,6 +73,92 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
 }
 
 
+bool IsGcCoveregeInterruptInstruction(SLOT instrPtr)
+{
+#if defined(_TARGET_ARM64_)
+    UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
+    switch (instrVal)
+    {
+    case INTERRUPT_INSTR:
+    case INTERRUPT_INSTR_CALL:
+    case INTERRUPT_INSTR_PROTECT_RET:
+        return true;
+    default:
+        return false;
+    }
+#elif defined(_TARGET_ARM_)
+    
+    size_t instrLen = GetARMInstructionLength(instrPtr);
+    if (instrLen == 2)
+    {
+        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
+        switch (instrVal)
+        {
+        case INTERRUPT_INSTR:
+        case INTERRUPT_INSTR_CALL:
+        case INTERRUPT_INSTR_PROTECT_RET:
+            return true;
+        default:
+            return false;
+        }
+    }
+    else
+    {
+        _ASSERTE(instrLen == 4);
+        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
+        switch (instrVal)
+        {
+        case INTERRUPT_INSTR_32:
+        case INTERRUPT_INSTR_CALL_32:
+        case INTERRUPT_INSTR_PROTECT_RET_32:
+            return true;
+        default:
+            return false;
+        }
+    }
+#else // x64 and x86
+    UINT8 instrVal = *reinterpret_cast<UINT8*>(instrPtr);
+    switch (instrVal)
+    {
+    case INTERRUPT_INSTR:
+    case INTERRUPT_INSTR_CALL:
+    case INTERRUPT_INSTR_PROTECT_FIRST_RET:
+        return true;
+    default:
+        return false;
+    }
+#endif
+}
+
+bool IsOriginalInstruction(SLOT instrPtr, GCCoverageInfo* gcCover, DWORD offset)
+{
+#if defined(_TARGET_ARM64_)
+    UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
+    UINT32 origInstrVal = *reinterpret_cast<UINT32*>(gcCover->savedCode + offset);
+    return (instrVal == origInstrVal);
+#elif defined(_TARGET_ARM_)
+    size_t instrLen = GetARMInstructionLength(instrPtr);
+    if (instrLen == 2)
+    {
+        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
+        UINT16 origInstrVal = *reinterpret_cast<UINT16*>(gcCover->savedCode + offset);
+        return (instrVal == origInstrVal);
+    }
+    else
+    {
+        _ASSERTE(instrLen == 4);
+        UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
+        UINT32 origInstrVal = *reinterpret_cast<UINT32*>(gcCover->savedCode + offset);
+        return (instrVal == origInstrVal);
+    }
+#else // x64 and x86
+    UINT8 instrVal = *reinterpret_cast<UINT8*>(instrPtr);
+    UINT8 origInstrVal = gcCover->savedCode[offset];
+    return (instrVal == origInstrVal);
+#endif
+}
+
+
 void SetupAndSprinkleBreakpoints(
     MethodDesc                    * pMD,     
     EECodeInfo                    * pCodeInfo,
@@ -795,27 +881,8 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
             {
 
                 // The instruction about to be replaced cannot already be a gcstress instruction
-#if defined(_TARGET_ARM_)
-                size_t instrLen = GetARMInstructionLength(instrPtr);
-                if (instrLen == 2)
-                {
-                    _ASSERTE(*((WORD*)instrPtr) != INTERRUPT_INSTR && 
-                             *((WORD*)instrPtr) != INTERRUPT_INSTR_CALL &&
-                             *((WORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET);
-                }
-                else 
-                {
-                    _ASSERTE(*((DWORD*)instrPtr) != INTERRUPT_INSTR_32 && 
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_CALL_32 &&
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET_32);
-                }
-#elif defined(_TARGET_ARM64_)
-                {
-                    _ASSERTE(*((DWORD*)instrPtr) != INTERRUPT_INSTR && 
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_CALL &&
-                             *((DWORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET);
-                }
-#endif
+                _ASSERTE(!IsGcCoveregeInterruptInstruction(instrPtr));
+
                 //
                 // When applying GC coverage breakpoints at native image load time, the code here runs
                 // before eager fixups are applied for the module being loaded.  The direct call target
@@ -899,20 +966,9 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
         {
 
             // The instruction about to be replaced cannot already be a gcstress instruction
+            _ASSERTE(!IsGcCoveregeInterruptInstruction(instrPtr));
 #if defined(_TARGET_ARM_)
             size_t instrLen = GetARMInstructionLength(instrPtr);
-            if (instrLen == 2)
-            {
-                _ASSERTE(*((WORD*)instrPtr) != INTERRUPT_INSTR && 
-                         *((WORD*)instrPtr) != INTERRUPT_INSTR_CALL &&
-                         *((WORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET);
-            }
-            else 
-            {
-                _ASSERTE(*((DWORD*)instrPtr) != INTERRUPT_INSTR_32 && 
-                         *((DWORD*)instrPtr) != INTERRUPT_INSTR_CALL_32 &&
-                         *((DWORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET_32);
-            }
 
             if (instrLen == 2)
                 *((WORD*)instrPtr)  = INTERRUPT_INSTR;
@@ -925,12 +981,6 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
 
             instrPtr += instrLen;
 #elif defined(_TARGET_ARM64_)
-            {
-                _ASSERTE(*((DWORD*)instrPtr) != INTERRUPT_INSTR && 
-                         *((DWORD*)instrPtr) != INTERRUPT_INSTR_CALL &&
-                         *((DWORD*)instrPtr) != INTERRUPT_INSTR_PROTECT_RET);
-            }
-            
             // Do not replace with gcstress interrupt instruction at call to JIT_RareDisableHelper
             if(!isCallToStopForGCJitHelper(instrPtr))
                 *((DWORD*)instrPtr) = INTERRUPT_INSTR;
@@ -1273,29 +1323,19 @@ bool IsGcCoverageInterrupt(LPVOID ip)
         return false;
     }
 
-    // Now it's safe to dereference the IP to check the instruction
-#if defined(_TARGET_ARM64_)
-    UINT32 instructionCode = *reinterpret_cast<UINT32 *>(ip);
-#elif defined(_TARGET_ARM_)
-    UINT16 instructionCode = *reinterpret_cast<UINT16 *>(ip);
-#else
-    UINT8 instructionCode = *reinterpret_cast<UINT8 *>(ip);
-#endif
-    switch (instructionCode)
-    {
-        case INTERRUPT_INSTR:
-        case INTERRUPT_INSTR_CALL:
-#if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-        case INTERRUPT_INSTR_PROTECT_RET:
-#else
-        case INTERRUPT_INSTR_PROTECT_FIRST_RET:
-#endif
-            return true;
+    SLOT instrPtr = reinterpret_cast<SLOT>(ip);
 
-        default:
-            // Another thread may have already changed the code back to the original
-            return instructionCode == gcCover->savedCode[codeInfo.GetRelOffset()];
+    if (IsGcCoveregeInterruptInstruction(instrPtr))
+    {
+        return true;
     }
+
+    if (IsOriginalInstruction(instrPtr, gcCover, codeInfo.GetRelOffset()))
+    {
+        // Another thread may have already changed the code back to the original.
+        return true;
+    }
+    return false;
 }
 
 // Remove the GcCoverage interrupt instruction, and restore the 
@@ -1394,7 +1434,7 @@ FORCEINLINE void UpdateGCStressInstructionWithoutGC ()
 void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 {
     PCODE controlPc = GetIP(regs);
-    TADDR instrPtr = PCODEToPINSTR(controlPc);
+    SLOT instrPtr = reinterpret_cast<SLOT>(PCODEToPINSTR(controlPc));
 
     if (!pMD)
     {
@@ -1411,40 +1451,33 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
     Thread *pThread = GetThread();
 
+
+    if (!IsGcCoveregeInterruptInstruction(instrPtr))
+    {
+        _ASSERTE(IsOriginalInstruction(instrPtr, gcCover, offset));
+        // Someone beat us to it, just go on running.
+        return;
+    }
+
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-    BYTE instrVal = *(BYTE *)instrPtr;
+    BYTE instrVal = *instrPtr;
     forceStack[6] = &instrVal;            // This is so I can see it fastchecked
-    
-    if (instrVal != INTERRUPT_INSTR && 
-        instrVal != INTERRUPT_INSTR_CALL && 
-        instrVal != INTERRUPT_INSTR_PROTECT_FIRST_RET) {
-        _ASSERTE(instrVal == gcCover->savedCode[offset]);  // someone beat us to it.
-        return;       // Someone beat us to it, just go on running
-    }
 
     bool atCall = (instrVal == INTERRUPT_INSTR_CALL);
     bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_FIRST_RET);
 
 #elif defined(_TARGET_ARM_)
+    forceStack[6] = (WORD*)instrPtr;            // This is so I can see it fastchecked
 
-    WORD instrVal = *(WORD*)instrPtr;
-    forceStack[6] = &instrVal;            // This is so I can see it fastchecked
-
-    size_t instrLen = GetARMInstructionLength(instrVal);
+    size_t instrLen = GetARMInstructionLength(instrPtr);
 
     bool atCall;
     bool afterCallProtect;
 
     if (instrLen == 2)
     {
-        if (instrVal != INTERRUPT_INSTR && 
-            instrVal != INTERRUPT_INSTR_CALL && 
-            instrVal != INTERRUPT_INSTR_PROTECT_RET) {
-            _ASSERTE(instrVal == *(WORD*)(gcCover->savedCode + offset));  // someone beat us to it.
-            return;       // Someone beat us to it, just go on running
-        }
-
+        WORD instrVal = *(WORD*)instrPtr;
         atCall           = (instrVal == INTERRUPT_INSTR_CALL);
         afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
     }
@@ -1454,26 +1487,12 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
         DWORD instrVal32 = *(DWORD*)instrPtr;
 
-        if (instrVal32 != INTERRUPT_INSTR_32 && 
-            instrVal32 != INTERRUPT_INSTR_CALL_32 && 
-            instrVal32 != INTERRUPT_INSTR_PROTECT_RET_32) {
-            _ASSERTE(instrVal32 == *(DWORD*)(gcCover->savedCode + offset));  // someone beat us to it.
-            return;       // Someone beat us to it, just go on running
-        }
-
         atCall           = (instrVal32 == INTERRUPT_INSTR_CALL_32);
         afterCallProtect = (instrVal32 == INTERRUPT_INSTR_PROTECT_RET_32);
     }
 #elif defined(_TARGET_ARM64_)
     DWORD instrVal = *(DWORD *)instrPtr; 
     forceStack[6] = &instrVal;            // This is so I can see it fastchecked
-
-    if (instrVal != INTERRUPT_INSTR && 
-        instrVal != INTERRUPT_INSTR_CALL && 
-        instrVal != INTERRUPT_INSTR_PROTECT_RET) {
-        _ASSERTE(instrVal == *(DWORD *)(gcCover->savedCode + offset));  // someone beat us to it.
-        return;       // Someone beat us to it, just go on running
-    }
 
     bool atCall = (instrVal == INTERRUPT_INSTR_CALL);
     bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
