@@ -12,6 +12,17 @@
 
   <!-- This project is copies much logic from helixpublishwitharcade.proj, used to send coreclr tests to Helix. -->
 
+  <!--
+    "RunInParallelForEachScenario" is the "root" target for this Project. It invokes other targets to set up the
+    information needed to submit a job to Helix. It does so by "recursively" invoking this project file with
+    different properties and targets to run, as well as invoking MSBuild on other project files. In particular,
+    it first creates the "correlation payload directory", which is the directory of files used by all Helix
+    submissions. Then, it recursively invokes this Project once per scenario (e.g., normal Pri-1 run, JitStress=2
+    run, JitStressRegs=8 run, etc.), creating a new set of Helix work items for each scenario. For the CoreFX
+    tests, we create one Helix work item for each CoreFX test assembly; there is currently no concept of
+    grouping multiple assemblies into a single Helix work item to, for instance, consolidate multiple short-running
+    assemblies together. (Note that this grouping is done for the CoreCLR tests in helixpublishwitharcade.proj.)
+  -->
   <Target Name="RunInParallelForEachScenario">
     <PropertyGroup>
       <!-- This specifies what properties are needed to be passed down as global properties to a child project. -->
@@ -77,6 +88,15 @@
     <TestWorkingDir Condition="'$(__TestWorkingDir)'==''">$(RootBinDir)tests\$(__BuildOS).$(__BuildArch).$(__BuildType)\</TestWorkingDir>
     <TargetsWindows Condition="'$(__BuildOS)' == 'Windows_NT'">true</TargetsWindows>
 
+    <!-- We have a single, universal exclusion file for all CoreFX test exclusions, for CoreFX tests run
+         in the CoreCLR repo. Note in particular that we don't have a unique exclusion file for each test
+         assembly, or for each processor architecture, or for each operating system, or for each stress
+         scenario type. This means that we generally exclude more tests than is strictly necessary for
+         any particular job. However, this mechanism is super simple; we don't need to manage fine-
+         grained exclusions; and there really shouldn't be any (or many) exclusions anyway.
+    -->
+    <CoreFXTestExclusionFile>$(ProjectDir)\tests\CoreFX\CoreFX.issues.rsp</CoreFXTestExclusionFile>
+
     <TestHostRootPath>$(TestWorkingDir)testhost\</TestHostRootPath>
     <TestArchiveRuntimeRoot>$(TestWorkingDir)helix\</TestArchiveRuntimeRoot>
     <TestArchiveRuntimeFile>$(TestArchiveRuntimeRoot)testhost-runtime.zip</TestArchiveRuntimeFile>
@@ -86,11 +106,11 @@
 
   <PropertyGroup>
     <!--
-      For Windows we need to use "call", since the command is going to be called from a batch script created by Helix.
+      For Windows, we need to use "call", since the command is going to be called from a batch script created by Helix.
       We "exit /b" at the end of RunTests.cmd. Helix runs some other commands after ours within the batch script,
       so if we don't use call, then we cause the parent script to exit, and anything after will not be executed.
-      The arguments passed in to the run script in order are the runtime directory, the dotnet root directory (for
-      helix submissions same as the runtime directory) and the global tools directory.
+      The arguments passed in to the run script in are the runtime directory (-r), the dotnet root directory (-d) (for
+      Helix submissions this is the same as the runtime directory) and the global tools directory (-g).
     -->
     <HelixCommand Condition="'$(TargetsWindows)' == 'true'">call RunTests.cmd -r %HELIX_CORRELATION_PAYLOAD% --rsp-file %HELIX_CORRELATION_PAYLOAD%\CoreFX.issues.rsp </HelixCommand>
     <HelixCommand Condition="'$(TargetsWindows)' != 'true'">./RunTests.sh -r $HELIX_CORRELATION_PAYLOAD --rsp-file $HELIX_CORRELATION_PAYLOAD/CoreFX.issues.rsp </HelixCommand>
@@ -107,8 +127,10 @@
   -->
   <Target Name="CopyRSPFile">
     <Copy
-      SourceFiles="$(ProjectDir)\tests\CoreFX\CoreFX.issues.rsp"
+      SourceFiles="$(CoreFXTestExclusionFile)"
       DestinationFolder="$(TestHostRootPath)" />
+
+    <Message Importance="High" Text="Copied $(CoreFXTestExclusionFile) into $(TestHostRootPath)" />
   </Target>
 
   <!--
@@ -140,13 +162,20 @@
   <Target Name="CreateTestEnvFile">
     <!-- This target creates one __TestEnv file for the single $(Scenario). -->
 
+    <PropertyGroup>
+      <TestEnvFilePath>$(TestHostRootPath)\$(TestEnvFileName)</TestEnvFilePath>
+    </PropertyGroup>
+
     <ItemGroup>
       <_ProjectsToBuild Include="..\tests\testenvironment.proj">
-        <Properties>Scenario=$(Scenario);TestEnvFileName=$(TestHostRootPath)\$(TestEnvFileName);TargetsWindows=$(TargetsWindows)</Properties>
+        <Properties>Scenario=$(Scenario);TestEnvFileName=$(TestEnvFilePath);TargetsWindows=$(TargetsWindows)</Properties>
       </_ProjectsToBuild>
     </ItemGroup>
 
     <MSBuild Projects="@(_ProjectsToBuild)" Targets="CreateTestEnvFile" StopOnFirstFailure="true" />
+
+    <Message Importance="High" Text="Created $(TestEnvFilePath) for scenario $(Scenario)" />
+    <Error Condition="!Exists('$(TestEnvFilePath)')" Text="File $(TestEnvFilePath) not found!" />
   </Target>
 
   <Target Name="CreateAllScenarioTestEnvFiles">
