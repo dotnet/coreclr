@@ -93,6 +93,8 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_GE:
             case GT_GT:
             case GT_ARR_BOUNDS_CHECK:
+            case GT_SIMD_CHK:
+            case GT_HW_INTRINSIC_CHK:
                 return emitter::emitIns_valid_imm_for_cmp(immVal, size);
             case GT_AND:
             case GT_OR:
