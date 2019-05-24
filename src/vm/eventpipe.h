@@ -333,6 +333,8 @@ public:
     // Get next event.
     static EventPipeEventInstance *GetNextEvent();
 
+    static void RegisterWaitHandle(HANDLE waitHandle);
+
 #ifdef DEBUG
     static bool IsLockOwnedByCurrentThread();
     static bool IsBufferManagerLockOwnedByCurrentThread();
@@ -404,6 +406,7 @@ private:
     static EventPipeEventSource *s_pEventSource;
     static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFlushTime;
+    static HANDLE s_waitHandle;
 };
 
 struct EventPipeProviderConfiguration

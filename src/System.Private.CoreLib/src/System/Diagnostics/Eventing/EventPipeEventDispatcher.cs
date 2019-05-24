@@ -33,6 +33,7 @@ namespace System.Diagnostics.Tracing
 
         private bool m_stopDispatchTask;
         private Task? m_dispatchTask = null;
+        private AutoResetEvent m_newEventEvent = new AutoResetEvent(false);
         private object m_dispatchControlLock = new object();
         private Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
 
@@ -138,6 +139,9 @@ namespace System.Diagnostics.Tracing
             if (m_dispatchTask == null)
             {
                 m_stopDispatchTask = false;
+                IntPtr handle = m_newEventEvent.SafeWaitHandle?.DangerousGetHandle() ?? IntPtr.Zero;
+                Debug.Assert(handle != IntPtr.Zero);
+                EventPipeInternal.RegisterWaitHandle(handle);
                 m_dispatchTask = Task.Factory.StartNew(DispatchEventsToEventListeners, TaskCreationOptions.LongRunning);
             }
         }
@@ -151,6 +155,7 @@ namespace System.Diagnostics.Tracing
                 m_stopDispatchTask = true;
                 m_dispatchTask.Wait();
                 m_dispatchTask = null;
+                EventPipeInternal.RegisterWaitHandle(IntPtr.Zero);
             }
         }
 
@@ -174,11 +179,7 @@ namespace System.Diagnostics.Tracing
                     }
                 }
 
-                // Wait for more events.
-                if (!m_stopDispatchTask)
-                {
-                    Thread.Sleep(10);
-                }
+                m_newEventEvent.WaitOne();
             }
         }
 

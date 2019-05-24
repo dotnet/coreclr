@@ -243,6 +243,9 @@ namespace System.Diagnostics.Tracing
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe bool GetNextEvent(EventPipeEventInstanceData* pInstance);
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern unsafe void RegisterWaitHandle(IntPtr waitHandle);
     }
 }
 

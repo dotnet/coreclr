@@ -276,4 +276,14 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(EventPipeEventInstanceData *pInst
     return pNextInstance != NULL;
 }
 
+void QCALLTYPE EventPipeInternal::RegisterWaitHandle(HANDLE waitHandle)
+{
+    QCALL_CONTRACT;
+    BEGIN_QCALL;
+
+    EventPipe::RegisterWaitHandle(waitHandle);
+
+    END_QCALL;
+}
+
 #endif // FEATURE_PERFTRACING

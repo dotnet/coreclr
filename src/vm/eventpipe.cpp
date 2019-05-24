@@ -36,6 +36,7 @@ EventPipeFile *EventPipe::s_pFile = NULL;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
 ULONGLONG EventPipe::s_lastFlushTime = 0;
+HANDLE EventPipe::s_waitHandle = NULL;
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
@@ -812,6 +813,11 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             }
         }
     }
+
+    if (s_waitHandle != NULL)
+    {
+        SetEvent(s_waitHandle);
+    }
 }
 
 void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData, unsigned int length)
@@ -934,6 +940,13 @@ EventPipeEventInstance *EventPipe::GetNextEvent()
     }
 
     return pInstance;
+}
+
+void EventPipe::RegisterWaitHandle(HANDLE waitHandle)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    s_waitHandle = waitHandle;
 }
 
 /* static */ void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)

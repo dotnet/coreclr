@@ -97,6 +97,8 @@ public:
 
     static bool QCALLTYPE GetNextEvent(
         EventPipeEventInstanceData *pInstance);
+
+    static void QCALLTYPE RegisterWaitHandle(HANDLE waitHandle);
 };
 
 #endif // FEATURE_PERFTRACING

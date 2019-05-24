@@ -554,7 +554,7 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
 {
     CONTRACTL
     {
-        NOTHROW;
+        THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(!EventPipe::GetLock()->OwnedByCurrentThread());
