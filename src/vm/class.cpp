@@ -3767,6 +3767,10 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     {
         classSizeInMetadata = 0;
     }
+    else
+    {
+        pEEClassLayoutInfoOut->SetHasExplicitSize(TRUE);
+    }
 
     BYTE parentAlignmentRequirement = 0;
     if (fParentHasLayout)
