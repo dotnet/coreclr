@@ -12356,17 +12356,15 @@ found_fit:
 #endif //BACKGROUND_GC
     {      
         // In a contiguous AC case with GC_ALLOC_ZEROING_OPTIONAL, deduct unspent space from the limit to clear only what is necessary.
-        if (flags & GC_ALLOC_ZEROING_OPTIONAL &&
-            (allocated == acontext->alloc_limit || allocated == acontext->alloc_limit + Align (min_obj_size, align_const)))
+        if ((flags & GC_ALLOC_ZEROING_OPTIONAL) &&
+            ((allocated == acontext->alloc_limit) || ((allocated == acontext->alloc_limit) + Align (min_obj_size, align_const))))
         {
-            limit -= (allocated - acontext->alloc_ptr);
+            assert(gen_number == 0);
+            assert(allocated > acontext->alloc_ptr);
 
-            // in gen0 add space for an AC continuity divider
-            if (gen_number == 0)
-            {
-                assert(allocated != acontext->alloc_ptr);
-                limit += Align(min_obj_size, align_const);
-            }
+            limit -= (allocated - acontext->alloc_ptr);
+            // add space for an AC continuity divider
+            limit += Align(min_obj_size, align_const);
         }
 
         allocated += limit;
