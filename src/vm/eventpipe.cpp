@@ -245,12 +245,15 @@ void EventPipe::Shutdown()
         if (s_pSessions != nullptr)
         {
             //  The sessions collection is modified inside Disable.
-            for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
-                 iterator != s_pSessions->End();
-                 ++iterator)
+            CQuickArrayList<EventPipeSessionID> sessionIds;
             {
-                Disable(iterator->Key());
+                CrstHolder _crst(GetLock());
+                for (auto iterator = s_pSessions->Begin(); iterator != s_pSessions->End(); ++iterator)
+                    sessionIds.Push(iterator->Key());
             }
+
+            for (SIZE_T i = 0; i < sessionIds.Size(); ++i)
+                Disable(sessionIds[i]);
         }
     }
     EX_CATCH {}
@@ -289,6 +292,9 @@ EventPipeSessionID EventPipe::Enable(
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
+
+    if (!s_tracingInitialized)
+        return 0;
 
     // If the state or arguments are invalid, bail here.
     if (sessionType == EventPipeSessionType::File && strOutputPath == nullptr)
@@ -373,7 +379,7 @@ void EventPipe::Disable(EventPipeSessionID id)
 
     SetupThread();
 
-    if (id == 0 || !Enabled())
+    if (id == 0 || s_pConfig == nullptr || !s_pConfig->Enabled())
         return;
 
     // Don't block GC during clean-up.
