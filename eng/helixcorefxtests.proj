@@ -133,26 +133,6 @@
     <Message Importance="High" Text="Copied $(CoreFXTestExclusionFile) into $(TestHostRootPath)" />
   </Target>
 
-  <!--
-    Compress the testhost directory into a ZIP file to pass it as the Helix correlation directory.
-    Note: this might be unnecessary; I've been told you can just pass the directory to Helix without
-    compressing it to a single file, and it will do the compression/uncompression itself.
-  -->
-  <Target Name="CompressRuntimeDirectory"
-          Inputs="@(TestArchiveRuntimeInputs)"
-          Outputs="$(TestArchiveRuntimeFile)"
-          DependsOnTargets="CopyRSPFile" >
-
-    <MakeDir Directories="$(TestArchiveRuntimeRoot)" />
-
-    <ZipDirectory
-        SourceDirectory="$(TestHostRootPath)"
-        DestinationFile="$(TestArchiveRuntimeFile)"
-        Overwrite="true" />
-
-    <Message Importance="High" Text="Zipped correlation payload into $(TestArchiveRuntimeFile)" />
-  </Target>
-
   <PropertyGroup>
     <!-- Set the name of the scenario file. Note that this is only used in invocations where $(Scenario) is set. -->
     <TestEnvFileName Condition=" '$(TargetsWindows)' == 'true' ">SetStressModes_$(Scenario).cmd</TestEnvFileName>
@@ -163,7 +143,7 @@
     <!-- This target creates one __TestEnv file for the single $(Scenario). -->
 
     <PropertyGroup>
-      <TestEnvFilePath>$(TestHostRootPath)\$(TestEnvFileName)</TestEnvFilePath>
+      <TestEnvFilePath>$(TestHostRootPath)$(TestEnvFileName)</TestEnvFilePath>
     </PropertyGroup>
 
     <ItemGroup>
@@ -192,11 +172,31 @@
   </Target>
 
   <!--
+    Compress the testhost directory into a ZIP file to pass it as the Helix correlation directory.
+    Note: this might be unnecessary; I've been told you can just pass the directory to Helix without
+    compressing it to a single file, and it will do the compression/uncompression itself.
+  -->
+  <Target Name="CompressRuntimeDirectory"
+          Inputs="@(TestArchiveRuntimeInputs)"
+          Outputs="$(TestArchiveRuntimeFile)"
+          DependsOnTargets="CopyRSPFile;CreateAllScenarioTestEnvFiles" >
+
+    <MakeDir Directories="$(TestArchiveRuntimeRoot)" />
+
+    <ZipDirectory
+        SourceDirectory="$(TestHostRootPath)"
+        DestinationFile="$(TestArchiveRuntimeFile)"
+        Overwrite="true" />
+
+    <Message Importance="High" Text="Zipped correlation payload into $(TestArchiveRuntimeFile)" />
+  </Target>
+
+  <!--
     Collect all the tasks needed to be run once, to prepare the Helix correlation payload directory.
     This just causes its dependent targets to be run.
   -->
   <Target Name="PrepareCorrelationPayloadDirectory"
-          DependsOnTargets="CompressRuntimeDirectory;CreateAllScenarioTestEnvFiles">
+          DependsOnTargets="CompressRuntimeDirectory">
   </Target>
 
   <!--
