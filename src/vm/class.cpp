@@ -3769,6 +3769,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     }
     else
     {
+        // If we can get the class size from metadata, that means that the user
+        // explicitly provided a value to the StructLayoutAttribute.Size field
+        // or explicitly provided the size in IL.
         pEEClassLayoutInfoOut->SetHasExplicitSize(TRUE);
     }
 
