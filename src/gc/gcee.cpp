@@ -20,9 +20,6 @@ uint32_t g_percentTimeInGCSinceLastGC = 0;
 size_t g_GenerationSizes[NUMBERGENERATIONS];
 size_t g_GenerationPromotedSizes[NUMBERGENERATIONS];
 
-uint64_t g_cbAlloc = 0;
-uint64_t g_cbLOHAlloc = 0;
-
 void GCHeap::UpdatePreGCCounters()
 {
 #ifdef MULTIPLE_HEAPS
@@ -59,10 +56,6 @@ void GCHeap::UpdatePreGCCounters()
         dd_new_allocation (hp->dynamic_data_of (max_generation+1));
         
 #endif //MULTIPLE_HEAPS
-
-    g_cbAlloc += allocation_0;
-    g_cbAlloc += allocation_3;
-    g_cbLOHAlloc += allocation_3;
 
 #ifdef MULTIPLE_HEAPS
         //take the first heap....
