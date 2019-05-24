@@ -250,6 +250,36 @@ void SetupGcCoverageForNativeImage(Module* module)
 }
 #endif
 
+
+void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
+{
+    ReturnKind returnKind = callMD->GetReturnKind(true);
+    bool protectReturn = IsPointerReturnKind(returnKind);
+#ifdef _TARGET_ARM_
+    size_t instrLen = GetARMInstructionLength(nextInstr);
+    if (protectReturn)
+        if (instrLen == 2)
+            *(WORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
+        else
+            *(DWORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET_32;
+    else
+        if (instrLen == 2)
+            *(WORD*)instrToReplace = INTERRUPT_INSTR;
+        else
+            *(DWORD*)instrToReplace = INTERRUPT_INSTR_32;
+#elif defined(_TARGET_ARM64_)
+    if (protectReturn)
+        *(DWORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
+    else
+        *(DWORD*)instrToReplace = INTERRUPT_INSTR;
+#else
+    if (protectReturn)
+        * instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
+    else
+        *instrToReplace = INTERRUPT_INSTR;
+#endif
+}
+
 #ifdef _TARGET_AMD64_
 
 class GCCoverageRangeEnumerator
@@ -532,11 +562,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
 
         if (prevDirectCallTargetMD != 0)
         {
-            ReturnKind returnKind = prevDirectCallTargetMD->GetReturnKind(true);
-            if (IsPointerReturnKind(returnKind))
-                *cur = INTERRUPT_INSTR_PROTECT_RET;  
-            else
-                *cur = INTERRUPT_INSTR;
+            ReplaceInstrAfterCall(cur, prevDirectCallTargetMD);
         }
 
         // For fully interruptible code, we end up whacking every instruction
@@ -760,16 +786,16 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
                 // never requires restore, however it is possible that it is initially in an invalid state
                 // and remains invalid until one or more eager fixups are applied.
                 //
-                // GetReturnKind consults the method signature, meaning it consults the
+                // ReplaceInstrAfterCall consults the method signature, meaning it consults the
                 // metadata in the owning module.  For generic instantiations stored in non-preferred
                 // modules, reaching the owning module requires following the module override pointer for
                 // the enclosing MethodTable.  In this case, the module override pointer is generally
                 // invalid until an associated eager fixup is applied.
                 //
-                // In situations like this, GetReturnKind will try to dereference an
+                // In situations like this, ReplaceInstrAfterCall will try to dereference an
                 // unresolved fixup and will AV.
                 //
-                // Given all of this, skip the GetReturnKind call by default to avoid
+                // Given all of this, skip the ReplaceInstrAfterCall call by default to avoid
                 // unexpected AVs.  This implies leaving out the GC coverage breakpoints for direct calls
                 // unless COMPlus_GcStressOnDirectCalls=1 is explicitly set in the environment.
                 //
@@ -778,33 +804,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
 
                 if (fGcStressOnDirectCalls.val(CLRConfig::INTERNAL_GcStressOnDirectCalls))
                 {
-                    ReturnKind returnKind = targetMD->GetReturnKind(true);
-
-                    // If the method returns an object then should protect the return object
-                    if (IsPointerReturnKind(returnKind))
-                    {
-                        // replace with corresponding 2 or 4 byte illegal instruction (which roots the return value)
-#if defined(_TARGET_ARM_)
-                        if (instrLen == 2)
-                            *((WORD*)instrPtr)  = INTERRUPT_INSTR_PROTECT_RET;
-                        else
-                            *((DWORD*)instrPtr) = INTERRUPT_INSTR_PROTECT_RET_32;
-#elif defined(_TARGET_ARM64_)
-                        *((DWORD*)instrPtr) = INTERRUPT_INSTR_PROTECT_RET;
-#endif
-                    }
-                    else // method does not return an objectref
-                    {
-                        // replace with corresponding 2 or 4 byte illegal instruction
-#if defined(_TARGET_ARM_)
-                        if (instrLen == 2)
-                            *((WORD*)instrPtr)  = INTERRUPT_INSTR;
-                        else
-                            *((DWORD*)instrPtr) = INTERRUPT_INSTR_32;
-#elif defined(_TARGET_ARM64_)
-                        *((DWORD*)instrPtr) = INTERRUPT_INSTR;
-#endif
-                    }
+                    ReplaceInstrAfterCall(instrPtr, targetMD);
                 }
             }
         }
@@ -1584,7 +1584,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         // but it's not been a problem so far.
         // see details about <GCStress instruction update race> in comments above
         pThread->CommitGCStressInstructionUpdate ();        
-        BYTE* nextInstr;        
+        SLOT nextInstr;
         SLOT target = getTargetOfCall((BYTE*) instrPtr, regs, (BYTE**)&nextInstr);
         if (target != 0)
         {
@@ -1614,32 +1614,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
                     // It could become a problem if 64bit does partially interrupt work.
                     // OK, we have the MD, mark the instruction after the CALL
                     // appropriately
-
-                    ReturnKind returnKind = targetMD->GetReturnKind(true);
-                    bool protectReturn = IsPointerReturnKind(returnKind);
-#ifdef _TARGET_ARM_
-                    size_t instrLen = GetARMInstructionLength(nextInstr);
-                    if (protectReturn)
-                        if (instrLen == 2)
-                            *(WORD*)nextInstr  = INTERRUPT_INSTR_PROTECT_RET;
-                        else
-                            *(DWORD*)nextInstr = INTERRUPT_INSTR_PROTECT_RET_32;
-                    else
-                        if (instrLen == 2)
-                            *(WORD*)nextInstr  = INTERRUPT_INSTR;
-                        else
-                            *(DWORD*)nextInstr = INTERRUPT_INSTR_32;
-#elif defined(_TARGET_ARM64_)
-                    if (protectReturn)
-                        *(DWORD *)nextInstr = INTERRUPT_INSTR_PROTECT_RET;  
-                    else
-                        *(DWORD *)nextInstr = INTERRUPT_INSTR;
-#else
-                    if (protectReturn)
-                        *nextInstr = INTERRUPT_INSTR_PROTECT_RET;  
-                    else
-                        *nextInstr = INTERRUPT_INSTR;
-#endif
+                    ReplaceInstrAfterCall(nextInstr, targetMD);
                 }
             }
         }
