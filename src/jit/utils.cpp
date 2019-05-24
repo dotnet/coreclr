@@ -1970,7 +1970,7 @@ bool FloatingPointUtils::isNormal(float x)
 
 bool FloatingPointUtils::isPow2(double x)
 {
-    if (!_finite(x) || !isNormal(x))
+    if (!isNormal(x))
         return false;
 
     uint64_t i = *(uint64_t*)&x;
@@ -1981,7 +1981,7 @@ bool FloatingPointUtils::isPow2(double x)
 
 bool FloatingPointUtils::isPow2(float x)
 {
-    if (!_finitef(x) || !isNormal(x))
+    if (!isNormal(x))
         return false;
 
     uint32_t i = *(uint32_t*)&x;
