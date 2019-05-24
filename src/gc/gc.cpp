@@ -12357,7 +12357,7 @@ found_fit:
     {      
         // In a contiguous AC case with GC_ALLOC_ZEROING_OPTIONAL, deduct unspent space from the limit to clear only what is necessary.
         if ((flags & GC_ALLOC_ZEROING_OPTIONAL) &&
-            ((allocated == acontext->alloc_limit) || ((allocated == acontext->alloc_limit) + Align (min_obj_size, align_const))))
+            ((allocated == acontext->alloc_limit) || (allocated == (acontext->alloc_limit + Align (min_obj_size, align_const)))))
         {
             assert(gen_number == 0);
             assert(allocated > acontext->alloc_ptr);
