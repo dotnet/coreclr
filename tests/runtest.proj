@@ -118,6 +118,7 @@ $(_XunitEpilog)
   <ItemGroup>
     <!-- Workaround for https://github.com/dotnet/core-setup/pull/5893 -->
     <PackageReference Include="Microsoft.NETCore.App.Internal" Version="$(MicrosoftNETCoreAppVersion)" />
+    <PackageReference Include="Microsoft.NETCore.Platforms" Version="$(MicrosoftNETCorePlatformsVersion)" />
   </ItemGroup>
 
   <ItemGroup>
