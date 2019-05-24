@@ -1368,9 +1368,9 @@ Thread::Thread()
     m_debuggerCantStop = 0;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
-#ifdef PROFILING_SUPPORTED
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     m_dwProfilerEvacuationCounter = 0;
-#endif // PROFILING_SUPPORTED
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
     m_pProfilerFilterContext = NULL;
 
@@ -1464,9 +1464,7 @@ Thread::Thread()
 
     m_pPendingTypeLoad = NULL;
 
-#ifdef FEATURE_PREJIT
     m_pIBCInfo = NULL;
-#endif
 
     m_dwAVInRuntimeImplOkayCount = 0;
 
@@ -1551,6 +1549,8 @@ Thread::Thread()
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
     m_DeserializationTracker = NULL;
+
+    m_currentPrepareCodeConfig = nullptr;
 }
 
 //--------------------------------------------------------------------
@@ -2630,11 +2630,9 @@ Thread::~Thread()
 
     g_pThinLockThreadIdDispenser->DisposeId(GetThreadId());
 
-#ifdef FEATURE_PREJIT
     if (m_pIBCInfo) {
         delete m_pIBCInfo;
     }
-#endif
 
 #ifdef FEATURE_EVENT_TRACE
     // Destruct the thread local type cache for allocation sampling
@@ -7920,8 +7918,6 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
     CONTRACTL_END;
 
-    FieldDesc *         pFD;
-
     // This is the case when we're building mscorlib and haven't yet created
     // the system assembly.
     if (SystemDomain::System()->SystemAssembly()==NULL || g_fForbidEnterEE) {
@@ -7929,22 +7925,9 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
 
     OBJECTREF pCurrentCulture;
-    if (bUICulture) {
-        // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
-        MethodDescCallSite propGet(METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE);
-        ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
-        pCurrentCulture = ArgSlotToObj(retVal);
-    } else {
-        //This is  faster than calling the property, because this is what the call does anyway.
-        pFD = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CURRENT_CULTURE);
-        _ASSERTE(pFD);
-
-        pFD->CheckRunClassInitThrowing();
-
-        pCurrentCulture = pFD->GetStaticOBJECTREF();
-        _ASSERTE(pCurrentCulture!=NULL);
-    }
-
+    MethodDescCallSite propGet(bUICulture ? METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE : METHOD__CULTURE_INFO__GET_CURRENT_CULTURE);
+    ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
+    pCurrentCulture = ArgSlotToObj(retVal);
     return pCurrentCulture;
 }
 

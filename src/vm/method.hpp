@@ -1253,6 +1253,8 @@ public:
     // can optimize its performance? Eligibility is invariant for the lifetime of a method.
     bool DetermineAndSetIsEligibleForTieredCompilation();
 
+    bool IsJitOptimizationDisabled();
+
 private:
     // This function is not intended to be called in most places, and is named as such to discourage calling it accidentally
     bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
@@ -1660,18 +1662,11 @@ public:
     MethodDesc *ResolveGenericVirtualMethod(OBJECTREF *orThis);
 
 
+private:
+    ReturnKind ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors = false));
+
 public:
-
-    // does this function return an object reference?
-    MetaSig::RETURNTYPE ReturnsObject(
-#ifdef _DEBUG 
-        bool supportStringConstructors = false,
-#endif
-        MethodTable** pMT = NULL
-        );
-
-
-    void Destruct();
+    ReturnKind GetReturnKind(INDEBUG(bool supportStringConstructors = false));
 
 public:
     // In general you don't want to call GetCallTarget - you want to
@@ -2065,6 +2060,56 @@ public:
     BOOL ReadyToRunRejectedPrecompiledCode();
     void SetProfilerRejectedPrecompiledCode();
     void SetReadyToRunRejectedPrecompiledCode();
+
+#ifndef CROSSGEN_COMPILE
+    bool JitSwitchedToMinOpt() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToMinOpt;
+    }
+
+    void SetJitSwitchedToMinOpt()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+        m_jitSwitchedToOptimized = false;
+#endif
+        m_jitSwitchedToMinOpt = true;
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    bool JitSwitchedToOptimized() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToOptimized;
+    }
+
+    void SetJitSwitchedToOptimized()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (!m_jitSwitchedToMinOpt)
+        {
+            m_jitSwitchedToOptimized = true;
+        }
+    }
+#endif
+
+    PrepareCodeConfig *GetNextInSameThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nextInSameThread;
+    }
+
+    void SetNextInSameThread(PrepareCodeConfig *config)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(config == nullptr || m_nextInSameThread == nullptr);
+
+        m_nextInSameThread = config;
+    }
+#endif // !CROSSGEN_COMPILE
     
 protected:
     MethodDesc* m_pMethodDesc;
@@ -2073,6 +2118,15 @@ protected:
     BOOL m_mayUsePrecompiledCode;
     BOOL m_ProfilerRejectedPrecompiledCode;
     BOOL m_ReadyToRunRejectedPrecompiledCode;
+
+#ifndef CROSSGEN_COMPILE
+private:
+    bool m_jitSwitchedToMinOpt; // when it wasn't requested
+#ifdef FEATURE_TIERED_COMPILATION
+    bool m_jitSwitchedToOptimized; // when a different tier was requested
+#endif
+    PrepareCodeConfig *m_nextInSameThread;
+#endif // !CROSSGEN_COMPILE
 };
 
 #ifdef FEATURE_CODE_VERSIONING

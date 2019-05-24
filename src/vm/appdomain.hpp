@@ -25,7 +25,6 @@
 #include "domainfile.h"
 #include "objectlist.h"
 #include "fptrstubs.h"
-#include "testhookmgr.h"
 #include "gcheaputilities.h"
 #include "gchandleutilities.h"
 #include "../binder/inc/applicationcontext.hpp"
@@ -2570,7 +2569,6 @@ private:
         }
         CONTRACTL_END;
         STRESS_LOG1(LF_APPDOMAIN, LL_INFO100,"Updating AD stage, stage=%d\n",stage);
-        TESTHOOKCALL(AppDomainStageChanged(DefaultADID,m_Stage,stage));
         Stage lastStage=m_Stage;
         while (lastStage !=stage) 
             lastStage = (Stage)FastInterlockCompareExchange((LONG*)&m_Stage,stage,lastStage);
@@ -3218,6 +3216,7 @@ private:
     static DWORD        m_dwLowestFreeIndex;
 #endif // DACCESS_COMPILE
 
+#ifdef FEATURE_PREJIT
 protected:
 
     // These flags let the correct native image of mscorlib to be loaded.
@@ -3226,6 +3225,7 @@ protected:
     SVAL_DECL(BOOL, s_fForceDebug);
     SVAL_DECL(BOOL, s_fForceProfiling);
     SVAL_DECL(BOOL, s_fForceInstrument);
+#endif
 
 public:
     static void     SetCompilationOverrides(BOOL fForceDebug,
