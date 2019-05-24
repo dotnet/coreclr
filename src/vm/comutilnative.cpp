@@ -1173,11 +1173,11 @@ FCIMPL0(int, GCInterface::GetLastGCPercentTimeInGC)
 }
 FCIMPLEND
 
-FCIMPL1(size_t, GCInterface::GetGenerationSize, int gen)
+FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
 {
     FCALL_CONTRACT;
 
-    return (size_t)(GCHeapUtilities::GetGCHeap()->GetLastGCGenerationSize(gen));
+    return (UINT64)(GCHeapUtilities::GetGCHeap()->GetLastGCGenerationSize(gen));
 }
 FCIMPLEND
 
