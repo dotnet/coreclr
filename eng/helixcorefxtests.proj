@@ -181,6 +181,8 @@
           Outputs="$(TestArchiveRuntimeFile)"
           DependsOnTargets="CopyRSPFile;CreateAllScenarioTestEnvFiles" >
 
+    <!-- TEMPORARY: don't actually ZIP the testhost directory. See if executable permissions get preserved on Linux.
+
     <MakeDir Directories="$(TestArchiveRuntimeRoot)" />
 
     <ZipDirectory
@@ -189,6 +191,8 @@
         Overwrite="true" />
 
     <Message Importance="High" Text="Zipped correlation payload into $(TestArchiveRuntimeFile)" />
+
+    END TEMPORARY -->
   </Target>
 
   <!--
@@ -243,7 +247,7 @@
   <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
     <HelixPreCommand Include="export __TestEnv=$HELIX_CORRELATION_PAYLOAD/$(TestEnvFileName)" />
     <HelixPreCommand Include="cat $__TestEnv" />
-    <HelixPreCommand Include="source $__TestEnv" />
+    <HelixPreCommand Include=". $__TestEnv" /> <!-- Use "." not "source"; some clients appear to run scripts with "sh" not "bash" -->
   </ItemGroup>
 
   <PropertyGroup>
@@ -272,7 +276,7 @@
     <TimeoutInSeconds Condition="'$(TimeoutInSeconds)' == ''">600</TimeoutInSeconds>
     <CommandTimeoutSpan>$([System.TimeSpan]::FromSeconds($(TimeoutInSeconds)))</CommandTimeoutSpan>
 
-    <!-- Specify the retry policy for Helix jobs: -->
+    <!-- Specify the retry policy for Helix jobs -->
     <MaxRetryCount Condition="'$(MaxRetryCount)' == ''">4</MaxRetryCount>
   </PropertyGroup>
 
@@ -287,8 +291,10 @@
   -->
   <Target Name="BuildHelixWorkItems" DependsOnTargets="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
     <ItemGroup Condition=" '$(UsesHelixSdk)' == 'true' ">
-      <HelixCorrelationPayload 
-        Include="$(TestArchiveRuntimeFile)" />
+      <!-- TEMPORARY: try passing directory, not ZIP file.
+      <HelixCorrelationPayload Include="$(TestArchiveRuntimeFile)" />
+      -->
+      <HelixCorrelationPayload Include="$(TestHostRootPath)" />
 
       <HelixWorkItem Include="@(TestAssetBlobInfos -> '%(FileName)')">
         <PayloadUri>$(TestAssetBlobFeedUrl)/%(Identity)</PayloadUri>
