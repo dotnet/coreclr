@@ -341,7 +341,7 @@ namespace System.Collections.Generic
 
         #region IArraySortHelper<T> Members
 
-        //public void Sort<TComparer>(in Span<T> keys, int index, int length, TComparer comparer)
+        //public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
         //    where TComparer : IComparer<T>
         public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
@@ -433,8 +433,7 @@ namespace System.Collections.Generic
             return ~lo;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void SwapIfGreaterWithItems(in Span<T> keys, int a, int b)
+        private static void SwapIfGreaterWithItems(Span<T> keys, int a, int b)
         {
             Debug.Assert(keys != null);
             Debug.Assert(0 <= a && a < keys.Length);
@@ -451,7 +450,7 @@ namespace System.Collections.Generic
             }
         }
 
-        private static void Swap(in Span<T> a, int i, int j)
+        private static void Swap(Span<T> a, int i, int j)
         {
             if (i != j)
             {
@@ -461,7 +460,7 @@ namespace System.Collections.Generic
             }
         }
 
-        internal static void IntrospectiveSort(in Span<T> keys, int left, int length)
+        internal static void IntrospectiveSort(Span<T> keys, int left, int length)
         {
             Debug.Assert(keys != null);
             Debug.Assert(left >= 0);
@@ -475,7 +474,7 @@ namespace System.Collections.Generic
             IntroSort(keys, left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length));
         }
 
-        private static void IntroSort(in Span<T> keys, int lo, int hi, int depthLimit)
+        private static void IntroSort(Span<T> keys, int lo, int hi, int depthLimit)
         {
             Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
@@ -521,7 +520,7 @@ namespace System.Collections.Generic
             }
         }
 
-        private static int PickPivotAndPartition(in Span<T> keys, int lo, int hi)
+        private static int PickPivotAndPartition(Span<T> keys, int lo, int hi)
         {
             Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
@@ -564,7 +563,7 @@ namespace System.Collections.Generic
             return left;
         }
 
-        private static void HeapSort(in Span<T> keys, int lo, int hi)
+        private static void HeapSort(Span<T> keys, int lo, int hi)
         {
             Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
@@ -583,7 +582,7 @@ namespace System.Collections.Generic
             }
         }
 
-        private static void DownHeap(in Span<T> keys, int i, int n, int lo)
+        private static void DownHeap(Span<T> keys, int i, int n, int lo)
         {
             Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
@@ -606,7 +605,7 @@ namespace System.Collections.Generic
             keys[lo + i - 1] = d;
         }
 
-        private static void InsertionSort(in Span<T> keys, int lo, int hi)
+        private static void InsertionSort(Span<T> keys, int lo, int hi)
         {
             Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
