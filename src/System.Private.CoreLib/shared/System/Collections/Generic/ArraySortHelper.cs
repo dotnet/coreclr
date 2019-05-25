@@ -433,6 +433,7 @@ namespace System.Collections.Generic
             return ~lo;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void SwapIfGreaterWithItems(Span<T> keys, int a, int b)
         {
             Debug.Assert(keys != null);
