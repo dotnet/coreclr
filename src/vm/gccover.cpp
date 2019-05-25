@@ -124,6 +124,8 @@ bool IsGcCoveregeInterruptInstruction(LPVOID instrPtr)
     case INTERRUPT_INSTR:
     case INTERRUPT_INSTR_CALL:
     case INTERRUPT_INSTR_PROTECT_FIRST_RET:
+    case INTERRUPT_INSTR_PROTECT_SECOND_RET:
+    case INTERRUPT_INSTR_PROTECT_BOTH_RET:
         return true;
     default:
         return false;
@@ -390,7 +392,15 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
 #if !defined(_TARGET_AMD64_) || !defined(PLATFORM_UNIX)
             _ASSERTE(!"Not expected multi reg return with pointers.");
 #endif // !_TARGET_AMD64_ || !PLATFORM_UNIX
-            // Skip gc stress coverage for now, do not do replacement.
+            if (!protectRegister[0] && protectRegister[1])
+            {
+                *instrToReplace = INTERRUPT_INSTR_PROTECT_SECOND_RET;
+            }
+            else
+            {
+                _ASSERTE(protectRegister[0] && protectRegister[1]);
+                *instrToReplace = INTERRUPT_INSTR_PROTECT_BOTH_RET;
+            }
         }
     }
     else
@@ -1456,13 +1466,34 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         return;
     }
 
+    bool atCall;
+    bool afterCallProtect[2] = { 0 };
+
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
     BYTE instrVal = *(BYTE *)instrPtr;
     forceStack[6] = &instrVal;            // This is so I can see it fastchecked
 
-    bool atCall = (instrVal == INTERRUPT_INSTR_CALL);
-    bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_FIRST_RET);
+    atCall = (instrVal == INTERRUPT_INSTR_CALL);
+
+    if (instrVal == INTERRUPT_INSTR_PROTECT_BOTH_RET)
+    {
+        afterCallProtect[0] = afterCallProtect[1] = true;
+    }
+    else if (instrVal == INTERRUPT_INSTR_PROTECT_FIRST_RET)
+    {
+        afterCallProtect[0] = true;
+        afterCallProtect[1] = false;
+    }
+    else if (instrVal == INTERRUPT_INSTR_PROTECT_SECOND_RET)
+    {
+        afterCallProtect[0] = false;
+        afterCallProtect[1] = true;
+    }
+    else
+    {
+        afterCallProtect[0] = afterCallProtect[1] = false;
+    }
 
 #elif defined(_TARGET_ARM_)
 
@@ -1471,14 +1502,10 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
     size_t instrLen = GetARMInstructionLength(instrVal);
 
-    bool atCall;
-    bool afterCallProtect;
-
     if (instrLen == 2)
     {
-
         atCall           = (instrVal == INTERRUPT_INSTR_CALL);
-        afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
+        afterCallProtect[0] = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
     }
     else
     {
@@ -1487,14 +1514,14 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         DWORD instrVal32 = *(DWORD*)instrPtr;
 
         atCall           = (instrVal32 == INTERRUPT_INSTR_CALL_32);
-        afterCallProtect = (instrVal32 == INTERRUPT_INSTR_PROTECT_RET_32);
+        afterCallProtect[0] = (instrVal32 == INTERRUPT_INSTR_PROTECT_RET_32);
     }
 #elif defined(_TARGET_ARM64_)
     DWORD instrVal = *(DWORD *)instrPtr; 
     forceStack[6] = &instrVal;            // This is so I can see it fastchecked
 
-    bool atCall = (instrVal == INTERRUPT_INSTR_CALL);
-    bool afterCallProtect = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
+    atCall = (instrVal == INTERRUPT_INSTR_CALL);
+    afterCallProtect[0] = (instrVal == INTERRUPT_INSTR_PROTECT_RET);
 
 #endif // _TARGET_*
 
@@ -1725,26 +1752,37 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     frame.Push(pThread);
 #endif // USE_REDIRECT_FOR_GCSTRESS
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-    FrameWithCookie<GCFrame> gcFrame;
-    DWORD_PTR retVal = 0;
 
-    if (afterCallProtect)   // Do I need to protect return value?
-    {         
-#ifdef _TARGET_AMD64_
-        retVal = regs->Rax;
+    OBJECTREF retValRegs[2] = { 0 };
+    UINT  numberOfRegs = 0;
+
+    if (afterCallProtect[0])
+    {
+#if defined(_TARGET_AMD64_)
+        retValRegs[numberOfRegs++] = (OBJECTREF)regs->Rax;
 #elif defined(_TARGET_X86_)
-        retVal = regs->Eax;
-#elif defined(_TARGET_ARM_)
-        retVal = regs->R0;
+        retValRegs[numberOfRegs++] = (OBJECTREF)regs->Eax;
+#elif  defined(_TARGET_ARM_)
+        retValRegs[numberOfRegs++] = (OBJECTREF)regs->R0;
 #elif defined(_TARGET_ARM64_)
-        retVal = regs->X0;
-#else
-        PORTABILITY_ASSERT("DoGCStress - return register");
-#endif
-        gcFrame.Init(pThread, (OBJECTREF*) &retVal, 1, TRUE);
+        retValRegs[numberOfRegs++] = (OBJECTREF)regs->X0;
+#endif // _TARGET_ARM64_
     }
-#endif // _TARGET_*
+
+    if (afterCallProtect[1])
+    {
+#if defined(_TARGET_AMD64_) && defined(PLATFORM_UNIX)
+        retValRegs[numberOfRegs++] = (OBJECTREF)regs->Rdx;
+#else // !_TARGET_AMD64_ || !PLATFORM_UNIX
+        _ASSERTE(!"Not expected multi reg return with pointers.");
+#endif // !_TARGET_AMD64_ || !PLATFORM_UNIX
+    }
+
+    FrameWithCookie<GCFrame> gcFrame;
+    if (numberOfRegs != 0)
+    {
+        gcFrame.Init(pThread, retValRegs, numberOfRegs, TRUE);
+    }
 
     if (gcCover->lastMD != pMD) 
     {
@@ -1778,23 +1816,34 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
     CONSISTENCY_CHECK(!pThread->HasPendingGCStressInstructionUpdate());
 
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
-    if (afterCallProtect) 
+    if (numberOfRegs != 0)
     {
-#ifdef _TARGET_AMD64_
-        regs->Rax = retVal;
+        if (afterCallProtect[0])
+        {
+#if defined(_TARGET_AMD64_)
+            regs->Rax = *(DWORD64*)&retValRegs[0]; // I should cut my own hands for writing this.
 #elif defined(_TARGET_X86_)
-        regs->Eax = retVal;
+            regs->Eax = *(DWORD*)&retValRegs[0];
 #elif defined(_TARGET_ARM_)
-        regs->R0 = retVal;
+            regs->R0 = *(DWORD*)&retValRegs[0];
 #elif defined(_TARGET_ARM64_)
-        regs->X[0] = retVal;
+            regs->X[0] = *(DWORD64*)&retValRegs[0];
 #else
-        PORTABILITY_ASSERT("DoGCStress - return register");
-#endif
+            PORTABILITY_ASSERT("DoGCStress - return register");
+#endif            
+        }
+
+        if (afterCallProtect[1])
+        {
+#if defined(_TARGET_AMD64_) && defined(PLATFORM_UNIX)
+            regs->Rdx = *(DWORD64*)& retValRegs[0];
+#else // !_TARGET_AMD64_ || !PLATFORM_UNIX
+            _ASSERTE(!"Not expected multi reg return with pointers.");
+#endif // !_TARGET_AMD64_ || !PLATFORM_UNIX   
+        }
+
         gcFrame.Pop();
     }
-#endif // _TARGET_*
 
 #if !defined(USE_REDIRECT_FOR_GCSTRESS)
     frame.Pop(pThread);
