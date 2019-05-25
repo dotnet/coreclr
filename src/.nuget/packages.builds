@@ -40,13 +40,13 @@
       Overwrite="true" />
   </Target>
 
-  <!-- [ARCADE REMOVE] Make sure version props file for native binaries (non-Arcade versioning) exists
-       This is through building a separate project because the packaging projects use Arcade versioning
-       and just need the build number for laying out certain native binaries. These projects do not want
-       the actual BuildTools target to run / set various properties, so they just include the generated
-       build version props file (which only sets BuildNumberMajor/BuildNumberMinor) as needed. -->
-  <Target Name="CreateVersionPropsForNativeBinaries"
-          BeforeTargets="Build">
-    <MSBuild Targets="Build" Projects="$(CoreclrDir)\src\createVersionFile.proj"/>
+  <Target Name="UpdateAdditionalProperties"
+          BeforeTargets="Build"
+          DependsOnTargets="_InitializeAssemblyVersion">
+    <ItemGroup>
+      <!-- Pass the FileVersion calculated by _InitializeAssemblyVersion to referenced projects -->
+      <ProjectReference Update="@(ProjectReference)"
+                        AdditionalProperties="%(AdditionalProperties);FileVersion=$(FileVersion)" />
+    </ItemGroup>
   </Target>
 </Project>
