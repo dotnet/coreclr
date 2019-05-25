@@ -1968,7 +1968,7 @@ bool FloatingPointUtils::isNormal(float x)
     return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
 }
 
-bool FloatingPointUtils::isPow2(double x)
+bool FloatingPointUtils::hasPreciseReciprocal(double x)
 {
     if (!isNormal(x))
         return false;
@@ -1979,7 +1979,7 @@ bool FloatingPointUtils::isPow2(double x)
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
 
-bool FloatingPointUtils::isPow2(float x)
+bool FloatingPointUtils::hasPreciseReciprocal(float x)
 {
     if (!isNormal(x))
         return false;
