@@ -521,6 +521,15 @@
         <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/eventsourcetrace/*">
             <Issue>Failing on alpine, being tracked by #24772</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/tracelogging/*">
+            <Issue>Failing on alpine, being tracked by #24772</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/jittingstarted/*">
+            <Issue>Failing on alpine, being tracked by #24772</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/rundown/*">
+            <Issue>Failing on alpine, being tracked by #24772</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- Unix arm64 specific -->
