@@ -379,7 +379,7 @@ void EventPipe::Disable(EventPipeSessionID id)
 
     SetupThread();
 
-    if (id == 0 || s_pConfig == nullptr || !s_pConfig->Enabled())
+    if (id == 0)
         return;
 
     // Don't block GC during clean-up.
