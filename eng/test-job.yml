@@ -234,13 +234,13 @@ jobs:
           - gcstress0xc_jitminopts_heapverify1
 
     # Publish Logs
-    - task: PublishPipelineArtifact@0
+    - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
+        pathtoPublish: (Build.SourcesDirectory)/bin/Logs
         ${{ if eq(parameters.readyToRun, false) }}:
           artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if  eq(parameters.readyToRun, true) }}:
           artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_r2r_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
-        targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()
