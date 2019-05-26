@@ -353,9 +353,7 @@ namespace System.Collections.Generic
                 if (comparer == null || comparer == Comparer<T>.Default)
                 //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<T>.Default))
                 {
-                    var sliceKeys = keys.Slice(index, length);
-                    IntrospectiveSort(keys);
-                    //IntrospectiveSort(keys, index, length);
+                    IntrospectiveSort(keys, index, length);
                 }
                 else
                 {
@@ -463,30 +461,26 @@ namespace System.Collections.Generic
             }
         }
 
-        internal static void IntrospectiveSort(Span<T> keys)
-        //internal static void IntrospectiveSort(Span<T> keys, int left, int length)
+        internal static void IntrospectiveSort(Span<T> keys, int left, int length)
         {
             Debug.Assert(keys != null);
-            //Debug.Assert(left >= 0);
-            //Debug.Assert(length >= 0);
-            //Debug.Assert(length <= keys.Length);
-            //Debug.Assert(length + left <= keys.Length);
-            int length = keys.Length;
+            Debug.Assert(left >= 0);
+            Debug.Assert(length >= 0);
+            Debug.Assert(length <= keys.Length);
+            Debug.Assert(length + left <= keys.Length);
+
             if (length < 2)
                 return;
 
-            IntroSort(keys, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length));
-            //IntroSort(keys, left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length));
+            IntroSort(keys, left, length + left - 1, 2 * IntrospectiveSortUtilities.FloorLog2PlusOne(length));
         }
 
-        private static void IntroSort(Span<T> keys, int depthLimit)
-        //private static void IntroSort(Span<T> keys, int lo, int hi, int depthLimit)
+        private static void IntroSort(Span<T> keys, int lo, int hi, int depthLimit)
         {
             Debug.Assert(keys != null);
-            //Debug.Assert(lo >= 0);
-            //Debug.Assert(hi < keys.Length);
-            var lo = 0;
-            var hi = keys.Length - 1;
+            Debug.Assert(lo >= 0);
+            Debug.Assert(hi < keys.Length);
+
             while (hi > lo)
             {
                 int partitionSize = hi - lo + 1;
@@ -509,41 +503,31 @@ namespace System.Collections.Generic
                         return;
                     }
 
-                    var insertionSliceKeys = keys.Slice(lo, hi - lo + 1);
-                    InsertionSort(insertionSliceKeys);
-                    //InsertionSort(keys, lo, hi);
+                    InsertionSort(keys, lo, hi);
                     return;
                 }
 
                 if (depthLimit == 0)
                 {
-                    var heapSliceKeys = keys.Slice(lo, hi - lo + 1);
-                    HeapSort(heapSliceKeys);
-                    //HeapSort(keys, lo, hi);
+                    HeapSort(keys, lo, hi);
                     return;
                 }
                 depthLimit--;
 
-                var pivotSliceKeys = keys.Slice(lo, hi - lo + 1);
-                int p = PickPivotAndPartition(pivotSliceKeys);
-                //int p = PickPivotAndPartition(keys, lo, hi);
+                int p = PickPivotAndPartition(keys, lo, hi);
                 // Note we've already partitioned around the pivot and do not have to move the pivot again.
-                var introSliceKeys = keys.Slice(p + 1, hi - (p + 1) + 1);
-                IntroSort(introSliceKeys, depthLimit);
-                //IntroSort(keys, p + 1, hi, depthLimit);
+                IntroSort(keys, p + 1, hi, depthLimit);
                 hi = p - 1;
             }
         }
 
-        private static int PickPivotAndPartition(Span<T> keys)
-        //private static int PickPivotAndPartition(Span<T> keys, int lo, int hi)
+        private static int PickPivotAndPartition(Span<T> keys, int lo, int hi)
         {
             Debug.Assert(keys != null);
-            //Debug.Assert(lo >= 0);
-            //Debug.Assert(hi > lo);
-            //Debug.Assert(hi < keys.Length);
-            const int lo = 0;
-            int hi = keys.Length - 1;
+            Debug.Assert(lo >= 0);
+            Debug.Assert(hi > lo);
+            Debug.Assert(hi < keys.Length);
+
             // Compute median-of-three.  But also partition them, since we've done the comparison.
             int middle = lo + ((hi - lo) / 2);
 
@@ -580,15 +564,14 @@ namespace System.Collections.Generic
             return left;
         }
 
-        private static void HeapSort(Span<T> keys)
-        //private static void HeapSort(Span<T> keys, int lo, int hi)
+        private static void HeapSort(Span<T> keys, int lo, int hi)
         {
             Debug.Assert(keys != null);
-            //Debug.Assert(lo >= 0);
-            //Debug.Assert(hi > lo);
-            //Debug.Assert(hi < keys.Length);
-            const int lo = 0;
-            int n = keys.Length; //hi - lo + 1;
+            Debug.Assert(lo >= 0);
+            Debug.Assert(hi > lo);
+            Debug.Assert(hi < keys.Length);
+
+            int n = hi - lo + 1;
             for (int i = n / 2; i >= 1; i = i - 1)
             {
                 DownHeap(keys, i, n, lo);
@@ -623,15 +606,12 @@ namespace System.Collections.Generic
             keys[lo + i - 1] = d;
         }
 
-        private static void InsertionSort(Span<T> keys)
-        //private static void InsertionSort(Span<T> keys, int lo, int hi)
+        private static void InsertionSort(Span<T> keys, int lo, int hi)
         {
             Debug.Assert(keys != null);
-            //Debug.Assert(lo >= 0);
-            //Debug.Assert(hi >= lo);
-            //Debug.Assert(hi <= keys.Length);
-            const int lo = 0;
-            int hi = keys.Length - 1;
+            Debug.Assert(lo >= 0);
+            Debug.Assert(hi >= lo);
+            Debug.Assert(hi <= keys.Length);
 
             int i, j;
             T t;
