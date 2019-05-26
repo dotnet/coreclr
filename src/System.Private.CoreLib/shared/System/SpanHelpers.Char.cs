@@ -285,8 +285,14 @@ namespace System
                         // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
                         // with no upper bound e.g. String.wcslen. Start with a check on Vector128 to align to Vector256, 
                         // before moving to processing Vector256.
+
                         // If the input searchSpan has been fixed or pinned, this ensures we do not fault across memory pages 
-                        // while searching for an end of string.
+                        // while searching for an end of string. Specifically that this assumes that the length is either correct 
+                        // or that the data is pinned otherwise it may cause an AccessViolation from crossing a page boundary into an 
+                        // unowned page. If the search is unbounded (e.g. null terminator in wcslen) and the search value is not found,
+                        // again this will likely cause an AccessViolation. However, correctly bounded searches will return -1 rather 
+                        // than ever causing an AV.
+
                         // If the searchSpan has not been fixed or pinned the GC can relocate it during the execution of this 
                         // method, so the alignment only acts as best endeavour. The GC cost is likely to dominate over
                         // the misalignment that may occur after; to we default to giving the GC a free hand to relocate and 
