@@ -450,6 +450,7 @@ namespace System.Collections.Generic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Swap(Span<T> a, int i, int j)
         {
             if (i != j)
