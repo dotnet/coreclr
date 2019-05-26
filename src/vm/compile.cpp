@@ -72,6 +72,7 @@
 
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
+MapSHash<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE> s_stubMethodsOfMethod;
 #endif
 
 VerboseLevel g_CorCompileVerboseLevel = CORCOMPILE_NO_LOG;
@@ -6285,6 +6286,10 @@ void CEEPreloader::GenerateMethodStubs(
             // that we can recover the stub MethodDesc at prestub time, do the fixups, and wire up the native code
             if (pStubMD != NULL)
             {
+                if (IsReadyToRunCompilation())
+                {
+                    s_stubMethodsOfMethod.Add(CORINFO_METHOD_HANDLE(pStubMD), CORINFO_METHOD_HANDLE(pMD));
+                }
                  SetStubMethodDescOnInteropMethodDesc(pMD, pStubMD, false /* fReverseStub */);
                  pStubMD = NULL;
             }
@@ -7291,22 +7296,78 @@ HRESULT CompilationDomain::SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths)
     return S_OK;
 }
 
-CORINFO_METHOD_HANDLE CEECompileInfo::GetMethodTargetForStub(CORINFO_METHOD_HANDLE hMethod)
+class MethodsForStubEnumerator
 {
-    MethodDesc *pMD = GetMethod(hMethod);
-    if (!pMD->IsDynamicMethod())
-        return hMethod;
+    SHash < NoRemoveSHashTraits<MapSHashTraits<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE>>>::KeyIterator current;
+    SHash < NoRemoveSHashTraits<MapSHashTraits<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE>>>::KeyIterator end;
+    bool started = false;
+    bool complete = false;
 
-    DynamicMethodDesc *stubMethodDesc = pMD->AsDynamicMethodDesc();
-    if (!stubMethodDesc->IsILStub())
-        return hMethod;
+public:
+    MethodsForStubEnumerator(CORINFO_METHOD_HANDLE hMethod) : 
+        current(s_stubMethodsOfMethod.Begin(hMethod)),
+        end(s_stubMethodsOfMethod.End(hMethod))
+    {
+        complete = current == end;
+    }
 
-    MethodDesc *pTargetMD = stubMethodDesc->GetILStubResolver()->GetStubTargetMethodDesc();
+    bool Next()
+    {
+        if (complete)
+            return false;
 
-    if (pTargetMD == NULL)
-        return hMethod;
+        if (started)
+        {
+            ++current;
+        }
+        else
+        {
+            started = true;
+        }
 
-    return CORINFO_METHOD_HANDLE(pTargetMD);
+        if (current == end)
+        {
+            complete = true;
+            return false;
+        }
+        return true;
+    }
+
+    CORINFO_METHOD_HANDLE Current()
+    {
+        return current->Value();
+    }
+};
+
+BOOL CEECompileInfo::EnumMethodsForStub(CORINFO_METHOD_HANDLE hMethod, void** enumerator)
+{
+    *enumerator = NULL;
+    if (s_stubMethodsOfMethod.LookupPtr(hMethod) == NULL)
+        return FALSE;
+
+    *enumerator = new MethodsForStubEnumerator(hMethod);
+    return TRUE;
+}
+
+BOOL CEECompileInfo::EnumNextMethodForStub(void * enumerator, CORINFO_METHOD_HANDLE *hMethod)
+{
+    *hMethod = NULL;
+    auto stubEnum = (MethodsForStubEnumerator*)enumerator;
+    if (stubEnum->Next())
+    {
+        *hMethod = stubEnum->Current();
+        return TRUE;
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
+void CEECompileInfo::EnumCloseForStubEnumerator(void *enumerator)
+{
+    auto stubEnum = (MethodsForStubEnumerator*)enumerator;
+    delete stubEnum;
 }
 
 #endif // CROSSGEN_COMPILE

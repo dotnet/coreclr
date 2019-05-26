@@ -1757,7 +1757,10 @@ class ICorCompileInfo
 
     virtual int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle) = 0;
 
-    virtual CORINFO_METHOD_HANDLE GetMethodTargetForStub(CORINFO_METHOD_HANDLE methodHandle) = 0;
+    virtual BOOL EnumMethodsForStub(CORINFO_METHOD_HANDLE hMethod, void** enumerator) = 0;
+    virtual BOOL EnumNextMethodForStub(void * enumerator, CORINFO_METHOD_HANDLE *hMethod) = 0;
+    virtual void EnumCloseForStubEnumerator(void *enumerator) = 0;
+
 #endif
 
     virtual BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName) = 0;
