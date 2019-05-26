@@ -66,7 +66,6 @@ namespace System.Collections.Generic
                 }
                 else
                 {
-                    // TODO: Need to change to allow TComparer and not changing to Comparison delegate
                     IntrospectiveSort(keys, index, length, comparer.Compare);
                 }
             }
@@ -357,7 +356,6 @@ namespace System.Collections.Generic
                 }
                 else
                 {
-                    // TODO: Need to change to allow TComparer and not changing to Comparison delegate
                     ArraySortHelper<T>.IntrospectiveSort(keys, index, length, comparer.Compare);
                 }
             }
@@ -654,7 +652,6 @@ namespace System.Collections.Generic
                 }
                 else
                 {
-                    // TODO: Need to change to TComparer 
                     IntrospectiveSort(keys, values, index, length, comparer);
                 }
             }
@@ -906,7 +903,6 @@ namespace System.Collections.Generic
                 }
                 else
                 {
-                    // TODO: Need to change to TComparer 
                     ArraySortHelper<TKey, TValue>.IntrospectiveSort(keys, values, index, length, comparer);
                 }
             }
