@@ -6195,7 +6195,7 @@ void CEEPreloader::GenerateMethodStubs(
     // Do not generate IL stubs when generating ReadyToRun images
     // This prevents versionability concerns around IL stubs exposing internal
     // implementation details of the CLR.
-    if (IsReadyToRunCompilation())
+    if (IsReadyToRunCompilation() && !pMD->IsNDirect())
         return;
 
     DWORD dwNGenStubFlags = NDIRECTSTUB_FL_NGENEDSTUB;
@@ -7290,6 +7290,25 @@ HRESULT CompilationDomain::SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths)
 
     return S_OK;
 }
+
+CORINFO_METHOD_HANDLE CEECompileInfo::GetMethodTargetForStub(CORINFO_METHOD_HANDLE hMethod)
+{
+    MethodDesc *pMD = GetMethod(hMethod);
+    if (!pMD->IsDynamicMethod())
+        return hMethod;
+
+    DynamicMethodDesc *stubMethodDesc = pMD->AsDynamicMethodDesc();
+    if (!stubMethodDesc->IsILStub())
+        return hMethod;
+
+    MethodDesc *pTargetMD = stubMethodDesc->GetILStubResolver()->GetStubTargetMethodDesc();
+
+    if (pTargetMD == NULL)
+        return hMethod;
+
+    return CORINFO_METHOD_HANDLE(pTargetMD);
+}
+
 #endif // CROSSGEN_COMPILE
 
 

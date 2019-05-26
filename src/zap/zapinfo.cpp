@@ -2231,6 +2231,16 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             }
             else
             {
+                if (pResult->methodFlags & CORINFO_FLG_INTRINSIC)
+                {
+                    bool dummy;
+                    CorInfoIntrinsics intrinsic = getIntrinsicID(pResult->hMethod, &dummy);
+                    if ((intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContext) || (intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr))
+                    {
+                        // These intrinsics are always expanded directly in the jit and do not correspond to external methods
+                        return;
+                    }
+                }
                 pImport = m_pImage->GetImportTable()->GetExternalMethodCell(pResult->hMethod, pResolvedToken, pConstrainedResolvedToken);
             }
 

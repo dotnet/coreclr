@@ -1756,6 +1756,8 @@ class ICorCompileInfo
     virtual int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token) = 0;
 
     virtual int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle) = 0;
+
+    virtual CORINFO_METHOD_HANDLE GetMethodTargetForStub(CORINFO_METHOD_HANDLE methodHandle) = 0;
 #endif
 
     virtual BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName) = 0;

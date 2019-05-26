@@ -222,7 +222,11 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
     {
         ZapMethodHeader * pMethod = m_MethodCompilationOrder[i];
 
-        mdMethodDef token = GetJitInfo()->getMethodDefFromMethod(pMethod->GetHandle());
+        // This may be a stub method handle. If so, GetMethodTargetForStub will translate to the target 
+        // method handle. Otherwise it will return the original method handle.
+        CORINFO_METHOD_HANDLE hMethod = GetCompileInfo()->GetMethodTargetForStub(pMethod->GetHandle());
+
+        mdMethodDef token = GetJitInfo()->getMethodDefFromMethod(hMethod);
         CORINFO_SIG_INFO sig;
         GetJitInfo()->getMethodSig(pMethod->GetHandle(), &sig);
 
