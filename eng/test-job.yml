@@ -114,7 +114,9 @@ jobs:
         buildType: current
         downloadType: single
         artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        itemPattern: ${{ format('{0}_{1}_{2}_build/**', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         downloadPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+
 
     # Build tests
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
