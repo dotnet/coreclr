@@ -245,7 +245,7 @@ jobs:
     - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
-        pathtoPublish: (Build.SourcesDirectory)/bin/Logs
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         ${{ if eq(parameters.readyToRun, false) }}:
           artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if  eq(parameters.readyToRun, true) }}:
