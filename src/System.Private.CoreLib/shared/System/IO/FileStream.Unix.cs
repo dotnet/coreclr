@@ -273,7 +273,7 @@ namespace System.IO
             {
                 if (_fileHandle != null && !_fileHandle.IsClosed)
                 {
-                    _fileHandle.Dispose();
+                    _fileHandle.Close();
                 }
                 base.Dispose(disposing);
             }

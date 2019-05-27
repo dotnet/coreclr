@@ -120,9 +120,18 @@ namespace Microsoft.Win32.SafeHandles
 
             // Close the descriptor. Although close is documented to potentially fail with EINTR, we never want
             // to retry, as the descriptor could actually have been closed, been subsequently reassigned, and
-            // be in use elsewhere in the process.  Instead, we simply check whether the call was successful.
+            // be in use elsewhere in the process.
+            // If we ever port to HP-UX, this test is wrong as the handle is still open on EINTR in HP-UX.
             int result = Interop.Sys.Close(handle);
-            Debug.Assert(result == 0, $"Close failed with result {result} and error {Interop.Sys.GetLastErrorInfo()}");
+            if (result != 0)
+            {
+                Interop.ErrorInfo errorInfo = Interop.Sys.GetLastErrorInfo();
+                if (errorInfo.Error != Interop.Error.EINTR)
+                {
+                    // close() notified us of an IO error flushing the cache to disk. See man 2 close for details.
+                    throw Interop.GetExceptionForIoErrno(errorInfo, path: null, isDirectory: false);
+                }
+            }
             return result == 0;
         }
 

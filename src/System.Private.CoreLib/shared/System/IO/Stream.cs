@@ -221,7 +221,7 @@ namespace System.IO
             GC.SuppressFinalize(this);
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             Close();
         }

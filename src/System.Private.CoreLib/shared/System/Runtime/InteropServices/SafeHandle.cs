@@ -4,6 +4,7 @@
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.IO;
 using System.Runtime.ConstrainedExecution;
 using System.Threading;
 
@@ -85,7 +86,12 @@ namespace System.Runtime.InteropServices
 
         public abstract bool IsInvalid { get; }
 
-        public void Close() => Dispose();
+        public void Close()
+        {
+            Debug.Assert(_fullyInitialized);
+            InternalRelease(disposeOrFinalizeOperation: true, releaseHandleCanThrow: true);
+            GC.SuppressFinalize(this);
+        }
 
         public void Dispose()
         {
@@ -96,7 +102,7 @@ namespace System.Runtime.InteropServices
         protected virtual void Dispose(bool disposing)
         {
             Debug.Assert(_fullyInitialized);
-            InternalRelease(disposeOrFinalizeOperation: true);
+            InternalRelease(disposeOrFinalizeOperation: true, releaseHandleCanThrow: false);
         }
 
         public void SetHandleAsInvalid()
@@ -171,9 +177,9 @@ namespace System.Runtime.InteropServices
             success = true;
         }
 
-        public void DangerousRelease() => InternalRelease(disposeOrFinalizeOperation: false);
+        public void DangerousRelease() => InternalRelease(disposeOrFinalizeOperation: false, releaseHandleCanThrow: true);
 
-        private void InternalRelease(bool disposeOrFinalizeOperation)
+        private void InternalRelease(bool disposeOrFinalizeOperation, bool releaseHandleCanThrow)
         {
             Debug.Assert(_fullyInitialized || disposeOrFinalizeOperation);
 
@@ -247,7 +253,21 @@ namespace System.Runtime.InteropServices
                 // trashes it (important because this ReleaseHandle could occur implicitly
                 // as part of unmarshaling another P/Invoke).
                 int lastError = Marshal.GetLastWin32Error();
-                ReleaseHandle();
+                if (releaseHandleCanThrow)
+                {
+                    ReleaseHandle();
+                }
+                else
+                {
+                    try
+                    {
+                        ReleaseHandle();
+                    }
+                    catch (IOException)
+                    {
+                        // but we're already disposing.
+                    }
+                }
                 Marshal.SetLastWin32Error(lastError);
             }
         }
