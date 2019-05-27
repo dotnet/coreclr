@@ -949,15 +949,6 @@ if [[ $__ClangMajorVersion == 0 && $__ClangMinorVersion == 0 ]]; then
     fi
 fi
 
-if [[ "$__BuildArch" == "armel" ]]; then
-    # Armel cross build is Tizen specific and does not support Portable RID build
-    __PortableBuild=0
-fi
-
-if [ $__PortableBuild == 0 ]; then
-    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
-fi
-
 # Set dependent variables
 __LogsDir="$__RootBinDir/Logs"
 __MsbuildDebugLogsDir="$__LogsDir/MsbuildDebugLogs"
@@ -1002,6 +993,10 @@ fi
 
 # init the target distro name
 initTargetDistroRid
+
+if [ $__PortableBuild == 0 ]; then
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
+fi
 
 # Restore Build Tools
 source $__ProjectRoot/init-tools.sh
