@@ -675,7 +675,7 @@ namespace System.Threading
             internal volatile LinkedSlotVolatile[]? _slotArray;
 
             // The value for this slot.
-            [AllowNull,MaybeNull] internal T _value = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            [AllowNull, MaybeNull] internal T _value = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
         }
 
         /// <summary>

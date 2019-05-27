@@ -320,7 +320,7 @@ namespace System
             return (result = ParseVersion(input.AsSpan(), throwOnFailure: false)) != null;
         }
 
-        public static bool TryParse(ReadOnlySpan<char> input, out Version? result) =>
+        public static bool TryParse(ReadOnlySpan<char> input, [NotNullWhen(true)] out Version? result) =>
             (result = ParseVersion(input, throwOnFailure: false)) != null;
 
         private static Version? ParseVersion(ReadOnlySpan<char> input, bool throwOnFailure)

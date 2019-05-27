@@ -422,11 +422,10 @@ namespace System.Diagnostics.Tracing
             return result;
         }
 
-        [return: MaybeNull]
-        public static AttributeType GetCustomAttribute<AttributeType>(PropertyInfo propInfo)
-            where AttributeType : Attribute?
+        public static AttributeType? GetCustomAttribute<AttributeType>(PropertyInfo propInfo)
+            where AttributeType : Attribute
         {
-            AttributeType result = null!;
+            AttributeType? result = null;
 #if (ES_BUILD_PCL || ES_BUILD_PN)
             foreach (var attrib in propInfo.GetCustomAttributes<AttributeType>(false))
             {
@@ -443,11 +442,10 @@ namespace System.Diagnostics.Tracing
             return result;
         }
 
-        [return: MaybeNull]
-        public static AttributeType GetCustomAttribute<AttributeType>(Type type)
-            where AttributeType : Attribute?
+        public static AttributeType? GetCustomAttribute<AttributeType>(Type type)
+            where AttributeType : Attribute
         {
-            AttributeType result = null!;
+            AttributeType? result = null;
 #if (ES_BUILD_PCL || ES_BUILD_PN)
             foreach (var attrib in type.GetTypeInfo().GetCustomAttributes<AttributeType>(false))
             {
@@ -540,9 +538,9 @@ namespace System.Diagnostics.Tracing
 
             recursionCheck.Add(dataType);
 
-            var eventAttrib = Statics.GetCustomAttribute<EventDataAttribute?>(dataType);
+            var eventAttrib = Statics.GetCustomAttribute<EventDataAttribute>(dataType);
             if (eventAttrib != null ||
-                Statics.GetCustomAttribute<CompilerGeneratedAttribute?>(dataType) != null ||
+                Statics.GetCustomAttribute<CompilerGeneratedAttribute>(dataType) != null ||
                 IsGenericMatch(dataType, typeof(KeyValuePair<,>)))
             {
                 var analysis = new TypeAnalysis(dataType, eventAttrib, recursionCheck);

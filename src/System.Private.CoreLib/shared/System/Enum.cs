@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -645,7 +646,7 @@ namespace System
         }
 
         /// <summary>Tries to parse the value of an enum with an underlying type that can't be expressed in C# (e.g. char, bool, double, etc.)</summary>
-        private static bool TryParseRareEnum(RuntimeType enumType, string? originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, out object? result)
+        private static bool TryParseRareEnum(RuntimeType enumType, string? originalValueString, ReadOnlySpan<char> value, bool ignoreCase, bool throwOnFailure, [NotNullWhen(true)] out object? result)
         {
             Debug.Assert(
                 enumType.GetEnumUnderlyingType() != typeof(sbyte) &&

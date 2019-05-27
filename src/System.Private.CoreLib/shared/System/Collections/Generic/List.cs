@@ -1085,7 +1085,7 @@ namespace System.Collections.Generic
             private readonly List<T> _list;
             private int _index;
             private readonly int _version;
-            [AllowNull,MaybeNull] private T _current;
+            [AllowNull, MaybeNull] private T _current;
 
             internal Enumerator(List<T> list)
             {

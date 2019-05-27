@@ -1229,7 +1229,7 @@ namespace System.Threading.Tasks
             internal static readonly AsyncCallback s_completeFromAsyncResult = CompleteFromAsyncResult;
 
             /// <summary>A reference to the object on which the begin/end methods are invoked.</summary>
-            [AllowNull,MaybeNull] private TInstance m_thisRef;
+            [AllowNull, MaybeNull] private TInstance m_thisRef;
             /// <summary>The end method.</summary>
             private Func<TInstance, IAsyncResult, TResult>? m_endMethod;
 
