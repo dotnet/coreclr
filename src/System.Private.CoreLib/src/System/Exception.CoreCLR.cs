@@ -410,7 +410,7 @@ namespace System
         internal string InternalToString()
         {
             // Get the current stack trace string. 
-            return ToString(true, true);
+            return ToString();
         }
 
         internal bool IsTransient
