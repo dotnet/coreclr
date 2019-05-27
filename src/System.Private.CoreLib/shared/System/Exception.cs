@@ -143,9 +143,10 @@ namespace System
         {
             string s = GetClassName();
 
-            if (!string.IsNullOrEmpty(Message))
+            string? message = Message;
+            if (!string.IsNullOrEmpty(message))
             {
-                s += ": " + Message;
+                s += ": " + message;
             }
 
             if (_innerException != null)
