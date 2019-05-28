@@ -639,6 +639,8 @@ void GCCoverageInfo::SprinkleBreakpoints(
         _ASSERTE(len > 0);
         _ASSERTE(len <= (size_t)(codeEnd-cur));
 
+        bool skipGCForCurrentInstr = false;
+
         switch(instructionType)
         {
         case InstructionType::Call_IndirectUnconditional:
@@ -662,9 +664,11 @@ void GCCoverageInfo::SprinkleBreakpoints(
 
                     if (target != 0)
                     {
-                        // JIT_RareDisableHelper() is expected to be an indirect call.
-                        // If we encounter a direct call (in future), skip the call 
-                        _ASSERTE(target != (SLOT)JIT_RareDisableHelper); 
+                        if (target == (SLOT)JIT_RareDisableHelper)
+                        {
+                            // Skip the call to JIT_RareDisableHelper.
+                            skipGCForCurrentInstr = true;
+                        }
                         targetMD = getTargetMethodDesc((PCODE)target);
                     }
                 }
@@ -682,26 +686,31 @@ void GCCoverageInfo::SprinkleBreakpoints(
             break;
         }
 
-        if (prevDirectCallTargetMD != 0)
+        if (!skipGCForCurrentInstr)
         {
-            ReplaceInstrAfterCall(cur, prevDirectCallTargetMD);
-        }
+            if (prevDirectCallTargetMD != 0)
+            {
+                ReplaceInstrAfterCall(cur, prevDirectCallTargetMD);
+            }
 
-        // For fully interruptible code, we end up whacking every instruction
-        // to INTERRUPT_INSTR.  For non-fully interruptible code, we end
-        // up only touching the call instructions (specially so that we
-        // can really do the GC on the instruction just after the call).
-        _ASSERTE(FitsIn<DWORD>((cur - codeStart) + regionOffsetAdj));
-        if (codeMan->IsGcSafe(&codeInfo, static_cast<DWORD>((cur - codeStart) + regionOffsetAdj)))
-            *cur = INTERRUPT_INSTR;
+            // For fully interruptible code, we end up whacking every instruction
+            // to INTERRUPT_INSTR.  For non-fully interruptible code, we end
+            // up only touching the call instructions (specially so that we
+            // can really do the GC on the instruction just after the call).
+            size_t dwRelOffset = (cur - codeStart) + regionOffsetAdj;
+            _ASSERTE(FitsIn<DWORD>(dwRelOffset));
+            if (codeMan->IsGcSafe(&codeInfo, static_cast<DWORD>(dwRelOffset)))
+                *cur = INTERRUPT_INSTR;
 
 #ifdef _TARGET_X86_
-        // we will whack every instruction in the prolog and epilog to make certain
-        // our unwinding logic works there.  
-        if (codeMan->IsInPrologOrEpilog((cur - codeStart) + (DWORD)regionOffsetAdj, gcInfoToken, NULL)) {
-            *cur = INTERRUPT_INSTR;
-        }
+            // we will whack every instruction in the prolog and epilog to make certain
+            // our unwinding logic works there.
+            if (codeMan->IsInPrologOrEpilog((cur - codeStart) + (DWORD)regionOffsetAdj, gcInfoToken, NULL))
+            {
+                *cur = INTERRUPT_INSTR;
+            }
 #endif
+        }
 
         // If we couldn't find the method desc targetMD is zero
         prevDirectCallTargetMD = targetMD;                        
