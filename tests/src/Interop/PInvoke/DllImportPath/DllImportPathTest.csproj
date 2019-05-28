@@ -39,5 +39,22 @@
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
+  <Target Name="CreateUnicodeNamedNativeLibrary" AfterTargets="CopyNativeProjectBinaries">
+    <Copy
+      Condition="$([MSBuild]::IsOSPlatform(Windows))"
+      SourceFiles="$(OutDir)/DllImportPath_Local.dll"
+      DestinationFiles="$(OutDir)/DllImportPath_Unicode✔.dll"
+    /> 
+    <Copy
+      Condition="$([MSBuild]::IsOSPlatform(Linux))"
+      SourceFiles="$(OutDir)/libDllImportPath_Local.so"
+      DestinationFiles="$(OutDir)/libDllImportPath_Unicode✔.so"
+    />
+    <Copy
+      Condition="$([MSBuild]::IsOSPlatform(OSX))"
+      SourceFiles="$(OutDir)/libDllImportPath_Local.dylib"
+      DestinationFiles="$(OutDir)/libDllImportPath_Unicode✔.dylib"
+    />
+  </Target>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

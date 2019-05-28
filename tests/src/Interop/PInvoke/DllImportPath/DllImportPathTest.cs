@@ -45,7 +45,7 @@ class Test
     [DllImport(@".\..\DllImportPathTest\DllImportPath_Relative.dll", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Relative4([In, Out]ref string strManaged);
 
-    [DllImport(@"DllImportPath_U�n�i�c�o�d�e", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
+    [DllImport(@"DllImportPath_Unicode✔", CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
     private static extern bool MarshalStringPointer_InOut_Unicode([In, Out]ref string strManaged);
     
     [DllImport(PathEnvFileName, CharSet = CharSet.Unicode, EntryPoint = "MarshalStringPointer_InOut")]
