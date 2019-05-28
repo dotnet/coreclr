@@ -224,7 +224,11 @@ namespace System
             nint offset = 0;
             nint lengthToExamine = length;
 
-            if (Sse2.IsSupported)
+            if (((int)Unsafe.AsPointer(ref searchSpace) & 1) != 0)
+            {
+                // Input isn't char aligned, we won't be able to align it to a Vector
+            }
+            else if (Sse2.IsSupported)
             {
                 // Avx2 branch also operates on Sse2 sizes, so check is combined.
                 // Needs to be double length to allow us to align the data first.
