@@ -1636,6 +1636,29 @@ CPalThread::ThreadEntry(
     }
 #endif // !HAVE_MACH_EXCEPTIONS
 
+#if HAVE_PTHREAD_GETAFFINITY_NP && HAVE_SCHED_GETAFFINITY
+    {
+        // Threads inherit their parent's affinity mask on Linux. This is not desired, so we reset
+        // the current thread's affinity mask to the mask of the current process.
+        cpu_set_t cpuSet;
+        CPU_ZERO(&cpuSet);
+
+        int st = sched_getaffinity(gPID, sizeof(cpu_set_t), &cpuSet);
+        if (st != 0)
+        {
+            ASSERT("sched_getaffinity failed!\n");
+            goto fail;
+        }
+
+        st = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuSet);
+        if (st != 0)
+        {
+            ASSERT("pthread_setaffinity_np failed!\n");
+            goto fail;
+        }
+    }
+#endif // HAVE_PTHREAD_GETAFFINITY_NP && HAVE_SCHED_GETAFFINITY
+
 #if defined(FEATURE_PAL_SXS) && defined(_DEBUG)
     // We cannot assert yet, as we haven't set in this thread into the TLS, and so __ASSERT_ENTER
     // will fail if the assert fails and we'll crash.
