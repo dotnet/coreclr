@@ -62,7 +62,7 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       - name: clangArg
         value: '-clang6.0'
-    - ${{ if and(eq(parameters.osIdentifier, 'Linux_musl'), eq(parameters.archType, 'arm64')) }}:
+    - ${{ if eq(parameters.archType, 'arm64') }}:
       - name: clangArg
         value: '-clang5.0'
 
@@ -94,9 +94,9 @@ jobs:
       timeoutInMinutes: 240
     ${{ if eq(parameters.testGroup, 'outerloop') }}:
       timeoutInMinutes: 360
-    ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
+    ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 480
-    ${{ if eq(parameters.testGroup, 'outerloop-gcstress-extra') }}:
+    ${{ if in(parameters.testGroup, 'outerloop-jitstress-isas-x86', 'outerloop-gcstress-extra', 'outerloop-r2r-extra') }}:
       timeoutInMinutes: 600
 
     steps:
@@ -107,19 +107,23 @@ jobs:
         displayName: Install native dependencies
 
 
-    # Download product build from pipeline artifact storage
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - task: DownloadPipelineArtifact@0
-        displayName: Download product build pipeline artifact
-        inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - task: DownloadPipelineArtifact@0
-        displayName: Download product build pipeline artifact
-        inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)\bin\Product\Windows_NT.$(archType).$(buildConfigUpper)
+    # Download product build
+    - task: DownloadBuildArtifacts@0
+      displayName: Download product build
+      inputs:
+        buildType: current
+        downloadType: single
+        artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        downloadPath: $(System.ArtifactsDirectory)
+
+
+    # Populate Product directory
+    - task: CopyFiles@2
+      displayName: Populate Product directory
+      inputs:
+        sourceFolder: $(System.ArtifactsDirectory)/${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        contents: '**'
+        targetFolder: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
 
 
     # Build tests
@@ -165,15 +169,15 @@ jobs:
           # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
           timeoutPerTestInMinutes: 10
         ${{ if eq(parameters.testGroup, 'outerloop') }}:
-          timeoutPerTestCollectionInMinutes: 60
+          timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 10
-        ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstress-isas-x86', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
         ${{ if in(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
           timeoutPerTestCollectionInMinutes: 240
           timeoutPerTestInMinutes: 60
-        ${{ if in(parameters.testGroup, 'outerloop-gcstress-extra') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-gcstress-extra', 'outerloop-r2r-extra') }}:
           timeoutPerTestCollectionInMinutes: 300
           timeoutPerTestInMinutes: 90
 
@@ -203,6 +207,45 @@ jobs:
           - jitstress2_tiered
           - zapdisable
           - tailcallstress
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstress-isas-arm') }}:
+          scenarios:
+          - jitstress_isas_incompletehwintrinsic
+          - jitstress_isas_nohwintrinsic
+          - jitstress_isas_nohwintrinsic_nosimd
+          - jitstress_isas_nosimd
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstress-isas-x86') }}:
+          scenarios:
+          - jitstress_isas_incompletehwintrinsic
+          - jitstress_isas_nohwintrinsic
+          - jitstress_isas_nohwintrinsic_nosimd
+          - jitstress_isas_nosimd
+          - jitstress_isas_x86_noaes
+          - jitstress_isas_x86_noavx
+          - jitstress_isas_x86_noavx2
+          - jitstress_isas_x86_nobmi1
+          - jitstress_isas_x86_nobmi2
+          - jitstress_isas_x86_nofma
+          - jitstress_isas_x86_nohwintrinsic
+          - jitstress_isas_x86_nolzcnt
+          - jitstress_isas_x86_nopclmulqdq
+          - jitstress_isas_x86_nopopcnt
+          - jitstress_isas_x86_nosse
+          - jitstress_isas_x86_nosse2
+          - jitstress_isas_x86_nosse3
+          - jitstress_isas_x86_nosse3_4
+          - jitstress_isas_x86_nosse41
+          - jitstress_isas_x86_nosse42
+          - jitstress_isas_x86_nossse3
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs-x86') }}:
+          scenarios:
+          - jitstressregs1_x86_noavx
+          - jitstressregs2_x86_noavx
+          - jitstressregs3_x86_noavx
+          - jitstressregs4_x86_noavx
+          - jitstressregs8_x86_noavx
+          - jitstressregs0x10_x86_noavx
+          - jitstressregs0x80_x86_noavx
+          - jitstressregs0x1000_x86_noavx
         ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
           scenarios:
           - jitstressregs1
@@ -236,15 +279,34 @@ jobs:
           - gcstress0xc_jitstress1
           - gcstress0xc_jitstress2
           - gcstress0xc_jitminopts_heapverify1
+        ${{ if eq(parameters.testGroup, 'outerloop-r2r-extra') }}:
+          scenarios:
+          - jitstress1
+          - jitstress2
+          - jitstress1_tiered
+          - jitstress2_tiered
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
+          - jitminopts
+          - forcerelocs
+          - gcstress15
+          - no_tiered_compilation
+
 
     # Publish Logs
-    - task: PublishPipelineArtifact@0
+    - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         ${{ if eq(parameters.readyToRun, false) }}:
           artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if  eq(parameters.readyToRun, true) }}:
           artifactName: ${{ format('testbuild_{0}_{1}_{2}_{3}_r2r_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
-        targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()

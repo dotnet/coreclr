@@ -14,6 +14,7 @@ using System.Threading;
 using DebuggerStepThroughAttribute = System.Diagnostics.DebuggerStepThroughAttribute;
 using MdToken = System.Reflection.MetadataToken;
 using Internal.Runtime.CompilerServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System
 {
@@ -135,7 +136,7 @@ namespace System
                         _capacity = newCapacity;
                     }
 
-                    _items![_count] = item; // TODO-NULLABLE: https://github.com/dotnet/coreclr/pull/23708
+                    _items![_count] = item; // TODO-NULLABLE: Remove ! when nullable attributes are respected
                 }
                 _count++;
             }
@@ -1434,7 +1435,7 @@ namespace System
             #endregion
 
             #region Private Members
-            private string ConstructName(ref string? name, TypeNameFormatFlags formatFlags) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            private string ConstructName([NotNull] ref string? name, TypeNameFormatFlags formatFlags)
             {
                 if (name == null)
                 {
@@ -3066,7 +3067,14 @@ namespace System
 
         internal sealed override RuntimeTypeHandle GetTypeHandleInternal() => new RuntimeTypeHandle(this);
 
-        public sealed override bool IsCollectible => RuntimeTypeHandle.IsCollectible(GetTypeHandleInternal());
+        public sealed override bool IsCollectible
+        {
+            get
+            {
+                RuntimeType thisType = this;
+                return RuntimeTypeHandle.IsCollectible(JitHelpers.GetQCallTypeHandleOnStack(ref thisType)) != Interop.BOOL.FALSE;
+            }
+        }
 
         protected override TypeCode GetTypeCodeImpl()
         {
@@ -3866,7 +3874,7 @@ namespace System
                 }
             }
 
-#if FEATURE_COMINTEROP && FEATURE_USE_LCID
+#if FEATURE_COMINTEROP
             if (target != null && target.GetType().IsCOMObject)
             {
                 if ((bindingFlags & ClassicBindingMask) == 0)
@@ -3898,7 +3906,7 @@ namespace System
 
                 return InvokeDispMethod(name, bindingFlags, target, providedArgs, isByRef, lcid, namedParams);
             }
-#endif // FEATURE_COMINTEROP && FEATURE_USE_LCID
+#endif // FEATURE_COMINTEROP
 
             if (namedParams != null && Array.IndexOf(namedParams, null!) != -1)
                 throw new ArgumentException(SR.Arg_NamedParamNull, nameof(namedParams));
@@ -4188,7 +4196,7 @@ namespace System
 
                 MethodBase? invokeMethod = null;
 
-                try { invokeMethod = binder.BindToMethod(bindingFlags, finalists, ref providedArgs!, modifiers, culture, namedParams, out state); } //TODO-NULLABLE https://github.com/dotnet/csharplang/issues/2388
+                try { invokeMethod = binder.BindToMethod(bindingFlags, finalists, ref providedArgs!, modifiers, culture, namedParams, out state); }
                 catch (MissingMethodException) { }
 
                 if (invokeMethod == null)
@@ -4197,7 +4205,7 @@ namespace System
                 object? result = ((MethodInfo)invokeMethod).Invoke(target, bindingFlags, binder, providedArgs, culture);
 
                 if (state != null)
-                    binder.ReorderArgumentArray(ref providedArgs!, state);
+                    binder.ReorderArgumentArray(ref providedArgs!, state); // TODO-NULLABLE: Pass non-null string? to string ref (https://github.com/dotnet/roslyn/issues/34874)
 
                 return result;
             }
@@ -4377,7 +4385,7 @@ namespace System
                 {
                     if (args[i] != null)
                     {
-                        argsType[i] = args[i]!.GetType(); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                        argsType[i] = args[i]!.GetType(); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                     }
                 }
 
@@ -4399,7 +4407,7 @@ namespace System
 
                 try
                 {
-                    invokeMethod = binder.BindToMethod(bindingAttr, cons, ref args!, null, culture, null, out state); //TODO-NULLABLE https://github.com/dotnet/csharplang/issues/2388
+                    invokeMethod = binder.BindToMethod(bindingAttr, cons, ref args!, null, culture, null, out state); //TODO-NULLABLE: Pass non-null string? to string ref (https://github.com/dotnet/roslyn/issues/34874)
                 }
                 catch (MissingMethodException) { invokeMethod = null; }
 

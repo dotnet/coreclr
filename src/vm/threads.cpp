@@ -744,7 +744,7 @@ Thread* SetupThread(BOOL fInternal)
 
 #ifdef FEATURE_INTEROP_DEBUGGING
     // Ensure that debugger word slot is allocated
-    UnsafeTlsSetValue(g_debuggerWordTLSIndex, 0);
+    TlsSetValue(g_debuggerWordTLSIndex, 0);
 #endif
 
     // We now have a Thread object visable to the RS. unmark special status.
@@ -808,13 +808,6 @@ Thread* SetupThread(BOOL fInternal)
         FastInterlockOr((ULONG *) &pThread->m_State, Thread::TS_TPWorkerThread);
     }
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        pThread->QueryThreadProcessorUsage();
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef FEATURE_EVENT_TRACE
     ETW::ThreadLog::FireThreadCreated(pThread);
 #endif // FEATURE_EVENT_TRACE
@@ -864,15 +857,6 @@ void DestroyThread(Thread *th)
     _ASSERTE (th == GetThread());
 
     _ASSERTE(g_fEEShutDown || th->m_dwLockCount == 0 || th->m_fRudeAborted);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        AppDomain* pDomain = th->GetDomain();
-        pDomain->UpdateProcessorUsage(th->QueryThreadProcessorUsage());
-        FireEtwThreadTerminated((ULONGLONG)th, (ULONGLONG)pDomain, GetClrInstanceId());
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     th->FinishSOWork();
 
@@ -965,14 +949,6 @@ HRESULT Thread::DetachThread(BOOL fDLLThreadDetach)
     _ASSERTE ((m_State & Thread::TS_Detached) == 0);
 
     _ASSERTE (this == GetThread());
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM && m_pDomain)
-    {
-        m_pDomain->UpdateProcessorUsage(QueryThreadProcessorUsage());
-        FireEtwThreadTerminated((ULONGLONG)this, (ULONGLONG)m_pDomain, GetClrInstanceId());
-    }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     FinishSOWork();
 
@@ -1129,7 +1105,7 @@ void InitThreadManager()
 #endif // !FEATURE_PAL
 
 #ifdef FEATURE_INTEROP_DEBUGGING
-    g_debuggerWordTLSIndex = UnsafeTlsAlloc();
+    g_debuggerWordTLSIndex = TlsAlloc();
     if (g_debuggerWordTLSIndex == TLS_OUT_OF_INDEXES)
         COMPlusThrowWin32();
 #endif
@@ -1392,9 +1368,9 @@ Thread::Thread()
     m_debuggerCantStop = 0;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     m_dwProfilerEvacuationCounter = 0;
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
     m_pProfilerFilterContext = NULL;
 
@@ -1488,9 +1464,7 @@ Thread::Thread()
 
     m_pPendingTypeLoad = NULL;
 
-#ifdef FEATURE_PREJIT
     m_pIBCInfo = NULL;
-#endif
 
     m_dwAVInRuntimeImplOkayCount = 0;
 
@@ -1555,10 +1529,6 @@ Thread::Thread()
     contextHolder.SuppressRelease();
     savedRedirectContextHolder.SuppressRelease();
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    m_ullProcessorUsageBaseline = 0;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef FEATURE_COMINTEROP
     m_uliInitializeSpyCookie.QuadPart = 0ul;
     m_fInitializeSpyRegistered = false;
@@ -1579,6 +1549,8 @@ Thread::Thread()
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
     m_DeserializationTracker = NULL;
+
+    m_currentPrepareCodeConfig = nullptr;
 }
 
 //--------------------------------------------------------------------
@@ -1825,12 +1797,6 @@ BOOL Thread::HasStarted(BOOL bRequiresTSL)
 
         ThreadStore::TransferStartedThread(this, bRequiresTSL);
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableARM)
-        {
-            QueryThreadProcessorUsage();
-        }
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 #ifdef FEATURE_EVENT_TRACE
         ETW::ThreadLog::FireThreadCreated(this);
 #endif // FEATURE_EVENT_TRACE
@@ -2144,6 +2110,48 @@ HANDLE Thread::CreateUtilityThread(Thread::StackSizeBucket stackSizeBucket, LPTH
 }
 
 
+// Represent the value of DEFAULT_STACK_SIZE as passed in the property bag to the host during construction
+static unsigned long s_defaultStackSizeProperty = 0;
+
+void ParseDefaultStackSize(LPCWSTR valueStr)
+{
+    if (valueStr)
+    {
+        LPWSTR end;
+        errno = 0;
+        unsigned long value = wcstoul(valueStr, &end, 16); // Base 16 without a prefix
+
+        if ((errno == ERANGE)     // Parsed value doesn't fit in an unsigned long
+            || (valueStr == end)  // No characters parsed
+            || (end == nullptr)   // Unexpected condition (should never happen)
+            || (end[0] != 0))     // Unprocessed terminal characters
+        {
+            ThrowHR(E_INVALIDARG);
+        }
+        else
+        {
+            s_defaultStackSizeProperty = value;
+        }
+    }
+}
+
+SIZE_T GetDefaultStackSizeSetting()
+{
+    static DWORD s_defaultStackSizeEnv = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_DefaultStackSize);
+
+    uint64_t value = s_defaultStackSizeEnv ? s_defaultStackSizeEnv : s_defaultStackSizeProperty;
+
+    SIZE_T minStack = 0x10000;     // 64K - Somewhat arbitrary minimum thread stack size
+    SIZE_T maxStack = 0x80000000;  //  2G - Somewhat arbitrary maximum thread stack size
+
+    if ((value >= maxStack) || ((value != 0) && (value < minStack)))
+    {
+        ThrowHR(E_INVALIDARG);
+    }
+
+    return (SIZE_T) value;
+}
+
 BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
 {
     CONTRACTL
@@ -2160,6 +2168,18 @@ BOOL Thread::GetProcessDefaultStackSize(SIZE_T* reserveSize, SIZE_T* commitSize)
     static SIZE_T ExeSizeOfStackCommit = 0;
 
     static BOOL fSizesGot = FALSE;
+
+    if (!fSizesGot)
+    {
+        SIZE_T defaultStackSizeSetting = GetDefaultStackSizeSetting();
+
+        if (defaultStackSizeSetting != 0)
+        {
+            ExeSizeOfStackReserve = defaultStackSizeSetting;
+            ExeSizeOfStackCommit = defaultStackSizeSetting;
+            fSizesGot = TRUE;
+        }
+    }
 
 #ifndef FEATURE_PAL
     if (!fSizesGot)
@@ -2205,6 +2225,11 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     DWORD dwCreationFlags = CREATE_SUSPENDED;
 
     dwCreationFlags |= STACK_SIZE_PARAM_IS_A_RESERVATION;
+
+    if (sizeToCommitOrReserve == 0)
+    {
+        sizeToCommitOrReserve = GetDefaultStackSizeSetting();
+    }
 
 #ifndef FEATURE_PAL // the PAL does its own adjustments as necessary
     if (sizeToCommitOrReserve != 0 && sizeToCommitOrReserve <= GetOsPageSize())
@@ -2605,11 +2630,9 @@ Thread::~Thread()
 
     g_pThinLockThreadIdDispenser->DisposeId(GetThreadId());
 
-#ifdef FEATURE_PREJIT
     if (m_pIBCInfo) {
         delete m_pIBCInfo;
     }
-#endif
 
 #ifdef FEATURE_EVENT_TRACE
     // Destruct the thread local type cache for allocation sampling
@@ -7895,8 +7918,6 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
     CONTRACTL_END;
 
-    FieldDesc *         pFD;
-
     // This is the case when we're building mscorlib and haven't yet created
     // the system assembly.
     if (SystemDomain::System()->SystemAssembly()==NULL || g_fForbidEnterEE) {
@@ -7904,22 +7925,9 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
 
     OBJECTREF pCurrentCulture;
-    if (bUICulture) {
-        // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
-        MethodDescCallSite propGet(METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE);
-        ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
-        pCurrentCulture = ArgSlotToObj(retVal);
-    } else {
-        //This is  faster than calling the property, because this is what the call does anyway.
-        pFD = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CURRENT_CULTURE);
-        _ASSERTE(pFD);
-
-        pFD->CheckRunClassInitThrowing();
-
-        pCurrentCulture = pFD->GetStaticOBJECTREF();
-        _ASSERTE(pCurrentCulture!=NULL);
-    }
-
+    MethodDescCallSite propGet(bUICulture ? METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE : METHOD__CULTURE_INFO__GET_CURRENT_CULTURE);
+    ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
+    pCurrentCulture = ArgSlotToObj(retVal);
     return pCurrentCulture;
 }
 
@@ -8858,56 +8866,6 @@ ThreadStore::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 }
 
 #endif // #ifdef DACCESS_COMPILE
-
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-// For the purposes of tracking resource usage we implement a simple cpu resource usage counter on each
-// thread. Every time QueryThreadProcessorUsage() is invoked it returns the amount of cpu time (a combination
-// of user and kernel mode time) used since the last call to QueryThreadProcessorUsage(). The result is in 100
-// nanosecond units.
-ULONGLONG Thread::QueryThreadProcessorUsage()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // Get current values for the amount of kernel and user time used by this thread over its entire lifetime.
-    FILETIME sCreationTime, sExitTime, sKernelTime, sUserTime;
-    HANDLE hThread = GetThreadHandle();
-    BOOL fResult = GetThreadTimes(hThread,
-                                  &sCreationTime,
-                                  &sExitTime,
-                                  &sKernelTime,
-                                  &sUserTime);
-    if (!fResult)
-    {
-#ifdef _DEBUG
-        ULONG error = GetLastError();
-        printf("GetThreadTimes failed: %d; handle is %p\n", error, hThread);
-        _ASSERTE(FALSE);
-#endif
-        return 0;
-    }
-
-    // Combine the user and kernel times into a single value (FILETIME is just a structure representing an
-    // unsigned int64 in two 32-bit pieces).
-    _ASSERTE(sizeof(FILETIME) == sizeof(UINT64));
-    ULONGLONG ullCurrentUsage = *(ULONGLONG*)&sKernelTime + *(ULONGLONG*)&sUserTime;
-
-    // Store the current processor usage as the new baseline, and retrieve the previous usage.
-    ULONGLONG ullPreviousUsage = VolatileLoad(&m_ullProcessorUsageBaseline);
-    if (ullPreviousUsage >= ullCurrentUsage ||
-        ullPreviousUsage != (ULONGLONG)InterlockedCompareExchange64(
-            (LONGLONG*)&m_ullProcessorUsageBaseline, 
-            (LONGLONG)ullCurrentUsage, 
-            (LONGLONG)ullPreviousUsage))
-    {
-        // another thread beat us to it, and already reported this usage.  
-        return 0; 
-    }
-
-    // The result is the difference between this value and the previous usage value.
-    return ullCurrentUsage - ullPreviousUsage;
-}
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 OBJECTHANDLE Thread::GetOrCreateDeserializationTracker()
 {

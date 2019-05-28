@@ -83,6 +83,8 @@ if(WIN32)
     add_subdirectory(COM/NativeClients/Primitives)
     add_subdirectory(COM/NativeClients/Licensing)
     add_subdirectory(COM/NativeClients/DefaultInterfaces)
+    add_subdirectory(COM/NativeClients/Dispatch)
+    add_subdirectory(WinRT/NativeComponent)
 
     # IJW isn't supported on ARM64
     if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)

@@ -531,16 +531,8 @@ inline HRESULT OutOfMemory()
 //*****************************************************************************
 // Handle accessing localizable resource strings
 //*****************************************************************************
-// NOTE: Should use locale names as much as possible.  LCIDs don't support
-// custom cultures on Vista+.
-// TODO: This should always use the names
-#ifdef FEATURE_USE_LCID    
-typedef LCID LocaleID;
-typedef LCID LocaleIDValue;
-#else
 typedef LPCWSTR LocaleID;
 typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
-#endif
 
 // Notes about the culture callbacks:
 // - The language we're operating in can change at *runtime*!
@@ -556,12 +548,7 @@ typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
 
 // Callback to obtain both the culture name and the culture's parent culture name
 typedef HRESULT (*FPGETTHREADUICULTURENAMES)(__inout StringArrayList* pCultureNames);
-#ifdef FEATURE_USE_LCID
-// Callback to return the culture ID.
-const LCID UICULTUREID_DONTCARE = (LCID)-1;
-#else
 const LPCWSTR UICULTUREID_DONTCARE = NULL;
-#endif
 
 typedef int (*FPGETTHREADUICULTUREID)(LocaleIDValue*);
 
@@ -571,17 +558,8 @@ HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 
 BOOL CLRFreeLibrary(HMODULE hModule);
 
-// Prevent people from using LoadStringRC & LoadStringRCEx from inside the product since it
-// causes issues with having the wrong version picked up inside the shim.
-#define LoadStringRC __error("From inside the CLR, use UtilLoadStringRC; LoadStringRC is only meant to be exported.")
-#define LoadStringRCEx __error("From inside the CLR, use UtilLoadStringRCEx; LoadStringRC is only meant to be exported.")
-
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
-
-#ifdef FEATURE_USE_LCID
-STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
-#endif
 
 // Specify callbacks so that UtilLoadStringRC can find out which language we're in.
 // If no callbacks specified (or both parameters are NULL), we default to the
@@ -647,12 +625,8 @@ public:
         _ASSERTE(m_hInst != NULL || m_fMissing);
         if (id == UICULTUREID_DONTCARE)
             return FALSE;
-        
-#ifdef FEATURE_USE_LCID
-        return id == m_LangId;
-#else
+
         return wcscmp(id, m_LangId) == 0;
-#endif
     }
     
     HRESOURCEDLL GetLibraryHandle()
@@ -687,9 +661,6 @@ public:
   private:
     void SetId(LocaleID id)
     {
-#ifdef FEATURE_USE_LCID
-        m_LangId = id;
-#else
         if (id != UICULTUREID_DONTCARE)
         {
             wcsncpy_s(m_LangId, NumItems(m_LangId), id, NumItems(m_LangId));
@@ -699,7 +670,6 @@ public:
         {
             m_LangId[0] = W('\0');
         }
-#endif
     }
  };
 
@@ -1899,12 +1869,12 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(iIndex < m_iCount);
-        return ((void *) ((size_t) Ptr() + (iIndex * m_iElemSize)));
+        return (BYTE*) Ptr() + (iIndex * (size_t)m_iElemSize);
     }
-    int Size()
+    size_t Size()
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_iCount * m_iElemSize);
+        return (m_iCount * (size_t)m_iElemSize);
     }
     int Count()
     {
@@ -2408,7 +2378,7 @@ protected:
     HASHENTRY *EntryPtr(ULONG iEntry)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (PTR_HASHENTRY(m_pcEntries + (iEntry * m_iEntrySize)));
+        return (PTR_HASHENTRY(m_pcEntries + (iEntry * (size_t)m_iEntrySize)));
     }
 
     ULONG     ItemIndex(HASHENTRY *p)
@@ -2859,7 +2829,7 @@ void CHashTableAndData<MemMgr>::InitFreeChain(
     BYTE* pcPtr;
     _ASSERTE(iEnd > iStart);
 
-    pcPtr = (BYTE*)m_pcEntries + iStart * m_iEntrySize;
+    pcPtr = (BYTE*)m_pcEntries + iStart * (size_t)m_iEntrySize;
     for (++iStart; iStart < iEnd; ++iStart)
     {
         ((FREEHASHENTRY *) pcPtr)->iFree = iStart;
@@ -3117,13 +3087,13 @@ class CClosedHashBase
     BYTE *EntryPtr(int iEntry)
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_rgData + (iEntry * m_iEntrySize));
+        return (m_rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
     BYTE *EntryPtr(int iEntry, BYTE *rgData)
     {
         LIMITED_METHOD_CONTRACT;
-        return (rgData + (iEntry * m_iEntrySize));
+        return (rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
 public:
