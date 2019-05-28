@@ -16,7 +16,6 @@ endif()
 # Include global configure settings
 include(${CMAKE_CURRENT_SOURCE_DIR}/../configure.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configureoptimization.cmake)
 # Compile options
 
 if (WIN32)

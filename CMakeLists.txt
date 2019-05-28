@@ -143,7 +143,6 @@ endif(WIN32)
 # Configure compiler settings for environment
 #----------------------------------------------------
 include(configurecompiler.cmake)
-include(configureoptimization.cmake)
 
 #----------------------------------------------------
 # Cross target Component build specific configuration
