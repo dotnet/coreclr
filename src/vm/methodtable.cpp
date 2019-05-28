@@ -513,7 +513,7 @@ BOOL MethodTable::ValidateWithPossibleAV()
 #ifndef DACCESS_COMPILE
 
 //==========================================================================================
-BOOL  MethodTable::IsClassInited(AppDomain* pAppDomain /* = NULL */)
+BOOL  MethodTable::IsClassInited()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -523,15 +523,7 @@ BOOL  MethodTable::IsClassInited(AppDomain* pAppDomain /* = NULL */)
     if (IsSharedByGenericInstantiations())
         return FALSE;
 
-    DomainLocalModule *pLocalModule;
-    if (pAppDomain == NULL)
-    {
-        pLocalModule = GetDomainLocalModule();
-    }
-    else
-    {
-        pLocalModule = GetDomainLocalModule(pAppDomain);
-    }
+    DomainLocalModule *pLocalModule = GetDomainLocalModule();
 
     _ASSERTE(pLocalModule != NULL);
 
@@ -5270,8 +5262,6 @@ void MethodTableWriteableData::Fixup(DataImage *image, MethodTable *pMT, BOOL ne
 
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
-#ifdef FEATURE_PREJIT
-
 //==========================================================================================
 void MethodTable::CheckRestore()
 {
@@ -5290,15 +5280,6 @@ void MethodTable::CheckRestore()
 
     g_IBCLogger.LogMethodTableAccess(this);
 }
-
-#else // !FEATURE_PREJIT
-//==========================================================================================
-void MethodTable::CheckRestore()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-#endif // !FEATURE_PREJIT
-
 
 #ifndef DACCESS_COMPILE
 
@@ -8463,7 +8444,9 @@ InteropMethodTableData *MethodTable::CreateComInteropData(AllocMemTracker *pamTr
         PRECONDITION(GetParentMethodTable() == NULL || GetParentMethodTable()->LookupComInteropData() != NULL);
     } CONTRACTL_END;
 
-    ClassCompat::MethodTableBuilder builder(this);
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
+
+    ClassCompat::MethodTableBuilder builder(this, pStackingAllocator);
 
     InteropMethodTableData *pData = builder.BuildInteropVTable(pamTracker);
     _ASSERTE(pData);

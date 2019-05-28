@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-#nullable enable
 using System.Reflection;
 using EventMetadata = System.Diagnostics.Tracing.EventSource.EventMetadata;
 
@@ -20,7 +19,7 @@ namespace System.Diagnostics.Tracing
             EventParameterInfo[] eventParams = new EventParameterInfo[parameters.Length];
             for(int i = 0; i < parameters.Length; i++)
             {
-                eventParams[i].SetInfo(parameters[i].Name, parameters[i].ParameterType);
+                eventParams[i].SetInfo(parameters[i].Name!, parameters[i].ParameterType);
             }
 
             return GenerateMetadata(

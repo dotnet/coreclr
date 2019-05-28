@@ -112,9 +112,9 @@ static BOOL CheckCAVisibilityFromDecoratedType(MethodTable* pCAMT, MethodDesc* p
 }
 
 BOOL QCALLTYPE RuntimeMethodHandle::IsCAVisibleFromDecoratedType(
-    EnregisteredTypeHandle  targetTypeHandle,
+    QCall::TypeHandle       targetTypeHandle,
     MethodDesc *            pTargetCtor,
-    EnregisteredTypeHandle  sourceTypeHandle,
+    QCall::TypeHandle       sourceTypeHandle,
     QCall::ModuleHandle     sourceModuleHandle)
 {
     QCALL_CONTRACT;
@@ -122,8 +122,8 @@ BOOL QCALLTYPE RuntimeMethodHandle::IsCAVisibleFromDecoratedType(
     BOOL bResult = TRUE;
 
     BEGIN_QCALL;
-    TypeHandle sourceHandle = TypeHandle::FromPtr(sourceTypeHandle);
-    TypeHandle targetHandle = TypeHandle::FromPtr(targetTypeHandle);
+    TypeHandle sourceHandle = sourceTypeHandle.AsTypeHandle();
+    TypeHandle targetHandle = targetTypeHandle.AsTypeHandle();
 
     _ASSERTE((sourceHandle.IsNull() || !sourceHandle.IsTypeDesc()) &&
              !targetHandle.IsNull() &&
@@ -169,7 +169,7 @@ NOINLINE ReflectModuleBaseObject* GetRuntimeModuleHelper(LPVOID __me, Module *pM
     if (pModule == NULL)
         return NULL;
     
-    DomainFile * pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile * pDomainFile = pModule->GetDomainFile();
 
     OBJECTREF refModule = (pDomainFile != NULL) ? pDomainFile->GetExposedModuleObjectIfExists() : NULL;
 
@@ -500,13 +500,10 @@ FCIMPL1(AssemblyBaseObject*, RuntimeTypeHandle::GetAssembly, ReflectClassBaseObj
     if (refType == NULL)
         FCThrowRes(kArgumentNullException, W("Arg_InvalidHandle"));
 
-    DomainFile *pDomainFile = NULL;
-    
-        Module *pModule = refType->GetType().GetAssembly()->GetManifestModule();
+    Module *pModule = refType->GetType().GetAssembly()->GetManifestModule();
+    DomainAssembly *pDomainAssembly = pModule->GetDomainAssembly();
 
-            pDomainFile = pModule->FindDomainFile(GetAppDomain());
-
-    FC_RETURN_ASSEMBLY_OBJECT((DomainAssembly *)pDomainFile, refType);
+    FC_RETURN_ASSEMBLY_OBJECT(pDomainAssembly, refType);
 }
 FCIMPLEND
 
@@ -730,14 +727,14 @@ void QCALLTYPE RuntimeMethodHandle::ConstructInstantiation(MethodDesc * pMethod,
     END_QCALL;
 }
 
-void QCALLTYPE RuntimeTypeHandle::ConstructName(EnregisteredTypeHandle pTypeHandle, DWORD format, QCall::StringHandleOnStack retString)
+void QCALLTYPE RuntimeTypeHandle::ConstructName(QCall::TypeHandle pTypeHandle, DWORD format, QCall::StringHandleOnStack retString)
 {
     QCALL_CONTRACT;
       
     BEGIN_QCALL;
 
     StackSString ss;    
-    TypeString::AppendType(ss, TypeHandle::FromPtr(pTypeHandle), format);
+    TypeString::AppendType(ss, pTypeHandle.AsTypeHandle(), format);
     retString.Set(ss);
 
     END_QCALL;
@@ -767,7 +764,7 @@ PTRARRAYREF CopyRuntimeTypeHandles(TypeHandle * prgTH, FixupPointer<TypeHandle> 
     GCPROTECT_BEGIN(refArray);
     TypeHandle thRuntimeType = TypeHandle(MscorlibBinder::GetClass(arrayElemType));
     TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(thRuntimeType, ELEMENT_TYPE_SZARRAY);
-    refArray = (PTRARRAYREF)AllocateArrayEx(arrayHandle, &numTypeHandles, 1);
+    refArray = (PTRARRAYREF)AllocateSzArray(arrayHandle, numTypeHandles);
 
     for (INT32 i = 0; i < numTypeHandles; i++)
     {
@@ -788,7 +785,7 @@ PTRARRAYREF CopyRuntimeTypeHandles(TypeHandle * prgTH, FixupPointer<TypeHandle> 
     return refReturn;
 }
 
-void QCALLTYPE RuntimeTypeHandle::GetConstraints(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retTypeArray)
+void QCALLTYPE RuntimeTypeHandle::GetConstraints(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retTypeArray)
 {
     QCALL_CONTRACT;
 
@@ -796,7 +793,7 @@ void QCALLTYPE RuntimeTypeHandle::GetConstraints(EnregisteredTypeHandle pTypeHan
     
     BEGIN_QCALL;
     
-    TypeHandle typeHandle = TypeHandle::FromPtr(pTypeHandle);
+    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
     
     if (!typeHandle.IsGenericVariable())
         COMPlusThrow(kArgumentException, W("Arg_InvalidHandle"));
@@ -855,7 +852,7 @@ FCIMPL1(PtrArray*, RuntimeTypeHandle::GetInterfaces, ReflectClassBaseObject *pTy
         if (ifaceCount > 0)
         {            
             TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pRuntimeTypeClass), ELEMENT_TYPE_SZARRAY);
-            refRetVal = (PTRARRAYREF)AllocateArrayEx(arrayHandle, &ifaceCount, 1);
+            refRetVal = (PTRARRAYREF)AllocateSzArray(arrayHandle, ifaceCount);
         
             // populate type array
             UINT i = 0;
@@ -968,7 +965,7 @@ FCIMPLEND
 BOOL 
 QCALLTYPE 
 RuntimeTypeHandle::IsVisible(
-    EnregisteredTypeHandle pTypeHandle)
+    QCall::TypeHandle pTypeHandle)
 {
     CONTRACTL
     {
@@ -980,7 +977,7 @@ RuntimeTypeHandle::IsVisible(
     
     BEGIN_QCALL;
     
-    TypeHandle typeHandle = TypeHandle::FromPtr(pTypeHandle);
+    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
 
     _ASSERTE(!typeHandle.IsNull());
     
@@ -1092,7 +1089,7 @@ FCIMPL1(INT32, RuntimeTypeHandle::GetToken, ReflectClassBaseObject *pTypeUNSAFE)
 }
 FCIMPLEND
 
-PVOID QCALLTYPE RuntimeTypeHandle::GetGCHandle(EnregisteredTypeHandle pTypeHandle, INT32 handleType)
+PVOID QCALLTYPE RuntimeTypeHandle::GetGCHandle(QCall::TypeHandle pTypeHandle, INT32 handleType)
 {
     QCALL_CONTRACT;
     
@@ -1102,7 +1099,7 @@ PVOID QCALLTYPE RuntimeTypeHandle::GetGCHandle(EnregisteredTypeHandle pTypeHandl
     
     GCX_COOP();
 
-    TypeHandle th = TypeHandle::FromPtr(pTypeHandle);
+    TypeHandle th = pTypeHandle.AsTypeHandle();
     assert(handleType >= HNDTYPE_WEAK_SHORT && handleType <= HNDTYPE_WEAK_WINRT);
     objHandle = AppDomain::GetCurrentDomain()->CreateTypedHandle(NULL, static_cast<HandleType>(handleType));
     th.GetLoaderAllocator()->RegisterHandleForCleanup(objHandle);
@@ -1112,14 +1109,14 @@ PVOID QCALLTYPE RuntimeTypeHandle::GetGCHandle(EnregisteredTypeHandle pTypeHandl
     return objHandle;
 }
 
-void QCALLTYPE RuntimeTypeHandle::VerifyInterfaceIsImplemented(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pIFaceHandle)
+void QCALLTYPE RuntimeTypeHandle::VerifyInterfaceIsImplemented(QCall::TypeHandle pTypeHandle, QCall::TypeHandle pIFaceHandle)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
 
-    TypeHandle typeHandle = TypeHandle::FromPtr(pTypeHandle);
-    TypeHandle ifaceHandle = TypeHandle::FromPtr(pIFaceHandle);
+    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
+    TypeHandle ifaceHandle = pIFaceHandle.AsTypeHandle();
 
     if (typeHandle.IsGenericVariable())
         COMPlusThrow(kArgumentException, W("Arg_InvalidHandle"));
@@ -1149,7 +1146,7 @@ void QCALLTYPE RuntimeTypeHandle::VerifyInterfaceIsImplemented(EnregisteredTypeH
     END_QCALL;
 }
 
-MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(EnregisteredTypeHandle pTypeHandle, EnregisteredTypeHandle pOwner, MethodDesc * pMD)
+MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(QCall::TypeHandle pTypeHandle, QCall::TypeHandle pOwner, MethodDesc * pMD)
 {
     QCALL_CONTRACT;
 
@@ -1157,8 +1154,8 @@ MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(Enregi
 
     BEGIN_QCALL;
 
-    TypeHandle typeHandle = TypeHandle::FromPtr(pTypeHandle);
-    TypeHandle thOwnerOfMD = TypeHandle::FromPtr(pOwner);
+    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
+    TypeHandle thOwnerOfMD = pOwner.AsTypeHandle();
 
         // Ok to have INVALID_SLOT in the case where abstract class does not implement an interface method.
         // This case can not be reproed using C# "implements" all interface methods
@@ -1174,7 +1171,7 @@ MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(Enregi
     return pResult;
     }
     
-void QCALLTYPE RuntimeTypeHandle::GetDefaultConstructor(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retMethod)
+void QCALLTYPE RuntimeTypeHandle::GetDefaultConstructor(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retMethod)
 {
     QCALL_CONTRACT;
 
@@ -1182,7 +1179,7 @@ void QCALLTYPE RuntimeTypeHandle::GetDefaultConstructor(EnregisteredTypeHandle p
     
     MethodDesc* pCtor = NULL;
     
-    TypeHandle typeHandle = TypeHandle::FromPtr(pTypeHandle);
+    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
 
     if (!typeHandle.IsTypeDesc())
     {
@@ -1501,13 +1498,13 @@ FCIMPL6(FC_BOOL_RET, RuntimeTypeHandle::SatisfiesConstraints, PTR_ReflectClassBa
 }
 FCIMPLEND
 
-void QCALLTYPE RuntimeTypeHandle::GetInstantiation(EnregisteredTypeHandle pType, QCall::ObjectHandleOnStack retTypes, BOOL fAsRuntimeTypeArray)
+void QCALLTYPE RuntimeTypeHandle::GetInstantiation(QCall::TypeHandle pType, QCall::ObjectHandleOnStack retTypes, BOOL fAsRuntimeTypeArray)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
 
-    TypeHandle typeHandle = TypeHandle::FromPtr(pType);
+    TypeHandle typeHandle = pType.AsTypeHandle();
     Instantiation inst = typeHandle.GetInstantiation();
     GCX_COOP();
     retTypes.Set(CopyRuntimeTypeHandles(NULL, inst.GetRawArgs(), inst.GetNumArgs(), fAsRuntimeTypeArray ? CLASS__CLASS : CLASS__TYPE));
@@ -1516,14 +1513,14 @@ void QCALLTYPE RuntimeTypeHandle::GetInstantiation(EnregisteredTypeHandle pType,
     return;
 }
 
-void QCALLTYPE RuntimeTypeHandle::MakeArray(EnregisteredTypeHandle pTypeHandle, INT32 rank, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE RuntimeTypeHandle::MakeArray(QCall::TypeHandle pTypeHandle, INT32 rank, QCall::ObjectHandleOnStack retType)
 {
     QCALL_CONTRACT;
 
     TypeHandle arrayHandle;
     
     BEGIN_QCALL;
-    arrayHandle = TypeHandle::FromPtr(pTypeHandle).MakeArray(rank);
+    arrayHandle = pTypeHandle.AsTypeHandle().MakeArray(rank);
     GCX_COOP();
     retType.Set(arrayHandle.GetManagedClassObject());
     END_QCALL;
@@ -1531,14 +1528,14 @@ void QCALLTYPE RuntimeTypeHandle::MakeArray(EnregisteredTypeHandle pTypeHandle, 
     return;
 }
 
-void QCALLTYPE RuntimeTypeHandle::MakeSZArray(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE RuntimeTypeHandle::MakeSZArray(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
 {
     QCALL_CONTRACT;
     
     TypeHandle arrayHandle;
     
     BEGIN_QCALL;
-    arrayHandle = TypeHandle::FromPtr(pTypeHandle).MakeSZArray();
+    arrayHandle = pTypeHandle.AsTypeHandle().MakeSZArray();
     GCX_COOP();
     retType.Set(arrayHandle.GetManagedClassObject());
     END_QCALL;
@@ -1546,14 +1543,14 @@ void QCALLTYPE RuntimeTypeHandle::MakeSZArray(EnregisteredTypeHandle pTypeHandle
     return;
 }
 
-void QCALLTYPE RuntimeTypeHandle::MakePointer(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE RuntimeTypeHandle::MakePointer(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
 {
     QCALL_CONTRACT;
     
     TypeHandle pointerHandle;
     
     BEGIN_QCALL;
-    pointerHandle = TypeHandle::FromPtr(pTypeHandle).MakePointer();
+    pointerHandle = pTypeHandle.AsTypeHandle().MakePointer();
     GCX_COOP();
     retType.Set(pointerHandle.GetManagedClassObject());
     END_QCALL;
@@ -1561,14 +1558,14 @@ void QCALLTYPE RuntimeTypeHandle::MakePointer(EnregisteredTypeHandle pTypeHandle
     return;
 }
 
-void QCALLTYPE RuntimeTypeHandle::MakeByRef(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE RuntimeTypeHandle::MakeByRef(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
 {
     QCALL_CONTRACT;
     
     TypeHandle byRefHandle;
     
     BEGIN_QCALL;
-    byRefHandle = TypeHandle::FromPtr(pTypeHandle).MakeByRef();
+    byRefHandle = pTypeHandle.AsTypeHandle().MakeByRef();
     GCX_COOP();
     retType.Set(byRefHandle.GetManagedClassObject());
     END_QCALL;
@@ -1576,27 +1573,27 @@ void QCALLTYPE RuntimeTypeHandle::MakeByRef(EnregisteredTypeHandle pTypeHandle, 
     return;
 }
 
-BOOL QCALLTYPE RuntimeTypeHandle::IsCollectible(EnregisteredTypeHandle pTypeHandle)
+BOOL QCALLTYPE RuntimeTypeHandle::IsCollectible(QCall::TypeHandle pTypeHandle)
 {
     QCALL_CONTRACT;
 
     BOOL retVal = FALSE;
 
     BEGIN_QCALL;
-    retVal = TypeHandle::FromPtr(pTypeHandle).GetLoaderAllocator()->IsCollectible();
+    retVal = pTypeHandle.AsTypeHandle().GetLoaderAllocator()->IsCollectible();
     END_QCALL;
 
     return retVal;
 }
     
-void QCALLTYPE RuntimeTypeHandle::Instantiate(EnregisteredTypeHandle pTypeHandle, TypeHandle * pInstArray, INT32 cInstArray, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE RuntimeTypeHandle::Instantiate(QCall::TypeHandle pTypeHandle, TypeHandle * pInstArray, INT32 cInstArray, QCall::ObjectHandleOnStack retType)
 {
     QCALL_CONTRACT;
     
     TypeHandle type;
 
     BEGIN_QCALL;
-    type = TypeHandle::FromPtr(pTypeHandle).Instantiate(Instantiation(pInstArray, cInstArray));
+    type = pTypeHandle.AsTypeHandle().Instantiate(Instantiation(pInstArray, cInstArray));
     GCX_COOP();
     retType.Set(type.GetManagedClassObject());
     END_QCALL;
@@ -1604,7 +1601,7 @@ void QCALLTYPE RuntimeTypeHandle::Instantiate(EnregisteredTypeHandle pTypeHandle
     return;
 }
 
-void QCALLTYPE RuntimeTypeHandle::GetGenericTypeDefinition(EnregisteredTypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
+void QCALLTYPE RuntimeTypeHandle::GetGenericTypeDefinition(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retType)
 {
     QCALL_CONTRACT;
     
@@ -1612,7 +1609,7 @@ void QCALLTYPE RuntimeTypeHandle::GetGenericTypeDefinition(EnregisteredTypeHandl
     
     BEGIN_QCALL;
     
-    TypeHandle genericType = TypeHandle::FromPtr(pTypeHandle);
+    TypeHandle genericType = pTypeHandle.AsTypeHandle();
 
     typeDef = ClassLoader::LoadTypeDefThrowing(genericType.GetModule(), 
                                                        genericType.GetMethodTable()->GetCl(),
@@ -1960,7 +1957,7 @@ FCIMPL3(Object *, SignatureNative::GetCustomModifiers, SignatureNative* pSignatu
         MethodTable *pMT = MscorlibBinder::GetClass(CLASS__TYPE);
         TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(pMT), ELEMENT_TYPE_SZARRAY);
 
-        gc.retVal = (PTRARRAYREF) AllocateArrayEx(arrayHandle, &cMods, 1);
+        gc.retVal = (PTRARRAYREF) AllocateSzArray(arrayHandle, cMods);
 
         while(cMods != 0)
         {
@@ -2110,7 +2107,7 @@ FCIMPL6(void, SignatureNative::GetSignature,
             INT32 nArgs = msig.NumFixedArgs();
             TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(TypeHandle(g_pRuntimeTypeClass), ELEMENT_TYPE_SZARRAY);
 
-            PTRARRAYREF ptrArrayarguments = (PTRARRAYREF) AllocateArrayEx(arrayHandle, &nArgs, 1);
+            PTRARRAYREF ptrArrayarguments = (PTRARRAYREF) AllocateSzArray(arrayHandle, nArgs);
             gc.pSig->SetArgumentArray(ptrArrayarguments);
 
             for (INT32 i = 0; i < nArgs; i++) 
@@ -2512,7 +2509,7 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
             // Allocate the array of exception clauses.
             INT32 cEh = (INT32)header.EHCount();
             const COR_ILMETHOD_SECT_EH* ehInfo = header.EH;
-            gc.TempArray = (BASEARRAYREF) AllocateArrayEx(thEHClauseArray, &cEh, 1);
+            gc.TempArray = (BASEARRAYREF) AllocateSzArray(thEHClauseArray, cEh);
 
             SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_exceptionClauses, gc.TempArray);
             
@@ -2548,7 +2545,7 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
                                 &sigTypeContext, 
                                 MetaSig::sigLocalVars);
                 INT32 cLocals = metaSig.NumFixedArgs();
-                gc.TempArray  = (BASEARRAYREF) AllocateArrayEx(thLocalVariableArray, &cLocals, 1);
+                gc.TempArray  = (BASEARRAYREF) AllocateSzArray(thLocalVariableArray, cLocals);
                 SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray);
 
                 for (INT32 i = 0; i < cLocals; i ++)
@@ -2573,7 +2570,7 @@ FCIMPL2(RuntimeMethodBody *, RuntimeMethodHandle::GetMethodBody, ReflectMethodOb
             else
             {
                 INT32 cLocals = 0;
-                gc.TempArray  = (BASEARRAYREF) AllocateArrayEx(thLocalVariableArray, &cLocals, 1);
+                gc.TempArray  = (BASEARRAYREF) AllocateSzArray(thLocalVariableArray, cLocals);
                 SetObjectReference((OBJECTREF*)&gc.MethodBodyObj->_localVariables, gc.TempArray);
             }
         }
@@ -2761,7 +2758,7 @@ FCIMPL1(ReflectModuleBaseObject*, AssemblyHandle::GetManifestModule, AssemblyBas
         return NULL;
 
     Module *pModule = currentAssembly->GetManifestModule();
-    DomainFile * pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile * pDomainFile = pModule->GetDomainFile();
 
 #ifdef _DEBUG
     OBJECTREF orModule;

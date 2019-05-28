@@ -243,7 +243,7 @@ ULONG GetExceptionMessage(OBJECTREF throwable,
 
 //-----------------------------------------------------------------------------
 // Given an object, get the "message" from it.  If the object is an Exception
-//  call Exception.InternalToString, otherwise, call Object.ToString
+//  call Exception.ToString, otherwise, call Object.ToString
 //-----------------------------------------------------------------------------
 void GetExceptionMessage(OBJECTREF throwable, SString &result)
 {
@@ -339,23 +339,13 @@ STRINGREF GetExceptionMessage(OBJECTREF throwable)
     if (throwable == NULL)
         return NULL;
 
-    // Assume we're calling Exception.InternalToString() ...
-    BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
-
-    // ... but if it isn't an exception, call Object.ToString().
-    _ASSERTE(IsException(throwable->GetMethodTable()));        // what is the pathway here?
-    if (!IsException(throwable->GetMethodTable()))
-    {
-        sigID = METHOD__OBJECT__TO_STRING;
-    }
-
     // Return value.
     STRINGREF pString = NULL;
 
     GCPROTECT_BEGIN(throwable);
 
-    // Get the MethodDesc on which we'll call.
-    MethodDescCallSite toString(sigID, &throwable);
+    // Call Object.ToString(). Note that exceptions do not have to inherit from System.Exception
+    MethodDescCallSite toString(METHOD__OBJECT__TO_STRING, &throwable);
 
     // Make the call.
     ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -497,12 +487,8 @@ void ExceptionPreserveStackTrace(   // No return.
     {
         LOG((LF_EH, LL_INFO1000, "ExceptionPreserveStackTrace called\n"));
 
-        // We're calling Exception.InternalPreserveStackTrace() ...
-        BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE;
-
-
-        // Get the MethodDesc on which we'll call.
-        MethodDescCallSite preserveStackTrace(sigID, &throwable);
+        // Call Exception.InternalPreserveStackTrace() ...
+        MethodDescCallSite preserveStackTrace(METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE, &throwable);
 
         // Make the call.
         ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -4205,19 +4191,6 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
     switch (tore.GetType())
     {
         case TypeOfReportedError::FatalError:
-            #ifdef MDA_SUPPORTED
-            {
-                MdaFatalExecutionEngineError * pMDA = MDA_GET_ASSISTANT_EX(FatalExecutionEngineError);
-
-                if ((pMDA != NULL) && (pExceptionInfo != NULL) && (pExceptionInfo->ExceptionRecord != NULL))
-                {
-                    TADDR addr = (TADDR) pExceptionInfo->ExceptionRecord->ExceptionAddress;
-                    HRESULT hrError = pExceptionInfo->ExceptionRecord->ExceptionCode;
-                    pMDA->ReportFEEE(addr, hrError);
-                }
-            }
-            #endif // MDA_SUPPORTED
-
             if (pThread != NULL)
             {
                 NotifyDebuggerLastChance(pThread, pExceptionInfo, jitAttachRequested);
@@ -7988,7 +7961,7 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
     // in-proc helper thread to work. What it does is continue the exception unhandled which
     // will let the thread immediately execute to this point. Inside this worker the thread
     // will block until the debugger knows how to continue the exception. If it decides the
-    // exception was handled then we immediately resume execution as if the exeption had never
+    // exception was handled then we immediately resume execution as if the exception had never
     // even been allowed to run into this handler. If it is unhandled then we keep processing
     // this handler
     //
@@ -12821,7 +12794,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrow(RuntimeExceptionKind reKind, LPCWSTR wsz
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCWSTR pFullTypeName,
                                               LPCWSTR pAssemblyName,
@@ -12960,7 +12933,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowArgumentException(LPCWSTR argName, LPCWST
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCUTF8 pszNameSpace,
                                               LPCUTF8 pTypeName,

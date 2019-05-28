@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-#nullable enable
 using System;
 using System.Runtime.CompilerServices;
 using System.Collections.ObjectModel;
@@ -42,7 +41,7 @@ namespace System.Diagnostics.Tracing
         private static extern bool IsEventSourceLoggingEnabled();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void LogEventSource(int eventID, string eventName, string eventSourceName, string payload);
+        private static extern void LogEventSource(int eventID, string? eventName, string eventSourceName, string payload);
 
         static List<char> escape_seq = new List<char> { '\b', '\f', '\n', '\r', '\t', '\"', '\\' };
         static Dictionary<char, string> seq_mapping = new Dictionary<char, string>()
@@ -72,7 +71,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private static string Serialize(ReadOnlyCollection<string>? payloadName, ReadOnlyCollection<object> payload, string? eventMessage)
+        private static string Serialize(ReadOnlyCollection<string>? payloadName, ReadOnlyCollection<object?>? payload, string? eventMessage)
         {
             if (payloadName == null || payload == null)
                 return string.Empty;
@@ -133,7 +132,7 @@ namespace System.Diagnostics.Tracing
                     {
                         if(payload[i] != null)
                         {
-                            sb.Append(payload[i].ToString());
+                            sb.Append(payload[i]!.ToString()); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                         }
                         break;
                     }
@@ -176,7 +175,7 @@ namespace System.Diagnostics.Tracing
         internal protected override void OnEventWritten(EventWrittenEventArgs eventData)
         {
             string? eventFilter = eventSourceEventFilter.Value;
-            if (string.IsNullOrEmpty(eventFilter) || (eventData.EventName.IndexOf(eventFilter, StringComparison.OrdinalIgnoreCase) >= 0))
+            if (string.IsNullOrEmpty(eventFilter) || (eventData.EventName!.IndexOf(eventFilter, StringComparison.OrdinalIgnoreCase) >= 0))
             {
                 LogOnEventWritten(eventData);
             }

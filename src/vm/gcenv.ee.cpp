@@ -454,7 +454,9 @@ DWORD WINAPI BackgroundThreadStub(void* arg)
 //
 
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-inline BOOL ShouldTrackMovementForProfilerOrEtw()
+
+// Tracks all surviving objects (moved or otherwise).
+inline bool ShouldTrackSurvivorsForProfilerOrEtw()
 {
 #ifdef GC_PROFILING
     if (CORProfilerTrackGC())
@@ -466,6 +468,16 @@ inline BOOL ShouldTrackMovementForProfilerOrEtw()
         return true;
 #endif
 
+    return false;
+}
+
+// Only tracks surviving objects in compacting GCs (moved or otherwise).
+inline bool ShouldTrackSurvivorsInCompactingGCsForProfiler()
+{
+#ifdef GC_PROFILING
+    if (CORProfilerTrackGCMovedObjects())
+        return true;
+#endif
     return false;
 }
 #endif // defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
@@ -788,10 +800,11 @@ void WalkMovedReferences(uint8_t* begin, uint8_t* end,
                                !fBGC);
 }
 
-void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
+void GCToEEInterface::DiagWalkSurvivors(void* gcContext, bool fCompacting)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw() ||
+        (fCompacting && ShouldTrackSurvivorsInCompactingGCsForProfiler()))
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -804,7 +817,7 @@ void GCToEEInterface::DiagWalkSurvivors(void* gcContext)
 void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw())
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -817,7 +830,7 @@ void GCToEEInterface::DiagWalkLOHSurvivors(void* gcContext)
 void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 {
 #if defined(GC_PROFILING) || defined(FEATURE_EVENT_TRACE)
-    if (ShouldTrackMovementForProfilerOrEtw())
+    if (ShouldTrackSurvivorsForProfilerOrEtw())
     {
         size_t context = 0;
         ETW::GCLog::BeginMovedReferences(&context);
@@ -998,15 +1011,6 @@ void GCToEEInterface::EnableFinalization(bool foundFinalizers)
 void GCToEEInterface::HandleFatalError(unsigned int exitCode)
 {
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
-}
-
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
-{
-    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
-    // choose to inspect the object being finalized here.
-    // [DESKTOP TODO] Desktop looks for "agile and finalizable" objects and may choose
-    // to move them to a new app domain instead of finalizing them here.
-    return true;
 }
 
 bool GCToEEInterface::EagerFinalized(Object* obj)
@@ -1473,34 +1477,6 @@ IGCToCLREventSink* GCToEEInterface::EventSink()
     return &g_gcToClrEventSink;
 }
 
-uint32_t GCToEEInterface::GetDefaultDomainIndex()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return DefaultADID;
-}
-
-void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return ::GetAppDomain();
-}
-
-bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return appDomainID == DefaultADID;
-}
-
-uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return 0xFFFFFFFF;
-}
-
 uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1508,13 +1484,6 @@ uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
     return SystemDomain::System()->GetTotalNumSizedRefHandles();
 }
 
-
-bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return false;
-}
 
 bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
@@ -1561,7 +1530,7 @@ void GCToEEInterface::VerifySyncTableEntry()
 
 void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPublicKeywords, int currentPrivateLevel, int currentPrivateKeywords)
 {
-#if defined(__linux__)
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
     LIMITED_METHOD_CONTRACT;
     // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
     // somehow implement a similar behavior to it. 
@@ -1572,15 +1541,15 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
     // Refer to the comments in src/vm/gcenv.ee.h next to the EXTERN C definitions to see which events are enabled.
 
     // WARNING: To change an event's GC level, perfcollect script needs to be updated simultaneously to reflect it.
-    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2();
-    BOOL keyword_gc_informational = EventXplatEnabledGCStart();
+    BOOL keyword_gc_verbose = EventXplatEnabledGCJoin_V2() || EventPipeEventEnabledGCJoin_V2();
+    BOOL keyword_gc_informational = EventXplatEnabledGCStart() || EventPipeEventEnabledGCStart();
 
-    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange();
-    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle();
-    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle();
+    BOOL keyword_gc_heapsurvival_and_movement_informational = EventXplatEnabledGCGenerationRange() || EventPipeEventEnabledGCGenerationRange();
+    BOOL keyword_gchandle_informational = EventXplatEnabledSetGCHandle() || EventPipeEventEnabledSetGCHandle();
+    BOOL keyword_gchandle_prv_informational = EventXplatEnabledPrvSetGCHandle() || EventPipeEventEnabledPrvSetGCHandle();
 
-    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin();
-    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime();
+    BOOL prv_gcprv_informational = EventXplatEnabledBGCBegin() || EventPipeEventEnabledBGCBegin();
+    BOOL prv_gcprv_verbose = EventXplatEnabledPinPlugAtGCTime() || EventPipeEventEnabledPinPlugAtGCTime();
 
     int publicProviderLevel = keyword_gc_verbose ? GCEventLevel_Verbose : (keyword_gc_informational ? GCEventLevel_Information : GCEventLevel_None);
     int publicProviderKeywords = (keyword_gc_informational ? GCEventKeyword_GC : GCEventKeyword_None) | 
@@ -1603,5 +1572,5 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
         GCEventKeyword privateKeywords = static_cast<GCEventKeyword>(privateProviderKeywords);
         GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
     }
-#endif // __linux__
+#endif // __linux__ && FEATURE_EVENT_TRACE
 }

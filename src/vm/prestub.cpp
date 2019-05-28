@@ -36,8 +36,6 @@
 #include "clrtocomcall.h"
 #endif
 
-#include "mdaassistants.h"
-
 #ifdef FEATURE_STACK_SAMPLING
 #include "stacksampler.h"
 #endif
@@ -376,10 +374,10 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
         if (!g_pConfig->TieredCompilation_QuickJit() &&
             IsEligibleForTieredCompilation() &&
             pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-            CallCounter::IsEligibleForTier0CallCounting(this))
+            CallCounter::IsEligibleForCallCounting(this))
         {
-            GetCallCounter()->DisableTier0CallCounting(this);
-            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTier1);
+            GetCallCounter()->DisableCallCounting(this);
+            pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTierOptimized);
         }
 #endif
 
@@ -740,12 +738,6 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     ULONG sizeOfCode = 0;
     CORJIT_FLAGS flags;
 
-#ifdef MDA_SUPPORTED 
-    MdaJitCompilationStart* pProbe = MDA_GET_ASSISTANT(JitCompilationStart);
-    if (pProbe)
-        pProbe->NowCompiling(this);
-#endif // MDA_SUPPORTED
-
 #ifdef PROFILING_SUPPORTED 
     {
         BEGIN_PIN_PROFILER(CORProfilerTrackJITInfo());
@@ -819,9 +811,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
                 &methodName,
                 &methodSignature,
                 pCode,
-                pConfig->GetCodeVersion().GetVersionId(),
-                pConfig->ProfilerRejectedPrecompiledCode(),
-                pConfig->ReadyToRunRejectedPrecompiledCode());
+                pConfig);
         }
 
     }
@@ -922,6 +912,10 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
     PCODE pOtherCode = NULL;
     EX_TRY
     {
+#ifndef CROSSGEN_COMPILE
+        Thread::CurrentPrepareCodeConfigHolder threadPrepareCodeConfigHolder(GetThread(), pConfig);
+#endif
+
         pCode = UnsafeJitFunction(pConfig->GetCodeVersion(), pilHeader, *pFlags, pSizeOfCode);
     }
     EX_CATCH
@@ -947,15 +941,15 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
     }
     EX_END_CATCH(RethrowTerminalExceptions)
 
-        if (pOtherCode != NULL)
-        {
-            // Somebody finished jitting recursively while we were jitting the method.
-            // Just use their method & leak the one we finished. (Normally we hope
-            // not to finish our JIT in this case, as we will abort early if we notice
-            // a reentrant jit has occurred.  But we may not catch every place so we
-            // do a definitive final check here.
-            return pOtherCode;
-        }
+    if (pOtherCode != NULL)
+    {
+        // Somebody finished jitting recursively while we were jitting the method.
+        // Just use their method & leak the one we finished. (Normally we hope
+        // not to finish our JIT in this case, as we will abort early if we notice
+        // a reentrant jit has occurred.  But we may not catch every place so we
+        // do a definitive final check here.
+        return pOtherCode;
+    }
 
     _ASSERTE(pCode != NULL);
 
@@ -998,6 +992,21 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
         return pOtherCode;
     }
 
+#ifdef FEATURE_TIERED_COMPILATION
+    if (pConfig->JitSwitchedToOptimized())
+    {
+        _ASSERTE(pFlags->IsSet(CORJIT_FLAGS::CORJIT_FLAG_TIER0));
+
+        MethodDesc *methodDesc = pConfig->GetMethodDesc();
+        _ASSERTE(methodDesc->IsEligibleForTieredCompilation());
+
+        // Update the tier in the code version. The JIT may have decided to switch from tier 0 to optimized, in which case call
+        // counting would have to be disabled for the method.
+        methodDesc->GetCallCounter()->DisableCallCounting(methodDesc);
+        pConfig->GetCodeVersion().SetOptimizationTier(NativeCodeVersion::OptimizationTierOptimized);
+    }
+#endif
+
 #if defined(FEATURE_JIT_PITCHING)
     SavePitchingCandidate(this, *pSizeOfCode);
 #endif
@@ -1018,7 +1027,12 @@ PrepareCodeConfig::PrepareCodeConfig(NativeCodeVersion codeVersion, BOOL needsMu
     m_needsMulticoreJitNotification(needsMulticoreJitNotification),
     m_mayUsePrecompiledCode(mayUsePrecompiledCode),
     m_ProfilerRejectedPrecompiledCode(FALSE),
-    m_ReadyToRunRejectedPrecompiledCode(FALSE)
+    m_ReadyToRunRejectedPrecompiledCode(FALSE),
+    m_jitSwitchedToMinOpt(false),
+#ifdef FEATURE_TIERED_COMPILATION
+    m_jitSwitchedToOptimized(false),
+#endif
+    m_nextInSameThread(nullptr)
 {}
 
 MethodDesc* PrepareCodeConfig::GetMethodDesc()

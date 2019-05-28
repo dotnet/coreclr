@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
@@ -56,7 +55,7 @@ namespace System.Runtime.InteropServices
                     {
                         if (_cachedTargetTypes[i] != null)
                         {
-                            args[i] = Enum.ToObject(_cachedTargetTypes[i]!, args[i]); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                            args[i] = Enum.ToObject(_cachedTargetTypes[i]!, args[i]); // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                         }
                     }
                 }
@@ -80,7 +79,7 @@ namespace System.Runtime.InteropServices
                     // both enum type and the underlying type.
                     if (pi.ParameterType.IsByRef
                         && pi.ParameterType.HasElementType
-                        && pi.ParameterType.GetElementType().IsEnum)
+                        && pi.ParameterType.GetElementType()!.IsEnum)
                     {
                         needToHandleCoercion = true;
                         targetType = pi.ParameterType.GetElementType();
@@ -174,7 +173,7 @@ namespace System.Runtime.InteropServices
                 {
                     if (wrapper.Delegate.GetType() == d.GetType())
                     {
-                        wrapper.Delegate = Delegate.Combine(wrapper.Delegate, d)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                        wrapper.Delegate = Delegate.Combine(wrapper.Delegate, d)!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
                         return;
                     }
                 }

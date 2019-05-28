@@ -16,8 +16,6 @@
 #include "finalizerthread.h"
 #include "dbginterface.h"
 
-#include "mdaassistants.h"
-
 // from ntstatus.h
 #define STATUS_SUSPEND_COUNT_EXCEEDED    ((NTSTATUS)0xC000004AL)
 
@@ -1423,14 +1421,6 @@ Thread::UserAbort(ThreadAbortRequester requester,
         RaiseTheExceptionInternalOnly(exceptObj, FALSE);
     }
 
-#ifdef MDA_SUPPORTED
-    if (requester != TAR_FuncEval)
-    {
-        // FuncEval abort is always aborting another thread.  No need to trigger MDA.
-        MDA_TRIGGER_ASSISTANT(AsynchronousThreadAbort, ReportViolation(GetThread(), this));
-    }
-#endif
-
     _ASSERTE(this != pCurThread);      // Aborting another thread.
 
     if (client == UAC_Host)
@@ -2717,8 +2707,6 @@ void Thread::HandleThreadAbort ()
 
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
 
     // It's possible we could go through here if we hit a hard SO and MC++ has called back
     // into the runtime on this thread
@@ -5733,95 +5721,10 @@ void STDCALL OnHijackWorker(HijackArgs * pArgs)
 #endif // HIJACK_NONINTERRUPTIBLE_THREADS
 }
 
-ReturnKind GetReturnKindFromMethodTable(Thread *pThread, EECodeInfo *codeInfo)
-{
-#ifdef _WIN64
-    // For simplicity, we don't hijack in funclets, but if you ever change that, 
-    // be sure to choose the OnHijack... callback type to match that of the FUNCLET
-    // not the main method (it would probably be Scalar).
-#endif // _WIN64
-
-    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
-    // Mark that we are performing a stackwalker like operation on the current thread.
-    // This is necessary to allow the signature parsing functions to work without triggering any loads
-    ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, pThread);
-
-    MethodDesc *methodDesc = codeInfo->GetMethodDesc();
-    _ASSERTE(methodDesc != nullptr);
-
-#ifdef _TARGET_X86_
-    MetaSig msig(methodDesc);
-    if (msig.HasFPReturn())
-    {
-        // Figuring out whether the function returns FP or not is hard to do
-        // on-the-fly, so we use a different callback helper on x86 where this
-        // piece of information is needed in order to perform the right save &
-        // restore of the return value around the call to OnHijackScalarWorker.
-        return RT_Float;
-    }
-#endif // _TARGET_X86_
-
-    MethodTable* pMT = NULL;
-    MetaSig::RETURNTYPE type = methodDesc->ReturnsObject(INDEBUG_COMMA(false) &pMT);
-    if (type == MetaSig::RETOBJ)
-    {
-        return RT_Object;
-    }
-
-    if (type == MetaSig::RETBYREF)
-    {
-        return RT_ByRef;
-    }
-
-#ifdef UNIX_AMD64_ABI
-    // The Multi-reg return case using the classhandle is only implemented for AMD64 SystemV ABI.
-    // On other platforms, multi-reg return is not supported with GcInfo v1.
-    // So, the relevant information must be obtained from the GcInfo tables (which requires version2).
-    if (type == MetaSig::RETVALUETYPE)
-    {
-        EEClass *eeClass = pMT->GetClass();
-        ReturnKind regKinds[2] = { RT_Unset, RT_Unset };
-        int orefCount = 0;
-        for (int i = 0; i < 2; i++)
-        {
-            if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
-            {
-                regKinds[i] = RT_Object;
-            }
-            else if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef)
-            {
-                regKinds[i] = RT_ByRef;
-            }
-            else
-            {
-                regKinds[i] = RT_Scalar;
-            }
-        }
-        ReturnKind structReturnKind = GetStructReturnKind(regKinds[0], regKinds[1]);
-        return structReturnKind;
-    }
-#endif // UNIX_AMD64_ABI
-
-    return RT_Scalar;
-}
-
 ReturnKind GetReturnKind(Thread *pThread, EECodeInfo *codeInfo)
 {
     GCInfoToken gcInfoToken = codeInfo->GetGCInfoToken();
     ReturnKind returnKind = codeInfo->GetCodeManager()->GetReturnKind(gcInfoToken);
-
-    if (!IsValidReturnKind(returnKind))
-    {
-        returnKind = GetReturnKindFromMethodTable(pThread, codeInfo);
-    }
-    else
-    {
-#if !defined(FEATURE_MULTIREG_RETURN) || defined(UNIX_AMD64_ABI)
-         // For ARM64 struct-return, GetReturnKindFromMethodTable() is not supported
-        _ASSERTE(returnKind == GetReturnKindFromMethodTable(pThread, codeInfo));
-#endif // !FEATURE_MULTIREG_RETURN || UNIX_AMD64_ABI
-    }
-
     _ASSERTE(IsValidReturnKind(returnKind));
     return returnKind;
 }
@@ -6685,7 +6588,7 @@ retry_for_debugger:
                 }
                 EX_CATCH
                 {
-                    // Bummer... couldn't init the abort event. Its a shame, but not fatal. We'll simply not use it
+                    // Couldn't init the abort event. Its a shame, but not fatal. We'll simply not use it
                     // on this iteration and try again next time.
                     if (pEvent) {
                         _ASSERTE(!pEvent->IsValid());

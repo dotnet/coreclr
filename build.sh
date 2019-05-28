@@ -160,63 +160,40 @@ restore_optdata()
             fi
         fi
         local OptDataProjectFilePath="$__ProjectRoot/src/.nuget/optdata/optdata.csproj"
-        __PgoOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo | sed 's/^\s*//')
-        __IbcOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo | sed 's/^[[:blank:]]*//')
+        __PgoOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo)
+        if [ $? != 0 ]; then
+            echo "Failed to get PGO data package version."
+            exit $?
+        fi
+        __PgoOptDataVersion=$(echo $__PgoOptDataVersion | sed 's/^\s*//')
+        __IbcOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo)
+        if [ $? != 0 ]; then
+            echo "Failed to get IBC data package version."
+            exit $?
+        fi
+        __IbcOptDataVersion=$(echo $__IbcOptDataVersion | sed 's/^[[:blank:]]*//')
     fi
 }
 
 generate_event_logging_sources()
 {
     __OutputDir=$1
-    __ConsumingBuildSystem=$2
-
-    __OutputIncDir="$__OutputDir/src/inc"
     __OutputEventingDir="$__OutputDir/Eventing"
-    __OutputEventProviderDir="$__OutputEventingDir/eventprovider"
-
-    echo "Laying out dynamically generated files consumed by $__ConsumingBuildSystem"
-    echo "Laying out dynamically generated Event test files, etmdummy stub functions, and external linkages"
 
     __PythonWarningFlags="-Wall"
     if [[ $__IgnoreWarnings == 0 ]]; then
         __PythonWarningFlags="$__PythonWarningFlags -Werror"
     fi
 
-    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventing.py" --inc $__OutputIncDir --dummy $__OutputIncDir/etmdummy.h --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --testdir "$__OutputEventProviderDir/tests"
-    if [[ $? != 0 ]]; then
-        exit 1
-    fi
-
-    echo "Laying out dynamically generated EventPipe Implementation"
-    $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genEventPipe.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --exc "$__ProjectRoot/src/vm/ClrEtwAllMeta.lst" --intermediate "$__OutputEventingDir/eventpipe"
-
     echo "Laying out dynamically generated EventSource classes"
     $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genRuntimeEventSources.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventingDir"
-
-    # determine the logging system
-    case $__BuildOS in
-        Linux|FreeBSD)
-            echo "Laying out dynamically generated Event Logging Implementation of Lttng"
-            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genLttngProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
-            if [[ $? != 0 ]]; then
-                exit 1
-            fi
-            ;;
-        *)
-            echo "Laying out dummy event logging provider"
-            $PYTHON -B $__PythonWarningFlags "$__ProjectRoot/src/scripts/genDummyProvider.py" --man "$__ProjectRoot/src/vm/ClrEtwAll.man" --intermediate "$__OutputEventProviderDir"
-            if [[ $? != 0 ]]; then
-                exit 1
-            fi
-            ;;
-    esac
 }
 
 generate_event_logging()
 {
     # Event Logging Infrastructure
-    if [[ $__SkipCoreCLR == 0 || $__SkipMSCorLib == 0 || $__ConfigureOnly == 1 ]]; then
-        generate_event_logging_sources "$__IntermediatesDir" "the native build system"
+    if [[ $__SkipMSCorLib == 0 ]]; then
+        generate_event_logging_sources "$__IntermediatesDir"
     fi
 }
 
@@ -387,6 +364,7 @@ isMSBuildOnNETCoreSupported()
 build_CoreLib_ni()
 {
     local __CrossGenExec=$1
+    local __CoreLibILDir=$2
 
     if [ $__PartialNgen == 1 ]; then
         export COMPlus_PartialNGen=1
@@ -396,8 +374,8 @@ build_CoreLib_ni()
         rm $__CrossGenCoreLibLog
     fi
     echo "Generating native image of System.Private.CoreLib.dll for $__BuildOS.$__BuildArch.$__BuildType. Logging to \"$__CrossGenCoreLibLog\"."
-    echo "$__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll"
-    $__CrossGenExec /Platform_Assemblies_Paths $__BinDir/IL $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__BinDir/IL/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
+    echo "$__CrossGenExec /Platform_Assemblies_Paths $__CoreLibILDir $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__CoreLibILDir/System.Private.CoreLib.dll"
+    $__CrossGenExec /Platform_Assemblies_Paths $__CoreLibILDir $__IbcTuning /out $__BinDir/System.Private.CoreLib.dll $__CoreLibILDir/System.Private.CoreLib.dll >> $__CrossGenCoreLibLog 2>&1
     if [ $? -ne 0 ]; then
         echo "Failed to generate native image for System.Private.CoreLib. Refer to $__CrossGenCoreLibLog"
         exit 1
@@ -439,13 +417,27 @@ build_CoreLib()
         __ExtraBuildArgs="$__ExtraBuildArgs /p:BuildManagedTools=true"
     fi
 
+    $__ProjectRoot/dotnet.sh restore /nologo /verbosity:minimal /clp:Summary \
+                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
+                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                             /p:UsePartialNGENOptimization=false /maxcpucount /p:IncludeRestoreOnlyProjects=true /p:ArcadeBuild=true\
+                             $__ProjectDir/src/build.proj \
+                             /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \
+                             $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
+
+    if [ $? -ne 0 ]; then
+        echo "Failed to restore managed components."
+        exit 1
+    fi
+
     $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
                              /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
                              /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                             /p:UsePartialNGENOptimization=false /maxcpucount \
-                             $__ProjectDir/build.proj \
+                             /p:UsePartialNGENOptimization=false /maxcpucount /p:ArcadeBuild=true\
+                             $__ProjectDir/src/build.proj \
                              /flp:Verbosity=normal\;LogFile=$__LogsDir/System.Private.CoreLib_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackage=false \
+                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir \
                              $__CommonMSBuildArgs $__ExtraBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
@@ -458,6 +450,8 @@ build_CoreLib()
         return
     fi
 
+    local __CoreLibILDir=$__BinDir/IL
+
     # The cross build generates a crossgen with the target architecture.
     if [ $__CrossBuild == 0 ]; then
        if [ $__SkipCoreCLR == 1 ]; then
@@ -466,21 +460,24 @@ build_CoreLib()
 
        # The architecture of host pc must be same architecture with target.
        if [[ ( "$__HostArch" == "$__BuildArch" ) ]]; then
-           build_CoreLib_ni "$__BinDir/crossgen"
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "x86" ) ]]; then
-           build_CoreLib_ni "$__BinDir/crossgen"
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "arm64" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni "$__BinDir/crossgen"
+           build_CoreLib_ni "$__BinDir/crossgen" $__CoreLibILDir
        else
            exit 1
        fi
     else
        if [[ ( "$__CrossArch" == "x86" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__CrossArch" == "x64" ) && ( "$__BuildArch" == "arm" ) ]]; then
-           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
        elif [[ ( "$__HostArch" == "x64" ) && ( "$__BuildArch" == "arm64" ) ]]; then
-           build_CoreLib_ni "$__CrossComponentBinDir/crossgen"
+           build_CoreLib_ni "$__CrossComponentBinDir/crossgen" $__CoreLibILDir
+       else
+           # Crossgen not performed, so treat the IL version as the final version
+           cp $__CoreLibILDir/System.Private.CoreLib.dll $__BinDir/System.Private.CoreLib.dll
        fi
     fi
 }
@@ -503,14 +500,13 @@ generate_NugetPackages()
     echo "DistroRid is "$__DistroRid
     echo "ROOTFS_DIR is "$ROOTFS_DIR
     # Build the packages
-    $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                             /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                             /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                             /p:UsePartialNGENOptimization=false /maxcpucount \
-                             $__SourceDir/.nuget/packages.builds \
-                             /flp:Verbosity=normal\;LogFile=$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.log \
-                             /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:BuildNugetPackages=false /p:__DoCrossArchBuild=$__CrossBuild \
-                             $__CommonMSBuildArgs $__UnprocessedBuildArgs
+    # Package build uses the Arcade system and scripts, relying on it to restore required toolsets as part of build
+    $__ProjectRoot/eng/common/build.sh -r -b -projects $__SourceDir/.nuget/packages.builds \
+                                       -verbosity minimal -bl:$__LogsDir/Nuget_$__BuildOS__$__BuildArch__$__BuildType.binlog \
+                                       /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
+                                       /p:UsePartialNGENOptimization=false /p:ArcadeBuild=true \
+                                       /p:__IntermediatesDir=$__IntermediatesDir /p:__RootBinDir=$__RootBinDir /p:__DoCrossArchBuild=$__CrossBuild \
+                                       $__CommonMSBuildArgs $__UnprocessedBuildArgs
 
     if [ $? -ne 0 ]; then
         echo "Failed to generate Nuget packages."
@@ -618,7 +614,7 @@ __IgnoreWarnings=0
 # Set the various build properties here so that CMake and MSBuild can pick them up
 __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/packages}"
+__PackagesDir="${DotNetRestorePackagesPath:-${__ProjectDir}/.packages}"
 __RootBinDir="$__ProjectDir/bin"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
@@ -656,7 +652,7 @@ __msbuildonunsupportedplatform=0
 __PgoOptDataVersion=""
 __IbcOptDataVersion=""
 __BuildManagedTools=1
-__SkipRestoreArg=""
+__SkipRestoreArg="/p:RestoreDuringBuild=true"
 __SignTypeArg=""
 __OfficialBuildIdArg=""
 __StaticAnalyzer=0

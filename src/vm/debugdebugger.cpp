@@ -819,14 +819,13 @@ FCIMPL1(void, DebugDebugger::CustomNotification, Object * dataUNSAFE)
         StrongHandleHolder objHandle = pAppDomain->CreateStrongHandle(pData);
         MethodTable * pMT = pData->GetGCSafeMethodTable();
         Module * pModule = pMT->GetModule();
-        DomainFile * pDomainFile = pModule->GetDomainFile(pAppDomain);
+        DomainFile * pDomainFile = pModule->GetDomainFile();
         mdTypeDef classToken = pMT->GetCl();
 
         pThread->SetThreadCurrNotification(objHandle);
         g_pDebugInterface->SendCustomDebuggerNotification(pThread, pDomainFile, classToken);   
         pThread->ClearThreadCurrNotification();
 
-        TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
         if (pThread->IsAbortRequested())
         {
             pThread->HandleThreadAbort();

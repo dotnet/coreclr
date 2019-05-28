@@ -81,8 +81,8 @@ public:
         m_pClassHashEntry = PTR_NULL;
     }
 
-    EntryType GetEntryType() { return m_EntryType; }
-    bool IsNull() { return m_EntryType == EntryType::IsNullEntry; }
+    EntryType GetEntryType() const { return m_EntryType; }
+    bool IsNull() const { return m_EntryType == EntryType::IsNullEntry; }
 
     const HashedTypeEntry& SetClassHashBasedEntryValue(EEClassHashEntry_t * pClassHashEntry)
     {
@@ -92,7 +92,7 @@ public:
         m_pClassHashEntry = dac_cast<PTR_EEClassHashEntry>(pClassHashEntry);
         return *this;
     }
-    EEClassHashEntry_t * GetClassHashBasedEntryValue()
+    EEClassHashEntry_t * GetClassHashBasedEntryValue() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -109,7 +109,7 @@ public:
         m_TokenAndModulePair.m_pModule = pModule;
         return *this;
     }
-    const TokenTypeEntry& GetTokenBasedEntryValue()
+    const TokenTypeEntry& GetTokenBasedEntryValue() const
     {
         LIMITED_METHOD_CONTRACT;
         
@@ -275,7 +275,7 @@ public:
     }
 
 
-    HashedTypeEntry& GetBucket()
+    const HashedTypeEntry& GetBucket() const
     {
         LIMITED_METHOD_CONTRACT;
         SUPPORTS_DAC;
@@ -290,7 +290,7 @@ public:
         return (token == 0 || token != tokenNotToLoad) && tokenNotToLoad != tdAllTypes;
     }
 
-    BOOL OKToLoad()
+    BOOL OKToLoad() const
     {
         WRAPPER_NO_CONTRACT;
         SUPPORTS_DAC;
@@ -581,12 +581,13 @@ private:
     VOID PopulateAvailableClassHashTable(Module *pModule,
                                          AllocMemTracker *pamTracker);
 
+    void LazyPopulateCaseSensitiveHashTablesDontHaveLock();
     void LazyPopulateCaseSensitiveHashTables();
     void LazyPopulateCaseInsensitiveHashTables();
 
     // Lookup the hash table entry from the hash table
     void GetClassValue(NameHandleTable nhTable,
-                                      NameHandle *pName,
+                                      const NameHandle *pName,
                                       HashDatum *pData,
                                       EEClassHashTable **ppTable,
                                       Module* pLookInThisModuleOnly,
@@ -636,7 +637,7 @@ public:
     void Init(AllocMemTracker *pamTracker);
 
     PTR_Assembly GetAssembly();
-    DomainAssembly* GetDomainAssembly(AppDomain *pDomain = NULL);
+    DomainAssembly* GetDomainAssembly();
 
     void    FreeModules();
 
@@ -765,7 +766,7 @@ public:
     // Return FALSE if operation failed (e.g. type does not exist)
     // *pfUsesTypeForwarder is set to TRUE if a type forwarder is found. It is never set to FALSE.
     static BOOL ResolveNameToTypeDefThrowing(Module *         pTypeRefModule,
-                                             NameHandle *     pName,
+                                             const NameHandle * pName,
                                              Module **        ppTypeDefModule,
                                              mdTypeDef *      pTypeDefToken,
                                              Loader::LoadFlag loadFlag = Loader::Load,
@@ -959,7 +960,7 @@ private:
     static void DECLSPEC_NORETURN  ThrowTypeLoadException(TypeKey *pKey, UINT resIDWhy);
 
 
-    BOOL IsNested(NameHandle* pName, mdToken *mdEncloser);
+    BOOL IsNested(const NameHandle* pName, mdToken *mdEncloser);
     static BOOL IsNested(Module *pModude, mdToken typeDefOrRef, mdToken *mdEncloser);
 
 public:

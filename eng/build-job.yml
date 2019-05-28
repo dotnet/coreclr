@@ -15,6 +15,7 @@ jobs:
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    helixType: 'build/product/'
     enableMicrobuild: true
 
     # Compute job name from template parameters
@@ -56,7 +57,7 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       - name: clangArg
         value: '-clang6.0'
-    - ${{ if and(eq(parameters.osIdentifier, 'Linux_musl'), eq(parameters.archType, 'arm64')) }}:
+    - ${{ if eq(parameters.archType, 'arm64') }}:
       - name: clangArg
         value: '-clang5.0'
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
@@ -68,8 +69,6 @@ jobs:
       # Variables used by arcade to gather asset manifests
       - name: _DotNetPublishToBlobFeed
         value: true
-      - name: _BuildConfig
-        value: $(buildConfigUpper)
     - name: officialBuildIdArg
       value: ''
     - name: ibcOptimizeArg
@@ -102,12 +101,32 @@ jobs:
       - script: eng\common\init-tools-native.cmd -InstallDirectory $(Build.SourcesDirectory)\native-tools -Force
         displayName: Install native dependencies
 
+    # Install internal tools on official builds
+    # Since our internal tools are behind an authenticated feed,
+    # we need to use the DotNetCli AzDO task to restore from the feed using a service connection.
+    # We can't do this from within the build, so we need to do this as a separate step.
+    - ${{ if and(and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')), eq(parameters.osGroup, 'Windows_NT')) }}:
+        - task: DotNetCoreInstaller@0
+          inputs:
+            packageType: 'sdk'
+            version: '2.1.503'
+        - task: DotNetCoreCLI@2
+          displayName: Restore internal tools
+          inputs:
+            command: restore
+            feedsToUse: config
+            projects: 'src/.nuget/optdata/ibcmerge.csproj'
+            nugetConfigPath: 'eng/internal/NuGet.config'
+            restoreDirectory: '$(Build.SourcesDirectory)\.packages'
+            verbosityRestore: 'normal'
+            externalFeedCredentials: 'dotnet-core-internal-tooling'
+
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg)
+      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg) /p:ContinuousIntegrationBuild=true
         displayName: Build product
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg) /p:ContinuousIntegrationBuild=true
         displayName: Build product
 
     # Sign on Windows
@@ -124,19 +143,11 @@ jobs:
         continueOnError: true
         condition: always()
 
-    # Upload build as pipeline artifact
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - task: PublishPipelineArtifact@0
-        displayName: Save product build as pipeline artifact
-        inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - task: PublishPipelineArtifact@0
-        displayName: Save product build as pipeline artifact
-        inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
+    - task: PublishBuildArtifacts@1
+      displayName: Publish product build
+      inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+        artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
@@ -148,10 +159,10 @@ jobs:
 
     # Build packages
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
+      - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg) -ci
         displayName: Build packages
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
+      - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber) -ci
         displayName: Build packages
 
     # Publish official build
@@ -179,7 +190,7 @@ jobs:
           displayName: Publish packages to blob feed
           env:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
-            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages 
+            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages
       # Save nuget packages in pipeline for update dotnet/versions
       - task: PublishPipelineArtifact@0
         displayName: Save packages as pipeline artifact
@@ -188,10 +199,10 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)/.nuget/pkg
 
     # Publish Logs
-    - task: PublishPipelineArtifact@0
+    - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         artifactName: ${{ format('build_{0}_{1}_{2}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-        targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()

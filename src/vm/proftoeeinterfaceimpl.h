@@ -29,6 +29,7 @@
 
 
 #include "profilinghelper.h"
+#include "profilinghelper.inl"
 
 
 class ProfilerFunctionEnum;
@@ -133,7 +134,7 @@ typedef struct _PROFILER_STACK_WALK_DATA PROFILER_STACK_WALK_DATA;
 // from the profiler implementation.  The profiler will call back on the v-table
 // to get at EE internals as required.
 
-class ProfToEEInterfaceImpl : public ICorProfilerInfo9
+class ProfToEEInterfaceImpl : public ICorProfilerInfo10
 {
 public:
 
@@ -577,7 +578,7 @@ public:
 
     // end ICorProfilerInfo8
 
-    // beging ICorProfilerInfo9
+    // begin ICorProfilerInfo9
 
     COM_METHOD GetNativeCodeStartAddresses(
         FunctionID functionID, 
@@ -599,6 +600,22 @@ public:
         COR_PRF_CODE_INFO codeInfos[]);
 
     // end ICorProfilerInfo9
+
+    // beging ICorProfilerInfo10
+
+    COM_METHOD EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData);
+
+    COM_METHOD IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
+
+    COM_METHOD GetLOHObjectSizeThreshold(DWORD *pThreshold);
+
+    COM_METHOD RequestReJITWithInliners(
+        DWORD       dwRejitFlags,
+        ULONG       cFunctions,
+        ModuleID    moduleIds[],
+        mdMethodDef methodIds[]);
+
+    // end ICorProfilerInfo10    
 
 protected:
 

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -26,7 +25,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // V Lookup(K key)
-        internal V Lookup<K, V>(K key)
+        internal V Lookup<K, V>(K key) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             V value;
@@ -44,21 +43,21 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // uint Size { get }
-        internal uint Size<K, V>()
+        internal uint Size<K, V>() where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             return (uint)_this.Count;
         }
 
         // bool HasKey(K key)
-        internal bool HasKey<K, V>(K key)
+        internal bool HasKey<K, V>(K key) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             return _this.ContainsKey(key);
         }
 
         // IMapView<K, V> GetView()
-        internal IReadOnlyDictionary<K, V> GetView<K, V>()
+        internal IReadOnlyDictionary<K, V> GetView<K, V>() where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             Debug.Assert(_this != null);
@@ -73,7 +72,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool Insert(K key, V value)
-        internal bool Insert<K, V>(K key, V value)
+        internal bool Insert<K, V>(K key, V value) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             bool replacing = _this.ContainsKey(key);
@@ -82,7 +81,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Remove(K key)
-        internal void Remove<K, V>(K key)
+        internal void Remove<K, V>(K key) where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             bool removed = _this.Remove(key);
@@ -97,7 +96,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Clear()
-        internal void Clear<K, V>()
+        internal void Clear<K, V>() where K : object
         {
             IDictionary<K, V> _this = Unsafe.As<IDictionary<K, V>>(this);
             _this.Clear();

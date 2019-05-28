@@ -1,19 +1,22 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
-
   <PropertyGroup>
-    <TargetFramework>netstandard</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     <RuntimeIdentifiers>win7-x64;win7-x86;linux-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="microsoft.dotnet.ibcmerge" Version="$(IbcMergePackageVersion)" Condition="'$(IbcMergePackageVersion)'!=''" />
+    <PackageReference Include="microsoft.dotnet.ibcmerge" Version="[$(IbcMergePackageVersion)]" Condition="'$(IbcMergePackageVersion)'!=''" />
   </ItemGroup>
 
   <Target Name="DumpIbcMergePackageVersion">
     <Message Importance="high" Text="$(IbcMergePackageVersion)" />
   </Target>
 
+  <PropertyGroup>
+    <RestoreSources>
+      $(RestoreSources);
+      https://devdiv.pkgs.visualstudio.com/_packaging/dotnet-core-internal-tooling/nuget/v3/index.json;
+    </RestoreSources>
+  </PropertyGroup>
 </Project>

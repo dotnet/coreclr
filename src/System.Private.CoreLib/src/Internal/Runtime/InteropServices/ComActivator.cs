@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -71,16 +70,6 @@ namespace Internal.Runtime.InteropServices
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public struct ComActivationContext
-    {
-        public Guid ClassId;
-        public Guid InterfaceId;
-        public string AssemblyPath;
-        public string AssemblyName;
-        public string TypeName;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
     [CLSCompliant(false)]
     public unsafe struct ComActivationContextInternal
     {
@@ -90,6 +79,29 @@ namespace Internal.Runtime.InteropServices
         public char* AssemblyNameBuffer;
         public char* TypeNameBuffer;
         public IntPtr ClassFactoryDest;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct ComActivationContext
+    {
+        public Guid ClassId;
+        public Guid InterfaceId;
+        public string AssemblyPath;
+        public string AssemblyName;
+        public string TypeName;
+
+        [CLSCompliant(false)]
+        public unsafe static ComActivationContext Create(ref ComActivationContextInternal cxtInt)
+        {
+            return new ComActivationContext()
+            {
+                ClassId = cxtInt.ClassId,
+                InterfaceId = cxtInt.InterfaceId,
+                AssemblyPath = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyPathBuffer))!,
+                AssemblyName = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyNameBuffer))!,
+                TypeName = Marshal.PtrToStringUni(new IntPtr(cxtInt.TypeNameBuffer))!
+            };
+        }
     }
 
     public static class ComActivator
@@ -126,6 +138,87 @@ namespace Internal.Runtime.InteropServices
         }
 
         /// <summary>
+        /// Entry point for unmanaged COM register/unregister API from managed code
+        /// </summary>
+        /// <param name="cxt">Reference to a <see cref="ComActivationContext"/> instance</param>
+        /// <param name="register">true if called for register or false to indicate unregister</param>
+        public static void ClassRegistrationScenarioForType(ComActivationContext cxt, bool register)
+        {
+            // Retrieve the attribute type to use to determine if a function is the requested user defined
+            // registration function.
+            string attributeName = register ? "ComRegisterFunctionAttribute" : "ComUnregisterFunctionAttribute";
+            Type? regFuncAttrType = Type.GetType($"System.Runtime.InteropServices.{attributeName}, System.Runtime.InteropServices", throwOnError: false);
+            if (regFuncAttrType == null)
+            {
+                // If the COM registration attributes can't be found then it is not on the type.
+                return;
+            }
+
+            if (!Path.IsPathRooted(cxt.AssemblyPath))
+            {
+                throw new ArgumentException();
+            }
+
+            Type classType = FindClassType(cxt.ClassId, cxt.AssemblyPath, cxt.AssemblyName, cxt.TypeName);
+
+            // Retrieve all the methods.
+            MethodInfo[] methods = classType.GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+
+            bool calledFunction = false;
+
+            // Go through all the methods and check for the custom attribute.
+            foreach (MethodInfo method in methods)
+            {
+                // Check to see if the method has the custom attribute.
+                if (method.GetCustomAttributes(regFuncAttrType!, inherit: true).Length == 0)
+                {
+                    continue;
+                }
+
+                // Check to see if the method is static before we call it.
+                if (!method.IsStatic)
+                {
+                    string msg = register ? SR.InvalidOperation_NonStaticComRegFunction : SR.InvalidOperation_NonStaticComUnRegFunction;
+                    throw new InvalidOperationException(SR.Format(msg));
+                }
+
+                // Finally validate signature
+                ParameterInfo[] methParams = method.GetParameters();
+                if (method.ReturnType != typeof(void)
+                    || methParams == null
+                    || methParams.Length != 1
+                    || (methParams[0].ParameterType != typeof(string) && methParams[0].ParameterType != typeof(Type)))
+                {
+                    string msg = register ? SR.InvalidOperation_InvalidComRegFunctionSig : SR.InvalidOperation_InvalidComUnRegFunctionSig;
+                    throw new InvalidOperationException(SR.Format(msg));
+                }
+
+                if (calledFunction)
+                {
+                    string msg = register ? SR.InvalidOperation_MultipleComRegFunctions : SR.InvalidOperation_MultipleComUnRegFunctions;
+                    throw new InvalidOperationException(SR.Format(msg));
+                }
+
+                // The function is valid so set up the arguments to call it.
+                var objs = new object[1];
+                if (methParams[0].ParameterType == typeof(string))
+                {
+                    // We are dealing with the string overload of the function - provide the registry key - see comhost.dll implementation
+                    objs[0] = $"HKEY_LOCAL_MACHINE\\SOFTWARE\\Classes\\CLSID\\{cxt.ClassId.ToString("B")}";
+                }
+                else
+                {
+                    // We are dealing with the type overload of the function.
+                    objs[0] = classType;
+                }
+
+                // Invoke the COM register function.
+                method.Invoke(null, objs);
+                calledFunction = true;
+            }
+        }
+
+        /// <summary>
         /// Internal entry point for unmanaged COM activation API from native code
         /// </summary>
         /// <param name="cxtInt">Reference to a <see cref="ComActivationContextInternal"/> instance</param>
@@ -146,18 +239,85 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             try
             {
-                var cxt = new ComActivationContext()
-                {
-                    ClassId = cxtInt.ClassId,
-                    InterfaceId = cxtInt.InterfaceId,
-                    AssemblyPath = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyPathBuffer))!,
-                    AssemblyName = Marshal.PtrToStringUni(new IntPtr(cxtInt.AssemblyNameBuffer))!,
-                    TypeName = Marshal.PtrToStringUni(new IntPtr(cxtInt.TypeNameBuffer))!
-                };
-
+                var cxt = ComActivationContext.Create(ref cxtInt);
                 object cf = GetClassFactoryForType(cxt);
                 IntPtr nativeIUnknown = Marshal.GetIUnknownForObject(cf);
                 Marshal.WriteIntPtr(cxtInt.ClassFactoryDest, nativeIUnknown);
+            }
+            catch (Exception e)
+            {
+                return e.HResult;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Internal entry point for registering a managed COM server API from native code
+        /// </summary>
+        /// <param name="cxtInt">Reference to a <see cref="ComActivationContextInternal"/> instance</param>
+        [CLSCompliant(false)]
+        public unsafe static int RegisterClassForTypeInternal(ref ComActivationContextInternal cxtInt)
+        {
+            if (IsLoggingEnabled())
+            {
+                Log(
+$@"{nameof(RegisterClassForTypeInternal)} arguments:
+    {cxtInt.ClassId}
+    {cxtInt.InterfaceId}
+    0x{(ulong)cxtInt.AssemblyPathBuffer:x}
+    0x{(ulong)cxtInt.AssemblyNameBuffer:x}
+    0x{(ulong)cxtInt.TypeNameBuffer:x}
+    0x{cxtInt.ClassFactoryDest.ToInt64():x}");
+            }
+
+            if (cxtInt.InterfaceId != Guid.Empty
+                || cxtInt.ClassFactoryDest != IntPtr.Zero)
+            {
+                throw new ArgumentException();
+            }
+
+            try
+            {
+                var cxt = ComActivationContext.Create(ref cxtInt);
+                ClassRegistrationScenarioForType(cxt, register: true);
+            }
+            catch (Exception e)
+            {
+                return e.HResult;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// Internal entry point for unregistering a managed COM server API from native code
+        /// </summary>
+        [CLSCompliant(false)]
+        public unsafe static int UnregisterClassForTypeInternal(ref ComActivationContextInternal cxtInt)
+        {
+            if (IsLoggingEnabled())
+            {
+                Log(
+$@"{nameof(UnregisterClassForTypeInternal)} arguments:
+    {cxtInt.ClassId}
+    {cxtInt.InterfaceId}
+    0x{(ulong)cxtInt.AssemblyPathBuffer:x}
+    0x{(ulong)cxtInt.AssemblyNameBuffer:x}
+    0x{(ulong)cxtInt.TypeNameBuffer:x}
+    0x{cxtInt.ClassFactoryDest.ToInt64():x}");
+            }
+
+            if (cxtInt.InterfaceId != Guid.Empty
+                || cxtInt.ClassFactoryDest != IntPtr.Zero)
+            {
+                throw new ArgumentException();
+            }
+
+            try
+            {
+                var cxt = ComActivationContext.Create(ref cxtInt);
+                ClassRegistrationScenarioForType(cxt, register: false);
             }
             catch (Exception e)
             {
@@ -409,8 +569,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
     // license context and instantiate the object.
     internal sealed class LicenseInteropProxy
     {
-        private static readonly Type s_licenseAttrType;
-        private static readonly Type s_licenseExceptionType;
+        private static readonly Type? s_licenseAttrType;
+        private static readonly Type? s_licenseExceptionType;
 
         // LicenseManager
         private MethodInfo _createWithContext;
@@ -441,22 +601,22 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
         public LicenseInteropProxy()
         {
-            Type licManager = Type.GetType("System.ComponentModel.LicenseManager, System.ComponentModel.TypeConverter", throwOnError: true);
+            Type licManager = Type.GetType("System.ComponentModel.LicenseManager, System.ComponentModel.TypeConverter", throwOnError: true)!;
 
-            Type licContext = Type.GetType("System.ComponentModel.LicenseContext, System.ComponentModel.TypeConverter", throwOnError: true);
-            _setSavedLicenseKey = licContext.GetMethod("SetSavedLicenseKey", BindingFlags.Instance | BindingFlags.Public);
-            _createWithContext = licManager.GetMethod("CreateWithContext", new[] { typeof(Type), licContext });
+            Type licContext = Type.GetType("System.ComponentModel.LicenseContext, System.ComponentModel.TypeConverter", throwOnError: true)!;
+            _setSavedLicenseKey = licContext.GetMethod("SetSavedLicenseKey", BindingFlags.Instance | BindingFlags.Public)!;
+            _createWithContext = licManager.GetMethod("CreateWithContext", new[] { typeof(Type), licContext })!;
 
-            Type interopHelper = licManager.GetNestedType("LicenseInteropHelper", BindingFlags.NonPublic);
-            _validateTypeAndReturnDetails = interopHelper.GetMethod("ValidateAndRetrieveLicenseDetails", BindingFlags.Static | BindingFlags.Public);
-            _getCurrentContextInfo = interopHelper.GetMethod("GetCurrentContextInfo", BindingFlags.Static | BindingFlags.Public);
+            Type interopHelper = licManager.GetNestedType("LicenseInteropHelper", BindingFlags.NonPublic)!;
+            _validateTypeAndReturnDetails = interopHelper.GetMethod("ValidateAndRetrieveLicenseDetails", BindingFlags.Static | BindingFlags.Public)!;
+            _getCurrentContextInfo = interopHelper.GetMethod("GetCurrentContextInfo", BindingFlags.Static | BindingFlags.Public)!;
 
-            Type clrLicContext = licManager.GetNestedType("CLRLicenseContext", BindingFlags.NonPublic);
-            _createDesignContext = clrLicContext.GetMethod("CreateDesignContext", BindingFlags.Static | BindingFlags.Public);
-            _createRuntimeContext = clrLicContext.GetMethod("CreateRuntimeContext", BindingFlags.Static | BindingFlags.Public);
+            Type clrLicContext = licManager.GetNestedType("CLRLicenseContext", BindingFlags.NonPublic)!;
+            _createDesignContext = clrLicContext.GetMethod("CreateDesignContext", BindingFlags.Static | BindingFlags.Public)!;
+            _createRuntimeContext = clrLicContext.GetMethod("CreateRuntimeContext", BindingFlags.Static | BindingFlags.Public)!;
 
-            _licInfoHelper = licManager.GetNestedType("LicInfoHelperLicenseContext", BindingFlags.NonPublic);
-            _licInfoHelperContains = _licInfoHelper.GetMethod("Contains", BindingFlags.Instance | BindingFlags.Public);
+            _licInfoHelper = licManager.GetNestedType("LicInfoHelperLicenseContext", BindingFlags.NonPublic)!;
+            _licInfoHelperContains = _licInfoHelper.GetMethod("Contains", BindingFlags.Instance | BindingFlags.Public)!;
         }
 
         // Helper function to create an object from the native side
@@ -492,7 +652,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             // LicenseContext, Type, out License, out string
             object licContext = Activator.CreateInstance(_licInfoHelper)!;
             var parameters = new object?[] { licContext, type, /* out */ null, /* out */ null };
-            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
+            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             if (!isValid)
             {
                 return;
@@ -505,8 +665,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
                 licVerified = true;
             }
 
-            parameters = new object[] { type.AssemblyQualifiedName };
-            runtimeKeyAvail = (bool)_licInfoHelperContains.Invoke(licContext, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
+            parameters = new object?[] { type.AssemblyQualifiedName };
+            runtimeKeyAvail = (bool)_licInfoHelperContains.Invoke(licContext, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
         }
 
         // The CLR invokes this whenever a COM client invokes
@@ -523,7 +683,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
             // Types are as follows:
             // LicenseContext, Type, out License, out string
             var parameters = new object?[] { /* use global LicenseContext */ null, type, /* out */ null, /* out */ null };
-            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
+            bool isValid = (bool)_validateTypeAndReturnDetails.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             if (!isValid)
             {
                 throw new COMException(); //E_FAIL
@@ -557,7 +717,7 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
         public object AllocateAndValidateLicense(Type type, string? key, bool isDesignTime)
         {
             object?[] parameters;
-            object licContext;
+            object? licContext;
             if (isDesignTime)
             {
                 parameters = new object[] { type };
@@ -571,8 +731,8 @@ $@"{nameof(GetClassFactoryForTypeInternal)} arguments:
 
             try
             {
-                parameters = new object[] { type, licContext };
-                return _createWithContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null);
+                parameters = new object?[] { type, licContext };
+                return _createWithContext.Invoke(null, BindingFlags.DoNotWrapExceptions, binder: null, parameters: parameters, culture: null)!;
             }
             catch (Exception exception) when (exception.GetType() == s_licenseExceptionType)
             {

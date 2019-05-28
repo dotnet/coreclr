@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 namespace System.StubHelpers
 {
     using System.Text;
@@ -744,7 +743,7 @@ namespace System.StubHelpers
             }
         }
 
-        internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[]? managedArray, IntPtr pNativeHome)
+        internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[]? managedArray, IntPtr pNativeHome) 
         {
             if (managedArray != null)
             {
@@ -919,7 +918,7 @@ namespace System.StubHelpers
 
         private unsafe IntPtr ConvertArrayToNative(object pManagedHome, int dwFlags)
         {
-            Type elementType = pManagedHome.GetType().GetElementType();
+            Type elementType = pManagedHome.GetType().GetElementType()!;
             VarEnum vt = VarEnum.VT_EMPTY;
 
             switch (Type.GetTypeCode(elementType))
@@ -1319,7 +1318,7 @@ namespace System.StubHelpers
                 else
                 {
                     // Custom .NET type
-                    typeName = managedType.AssemblyQualifiedName;
+                    typeName = managedType.AssemblyQualifiedName!;
                     pNativeType->typeKind = TypeKind.Projection;
                 }
             }
@@ -1623,7 +1622,7 @@ namespace System.StubHelpers
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pHandle, ExceptionResource.ArgumentNull_SafeHandle);
             }
 
-            pHandle!.DangerousAddRef(ref success); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            pHandle!.DangerousAddRef(ref success); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             return pHandle.DangerousGetHandle();
         }
 
@@ -1637,7 +1636,7 @@ namespace System.StubHelpers
 
             try
             {
-                pHandle!.DangerousRelease(); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                pHandle!.DangerousRelease(); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             }
             catch
             {
@@ -1663,16 +1662,6 @@ namespace System.StubHelpers
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern Delegate GetTargetForAmbiguousVariantCall(object objSrc, IntPtr pMT, out bool fUseString);
 
-        //-------------------------------------------------------
-        // Helper for the MDA RaceOnRCWCleanup
-        //-------------------------------------------------------
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void StubRegisterRCW(object pThis);
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void StubUnregisterRCW(object pThis);
-
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetDelegateInvokeMethod(Delegate pThis);
 
@@ -1685,17 +1674,7 @@ namespace System.StubHelpers
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetOuterInspectable(object pThis, IntPtr pCtorMD);
 
-#if MDA_SUPPORTED
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern Exception TriggerExceptionSwallowedMDA(Exception ex, IntPtr pManagedTarget);
-#endif // MDA_SUPPORTED
-
 #endif // FEATURE_COMINTEROP
-
-#if MDA_SUPPORTED
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void CheckCollectedDelegateMDA(IntPtr pEntryThunk);
-#endif // MDA_SUPPORTED
 
         //-------------------------------------------------------
         // Profiler helpers
@@ -1758,11 +1737,6 @@ namespace System.StubHelpers
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetStubContextAddr();
 #endif // BIT64
-
-#if MDA_SUPPORTED
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void TriggerGCForMDA();        
-#endif // MDA_SUPPORTED
 
 #if FEATURE_ARRAYSTUB_AS_IL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

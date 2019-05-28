@@ -7,6 +7,7 @@
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#include "mlinfo.h"
 #ifndef DACCESS_COMPILE
 #include "comdelegate.h"
 #endif
@@ -686,15 +687,7 @@ BOOL QCALLTYPE LoaderAllocator::Destroy(QCall::LoaderAllocatorHandle pLoaderAllo
         if (pDomainAssembly != NULL)
         {
             Assembly *pAssembly = pDomainAssembly->GetCurrentAssembly();
-
-            //if not fully loaded, it is still domain specific, so just get one from DomainAssembly
-            BaseDomain *pDomain = pAssembly ? pAssembly->Parent() : pDomainAssembly->GetAppDomain();
-
-            // This will probably change for shared code unloading
-            _ASSERTE(pDomain->IsAppDomain());
-
-            AppDomain *pAppDomain = pDomain->AsAppDomain();
-            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly(pAppDomain);
+            pLoaderAllocator->m_pFirstDomainAssemblyFromSameALCToDelete = pAssembly->GetDomainAssembly();
         }
 
         // Iterate through all references to other loader allocators and decrement their reference
@@ -1112,13 +1105,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     // Take a page from the high-frequency heap for this.
     if (pExecutableHeapMemory != NULL)
     {
-#ifdef FEATURE_WINDOWSPHONE
-        // code:UMEntryThunk::CreateUMEntryThunk allocates memory on executable loader heap for phone.
-        // Reserve enough for a typical phone app to fit.
-        dwExecutableHeapReserveSize = 3 * GetOsPageSize();
-#else
         dwExecutableHeapReserveSize = GetOsPageSize();
-#endif
 
         _ASSERTE(dwExecutableHeapReserveSize < dwHighFrequencyHeapReserveSize);
         dwHighFrequencyHeapReserveSize -= dwExecutableHeapReserveSize;

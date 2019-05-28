@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -93,12 +92,22 @@ namespace System.Runtime.Loader
 
         // This method is invoked by the VM to resolve an assembly reference using the Resolving event
         // after trying assembly resolution via Load override and TPA load context without success.
-        private static Assembly ResolveUsingResolvingEvent(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName)
+        private static Assembly? ResolveUsingResolvingEvent(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName)
         {
             AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target)!;
 
             // Invoke the AssemblyResolve event callbacks if wired up
             return context.ResolveUsingEvent(assemblyName);
+        }
+
+        // This method is invoked by the VM to resolve a satellite assembly reference
+        // after trying assembly resolution via Load override without success.
+        private static Assembly? ResolveSatelliteAssembly(IntPtr gchManagedAssemblyLoadContext, AssemblyName assemblyName)
+        {
+            AssemblyLoadContext context = (AssemblyLoadContext)(GCHandle.FromIntPtr(gchManagedAssemblyLoadContext).Target)!;
+
+            // Invoke the ResolveSatelliteAssembly method
+            return context.ResolveSatelliteAssembly(assemblyName);
         }
 
         private Assembly? GetFirstResolvedAssembly(AssemblyName assemblyName)
@@ -163,7 +172,7 @@ namespace System.Runtime.Loader
             return assembly;
         }
 
-        private Assembly ResolveUsingEvent(AssemblyName assemblyName)
+        private Assembly? ResolveUsingEvent(AssemblyName assemblyName)
         {
             string? simpleName = assemblyName.Name;
 
@@ -172,13 +181,6 @@ namespace System.Runtime.Loader
             if (assembly != null)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
-            }
-
-            // Since attempt to resolve the assembly via Resolving event is the last option,
-            // throw an exception if we do not find any assembly.
-            if (assembly == null)
-            {
-                throw new FileNotFoundException(SR.IO_FileLoad, simpleName);
             }
 
             return assembly;
@@ -246,7 +248,7 @@ namespace System.Runtime.Loader
         }
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetLoadContextForAssembly(RuntimeAssembly assembly);
+        private static extern IntPtr GetLoadContextForAssembly(QCallAssembly assembly);
 
         // Returns the load context in which the specified assembly has been loaded
         public static AssemblyLoadContext? GetLoadContext(Assembly assembly)
@@ -263,7 +265,8 @@ namespace System.Runtime.Loader
             // We only support looking up load context for runtime assemblies.
             if (rtAsm != null)
             {
-                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
+                RuntimeAssembly runtimeAssembly = rtAsm;
+                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly));
                 if (ptrAssemblyLoadContext == IntPtr.Zero)
                 {
                     // If the load context is returned null, then the assembly was bound using the TPA binder

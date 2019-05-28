@@ -2,7 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
+using System.Threading;
+
 namespace System.Diagnostics.Tracing
 {
     /// <summary>
@@ -19,6 +20,17 @@ namespace System.Diagnostics.Tracing
         private IncrementingPollingCounter? _exceptionCounter;
         private PollingCounter? _cpuTimeCounter;
         private PollingCounter? _workingSetCounter;
+        private PollingCounter? _threadPoolThreadCounter;
+        private IncrementingPollingCounter? _monitorContentionCounter;
+        private PollingCounter? _threadPoolQueueCounter;
+        private IncrementingPollingCounter? _completedItemsCounter;
+        private PollingCounter? _gcTimeCounter;
+        private PollingCounter? _gen0SizeCounter;
+        private PollingCounter? _gen1SizeCounter;
+        private PollingCounter? _gen2SizeCounter;
+        private PollingCounter? _lohSizeCounter;
+        private IncrementingPollingCounter? _allocRateCounter;
+        private PollingCounter? _assemblyCounter;
 
         private const int EnabledPollingIntervalMilliseconds = 1000; // 1 second
 
@@ -47,6 +59,17 @@ namespace System.Diagnostics.Tracing
                 _gen1GCCounter = _gen1GCCounter ?? new IncrementingPollingCounter("gen-1-gc-count", this, () => GC.CollectionCount(1)) { DisplayName = "Gen 1 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
                 _gen2GCCounter = _gen2GCCounter ?? new IncrementingPollingCounter("gen-2-gc-count", this, () => GC.CollectionCount(2)) { DisplayName = "Gen 2 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
                 _exceptionCounter = _exceptionCounter ?? new IncrementingPollingCounter("exception-count", this, () => Exception.GetExceptionCount()) { DisplayName = "Exception Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
+                _threadPoolThreadCounter = _threadPoolThreadCounter ?? new PollingCounter("threadpool-thread-count", this, () => ThreadPool.ThreadCount) { DisplayName = "ThreadPool Thread Count" };
+                _monitorContentionCounter = _monitorContentionCounter ?? new IncrementingPollingCounter("monitor-lock-contention-count", this, () => Monitor.LockContentionCount) { DisplayName = "Monitor Lock Contention Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) }; 
+                _threadPoolQueueCounter = _threadPoolQueueCounter ?? new PollingCounter("threadpool-queue-length", this, () => ThreadPool.PendingWorkItemCount) { DisplayName = "ThreadPool Queue Length" };
+                _completedItemsCounter = _completedItemsCounter ?? new IncrementingPollingCounter("threadpool-completed-items-count", this, () => ThreadPool.CompletedWorkItemCount) { DisplayName = "ThreadPool Completed Work Item Count", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
+                _gcTimeCounter = _gcTimeCounter ?? new PollingCounter("time-in-gc", this, () => GC.GetLastGCPercentTimeInGC()) { DisplayName = "Time in GC" };
+                _gen0SizeCounter = _gen0SizeCounter ?? new PollingCounter("gen-0-size", this, () => GC.GetGenerationSize(0)) { DisplayName = "Gen 0 Size" };
+                _gen1SizeCounter = _gen1SizeCounter ?? new PollingCounter("gen-1-size", this, () => GC.GetGenerationSize(1)) { DisplayName = "Gen 1 Size" };
+                _gen2SizeCounter = _gen2SizeCounter ?? new PollingCounter("gen-2-size", this, () => GC.GetGenerationSize(2)) { DisplayName = "Gen 2 Size" };
+                _lohSizeCounter = _lohSizeCounter ?? new PollingCounter("loh-size", this, () => GC.GetGenerationSize(3)) { DisplayName = "LOH Size" };
+                _allocRateCounter = _allocRateCounter ?? new IncrementingPollingCounter("alloc-rate", this, () => GC.GetTotalAllocatedBytes()) { DisplayName = "Allocation Rate", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
+                _assemblyCounter = _assemblyCounter ?? new PollingCounter("assembly-count", this, () => System.Reflection.Assembly.GetAssemblyCount()) { DisplayName = "Number of Assemblies Loaded" };
             }
         }
     }

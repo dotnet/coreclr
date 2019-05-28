@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.StubHelpers;
 using System.Reflection;
 using System.Diagnostics;
@@ -30,7 +29,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
-            PropertyInfo propertyInfo = target.GetType().GetProperty(
+            PropertyInfo? propertyInfo = target.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public);
 
@@ -52,10 +51,10 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Type? indexedParamType = null;
             SystemTypeMarshaler.ConvertToManaged(pIndexedParamType, ref indexedParamType);
 
-            return CreateIndexedProperty(target, propertyName, indexedParamType);
+            return CreateIndexedProperty(target, propertyName, indexedParamType!);
         }
 
-        internal static ICustomProperty? CreateIndexedProperty(object target, string propertyName, Type? indexedParamType)
+        internal static ICustomProperty? CreateIndexedProperty(object target, string propertyName, Type indexedParamType)
         {
             Debug.Assert(target != null);
             Debug.Assert(propertyName != null);
@@ -64,12 +63,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 target = proxy.GetTarget();
 
             // Only return public instance/static properties
-            PropertyInfo propertyInfo = target.GetType().GetProperty(
+            PropertyInfo? propertyInfo = target.GetType().GetProperty(
                 propertyName,
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public,
                 null,                                                                   // default binder
                 null,                                                                   // ignore return type
-                new Type?[] { indexedParamType },                                        // indexed parameter type
+                new Type[] { indexedParamType },                                        // indexed parameter type
                 null                                                                    // ignore type modifier
                 );
 

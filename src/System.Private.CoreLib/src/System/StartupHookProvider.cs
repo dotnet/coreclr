@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -130,7 +129,7 @@ namespace System
             Type type = assembly.GetType(StartupHookTypeName, throwOnError: true);
 
             // Look for a static method without any parameters
-            MethodInfo initializeMethod = type.GetMethod(InitializeMethodName,
+            MethodInfo? initializeMethod = type.GetMethod(InitializeMethodName,
                                                          BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static,
                                                          null, // use default binder
                                                          Type.EmptyTypes, // parameters
