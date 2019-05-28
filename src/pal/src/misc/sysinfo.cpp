@@ -144,7 +144,7 @@ PAL_GetLogicalCpuCountFromOS()
 #if HAVE_SCHED_GETAFFINITY
 
     cpu_set_t cpuSet;
-    int st = sched_getaffinity(0, sizeof(cpu_set_t), &cpuSet);
+    int st = sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuSet);
     if (st != 0)
     {
         ASSERT("sched_getaffinity failed (%d)\n", errno);
