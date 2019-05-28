@@ -817,14 +817,13 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
     Thread *pThread = GetThread();
     EX_TRY
     {
-        PrintToStdErrA("Process is terminating due to a ");
         if (exitCode == (UINT)COR_E_FAILFAST)
         {
-            PrintToStdErrA("FailFast.\n\n");
+            PrintToStdErrA("\nProcess stopped. ");
         }
         else
         {
-            PrintToStdErrA("fatal error.\n\n");
+            PrintToStdErrA("\nFatal error. ");
         }
 
         if (errorSource != NULL)
@@ -1049,7 +1048,7 @@ void DisplayStackOverflowException()
     LIMITED_METHOD_CONTRACT;
     PrintToStdErrA("\n");
 
-    PrintToStdErrA("Process is terminating due to a stack overflow.\n");
+    PrintToStdErrA("Stack overflow.\n");
 }
 
 void DECLSPEC_NORETURN EEPolicy::HandleFatalStackOverflow(EXCEPTION_POINTERS *pExceptionInfo, BOOL fSkipDebugger)
