@@ -372,18 +372,21 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
             if (stubMethodDesc->IsILStub())
             {
                 MethodDesc *pTargetMD = stubMethodDesc->GetILStubResolver()->GetStubTargetMethodDesc();
-                pCode = pTargetMD->GetPrecompiledR2RCode(pConfig);
-                if (pCode != NULL)
+                if (pTargetMD != NULL)
                 {
-                    LOG((LF_ZAP, LL_INFO10000,
-                        "ZAP: Using R2R precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
-                        DBG_ADDR(pCode),
-                        m_pszDebugClassName,
-                        m_pszDebugMethodName,
-                        m_pszDebugMethodSignature,
-                        GetMemberDef()));
+                    pCode = pTargetMD->GetPrecompiledR2RCode(pConfig);
+                    if (pCode != NULL)
+                    {
+                        LOG((LF_ZAP, LL_INFO10000,
+                            "ZAP: Using R2R precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+                            DBG_ADDR(pCode),
+                            m_pszDebugClassName,
+                            m_pszDebugMethodName,
+                            m_pszDebugMethodSignature,
+                            GetMemberDef()));
 
-                    pConfig->SetNativeCode(pCode, &pCode);
+                        pConfig->SetNativeCode(pCode, &pCode);
+                    }
                 }
             }
         }
