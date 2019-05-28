@@ -2957,6 +2957,13 @@ DebuggerMethodInfo *Debugger::GetOrCreateMethodInfo(Module *pModule, mdMethodDef
 
 #ifndef DACCESS_COMPILE
 
+// Helper to use w/ the debug stores.
+BYTE* InteropSafeNoThrowNew(void*, size_t cBytes)
+{
+    BYTE* p = new (interopsafe, nothrow) BYTE[cBytes];
+    return p;
+}
+
 /******************************************************************************
  * GetILToNativeMapping returns a map from IL offsets to native
  * offsets for this code. An array of COR_PROF_IL_TO_NATIVE_MAP
@@ -2992,9 +2999,52 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 #endif // PROFILING_SUPPORTED
 
     MethodDesc *fd = g_pEEInterface->GetNativeCodeMethodDesc(pNativeCodeStartAddress);
-    if (fd == NULL || fd->IsWrapperStub() || fd->IsDynamicMethod())
+    if (fd == NULL || fd->IsWrapperStub())
     {
         return E_FAIL;
+    }
+
+    if (fd->IsDynamicMethod())
+    {
+        if (g_pConfig->GetTrackDynamicMethodDebugInfo())
+        {
+            DebugInfoRequest diq;
+            diq.InitFromStartingAddr(fd, pNativeCodeStartAddress);
+
+            if (cMap == 0)
+            {
+                if (DebugInfoManager::GetBoundariesAndVars(diq, nullptr, nullptr, pcMap, nullptr, nullptr, nullptr))
+                {
+                    return S_OK;
+                }
+
+                return E_FAIL;
+            }
+
+            ICorDebugInfo::OffsetMapping* pMap = nullptr;
+            if (DebugInfoManager::GetBoundariesAndVars(diq, InteropSafeNoThrowNew, nullptr, pcMap, &pMap, nullptr, nullptr))
+            {
+                for (ULONG32 i = 0; i < cMap; ++i)
+                {
+                    map[i].ilOffset = pMap[i].ilOffset;
+                    map[i].nativeStartOffset = pMap[i].nativeOffset;
+                    if (i > 0)
+                    {
+                        map[i - 1].nativeEndOffset = map[i].nativeStartOffset;
+                    }
+                }
+
+                DeleteInteropSafe(pMap);
+
+                return S_OK;
+            }
+
+            return E_FAIL;
+        }
+        else
+        {
+            return E_FAIL;
+        }
     }
 
     DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(fd->GetModule(), fd->GetMemberDef());
@@ -3079,7 +3129,7 @@ HRESULT Debugger::GetILToNativeMapping(PCODE pNativeCodeStartAddress, ULONG32 cM
 
 HRESULT Debugger::GetILToNativeMappingIntoArrays(
     MethodDesc * pMethodDesc,
-    PCODE pCode,
+    PCODE pNativeCodeStartAddress,
     USHORT cMapMax,
     USHORT * pcMap,
     UINT ** prguiILOffset,
@@ -3092,6 +3142,7 @@ HRESULT Debugger::GetILToNativeMappingIntoArrays(
     }
     CONTRACTL_END;
 
+    _ASSERTE(pMethodDesc != NULL);
     _ASSERTE(pcMap != NULL);
     _ASSERTE(prguiILOffset != NULL);
     _ASSERTE(prguiNativeOffset != NULL);
@@ -3102,7 +3153,18 @@ HRESULT Debugger::GetILToNativeMappingIntoArrays(
 
     // Get the JIT info by functionId.
 
-    DebuggerJitInfo * pDJI = GetJitInfo(pMethodDesc, (const BYTE *)pCode);
+    if (pMethodDesc->IsWrapperStub() || pMethodDesc->IsDynamicMethod())
+    {
+        return E_FAIL;
+    }
+
+    DebuggerMethodInfo *pDMI = GetOrCreateMethodInfo(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef());
+    if (pDMI == NULL)
+    {
+        return E_FAIL;
+    }
+
+    DebuggerJitInfo *pDJI = pDMI->FindOrCreateInitAndAddJitInfo(pMethodDesc, pNativeCodeStartAddress);
 
     // Dunno what went wrong
     if (pDJI == NULL)

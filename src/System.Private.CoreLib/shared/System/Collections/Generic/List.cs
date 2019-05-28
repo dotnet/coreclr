@@ -2,9 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -171,10 +171,10 @@ namespace System.Collections.Generic
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
             // Note that default(T) is not equal to null for value types except when T is Nullable<U>. 
-            return ((value is T) || (value == null && default(T)! == null)); // https://github.com/dotnet/roslyn/issues/34757
+            return ((value is T) || (value == null && default(T)! == null)); // default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
         }
 
-        object? IList.this[int index] // TODO-NULLABLE-GENERIC: nullability is the same as of T
+        object? IList.this[int index]
         {
             get
             {
@@ -226,7 +226,7 @@ namespace System.Collections.Generic
             _items[size] = item;
         }
 
-        int IList.Add(object? item) // TODO-NULLABLE-GENERIC: nullable if default(T) can be null
+        int IList.Add(object? item)
         {
             ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(item, ExceptionArgument.item);
 
@@ -346,7 +346,7 @@ namespace System.Collections.Generic
             List<TOutput> list = new List<TOutput>(_size);
             for (int i = 0; i < _size; i++)
             {
-                list._items[i] = converter!(_items[i]); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                list._items[i] = converter!(_items[i]); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             }
             list._size = _size;
             return list;
@@ -419,6 +419,7 @@ namespace System.Collections.Generic
         public bool Exists(Predicate<T> match)
             => FindIndex(match) != -1;
 
+        [return: MaybeNull]
         public T Find(Predicate<T> match)
         {
             if (match == null)
@@ -433,7 +434,7 @@ namespace System.Collections.Generic
                     return _items[i];
                 }
             }
-            return default!; // TODO-NULLABLE-GENERIC: return value is nullable when T can be nullable
+            return default!;
         }
 
         public List<T> FindAll(Predicate<T> match)
@@ -446,7 +447,7 @@ namespace System.Collections.Generic
             List<T> list = new List<T>();
             for (int i = 0; i < _size; i++)
             {
-                if (match!(_items[i])) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                if (match!(_items[i])) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
                 {
                     list.Add(_items[i]);
                 }
@@ -485,6 +486,7 @@ namespace System.Collections.Generic
             return -1;
         }
 
+        [return: MaybeNull]
         public T FindLast(Predicate<T> match)
         {
             if (match == null)
@@ -499,7 +501,7 @@ namespace System.Collections.Generic
                     return _items[i];
                 }
             }
-            return default!; // TODO-NULLABLE-GENERIC: return value is nullable when T can be nullable
+            return default!;
         }
 
         public int FindLastIndex(Predicate<T> match)
@@ -541,7 +543,7 @@ namespace System.Collections.Generic
             int endIndex = startIndex - count;
             for (int i = startIndex; i > endIndex; i--)
             {
-                if (match!(_items[i])) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                if (match!(_items[i])) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
                 {
                     return i;
                 }
@@ -620,7 +622,7 @@ namespace System.Collections.Generic
         public int IndexOf(T item)
             => Array.IndexOf(_items, item, 0, _size);
 
-        int IList.IndexOf(object? item) // TODO-NULLABLE-GENERIC: nullability == nullability(T)
+        int IList.IndexOf(object? item)
         {
             if (IsCompatibleObject(item))
             {
@@ -686,7 +688,7 @@ namespace System.Collections.Generic
             _version++;
         }
 
-        void IList.Insert(int index, object? item) // TODO-NULLABLE-GENERIC: nullable when T can be null
+        void IList.Insert(int index, object? item)
         {
             ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(item, ExceptionArgument.item);
 
@@ -745,7 +747,7 @@ namespace System.Collections.Generic
             }
             else
             {
-                using (IEnumerator<T> en = collection!.GetEnumerator()) // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                using (IEnumerator<T> en = collection!.GetEnumerator()) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
                 {
                     while (en.MoveNext())
                     {
@@ -845,7 +847,7 @@ namespace System.Collections.Generic
             return false;
         }
 
-        void IList.Remove(object? item) // TODO-NULLABLE-GENERIC: nullable when T can be null
+        void IList.Remove(object? item)
         {
             if (IsCompatibleObject(item))
             {
@@ -865,7 +867,7 @@ namespace System.Collections.Generic
             int freeIndex = 0;   // the first free slot in items array
 
             // Find the first item which needs to be removed.
-            while (freeIndex < _size && !match!(_items[freeIndex])) freeIndex++; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+            while (freeIndex < _size && !match!(_items[freeIndex])) freeIndex++; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             if (freeIndex >= _size) return 0;
 
             int current = freeIndex + 1;
@@ -1024,7 +1026,7 @@ namespace System.Collections.Generic
 
             if (_size > 1)
             {
-                ArraySortHelper<T>.Sort(_items, 0, _size, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
+                ArraySortHelper<T>.Sort(_items, 0, _size, comparison!); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             }
             _version++;
         }
@@ -1083,14 +1085,14 @@ namespace System.Collections.Generic
             private readonly List<T> _list;
             private int _index;
             private readonly int _version;
-            private T _current; // TODO-NULLABLE-GENERIC: nullable when T can be null
+            [AllowNull, MaybeNull] private T _current;
 
             internal Enumerator(List<T> list)
             {
                 _list = list;
                 _index = 0;
                 _version = list._version;
-                _current = default!;
+                _current = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
             }
 
             public void Dispose()
@@ -1118,11 +1120,11 @@ namespace System.Collections.Generic
                 }
 
                 _index = _list._size + 1;
-                _current = default!;
+                _current = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
                 return false;
             }
 
-            public T Current => _current;
+            public T Current => _current!;
 
             object? IEnumerator.Current
             {
@@ -1144,7 +1146,7 @@ namespace System.Collections.Generic
                 }
 
                 _index = 0;
-                _current = default!;
+                _current = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
             }
         }
     }

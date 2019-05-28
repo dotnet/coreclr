@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -501,89 +500,8 @@ namespace System.Reflection
         #endregion
     }
 
-    public readonly struct CustomAttributeNamedArgument
+    public readonly partial struct CustomAttributeTypedArgument
     {
-        public static bool operator ==(CustomAttributeNamedArgument left, CustomAttributeNamedArgument right) => left.Equals(right);
-        public static bool operator !=(CustomAttributeNamedArgument left, CustomAttributeNamedArgument right) => !left.Equals(right);
-
-        private readonly MemberInfo m_memberInfo;
-        private readonly CustomAttributeTypedArgument m_value;
-
-        #region Constructor
-        public CustomAttributeNamedArgument(MemberInfo memberInfo, object? value)
-        {
-            if (memberInfo == null)
-                throw new ArgumentNullException(nameof(memberInfo));
-
-            Type type;
-            if (memberInfo is FieldInfo field)
-            {
-                type = field.FieldType;
-            }
-            else if (memberInfo is PropertyInfo property)
-            {
-                type = property.PropertyType;
-            }
-            else
-            {
-                throw new ArgumentException(SR.Argument_InvalidMemberForNamedArgument);
-            }
-
-            m_memberInfo = memberInfo;
-            m_value = new CustomAttributeTypedArgument(type, value);
-        }
-
-        public CustomAttributeNamedArgument(MemberInfo memberInfo, CustomAttributeTypedArgument typedArgument)
-        {
-            if (memberInfo == null)
-                throw new ArgumentNullException(nameof(memberInfo));
-
-            m_memberInfo = memberInfo;
-            m_value = typedArgument;
-        }
-        #endregion
-
-        #region Object Override
-        public override string ToString()
-        {
-            if (m_memberInfo == null)
-                return base.ToString();
-
-            return string.Format("{0} = {1}", MemberInfo.Name, TypedValue.ToString(ArgumentType != typeof(object)));
-        }
-        public override int GetHashCode()
-        {
-            return base.GetHashCode();
-        }
-        public override bool Equals(object? obj)
-        {
-            return obj == (object)this;
-        }
-        #endregion
-
-        #region Internal Members
-        internal Type ArgumentType
-        {
-            get
-            {
-                return m_memberInfo is FieldInfo ?
-                    ((FieldInfo)m_memberInfo).FieldType :
-                    ((PropertyInfo)m_memberInfo).PropertyType;
-            }
-        }
-        #endregion
-
-        public MemberInfo MemberInfo => m_memberInfo;
-        public CustomAttributeTypedArgument TypedValue => m_value;
-        public string MemberName => MemberInfo.Name;
-        public bool IsField => MemberInfo is FieldInfo;
-    }
-
-    public readonly struct CustomAttributeTypedArgument
-    {
-        public static bool operator ==(CustomAttributeTypedArgument left, CustomAttributeTypedArgument right) => left.Equals(right);
-        public static bool operator !=(CustomAttributeTypedArgument left, CustomAttributeTypedArgument right) => !left.Equals(right);
-
         #region Private Static Methods
         private static Type CustomAttributeEncodingToType(CustomAttributeEncoding encodedType)
         {
@@ -701,30 +619,6 @@ namespace System.Reflection
         }
         #endregion
 
-        private readonly object? m_value;
-        private readonly Type m_argumentType;
-
-        #region Constructor
-        public CustomAttributeTypedArgument(Type argumentType, object? value)
-        {
-            // value can be null.
-            if (argumentType == null)
-                throw new ArgumentNullException(nameof(argumentType));
-
-            m_value = (value is null) ? null : CanonicalizeValue(value);
-            m_argumentType = argumentType;
-        }
-
-        public CustomAttributeTypedArgument(object value)
-        {
-            // value cannot be null.
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            m_value = CanonicalizeValue(value);
-            m_argumentType = value.GetType();
-        }
-
         private static object CanonicalizeValue(object value)
         {
             Debug.Assert(value != null);
@@ -797,55 +691,6 @@ namespace System.Reflection
                 m_value = EncodedValueToRawValue(encodedArg.PrimitiveValue, encodedType);
             }
         }
-        #endregion
-
-        public override string ToString() => ToString(false);
-
-        internal string ToString(bool typed)
-        {
-            if (m_argumentType == null)
-                return base.ToString();
-
-            if (ArgumentType.IsEnum)
-                return string.Format(typed ? "{0}" : "({1}){0}", Value, ArgumentType.FullName);
-
-            else if (Value == null)
-                return string.Format(typed ? "null" : "({0})null", ArgumentType.Name);
-
-            else if (ArgumentType == typeof(string))
-                return string.Format("\"{0}\"", Value);
-
-            else if (ArgumentType == typeof(char))
-                return string.Format("'{0}'", Value);
-
-            else if (ArgumentType == typeof(Type))
-                return string.Format("typeof({0})", ((Type)Value!).FullName);
-
-            else if (ArgumentType.IsArray)
-            {
-                IList<CustomAttributeTypedArgument> array = (IList<CustomAttributeTypedArgument>)Value!;
-
-                Type elementType = ArgumentType.GetElementType()!;
-                string result = string.Format(@"new {0}[{1}] {{ ", elementType.IsEnum ? elementType.FullName : elementType.Name, array.Count);
-
-                for (int i = 0; i < array.Count; i++)
-                {
-                    result += string.Format(i == 0 ? "{0}" : ", {0}", array[i].ToString(elementType != typeof(object)));
-                }
-
-                result += " }";
-
-                return result;
-            }
-
-            return string.Format(typed ? "{0}" : "({1}){0}", Value, ArgumentType.Name);
-        }
-
-        public override int GetHashCode() => base.GetHashCode();
-        public override bool Equals(object? obj) => obj == (object)this;
-
-        public Type ArgumentType => m_argumentType;
-        public object? Value => m_value;
     }
 
     [StructLayout(LayoutKind.Auto)]
@@ -1160,7 +1005,7 @@ namespace System.Reflection
 
             while (type != (RuntimeType)typeof(object) && type != null)
             {
-                AddCustomAttributes(ref result, type.GetRuntimeModule(), type.MetadataToken, caType, mustBeInheritable, ref result);
+                AddCustomAttributes(ref result, type.GetRuntimeModule(), type.MetadataToken, caType, mustBeInheritable, result);
                 mustBeInheritable = true;
                 type = (type.BaseType as RuntimeType)!;
             }
@@ -1203,7 +1048,7 @@ namespace System.Reflection
 
             while (method != null)
             {
-                AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, ref result);
+                AddCustomAttributes(ref result, method.GetRuntimeModule(), method.MetadataToken, caType, mustBeInheritable, result);
                 mustBeInheritable = true;
                 method = method.GetParentDefinition()!;
             }
@@ -1339,9 +1184,8 @@ namespace System.Reflection
             RuntimeModule decoratedModule, int decoratedMetadataToken, int pcaCount, RuntimeType? attributeFilterType)
         {
             RuntimeType.ListBuilder<object> attributes = new RuntimeType.ListBuilder<object>();
-            RuntimeType.ListBuilder<object> _ = default;
 
-            AddCustomAttributes(ref attributes, decoratedModule, decoratedMetadataToken, attributeFilterType, false, ref _);
+            AddCustomAttributes(ref attributes, decoratedModule, decoratedMetadataToken, attributeFilterType, false, new RuntimeType.ListBuilder<object>());
 
             bool useObjectArray = attributeFilterType == null || attributeFilterType.IsValueType || attributeFilterType.ContainsGenericParameters;
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType!;
@@ -1357,7 +1201,9 @@ namespace System.Reflection
         private static void AddCustomAttributes(
             ref RuntimeType.ListBuilder<object> attributes,
             RuntimeModule decoratedModule, int decoratedMetadataToken,
-            RuntimeType? attributeFilterType, bool mustBeInheritable, ref RuntimeType.ListBuilder<object> derivedAttributes)
+            RuntimeType? attributeFilterType, bool mustBeInheritable,
+            // The derivedAttributes list must be passed by value so that it is not modified with the discovered attributes
+            RuntimeType.ListBuilder<object> derivedAttributes)
         {
             CustomAttributeRecord[] car = CustomAttributeData.GetCustomAttributeRecords(decoratedModule, decoratedMetadataToken);
 
@@ -1586,7 +1432,15 @@ namespace System.Reflection
                                                     decoratedModule.ModuleHandle.ResolveTypeHandle(tkParent) :
                                                     new RuntimeTypeHandle();
 
-            return RuntimeMethodHandle.IsCAVisibleFromDecoratedType(attributeType.TypeHandle, ctor!, parentTypeHandle, decoratedModule);
+            RuntimeTypeHandle attributeTypeHandle = attributeType.TypeHandle;
+
+            bool result = RuntimeMethodHandle.IsCAVisibleFromDecoratedType(JitHelpers.GetQCallTypeHandleOnStack(ref attributeTypeHandle),
+                                                                    ctor != null ? ctor.Value : RuntimeMethodHandleInternal.EmptyHandle,
+                                                                    JitHelpers.GetQCallTypeHandleOnStack(ref parentTypeHandle),
+                                                                    JitHelpers.GetQCallModuleOnStack(ref decoratedModule)) != Interop.BOOL.FALSE;
+
+            GC.KeepAlive(ctor);
+            return result;
         }
         #endregion
 

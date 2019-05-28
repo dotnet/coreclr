@@ -2,10 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -146,14 +146,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         #region IReadOnlyDictionary members
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
-            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default!); // TODO-NULLABLE-GENERIC
+            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default!);
             int index = Array.BinarySearch(items, firstItemIndex, Count, searchKey, keyValuePairComparator);
 
             if (index < 0)
             {
-                value = default!; // TODO-NULLABLE-GENERIC
+                value = default!;
                 return false;
             }
 
@@ -206,7 +206,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            object? IEnumerator.Current // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+            object? IEnumerator.Current
             {
                 get
                 {

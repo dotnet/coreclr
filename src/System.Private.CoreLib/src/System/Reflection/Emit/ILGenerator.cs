@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Buffers.Binary;
 using System.Diagnostics;
 using System.Diagnostics.SymbolStore;
@@ -1565,7 +1564,7 @@ namespace System.Reflection.Emit
             {
                 m_localSymInfos[i] = new LocalSymInfo();
             }
-            m_localSymInfos[i]!.AddLocalSymInfo(strName, signature, slot, startOffset, endOffset); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34644
+            m_localSymInfos[i]!.AddLocalSymInfo(strName, signature, slot, startOffset, endOffset); // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
         }
 
         internal void AddUsingNamespaceToCurrentScope(
@@ -1576,7 +1575,7 @@ namespace System.Reflection.Emit
             {
                 m_localSymInfos[i] = new LocalSymInfo();
             }
-            m_localSymInfos[i]!.AddUsingNamespace(strNamespace); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34644
+            m_localSymInfos[i]!.AddUsingNamespace(strNamespace); // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
         }
 
         internal void AddScopeInfo(ScopeAction sa, int iOffset)
@@ -1643,7 +1642,7 @@ namespace System.Reflection.Emit
                 }
                 if (m_localSymInfos[i] != null)
                 {
-                    m_localSymInfos[i]!.EmitLocalSymInfo(symWriter); // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34644
+                    m_localSymInfos[i]!.EmitLocalSymInfo(symWriter); // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                 }
             }
         }

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
@@ -173,7 +172,7 @@ namespace System.Runtime.Loader
             return assembly;
         }
 
-        private Assembly ResolveUsingEvent(AssemblyName assemblyName)
+        private Assembly? ResolveUsingEvent(AssemblyName assemblyName)
         {
             string? simpleName = assemblyName.Name;
 
@@ -182,13 +181,6 @@ namespace System.Runtime.Loader
             if (assembly != null)
             {
                 assembly = ValidateAssemblyNameWithSimpleName(assembly, simpleName);
-            }
-
-            // Since attempt to resolve the assembly via Resolving event is the last option,
-            // throw an exception if we do not find any assembly.
-            if (assembly == null)
-            {
-                throw new FileNotFoundException(SR.IO_FileLoad, simpleName);
             }
 
             return assembly;
@@ -256,7 +248,7 @@ namespace System.Runtime.Loader
         }
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetLoadContextForAssembly(RuntimeAssembly assembly);
+        private static extern IntPtr GetLoadContextForAssembly(QCallAssembly assembly);
 
         // Returns the load context in which the specified assembly has been loaded
         public static AssemblyLoadContext? GetLoadContext(Assembly assembly)
@@ -273,7 +265,8 @@ namespace System.Runtime.Loader
             // We only support looking up load context for runtime assemblies.
             if (rtAsm != null)
             {
-                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
+                RuntimeAssembly runtimeAssembly = rtAsm;
+                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly));
                 if (ptrAssemblyLoadContext == IntPtr.Zero)
                 {
                     // If the load context is returned null, then the assembly was bound using the TPA binder

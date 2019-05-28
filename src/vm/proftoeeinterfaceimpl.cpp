@@ -649,7 +649,7 @@ void __stdcall ProfilerObjectAllocatedCallback(OBJECTREF objref, ClassID classId
     // Notify the profiler of the allocation
 
     {
-        BEGIN_PIN_PROFILER(CORProfilerTrackAllocations());
+        BEGIN_PIN_PROFILER(CORProfilerTrackAllocations() || CORProfilerTrackLargeAllocations());
         // Note that for generic code we always return uninstantiated ClassIDs and FunctionIDs.
         // Thus we strip any instantiations of the ClassID (which is really a type handle) here.
         g_profControlBlock.pProfInterface->ObjectAllocated(
@@ -1077,43 +1077,6 @@ bool SaveContainedObjectRef(Object * pBO, void * context)
     // array.  So "blindly" incrementing (*context) here and using it next time around
     // for the next reference, over and over again, should be safe.
     (*((Object ***)context))++;
-
-    return TRUE;
-}
-
-typedef struct _ObjectRefOffsetTuple
-{
-    Object* pCurObjRef;
-    SIZE_T* pCurObjOffset;
-} ObjectRefOffsetTuple;
-
-//---------------------------------------------------------------------------------------
-//
-// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Stores each object reference
-// encountered into an array.
-//
-// Arguments:
-//      o - original object
-//      pBO - Object reference encountered in walk
-//      context - Array of locations within the walked object that point to other
-//                objects.  On entry, (*context) points to the next unfilled array
-//                entry.  On exit, that location is filled, and (*context) is incremented
-//                to point to the next entry.
-//
-// Return Value:
-//      Always returns TRUE to object walker so it walks the entire object
-//
-
-bool SaveContainedObjectRef2(Object* o, uint8_t** pBO, void* context)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    auto x = (ObjectRefOffsetTuple*)context;
-    *((Object **)(x->pCurObjRef)) = (Object *)*pBO;
-    *((SIZE_T **)(x->pCurObjOffset)) = (SIZE_T*)((uint8_t*)pBO - (uint8_t*)o);
-
-    x->pCurObjRef++;
-    x->pCurObjOffset++;
 
     return TRUE;
 }
@@ -6790,22 +6753,78 @@ HRESULT ProfToEEInterfaceImpl::GetCodeInfo4(UINT_PTR pNativeCodeStartAddress,
                                     codeInfos);
 }
 
+HRESULT ProfToEEInterfaceImpl::RequestReJITWithInliners(
+            DWORD       dwRejitFlags,
+            ULONG       cFunctions,
+            ModuleID    moduleIds[],
+            mdMethodDef methodIds[])
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+        PRECONDITION(CheckPointer(moduleIds, NULL_OK));
+        PRECONDITION(CheckPointer(methodIds, NULL_OK));
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EETriggers | kP2EEAllowableAfterAttach,
+        (LF_CORPROF, 
+         LL_INFO1000, 
+         "**PROF: RequestReJITWithInliners.\n"));
+
+    if (!g_profControlBlock.pProfInterface->IsCallback4Supported())
+    {
+        return CORPROF_E_CALLBACK4_REQUIRED;
+    }
+
+    if (!CORProfilerEnableRejit())
+    {
+        return CORPROF_E_REJIT_NOT_ENABLED;
+    }
+
+    if (!ReJitManager::IsReJITInlineTrackingEnabled())
+    {
+        return CORPROF_E_REJIT_INLINING_DISABLED;
+    }
+
+    // Request at least 1 method to reJIT!
+    if ((cFunctions == 0) || (moduleIds == NULL) || (methodIds == NULL))
+    {
+        return E_INVALIDARG;
+    }
+
+    // We only support disabling inlining currently
+    if ((dwRejitFlags & COR_PRF_REJIT_BLOCK_INLINING) != COR_PRF_REJIT_BLOCK_INLINING)
+    {
+        return E_INVALIDARG;
+    }
+
+    // Remember the profiler is doing this, as that means we must never detach it!
+    g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+    
+    GCX_PREEMP();
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(dwRejitFlags));
+}
+
 /*
- * GetObjectReferences
+ * EnumerateObjectReferences
  * 
- * Gets the object references (if any) from the ObjectID.
+ * Enumerates the object references (if any) from the ObjectID.
  * 
  * Parameters:
  *      objectId        - object id of interest
- *      cNumReferences  - count of references for which the profiler has allocated buffer space
- *      pcNumReferences - actual count of references
- *      references      - filled array of object references
+ *      callback        - callback to call for each object reference
+ *      clientData      - client data for the profiler to pass and receive for each reference
  *
  * Returns:
- *   S_OK if successful
+ *   S_OK if successful, S_FALSE if no references
  *
  */
-HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cNumReferences, ULONG32 *pcNumReferences, ObjectID references[], SIZE_T offsets[])
+HRESULT ProfToEEInterfaceImpl::EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData)
 {
     CONTRACTL
     {
@@ -6821,10 +6840,10 @@ HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cN
         kP2EEAllowableAfterAttach,
         (LF_CORPROF,
         LL_INFO1000,
-        "**PROF: GetObjectReferences 0x%p.\n",
+        "**PROF: EnumerateObjectReferences 0x%p.\n",
         objectId));
 
-    if (cNumReferences > 0 && (pcNumReferences == nullptr || references == nullptr || offsets == nullptr))
+    if (callback == nullptr)
     {
         return E_INVALIDARG;
     }
@@ -6834,26 +6853,13 @@ HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cN
 
     if (pMT->ContainsPointersOrCollectible())
     {
-        if (cNumReferences == 0)
-        {
-            *pcNumReferences = 0;
-            GCHeapUtilities::GetGCHeap()->DiagWalkObject(pBO, &CountContainedObjectRef, (void*)pcNumReferences);
-        }
-        else
-        {
-            ObjectRefOffsetTuple t;
-            t.pCurObjRef = (Object*)references;
-            t.pCurObjOffset = offsets;
-
-            GCHeapUtilities::GetGCHeap()->DiagWalkObject2(pBO, &SaveContainedObjectRef2, (void*)&t);
-        }
+        GCHeapUtilities::GetGCHeap()->DiagWalkObject2(pBO, (walk_fn2)callback, clientData);
+        return S_OK;
     }
     else
     {
-        *pcNumReferences = 0;
+        return S_FALSE;
     }
-
-    return S_OK;
 }
 
 /*
@@ -6888,6 +6894,46 @@ HRESULT ProfToEEInterfaceImpl::IsFrozenObject(ObjectID objectId, BOOL *pbFrozen)
         objectId));
 
     *pbFrozen = GCHeapUtilities::GetGCHeap()->IsInFrozenSegment((Object*)objectId) ? TRUE : FALSE;
+
+    return S_OK;
+}
+
+/*
+ * GetLOHObjectSizeThreshold
+ * 
+ * Gets the value of the configured LOH Threshold.
+ * 
+ * Parameters:
+ *      pThreshold        - value of the threshold in bytes
+ *
+ * Returns:
+ *   S_OK if successful
+ *
+ */
+HRESULT ProfToEEInterfaceImpl::GetLOHObjectSizeThreshold(DWORD *pThreshold)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        EE_THREAD_NOT_REQUIRED;
+        CANNOT_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: GetLOHObjectSizeThreshold\n"));
+
+    if (pThreshold == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    *pThreshold = g_pConfig->GetGCLOHThreshold();
 
     return S_OK;
 }
@@ -8605,7 +8651,7 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
     
     GCX_PREEMP();
-    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds);
+    return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(0));
 }
 
 HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
@@ -9610,7 +9656,7 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
         return CORPROF_E_DATAINCOMPLETE;
     }
 
-    if (!inlinersModule->HasInlineTrackingMap())
+    if (!inlinersModule->HasNativeOrReadyToRunInlineTrackingMap())
     {
         return CORPROF_E_DATAINCOMPLETE;
     }
@@ -9623,14 +9669,14 @@ HRESULT ProfToEEInterfaceImpl::EnumNgenModuleMethodsInliningThisMethod(
     EX_TRY
     {
         // Trying to use static buffer
-        COUNT_T methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
+        COUNT_T methodsAvailable = inlinersModule->GetNativeOrReadyToRunInliners(inlineeOwnerModule, inlineeMethodId, staticBufferSize, staticBuffer, incompleteData);
 
         // If static buffer is not enough, allocate an array.
         if (methodsAvailable > staticBufferSize)
         {
             DWORD dynamicBufferSize = methodsAvailable;
             dynamicBuffer = methodsBuffer = new MethodInModule[dynamicBufferSize];
-            methodsAvailable = inlinersModule->GetInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
+            methodsAvailable = inlinersModule->GetNativeOrReadyToRunInliners(inlineeOwnerModule, inlineeMethodId, dynamicBufferSize, dynamicBuffer, incompleteData);                
             if (methodsAvailable > dynamicBufferSize)
             {
                 _ASSERTE(!"Ngen image inlining info changed, this shouldn't be possible.");

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -31,7 +30,7 @@ namespace System.IO
             else 
                 GetMessageForHR(hResult, JitHelpers.GetStringHandleOnStack(ref message));
 
-            return string.Format(format!, fileName, message!); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761 GetStringHandleOnStack needs to be attributed
+            return string.Format(format!, fileName, message!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

@@ -212,7 +212,7 @@ set(SOURCES
   loader/module.cpp
   loader/modulename.cpp
   locale/unicode.cpp
-  locale/unicode_data.cpp
+  locale/unicodedata.cpp
   locale/utf8.cpp
   map/common.cpp
   map/map.cpp
@@ -410,8 +410,9 @@ endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 add_subdirectory(examples)
 
 if(FEATURE_EVENT_TRACE)
-  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
+  add_subdirectory(eventprovider)
 endif(FEATURE_EVENT_TRACE)
+
 
 # Install the static PAL library for VS
 _install (TARGETS coreclrpal DESTINATION lib)

@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Collections.Generic
 {
@@ -16,6 +16,6 @@ namespace System.Collections.Generic
         // value less than zero if x is less than y, zero if x is equal to y, or a
         // value greater than zero if x is greater than y.
         // 
-        int Compare(T x, T y); // TODO-NULLABLE-GENERIC: must work with nulls
+        int Compare([AllowNull] T x, [AllowNull] T y);
     }
 }

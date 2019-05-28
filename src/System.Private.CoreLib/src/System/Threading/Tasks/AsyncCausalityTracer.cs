@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -82,7 +81,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        private static void TracingStatusChangedHandler(object sender, WFD.TracingStatusChangedEventArgs args)
+        private static void TracingStatusChangedHandler(object? sender, WFD.TracingStatusChangedEventArgs args)
         {
             if (args.Enabled)
                 f_LoggingOn |= Loggers.CausalityTracer;

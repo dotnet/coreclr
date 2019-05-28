@@ -24,16 +24,6 @@
 #include "cordbpriv.h"
 #include "assemblyspec.hpp"
 
-// A helper macro for the assembly's module hash (m_pAllowedFiles).
-#define UTF8_TO_LOWER_CASE(str, qb)                                                             \
-{                                                                                               \
-    WRAPPER_NO_CONTRACT;                                                                           \
-    INT32 allocBytes = InternalCasingHelper::InvariantToLower(NULL, 0, str);                    \
-    qb.AllocThrows(allocBytes);                                                                 \
-    InternalCasingHelper::InvariantToLower((LPUTF8) qb.Ptr(), allocBytes, str);                 \
-}
-
-
 class BaseDomain;
 class AppDomain;
 class DomainAssembly;
@@ -314,6 +304,16 @@ public:
         return m_pManifestFile->GetPersistentMDImport();
     }
 
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        WRAPPER_NO_CONTRACT;
+        SUPPORTS_DAC;
+        return GetManifestModule()->GetCustomAttribute(parentToken, attribute, ppData, pcbData);
+    }
+
 #ifndef DACCESS_COMPILE
     IMetaDataAssemblyImport* GetManifestAssemblyImporter()
     {
@@ -559,9 +559,9 @@ protected:
 
         if (!IsWinMD()) // ignore classic COM interop CAs in .winmd
         {
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_IMPORTEDFROMTYPELIB_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::ImportedFromTypeLib, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_IMPORTED_FROM_TYPELIB;
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_PRIMARYINTEROPASSEMBLY_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::PrimaryInteropAssembly, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_PRIMARY_INTEROP_ASSEMBLY;
         }
         

@@ -113,6 +113,8 @@ void SampleProfiler::Disable()
         return;
     }
 
+    _ASSERTE(!g_fProcessDetach);
+    
     // Reset the event before shutdown.
     s_threadShutdownEvent.Reset();
 

@@ -44,10 +44,12 @@ struct VTableCallHolder;
 // Forward function declarations
 extern "C" void InContextTPQuickDispatchAsmStub();
 
+#ifdef FEATURE_PREJIT
 extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBlock, 
                                                  TADDR siteAddrForRegisterIndirect,
                                                  DWORD sectionIndex, 
                                                  Module * pModule);
+#endif
 
 extern "C" PCODE STDCALL VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
                                            TADDR siteAddrForRegisterIndirect,
@@ -1591,7 +1593,7 @@ private:
     //we store the used count in bucket[CALL_STUB_COUNT_INDEX==1],
     //we have an unused cell to use as a temp at bucket[CALL_STUB_DEAD_LINK==2],
     //and the table starts at bucket[CALL_STUB_FIRST_INDEX==3],
-    size_t contents[];
+    size_t contents[0];
 };
 #ifdef _MSC_VER 
 #pragma warning(pop)
