@@ -229,6 +229,10 @@ namespace System
         //  copy the stack trace to _remoteStackTraceString.
         internal void InternalPreserveStackTrace()
         {
+            // Make sure that the _source field is initialized if Source is not overriden.
+            // We want it to contain the original faulting point.
+            string? source = Source;
+
             string? tmpStackTraceString = StackTrace;
 
             if (tmpStackTraceString != null && tmpStackTraceString.Length > 0)
