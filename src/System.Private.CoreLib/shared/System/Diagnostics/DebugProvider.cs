@@ -73,18 +73,30 @@ namespace System.Diagnostics
         private sealed class DebugAssertException : Exception
         {
             internal DebugAssertException(string? stackTrace) :
-                base(Environment.NewLine + stackTrace)
+                base(stackTrace)
             {
             }
 
             internal DebugAssertException(string? message, string? stackTrace) :
-                base(message + Environment.NewLine + Environment.NewLine + stackTrace)
+                base(Terminate(message) + stackTrace)
             {
             }
 
             internal DebugAssertException(string? message, string? detailMessage, string? stackTrace) :
-                base(message + Environment.NewLine + detailMessage + Environment.NewLine + Environment.NewLine + stackTrace)
+                base(Terminate(message) + Terminate(detailMessage) + stackTrace)
             {
+            }
+
+            private string Terminate(string? s)
+            {
+                if (s == null)
+                    return s;
+
+                s = s.Trim();
+                if (s.Length > 0)
+                    s += Environment.NewLine;
+
+                return s;
             }
         }
 
