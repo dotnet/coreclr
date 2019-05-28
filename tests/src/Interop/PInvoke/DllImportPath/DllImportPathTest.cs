@@ -240,7 +240,11 @@ class Test
         var currentDirectory = Directory.GetCurrentDirectory();
         var info = new DirectoryInfo(currentDirectory);
 
-        var file = info.EnumerateFiles("*DllImportPath_Local*", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        var file = info.EnumerateFiles("*DllImportPath_Local*", SearchOption.TopDirectoryOnly)
+                        .FirstOrDefault(localFile =>
+                            localFile.Extension == ".dll"
+                            || localFile.Extension == ".so"
+                            || localFile.Extension == ".dylib");
         
         var unicodeFileLocation = file.FullName.Replace("DllImportPath_Local", UnicodeFileName);
 
