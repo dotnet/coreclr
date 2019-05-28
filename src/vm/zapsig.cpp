@@ -1211,9 +1211,9 @@ BOOL ZapSig::EncodeMethod(
     {
         Module * pReferencingModule = pMethod->IsNDirect() ?
             pMethod->GetModule() :
-            (Module *)pResolvedToken->tokenScope;
+            IsDynamicScope(pResolvedToken->tokenScope) ? NULL: (Module *)pResolvedToken->tokenScope;
 
-        if (!pReferencingModule->IsInCurrentVersionBubble())
+        if (pReferencingModule != NULL && !pReferencingModule->IsInCurrentVersionBubble())
         {
             // FUTURE: Encoding of new cross-module references for ReadyToRun
             // This warning is hit for recursive cross-module inlining. It is commented out to avoid noise.
@@ -1221,9 +1221,34 @@ BOOL ZapSig::EncodeMethod(
             ThrowHR(E_FAIL);
         }
 
-        methodToken = pMethod->IsNDirect() ?
-            pMethod->GetMemberDef_NoLogging() :
-            pResolvedToken->token;
+        if (pMethod->IsNDirect())
+        {
+            methodToken = pMethod->GetMemberDef_NoLogging();
+        }
+        else if (!IsDynamicScope(pResolvedToken->tokenScope))
+        {
+            // Normal case for IL code
+            methodToken = pResolvedToken->token;
+        }
+        else
+        {
+            // Dynamic scope case. IL Stubs only
+            if (!pMethod->GetModule()->IsSystem())
+            {
+                _ASSERTE(FALSE); // IL stubs are expected to only have references to System.
+                ThrowHR(E_FAIL);
+            }
+
+            if (pInfoModule == pMethod->GetModule())
+            {
+                methodToken = pMethod->GetMemberDef_NoLogging();
+            }
+            else
+            {
+                // TODO: Distinguish this case so it doesn't print to the console
+                ThrowHR(E_FAIL); // Attempt to compile IL stub with use of helper function outside of CoreLib
+            }
+        }
 
         if (TypeFromToken(methodToken) == mdtMethodSpec)
         {
