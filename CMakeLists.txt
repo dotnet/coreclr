@@ -12,7 +12,6 @@ endif()
 
 # Set the project name
 project(CoreCLR)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Include cmake functions
 include(functions.cmake)
