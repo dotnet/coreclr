@@ -13,8 +13,9 @@ if (WIN32)
     add_definitions(-DWINDOWS=1)
 endif()
 
+# Verify that LTCG/LTO is available
+include(verify-lto.cmake)
 # Include global configure settings
-include(${CMAKE_CURRENT_SOURCE_DIR}/../configure.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/../configurecompiler.cmake)
 # Compile options
 

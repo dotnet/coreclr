@@ -16,8 +16,8 @@ project(CoreCLR)
 # Include cmake functions
 include(functions.cmake)
 
-# Include global configure settings
-include(configure.cmake)
+# Verify that LTCG/LTO is available
+include(verify-lto.cmake)
 
 if (WIN32)
   message(STATUS "VS_PLATFORM_TOOLSET is ${CMAKE_VS_PLATFORM_TOOLSET}")
