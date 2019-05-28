@@ -2,11 +2,9 @@
 cmake_minimum_required(VERSION 2.8.12)
 
 if (NOT WIN32)
-  set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -std=c++11"  CACHE STRING "Flags used by the compiler during all build types.")
-  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -std=c11"  CACHE STRING "Flags used by the compiler during all build types.")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c11")
 endif()
-
-project(Project)
 
 set(INC_PLATFORM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/Common/Platform)
 if (WIN32)
