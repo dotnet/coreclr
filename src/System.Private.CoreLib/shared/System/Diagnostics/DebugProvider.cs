@@ -87,7 +87,7 @@ namespace System.Diagnostics
             {
             }
 
-            private string Terminate(string? s)
+            private static string? Terminate(string? s)
             {
                 if (s == null)
                     return s;
