@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <windows.h>
+#include <ex.h>
 #include "debugmacros.h"
 #include "iallocator.h"
 #include "gcinfoarraylist.h"
@@ -44,6 +45,11 @@ void GcInfoArrayListBase::AppendNewChunk(size_t firstChunkCapacity, size_t eleme
 
     S_SIZE_T chunkSize = S_SIZE_T(roundUp(sizeof(ChunkBase), chunkAlignment)) + (S_SIZE_T(elementSize) * S_SIZE_T(chunkCapacity));
     assert(!chunkSize.IsOverflow());
+
+    if(chunkSize.IsOverflow())
+    {
+        ThrowHR(COR_E_OVERFLOW);
+    }
 
     ChunkBase* chunk = reinterpret_cast<ChunkBase*>(m_allocator->Alloc(chunkSize.Value()));
     chunk->m_next = nullptr;
