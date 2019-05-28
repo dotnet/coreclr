@@ -228,7 +228,7 @@ namespace System
             {
                 // Avx2 branch also operates on Sse2 sizes, so check is combined.
                 // Needs to be double length to allow us to align the data first.
-                if (length >= Vector128<byte>.Count * 2)
+                if (length >= Vector128<ushort>.Count * 2)
                 {
                     lengthToExamine = UnalignedCountVector128(ref searchSpace);
                 }
