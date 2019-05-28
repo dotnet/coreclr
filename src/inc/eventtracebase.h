@@ -95,17 +95,20 @@ enum EtwThreadFlags
         ((ProviderSymbol##_Context.IsEnabled) || EVENT_PIPE_ENABLED())
 
 
-#else //defined(FEATURE_PAL)
+#else //!defined(FEATURE_PAL)
 #if defined(FEATURE_PERFTRACING)
 #define ETW_INLINE
 #define ETWOnStartup(StartEventName, EndEventName)
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || \
+        (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.KeywordsBitmask)))
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || \
+        (XplatEventLogger::IsEventLoggingEnabled() && XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword)))
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || \
+        (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, Level, Keyword)))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
 #else //defined(FEATURE_PERFTRACING)
 #define ETW_INLINE
@@ -113,11 +116,11 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
-#define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword))
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.KeywordsBitmask))
+#define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
+#define ETW_PROVIDER_ENABLED(ProviderSymbol) (XplatEventLogger::IsProviderEnabled(Context))
 #endif // defined(FEATURE_PERFTRACING)
 #endif // !defined(FEATURE_PAL)
 
