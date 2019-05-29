@@ -103,7 +103,6 @@ VOID ParseNativeType(Module*    pModule,
     LayoutRawFieldInfo*         pfwalk,
     PCCOR_SIGNATURE             pNativeType,
     ULONG                       cbNativeType,
-    IMDInternalImport*          pInternalImport,
     mdTypeDef                   cl,
     const SigTypeContext *      pTypeContext,
     BOOL                       *pfDisqualifyFromManagedSequential
@@ -448,7 +447,9 @@ protected:
         Module::RestoreMethodTablePointer(ppMT);
 #else // FEATURE_PREJIT
         // without NGEN we only have to make sure that the type is fully loaded
-        ClassLoader::EnsureLoaded(ppMT->GetValue());
+        MethodTable* pMT = ppMT->GetValue();
+        if (pMT != NULL)
+            ClassLoader::EnsureLoaded(pMT);
 #endif // FEATURE_PREJIT
     }
 
@@ -1024,7 +1025,7 @@ private:
 class FieldMarshaler_FixedArray : public FieldMarshaler
 {
 public:
-    FieldMarshaler_FixedArray(IMDInternalImport *pMDImport, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT);
+    FieldMarshaler_FixedArray(Module *pModule, mdTypeDef cl, UINT32 numElems, VARTYPE vt, MethodTable* pElementMT);
 
     VOID UpdateNativeImpl(OBJECTREF* pCLRValue, LPVOID pNativeValue, OBJECTREF *ppCleanupWorkListOnStack) const;
     VOID UpdateCLRImpl(const VOID *pNativeValue, OBJECTREF *ppProtectedCLRValue, OBJECTREF *ppProtectedOldCLRValue) const;
@@ -1095,7 +1096,9 @@ public:
         Module::RestoreTypeHandlePointer(&m_arrayType);
 #else // FEATURE_PREJIT
         // without NGEN we only have to make sure that the type is fully loaded
-        ClassLoader::EnsureLoaded(m_arrayType.GetValue());
+        TypeHandle th = m_arrayType.GetValue();
+        if (!th.IsNull())
+            ClassLoader::EnsureLoaded(th);
 #endif // FEATURE_PREJIT
         FieldMarshaler::RestoreImpl();
     }
@@ -1118,7 +1121,8 @@ public:
 #ifdef FEATURE_PREJIT
         return !m_arrayType.IsTagged() && (m_arrayType.IsNull() || m_arrayType.GetValue().IsRestored());
 #else // FEATURE_PREJIT
-        return m_arrayType.IsNull() || m_arrayType.GetValue().IsFullyLoaded();
+        // putting the IsFullyLoaded check here is tempting but incorrect
+        return TRUE;
 #endif // FEATURE_PREJIT
     }
 #endif

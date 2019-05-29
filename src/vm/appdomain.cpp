@@ -98,9 +98,11 @@ static const WCHAR OTHER_DOMAIN_FRIENDLY_NAME_PREFIX[] = W("Domain");
 
 SPTR_IMPL(AppDomain, AppDomain, m_pTheAppDomain);
 SPTR_IMPL(SystemDomain, SystemDomain, m_pSystemDomain);
+#ifdef FEATURE_PREJIT
 SVAL_IMPL(BOOL, SystemDomain, s_fForceDebug);
 SVAL_IMPL(BOOL, SystemDomain, s_fForceProfiling);
 SVAL_IMPL(BOOL, SystemDomain, s_fForceInstrument);
+#endif
 
 #ifndef DACCESS_COMPILE
 
@@ -1587,7 +1589,7 @@ void SystemDomain::operator delete(void *pMem)
     // Do nothing - new() was in-place
 }
 
-
+#ifdef FEATURE_PREJIT
 void    SystemDomain::SetCompilationOverrides(BOOL fForceDebug,
                                               BOOL fForceProfiling,
                                               BOOL fForceInstrument)
@@ -1597,9 +1599,11 @@ void    SystemDomain::SetCompilationOverrides(BOOL fForceDebug,
     s_fForceProfiling = fForceProfiling;
     s_fForceInstrument = fForceInstrument;
 }
+#endif
 
 #endif //!DACCESS_COMPILE
 
+#ifdef FEATURE_PREJIT
 void    SystemDomain::GetCompilationOverrides(BOOL * fForceDebug,
                                               BOOL * fForceProfiling,
                                               BOOL * fForceInstrument)
@@ -1609,6 +1613,7 @@ void    SystemDomain::GetCompilationOverrides(BOOL * fForceDebug,
     *fForceProfiling = s_fForceProfiling;
     *fForceInstrument = s_fForceInstrument;
 }
+#endif
 
 #ifndef DACCESS_COMPILE
 
@@ -2880,7 +2885,6 @@ AppDomain::AppDomain()
 
     m_pRefClassFactHash = NULL;
 
-    m_ReversePInvokeCanEnter=TRUE;
     m_ForceTrivialWaitOperations = false;
     m_Stage=STAGE_CREATING;
 
@@ -3161,35 +3165,6 @@ MethodTable* AppDomain::LoadRedirectedType(WinMDAdapter::RedirectedTypeIndex ind
 #endif //!DACCESS_COMPILE
 
 #ifndef DACCESS_COMPILE
-
-bool IsPlatformAssembly(LPCSTR szName, DomainAssembly *pDomainAssembly)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(szName));
-        PRECONDITION(CheckPointer(pDomainAssembly));
-    }
-    CONTRACTL_END;
-
-    PEAssembly *pPEAssembly = pDomainAssembly->GetFile();
-
-    if (strcmp(szName, pPEAssembly->GetSimpleName()) != 0)
-    {
-        return false;
-    }
-    
-    DWORD cbPublicKey;
-    const BYTE *pbPublicKey = static_cast<const BYTE *>(pPEAssembly->GetPublicKey(&cbPublicKey));
-    if (pbPublicKey == nullptr)
-    {
-        return false;
-    }
-
-    return StrongNameIsSilverlightPlatformKey(pbPublicKey, cbPublicKey);
-}
 
 void AppDomain::AddAssembly(DomainAssembly * assem)
 {
@@ -4129,7 +4104,6 @@ DomainFile *AppDomain::LoadDomainFile(FileLoadLock *pLock, FileLoadLevel targetL
 
                     TryIncrementalLoad(pFile, workLevel, fileLock);
                 }
-                TESTHOOKCALL(CompletedFileLoadLevel(DefaultADID,pFile,workLevel));
             }
 
             if (pLock->GetLoadLevel() == immediateTargetLevel-1)
@@ -4194,9 +4168,7 @@ void AppDomain::TryIncrementalLoad(DomainFile *pFile, FileLoadLevel workLevel, F
         }
 
         // Do the work
-        TESTHOOKCALL(NextFileLoadLevel(DefaultADID,pFile,workLevel));
         BOOL success = pFile->DoIncrementalLoad(workLevel);
-        TESTHOOKCALL(CompletingFileLoadLevel(DefaultADID,pFile,workLevel));
         if (released)
         {
             // Reobtain lock to increment level. (Note that another thread may
@@ -4702,7 +4674,7 @@ BOOL AppDomain::AddExceptionToCache(AssemblySpec* pSpec, Exception *ex)
     return m_AssemblyCache.StoreException(pSpec, ex);
 }
 
-void AppDomain::AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod)
+void AppDomain::AddUnmanagedImageToCache(LPCWSTR libraryName, NATIVE_LIBRARY_HANDLE hMod)
 {
     CONTRACTL
     {
@@ -4723,9 +4695,9 @@ void AppDomain::AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod)
 }
 
 
-HMODULE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
+NATIVE_LIBRARY_HANDLE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
 {
-    CONTRACT(HMODULE)
+    CONTRACT(NATIVE_LIBRARY_HANDLE)
     {
         THROWS;
         GC_TRIGGERS;
@@ -4739,7 +4711,7 @@ HMODULE AppDomain::FindUnmanagedImageInCache(LPCWSTR libraryName)
 
     AssemblySpec spec;
     spec.SetCodeBase(libraryName);
-    RETURN (HMODULE) m_UnmanagedCache.LookupEntry(&spec, 0);
+    RETURN (NATIVE_LIBRARY_HANDLE) m_UnmanagedCache.LookupEntry(&spec, 0);
 }
 
 BOOL AppDomain::RemoveFileFromCache(PEAssembly *pFile)
@@ -5441,7 +5413,6 @@ ULONG AppDomain::Release()
     {
         _ASSERTE (m_Stage == STAGE_CREATING);
         delete this;
-        TESTHOOKCALL(AppDomainDestroyed(DefaultADID));
     }
     return (cRef);
 }

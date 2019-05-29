@@ -289,7 +289,7 @@ bool GCToOSInterface::Initialize()
     g_currentProcessCpuCount = 0;
 
     cpu_set_t cpuSet;
-    int st = sched_getaffinity(0, sizeof(cpu_set_t), &cpuSet);
+    int st = sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuSet);
 
     if (st == 0)
     {
@@ -379,7 +379,8 @@ uint32_t GCToOSInterface::GetCurrentProcessId()
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t dstProcNo)
 {
-    return GCToOSInterface::SetThreadAffinity(dstProcNo);
+    // There is no way to set a thread ideal processor on Unix, so do nothing.
+    return true;
 }
 
 // Get the number of the current processor

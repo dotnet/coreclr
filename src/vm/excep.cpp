@@ -243,7 +243,7 @@ ULONG GetExceptionMessage(OBJECTREF throwable,
 
 //-----------------------------------------------------------------------------
 // Given an object, get the "message" from it.  If the object is an Exception
-//  call Exception.InternalToString, otherwise, call Object.ToString
+//  call Exception.ToString, otherwise, call Object.ToString
 //-----------------------------------------------------------------------------
 void GetExceptionMessage(OBJECTREF throwable, SString &result)
 {
@@ -339,23 +339,13 @@ STRINGREF GetExceptionMessage(OBJECTREF throwable)
     if (throwable == NULL)
         return NULL;
 
-    // Assume we're calling Exception.InternalToString() ...
-    BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
-
-    // ... but if it isn't an exception, call Object.ToString().
-    _ASSERTE(IsException(throwable->GetMethodTable()));        // what is the pathway here?
-    if (!IsException(throwable->GetMethodTable()))
-    {
-        sigID = METHOD__OBJECT__TO_STRING;
-    }
-
     // Return value.
     STRINGREF pString = NULL;
 
     GCPROTECT_BEGIN(throwable);
 
-    // Get the MethodDesc on which we'll call.
-    MethodDescCallSite toString(sigID, &throwable);
+    // Call Object.ToString(). Note that exceptions do not have to inherit from System.Exception
+    MethodDescCallSite toString(METHOD__OBJECT__TO_STRING, &throwable);
 
     // Make the call.
     ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -497,12 +487,8 @@ void ExceptionPreserveStackTrace(   // No return.
     {
         LOG((LF_EH, LL_INFO1000, "ExceptionPreserveStackTrace called\n"));
 
-        // We're calling Exception.InternalPreserveStackTrace() ...
-        BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE;
-
-
-        // Get the MethodDesc on which we'll call.
-        MethodDescCallSite preserveStackTrace(sigID, &throwable);
+        // Call Exception.InternalPreserveStackTrace() ...
+        MethodDescCallSite preserveStackTrace(METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE, &throwable);
 
         // Make the call.
         ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};

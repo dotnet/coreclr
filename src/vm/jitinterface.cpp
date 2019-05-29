@@ -6916,13 +6916,27 @@ void CEEInfo::setMethodAttribs (
         }
     }
 
-#ifdef FEATURE_TIERED_COMPILATION
-    if (attribs & CORINFO_FLG_SWITCHED_TO_TIER1)
+#ifndef CROSSGEN_COMPILE
+    if (attribs & (CORINFO_FLG_SWITCHED_TO_OPTIMIZED | CORINFO_FLG_SWITCHED_TO_MIN_OPT))
     {
-        _ASSERTE(ftn->IsEligibleForTieredCompilation());
-        ftn->GetCallCounter()->DisableCallCounting(ftn);
-    }
+        PrepareCodeConfig *config = GetThread()->GetCurrentPrepareCodeConfig();
+        if (config != nullptr)
+        {
+            if (attribs & CORINFO_FLG_SWITCHED_TO_MIN_OPT)
+            {
+                _ASSERTE(!ftn->IsJitOptimizationDisabled());
+                config->SetJitSwitchedToMinOpt();
+            }
+#ifdef FEATURE_TIERED_COMPILATION
+            else if (attribs & CORINFO_FLG_SWITCHED_TO_OPTIMIZED)
+            {
+                _ASSERTE(ftn->IsEligibleForTieredCompilation());
+                config->SetJitSwitchedToOptimized();
+            }
 #endif
+        }
+    }
+#endif // !CROSSGEN_COMPILE
 
     EE_TO_JIT_TRANSITION();
 }
@@ -10838,21 +10852,8 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 /*********************************************************************/
 IEEMemoryManager* CEEInfo::getMemoryManager()
 {
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-    } CONTRACTL_END;
-
-    IEEMemoryManager* result = NULL;
-
-    JIT_TO_EE_TRANSITION_LEAF();
-
-    result = GetEEMemoryManager();
-
-    EE_TO_JIT_TRANSITION_LEAF();
-
-    return result;
+    UNREACHABLE(); // OBSOLETE
+    return NULL;
 }
 
 /*********************************************************************/
@@ -11179,7 +11180,7 @@ void CEEJitInfo::CompressDebugInfo()
     } CONTRACTL_END;
 
     // Don't track JIT info for DynamicMethods.
-    if (m_pMethodBeingCompiled->IsDynamicMethod())
+    if (m_pMethodBeingCompiled->IsDynamicMethod() && !g_pConfig->GetTrackDynamicMethodDebugInfo())
         return;
 
     if (m_iOffsetMapping == 0 && m_iNativeVarInfo == 0)
@@ -12713,7 +12714,7 @@ CORJIT_FLAGS GetCompileFlags(MethodDesc * ftn, CORJIT_FLAGS flags, CORINFO_METHO
 
     flags.Set(CORJIT_FLAGS::CORJIT_FLAG_SKIP_VERIFICATION);
 
-    if (ftn->IsILStub())
+    if (ftn->IsILStub() && !g_pConfig->GetTrackDynamicMethodDebugInfo())
     {
         // no debug info available for IL stubs
         flags.Clear(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);

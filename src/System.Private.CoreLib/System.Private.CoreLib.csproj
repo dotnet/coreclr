@@ -54,9 +54,9 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- Remove CS8608 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
-    <NoWarn>649,1573,1591,0419,3021,CS8609</NoWarn>
-    <NullableContextOptions>enable</NullableContextOptions>
+    <!-- Remove CS8609 once https://github.com/dotnet/roslyn/issues/23268 is resolved -->
+    <NoWarn>$(NoWarn);649,1573,1591,0419,3021,CS8609</NoWarn>
+    <Nullable>enable</Nullable>
 
     <!-- Ignore all previous constants since SPCL is sensitive to what is defined and the Sdk adds some by default -->
     <DefineConstants>CORECLR;netcoreapp</DefineConstants>
@@ -120,6 +120,7 @@
   <PropertyGroup>
     <CommonPath>$(MSBuildThisFileDirectory)Common</CommonPath>
     <BclSourcesRoot>$(MSBuildThisFileDirectory)src</BclSourcesRoot>
+    <SharedBclSourcesRoot>$(MSBuildThisFileDirectory)shared</SharedBclSourcesRoot>
   </PropertyGroup>
 
   <!-- Msbuild variables needed to get CoreCLR features to be set properly. -->
@@ -136,6 +137,7 @@
   <ItemGroup>
     <Compile Include="$(BclSourcesRoot)\Internal\Console.cs" />
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\IsolatedComponentLoadContext.cs" />
+    <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\ComponentActivator.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
     <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />
@@ -191,7 +193,6 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Associates.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\ConstructorInfo.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\CustomAttribute.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\Reflection\CustomAttributeExtensions.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AQNBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AssemblyBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\AssemblyBuilderData.cs" />
@@ -283,8 +284,8 @@
     <Compile Include="$(BclSourcesRoot)\System\TypeLoadException.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\TypeNameParser.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ValueType.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\WeakReference.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\WeakReferenceOfT.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\WeakReference.CoreCLR.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\WeakReference.T.CoreCLR.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.HandleTypes.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.GetStdHandle.cs" />
     <Compile Include="shared\Interop\Windows\Kernel32\Interop.LocalAlloc.cs" />
@@ -373,6 +374,7 @@
     <Compile Include="$(BclSourcesRoot)\System\Variant.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(TargetsUnix)' == 'true'">
+    <Compile Include="$(SharedBclSourcesRoot)\Interop\Windows\Interop.BOOL.cs" /> <!-- The CLR internally uses a BOOL type analogous to the Windows BOOL type on Unix -->
     <Compile Include="$(BclSourcesRoot)\Interop\Unix\Interop.Libraries.cs" />
     <Compile Include="$(BclSourcesRoot)\System\DateTime.Unix.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Globalization\GlobalizationMode.Unix.cs" />

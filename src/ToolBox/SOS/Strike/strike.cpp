@@ -4419,6 +4419,36 @@ void ExtOutTaskStateFlagsDescription(int stateFlags)
     ExtOut("\n");
 }
 
+void ExtOutStateMachineFields(AsyncRecord& ar)
+{
+    DacpMethodTableData mtabledata;
+    DacpMethodTableFieldData vMethodTableFields;
+    if (mtabledata.Request(g_sos, ar.StateMachineMT) == S_OK &&
+        vMethodTableFields.Request(g_sos, ar.StateMachineMT) == S_OK &&
+        vMethodTableFields.wNumInstanceFields + vMethodTableFields.wNumStaticFields > 0)
+    {
+        DisplayFields(ar.StateMachineMT, &mtabledata, &vMethodTableFields, (DWORD_PTR)ar.StateMachineAddr, TRUE, ar.IsValueType);
+    }
+}
+
+void FindStateMachineTypes(DWORD_PTR* corelibModule, mdTypeDef* stateMachineBox, mdTypeDef* debugStateMachineBox)
+{
+    int numModule;
+    ArrayHolder<DWORD_PTR> moduleList = ModuleFromName(const_cast<LPSTR>("System.Private.CoreLib.dll"), &numModule);
+    if (moduleList != NULL && numModule == 1)
+    {
+        *corelibModule = moduleList[0];
+        GetInfoFromName(*corelibModule, "System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1", stateMachineBox);
+        GetInfoFromName(*corelibModule, "System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+DebugFinalizableAsyncStateMachineBox`1", debugStateMachineBox);
+    }
+    else
+    {
+        *corelibModule = 0;
+        *stateMachineBox = 0;
+        *debugStateMachineBox = 0;
+    }
+}
+
 DECLARE_API(DumpAsync)
 {
     INIT_API();
@@ -4482,6 +4512,11 @@ DECLARE_API(DumpAsync)
             DisplayInvalidStructuresMessage();
         }
 
+        // Find the state machine types
+        DWORD_PTR corelibModule;
+        mdTypeDef stateMachineBoxMd, debugStateMachineBoxMd;
+        FindStateMachineTypes(&corelibModule, &stateMachineBoxMd, &debugStateMachineBoxMd);
+
         // Walk each heap object looking for async state machine objects.  As we're targeting .NET Core 2.1+, all such objects
         // will be Task or Task-derived types.
         std::map<CLRDATA_ADDRESS, AsyncRecord> asyncRecords;
@@ -4507,8 +4542,10 @@ DECLARE_API(DumpAsync)
             {
                 // Otherwise, we only care about AsyncStateMachineBox`1 as well as the DebugFinalizableAsyncStateMachineBox`1
                 // that's used when certain ETW events are set.
-                if (_wcsncmp(itr->GetTypeName(), W("System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+AsyncStateMachineBox`1"), 79) != 0 &&
-                    _wcsncmp(itr->GetTypeName(), W("System.Runtime.CompilerServices.AsyncTaskMethodBuilder`1+DebugFinalizableAsyncStateMachineBox`1"), 95) != 0)
+                DacpMethodTableData mtdata;
+                if (mtdata.Request(g_sos, TO_TADDR(itr->GetMT())) != S_OK ||
+                    mtdata.Module != corelibModule ||
+                    (mtdata.cl != stateMachineBoxMd && mtdata.cl != debugStateMachineBoxMd))
                 {
                     continue;
                 }
@@ -4687,19 +4724,14 @@ DECLARE_API(DumpAsync)
 
             // Output the state machine's details as a single line.
             sos::Object obj = TO_TADDR(arIt->second.Address);
-            DacpMethodTableData mtabledata;
-            DacpMethodTableFieldData vMethodTableFields;
-            if (arIt->second.IsStateMachine &&
-                mtabledata.Request(g_sos, arIt->second.StateMachineMT) == S_OK &&
-                vMethodTableFields.Request(g_sos, arIt->second.StateMachineMT) == S_OK &&
-                vMethodTableFields.wNumInstanceFields + vMethodTableFields.wNumStaticFields > 0)
+            if (arIt->second.IsStateMachine)
             {
                 // This has a StateMachine.  Output its details.
                 sos::MethodTable mt = TO_TADDR(arIt->second.StateMachineMT);
                 DMLOut("%s %s %8d ", DMLAsync(obj.GetAddress()), DMLDumpHeapMT(obj.GetMT()), obj.GetSize());
                 if (includeCompleted) ExtOut("%8s ", GetAsyncRecordStatusDescription(arIt->second));
                 ExtOut("%10d %S\n", arIt->second.StateValue, mt.GetName());
-                if (dumpFields) DisplayFields(arIt->second.StateMachineMT, &mtabledata, &vMethodTableFields, (DWORD_PTR)arIt->second.StateMachineAddr, TRUE, arIt->second.IsValueType);
+                if (dumpFields) ExtOutStateMachineFields(arIt->second);
             }
             else
             {
@@ -4762,6 +4794,7 @@ DECLARE_API(DumpAsync)
                             sos::MethodTable contMT = TO_TADDR(contAsyncRecord->second.StateMachineMT);
                             if (contAsyncRecord->second.IsStateMachine) ExtOut("(%d) ", contAsyncRecord->second.StateValue);
                             ExtOut("%S\n", contMT.GetName());
+                            if (contAsyncRecord->second.IsStateMachine && dumpFields) ExtOutStateMachineFields(contAsyncRecord->second);
                         }
                         else
                         {
