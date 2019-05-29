@@ -83,7 +83,7 @@
 //
     NESTED_ENTRY JIT_PInvokeBegin,_TEXT,NoHandler
 
-        PROLOG_PUSH         "{r4,r5,r7,lr}"
+        PROLOG_PUSH  "{r4, lr}"
 
         ldr     r1, =s_gsCookie
         ldr     r1, [r1]
@@ -99,7 +99,8 @@
         mov     r1, 0
         str     r1, [r4, #InlinedCallFrame__m_Datum]
     
-        str     sp, [r4, #InlinedCallFrame__m_pCallSiteSP]
+        add     r1, sp, 8
+        str     r1, [r4, #InlinedCallFrame__m_pCallSiteSP]
         str     r11, [r4, #InlinedCallFrame__m_pCalleeSavedFP]
         str     lr, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
 
@@ -118,7 +119,7 @@
         mov     r1, 0
         str     r1, [r0, #Thread_m_fPreemptiveGCDisabled]
 
-        EPILOG_POP              "{r4,r5,r7,pc}"
+        EPILOG_POP   "{r4, pc}"
 
     NESTED_END JIT_PInvokeBegin, _TEXT
 

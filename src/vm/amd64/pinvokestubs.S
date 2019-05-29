@@ -7,9 +7,6 @@
 #include "asmconstants.h"
 
 
-// Min amount of stack space that a nested function should allocate.
-#define MIN_SIZE 0x28
-
 //
 // in:
 // PINVOKE_CALLI_TARGET_REGISTER (r10) = unmanaged target
@@ -139,8 +136,7 @@ NESTED_END VarargPInvokeGenILStub, _TEXT
 //
 NESTED_ENTRY JIT_PInvokeBegin, _TEXT, NoHandler
 
-        alloc_stack         MIN_SIZE
-        save_reg_postrsp    r14, (MIN_SIZE + 0x08)
+        push_nonvol_reg r14
         END_PROLOGUE
 
         PREPARE_EXTERNAL_VAR s_gsCookie, rax
@@ -149,22 +145,18 @@ NESTED_ENTRY JIT_PInvokeBegin, _TEXT, NoHandler
         add             rdi, SIZEOF_GSCookie
 
         // set first slot to the value of InlinedCallFrame vftable (checked by runtime code)
-#ifdef __APPLE__
-        mov             rax, qword ptr [rip + __ZTV16InlinedCallFrame@GOTPCREL]
-#else
-        mov             rax, qword ptr [rip + _ZTV16InlinedCallFrame@GOTPCREL]
-#endif
+        PREPARE_EXTERNAL_VAR C_FUNC(ZTV16InlinedCallFrame), rax
         add             rax, 0x10
         mov             qword ptr [rdi], rax
 
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_Datum], 0
 
         mov             rax, rsp
-        add             rax, MIN_SIZE + 8
+        add             rax, 0x10
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_pCallSiteSP], rax
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP], rbp
 
-        mov             rax, qword ptr [rsp + MIN_SIZE]
+        mov             rax, qword ptr [rsp + 8]
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress], rax
 
         // Save pFrame in callee saved register
@@ -184,8 +176,7 @@ NESTED_ENTRY JIT_PInvokeBegin, _TEXT, NoHandler
         // pThread->m_fPreemptiveGCDisabled = 0
         mov             dword ptr [rax + OFFSETOF__Thread__m_fPreemptiveGCDisabled], 0
 
-        mov             r14, qword ptr [rsp + MIN_SIZE + 08h]
-        add             rsp, MIN_SIZE
+        pop_nonvol_reg  r14
         ret
 
 NESTED_END JIT_PInvokeBegin, _TEXT

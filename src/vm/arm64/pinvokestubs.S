@@ -105,16 +105,17 @@ LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
         // x19 = pFrame
         
         // set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
-        adrp    x9, _ZTV16InlinedCallFrame+16
-        add     x9, x9, :lo12:_ZTV16InlinedCallFrame+16
+        PREPARE_EXTERNAL_VAR C_FUNC(_ZTV16InlinedCallFrame+16), x9
         str     x9, [x19]
 
         str     xzr, [x19, #InlinedCallFrame__m_Datum]
     
         add     x9, sp, 32
         str     x9, [x19, #InlinedCallFrame__m_pCallSiteSP]
-        str     fp, [x19, #InlinedCallFrame__m_pCalleeSavedFP]
         str     lr, [x19, #InlinedCallFrame__m_pCallerReturnAddress]
+
+        ldr     x9, [sp,#0]
+        str     x9, [x19, #InlinedCallFrame__m_pCalleeSavedFP]
 
         // x0 = GetThread()
         bl      C_FUNC(GetThread)

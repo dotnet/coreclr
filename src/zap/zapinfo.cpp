@@ -3864,6 +3864,12 @@ CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
                                                        CORINFO_SIG_INFO* sig)
 {
+#if defined(_TARGET_X86_) && defined(PLATFORM_UNIX)
+    // FUTURE ReadyToRun: x86 pinvoke stubs on Unix platforms
+    if (IsReadyToRunCompilation())
+        return TRUE; 
+#endif
+
     if (IsReadyToRunCompilation() && method != NULL && !m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getMethodModule(method)))
     {
         // FUTURE: ZapSig::EncodeMethod does not yet handle cross module references for ReadyToRun
