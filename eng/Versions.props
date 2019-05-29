@@ -3,6 +3,9 @@
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
     <ProductVersion>3.0.0</ProductVersion>
+    <!-- File version numbers -->
+    <MajorVersion>4</MajorVersion>
+    <MinorVersion>7</MinorVersion>
     <!-- Always use shipping version instead of dummy versions -->
     <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
     <PreReleaseVersionLabel>preview6</PreReleaseVersionLabel>
@@ -18,7 +21,7 @@
     <MicrosoftNETCorePlatformsVersion>3.0.0-preview6.19273.8</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview6.19273.8</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.0.0-preview6-27723-08</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview6-27727-02</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
