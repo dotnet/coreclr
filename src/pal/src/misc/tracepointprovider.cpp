@@ -61,7 +61,9 @@ PAL_InitializeTracing(void)
 {
     int fShouldLoad = 1;
     // Check if loading the LTTng providers should be disabled.
-    char *disableValue = getenv("COMPlus_Lttng");
+    // Note: this env var is formally declared in clrconfigvalues.h, but
+    // this code is excuted too early to use the mechanics that come with that definition.
+    char *disableValue = getenv("COMPlus_LTTng");
     if (disableValue != NULL)
     {
         fShouldLoad = strtol(disableValue, NULL, 10);
