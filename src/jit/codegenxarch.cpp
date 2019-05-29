@@ -5616,7 +5616,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     if (callType == CT_HELPER && compiler->info.compFlags & CORINFO_FLG_SYNCH)
     {
         fPossibleSyncHelperCall = true;
-        helperNum = compiler->eeGetHelperNum(methHnd);
+        helperNum               = compiler->eeGetHelperNum(methHnd);
         noway_assert(helperNum != CORINFO_HELP_UNDEF);
     }
 
@@ -5745,12 +5745,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             void* pAddr = nullptr;
             addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
             assert(pAddr == nullptr);
-
-            // tracking of region protected by the monitor in synchronized methods
-            if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
-            {
-                fPossibleSyncHelperCall = true;
-            }
         }
         else
         {
