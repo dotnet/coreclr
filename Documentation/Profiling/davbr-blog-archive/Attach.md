@@ -1,5 +1,7 @@
 *This blog post originally appeared on David Broman's blog on 11/4/2009*
 
+***This method is only for desktop and does not work for CoreCLR. Please see [Profiler Attach on CoreCLR](../Profiler Attach on Coreclr.md) for profiler attach on CoreCLR***
+
 
 Profiler attach is a feature that allows you to attach a profiler to an already running process. The usefulness of this is fairly obvious to anyone who's ever attached a debugger to a running-process: It's helpful when diagnosing hard-to-reproduce problems, and particularly useful when encountering issues in production.
 

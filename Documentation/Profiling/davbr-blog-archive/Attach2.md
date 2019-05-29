@@ -1,5 +1,6 @@
 *This blog post originally appeared on David Broman's blog on 1/18/2010*
 
+***This method is only for desktop and does not work for CoreCLR. Please see [Profiler Attach on CoreCLR](../Profiler Attach on Coreclr.md) for profiler attach on CoreCLR***
 
 In a previous [post](Attach.md), I outlined to all you profiler writers how to modify your profiler so it can attach to running processes, and what sorts of limitations your profiler will have when it attaches.  In this post, I answer the question, “My profiler is attached.  What should it do next?”
 
