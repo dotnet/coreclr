@@ -1,6 +1,10 @@
 # Set initial flags for each configuration
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_CHECKED=1)
 set(CLR_DEFINES_CHECKED_INIT            DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_CHECKED=1)
@@ -71,11 +75,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   set(CLR_CMAKE_PLATFORM_UNIX 1)
   set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
   set(CLR_CMAKE_PLATFORM_DARWIN 1)
-  if(CMAKE_VERSION VERSION_LESS "3.4.0")
-    set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> -o <OBJECT> -c <SOURCE>")
-  else()
-    set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> <INCLUDES> -o <OBJECT> -c <SOURCE>")
-  endif(CMAKE_VERSION VERSION_LESS "3.4.0")
+  set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> <INCLUDES> -o <OBJECT> -c <SOURCE>")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
@@ -187,14 +187,11 @@ if(WIN32)
     add_compile_options(/Zi /FC /Zc:strictStrings)
 elseif (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-g)
-    # We need to add -Wall to CMAKE_<LANG>_FLAGS since add_compile_options takes precedence
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
-    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+    add_compile_options(-Wall)
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         add_compile_options(-Wno-null-conversion)
     else()
-        # We need to add -Werror=conversion-null to CMAKE_<LANG>_FLAGS since add_compile_options takes precedence
-        set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror=conversion-null")
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror=conversion-null>)
     endif()
 endif()
 
@@ -477,7 +474,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-Wno-unused-function)
 
   #These seem to indicate real issues
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-invalid-offsetof>)
 
   if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
@@ -510,7 +507,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-fms-extensions)
     add_compile_options(-Wno-unknown-pragmas)
     if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-new")
+      add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-faligned-new>)
     endif()
   endif()
 
