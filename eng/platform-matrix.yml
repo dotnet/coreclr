@@ -42,6 +42,9 @@ jobs:
           - (Ubuntu.1604.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-helix-arm32v7-0a0ebdd-20190312215551
           - (Ubuntu.1804.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-0a0ebdd-20190312215532
         crossrootfsDir: '/crossrootfs/arm'
+        jit_stress_isas: 'unused'
+        included_for_gc_stress: true
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Linux arm64
@@ -63,6 +66,9 @@ jobs:
           - (Debian.9.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-0a0ebdd-20190312215438
           - (Ubuntu.1804.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-0a0ebdd-20190312220351
         crossrootfsDir: '/crossrootfs/arm64'
+        included_for_gc_stress: true
+        jit_stress_isas: 'arm'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Linux musl x64
@@ -81,6 +87,9 @@ jobs:
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Alpine.36.Amd64
           - Alpine.38.Amd64
+        included_for_gc_stress: false
+        jit_stress_isas: 'unused'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Linux musl arm64
@@ -99,6 +108,9 @@ jobs:
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - (Alpine.38.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-46e69dd-20190313223330
         crossrootfsDir: '/crossrootfs/arm64'
+        included_for_gc_stress: false
+        jit_stress_isas: 'unused'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Linux rhel6 x64
@@ -115,6 +127,9 @@ jobs:
         # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - RedHat.6.Amd64
+        included_for_gc_stress: false
+        jit_stress_isas: 'unused'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Linux x64
@@ -143,6 +158,9 @@ jobs:
           - Centos.7.Amd64
           - (Fedora.28.Amd64)Ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:fedora-28-helix-45b1fa2-20190327215722
           - RedHat.7.Amd64
+        included_for_gc_stress: true
+        jit_stress_isas: 'x86'
+        jitstressregs: 'x86'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
 # FreeBSD
@@ -160,6 +178,9 @@ jobs:
 #     helixQueues:
 #       asString: ''
 #       asArray: []
+#     included_for_gc_stress: false
+#     jit_stress_isas: 'unused'
+#     jitstressregs: 'unused'
 #     ${{ insert }}: ${{ parameters.jobParameters }}
 
   # macOS x64
@@ -182,6 +203,9 @@ jobs:
           - OSX.1012.Amd64
           - OSX.1013.Amd64
           - OSX.1014.Amd64
+        included_for_gc_stress: false
+        jit_stress_isas: 'x86'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Windows x64
@@ -207,6 +231,9 @@ jobs:
           - Windows.10.Amd64
           - Windows.10.Amd64.Core
           - Windows.10.Nano.Amd64
+        included_for_gc_stress: true
+        jit_stress_isas: 'x86'
+        jitstressregs: 'x86'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Windows x86
@@ -230,6 +257,9 @@ jobs:
           - Windows.81.Amd64
           - Windows.10.Amd64
           - Windows.10.Amd64.Core
+        included_for_gc_stress: true
+        jit_stress_isas: 'x86'
+        jitstressregs: 'x86'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Windows arm
@@ -247,6 +277,9 @@ jobs:
           - Windows.10.Arm64.Open
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Windows.10.Arm64
+        included_for_gc_stress: false
+        jit_stress_isas: 'unused'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Windows arm64
@@ -262,4 +295,7 @@ jobs:
         # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Windows.10.Arm64
+        included_for_gc_stress: false
+        jit_stress_isas: 'arm'
+        jitstressregs: 'unused'
         ${{ insert }}: ${{ parameters.jobParameters }}
