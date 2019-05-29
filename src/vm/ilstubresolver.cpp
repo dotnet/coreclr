@@ -393,6 +393,24 @@ COR_ILMETHOD_SECT_EH* ILStubResolver::AllocEHSect(size_t nClauses)
     }
 }
 
+void ILStubResolver::FinalizeEHSect(size_t nClauses)
+{
+    if (IsReadyToRunCompilation() && nClauses > 0)
+    {
+        for (size_t iClause = 0; iClause < nClauses; iClause++)
+        {
+            COR_ILMETHOD_SECT_EH_CLAUSE_FAT ehClause;
+            const COR_ILMETHOD_SECT_EH_CLAUSE_FAT* ehInfo;
+            ehInfo = (COR_ILMETHOD_SECT_EH_CLAUSE_FAT*)m_pCompileTimeState->m_ILHeader.EH->EHClause((unsigned)iClause, &ehClause);
+            if (ehInfo->Flags == COR_ILEXCEPTION_CLAUSE_NONE) // Typed exception catch
+            {
+                // Typed exceptions aren't necessarily safe.
+                GenerateNonR2RSafeILStub();
+            }
+        }
+    }
+}
+
 
 void ILStubResolver::FreeCompileTimeState()
 {

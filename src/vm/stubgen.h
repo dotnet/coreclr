@@ -773,4 +773,24 @@ protected:
 
 #define TOKEN_ILSTUB_TARGET_SIG (TokenFromRid(0xFFFFFF, mdtSignature))
 
+#ifdef CROSSGEN_COMPILE
+void GenerateNonR2RSafeILStub();
+#else
+inline void GenerateNonR2RSafeILStub() {}
+#endif
+
+class OverrideNonR2RSafeILStubChecksHolder
+{
+#ifdef CROSSGEN_COMPILE
+    bool oldR2RUnsafeValue;
+public:
+    OverrideNonR2RSafeILStubChecksHolder();
+    ~OverrideNonR2RSafeILStubChecksHolder();
+#else
+public:
+    OverrideNonR2RSafeILStubChecksHolder() {}
+#endif // CROSSGEN_COMPILE
+    HIDE_GENERATED_METHODS(OverrideNonR2RSafeILStubChecksHolder)
+};
+
 #endif  // __STUBGEN_H__

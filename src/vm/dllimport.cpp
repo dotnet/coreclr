@@ -994,6 +994,7 @@ public:
         {
             COR_ILMETHOD_SECT_EH* pEHSect = pResolver->AllocEHSect(nEHClauses);
             PopulateEHSect(pEHSect, nEHClauses, &cleanupTryFinally, &convertToHRTryCatch);
+            pResolver->FinalizeEHSect(nEHClauses);
         }
 
         m_slIL.GenerateCode(pbBuffer, cbCode);
