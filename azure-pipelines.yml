@@ -123,17 +123,16 @@ jobs:
     parameters:
       jobTemplate: build-job.yml
       buildConfig: checked
-      - ${{ if and(eq(variables['System.TeamProject'], 'public'):
-        platforms:
-        - Linux_arm
-        - Linux_arm64
-        - Linux_musl_x64
-        - Linux_x64
-        - OSX_x64
-        - Windows_NT_arm
-        - Windows_NT_arm64
-        - Windows_NT_x64
-        - Windows_NT_x86
+      platforms:
+      - Linux_arm
+      - Linux_arm64
+      - Linux_musl_x64
+      - Linux_x64
+      - OSX_x64
+      - Windows_NT_arm
+      - Windows_NT_arm64
+      - Windows_NT_x64
+      - Windows_NT_x86
 
 #
 # Release builds
