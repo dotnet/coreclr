@@ -342,6 +342,15 @@ void SetupGcCoverageForNativeImage(Module* module)
 void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
 {
     ReturnKind returnKind = callMD->GetReturnKind(true);
+    if (!IsValidReturnKind(returnKind))
+    {
+#if !defined(_TARGET_AMD64_) || !defined(PLATFORM_UNIX)
+        // SKip GC coverage after the call.
+        return;
+#else // _TARGET_AMD64_ && PLATFORM_UNIX
+        _ASSERTE("Unexpected return kind for x64 Unix.");
+#endif // _TARGET_AMD64_ && PLATFORM_UNIX
+    }
     _ASSERTE(IsValidReturnKind(returnKind));
 
     bool pointerKind = IsPointerReturnKind(returnKind);
