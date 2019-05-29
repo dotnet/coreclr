@@ -1472,7 +1472,7 @@ BOOL ZapSig::EncodeMethod(
             _ASSERTE(pResolvedToken->cbTypeSpec > 0);
 
             DWORD moduleIndex = MODULE_INDEX_NONE;
-            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pResolvedToken->tokenScope))
+            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pResolvedToken->tokenScope)))
             {
                 if (IsDynamicScope(pResolvedToken->tokenScope))
                 {
@@ -1529,7 +1529,7 @@ BOOL ZapSig::EncodeMethod(
             }
 
             DWORD moduleIndex = MODULE_INDEX_NONE;
-            if ((IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pResolvedToken->tokenScope))
+            if (IsReadyToRunCompilation() && pMethod->GetModule()->IsInCurrentVersionBubble() && pInfoModule != GetModule(pResolvedToken->tokenScope))
             {
                 moduleIndex = (*((EncodeModuleCallback)pfnEncodeModule))(pEncodeModuleContext, GetModule(pResolvedToken->tokenScope));
             }
