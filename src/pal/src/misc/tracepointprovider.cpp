@@ -110,7 +110,6 @@ PAL_InitializeTracing(void)
     
     if (fShouldLoad)
     {
-        fprintf(stdout, "LOADED\n");
         // Load the tracepoint provider.
         // It's OK if this fails - that just means that tracing dependencies aren't available.
         dlopen(tpProvPath, RTLD_NOW | RTLD_GLOBAL);
