@@ -451,8 +451,7 @@ public:
         STANDARD_VM_CONTRACT;
 
         ILCodeStream* pcs = m_slIL.GetDispatchCodeStream();
-        
-#ifdef FEATURE_USE_LCID
+
         if (SF_IsReverseStub(m_dwStubFlags))
         {
             if ((m_slIL.GetStubTargetCallingConv() & IMAGE_CEE_CS_CALLCONV_HASTHIS) == IMAGE_CEE_CS_CALLCONV_HASTHIS)
@@ -504,12 +503,6 @@ public:
                 pcs->EmitCALL(METHOD__CULTURE_INFO__GET_ID, 1, 1);
             }
         }
-#else // FEATURE_USE_LCID
-        if (SF_IsForwardStub(m_dwStubFlags))
-        {
-            pcs->EmitLDC(0x0409); // LCID_ENGLISH_US
-        }
-#endif // FEATURE_USE_LCID
 
         // add the extra arg to the unmanaged signature
         LocalDesc locDescNative(ELEMENT_TYPE_I4);
@@ -2716,7 +2709,7 @@ void PInvokeStaticSigInfo::PreInit(Module* pModule, MethodTable * pMT)
     }
     else
     {
-        ReadBestFitCustomAttribute(m_pModule->GetMDImport(), mdTypeDefNil, &bBestFit, &bThrowOnUnmappableChar);
+        ReadBestFitCustomAttribute(m_pModule, mdTypeDefNil, &bBestFit, &bThrowOnUnmappableChar);
     }
 
     SetBestFitMapping (bBestFit);
@@ -2790,8 +2783,8 @@ PInvokeStaticSigInfo::PInvokeStaticSigInfo(MethodDesc* pMD, ThrowOnError throwOn
     LONG cData = 0;
     CorPinvokeMap callConv = (CorPinvokeMap)0;
 
-    HRESULT hRESULT = pMT->GetMDImport()->GetCustomAttributeByName(
-        pMT->GetCl(), g_UnmanagedFunctionPointerAttribute, (const VOID **)(&pData), (ULONG *)&cData);
+    HRESULT hRESULT = pMT->GetCustomAttribute(
+        WellKnownAttribute::UnmanagedFunctionPointer, (const VOID **)(&pData), (ULONG *)&cData);
     IfFailThrow(hRESULT);
     if (cData != 0)
     {
@@ -4657,15 +4650,14 @@ HRESULT FindPredefinedILStubMethod(MethodDesc *pTargetMD, DWORD dwStubFlags, Met
         if (pTargetMD->IsInterface())
         {
             _ASSERTE(!pTargetMD->GetAssembly()->IsWinMD());
-            hr = pTargetMD->GetMDImport()->GetCustomAttributeByName(
-                pTargetMD->GetMemberDef(),
-                FORWARD_INTEROP_STUB_METHOD_TYPE,
+            hr = pTargetMD->GetCustomAttribute(
+                WellKnownAttribute::ManagedToNativeComInteropStub,
                 &pBytes,
                 &cbBytes);
                 
             if (FAILED(hr)) 
                 RETURN hr;
-            // GetCustomAttributeByName returns S_FALSE when it cannot find the attribute but nothing fails...
+            // GetCustomAttribute returns S_FALSE when it cannot find the attribute but nothing fails...
             // Translate that to E_FAIL
             else if (hr == S_FALSE)
                 RETURN E_FAIL;               
@@ -5733,7 +5725,7 @@ void CreateCLRToDispatchCOMStub(
 #endif // FEATURE_COMINTEROP
 
 /*static*/
-LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod)
+LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, NATIVE_LIBRARY_HANDLE hMod)
 {
     // GetProcAddress cannot be called while preemptive GC is disabled.
     // It requires the OS to take the loader lock.
@@ -6149,7 +6141,7 @@ INT_PTR NDirect::GetNativeLibraryExport(NATIVE_LIBRARY_HANDLE handle, LPCWSTR sy
     if ((address == NULL) && throwOnError)
         COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDR_WIN_DLL, symbolName);
 #else // !FEATURE_PAL
-    INT_PTR address = reinterpret_cast<INT_PTR>(PAL_GetProcAddressDirect((NATIVE_LIBRARY_HANDLE)handle, lpstr));
+    INT_PTR address = reinterpret_cast<INT_PTR>(PAL_GetProcAddressDirect(handle, lpstr));
     if ((address == NULL) && throwOnError)
         COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDR_UNIX_SO, symbolName);
 #endif // !FEATURE_PAL
@@ -6633,7 +6625,7 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleBySearch(Assembly *callingAssemb
 }
 
 // This Method returns an instance of the PAL-Registered handle
-HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
+NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
     CONTRACTL
     {
@@ -6649,12 +6641,9 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     PREFIX_ASSUME( name != NULL );
     MAKE_WIDEPTR_FROMUTF8( wszLibName, name );
 
-    ModuleHandleHolder hmod = LoadLibraryModuleViaCallback(pMD, wszLibName);
+    NativeLibraryHandleHolder hmod = LoadLibraryModuleViaCallback(pMD, wszLibName);
     if (hmod != NULL)
     {
-#ifdef FEATURE_PAL
-        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
         return hmod.Extract();
     }
 
@@ -6667,9 +6656,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         hmod = LoadLibraryModuleViaHost(pMD, wszLibName);
         if (hmod != NULL)
         {
-#ifdef FEATURE_PAL
-            hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
             return hmod.Extract();
         }
     }
@@ -6683,10 +6669,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     hmod = LoadLibraryModuleBySearch(pMD, pErrorTracker, wszLibName);
     if (hmod != NULL)
     {
-#ifdef FEATURE_PAL
-        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
-
         // If we have a handle add it to the cache.
         pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
         return hmod.Extract();
@@ -6697,9 +6679,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         hmod = LoadLibraryModuleViaEvent(pMD, wszLibName);
         if (hmod != NULL)
         {
-#ifdef FEATURE_PAL
-            hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
             return hmod.Extract();
         }
     }
@@ -6754,7 +6733,7 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     LoadLibErrorTracker errorTracker;
 
     BOOL fSuccess = FALSE;
-    HINSTANCE hmod = LoadLibraryModule( pMD, &errorTracker );
+    NATIVE_LIBRARY_HANDLE hmod = LoadLibraryModule( pMD, &errorTracker );
     if ( hmod )
     {
         LPVOID pvTarget = NDirectGetEntryPoint(pMD, hmod);

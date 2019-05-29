@@ -1,7 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
-
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
@@ -12,6 +10,13 @@
     <PackageReference Include="optimization.PGO.CoreCLR" Version="$(optimizationPGOCoreCLRVersion)" Condition="'$(optimizationPGOCoreCLRVersion)'!=''" />
     <PackageReference Include="optimization.IBC.CoreCLR" Version="$(optimizationIBCCoreCLRVersion)" Condition="'$(optimizationIBCCoreCLRVersion)'!=''" />
   </ItemGroup>
+
+  <PropertyGroup>
+    <RestoreSources>
+      https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
+      $(RestoreSources);
+    </RestoreSources>
+  </PropertyGroup>
 
   <Target Name="DumpPgoDataPackageVersion">
     <Message Importance="high" Text="$(optimizationPGOCoreCLRVersion)" />

@@ -1071,7 +1071,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
     LONG cData = 0;
     CorPinvokeMap callConv = (CorPinvokeMap)0;
 
-    HRESULT hr = pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), g_NativeCallableAttribute, (const VOID **)(&pData), (ULONG *)&cData);
+    HRESULT hr = pMD->GetCustomAttribute(WellKnownAttribute::NativeCallable, (const VOID **)(&pData), (ULONG *)&cData);
     IfFailThrow(hr);
 
     if (cData > 0)
@@ -1188,19 +1188,6 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
                 pManagedTargetForDiagnostics,
                 objhnd,
                 pUMThunkMarshInfo, pInvokeMeth);
-
-#ifdef FEATURE_WINDOWSPHONE
-            // Perform the runtime initialization lazily for better startup time. Lazy initialization
-            // has worse diagnostic experience (the invalid marshaling directive exception is thrown 
-            // lazily on the first call instead of during delegate creation), but it should be ok 
-            // for CoreCLR on phone because of reverse p-invoke is for internal use only.
-#else
-            {
-                GCX_PREEMP();
-
-                pUMEntryThunk->RunTimeInit();
-            }
-#endif
 
             if (!pInteropInfo->SetUMEntryThunk(pUMEntryThunk)) 
             {
