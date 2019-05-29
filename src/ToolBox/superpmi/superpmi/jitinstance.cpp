@@ -329,7 +329,7 @@ JitInstance::Result JitInstance::CompileMethod(MethodContext* MethodToCompile, i
             {
                 jitResult = CORJIT_OK;
             }
-#elif _TARGET_X86_
+#elif defined(_TARGET_X86_)
             if (SpmiTargetArchitecture == SPMI_TARGET_ARCHITECTURE_ARM)
             {
                 jitResult = CORJIT_OK;

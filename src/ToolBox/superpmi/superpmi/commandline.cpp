@@ -601,7 +601,7 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
         {
             errorMessage = "Illegal target architecture specified with -target (only arm64 is supported).";
         }
-#elif _TARGET_X86_
+#elif defined(_TARGET_X86_)
         if (0 != _stricmp(o->targetArchitecture, "arm"))
         {
             errorMessage = "Illegal target architecture specified with -target (only arm is supported).";
