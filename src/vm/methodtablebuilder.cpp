@@ -1520,9 +1520,9 @@ MethodTableBuilder::BuildMethodTableThrowing(
         {
 #if defined(CROSSGEN_COMPILE)
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-            if (!IsNgenPDBCompilationProcess()
-                && GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule()
-                && strcmp(className, "Sse") != 0 && strcmp(className, "Sse2") != 0)
+            if ((!IsNgenPDBCompilationProcess()
+                && GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule())
+                || (strcmp(className, "Sse") != 0 && strcmp(className, "Sse2") != 0))
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
             {
                 // Disable AOT compiling for managed implementation of hardware intrinsics.
