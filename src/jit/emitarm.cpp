@@ -188,7 +188,7 @@ void emitter::emitInsSanityCheck(instrDesc* id)
         case IF_T1_C: // T1_C    .....iiiiinnnddd                       R1  R2              imm5
             assert(isLowRegister(id->idReg1()));
             assert(isLowRegister(id->idReg2()));
-            assert(insUnscaleImm(id->idIns(), id->idInsFmt(), emitGetInsSC(id)) < 0x20);
+            assert(insUnscaleImm(id->idIns(), emitGetInsSC(id)) < 0x20);
             break;
 
         case IF_T1_D0: // T1_D0   ........Dmmmmddd                       R1* R2*
@@ -5008,22 +5008,17 @@ inline unsigned insEncodeImmT2_Mov(int imm)
 }
 
 //------------------------------------------------------------------------
-// insUnscaleImm: Unscales the immediate operand of a given instruction
+// insUnscaleImm: Unscales the immediate operand of a given IF_T1_C instruction.
 //
 // Arguments:
 //    ins - the instruction
-//    fmt - the instruction format
 //    imm - the immediate value to unscale
 //
 // Return Value:
 //    The unscaled immediate value
 //
-// Notes:
-//    Only IF_T1_C encoded instructions are supported.
-//
-/*static*/ int emitter::insUnscaleImm(instruction ins, insFormat fmt, int imm)
+/*static*/ int emitter::insUnscaleImm(instruction ins, int imm)
 {
-    assert(fmt == IF_T1_C);
     switch (ins)
     {
         case INS_ldr:
@@ -5630,7 +5625,7 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code = emitInsCode(ins, fmt);
             code |= insEncodeRegT1_D3(id->idReg1());
             code |= insEncodeRegT1_N3(id->idReg2());
-            imm = insUnscaleImm(ins, fmt, imm);
+            imm = insUnscaleImm(ins, imm);
             assert((imm & 0x001f) == imm);
             code |= (imm << 6);
             dst += emitOutput_Thumb1Instr(dst, code);
