@@ -3073,10 +3073,10 @@ void GenerateNonR2RSafeILStub()
         ThrowHR(E_FAIL);
 }
 
-OverrideNonR2RSafeILStubChecksHolder::OverrideNonR2RSafeILStubChecksHolder()
+OverrideNonR2RSafeILStubChecksHolder::OverrideNonR2RSafeILStubChecksHolder(bool newValue)
 {
     oldR2RUnsafeValue = s_overrideNonR2RSafeILStubChecks;
-    s_overrideNonR2RSafeILStubChecks = true;
+    s_overrideNonR2RSafeILStubChecks = newValue;
 }
 
 OverrideNonR2RSafeILStubChecksHolder::~OverrideNonR2RSafeILStubChecksHolder()

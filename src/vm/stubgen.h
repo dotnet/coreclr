@@ -784,11 +784,11 @@ class OverrideNonR2RSafeILStubChecksHolder
 #ifdef CROSSGEN_COMPILE
     bool oldR2RUnsafeValue;
 public:
-    OverrideNonR2RSafeILStubChecksHolder();
+    OverrideNonR2RSafeILStubChecksHolder(bool newValue);
     ~OverrideNonR2RSafeILStubChecksHolder();
 #else
 public:
-    OverrideNonR2RSafeILStubChecksHolder() {}
+    OverrideNonR2RSafeILStubChecksHolder(bool) {}
 #endif // CROSSGEN_COMPILE
     HIDE_GENERATED_METHODS(OverrideNonR2RSafeILStubChecksHolder)
 };

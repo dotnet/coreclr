@@ -69,6 +69,7 @@
 #include "versionresilienthashcode.h"
 #include "inlinetracking.h"
 #include "jithost.h"
+#include "stubgen.h"
 
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
@@ -6198,6 +6199,10 @@ void CEEPreloader::GenerateMethodStubs(
     // implementation details of the CLR.
     if (IsReadyToRunCompilation() && !pMD->IsNDirect())
         return;
+
+    // FUTURE: This can probably be extended to cases where we have a version bubble that includes
+    //         the system dll.
+    OverrideNonR2RSafeILStubChecksHolder allowArbitraryILInILStubs(GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem());
 
     DWORD dwNGenStubFlags = NDIRECTSTUB_FL_NGENEDSTUB;
 
