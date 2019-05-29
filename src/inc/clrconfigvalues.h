@@ -252,7 +252,7 @@ CONFIG_STRING_INFO(INTERNAL_TestHooks, W("TestHooks"), "Used by tests to get tes
 ///
 /// Diagnostics (unsuported general-purpose)
 ///
-RETAIL_CONFIG_DWORD_INFO(UNSUPORTED_DisableLttngLibraryLoad, W("LTTng"), 1, "If COMPlus_LTTng is set to 0, this will prevent the LTTng library from being loaded at runtime")
+RETAIL_CONFIG_DWORD_INFO(UNSUPORTED_LTTng, W("LTTng"), 1, "If COMPlus_LTTng is set to 0, this will prevent the LTTng library from being loaded at runtime")
 
 ///
 /// Exception Handling
