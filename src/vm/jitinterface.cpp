@@ -6827,10 +6827,12 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DONT_INLINE_CALLER;
     }
 
-    // Check for the aggressive optimization directive. AggressiveOptimization only makes sense for IL methods.
+    // Some flags only need to be set for IL methods
     DWORD ilMethodImplAttribs = 0;
     if (pMD->IsIL())
     {
+        // Check for the aggressive optimization directive. 
+        // AggressiveOptimization only makes sense for IL methods.
         ilMethodImplAttribs = pMD->GetImplAttrs();
         if (IsMiAggressiveOptimization(ilMethodImplAttribs))
         {
@@ -12598,8 +12600,16 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_FRAMED);
     if (g_pConfig->JitAlignLoops())
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
-    if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
+
+    // Only set CORJIT_FLAG_PROF_REJIT_NOPS when we aren't versionable using 
+    // the Tiering mechanism.This will controls both the JIT time and the
+    // crossgen time decision.
+    //
+    if ((ftn->IsVersionableWithJumpStamp()) || g_pConfig->AddRejitNops())
+    {
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
+    }
+
 #ifdef _TARGET_X86_
     if (g_pConfig->PInvokeRestoreEsp(ftn->GetModule()->IsPreV4Assembly()))
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PINVOKE_RESTORE_ESP);
@@ -12683,6 +12693,9 @@ CORJIT_FLAGS GetDebuggerCompileFlags(Module* pModule, CORJIT_FLAGS flags)
     return flags;
 }
 
+// This method sets the compile flags that are passed to the JIT 
+//  For the crossgen/ngen equivalent, see the method ZapInfo::ComputeJitFlags
+//
 CORJIT_FLAGS GetCompileFlags(MethodDesc * ftn, CORJIT_FLAGS flags, CORINFO_METHOD_INFO * methodInfo)
 {
     STANDARD_VM_CONTRACT;

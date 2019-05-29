@@ -13671,6 +13671,338 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 #pragma warning(pop)
 #endif
 
+emitter::insFormat emitter::getMemoryOperation(insFormat insFmt)
+{
+    insFormat result = IF_NONE;
+    switch (insFmt)
+    {
+        case IF_ARD:
+        case IF_RRD_ARD:
+        case IF_RWR_ARD:
+        case IF_RRW_ARD:
+        case IF_RWR_ARD_CNS:
+        case IF_RWR_RRD_ARD:
+        case IF_RRW_ARD_CNS:
+        case IF_RWR_ARD_RRD:
+        case IF_RWR_RRD_ARD_CNS:
+        case IF_RWR_RRD_ARD_RRD:
+        case IF_ARD_CNS:
+        case IF_ARD_RRD:
+            // Address [reg+reg*scale+cns] - read
+            result = IF_ARD;
+            break;
+
+        case IF_AWR:
+        case IF_AWR_RRD:
+        case IF_AWR_CNS:
+        case IF_AWR_RRD_CNS:
+        case IF_AWR_RRD_RRD:
+            // Address [reg+reg*scale+cns] - write
+            result = IF_AWR;
+            break;
+
+        case IF_ARW:
+        case IF_ARW_RRD:
+        case IF_ARW_CNS:
+        case IF_ARW_SHF:
+            // Address [reg+reg*scale+cns] - read and write
+            result = IF_ARW;
+            break;
+
+        case IF_MRD:
+        case IF_MRD_CNS:
+        case IF_MRD_OFF:
+        case IF_MRD_RRD:
+        case IF_RRD_MRD:
+        case IF_RRW_MRD:
+        case IF_RWR_MRD:
+        case IF_RWR_MRD_CNS:
+        case IF_RWR_MRD_OFF:
+        case IF_RWR_RRD_MRD:
+        case IF_RRW_MRD_CNS:
+        case IF_RWR_RRD_MRD_CNS:
+        case IF_RWR_RRD_MRD_RRD:
+        case IF_METHPTR:
+            // Address [cns] - read
+            result = IF_MRD;
+            break;
+
+        case IF_MWR:
+        case IF_MWR_CNS:
+        case IF_MWR_RRD:
+        case IF_MWR_RRD_CNS:
+            // Address [cns] - write
+            result = IF_MWR;
+            break;
+
+        case IF_MRW:
+        case IF_MRW_CNS:
+        case IF_MRW_RRD:
+        case IF_MRW_SHF:
+            // Address [cns] - read and write
+            result = IF_MWR;
+            break;
+
+        case IF_SRD:
+        case IF_SRD_CNS:
+        case IF_SRD_RRD:
+
+        case IF_RRD_SRD:
+        case IF_RRW_SRD:
+        case IF_RWR_SRD:
+        case IF_RWR_SRD_CNS:
+        case IF_RWR_RRD_SRD:
+        case IF_RRW_SRD_CNS:
+        case IF_RWR_RRD_SRD_CNS:
+        case IF_RWR_RRD_SRD_RRD:
+            // Stack [RSP] - read
+            result = IF_SRD;
+            break;
+
+        case IF_SWR:
+        case IF_SWR_CNS:
+        case IF_SWR_RRD:
+        case IF_SWR_RRD_CNS:
+        case IF_SWR_LABEL:
+            // Stack [RSP] - write
+            result = IF_SWR;
+            break;
+
+        case IF_SRW:
+        case IF_SRW_CNS:
+        case IF_SRW_RRD:
+        case IF_SRW_SHF:
+            // Stack [RSP] - read and write
+            result = IF_SWR;
+            break;
+    }
+    return result;
+}
+
+int emitter::getInsThroughput(instrDesc* id)
+{
+    int         result = INS_THROUGHPUT_DEFAULT;
+    instruction ins    = id->idIns();
+    insFormat   insFmt = id->idInsFmt();
+    insFormat   memFmt = getMemoryOperation(insFmt);
+
+    switch (ins)
+    {
+        case INS_nop:
+            result = INS_THROUGHPUT_4X;
+            break;
+
+        case INS_pop:
+        case INS_pop_hide:
+            if (insFmt == IF_RWR)
+            {
+                // pop   reg
+                result = INS_THROUGHPUT_2X;
+            }
+            break;
+
+        case INS_inc:
+        case INS_dec:
+        case INS_neg:
+        case INS_not:
+            if (insFmt == IF_RRW)
+            {
+                // ins   reg
+                result = INS_THROUGHPUT_4X;
+            }
+            break;
+
+        case INS_mov:
+        case INS_movsx:
+        case INS_movzx:
+        case INS_movsxd:
+        case INS_add:
+        case INS_sub:
+        case INS_cmp:
+        case INS_test:
+        case INS_and:
+        case INS_or:
+        case INS_xor:
+            if (memFmt == IF_NONE)
+            {
+                result = INS_THROUGHPUT_4X;
+            }
+            else
+            {
+                result = INS_THROUGHPUT_2X;
+            }
+            break;
+
+        case INS_lea:
+            if (insFmt == IF_RWR_ARD)
+            {
+                // lea   reg,[mem]  ; with 1 or 2 compoents in address
+                if ((id->idAddr()->iiaAddrMode.amIndxReg == REG_NA) || (id->idAddr()->iiaAddrMode.amBaseReg == REG_NA))
+                {
+                    result = INS_THROUGHPUT_2X;
+                }
+            }
+            break;
+
+        case INS_div:
+        case INS_idiv:
+            if ((id->idOpSize() == EA_8BYTE))
+            {
+                result = 32 * INS_THROUGHPUT_DEFAULT;
+            }
+            else
+            {
+                result = 6 * INS_THROUGHPUT_DEFAULT;
+            }
+            break;
+
+        case INS_shl:
+        case INS_shr:
+        case INS_sar:
+        case INS_ror:
+        case INS_rol:
+            result = 2 * INS_THROUGHPUT_DEFAULT;
+            switch (insFmt)
+            {
+                case IF_RRW_CNS:
+                    // ins   reg, cns
+                    result = INS_THROUGHPUT_2X;
+                    break;
+
+                case IF_MRW_SHF:
+                case IF_SRW_SHF:
+                case IF_ARW_SHF:
+                    // ins   reg, cl
+                    result = 4 * INS_THROUGHPUT_DEFAULT;
+                    break;
+            }
+            break;
+
+        case INS_bt:
+            if ((insFmt == IF_RRD_RRD) || (insFmt == IF_RRD_CNS))
+            {
+                result = INS_THROUGHPUT_2X;
+            }
+            break;
+
+        case INS_seto:
+        case INS_setno:
+        case INS_setb:
+        case INS_setae:
+        case INS_sete:
+        case INS_setne:
+        case INS_setbe:
+        case INS_seta:
+        case INS_sets:
+        case INS_setns:
+        case INS_setp:
+        case INS_setnp:
+        case INS_setl:
+        case INS_setge:
+        case INS_setle:
+        case INS_setg:
+            if (insFmt == IF_RRD)
+            {
+                result = INS_THROUGHPUT_2X;
+            }
+            break;
+
+        case INS_jo:
+        case INS_jno:
+        case INS_jb:
+        case INS_jae:
+        case INS_je:
+        case INS_jne:
+        case INS_jbe:
+        case INS_ja:
+        case INS_js:
+        case INS_jns:
+        case INS_jp:
+        case INS_jnp:
+        case INS_jl:
+        case INS_jge:
+        case INS_jle:
+        case INS_jg:
+            // Model a small chamce of a misprediction
+            result = 2 * INS_THROUGHPUT_DEFAULT;
+            break;
+
+        case INS_i_jmp:
+            result = 2 * INS_THROUGHPUT_DEFAULT;
+            break;
+
+        case INS_call:
+            if (insFmt == IF_METHOD)
+            {
+                result = 3 * INS_THROUGHPUT_DEFAULT;
+            }
+            else if (insFmt == IF_METHPTR)
+            {
+                result = 4 * INS_THROUGHPUT_DEFAULT;
+            }
+            else if (insFmt == IF_SRD)
+            {
+                result = 4 * INS_THROUGHPUT_DEFAULT;
+            }
+            else if (insFmt == IF_ARD)
+            {
+                result = 5 * INS_THROUGHPUT_DEFAULT;
+            }
+
+            break;
+
+        case INS_lock:
+            result = 13 * INS_THROUGHPUT_DEFAULT;
+            break;
+
+        case INS_xadd:
+        case INS_cmpxchg:
+            result = 5 * INS_THROUGHPUT_DEFAULT;
+            break;
+
+#ifdef _TARGET_X86_
+        case INS_fld:
+        case INS_fstp:
+            result = INS_THROUGHPUT_2X;
+            break;
+#endif // _TARGET_X86
+
+        case INS_movdqa:
+        case INS_movdqu:
+            switch (insFmt)
+            {
+                case IF_RWR_RRD:
+                    // ins   reg, reg
+                    result = INS_THROUGHPUT_4X;
+                    break;
+
+                case IF_RWR_ARD:
+                    // ins   reg, mem
+                    result = INS_THROUGHPUT_2X;
+                    break;
+            }
+            break;
+
+        case INS_xorps:
+            result = INS_THROUGHPUT_2X;
+            break;
+    }
+
+    // Model read latency
+    switch (memFmt)
+    {
+        case IF_SRD:
+            result = max(result, INS_THROUGHPUT_DEFAULT);
+            break;
+
+        case IF_ARD:
+            result = max(result, 2 * INS_THROUGHPUT_DEFAULT);
+            break;
+    }
+
+    return result;
+}
+
 /*****************************************************************************/
 /*****************************************************************************/
 

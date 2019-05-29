@@ -294,7 +294,7 @@ public:
         }
         CONTRACTL_END
 
-        // Ideally, methods that will not have native code (!MayHaveNativeCode() == true) should not be versionable. Currently,
+        // Ideally, methods that will not have native code (MayHaveNativeCode() == false) should not be versionable. Currently,
         // that is not the case, in some situations it was seen that 1/4 to 1/3 of versionable methods do not have native
         // code, though there is no significant overhead from this. MayHaveNativeCode() appears to be an expensive check to do
         // for each MethodDesc, even if it's done only once, and when it was attempted, at the time it was showing up noticeably

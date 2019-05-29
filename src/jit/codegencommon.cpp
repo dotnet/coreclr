@@ -2008,7 +2008,8 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     if (compiler->opts.disAsm)
     {
-        printf("; Assembly listing for method %s\n", compiler->info.compFullName);
+        printf("; Assembly listing for method %s (MethodHash=%08x)\n", compiler->info.compFullName,
+               compiler->info.compMethodHash());
 
         printf("; Emitting ");
 
@@ -2071,9 +2072,13 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         {
             printf("; Tier-0 compilation\n");
         }
-        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        else if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
         {
-            printf("; Tier-1 compilation\n");
+            printf("; Tier-1 recompilation\n");
+        }
+        else if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_READYTORUN))
+        {
+            printf("; ReadyToRun compilation\n");
         }
 
         if ((compiler->opts.compFlags & CLFLG_MAXOPT) == CLFLG_MAXOPT)
@@ -2086,11 +2091,20 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         }
         else if (compiler->opts.MinOpts())
         {
-            printf("; compiler->opts.MinOpts() is true\n");
+            printf("; MinOpts code\n");
         }
         else
         {
             printf("; unknown optimization flags\n");
+        }
+
+        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_BBINSTR))
+        {
+            printf("; instrumented for collecting profile data\n");
+        }
+        else if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && compiler->fgHaveProfileData())
+        {
+            printf("; optimized using profile data\n");
         }
 
 #if DOUBLE_ALIGN
@@ -2233,11 +2247,18 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     compiler->EndPhase(PHASE_EMIT_CODE);
 
+#if defined(DEBUG) || defined(LATE_DISASM)
+    // Add code size information into the Perf Score
+    compiler->info.compPerfScore += 10 * compiler->info.compTotalHotCodeSize;
+    compiler->info.compPerfScore += compiler->info.compTotalColdCodeSize;
+#endif // DEBUG || LATE_DISASM
+
 #ifdef DEBUG
     if (compiler->opts.disAsm)
     {
         printf("; Total bytes of code %d, prolog size %d for method %s\n", codeSize, prologSize,
                compiler->info.compFullName);
+        printf("; Perf Score %I64d\n", compiler->info.compPerfScore);
         printf("; ============================================================\n");
         printf(""); // in our logic this causes a flush
     }

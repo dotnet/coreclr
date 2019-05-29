@@ -1226,6 +1226,13 @@ int emitter::instrDesc::idAddrUnion::iiaGetJitDataOffset() const
     return Compiler::eeGetJitDataOffs(iiaFieldHnd);
 }
 
+#ifndef _TARGET_XARCH_
+int emitter::getInsThroughput(instrDesc* id)
+{
+    return INS_THROUGHPUT_DEFAULT;
+}
+#endif // ! _TARGET_XARCH_
+
 void emitter::dispIns(instrDesc* id)
 {
 #ifdef DEBUG
@@ -1242,6 +1249,12 @@ void emitter::dispIns(instrDesc* id)
     size_t sz = emitSizeOfInsDsc(id);
     assert(id->idDebugOnlyInfo()->idSize == sz);
 #endif // DEBUG
+#if defined(DEBUG) || defined(LATE_DISASM)
+    int      insThroughput = getInsThroughput(id);
+    unsigned curBlockWeight =
+        (emitComp->compCurBB != nullptr) ? emitComp->compCurBB->getBBWeight(emitComp) : BB_UNITY_WEIGHT;
+    emitComp->info.compPerfScore += (insThroughput * curBlockWeight / INS_THROUGHPUT_DEFAULT);
+#endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #if EMITTER_STATS
     emitIFcounts[id->idInsFmt()]++;

@@ -1216,6 +1216,16 @@ protected:
         }
     }; // End of  struct instrDesc
 
+#ifdef _TARGET_XARCH_
+    insFormat emitter::getMemoryOperation(insFormat insFmt);
+#endif
+
+#define INS_THROUGHPUT_DEFAULT 4
+#define INS_THROUGHPUT_2X 2
+#define INS_THROUGHPUT_4X 1
+
+    int getInsThroughput(instrDesc* id);
+
     void dispIns(instrDesc* id);
 
     void appendToCurIG(instrDesc* id);
