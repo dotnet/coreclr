@@ -593,11 +593,28 @@ bool CommandLine::Parse(int argc, char* argv[], /* OUT */ Options* o)
         DumpHelp(argv[0]);
         return false;
     }
-    if (o->targetArchitecture != nullptr && (0 != _stricmp(o->targetArchitecture, "arm64")))
+    if (o->targetArchitecture != nullptr)
     {
-        LogError("Illegal target architecture specified with -target (only arm64 is supported).");
-        DumpHelp(argv[0]);
-        return false;
+        const char* errorMessage = nullptr;
+#ifdef _TARGET_AMD64_
+        if (0 != _stricmp(o->targetArchitecture, "arm64"))
+        {
+            errorMessage = "Illegal target architecture specified with -target (only arm64 is supported).";
+        }
+#elif _TARGET_X86_
+        if (0 != _stricmp(o->targetArchitecture, "arm"))
+        {
+            errorMessage = "Illegal target architecture specified with -target (only arm is supported).";
+        }
+#else
+        errorMessage = "-target is unsupported on this platform.";
+#endif
+        if (errorMessage != nullptr)
+        {
+            LogError(errorMessage);
+            DumpHelp(argv[0]);
+            return false;
+        }
     }
     if (o->skipCleanup && !o->parallel)
     {
