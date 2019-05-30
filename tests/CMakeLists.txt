@@ -2,7 +2,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 
 cmake_policy(SET CMP0042 NEW)
-cmake_policy(SET CMP0025 OLD) # Treat AppleClang as Clang
 
 set(INC_PLATFORM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/Common/Platform)
 if (WIN32)

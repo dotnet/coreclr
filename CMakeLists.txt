@@ -2,7 +2,6 @@
 cmake_minimum_required(VERSION 3.5.1)
 
 cmake_policy(SET CMP0042 NEW)
-cmake_policy(SET CMP0025 OLD) # Treat AppleClang as Clang
 
 # Set the project name
 project(CoreCLR)
