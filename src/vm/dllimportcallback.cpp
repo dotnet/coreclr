@@ -861,19 +861,6 @@ extern "C" VOID STDCALL UMThunkStubRareDisableWorker(Thread *pThread, UMEntryThu
     // dangerous mode.  If we call managed code, we will potentially be active in
     // the GC heap, even as GC's are occuring!
 
-    // Check for ShutDown scenario.  This happens only when we have initiated shutdown 
-    // and someone is trying to call in after the CLR is suspended.  In that case, we
-    // must either raise an unmanaged exception or return an HRESULT, depending on the
-    // expectations of our caller.
-    if (!CanRunManagedCode())
-    {
-        // DO NOT IMPROVE THIS EXCEPTION!  It cannot be a managed exception.  It
-        // cannot be a real exception object because we cannot execute any managed
-        // code here.
-        pThread->m_fPreemptiveGCDisabled = 0;
-        COMPlusThrowBoot(E_PROCESS_SHUTDOWN_REENTRY);
-    }
-
     // We must do the following in this order, because otherwise we would be constructing
     // the exception for the abort without synchronizing with the GC.  Also, we have no
     // CLR SEH set up, despite the fact that we may throw a ThreadAbortException.
@@ -896,9 +883,6 @@ PCODE TheUMEntryPrestubWorker(UMEntryThunk * pUMEntryThunk)
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
-
-    if (!CanRunManagedCode())
-        COMPlusThrowBoot(E_PROCESS_SHUTDOWN_REENTRY);
 
     Thread * pThread = GetThreadNULLOk();
     if (pThread == NULL)

@@ -5469,11 +5469,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                         PrintToStdErrA(" StackOverflowException.\n");
                     }
                 }
-                else if (!CanRunManagedCode(LoaderLockCheck::None))
-                {
-                    // Well, if we can't enter the runtime, we very well can't get the exception message.
-                    dump = FALSE;
-                }
                 else if (SentEvent || IsAsyncThreadException(&throwable))
                 {
                     // We don't print anything on async exceptions, like ThreadAbort.
@@ -5609,20 +5604,13 @@ BOOL NotifyAppDomainsOfUnhandledException(
 #endif
 
     GCPROTECT_BEGIN(throwable);
-    //BOOL IsStackOverflow = (throwable->GetMethodTable() == g_pStackOverflowExceptionClass);
 
     // Notify the AppDomain that we have taken an unhandled exception.  Can't notify of stack overflow -- guard
     // page is not yet reset.
 
     // Send up the unhandled exception appdomain event.
-    //
-    // If we can't run managed code, we can't deliver the event. Nor do we attempt to delieve the event in stack
-    // overflow or OOM conditions.
-    if (/*!IsStackOverflow &&*/
-        pThread->DetermineIfGuardPagePresent() &&
-        CanRunManagedCode(LoaderLockCheck::None))
+    if (pThread->DetermineIfGuardPagePresent())
     {
-
         // x86 only
 #if !defined(WIN64EXCEPTIONS)
         // If the Thread object's exception state's exception pointers
