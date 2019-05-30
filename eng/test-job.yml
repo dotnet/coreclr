@@ -101,9 +101,9 @@ jobs:
     # this number should be adjusted accordingly.
     ${{ if eq(parameters.testGroup, 'innerloop') }}:
       timeoutInMinutes: 240
-    ${{ if eq(parameters.testGroup, 'outerloop') }}:
+    ${{ if in(parameters.testGroup, 'outerloop', 'corefx') }}:
       timeoutInMinutes: 360
-    ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
+    ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc', 'corefx-jitstress', 'corefx-jitstressregs', 'corefx-jitstress2-jitstressregs') }}:
       timeoutInMinutes: 480
     ${{ if in(parameters.testGroup, 'outerloop-jitstress-isas-x86', 'outerloop-gcstress-extra', 'outerloop-r2r-extra') }}:
       timeoutInMinutes: 600
@@ -183,10 +183,10 @@ jobs:
           timeoutPerTestCollectionInMinutes: 30
           # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
           timeoutPerTestInMinutes: 10
-        ${{ if eq(parameters.testGroup, 'outerloop') }}:
+        ${{ if in(parameters.testGroup, 'outerloop', 'corefx') }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 10
-        ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstress-isas-x86', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstress-isas-x86', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'corefx-jitstress', 'corefx-jitstressregs', 'corefx-jitstress2-jitstressregs') }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
         ${{ if in(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
@@ -209,11 +209,11 @@ jobs:
         ${{ if eq(parameters.corefxTests, false) }}:
           helixProjectArguments: 'tests/helixpublishwitharcade.proj'
 
-        ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
+        ${{ if in(parameters.testGroup, 'innerloop', 'outerloop', 'corefx') }}:
           scenarios:
           - normal
           - no_tiered_compilation
-        ${{ if eq(parameters.testGroup, 'outerloop-jitstress') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'corefx-jitstress') }}:
           scenarios:
           - jitminopts
           - jitstress1
@@ -261,7 +261,7 @@ jobs:
           - jitstressregs0x10_x86_noavx
           - jitstressregs0x80_x86_noavx
           - jitstressregs0x1000_x86_noavx
-        ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-jitstressregs', 'corefx-jitstressregs') }}:
           scenarios:
           - jitstressregs1
           - jitstressregs2
@@ -271,7 +271,7 @@ jobs:
           - jitstressregs0x10
           - jitstressregs0x80
           - jitstressregs0x1000
-        ${{ if eq(parameters.testGroup, 'outerloop-jitstress2-jitstressregs') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-jitstress2-jitstressregs', 'corefx-jitstress2-jitstressregs') }}:
           scenarios:
           - jitstress2_jitstressregs1
           - jitstress2_jitstressregs2

@@ -285,24 +285,34 @@ jobs:
 
 # PR innerloop checked build
 
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest, 'Manual', 'Schedule')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
-      platforms:
-      - Linux_arm
-      - Linux_arm64
-      - Linux_musl_x64
-      - Linux_x64
-      - OSX_x64
+      ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+        platforms:
+        - Linux_arm
+        - Linux_arm64
+        - Linux_musl_x64
+        - Linux_x64
+        - OSX_x64
         # No Windows arm/arm64 helix queues defined for processing PRs currently.
         #- Windows_NT_arm
         #- Windows_NT_arm64
-      - Windows_NT_x64
-      - Windows_NT_x86
+        - Windows_NT_x64
+        - Windows_NT_x86
       jobParameters:
-        testGroup: innerloop
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
+          testGroup: innerloop
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx') }}:
+          testGroup: corefx
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstress') }}:
+          testGroup: corefx-jitstress
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstressregs') }}:
+          testGroup: corefx-jitstressregs
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstress2-jitstressregs') }}:
+          testGroup: corefx-jitstress2-jitstressregs
         corefxTests: true
         displayNameArgs: CoreFX
 
