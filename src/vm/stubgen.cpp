@@ -236,9 +236,6 @@ void ILCodeStream::Emit(ILInstrEnum instr, INT16 iStackDelta, UINT_PTR uArg)
         case CEE_CONV_U4:
         case CEE_CONV_U8:
         case CEE_CONV_R_UN:
-        case CEE_LDFLD:
-        case CEE_LDFLDA:
-        case CEE_STFLD:
         case CEE_CONV_OVF_I1_UN:
         case CEE_CONV_OVF_I2_UN:
         case CEE_CONV_OVF_I4_UN:
@@ -288,6 +285,16 @@ void ILCodeStream::Emit(ILInstrEnum instr, INT16 iStackDelta, UINT_PTR uArg)
         case CEE_LEAVE:
         case CEE_LEAVE_S:
         case CEE_CONV_U:
+        case CEE_CEQ:
+        case CEE_CGT:
+        case CEE_CGT_UN:
+        case CEE_CLT:
+        case CEE_CLT_UN:
+        case CEE_LDARG:
+        case CEE_LDARGA:
+        case CEE_LDLOC:
+        case CEE_LDLOCA:
+        case CEE_STLOC:
             break; // These instructions are safe in any il stub
         }
     }

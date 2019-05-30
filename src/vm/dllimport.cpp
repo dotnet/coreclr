@@ -2586,6 +2586,7 @@ void NDirectStubLinker::EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubF
 #endif // FEATURE_COMINTEROP
     {
         // get the secret argument via intrinsic
+        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // The stub context argument is part of the R2R contract
         pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT, 0, 1);
     }
 }

@@ -365,6 +365,9 @@ bool MayUsePrecompiledILStub()
 
     if (CORProfilerTrackTransitions())
         return false;
+    
+    if (g_pConfig->InteropLogArguments())
+        return false;
 }
 
 PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
