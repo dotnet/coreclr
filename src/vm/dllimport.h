@@ -259,14 +259,6 @@ inline bool SF_IsSharedStub(DWORD dwStubFlags)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (IsReadyToRunCompilation())
-    {
-        // R2R IL stubs are never shared.
-        // TODO, instead of disabling sharing, instead, keep track of which IL stubs are associated with which methods
-        // and point at the same il stubs from multiple methoddef entries
-        return false;
-    }
-
     if (SF_IsWinRTHasRedirection(dwStubFlags))
     {
         // tail-call to a target-specific mscorlib routine is burned into the stub

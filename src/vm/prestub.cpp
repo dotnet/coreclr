@@ -358,18 +358,27 @@ PCODE MethodDesc::PrepareCode(PrepareCodeConfig* pConfig)
     return PrepareILBasedCode(pConfig);
 }
 
+bool MayUsePrecompiledILStub()
+{
+    if (g_pConfig->InteropValidatePinnedObjects())
+        return false;
+
+    if (CORProfilerTrackTransitions())
+        return false;
+}
+
 PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
 {
     STANDARD_VM_CONTRACT;
     PCODE pCode = NULL;
 
-    if (pConfig->MayUsePrecompiledCode())
+    if (pConfig->MayUsePrecompiledCode() && !CORProfilerTrackTransitions())
     {
 #ifdef FEATURE_READYTORUN
         if (this->IsDynamicMethod())
         {
             DynamicMethodDesc *stubMethodDesc = this->AsDynamicMethodDesc();
-            if (stubMethodDesc->IsILStub())
+            if (stubMethodDesc->IsILStub() && stubMethodDesc->IsPInvokeStub())
             {
                 MethodDesc *pTargetMD = stubMethodDesc->GetILStubResolver()->GetStubTargetMethodDesc();
                 if (pTargetMD != NULL)

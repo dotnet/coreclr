@@ -730,6 +730,7 @@ public:
                 // reverse interop needs to seed the return value if the
                 // managed function returns void but we're doing hresult
                 // swapping.
+                OverrideNonR2RSafeILStubChecksHolder r2rILStubsAreSafe(true);
                 pcsUnmarshal->EmitLDC(S_OK);
             }
         }
@@ -801,7 +802,7 @@ public:
         DWORD dwMethodDescLocalNum = (DWORD)-1;
 
         // Notify the profiler of call out of the runtime
-        if (!SF_IsReverseCOMStub(m_dwStubFlags) && (CORProfilerTrackTransitions() || SF_IsNGENedStubForProfiling(m_dwStubFlags)))
+        if (!SF_IsReverseCOMStub(m_dwStubFlags) && (CORProfilerTrackTransitions() || (!IsReadyToRunCompilation() && SF_IsNGENedStubForProfiling(m_dwStubFlags))))
         {
             dwMethodDescLocalNum = m_slIL.EmitProfilerBeginTransitionCallback(pcsDispatch, m_dwStubFlags);
             _ASSERTE(dwMethodDescLocalNum != (DWORD)-1);
@@ -1686,7 +1687,10 @@ NDirectStubLinker::NDirectStubLinker(
     //
     // Add locals
     m_dwArgMarshalIndexLocalNum = NewLocal(ELEMENT_TYPE_I4);
-    m_pcsMarshal->EmitLDC(0);
+    {
+        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true);
+        m_pcsMarshal->EmitLDC(0);
+    }
     m_pcsMarshal->EmitSTLOC(m_dwArgMarshalIndexLocalNum);
     
 #ifdef FEATURE_COMINTEROP
