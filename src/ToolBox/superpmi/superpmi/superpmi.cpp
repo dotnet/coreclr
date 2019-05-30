@@ -58,7 +58,7 @@ void SetSuperPmiTargetArchitecture(const char* targetArchitecture)
 #elif defined(_TARGET_ARM64_)
     SpmiTargetArchitecture = SPMI_TARGET_ARCHITECTURE_ARM64
 #else
-#error Unsupported target architecture
+#error Unsupported architecture
 #endif
 }
 
