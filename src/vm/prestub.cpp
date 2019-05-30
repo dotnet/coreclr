@@ -368,6 +368,8 @@ bool MayUsePrecompiledILStub()
     
     if (g_pConfig->InteropLogArguments())
         return false;
+
+    return true;
 }
 
 PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
