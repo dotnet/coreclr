@@ -617,7 +617,6 @@ HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 HMODULE CLRLoadLibrary(LPCWSTR lpLibFileName);
 
 BOOL CLRFreeLibrary(HMODULE hModule);
-VOID CLRFreeLibraryAndExitThread(HMODULE hModule, DWORD dwExitCode);
 
 LPVOID
 CLRMapViewOfFile(

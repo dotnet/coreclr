@@ -2057,17 +2057,6 @@ BOOL CLRFreeLibrary(HMODULE hModule)
     return FreeLibrary(hModule);
 }
 
-VOID CLRFreeLibraryAndExitThread(HMODULE hModule,DWORD dwExitCode)
-{
-    // Don't use dynamic contract: will override GetLastError value
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_FORBID_FAULT;
-
-    // This is no-return
-    FreeLibraryAndExitThread(hModule,dwExitCode);
-}
-
 #endif // CROSSGEN_COMPILE
 
 #endif // #ifndef DACCESS_COMPILE
@@ -2856,11 +2845,11 @@ static BOOL TrustMeIAmSafe(void *pLock)
 
 LockOwner g_lockTrustMeIAmThreadSafe = { NULL, TrustMeIAmSafe };
 
+static DangerousNonHostedSpinLock g_randomLock;
+static CLRRandom g_random;
+
 int GetRandomInt(int maxVal)
 {
-    static DangerousNonHostedSpinLock s_randomLock;
-    static CLRRandom s_random;
-
 #ifndef CROSSGEN_COMPILE
     // Use the thread-local Random instance if possible
     Thread* pThread = GetThread();
@@ -2871,11 +2860,11 @@ int GetRandomInt(int maxVal)
     // No Thread object - need to fall back to the global generator.
     // In DAC builds we don't need the lock (DAC is single-threaded) and can't get it anyway (DNHSL isn't supported)
 #ifndef DACCESS_COMPILE
-    DangerousNonHostedSpinLockHolder lh(&s_randomLock);
+    DangerousNonHostedSpinLockHolder lh(&g_randomLock);
 #endif
-    if (!s_random.IsInitialized())
-        s_random.Init();
-    return s_random.Next(maxVal);
+    if (!g_random.IsInitialized())
+        g_random.Init();
+    return g_random.Next(maxVal);
 }
 
 // These wrap the SString:L:CompareCaseInsenstive function in a way that makes it
