@@ -17,8 +17,6 @@ This method returns a status HR following the usual convention, 0 (S_OK) means a
 
 ## What if you can't run managed code in your trigger process?
 
-*Note: as of the writing of this page, the documentation is incomplete for the EventPipe commands. We hope to have it completed shortly.*
-
 If you are unable to run managed code as part of your trigger process, it is still possible to request a profiler attach. The spec for the EventPipe channel is located [here](https://github.com/dotnet/diagnostics/blob/master/documentation/design-docs/ipc-protocol.md).
 
 You will have to do the following (according to the above spec):
