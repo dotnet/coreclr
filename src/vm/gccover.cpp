@@ -105,7 +105,7 @@ bool IsGcCoverageInterruptInstruction(SLOT instrPtr)
     else
     {
         _ASSERTE(instrLen == 4);
-        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
+        UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
         switch (instrVal)
         {
         case INTERRUPT_INSTR_32:
@@ -380,18 +380,22 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
     {
         bool protectRegister[2] = { false, false };
 
-        int regNo = 0;
         bool moreRegisters = false;
-        do
+
+        ReturnKind fieldKind1 = ExtractRegReturnKind(returnKind, 0, moreRegisters);
+        if (IsPointerFieldReturnKind(fieldKind1))
         {
-            ReturnKind fieldKind = ExtractRegReturnKind(returnKind, regNo, moreRegisters);
-            if (IsPointerFieldReturnKind(fieldKind))
+            protectRegister[0] = true;
+        }
+        if (moreRegisters)
+        {
+            ReturnKind fieldKind2 = ExtractRegReturnKind(returnKind, 1, moreRegisters);
+            if (IsPointerFieldReturnKind(fieldKind2))
             {
-                protectRegister[regNo] = true;
+                protectRegister[1] = true;
             }
-            regNo++;
-            _ASSERTE(regNo <= 2);
-        } while (moreRegisters);
+        }
+        _ASSERTE(!moreRegisters);
 
         if (protectRegister[0] && !protectRegister[1])
         {
