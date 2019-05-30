@@ -11,6 +11,9 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
+  <PropertyGroup Condition=" '$(PointerSize)' == '32' ">
+    <DefineConstants>BIT32;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' "></PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' " />

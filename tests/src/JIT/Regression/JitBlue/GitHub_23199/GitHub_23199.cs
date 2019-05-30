@@ -6,6 +6,12 @@ using System.Runtime.CompilerServices;
 // It required GCStress=0xc and GcStressOnDirectCalls=1 to hit issues. The issues were with saving GC pointers in the return registers.
 // The GC infra has to correctly mark registers with pointers as alive and must not report registers without pointers.
 
+#if BIT32
+using nint = System.Int32;
+#else
+using nint = System.Int64;
+#endif
+
 namespace GitHub_23199
 {
     public class Program
@@ -66,7 +72,7 @@ namespace GitHub_23199
         struct FirstPointer
         {
             public Object a;
-            public int b;
+            public nint b;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -88,7 +94,7 @@ namespace GitHub_23199
 
         struct SecondPointer
         {
-            public int a;
+            public nint a;
             public Object b;
         }
 
@@ -111,7 +117,7 @@ namespace GitHub_23199
 
         struct NoPointer1
         {
-            public int a;
+            public nint a;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -132,8 +138,8 @@ namespace GitHub_23199
 
         struct NoPointer2
         {
-            public int a;
-            public int b;
+            public nint a;
+            public nint b;
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -155,8 +161,8 @@ namespace GitHub_23199
         
         struct ThirdPointer
         {
-            public int a;
-            public int b;
+            public nint a;
+            public nint b;
             public Object c;
         }
 
