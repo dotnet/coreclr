@@ -2133,6 +2133,7 @@ void NDirectStubLinker::Begin(DWORD dwStubFlags)
         if (SF_IsStubWithCctorTrigger(dwStubFlags))
         {
             EmitLoadStubContext(m_pcsSetup, dwStubFlags);
+            OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // This is handled as a JIT intrinsic as part of the R2R contract
             m_pcsSetup->EmitCALL(METHOD__STUBHELPERS__INIT_DECLARING_TYPE, 1, 0);
         }
     }
@@ -2302,24 +2303,39 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
                 EmitLoadStubContext(pcsEmit, dwStubFlags);
 
                 {
+                    OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // Getting the NDirect target via the helper call is part of the R2R contract
                     // Perf: inline the helper for now
-                    //pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
-                    pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
-                    pcsEmit->EmitADD();
+                    bool inlineHelper = true;
 
-                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                    if (IsReadyToRunCompilation())
                     {
-                        pcsEmit->EmitDUP();
+                        if (!SystemDomain::SystemModule()->IsInCurrentVersionBubble())
+                        {
+                            // If the system assembly isn't in the version bubble, use helper call to get P/invoke target
+                            pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
+                            inlineHelper = false;
+                        }
                     }
 
-                    pcsEmit->EmitLDIND_I();
-
-                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                    if (inlineHelper)
                     {
+                        pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
                         pcsEmit->EmitADD();
-                    }
 
-                    pcsEmit->EmitLDIND_I();
+                        if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                        {
+                            pcsEmit->EmitDUP();
+                        }
+
+                        pcsEmit->EmitLDIND_I();
+
+                        if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                        {
+                            pcsEmit->EmitADD();
+                        }
+
+                        pcsEmit->EmitLDIND_I();
+                    }
                 }
             }
 #ifdef FEATURE_COMINTEROP

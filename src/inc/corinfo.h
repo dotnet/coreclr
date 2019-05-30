@@ -217,11 +217,11 @@ TODO: Talk about initializing strutures before use
 #endif
 #endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* d609bed1-7831-49fc-bd49-b6f054dd4d46 */
-    0xd609bed1,
-    0x7831,
-    0x49fc,
-    {0xbd, 0x49, 0xb6, 0xf0, 0x54, 0xdd, 0x4d, 0x46}
+SELECTANY const GUID JITEEVersionIdentifier = { /* 87a06c17-fbff-4747-9d49-953ae12ea797 */
+    0x87a06c17,
+    0xfbff,
+    0x4747,
+    {0x9d, 0x49, 0x95, 0x3a, 0xe1, 0x2e, 0xa7, 0x97}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -660,6 +660,8 @@ enum CorInfoHelpFunc
 
     CORINFO_HELP_GVMLOOKUP_FOR_SLOT,        // Resolve a generic virtual method target from this pointer and runtime method handle 
 
+    CORINFO_HELP_READYTORUN_STUBHELPERS_INIT_DECLARING_TYPE, // Initialize the cctor of a p/invoke method
+    CORINFO_HELP_READYTORUN_STUBHELPERS_GET_NDIRECT_TARGET, // Get the target of a p/invoke IL stub
     CORINFO_HELP_COUNT,
 };
 
@@ -977,6 +979,7 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_Span_GetItem,
     CORINFO_INTRINSIC_ReadOnlySpan_GetItem,
     CORINFO_INTRINSIC_GetRawHandle,
+    CORINFO_INTRINSIC_StubHelpers_InitDeclaringType,
 
     CORINFO_INTRINSIC_Count,
     CORINFO_INTRINSIC_Illegal = -1,         // Not a true intrinsic,

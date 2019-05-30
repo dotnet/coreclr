@@ -295,6 +295,7 @@ void ILCodeStream::Emit(ILInstrEnum instr, INT16 iStackDelta, UINT_PTR uArg)
         case CEE_LDLOC:
         case CEE_LDLOCA:
         case CEE_STLOC:
+        case CEE_CODE_LABEL: // This isn't a real instruction at all
             break; // These instructions are safe in any il stub
         }
     }

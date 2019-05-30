@@ -1025,7 +1025,7 @@ FCFuncEnd()
 
 FCFuncStart(gStubHelperFuncs)
     FCFuncElement("IsQCall", StubHelpers::IsQCall)
-    FCFuncElement("InitDeclaringType", StubHelpers::InitDeclaringType)
+    FCIntrinsic("InitDeclaringType", StubHelpers::InitDeclaringType, CORINFO_INTRINSIC_StubHelpers_InitDeclaringType)
     FCIntrinsic("GetNDirectTarget", StubHelpers::GetNDirectTarget, CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget)
     FCFuncElement("GetDelegateTarget", StubHelpers::GetDelegateTarget)
     FCFuncElement("SetLastError", StubHelpers::SetLastError)

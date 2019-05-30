@@ -26,6 +26,7 @@
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
 #include "eeprofinterfaces.h"
+#include "stubhelpers.h"
 
 #ifndef FEATURE_PAL
 // Included for referencing __report_gsfailure
