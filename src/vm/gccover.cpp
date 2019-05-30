@@ -511,9 +511,9 @@ public:
 
 #endif // _TARGET_AMD64_
 
-// When Sprinking break points, we must make sure that certain calls to 
-// Thread-suspension routines inlined into the managed method are not 
-// converted to GC-Stress points. Otherwise, this will lead to race 
+// When sprinkling break points, we must make sure that certain calls to
+// Thread-suspension routines inlined into the managed method are not
+// converted to GC-Stress points. Otherwise, this will lead to race
 // conditions with the GC.
 //
 // For example, for an inlined PInvoke stub, the JIT generates the following code
@@ -567,9 +567,9 @@ public:
 extern "C" FCDECL0(VOID, JIT_RareDisableHelper);
 
 /****************************************************************************/
-/* sprinkle interupt instructions that will stop on every GCSafe location
+/* sprinkle interrupt instructions that will stop on every GCSafe location
    regionOffsetAdj - Represents the offset of the current region 
-                   from the beginning of the method (is 0 for hot region)
+                     from the beginning of the method (is 0 for hot region)
 */
 
 void GCCoverageInfo::SprinkleBreakpoints(
@@ -647,7 +647,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
         // for code.  It uses some for switch tables.  Because the first few offsets
         // may be decodable as instructions, we can't reason about where we should
         // encounter invalid instructions.  However, we do not want to silently skip
-        // large chunks of methods just becuase the JIT started emitting a new
+        // large chunks of methods just because the JIT started emitting a new
         // instruction, so only assume it is a switch table if we've seen the switch
         // code (an indirect unconditional jump)
         if ((len == 0) && fSawPossibleSwitch)
@@ -754,7 +754,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
 
     // If we are not able to place an interrupt at the first instruction, this means that
     // we are partially interruptible with no prolog.  Just don't bother to do the
-    // the epilog checks, since the epilog will be trival (a single return instr)
+    // the epilog checks, since the epilog will be trivial (a single return instr)
     assert(codeSize > 0);
     if ((regionOffsetAdj==0) && (*codeStart != INTERRUPT_INSTR))
         doingEpilogChecks = false;
@@ -888,7 +888,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
     if(instructionIsACallThroughRegister)
     {
         // If it is call by register then cannot know MethodDesc so replace the call instruction with illegal instruction
-        // safe point will be replaced with appropiate illegal instruction at execution time when reg value is known
+        // safe point will be replaced with appropriate illegal instruction at execution time when reg value is known
 #if defined(_TARGET_ARM_)
         *((WORD*)instrPtr - 1) = INTERRUPT_INSTR_CALL;
 #elif defined(_TARGET_ARM64_)
@@ -955,7 +955,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
     SLOT rangeStart = NULL;
     SLOT rangeStop = NULL;
 
-    //Interruptible range can span accross hot & cold region
+    //Interruptible range can span across hot & cold region
     int acrossHotRegion = 1; // 1 means range is not across end of hot region & 2 is when it is across end of hot region
 
     //Find the code addresses from offsets
@@ -1103,7 +1103,7 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
     // When decoding the instructions of a method which is sprinkled with 
     // TRAP instructions for GCStress, we decode the bytes from a copy 
     // of the instructions stored before the traps-for-gc were inserted.
-    // Hoiwever, the PC-relative addressing/displacement of the CALL-target
+    // However, the PC-relative addressing/displacement of the CALL-target
     // will still be with respect to the currently executing PC.
     // So, if a register context is available, we pick the PC from it 
     // (for address calculation purposes only). 
@@ -1566,7 +1566,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         } 
 
         // If some other thread removes interrupt points, we abandon epilog testing
-        // for this routine since the barrier at the begining of the routine may not
+        // for this routine since the barrier at the beginning of the routine may not
         // be up anymore, and thus the caller context is now not guaranteed to be correct.  
         // This should happen only very rarely so is not a big deal.
         if (gcCover->callerThread != pThread)
@@ -1654,7 +1654,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 
     /* In non-fully interrruptable code, if the EIP is just after a call instr
-       means something different because it expects that that we are IN the 
+       means something different because it expects that we are IN the
        called method, not actually at the instruction just after the call. This
        is important, because until the called method returns, IT is responsible
        for protecting the return value.  Thus just after a call instruction
@@ -1694,7 +1694,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         {
             if (!pThread->PreemptiveGCDisabled())
             {
-                // We are in preemtive mode in JITTed code. This implies that we are into IL stub 
+                // We are in preemptive mode in JITTed code. This implies that we are into IL stub 
                 // close to PINVOKE method. This call will never return objectrefs.
 #ifdef _TARGET_ARM_
                     size_t instrLen = GetARMInstructionLength(nextInstr);
@@ -1728,7 +1728,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         FlushInstructionCache(GetCurrentProcess(), (LPCVOID)instrPtr, 10);
 
         // It's not GC safe point, the GC Stress instruction is 
-        // already commited and interrupt is already put at next instruction so we just return.
+        // already committed and interrupt is already put at next instruction so we just return.
         return;
     }
 #else 
