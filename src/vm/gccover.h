@@ -72,7 +72,7 @@ public:
 #define INTERRUPT_INSTR_CALL                   0xFA    // X86 CLI instruction 
 #define INTERRUPT_INSTR_PROTECT_FIRST_RET      0xFB    // X86 STI instruction, protect the first return register
 #define INTERRUPT_INSTR_PROTECT_SECOND_RET     0xEC    // X86 IN instruction, protect the second return register
-#define INTERRUPT_INSTR_PROTECT_BOTH_RET       0xED    // X86 IN instruction, protect the both return registers
+#define INTERRUPT_INSTR_PROTECT_BOTH_RET       0xED    // X86 IN instruction, protect both return registers
 
 #elif defined(_TARGET_ARM_)
 

@@ -73,7 +73,7 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
 }
 
 
-bool IsGcCoveregeInterruptInstruction(SLOT instrPtr)
+bool IsGcCoverageInterruptInstruction(SLOT instrPtr)
 {
 #if defined(_TARGET_ARM64_)
     UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
@@ -344,19 +344,19 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
     ReturnKind returnKind = callMD->GetReturnKind(true);
     if (!IsValidReturnKind(returnKind))
     {
-#if !defined(_TARGET_AMD64_) || !defined(PLATFORM_UNIX)
+#if defined(_TARGET_AMD64_) && defined(PLATFORM_UNIX)
+        _ASSERTE(!"Unexpected return kind for x64 Unix.");
+#else
         // SKip GC coverage after the call.
         return;
-#else // _TARGET_AMD64_ && PLATFORM_UNIX
-        _ASSERTE("Unexpected return kind for x64 Unix.");
-#endif // _TARGET_AMD64_ && PLATFORM_UNIX
+#endif
     }
     _ASSERTE(IsValidReturnKind(returnKind));
 
-    bool pointerKind = IsPointerReturnKind(returnKind);
+    bool ispointerKind = IsPointerReturnKind(returnKind);
 #ifdef _TARGET_ARM_
     size_t instrLen = GetARMInstructionLength(instrToReplace);
-    bool protectReturn = pointerKind;
+    bool protectReturn = ispointerKind;
     if (protectReturn)
         if (instrLen == 2)
             *(WORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
@@ -368,7 +368,7 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
         else
             *(DWORD*)instrToReplace = INTERRUPT_INSTR_32;
 #elif defined(_TARGET_ARM64_)
-    bool protectReturn = pointerKind;
+    bool protectReturn = ispointerKind;
     if (protectReturn)
         *(DWORD*)instrToReplace = INTERRUPT_INSTR_PROTECT_RET;
     else
@@ -376,9 +376,9 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
 #elif defined(_TARGET_AMD64_) || defined(_TARGET_X86_)
 
 
-    if (pointerKind)
+    if (ispointerKind)
     {
-        bool protectRegister[2] = { false };
+        bool protectRegister[2] = { false, false };
 
         int regNo = 0;
         bool moreRegisters = false;
@@ -390,6 +390,7 @@ void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
                 protectRegister[regNo] = true;
             }
             regNo++;
+            _ASSERTE(regNo <= 2);
         } while (moreRegisters);
 
         if (protectRegister[0] && !protectRegister[1])
@@ -909,7 +910,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
             {
 
                 // The instruction about to be replaced cannot already be a gcstress instruction
-                _ASSERTE(!IsGcCoveregeInterruptInstruction(instrPtr));
+                _ASSERTE(!IsGcCoverageInterruptInstruction(instrPtr));
 
                 //
                 // When applying GC coverage breakpoints at native image load time, the code here runs
@@ -994,7 +995,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
         {
 
             // The instruction about to be replaced cannot already be a gcstress instruction
-            _ASSERTE(!IsGcCoveregeInterruptInstruction(instrPtr));
+            _ASSERTE(!IsGcCoverageInterruptInstruction(instrPtr));
 #if defined(_TARGET_ARM_)
             size_t instrLen = GetARMInstructionLength(instrPtr);
 
@@ -1353,7 +1354,7 @@ bool IsGcCoverageInterrupt(LPVOID ip)
 
     SLOT instrPtr = reinterpret_cast<SLOT>(ip);
 
-    if (IsGcCoveregeInterruptInstruction(instrPtr))
+    if (IsGcCoverageInterruptInstruction(instrPtr))
     {
         return true;
     }
@@ -1480,7 +1481,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     Thread *pThread = GetThread();
 
 
-    if (!IsGcCoveregeInterruptInstruction(instrPtr))
+    if (!IsGcCoverageInterruptInstruction(instrPtr))
     {
         _ASSERTE(IsOriginalInstruction(instrPtr, gcCover, offset));
         // Someone beat us to it, just go on running.
@@ -1488,7 +1489,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     }
 
     bool atCall;
-    bool afterCallProtect[2] = { 0 };
+    bool afterCallProtect[2] = { false, false };
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
@@ -1504,16 +1505,10 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
     else if (instrVal == INTERRUPT_INSTR_PROTECT_FIRST_RET)
     {
         afterCallProtect[0] = true;
-        afterCallProtect[1] = false;
     }
     else if (instrVal == INTERRUPT_INSTR_PROTECT_SECOND_RET)
     {
-        afterCallProtect[0] = false;
         afterCallProtect[1] = true;
-    }
-    else
-    {
-        afterCallProtect[0] = afterCallProtect[1] = false;
     }
 
 #elif defined(_TARGET_ARM_)
@@ -1842,7 +1837,7 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         if (afterCallProtect[0])
         {
 #if defined(_TARGET_AMD64_)
-            regs->Rax = retValRegs[0]; // I should cut my own hands for writing this.
+            regs->Rax = retValRegs[0];
 #elif defined(_TARGET_X86_)
             regs->Eax = retValRegs[0];
 #elif defined(_TARGET_ARM_)
