@@ -7941,8 +7941,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             assert(obj->gtType == TYP_REF);
 
             // See if we can devirtualize.
+            bool explicitTailCall = (tailCall & PREFIX_TAILCALL_EXPLICIT) != 0;
             impDevirtualizeCall(call->AsCall(), &callInfo->hMethod, &callInfo->methodFlags, &callInfo->contextHandle,
-                                &exactContextHnd);
+                                &exactContextHnd, explicitTailCall);
         }
 
         if (impIsThis(obj))
@@ -19275,6 +19276,7 @@ bool Compiler::IsMathIntrinsic(GenTree* tree)
 //     methodFlags -- [IN/OUT] flags for the method to call. Updated iff call devirtualized.
 //     contextHandle -- [IN/OUT] context handle for the call. Updated iff call devirtualized.
 //     exactContextHnd -- [OUT] updated context handle iff call devirtualized
+//     isExplicitTailCalll -- [IN] true if we plan on using an explicit tail call
 //
 // Notes:
 //     Virtual calls in IL will always "invoke" the base class method.
@@ -19303,7 +19305,8 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                                    CORINFO_METHOD_HANDLE*  method,
                                    unsigned*               methodFlags,
                                    CORINFO_CONTEXT_HANDLE* contextHandle,
-                                   CORINFO_CONTEXT_HANDLE* exactContextHandle)
+                                   CORINFO_CONTEXT_HANDLE* exactContextHandle,
+                                   bool                    isExplicitTailCall)
 {
     assert(call != nullptr);
     assert(method != nullptr);
@@ -19598,6 +19601,12 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
     {
         JITDUMP("Now have direct call to boxed entry point, looking for unboxed entry point\n");
 
+        if (isExplicitTailCall)
+        {
+            JITDUMP("Call is an explicit tail call, we cannot perform an unbox\n");
+            return;
+        }
+
         // Note for some shared methods the unboxed entry point requires an extra parameter.
         bool                  requiresInstMethodTableArg = false;
         CORINFO_METHOD_HANDLE unboxedEntryMethod =
@@ -19678,6 +19687,18 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
                     call->gtCallObjp    = localCopyThis;
                     call->gtCallMethHnd = unboxedEntryMethod;
                     derivedMethod       = unboxedEntryMethod;
+
+#if FEATURE_TAILCALL_OPT
+                    if (call->IsImplicitTailCall())
+                    {
+                        JITDUMP("Clearing the implicit tail call flag\n");
+
+                        // If set, we clear the implicit tail call flag
+                        // as we just introduced a new address taken local variable
+                        //
+                        call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
+                    }
+#endif // FEATURE_TAILCALL_OPT
                 }
                 else
                 {
