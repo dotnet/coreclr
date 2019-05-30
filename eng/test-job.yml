@@ -318,13 +318,13 @@ jobs:
       displayName: Publish Logs
       inputs:
         ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '_r2r_corefx') }}
+          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r_corefx', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '_corefx') }}
+          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_corefx',     parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '_r2r') }}
+          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r',        parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test_{0}_{1}_{2}_{3}{4}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup, '') }}
+          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '',            parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()
