@@ -14,7 +14,7 @@ set DOTNET_MULTILEVEL_LOOKUP=0
 :: Disable first run since we do not need all ASP.NET packages restored.
 set DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 
-REM :: Install dotnet
+:: Install dotnet
 call %~dp0\init-dotnet.cmd
 if NOT [%ERRORLEVEL%]==[0] (
   exit /b %ERRORLEVEL%
