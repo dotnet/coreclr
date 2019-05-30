@@ -44,9 +44,8 @@ void GcInfoArrayListBase::AppendNewChunk(size_t firstChunkCapacity, size_t eleme
     size_t chunkCapacity = (m_firstChunk == nullptr) ? firstChunkCapacity : (m_lastChunkCapacity * GrowthFactor);
 
     S_SIZE_T chunkSize = S_SIZE_T(roundUp(sizeof(ChunkBase), chunkAlignment)) + (S_SIZE_T(elementSize) * S_SIZE_T(chunkCapacity));
-    assert(!chunkSize.IsOverflow());
 
-    if(chunkSize.IsOverflow())
+    if (chunkSize.IsOverflow())
     {
         ThrowHR(COR_E_OVERFLOW);
     }
