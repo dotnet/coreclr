@@ -152,9 +152,9 @@ restore_optdata()
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
         local DotNetCli="$__ProjectRoot/.dotnet/dotnet"
         if [ ! -f $DotNetCli ]; then
-            source "$__ProjectRoot/init-tools.sh"
+            source "$__ProjectRoot/init-dotnet.sh"
             if [ $? != 0 ]; then
-                echo "Failed to restore buildtools."
+                echo "Failed to install dotnet."
                 exit 1
             fi
         fi
