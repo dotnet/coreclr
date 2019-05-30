@@ -852,8 +852,7 @@ extern "C" VOID STDCALL UMThunkStubRareDisableWorker(Thread *pThread, UMEntryThu
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
 
-    // Do not add a CONTRACT here.  We haven't set up SEH.  We rely
-    // on HandleThreadAbort and COMPlusThrowBoot dealing with this situation properly.
+    // Do not add a CONTRACT here.  We haven't set up SEH.
 
     // WARNING!!!!
     // when we start executing here, we are actually in cooperative mode.  But we

@@ -155,17 +155,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
 VOID SetManagedUnhandledExceptionBit(
     BOOL        useLastThrownObject);
 
-
-void COMPlusThrowBoot(HRESULT hr)
-{
-    STATIC_CONTRACT_THROWS;
-
-    _ASSERTE(g_fEEShutDown >= ShutDown_Finalize2 || !"This should not be called unless we are in the last phase of shutdown!");
-    ULONG_PTR arg = hr;
-    RaiseException(BOOTUP_EXCEPTION_COMPLUS, EXCEPTION_NONCONTINUABLE, 1, &arg);
-}
-
-
 //-------------------------------------------------------------------------------
 // This simply tests to see if the exception object is a subclass of
 // the descriminating class specified in the exception clause.
