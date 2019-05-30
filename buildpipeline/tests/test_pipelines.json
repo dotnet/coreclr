@@ -22,7 +22,7 @@
                 "HelixJobType": "test/functional/cli/",
                 "TargetsWindows": "true",
                 "Rid": "win-x64",
-                "TargetQueues": "Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64",
+                "TargetQueues": "Windows.10.Amd64,(Windows.Nano.1803.Amd64)windows.10.amd64.serverrs4@mcr.microsoft.com/dotnet-buildtools/prereqs:nanoserver-1803-helix-amd64-05227e1-20190509225944,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64",
                 "TestContainerSuffix": "windows",
                 },
                 "ReportingParameters": {
@@ -38,7 +38,7 @@
                 "HelixJobType": "test/functional/r2r/cli/",
                 "TargetsWindows": "true",
                 "Rid": "win-x64",
-                "TargetQueues": "Windows.10.Amd64,Windows.10.Nano.Amd64,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64",
+                "TargetQueues": "Windows.10.Amd64,(Windows.Nano.1803.Amd64)windows.10.amd64.serverrs4@mcr.microsoft.com/dotnet-buildtools/prereqs:nanoserver-1803-helix-amd64-05227e1-20190509225944,Windows.10.Amd64.Core,Windows.7.Amd64,Windows.81.Amd64",
                 "TestContainerSuffix": "windows-r2r",
                 "CrossgenArg": "Crossgen "
                 },
@@ -127,7 +127,7 @@
                 "HelixJobType": "test/functional/cli/",
                 "TargetsWindows": "false",
                 "Rid": "linux-x64",
-                "TargetQueues": "Debian.8.Amd64,Fedora.27.Amd64,Redhat.7.Amd64,Ubuntu.1404.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64,Opensuse.423.Amd64,SLES.12.Amd64",
+                "TargetQueues": "Debian.8.Amd64,(Fedora.28.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:fedora-28-helix-09ca40b-20190508143249,Redhat.7.Amd64,Ubuntu.1404.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64,Opensuse.423.Amd64,SLES.12.Amd64",
                 "TestContainerSuffix": "linux",
                 "TargetsNonWindowsArg": "TargetsNonWindows "
                 },
@@ -144,7 +144,7 @@
                 "HelixJobType": "test/functional/r2r/cli/",
                 "TargetsWindows": "false",
                 "Rid": "linux-x64",
-                "TargetQueues": "Debian.8.Amd64,Fedora.27.Amd64,Redhat.7.Amd64,Ubuntu.1404.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64,Opensuse.423.Amd64,SLES.12.Amd64",
+                "TargetQueues": "Debian.8.Amd64,(Fedora.28.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:fedora-28-helix-09ca40b-20190508143249,Redhat.7.Amd64,Ubuntu.1404.Amd64,Ubuntu.1604.Amd64,Ubuntu.1804.Amd64,Opensuse.423.Amd64,SLES.12.Amd64",
                 "TestContainerSuffix": "linux-r2r",
                 "CrossgenArg": "Crossgen ",
                 "TargetsNonWindowsArg": "TargetsNonWindows "
@@ -197,12 +197,12 @@
                 "HelixJobType": "test/functional/cli/",
                 "TargetsWindows": "false",
                 "Rid": "linux-musl-x64",
-                "TargetQueues": "Alpine.36.Amd64",
+                "TargetQueues": "(Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246",
                 "TestContainerSuffix": "alpine36",
                 "TargetsNonWindowsArg": "TargetsNonWindows "
                 },
                 "ReportingParameters": {
-                "OperatingSystem": "Alpine3.6",
+                "OperatingSystem": "Alpine3.9",
                 "SubType":  "Build-Tests",
                 "Type": "build/product/",
                 "PB_BuildType": "Release"
@@ -214,13 +214,13 @@
                 "HelixJobType": "test/functional/r2r/cli/",
                 "TargetsWindows": "false",
                 "Rid": "linux-musl-x64",
-                "TargetQueues": "Alpine.36.Amd64",
+                "TargetQueues": "(Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246",
                 "TestContainerSuffix": "alpine36-r2r",
                 "CrossgenArg": "Crossgen ",
                 "TargetsNonWindowsArg": "TargetsNonWindows "
                 },
                 "ReportingParameters": {
-                "OperatingSystem": "Alpine3.6",
+                "OperatingSystem": "Alpine3.9",
                 "SubType":  "Build-Tests-R2R",
                 "Type": "build/product/",
                 "PB_BuildType": "Release"
