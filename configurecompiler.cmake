@@ -590,7 +590,7 @@ if (WIN32)
   # enable control-flow-guard support for native components for non-Arm64 builds
   # Added using variables instead of add_compile_options to let individual projects override it
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /guard:cf")
-  set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /guard:cf")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /guard:cf")
 
   # Statically linked CRT (libcmt[d].lib, libvcruntime[d].lib and libucrt[d].lib) by default. This is done to avoid
   # linking in VCRUNTIME140.DLL for a simplified xcopy experience by reducing the dependency on VC REDIST.
