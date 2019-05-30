@@ -318,6 +318,7 @@ jobs:
     - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
           artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r_corefx', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
@@ -326,6 +327,5 @@ jobs:
           artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r',        parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
           artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '',            parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
-        targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()
