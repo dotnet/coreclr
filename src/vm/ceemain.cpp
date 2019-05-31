@@ -1314,11 +1314,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         ETW::EnumerationLog::ProcessShutdown();
     }
 
-#ifdef FEATURE_PERFTRACING
-    // Shutdown the diagnostics server first.
-    DiagnosticServer::Shutdown();
-#endif // FEATURE_PERFTRACING
-
 #if defined(FEATURE_COMINTEROP)
     // Get the current thread.
     Thread * pThisThread = GetThread();
@@ -1491,6 +1486,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         }
 #endif // PROFILING_SUPPORTED
 
+#ifdef FEATURE_PERFTRACING
+        // Shutdown the event pipe.
+        EventPipe::Shutdown();
+        DiagnosticServer::Shutdown();
+#endif // FEATURE_PERFTRACING
 
 #ifdef _DEBUG
         g_fEEShutDown |= ShutDown_SyncBlock;
@@ -1591,11 +1591,6 @@ part2:
 #ifdef ENABLE_PERF_LOG
                 PerfLog::PerfLogDone();
 #endif //ENABLE_PERF_LOG
-
-#ifdef FEATURE_PERFTRACING
-                // Shutdown the event pipe.
-                EventPipe::Shutdown();
-#endif // FEATURE_PERFTRACING
 
                 // Unregister our vectored exception and continue handlers from the OS.
                 // This will ensure that if any other DLL unload (after ours) has an exception,
