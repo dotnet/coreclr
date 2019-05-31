@@ -36,6 +36,9 @@
     <PackageReference Include="xunit.performance.metrics">
       <Version>$(XunitPerformanceApiPackageVersion)</Version>
     </PackageReference>
+    <PackageReference Include="Microsoft.Diagnostics.Runtime">
+      <Version>1.0.5</Version>
+    </PackageReference>
     <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent">
       <Version>$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)</Version>
     </PackageReference>
@@ -67,6 +70,7 @@
     <PackageToInclude Include="xunit.performance.core"/>
     <PackageToInclude Include="xunit.performance.execution"/>
     <PackageToInclude Include="xunit.performance.metrics"/>
+    <PackageToInclude Include="Microsoft.Diagnostics.Runtime" />
     <PackageToInclude Include="Microsoft.Diagnostics.Tracing.TraceEvent"/>
     <PackageToInclude Include="Newtonsoft.Json"/>
     <PackageToInclude Include="Microsoft.CodeAnalysis.Analyzers"/>
