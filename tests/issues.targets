@@ -74,34 +74,10 @@
         <ExcludeList Include="$(XunitTestBinBase)/tracing/tracecontrol/tracecontrol/*">
             <Issue>20299</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/NativeLibraryResolveEvent/ResolveEventTests/*">
-            <Issue>23941</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/NativeLibraryResolveCallback/CallbackTests/*">
-            <Issue>23941</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/CopyConstructorMarshaler/CopyConstructorMarshaler/*">
-            <Issue>23358</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/FixupCallsHostWhenLoaded/FixupCallsHostWhenLoaded/*">
-            <Issue>23358</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/LoadIjwFromModuleHandle/LoadIjwFromModuleHandle/*">
-            <Issue>23358</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/ManagedCallingNative/ManagedCallingNative/*">
-            <Issue>23358</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/NativeCallingManaged/NativeCallingManaged/*">
-            <Issue>23358</Issue>
-        </ExcludeList>
     </ItemGroup>
 
     <!-- All Unix targets -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(TargetsWindows)' != 'true'">
-        <ExcludeList Include="$(XunitTestBinBase)/Interop/StructMarshalling/PInvoke/MarshalStructAsLayoutExp/*">
-            <Issue>Issue building native components for the test.</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/arglist/vararg/*">
             <Issue>Native varargs not supported on unix</Issue>
         </ExcludeList>
@@ -198,9 +174,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinhandler/*">
             <Issue>times out</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/eventsourcetrace/eventsourcetrace/*">
-            <Issue>needs triage</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/inducedgc/inducedgc/*">
             <Issue>times out</Issue>
@@ -352,6 +325,21 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/Interop/COM/NETClients/ConsumeNETServer/ConsumeNETServer/*">
             <Issue>20682</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/CopyConstructorMarshaler/CopyConstructorMarshaler/*">
+            <Issue>23358</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/FixupCallsHostWhenLoaded/FixupCallsHostWhenLoaded/*">
+            <Issue>23358</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/LoadIjwFromModuleHandle/LoadIjwFromModuleHandle/*">
+            <Issue>23358</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/ManagedCallingNative/ManagedCallingNative/*">
+            <Issue>23358</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/Interop/IJW/NativeCallingManaged/NativeCallingManaged/*">
+            <Issue>23358</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -529,6 +517,12 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19601/Github_19601/*">
             <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/**/*">
+            <Issue>Failing on alpine, being tracked by #24772</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/**/*">
+            <Issue>Failing on alpine, being tracked by #24772</Issue>
         </ExcludeList>
     </ItemGroup>
 

@@ -5,6 +5,8 @@
 #include "common.h"
 #include "fastserializer.h"
 #include "diagnosticsipc.h"
+#include <diagnosticsprotocol.h>
+#include <eventpipeprotocolhelper.h>
 
 #ifdef FEATURE_PERFTRACING
 
@@ -26,13 +28,9 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
     if (_pStream == nullptr)
         return;
 
-    uint32_t nBytesWritten = 0;
-    bool fSuccess = _pStream->Write(&id, sizeof(id), nBytesWritten);
-    if (!fSuccess)
-    {
-        delete _pStream;
-        _pStream = nullptr;
-    }
+    DiagnosticsIpc::IpcMessage successResponse;
+    if (successResponse.Initialize(DiagnosticsIpc::GenericSuccessHeader, id))
+        successResponse.Send(pStream);
 }
 
 IpcStreamWriter::~IpcStreamWriter()
@@ -132,7 +130,7 @@ FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pS
     CONTRACTL_END;
 
     m_writeErrorEncountered = false;
-    m_currentPos = 0;
+    m_requiredPadding = 0;
     WriteFileHeader();
 }
 
@@ -190,19 +188,12 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
         uint32_t outCount;
         bool fSuccess = m_pStreamWriter->Write(pBuffer, length, outCount);
 
-#ifdef _DEBUG
-        size_t prevPos = m_currentPos;
-#endif
-        m_currentPos += outCount;
+        m_requiredPadding = (ALIGNMENT_SIZE + m_requiredPadding - (outCount % ALIGNMENT_SIZE)) % ALIGNMENT_SIZE;
 
         // This will cause us to stop writing to the file.
         // The file will still remain open until shutdown so that we don't
         // have to take a lock at this level when we touch the file stream.
         m_writeErrorEncountered = (length != outCount) || !fSuccess;
-
-#ifdef _DEBUG
-        _ASSERTE(m_writeErrorEncountered || (prevPos < m_currentPos));
-#endif
     }
     EX_CATCH
     {

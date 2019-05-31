@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -64,9 +63,6 @@ namespace System
         // and not a - or '
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern bool IsFastSort();
-        // Is this a string that only contains characters < 0x80.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern bool IsAscii();
 
         // Set extra byte for odd-sized strings that came from interop as BSTR.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

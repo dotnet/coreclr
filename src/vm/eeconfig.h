@@ -272,21 +272,23 @@ public:
     DWORD         MonitorSpinCount(void)          const {LIMITED_METHOD_CONTRACT;  return dwMonitorSpinCount; }
 
     // Jit-config
-    
-    unsigned int  GenOptimizeType(void)             const {LIMITED_METHOD_CONTRACT;  return iJitOptimizeType; }
-    bool          JitFramed(void)                   const {LIMITED_METHOD_CONTRACT;  return fJitFramed; }
-    bool          JitAlignLoops(void)               const {LIMITED_METHOD_CONTRACT;  return fJitAlignLoops; }
-    bool          AddRejitNops(void)                const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
-    bool          JitMinOpts(void)                  const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
+
+    DWORD         JitHostMaxSlabCache(void)                 const {LIMITED_METHOD_CONTRACT;  return dwJitHostMaxSlabCache; }
+    bool          GetTrackDynamicMethodDebugInfo(void)      const {LIMITED_METHOD_CONTRACT;  return fTrackDynamicMethodDebugInfo; }    
+    unsigned int  GenOptimizeType(void)                     const {LIMITED_METHOD_CONTRACT;  return iJitOptimizeType; }
+    bool          JitFramed(void)                           const {LIMITED_METHOD_CONTRACT;  return fJitFramed; }
+    bool          JitAlignLoops(void)                       const {LIMITED_METHOD_CONTRACT;  return fJitAlignLoops; }
+    bool          AddRejitNops(void)                        const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
+    bool          JitMinOpts(void)                          const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
     
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
     bool          TieredCompilation(void)           const { LIMITED_METHOD_CONTRACT;  return fTieredCompilation; }
     bool          TieredCompilation_QuickJit() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_QuickJit; }
-    bool          TieredCompilation_StartupTier_CallCounting()  const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_StartupTier_CallCounting; }
-    bool          TieredCompilation_StartupTier_OptimizeCode() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_StartupTier_OptimizeCode; }
-    DWORD         TieredCompilation_StartupTier_CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_StartupTier_CallCountThreshold; }
-    DWORD         TieredCompilation_StartupTier_CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_StartupTier_CallCountingDelayMs; }
+    bool          TieredCompilation_QuickJitForLoops() const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_QuickJitForLoops; }
+    bool          TieredCompilation_CallCounting()  const { LIMITED_METHOD_CONTRACT; return fTieredCompilation_CallCounting; }
+    DWORD         TieredCompilation_CallCountThreshold() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_CallCountThreshold; }
+    DWORD         TieredCompilation_CallCountingDelayMs() const { LIMITED_METHOD_CONTRACT; return tieredCompilation_CallCountingDelayMs; }
 #endif
 
 #ifndef CROSSGEN_COMPILE
@@ -782,10 +784,12 @@ private: //----------------------------------------------------------------
 
     // Jit-config
 
-    bool fJitFramed;           // Enable/Disable EBP based frames
-    bool fJitAlignLoops;       // Enable/Disable loop alignment
-    bool fAddRejitNops;        // Enable/Disable nop padding for rejit.          default is true
-    bool fJitMinOpts;          // Enable MinOpts for all jitted methods
+    DWORD dwJitHostMaxSlabCache;       // max size for jit host slab cache
+    bool fTrackDynamicMethodDebugInfo; //  Enable/Disable tracking dynamic method debug info
+    bool fJitFramed;                   // Enable/Disable EBP based frames
+    bool fJitAlignLoops;               // Enable/Disable loop alignment
+    bool fAddRejitNops;                // Enable/Disable nop padding for rejit.          default is true
+    bool fJitMinOpts;                  // Enable MinOpts for all jitted methods
 
     unsigned iJitOptimizeType; // 0=Blended,1=SmallCode,2=FastCode,              default is 0=Blended
     
@@ -1014,10 +1018,10 @@ private: //----------------------------------------------------------------
 #if defined(FEATURE_TIERED_COMPILATION)
     bool fTieredCompilation;
     bool fTieredCompilation_QuickJit;
-    bool fTieredCompilation_StartupTier_CallCounting;
-    bool fTieredCompilation_StartupTier_OptimizeCode;
-    DWORD tieredCompilation_StartupTier_CallCountThreshold;
-    DWORD tieredCompilation_StartupTier_CallCountingDelayMs;
+    bool fTieredCompilation_QuickJitForLoops;
+    bool fTieredCompilation_CallCounting;
+    DWORD tieredCompilation_CallCountThreshold;
+    DWORD tieredCompilation_CallCountingDelayMs;
 #endif
 
 #ifndef CROSSGEN_COMPILE

@@ -73,12 +73,12 @@ public:
     //---------------------------------------------------------
     static HRESULT HasNAT_LAttribute(IMDInternalImport *pInternalImport, mdToken token, DWORD dwMemberAttrs);
 
-    static LPVOID NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod);
+    static LPVOID NDirectGetEntryPoint(NDirectMethodDesc *pMD, NATIVE_LIBRARY_HANDLE hMod);
     static NATIVE_LIBRARY_HANDLE LoadLibraryFromPath(LPCWSTR libraryPath, BOOL throwOnError);
     static NATIVE_LIBRARY_HANDLE LoadLibraryByName(LPCWSTR name, Assembly *callingAssembly, 
                                                    BOOL hasDllImportSearchPathFlags, DWORD dllImportSearchPathFlags, 
                                                    BOOL throwOnError);
-    static HINSTANCE LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
+    static NATIVE_LIBRARY_HANDLE LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker *pErrorTracker);
     static void FreeNativeLibrary(NATIVE_LIBRARY_HANDLE handle);
     static INT_PTR GetNativeLibraryExport(NATIVE_LIBRARY_HANDLE handle, LPCWSTR symbolName, BOOL throwOnError);
 
@@ -471,9 +471,6 @@ public:
     void    EmitObjectValidation(ILCodeStream* pcsEmit, DWORD dwStubFlags);
 #endif // VERIFY_HEAP
     void    EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubFlags);
-#ifdef MDA_SUPPORTED
-    void    EmitCallGcCollectForMDA(ILCodeStream *pcsEmit, DWORD dwStubFlags);
-#endif // MDA_SUPPORTED    
     void    GenerateInteropParamException(ILCodeStream* pcsEmit);
     void    NeedsCleanupList();
 

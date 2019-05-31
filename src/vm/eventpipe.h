@@ -23,6 +23,16 @@ class EventPipeSession;
 class IpcStream;
 enum class EventPipeSessionType;
 
+enum class EventPipeEventLevel
+{
+    LogAlways,
+    Critical,
+    Error,
+    Warning,
+    Informational,
+    Verbose
+};
+
 // EVENT_FILTER_DESCRIPTOR (This type does not exist on non-Windows platforms.)
 //  https://docs.microsoft.com/en-us/windows/desktop/api/evntprov/ns-evntprov-_event_filter_descriptor
 //  The structure supplements the event provider, level, and keyword data that
@@ -232,7 +242,30 @@ public:
     }
 };
 
-typedef UINT64 EventPipeSessionID;
+typedef uint64_t EventPipeSessionID;
+
+struct EventPipeProviderCallbackData
+{
+    LPCWSTR pFilterData;
+    EventPipeCallback pCallbackFunction;
+    bool enabled;
+    INT64 keywords;
+    EventPipeEventLevel providerLevel;
+    void* pCallbackData;
+};
+
+class EventPipeProviderCallbackDataQueue
+{
+public:
+    void Enqueue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
+    bool TryDequeue(EventPipeProviderCallbackData* pEventPipeProviderCallbackData);
+
+private:
+    SList<SListElem<EventPipeProviderCallbackData>> list;
+};
+
+// TODO: Maybe this could be an array: EventPipeSession *EventPipeSessions[64];
+typedef MapSHashWithRemove<EventPipeSessionID, EventPipeSession *> EventPipeSessions;
 
 class EventPipe
 {
@@ -240,8 +273,6 @@ class EventPipe
     friend class EventPipeConfiguration;
     friend class EventPipeFile;
     friend class EventPipeProvider;
-    friend class EventPipeBufferManager;
-    friend class SampleProfiler;
 
 public:
     // Initialize the event pipe.
@@ -254,7 +285,6 @@ public:
     static EventPipeSessionID Enable(
         LPCWSTR strOutputPath,
         uint32_t circularBufferSizeInMB,
-        uint64_t profilerSamplingRateInNanoseconds,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
         EventPipeSessionType sessionType,
@@ -270,7 +300,12 @@ public:
     static bool Enabled();
 
     // Create a provider.
-    static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction = NULL, void *pCallbackData = NULL);
+    static EventPipeProvider *CreateProvider(
+        const SString &providerName,
+        EventPipeCallback pCallbackFunction = nullptr,
+        void *pCallbackData = nullptr);
+
+    static EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Get a provider.
     static EventPipeProvider *GetProvider(const SString &providerName);
@@ -295,30 +330,42 @@ public:
     // Get the managed call stack for the specified thread.
     static bool WalkManagedStackForThread(Thread *pThread, StackContents &stackContents);
 
-    // Save the command line for the current process.
-    static void SaveCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
-
     // Get next event.
-    static EventPipeEventInstance *GetNextEvent();
+    static EventPipeEventInstance *GetNextEvent(EventPipeSessionID sessionID);
+
+#ifdef DEBUG
+    static bool IsLockOwnedByCurrentThread();
+#endif
+
+    template <class T>
+    static void RunWithCallbackPostponed(T f)
+    {
+        EventPipeProviderCallbackDataQueue eventPipeProviderCallbackDataQueue;
+        EventPipeProviderCallbackData eventPipeProviderCallbackData;
+        {
+            CrstHolder _crst(GetLock());
+            f(&eventPipeProviderCallbackDataQueue);
+        }
+
+        while (eventPipeProviderCallbackDataQueue.TryDequeue(&eventPipeProviderCallbackData))
+            InvokeCallback(eventPipeProviderCallbackData);
+    }
+
+    static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
+
+    // Get the event used to write metadata to the event stream.
+    static EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &instance, unsigned int metadataId);
 
 private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
 
-    static void DisableInternal(EventPipeSessionID id);
+    static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
-    static EventPipeSessionID Enable(
-        LPCWSTR strOutputPath,
+    static EventPipeSessionID EnableInternal(
         EventPipeSession *const pSession,
-        EventPipeSessionType sessionType,
-        IpcStream *const pStream);
-
-    static void CreateFlushTimerCallback();
-
-    static void DeleteFlushTimerCallback();
-
-    static void WINAPI FlushTimer(PVOID parameter, BOOLEAN timerFired);
+        EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
@@ -341,13 +388,10 @@ private:
     static CrstStatic s_configCrst;
     static bool s_tracingInitialized;
     static EventPipeConfiguration *s_pConfig;
-    static EventPipeSession *s_pSession;
-    static EventPipeBufferManager *s_pBufferManager;
-    static EventPipeFile *s_pFile;
+    static EventPipeSessions *s_pSessions;
     static EventPipeEventSource *s_pEventSource;
-    static LPCWSTR s_pCommandLine;
     static HANDLE s_fileSwitchTimerHandle;
-    static ULONGLONG s_lastFlushSwitchTime;
+    static ULONGLONG s_lastFlushTime;
 };
 
 struct EventPipeProviderConfiguration

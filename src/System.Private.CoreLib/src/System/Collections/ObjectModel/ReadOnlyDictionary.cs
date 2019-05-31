@@ -11,21 +11,21 @@
 **
 ===========================================================*/
 
-using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 
 namespace System.Collections.ObjectModel
 {
     [DebuggerTypeProxy(typeof(IDictionaryDebugView<,>))]
     [DebuggerDisplay("Count = {Count}")]
-    internal class ReadOnlyDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue>
+    internal class ReadOnlyDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, IReadOnlyDictionary<TKey, TValue> where TKey : object
     {
         private readonly IDictionary<TKey, TValue> m_dictionary;
-        private object m_syncRoot;
-        private KeyCollection m_keys;
-        private ValueCollection m_values;
+        private object? m_syncRoot;
+        private KeyCollection? m_keys;
+        private ValueCollection? m_values;
 
         public ReadOnlyDictionary(IDictionary<TKey, TValue> dictionary)
         {
@@ -80,7 +80,7 @@ namespace System.Collections.ObjectModel
             }
         }
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
             return m_dictionary.TryGetValue(key, out value);
         }
@@ -195,7 +195,7 @@ namespace System.Collections.ObjectModel
             return key is TKey;
         }
 
-        void IDictionary.Add(object key, object value)
+        void IDictionary.Add(object key, object? value)
         {
             ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }
@@ -250,7 +250,7 @@ namespace System.Collections.ObjectModel
             }
         }
 
-        object IDictionary.this[object key]
+        object? IDictionary.this[object key]
         {
             get
             {
@@ -273,7 +273,7 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (array.Rank != 1)
+            if (array!.Rank != 1) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
@@ -308,7 +308,7 @@ namespace System.Collections.ObjectModel
                 }
                 else
                 {
-                    object[] objects = array as object[];
+                    object[]? objects = array as object[];
                     if (objects == null)
                     {
                         ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
@@ -318,7 +318,7 @@ namespace System.Collections.ObjectModel
                     {
                         foreach (var item in m_dictionary)
                         {
-                            objects[index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value);
+                            objects![index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
                         }
                     }
                     catch (ArrayTypeMismatchException)
@@ -346,10 +346,10 @@ namespace System.Collections.ObjectModel
                     }
                     else
                     {
-                        System.Threading.Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
+                        Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                     }
                 }
-                return m_syncRoot;
+                return m_syncRoot!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
             }
         }
 
@@ -371,15 +371,15 @@ namespace System.Collections.ObjectModel
 
             public object Key
             {
-                get { return m_enumerator.Current.Key; }
+                get { return m_enumerator.Current.Key!; }
             }
 
-            public object Value
+            public object? Value
             {
                 get { return m_enumerator.Current.Value; }
             }
 
-            public object Current
+            public object? Current
             {
                 get { return Entry; }
             }
@@ -422,7 +422,7 @@ namespace System.Collections.ObjectModel
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
             private readonly ICollection<TKey> m_collection;
-            private object m_syncRoot;
+            private object? m_syncRoot;
 
             internal KeyCollection(ICollection<TKey> collection)
             {
@@ -430,7 +430,7 @@ namespace System.Collections.ObjectModel
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
-                m_collection = collection;
+                m_collection = collection!; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             }
 
             #region ICollection<T> Members
@@ -484,7 +484,7 @@ namespace System.Collections.ObjectModel
 
             #region IEnumerable Members
 
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            IEnumerator IEnumerable.GetEnumerator()
             {
                 return ((IEnumerable)m_collection).GetEnumerator();
             }
@@ -515,10 +515,10 @@ namespace System.Collections.ObjectModel
                         }
                         else
                         {
-                            System.Threading.Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
+                            Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                         }
                     }
-                    return m_syncRoot;
+                    return m_syncRoot!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
                 }
             }
 
@@ -530,7 +530,7 @@ namespace System.Collections.ObjectModel
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
             private readonly ICollection<TValue> m_collection;
-            private object m_syncRoot;
+            private object? m_syncRoot;
 
             internal ValueCollection(ICollection<TValue> collection)
             {
@@ -538,7 +538,7 @@ namespace System.Collections.ObjectModel
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
-                m_collection = collection;
+                m_collection = collection!; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             }
 
             #region ICollection<T> Members
@@ -592,7 +592,7 @@ namespace System.Collections.ObjectModel
 
             #region IEnumerable Members
 
-            System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+            IEnumerator IEnumerable.GetEnumerator()
             {
                 return ((IEnumerable)m_collection).GetEnumerator();
             }
@@ -623,10 +623,10 @@ namespace System.Collections.ObjectModel
                         }
                         else
                         {
-                            System.Threading.Interlocked.CompareExchange<object>(ref m_syncRoot, new object(), null);
+                            Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                         }
                     }
-                    return m_syncRoot;
+                    return m_syncRoot!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
                 }
             }
 
@@ -647,7 +647,7 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (array.Rank != 1)
+            if (array!.Rank != 1) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
@@ -686,7 +686,7 @@ namespace System.Collections.ObjectModel
                 // For example, if the element type of the Array is derived from T,
                 // we can't figure out if we can successfully copy the element beforehand.
                 //
-                Type targetType = array.GetType().GetElementType();
+                Type targetType = array.GetType().GetElementType()!;
                 Type sourceType = typeof(T);
                 if (!(targetType.IsAssignableFrom(sourceType) || sourceType.IsAssignableFrom(targetType)))
                 {
@@ -697,7 +697,7 @@ namespace System.Collections.ObjectModel
                 // We can't cast array of value type to object[], so we don't support 
                 // widening of primitive types here.
                 //
-                object[] objects = array as object[];
+                object?[]? objects = array as object[];
                 if (objects == null)
                 {
                     ThrowHelper.ThrowArgumentException_Argument_InvalidArrayType();
@@ -707,7 +707,7 @@ namespace System.Collections.ObjectModel
                 {
                     foreach (var item in collection)
                     {
-                        objects[index++] = item;
+                        objects![index++] = item; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
                     }
                 }
                 catch (ArrayTypeMismatchException)

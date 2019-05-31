@@ -32,7 +32,7 @@ namespace System.Diagnostics.Tracing
         private Int64 m_timeQPCFrequency;
 
         private bool m_stopDispatchTask;
-        private Task m_dispatchTask = null;
+        private Task? m_dispatchTask = null;
         private object m_dispatchControlLock = new object();
         private Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
 
@@ -110,7 +110,7 @@ namespace System.Diagnostics.Tracing
                 new EventPipeProviderConfiguration(NativeRuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel, null)
             };
 
-            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+            m_sessionID = EventPipeInternal.Enable(null, 1024, providerConfiguration, 1);
             Debug.Assert(m_sessionID != 0);
 
             // Get the session information that is required to properly dispatch events.
@@ -162,7 +162,7 @@ namespace System.Diagnostics.Tracing
             while (!m_stopDispatchTask)
             {
                 // Get the next event.
-                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(&instanceData))
+                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(m_sessionID, &instanceData))
                 {
                     // Filter based on provider.
                     if (instanceData.ProviderID == m_RuntimeProviderID)

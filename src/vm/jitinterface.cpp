@@ -35,7 +35,8 @@
 #include "eetoprofinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.inl"
 #include "profilepriv.h"
-#endif
+#include "rejit.h"
+#endif // PROFILING_SUPPORTED
 #include "ecall.h"
 #include "generics.h"
 #include "typestring.h"
@@ -50,8 +51,6 @@
 #ifdef HAVE_GCCOVER
 #include "gccover.h"
 #endif // HAVE_GCCOVER
-
-#include "mdaassistants.h"
 
 #ifdef FEATURE_PREJIT
 #include "compile.h"
@@ -5447,21 +5446,33 @@ void CEEInfo::getCallInfo(
         //    (c) constraint calls that require runtime context lookup are never resolved 
         //        to underlying shared generic code
 
+        bool unresolvedLdVirtFtn = (flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt;
+
         if (((pResult->exactContextNeedsRuntimeLookup && pTargetMD->IsInstantiatingStub() && (!allowInstParam || fResolvedConstraint)) || fForceUseRuntimeLookup)
                 // Handle invalid IL - see comment in code:CEEInfo::ComputeRuntimeLookupForSharedGenericToken
                 && ContextIsShared(pResolvedToken->tokenContext))
         {
             _ASSERTE(!m_pMethodBeingCompiled->IsDynamicMethod());
-            pResult->kind = CORINFO_CALL_CODE_POINTER;
 
-            // For reference types, the constrained type does not affect method resolution
-            DictionaryEntryKind entryKind = (!constrainedType.IsNull() && constrainedType.IsValueType()) ? ConstrainedMethodEntrySlot : MethodEntrySlot;
+            if (IsReadyToRunCompilation() && unresolvedLdVirtFtn)
+            {
+                // Compensate for always treating delegates as direct calls above.
+                // Dictionary lookup is computed in embedGenericHandle as part of the LDVIRTFTN code sequence
+                pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;
+            }
+            else
+            {
+                pResult->kind = CORINFO_CALL_CODE_POINTER;
 
-            ComputeRuntimeLookupForSharedGenericToken(entryKind,
-                                                      pResolvedToken,
-                                                      pConstrainedResolvedToken,
-                                                      pMD,
-                                                      &pResult->codePointerLookup);
+                // For reference types, the constrained type does not affect method resolution
+                DictionaryEntryKind entryKind = (!constrainedType.IsNull() && constrainedType.IsValueType()) ? ConstrainedMethodEntrySlot : MethodEntrySlot;
+
+                ComputeRuntimeLookupForSharedGenericToken(entryKind,
+                                                            pResolvedToken,
+                                                            pConstrainedResolvedToken,
+                                                            pMD,
+                                                            &pResult->codePointerLookup);
+            }
         }
         else
         {
@@ -5472,13 +5483,10 @@ void CEEInfo::getCallInfo(
 
             pResult->kind = CORINFO_CALL;
 
-            if (IsReadyToRunCompilation())
+            if (IsReadyToRunCompilation() && unresolvedLdVirtFtn)
             {
                 // Compensate for always treating delegates as direct calls above
-                if ((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)
-                {
-                   pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;
-                }
+                pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;
             }
         }
         pResult->nullInstanceCheck = resolvedCallVirt;
@@ -6849,6 +6857,13 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DELEGATE_INVOKE;
     }
 
+#ifndef CROSSGEN_COMPILE
+    if (!g_pConfig->TieredCompilation_QuickJitForLoops())
+    {
+        result |= CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS;
+    }
+#endif
+
     return result;
 }
 
@@ -6900,6 +6915,28 @@ void CEEInfo::setMethodAttribs (
             ftn->SetNotInline(true);
         }
     }
+
+#ifndef CROSSGEN_COMPILE
+    if (attribs & (CORINFO_FLG_SWITCHED_TO_OPTIMIZED | CORINFO_FLG_SWITCHED_TO_MIN_OPT))
+    {
+        PrepareCodeConfig *config = GetThread()->GetCurrentPrepareCodeConfig();
+        if (config != nullptr)
+        {
+            if (attribs & CORINFO_FLG_SWITCHED_TO_MIN_OPT)
+            {
+                _ASSERTE(!ftn->IsJitOptimizationDisabled());
+                config->SetJitSwitchedToMinOpt();
+            }
+#ifdef FEATURE_TIERED_COMPILATION
+            else if (attribs & CORINFO_FLG_SWITCHED_TO_OPTIMIZED)
+            {
+                _ASSERTE(ftn->IsEligibleForTieredCompilation());
+                config->SetJitSwitchedToOptimized();
+            }
+#endif
+        }
+    }
+#endif // !CROSSGEN_COMPILE
 
     EE_TO_JIT_TRANSITION();
 }
@@ -8016,6 +8053,21 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
             goto exit;
         }
 
+#if defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+        if (CORProfilerEnableRejit())
+        {
+            CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+            if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+            {
+                result = INLINE_FAIL;
+                szFailReason = "ReJIT methods cannot be inlined.";
+                goto exit;
+            }
+        }
+#endif // defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
         // If the profiler wishes to be notified of JIT events and the result from
         // the above tests will cause a function to be inlined, we need to tell the
         // profiler that this inlining is going to take place, and give them a
@@ -8029,7 +8081,6 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
             else
             {
                 BOOL fShouldInline;
-
                 HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
                     (FunctionID)pCaller,
                     (FunctionID)pCallee,
@@ -8201,6 +8252,35 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
         }
 
     }
+
+
+#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    if(inlineResult == INLINE_PASS)
+    {
+        // We don't want to track the chain of methods, so intentionally use m_pMethodBeingCompiled
+        // to just track the methods that pCallee is eventually inlined in
+        MethodDesc *pCallee = GetMethod(inlineeHnd);
+        MethodDesc *pCaller = m_pMethodBeingCompiled;
+        pCallee->GetModule()->AddInlining(pCaller, pCallee);
+
+        if (CORProfilerEnableRejit())
+        {
+            // If ReJIT is enabled, there is a chance that a race happened where the profiler
+            // requested a ReJIT on a method, but before the ReJIT occurred an inlining happened.
+            // If we end up reporting an inlining on a method with non-default IL it means the race
+            // happened and we need to manually request ReJIT for it since it was missed.
+            CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+            if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+            {
+                ModuleID modId = pCaller->GetModule()->GetModuleID();
+                mdMethodDef methodDef = pCaller->GetMemberDef();
+                ReJitManager::RequestReJIT(1, &modId, &methodDef, static_cast<COR_PRF_REJIT_FLAGS>(0));
+            }
+        }
+    }
+#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
     EE_TO_JIT_TRANSITION();
 }
@@ -10772,21 +10852,8 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 /*********************************************************************/
 IEEMemoryManager* CEEInfo::getMemoryManager()
 {
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-    } CONTRACTL_END;
-
-    IEEMemoryManager* result = NULL;
-
-    JIT_TO_EE_TRANSITION_LEAF();
-
-    result = GetEEMemoryManager();
-
-    EE_TO_JIT_TRANSITION_LEAF();
-
-    return result;
+    UNREACHABLE(); // OBSOLETE
+    return NULL;
 }
 
 /*********************************************************************/
@@ -11113,7 +11180,7 @@ void CEEJitInfo::CompressDebugInfo()
     } CONTRACTL_END;
 
     // Don't track JIT info for DynamicMethods.
-    if (m_pMethodBeingCompiled->IsDynamicMethod())
+    if (m_pMethodBeingCompiled->IsDynamicMethod() && !g_pConfig->GetTrackDynamicMethodDebugInfo())
         return;
 
     if (m_iOffsetMapping == 0 && m_iNativeVarInfo == 0)
@@ -11898,9 +11965,9 @@ void* CEEJitInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,
 }
 
 /*********************************************************************/
-HRESULT CEEJitInfo::allocBBProfileBuffer (
-    ULONG                         count,
-    ICorJitInfo::ProfileBuffer ** profileBuffer
+HRESULT CEEJitInfo::allocMethodBlockCounts (
+    UINT32                        count,           // count of <ILOffset, ExecutionCount> tuples
+    ICorJitInfo::BlockCounts **   pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
     )
 {
     CONTRACTL {
@@ -11932,10 +11999,10 @@ HRESULT CEEJitInfo::allocBBProfileBuffer (
         codeSize = m_ILHeader->GetCodeSize();    
     }
     
-    *profileBuffer = m_pMethodBeingCompiled->GetLoaderModule()->AllocateProfileBuffer(m_pMethodBeingCompiled->GetMemberDef(), count, codeSize);
-    hr = (*profileBuffer ? S_OK : E_OUTOFMEMORY);
+    *pBlockCounts = m_pMethodBeingCompiled->GetLoaderModule()->AllocateMethodBlockCounts(m_pMethodBeingCompiled->GetMemberDef(), count, codeSize);
+    hr = (*pBlockCounts != nullptr) ? S_OK : E_OUTOFMEMORY;
 #else // FEATURE_PREJIT
-    _ASSERTE(!"allocBBProfileBuffer not implemented on CEEJitInfo!");
+    _ASSERTE(!"allocMethodBlockCounts not implemented on CEEJitInfo!");
     hr = E_NOTIMPL;
 #endif // !FEATURE_PREJIT
 
@@ -11946,15 +12013,15 @@ HRESULT CEEJitInfo::allocBBProfileBuffer (
 
 // Consider implementing getBBProfileData on CEEJitInfo.  This will allow us
 // to use profile info in codegen for non zapped images.
-HRESULT CEEJitInfo::getBBProfileData (
+HRESULT CEEJitInfo::getMethodBlockCounts (
     CORINFO_METHOD_HANDLE         ftnHnd,
-    ULONG *                       size,
-    ICorJitInfo::ProfileBuffer ** profileBuffer,
-    ULONG *                       numRuns
+    UINT32 *                      pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+    ICorJitInfo::BlockCounts **   pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+    UINT32 *                      pNumRuns
     )
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(!"getBBProfileData not implemented on CEEJitInfo!");
+    _ASSERTE(!"getMethodBlockCounts not implemented on CEEJitInfo!");
     return E_NOTIMPL;
 }
 
@@ -12647,7 +12714,7 @@ CORJIT_FLAGS GetCompileFlags(MethodDesc * ftn, CORJIT_FLAGS flags, CORINFO_METHO
 
     flags.Set(CORJIT_FLAGS::CORJIT_FLAG_SKIP_VERIFICATION);
 
-    if (ftn->IsILStub())
+    if (ftn->IsILStub() && !g_pConfig->GetTrackDynamicMethodDebugInfo())
     {
         // no debug info available for IL stubs
         flags.Clear(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
@@ -13972,20 +14039,20 @@ void* CEEInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,
     UNREACHABLE();      // only called on derived class.
 }
 
-HRESULT CEEInfo::allocBBProfileBuffer (
-        ULONG                 count,           // The number of basic blocks that we have
-        ProfileBuffer **      profileBuffer
+HRESULT CEEInfo::allocMethodBlockCounts (
+        UINT32                count,           // the count of <ILOffset, ExecutionCount> tuples
+        BlockCounts **        pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
         )
 {
     LIMITED_METHOD_CONTRACT;
     UNREACHABLE_RET();      // only called on derived class.
 }
 
-HRESULT CEEInfo::getBBProfileData(
+HRESULT CEEInfo::getMethodBlockCounts(
         CORINFO_METHOD_HANDLE ftnHnd,
-        ULONG *               count,           // The number of basic blocks that we have
-        ProfileBuffer **      profileBuffer,
-        ULONG *               numRuns
+        UINT32 *              pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+        BlockCounts **        pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+        UINT32 *              pNumRuns
         )
 {
     LIMITED_METHOD_CONTRACT;

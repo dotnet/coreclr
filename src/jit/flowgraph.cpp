@@ -183,7 +183,7 @@ bool Compiler::fgHaveProfileData()
         return false;
     }
 
-    return (fgProfileBuffer != nullptr);
+    return (fgBlockCounts != nullptr);
 }
 
 bool Compiler::fgGetProfileWeightForBasicBlock(IL_OFFSET offset, unsigned* weightWB)
@@ -232,11 +232,11 @@ bool Compiler::fgGetProfileWeightForBasicBlock(IL_OFFSET offset, unsigned* weigh
     }
 
     noway_assert(!compIsForInlining());
-    for (unsigned i = 0; i < fgProfileBufferCount; i++)
+    for (UINT32 i = 0; i < fgBlockCountsCount; i++)
     {
-        if (fgProfileBuffer[i].ILOffset == offset)
+        if (fgBlockCounts[i].ILOffset == offset)
         {
-            weight = fgProfileBuffer[i].ExecutionCount;
+            weight = fgBlockCounts[i].ExecutionCount;
 
             *weightWB = weight;
             return true;
@@ -266,9 +266,9 @@ void Compiler::fgInstrumentMethod()
 
     // Allocate the profile buffer
 
-    ICorJitInfo::ProfileBuffer* bbProfileBufferStart;
+    ICorJitInfo::BlockCounts* profileBlockCountsStart;
 
-    HRESULT res = info.compCompHnd->allocBBProfileBuffer(countOfBlocks, &bbProfileBufferStart);
+    HRESULT res = info.compCompHnd->allocMethodBlockCounts(countOfBlocks, &profileBlockCountsStart);
 
     GenTreeStmt* stmt;
 
@@ -286,7 +286,7 @@ void Compiler::fgInstrumentMethod()
         }
         else
         {
-            noway_assert(!"Error:  failed to allocate bbProfileBuffer");
+            noway_assert(!"Error:  failed to allocate profileBlockCounts");
             return;
         }
     }
@@ -296,10 +296,10 @@ void Compiler::fgInstrumentMethod()
         //  1. Assign the blocks bbCodeOffs to the ILOffset field of this blocks profile data.
         //  2. Add an operation that increments the ExecutionCount field at the beginning of the block.
 
-        // Each (non-Internal) block has it own ProfileBuffer tuple [ILOffset, ExecutionCount]
+        // Each (non-Internal) block has it own BlockCounts tuple [ILOffset, ExecutionCount]
         // To start we initialize our current one with the first one that we allocated
         //
-        ICorJitInfo::ProfileBuffer* bbCurrentBlockProfileBuffer = bbProfileBufferStart;
+        ICorJitInfo::BlockCounts* currentBlockCounts = profileBlockCountsStart;
 
         for (block = fgFirstBB; (block != nullptr); block = block->bbNext)
         {
@@ -309,10 +309,10 @@ void Compiler::fgInstrumentMethod()
             }
 
             // Assign the current block's IL offset into the profile data
-            bbCurrentBlockProfileBuffer->ILOffset = block->bbCodeOffs;
-            assert(bbCurrentBlockProfileBuffer->ExecutionCount == 0); // This value should already be zero-ed out
+            currentBlockCounts->ILOffset = block->bbCodeOffs;
+            assert(currentBlockCounts->ExecutionCount == 0); // This value should already be zero-ed out
 
-            size_t addrOfCurrentExecutionCount = (size_t)&bbCurrentBlockProfileBuffer->ExecutionCount;
+            size_t addrOfCurrentExecutionCount = (size_t)&currentBlockCounts->ExecutionCount;
 
             // Read Basic-Block count value
             GenTree* valueNode =
@@ -327,13 +327,13 @@ void Compiler::fgInstrumentMethod()
 
             fgInsertStmtAtBeg(block, asgNode);
 
-            // Advance to the next ProfileBuffer tuple [ILOffset, ExecutionCount]
-            bbCurrentBlockProfileBuffer++;
+            // Advance to the next BlockCounts tuple [ILOffset, ExecutionCount]
+            currentBlockCounts++;
 
             // One less block
             countOfBlocks--;
         }
-        // Check that we allocated and initialized the same number of ProfileBuffer tuples
+        // Check that we allocated and initialized the same number of BlockCounts tuples
         noway_assert(countOfBlocks == 0);
 
         // Add the method entry callback node
@@ -365,7 +365,7 @@ void Compiler::fgInstrumentMethod()
         GenTree*        call = gtNewHelperCallNode(CORINFO_HELP_BBT_FCN_ENTER, TYP_VOID, args);
 
         // Get the address of the first blocks ExecutionCount
-        size_t addrOfFirstExecutionCount = (size_t)&bbProfileBufferStart->ExecutionCount;
+        size_t addrOfFirstExecutionCount = (size_t)&profileBlockCountsStart->ExecutionCount;
 
         // Read Basic-Block count value
         GenTree* valueNode = gtNewIndOfIconHandleNode(TYP_INT, addrOfFirstExecutionCount, GTF_ICON_BBC_PTR, false);
@@ -4253,6 +4253,93 @@ private:
 };
 
 //------------------------------------------------------------------------
+// fgCanSwitchToOptimized: Determines if conditions are met to allow switching the opt level to optimized
+//
+// Return Value:
+//    True if the opt level may be switched from tier 0 to optimized, false otherwise
+//
+// Assumptions:
+//    - compInitOptions() has been called
+//    - compSetOptimizationLevel() has not been called
+//
+// Notes:
+//    This method is to be called at some point before compSetOptimizationLevel() to determine if the opt level may be
+//    changed based on information gathered in early phases.
+
+bool Compiler::fgCanSwitchToOptimized()
+{
+    bool result = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) &&
+                  !opts.compDbgCode && !compIsForInlining();
+    if (result)
+    {
+        // Ensure that it would be safe to change the opt level
+        assert(opts.compFlags == CLFLG_MINOPT);
+        assert(!opts.IsMinOptsSet());
+    }
+
+    return result;
+}
+
+//------------------------------------------------------------------------
+// fgSwitchToOptimized: Switch the opt level from tier 0 to optimized
+//
+// Assumptions:
+//    - fgCanSwitchToOptimized() is true
+//    - compSetOptimizationLevel() has not been called
+//
+// Notes:
+//    This method is to be called at some point before compSetOptimizationLevel() to switch the opt level to optimized
+//    based on information gathered in early phases.
+
+void Compiler::fgSwitchToOptimized()
+{
+    assert(fgCanSwitchToOptimized());
+
+    // Switch to optimized and re-init options
+    assert(opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0));
+    opts.jitFlags->Clear(JitFlags::JIT_FLAG_TIER0);
+    compInitOptions(opts.jitFlags);
+
+    // Notify the VM of the change
+    info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_SWITCHED_TO_OPTIMIZED);
+}
+
+//------------------------------------------------------------------------
+// fgMayExplicitTailCall: Estimates conservatively for an explicit tail call, if the importer may actually use a tail
+// call.
+//
+// Return Value:
+//    - False if a tail call will not be generated
+//    - True if a tail call *may* be generated
+//
+// Assumptions:
+//    - compInitOptions() has been called
+//    - info.compIsVarArgs has been initialized
+//    - An explicit tail call has been seen
+//    - compSetOptimizationLevel() has not been called
+
+bool Compiler::fgMayExplicitTailCall()
+{
+    assert(!compIsForInlining());
+
+    if (info.compFlags & CORINFO_FLG_SYNCH)
+    {
+        // Caller is synchronized
+        return false;
+    }
+
+#if !FEATURE_FIXED_OUT_ARGS
+    if (info.compIsVarArgs)
+    {
+        // Caller is varargs
+        return false;
+    }
+#endif // FEATURE_FIXED_OUT_ARGS
+
+    return true;
+}
+
+//------------------------------------------------------------------------
 // fgFindJumpTargets: walk the IL stream, determining jump target offsets
 //
 // Arguments:
@@ -5137,6 +5224,7 @@ void Compiler::fgMarkBackwardJump(BasicBlock* startBlock, BasicBlock* endBlock)
         if ((block->bbFlags & BBF_BACKWARD_JUMP) == 0)
         {
             block->bbFlags |= BBF_BACKWARD_JUMP;
+            fgHasBackwardJump = true;
         }
     }
 }
@@ -5514,6 +5602,14 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
 #else
                         BADCODE3("tail call not followed by ret", " at offset %04X", (IL_OFFSET)(codeAddr - codeBegp));
 #endif // !FEATURE_CORECLR && _TARGET_AMD64_
+                    }
+
+                    if (fgCanSwitchToOptimized() && fgMayExplicitTailCall())
+                    {
+                        // Method has an explicit tail call that may run like a loop or may not be generated as a tail
+                        // call in tier 0, switch to optimized to avoid spending too much time running slower code and
+                        // to avoid stack overflow from recursion
+                        fgSwitchToOptimized();
                     }
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)

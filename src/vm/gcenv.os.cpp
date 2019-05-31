@@ -228,7 +228,9 @@ bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t
     return success;
 
 #else // !FEATURE_PAL
-    return GCToOSInterface::SetThreadAffinity(dstProcNo);
+
+    // There is no way to set a thread ideal processor on Unix, so do nothing.
+    return true;
 
 #endif // !FEATURE_PAL
 }
@@ -982,20 +984,20 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
         GroupProcNo groupProcNo(gn, gpn);
         *proc_no = groupProcNo.GetCombinedValue();
 
+        PROCESSOR_NUMBER procNumber;
+
+        if (CPUGroupInfo::CanEnableGCCPUGroups())
+        {
+            procNumber.Group = gn;
+        }
+        else
+        {
+            // Get the current processor group
+            GetCurrentProcessorNumberEx(&procNumber);
+        }
+
         if (GCToOSInterface::CanEnableGCNumaAware())
         {
-            PROCESSOR_NUMBER procNumber;
-
-            if (CPUGroupInfo::CanEnableGCCPUGroups())
-            {
-                procNumber.Group = gn;
-            }
-            else
-            {
-                // Get the current processor group
-                GetCurrentProcessorNumberEx(&procNumber);
-            }
-
             procNumber.Number   = (BYTE)gpn;
             procNumber.Reserved = 0;
 
@@ -1006,7 +1008,7 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
         }
         else
         {   // no numa setting, each cpu group is treated as a node
-            *node_no = groupProcNo.GetGroup();
+            *node_no = procNumber.Group;
         }
 #else // !FEATURE_PAL
         *proc_no = procIndex;
@@ -1077,28 +1079,28 @@ bool GCToOSInterface::ParseGCHeapAffinitizeRangesEntry(const char** config_strin
 void CLRCriticalSection::Initialize()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeInitializeCriticalSection(&m_cs);
+    InitializeCriticalSection(&m_cs);
 }
 
 // Destroy the critical section
 void CLRCriticalSection::Destroy()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeDeleteCriticalSection(&m_cs);
+    DeleteCriticalSection(&m_cs);
 }
 
 // Enter the critical section. Blocks until the section can be entered.
 void CLRCriticalSection::Enter()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeEnterCriticalSection(&m_cs);
+    EnterCriticalSection(&m_cs);
 }
 
 // Leave the critical section
 void CLRCriticalSection::Leave()
 {
     WRAPPER_NO_CONTRACT;
-    UnsafeLeaveCriticalSection(&m_cs);
+    LeaveCriticalSection(&m_cs);
 }
 
 // An implementatino of GCEvent that delegates to

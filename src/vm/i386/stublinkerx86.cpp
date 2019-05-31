@@ -3654,37 +3654,6 @@ VOID StubLinkerCPU::EmitDisable(CodeLabel *pForwardRef, BOOL fCallIn, X86Reg Thr
     }
     CONTRACTL_END;
 
-#if defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-    // If we are checking whether the current thread is already holds the loader lock, vector
-    // such cases to the rare disable pathway, where we can check again.
-    if (fCallIn && (NULL != MDA_GET_ASSISTANT(Reentrancy)))
-    {
-        CodeLabel   *pNotReentrantLabel = NewCodeLabel();
-
-        // test byte ptr [ebx + Thread.m_fPreemptiveGCDisabled],1
-        X86EmitOffsetModRM(0xf6, (X86Reg)0, ThreadReg, Thread::GetOffsetOfGCFlag());
-        Emit8(1);
-
-        // jz NotReentrant
-        X86EmitCondJump(pNotReentrantLabel, X86CondCode::kJZ);
-        
-        X86EmitPushReg(kEAX);
-        X86EmitPushReg(kEDX);
-        X86EmitPushReg(kECX);
-
-        X86EmitCall(NewExternalCodeLabel((LPVOID) HasIllegalReentrancy), 0);
-
-        // If the probe fires, we go ahead and allow the call anyway.  At this point, there could be
-        // GC heap corruptions.  So the probe detects the illegal case, but doesn't prevent it.
-
-        X86EmitPopReg(kECX);
-        X86EmitPopReg(kEDX);
-        X86EmitPopReg(kEAX);
-
-        EmitLabel(pNotReentrantLabel);
-    }
-#endif
-
     // move byte ptr [ebx + Thread.m_fPreemptiveGCDisabled],1
     X86EmitOffsetModRM(0xc6, (X86Reg)0, ThreadReg, Thread::GetOffsetOfGCFlag());
     Emit8(1);
@@ -5840,7 +5809,7 @@ static void EncodeOneGCOffset(CPUSTUBLINKER *pSl, ULONG delta, BOOL maybeInterio
     // by shifting and gaining a free high-bit.
     ULONG encodedDelta = delta >> 1;
 #else
-    // For 32-bit, we just limit our frame size to <2GB. (I know, such a bummer!)
+    // For 32-bit, we just limit our frame size to <2GB.
     ULONG encodedDelta = delta;
 #endif
     _ASSERTE((encodedDelta & 0x80000003) == 0);
@@ -6516,7 +6485,7 @@ void rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, MethodDesc* pMD)
     CONTRACTL
     {
         THROWS;         // Creating a JumpStub could throw OutOfMemory
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -6531,7 +6500,7 @@ BOOL rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, TADDR expected, 
     CONTRACTL
     {
         THROWS;         // Creating a JumpStub could throw OutOfMemory
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 

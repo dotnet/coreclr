@@ -36,6 +36,8 @@
 #include "corcompile.h"
 #include <gcinfodecoder.h>
 
+#include "wellknownattributes.h"
+
 #ifdef FEATURE_PREJIT
 #include "dataimage.h"
 #endif // FEATURE_PREJIT
@@ -77,6 +79,7 @@ class DynamicMethodTable;
 class CodeVersionManager;
 class TieredCompilationManager;
 class ProfileEmitter;
+class JITInlineTrackingMap;
 #ifdef FEATURE_PREJIT
 class TypeHandleList;
 class TrackingMap;
@@ -108,6 +111,7 @@ extern VerboseLevel g_CorCompileVerboseLevel;
 #endif
 
 typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
+typedef DPTR(JITInlineTrackingMap) PTR_JITInlineTrackingMap;
 
 //
 // LookupMaps are used to implement RID maps
@@ -376,8 +380,10 @@ public:
         WRAPPER_NO_CONTRACT;
 
         _ASSERTE((flag & supportedFlags) == flag);
+#ifdef FEATURE_PREJIT
         _ASSERTE(!MapIsCompressed());
         _ASSERTE(dwNumHotItems == 0);
+#endif // FEATURE_PREJIT
 
         PTR_TADDR pElement = GetElementPtr(rid);
         _ASSERTE(pElement);
@@ -736,9 +742,6 @@ struct ModuleCtorInfo
 };
 
 
-
-#ifdef FEATURE_PREJIT
-
 // For IBC Profiling we collect signature blobs for instantiated types.
 // For such instantiated types and methods we create our own ibc token
 // 
@@ -1000,7 +1003,7 @@ public:
 typedef SHash<ProfilingBlobTraits> ProfilingBlobTable;
 typedef DPTR(ProfilingBlobTable) PTR_ProfilingBlobTable;
 
-
+#ifdef FEATURE_PREJIT
 #define METHODTABLE_RESTORE_REASON() \
     RESTORE_REASON_FUNC(CanNotPreRestoreHardBindToParentMethodTable) \
     RESTORE_REASON_FUNC(CanNotPreRestoreHardBindToCanonicalMethodTable) \
@@ -1625,6 +1628,7 @@ private:
 #if PROFILING_SUPPORTED_DATA 
     DWORD                   m_dwTypeCount;
     DWORD                   m_dwExportedTypeCount;
+    DWORD                   m_dwCustomAttributeCount;
 #endif // PROFILING_SUPPORTED_DATA
 
 #ifdef FEATURE_PREJIT
@@ -1763,24 +1767,11 @@ protected:
     MethodTable *GetGlobalMethodTable();
     bool         NeedsGlobalMethodTable();
 
-    // Only for non-manifest modules
-    DomainModule *GetDomainModule(AppDomain *pDomain);
-    DomainModule *FindDomainModule(AppDomain *pDomain);
-
     // This works for manifest modules too
-    DomainFile *GetDomainFile(AppDomain *pDomain);
-    DomainFile *FindDomainFile(AppDomain *pDomain);
+    DomainFile *GetDomainFile();
 
     // Operates on assembly of module
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
-
-    // Versions which rely on the current AppDomain (N/A for DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainModule * GetDomainModule()         { WRAPPER_NO_CONTRACT; return GetDomainModule(GetAppDomain()); }
-    DomainFile * GetDomainFile()             { WRAPPER_NO_CONTRACT; return GetDomainFile(GetAppDomain()); }
-    DomainAssembly * GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
+    DomainAssembly *GetDomainAssembly();
 
     void SetDomainFile(DomainFile *pDomainFile);
 
@@ -1899,6 +1890,20 @@ protected:
 #endif
 
     CHECK CheckActivated();
+
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        if (IsReadyToRun())
+        {
+            if (!GetReadyToRunInfo()->MayHaveCustomAttribute(attribute, parentToken))
+                return S_FALSE;
+        }
+
+        return GetMDImport()->GetCustomAttributeByName(parentToken, GetWellKnownAttributeName(attribute), ppData, pcbData);
+    }
 
     IMDInternalImport *GetMDImport() const
     {
@@ -2179,7 +2184,6 @@ private:
 public:
 
     DomainAssembly * LoadAssembly(
-            AppDomain *   pDomain, 
             mdAssemblyRef kAssemblyRef, 
             LPCUTF8       szWinRtTypeNamespace = NULL,
             LPCUTF8       szWinRtTypeClassName = NULL);
@@ -2536,8 +2540,13 @@ public:
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    BOOL HasInlineTrackingMap();
-    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+    BOOL HasNativeOrReadyToRunInlineTrackingMap();
+    COUNT_T GetNativeOrReadyToRunInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    BOOL HasJitInlineTrackingMap();
+    PTR_JITInlineTrackingMap GetJitInlineTrackingMap() { LIMITED_METHOD_CONTRACT; return m_pJitInlinerTrackingMap; }
+    void AddInlining(MethodDesc *inliner, MethodDesc *inlinee);
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
@@ -2683,9 +2692,6 @@ public:
     // execute.
 
     void AddActiveDependency(Module *pModule, BOOL unconditional);
-
-    // Turn triggers from this module into runtime checks
-    void EnableModuleFailureTriggers(Module *pModule, AppDomain *pDomain);
 
 #ifdef FEATURE_PREJIT
     BOOL IsZappedCode(PCODE code);
@@ -2866,7 +2872,7 @@ public:
     }
 #endif // FEATURE_PREJIT
 
-    ICorJitInfo::ProfileBuffer * AllocateProfileBuffer(mdToken _token, DWORD _size, DWORD _ILSize);
+    ICorJitInfo::BlockCounts * AllocateMethodBlockCounts(mdToken _token, DWORD _size, DWORD _ILSize);
     HANDLE OpenMethodProfileDataLogFile(GUID mvid);
     static void ProfileDataAllocateTokenLists(ProfileEmitter * pEmitter, TokenProfileData* pTokenProfileData);
     HRESULT WriteMethodProfileDataLogFile(bool cleanup);
@@ -3010,33 +3016,6 @@ public:
     // We need this for the jitted shared case,
     inline MethodTable* GetDynamicClassMT(DWORD dynamicClassID);
 
-    static BOOL IsEncodedModuleIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        
-        // We should never see encoded module index in CoreCLR
-        _ASSERTE((ModuleID&1)==0);
-        return FALSE;
-    }
-
-    static SIZE_T IndexToID(ModuleIndex index)
-    {
-        LIMITED_METHOD_CONTRACT
-            
-        return (index.m_dwIndex << 1) | 1;
-    }
-
-    static ModuleIndex IDToIndex(SIZE_T ModuleID)
-    {
-        LIMITED_METHOD_CONTRACT
-        SUPPORTS_DAC;
-            
-        _ASSERTE(IsEncodedModuleIndex(ModuleID));
-        ModuleIndex index(ModuleID >> 1);
-
-        return index;
-    }
-
     static ModuleIndex AllocateModuleIndex();
     static void FreeModuleIndex(ModuleIndex index);
 
@@ -3064,11 +3043,7 @@ public:
         return offsetof(Module, m_ModuleID);
     }
 
-    PTR_DomainLocalModule   GetDomainLocalModule(AppDomain *pDomain);
-
-#ifndef DACCESS_COMPILE
-    PTR_DomainLocalModule   GetDomainLocalModule()  { WRAPPER_NO_CONTRACT; return GetDomainLocalModule(NULL); };
-#endif
+    PTR_DomainLocalModule   GetDomainLocalModule();
 
 #ifdef FEATURE_PREJIT
     NgenStats *GetNgenStats()
@@ -3086,7 +3061,7 @@ public:
     // Self-initializing accessor for domain-independent IJW thunk heap
     LoaderHeap              *GetDllThunkHeap();
 
-    void            EnumRegularStaticGCRefs        (AppDomain* pAppDomain, promote_func* fn, ScanContext* sc);
+    void            EnumRegularStaticGCRefs        (promote_func* fn, ScanContext* sc);
 
 protected:    
 
@@ -3226,6 +3201,10 @@ private:
 
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
     PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
+
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
+    PTR_JITInlineTrackingMap m_pJitInlinerTrackingMap;
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name
@@ -3466,5 +3445,10 @@ struct VASigCookieEx : public VASigCookie
 {
     const BYTE *m_pArgs;        // pointer to first unfixed unmanaged arg
 };
+
+// Rerieve the full command line for the current process.
+LPCWSTR GetManagedCommandLine();
+// Save the command line for the current process.
+void SaveManagedCommandLine(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR *argv);
 
 #endif // !CEELOAD_H_

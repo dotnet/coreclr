@@ -5,13 +5,18 @@ if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
     cmake_policy(SET CMP0042 NEW)
 endif()
 
+if (NOT WIN32)
+  set(CMAKE_CXX_FLAGS_INIT "${CMAKE_CXX_FLAGS_INIT} -std=c++11"  CACHE STRING "Flags used by the compiler during all build types.")
+  set(CMAKE_C_FLAGS_INIT "${CMAKE_C_FLAGS_INIT} -std=c11"  CACHE STRING "Flags used by the compiler during all build types.")
+endif()
+
 # Set the project name
 project(CoreCLR)
 
 # Include cmake functions
 include(functions.cmake)
 
-# Include global configure settings
+# Verify that LTCG/LTO is available
 include(configure.cmake)
 
 if (WIN32)
@@ -35,12 +40,6 @@ endif(CORECLR_SET_RPATH)
 
 OPTION(CLR_CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
 OPTION(CLR_CMAKE_WARNINGS_ARE_ERRORS "Warnings are errors" ON)
-
-# Ensure that python is present
-find_program(PYTHON NAMES python3 python2 python py)
-if (PYTHON STREQUAL "PYTHON-NOTFOUND")
-    message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
-endif()
 
 # Ensure other tools are present
 if (WIN32)
@@ -220,10 +219,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
-
-# Microsoft.Dotnet.BuildTools.Coreclr version
-set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 #------------------------------
 # Add Product Directory

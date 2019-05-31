@@ -14,15 +14,13 @@
 
 const WCHAR *EventPipeConfiguration::s_configurationProviderName = W("Microsoft-DotNETCore-EventPipeConfiguration");
 
-EventPipeConfiguration::EventPipeConfiguration()
+EventPipeConfiguration::EventPipeConfiguration(EventPipeSessions *pSessions)
+    : m_pSessions(pSessions), m_activeSessions(0)
 {
     STANDARD_VM_CONTRACT;
+    _ASSERTE(pSessions != nullptr);
 
-    m_enabled = false;
-    m_rundownEnabled = false;
-    m_pRundownThread = NULL;
     m_pConfigProvider = NULL;
-    m_pSession = NULL;
     m_pProviderList = new SList<SListElem<EventPipeProvider *>>();
 }
 
@@ -47,11 +45,6 @@ EventPipeConfiguration::~EventPipeConfiguration()
         }
         EX_CATCH {}
         EX_END_CATCH(SwallowAllExceptions);
-    }
-    if (m_pSession != NULL)
-    {
-        DeleteSession(m_pSession);
-        m_pSession = NULL;
     }
 
     if (m_pProviderList != NULL)
@@ -88,12 +81,14 @@ void EventPipeConfiguration::Initialize()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 
-    // Create the configuration provider.
-    m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL);
+    EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+        // Create the configuration provider.
+        m_pConfigProvider = CreateProvider(SL(s_configurationProviderName), NULL, NULL, pEventPipeProviderCallbackDataQueue);
+    });
 
     // Create the metadata event.
     m_pMetadataEvent = m_pConfigProvider->AddEvent(
@@ -104,13 +99,14 @@ void EventPipeConfiguration::Initialize()
         false); /* needStack */
 }
 
-EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
+EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -118,7 +114,7 @@ EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &provide
     EventPipeProvider *pProvider = new EventPipeProvider(this, providerName, pCallbackFunction, pCallbackData);
 
     // Register the provider with the configuration system.
-    RegisterProvider(*pProvider);
+    RegisterProvider(*pProvider, pEventPipeProviderCallbackDataQueue);
 
     return pProvider;
 }
@@ -144,18 +140,16 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     delete pProvider;
 }
 
-bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
+bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    // Take the lock before manipulating the provider list.
-    CrstHolder _crst(EventPipe::GetLock());
 
     // See if we've already registered this provider.
     EventPipeProvider *pExistingProvider = GetProviderNoLock(provider.GetProviderName());
@@ -171,17 +165,27 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider)
         m_pProviderList->InsertTail(new SListElem<EventPipeProvider *>(&provider));
     }
 
-    // Set the provider configuration and enable it if it has been requested by a session.
-    if (m_pSession != NULL)
+    for (auto iterator = m_pSessions->Begin();
+         iterator != m_pSessions->End();
+         ++iterator)
     {
-        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, &provider);
+        const EventPipeSessionID Id = iterator->Key();
+        EventPipeSession *const pSession = iterator->Value();
+
+        _ASSERTE(IsSessionIdValid(Id) && (pSession != nullptr));
+        if (!IsSessionIdValid(Id) || pSession == nullptr)
+            continue;
+
+        // Set the provider configuration and enable it if it has been requested by a session.
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(*pSession, &provider);
         if (pSessionProvider != NULL)
         {
-            provider.SetConfiguration(
-                true /* providerEnabled */,
+            EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
+                pSession->GetId(),
                 pSessionProvider->GetKeywords(),
                 pSessionProvider->GetLevel(),
                 pSessionProvider->GetFilterData());
+            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
         }
     }
 
@@ -254,7 +258,7 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -277,58 +281,42 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     return NULL;
 }
 
-EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSession *pSession, EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider)
 {
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    EventPipeSessionProvider *pRet = NULL;
-    if (pSession != NULL)
-    {
-        pRet = pSession->GetSessionProvider(pProvider);
-    }
-    return pRet;
-}
-
-size_t EventPipeConfiguration::GetCircularBufferSize() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    size_t ret = 0;
-    if (m_pSession != NULL)
-    {
-        ret = m_pSession->GetCircularBufferSize();
-    }
-    return ret;
+    return session.GetSessionProvider(pProvider);
 }
 
 EventPipeSession *EventPipeConfiguration::CreateSession(
+    LPCWSTR strOutputPath,
+    IpcStream *const pStream,
     EventPipeSessionType sessionType,
     unsigned int circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
-    uint32_t numProviders)
+    uint32_t numProviders,
+    bool rundownEnabled)
 {
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    return new EventPipeSession(
-        sessionType,
-        circularBufferSizeInMB,
-        pProviders,
-        numProviders);
+    const EventPipeSessionID SessionId = GenerateSessionId();
+    return !IsValidId(SessionId) ? nullptr : new EventPipeSession(SessionId, strOutputPath, pStream, sessionType, circularBufferSizeInMB, pProviders, numProviders);
 }
 
 void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
@@ -336,35 +324,35 @@ void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        PRECONDITION(m_enabled == false);
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(pSession != nullptr);
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    // TODO: Multiple session support will require individual enabled bits.
-    if (pSession != NULL && !m_enabled)
+    if (pSession != nullptr)
     {
-        delete (pSession);
+        // Reset the mask of active sessions.
+        m_activeSessions &= ~pSession->GetId();
+        delete pSession;
     }
 }
 
-void EventPipeConfiguration::Enable(EventPipeSession *pSession)
+void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        // Lock must be held by EventPipe::Enable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    m_pSession = pSession;
-    m_enabled = true;
+    // Add session Id to the "list" of active sessions.
+    m_activeSessions |= session.GetId();
+    _ASSERTE(IsSessionIdValid(session.GetId()));
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
@@ -375,14 +363,16 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
             EventPipeProvider *pProvider = pElem->GetValue();
 
             // Enable the provider if it has been configured.
-            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(m_pSession, pProvider);
+            EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
             if (pSessionProvider != NULL)
             {
-                pProvider->SetConfiguration(
-                    true /* providerEnabled */,
-                    pSessionProvider->GetKeywords(),
-                    pSessionProvider->GetLevel(),
-                    pSessionProvider->GetFilterData());
+                EventPipeProviderCallbackData eventPipeProviderCallbackData =
+                    pProvider->SetConfiguration(
+                        session.GetId(),
+                        pSessionProvider->GetKeywords(),
+                        pSessionProvider->GetLevel(),
+                        pSessionProvider->GetFilterData());
+                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
             }
 
             pElem = m_pProviderList->GetNext(pElem);
@@ -390,18 +380,16 @@ void EventPipeConfiguration::Enable(EventPipeSession *pSession)
     }
 }
 
-void EventPipeConfiguration::Disable(EventPipeSession *pSession)
+void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
-        // TODO: Multiple session support will require that the session be specified.
-        PRECONDITION(pSession != NULL);
-        PRECONDITION(pSession == m_pSession);
+        MODE_PREEMPTIVE;
+        PRECONDITION((session.GetId() & m_activeSessions) != 0); // Session is enabled.
         // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -412,58 +400,17 @@ void EventPipeConfiguration::Disable(EventPipeSession *pSession)
         while (pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-            pProvider->SetConfiguration(
-                false /* providerEnabled */,
-                0 /* keywords */,
-                EventPipeEventLevel::Critical /* level */,
-                NULL /* filterData */);
+
+            if (pProvider->IsEnabled(session.GetId()))
+            {
+                EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
+                    session.GetId());
+                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+            }
 
             pElem = m_pProviderList->GetNext(pElem);
         }
     }
-
-    m_enabled = false;
-    m_rundownEnabled = false;
-    m_pRundownThread = NULL;
-    m_pSession = NULL;
-}
-
-bool EventPipeConfiguration::Enabled() const
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_enabled;
-}
-
-bool EventPipeConfiguration::RundownEnabled() const
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_rundownEnabled;
-}
-
-void EventPipeConfiguration::EnableRundown(EventPipeSession *pSession)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        PRECONDITION(pSession != NULL);
-        // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
-    }
-    CONTRACTL_END;
-
-    // Build the rundown configuration.
-    _ASSERTE(m_pSession == NULL);
-
-    // Enable rundown and keep track of the rundown thread.
-    // TODO: Move this into EventPipeSession once Enable takes an EventPipeSession object.
-    m_pRundownThread = GetThread();
-    _ASSERTE(m_pRundownThread != NULL);
-    m_rundownEnabled = true;
-
-    // Enable tracing.
-    Enable(pSession);
 }
 
 EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPipeEventInstance &sourceInstance, unsigned int metadataId)
@@ -506,7 +453,6 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
 
     // Construct the event instance.
     EventPipeEventInstance *pInstance = new EventPipeEventInstance(
-        *EventPipe::s_pSession,
         *m_pMetadataEvent,
         GetCurrentThreadId(),
         pInstancePayload,
@@ -528,9 +474,9 @@ void EventPipeConfiguration::DeleteDeferredProviders()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 

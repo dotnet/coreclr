@@ -62,8 +62,7 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     if (gc.assemblyName == NULL)
         COMPlusThrow(kArgumentNullException, W("ArgumentNull_AssemblyName"));
 
-    Thread * pThread = GetThread();
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     DomainAssembly * pParentAssembly = NULL;
     Assembly * pRefAssembly = NULL;
@@ -95,7 +94,7 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
 
     // Initialize spec
     AssemblySpec spec;
-    spec.InitializeSpec(&(pThread->m_MarshalAlloc), 
+    spec.InitializeSpec(pStackingAllocator, 
                         &gc.assemblyName,
                         FALSE);
     
@@ -105,7 +104,7 @@ FCIMPL6(Object*, AssemblyNative::Load, AssemblyNameBaseObject* assemblyNameUNSAF
     }
     
     if (gc.codeBase != NULL)
-        spec.SetCodeBase(&(pThread->m_MarshalAlloc), &gc.codeBase);
+        spec.SetCodeBase(pStackingAllocator, &gc.codeBase);
 
     if (pParentAssembly != NULL)
         spec.SetParentAssembly(pParentAssembly);
@@ -778,6 +777,16 @@ BOOL QCALLTYPE AssemblyNative::GetIsCollectible(QCall::AssemblyHandle pAssembly)
 
     return retVal;
 }
+
+extern volatile uint32_t g_cAssemblies;
+
+FCIMPL0(uint32_t, AssemblyNative::GetAssemblyCount)
+{
+    FCALL_CONTRACT;
+
+    return g_cAssemblies;
+}
+FCIMPLEND
 
 void QCALLTYPE AssemblyNative::GetModule(QCall::AssemblyHandle pAssembly, LPCWSTR wszFileName, QCall::ObjectHandleOnStack retModule)
 {

@@ -222,6 +222,7 @@ public:
 
 #ifdef FEATURE_READYTORUN_COMPILER
     ZapVirtualSection * m_pAvailableTypesSection;
+    ZapVirtualSection * m_pAttributePresenceSection;
 #endif
 
     // Preloader sections
@@ -597,9 +598,11 @@ private:
     void OutputInliningTableForReadyToRun();
     void OutputProfileDataForReadyToRun();
     void OutputManifestMetadataForReadyToRun();
+    HRESULT ComputeAttributePresenceTable(IMDInternalImport * pMDImport, SArray<UINT16> *table);
+    void OutputAttributePresenceFilter(IMDInternalImport * pMDImport);
 
     void CopyDebugDirEntry();
-    void CopyWin32VersionResource();
+    void CopyWin32Resources();
 
     void OutputManifestMetadata();
     void OutputTables();
@@ -840,14 +843,15 @@ public:
     }
 
     HRESULT LocateProfileData();
-    HRESULT parseProfileData  ();
+    HRESULT parseProfileData();
     HRESULT convertProfileDataFromV1();
+    HRESULT hashMethodBlockCounts();
+    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
+
     void RehydrateBasicBlockSection();
     void RehydrateTokenSection(int sectionFormat, unsigned int flagTable[255]);
     void RehydrateBlobStream();
     HRESULT RehydrateProfileData();
-    HRESULT hashBBProfileData ();
-    void hashBBUpdateFlagsAndCompileResult(mdToken token, unsigned methodProfilingDataFlags, CompileStatus compileResult);
 
     void              LoadProfileData();
     CorProfileData *  NewProfileData();

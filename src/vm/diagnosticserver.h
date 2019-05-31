@@ -7,26 +7,25 @@
 
 #ifdef FEATURE_PERFTRACING // This macro should change to something more generic than performance.
 
-#include <stdint.h>
 #include "diagnosticsipc.h"
 
-//! TODO: Temp class.
 enum class DiagnosticMessageType : uint32_t
 {
     ///////////////////////////////////////////////////////////////////////////
     // Debug = 0
+    GenerateCoreDump = 1,           // Initiates core dump generation
 
     ///////////////////////////////////////////////////////////////////////////
-    // EventPipe
-    StartEventPipeTracing = 1024, // To file
+    // EventPipe = 1024
+    StartEventPipeTracing = 1024,   // To file
     StopEventPipeTracing,
-    CollectEventPipeTracing, // To IPC
+    CollectEventPipeTracing,        // To IPC
 
     ///////////////////////////////////////////////////////////////////////////
     // Profiler = 2048
+    AttachProfiler = 2048,
 };
 
-//! TODO: Temp class.
 struct MessageHeader
 {
     DiagnosticMessageType RequestType;

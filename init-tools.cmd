@@ -2,7 +2,7 @@
 setlocal
 
 set INIT_TOOLS_LOG=%~dp0init-tools.log
-if [%PACKAGES_DIR%]==[] set PACKAGES_DIR=%~dp0packages
+if [%PACKAGES_DIR%]==[] set PACKAGES_DIR=%~dp0.packages
 if [%TOOLRUNTIME_DIR%]==[] set TOOLRUNTIME_DIR=%~dp0Tools
 set DOTNET_PATH=%~dp0.dotnet\
 if [%DOTNET_CMD%]==[] set DOTNET_CMD=%DOTNET_PATH%dotnet.exe
@@ -71,11 +71,8 @@ echo "init-tools.cmd: Setting arch to %_Arch% for build tools"
 
 :ArchSet
 
-echo Installing dotnet cli...
-set PS_DOTNET_INSTALL_SCRIPT=". %~dp0eng\configure-toolset.ps1; . %~dp0eng\common\tools.ps1; InitializeBuildTool"
 if NOT exist "%DOTNET_CMD%" (
-  echo running: powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%
-  powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%
+  call %~dp0init-dotnet.cmd
   if NOT exist "%DOTNET_CMD%" (
     echo ERROR: Could not install dotnet cli correctly. 1>&2
     goto :error

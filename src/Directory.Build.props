@@ -1,0 +1,16 @@
+<Project>
+  <Import Project="../Directory.Build.props" />
+
+  <!-- Properties that should be defined for all managed product assemblies -->
+  <PropertyGroup>
+    <Company>Microsoft Corporation</Company>
+    <Product>Microsoft%AE .NET Core</Product>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- If true, indicates that this is not an officially supported release -->
+    <!-- It is important to flip this to false in official release branches -->
+    <!-- Keep it in sync with PRERELEASE in clrdefinitions.cmake -->
+    <IsPrerelease>true</IsPrerelease>
+  </PropertyGroup>
+</Project>

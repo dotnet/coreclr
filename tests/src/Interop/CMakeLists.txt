@@ -74,7 +74,7 @@ if(WIN32)
     add_subdirectory(PInvoke/SafeHandles/ReleaseHandle)
     add_subdirectory(PInvoke/SafeHandles/Interface)
     add_subdirectory(PInvoke/NativeCallManagedComVisible)
-    # This test doesn't necessarily need to be Windows-only, but the implementation is very tied to Windows APIs
+    # Windows-only due to bug (fixed as part of dotnet/coreclr#21415)
     add_subdirectory(PInvoke/DateTime)
     add_subdirectory(PInvoke/IEnumerator)
     add_subdirectory(PInvoke/CustomMarshalers)
@@ -83,6 +83,8 @@ if(WIN32)
     add_subdirectory(COM/NativeClients/Primitives)
     add_subdirectory(COM/NativeClients/Licensing)
     add_subdirectory(COM/NativeClients/DefaultInterfaces)
+    add_subdirectory(COM/NativeClients/Dispatch)
+    add_subdirectory(WinRT/NativeComponent)
 
     # IJW isn't supported on ARM64
     if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)

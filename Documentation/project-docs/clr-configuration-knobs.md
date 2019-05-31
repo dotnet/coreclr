@@ -17,7 +17,7 @@ Name | Description | Type
 
 ## Environment/Registry Configuration Knobs
 
-This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [d064ffb](https://github.com/dotnet/coreclr/commit/d064ffb6b05c4f7fa44c7ee389e9694e64a76c08) on 15/04/2019. It might be out of date. To generate latest documentation run `{dotnet-script} clr-configuration-knobs.csx` from this file directory.
+This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [0ae3d02](https://github.com/dotnet/coreclr/commit/0ae3d020f82c3f8650b7e5eeaf9f1030f7e7e785) on 4/25/2019. It might be out of date. To generate latest documentation run `dotnet-script clr-configuration-knobs.csx` from this file directory.
 
 When using these configurations from environment variables, the variables need to have the `COMPlus_` prefix in their names. e.g. To set DumpJittedMethods to 1, add the environment variable `COMPlus_DumpJittedMethods=1`.
 
@@ -71,12 +71,6 @@ Name | Description | Type | Class | Default Value | Flags
 `ADTakeDHSnapShot` | Superseded by test hooks | `DWORD` | `INTERNAL` | `0` |
 `ADTakeSnapShot` | Superseded by test hooks | `DWORD` | `INTERNAL` | `0` |
 `EnableFullDebug` | Heavy-weight checking for AD boundary violations (AD leaks) | `DWORD` | `INTERNAL` | |
-
-#### ARM Configuration Knobs
-
-Name | Description | Type | Class | Default Value | Flags
------|-------------|------|-------|---------------|-------
-`ARMEnabled` | AppDomain Resource Monitoring. Set to 1 to enable it | `DWORD` | `UNSUPPORTED` | `(DWORD)0` |
 
 #### Assembly Loader Configuration Knobs
 
@@ -759,6 +753,7 @@ Name | Description | Type | Class | Default Value | Flags
 
 Name | Description | Type | Class | Default Value | Flags
 -----|-------------|------|-------|---------------|-------
+`DefaultStackSize` | Stack size to use for new VM threads when thread is created with default stack size (dwStackSize == 0). | `DWORD` | `INTERNAL` | `0` |
 `Thread_DeadThreadCountThresholdForGCTrigger` | In the heuristics to clean up dead threads, this threshold must be reached before triggering a GC will be considered. Set to 0 to disable triggering a GC based on dead threads. | `DWORD` | `INTERNAL` | `75` |
 `Thread_DeadThreadGCTriggerPeriodMilliseconds` | In the heuristics to clean up dead threads, this much time must have elapsed since the previous max-generation GC before triggering another GC will be considered | `DWORD` | `INTERNAL` | `1000 * 60 * 30` |
 
@@ -802,12 +797,12 @@ Name | Description | Type | Class | Default Value | Flags
 
 Name | Description | Type | Class | Default Value | Flags
 -----|-------------|------|-------|---------------|-------
-`TC_QuickJit` | For methods that would be jitted, enable using quick JIT when appropriate. | `DWORD` | `UNSUPPORTED` | `0` |
-`TC_StartupTier_CallCounting` | Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any promotion to higher tiers | `DWORD` | `INTERNAL` | `1` |
-`TC_StartupTier_CallCountingDelayMs` | A perpetual delay in milliseconds that is applied call counting in the startup tier and jitting at higher tiers, while there is startup-like activity. | `DWORD` | `UNSUPPORTED` | `100` |
-`TC_StartupTier_CallCountThreshold` | Number of times a method must be called in the startup tier after which it is promoted to the next tier. | `DWORD` | `UNSUPPORTED` | `30` |
-`TC_StartupTier_DelaySingleProcMultiplier` | Multiplier for TC_StartupTier_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor. | `DWORD` | `UNSUPPORTED` | `10` |
-`TC_StartupTier_OptimizeCode` | Use optimized codegen (normally used by the optimized tier) in the startup tier | `DWORD` | `INTERNAL` | `0` |
+`TC_CallCounting` | Enabled by default (only activates when TieredCompilation is also enabled). If disabled immediately backpatches prestub, and likely prevents any promotion to higher tiers | `DWORD` | `INTERNAL` | `1` |
+`TC_CallCountingDelayMs` | A perpetual delay in milliseconds that is applied call counting in tier 0 and jitting at higher tiers, while there is startup-like activity. | `DWORD` | `INTERNAL` | `100` |
+`TC_CallCountThreshold` | Number of times a method must be called in tier 0 after which it is promoted to the next tier. | `DWORD` | `INTERNAL` | `30` |
+`TC_DelaySingleProcMultiplier` | Multiplier for TC_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor. | `DWORD` | `INTERNAL` | `10` |
+`TC_QuickJit` | For methods that would be jitted, enable using quick JIT when appropriate. | `DWORD` | `EXTERNAL` | `0` |
+`TC_QuickJitForLoops` | When quick JIT is enabled, quick JIT may also be used for methods that contain loops. | `DWORD` | `UNSUPPORTED` | `0` |
 `TieredCompilation` | Enables tiered compilation | `DWORD` | `EXTERNAL` | `1` |
 
 #### TypeLoader Configuration Knobs

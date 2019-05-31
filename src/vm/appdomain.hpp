@@ -25,7 +25,6 @@
 #include "domainfile.h"
 #include "objectlist.h"
 #include "fptrstubs.h"
-#include "testhookmgr.h"
 #include "gcheaputilities.h"
 #include "gchandleutilities.h"
 #include "../binder/inc/applicationcontext.hpp"
@@ -483,97 +482,6 @@ public:
 #define OFFSETOF__DomainLocalModule__NormalDynamicEntry__m_pDataBlob TARGET_POINTER_SIZE /* m_pGCStatics */
 #endif
 
-typedef DPTR(class DomainLocalBlock) PTR_DomainLocalBlock;
-class DomainLocalBlock
-{
-    friend class ClrDataAccess;
-    friend class CheckAsmOffsets;
-
-private:
-    PTR_AppDomain          m_pDomain;
-    DPTR(PTR_DomainLocalModule) m_pModuleSlots;
-    SIZE_T                 m_aModuleIndices;               // Module entries the shared block has allocated
-
-public: // used by code generators
-    static SIZE_T GetOffsetOfModuleSlotsPointer() { return offsetof(DomainLocalBlock, m_pModuleSlots);}
-
-public:
-
-#ifndef DACCESS_COMPILE
-    DomainLocalBlock()
-      : m_pDomain(NULL),  m_pModuleSlots(NULL), m_aModuleIndices(0) {}
-
-    void    EnsureModuleIndex(ModuleIndex index);
-
-    void Init(AppDomain *pDomain) { LIMITED_METHOD_CONTRACT; m_pDomain = pDomain; }
-#endif
-
-    void SetModuleSlot(ModuleIndex index, PTR_DomainLocalModule pLocalModule);
-
-    FORCEINLINE PTR_DomainLocalModule GetModuleSlot(ModuleIndex index)
-    {
-        WRAPPER_NO_CONTRACT;
-        SUPPORTS_DAC;
-        _ASSERTE(index.m_dwIndex < m_aModuleIndices);
-        return m_pModuleSlots[index.m_dwIndex];
-    }
-
-    inline PTR_DomainLocalModule GetModuleSlot(MethodTable* pMT)
-    {
-        WRAPPER_NO_CONTRACT;
-        return GetModuleSlot(pMT->GetModuleForStatics()->GetModuleIndex());
-    }
-
-    DomainFile* TryGetDomainFile(ModuleIndex index)
-    {
-        WRAPPER_NO_CONTRACT;
-        SUPPORTS_DAC;
-
-        // the publishing of m_aModuleIndices and m_pModuleSlots is dependent
-        // on the order of accesses; we must ensure that we read from m_aModuleIndices
-        // before m_pModuleSlots.
-        if (index.m_dwIndex < m_aModuleIndices)
-        {
-            MemoryBarrier();
-            if (m_pModuleSlots[index.m_dwIndex])
-            {
-                return m_pModuleSlots[index.m_dwIndex]->GetDomainFile();
-            }
-        }
-
-        return NULL;
-    }
-
-    DomainFile* GetDomainFile(SIZE_T ModuleID)
-    {
-        WRAPPER_NO_CONTRACT;
-        ModuleIndex index = Module::IDToIndex(ModuleID);
-        _ASSERTE(index.m_dwIndex < m_aModuleIndices);
-        return m_pModuleSlots[index.m_dwIndex]->GetDomainFile();
-    }
-
-#ifndef DACCESS_COMPILE
-    void SetDomainFile(ModuleIndex index, DomainFile* pDomainFile)
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(index.m_dwIndex < m_aModuleIndices);
-        m_pModuleSlots[index.m_dwIndex]->SetDomainFile(pDomainFile);
-    }
-#endif
-
-#ifdef DACCESS_COMPILE
-    void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
-#endif
-
-
-private:
-
-    //
-    // Low level routines to get & set class entries
-    //
-
-};
-
 #ifdef _MSC_VER
 #pragma warning(pop)
 #endif
@@ -585,7 +493,7 @@ class LargeHeapHandleBucket
 {
 public:
     // Constructor and desctructor.
-    LargeHeapHandleBucket(LargeHeapHandleBucket *pNext, DWORD Size, BaseDomain *pDomain, BOOL bCrossAD = FALSE);
+    LargeHeapHandleBucket(LargeHeapHandleBucket *pNext, DWORD Size, BaseDomain *pDomain);
     ~LargeHeapHandleBucket();
 
     // This returns the next bucket.
@@ -642,7 +550,7 @@ public:
     ~LargeHeapHandleTable();
 
     // Allocate handles from the large heap handle table.
-    OBJECTREF* AllocateHandles(DWORD nRequested, BOOL bCrossAD = FALSE);
+    OBJECTREF* AllocateHandles(DWORD nRequested);
 
     // Release object handles allocated using AllocateHandles().
     void ReleaseHandles(OBJECTREF *pObjRef, DWORD nReleased);    
@@ -1028,9 +936,6 @@ class BaseDomain
     VPTR_BASE_VTABLE_CLASS(BaseDomain)
     VPTR_UNIQUE(VPTR_UNIQUE_BaseDomain)
 
-protected:
-    DomainLocalBlock    m_sDomainLocalBlock;
-
 public:
 
     class AssemblyIterator;
@@ -1091,7 +996,6 @@ public:
         return m_pWinRtBinder;
     }
 #endif // FEATURE_COMINTEROP
-    
 #ifdef _DEBUG
     BOOL OwnDomainLocalBlockLock()
     {
@@ -1100,7 +1004,7 @@ public:
         return m_DomainLocalBlockCrst.OwnedByCurrentThread();
     }
 #endif
-
+   
     //****************************************************************************************
     // Get the class init lock. The method is limited to friends because inappropriate use
     // will cause deadlocks in the system
@@ -1130,7 +1034,7 @@ public:
     // Statics and reflection info (Types, MemberInfo,..) are stored this way
     // If ppLazyAllocate != 0, allocation will only take place if *ppLazyAllocate != 0 (and the allocation
     // will be properly serialized)
-    OBJECTREF *AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF** ppLazyAllocate = NULL, BOOL bCrossAD = FALSE);
+    OBJECTREF *AllocateObjRefPtrsInLargeTable(int nRequested, OBJECTREF** ppLazyAllocate = NULL);
 
 #ifdef FEATURE_PREJIT
     // Ensures that the file for logging profile data is open (we only open it once)
@@ -1767,8 +1671,6 @@ public:
     static void Create();
 #endif
 
-    DomainAssembly* FindDomainAssembly(Assembly*);
-
     //-----------------------------------------------------------------------------------------------------------------
     // Convenience wrapper for ::GetAppDomain to provide better encapsulation.
     static PTR_AppDomain GetCurrentDomain()
@@ -2170,8 +2072,8 @@ public:
     BOOL RemoveAssemblyFromCache(DomainAssembly* pAssembly);
 
     BOOL AddExceptionToCache(AssemblySpec* pSpec, Exception *ex);
-    void AddUnmanagedImageToCache(LPCWSTR libraryName, HMODULE hMod);
-    HMODULE FindUnmanagedImageInCache(LPCWSTR libraryName);
+    void AddUnmanagedImageToCache(LPCWSTR libraryName, NATIVE_LIBRARY_HANDLE hMod);
+    NATIVE_LIBRARY_HANDLE FindUnmanagedImageInCache(LPCWSTR libraryName);
     //****************************************************************************************
     //
     // Adds or removes an assembly to the domain.
@@ -2280,30 +2182,9 @@ public:
 
         return AllocateObjRefPtrsInLargeTable(nRequested, ppLazyAllocate);
     }
-
-    OBJECTREF* AllocateStaticFieldObjRefPtrsCrossDomain(int nRequested, OBJECTREF** ppLazyAllocate = NULL)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return AllocateObjRefPtrsInLargeTable(nRequested, ppLazyAllocate, TRUE);
-    }
 #endif // DACCESS_COMPILE
 
     void              EnumStaticGCRefs(promote_func* fn, ScanContext* sc);
-
-    DomainLocalBlock *GetDomainLocalBlock()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        return &m_sDomainLocalBlock;
-    }
-
-    static SIZE_T GetOffsetOfModuleSlotsPointer()
-    {
-        WRAPPER_NO_CONTRACT;
-
-        return offsetof(AppDomain,m_sDomainLocalBlock) + DomainLocalBlock::GetOffsetOfModuleSlotsPointer();
-    }
 
     void SetupSharedStatics();
 
@@ -2630,103 +2511,6 @@ public:
     PTR_LoaderHeap GetLowFrequencyHeap();
     PTR_LoaderHeap GetHighFrequencyHeap();
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    #define ARM_ETW_ALLOC_THRESHOLD (4 * 1024 * 1024)
-    // cache line size in ULONGLONG - 128 bytes which are 16 ULONGLONG's
-    #define ARM_CACHE_LINE_SIZE_ULL 16
-
-    inline ULONGLONG GetAllocBytes()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ULONGLONG ullTotalAllocBytes = 0;
-
-        // Ensure that m_pullAllocBytes is non-null to avoid an AV in a race between GC and AD unload.
-        // A race can occur when a new appdomain is created, but an OOM is thrown when allocating for m_pullAllocBytes, causing the AD unload.
-        if(NULL != m_pullAllocBytes)
-        {
-            for (DWORD i = 0; i < m_dwNumHeaps; i++)
-            {
-                ullTotalAllocBytes += m_pullAllocBytes[i * ARM_CACHE_LINE_SIZE_ULL];
-            }
-        }
-        return ullTotalAllocBytes;
-    }
-
-    void RecordAllocBytes(size_t allocatedBytes, DWORD dwHeapNumber)
-    {
-        LIMITED_METHOD_CONTRACT;
-        _ASSERTE(dwHeapNumber < m_dwNumHeaps);
-        
-        // Ensure that m_pullAllocBytes is non-null to avoid an AV in a race between GC and AD unload.
-        // A race can occur when a new appdomain is created, but an OOM is thrown when allocating for m_pullAllocBytes, causing the AD unload.
-        if(NULL != m_pullAllocBytes)
-        {
-            m_pullAllocBytes[dwHeapNumber * ARM_CACHE_LINE_SIZE_ULL] += allocatedBytes;
-        }
-
-        ULONGLONG ullTotalAllocBytes = GetAllocBytes();
-
-        if ((ullTotalAllocBytes - m_ullLastEtwAllocBytes) >= ARM_ETW_ALLOC_THRESHOLD)
-        {
-            m_ullLastEtwAllocBytes = ullTotalAllocBytes;
-            FireEtwAppDomainMemAllocated((ULONGLONG)this, ullTotalAllocBytes, GetClrInstanceId());
-        }
-    }
-
-    inline ULONGLONG GetSurvivedBytes()
-    {
-        LIMITED_METHOD_CONTRACT;
-        ULONGLONG ullTotalSurvivedBytes = 0;
-
-        // Ensure that m_pullSurvivedBytes is non-null to avoid an AV in a race between GC and AD unload.
-        // A race can occur when a new appdomain is created, but an OOM is thrown when allocating for m_pullSurvivedBytes, causing the AD unload.
-        if(NULL != m_pullSurvivedBytes)
-        {
-            for (DWORD i = 0; i < m_dwNumHeaps; i++)
-            {
-                ullTotalSurvivedBytes += m_pullSurvivedBytes[i * ARM_CACHE_LINE_SIZE_ULL];
-            }
-        }
-        return ullTotalSurvivedBytes;
-    }
-
-    void RecordSurvivedBytes(size_t promotedBytes, DWORD dwHeapNumber)
-    {
-        WRAPPER_NO_CONTRACT;
-        _ASSERTE(dwHeapNumber < m_dwNumHeaps);
-   
-        // Ensure that m_pullSurvivedBytes is non-null to avoid an AV in a race between GC and AD unload.
-        // A race can occur when a new appdomain is created, but an OOM is thrown when allocating for m_pullSurvivedBytes, causing the AD unload.
-        if(NULL != m_pullSurvivedBytes)
-        {
-            m_pullSurvivedBytes[dwHeapNumber * ARM_CACHE_LINE_SIZE_ULL] += promotedBytes;
-        }
-    }
-
-    inline void ResetSurvivedBytes()
-    {
-        LIMITED_METHOD_CONTRACT;
-        
-        // Ensure that m_pullSurvivedBytes is non-null to avoid an AV in a race between GC and AD unload.
-        // A race can occur when a new appdomain is created, but an OOM is thrown when allocating for m_pullSurvivedBytes, causing the AD unload.
-        if(NULL != m_pullSurvivedBytes)
-        {
-            for (DWORD i = 0; i < m_dwNumHeaps; i++)
-            {
-                m_pullSurvivedBytes[i * ARM_CACHE_LINE_SIZE_ULL] = 0;
-            }
-        }
-    }
-
-    // Return the total processor time (user and kernel) used by threads executing in this AppDomain so far.
-    // The result is in 100ns units.
-    ULONGLONG QueryProcessorUsage();
-
-    // Add to the current count of processor time used by threads within this AppDomain. This API is called by
-    // threads transitioning between AppDomains.
-    void UpdateProcessorUsage(ULONGLONG ullAdditionalUsage);
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 private:
     size_t EstimateSize();
     EEClassFactoryInfoHashTable* SetupClassFactHash();
@@ -2785,7 +2569,6 @@ private:
         }
         CONTRACTL_END;
         STRESS_LOG1(LF_APPDOMAIN, LL_INFO100,"Updating AD stage, stage=%d\n",stage);
-        TESTHOOKCALL(AppDomainStageChanged(DefaultADID,m_Stage,stage));
         Stage lastStage=m_Stage;
         while (lastStage !=stage) 
             lastStage = (Stage)FastInterlockCompareExchange((LONG*)&m_Stage,stage,lastStage);
@@ -2867,17 +2650,6 @@ private:
     // The thread-pool index of this app domain among existing app domains (starting from 1)
     TPIndex m_tpIndex;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    ULONGLONG* m_pullAllocBytes;
-    ULONGLONG* m_pullSurvivedBytes;
-    DWORD m_dwNumHeaps;
-    ULONGLONG m_ullLastEtwAllocBytes;
-    // Total processor time (user and kernel) utilized by threads running in this AppDomain so far. May not
-    // account for threads currently executing in the AppDomain until a call to QueryProcessorUsage() is
-    // made.
-    Volatile<ULONGLONG> m_ullTotalProcessorUsage;
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     Volatile<Stage> m_Stage;
 
     ArrayList        m_failedAssemblies;
@@ -2950,7 +2722,6 @@ public:
     size_t                    m_MemoryPressure;
 
     ArrayList m_NativeDllSearchDirectories;
-    BOOL m_ReversePInvokeCanEnter;
     bool m_ForceTrivialWaitOperations;
 
 public:
@@ -3338,19 +3109,6 @@ public:
 
 #endif // DACCESS_COMPILE
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    // The *AD* methods are what we got from tracing through EE roots.
-    // RecordTotalSurvivedBytes is the total promoted from a GC.
-    static void ResetADSurvivedBytes();
-    static ULONGLONG GetADSurvivedBytes();
-    static void RecordTotalSurvivedBytes(size_t totalSurvivedBytes);
-    static ULONGLONG GetTotalSurvivedBytes()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_totalSurvivedBytes;
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     //****************************************************************************************
     // Routines to deal with the base library (currently mscorlib.dll)
     LPCWSTR BaseLibrary()
@@ -3366,13 +3124,12 @@ public:
         WRAPPER_NO_CONTRACT;
 
         // See if it is the installation path to mscorlib
-        if (path.EqualsCaseInsensitive(m_BaseLibrary, PEImage::GetFileSystemLocale()))
+        if (path.EqualsCaseInsensitive(m_BaseLibrary))
             return TRUE;
 
         // Or, it might be the GAC location of mscorlib
         if (System()->SystemAssembly() != NULL
-            && path.EqualsCaseInsensitive(System()->SystemAssembly()->GetManifestFile()->GetPath(),
-                                          PEImage::GetFileSystemLocale()))
+            && path.EqualsCaseInsensitive(System()->SystemAssembly()->GetManifestFile()->GetPath()))
             return TRUE;
 
         return FALSE;
@@ -3384,19 +3141,8 @@ public:
 
         // See if it is the installation path to mscorlib.resources
         SString s(SString::Ascii,g_psBaseLibrarySatelliteAssemblyName);
-        if (path.EqualsCaseInsensitive(s, PEImage::GetFileSystemLocale()))
+        if (path.EqualsCaseInsensitive(s))
             return TRUE;
-
-        // workaround!  Must implement some code to do this string comparison for
-        // mscorlib.resources in a culture-specific directory in the GAC.
-
-        /*
-        // Or, it might be the GAC location of mscorlib.resources
-        if (System()->SystemAssembly() != NULL
-            && path.EqualsCaseInsensitive(System()->SystemAssembly()->GetManifestFile()->GetPath(),
-                                          PEImage::GetFileSystemLocale()))
-            return TRUE;
-        */
 
         return FALSE;
     }
@@ -3459,11 +3205,6 @@ private:
 
     LoaderAllocator * m_pDelayedUnloadListOfLoaderAllocators;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    // This is what gets promoted for the whole GC heap.
-    static size_t m_totalSurvivedBytes;
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifndef DACCESS_COMPILE
     static CrstStatic m_DelayedUnloadCrst;
     static CrstStatic       m_SystemDomainCrst;
@@ -3475,6 +3216,7 @@ private:
     static DWORD        m_dwLowestFreeIndex;
 #endif // DACCESS_COMPILE
 
+#ifdef FEATURE_PREJIT
 protected:
 
     // These flags let the correct native image of mscorlib to be loaded.
@@ -3483,6 +3225,7 @@ protected:
     SVAL_DECL(BOOL, s_fForceDebug);
     SVAL_DECL(BOOL, s_fForceProfiling);
     SVAL_DECL(BOOL, s_fForceInstrument);
+#endif
 
 public:
     static void     SetCompilationOverrides(BOOL fForceDebug,

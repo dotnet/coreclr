@@ -1,0 +1,53 @@
+-notrait category=OuterLoop 
+-notrait category=RequiresElevation
+
+# Wrong Microsoft.Bcl.AsyncInterfaces binary (netcoreapp vs. netstandard)
+-noclass System.Threading.Tasks.Sources.Tests.ManualResetValueTaskSourceTests
+
+# Old System.Composition.Runtime
+-nomethod System.Composition.Runtime.Tests.CompositionContractTests.Equals_Object_ReturnsExpected
+-noclass System.Composition.Hosting.Tests.ContainerConfigurationTests
+
+# Missing OOB dependencies
+-nonamespace System.Numerics.Tensors.Tests
+-nonamespace System.Numerics.Tensors
+-nonamespace System.Resources.Extensions.Tests
+-nonamespace System.Data.SqlClient.Tests
+-nonamespace System.Data.SqlClient.ManualTesting.Tests
+-nonamespace System.Drawing.Printing.Tests
+-nonamespace System.Media.Test
+-noclass System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests
+
+# Missing OOB dependencies - Disable UTF8 string tests
+-noclass System.Net.Http.Tests.Utf8StringContentTests
+-noclass System.Tests.Char8Tests
+-noclass System.Tests.MemoryTests
+-noclass System.Tests.ReflectionTests
+-noclass System.Tests.Utf8ExtensionsTests
+-noclass System.Tests.Utf8StringTests
+
+# Missing OOB dependencies - Disable Tests from System.ComponentModel entirely
+-nonamespace System.ComponentModel.Composition
+-nonamespace System.ComponentModel.Composition.AttributedModel
+-nonamespace System.ComponentModel.Composition.Extensibility
+-nonamespace System.ComponentModel.Composition.Factories
+-nonamespace System.ComponentModel.Composition.Hosting
+-nonamespace System.ComponentModel.Composition.Primitives
+-nonamespace System.ComponentModel.Composition.ReflectionModel
+-nonamespace System.ComponentModel.Tests
+-nonamespace System.ComponentModel.Design.Tests
+-nonamespace System.ComponentModel.Design.Serialization.Tests
+-nonamespace System.ComponentModel.Design.Tests
+-nonamespace System.ComponentModel.TypeConverterTests
+-nonamespace Tests.Integration
+
+# https://github.com/dotnet/coreclr/pull/24604
+-nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
+
+# Temporarily disabled tests waiting for CoreCLR/CoreFX changes to propagate 
+-nomethod System.Tests.AppDomainTests.MonitoringIsEnabled
+-nomethod System.Tests.AppDomainTests.MonitoringSurvivedMemorySize
+-nomethod System.Tests.AppDomainTests.MonitoringSurvivedProcessMemorySize
+-nomethod System.Tests.AppDomainTests.MonitoringTotalAllocatedMemorySize
+-nomethod System.Tests.AppDomainTests.MonitoringTotalProcessorTime
+-nomethod System.Text.Tests.StringBuilderTests.AppendFormat

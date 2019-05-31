@@ -155,17 +155,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
 VOID SetManagedUnhandledExceptionBit(
     BOOL        useLastThrownObject);
 
-
-void COMPlusThrowBoot(HRESULT hr)
-{
-    STATIC_CONTRACT_THROWS;
-
-    _ASSERTE(g_fEEShutDown >= ShutDown_Finalize2 || !"This should not be called unless we are in the last phase of shutdown!");
-    ULONG_PTR arg = hr;
-    RaiseException(BOOTUP_EXCEPTION_COMPLUS, EXCEPTION_NONCONTINUABLE, 1, &arg);
-}
-
-
 //-------------------------------------------------------------------------------
 // This simply tests to see if the exception object is a subclass of
 // the descriminating class specified in the exception clause.
@@ -243,7 +232,7 @@ ULONG GetExceptionMessage(OBJECTREF throwable,
 
 //-----------------------------------------------------------------------------
 // Given an object, get the "message" from it.  If the object is an Exception
-//  call Exception.InternalToString, otherwise, call Object.ToString
+//  call Exception.ToString, otherwise, call Object.ToString
 //-----------------------------------------------------------------------------
 void GetExceptionMessage(OBJECTREF throwable, SString &result)
 {
@@ -339,23 +328,13 @@ STRINGREF GetExceptionMessage(OBJECTREF throwable)
     if (throwable == NULL)
         return NULL;
 
-    // Assume we're calling Exception.InternalToString() ...
-    BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
-
-    // ... but if it isn't an exception, call Object.ToString().
-    _ASSERTE(IsException(throwable->GetMethodTable()));        // what is the pathway here?
-    if (!IsException(throwable->GetMethodTable()))
-    {
-        sigID = METHOD__OBJECT__TO_STRING;
-    }
-
     // Return value.
     STRINGREF pString = NULL;
 
     GCPROTECT_BEGIN(throwable);
 
-    // Get the MethodDesc on which we'll call.
-    MethodDescCallSite toString(sigID, &throwable);
+    // Call Object.ToString(). Note that exceptions do not have to inherit from System.Exception
+    MethodDescCallSite toString(METHOD__OBJECT__TO_STRING, &throwable);
 
     // Make the call.
     ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -497,12 +476,8 @@ void ExceptionPreserveStackTrace(   // No return.
     {
         LOG((LF_EH, LL_INFO1000, "ExceptionPreserveStackTrace called\n"));
 
-        // We're calling Exception.InternalPreserveStackTrace() ...
-        BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE;
-
-
-        // Get the MethodDesc on which we'll call.
-        MethodDescCallSite preserveStackTrace(sigID, &throwable);
+        // Call Exception.InternalPreserveStackTrace() ...
+        MethodDescCallSite preserveStackTrace(METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE, &throwable);
 
         // Make the call.
         ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -4205,19 +4180,6 @@ LONG WatsonLastChance(                  // EXCEPTION_CONTINUE_SEARCH, _CONTINUE_
     switch (tore.GetType())
     {
         case TypeOfReportedError::FatalError:
-            #ifdef MDA_SUPPORTED
-            {
-                MdaFatalExecutionEngineError * pMDA = MDA_GET_ASSISTANT_EX(FatalExecutionEngineError);
-
-                if ((pMDA != NULL) && (pExceptionInfo != NULL) && (pExceptionInfo->ExceptionRecord != NULL))
-                {
-                    TADDR addr = (TADDR) pExceptionInfo->ExceptionRecord->ExceptionAddress;
-                    HRESULT hrError = pExceptionInfo->ExceptionRecord->ExceptionCode;
-                    pMDA->ReportFEEE(addr, hrError);
-                }
-            }
-            #endif // MDA_SUPPORTED
-
             if (pThread != NULL)
             {
                 NotifyDebuggerLastChance(pThread, pExceptionInfo, jitAttachRequested);
@@ -5496,11 +5458,6 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                         PrintToStdErrA(" StackOverflowException.\n");
                     }
                 }
-                else if (!CanRunManagedCode(LoaderLockCheck::None))
-                {
-                    // Well, if we can't enter the runtime, we very well can't get the exception message.
-                    dump = FALSE;
-                }
                 else if (SentEvent || IsAsyncThreadException(&throwable))
                 {
                     // We don't print anything on async exceptions, like ThreadAbort.
@@ -5636,20 +5593,13 @@ BOOL NotifyAppDomainsOfUnhandledException(
 #endif
 
     GCPROTECT_BEGIN(throwable);
-    //BOOL IsStackOverflow = (throwable->GetMethodTable() == g_pStackOverflowExceptionClass);
 
     // Notify the AppDomain that we have taken an unhandled exception.  Can't notify of stack overflow -- guard
     // page is not yet reset.
 
     // Send up the unhandled exception appdomain event.
-    //
-    // If we can't run managed code, we can't deliver the event. Nor do we attempt to delieve the event in stack
-    // overflow or OOM conditions.
-    if (/*!IsStackOverflow &&*/
-        pThread->DetermineIfGuardPagePresent() &&
-        CanRunManagedCode(LoaderLockCheck::None))
+    if (pThread->DetermineIfGuardPagePresent())
     {
-
         // x86 only
 #if !defined(WIN64EXCEPTIONS)
         // If the Thread object's exception state's exception pointers
@@ -7988,7 +7938,7 @@ LONG WINAPI CLRVectoredExceptionHandlerShim(PEXCEPTION_POINTERS pExceptionInfo)
     // in-proc helper thread to work. What it does is continue the exception unhandled which
     // will let the thread immediately execute to this point. Inside this worker the thread
     // will block until the debugger knows how to continue the exception. If it decides the
-    // exception was handled then we immediately resume execution as if the exeption had never
+    // exception was handled then we immediately resume execution as if the exception had never
     // even been allowed to run into this handler. If it is unhandled then we keep processing
     // this handler
     //
@@ -12821,7 +12771,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrow(RuntimeExceptionKind reKind, LPCWSTR wsz
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCWSTR pFullTypeName,
                                               LPCWSTR pAssemblyName,
@@ -12960,7 +12910,7 @@ VOID DECLSPEC_NORETURN RealCOMPlusThrowArgumentException(LPCWSTR argName, LPCWST
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCUTF8 pszNameSpace,
                                               LPCUTF8 pTypeName,

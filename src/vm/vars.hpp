@@ -482,28 +482,9 @@ extern int g_IGCTrimCommit;
 #endif
 
 extern BOOL g_fEnableETW;
-extern BOOL g_fEnableARM;
 
 // Returns a BOOL to indicate if the runtime is active or not
 BOOL IsRuntimeActive(); 
-
-//
-// Can we run managed code?
-//
-struct LoaderLockCheck
-{
-    enum kind
-    {
-        ForMDA,
-        ForCorrectness,
-        None,
-    };
-};
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst = 0);
-inline BOOL CanRunManagedCode(HINSTANCE hInst = 0)
-{
-    return CanRunManagedCode(LoaderLockCheck::ForMDA, hInst);
-}
 
 //
 // Global state variable indicating if the EE is in its init phase.

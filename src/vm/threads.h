@@ -167,6 +167,7 @@ enum      BinderMethodID : int;
 class     CRWLock;
 struct    LockEntry;
 class     PendingTypeLoadHolder;
+class     PrepareCodeConfig;
 
 struct    ThreadLocalBlock;
 typedef DPTR(struct ThreadLocalBlock) PTR_ThreadLocalBlock;
@@ -275,7 +276,8 @@ public:
     BOOL IsAddressInStack (PTR_VOID addr) const { return TRUE; }
     static BOOL IsAddressInCurrentStack (PTR_VOID addr) { return TRUE; }
 
-    StackingAllocator    m_MarshalAlloc;
+    StackingAllocator*    m_stackLocalAllocator = NULL;
+    bool CheckCanUseStackAlloc() { return true; }
 
  private:
     LoadLevelLimiter *m_pLoadLimiter;
@@ -374,9 +376,6 @@ public:
     {
         TSNC_OwnsSpinLock               = 0x00000400, // The thread owns a spinlock.
 
-        TSNC_DisableOleaut32Check       = 0x00040000, // Disable oleaut32 delay load check.  Oleaut32 has  
-                                                      // been loaded
-
         TSNC_LoadsTypeViolation         = 0x40000000, // Use by type loader to break deadlocks caused by type load level ordering violations
     };
 
@@ -415,38 +414,23 @@ public:
         m_pPendingTypeLoad = pPendingTypeLoad;
     }
 #endif
+    void SetProfilerCallbackFullState(DWORD dwFullState)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+    
+    DWORD SetProfilerCallbackStateFlags(DWORD dwFlags)
+    {
+        LIMITED_METHOD_CONTRACT;
+        return dwFlags;
+    }
 
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     enum ApartmentState { AS_Unknown };
 #endif
 
-#if defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-    void RegisterRCW(RCW *pRCW)
-    {
-    }
-
-    BOOL RegisterRCWNoThrow(RCW *pRCW)
-    {
-        return FALSE;
-    }
-
-    RCW *UnregisterRCW(INDEBUG(SyncBlock *pSB))
-    {
-        return NULL;
-    }
-#endif
-
     DWORD       m_dwLastError;
 };
-
-inline void DoReleaseCheckpoint(void *checkPointMarker)
-{
-    WRAPPER_NO_CONTRACT;
-    GetThread()->m_MarshalAlloc.Collapse(checkPointMarker);
-}
-
-// CheckPointHolder : Back out to a checkpoint on the thread allocator.
-typedef Holder<void*, DoNothing,DoReleaseCheckpoint> CheckPointHolder;
 
 class AVInRuntimeImplOkayHolder
 {
@@ -1222,8 +1206,7 @@ public:
         TSNC_InRestoringSyncBlock       = 0x00020000, // The thread is restoring its SyncBlock for Object.Wait.
                                                       // After the thread is interrupted once, we turn off interruption
                                                       // at the beginning of wait.
-        TSNC_DisableOleaut32Check       = 0x00040000, // Disable oleaut32 delay load check.  Oleaut32 has  
-                                                      // been loaded
+        // unused                       = 0x00040000,
         TSNC_CannotRecycle              = 0x00080000, // A host can not recycle this Thread object.  When a thread
                                                       // has orphaned lock, we will apply this.
         TSNC_RaiseUnloadEvent           = 0x00100000, // Finalize thread is raising managed unload event which 
@@ -1691,7 +1674,7 @@ public:
     // is started using a CheckPointHolder and GetCheckpoint, and this region can then be used for allocations
     // from that point onwards, and then all memory is reclaimed when the static scope for the
     // checkpoint is exited by the running thread.
-    StackingAllocator    m_MarshalAlloc;
+    StackingAllocator*    m_stackLocalAllocator = NULL;
 
     // Flags used to indicate tasks the thread has to do.
     ThreadTasks          m_ThreadTasks;
@@ -2977,8 +2960,6 @@ public:
     }
 #endif
 
-#ifdef FEATURE_PREJIT
-
     private:
 
     ThreadLocalIBCInfo* m_pIBCInfo;
@@ -3009,8 +2990,6 @@ public:
     }
 
 #endif // #ifndef DACCESS_COMPILE
-
-#endif // #ifdef FEATURE_PREJIT
 
     // Indicate whether this thread should run in the background.  Background threads
     // don't interfere with the EE shutting down.  Whereas a running non-background
@@ -3290,6 +3269,16 @@ public:
     // and GetCachedStackBase for the cached values on this Thread.
     static void * GetStackLowerBound();
     static void * GetStackUpperBound();
+
+    bool CheckCanUseStackAlloc()
+    {
+        int local;
+        UINT_PTR current = reinterpret_cast<UINT_PTR>(&local);
+        UINT_PTR limit = GetCachedStackStackAllocNonRiskyExecutionLimit();
+        return (current > limit);
+    }
+#else // DACCESS_COMPILE
+    bool CheckCanUseStackAlloc() { return true; }
 #endif
 
     enum SetStackLimitScope { fAll, fAllowableOnly };
@@ -3303,6 +3292,7 @@ public:
     PTR_VOID GetCachedStackBase() {LIMITED_METHOD_DAC_CONTRACT;  return m_CacheStackBase; }
     PTR_VOID GetCachedStackLimit() {LIMITED_METHOD_DAC_CONTRACT;  return m_CacheStackLimit;}
     UINT_PTR GetCachedStackSufficientExecutionLimit() {LIMITED_METHOD_DAC_CONTRACT; return m_CacheStackSufficientExecutionLimit;}
+    UINT_PTR GetCachedStackStackAllocNonRiskyExecutionLimit() {LIMITED_METHOD_DAC_CONTRACT; return m_CacheStackStackAllocNonRiskyExecutionLimit;}
 
 private:
     // Access the base and limit of the stack. (I.e. the memory ranges that the thread has reserved for its stack).
@@ -3313,6 +3303,7 @@ private:
     PTR_VOID    m_CacheStackBase;
     PTR_VOID    m_CacheStackLimit;
     UINT_PTR    m_CacheStackSufficientExecutionLimit;
+    UINT_PTR    m_CacheStackStackAllocNonRiskyExecutionLimit;
 
 #define HARD_GUARD_REGION_SIZE GetOsPageSize()
 
@@ -3860,7 +3851,7 @@ private:
     //---------------------------------------------------------------
     DWORD m_profilerCallbackState;
 
-#if defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     //---------------------------------------------------------------
     // m_dwProfilerEvacuationCounter keeps track of how many profiler
     // callback calls remain on the stack
@@ -3868,7 +3859,7 @@ private:
     // Why volatile?
     // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization.
     Volatile<DWORD> m_dwProfilerEvacuationCounter;
-#endif // defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
 private:
     UINT32 m_workerThreadPoolCompletionCount;
@@ -4047,7 +4038,7 @@ public:
         return m_pProfilerFilterContext;
     }
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+#ifdef PROFILING_SUPPORTED
 
     FORCEINLINE DWORD GetProfilerEvacuationCounter(void)
     {
@@ -4069,7 +4060,7 @@ public:
         m_dwProfilerEvacuationCounter--;
     }
 
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#endif // PROFILING_SUPPORTED
 
     //-------------------------------------------------------------------------
     // The hijack lock enforces that a thread on which a profiler is currently
@@ -4847,18 +4838,8 @@ public:
     // Holds per-thread information the debugger uses to expose locking information
     // See ThreadDebugBlockingInfo.h for more details
     ThreadDebugBlockingInfo DebugBlockingInfo;
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    // For the purposes of tracking resource usage we implement a simple cpu resource usage counter on each
-    // thread. Every time QueryThreadProcessorUsage() is invoked it returns the amount of cpu time (a
-    // combination of user and kernel mode time) used since the last call to QueryThreadProcessorUsage(). The
-    // result is in 100 nanosecond units.
-    ULONGLONG QueryThreadProcessorUsage();
 
 private:
-    // The amount of processor time (both user and kernel) in 100ns units used by this thread at the time of
-    // the last call to QueryThreadProcessorUsage().
-    ULONGLONG m_ullProcessorUsageBaseline;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     // Disables pumping and thread join in RCW creation
     bool m_fDisableComObjectEagerCleanup;
@@ -4866,7 +4847,6 @@ private:
     // See ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     bool m_fHasDeadThreadBeenConsideredForGCTrigger;
 
-private:
     CLRRandom m_random;
 
 public:
@@ -5022,6 +5002,35 @@ public:
 
 private:
     OBJECTHANDLE m_DeserializationTracker;
+
+public:
+    static uint64_t dead_threads_non_alloc_bytes;
+
+#ifndef DACCESS_COMPILE
+public:
+    class CurrentPrepareCodeConfigHolder
+    {
+    private:
+        Thread *const m_thread;
+#ifdef _DEBUG
+        PrepareCodeConfig *const m_config;
+#endif
+
+    public:
+        CurrentPrepareCodeConfigHolder(Thread *thread, PrepareCodeConfig *config);
+        ~CurrentPrepareCodeConfigHolder();
+    };
+
+public:
+    PrepareCodeConfig *GetCurrentPrepareCodeConfig() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_currentPrepareCodeConfig;
+    }
+#endif // !DACCESS_COMPILE
+
+private:
+    PrepareCodeConfig *m_currentPrepareCodeConfig;
 };
 
 // End of class Thread
@@ -6428,20 +6437,6 @@ if (g_pConfig->GetGCStressLevel() && g_pConfig->FastGCStressLevel() > 1) {   \
 
 #endif  // _DEBUG
 
-
-
-
-inline void DoReleaseCheckpoint(void *checkPointMarker)
-{
-    WRAPPER_NO_CONTRACT;
-    GetThread()->m_MarshalAlloc.Collapse(checkPointMarker);
-}
-
-
-// CheckPointHolder : Back out to a checkpoint on the thread allocator.
-typedef Holder<void*, DoNothing, DoReleaseCheckpoint> CheckPointHolder;
-
-
 #ifdef _DEBUG_IMPL
 // Holder for incrementing the ForbidGCLoaderUse counter.
 class GCForbidLoaderUseHolder
@@ -6535,12 +6530,6 @@ class GCForbidLoaderUseHolder
 #define FORBIDGC_LOADER_USE_ENABLED() (sizeof(YouCannotUseThisHere) != 0)
 #endif  // _DEBUG_IMPL
 #endif // DACCESS_COMPILE
-
-// There is an MDA which can detect illegal reentrancy into the CLR.  For instance, if you call managed
-// code from a native vectored exception handler, this might cause a reverse PInvoke to occur.  But if the
-// exception was triggered from code that was executing in cooperative GC mode, we now have GC holes and
-// general corruption.
-BOOL HasIllegalReentrancy();
 
 // We have numerous places where we start up a managed thread.  This includes several places in the
 // ThreadPool, the 'new Thread(...).Start()' case, and the Finalizer.  Try to factor the code so our

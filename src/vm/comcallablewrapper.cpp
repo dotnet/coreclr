@@ -46,10 +46,6 @@
 #include "winrttypenameconverter.h"
 #include "typestring.h"
 
-#ifdef MDA_SUPPORTED
-const int DEBUG_AssertSlots = 50;
-#endif
-
 // The enum that describes the value of the IDispatchImplAttribute custom attribute.
 enum IDispatchImplType
 {
@@ -353,7 +349,7 @@ bool IsOleAutDispImplRequiredForClass(MethodTable *pClass)
     }
 
     // First check for the IDispatchImplType custom attribute first.
-    hr = pClass->GetMDImport()->GetCustomAttributeByName(pClass->GetCl(), INTEROP_IDISPATCHIMPL_TYPE, (const void**)&pVal, &cbVal);
+    hr = pClass->GetCustomAttribute(WellKnownAttribute::IDispatchImpl, (const void**)&pVal, &cbVal);
     if (hr == S_OK)
     {
         CustomAttributeParser cap(pVal, cbVal);
@@ -371,7 +367,7 @@ bool IsOleAutDispImplRequiredForClass(MethodTable *pClass)
         return (bool) (DispImplType == CompatibleImpl);
 
     // Check to see if the assembly has the IDispatchImplType attribute set.
-    hr = pAssembly->GetManifestImport()->GetCustomAttributeByName(pAssembly->GetManifestToken(), INTEROP_IDISPATCHIMPL_TYPE, (const void**)&pVal, &cbVal);
+    hr = pAssembly->GetCustomAttribute(pAssembly->GetManifestToken(), WellKnownAttribute::IDispatchImpl, (const void**)&pVal, &cbVal);
     if (hr == S_OK)
     {
         CustomAttributeParser cap(pVal, cbVal);
@@ -449,80 +445,104 @@ extern "C" PCODE ComPreStubWorker(ComPrestubMethodFrame *pPFrame, UINT64 *pError
 
     OBJECTREF          pThrowable = NULL;
 
-    if (!CanRunManagedCode())
+    Thread* pThread = SetupThreadNoThrow();
+    if (pThread == NULL)
     {
-        hr = E_PROCESS_SHUTDOWN_REENTRY;
+        hr = E_OUTOFMEMORY;
     }
     else
     {
-        Thread* pThread = SetupThreadNoThrow();
-        if (pThread == NULL)
+        // Transition to cooperative GC mode before we start setting up the stub.
+        GCX_COOP();
+
+        // The PreStub allocates memory for the frame, but doesn't link it
+        // into the chain or fully initialize it. Do so now.
+        pPFrame->Init();
+        pPFrame->Push();
+
+        ComCallWrapper    *pWrap =  NULL;
+
+        GCPROTECT_BEGIN(pThrowable)
         {
-            hr = E_OUTOFMEMORY;
-        }
-        else
-        {
-            // Transition to cooperative GC mode before we start setting up the stub.    
-            GCX_COOP();    
-
-            // The PreStub allocates memory for the frame, but doesn't link it
-            // into the chain or fully initialize it. Do so now.
-            pPFrame->Init();
-            pPFrame->Push();
-
-            ComCallWrapper    *pWrap =  NULL;
-
-            GCPROTECT_BEGIN(pThrowable)
+            // We need a try/catch around the code to enter the domain since entering
+            // an AppDomain can throw an exception.
+            EX_TRY
             {
-                // We need a try/catch around the code to enter the domain since entering
-                // an AppDomain can throw an exception. 
-                EX_TRY
-                {                                             
-                    // check for invalid wrappers in the debug build
-                    // in the retail all bets are off
-                    pWrap = ComCallWrapper::GetWrapperFromIP(pUnk);
-                    _ASSERTE(pWrap->IsWrapperActive() || pWrap->IsAggregated());
-                    
-                    // Make sure we're not trying to call on the class interface of a class with ComVisible(false) members
-                    //  in its hierarchy.
-                    if ((pCMD->IsFieldCall()) || (NULL == pCMD->GetInterfaceMethodDesc() && !pCMD->GetMethodDesc()->IsInterface()))
+                // check for invalid wrappers in the debug build
+                // in the retail all bets are off
+                pWrap = ComCallWrapper::GetWrapperFromIP(pUnk);
+                _ASSERTE(pWrap->IsWrapperActive() || pWrap->IsAggregated());
+
+                // Make sure we're not trying to call on the class interface of a class with ComVisible(false) members
+                //  in its hierarchy.
+                if ((pCMD->IsFieldCall()) || (NULL == pCMD->GetInterfaceMethodDesc() && !pCMD->GetMethodDesc()->IsInterface()))
+                {
+                    // If we have a fieldcall or a null interface MD, we could be dealing with the IClassX interface.
+                    ComMethodTable* pComMT = ComMethodTable::ComMethodTableFromIP(pUnk);
+                    pComMT->CheckParentComVisibility(FALSE);
+                }
+
+                {
+                    OBJECTREF pADThrowable = NULL;
+
+                    BOOL fExceptionThrown = FALSE;
+
+                    GCPROTECT_BEGIN(pADThrowable);
                     {
-                        // If we have a fieldcall or a null interface MD, we could be dealing with the IClassX interface.
-                        ComMethodTable* pComMT = ComMethodTable::ComMethodTableFromIP(pUnk);
-                        pComMT->CheckParentComVisibility(FALSE);
+                        if (pCMD->IsMethodCall())
+                        {
+                            // We need to ensure all valuetypes are loaded in
+                            //  the target domain so that GC can happen later
+
+                            EX_TRY
+                            {
+                                MethodDesc* pTargetMD = pCMD->GetMethodDesc();
+                                MetaSig::EnsureSigValueTypesLoaded(pTargetMD);
+
+                                if (pCMD->IsWinRTCtor() || pCMD->IsWinRTStatic() || pCMD->IsWinRTRedirectedMethod())
+                                {
+                                    // Activation, static method invocation, and call through a redirected interface may be the first
+                                    // managed code that runs in the module. Fully load it here so we don't have to call EnsureInstanceActive
+                                    // on every activation/static call.
+                                    pTargetMD->GetMethodTable()->EnsureInstanceActive();
+                                }
+                            }
+                            EX_CATCH
+                            {
+                                pADThrowable = GET_THROWABLE();
+                            }
+                            EX_END_CATCH(RethrowTerminalExceptions);
+                        }
+
+                        if (pADThrowable != NULL)
+                        {
+                            // Transform the exception into an HRESULT. This also sets up
+                            // an IErrorInfo on the current thread for the exception.
+                            hr = SetupErrorInfo(pADThrowable, pCMD);
+                            pADThrowable = NULL;
+                            fExceptionThrown = TRUE;
+                        }
                     }
-                        
+                    GCPROTECT_END();
+
+                    if(!fExceptionThrown)
                     {
-                        OBJECTREF pADThrowable = NULL;
-
-                        BOOL fExceptionThrown = FALSE;
-
                         GCPROTECT_BEGIN(pADThrowable);
                         {
-                            if (pCMD->IsMethodCall())
+                            // We need a try/catch around the call to the worker since we need
+                            // to transform any exceptions into HRESULTs. We want to do this
+                            // inside the AppDomain of the CCW.
+                            EX_TRY
                             {
-                                // We need to ensure all valuetypes are loaded in
-                                //  the target domain so that GC can happen later
-                                
-                                EX_TRY
-                                {
-                                    MethodDesc* pTargetMD = pCMD->GetMethodDesc();
-                                    MetaSig::EnsureSigValueTypesLoaded(pTargetMD);
-
-                                    if (pCMD->IsWinRTCtor() || pCMD->IsWinRTStatic() || pCMD->IsWinRTRedirectedMethod())
-                                    {
-                                        // Activation, static method invocation, and call through a redirected interface may be the first
-                                        // managed code that runs in the module. Fully load it here so we don't have to call EnsureInstanceActive
-                                        // on every activation/static call.
-                                        pTargetMD->GetMethodTable()->EnsureInstanceActive();
-                                    }
-                                }
-                                EX_CATCH
-                                {
-                                    pADThrowable = GET_THROWABLE();
-                                }
-                                EX_END_CATCH(RethrowTerminalExceptions);
+                                GCX_PREEMP();
+                                pStub = ComCall::GetComCallMethodStub(pCMD);
                             }
+                            EX_CATCH
+                            {
+                                fNonTransientExceptionThrown = !GET_EXCEPTION()->IsTransient();
+                                pADThrowable = GET_THROWABLE();
+                            }
+                            EX_END_CATCH(RethrowTerminalExceptions);
 
                             if (pADThrowable != NULL)
                             {
@@ -530,92 +550,54 @@ extern "C" PCODE ComPreStubWorker(ComPrestubMethodFrame *pPFrame, UINT64 *pError
                                 // an IErrorInfo on the current thread for the exception.
                                 hr = SetupErrorInfo(pADThrowable, pCMD);
                                 pADThrowable = NULL;
-                                fExceptionThrown = TRUE;
                             }
                         }
                         GCPROTECT_END();
-
-                        if(!fExceptionThrown)
-                        {
-                            GCPROTECT_BEGIN(pADThrowable);
-                            {
-                                // We need a try/catch around the call to the worker since we need
-                                // to transform any exceptions into HRESULTs. We want to do this
-                                // inside the AppDomain of the CCW.
-                                EX_TRY
-                                {
-                                    GCX_PREEMP();
-                                    pStub = ComCall::GetComCallMethodStub(pCMD);
-                                }
-                                EX_CATCH
-                                {
-                                    fNonTransientExceptionThrown = !GET_EXCEPTION()->IsTransient();
-                                    pADThrowable = GET_THROWABLE();
-                                }
-                                EX_END_CATCH(RethrowTerminalExceptions);
-
-                                if (pADThrowable != NULL)
-                                {
-#ifdef MDA_SUPPORTED
-                                    if (fNonTransientExceptionThrown)
-                                    {
-                                        MDA_TRIGGER_ASSISTANT(InvalidMemberDeclaration, ReportViolation(pCMD, &pADThrowable));
-                                    }                    
-#endif
-                                    
-                                    // Transform the exception into an HRESULT. This also sets up
-                                    // an IErrorInfo on the current thread for the exception.
-                                    hr = SetupErrorInfo(pADThrowable, pCMD);
-                                    pADThrowable = NULL;
-                                }
-                            }
-                            GCPROTECT_END();
-                        }
                     }
                 }
-                EX_CATCH
-                {
-                    pThrowable = GET_THROWABLE();
-                
-                    // If an exception was thrown while transitionning back to the original
-                    // AppDomain then can't use the stub and must report an error.
-                    pStub = NULL;            
-                }
-                EX_END_CATCH(SwallowAllExceptions);
-
-                if (pThrowable != NULL)
-                {
-                    // Transform the exception into an HRESULT. This also sets up
-                    // an IErrorInfo on the current thread for the exception.
-                    hr = SetupErrorInfo(pThrowable, pCMD);
-                    pThrowable = NULL;
-                }
             }
-            GCPROTECT_END();
-
-            // Unlink the PrestubMethodFrame.
-            pPFrame->Pop();       
-
-            if (pStub)
+            EX_CATCH
             {
-                // Now, replace the prestub with the new stub.            
-                static_assert((COMMETHOD_CALL_PRESTUB_SIZE - COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET) % DATA_ALIGNMENT == 0,
-                    "The call target in COM prestub must be aligned so we can guarantee atomicity of updates");
+                pThrowable = GET_THROWABLE();
 
-                UINT_PTR* ppofs = (UINT_PTR*)  (((BYTE*)pCMD) - COMMETHOD_CALL_PRESTUB_SIZE + COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET);
-            
-                *ppofs = ((UINT_PTR)pStub 
-#ifdef _TARGET_X86_
-                           - (size_t)pCMD
-#endif
-                          );
-
-                // Return the address of the prepad. The prepad will regenerate the hidden parameter and due 
-                // to the update above will execute the new stub code the second time around.
-                retAddr = (PCODE)(((BYTE*)pCMD - COMMETHOD_CALL_PRESTUB_SIZE)ARM_ONLY(+THUMB_CODE));
-
-                goto Exit;
+                // If an exception was thrown while transitionning back to the original
+                // AppDomain then can't use the stub and must report an error.
+                pStub = NULL;
             }
+            EX_END_CATCH(SwallowAllExceptions);
+
+            if (pThrowable != NULL)
+            {
+                // Transform the exception into an HRESULT. This also sets up
+                // an IErrorInfo on the current thread for the exception.
+                hr = SetupErrorInfo(pThrowable, pCMD);
+                pThrowable = NULL;
+            }
+        }
+        GCPROTECT_END();
+
+        // Unlink the PrestubMethodFrame.
+        pPFrame->Pop();
+
+        if (pStub)
+        {
+            // Now, replace the prestub with the new stub.
+            static_assert((COMMETHOD_CALL_PRESTUB_SIZE - COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET) % DATA_ALIGNMENT == 0,
+                "The call target in COM prestub must be aligned so we can guarantee atomicity of updates");
+
+            UINT_PTR* ppofs = (UINT_PTR*)  (((BYTE*)pCMD) - COMMETHOD_CALL_PRESTUB_SIZE + COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET);
+
+#ifdef _TARGET_X86_
+            *ppofs = ((UINT_PTR)pStub - (size_t)pCMD);
+#else
+            *ppofs = ((UINT_PTR)pStub);
+#endif
+
+            // Return the address of the prepad. The prepad will regenerate the hidden parameter and due
+            // to the update above will execute the new stub code the second time around.
+            retAddr = (PCODE)(((BYTE*)pCMD - COMMETHOD_CALL_PRESTUB_SIZE)ARM_ONLY(+THUMB_CODE));
+
+            goto Exit;
         }
     }
 
@@ -4648,22 +4630,6 @@ void ComMethodTable::LayOutBasicMethodTable()
         pDispVtable->m_Invoke = (SLOT)Dispatch_Invoke_Wrapper;
     }
 
-#ifdef MDA_SUPPORTED
-#ifndef _DEBUG
-    // Only lay these out if the MDA is active when in retail.
-    if (NULL != MDA_GET_ASSISTANT(DirtyCastAndCallOnInterface))
-#endif
-        // Layout the assert stub slots so that people doing dirty casts get an assert telling
-        //  them what's wrong.
-    {
-        SLOT* assertSlot = ((SLOT*)(pDispVtable + 1));
-        for (int i = 0; i < DEBUG_AssertSlots; i++)
-        {
-            assertSlot[i] = (SLOT)DirtyCast_Assert;
-        }
-    }
-#endif
-    
     //
     // Set the layout complete flag.
     //
@@ -5390,12 +5356,6 @@ BOOL ComCallWrapperTemplate::CheckParentComVisibilityNoThrow(BOOL fForIDispatch)
     if (!HasInvisibleParent())
         return TRUE;
 
-#ifdef MDA_SUPPORTED
-    // Fire an MDA to help people diagnose the fact they are attempting to
-    // expose a class with a non COM visible base class to COM.
-    MDA_TRIGGER_ASSISTANT(NonComVisibleBaseClass, ReportViolation(m_thClass.GetMethodTable(), fForIDispatch));
-#endif
-
     return FALSE;    
 }
 
@@ -5751,17 +5711,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     unsigned cbVtable    = cbExtraSlots * sizeof(SLOT);
     unsigned cbToAlloc   = sizeof(ComMethodTable) + cbVtable;
 
-#ifdef MDA_SUPPORTED
-#ifndef _DEBUG
-    // Only add these if the MDA is active while in retail.
-    if (NULL != MDA_GET_ASSISTANT(DirtyCastAndCallOnInterface))
-#endif
-    {
-        // Add some extra slots that will assert to catch dirty casts.
-        cbToAlloc += sizeof(SLOT) * DEBUG_AssertSlots;
-    }
-#endif
-
     NewExecutableHolder<ComMethodTable> pComMT = (ComMethodTable*) new (executable) BYTE[cbToAlloc]; 
 
     // set up the header
@@ -5789,8 +5738,7 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
     if (pMT->GetClass()->IsComClassInterface())
         pComMT->m_Flags |= enum_ComClassItf;
 
-#ifdef MDA_SUPPORTED
-#ifdef _DEBUG
+#ifdef _DEBUG_0xDEADCA11
     {
         // In debug set all the vtable slots to 0xDEADCA11.
         SLOT *pComVTable = (SLOT*)(pComMT + 1);
@@ -5798,8 +5746,6 @@ ComMethodTable* ComCallWrapperTemplate::CreateComMethodTableForBasic(MethodTable
             *(pComVTable + iComSlots) = (SLOT)(size_t)0xDEADCA11;
     }
 #endif
-#endif
-
 
     LOG((LF_INTEROP, LL_INFO1000, "---------- end of CreateComMethodTableForBasic %s -----------\n", pMT->GetDebugClassName()));
 

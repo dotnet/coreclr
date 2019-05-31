@@ -2,7 +2,7 @@
 
 __scriptpath=$(cd "$(dirname "$0")"; pwd -P)
 __init_tools_log="$__scriptpath/init-tools.log"
-__PACKAGES_DIR="$__scriptpath/packages"
+__PACKAGES_DIR="$__scriptpath/.packages"
 __TOOLRUNTIME_DIR="$__scriptpath/Tools"
 __DOTNET_PATH="$__scriptpath/.dotnet"
 __DOTNET_CMD="$__DOTNET_PATH/dotnet"
@@ -131,11 +131,7 @@ esac
 __PKG_RID=$__PKG_RID-$__PKG_ARCH
 
 if [ ! -e "$__DOTNET_CMD" ]; then
-    source $__scriptpath/eng/configure-toolset.sh
-    source $__scriptpath/eng/common/tools.sh
-
-    InitializeBuildTool
-
+    source $__scriptpath/init-dotnet.sh
     if [ ! -e "$__DOTNET_CMD" ]; then
         echo "ERROR: Ensure arcade dotnet install did not install dotnet at $__DOTNET_CMD"
         exit 1

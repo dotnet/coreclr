@@ -39,11 +39,6 @@
 #include "dwreport.h"
 #endif // !FEATURE_PAL
 
-#include "stringarraylist.h"
-#ifdef FEATURE_PERFTRACING
-#include "eventpipe.h"
-#endif // FEATURE_PERFTRACING
-
 #ifdef FEATURE_COMINTEROP
 #include "winrttypenameconverter.h"
 #endif
@@ -65,7 +60,6 @@ UINT32 _tls_index = 0;
 #ifndef DACCESS_COMPILE
 
 extern void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading);
-extern HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags);
 extern void PrintToStdOutA(const char *pszString);
 extern void PrintToStdOutW(const WCHAR *pwzString);
 extern BOOL g_fEEHostedStartup;
@@ -277,9 +271,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
     CONTRACTL_END;
 
     // No point going further if the runtime is not running...
-    // We use CanRunManagedCode() instead of IsRuntimeActive() because this allows us
-    // to specify test using the form that does not trigger a GC.
-    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None)))
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -343,10 +335,8 @@ void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
     }
     CONTRACTL_END;
 
-    // Send the command line to EventPipe.
-#ifdef FEATURE_PERFTRACING
-    EventPipe::SaveCommandLine(pwzAssemblyPath, argc, argv);
-#endif // FEATURE_PERFTRACING
+    // Record the command line.
+    SaveManagedCommandLine(pwzAssemblyPath, argc, argv);
 
     // Send the command line to System.Environment.
     struct _gc
@@ -475,7 +465,6 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         }
 
         GCPROTECT_END();
-
     }
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
@@ -748,6 +737,12 @@ HRESULT CorHost2::_CreateAppDomain(
         if (wcscmp(pPropertyNames[i], W("APP_NI_PATHS")) == 0)
         {
             pwzAppNiPaths = pPropertyValues[i];
+        }
+        else
+        if (wcscmp(pPropertyNames[i], W("DEFAULT_STACK_SIZE")) == 0)
+        {
+            extern void ParseDefaultStackSize(LPCWSTR value);
+            ParseDefaultStackSize(pPropertyValues[i]);
         }
         else
         if (wcscmp(pPropertyNames[i], W("USE_ENTRYPOINT_FILTER")) == 0)
@@ -2349,12 +2344,6 @@ void CExecutionEngine::GetLastThrownObjectExceptionFromThread(void **ppvExceptio
     GetLastThrownObjectExceptionFromThread_Internal(ppException);
 
 } // HRESULT CExecutionEngine::GetLastThrownObjectExceptionFromThread()
-
-
-LocaleID RuntimeGetFileSystemLocale()
-{
-    return PEImage::GetFileSystemLocale();
-};
 
 HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName, IActivationFactory ** factory)
 {

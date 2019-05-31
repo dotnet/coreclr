@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -10,7 +9,7 @@ using System.Diagnostics;
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue>
+    internal sealed class DictionaryValueCollection<TKey, TValue> : ICollection<TValue> where TKey : object
     {
         private readonly IDictionary<TKey, TValue> dictionary;
 
@@ -86,7 +85,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class DictionaryValueCollection<TKey, TValue>
 
 
-    internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue>
+    internal sealed class DictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> where TKey : object
     {
         private readonly IDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;

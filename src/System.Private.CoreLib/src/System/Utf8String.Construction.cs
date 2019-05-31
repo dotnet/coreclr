@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -50,7 +49,7 @@ namespace System
 
             Utf8String newString = FastAllocate(value.Length);
             Buffer.Memmove(ref newString.DangerousGetMutableReference(), ref MemoryMarshal.GetReference(value), (uint)value.Length);
-            return Utf8Utility.ValidateAndFixupUtf8String(newString)!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            return Utf8Utility.ValidateAndFixupUtf8String(newString)!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
         }
 
         /// <summary>

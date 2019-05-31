@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Globalization;
 
 namespace System.Reflection
@@ -49,7 +48,7 @@ namespace System.Reflection
 
                 if (!MetadataToken.IsNullToken(_catchMetadataToken))
                 {
-                    Type declaringType = _methodBody._methodBase.DeclaringType;
+                    Type? declaringType = _methodBody._methodBase.DeclaringType;
                     Module module = (declaringType == null) ? _methodBody._methodBase.Module : declaringType.Module;
                     type = module.ResolveType(_catchMetadataToken, (declaringType == null) ? null : declaringType.GetGenericArguments(),
                         _methodBody._methodBase is MethodInfo ? _methodBody._methodBase.GetGenericArguments() : null);
