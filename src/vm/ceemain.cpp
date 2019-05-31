@@ -1592,6 +1592,11 @@ part2:
                 PerfLog::PerfLogDone();
 #endif //ENABLE_PERF_LOG
 
+#ifdef FEATURE_PERFTRACING
+                // Shutdown the event pipe.
+                EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
+
                 // Unregister our vectored exception and continue handlers from the OS.
                 // This will ensure that if any other DLL unload (after ours) has an exception,
                 // we wont attempt to process that exception (which could lead to various
@@ -1637,11 +1642,6 @@ part2:
 #endif
             }
         }
-
-#ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
-#endif // FEATURE_PERFTRACING
 
     lDone: ;
     }
