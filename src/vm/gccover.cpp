@@ -827,7 +827,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
 
             if (targetMD != 0)
             {
-
+#error Do not test.
                 // The instruction about to be replaced cannot already be a gcstress instruction
                 _ASSERTE(!IsGcCoveregeInterruptInstruction(instrPtr));
 
@@ -912,7 +912,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
         SLOT instrPtr = rangeStart;
         while(instrPtr < rangeStop)
         {
-
+#error Do not test.
             // The instruction about to be replaced cannot already be a gcstress instruction
             _ASSERTE(!IsGcCoveregeInterruptInstruction(instrPtr));
 #if defined(_TARGET_ARM_)
@@ -1271,19 +1271,45 @@ bool IsGcCoverageInterrupt(LPVOID ip)
         return false;
     }
 
+	bool resultOld;
+	    // Now it's safe to dereference the IP to check the instruction
+#if defined(_TARGET_ARM64_)
+    UINT32 instructionCode = *reinterpret_cast<UINT32*>(ip);
+#elif defined(_TARGET_ARM_)
+    UINT16 instructionCode = *reinterpret_cast<UINT16*>(ip);
+#else
+    UINT8 instructionCode = *reinterpret_cast<UINT8*>(ip);
+#endif
+    switch (instructionCode)
+    {
+        case INTERRUPT_INSTR:
+        case INTERRUPT_INSTR_CALL:
+        case INTERRUPT_INSTR_PROTECT_FIRST_RET:
+            resultOld = true;
+            break;
+
+        default:
+            // Another thread may have already changed the code back to the original
+            resultOld = (instructionCode == gcCover->savedCode[codeInfo.GetRelOffset()]);
+            break;
+    }
+
+	bool resultNew = false;
     SLOT instrPtr = reinterpret_cast<SLOT>(ip);
 
     if (IsGcCoveregeInterruptInstruction(instrPtr))
     {
-        return true;
+        resultNew = true;
     }
 
     if (IsOriginalInstruction(instrPtr, gcCover, codeInfo.GetRelOffset()))
     {
         // Another thread may have already changed the code back to the original.
-        return true;
+        resultNew = true;
     }
-    return false;
+    _ASSERTE(resultNew == resultOld);
+	return resultNew;
+    
 }
 
 // Remove the GcCoverage interrupt instruction, and restore the 
@@ -1399,13 +1425,29 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
     Thread *pThread = GetThread();
 
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+    BYTE instrValOld = *(BYTE*)instrPtr;
+
+    bool oldRes = false;
+
+    if (instrValOld != INTERRUPT_INSTR && instrValOld != INTERRUPT_INSTR_CALL &&
+        instrValOld != INTERRUPT_INSTR_PROTECT_FIRST_RET)
+    {
+        _ASSERTE(instrValOld == gcCover->savedCode[offset]); // someone beat us to it.
+        oldRes = true;
+    }
+#endif
+
 
     if (!IsGcCoveregeInterruptInstruction(instrPtr))
     {
+        _ASSERTE(oldRes == true);
         _ASSERTE(IsOriginalInstruction(instrPtr, gcCover, offset));
         // Someone beat us to it, just go on running.
         return;
     }
+    _ASSERTE(oldRes == false);
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
