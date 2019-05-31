@@ -852,32 +852,56 @@ namespace System.Globalization
                 return 0;
             }
 
+            // according to ICU User Guide: 
+            // "The overall performance is poorer than if the function is called with a zero output buffer"
+            // "A recommended size for the temporary buffer is four times the length of the longest string processed"
+            int recommendedSize = source.Length * 4; 
+
+            // "Call ucol_getSortKey() to find out how big the sort key buffer should be, and fill in the temporary buffer at the same time"
+            if (TryGetSortKey(source, options, recommendedSize, out int actualSortKeyLength, out int hash))
+            {
+                return hash; // hot path, the buffer was big enough and we don't need to call the method one more time
+            }
+            
+            // "If the temporary buffer is too small, allocate or reallocate more space for in anoverflow buffer to handle the overflow situations."
+            if (TryGetSortKey(source, options, actualSortKeyLength, out _, out hash))
+            {
+                return hash;
+            }
+
+            throw new ArgumentException(SR.Arg_ExternalException);
+        }
+        
+        private unsafe bool TryGetSortKey(ReadOnlySpan<char> source, CompareOptions options, int requestedSortKeyLength, out int actualSortKeyLength, out int hash)
+        {
             fixed (char* pSource = source)
             {
-                int sortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, null, 0, options);
-
                 byte[]? borrowedArr = null;
-                Span<byte> span = sortKeyLength <= 512 ?
-                    stackalloc byte[512] :
-                    (borrowedArr = ArrayPool<byte>.Shared.Rent(sortKeyLength));
-
+                Span<byte> span = requestedSortKeyLength <= 512 ?
+                    stackalloc byte[requestedSortKeyLength] :
+                    (borrowedArr = ArrayPool<byte>.Shared.Rent(requestedSortKeyLength));
+                
                 fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
                 {
-                    if (Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, sortKeyLength, options) != sortKeyLength)
-                    {
-                        throw new ArgumentException(SR.Arg_ExternalException);
-                    }
+                    actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, requestedSortKeyLength, options);
                 }
-
-                int hash = Marvin.ComputeHash32(span.Slice(0, sortKeyLength), Marvin.DefaultSeed);
-
+                
+                if (actualSortKeyLength <= requestedSortKeyLength)
+                {
+                    hash = Marvin.ComputeHash32(span.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
+                }
+                else
+                {
+                    hash = 0;
+                }
+                    
                 // Return the borrowed array if necessary.
                 if (borrowedArr != null)
                 {
                     ArrayPool<byte>.Shared.Return(borrowedArr);
                 }
-
-                return hash;
+                
+                return actualSortKeyLength <= requestedSortKeyLength;
             }
         }
 
