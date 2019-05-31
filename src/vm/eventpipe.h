@@ -371,6 +371,7 @@ private:
     static void ForEachSession(EventPipeSessionHandlerCallback callback)
     {
         LIMITED_METHOD_CONTRACT;
+        _ASSERTE(IsLockOwnedByCurrentThread());
 
         for (Volatile<EventPipeSession *> &session : s_pSessions)
         {

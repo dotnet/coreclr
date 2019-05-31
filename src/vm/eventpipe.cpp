@@ -245,9 +245,12 @@ void EventPipe::Shutdown()
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        ForEachSession([](EventPipeSession &session) {
-            Disable(session.GetId());
-        });
+        for (auto session : s_pSessions)
+        {
+            EventPipeSession *pSession = session.Load();
+            if (pSession)
+                Disable(pSession->GetId());
+        }
     }
     EX_CATCH {}
     EX_END_CATCH(SwallowAllExceptions);
@@ -262,7 +265,6 @@ void EventPipe::Shutdown()
     // Set the static pointers to NULL so that the rest of the EventPipe knows that they are no longer available.
     // Flush process write buffers to make sure other threads can see the change.
     s_pConfig = nullptr;
-    FlushProcessWriteBuffers();
 
     // Free resources.
     delete pConfig;
@@ -624,12 +626,11 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(s_tracingInitialized);
-        // PRECONDITION(s_pConfig != nullptr);
     }
     CONTRACTL_END;
 
     // We can't procede without a configuration or sessions.
-    if (!s_tracingInitialized || s_pConfig == nullptr)
+    if (!s_tracingInitialized)
         return;
 
     // Exit early if the event is not enabled.
@@ -687,8 +688,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
             EventPipeSession *const pSession = session.Load();
             if (pSession == nullptr)
                 continue;
-            _ASSERTE(s_pConfig->IsSessionIdValid(pSession->GetId()));
-
             if (!pSession->RundownEnabled())
                 pSession->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId);
         }
