@@ -240,11 +240,6 @@ LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes)
 {
     WRAPPER_NO_CONTRACT;
 
-#ifdef _DEBUG
-    // Check whether (indispensable) implicit casting in ClrAllocInProcessHeapBootstrap is safe.
-    static FastAllocInProcessHeapFunc pFunc = EEHeapAllocInProcessHeap;
-#endif
-
     static HANDLE ProcessHeap = NULL;
 
     if (ProcessHeap == NULL)

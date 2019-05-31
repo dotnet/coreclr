@@ -2068,15 +2068,7 @@ void *GetCLRFunction(LPCSTR FunctionName)
 
     LIMITED_METHOD_CONTRACT;
 
-    if (strcmp(FunctionName, "EEHeapAllocInProcessHeap") == 0)
-    {
-        func = (void*)EEHeapAllocInProcessHeap;
-    }
-    else if (strcmp(FunctionName, "EEHeapFreeInProcessHeap") == 0)
-    {
-        func = (void*)EEHeapFreeInProcessHeap;
-    }
-    else if (strcmp(FunctionName, "ShutdownRuntimeWithoutExiting") == 0)
+    if (strcmp(FunctionName, "ShutdownRuntimeWithoutExiting") == 0)
     {
         func = (void*)ShutdownRuntimeWithoutExiting;
     }
