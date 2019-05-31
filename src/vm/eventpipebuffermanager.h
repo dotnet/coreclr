@@ -51,6 +51,9 @@ class EventPipeThread
     // it is protected by EventPipeBufferManager::m_lock
     EventPipeBufferLists *m_pBufferLists = nullptr;
 
+    //
+    bool m_isWritingEvent = false;
+
     // This lock is designed to have low contention. Normally it is only taken by this thread,
     // but occasionally it may also be taken by another thread which is trying to collect and drain
     // buffers from all threads.
@@ -82,6 +85,18 @@ public:
     EventPipeBufferList *GetBufferList(EventPipeBufferManager *pBufferManager);
     void SetBufferList(EventPipeBufferManager *pBufferManager, EventPipeBufferList *pBufferList);
     void Remove(EventPipeBufferManager *pBufferManager);
+
+    void SetWritingEvent(bool isWritingEvent)
+    {
+        LIMITED_METHOD_CONTRACT;
+        m_isWritingEvent = isWritingEvent;
+    }
+
+    bool IsWritingEvent() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_isWritingEvent;
+    }
 };
 
 class EventPipeBufferManager
@@ -105,7 +120,6 @@ private:
 
     // Lock to protect access to the per-thread buffer list and total allocation size.
     SpinLock m_lock;
-    Volatile<BOOL> m_writeEventSuspending;
 
 #ifdef _DEBUG
     // For debugging purposes.
@@ -146,7 +160,7 @@ public:
     // Ends the suspension period created by SuspendWriteEvent(). After this call returns WriteEvent()
     // can again be called succesfully, new BufferLists and Buffers may be allocated.
     // The caller is required to synchronize all calls to SuspendWriteEvent() and ResumeWriteEvent()
-    void ResumeWriteEvent();
+    void ResumeWriteEvent(); // TODO: Remove this. Not used anymore.
 
     // From the time this function returns until ResumeWriteEvent() is called a suspended state will
     // be in effect that blocks all WriteEvent activity. All existing buffers will be in the

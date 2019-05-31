@@ -18,7 +18,7 @@ class EventPipeSession;
 class EventPipeConfiguration
 {
 public:
-    EventPipeConfiguration(EventPipeSessions *pSessions);
+    EventPipeConfiguration();
     ~EventPipeConfiguration();
 
     // Perform initialization that cannot be performed in the constructor.
@@ -106,11 +106,8 @@ private:
     // Get the enabled provider.
     EventPipeSessionProvider *GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider);
 
-    // The list of EventPipe sessions.
-    EventPipeSessions *const m_pSessions;
-
     // The list of event pipe providers.
-    SList<SListElem<EventPipeProvider *>> *m_pProviderList;
+    SList<SListElem<EventPipeProvider *>> *const m_pProviderList;
 
     // The provider used to write configuration events to the event stream.
     EventPipeProvider *m_pConfigProvider;

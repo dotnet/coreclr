@@ -68,6 +68,9 @@ private:
     //
     Thread *m_pRundownThread = nullptr;
 
+    //
+    Volatile<bool> m_writeEventSuspending;
+
     void CreateIpcStreamingThread();
 
     static DWORD WINAPI ThreadProc(void *args);
@@ -141,6 +144,13 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_ipcStreamingEnabled;
+    }
+
+    // Determine if rundown is enabled.
+    bool IsWriteEventSuspending() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_writeEventSuspending;
     }
 
     // Add a new provider to the session.

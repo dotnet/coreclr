@@ -25,7 +25,8 @@ EventPipeSession::EventPipeSession(
                            m_CircularBufferSizeInBytes(static_cast<size_t>(circularBufferSizeInMB) << 20),
                            m_pBufferManager(new EventPipeBufferManager()),
                            m_rundownEnabled(rundownEnabled),
-                           m_SessionType(sessionType)
+                           m_SessionType(sessionType),
+                           m_writeEventSuspending(false)
 {
     CONTRACTL
     {
@@ -403,7 +404,6 @@ void EventPipeSession::DisableIpcStreamingThread()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -428,8 +428,6 @@ void EventPipeSession::Disable()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
@@ -440,11 +438,10 @@ void EventPipeSession::Disable()
 
     // Force all in-progress writes to either finish or cancel
     // This is required to ensure we can safely flush and delete the buffers
+    m_writeEventSuspending.Store(true);
     m_pBufferManager->SuspendWriteEvent();
-    {
-        WriteAllBuffersToFile();
-        m_pProviderList->Clear();
-    }
+    WriteAllBuffersToFile();
+    m_pProviderList->Clear();
 }
 
 void EventPipeSession::ExecuteRundown()

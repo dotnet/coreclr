@@ -264,9 +264,6 @@ private:
     SList<SListElem<EventPipeProviderCallbackData>> list;
 };
 
-// TODO: Maybe this could be an array: EventPipeSession *EventPipeSessions[64];
-typedef MapSHashWithRemove<EventPipeSessionID, EventPipeSession *> EventPipeSessions;
-
 class EventPipe
 {
     // Declare friends.
@@ -370,6 +367,22 @@ private:
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
 
+    template <typename EventPipeSessionHandlerCallback>
+    static void ForEachSession(EventPipeSessionHandlerCallback callback)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(IsLockOwnedByCurrentThread());
+
+        for (Volatile<EventPipeSession *> &session : s_pSessions)
+        {
+            // Entering EventPipe lock gave us a barrier, we don't need
+            // more of them
+            EventPipeSession *const pSession = session.LoadWithoutBarrier();
+            if (pSession)
+                callback(*pSession);
+        }
+    }
+
     // Get the configuration object.
     // This is called directly by the EventPipeProvider constructor to register the new provider.
     static EventPipeConfiguration *GetConfiguration()
@@ -387,8 +400,10 @@ private:
 
     static CrstStatic s_configCrst;
     static bool s_tracingInitialized;
-    static EventPipeConfiguration *s_pConfig;
-    static EventPipeSessions *s_pSessions;
+    static EventPipeConfiguration *s_pConfig; // Volatile?
+    static const uint32_t MaxNumberOfSessions = 64;
+    static Volatile<EventPipeSession *> s_pSessions[MaxNumberOfSessions];
+    static Volatile<EventPipeSession *> s_pRundownSession;
     static EventPipeEventSource *s_pEventSource;
     static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFlushTime;

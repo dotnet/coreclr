@@ -14,14 +14,11 @@
 
 const WCHAR *EventPipeConfiguration::s_configurationProviderName = W("Microsoft-DotNETCore-EventPipeConfiguration");
 
-EventPipeConfiguration::EventPipeConfiguration(EventPipeSessions *pSessions)
-    : m_pSessions(pSessions), m_activeSessions(0)
+EventPipeConfiguration::EventPipeConfiguration() : m_pProviderList(new SList<SListElem<EventPipeProvider *>>()),
+                                                   m_pConfigProvider(nullptr),
+                                                   m_activeSessions(0)
 {
     STANDARD_VM_CONTRACT;
-    _ASSERTE(pSessions != nullptr);
-
-    m_pConfigProvider = NULL;
-    m_pProviderList = new SList<SListElem<EventPipeProvider *>>();
 }
 
 EventPipeConfiguration::~EventPipeConfiguration()
@@ -41,38 +38,32 @@ EventPipeConfiguration::~EventPipeConfiguration()
         EX_TRY
         {
             DeleteProvider(m_pConfigProvider);
-            m_pConfigProvider = NULL;
         }
         EX_CATCH {}
         EX_END_CATCH(SwallowAllExceptions);
     }
 
-    if (m_pProviderList != NULL)
+    // We swallow exceptions here because the HOST_BREAKABLE
+    // lock may throw and this destructor gets called in throw
+    // intolerant places. If that happens the provider list will leak
+    EX_TRY
     {
-        // We swallow exceptions here because the HOST_BREAKABLE
-        // lock may throw and this destructor gets called in throw
-        // intolerant places. If that happens the provider list will leak
-        EX_TRY
+        // Take the lock before manipulating the list.
+        CrstHolder _crst(EventPipe::GetLock());
+
+        SListElem<EventPipeProvider *> *pElem = m_pProviderList->GetHead();
+        while (pElem != NULL)
         {
-            // Take the lock before manipulating the list.
-            CrstHolder _crst(EventPipe::GetLock());
-
-            SListElem<EventPipeProvider *> *pElem = m_pProviderList->GetHead();
-            while (pElem != NULL)
-            {
-                // We don't delete provider itself because it can be in-use
-                SListElem<EventPipeProvider *> *pCurElem = pElem;
-                pElem = m_pProviderList->GetNext(pElem);
-                delete (pCurElem);
-            }
-
-            delete (m_pProviderList);
+            // We don't delete provider itself because it can be in-use
+            SListElem<EventPipeProvider *> *pCurElem = pElem;
+            pElem = m_pProviderList->GetNext(pElem);
+            delete pCurElem;
         }
-        EX_CATCH {}
-        EX_END_CATCH(SwallowAllExceptions);
 
-        m_pProviderList = NULL;
+        delete m_pProviderList;
     }
+    EX_CATCH {}
+    EX_END_CATCH(SwallowAllExceptions);
 }
 
 void EventPipeConfiguration::Initialize()
@@ -99,7 +90,7 @@ void EventPipeConfiguration::Initialize()
         false); /* needStack */
 }
 
-EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -140,7 +131,7 @@ void EventPipeConfiguration::DeleteProvider(EventPipeProvider *pProvider)
     delete pProvider;
 }
 
-bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -153,41 +144,29 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
 
     // See if we've already registered this provider.
     EventPipeProvider *pExistingProvider = GetProviderNoLock(provider.GetProviderName());
-    if (pExistingProvider != NULL)
-    {
+    if (pExistingProvider != nullptr)
         return false;
-    }
 
     // The provider list should be non-NULL, but can be NULL on shutdown.
-    if (m_pProviderList != NULL)
+    if (m_pProviderList != nullptr)
     {
         // The provider has not been registered, so register it.
         m_pProviderList->InsertTail(new SListElem<EventPipeProvider *>(&provider));
     }
 
-    for (auto iterator = m_pSessions->Begin();
-         iterator != m_pSessions->End();
-         ++iterator)
-    {
-        const EventPipeSessionID Id = iterator->Key();
-        EventPipeSession *const pSession = iterator->Value();
-
-        _ASSERTE(IsSessionIdValid(Id) && (pSession != nullptr));
-        if (!IsSessionIdValid(Id) || pSession == nullptr)
-            continue;
-
+    EventPipe::ForEachSession([&](EventPipeSession &session) {
         // Set the provider configuration and enable it if it has been requested by a session.
-        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(*pSession, &provider);
-        if (pSessionProvider != NULL)
-        {
-            EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
-                pSession->GetId(),
-                pSessionProvider->GetKeywords(),
-                pSessionProvider->GetLevel(),
-                pSessionProvider->GetFilterData());
-            pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
-        }
-    }
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, &provider);
+        if (pSessionProvider == nullptr)
+            return;
+
+        EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
+            session.GetId(),
+            pSessionProvider->GetKeywords(),
+            pSessionProvider->GetLevel(),
+            pSessionProvider->GetFilterData());
+        pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+    });
 
     return true;
 }
@@ -225,7 +204,7 @@ bool EventPipeConfiguration::UnregisterProvider(EventPipeProvider &provider)
         {
             if (m_pProviderList->FindAndRemove(pElem) != NULL)
             {
-                delete (pElem);
+                delete pElem;
                 return true;
             }
         }
@@ -339,7 +318,7 @@ void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
     }
 }
 
-void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -380,7 +359,7 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
     }
 }
 
-void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
