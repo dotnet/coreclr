@@ -1307,7 +1307,7 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
         static uint64_t high_watermark;
 
         uint64_t current_high = high_watermark;
-        while(allocated_bytes > current_high)
+        while (allocated_bytes > current_high)
         {           
             uint64_t orig = FastInterlockCompareExchangeLong((LONG64*)& high_watermark, allocated_bytes, current_high);
             if (orig == current_high)
