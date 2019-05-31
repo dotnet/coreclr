@@ -1295,10 +1295,25 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
     {
         // NOTE: we do not want to make imprecise flavor too slow. 
         // As it could be noticed we read 64bit values that may be concurrently updated.
-        // Such reads are not guaranteed to be atomic on 32bit and inrare cases we may see torn values resultng in outlier results.
+        // Such reads are not guaranteed to be atomic on 32bit and in rare cases we may see torn values resultng in outlier results.
         // That would be extremely rare and in a context of imprecise helper is not worth additional synchronization.
         uint64_t unused_bytes = Thread::dead_threads_non_alloc_bytes;
-        return GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
+        uint64_t allocated_bytes = GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
+
+        // highest reported allocated_bytes. We do not want to report a value less than that even if unused_bytes has increased.
+        static uint64_t high_watermark;
+
+        uint64_t current_high = high_watermark;
+        while(allocated_bytes > current_high)
+        {           
+            uint64_t orig = FastInterlockCompareExchangeLong((LONG64*)& high_watermark, allocated_bytes, current_high);
+            if (orig == current_high)
+                return allocated_bytes;
+
+            current_high = orig;
+        }
+
+        return current_high;
     }
 
     INT64 allocated;
