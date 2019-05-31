@@ -1315,8 +1315,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
+    // Shutdown the diagnostics server first.
     DiagnosticServer::Shutdown();
 #endif // FEATURE_PERFTRACING
 
@@ -1637,7 +1636,12 @@ part2:
                 ShutdownLogging();
 #endif
             }
-        }    
+        }
+
+#ifdef FEATURE_PERFTRACING
+    // Shutdown the event pipe.
+    EventPipe::Shutdown();
+#endif // FEATURE_PERFTRACING
 
     lDone: ;
     }
