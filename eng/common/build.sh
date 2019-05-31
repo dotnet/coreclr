@@ -211,7 +211,7 @@ fi
 
 # Workaround for https://github.com/dotnet/arcade/issues/2673
 # if [[ "$restore" == true && -z ${DisableNativeToolsetInstalls:-} ]]; then
-#   InitializeNativeTools
+#  InitializeNativeTools
 # fi
 
 Build

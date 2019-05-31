@@ -13,6 +13,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "jitpch.h"
 #ifdef _MSC_VER
 #pragma hdrstop
+#pragma warning(disable : 4310) // cast truncates constant value - happens for (int8_t)0xb1
 #endif
 
 #ifdef _TARGET_XARCH_
@@ -5613,6 +5614,13 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         instGen(INS_vzeroupper);
     }
 
+    if (callType == CT_HELPER && compiler->info.compFlags & CORINFO_FLG_SYNCH)
+    {
+        fPossibleSyncHelperCall = true;
+        helperNum               = compiler->eeGetHelperNum(methHnd);
+        noway_assert(helperNum != CORINFO_HELP_UNDEF);
+    }
+
     if (target != nullptr)
     {
 #ifdef _TARGET_X86_
@@ -5738,12 +5746,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             void* pAddr = nullptr;
             addr        = compiler->compGetHelperFtn(helperNum, (void**)&pAddr);
             assert(pAddr == nullptr);
-
-            // tracking of region protected by the monitor in synchronized methods
-            if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
-            {
-                fPossibleSyncHelperCall = true;
-            }
         }
         else
         {
