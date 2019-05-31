@@ -56,7 +56,7 @@ void CastCache::FlushCurrentCache()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
     }
     CONTRACTL_END;
 
@@ -77,7 +77,13 @@ void CastCache::FlushCurrentCache()
 
 TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 {
-    WRAPPER_NO_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
 
     DWORD index = KeyToBucket(source, target);
     CastCacheEntry* pEntry = &m_Table[index];
