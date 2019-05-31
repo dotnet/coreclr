@@ -76,46 +76,9 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
 bool IsGcCoveregeInterruptInstruction(SLOT instrPtr)
 {
 #if defined(_TARGET_ARM64_)
-    UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
-    switch (instrVal)
-    {
-    case INTERRUPT_INSTR:
-    case INTERRUPT_INSTR_CALL:
-    case INTERRUPT_INSTR_PROTECT_RET:
-        return true;
-    default:
-        return false;
-    }
+#error Do not test.
 #elif defined(_TARGET_ARM_)
-    
-    size_t instrLen = GetARMInstructionLength(instrPtr);
-    if (instrLen == 2)
-    {
-        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
-        switch (instrVal)
-        {
-        case INTERRUPT_INSTR:
-        case INTERRUPT_INSTR_CALL:
-        case INTERRUPT_INSTR_PROTECT_RET:
-            return true;
-        default:
-            return false;
-        }
-    }
-    else
-    {
-        _ASSERTE(instrLen == 4);
-        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
-        switch (instrVal)
-        {
-        case INTERRUPT_INSTR_32:
-        case INTERRUPT_INSTR_CALL_32:
-        case INTERRUPT_INSTR_PROTECT_RET_32:
-            return true;
-        default:
-            return false;
-        }
-    }
+#error Do not test.
 #else // x64 and x86
     UINT8 instrVal = *reinterpret_cast<UINT8*>(instrPtr);
     switch (instrVal)
@@ -133,24 +96,9 @@ bool IsGcCoveregeInterruptInstruction(SLOT instrPtr)
 bool IsOriginalInstruction(SLOT instrPtr, GCCoverageInfo* gcCover, DWORD offset)
 {
 #if defined(_TARGET_ARM64_)
-    UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
-    UINT32 origInstrVal = *reinterpret_cast<UINT32*>(gcCover->savedCode + offset);
-    return (instrVal == origInstrVal);
+#error Do not test.
 #elif defined(_TARGET_ARM_)
-    size_t instrLen = GetARMInstructionLength(instrPtr);
-    if (instrLen == 2)
-    {
-        UINT16 instrVal = *reinterpret_cast<UINT16*>(instrPtr);
-        UINT16 origInstrVal = *reinterpret_cast<UINT16*>(gcCover->savedCode + offset);
-        return (instrVal == origInstrVal);
-    }
-    else
-    {
-        _ASSERTE(instrLen == 4);
-        UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
-        UINT32 origInstrVal = *reinterpret_cast<UINT32*>(gcCover->savedCode + offset);
-        return (instrVal == origInstrVal);
-    }
+#error Do not test.
 #else // x64 and x86
     UINT8 instrVal = *reinterpret_cast<UINT8*>(instrPtr);
     UINT8 origInstrVal = gcCover->savedCode[offset];
