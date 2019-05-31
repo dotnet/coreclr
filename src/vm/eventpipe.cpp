@@ -348,11 +348,13 @@ EventPipeSessionID EventPipe::EnableInternal(
     if (pSession == nullptr || !pSession->IsValid())
         return 0;
 
-    // Return if the index if invalid.
-    const uint64_t Index = GetArrayIndex(pSession->GetId());
-    _ASSERTE(Index < 64);
-    if (Index >= 64)
+    // Return if the index is invalid.
+    const uint64_t index = GetArrayIndex(pSession->GetId());
+    if (index >= 64)
+    {
+        _ASSERTE(!"Computed index was out of range.");
         return 0;
+    }
 
     // Register the SampleProfiler the very first time.
     SampleProfiler::Initialize(pEventPipeProviderCallbackDataQueue);
@@ -361,7 +363,8 @@ EventPipeSessionID EventPipe::EnableInternal(
     s_pEventSource->Enable(pSession);
 
     // Save the session.
-    s_pSessions[Index].Store(pSession);
+    _ASSERTE(s_pSessions[index].Load() == nullptr);
+    s_pSessions[index].Store(pSession);
 
     // Enable tracing.
     s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
@@ -433,15 +436,19 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     // Get the specified session ID.
     EventPipeSession *pSession = nullptr;
     uint64_t i = 0;
+    bool found = false;
     for (; i < MaxNumberOfSessions; ++i)
     {
         pSession = s_pSessions[i].Load();
-        if (pSession != nullptr && pSession->GetId() == id)
+        if ((pSession != nullptr) && (pSession->GetId() == id))
+        {
+            found = true;
             break;
+        }
     }
 
     // If the session was not found, then there is nothing else to do.
-    if (pSession == nullptr)
+    if (pSession == nullptr || !found)
         return;
 
     // Disable the profiler.
@@ -629,7 +636,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     CONTRACTL_END;
 
-    // We can't procede without a configuration or sessions.
+    // We can't proceed if tracing is not initialized.
     if (!s_tracingInitialized)
         return;
 
@@ -816,14 +823,8 @@ EventPipeEventInstance *EventPipe::GetNextEvent(EventPipeSessionID sessionID)
 
     // Only fetch the next event if a tracing session exists.
     // The buffer manager is not disposed until the process is shutdown.
-    for (uint64_t i = 0; i < MaxNumberOfSessions; ++i)
-    {
-        EventPipeSession *const pSession = s_pSessions[i].Load();
-        if (pSession != nullptr && pSession->GetId() == sessionID)
-            return pSession->GetNextEvent();
-    }
-
-    return nullptr;
+    EventPipeSession *const pSession = GetSession(sessionID);
+    return pSession ? pSession->GetNextEvent() : nullptr;
 }
 
 void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
