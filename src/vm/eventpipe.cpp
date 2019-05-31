@@ -260,7 +260,7 @@ void EventPipe::Shutdown()
     EX_END_CATCH(SwallowAllExceptions);
 
     // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
-    // We need to do this after Disabling sessions since those try to write to EventPipeEventSource.
+    // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
     delete s_pEventSource;
     s_pEventSource = nullptr;
 
