@@ -143,7 +143,7 @@ namespace System.Globalization
 
                 byte[]? borrowedArr = null;
                 Span<byte> span = sortKeyLength <= 512 ?
-                    stackalloc byte[512] :
+                    stackalloc byte[sortKeyLength] :
                     (borrowedArr = ArrayPool<byte>.Shared.Rent(sortKeyLength));
 
                 fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
