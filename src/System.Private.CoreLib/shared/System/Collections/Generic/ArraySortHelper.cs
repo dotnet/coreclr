@@ -51,7 +51,6 @@ namespace System.Collections.Generic
 
         public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
-            Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
@@ -95,7 +94,6 @@ namespace System.Collections.Generic
 
         internal static void Sort(Span<T> keys, int index, int length, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
             Debug.Assert(comparer != null, "Check the arguments in the caller!");
 
@@ -338,7 +336,6 @@ namespace System.Collections.Generic
 
         public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
-            Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             try
@@ -628,8 +625,6 @@ namespace System.Collections.Generic
     {
         public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
-            Debug.Assert(values != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
@@ -875,7 +870,6 @@ namespace System.Collections.Generic
     {
         public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null, "Check the arguments in the caller!");
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
             // Add a try block here to detect IComparers (or their
