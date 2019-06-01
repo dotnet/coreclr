@@ -72,16 +72,6 @@ namespace System.Diagnostics
 
         private sealed class DebugAssertException : Exception
         {
-            internal DebugAssertException(string? stackTrace) :
-                base(stackTrace)
-            {
-            }
-
-            internal DebugAssertException(string? message, string? stackTrace) :
-                base(Terminate(message) + stackTrace)
-            {
-            }
-
             internal DebugAssertException(string? message, string? detailMessage, string? stackTrace) :
                 base(Terminate(message) + Terminate(detailMessage) + stackTrace)
             {
