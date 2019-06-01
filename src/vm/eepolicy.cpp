@@ -819,11 +819,11 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
     {
         if (exitCode == (UINT)COR_E_FAILFAST)
         {
-            PrintToStdErrA("\nProcess terminated. ");
+            PrintToStdErrA("Process terminated. ");
         }
         else
         {
-            PrintToStdErrA("\nFatal error. ");
+            PrintToStdErrA("Fatal error. ");
         }
 
         if (errorSource != NULL)
@@ -1042,7 +1042,6 @@ void EEPolicy::LogFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage
 void DisplayStackOverflowException()
 {
     LIMITED_METHOD_CONTRACT;
-    PrintToStdErrA("\n");
 
     PrintToStdErrA("Stack overflow.\n");
 }
