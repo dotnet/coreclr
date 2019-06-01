@@ -5,6 +5,15 @@
 #include "createdump.h"
 #include <asm/ptrace.h>
 
+#if defined(__aarch64__)
+// See src/pal/src/include/pal/context.h
+#define MCREG_Fp(mc)      ((mc).regs[29])
+#define MCREG_Lr(mc)      ((mc).regs[30])
+#define MCREG_Sp(mc)      ((mc).sp)
+#define MCREG_Pc(mc)      ((mc).pc)
+#define MCREG_Cpsr(mc)    ((mc).pstate)
+#endif
+
 #ifndef THUMB_CODE
 #define THUMB_CODE 1
 #endif
@@ -51,7 +60,7 @@ ThreadInfo::Initialize(ICLRDataTarget* pDataTarget)
     }
 
 #if defined(__aarch64__)
-    TRACE("Thread %04x PC %016llx SP %016llx\n", m_tid, (unsigned long long)m_gpRegisters.pc, (unsigned long long)m_gpRegisters.sp);
+    TRACE("Thread %04x PC %016llx SP %016llx\n", m_tid, (unsigned long long)MCREG_Pc(m_gpRegisters), (unsigned long long)MCREG_Sp(m_gpRegisters));
 #elif defined(__arm__)
     TRACE("Thread %04x PC %08lx SP %08lx\n", m_tid, (unsigned long)m_gpRegisters.ARM_pc, (unsigned long)m_gpRegisters.ARM_sp);
 #elif defined(__x86_64__)
@@ -294,11 +303,11 @@ ThreadInfo::GetRegistersWithDataTarget(ICLRDataTarget* pDataTarget)
     // See MCREG maps in PAL's context.h
     assert(sizeof(m_gpRegisters.regs) == (sizeof(context.X) + sizeof(context.Fp) + sizeof(context.Lr)));
     memcpy(m_gpRegisters.regs, context.X, sizeof(context.X));
-    m_gpRegisters.regs[29] = context.Fp;
-    m_gpRegisters.regs[30] = context.Lr;
-    m_gpRegisters.sp = context.Sp;
-    m_gpRegisters.pc = context.Pc;
-    m_gpRegisters.pstate = context.Cpsr;
+    MCREG_Fp(m_gpRegisters) = context.Fp;
+    MCREG_Lr(m_gpRegisters) = context.Lr;
+    MCREG_Sp(m_gpRegisters) = context.Sp;
+    MCREG_Pc(m_gpRegisters) = context.Pc;
+    MCREG_Cpsr(m_gpRegisters) = context.Cpsr;
 
     assert(sizeof(m_fpRegisters.vregs) == sizeof(context.V));
     memcpy(m_fpRegisters.vregs, context.V, sizeof(context.V));
@@ -344,7 +353,7 @@ ThreadInfo::GetThreadStack(CrashInfo& crashInfo)
     size_t size;
 
 #if defined(__aarch64__)
-    startAddress = m_gpRegisters.sp & PAGE_MASK;
+    startAddress = MCREG_Sp(m_gpRegisters) & PAGE_MASK;
 #elif defined(__arm__)
     startAddress = m_gpRegisters.ARM_sp & PAGE_MASK;
 #else
@@ -431,11 +440,11 @@ ThreadInfo::GetThreadContext(uint32_t flags, CONTEXT* context) const
 #elif defined(__aarch64__)
     if ((flags & CONTEXT_CONTROL) == CONTEXT_CONTROL)
     {
-        context->Fp = m_gpRegisters.regs[29];
-        context->Lr = m_gpRegisters.regs[30];
-        context->Sp = m_gpRegisters.sp;
-        context->Pc = m_gpRegisters.pc;
-        context->Cpsr = m_gpRegisters.pstate;
+        context->Fp = MCREG_Fp(m_gpRegisters);
+        context->Lr = MCREG_Lr(m_gpRegisters);
+        context->Sp = MCREG_Sp(m_gpRegisters);
+        context->Pc = MCREG_Pc(m_gpRegisters);
+        context->Cpsr = MCREG_Cpsr(m_gpRegisters);
     }
     if ((flags & CONTEXT_INTEGER) == CONTEXT_INTEGER)
     {
