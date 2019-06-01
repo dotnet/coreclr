@@ -164,7 +164,6 @@ namespace System.Collections.Generic
 
         internal static void IntrospectiveSort(Span<T> keys, int left, int length, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(comparer != null);
             Debug.Assert(left >= 0);
             Debug.Assert(length >= 0);
@@ -179,7 +178,6 @@ namespace System.Collections.Generic
 
         private static void IntroSort(Span<T> keys, int lo, int hi, int depthLimit, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi < keys.Length);
@@ -226,7 +224,6 @@ namespace System.Collections.Generic
 
         private static int PickPivotAndPartition(Span<T> keys, int lo, int hi, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
@@ -262,7 +259,6 @@ namespace System.Collections.Generic
 
         private static void HeapSort(Span<T> keys, int lo, int hi, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
@@ -282,7 +278,6 @@ namespace System.Collections.Generic
 
         private static void DownHeap(Span<T> keys, int i, int n, int lo, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(lo < keys.Length);
@@ -306,7 +301,6 @@ namespace System.Collections.Generic
 
         private static void InsertionSort(Span<T> keys, int lo, int hi, Comparison<T> comparer)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi >= lo);
             Debug.Assert(hi <= keys.Length);
@@ -423,7 +417,6 @@ namespace System.Collections.Generic
 
         private static void SwapIfGreaterWithItems(Span<T> keys, int a, int b)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(0 <= a && a < keys.Length);
             Debug.Assert(0 <= b && b < keys.Length);
 
@@ -451,7 +444,6 @@ namespace System.Collections.Generic
 
         internal static void IntrospectiveSort(Span<T> keys, int left, int length)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(left >= 0);
             Debug.Assert(length >= 0);
             Debug.Assert(length <= keys.Length);
@@ -465,7 +457,6 @@ namespace System.Collections.Generic
 
         private static void IntroSort(Span<T> keys, int lo, int hi, int depthLimit)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi < keys.Length);
 
@@ -511,7 +502,6 @@ namespace System.Collections.Generic
 
         private static int PickPivotAndPartition(Span<T> keys, int lo, int hi)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
@@ -554,7 +544,6 @@ namespace System.Collections.Generic
 
         private static void HeapSort(Span<T> keys, int lo, int hi)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
@@ -573,7 +562,6 @@ namespace System.Collections.Generic
 
         private static void DownHeap(Span<T> keys, int i, int n, int lo)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(lo < keys.Length);
 
@@ -596,7 +584,6 @@ namespace System.Collections.Generic
 
         private static void InsertionSort(Span<T> keys, int lo, int hi)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi >= lo);
             Debug.Assert(hi <= keys.Length);
@@ -649,8 +636,6 @@ namespace System.Collections.Generic
 
         private static void SwapIfGreaterWithItems(Span<TKey> keys, Span<TValue> values, IComparer<TKey> comparer, int a, int b)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(0 <= a && a < keys.Length && a < values.Length);
             Debug.Assert(0 <= b && b < keys.Length && b < values.Length);
@@ -687,8 +672,6 @@ namespace System.Collections.Generic
 
         internal static void IntrospectiveSort(Span<TKey> keys, Span<TValue> values, int left, int length, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(left >= 0);
             Debug.Assert(length >= 0);
@@ -704,8 +687,6 @@ namespace System.Collections.Generic
 
         private static void IntroSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, int depthLimit, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi < keys.Length);
@@ -752,8 +733,6 @@ namespace System.Collections.Generic
 
         private static int PickPivotAndPartition(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
@@ -789,8 +768,6 @@ namespace System.Collections.Generic
 
         private static void HeapSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
@@ -810,8 +787,6 @@ namespace System.Collections.Generic
 
         private static void DownHeap(Span<TKey> keys, Span<TValue> values, int i, int n, int lo, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(lo < keys.Length);
@@ -838,8 +813,6 @@ namespace System.Collections.Generic
 
         private static void InsertionSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(comparer != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi >= lo);
@@ -929,8 +902,6 @@ namespace System.Collections.Generic
 
         internal static void IntrospectiveSort(Span<TKey> keys, Span<TValue> values, int left, int length)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(left >= 0);
             Debug.Assert(length >= 0);
             Debug.Assert(length <= keys.Length);
@@ -945,8 +916,6 @@ namespace System.Collections.Generic
 
         private static void IntroSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, int depthLimit)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi < keys.Length);
 
@@ -992,8 +961,6 @@ namespace System.Collections.Generic
 
         private static int PickPivotAndPartition(Span<TKey> keys, Span<TValue> values, int lo, int hi)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
@@ -1036,8 +1003,6 @@ namespace System.Collections.Generic
 
         private static void HeapSort(Span<TKey> keys, Span<TValue> values, int lo, int hi)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi > lo);
             Debug.Assert(hi < keys.Length);
@@ -1056,7 +1021,6 @@ namespace System.Collections.Generic
 
         private static void DownHeap(Span<TKey> keys, Span<TValue> values, int i, int n, int lo)
         {
-            Debug.Assert(keys != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(lo < keys.Length);
 
@@ -1082,8 +1046,6 @@ namespace System.Collections.Generic
 
         private static void InsertionSort(Span<TKey> keys, Span<TValue> values, int lo, int hi)
         {
-            Debug.Assert(keys != null);
-            Debug.Assert(values != null);
             Debug.Assert(lo >= 0);
             Debug.Assert(hi >= lo);
             Debug.Assert(hi <= keys.Length);
