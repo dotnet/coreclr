@@ -918,6 +918,6 @@ namespace System
         NotSupported_FixedSizeCollection,
         Rank_MultiDimNotSupported,
         Arg_TypeNotSupported,
-        Argument_SpansMustHaveSameLength, // TODO: Review name
+        Argument_SpansMustHaveSameLength,
     }
 }
