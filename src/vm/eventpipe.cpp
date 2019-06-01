@@ -632,7 +632,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(s_tracingInitialized);
     }
     CONTRACTL_END;
 
