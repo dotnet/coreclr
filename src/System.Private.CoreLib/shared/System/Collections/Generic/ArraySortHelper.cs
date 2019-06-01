@@ -49,8 +49,6 @@ namespace System.Collections.Generic
     {
         #region IArraySortHelper<T> Members
 
-        //public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
-        //    where TComparer : IComparer<T>
         public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
@@ -62,12 +60,9 @@ namespace System.Collections.Generic
             {
                 if (comparer == null)
                 {
-                    IntrospectiveSort(keys, index, length, Comparer<T>.Default.Compare);
+                    comparer = Comparer<T>.Default;
                 }
-                else
-                {
-                    IntrospectiveSort(keys, index, length, comparer.Compare);
-                }
+                IntrospectiveSort(keys, index, length, comparer.Compare);
             }
             catch (IndexOutOfRangeException)
             {
@@ -158,6 +153,7 @@ namespace System.Collections.Generic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Swap(Span<T> a, int i, int j)
         {
             if (i != j)
@@ -340,8 +336,6 @@ namespace System.Collections.Generic
 
         #region IArraySortHelper<T> Members
 
-        //public void Sort<TComparer>(Span<T> keys, int index, int length, TComparer comparer)
-        //    where TComparer : IComparer<T>
         public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
@@ -350,7 +344,6 @@ namespace System.Collections.Generic
             try
             {
                 if (comparer == null || comparer == Comparer<T>.Default)
-                //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<T>.Default))
                 {
                     IntrospectiveSort(keys, index, length);
                 }
@@ -633,8 +626,6 @@ namespace System.Collections.Generic
 
     internal partial class ArraySortHelper<TKey, TValue>
     {
-        //public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
-        //    where TComparer : IComparer<TKey>
         public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");  // Precondition on interface method
@@ -646,14 +637,10 @@ namespace System.Collections.Generic
             try
             {
                 if (comparer == null || comparer == Comparer<TKey>.Default)
-                //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
                 {
-                    IntrospectiveSort(keys, values, index, length, Comparer<TKey>.Default);
+                    comparer = Comparer<TKey>.Default;
                 }
-                else
-                {
-                    IntrospectiveSort(keys, values, index, length, comparer);
-                }
+                IntrospectiveSort(keys, values, index, length, comparer);
             }
             catch (IndexOutOfRangeException)
             {
@@ -688,6 +675,7 @@ namespace System.Collections.Generic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Swap(Span<TKey> keys, Span<TValue> values, int i, int j)
         {
             if (i != j)
@@ -755,7 +743,7 @@ namespace System.Collections.Generic
 
                 if (depthLimit == 0)
                 {
-                    Heapsort(keys, values, lo, hi, comparer);
+                    HeapSort(keys, values, lo, hi, comparer);
                     return;
                 }
                 depthLimit--;
@@ -804,7 +792,7 @@ namespace System.Collections.Generic
             return left;
         }
 
-        private static void Heapsort(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
+        private static void HeapSort(Span<TKey> keys, Span<TValue> values, int lo, int hi, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
@@ -885,8 +873,6 @@ namespace System.Collections.Generic
     internal partial class GenericArraySortHelper<TKey, TValue>
         where TKey : IComparable<TKey>
     {
-        //public void Sort<TComparer>(Span<TKey> keys, Span<TValue> values, int index, int length, TComparer comparer)
-        //    where TComparer : IComparer<TKey>
         public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
         {
             Debug.Assert(keys != null, "Check the arguments in the caller!");
@@ -897,7 +883,6 @@ namespace System.Collections.Generic
             try
             {
                 if (comparer == null || comparer == Comparer<TKey>.Default)
-                //if (comparer == null || typeof(TComparer).IsClass && ReferenceEquals(comparer, Comparer<TKey>.Default))
                 {
                     IntrospectiveSort(keys, values, index, length);
                 }
@@ -933,6 +918,7 @@ namespace System.Collections.Generic
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void Swap(Span<TKey> keys, Span<TValue> values, int i, int j)
         {
             if (i != j)
@@ -998,7 +984,7 @@ namespace System.Collections.Generic
 
                 if (depthLimit == 0)
                 {
-                    Heapsort(keys, values, lo, hi);
+                    HeapSort(keys, values, lo, hi);
                     return;
                 }
                 depthLimit--;
@@ -1054,7 +1040,7 @@ namespace System.Collections.Generic
             return left;
         }
 
-        private static void Heapsort(Span<TKey> keys, Span<TValue> values, int lo, int hi)
+        private static void HeapSort(Span<TKey> keys, Span<TValue> values, int lo, int hi)
         {
             Debug.Assert(keys != null);
             Debug.Assert(values != null);
