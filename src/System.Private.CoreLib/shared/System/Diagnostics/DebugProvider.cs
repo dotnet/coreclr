@@ -24,7 +24,7 @@ namespace System.Diagnostics
                 stackTrace = "";
             }
             WriteAssert(stackTrace, message, detailMessage);
-            FailCore(stackTrace, message, detailMessage, "Assertion Failed");
+            FailCore(stackTrace, message, detailMessage, "Assertion failed.");
         }
 
         internal void WriteAssert(string stackTrace, string? message, string? detailMessage)
