@@ -819,7 +819,7 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
     {
         if (exitCode == (UINT)COR_E_FAILFAST)
         {
-            PrintToStdErrA("\nProcess stopped. ");
+            PrintToStdErrA("\nProcess terminated. ");
         }
         else
         {
@@ -829,7 +829,7 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
         if (errorSource != NULL)
         {
             PrintToStdErrW(errorSource);
-            PrintToStdErrA("\n\n");
+            PrintToStdErrA("\n");
         }
 
         if (pszMessage != NULL)
@@ -844,18 +844,14 @@ void LogInfoForFatalError(UINT exitCode, LPCWSTR pszMessage, LPCWSTR errorSource
             PrintToStdErrW((LPCWSTR)exitCodeMessage);
         }
 
-        PrintToStdErrA("\n\n");
+        PrintToStdErrA("\n");
 
         if (pThread && errorSource == NULL)
         {
             LogCallstackForLogWorker();
 
             if (argExceptionString != NULL) {
-                PrintToStdErrA("\n");
-                PrintToStdErrA("Exception details:");
-                PrintToStdErrA("\n\n");
                 PrintToStdErrW(argExceptionString);
-                PrintToStdErrA("\n");
             }
         }
     }
