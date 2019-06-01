@@ -14,7 +14,7 @@ The reference assemblies for the hardware intrinsics live in corefx, but all of 
 
 * The C# implementation lives in coreclr/src/System.Private.CoreLib/shared/System/Runtime/Intrinsics. These are little more than skeleton methods that are only compiled if needed for indirect invocation.
 
-  * Note that they also exist in the dotnet/corefx repo in src\Common\src\CoreLib\System\Runtime\Intrinsic. These are mirrored between the two repositories.
+  * Note that they are mirrored to other repositories, including corefx, corert and mono.
 
 ## C# Implementation
 
@@ -25,13 +25,14 @@ The hardware intrinsics operate on and produce both primitive types (`int`, `flo
 The vector types supported by one or more target ISAs are supported across platforms, though they extent to which operations on them are available and accelerated is dependent on the target ISA. These are:
 
 * `Vector64<T>` - A 64-bit vector of type `T`. For example, a `Vector64<int>` would hold two 32-bit integers.
-  * Note that `Vector64<T>` intrinsics are supported only on Arm64, and these are not supported for `double`. Support could be added for this, but would require additional handling.
+  * Note that `Vector64<T>` intrinsics are currently supported only on Arm64, and these are not supported for `double`. Support could be added for this, but would require additional handling.
 * `Vector128<T>` - A 128-bit vector of type `T`
 * `Vector256<T>` - A 256-bit vector of type `T`
+  * `Vector256<T>` intrinsics are supported only on x86 (and x64).
 
 Note that these are generic types, which distinguishes these from native intrinsic vector types. It also somewhat complicates interop, as the runtime currently doesn't support interop for generic types. See https://github.com/dotnet/coreclr/issues/1685
 
-Not all intrinsics defined on these types support all primitive type parameters. When not supported, they are expected to throw `NotSupportedException`. This is generally handled by the C# implementation code.
+Not all intrinsics defined on these types support all primitive type parameters. When not supported, they are expected to throw `NotSupportedException`. This is generally handled by the C# implementation code, though for the most part this is a non-issue, as the ISA-specific intrinsics are declared over all supported concrete types (e.g. `Vector128<float>` rather than `Vector128<T>`).
 
 The C# declaration of a hardware intrinsic ISA class is marked with the `[Intrinsic]` attribute, and the implementations of the intrinsic methods on that class are recursive. When the VM encounters such a method, it will communicate to the JIT that this is an intrinsic method, and will also pass a `mustExpand` flag to indicate that the JIT must generate code. This allows these methods to be invoked indirectly to support the following scenarios:
 
@@ -58,7 +59,7 @@ The [Intrinsic] attribute was added to eliminate the need to check each call-sit
 
 * Method: call targets marked with [Intrinsic] will be checked by the JIT when importing call-sites. If the method's (namespace, class name, method name) triple matches a record in the Hardware Intrinsics Table, it will be recognized as an intrinsic call.
 
-* Struct: value types marked with [Intrinsic] are recognized by JIT as special types (e.g., TYP_SIMD16, TYP_SIMD32, etc.) in the IR. Currently, RyuJIT is using [Intrinsic] to distinguish Vector64<T>, Vector128<T>, Vector256<T> from other struct types.
+* Struct: value types marked with [Intrinsic] are recognized by JIT as special types (e.g., TYP_SIMD16, TYP_SIMD32, etc.) in the IR. Currently, RyuJIT is using [Intrinsic] to distinguish Vector64<T>, Vector128<T>, Vector256<T> from other struct types. The VM also uses this to special-case the layout (packing) for these types
 
 * Class: marking reference types with [Intrinsic] causes any member methods to be considered as possible intrinsics. For example, although the methods in the `Avx` class do not have [Intrinsic] but the `Avx` class itself does, which causes all of its methods to be treated as if they also have the attribute.
 
