@@ -36,8 +36,8 @@
 /****************************************************************************/
 
 MethodDesc* AsMethodDesc(size_t addr);
-static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr);
-bool isCallToStopForGCJitHelper(SLOT instrPtr);
+static PBYTE getTargetOfCall(PBYTE instrPtr, PCONTEXT regs, PBYTE*nextInstr);
+bool isCallToStopForGCJitHelper(PBYTE instrPtr);
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 static void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID codeStart);
 static bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 stopOffset, LPVOID codeStart);
@@ -73,7 +73,7 @@ static MethodDesc* getTargetMethodDesc(PCODE target)
 }
 
 
-bool IsGcCoverageInterruptInstruction(SLOT instrPtr)
+bool IsGcCoverageInterruptInstruction(PBYTE instrPtr)
 {
 #if defined(_TARGET_ARM64_)
     UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
@@ -132,7 +132,7 @@ bool IsGcCoverageInterruptInstruction(SLOT instrPtr)
 #endif
 }
 
-bool IsOriginalInstruction(SLOT instrPtr, GCCoverageInfo* gcCover, DWORD offset)
+bool IsOriginalInstruction(PBYTE instrPtr, GCCoverageInfo* gcCover, DWORD offset)
 {
 #if defined(_TARGET_ARM64_)
     UINT32 instrVal = *reinterpret_cast<UINT32*>(instrPtr);
@@ -339,7 +339,7 @@ void SetupGcCoverageForNativeImage(Module* module)
 #endif
 
 
-void ReplaceInstrAfterCall(SLOT instrToReplace, MethodDesc* callMD)
+void ReplaceInstrAfterCall(PBYTE instrToReplace, MethodDesc* callMD)
 {
     ReturnKind returnKind = callMD->GetReturnKind(true);
     if (!IsValidReturnKind(returnKind))
@@ -592,7 +592,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
         ClrVirtualProtect(codeStart, codeSize, PAGE_EXECUTE_READWRITE, &oldProtect);
     }
 
-    SLOT cur;
+    PBYTE cur;
     BYTE* codeEnd = codeStart + codeSize;
 
     EECodeInfo codeInfo((PCODE)codeStart);
@@ -683,12 +683,12 @@ void GCCoverageInfo::SprinkleBreakpoints(
                 if(safePointDecoder.IsSafePoint((UINT32)(cur + len - codeStart + regionOffsetAdj)))
 #endif
                 {
-                    SLOT nextInstr;
-                    SLOT target = getTargetOfCall(cur, NULL, &nextInstr);
+                    PBYTE nextInstr;
+                    PBYTE target = getTargetOfCall(cur, NULL, &nextInstr);
 
                     if (target != 0)
                     {
-                        if (target == (SLOT)JIT_RareDisableHelper)
+                        if (target == (PBYTE)JIT_RareDisableHelper)
                         {
                             // Skip the call to JIT_RareDisableHelper.
                             skipGCForCurrentInstr = true;
@@ -742,7 +742,7 @@ void GCCoverageInfo::SprinkleBreakpoints(
         cur += len;
 
 #ifdef _TARGET_AMD64_
-        SLOT newCur = rangeEnum.EnsureInRange(cur);
+        PBYTE newCur = rangeEnum.EnsureInRange(cur);
         if(newCur != cur)
         {
             prevDirectCallTargetMD = NULL;
@@ -828,7 +828,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
         return;
     }
 
-    SLOT instrPtr = (BYTE*)PCODEToPINSTR(pCode);
+    PBYTE instrPtr = (BYTE*)PCODEToPINSTR(pCode);
 
     // For code sequences of the type
     // BL func1 
@@ -838,7 +838,7 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
     // However as the first safe point is already replaced with gcstress instruction, decoding of the call
     // instruction will fail when processing for the 2nd safe point. Therefore saved instruction must be used instead of
     // instrPtr for decoding the call instruction.
-    SLOT savedInstrPtr = ((GCCoverageInfo*)pGCCover)->savedCode + safePointOffset;
+    PBYTE savedInstrPtr = ((GCCoverageInfo*)pGCCover)->savedCode + safePointOffset;
 
     //Determine if instruction before the safe point is call using immediate (BLX Imm)  or call by register (BLX Rm)
     BOOL  instructionIsACallThroughRegister = FALSE;
@@ -898,8 +898,8 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
     else if(instructionIsACallThroughImmediate)
     {
         // If it is call by immediate then find the methodDesc
-        SLOT nextInstr;
-        SLOT target = getTargetOfCall((SLOT)((WORD*)savedInstrPtr-2), NULL, &nextInstr);
+        PBYTE nextInstr;
+        PBYTE target = getTargetOfCall((PBYTE)((WORD*)savedInstrPtr-2), NULL, &nextInstr);
 
         if (target != 0)
         {
@@ -952,8 +952,8 @@ void replaceSafePointInstructionWithGcStressInstr(UINT32 safePointOffset, LPVOID
 bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 stopOffset, LPVOID pGCCover)
 {
     PCODE pCode = NULL;
-    SLOT rangeStart = NULL;
-    SLOT rangeStop = NULL;
+    PBYTE rangeStart = NULL;
+    PBYTE rangeStop = NULL;
 
     //Interruptible range can span across hot & cold region
     int acrossHotRegion = 1; // 1 means range is not across end of hot region & 2 is when it is across end of hot region
@@ -994,7 +994,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
     // Need to do two iterations if interruptible range spans across hot & cold region
     while(acrossHotRegion--)
     {
-        SLOT instrPtr = rangeStart;
+        PBYTE instrPtr = rangeStart;
         while(instrPtr < rangeStop)
         {
 
@@ -1045,7 +1045,7 @@ bool replaceInterruptibleRangesWithGcStressInstr (UINT32 startOffset, UINT32 sto
 // For other architecture we detect call to JIT_RareDisableHelper 
 // in function OnGcCoverageInterrupt() since getTargetOfCall() can
 // get the actual jithelper target.
-bool isCallToStopForGCJitHelper(SLOT instrPtr)
+bool isCallToStopForGCJitHelper(PBYTE instrPtr)
 {
 #if defined(_TARGET_ARM64_)    
    if (((*reinterpret_cast<DWORD*>(instrPtr)) & 0xFC000000) == 0x94000000) // Do we have a BL instruction?
@@ -1092,7 +1092,7 @@ static size_t getRegVal(unsigned regNum, PCONTEXT regs)
 }
 
 /****************************************************************************/
-static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
+static PBYTE getTargetOfCall(PBYTE instrPtr, PCONTEXT regs, PBYTE* nextInstr) {
 
     BYTE sibindexadj = 0;
     BYTE baseadj = 0;
@@ -1108,7 +1108,7 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
     // So, if a register context is available, we pick the PC from it 
     // (for address calculation purposes only). 
 
-    SLOT PC = (regs) ? (SLOT)GetIP(regs) : instrPtr;
+    PBYTE PC = (regs) ? (PBYTE)GetIP(regs) : instrPtr;
 
 #ifdef _TARGET_ARM_
     if((instrPtr[1] & 0xf0) == 0xf0) // direct call
@@ -1180,7 +1180,7 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
 
         // Note that the signed displacement is sign-extended
         //  to 64-bit on AMD64
-        return((SLOT)(base + (SSIZE_T)displacement));
+        return((PBYTE)(base + (SSIZE_T)displacement));
     }
 
     if (instrPtr[0] == 0xFF) { // Indirect Absolute Near
@@ -1189,7 +1189,7 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
 
         BYTE mod = (instrPtr[1] & 0xC0) >> 6;
         BYTE rm  = (instrPtr[1] & 0x7);
-        SLOT result;
+        PBYTE result;
 
         switch (mod) {
         case 0:
@@ -1264,7 +1264,7 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
                     result = 0;
 #endif // _TARGET_AMD64_
                 } else {
-                    result = (SLOT)getRegVal(baseadj + rm, regs);
+                    result = (PBYTE)getRegVal(baseadj + rm, regs);
                 }
 
                 if (mod == 0) {
@@ -1293,14 +1293,14 @@ static SLOT getTargetOfCall(SLOT instrPtr, PCONTEXT regs, SLOT*nextInstr) {
             //
             // Now dereference thru the result to get the resulting IP.
             //
-            result = (SLOT)(*((SLOT *)result));
+            result = (PBYTE)(*((PBYTE *)result));
 
             break;
 
         case 3:
         default:
 
-            result = (SLOT)getRegVal(baseadj + rm, regs);
+            result = (PBYTE)getRegVal(baseadj + rm, regs);
             displace += 2;
             break;
 
@@ -1356,7 +1356,7 @@ bool IsGcCoverageInterrupt(LPVOID ip)
         return false;
     }
 
-    SLOT instrPtr = reinterpret_cast<SLOT>(ip);
+    PBYTE instrPtr = reinterpret_cast<PBYTE>(ip);
 
     if (IsGcCoverageInterruptInstruction(instrPtr))
     {
@@ -1422,10 +1422,10 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
     // If this trap instruction is taken in place of CORINFO_HELP_STOP_FOR_GC()
     // Do not start a GC, but continue with the original instruction.
     // See the comments above SprinkleBreakpoints() function.
-    SLOT nextInstr;
-    SLOT target = getTargetOfCall(savedInstrPtr, regs, &nextInstr);
+    PBYTE nextInstr;
+    PBYTE target = getTargetOfCall(savedInstrPtr, regs, &nextInstr);
 
-    if (target == (SLOT)JIT_RareDisableHelper) {
+    if (target == (PBYTE)JIT_RareDisableHelper) {
         RemoveGcCoverageInterrupt(instrPtr, savedInstrPtr);
         return TRUE;
     }
@@ -1467,7 +1467,7 @@ FORCEINLINE void UpdateGCStressInstructionWithoutGC ()
 void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 {
     PCODE controlPc = GetIP(regs);
-    SLOT instrPtr = reinterpret_cast<SLOT>(PCODEToPINSTR(controlPc));
+    PBYTE instrPtr = reinterpret_cast<PBYTE>(PCODEToPINSTR(controlPc));
 
     if (!pMD)
     {
@@ -1688,8 +1688,8 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         // but it's not been a problem so far.
         // see details about <GCStress instruction update race> in comments above
         pThread->CommitGCStressInstructionUpdate ();        
-        SLOT nextInstr;
-        SLOT target = getTargetOfCall((BYTE*) instrPtr, regs, (BYTE**)&nextInstr);
+        PBYTE nextInstr;
+        PBYTE target = getTargetOfCall((BYTE*) instrPtr, regs, (BYTE**)&nextInstr);
         if (target != 0)
         {
             if (!pThread->PreemptiveGCDisabled())
