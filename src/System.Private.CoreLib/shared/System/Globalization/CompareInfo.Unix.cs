@@ -862,9 +862,10 @@ namespace System.Globalization
             {
                 return hash; // hot path, the buffer was big enough and we don't need to call the method one more time
             }
-            
+
             // "If the temporary buffer is too small, allocate or reallocate more space for in anoverflow buffer to handle the overflow situations."
-            if (TryGetSortKey(source, options, actualSortKeyLength, out _, out hash))
+            // "If there was an internal error generating the sort key, a zero value is returned. "
+            if (actualSortKeyLength > 0 && TryGetSortKey(source, options, actualSortKeyLength, out _, out hash))
             {
                 return hash;
             }
@@ -874,6 +875,8 @@ namespace System.Globalization
         
         private unsafe bool TryGetSortKey(ReadOnlySpan<char> source, CompareOptions options, int requestedSortKeyLength, out int actualSortKeyLength, out int hash)
         {
+            Debug.Assert(requestedSortKeyLength > 0);
+
             fixed (char* pSource = source)
             {
                 byte[]? borrowedArr = null;
@@ -885,8 +888,8 @@ namespace System.Globalization
                 {
                     actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, requestedSortKeyLength, options);
                 }
-                
-                if (actualSortKeyLength <= requestedSortKeyLength)
+
+                if (actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength)
                 {
                     hash = Marvin.ComputeHash32(span.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
                 }
@@ -901,7 +904,7 @@ namespace System.Globalization
                     ArrayPool<byte>.Shared.Return(borrowedArr);
                 }
                 
-                return actualSortKeyLength <= requestedSortKeyLength;
+                return actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength;
             }
         }
 

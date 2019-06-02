@@ -131,7 +131,7 @@ namespace System.Globalization
                                                   pSource, source.Length /* in chars */,
                                                   null, 0,
                                                   null, null, _sortHandle);
-                if (sortKeyLength == 0)
+                if (sortKeyLength <= 0)
                 {
                     throw new ArgumentException(SR.Arg_ExternalException);
                 }
