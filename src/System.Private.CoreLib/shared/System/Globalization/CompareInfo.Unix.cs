@@ -855,7 +855,7 @@ namespace System.Globalization
             // according to ICU User Guide: 
             // "The overall performance is poorer than if the function is called with a zero output buffer"
             // "A recommended size for the temporary buffer is four times the length of the longest string processed"
-            int recommendedSize = source.Length * 4; 
+            int recommendedSize = int.MaxValue / 4 > source.Length ? source.Length * 4 : source.Length;
 
             // "Call ucol_getSortKey() to find out how big the sort key buffer should be, and fill in the temporary buffer at the same time"
             if (TryGetSortKey(source, options, recommendedSize, out int actualSortKeyLength, out int hash))
