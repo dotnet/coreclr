@@ -855,9 +855,7 @@ namespace System.Globalization
             // according to ICU User Guide the performance of ucol_getSortKey is worse when it is called with null output buffer
             // the solution is to try to fill the sort key in a temporary buffer of size equal 4 x string length
 
-            int guessedSize = source.Length > 1024 * 1024 / 4 
-                ? source.Length * 4 
-                : 1024 * 1024; // the biggest array that can be rented from ArrayPool.Shared without memory allocation
+            int guessedSize = (int)Math.Min((long)source.Length * 4, 1024 * 1024); // 1MB is the biggest array that can be rented from ArrayPool.Shared without memory allocation
 
             if (TryGetSortKey(source, options, guessedSize, out int actualSortKeyLength, out int hash))
             {
