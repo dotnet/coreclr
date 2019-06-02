@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -343,7 +342,9 @@ namespace System.Reflection.Emit
             {
                 // Compile the method since accessibility checks are done as part of compilation.
                 GetMethodDescriptor();
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle!);
+                IRuntimeMethodInfo? methodHandle = m_methodHandle;
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                GC.KeepAlive(methodHandle);
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, null, GetMethodDescriptor());
@@ -358,7 +359,9 @@ namespace System.Reflection.Emit
             {
                 // Compile the method since accessibility checks are done as part of compilation
                 GetMethodDescriptor();
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle!);
+                IRuntimeMethodInfo? methodHandle = m_methodHandle;
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                GC.KeepAlive(methodHandle);
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, target, GetMethodDescriptor());
@@ -703,7 +706,7 @@ namespace System.Reflection.Emit
                 get { return m_owner.IsSecurityTransparent; }
             }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+#pragma warning disable CS8608 // TODO-NULLABLE: Covariant return types (https://github.com/dotnet/roslyn/issues/23268)
             public override Type ReturnType
             {
                 get
@@ -718,7 +721,7 @@ namespace System.Reflection.Emit
                 get { return null; }
             }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+#pragma warning disable CS8608 // TODO-NULLABLE: Covariant return types (https://github.com/dotnet/roslyn/issues/23268)
             public override ICustomAttributeProvider ReturnTypeCustomAttributes
             {
                 get { return GetEmptyCAHolder(); }

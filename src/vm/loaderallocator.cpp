@@ -7,6 +7,7 @@
 #include "stringliteralmap.h"
 #include "virtualcallstub.h"
 #include "threadsuspend.h"
+#include "mlinfo.h"
 #ifndef DACCESS_COMPILE
 #include "comdelegate.h"
 #endif
@@ -1104,13 +1105,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     // Take a page from the high-frequency heap for this.
     if (pExecutableHeapMemory != NULL)
     {
-#ifdef FEATURE_WINDOWSPHONE
-        // code:UMEntryThunk::CreateUMEntryThunk allocates memory on executable loader heap for phone.
-        // Reserve enough for a typical phone app to fit.
-        dwExecutableHeapReserveSize = 3 * GetOsPageSize();
-#else
         dwExecutableHeapReserveSize = GetOsPageSize();
-#endif
 
         _ASSERTE(dwExecutableHeapReserveSize < dwHighFrequencyHeapReserveSize);
         dwHighFrequencyHeapReserveSize -= dwExecutableHeapReserveSize;

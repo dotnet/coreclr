@@ -48,6 +48,14 @@
 # endif
 #endif
 
+#if HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+
+#if HAVE_CPUSET_T
+typedef cpuset_t cpu_set_t;
+#endif
+
 #include <time.h> // nanosleep
 #include <sched.h> // sched_yield
 #include <errno.h>
@@ -135,10 +143,6 @@ static size_t g_RestrictedPhysicalMemoryLimit = 0;
 uint32_t g_pageSizeUnixInl = 0;
 
 AffinitySet g_processAffinitySet;
-
-#if HAVE_CPUSET_T
-typedef cpuset_t cpu_set_t;
-#endif
 
 // The highest NUMA node available
 int g_highestNumaNode = 0;
@@ -285,7 +289,7 @@ bool GCToOSInterface::Initialize()
     g_currentProcessCpuCount = 0;
 
     cpu_set_t cpuSet;
-    int st = sched_getaffinity(0, sizeof(cpu_set_t), &cpuSet);
+    int st = sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuSet);
 
     if (st == 0)
     {
@@ -375,7 +379,8 @@ uint32_t GCToOSInterface::GetCurrentProcessId()
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t dstProcNo)
 {
-    return GCToOSInterface::SetThreadAffinity(dstProcNo);
+    // There is no way to set a thread ideal processor on Unix, so do nothing.
+    return true;
 }
 
 // Get the number of the current processor

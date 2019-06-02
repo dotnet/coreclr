@@ -2634,6 +2634,10 @@ gen_to_condemn_tuning gc_heap::gen_to_condemn_reasons;
 
 size_t      gc_heap::etw_allocation_running_amount[2];
 
+uint64_t    gc_heap::total_alloc_bytes_soh = 0;
+
+uint64_t    gc_heap::total_alloc_bytes_loh = 0;
+
 int         gc_heap::gc_policy = 0;
 
 size_t      gc_heap::allocation_running_time;
@@ -5950,6 +5954,8 @@ void gc_heap::fix_allocation_context (alloc_context* acontext, BOOL for_gc_p,
     {
         // We need to update the alloc_bytes to reflect the portion that we have not used  
         acontext->alloc_bytes -= (acontext->alloc_limit - acontext->alloc_ptr);  
+        total_alloc_bytes_soh -= (acontext->alloc_limit - acontext->alloc_ptr);
+
         acontext->alloc_ptr = 0;
         acontext->alloc_limit = acontext->alloc_ptr;
     }
@@ -10666,6 +10672,8 @@ gc_heap::init_gc_heap (int  h_number)
 
     etw_allocation_running_amount[0] = 0;
     etw_allocation_running_amount[1] = 0;
+    total_alloc_bytes_soh = 0;
+    total_alloc_bytes_loh = 0;
 
     //needs to be done after the dynamic data has been initialized
 #ifndef MULTIPLE_HEAPS
@@ -11004,7 +11012,7 @@ BOOL gc_heap::grow_heap_segment (heap_segment* seg, uint8_t* high_address, bool*
 #endif //MARK_ARRAY
         heap_segment_committed (seg) += c_size;
 
-        STRESS_LOG1(LF_GC, LL_INFO10000, "New commit: %Ix",
+        STRESS_LOG1(LF_GC, LL_INFO10000, "New commit: %Ix\n",
                     (size_t)heap_segment_committed (seg));
 
         assert (heap_segment_committed (seg) <= heap_segment_reserved (seg));
@@ -11464,6 +11472,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
 {
     bool loh_p = (gen_number > 0);
     GCSpinLock* msl = loh_p ? &more_space_lock_loh : &more_space_lock_soh;
+    uint64_t& total_alloc_bytes = loh_p ? total_alloc_bytes_loh : total_alloc_bytes_soh;
 
     size_t aligned_min_obj_size = Align(min_obj_size, align_const);
 
@@ -11496,6 +11505,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             // when we are finishing an allocation from a free list
             // we know that the free area was Align(min_obj_size) larger
             acontext->alloc_bytes -= ac_size;
+            total_alloc_bytes -= ac_size;
             size_t free_obj_size = ac_size + aligned_min_obj_size;
             make_unused_array (hole, free_obj_size);
             generation_free_obj_space (generation_of (gen_number)) += free_obj_size;
@@ -11507,21 +11517,16 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
         if (gen_number == 0)
         {
             size_t pad_size = Align (min_obj_size, align_const);
-            make_unused_array (acontext->alloc_ptr, pad_size);
             dprintf (3, ("contigous ac: making min obj gap %Ix->%Ix(%Id)", 
                 acontext->alloc_ptr, (acontext->alloc_ptr + pad_size), pad_size));
+            make_unused_array (acontext->alloc_ptr, pad_size);
             acontext->alloc_ptr += pad_size;
         }
     }
     acontext->alloc_limit = (start + limit_size - aligned_min_obj_size);
-    acontext->alloc_bytes += limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordAllocatedBytesForHeap(limit_size, heap_number);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
+    size_t added_bytes = limit_size - ((gen_number < max_generation + 1) ? aligned_min_obj_size : 0);
+    acontext->alloc_bytes += added_bytes;
+    total_alloc_bytes     += added_bytes;
 
     uint8_t* saved_used = 0;
 
@@ -11576,6 +11581,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
             *(PTR_PTR)clear_start = 0;
         }
         // skip the rest of the object
+        dprintf(3, ("zeroing optional: skipping object at %Ix->%Ix(%Id)", clear_start, obj_end, obj_end - clear_start));
         clear_start = obj_end;
     }
 
@@ -11638,7 +11644,10 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     }
 
     // verifying the memory is completely cleared.
-    //verify_mem_cleared (start - plug_skew, limit_size);
+    //if (!(flags & GC_ALLOC_ZEROING_OPTIONAL))
+    //{
+    //    verify_mem_cleared(start - plug_skew, limit_size);
+    //}
 }
 
 size_t gc_heap::new_allocation_limit (size_t size, size_t physical_limit, int gen_number)
@@ -12072,13 +12081,6 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
 {
     make_unused_array (alloc_start, size);
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::RecordAllocatedBytesForHeap(size, heap_number);
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     size_t size_of_array_base = sizeof(ArrayBase);
 
     bgc_alloc_lock->loh_alloc_done_with_index (lock_index);
@@ -12124,11 +12126,14 @@ void gc_heap::bgc_loh_alloc_clr (uint8_t* alloc_start,
         }
     }
 #endif //VERIFY_HEAP
-    
+
+    total_alloc_bytes_loh += size - Align (min_obj_size, align_const);
+
     dprintf (SPINLOCK_LOG, ("[%d]Lmsl to clear large obj", heap_number));
     add_saved_spinlock_info (true, me_release, mt_clr_large_mem);
     leave_spin_lock (&more_space_lock_loh);
 
+    ((void**) alloc_start)[-1] = 0;     //clear the sync block
     if (!(flags & GC_ALLOC_ZEROING_OPTIONAL))
     {
         memclr(alloc_start + size_to_skip, size_to_clear);
@@ -12264,8 +12269,8 @@ BOOL gc_heap::a_fit_segment_end_p (int gen_number,
 #endif //BACKGROUND_GC
 
     uint8_t*& allocated = ((gen_number == 0) ?
-                        alloc_allocated : 
-                        heap_segment_allocated(seg));
+                                    alloc_allocated : 
+                                    heap_segment_allocated(seg));
 
     size_t pad = Align (min_obj_size, align_const);
 
@@ -12327,33 +12332,42 @@ found_fit:
     }
 #endif //BACKGROUND_GC
 
-    uint8_t* old_alloc;
-    old_alloc = allocated;
 #ifdef FEATURE_LOH_COMPACTION
     if (gen_number == (max_generation + 1))
     {
-        make_unused_array (old_alloc, loh_pad);
-        old_alloc += loh_pad;
+        make_unused_array (allocated, loh_pad);
         allocated += loh_pad;
         limit -= loh_pad;
     }
 #endif //FEATURE_LOH_COMPACTION
 
-#if defined (VERIFY_HEAP) && defined (_DEBUG)
-        ((void**) allocated)[-1] = 0;     //clear the sync block
-#endif //VERIFY_HEAP && _DEBUG
-    allocated += limit;
-
     dprintf (3, ("found fit at end of seg: %Ix", old_alloc));
+
+    uint8_t* old_alloc;
+    old_alloc = allocated;
 
 #ifdef BACKGROUND_GC
     if (cookie != -1)
     {
+        allocated += limit;
         bgc_loh_alloc_clr (old_alloc, limit, acontext, flags, align_const, cookie, TRUE, seg);
     }
     else
 #endif //BACKGROUND_GC
-    {
+    {      
+        // In a contiguous AC case with GC_ALLOC_ZEROING_OPTIONAL, deduct unspent space from the limit to clear only what is necessary.
+        if ((flags & GC_ALLOC_ZEROING_OPTIONAL) &&
+            ((allocated == acontext->alloc_limit) || (allocated == (acontext->alloc_limit + Align (min_obj_size, align_const)))))
+        {
+            assert(gen_number == 0);
+            assert(allocated > acontext->alloc_ptr);
+
+            limit -= (allocated - acontext->alloc_ptr);
+            // add space for an AC continuity divider
+            limit += Align(min_obj_size, align_const);
+        }
+
+        allocated += limit;
         adjust_limit_clr (old_alloc, limit, size, acontext, flags, seg, align_const, gen_number);
     }
 
@@ -19069,10 +19083,6 @@ gc_heap::scan_background_roots (promote_func* fn, int hn, ScanContext *pSC)
 
     pSC->thread_number = hn;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    pSC->pCurrentDomain = 0;
-#endif
-
     BOOL relocate_p = (fn == &GCHeap::Relocate);
 
     dprintf (3, ("Scanning background mark list"));
@@ -20279,22 +20289,6 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
     {
         // scan for deleted entries in the syncblk cache
         GCScan::GcWeakPtrScanBySingleThread (condemned_gen_number, max_generation, &sc);
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableAppDomainMonitoring)
-        {
-            size_t promoted_all_heaps = 0;
-#ifdef MULTIPLE_HEAPS
-            for (int i = 0; i < n_heaps; i++)
-            {
-                promoted_all_heaps += promoted_bytes (i);
-            }
-#else
-            promoted_all_heaps = promoted_bytes (heap_number);
-#endif //MULTIPLE_HEAPS
-            GCToEEInterface::RecordTotalSurvivedBytes(promoted_all_heaps);
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
 #ifdef MULTIPLE_HEAPS
 
@@ -28062,15 +28056,7 @@ BOOL gc_heap::find_card(uint32_t* card_table,
             {
                 card_word_value = *(++last_card_word);
             } while ((last_card_word < &card_table [card_word_end]) &&
-
-#ifdef _MSC_VER
-                     (card_word_value == (1 << card_word_width)-1)
-#else
-                     // if left shift count >= width of type,
-                     // gcc reports error.
-                     (card_word_value == ~0u)
-#endif // _MSC_VER
-                );
+                     (card_word_value == ~0u /* (1 << card_word_width)-1 */));
             bit_position = 0;
         }
     } while (card_word_value & 1);
@@ -30462,7 +30448,7 @@ size_t gc_heap::joined_youngest_desired (size_t new_allocation)
             uint32_t memory_load = 0;
             get_memory_info (&memory_load);
             settings.exit_memory_load = memory_load;
-            dprintf (2, ("Current emory load: %d", memory_load));
+            dprintf (2, ("Current memory load: %d", memory_load));
 
             size_t final_total = 
                 trim_youngest_desired (memory_load, total_new_allocation, total_min_allocation);
@@ -34582,25 +34568,10 @@ void GCHeap::Promote(Object** ppObject, ScanContext* sc, uint32_t flags)
             hp->pin_object (o, (uint8_t**) ppObject, hp->gc_low, hp->gc_high);
 #endif //STRESS_PINNING
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_begin = hp->promoted_bytes (thread);
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     if ((o >= hp->gc_low) && (o < hp->gc_high))
     {
         hpt->mark_object_simple (&o THREAD_NUMBER_ARG);
     }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    size_t promoted_size_end = hp->promoted_bytes (thread);
-    if (g_fEnableAppDomainMonitoring)
-    {
-        if (sc->pCurrentDomain)
-        {
-            GCToEEInterface::RecordSurvivedBytesForHeap((promoted_size_end - promoted_size_begin), thread, sc->pCurrentDomain);
-        }
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     STRESS_LOG_ROOT_PROMOTE(ppObject, o, o ? header(o)->GetMethodTable() : NULL);
 }
@@ -35537,13 +35508,6 @@ void gc_heap::do_pre_gc()
 #endif //BACKGROUND_GC
         }
     }
-
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableAppDomainMonitoring)
-    {
-        GCToEEInterface::ResetTotalSurvivedBytes();
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 }
 
 #ifdef GC_CONFIG_DRIVEN
@@ -35791,13 +35755,6 @@ void gc_heap::do_post_gc()
     }
 
     GCHeap::UpdatePostGCCounters();
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    //if (g_fEnableARM)
-    //{
-    //    SystemDomain::GetADSurvivedBytes();
-    //}
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
 #ifdef STRESS_LOG
     STRESS_LOG_GC_END(VolatileLoad(&settings.gc_index),
                       (uint32_t)settings.condemned_generation,
@@ -36036,6 +35993,23 @@ size_t      GCHeap::GetTotalBytesInUse ()
     return tot_size;
 #else
     return ApproxTotalBytesInUse ();
+#endif //MULTIPLE_HEAPS
+}
+
+// Get the total allocated bytes
+uint64_t GCHeap::GetTotalAllocatedBytes()
+{
+#ifdef MULTIPLE_HEAPS
+    uint64_t total_alloc_bytes = 0;
+    for (int i = 0; i < gc_heap::n_heaps; i++)
+    {
+        gc_heap* hp = gc_heap::g_heaps[i];
+        total_alloc_bytes += hp->total_alloc_bytes_soh;
+        total_alloc_bytes += hp->total_alloc_bytes_loh;
+    }
+    return total_alloc_bytes;
+#else
+    return (pGenGCHeap->total_alloc_bytes_soh +  pGenGCHeap->total_alloc_bytes_loh);
 #endif //MULTIPLE_HEAPS
 }
 
@@ -36527,23 +36501,6 @@ size_t GCHeap::GetFinalizablePromotedCount()
 #endif //MULTIPLE_HEAPS
 }
 
-bool GCHeap::FinalizeAppDomain(void *pDomain, bool fRunFinalizers)
-{
-#ifdef MULTIPLE_HEAPS
-    bool foundp = false;
-    for (int hn = 0; hn < gc_heap::n_heaps; hn++)
-    {
-        gc_heap* hp = gc_heap::g_heaps [hn];
-        if (hp->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers))
-            foundp = true;
-    }
-    return foundp;
-
-#else //MULTIPLE_HEAPS
-    return pGenGCHeap->finalize_queue->FinalizeAppDomain (pDomain, fRunFinalizers);
-#endif //MULTIPLE_HEAPS
-}
-
 bool GCHeap::ShouldRestartFinalizerWatchDog()
 {
     // This condition was historically used as part of the condition to detect finalizer thread timeouts
@@ -36848,88 +36805,6 @@ CFinalize::GetNumberFinalizableObjects()
         (g_fFinalizerRunOnShutDown ? m_Array : SegQueue(FinalizerListSeg));
 }
 
-BOOL
-CFinalize::FinalizeSegForAppDomain (void *pDomain, 
-                                    BOOL fRunFinalizers, 
-                                    unsigned int Seg)
-{
-    BOOL finalizedFound = FALSE;
-    Object** endIndex = SegQueue (Seg);
-    for (Object** i = SegQueueLimit (Seg)-1; i >= endIndex ;i--)
-    {
-        CObjectHeader* obj = (CObjectHeader*)*i;
-
-        // Objects are put into the finalization queue before they are complete (ie their methodtable
-        // may be null) so we must check that the object we found has a method table before checking
-        // if it has the index we are looking for. If the methodtable is null, it can't be from the
-        // unloading domain, so skip it.
-        if (method_table(obj) == NULL)
-        {
-            continue;
-        }
-
-        // does the EE actually want us to finalize this object?
-        if (!GCToEEInterface::ShouldFinalizeObjectForUnload(pDomain, obj))
-        {
-            continue;
-        }
-
-        if (!fRunFinalizers || (obj->GetHeader()->GetBits()) & BIT_SBLK_FINALIZER_RUN)
-        {
-            //remove the object because we don't want to
-            //run the finalizer
-            MoveItem (i, Seg, FreeList);
-            //Reset the bit so it will be put back on the queue
-            //if resurrected and re-registered.
-            obj->GetHeader()->ClrBit (BIT_SBLK_FINALIZER_RUN);
-        }
-        else
-        {
-            if (method_table(obj)->HasCriticalFinalizer())
-            {
-                finalizedFound = TRUE;
-                MoveItem (i, Seg, CriticalFinalizerListSeg);
-            }
-            else
-            {
-                if (GCToEEInterface::AppDomainIsRudeUnload(pDomain))
-                {
-                    MoveItem (i, Seg, FreeList);
-                }
-                else
-                {
-                    finalizedFound = TRUE;
-                    MoveItem (i, Seg, FinalizerListSeg);
-                }
-            }
-        }
-    }
-
-    return finalizedFound;
-}
-
-bool
-CFinalize::FinalizeAppDomain (void *pDomain, bool fRunFinalizers)
-{
-    bool finalizedFound = false;
-
-    unsigned int startSeg = gen_segment (max_generation);
-
-    EnterFinalizeLock();
-
-    for (unsigned int Seg = startSeg; Seg <= gen_segment (0); Seg++)
-    {
-        if (FinalizeSegForAppDomain (pDomain, fRunFinalizers, Seg))
-        {
-            finalizedFound = true;
-        }
-    }
-
-    LeaveFinalizeLock();
-
-    return finalizedFound;
-}
-
 void
 CFinalize::MoveItem (Object** fromIndex,
                      unsigned int fromSeg,
@@ -36977,12 +36852,6 @@ CFinalize::GcScanRoots (promote_func* fn, int hn, ScanContext *pSC)
         Object* o = *po;
         //dprintf (3, ("scan freacheable %Ix", (size_t)o));
         dprintf (3, ("scan f %Ix", (size_t)o));
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-        if (g_fEnableAppDomainMonitoring)
-        {
-            pSC->pCurrentDomain = GCToEEInterface::GetAppDomainForObject(o);
-        }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
         (*fn)(po, pSC, 0);
     }
@@ -37386,7 +37255,7 @@ void GCHeap::DiagScanDependentHandles (handle_scan_fn fn, int gen_number, ScanCo
 // Go through and touch (read) each page straddled by a memory block.
 void TouchPages(void * pStart, size_t cb)
 {
-    const uint32_t pagesize = OS_PAGE_SIZE;
+    const size_t pagesize = OS_PAGE_SIZE;
     _ASSERTE(0 == (pagesize & (pagesize-1))); // Must be a power of 2.
     if (cb)
     {

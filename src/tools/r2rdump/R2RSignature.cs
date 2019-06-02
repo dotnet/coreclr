@@ -54,31 +54,52 @@ namespace R2RDump
         /// <param name="methodToken">ECMA token to provide string representation for</param>
         private string EmitHandleName(Handle handle, bool namespaceQualified, string owningTypeOverride, string signaturePrefix = "")
         {
-            switch (handle.Kind)
+            try
             {
-                case HandleKind.MemberReference:
-                    return EmitMemberReferenceName((MemberReferenceHandle)handle, owningTypeOverride, signaturePrefix);
+                switch (handle.Kind)
+                {
+                    case HandleKind.MemberReference:
+                        return EmitMemberReferenceName((MemberReferenceHandle)handle, owningTypeOverride, signaturePrefix);
 
-                case HandleKind.MethodSpecification:
-                    return EmitMethodSpecificationName((MethodSpecificationHandle)handle, owningTypeOverride, signaturePrefix);
+                    case HandleKind.MethodSpecification:
+                        return EmitMethodSpecificationName((MethodSpecificationHandle)handle, owningTypeOverride, signaturePrefix);
 
-                case HandleKind.MethodDefinition:
-                    return EmitMethodDefinitionName((MethodDefinitionHandle)handle, owningTypeOverride, signaturePrefix);
+                    case HandleKind.MethodDefinition:
+                        return EmitMethodDefinitionName((MethodDefinitionHandle)handle, owningTypeOverride, signaturePrefix);
 
-                case HandleKind.TypeReference:
-                    return EmitTypeReferenceName((TypeReferenceHandle)handle, namespaceQualified, signaturePrefix);
+                    case HandleKind.TypeReference:
+                        return EmitTypeReferenceName((TypeReferenceHandle)handle, namespaceQualified, signaturePrefix);
 
-                case HandleKind.TypeSpecification:
-                    return EmitTypeSpecificationName((TypeSpecificationHandle)handle, namespaceQualified, signaturePrefix);
+                    case HandleKind.TypeSpecification:
+                        return EmitTypeSpecificationName((TypeSpecificationHandle)handle, namespaceQualified, signaturePrefix);
 
-                case HandleKind.TypeDefinition:
-                    return EmitTypeDefinitionName((TypeDefinitionHandle)handle, namespaceQualified, signaturePrefix);
+                    case HandleKind.TypeDefinition:
+                        return EmitTypeDefinitionName((TypeDefinitionHandle)handle, namespaceQualified, signaturePrefix);
 
-                case HandleKind.FieldDefinition:
-                    return EmitFieldDefinitionName((FieldDefinitionHandle)handle, namespaceQualified, owningTypeOverride, signaturePrefix);
+                    case HandleKind.FieldDefinition:
+                        return EmitFieldDefinitionName((FieldDefinitionHandle)handle, namespaceQualified, owningTypeOverride, signaturePrefix);
 
-                default:
-                    throw new NotImplementedException();
+                    default:
+                        throw new NotImplementedException();
+                }
+            }
+            catch (Exception ex)
+            {
+                return $"$$INVALID-{handle.Kind}-{MetadataTokens.GetRowNumber((EntityHandle)handle):X6}: {ex.Message}";
+            }
+        }
+
+        /// <summary>
+        /// Check that the metadata handle has valid range in the appropriate table context.
+        /// </summary>
+        /// <param name="handle">Metadata handle to validate</param>
+        private void ValidateHandle(EntityHandle handle, TableIndex tableIndex)
+        {
+            int rowid = MetadataTokens.GetRowNumber(handle);
+            int tableRowCount = _metadataReader.GetTableRowCount(tableIndex);
+            if (rowid <= 0 || rowid > tableRowCount)
+            {
+                throw new NotImplementedException($"Invalid handle {MetadataTokens.GetToken(handle):X8} in table {tableIndex.ToString()} ({tableRowCount} rows)");
             }
         }
 
@@ -88,6 +109,7 @@ namespace R2RDump
         /// <param name="methodSpecHandle">Method specification handle</param>
         private string EmitMethodSpecificationName(MethodSpecificationHandle methodSpecHandle, string owningTypeOverride, string signaturePrefix)
         {
+            ValidateHandle(methodSpecHandle, TableIndex.MethodSpec);
             MethodSpecification methodSpec = _metadataReader.GetMethodSpecification(methodSpecHandle);
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
             return EmitHandleName(methodSpec.Method, namespaceQualified: true, owningTypeOverride: owningTypeOverride, signaturePrefix: signaturePrefix)
@@ -100,6 +122,7 @@ namespace R2RDump
         /// <param name="memberRefHandle">Member reference handle</param>
         private string EmitMemberReferenceName(MemberReferenceHandle memberRefHandle, string owningTypeOverride, string signaturePrefix)
         {
+            ValidateHandle(memberRefHandle, TableIndex.MemberRef);
             MemberReference memberRef = _metadataReader.GetMemberReference(memberRefHandle);
             StringBuilder builder = new StringBuilder();
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
@@ -137,6 +160,7 @@ namespace R2RDump
         /// <param name="methodSpecHandle">Method definition handle</param>
         private string EmitMethodDefinitionName(MethodDefinitionHandle methodDefinitionHandle, string owningTypeOverride, string signaturePrefix)
         {
+            ValidateHandle(methodDefinitionHandle, TableIndex.MethodDef);
             MethodDefinition methodDef = _metadataReader.GetMethodDefinition(methodDefinitionHandle);
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
             MethodSignature<string> methodSig = methodDef.DecodeSignature<string, DisassemblingGenericContext>(this, genericContext);
@@ -222,6 +246,7 @@ namespace R2RDump
         /// <param name="signaturePrefix">Optional type name signature prefix</param>
         private string EmitTypeReferenceName(TypeReferenceHandle typeRefHandle, bool namespaceQualified, string signaturePrefix)
         {
+            ValidateHandle(typeRefHandle, TableIndex.TypeRef);
             TypeReference typeRef = _metadataReader.GetTypeReference(typeRefHandle);
             string typeName = EmitString(typeRef.Name);
             string output = "";
@@ -250,6 +275,7 @@ namespace R2RDump
         /// <returns></returns>
         private string EmitTypeDefinitionName(TypeDefinitionHandle typeDefHandle, bool namespaceQualified, string signaturePrefix)
         {
+            ValidateHandle(typeDefHandle, TableIndex.TypeDef);
             TypeDefinition typeDef = _metadataReader.GetTypeDefinition(typeDefHandle);
             string typeName = signaturePrefix + EmitString(typeDef.Name);
             if (typeDef.IsNested)
@@ -281,6 +307,7 @@ namespace R2RDump
         /// <param name="namespaceQualified">When set to true, include namespace information</param>
         private string EmitTypeSpecificationName(TypeSpecificationHandle typeSpecHandle, bool namespaceQualified, string signaturePrefix)
         {
+            ValidateHandle(typeSpecHandle, TableIndex.TypeSpec);
             TypeSpecification typeSpec = _metadataReader.GetTypeSpecification(typeSpecHandle);
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
             return typeSpec.DecodeSignature<string, DisassemblingGenericContext>(this, genericContext);
@@ -296,6 +323,7 @@ namespace R2RDump
         /// <returns>Textual representation of the field declaration</returns>
         private string EmitFieldDefinitionName(FieldDefinitionHandle fieldDefHandle, bool namespaceQualified, string owningTypeOverride, string signaturePrefix)
         {
+            ValidateHandle(fieldDefHandle, TableIndex.Field);
             FieldDefinition fieldDef = _metadataReader.GetFieldDefinition(fieldDefHandle);
             DisassemblingGenericContext genericContext = new DisassemblingGenericContext(Array.Empty<string>(), Array.Empty<string>());
             StringBuilder output = new StringBuilder();
@@ -483,8 +511,16 @@ namespace R2RDump
         {
             StringBuilder builder = new StringBuilder();
             int startOffset = _offset;
-            ParseSignature(builder);
-            EmitSignatureBinaryFrom(builder, startOffset);
+            try
+            {
+                ParseSignature(builder);
+                EmitSignatureBinaryFrom(builder, startOffset);
+            }
+            catch (Exception ex)
+            {
+                builder.Append(" - ");
+                builder.Append(ex.Message);
+            }
             return builder.ToString();
         }
 
@@ -492,15 +528,31 @@ namespace R2RDump
         {
             StringBuilder builder = new StringBuilder();
             int startOffset = _offset;
-            ParseType(builder);
-            EmitSignatureBinaryFrom(builder, startOffset);
+            try
+            {
+                ParseType(builder);
+                EmitSignatureBinaryFrom(builder, startOffset);
+            }
+            catch (Exception ex)
+            {
+                builder.Append(" - ");
+                builder.Append(ex.Message);
+            }
             return builder.ToString();
         }
 
         public string ReadTypeSignatureNoEmit()
         {
             StringBuilder builder = new StringBuilder();
-            ParseType(builder);
+            try
+            {
+                ParseType(builder);
+            }
+            catch (Exception ex)
+            {
+                builder.Append(" - ");
+                builder.Append(ex.Message);
+            }
             return builder.ToString();
         }
 

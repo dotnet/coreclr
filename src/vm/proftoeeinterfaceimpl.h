@@ -29,6 +29,7 @@
 
 
 #include "profilinghelper.h"
+#include "profilinghelper.inl"
 
 
 class ProfilerFunctionEnum;
@@ -577,7 +578,7 @@ public:
 
     // end ICorProfilerInfo8
 
-    // beging ICorProfilerInfo9
+    // begin ICorProfilerInfo9
 
     COM_METHOD GetNativeCodeStartAddresses(
         FunctionID functionID, 
@@ -602,16 +603,19 @@ public:
 
     // beging ICorProfilerInfo10
 
-    COM_METHOD GetObjectReferences(
-        ObjectID objectId,
-        ULONG32 cNumReferences,
-        ULONG32 *pcNumReferences,
-        ObjectID references[],
-        SIZE_T offsets[]);
+    COM_METHOD EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData);
 
     COM_METHOD IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
 
-    // end ICorProfilerInfo10
+    COM_METHOD GetLOHObjectSizeThreshold(DWORD *pThreshold);
+
+    COM_METHOD RequestReJITWithInliners(
+        DWORD       dwRejitFlags,
+        ULONG       cFunctions,
+        ModuleID    moduleIds[],
+        mdMethodDef methodIds[]);
+
+    // end ICorProfilerInfo10    
 
 protected:
 

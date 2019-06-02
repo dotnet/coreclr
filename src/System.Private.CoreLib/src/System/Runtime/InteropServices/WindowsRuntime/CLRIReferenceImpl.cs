@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Diagnostics;
 
@@ -38,7 +37,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         object IGetProxyTarget.GetTarget()
         {
-            return _value!; // TODO-NULLABLE-GENERIC
+            return _value!;
         }
 
         // We have T in an IReference<T>.  Need to QI for IReference<T> with the appropriate GUID, call
@@ -51,7 +50,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             Debug.Assert(wrapper != null);
             IReference<T> reference = (IReference<T>)wrapper;
             Debug.Assert(reference != null, "CLRIReferenceImpl::UnboxHelper - QI'ed for IReference<" + typeof(T) + ">, but that failed.");
-            return reference.Value!; // TODO-NULLABLE-GENERIC
+            return reference.Value!;
         }
     }
 

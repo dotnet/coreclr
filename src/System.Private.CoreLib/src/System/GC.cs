@@ -13,7 +13,6 @@
 **
 ===========================================================*/
 
-#nullable enable
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
@@ -103,6 +102,12 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int GetLastGCPercentTimeInGC();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern ulong GetGenerationSize(int gen);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);
@@ -346,12 +351,15 @@ namespace System
         private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern long _GetAllocatedBytesForCurrentThread();
+        public static extern long GetAllocatedBytesForCurrentThread();
 
-        public static long GetAllocatedBytesForCurrentThread()
-        {
-            return _GetAllocatedBytesForCurrentThread();
-        }
+
+        /// <summary>
+        /// Get a count of the bytes allocated over the lifetime of the process.
+        /// <param name="precise">If true, gather a precise number, otherwise gather a fairly count. Gathering a precise value triggers at a significant performance penalty.</param>
+        /// </summary>
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern long GetTotalAllocatedBytes(bool precise = false);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
@@ -652,6 +660,11 @@ namespace System
         // the array is always zero-initialized.
         internal static T[] AllocateUninitializedArray<T>(int length)
         {
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            {
+                return new T[length];
+            }
+
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 #if DEBUG

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -81,7 +80,7 @@ namespace System.Reflection
         {
             RuntimeAssembly? retAssembly = null;
             GetExecutingAssemblyNative(JitHelpers.GetStackCrawlMarkHandle(ref stackMark), JitHelpers.GetObjectHandleOnStack(ref retAssembly));
-            return retAssembly!; // TODO-NULLABLE: Confirm this can never be null
+            return retAssembly!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
         }
 
         // Get the assembly that the current code is running from.
@@ -121,5 +120,8 @@ namespace System.Reflection
         // Exists to faciliate code sharing between CoreCLR and CoreRT.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern uint GetAssemblyCount();
     }
 }

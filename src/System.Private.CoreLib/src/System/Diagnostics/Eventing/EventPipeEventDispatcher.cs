@@ -1,7 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
-#nullable enable
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -111,7 +110,7 @@ namespace System.Diagnostics.Tracing
                 new EventPipeProviderConfiguration(NativeRuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel, null)
             };
 
-            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
+            m_sessionID = EventPipeInternal.Enable(null, 1024, providerConfiguration, 1);
             Debug.Assert(m_sessionID != 0);
 
             // Get the session information that is required to properly dispatch events.
@@ -163,7 +162,7 @@ namespace System.Diagnostics.Tracing
             while (!m_stopDispatchTask)
             {
                 // Get the next event.
-                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(&instanceData))
+                while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(m_sessionID, &instanceData))
                 {
                     // Filter based on provider.
                     if (instanceData.ProviderID == m_RuntimeProviderID)

@@ -2,9 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security;
 using System.Text;
@@ -419,6 +419,7 @@ namespace System.Reflection
             }
         }
 
+        [DoesNotReturn]
         private void ThrowNoInvokeException()
         {
             // method is on a class that contains stack pointers
@@ -508,7 +509,7 @@ namespace System.Reflection
 
         #region MethodInfo Overrides
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+#pragma warning disable CS8608 // TODO-NULLABLE: Covariant return types (https://github.com/dotnet/roslyn/issues/23268)
         public override Type ReturnType
         {
             get { return Signature.ReturnType; }
@@ -529,7 +530,7 @@ namespace System.Reflection
         }
 #pragma warning restore CS8608
 
-        public override bool IsCollectible => RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle));
+        public override bool IsCollectible => (RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle)) != Interop.BOOL.FALSE);
 
         public override MethodInfo? GetBaseDefinition()
         {

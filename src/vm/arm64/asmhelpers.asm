@@ -11,12 +11,14 @@
 #include "asmconstants.h"
 #include "asmmacros.h"
 
+#ifdef FEATURE_PREJIT
     IMPORT VirtualMethodFixupWorker
+    IMPORT StubDispatchFixupWorker
+#endif
     IMPORT ExternalMethodFixupWorker
     IMPORT PreStubWorker
     IMPORT NDirectImportWorker
     IMPORT VSD_ResolveWorker
-    IMPORT StubDispatchFixupWorker
     IMPORT JIT_InternalThrow
     IMPORT ComPreStubWorker
     IMPORT COMToCLRWorker
@@ -532,6 +534,7 @@ Exit
         ret      lr
     WRITE_BARRIER_END JIT_WriteBarrier
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; VirtualMethodFixupStub
 ;
@@ -579,6 +582,8 @@ Exit
     EPILOG_BRANCH_REG x12
 
     NESTED_END
+#endif // FEATURE_PREJIT
+
 ;------------------------------------------------
 ; ExternalMethodFixupStub
 ;
@@ -652,6 +657,7 @@ LNoFloatRetVal
         ret
 LNoDoubleRetVal
 
+        ;; Float HFA return case
         cmp     w0, #16
         bne     LNoFloatHFARetVal
         ldp     s0, s1, [x1]
@@ -659,12 +665,21 @@ LNoDoubleRetVal
         ret
 LNoFloatHFARetVal
 
+        ;;Double HFA return case
         cmp     w0, #32
         bne     LNoDoubleHFARetVal
         ldp     d0, d1, [x1]
         ldp     d2, d3, [x1, #16]
         ret
 LNoDoubleHFARetVal
+
+        ;;Vector HVA return case
+        cmp     w3, #64
+        bne     LNoVectorHVARetVal
+        ldp     q0, q1, [x1]
+        ldp     q2, q3, [x1, #32]
+        ret
+LNoVectorHVARetVal
 
         EMIT_BREAKPOINT ; Unreachable
 
@@ -691,7 +706,7 @@ NoFloatingPointRetVal
 ;
     NESTED_ENTRY GenericComPlusCallStub
 
-        PROLOG_WITH_TRANSITION_BLOCK 0x20
+        PROLOG_WITH_TRANSITION_BLOCK ASM_ENREGISTERED_RETURNTYPE_MAXSIZE
 
         add         x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov         x1, x12                         ; pMethodDesc
@@ -706,8 +721,7 @@ NoFloatingPointRetVal
         ; x0 = fpRetSize
 
         ; The return value is stored before float argument registers
-        ; The maximum size of a return value is 0x40 (HVA of 4x16)
-        add         x1, sp, #(__PWTB_FloatArgumentRegisters - 0x40)
+        add         x1, sp, #(__PWTB_FloatArgumentRegisters - ASM_ENREGISTERED_RETURNTYPE_MAXSIZE)
         bl          setStubReturnValue
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
@@ -1045,7 +1059,7 @@ UMThunkStub_DoTrapReturningThreads
 ; ------------------------------------------------------------------
 ; Hijack function for functions which return a scalar type or a struct (value type)
     NESTED_ENTRY OnHijackTripThread
-    PROLOG_SAVE_REG_PAIR   fp, lr, #-144!
+    PROLOG_SAVE_REG_PAIR   fp, lr, #-176!
     ; Spill callee saved registers 
     PROLOG_SAVE_REG_PAIR   x19, x20, #16
     PROLOG_SAVE_REG_PAIR   x21, x22, #32
@@ -1056,9 +1070,9 @@ UMThunkStub_DoTrapReturningThreads
     ; save any integral return value(s)
     stp x0, x1, [sp, #96]
 
-    ; save any FP/HFA return value(s)
-    stp d0, d1, [sp, #112]
-    stp d2, d3, [sp, #128]
+    ; save any FP/HFA/HVA return value(s)
+    stp q0, q1, [sp, #112]
+    stp q2, q3, [sp, #144]
 
     mov x0, sp
     bl OnHijackWorker
@@ -1066,16 +1080,16 @@ UMThunkStub_DoTrapReturningThreads
     ; restore any integral return value(s)
     ldp x0, x1, [sp, #96]
 
-    ; restore any FP/HFA return value(s)
-    ldp d0, d1, [sp, #112]
-    ldp d2, d3, [sp, #128]
+    ; restore any FP/HFA/HVA return value(s)
+    ldp q0, q1, [sp, #112]
+    ldp q2, q3, [sp, #144]
 
     EPILOG_RESTORE_REG_PAIR   x19, x20, #16
     EPILOG_RESTORE_REG_PAIR   x21, x22, #32
     EPILOG_RESTORE_REG_PAIR   x23, x24, #48
     EPILOG_RESTORE_REG_PAIR   x25, x26, #64
     EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-    EPILOG_RESTORE_REG_PAIR   fp, lr,   #144!
+    EPILOG_RESTORE_REG_PAIR   fp, lr,   #176!
     EPILOG_RETURN
     NESTED_END
 

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -270,9 +269,9 @@ namespace System.Threading
         public static void SpinWait(int iterations) => SpinWaitInternal(iterations);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool YieldInternal();
+        private static extern Interop.BOOL YieldInternal();
 
-        public static bool Yield() => YieldInternal();
+        public static bool Yield() => YieldInternal() != Interop.BOOL.FALSE;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());

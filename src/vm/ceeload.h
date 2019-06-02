@@ -36,6 +36,8 @@
 #include "corcompile.h"
 #include <gcinfodecoder.h>
 
+#include "wellknownattributes.h"
+
 #ifdef FEATURE_PREJIT
 #include "dataimage.h"
 #endif // FEATURE_PREJIT
@@ -77,6 +79,7 @@ class DynamicMethodTable;
 class CodeVersionManager;
 class TieredCompilationManager;
 class ProfileEmitter;
+class JITInlineTrackingMap;
 #ifdef FEATURE_PREJIT
 class TypeHandleList;
 class TrackingMap;
@@ -108,6 +111,7 @@ extern VerboseLevel g_CorCompileVerboseLevel;
 #endif
 
 typedef DPTR(PersistentInlineTrackingMapNGen) PTR_PersistentInlineTrackingMapNGen;
+typedef DPTR(JITInlineTrackingMap) PTR_JITInlineTrackingMap;
 
 //
 // LookupMaps are used to implement RID maps
@@ -376,8 +380,10 @@ public:
         WRAPPER_NO_CONTRACT;
 
         _ASSERTE((flag & supportedFlags) == flag);
+#ifdef FEATURE_PREJIT
         _ASSERTE(!MapIsCompressed());
         _ASSERTE(dwNumHotItems == 0);
+#endif // FEATURE_PREJIT
 
         PTR_TADDR pElement = GetElementPtr(rid);
         _ASSERTE(pElement);
@@ -736,9 +742,6 @@ struct ModuleCtorInfo
 };
 
 
-
-#ifdef FEATURE_PREJIT
-
 // For IBC Profiling we collect signature blobs for instantiated types.
 // For such instantiated types and methods we create our own ibc token
 // 
@@ -1000,7 +1003,7 @@ public:
 typedef SHash<ProfilingBlobTraits> ProfilingBlobTable;
 typedef DPTR(ProfilingBlobTable) PTR_ProfilingBlobTable;
 
-
+#ifdef FEATURE_PREJIT
 #define METHODTABLE_RESTORE_REASON() \
     RESTORE_REASON_FUNC(CanNotPreRestoreHardBindToParentMethodTable) \
     RESTORE_REASON_FUNC(CanNotPreRestoreHardBindToCanonicalMethodTable) \
@@ -1625,6 +1628,7 @@ private:
 #if PROFILING_SUPPORTED_DATA 
     DWORD                   m_dwTypeCount;
     DWORD                   m_dwExportedTypeCount;
+    DWORD                   m_dwCustomAttributeCount;
 #endif // PROFILING_SUPPORTED_DATA
 
 #ifdef FEATURE_PREJIT
@@ -1886,6 +1890,20 @@ protected:
 #endif
 
     CHECK CheckActivated();
+
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        if (IsReadyToRun())
+        {
+            if (!GetReadyToRunInfo()->MayHaveCustomAttribute(attribute, parentToken))
+                return S_FALSE;
+        }
+
+        return GetMDImport()->GetCustomAttributeByName(parentToken, GetWellKnownAttributeName(attribute), ppData, pcbData);
+    }
 
     IMDInternalImport *GetMDImport() const
     {
@@ -2522,8 +2540,13 @@ public:
     void NotifyProfilerLoadFinished(HRESULT hr);
 #endif // PROFILING_SUPPORTED
 
-    BOOL HasInlineTrackingMap();
-    COUNT_T GetInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+    BOOL HasNativeOrReadyToRunInlineTrackingMap();
+    COUNT_T GetNativeOrReadyToRunInliners(PTR_Module inlineeOwnerMod, mdMethodDef inlineeTkn, COUNT_T inlinersSize, MethodInModule inliners[], BOOL *incompleteData);
+#if defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    BOOL HasJitInlineTrackingMap();
+    PTR_JITInlineTrackingMap GetJitInlineTrackingMap() { LIMITED_METHOD_CONTRACT; return m_pJitInlinerTrackingMap; }
+    void AddInlining(MethodDesc *inliner, MethodDesc *inlinee);
+#endif // defined(PROFILING_SUPPORTED) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 public:
     void NotifyEtwLoadFinished(HRESULT hr);
@@ -2849,7 +2872,7 @@ public:
     }
 #endif // FEATURE_PREJIT
 
-    ICorJitInfo::ProfileBuffer * AllocateProfileBuffer(mdToken _token, DWORD _size, DWORD _ILSize);
+    ICorJitInfo::BlockCounts * AllocateMethodBlockCounts(mdToken _token, DWORD _size, DWORD _ILSize);
     HANDLE OpenMethodProfileDataLogFile(GUID mvid);
     static void ProfileDataAllocateTokenLists(ProfileEmitter * pEmitter, TokenProfileData* pTokenProfileData);
     HRESULT WriteMethodProfileDataLogFile(bool cleanup);
@@ -3178,6 +3201,10 @@ private:
 
     // This is a compressed read only copy of m_inlineTrackingMap, which is being saved to NGEN image.
     PTR_PersistentInlineTrackingMapNGen m_pPersistentInlineTrackingMapNGen;
+
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
+    PTR_JITInlineTrackingMap m_pJitInlinerTrackingMap;
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
 
     LPCSTR               *m_AssemblyRefByNameTable;  // array that maps mdAssemblyRef tokens into their simple name

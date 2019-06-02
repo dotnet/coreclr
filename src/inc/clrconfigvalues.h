@@ -111,11 +111,6 @@ CONFIG_DWORD_INFO(INTERNAL_ADTakeSnapShot, W("ADTakeSnapShot"), 0, "Superseded b
 CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_EnableFullDebug, W("EnableFullDebug"), "Heavy-weight checking for AD boundary violations (AD leaks)")
 
 ///
-/// ARM
-///
-RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_ARMEnabled, W("ARMEnabled"), (DWORD)0, "AppDomain Resource Monitoring. Set to 1 to enable it")
-
-///
 /// Jit Pitching
 ///
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitPitchEnabled, W("JitPitchEnabled"), (DWORD)0, "Set it to 1 to enable Jit Pitching")
@@ -252,8 +247,11 @@ CONFIG_DWORD_INFO_DIRECT_ACCESS(INTERNAL_SuppressChecks, W("SuppressChecks"), ""
 #ifdef WIN64EXCEPTIONS
 CONFIG_DWORD_INFO(INTERNAL_SuppressLockViolationsOnReentryFromOS, W("SuppressLockViolationsOnReentryFromOS"), 0, "64 bit OOM tests re-enter the CLR via RtlVirtualUnwind.  This indicates whether to suppress resulting locking violations.")
 #endif // WIN64EXCEPTIONS
-CONFIG_STRING_INFO(INTERNAL_TestHooks, W("TestHooks"), "Used by tests to get test an insight on various CLR workings")
 
+///
+/// Diagnostics (unsuported general-purpose)
+///
+RETAIL_CONFIG_DWORD_INFO(UNSUPORTED_LTTng, W("LTTng"), 1, "If COMPlus_LTTng is set to 0, this will prevent the LTTng library from being loaded at runtime")
 
 ///
 /// Exception Handling
@@ -408,6 +406,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_JitVNMapSelBudget, W("JitVNMapSelBudget"), 100
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_FeatureSIMD, W("FeatureSIMD"), EXTERNAL_FeatureSIMD_Default, "Enable SIMD intrinsics recognition in System.Numerics.dll and/or System.Numerics.Vectors.dll", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_SIMD16ByteOnly, W("SIMD16ByteOnly"), 0, "Limit maximum SIMD vector length to 16 bytes (used by x64_arm64_altjit)")
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_EnableAVX, W("EnableAVX"), EXTERNAL_JitEnableAVX_Default, "Enable AVX instruction set for wide operations as default", CLRConfig::REGUTIL_default)
+RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_TrackDynamicMethodDebugInfo, W("TrackDynamicMethodDebugInfo"), 0, "Specifies whether debug info should be generated and tracked for dynamic methods", CLRConfig::REGUTIL_default)
 
 #ifdef FEATURE_MULTICOREJIT
 
@@ -540,11 +539,6 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_CrossGenAssumeInputSigned, W("CrossGenAssumeIn
 #endif
 
 ///
-/// Performance
-///
-RETAIL_CONFIG_STRING_INFO(EXTERNAL_PerformanceScenario, W("performanceScenario"), "Activates a set of workload-specific default values for performance settings")
-
-///
 /// Profiling API / ETW
 ///
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_COR_ENABLE_PROFILING, W("COR_ENABLE_PROFILING"), 0, "Flag to indicate whether profiling should be enabled for the currently running process.", CLRConfig::DontPrependCOMPlus_ | CLRConfig::IgnoreConfigFiles)
@@ -558,22 +552,17 @@ RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_CORECLR_PROFILER_PATH, W("CORECLR_PROFILER
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_CORECLR_PROFILER_PATH_32, W("CORECLR_PROFILER_PATH_32"), "CoreCLR only: Specifies the path to the DLL of profiler to load into currently running 32 process", CLRConfig::DontPrependCOMPlus_)
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_CORECLR_PROFILER_PATH_64, W("CORECLR_PROFILER_PATH_64"), "CoreCLR only: Specifies the path to the DLL of profiler to load into currently running 64 process", CLRConfig::DontPrependCOMPlus_)
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_ProfAPI_ProfilerCompatibilitySetting, W("ProfAPI_ProfilerCompatibilitySetting"), "Specifies the profiler loading policy (the default is not to load a V2 profiler in V4)", CLRConfig::REGUTIL_default | CLRConfig::TrimWhiteSpaceFromStringValue)
-RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_AttachThreadAlwaysOn, W("AttachThreadAlwaysOn"), "Forces profapi attach thread to be created on startup, instead of on-demand.")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_MsBetweenAttachCheck, W("MsBetweenAttachCheck"), 500, "")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPIMaxWaitForTriggerMs, W("ProfAPIMaxWaitForTriggerMs"), 5*60*1000, "Timeout in ms for profilee to wait for each blocking operation performed by trigger app.")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_DetachMinSleepMs, W("ProfAPI_DetachMinSleepMs"), 0, "The minimum time, in milliseconds, the CLR will wait before checking whether a profiler that is in the process of detaching is ready to be unloaded.")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_DetachMaxSleepMs, W("ProfAPI_DetachMaxSleepMs"), 0, "The maximum time, in milliseconds, the CLR will wait before checking whether a profiler that is in the process of detaching is ready to be unloaded.")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_RejitOnAttach, W("ProfApi_RejitOnAttach"), 1, "Enables the ability for profilers to rejit methods on attach.")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_InliningTracking, W("ProfApi_InliningTracking"), 1, "Enables the runtime's tracking of inlining for profiler ReJIT.")
 CONFIG_DWORD_INFO(INTERNAL_ProfAPI_EnableRejitDiagnostics, W("ProfAPI_EnableRejitDiagnostics"), 0, "Enable extra dumping to stdout of rejit structures")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ProfAPI_AttachProfilerMinTimeoutInMs, W("ProfAPI_AttachProfilerMinTimeoutInMs"), 10*1000, "Timeout in ms for the minimum time out value of AttachProfiler")
 CONFIG_DWORD_INFO(INTERNAL_ProfAPIFault, W("ProfAPIFault"), 0, "Test-only bitmask to inject various types of faults in the profapi code")
 CONFIG_DWORD_INFO(INTERNAL_TestOnlyAllowedEventMask, W("TestOnlyAllowedEventMask"), 0, "Test-only bitmask to allow profiler tests to override CLR enforcement of COR_PRF_ALLOWABLE_AFTER_ATTACH and COR_PRF_MONITOR_IMMUTABLE")
 CONFIG_DWORD_INFO(INTERNAL_TestOnlyEnableICorProfilerInfo, W("ProfAPI_TestOnlyEnableICorProfilerInfo"), 0, "Test-only flag to allow attaching profiler tests to call ICorProfilerInfo interface, which would otherwise be disallowed for attaching profilers")
 CONFIG_DWORD_INFO(INTERNAL_TestOnlyEnableObjectAllocatedHook, W("TestOnlyEnableObjectAllocatedHook"), 0, "Test-only flag that forces CLR to initialize on startup as if ObjectAllocated callback were requested, to enable post-attach ObjectAllocated functionality.")
 CONFIG_DWORD_INFO(INTERNAL_TestOnlyEnableSlowELTHooks, W("TestOnlyEnableSlowELTHooks"), 0, "Test-only flag that forces CLR to initialize on startup as if slow-ELT were requested, to enable post-attach ELT functionality.")
 
-RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_PreVistaETWEnabled, W("ETWEnabled"), 0, "This flag is used on OSes < Vista to enable/disable ETW. It is disabled by default", CLRConfig::REGUTIL_default)
-RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_VistaAndAboveETWEnabled, W("ETWEnabled"), 1, "This flag is used on OSes >= Vista to enable/disable ETW. It is enabled by default", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_STRING_INFO_EX(UNSUPPORTED_ETW_ObjectAllocationEventsPerTypePerSec, W("ETW_ObjectAllocationEventsPerTypePerSec"), "Desired number of GCSampledObjectAllocation ETW events to be logged per type per second.  If 0, then the default built in to the implementation for the enabled event (e.g., High, Low), will be used.", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_ProfAPI_ValidateNGENInstrumentation, W("ProfAPI_ValidateNGENInstrumentation"), 0, "This flag enables additional validations when using the IMetaDataEmit APIs for NGEN'ed images to ensure only supported edits are made.")
 
@@ -606,6 +595,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_ThreadSuspendInjection, W("INTERNAL_ThreadSusp
 ///
 /// Thread (miscellaneous)
 ///
+RETAIL_CONFIG_DWORD_INFO(INTERNAL_DefaultStackSize, W("DefaultStackSize"), 0, "Stack size to use for new VM threads when thread is created with default stack size (dwStackSize == 0).")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_Thread_DeadThreadCountThresholdForGCTrigger, W("Thread_DeadThreadCountThresholdForGCTrigger"), 75, "In the heuristics to clean up dead threads, this threshold must be reached before triggering a GC will be considered. Set to 0 to disable triggering a GC based on dead threads.")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_Thread_DeadThreadGCTriggerPeriodMilliseconds, W("Thread_DeadThreadGCTriggerPeriodMilliseconds"), 1000 * 60 * 30, "In the heuristics to clean up dead threads, this much time must have elapsed since the previous max-generation GC before triggering another GC will be considered")
 
@@ -647,7 +637,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_HillClimbing_GainExponent,                    
 ///
 #ifdef FEATURE_TIERED_COMPILATION
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TieredCompilation, W("TieredCompilation"), 1, "Enables tiered compilation")
-RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TC_QuickJit, W("TC_QuickJit"), 0, "For methods that would be jitted, enable using quick JIT when appropriate.")
+RETAIL_CONFIG_DWORD_INFO(EXTERNAL_TC_QuickJit, W("TC_QuickJit"), 1, "For methods that would be jitted, enable using quick JIT when appropriate.")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_TC_QuickJitForLoops, W("TC_QuickJitForLoops"), 0, "When quick JIT is enabled, quick JIT may also be used for methods that contain loops.")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_CallCountThreshold, W("TC_CallCountThreshold"), 30, "Number of times a method must be called in tier 0 after which it is promoted to the next tier.")
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_TC_CallCountingDelayMs, W("TC_CallCountingDelayMs"), 100, "A perpetual delay in milliseconds that is applied call counting in tier 0 and jitting at higher tiers, while there is startup-like activity.")
@@ -698,15 +688,8 @@ RETAIL_CONFIG_STRING_INFO(EXTERNAL_ZapRequireList, W("ZapRequireList"), "")
 RETAIL_CONFIG_STRING_INFO_EX(EXTERNAL_ZapSet, W("ZapSet"), "", CLRConfig::REGUTIL_default)
 
 #ifdef FEATURE_LAZY_COW_PAGES
-
-#ifdef FEATURE_WINDOWSPHONE
 RETAIL_CONFIG_DWORD_INFO(INTERNAL_ZapLazyCOWPagesEnabled, W("ZapLazyCOWPagesEnabled"), 1, "");
-#else //FEATURE_WINDOWSPHONE
-RETAIL_CONFIG_DWORD_INFO(INTERNAL_ZapLazyCOWPagesEnabled, W("ZapLazyCOWPagesEnabled"), 0, "");
-#endif //FEATURE_WINDOWSPHONE
-
 CONFIG_DWORD_INFO(INTERNAL_DebugAssertOnMissedCOWPage, W("DebugAssertOnMissedCOWPage"), 1, "");
-
 #endif //FEATURE_LAZY_COW_PAGES
 
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ReadyToRun, W("ReadyToRun"), 1, "Enable/disable use of ReadyToRun native code") // On by default for CoreCLR

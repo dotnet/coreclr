@@ -409,46 +409,6 @@ Thread* GCToEEInterface::GetThread()
     return ::GetThread();
 }
 
-struct BackgroundThreadStubArgs
-{
-    Thread* thread;
-    GCBackgroundThreadFunction threadStart;
-    void* arg;
-    CLREvent threadStartedEvent;
-    bool hasStarted;
-};
-
-DWORD WINAPI BackgroundThreadStub(void* arg)
-{
-    BackgroundThreadStubArgs* stubArgs = (BackgroundThreadStubArgs*)arg;
-    assert (stubArgs->thread != NULL);
-
-    ClrFlsSetThreadType (ThreadType_GC);
-    stubArgs->thread->SetGCSpecial(true);
-    STRESS_LOG_RESERVE_MEM (GC_STRESSLOG_MULTIPLY);
-
-    stubArgs->hasStarted = !!stubArgs->thread->HasStarted(FALSE);
-
-    Thread* thread = stubArgs->thread;
-    GCBackgroundThreadFunction realThreadStart = stubArgs->threadStart;
-    void* realThreadArg = stubArgs->arg;
-    bool hasStarted = stubArgs->hasStarted;
-
-    stubArgs->threadStartedEvent.Set();
-    // The stubArgs cannot be used once the event is set, since that releases wait on the
-    // event in the function that created this thread and the stubArgs go out of scope.
-
-    DWORD result = 0;
-
-    if (hasStarted)
-    {
-        result = realThreadStart(realThreadArg);
-        DestroyThread(thread);
-    }
-
-    return result;
-}
-
 //
 // Diagnostics code
 //
@@ -1013,15 +973,6 @@ void GCToEEInterface::HandleFatalError(unsigned int exitCode)
     EEPOLICY_HANDLE_FATAL_ERROR(exitCode);
 }
 
-bool GCToEEInterface::ShouldFinalizeObjectForUnload(void* pDomain, Object* obj)
-{
-    // CoreCLR does not have appdomains, so this code path is dead. Other runtimes may
-    // choose to inspect the object being finalized here.
-    // [DESKTOP TODO] Desktop looks for "agile and finalizable" objects and may choose
-    // to move them to a new app domain instead of finalizing them here.
-    return true;
-}
-
 bool GCToEEInterface::EagerFinalized(Object* obj)
 {
     MethodTable* pMT = obj->GetGCSafeMethodTable();
@@ -1486,34 +1437,6 @@ IGCToCLREventSink* GCToEEInterface::EventSink()
     return &g_gcToClrEventSink;
 }
 
-uint32_t GCToEEInterface::GetDefaultDomainIndex()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return DefaultADID;
-}
-
-void *GCToEEInterface::GetAppDomainAtIndex(uint32_t appDomainIndex)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return ::GetAppDomain();
-}
-
-bool GCToEEInterface::AppDomainCanAccessHandleTable(uint32_t appDomainID)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return appDomainID == DefaultADID;
-}
-
-uint32_t GCToEEInterface::GetIndexOfAppDomainBeingUnloaded()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return 0xFFFFFFFF;
-}
-
 uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1521,13 +1444,6 @@ uint32_t GCToEEInterface::GetTotalNumSizedRefHandles()
     return SystemDomain::System()->GetTotalNumSizedRefHandles();
 }
 
-
-bool GCToEEInterface::AppDomainIsRudeUnload(void *appDomain)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return false;
-}
 
 bool GCToEEInterface::AnalyzeSurvivorsRequested(int condemnedGeneration)
 {
@@ -1574,7 +1490,7 @@ void GCToEEInterface::VerifySyncTableEntry()
 
 void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPublicKeywords, int currentPrivateLevel, int currentPrivateKeywords)
 {
-#if defined(__linux__)
+#if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
     LIMITED_METHOD_CONTRACT;
     // LTTng does not have a notion of enabling events via "keyword"/"level" but we have to 
     // somehow implement a similar behavior to it. 
@@ -1616,5 +1532,5 @@ void GCToEEInterface::UpdateGCEventStatus(int currentPublicLevel, int currentPub
         GCEventKeyword privateKeywords = static_cast<GCEventKeyword>(privateProviderKeywords);
         GCHeapUtilities::RecordEventStateChange(false, privateKeywords, privateLevel);
     }
-#endif // __linux__
+#endif // __linux__ && FEATURE_EVENT_TRACE
 }
