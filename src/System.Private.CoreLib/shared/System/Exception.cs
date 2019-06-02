@@ -155,12 +155,10 @@ namespace System
                 "   " + SR.Exception_EndOfInnerExceptionStack;
             }
 
-            s += Environment.NewLine;
-
             string? stackTrace = StackTrace;
             if (stackTrace != null)
             {
-                s += stackTrace;
+                s += Environment.NewLine + stackTrace;
             }
 
             return s;
