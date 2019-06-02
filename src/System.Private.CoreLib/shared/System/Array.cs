@@ -1569,6 +1569,7 @@ namespace System
                     }
                 }
 #endif
+
                 if (items == null)
                 {
                     Sort<TKey>(keys, index, length, comparer);

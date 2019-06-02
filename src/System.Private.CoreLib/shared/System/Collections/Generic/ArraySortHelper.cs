@@ -61,6 +61,7 @@ namespace System.Collections.Generic
                 {
                     comparer = Comparer<T>.Default;
                 }
+
                 IntrospectiveSort(keys, index, length, comparer.Compare);
             }
             catch (IndexOutOfRangeException)
@@ -328,7 +329,7 @@ namespace System.Collections.Generic
 
         #region IArraySortHelper<T> Members
 
-        public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
+        public void Sort(Span<T> keys, int index, int length, IComparer<T>? comparer)
         {
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
@@ -610,7 +611,7 @@ namespace System.Collections.Generic
 
     internal partial class ArraySortHelper<TKey, TValue>
     {
-        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
+        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey>? comparer)
         {
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
@@ -841,7 +842,7 @@ namespace System.Collections.Generic
     internal partial class GenericArraySortHelper<TKey, TValue>
         where TKey : IComparable<TKey>
     {
-        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey> comparer)
+        public void Sort(Span<TKey> keys, Span<TValue> values, int index, int length, IComparer<TKey>? comparer)
         {
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
