@@ -862,39 +862,36 @@ namespace System.Globalization
                 ? stackalloc byte[512]
                 : (borrowedArray = ArrayPool<byte>.Shared.Rent(sortKeyLength));
 
-            while (true)
+            fixed (char* pSource = &MemoryMarshal.GetReference(source))
             {
-                fixed (char* pSource = &MemoryMarshal.GetReference(source))
                 fixed (byte* pSortKey = &MemoryMarshal.GetReference(sortKey))
                 {
                     sortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, sortKey.Length, options);
                 }
 
-                if (sortKeyLength == 0) // 0 means internal error in ucol_getSortKey
+                if (sortKeyLength > sortKey.Length) // slow path for big strings
                 {
-                    throw new ArgumentException(SR.Arg_ExternalException);
-                }
-                else if(sortKeyLength <= sortKey.Length)
-                {
-                    break;
-                }
-                else
-                {
-                    if (borrowedArray != null)
-                    {
-                        ArrayPool<byte>.Shared.Return(borrowedArray);
-                    }
+                    if (borrowedArray != null) ArrayPool<byte>.Shared.Return(borrowedArray);
 
                     sortKey = (borrowedArray = ArrayPool<byte>.Shared.Rent(sortKeyLength));
+
+                    fixed (byte* pSortKey = &MemoryMarshal.GetReference(sortKey))
+                    {
+                        sortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, sortKey.Length, options);
+                    }
                 }
+            }
+
+            if (sortKeyLength == 0 || sortKeyLength > sortKey.Length) // internal error (0) or a bug (2nd call failed) in ucol_getSortKey
+            {
+                if (borrowedArray != null) ArrayPool<byte>.Shared.Return(borrowedArray);
+
+                throw new ArgumentException(SR.Arg_ExternalException);
             }
 
             int hash = Marvin.ComputeHash32(sortKey.Slice(0, sortKeyLength), Marvin.DefaultSeed);
 
-            if (borrowedArray != null)
-            {
-                ArrayPool<byte>.Shared.Return(borrowedArray);
-            }
+            if (borrowedArray != null) ArrayPool<byte>.Shared.Return(borrowedArray);
 
             return hash;
         }
