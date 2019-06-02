@@ -152,8 +152,10 @@ namespace System
             if (_innerException != null)
             {
                 s = s + " ---> " + _innerException.ToString() + Environment.NewLine +
-                "   " + SR.Exception_EndOfInnerExceptionStack + Environment.NewLine;
+                "   " + SR.Exception_EndOfInnerExceptionStack;
             }
+
+            s += Environment.NewLine;
 
             string? stackTrace = StackTrace;
             if (stackTrace != null)
