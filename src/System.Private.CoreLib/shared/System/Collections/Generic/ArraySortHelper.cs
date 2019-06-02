@@ -49,7 +49,7 @@ namespace System.Collections.Generic
     {
         #region IArraySortHelper<T> Members
 
-        public void Sort(Span<T> keys, int index, int length, IComparer<T> comparer)
+        public void Sort(Span<T> keys, int index, int length, IComparer<T>? comparer)
         {
             Debug.Assert(index >= 0 && length >= 0 && (keys.Length - index >= length), "Check the arguments in the caller!");
 
