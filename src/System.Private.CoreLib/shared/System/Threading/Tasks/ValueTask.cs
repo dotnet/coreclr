@@ -370,6 +370,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Gets an awaiter for this <see cref="ValueTask"/>.</summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ValueTaskAwaiter GetAwaiter() => new ValueTaskAwaiter(in this);
 
         /// <summary>Configures an awaiter for this <see cref="ValueTask"/>.</summary>

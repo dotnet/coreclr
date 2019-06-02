@@ -6233,6 +6233,22 @@ public:
     void optCopyProp(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
+    void optCopyPropFoldCopyBlks(BasicBlock* block);
+    void optCopyPropThroughCopyBlk(BasicBlock* block);
+    bool optTryGetCopyPropLclVars(GenTree* expr, GenTreeLclVarCommon*& srcLclVar, GenTreeLclVarCommon*& dstLclVar);
+    bool optTryGetCopyPropLclVar(GenTree* op, GenTreeLclVarCommon*& lclVar);
+    void optCopyPropUpdateTree(GenTreeStmt* currStmt, GenTreeStmt* updatedStmt, GenTree* newOpt);
+#ifndef DEBUG
+    bool optTryGetCopyPropNewOpt(GenTree* opt, GenTree*& newOpt);
+#else
+    bool optTryGetCopyPropNewOpt(GenTree*             opt,
+                                 GenTree*&            newOpt,
+                                 GenTree*             currExpr,
+                                 GenTree*             updatedExpr,
+                                 GenTreeLclVarCommon* currLclVar,
+                                 GenTreeLclVarCommon* updatedLclVar,
+                                 bool                 isReverse);
+#endif
     bool optIsSsaLocal(GenTree* tree);
     int optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDsc, bool preferOp2);
     void optVnCopyProp();

@@ -290,6 +290,147 @@ bool Compiler::optIsSsaLocal(GenTree* tree)
     return tree->IsLocal() && lvaInSsa(tree->AsLclVarCommon()->GetLclNum());
 }
 
+/**************************************************************************************
+ *
+ * Helper to get the LclVar for the Expr.
+ */
+bool Compiler::optTryGetCopyPropLclVars(GenTree* tree, GenTreeLclVarCommon*& srcLclVar, GenTreeLclVarCommon*& dstLclVar)
+{
+    if (!optTryGetCopyPropLclVar(tree->gtGetOp2(), srcLclVar))
+    {
+        return false;
+    }
+
+    if (!optTryGetCopyPropLclVar(tree->gtGetOp1(), dstLclVar))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+/**************************************************************************************
+ *
+ * Helper to get the LclVar for the Oper.
+ */
+bool Compiler::optTryGetCopyPropLclVar(GenTree* op, GenTreeLclVarCommon*& lclVar)
+{
+    if (varTypeIsSIMD(op) || op->IsPhiNode())
+    {
+        // Leave SIMD and PhiNodes alone
+        return false;
+    }
+
+    if (op->OperIsBlk() && (op->AsBlk()->Addr()->OperGet() == GT_ADDR))
+    {
+        op = op->AsBlk()->Addr()->gtGetOp1();
+    }
+    if (op->OperIsIndir() && (op->AsIndir()->Addr()->OperGet() == GT_ADDR))
+    {
+        op = op->AsIndir()->Addr()->gtGetOp1();
+    }
+
+    if ((op->OperGet() == GT_LCL_VAR || op->OperGet() == GT_LCL_FLD))
+    {
+        // Can only copyProp GT_LCL_VAR and GT_LCL_FLD
+        lclVar = &op->gtLclVarCommon;
+        return true;
+    }
+
+    return false;
+}
+
+#ifndef DEBUG
+bool Compiler::optTryGetCopyPropNewOpt(GenTree* opt, GenTree*& newOpt)
+{
+    newOpt = gtClone(opt);
+    if (newOpt == nullptr)
+    {
+        // Too complex
+        return false;
+    }
+
+    return true;
+}
+#else
+bool Compiler::optTryGetCopyPropNewOpt(GenTree*             opt,
+                                       GenTree*&            newOpt,
+                                       GenTree*             currExpr,
+                                       GenTree*             updatedExpr,
+                                       GenTreeLclVarCommon* currLclVar,
+                                       GenTreeLclVarCommon* updatedLclVar,
+                                       bool                 isReverse)
+{
+    newOpt = gtClone(opt);
+    if (newOpt == nullptr)
+    {
+        // Too complex
+        return false;
+    }
+
+    if (verbose)
+    {
+        JITDUMP("CopyBlk based forward copy assertion for ");
+
+        if (isReverse)
+        {
+            JITDUMP("reverse");
+        }
+        else
+        {
+            JITDUMP("forward");
+        }
+
+        JITDUMP(" copy assertion for ");
+        printTreeID(updatedLclVar);
+        printf(" V%02d @%08X by ", updatedLclVar->gtLclNum, updatedExpr->GetVN(VNK_Conservative));
+        printTreeID(currLclVar);
+        printf(" V%02d @%08X.\n", currLclVar->gtLclNum, currExpr->GetVN(VNK_Conservative));
+
+        printf("\n***** (before)\n");
+        gtDispTree(currExpr, nullptr, nullptr, false);
+        printf("\n");
+        gtDispTree(updatedExpr, nullptr, nullptr, false);
+        printf("\n");
+    }
+
+    return true;
+}
+#endif
+
+void Compiler::optCopyPropUpdateTree(GenTreeStmt* currStmt, GenTreeStmt* updatedStmt, GenTree* newOpt)
+{
+    // Update cost and side-effects for new node
+    gtPrepareCost(newOpt);
+
+    GenTree* updatedExpr = updatedStmt->gtStmtExpr;
+    gtPrepareCost(updatedExpr);
+    gtUpdateNodeSideEffects(updatedExpr);
+    gtUpdateSideEffects(updatedStmt, updatedExpr);
+
+    // Clear the current statement
+    currStmt->gtStmtExpr->gtBashToNOP();
+
+    if (fgStmtListThreaded)
+    {
+        // Resequence
+        fgSetStmtSeq(updatedStmt);
+        fgSetStmtSeq(currStmt);
+    }
+
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("Copy propagated to:\n");
+        printf("\n***** (after)\n");
+        gtDispTree(currStmt->gtStmtExpr, nullptr, nullptr, false);
+        printf("\n");
+        gtDispTree(updatedStmt, nullptr, nullptr, false);
+        printf("\n");
+    }
+#endif
+}
+
 //------------------------------------------------------------------------------
 // optBlockCopyProp : Perform copy propagation using currently live definitions on the current block's
 //                    variables. Also as new definitions are encountered update the "curSsaName" which
@@ -384,6 +525,246 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
     }
 }
 
+//------------------------------------------------------------------------------
+// optCopyPropFoldCopyBlks : Perform copy propagation for CopyBlk using currently live definitions on the
+//                           current block's variables.
+//
+// Arguments:
+//    block       -  Block the tree belongs to
+
+void Compiler::optCopyPropFoldCopyBlks(BasicBlock* block)
+{
+    // Propagate backwards, picking up:
+    //
+    // x1 (def) = x0 (last use)
+    // x2 (def) = x1 (last use)
+    //
+    // Converting to
+    //
+    // x2 (def) = x0 (last use)
+
+    GenTreeStmt* firstStmt = block->firstStmt();
+    GenTreeStmt* prevStmt  = nullptr;
+    for (GenTreeStmt* currStmt = block->lastStmt(); (currStmt != nullptr && currStmt != firstStmt); currStmt = prevStmt)
+    {
+        prevStmt = currStmt->getPrevStmt();
+        if (prevStmt == nullptr)
+        {
+            // No previous statement to propagate to
+            break;
+        }
+
+        GenTree* currExpr = currStmt->gtStmtExpr;
+        GenTree* prevExpr = prevStmt->gtStmtExpr;
+        if (!currExpr->OperIsCopyBlkOp() || !prevExpr->OperIsCopyBlkOp())
+        {
+            // Only propagate when both are CopyBlk
+            continue;
+        }
+
+        GenTreeLclVarCommon* currSrcLclVar = nullptr;
+        GenTreeLclVarCommon* currDstLclVar = nullptr;
+        if (!optTryGetCopyPropLclVars(currExpr, currSrcLclVar, currDstLclVar))
+        {
+            continue;
+        }
+
+        GenTreeLclVarCommon* prevSrcLclVar = nullptr;
+        GenTreeLclVarCommon* prevDstLclVar = nullptr;
+        if (!optTryGetCopyPropLclVars(prevExpr, prevSrcLclVar, prevDstLclVar))
+        {
+            continue;
+        }
+
+        assert(currSrcLclVar != nullptr && currDstLclVar != nullptr && prevSrcLclVar != nullptr &&
+               prevDstLclVar != nullptr);
+
+        if (prevDstLclVar->gtLclNum != currSrcLclVar->gtLclNum)
+        {
+            // Can only elide the copy if prevDst is same as currSrc LclVar
+            continue;
+        }
+
+        unsigned lclNum    = prevDstLclVar->gtLclNum;
+        unsigned newLclNum = currDstLclVar->gtLclNum;
+
+        if (lvaLclExactSize(lclNum) != lvaLclExactSize(prevSrcLclVar->gtLclNum) ||
+            lvaLclExactSize(newLclNum) != lvaLclExactSize(currSrcLclVar->gtLclNum))
+        {
+            // Don't propergate if they aren't the same size
+            continue;
+        }
+
+        LclVarDsc* varDsc    = &(lvaTable[lclNum]);
+        LclVarDsc* newVarDsc = &(lvaTable[newLclNum]);
+        if (newVarDsc->lvIsMultiRegRet != varDsc->lvIsMultiRegRet || newVarDsc->lvOverlappingFields ||
+            varDsc->lvOverlappingFields)
+        {
+            // Don't propergate if they aren't matching MultiRegRet; or have overlapping fields.
+            continue;
+        }
+
+        // The CopyBlk can be elided if the LclVar lifetime is from prevExpr dst to currExpr src
+        // and currExpr dst is as a def rather than an overwrite.
+        if (((prevDstLclVar->gtFlags & GTF_VAR_DEF) != 0) && ((currSrcLclVar->gtFlags & GTF_VAR_DEATH) != 0) &&
+            ((currDstLclVar->gtFlags & GTF_VAR_DEF) != 0))
+        {
+            GenTree* newOpt = nullptr;
+            bool     success;
+#ifndef DEBUG
+            success = optTryGetCopyPropNewOpt(currExpr->gtOp.gtOp1, newOpt);
+#else
+            success = optTryGetCopyPropNewOpt(currExpr->gtOp.gtOp1, newOpt, currExpr, prevExpr, currSrcLclVar,
+                                              prevDstLclVar, true);
+#endif
+            if (!success)
+            {
+                continue;
+            }
+
+            // Update the tree
+            prevExpr->gtOp.gtOp1 = newOpt;
+
+            optCopyPropUpdateTree(currStmt, prevStmt, newOpt);
+        }
+    }
+}
+
+//------------------------------------------------------------------------------
+// optCopyPropThroughCopyBlk : Perform copy propagation for CopyBlk using currently live definitions on the
+//                      current block's variables.
+//
+// Arguments:
+//    block       -  Block the tree belongs to
+
+void Compiler::optCopyPropThroughCopyBlk(BasicBlock* block)
+{
+    // Propagate forwards, picking up:
+    //
+    // x2 (def) = x0 (last use)
+    // use x2 (last use)
+    //
+    // Converting to
+    //
+    // use x0 (last use)
+
+    GenTreeStmt* nextStmt = nullptr;
+    for (GenTreeStmt* currStmt = block->firstStmt(); currStmt != nullptr; currStmt = nextStmt)
+    {
+        // Only operate when current is CopyBlk
+        GenTree* currExpr = currStmt->gtStmtExpr;
+        if (!currExpr->OperIsCopyBlkOp())
+        {
+            // Set the nextStmt before conituing the loop
+            nextStmt = currStmt->getNextStmt();
+            continue;
+        }
+
+        // Skip the NOPs we introduced in optCopyPropFoldCopyBlks
+        GenTree* nextExpr = nullptr;
+        nextStmt          = currStmt;
+        do
+        {
+            nextStmt = nextStmt->getNextStmt();
+            if (nextStmt == nullptr || (nextExpr = nextStmt->gtStmtExpr) == nullptr)
+            {
+                return;
+            }
+
+        } while (nextExpr->gtOper == GT_NOP);
+
+        GenTreeLclVarCommon* currSrcLclVar = nullptr;
+        GenTreeLclVarCommon* currDstLclVar = nullptr;
+        if (!optTryGetCopyPropLclVars(currExpr, currSrcLclVar, currDstLclVar))
+        {
+            continue;
+        }
+
+        if (!nextExpr->OperIsBinary())
+        {
+            continue;
+        }
+
+        GenTreeLclVarCommon* nextSrcLclVar = nullptr;
+        GenTreeLclVarCommon* nextDstLclVar = nullptr;
+        if (!optTryGetCopyPropLclVars(nextExpr, nextSrcLclVar, nextDstLclVar))
+        {
+            continue;
+        }
+
+        assert(currSrcLclVar != nullptr && currDstLclVar != nullptr && nextSrcLclVar != nullptr &&
+               nextDstLclVar != nullptr);
+
+        GenTreeLclVarCommon* nextLclVar = nullptr;
+        GenTree*             nextOpt    = nullptr;
+        if (currDstLclVar->gtLclNum == nextSrcLclVar->gtLclNum)
+        {
+            nextLclVar = nextSrcLclVar;
+            nextOpt    = nextExpr->gtOp.gtOp2;
+        }
+        else if (currDstLclVar->gtLclNum == nextDstLclVar->gtLclNum)
+        {
+            nextLclVar = nextDstLclVar;
+            nextOpt    = nextExpr->gtOp.gtOp1;
+        }
+
+        if (nextLclVar == nullptr || nextOpt == nullptr)
+        {
+            // Can only elide if currDst is same as one of the nextExpr LclVars
+            continue;
+        }
+
+        unsigned lclNum    = nextLclVar->gtLclNum;
+        unsigned newLclNum = currSrcLclVar->gtLclNum;
+
+        if (lvaLclExactSize(lclNum) != lvaLclExactSize(newLclNum))
+        {
+            // Don't propergate if they aren't the same size
+            continue;
+        }
+
+        LclVarDsc* varDsc    = &(lvaTable[lclNum]);
+        LclVarDsc* newVarDsc = &(lvaTable[newLclNum]);
+        if (newVarDsc->lvIsMultiRegRet != varDsc->lvIsMultiRegRet || newVarDsc->lvOverlappingFields ||
+            varDsc->lvOverlappingFields)
+        {
+            // Don't propergate if they aren't matching MultiRegRet; or have overlapping fields.
+            continue;
+        }
+
+        if (((currSrcLclVar->gtFlags & GTF_VAR_DEATH) != 0) && ((currDstLclVar->gtFlags & GTF_VAR_DEF) != 0) &&
+            ((nextLclVar->gtFlags & GTF_VAR_DEATH) != 0))
+        {
+            GenTree* newOpt = nullptr;
+            bool     success;
+#ifndef DEBUG
+            success = optTryGetCopyPropNewOpt(currExpr->gtGetOp2(), newOpt);
+#else
+            success = optTryGetCopyPropNewOpt(currExpr->gtGetOp2(), newOpt, currExpr, nextExpr, currSrcLclVar,
+                                              nextLclVar, false);
+#endif
+            if (!success)
+            {
+                continue;
+            }
+
+            // Update the tree
+            if (currDstLclVar->gtLclNum == nextSrcLclVar->gtLclNum)
+            {
+                newOpt->gtType       = nextOpt->gtType;
+                nextExpr->gtOp.gtOp2 = newOpt;
+            }
+            else
+            {
+                newOpt->gtType       = nextOpt->gtType;
+                nextExpr->gtOp.gtOp1 = newOpt;
+            }
+
+            optCopyPropUpdateTree(currStmt, nextStmt, newOpt);
+        }
+    }
+}
+
 /**************************************************************************************
  *
  * This stage performs value numbering based copy propagation. Since copy propagation
@@ -467,6 +848,10 @@ void Compiler::optVnCopyProp()
         worklist->push_back(BlockWork(block, true));
 
         optBlockCopyProp(block, &curSsaName);
+
+        optCopyPropFoldCopyBlks(block);
+
+        optCopyPropThroughCopyBlk(block);
 
         // Add dom children to work on.
         BlkVector* domChildren = domTree->LookupPointer(block);
