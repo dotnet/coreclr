@@ -91,11 +91,13 @@ public:
         }
         CONTRACTL_END;
 
-        m_TableMask = size - 1;
+        m_Table = new CastCacheEntry[size + 1];
+        memset(m_Table, 0, (size + 1) * sizeof(CastCacheEntry));
+
+        this->TableSize() = size;
+
         //TODO: VS this is actually a Log2. Is there a helper?
-        m_TableBits = CountBits(size - 1);
-        m_Table = new CastCacheEntry[size];
-        memset(m_Table, 0, size * sizeof(CastCacheEntry));
+        this->TableBits() = CountBits(size - 1);
     }
 
     FORCEINLINE static void TryAddToCache(TypeHandle source, TypeHandle target, BOOL result)
@@ -136,7 +138,37 @@ public:
 
     static void FlushCurrentCache();
 
+    FORCEINLINE DWORD& TableSize()
+    {
+        return *((DWORD*)&this->m_Table[0] + 0);
+    }
+
+    FORCEINLINE CastCacheEntry* Elements()
+    {
+        return this->m_Table + 1;
+    }
+
+    FORCEINLINE DWORD TableMask()
+    {
+        return this->TableSize() - 1;
+    }
+
+    FORCEINLINE BYTE& TableBits()
+    {
+        return *((BYTE*)&AuxData() + 0);
+    }
+
+    FORCEINLINE BYTE& VictimCounter()
+    {
+        return *((BYTE*)&AuxData() + 1);
+    }
+
 private:
+
+    FORCEINLINE DWORD& AuxData()
+    {
+        return *((DWORD*)&this->m_Table[0] + 1);
+    }
 
 #if DEBUG
     static const DWORD INITIAL_CACHE_SIZE = 8;    // MUST BE A POWER OF TWO
@@ -149,12 +181,10 @@ private:
 
     //TODO: VS consider allocating this on the managed heap.
     static CastCache*   s_cache;
-
     CastCacheEntry*     m_Table;
-    DWORD               m_TableMask;
-    DWORD               m_TableBits;
-    DWORD               m_victimCount;
     CastCache*          m_NextObsolete;
+
+
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TADDR source, TADDR target)
     {
@@ -204,7 +234,7 @@ private:
     {
         WRAPPER_NO_CONTRACT;
 
-        return m_TableMask + 1;
+        return this->TableMask() + 1;
     }
 
     FORCEINLINE DWORD KeyToBucket(TADDR source, TADDR target)
@@ -217,10 +247,10 @@ private:
 
 #if BIT64
         TADDR hash = (((ULONGLONG)source << 32) | ((ULONGLONG)source >> 32)) ^ target;
-        return (DWORD)((hash * 11400714819323198485llu) >> (64 - m_TableBits));
+        return (DWORD)((hash * 11400714819323198485llu) >> (64 - this->TableBits()));
 #else
         TADDR hash = _rotl(source, 16) ^ target;
-        return (DWORD)((hash * 2654435769ul) >> (32 - m_TableBits));
+        return (DWORD)((hash * 2654435769ul) >> (32 - this->TableBits()));
 #endif
     }
 

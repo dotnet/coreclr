@@ -86,7 +86,7 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
     CONTRACTL_END;
 
     DWORD index = KeyToBucket(source, target);
-    CastCacheEntry* pEntry = &m_Table[index];
+    CastCacheEntry* pEntry = &Elements()[index];
 
     for (DWORD i = 0; i < BUCKET_SIZE; i++)
     {
@@ -127,7 +127,7 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 
         // quadratic reprobe
         index += i;
-        pEntry = &m_Table[index & m_TableMask];
+        pEntry = &Elements()[index & TableMask()];
     }
 
     return TypeHandle::MaybeCast;
@@ -153,7 +153,7 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 
         bucket = currentCache->KeyToBucket(source, target);
         DWORD index = bucket;
-        CastCacheEntry* pEntry = &currentCache->m_Table[index];
+        CastCacheEntry* pEntry = &currentCache->Elements()[index];
 
         for (DWORD i = 0; i < BUCKET_SIZE; i++)
         {
@@ -183,7 +183,7 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 
             // quadratic reprobe
             index += i;
-            pEntry = &currentCache->m_Table[index & currentCache->m_TableMask];
+            pEntry = &currentCache->Elements()[index & currentCache->TableMask()];
         }
 
         // bucket is full.
@@ -191,12 +191,12 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 
     // pick a victim somewhat randomly within a bucket 
     // NB: ++ is not interlocked. We are ok if we lose counts here. It is just a number that changes.
-    DWORD victim = currentCache->m_victimCount++ & (BUCKET_SIZE - 1);
+    DWORD victim = currentCache->VictimCounter()++ & (BUCKET_SIZE - 1);
     // position the victim in a quadratic reprobe bucket
     victim = (victim * victim + victim) / 2;
 
     {
-        CastCacheEntry* pEntry = &currentCache->m_Table[(bucket + victim) & currentCache->m_TableMask];
+        CastCacheEntry* pEntry = &currentCache->Elements()[(bucket + victim) & currentCache->TableMask()];
 
         DWORD version2 = pEntry->version1;
         if (version2 == MAXDWORD)
