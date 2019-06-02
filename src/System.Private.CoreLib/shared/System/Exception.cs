@@ -152,13 +152,13 @@ namespace System
             if (_innerException != null)
             {
                 s = s + " ---> " + _innerException.ToString() + Environment.NewLine +
-                "   " + SR.Exception_EndOfInnerExceptionStack;
+                "   " + SR.Exception_EndOfInnerExceptionStack + Environment.NewLine;
             }
 
             string? stackTrace = StackTrace;
             if (stackTrace != null)
             {
-                s += Environment.NewLine + stackTrace;
+                s += stackTrace;
             }
 
             return s;
