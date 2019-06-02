@@ -1487,7 +1487,11 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
 
     if (!IsGcCoverageInterruptInstruction(instrPtr))
     {
-        _ASSERTE(IsOriginalInstruction(instrPtr, gcCover, offset));
+        // This assert can fail if another thread changed original instruction to 
+        // GCCoverage Interrupt instruction between these two commands. Uncomment it
+        // when threading issue gets resolved.
+        // _ASSERTE(IsOriginalInstruction(instrPtr, gcCover, offset));
+
         // Someone beat us to it, just go on running.
         return;
     }
