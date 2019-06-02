@@ -876,13 +876,14 @@ namespace System.Globalization
         private unsafe bool TryGetSortKey(ReadOnlySpan<char> source, CompareOptions options, int requestedSortKeyLength, out int actualSortKeyLength, out int hash)
         {
             Debug.Assert(requestedSortKeyLength > 0);
+            Debug.Assert(source.Length > 0);
 
             byte[]? borrowedArr = null;
             Span<byte> span = requestedSortKeyLength <= 512 ?
                 stackalloc byte[requestedSortKeyLength] :
                 (borrowedArr = ArrayPool<byte>.Shared.Rent(requestedSortKeyLength));
 
-            fixed (char* pSource = source)
+            fixed (char* pSource = &MemoryMarshal.GetReference(source))
             fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
             {
                 actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, requestedSortKeyLength, options);
