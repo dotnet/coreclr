@@ -1661,7 +1661,7 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
     // Therefore a negative result cannot rule out convertibility for ICastable and COM objects
     if (!result && !(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
     {
-        CastCache::TryAddToCache(this, pTargetMT, (BOOL)result);
+        CastCache::TryAddToCacheAny(this, pTargetMT, (BOOL)result);
     }
 
     return result;

@@ -8,45 +8,33 @@
 #include "common.h"
 #include "castcache.h"
 
-CastCache* CastCache::s_cache = NULL;
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
-// this is only called on GC or during shutdown (see: SyncClean::CleanUp).
-CastCache::~CastCache()
+OBJECTHANDLE CastCache::s_cache = NULL;
+
+CastCache CastCache::MaybeReplaceCacheWithLarger(CastCache currentCache)
 {
-    LIMITED_METHOD_CONTRACT;
-    delete[] m_Table;
-}
-
-CastCache* CastCache::MaybeReplaceCacheWithLarger(CastCache* currentCache)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (currentCache == NULL)
+    CONTRACTL
     {
-        CastCache* newCache = new (nothrow) CastCache(INITIAL_CACHE_SIZE);
-        if (newCache != NULL)
-        {
-            s_cache = newCache;
-        }
-
-        return newCache;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
     }
+    CONTRACTL_END;
 
-    CastCache* newCache = new (nothrow) CastCache(currentCache->Size() * 2);
-    if (newCache == NULL)
-        return FALSE; // oh well, continue using the old cache.
+    int newSize = currentCache.m_Table == NULL ? INITIAL_CACHE_SIZE : currentCache.Size() * 2;
+    CastCache newCache = CastCache(newSize);
 
-    CastCache* prevCache = FastInterlockCompareExchangePointer(&s_cache, newCache, currentCache);
+    OBJECTREF currentCacheRef = ObjectFromHandle(s_cache);
+    OBJECTREF prevCacheRef = (OBJECTREF)(Object*)InterlockedCompareExchangeObjectInHandle(s_cache, newCache.m_Table, currentCacheRef);
 
-    if (prevCache == currentCache)
+    if (prevCacheRef == currentCacheRef)
     {
-        SyncClean::AddObsoleteCastCache(prevCache);
         return newCache;
     }
     else
     {
-        SyncClean::AddObsoleteCastCache(newCache);
-        return prevCache;
+        return CastCache(prevCacheRef);
     }
 }
 
@@ -56,23 +44,25 @@ void CastCache::FlushCurrentCache()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
-    CastCache* oldCache = s_cache;
-    int newSize = oldCache == NULL ? INITIAL_CACHE_SIZE : oldCache->Size();
-
-    CastCache* newCache = new (nothrow) CastCache(newSize);
-    if (newCache == NULL)
-        newCache = new (nothrow) CastCache(INITIAL_CACHE_SIZE);
-
-    CastCache* obsoleteCache = FastInterlockExchangePointer(&s_cache, newCache);
-
-    if (obsoleteCache != NULL)
+    if (s_cache == NULL)
     {
-        SyncClean::AddObsoleteCastCache(obsoleteCache);
+        CastCache newCache = CastCache(INITIAL_CACHE_SIZE);
+        s_cache = CreateGlobalHandle(newCache.m_Table);
+        return;
     }
+
+    CastCache currentCache = CastCache(ObjectFromHandle(s_cache));
+    int newSize = currentCache.m_Table == NULL ? INITIAL_CACHE_SIZE : currentCache.Size();
+
+    CastCache newCache = CastCache(newSize);
+    if (newCache.m_Table == NULL)
+        newCache = CastCache(INITIAL_CACHE_SIZE);
+
+    StoreObjectInHandle(s_cache, newCache.m_Table);
 }
 
 TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
@@ -86,37 +76,33 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
     CONTRACTL_END;
 
     DWORD index = KeyToBucket(source, target);
-    CastCacheEntry* pEntry = &m_Table[index];
+    CastCacheEntry* pEntry = &Elements()[index];
 
     for (DWORD i = 0; i < BUCKET_SIZE; i++)
     {
         // must read in this order: version1 -> entry parts -> version2
         // because writers change them in opposite order
         DWORD version1 = VolatileLoad(&pEntry->version1);
-
-#if defined(_ARM64_) && defined(__GNUC__)
-        // VolatileLoad is a half barrier, use that
-        TADDR entrySource = VolatileLoad(&pEntry->source);
+        TADDR entrySource = pEntry->source;
         TADDR entryTargetAndResult = VolatileLoad(&pEntry->targetAndResult);
-#else
-        // VolatileLoad is a full barrier (or no barrier on x64), just use one at the end.
-        TADDR entrySource = VolatileLoadWithoutBarrier(&pEntry->source);
-        TADDR entryTargetAndResult = VolatileLoadWithoutBarrier(&pEntry->targetAndResult);
-        VOLATILE_MEMORY_BARRIER();
-#endif
 
-        if (entrySource == source &&
-            (entryTargetAndResult & ~(TADDR)1) == target)
+        if (entrySource == source)
         {
-            DWORD version2 = pEntry->version2;
-            if (version2 != version1)
+            // target never has its lower bit set.
+            // matching entryTargetAndResult would have same bits, except for the lowest one, which is the result.
+            entryTargetAndResult ^= target;
+            if (entryTargetAndResult <= 1)
             {
-                // oh, so close, someone stomped over the entry while we were reading.
-                // treat it as a miss.
-                break;
-            }
+                DWORD version2 = pEntry->version2;
+                if (version2 != version1)
+                {
+                    // oh, so close, someone stomped over the entry while we were reading.
+                    // treat it as a miss.
+                    break;
+                }
 
-            return TypeHandle::CastResult(entryTargetAndResult & 1);
+                return TypeHandle::CastResult(entryTargetAndResult);
+            }
         }
 
         if (version1 == 0)
@@ -127,7 +113,7 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 
         // quadratic reprobe
         index += i;
-        pEntry = &m_Table[index & m_TableMask];
+        pEntry = &Elements()[index & TableMask()];
     }
 
     return TypeHandle::MaybeCast;
@@ -135,25 +121,38 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 
 void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 {
-    WRAPPER_NO_CONTRACT;
-
-    if (s_cache == NULL && !noGC)
-        TryGrow();
-
-    DWORD bucket;
-    CastCache* currentCache;
-
-    do
+    CONTRACTL
     {
-        currentCache = VolatileLoadWithoutBarrier(&s_cache);
-        if (currentCache == NULL)
+        if (noGC) { NOTHROW; } else { THROWS; }
+        if (noGC) { GC_NOTRIGGER; } else { GC_TRIGGERS; }
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    if (s_cache == NULL)
+    {
+        if (noGC)
         {
             return;
         }
 
-        bucket = currentCache->KeyToBucket(source, target);
+        FlushCurrentCache();
+    }
+
+    DWORD bucket;
+    CastCache currentCache(OBJECTREF((TADDR)NULL));
+
+    do
+    {
+        currentCache = CastCache(ObjectFromHandle(s_cache));
+        if (!currentCache.m_Table)
+        {
+            return;
+        }
+
+        bucket = currentCache.KeyToBucket(source, target);
         DWORD index = bucket;
-        CastCacheEntry* pEntry = &currentCache->m_Table[index];
+        CastCacheEntry* pEntry = &currentCache.Elements()[index];
 
         for (DWORD i = 0; i < BUCKET_SIZE; i++)
         {
@@ -183,20 +182,20 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 
             // quadratic reprobe
             index += i;
-            pEntry = &currentCache->m_Table[index & currentCache->m_TableMask];
+            pEntry = &currentCache.Elements()[index & currentCache.TableMask()];
         }
 
         // bucket is full.
-    } while (!noGC && TryGrow());
+    } while (!noGC && TryGrow(currentCache));
 
     // pick a victim somewhat randomly within a bucket 
     // NB: ++ is not interlocked. We are ok if we lose counts here. It is just a number that changes.
-    DWORD victim = currentCache->m_victimCount++ & (BUCKET_SIZE - 1);
+    DWORD victim = currentCache.VictimCounter()++ & (BUCKET_SIZE - 1);
     // position the victim in a quadratic reprobe bucket
     victim = (victim * victim + victim) / 2;
 
     {
-        CastCacheEntry* pEntry = &currentCache->m_Table[(bucket + victim) & currentCache->m_TableMask];
+        CastCacheEntry* pEntry = &currentCache.Elements()[(bucket + victim) & currentCache.TableMask()];
 
         DWORD version2 = pEntry->version1;
         if (version2 == MAXDWORD)
@@ -216,3 +215,5 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
         }
     }
 }
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
