@@ -852,20 +852,21 @@ namespace System.Globalization
                 return 0;
             }
 
-            // according to ICU User Guide: 
-            // "The overall performance is poorer than if the function is called with a zero output buffer"
-            // "A recommended size for the temporary buffer is four times the length of the longest string processed"
-            int recommendedSize = int.MaxValue / 4 > source.Length ? source.Length * 4 : source.Length;
+            // according to ICU User Guide the performance of ucol_getSortKey is worse when it is called with null output buffer
+            // the solution is to try to fill the sort key in a temporary buffer of size equal 4 x string length
 
-            // "Call ucol_getSortKey() to find out how big the sort key buffer should be, and fill in the temporary buffer at the same time"
-            if (TryGetSortKey(source, options, recommendedSize, out int actualSortKeyLength, out int hash))
+            int guessedSize = source.Length > 1024 * 1024 / 4 
+                ? source.Length * 4 
+                : 1024 * 1024; // the biggest array that can be rented from ArrayPool.Shared without memory allocation
+
+            if (TryGetSortKey(source, options, guessedSize, out int actualSortKeyLength, out int hash))
             {
-                return hash; // hot path, the buffer was big enough and we don't need to call the method one more time
+                return hash; // fast path, the buffer was big enough
             }
 
-            // "If the temporary buffer is too small, allocate or reallocate more space for in anoverflow buffer to handle the overflow situations."
-            // "If there was an internal error generating the sort key, a zero value is returned. "
-            if (actualSortKeyLength > 0 && TryGetSortKey(source, options, actualSortKeyLength, out _, out hash))
+            // the temporary buffer was too small but the actual sort key length was returned
+            if (actualSortKeyLength > 0 // 0 means internal error in ucol_getSortKey
+                && TryGetSortKey(source, options, actualSortKeyLength, out _, out hash)) 
             {
                 return hash;
             }
@@ -879,19 +880,19 @@ namespace System.Globalization
             Debug.Assert(source.Length > 0);
 
             byte[]? borrowedArr = null;
-            Span<byte> span = requestedSortKeyLength <= 512 ?
-                stackalloc byte[requestedSortKeyLength] :
+            Span<byte> sortKey = requestedSortKeyLength <= 512 ?
+                stackalloc byte[512] :
                 (borrowedArr = ArrayPool<byte>.Shared.Rent(requestedSortKeyLength));
 
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
-            fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
+            fixed (byte* pSortKey = &MemoryMarshal.GetReference(sortKey))
             {
-                actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, requestedSortKeyLength, options);
+                actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, sortKey.Length, options);
             }
 
-            if (actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength)
+            if (actualSortKeyLength > 0 && actualSortKeyLength <= sortKey.Length)
             {
-                hash = Marvin.ComputeHash32(span.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
+                hash = Marvin.ComputeHash32(sortKey.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
             }
             else
             {
@@ -904,7 +905,7 @@ namespace System.Globalization
                 ArrayPool<byte>.Shared.Return(borrowedArr);
             }
 
-            return actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength;
+            return actualSortKeyLength > 0 && actualSortKeyLength <= sortKey.Length;
         }
 
         private static CompareOptions GetOrdinalCompareOptions(CompareOptions options)

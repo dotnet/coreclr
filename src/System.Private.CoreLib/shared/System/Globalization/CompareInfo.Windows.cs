@@ -131,7 +131,7 @@ namespace System.Globalization
                                                   pSource, source.Length /* in chars */,
                                                   null, 0,
                                                   null, null, _sortHandle);
-                if (sortKeyLength <= 0)
+                if (sortKeyLength == 0)
                 {
                     throw new ArgumentException(SR.Arg_ExternalException);
                 }
@@ -143,7 +143,7 @@ namespace System.Globalization
 
                 byte[]? borrowedArr = null;
                 Span<byte> span = sortKeyLength <= 512 ?
-                    stackalloc byte[sortKeyLength] :
+                    stackalloc byte[512] :
                     (borrowedArr = ArrayPool<byte>.Shared.Rent(sortKeyLength));
 
                 fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
