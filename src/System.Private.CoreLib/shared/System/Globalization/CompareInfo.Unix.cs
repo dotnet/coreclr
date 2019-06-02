@@ -854,56 +854,49 @@ namespace System.Globalization
 
             // according to ICU User Guide the performance of ucol_getSortKey is worse when it is called with null output buffer
             // the solution is to try to fill the sort key in a temporary buffer of size equal 4 x string length
+            // 1MB is the biggest array that can be rented from ArrayPool.Shared without memory allocation
+            int sortKeyLength = (source.Length > 1024 * 1024 / 4) ? 0 : 4 * source.Length;
 
-            int guessedSize = (int)Math.Min((long)source.Length * 4, 1024 * 1024); // 1MB is the biggest array that can be rented from ArrayPool.Shared without memory allocation
+            byte[]? borrowedArray = null;
+            Span<byte> sortKey = sortKeyLength <= 512
+                ? stackalloc byte[512]
+                : (borrowedArray = ArrayPool<byte>.Shared.Rent(sortKeyLength));
 
-            if (TryGetSortKey(source, options, guessedSize, out int actualSortKeyLength, out int hash))
+            while (true)
             {
-                return hash; // fast path, the buffer was big enough
+                fixed (char* pSource = &MemoryMarshal.GetReference(source))
+                fixed (byte* pSortKey = &MemoryMarshal.GetReference(sortKey))
+                {
+                    sortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, sortKey.Length, options);
+                }
+
+                if (sortKeyLength == 0) // 0 means internal error in ucol_getSortKey
+                {
+                    throw new ArgumentException(SR.Arg_ExternalException);
+                }
+                else if(sortKeyLength <= sortKey.Length)
+                {
+                    break;
+                }
+                else
+                {
+                    if (borrowedArray != null)
+                    {
+                        ArrayPool<byte>.Shared.Return(borrowedArray);
+                    }
+
+                    sortKey = (borrowedArray = ArrayPool<byte>.Shared.Rent(sortKeyLength));
+                }
             }
 
-            // the temporary buffer was too small but the actual sort key length was returned
-            if (actualSortKeyLength > 0 // 0 means internal error in ucol_getSortKey
-                && TryGetSortKey(source, options, actualSortKeyLength, out _, out hash)) 
+            int hash = Marvin.ComputeHash32(sortKey.Slice(0, sortKeyLength), Marvin.DefaultSeed);
+
+            if (borrowedArray != null)
             {
-                return hash;
+                ArrayPool<byte>.Shared.Return(borrowedArray);
             }
 
-            throw new ArgumentException(SR.Arg_ExternalException);
-        }
-        
-        private unsafe bool TryGetSortKey(ReadOnlySpan<char> source, CompareOptions options, int requestedSortKeyLength, out int actualSortKeyLength, out int hash)
-        {
-            Debug.Assert(requestedSortKeyLength > 0);
-            Debug.Assert(source.Length > 0);
-
-            byte[]? borrowedArr = null;
-            Span<byte> sortKey = requestedSortKeyLength <= 512 ?
-                stackalloc byte[512] :
-                (borrowedArr = ArrayPool<byte>.Shared.Rent(requestedSortKeyLength));
-
-            fixed (char* pSource = &MemoryMarshal.GetReference(source))
-            fixed (byte* pSortKey = &MemoryMarshal.GetReference(sortKey))
-            {
-                actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, sortKey.Length, options);
-            }
-
-            if (actualSortKeyLength > 0 && actualSortKeyLength <= sortKey.Length)
-            {
-                hash = Marvin.ComputeHash32(sortKey.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
-            }
-            else
-            {
-                hash = 0;
-            }
-
-            // Return the borrowed array if necessary.
-            if (borrowedArr != null)
-            {
-                ArrayPool<byte>.Shared.Return(borrowedArr);
-            }
-
-            return actualSortKeyLength > 0 && actualSortKeyLength <= sortKey.Length;
+            return hash;
         }
 
         private static CompareOptions GetOrdinalCompareOptions(CompareOptions options)
