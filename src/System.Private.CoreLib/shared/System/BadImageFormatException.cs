@@ -103,8 +103,7 @@ namespace System
             if (_fileName != null && _fileName.Length != 0)
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
 
-            if (InnerException != null)
-                s = s + " ---> " + InnerException.ToString();
+            s += InnerExceptionToString();
 
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;

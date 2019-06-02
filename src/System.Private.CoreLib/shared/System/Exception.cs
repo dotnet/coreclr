@@ -149,11 +149,7 @@ namespace System
                 s += ": " + message;
             }
 
-            if (_innerException != null)
-            {
-                s = s + " ---> " + _innerException.ToString() + Environment.NewLine +
-                "   " + SR.Exception_EndOfInnerExceptionStack;
-            }
+            s += InnerExceptionToString();
 
             string? stackTrace = StackTrace;
             if (stackTrace != null)
@@ -161,6 +157,17 @@ namespace System
                 s += Environment.NewLine + stackTrace;
             }
 
+            return s;
+        }
+
+        protected internal string InnerExceptionToString()
+        {
+            string s = String.Empty;
+            if (_innerException != null)
+            {
+                s += " ---> " + _innerException.ToString() + Environment.NewLine +
+                "   " + SR.Exception_EndOfInnerExceptionStack;
+            }
             return s;
         }
 

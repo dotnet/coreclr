@@ -72,11 +72,7 @@ namespace System.Runtime.InteropServices
                 s = s + ": " + message;
             }
 
-            Exception? innerException = InnerException;
-            if (innerException != null)
-            {
-                s = s + " ---> " + innerException.ToString();
-            }
+            s += InnerExceptionToString();
 
             if (StackTrace != null)
                 s += Environment.NewLine + StackTrace;
