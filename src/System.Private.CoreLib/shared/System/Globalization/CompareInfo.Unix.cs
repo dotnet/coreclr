@@ -877,35 +877,33 @@ namespace System.Globalization
         {
             Debug.Assert(requestedSortKeyLength > 0);
 
-            fixed (char* pSource = source)
-            {
-                byte[]? borrowedArr = null;
-                Span<byte> span = requestedSortKeyLength <= 512 ?
-                    stackalloc byte[requestedSortKeyLength] :
-                    (borrowedArr = ArrayPool<byte>.Shared.Rent(requestedSortKeyLength));
-                
-                fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
-                {
-                    actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, requestedSortKeyLength, options);
-                }
+            byte[]? borrowedArr = null;
+            Span<byte> span = requestedSortKeyLength <= 512 ?
+                stackalloc byte[requestedSortKeyLength] :
+                (borrowedArr = ArrayPool<byte>.Shared.Rent(requestedSortKeyLength));
 
-                if (actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength)
-                {
-                    hash = Marvin.ComputeHash32(span.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
-                }
-                else
-                {
-                    hash = 0;
-                }
-                    
-                // Return the borrowed array if necessary.
-                if (borrowedArr != null)
-                {
-                    ArrayPool<byte>.Shared.Return(borrowedArr);
-                }
-                
-                return actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength;
+            fixed (char* pSource = source)
+            fixed (byte* pSortKey = &MemoryMarshal.GetReference(span))
+            {
+                actualSortKeyLength = Interop.Globalization.GetSortKey(_sortHandle, pSource, source.Length, pSortKey, requestedSortKeyLength, options);
             }
+
+            if (actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength)
+            {
+                hash = Marvin.ComputeHash32(span.Slice(0, actualSortKeyLength), Marvin.DefaultSeed);
+            }
+            else
+            {
+                hash = 0;
+            }
+
+            // Return the borrowed array if necessary.
+            if (borrowedArr != null)
+            {
+                ArrayPool<byte>.Shared.Return(borrowedArr);
+            }
+
+            return actualSortKeyLength > 0 && actualSortKeyLength <= requestedSortKeyLength;
         }
 
         private static CompareOptions GetOrdinalCompareOptions(CompareOptions options)
