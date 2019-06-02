@@ -1646,6 +1646,7 @@ namespace System
         {
             if (comparison == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparison);
+
             if (span.Length > 1)
             {
                 ArraySortHelper<T>.Sort(span, 0, span.Length, comparison!); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/538
