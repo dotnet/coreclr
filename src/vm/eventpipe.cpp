@@ -245,11 +245,11 @@ void EventPipe::Shutdown()
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        for (auto session : s_pSessions)
+        for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
         {
-            EventPipeSession *pSession = session.Load();
+            EventPipeSession *pSession = s_pSessions[i].Load();
             if (pSession)
-                Disable(pSession->GetId());
+                Disable(static_cast<EventPipeSessionID>(1 << i));
         }
     }
     EX_CATCH {}
