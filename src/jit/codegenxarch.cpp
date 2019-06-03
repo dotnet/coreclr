@@ -69,10 +69,9 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         return;
     }
 
-    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
-
     if (compiler->gsGlobalSecurityCookieAddr == nullptr)
     {
+        noway_assert(compiler->gsGlobalSecurityCookieVal != 0);
 #ifdef _TARGET_AMD64_
         if ((int)compiler->gsGlobalSecurityCookieVal != compiler->gsGlobalSecurityCookieVal)
         {
