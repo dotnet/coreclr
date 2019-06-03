@@ -335,6 +335,7 @@ void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
     {
         // Reset the mask of active sessions.
         m_activeSessions &= ~pSession->GetId();
+        pSession->Close();
         // TODO: Re-enable this after fixing the underlying race condition
         // delete pSession;
     }

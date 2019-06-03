@@ -89,6 +89,7 @@ public:
         uint32_t numProviders,
         bool rundownEnabled = false);
     ~EventPipeSession();
+    void Close();
 
     EventPipeSessionID GetId() const
     {
