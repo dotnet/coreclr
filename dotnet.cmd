@@ -20,10 +20,20 @@ if NOT [%ERRORLEVEL%]==[0] (
   exit /b %ERRORLEVEL%
 )
 
-pushd %~dp0
-echo Running: dotnet %*
-call "%~dp0\.dotnet\dotnet.exe" %*
-popd
+if "%DOTNET_INSTALL_DIR%"=="" (
+  pushd %~dp0
+  echo Running: dotnet %*
+  call "%~dp0\.dotnet\dotnet.exe" %*
+  popd
+)
+
+else (
+  pushd %~dp0
+  echo Running: dotnet %*
+  call "%DOTNET_INSTALL_DIR%\dotnet.exe" %*
+  popd
+)
+
 if NOT [%ERRORLEVEL%]==[0] (
   exit /b 1
 )

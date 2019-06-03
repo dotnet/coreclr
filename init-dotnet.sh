@@ -13,3 +13,5 @@ if [ $? != 0 ]; then
     echo "Failed to install dotnet using Arcade"
     exit $?
 fi
+
+export DOTNET_INSTALL_DIR=${_InitializeDotNetCli}
