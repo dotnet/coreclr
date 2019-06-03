@@ -383,14 +383,6 @@ private:
         }
     }
 
-    // Get the configuration object.
-    // This is called directly by the EventPipeProvider constructor to register the new provider.
-    static EventPipeConfiguration *GetConfiguration()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return s_pConfig;
-    }
-
     // Get the event pipe configuration lock.
     static CrstStatic *GetLock()
     {
@@ -399,8 +391,8 @@ private:
     }
 
     static CrstStatic s_configCrst;
-    static bool s_tracingInitialized;
-    static EventPipeConfiguration *s_pConfig; // Volatile?
+    static Volatile<bool> s_tracingInitialized;
+    static EventPipeConfiguration s_config;
     static const uint32_t MaxNumberOfSessions = 64;
     static Volatile<EventPipeSession *> s_pSessions[MaxNumberOfSessions];
     static Volatile<EventPipeSession *> s_pRundownSession;

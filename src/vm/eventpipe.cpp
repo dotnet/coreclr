@@ -28,8 +28,8 @@
 #ifdef FEATURE_PERFTRACING
 
 CrstStatic EventPipe::s_configCrst;
-bool EventPipe::s_tracingInitialized = false;
-EventPipeConfiguration *EventPipe::s_pConfig = NULL;
+Volatile<bool> EventPipe::s_tracingInitialized = false;
+EventPipeConfiguration EventPipe::s_config;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
 Volatile<EventPipeSession *> EventPipe::s_pSessions[MaxNumberOfSessions];
@@ -187,7 +187,7 @@ void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
 
-    s_tracingInitialized = s_configCrst.InitNoThrow(
+    const bool tracingInitialized = s_configCrst.InitNoThrow(
         CrstEventPipe,
         (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE));
 
@@ -195,8 +195,7 @@ void EventPipe::Initialize()
     for (Volatile<EventPipeSession *> &session : s_pSessions)
         session.Store(nullptr);
 
-    s_pConfig = new EventPipeConfiguration();
-    s_pConfig->Initialize();
+    s_config.Initialize();
 
     s_pEventSource = new EventPipeEventSource();
 
@@ -207,6 +206,8 @@ void EventPipe::Initialize()
     // Set the sampling rate for the sample profiler.
     const unsigned long DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
     SampleProfiler::SetSamplingRate(DefaultProfilerSamplingRateInNanoseconds);
+
+    s_tracingInitialized = tracingInitialized;
 }
 
 void EventPipe::Shutdown()
@@ -217,12 +218,11 @@ void EventPipe::Shutdown()
         GC_TRIGGERS;
         MODE_ANY;
         // These 3 pointers are initialized once on EventPipe::Initialize
-        //PRECONDITION(s_pConfig != nullptr);
         //PRECONDITION(s_pEventSource != nullptr);
     }
     CONTRACTL_END;
 
-    if (s_pConfig == nullptr || s_pEventSource == nullptr)
+    if (s_pEventSource == nullptr)
         return;
 
     if (g_fProcessDetach)
@@ -259,15 +259,6 @@ void EventPipe::Shutdown()
     // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
     delete s_pEventSource;
     s_pEventSource = nullptr;
-
-    EventPipeConfiguration *pConfig = s_pConfig;
-
-    // Set the static pointers to NULL so that the rest of the EventPipe knows that they are no longer available.
-    // Flush process write buffers to make sure other threads can see the change.
-    s_pConfig = nullptr;
-
-    // Free resources.
-    delete pConfig;
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -299,7 +290,7 @@ EventPipeSessionID EventPipe::Enable(
 
     EventPipeSessionID sessionId = 0;
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        EventPipeSession *const pSession = s_pConfig->CreateSession(
+        EventPipeSession *const pSession = s_config.CreateSession(
             strOutputPath,
             pStream,
             sessionType,
@@ -335,14 +326,13 @@ EventPipeSessionID EventPipe::EnableInternal(
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(s_tracingInitialized);
-        PRECONDITION(s_pConfig != nullptr);
         PRECONDITION(pSession != nullptr && pSession->IsValid());
         PRECONDITION(IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
     // If tracing is not initialized or is already enabled, bail here.
-    if (!s_tracingInitialized || s_pConfig == nullptr)
+    if (!s_tracingInitialized)
         return 0;
 
     if (pSession == nullptr || !pSession->IsValid())
@@ -367,7 +357,7 @@ EventPipeSessionID EventPipe::EnableInternal(
     s_pSessions[index].Store(pSession);
 
     // Enable tracing.
-    s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+    s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     // Enable the sample profiler
     SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
@@ -425,12 +415,11 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pConfig != nullptr);
         PRECONDITION(IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (s_pConfig == nullptr || !s_pConfig->Enabled())
+    if (!s_config.Enabled())
         return;
 
     // Get the specified session ID.
@@ -461,7 +450,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
 
     // Disable pSession tracing.
-    s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+    s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
     pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
     // At this point, we should not be writing events to this session anymore
@@ -470,21 +459,21 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
     // Do rundown before fully stopping the session.
     pSession->EnableRundown(); // Set Rundown provider.
-    s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+    s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     s_pRundownSession.Store(pSession);
     {
         pSession->ExecuteRundown();
-        s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+        s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
     }
     s_pRundownSession.Store(nullptr);
 
     // Remove the session.
-    s_pConfig->DeleteSession(pSession);
+    s_config.DeleteSession(pSession);
 
     // Delete deferred providers.
     // Providers can't be deleted during tracing because they may be needed when serializing the file.
-    s_pConfig->DeleteDeferredProviders();
+    s_config.DeleteDeferredProviders();
 }
 
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
@@ -510,7 +499,7 @@ EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 bool EventPipe::Enabled()
 {
     LIMITED_METHOD_CONTRACT;
-    return s_tracingInitialized && (s_pConfig != nullptr) && s_pConfig->Enabled();
+    return s_tracingInitialized && s_config.Enabled();
 }
 
 EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
@@ -543,12 +532,11 @@ EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventP
     }
     CONTRACTL_END;
 
-    return (s_pConfig != NULL) ? s_pConfig->CreateProvider(
-                                     providerName,
-                                     pCallbackFunction,
-                                     pCallbackData,
-                                     pEventPipeProviderCallbackDataQueue)
-                               : nullptr;
+    return s_config.CreateProvider(
+        providerName,
+        pCallbackFunction,
+        pCallbackData,
+        pEventPipeProviderCallbackDataQueue);
 }
 
 EventPipeProvider *EventPipe::GetProvider(const SString &providerName)
@@ -561,7 +549,7 @@ EventPipeProvider *EventPipe::GetProvider(const SString &providerName)
     }
     CONTRACTL_END;
 
-    return (s_pConfig != NULL) ? s_pConfig->GetProvider(providerName) : nullptr;
+    return s_config.GetProvider(providerName);
 }
 
 void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
@@ -589,10 +577,7 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
         else
         {
             // Delete the provider now.
-            if (s_pConfig != NULL)
-            {
-                s_pConfig->DeleteProvider(pProvider);
-            }
+            s_config.DeleteProvider(pProvider);
         }
     }
 }
@@ -710,7 +695,8 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
     }
     CONTRACTL_END;
 
-    if (s_pConfig == nullptr)
+    // We can't proceed if tracing is not initialized.
+    if (!s_tracingInitialized)
         return;
 
     EventPipeEventPayload payload(pData, length);
@@ -723,7 +709,7 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         EventPipeSession *const pSession = session.Load();
         if (pSession == nullptr)
             continue;
-        _ASSERTE(s_pConfig->IsSessionIdValid(pSession->GetId()));
+        _ASSERTE(s_config.IsSessionIdValid(pSession->GetId()));
 
         pSession->WriteEvent(
             pSamplingThread,
@@ -841,8 +827,7 @@ EventPipeEventInstance *EventPipe::BuildEventMetadataEvent(EventPipeEventInstanc
     }
     CONTRACTL_END;
 
-    // s_pConfig Gets initialized once on EventPipe::Initialize
-    return (s_pConfig != nullptr) ? s_pConfig->BuildEventMetadataEvent(instance, metadataId) : nullptr;
+    return s_config.BuildEventMetadataEvent(instance, metadataId);
 }
 
 #ifdef DEBUG
