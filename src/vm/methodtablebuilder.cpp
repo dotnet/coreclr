@@ -1520,15 +1520,13 @@ MethodTableBuilder::BuildMethodTableThrowing(
         {
 #if defined(CROSSGEN_COMPILE)
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-            if ((!IsNgenPDBCompilationProcess()
+            if (!IsNgenPDBCompilationProcess()
                 && GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule())
-                || (strcmp(className, "Sse") != 0 && strcmp(className, "Sse2") != 0))
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
             {
                 // Disable AOT compiling for managed implementation of hardware intrinsics.
                 // We specially treat them here to ensure correct ISA features are set during compilation
-                // The only exception to this rule are SSE and SSE2 intrinsics in CoreLib - we can
-                // safely expand those because we require them to be always available.
+                // The only exception to this rule are intrinsics in CoreLib.
                 COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
             }
 #endif // defined(CROSSGEN_COMPILE)

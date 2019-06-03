@@ -441,7 +441,7 @@ void ZapInfo::CompileMethod()
     // this they can add the hint and reduce the perf cost at runtime.
     m_pImage->m_pPreloader->PrePrepareMethodIfNecessary(m_currentMethodHandle);
 
-    DWORD methodAttribs = getMethodAttribs(m_currentMethodHandle);
+    DWORD methodAttribs = m_pEEJitInfo->getMethodAttribs(m_currentMethodHandle);
     if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
     {
         // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
@@ -449,6 +449,24 @@ void ZapInfo::CompileMethod()
         // instead of this check.
         return;
     }
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if (methodAttribs & CORINFO_FLG_JIT_INTRINSIC)
+    {
+        // Skip generating hardware intrinsic method bodies.
+        //
+        // The actual method bodies are only reachable via reflection/delegates, but we don't know what the
+        // implementation should do (whether it can do the actual intrinsic thing, or whether it should throw
+        // a PlatformNotSupportedException).
+
+        const char* namespaceName;
+        getMethodNameFromMetadata(m_currentMethodHandle, nullptr, &namespaceName, nullptr);
+        if (strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
+        {
+            return;
+        }
+    }
+#endif
 
     m_jitFlags = ComputeJitFlags(m_currentMethodHandle);
 
@@ -2086,6 +2104,30 @@ void ZapInfo::GetProfilingHandle(BOOL                      *pbHookFunction,
     *pbIndirectedHandles = TRUE;
 }
 
+DWORD FilterMethodAttribsForIsSupported(DWORD attribs, CORINFO_METHOD_HANDLE ftn, ICorDynamicInfo* pJitInfo)
+{
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if (attribs & CORINFO_FLG_JIT_INTRINSIC)
+    {
+        // Do not report the get_IsSupported method as an intrinsic. This will turn the call into a regular
+        // call. We also make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
+        // (see ZapInfo::CompileMethod) but get JITted instead. The JITted method will have the correct
+        // answer for the CPU the code is running on.
+
+        const char* namespaceName;
+        const char* methodName = pJitInfo->getMethodNameFromMetadata(ftn, nullptr, &namespaceName, nullptr);
+
+        if (strcmp(methodName, "get_IsSupported") == 0
+            && strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
+        {
+            attribs &= ~CORINFO_FLG_JIT_INTRINSIC;
+        }
+    }
+#endif
+
+    return attribs;
+}
+
 //return a callable stub that will do the virtual or interface call
 
 
@@ -2110,6 +2152,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                                */
                               (CORINFO_CALLINFO_FLAGS)(flags | CORINFO_CALLINFO_KINDONLY),
                               pResult);
+
+    pResult->methodFlags = FilterMethodAttribsForIsSupported(pResult->methodFlags, pResult->hMethod, m_pEEJitInfo);
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
@@ -3681,7 +3725,8 @@ unsigned ZapInfo::getMethodHash(CORINFO_METHOD_HANDLE ftn)
 
 DWORD ZapInfo::getMethodAttribs(CORINFO_METHOD_HANDLE ftn)
 {
-    return m_pEEJitInfo->getMethodAttribs(ftn);
+    DWORD result = m_pEEJitInfo->getMethodAttribs(ftn);
+    return FilterMethodAttribsForIsSupported(result, ftn, m_pEEJitInfo);
 }
 
 void ZapInfo::setMethodAttribs(CORINFO_METHOD_HANDLE ftn, CorInfoMethodRuntimeFlags attribs)
