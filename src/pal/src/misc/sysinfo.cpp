@@ -525,7 +525,7 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
     }
 #endif
 
-#if HAVE_SYSCTL
+#if HAVE_SYSCTLBYNAME
     if (cacheSize == 0)
     {
         int64_t cacheSizeFromSysctl = 0;
