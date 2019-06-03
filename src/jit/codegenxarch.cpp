@@ -96,6 +96,10 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, REG_EAX, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
         regSet.verifyRegUsed(REG_EAX);
         getEmitter()->emitIns_S_R(INS_mov, EA_PTRSIZE, REG_EAX, compiler->lvaGSSecurityCookie, 0);
+        if (initReg == REG_EAX)
+        {
+            *pInitRegZeroed = false;
+        }
     }
 }
 
