@@ -25,9 +25,7 @@ if "%DOTNET_INSTALL_DIR%"=="" (
   echo Running: dotnet %*
   call "%~dp0\.dotnet\dotnet.exe" %*
   popd
-)
-
-else (
+) else (
   pushd %~dp0
   echo Running: dotnet %*
   call "%DOTNET_INSTALL_DIR%\dotnet.exe" %*
