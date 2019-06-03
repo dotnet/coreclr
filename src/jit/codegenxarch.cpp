@@ -84,7 +84,8 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
 #endif
         {
             // mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
-            getEmitter()->emitIns_S_I(INS_mov, EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, (int)compiler->gsGlobalSecurityCookieVal);
+            getEmitter()->emitIns_S_I(INS_mov, EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0,
+                                      (int)compiler->gsGlobalSecurityCookieVal);
         }
     }
     else
@@ -379,7 +380,8 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
     curNestingSlotOffs = (unsigned)(filterEndOffsetSlotOffs - ((finallyNesting + 1) * TARGET_POINTER_SIZE));
 
     // Zero out the slot for the next nesting level
-    getEmitter()->emitIns_S_I(INS_mov, EA_PTRSIZE, compiler->lvaShadowSPslotsVar, curNestingSlotOffs - TARGET_POINTER_SIZE, 0);
+    getEmitter()->emitIns_S_I(INS_mov, EA_PTRSIZE, compiler->lvaShadowSPslotsVar,
+                              curNestingSlotOffs - TARGET_POINTER_SIZE, 0);
     getEmitter()->emitIns_S_I(INS_mov, EA_PTRSIZE, compiler->lvaShadowSPslotsVar, curNestingSlotOffs, LCL_FINALLY_MARK);
 
     // Now push the address where the finally funclet should return to directly.
