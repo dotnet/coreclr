@@ -54,8 +54,8 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
 //
 // Arguments:
 //     initReg        - register to use as scratch register
-//     pInitRegZeroed - OUT parameter. *pInitRegZeroed set to 'false' if 'initReg' is
-//                      not zero after this call.
+//     pInitRegZeroed - OUT parameter. *pInitRegZeroed set to 'false' if and only if
+//                      this call sets 'initReg' to a non-zero value.
 //
 // Return Value:
 //     None
