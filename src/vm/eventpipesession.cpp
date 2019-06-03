@@ -62,6 +62,21 @@ EventPipeSession::EventPipeSession(
     QueryPerformanceCounter(&m_sessionStartTimeStamp);
 }
 
+void EventPipeSession::Close()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    // FIXME: **ONLY** closes the stream. This explicitly **LEAKS** the
+    // provider list and buffer manager.
+    delete m_pFile;
+}
+
 EventPipeSession::~EventPipeSession()
 {
     CONTRACTL
@@ -182,7 +197,9 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
             pEventPipeSession->SetThreadShutdownEvent();
 
             if (!fSuccess)
-                pEventPipeSession->Disable();
+            {
+                EventPipe::RunWithCallbackPostponed([pEventPipeSession](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue){pEventPipeSession->Disable();});
+            }
         }
         EX_CATCH
         {
