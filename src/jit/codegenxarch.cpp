@@ -78,14 +78,14 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         {
             // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
             genSetRegToIcon(initReg, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
-            getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
+            getEmitter()->emitIns_S_R(INS_mov, EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
             *pInitRegZeroed = false;
         }
         else
 #endif
         {
             // mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
-            getEmitter()->emitIns_S_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, (int)compiler->gsGlobalSecurityCookieVal);
+            getEmitter()->emitIns_S_I(INS_mov, EA_PTRSIZE, compiler->lvaGSSecurityCookie, 0, (int)compiler->gsGlobalSecurityCookieVal);
         }
     }
     else
@@ -96,7 +96,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
         //  mov   dword ptr [frame.GSSecurityCookie], eax
         getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, REG_EAX, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
         regSet.verifyRegUsed(REG_EAX);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_EAX, compiler->lvaGSSecurityCookie, 0);
+        getEmitter()->emitIns_S_R(INS_mov, EA_PTRSIZE, REG_EAX, compiler->lvaGSSecurityCookie, 0);
     }
 }
 
