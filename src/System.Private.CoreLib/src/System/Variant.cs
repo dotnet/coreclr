@@ -110,8 +110,8 @@ namespace System
         };
 
         internal static readonly Variant Empty = new Variant();
-        internal static readonly Variant Missing = new Variant(Variant.CV_MISSING, Type.Missing);
-        internal static readonly Variant DBNull = new Variant(Variant.CV_NULL, System.DBNull.Value);
+        internal static readonly Variant Missing = new Variant(Variant.CV_MISSING, Type.Missing, 0);
+        internal static readonly Variant DBNull = new Variant(Variant.CV_NULL, System.DBNull.Value, 0);
 
         //
         // Native Methods
@@ -123,7 +123,7 @@ namespace System
         // Constructors
         //
 
-        internal Variant(int flags, object or, long data = 0)
+        internal Variant(int flags, object or, long data)
         {
             _flags = flags;
             _objref = or;
