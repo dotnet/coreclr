@@ -47,7 +47,7 @@
 // 
 class CastCache
 {
-    friend class SyncClean;
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
     struct CastCacheEntry
     {
@@ -81,71 +81,135 @@ class CastCache
     };
 
 public:
+
     CastCache(DWORD size)
     {
         CONTRACTL
         {
             THROWS;
-            MODE_ANY;
-            GC_TRIGGERS;     
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
         }
         CONTRACTL_END;
 
-        m_Table = new CastCacheEntry[size + 1];
-        memset(m_Table, 0, (size + 1) * sizeof(CastCacheEntry));
-
-        this->TableSize() = size;
+        //TODO: VS handle OOM. maybe lower size to min?
+        m_Table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
 
         //TODO: VS this is actually a Log2. Is there a helper?
         this->TableBits() = CountBits(size - 1);
     }
 
+    CastCache(OBJECTREF arr)
+    {
+        m_Table = (BASEARRAYREF)arr;
+    }
+
     FORCEINLINE static void TryAddToCache(TypeHandle source, TypeHandle target, BOOL result)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
         TryAddToCache(source.AsTAddr(), target.AsTAddr(), result, false);
+    }
+
+    FORCEINLINE static void TryAddToCacheAny(MethodTable* pSourceMT, TypeHandle target, BOOL result)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+        GCX_COOP();
+
+        TryAddToCache(pSourceMT, target, result);
     }
 
     FORCEINLINE static void TryAddToCache(MethodTable* pSourceMT, TypeHandle target, BOOL result)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
         TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result, false);
     }
 
     FORCEINLINE static void TryAddToCacheNoGC(TypeHandle source, TypeHandle target, BOOL result)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
         TryAddToCache(source.AsTAddr(), target.AsTAddr(), result, true);
     }
 
     FORCEINLINE static void TryAddToCacheNoGC(MethodTable* pSourceMT, TypeHandle target, BOOL result)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
         TryAddToCache((TADDR)pSourceMT, target.AsTAddr(), result, true);
     }
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TypeHandle source, TypeHandle target)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
         return TryGetFromCache(source.AsTAddr(), target.AsTAddr());
     }
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(MethodTable* pSourceMT, TypeHandle target)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
         return TryGetFromCache((TADDR)pSourceMT, target.AsTAddr());
     }
 
     static void FlushCurrentCache();
 
-    FORCEINLINE DWORD& TableSize()
+    FORCEINLINE DWORD TableSize()
     {
-        return *((DWORD*)&this->m_Table[0] + 0);
+        return ((DWORD)this->m_Table->GetNumComponents() * sizeof(INT64) / sizeof(CastCacheEntry)) - 1;
     }
 
     FORCEINLINE CastCacheEntry* Elements()
     {
-        return this->m_Table + 1;
+
+        // element 0 is used for embedded aux data, skip it
+        // TODO: VS perhaps just offset by ARRAYBASE_SIZE ?
+        return (CastCacheEntry*)this->m_Table->GetDataPtr() + 1;
     }
 
     FORCEINLINE DWORD TableMask()
@@ -165,11 +229,6 @@ public:
 
 private:
 
-    FORCEINLINE DWORD& AuxData()
-    {
-        return *((DWORD*)&this->m_Table[0] + 1);
-    }
-
 #if DEBUG
     static const DWORD INITIAL_CACHE_SIZE = 8;    // MUST BE A POWER OF TWO
 #else
@@ -179,34 +238,44 @@ private:
     static const DWORD MAXIMUM_CACHE_SIZE = 128 * 1024; //TODO: VS too big?
     static const DWORD BUCKET_SIZE = 8;
 
-    //TODO: VS consider allocating this on the managed heap.
-    static CastCache*   s_cache;
-    CastCacheEntry*     m_Table;
-    CastCache*          m_NextObsolete;
-
+    static OBJECTHANDLE   s_cache;
+    BASEARRAYREF m_Table;
 
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TADDR source, TADDR target)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_NOTRIGGER;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
 
         if (source == target)
         {
             return TypeHandle::CanCast;
         }
 
-        CastCache* cache = s_cache;
-        if (cache == NULL)
+        OBJECTHANDLE c = s_cache;
+        if (c == NULL)
         {
             return TypeHandle::MaybeCast;
         }
 
-        return cache->TryGet(source, target);
+        CastCache cache = CastCache(ObjectFromHandle(c));
+        return cache.TryGet(source, target);
     }
 
     FORCEINLINE static void TryAddToCache(TADDR source, TADDR target, BOOL result, BOOL noGC)
     {
-        WRAPPER_NO_CONTRACT;
+        CONTRACTL
+        {
+            if (noGC) { NOTHROW; } else { THROWS; }
+            if (noGC) { GC_NOTRIGGER; } else { GC_TRIGGERS; }
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
 
         if (source == target)
             return;
@@ -214,33 +283,39 @@ private:
         TrySet(source, target, result, noGC);
     }
 
-    FORCEINLINE static CastCache* TryGrow()
+    FORCEINLINE DWORD& AuxData()
     {
-        WRAPPER_NO_CONTRACT;
+        // element 0 is used for embedded aux data
+        return (DWORD&)*this->m_Table->GetDataPtr();
+    }
 
-        CastCache* currentCache = s_cache;
+    FORCEINLINE static bool TryGrow(CastCache currentCache)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
 
         //TODO: VS need to be smarter with resize or this is enough? 
         //TODO: any problems with concurent expansion and waste, perhaps a spinlock?
-        if (currentCache == NULL || currentCache->Size() < MAXIMUM_CACHE_SIZE)
+        if (currentCache.m_Table == NULL || currentCache.Size() < MAXIMUM_CACHE_SIZE)
         {
-            return MaybeReplaceCacheWithLarger(currentCache);
+            return MaybeReplaceCacheWithLarger(currentCache).m_Table != NULL;
         }
 
-        return NULL;
+        return false;
     }
 
     FORCEINLINE DWORD Size()
     {
-        WRAPPER_NO_CONTRACT;
-
-        return this->TableMask() + 1;
+        return this->TableSize();
     }
 
     FORCEINLINE DWORD KeyToBucket(TADDR source, TADDR target)
     {
-        WRAPPER_NO_CONTRACT;
-
         // upper bits are less interesting, so we do "rotl(source, <half-size>) ^ target" for mixing;
         // hash the mixed value to desired size
         // we use fibonacci hashing
@@ -254,12 +329,34 @@ private:
 #endif
     }
 
-    static CastCache* MaybeReplaceCacheWithLarger(CastCache* currentCache);
+    static CastCache MaybeReplaceCacheWithLarger(CastCache currentCache);
+
     TypeHandle::CastResult TryGet(TADDR source, TADDR target);
     static void TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC);
 
-    // only SyncClean is supposed to call this in GC
-    ~CastCache();
+#else
+public:
+    FORCEINLINE static void TryAddToCache(TypeHandle source, TypeHandle target, BOOL result)
+    {
+    }
+
+    FORCEINLINE static void TryAddToCacheAny(MethodTable* pSourceMT, TypeHandle target, BOOL result)
+    {
+    }
+
+    FORCEINLINE static void TryAddToCache(MethodTable* pSourceMT, TypeHandle target, BOOL result)
+    {
+    }
+
+    FORCEINLINE static void TryAddToCacheNoGC(TypeHandle source, TypeHandle target, BOOL result)
+    {
+    }
+
+    FORCEINLINE static void TryAddToCacheNoGC(MethodTable* pSourceMT, TypeHandle target, BOOL result)
+    {
+    }
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 };
 
 #endif

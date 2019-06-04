@@ -8,45 +8,33 @@
 #include "common.h"
 #include "castcache.h"
 
-CastCache* CastCache::s_cache = NULL;
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
-// this is only called on GC or during shutdown (see: SyncClean::CleanUp).
-CastCache::~CastCache()
+OBJECTHANDLE CastCache::s_cache = NULL;
+
+CastCache CastCache::MaybeReplaceCacheWithLarger(CastCache currentCache)
 {
-    LIMITED_METHOD_CONTRACT;
-    delete[] m_Table;
-}
-
-CastCache* CastCache::MaybeReplaceCacheWithLarger(CastCache* currentCache)
-{
-    WRAPPER_NO_CONTRACT;
-
-    if (currentCache == NULL)
+    CONTRACTL
     {
-        CastCache* newCache = new (nothrow) CastCache(INITIAL_CACHE_SIZE);
-        if (newCache != NULL)
-        {
-            s_cache = newCache;
-        }
-
-        return newCache;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
     }
+    CONTRACTL_END;
 
-    CastCache* newCache = new (nothrow) CastCache(currentCache->Size() * 2);
-    if (newCache == NULL)
-        return FALSE; // oh well, continue using the old cache.
+    int newSize = currentCache.m_Table == NULL ? INITIAL_CACHE_SIZE : currentCache.Size() * 2;
+    CastCache newCache = CastCache(newSize);
 
-    CastCache* prevCache = FastInterlockCompareExchangePointer(&s_cache, newCache, currentCache);
+    OBJECTREF currentCacheRef = ObjectFromHandle(s_cache);
+    OBJECTREF prevCacheRef = (OBJECTREF)(Object*)InterlockedCompareExchangeObjectInHandle(s_cache, newCache.m_Table, currentCacheRef);
 
-    if (prevCache == currentCache)
+    if (prevCacheRef == currentCacheRef)
     {
-        SyncClean::AddObsoleteCastCache(prevCache);
         return newCache;
     }
     else
     {
-        SyncClean::AddObsoleteCastCache(newCache);
-        return prevCache;
+        return CastCache(prevCacheRef);
     }
 }
 
@@ -56,23 +44,25 @@ void CastCache::FlushCurrentCache()
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
-    CastCache* oldCache = s_cache;
-    int newSize = oldCache == NULL ? INITIAL_CACHE_SIZE : oldCache->Size();
-
-    CastCache* newCache = new (nothrow) CastCache(newSize);
-    if (newCache == NULL)
-        newCache = new (nothrow) CastCache(INITIAL_CACHE_SIZE);
-
-    CastCache* obsoleteCache = FastInterlockExchangePointer(&s_cache, newCache);
-
-    if (obsoleteCache != NULL)
+    if (s_cache == NULL)
     {
-        SyncClean::AddObsoleteCastCache(obsoleteCache);
+        CastCache newCache = CastCache(INITIAL_CACHE_SIZE);
+        s_cache = CreateGlobalHandle(newCache.m_Table);
+        return;
     }
+
+    CastCache currentCache = CastCache(ObjectFromHandle(s_cache));
+    int newSize = currentCache.m_Table == NULL ? INITIAL_CACHE_SIZE : currentCache.Size();
+
+    CastCache newCache = CastCache(newSize);
+    if (newCache.m_Table == NULL)
+        newCache = CastCache(INITIAL_CACHE_SIZE);
+
+    StoreObjectInHandle(s_cache, newCache.m_Table);
 }
 
 TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
@@ -135,25 +125,38 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 
 void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 {
-    WRAPPER_NO_CONTRACT;
-
-    if (s_cache == NULL && !noGC)
-        TryGrow();
-
-    DWORD bucket;
-    CastCache* currentCache;
-
-    do
+    CONTRACTL
     {
-        currentCache = VolatileLoadWithoutBarrier(&s_cache);
-        if (currentCache == NULL)
+        if (noGC) { NOTHROW; } else { THROWS; }
+        if (noGC) { GC_NOTRIGGER; } else { GC_TRIGGERS; }
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    if (s_cache == NULL)
+    {
+        if (noGC)
         {
             return;
         }
 
-        bucket = currentCache->KeyToBucket(source, target);
+        FlushCurrentCache();
+    }
+
+    DWORD bucket;
+    CastCache currentCache((OBJECTREF)(Object*)(NULL));
+
+    do
+    {
+        currentCache = CastCache(ObjectFromHandle(s_cache));
+        if (currentCache.m_Table == NULL)
+        {
+            return;
+        }
+
+        bucket = currentCache.KeyToBucket(source, target);
         DWORD index = bucket;
-        CastCacheEntry* pEntry = &currentCache->Elements()[index];
+        CastCacheEntry* pEntry = &currentCache.Elements()[index];
 
         for (DWORD i = 0; i < BUCKET_SIZE; i++)
         {
@@ -183,20 +186,20 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 
             // quadratic reprobe
             index += i;
-            pEntry = &currentCache->Elements()[index & currentCache->TableMask()];
+            pEntry = &currentCache.Elements()[index & currentCache.TableMask()];
         }
 
         // bucket is full.
-    } while (!noGC && TryGrow());
+    } while (!noGC && TryGrow(currentCache));
 
     // pick a victim somewhat randomly within a bucket 
     // NB: ++ is not interlocked. We are ok if we lose counts here. It is just a number that changes.
-    DWORD victim = currentCache->VictimCounter()++ & (BUCKET_SIZE - 1);
+    DWORD victim = currentCache.VictimCounter()++ & (BUCKET_SIZE - 1);
     // position the victim in a quadratic reprobe bucket
     victim = (victim * victim + victim) / 2;
 
     {
-        CastCacheEntry* pEntry = &currentCache->Elements()[(bucket + victim) & currentCache->TableMask()];
+        CastCacheEntry* pEntry = &currentCache.Elements()[(bucket + victim) & currentCache.TableMask()];
 
         DWORD version2 = pEntry->version1;
         if (version2 == MAXDWORD)
@@ -216,3 +219,5 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
         }
     }
 }
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE

@@ -614,6 +614,9 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
                         // Other values are typically ignored. If using SUSPEND_FOR_APPDOMAIN_SHUTDOWN
                         // is inappropriate, we can introduce a new flag or hijack an unused one.
             ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_APPDOMAIN_SHUTDOWN);
+
+            // drop the cast cache while still in COOP mode.
+            CastCache::FlushCurrentCache();
         }
 
         ExecutionManager::Unload(pDomainLoaderAllocatorDestroyIterator);
@@ -621,7 +624,6 @@ void LoaderAllocator::GCLoaderAllocators(LoaderAllocator* pOriginalLoaderAllocat
 
         // TODO: Do we really want to perform this on each LoaderAllocator?
         MethodTable::ClearMethodDataCache();
-        CastCache::FlushCurrentCache();
         ClearJitGenericHandleCache(pAppDomain);
 
         if (!IsAtProcessExit())
