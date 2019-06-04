@@ -218,19 +218,16 @@ namespace System
 
                 ConstructorInfo? runtimeCtorInfo = RuntimeType.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null);
 
-                if (IsValueType)
+                if (runtimeCtorInfo != null && runtimeCtorInfo.IsPublic)
                 {
-                    if (runtimeCtorInfo != null && runtimeCtorInfo.IsPublic)
+                    if (IsValueType)
                         ConstructStruct = CreateDelegate<StructConstructor<T>>(runtimeCtorInfo);
                     else
-                        IsNotActivatable = runtimeCtorInfo != null;
+                        ConstructClass = CreateDelegate<ClassConstructor<T>>(runtimeCtorInfo);
                 }
                 else
                 {
-                    if (runtimeCtorInfo != null && runtimeCtorInfo.IsPublic)
-                        ConstructClass = CreateDelegate<ClassConstructor<T>>(runtimeCtorInfo);
-                    else
-                        IsNotActivatable = true;
+                    IsNotActivatable = !(IsValueType && runtimeCtorInfo == null);
                 }
             }
         }
