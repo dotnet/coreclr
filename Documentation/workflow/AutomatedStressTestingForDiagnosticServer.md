@@ -10,7 +10,7 @@ EventPipe.  The feature itself is enabled via the feature flag `-DFEATURE_AUTO_T
 AutoTrace injects a waitable event into the startup path of the runtime and waits on that event until
 some number of Diagnostics IPC (see: Diagnostics IPC in the dotnet/diagnostics repo) connections have occurred.
 The runtime then creates some number of processes using a supplied path that typically are Diagnostics IPC based tracers.
-Once all the tracers have connected to the server, the 
+Once all the tracers have connected to the server, the event will be signaled and execution will continue as normal.
 
 ## Use:
 
