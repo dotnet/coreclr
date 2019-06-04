@@ -118,7 +118,7 @@ jobs:
     parameters:
       jobTemplate: build-job.yml
       buildConfig: checked
-      ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+      ${{ if and(in(variables['Build.Reason'], 'PullRequest'), in(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
         platforms:
         - Linux_arm
         - Linux_arm64
@@ -136,21 +136,25 @@ jobs:
         - Linux_x64
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
         platforms:
         - Linux_arm64
         - Windows_NT_arm64
-      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-x86') }}:
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-x86') }}:
         platforms:
         - Linux_x64
         - OSX_x64
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstressregs-x86') }}:
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstressregs-x86') }}:
         platforms:
         - Linux_x64
         - Windows_NT_x64
         - Windows_NT_x86
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-corefx', 'coreclr-corefx-jitstress', 'coreclr-corefx-jitstressregs', 'coreclr-corefx-jitstress2-jitstressregs') }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
 
 #
 # Release builds
@@ -194,7 +198,22 @@ jobs:
 # Checked test builds
 #
 # The test jobs that can be triggered by a PR, manually from ADO and that are scheduled
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'Manual', 'Schedule')) }}:
+- ${{ if and(
+        eq(variables['System.TeamProject'], 'public'),
+        in(variables['Build.Reason'], 'PullRequest', 'Manual', 'Schedule'),
+        in(variables['Build.DefinitionName'],
+            'coreclr-ci',
+            'coreclr-outerloop',
+            'coreclr-outerloop-jitstress',
+            'coreclr-outerloop-jitstress-isas-arm',
+            'coreclr-outerloop-jitstress-isas-x86',
+            'coreclr-outerloop-jitstressregs-x86',
+            'coreclr-outerloop-jitstressregs',
+            'coreclr-outerloop-jitstress2-jitstressregs',
+            'coreclr-outerloop-gcstress0x3-gcstress0xc',
+            'coreclr-outerloop-gcstress-extra',
+            'coreclr-outerloop-r2r-extra')
+        ) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
@@ -260,7 +279,11 @@ jobs:
 
 # ReadyToRun test jobs that are triggered by default from a PR.
 
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+- ${{ if and(
+        eq(variables['System.TeamProject'], 'public'),
+        eq(variables['Build.Reason'], 'PullRequest'),
+        eq(variables['Build.DefinitionName'], 'coreclr-ci')
+        ) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
@@ -281,24 +304,25 @@ jobs:
 
 # PR innerloop checked build
 
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'Manual', 'Schedule')) }}:
+- ${{ if and(
+        eq(variables['System.TeamProject'], 'public'),
+        in(variables['Build.Reason'], 'PullRequest', 'Manual', 'Schedule'),
+        in(variables['Build.DefinitionName'],
+            'coreclr-ci',
+            'coreclr-corefx',
+            'coreclr-corefx-jitstress',
+            'coreclr-corefx-jitstressregs',
+            'coreclr-corefx-jitstress2-jitstressregs'
+            )
+        ) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
       ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
         platforms:
-        - Linux_arm
-        - Linux_arm64
-        - Linux_musl_x64
         - Linux_x64
-        - OSX_x64
-        # No Windows arm/arm64 helix queues defined for processing PRs currently.
-        #- Windows_NT_arm
-        #- Windows_NT_arm64
         - Windows_NT_x64
-        - Windows_NT_x86
-      # Limit corefx jobs platforms until all platforms work
       ${{ if in(variables['Build.DefinitionName'], 'coreclr-corefx', 'coreclr-corefx-jitstress', 'coreclr-corefx-jitstressregs', 'coreclr-corefx-jitstress2-jitstressregs') }}:
         platforms:
         - Linux_x64
@@ -351,8 +375,11 @@ jobs:
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
+      platforms:
+      # Temporary: only one known good platform for outerloop CoreFX jobs
+      - Windows_NT_x64
       jobParameters:
-        testGroup: outerloop
+        testGroup: corefx
         corefxTests: true
         displayNameArgs: CoreFX
 
@@ -393,8 +420,11 @@ jobs:
     parameters:
       jobTemplate: test-job.yml
       buildConfig: release
+      platforms:
+      # Temporary: only one known good platform for outerloop CoreFX jobs
+      - Windows_NT_x64
       jobParameters:
-        testGroup: outerloop
+        testGroup: corefx
         corefxTests: true
         displayNameArgs: CoreFX
 
