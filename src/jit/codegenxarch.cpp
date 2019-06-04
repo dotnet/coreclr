@@ -3280,7 +3280,7 @@ unsigned CodeGen::genMove8IfNeeded(unsigned size, regNumber longTmpReg, GenTree*
 #ifdef _TARGET_X86_
     instruction longMovIns = INS_movq;
 #else  // !_TARGET_X86_
-    instruction longMovIns = INS_mov;
+    instruction longMovIns   = INS_mov;
 #endif // !_TARGET_X86_
     if ((size & 8) != 0)
     {
