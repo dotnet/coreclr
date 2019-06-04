@@ -285,7 +285,7 @@ jobs:
 
 # PR innerloop checked build
 
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest, 'Manual', 'Schedule')) }}:
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest, 'Manual', 'Schedule')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
