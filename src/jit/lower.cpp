@@ -240,22 +240,6 @@ GenTree* Lowering::LowerNode(GenTree* node)
 
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
-            if (node->AsBlk()->gtBlkSize == 0)
-            {
-                // Storing a block of zero size is a no-op.
-                GenTree*           nextNode = node->gtNext;
-                bool               isClosed;
-                LIR::ReadOnlyRange blockStoreRange = BlockRange().GetTreeRange(node, &isClosed);
-                if (isClosed)
-                {
-                    JITDUMP("Removing zero-length block store:\n");
-                    DISPTREE(node);
-                    BlockRange().Remove(std::move(blockStoreRange));
-                    return nextNode;
-                }
-            }
-            __fallthrough;
-
         case GT_STORE_DYN_BLK:
         {
             GenTreeBlk* blkNode = node->AsBlk();

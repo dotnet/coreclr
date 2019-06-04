@@ -2973,7 +2973,6 @@ void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
 
     assert(dstAddr->isUsedFromReg());
     assert(initVal->isUsedFromReg() || (initVal->IsIntegralConst(0) && ((size & 0xf) == 0)));
-    assert(size != 0);
     assert(size <= INITBLK_UNROLL_LIMIT);
     assert(initVal->gtSkipReloadOrCopy()->IsCnsIntOrI());
 
