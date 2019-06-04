@@ -302,6 +302,11 @@ jobs:
         #- Windows_NT_arm64
         - Windows_NT_x64
         - Windows_NT_x86
+      # Limit corefx jobs platforms until all platforms work
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-corefx', 'coreclr-corefx-jitstress', 'coreclr-corefx-jitstressregs', 'coreclr-corefx-jitstress2-jitstressregs') }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
       jobParameters:
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
           testGroup: innerloop
