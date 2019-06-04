@@ -858,8 +858,8 @@ namespace System.Globalization
             int sortKeyLength = (source.Length > 1024 * 1024 / 4) ? 0 : 4 * source.Length;
 
             byte[]? borrowedArray = null;
-            Span<byte> sortKey = sortKeyLength <= 512
-                ? stackalloc byte[512]
+            Span<byte> sortKey = sortKeyLength <= 1024
+                ? stackalloc byte[1024]
                 : (borrowedArray = ArrayPool<byte>.Shared.Rent(sortKeyLength));
 
             fixed (char* pSource = &MemoryMarshal.GetReference(source))
@@ -871,7 +871,10 @@ namespace System.Globalization
 
                 if (sortKeyLength > sortKey.Length) // slow path for big strings
                 {
-                    if (borrowedArray != null) ArrayPool<byte>.Shared.Return(borrowedArray);
+                    if (borrowedArray != null)
+                    {
+                        ArrayPool<byte>.Shared.Return(borrowedArray);
+                    }
 
                     sortKey = (borrowedArray = ArrayPool<byte>.Shared.Rent(sortKeyLength));
 
@@ -884,14 +887,15 @@ namespace System.Globalization
 
             if (sortKeyLength == 0 || sortKeyLength > sortKey.Length) // internal error (0) or a bug (2nd call failed) in ucol_getSortKey
             {
-                if (borrowedArray != null) ArrayPool<byte>.Shared.Return(borrowedArray);
-
                 throw new ArgumentException(SR.Arg_ExternalException);
             }
 
             int hash = Marvin.ComputeHash32(sortKey.Slice(0, sortKeyLength), Marvin.DefaultSeed);
 
-            if (borrowedArray != null) ArrayPool<byte>.Shared.Return(borrowedArray);
+            if (borrowedArray != null)
+            {
+                ArrayPool<byte>.Shared.Return(borrowedArray);
+            }
 
             return hash;
         }
