@@ -2134,7 +2134,7 @@ DWORD FilterMethodAttribsForIsSupported(DWORD attribs, CORINFO_METHOD_HANDLE ftn
                 || (
                     strcmp(className, "X64") == 0
                     && (
-                        strcmp(enclosingClassName, "Sse") == 0 || strcmp(enclosingClassName, "Sse2")
+                        strcmp(enclosingClassName, "Sse") == 0 || strcmp(enclosingClassName, "Sse2") == 0
                         )
                     )
                 )
