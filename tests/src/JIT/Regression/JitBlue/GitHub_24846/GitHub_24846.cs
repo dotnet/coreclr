@@ -9,12 +9,12 @@ unsafe public class GitHub_24846
 {
     public static void TestCopy(byte* destination, byte* source)
     {
-        Unsafe.CopyBlockUnaligned(ref *destination, ref *source, 0);
+        Unsafe.CopyBlockUnaligned(destination, source, 0);
     }
 
     public static void TestInit(byte* destination)
     {
-        Unsafe.InitBlockUnaligned(ref *destination, 0xff, 0);
+        Unsafe.InitBlockUnaligned(destination, 0xff, 0);
     }
 
     public static int Main(string[] args)
