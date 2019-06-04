@@ -5942,8 +5942,8 @@ GenTree* Compiler::gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSE
                (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
     // This local variable node may later get transformed into a large node
-    assert(GenTree::s_gtNodeSizes[GT_CALL] > GenTree::s_gtNodeSizes[GT_LCL_VAR]);
-    GenTree* node = new (this, GT_CALL) GenTreeLclVar(type, lnum DEBUGARG(ILoffs) DEBUGARG(/*largeNode*/ true));
+    assert(GenTree::s_gtNodeSizes[LargeOpOpcode()] > GenTree::s_gtNodeSizes[GT_LCL_VAR]);
+    GenTree* node = new (this, LargeOpOpcode()) GenTreeLclVar(type, lnum DEBUGARG(ILoffs) DEBUGARG(/*largeNode*/ true));
     return node;
 }
 
