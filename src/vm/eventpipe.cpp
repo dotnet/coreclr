@@ -249,7 +249,7 @@ void EventPipe::Shutdown()
         {
             EventPipeSession *pSession = s_pSessions[i].Load();
             if (pSession)
-                Disable(static_cast<EventPipeSessionID>(1 << i));
+                Disable(static_cast<EventPipeSessionID>(1ULL << i));
         }
     }
     EX_CATCH {}
