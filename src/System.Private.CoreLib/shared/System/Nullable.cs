@@ -73,7 +73,7 @@ namespace System
 
         public override string? ToString()
         {
-            return hasValue ? value.ToString() : "";
+            return hasValue ? value.ToString() : string.Empty;
         }
 
         [NonVersionable]
