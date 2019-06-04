@@ -281,6 +281,7 @@ jobs:
           - gcstress0xc_jitminopts_heapverify1
         ${{ if eq(parameters.testGroup, 'outerloop-r2r-extra') }}:
           scenarios:
+          - normal
           - jitstress1
           - jitstress2
           - jitstress1_tiered
