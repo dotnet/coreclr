@@ -284,7 +284,7 @@ namespace System
                 if (offset < length)
                 {
                     Debug.Assert(length - offset >= Vector128<ushort>.Count);
-                    if (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, (IntPtr)offset)) & (nint)(Vector256<ushort>.Count - 1)) != 0)
+                    if (((nint)Unsafe.AsPointer(ref Unsafe.Add(ref searchSpace, (IntPtr)offset)) & (nint)(Vector256<byte>.Count - 1)) != 0)
                     {
                         // Not currently aligned to Vector256 (is aligned to Vector128); this can cause a problem for searches
                         // with no upper bound e.g. String.wcslen. Start with a check on Vector128 to align to Vector256, 
