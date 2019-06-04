@@ -105,7 +105,8 @@ LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
         // x19 = pFrame
         
         // set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
-        PREPARE_EXTERNAL_VAR C_FUNC(_ZTV16InlinedCallFrame+16), x9
+        PREPARE_EXTERNAL_VAR _ZTV16InlinedCallFrame, x9
+        add     x9, x9, 16
         str     x9, [x19]
 
         str     xzr, [x19, #InlinedCallFrame__m_Datum]

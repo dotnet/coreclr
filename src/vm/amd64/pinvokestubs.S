@@ -145,18 +145,13 @@ NESTED_ENTRY JIT_PInvokeBegin, _TEXT, NoHandler
         add             rdi, SIZEOF_GSCookie
 
         // set first slot to the value of InlinedCallFrame vftable (checked by runtime code)
-#ifdef __APPLE__
-        PREPARE_EXTERNAL_VAR C_FUNC(ZTV16InlinedCallFrame), rax
-#else
-        PREPARE_EXTERNAL_VAR C_FUNC(_ZTV16InlinedCallFrame), rax
-#endif
+        PREPARE_EXTERNAL_VAR _ZTV16InlinedCallFrame, rax
         add             rax, 0x10
         mov             qword ptr [rdi], rax
 
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_Datum], 0
 
-        mov             rax, rsp
-        add             rax, 0x10
+        lea             rax, [rsp + 0x10]
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_pCallSiteSP], rax
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP], rbp
 
