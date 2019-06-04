@@ -455,13 +455,14 @@ void ZapInfo::CompileMethod()
     {
         // Skip generating hardware intrinsic method bodies.
         //
-        // The actual method bodies are only reachable via reflection/delegates, but we don't know what the
-        // implementation should do (whether it can do the actual intrinsic thing, or whether it should throw
-        // a PlatformNotSupportedException).
+        // We don't know what the implementation should do (whether it can do the actual intrinsic thing, or whether
+        // it should throw a PlatformNotSupportedException).
 
         const char* namespaceName;
         getMethodNameFromMetadata(m_currentMethodHandle, nullptr, &namespaceName, nullptr);
-        if (strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
+        if (strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics") == 0)
         {
             return;
         }
@@ -2106,7 +2107,6 @@ void ZapInfo::GetProfilingHandle(BOOL                      *pbHookFunction,
 
 DWORD FilterMethodAttribsForIsSupported(DWORD attribs, CORINFO_METHOD_HANDLE ftn, ICorDynamicInfo* pJitInfo)
 {
-#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     if (attribs & CORINFO_FLG_JIT_INTRINSIC)
     {
         // Do not report the get_IsSupported method as an intrinsic. This will turn the call into a regular
@@ -2115,15 +2115,41 @@ DWORD FilterMethodAttribsForIsSupported(DWORD attribs, CORINFO_METHOD_HANDLE ftn
         // answer for the CPU the code is running on.
 
         const char* namespaceName;
-        const char* methodName = pJitInfo->getMethodNameFromMetadata(ftn, nullptr, &namespaceName, nullptr);
+        const char* className;
+        const char* enclosingClassName;
+        const char* methodName = pJitInfo->getMethodNameFromMetadata(ftn, &className, &namespaceName, &enclosingClassName);
 
-        if (strcmp(methodName, "get_IsSupported") == 0
-            && strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0)
+        // If it's not the IsSupported method, we're done
+        if (strcmp(methodName, "get_IsSupported") != 0)
+            return attribs;
+
+        bool isX86intrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0;
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        // If it's IsSupported on Sse/Sse2, we can expand unconditionally since this is reliably
+        // available everywhere.
+        if (isX86intrinsic
+            && (
+                strcmp(className, "Sse") == 0 || strcmp(className, "Sse2") == 0
+                || (
+                    strcmp(className, "X64") == 0
+                    && (
+                        strcmp(enclosingClassName, "Sse") == 0 || strcmp(enclosingClassName, "Sse2")
+                        )
+                    )
+                )
+            )
+            return attribs;
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+        // If it's another get_IsSupported method on some other ISA class, do not report as intrinsic
+        if (isX86intrinsic
+            || strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics") == 0)
         {
             attribs &= ~CORINFO_FLG_JIT_INTRINSIC;
         }
     }
-#endif
 
     return attribs;
 }

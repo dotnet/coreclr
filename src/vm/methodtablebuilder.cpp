@@ -1520,13 +1520,15 @@ MethodTableBuilder::BuildMethodTableThrowing(
         {
 #if defined(CROSSGEN_COMPILE)
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
-            if (!IsNgenPDBCompilationProcess()
+            if ((!IsNgenPDBCompilationProcess()
                 && GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule())
+                || strcmp(className, "Avx") == 0 || strcmp(className, "Avx2") == 0 || strcmp(className, "Fma") == 0)
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
             {
                 // Disable AOT compiling for managed implementation of hardware intrinsics.
                 // We specially treat them here to ensure correct ISA features are set during compilation
-                // The only exception to this rule are intrinsics in CoreLib.
+                // The only exception to this rule are intrinsics in CoreLib outside those that enable
+                // VEX encoding.
                 COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
             }
 #endif // defined(CROSSGEN_COMPILE)
