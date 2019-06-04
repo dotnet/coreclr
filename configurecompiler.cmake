@@ -188,7 +188,7 @@ if(WIN32)
 elseif (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-g)
     add_compile_options(-Wall)
-    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         add_compile_options(-Wno-null-conversion)
     else()
         add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror=conversion-null>)
@@ -476,7 +476,7 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   #These seem to indicate real issues
   add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-invalid-offsetof>)
 
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
     # after hitting just about 20 errors.
     add_compile_options(-ferror-limit=4096)

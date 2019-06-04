@@ -14,7 +14,7 @@ endif()
 
 list(APPEND COMMON_TEST_LIBRARIES coreclrpal)
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wno-incompatible-pointer-types-discards-qualifiers)
   add_compile_options(-Wno-int-to-void-pointer-cast)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
