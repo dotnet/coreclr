@@ -49,7 +49,7 @@ protected:
     void OpenFile(SString& path);
 
     // Does the actual work to log a method to the map.
-    void LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize);
+    void LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, const char *optimizationTier);
 
     // Does the actual work to log an image
     void LogImage(PEFile * pFile);
@@ -65,7 +65,7 @@ public:
     static void LogImageLoad(PEFile * pFile);
 
     // Log a JIT compiled method to the map.
-    static void LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize);
+    static void LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, PrepareCodeConfig *pConfig);
 
     // Log a set of stub to the map.
     static void LogStubs(const char* stubType, const char* stubOwner, PCODE pCode, size_t codeSize);
@@ -79,7 +79,7 @@ class NativeImagePerfMap : PerfMap
 {
 private:
     // Log a pre-compiled method to the map.
-    void LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode, SIZE_T baseAddr);
+    void LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode, SIZE_T baseAddr, const char *optimizationTier);
 
 public:
     // Construct a new map for a native image.

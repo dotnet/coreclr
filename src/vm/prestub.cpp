@@ -867,7 +867,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     {
 #ifdef FEATURE_PERFMAP
         // Save the JIT'd method information so that perf can resolve JIT'd call frames.
-        PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode);
+        PerfMap::LogJITCompiledMethod(this, pCode, sizeOfCode, pConfig);
 #endif
     }
 
