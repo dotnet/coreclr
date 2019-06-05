@@ -63,18 +63,6 @@
     <PackagesBinDir Condition="'$(__PackagesBinDir)'==''">$(BinDir).nuget\</PackagesBinDir>
   </PropertyGroup>
 
-  <!-- Version numbers for native binaries and build version props file
-       [ARCADE REMOVE] These properties can be removed once native binaries use Arcade versioning
-       They are included in common for packaging, which is onboarded to Arcade, but uses the version
-       numbers for native binaries for some outputs. -->
-  <PropertyGroup>
-    <NativeMajorVersion>4</NativeMajorVersion>
-    <NativeMinorVersion>6</NativeMinorVersion>
-
-    <!-- Explicitly set BuildVersionFile. This is used by BuildVersion.targets in BuildTools. -->
-    <BuildVersionFile Condition="'$(OfficialBuildId)' != ''">$(RootBinDir)obj\BuildVersion-$(OfficialBuildId).props</BuildVersionFile>
-  </PropertyGroup>
-
   <PropertyGroup>
     <!-- Central place to set the versions of all nuget packages produced in the repo -->
     <PackageVersion Condition="'$(PackageVersion)' == ''">3.0.0</PackageVersion>
@@ -83,7 +71,7 @@
     <StabilizePackageVersion Condition="'$(StabilizePackageVersion)' == ''">false</StabilizePackageVersion>
     <StableVersion Condition="'$(StabilizePackageVersion)' == 'true' and '$(StableVersion)' == ''">$(PackageVersion)</StableVersion>
 
-    <PreReleaseLabel>preview6</PreReleaseLabel>
+    <PreReleaseLabel>preview7</PreReleaseLabel>
   </PropertyGroup>
 
   <!-- Set up common target properties that we use to conditionally include sources -->
@@ -99,6 +87,10 @@
     <!-- We are only tracking Linux Distributions for Nuget RID mapping -->
     <DistroRid Condition="'$(TargetsLinux)' == 'true'">$(__DistroRid)</DistroRid>
 
+    <!-- Folder for cross target components -->
+    <CrossTargetComponentFolder Condition="'$(BuildArch)' == 'arm64'">x64</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(BuildArch)' == 'arm' and '$(TargetsWindows)' == 'true'">x86</CrossTargetComponentFolder>
+    <CrossTargetComponentFolder Condition="'$(BuildArch)' == 'arm' and '$(TargetsLinux)' == 'true'">x64</CrossTargetComponentFolder>
   </PropertyGroup>
 
 </Project>

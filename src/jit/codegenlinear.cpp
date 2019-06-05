@@ -965,11 +965,8 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 targetType = genActualType(varDsc->lvType);
             }
             instruction ins  = ins_Load(targetType, compiler->isSIMDTypeLocalAligned(lcl->gtLclNum));
-            emitAttr    attr = emitTypeSize(targetType);
+            emitAttr    attr = emitActualTypeSize(targetType);
             emitter*    emit = getEmitter();
-
-            // Fixes Issue #3326
-            attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
 
             // Load local variable from its home location.
             inst_RV_TT(ins, dstReg, unspillTree, 0, attr);
@@ -1665,14 +1662,13 @@ void CodeGen::genSetBlockSize(GenTreeBlk* blkNode, regNumber sizeReg)
     if (sizeReg != REG_NA)
     {
         unsigned blockSize = blkNode->Size();
-        if (blockSize != 0)
+        if (!blkNode->OperIs(GT_STORE_DYN_BLK))
         {
             assert((blkNode->gtRsvdRegs & genRegMask(sizeReg)) != 0);
             genSetRegToIcon(sizeReg, blockSize);
         }
         else
         {
-            noway_assert(blkNode->gtOper == GT_STORE_DYN_BLK);
             GenTree* sizeNode = blkNode->AsDynBlk()->gtDynamicSize;
             if (sizeNode->gtRegNum != sizeReg)
             {

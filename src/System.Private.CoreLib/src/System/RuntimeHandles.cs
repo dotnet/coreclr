@@ -68,13 +68,13 @@ namespace System
             return type;
         }
 
-        public static bool operator ==(RuntimeTypeHandle left, object right) { return left.Equals(right); }
+        public static bool operator ==(RuntimeTypeHandle left, object? right) { return left.Equals(right); }
 
-        public static bool operator ==(object left, RuntimeTypeHandle right) { return right.Equals(left); }
+        public static bool operator ==(object? left, RuntimeTypeHandle right) { return right.Equals(left); }
 
-        public static bool operator !=(RuntimeTypeHandle left, object right) { return !left.Equals(right); }
+        public static bool operator !=(RuntimeTypeHandle left, object? right) { return !left.Equals(right); }
 
-        public static bool operator !=(object left, RuntimeTypeHandle right) { return !right.Equals(left); }
+        public static bool operator !=(object? left, RuntimeTypeHandle right) { return !right.Equals(left); }
 
 
         // This is the RuntimeType for the type
@@ -1545,8 +1545,8 @@ namespace System
         }
 
         // ILHeader info
-        internal abstract RuntimeType GetJitContext(ref int securityControlFlags);
-        internal abstract byte[] GetCodeInfo(ref int stackSize, ref int initLocals, ref int EHCount);
+        internal abstract RuntimeType GetJitContext(out int securityControlFlags);
+        internal abstract byte[] GetCodeInfo(out int stackSize, out int initLocals, out int EHCount);
         internal abstract byte[] GetLocalsSignature();
         internal abstract unsafe void GetEHInfo(int EHNumber, void* exception);
         internal abstract byte[] GetRawEHInfo();
