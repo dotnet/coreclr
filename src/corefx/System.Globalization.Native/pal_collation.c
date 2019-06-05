@@ -411,8 +411,12 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
             assert(FALSE && "Unexpected pthread_mutex_lock return value.");
         }
 
-        pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
-        pSortHandle->collatorsPerOption[options] = pCollator;
+        pCollator = pSortHandle->collatorsPerOption[options];
+        if (pCollator == NULL) // make sure it has not changed since the lock has been acquired
+        {
+            pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+            pSortHandle->collatorsPerOption[options] = pCollator;
+        }
 
         pthread_mutex_unlock(&pSortHandle->collatorsLockObject);
 
