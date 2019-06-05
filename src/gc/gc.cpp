@@ -12351,7 +12351,7 @@ found_fit:
     {
         allocated += limit;
 
-        GCToOSInterface::Sleep (1);
+        GCToOSInterface::Sleep (0);
 
         bgc_loh_alloc_clr (old_alloc, limit, acontext, flags, align_const, cookie, TRUE, seg);
     }
@@ -12372,7 +12372,7 @@ found_fit:
 
         allocated += limit;
 
-        GCToOSInterface::Sleep (1);
+        GCToOSInterface::Sleep (0);
 
         adjust_limit_clr (old_alloc, limit, size, acontext, flags, seg, align_const, gen_number);
     }
