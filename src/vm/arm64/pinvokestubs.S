@@ -132,7 +132,7 @@ LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
         // pThread->m_fPreemptiveGCDisabled = 0
         str     wzr, [x0, #Thread_m_fPreemptiveGCDisabled]
 
-        EPILOG_RESTORE_REG      x19, 16    //the stack slot at sp+24 is empty for 16 byte alligment
+        EPILOG_RESTORE_REG      x19, 16    //the stack slot at sp+24 is empty for 16 byte alignment
         EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 32
         EPILOG_RETURN
 
