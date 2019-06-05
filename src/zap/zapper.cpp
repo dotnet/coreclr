@@ -510,19 +510,6 @@ void Zapper::LoadAndInitializeJITForNgen(LPCWSTR pwzJitName, OUT HINSTANCE* phJi
         ThrowLastError();
     }
 
-#if !defined(CROSSGEN_COMPILE)
-    typedef void (__stdcall* pSxsJitStartup) (CoreClrCallbacks const & cccallbacks);
-    pSxsJitStartup sxsJitStartupFn = (pSxsJitStartup) GetProcAddress(*phJit, "sxsJitStartup");
-    if (sxsJitStartupFn == NULL)
-    {
-        Error(W("Unable to load Jit startup function: %s\r\n"), pwzJitName);
-        ThrowLastError();
-    }
-
-    CoreClrCallbacks cccallbacks = GetClrCallbacks();
-    (*sxsJitStartupFn) (cccallbacks);
-#endif
-
     typedef void (__stdcall* pJitStartup)(ICorJitHost* host);
     pJitStartup jitStartupFn = (pJitStartup)GetProcAddress(*phJit, "jitStartup");
     if (jitStartupFn != nullptr)
@@ -1200,6 +1187,15 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
     m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE2);
 
 #endif // _TARGET_X86_
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    // If we're compiling CoreLib, allow RyuJIT to generate SIMD code so that we can expand some
+    // of the hardware intrinsics.
+    if (m_pEECompileInfo->GetAssemblyModule(m_hAssembly) == m_pEECompileInfo->GetLoaderModuleForMscorlib())
+    {
+        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_FEATURE_SIMD);
+    }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
     if (   m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO)
         && m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_CODE)

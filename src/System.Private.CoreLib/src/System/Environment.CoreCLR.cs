@@ -4,6 +4,7 @@
 
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -32,6 +33,7 @@ namespace System
         // Note: The CLR's Watson bucketization code looks at the caller of the FCALL method
         // to assign blame for crashes.  Don't mess with this, such as by making it call 
         // another managed helper method, unless you consult with some CLR Watson experts.
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void FailFast(string? message);
 
@@ -48,9 +50,11 @@ namespace System
         //    if the exception object is preallocated, the runtime will use the callsite's
         //    IP for bucketing. If the exception object is not preallocated, it will use the bucket
         //    details contained in the object (if any).
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void FailFast(string? message, Exception? exception);
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void FailFast(string? message, Exception? exception, string? errorMessage);
 
@@ -96,14 +100,24 @@ namespace System
             get => new StackTrace(true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
         }
 
+        /// <summary>Gets the number of milliseconds elapsed since the system started.</summary>
+        /// <value>A 32-bit signed integer containing the amount of time in milliseconds that has passed since the last time the computer was started.</value>
         public static extern int TickCount
         {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
+        /// <summary>Gets the number of milliseconds elapsed since the system started.</summary>
+        /// <value>A 64-bit signed integer containing the amount of time in milliseconds that has passed since the last time the computer was started.</value>
+        public static extern long TickCount64
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
+
 #if FEATURE_COMINTEROP
-        // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
+        // Separate type so a .cctor is not created for Enviroment which then would be triggered during startup
         private static class WinRT
         {
             // Cache the value in readonly static that can be optimized out by the JIT

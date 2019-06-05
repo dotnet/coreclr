@@ -1025,14 +1025,6 @@ Thread* WINAPI CreateThreadBlockThrow()
     Thread* pThread = NULL;
     BEGIN_ENTRYPOINT_THROWS;
 
-    if (!CanRunManagedCode())
-    {
-        // CLR is shutting down - someone's DllMain detach event may be calling back into managed code.
-        // It is misleading to use our COM+ exception code, since this is not a managed exception.  
-        ULONG_PTR arg = E_PROCESS_SHUTDOWN_REENTRY;
-        RaiseException(EXCEPTION_EXX, 0, 1, &arg);
-    }
-
     HRESULT hr = S_OK;
     pThread = SetupThreadNoThrow(&hr);
     if (pThread == NULL)
@@ -3395,7 +3387,8 @@ DWORD Thread::DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL wa
     // since fundamental parts of the system (such as the GC) rely on non alertable
     // waits not running any managed code. Also if we are past the point in shutdown were we
     // are allowed to run managed code then we can't forward the call to the sync context.
-    if (!ignoreSyncCtx && alertable && CanRunManagedCode(LoaderLockCheck::None) 
+    if (!ignoreSyncCtx
+        && alertable
         && !HasThreadStateNC(Thread::TSNC_BlockedForShutdown))
     {
         GCX_COOP();
@@ -7918,8 +7911,6 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
     CONTRACTL_END;
 
-    FieldDesc *         pFD;
-
     // This is the case when we're building mscorlib and haven't yet created
     // the system assembly.
     if (SystemDomain::System()->SystemAssembly()==NULL || g_fForbidEnterEE) {
@@ -7927,22 +7918,9 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
 
     OBJECTREF pCurrentCulture;
-    if (bUICulture) {
-        // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
-        MethodDescCallSite propGet(METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE);
-        ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
-        pCurrentCulture = ArgSlotToObj(retVal);
-    } else {
-        //This is  faster than calling the property, because this is what the call does anyway.
-        pFD = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CURRENT_CULTURE);
-        _ASSERTE(pFD);
-
-        pFD->CheckRunClassInitThrowing();
-
-        pCurrentCulture = pFD->GetStaticOBJECTREF();
-        _ASSERTE(pCurrentCulture!=NULL);
-    }
-
+    MethodDescCallSite propGet(bUICulture ? METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE : METHOD__CULTURE_INFO__GET_CURRENT_CULTURE);
+    ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
+    pCurrentCulture = ArgSlotToObj(retVal);
     return pCurrentCulture;
 }
 
