@@ -33,6 +33,7 @@ public class ThrowingCustomMarshaler : ICustomMarshaler
     public IntPtr MarshalManagedToNative(object ManagedObj) => throw new NotImplementedException();
     public object MarshalNativeToManaged(IntPtr pNativeData)
     {
+        // Cause an exception during the unmarshal phase of the IL stub.
         throw new InvalidOperationException();
     }
 
@@ -41,6 +42,7 @@ public class ThrowingCustomMarshaler : ICustomMarshaler
 
 internal class ReliableUnmarshalNative
 {
+    // We're using a custom marshaler here to cause an exception during the unmarshal phase of the IL stub after successfully returning from native code.
     [DllImport(nameof(ReliableUnmarshalNative))]
     public static extern void GetFakeHandle(IntPtr value, out FakeHandle handle, [MarshalAs(UnmanagedType.CustomMarshaler, MarshalTypeRef = typeof(ThrowingCustomMarshaler), MarshalCookie = "")] out object cookie);
 }
@@ -51,6 +53,8 @@ public class ReliableUnmarshalTest
     {
         try
         {
+            // Test that our SafeHandle-derived object has its underlying handle set after a P/Invoke
+            // even if there's an exception during the unmarshal phase.
             IntPtr value = (IntPtr)123;
             FakeHandle h = new FakeHandle();
 

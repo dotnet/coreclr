@@ -12,5 +12,5 @@ using FAKE_HANDLE = HANDLE;
 extern "C" void DLL_EXPORT GetFakeHandle(void* value, FAKE_HANDLE* pHandle, void** pCookie)
 {
     *pHandle = (FAKE_HANDLE)value;
-    *pCookie = (void*)123; // the value here does not matter. It just needs to not be nullptr.
+    *pCookie = (void*)4567; // the value here does not matter. It just needs to not be nullptr.
 }
