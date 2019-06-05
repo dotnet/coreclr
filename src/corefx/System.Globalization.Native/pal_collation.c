@@ -392,31 +392,32 @@ void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
 
 const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t options, UErrorCode* pErr)
 {
-    UCollator* pCollator;
     if (options == 0)
     {
-        pCollator = pSortHandle->collatorsPerOption[0];
+        return pSortHandle->collatorsPerOption[0];
     }
     else
     {
+        options &= CompareOptionsMask;
+        UCollator* pCollator = pSortHandle->collatorsPerOption[options];
+        if (pCollator != NULL) // fast path without lock
+        {
+            return pCollator;
+        }
+
         int lockResult = pthread_mutex_lock(&pSortHandle->collatorsLockObject);
         if (lockResult != 0)
         {
             assert(FALSE && "Unexpected pthread_mutex_lock return value.");
         }
 
-        options &= CompareOptionsMask;
-        pCollator = pSortHandle->collatorsPerOption[options];
-        if (pCollator == NULL)
-        {
-            pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
-            pSortHandle->collatorsPerOption[options] = pCollator;
-        }
+        pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+        pSortHandle->collatorsPerOption[options] = pCollator;
 
         pthread_mutex_unlock(&pSortHandle->collatorsLockObject);
-    }
 
-    return pCollator;
+        return pCollator;
+    }
 }
 
 int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)
