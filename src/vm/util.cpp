@@ -2055,11 +2055,6 @@ HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName)
 }
 #endif // !FEATURE_PAL
 
-LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes);
-BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem);
-void ShutdownRuntimeWithoutExiting(int exitCode);
-BOOL IsRuntimeStarted(DWORD *pdwStartupFlags);
-
 void *GetCLRFunction(LPCSTR FunctionName)
 {
 
@@ -2068,15 +2063,7 @@ void *GetCLRFunction(LPCSTR FunctionName)
 
     LIMITED_METHOD_CONTRACT;
 
-    if (strcmp(FunctionName, "ShutdownRuntimeWithoutExiting") == 0)
     {
-        func = (void*)ShutdownRuntimeWithoutExiting;
-    }
-    else if (strcmp(FunctionName, "IsRuntimeStarted") == 0)
-    {
-        func = (void*)IsRuntimeStarted;
-    }
-    else {
         _ASSERTE ("Unknown function name");
         func = NULL;
     }
