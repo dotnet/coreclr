@@ -33,19 +33,19 @@
 
   .method private hidebysig static void  MainMethod() cil managed noinlining
   {
-    // Code size       31 (0x1f)
+    //
     .maxstack  1
     .locals init (object V_0)
-    IL_0000:  ldc.i4.s   32
-    IL_0002:  conv.u
-    IL_0003:  localloc
-    IL_0005:  ldind.i4
-    IL_0006:  call       void GitHub_24278.Program::Use(int32)
-    IL_000b:  call       bool GitHub_24278.Program::True()
-    IL_0010:  brfalse.s  IL_0018
+    IL_0000:  call       bool GitHub_24278.Program::True()
+    IL_0005:  brtrue.s   IL_000d
 
-    IL_0012:  newobj     instance void [System.Runtime]System.Object::.ctor()
-    IL_0017:  stloc.0
+    IL_0007:  newobj     instance void [System.Runtime]System.Object::.ctor()
+    IL_000c:  stloc.0
+    IL_000d:  ldc.i4.s   32
+    IL_000f:  conv.u
+    IL_0010:  localloc
+    IL_0012:  ldind.i4
+    IL_0013:  call       void GitHub_24278.Program::Use(int32)
     IL_0018:  ldloc.0
     IL_0019:  call       void [System.Runtime]System.GC::KeepAlive(object)
     IL_001e:  ret
