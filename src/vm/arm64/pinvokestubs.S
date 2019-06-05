@@ -95,7 +95,7 @@ LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
     NESTED_ENTRY JIT_PInvokeBegin, _TEXT, NoHandler
     
         PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -32
-        PROLOG_SAVE_REG    x19, 16           //the stack slot at sp+24 is empty for 16 byte alligment
+        PROLOG_SAVE_REG    x19, 16           //the stack slot at sp+24 is empty for 16 byte alignment
 
         PREPARE_EXTERNAL_VAR s_gsCookie, x9
         ldr     x9, [x9]
