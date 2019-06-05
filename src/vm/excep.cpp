@@ -105,7 +105,7 @@ BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord)
 
 #ifndef DACCESS_COMPILE
 
-#define SZ_UNHANDLED_EXCEPTION W("Unhandled Exception:")
+#define SZ_UNHANDLED_EXCEPTION W("Unhandled exception.")
 #define SZ_UNHANDLED_EXCEPTION_CHARLEN ((sizeof(SZ_UNHANDLED_EXCEPTION) / sizeof(WCHAR)))
 
 
@@ -154,17 +154,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
 
 VOID SetManagedUnhandledExceptionBit(
     BOOL        useLastThrownObject);
-
-
-void COMPlusThrowBoot(HRESULT hr)
-{
-    STATIC_CONTRACT_THROWS;
-
-    _ASSERTE(g_fEEShutDown >= ShutDown_Finalize2 || !"This should not be called unless we are in the last phase of shutdown!");
-    ULONG_PTR arg = hr;
-    RaiseException(BOOTUP_EXCEPTION_COMPLUS, EXCEPTION_NONCONTINUABLE, 1, &arg);
-}
-
 
 //-------------------------------------------------------------------------------
 // This simply tests to see if the exception object is a subclass of
@@ -5254,8 +5243,6 @@ DefaultCatchHandlerExceptionMessageWorker(Thread* pThread,
     GCPROTECT_BEGIN(throwable);
     if (throwable != NULL)
     {
-        PrintToStdErrA("\n");
-
         if (FAILED(UtilLoadResourceString(CCompRC::Error, IDS_EE_UNHANDLED_EXCEPTION, buf, buf_size)))
         {
             wcsncpy_s(buf, buf_size, SZ_UNHANDLED_EXCEPTION, SZ_UNHANDLED_EXCEPTION_CHARLEN);
@@ -5451,28 +5438,15 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     // die. e.g. IsAsyncThreadException() and Exception.ToString both consume too much stack -- and can't
                     // be called here.
                     dump = FALSE;
-                    PrintToStdErrA("\n");
-
-                    if (FAILED(UtilLoadStringRC(IDS_EE_UNHANDLED_EXCEPTION, buf, buf_size)))
-                    {
-                        wcsncpy_s(buf, COUNTOF(buf), SZ_UNHANDLED_EXCEPTION, SZ_UNHANDLED_EXCEPTION_CHARLEN);
-                    }
-
-                    PrintToStdErrW(buf);
 
                     if (IsOutOfMemory)
                     {
-                        PrintToStdErrA(" OutOfMemoryException.\n");
+                        PrintToStdErrA("Out of memory.\n");
                     }
                     else
                     {
-                        PrintToStdErrA(" StackOverflowException.\n");
+                        PrintToStdErrA("Stack overflow.\n");
                     }
-                }
-                else if (!CanRunManagedCode(LoaderLockCheck::None))
-                {
-                    // Well, if we can't enter the runtime, we very well can't get the exception message.
-                    dump = FALSE;
                 }
                 else if (SentEvent || IsAsyncThreadException(&throwable))
                 {
@@ -5609,20 +5583,13 @@ BOOL NotifyAppDomainsOfUnhandledException(
 #endif
 
     GCPROTECT_BEGIN(throwable);
-    //BOOL IsStackOverflow = (throwable->GetMethodTable() == g_pStackOverflowExceptionClass);
 
     // Notify the AppDomain that we have taken an unhandled exception.  Can't notify of stack overflow -- guard
     // page is not yet reset.
 
     // Send up the unhandled exception appdomain event.
-    //
-    // If we can't run managed code, we can't deliver the event. Nor do we attempt to delieve the event in stack
-    // overflow or OOM conditions.
-    if (/*!IsStackOverflow &&*/
-        pThread->DetermineIfGuardPagePresent() &&
-        CanRunManagedCode(LoaderLockCheck::None))
+    if (pThread->DetermineIfGuardPagePresent())
     {
-
         // x86 only
 #if !defined(WIN64EXCEPTIONS)
         // If the Thread object's exception state's exception pointers

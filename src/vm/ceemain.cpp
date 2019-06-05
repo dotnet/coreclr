@@ -459,7 +459,6 @@ void InitializeStartupFlags()
 #endif // CROSSGEN_COMPILE
 
 
-#ifdef FEATURE_PREJIT
 // BBSweepStartFunction is the first function to execute in the BBT sweeper thread.
 // It calls WatchForSweepEvent where we wait until a sweep occurs.
 DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
@@ -495,7 +494,6 @@ DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
 
     return 0;
 }
-#endif // FEATURE_PREJIT
 
 
 //-----------------------------------------------------------------------------
@@ -762,7 +760,7 @@ void EEStartupHelper(COINITIEE fFlags)
 
         // Cross-process named objects are not supported in PAL
         // (see CorUnix::InternalCreateEvent - src/pal/src/synchobj/event.cpp.272)
-#if defined(FEATURE_PREJIT) && !defined(FEATURE_PAL)
+#if !defined(FEATURE_PAL)
         // Initialize the sweeper thread.
         if (g_pConfig->GetZapBBInstr() != NULL)
         {
@@ -776,7 +774,7 @@ void EEStartupHelper(COINITIEE fFlags)
             _ASSERTE(hBBSweepThread);
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
-#endif // FEATURE_PREJIT && FEATURE_PAL
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -1182,95 +1180,6 @@ void ForceEEShutdown(ShutdownCompleteAction sca)
 }
 
 //---------------------------------------------------------------------------
-// %%Function: ExternalShutdownHelper
-//
-// Parameters:
-//  int exitCode :: process exit code
-//  ShutdownCompleteAction sca :: indicates whether ::ExitProcess() is
-//                                called or if the function returns.
-//
-// Returns:
-//  Nothing
-//
-// Description:
-// This is a helper shared by CorExitProcess and ShutdownRuntimeWithoutExiting 
-// which causes the runtime to shutdown after the appropriate checks. 
-// ---------------------------------------------------------------------------
-static void ExternalShutdownHelper(int exitCode, ShutdownCompleteAction sca)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-        ENTRY_POINT;
-    } CONTRACTL_END;
-
-    CONTRACT_VIOLATION(GCViolation | ModeViolation);
-
-    if (g_fEEShutDown || !g_fEEStarted)
-        return;
-
-    if (!CanRunManagedCode())
-    {
-        return;
-    }
-
-    // The exit code for the process is communicated in one of two ways.  If the
-    // entrypoint returns an 'int' we take that.  Otherwise we take a latched
-    // process exit code.  This can be modified by the app via System.SetExitCode().
-    SetLatchedExitCode(exitCode);
-
-
-    ForceEEShutdown(sca);
-
-    // @TODO: If we cannot run ManagedCode, BEGIN_EXTERNAL_ENTRYPOINT will skip
-    // the shutdown.  We could call ::ExitProcess in that failure case, but that
-    // would violate our hosting agreement.  We are supposed to go through EEPolicy::
-    // HandleExitProcess().  Is this legal if !CanRunManagedCode()?
-
-}
-
-//---------------------------------------------------------------------------
-// %%Function: void STDMETHODCALLTYPE CorExitProcess(int exitCode)
-//
-// Parameters:
-//  int exitCode :: process exit code
-//
-// Returns:
-//  Nothing
-//
-// Description:
-//  COM Objects shutdown stuff should be done here
-// ---------------------------------------------------------------------------
-extern "C" void STDMETHODCALLTYPE CorExitProcess(int exitCode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    ExternalShutdownHelper(exitCode, SCA_ExitProcessWhenShutdownComplete);
-}
-
-//---------------------------------------------------------------------------
-// %%Function: ShutdownRuntimeWithoutExiting
-//
-// Parameters:
-//  int exitCode :: process exit code
-//
-// Returns:
-//  Nothing
-//
-// Description:
-// This is a helper used only by the v4+ Shim to shutdown this runtime and
-// and return when the work has completed. It is exposed to the Shim via
-// GetCLRFunction.
-// ---------------------------------------------------------------------------
-void ShutdownRuntimeWithoutExiting(int exitCode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    ExternalShutdownHelper(exitCode, SCA_ReturnWhenShutdownComplete);
-}
-
-//---------------------------------------------------------------------------
 // %%Function: IsRuntimeStarted
 //
 // Parameters:
@@ -1519,10 +1428,8 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         PerfMap::Destroy();
 #endif
 
-#ifdef FEATURE_PREJIT
         {
             // If we're doing basic block profiling, we need to write the log files to disk.
-
             static BOOL fIBCLoggingDone = FALSE;
             if (!fIBCLoggingDone)
             {
@@ -1544,8 +1451,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
                 fIBCLoggingDone = TRUE;
             }
         }
-
-#endif // FEATURE_PREJIT
 
         ceeInf.JitProcessShutdownWork();  // Do anything JIT-related that needs to happen at shutdown.
 
@@ -1912,85 +1817,12 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
 //
 // Description: Indicates if the runtime is active or not. "Active" implies
 //              that the runtime has started and is in a position to run
-//              managed code. If either of these conditions are false, the
-//              function return FALSE.
-//          
-//              Why couldnt we add !g_fEEStarted check in CanRunManagedCode?
-//
-// 
-//              ExecuteDLL in ceemain.cpp could start the runtime 
-//             (due to DLL_PROCESS_ATTACH) after invoking CanRunManagedCode. 
-//              If the function were to be modified, then this scenario could fail. 
-//              Hence, I have built over CanRunManagedCode in IsRuntimeActive.
-
+//              managed code.
 // ---------------------------------------------------------------------------
 BOOL IsRuntimeActive()
 {
-    // If the runtime has started AND we can run managed code,
-    // then runtime is considered "active".
-    BOOL fCanRunManagedCode = CanRunManagedCode();
-    return (g_fEEStarted && fCanRunManagedCode);
+    return (g_fEEStarted);
 }
-
-// ---------------------------------------------------------------------------
-// %%Function: CanRunManagedCode()
-//
-// Parameters:
-//  none
-//
-// Returns:
-//  true or false
-//
-// Description: Indicates if one is currently allowed to run managed code.
-// ---------------------------------------------------------------------------
-NOINLINE BOOL CanRunManagedCodeRare(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    // If we are shutting down the runtime, then we cannot run code.
-    if (g_fForbidEnterEE)
-        return FALSE;
-
-    // If pre-loaded objects are not present, then no way.
-    if (g_pPreallocatedOutOfMemoryException == NULL)
-        return FALSE;
-
-    // If we are finaling live objects or processing ExitProcess event,
-    // we can not allow managed method to run unless the current thread
-    // is the finalizer thread
-    if ((g_fEEShutDown & ShutDown_Finalize2) && !FinalizerThread::IsCurrentThreadFinalizer())
-        return FALSE;
-
-    return TRUE;
-}
-
-#include <optsmallperfcritical.h>
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    // Special-case the common success cases
-    //  (Try not to make any calls here so that we don't have to spill our incoming arg regs)
-    if (!g_fForbidEnterEE 
-        && (g_pPreallocatedOutOfMemoryException != NULL)
-        && !(g_fEEShutDown & ShutDown_Finalize2)
-        && ((checkKind == LoaderLockCheck::None)))
-    {
-        return TRUE;
-    }
-
-    // Then call a helper for everything else.
-    return CanRunManagedCodeRare(checkKind, hInst);
-}
-#include <optdefault.h>
 
 //*****************************************************************************
 BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)

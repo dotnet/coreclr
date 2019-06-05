@@ -1,9 +1,7 @@
 # Verify minimum required version
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5.1)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
-endif()
+cmake_policy(SET CMP0042 NEW)
 
 # Set the project name
 project(CoreCLR)
@@ -11,7 +9,7 @@ project(CoreCLR)
 # Include cmake functions
 include(functions.cmake)
 
-# Include global configure settings
+# Verify that LTCG/LTO is available
 include(configure.cmake)
 
 if (WIN32)

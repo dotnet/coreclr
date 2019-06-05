@@ -160,6 +160,7 @@ FCFuncEnd()
 
 FCFuncStart(gEnvironmentFuncs)
     FCFuncElement("get_TickCount", SystemNative::GetTickCount)
+    FCFuncElement("get_TickCount64", SystemNative::GetTickCount64)
     QCFuncElement("_Exit", SystemNative::Exit)
     FCFuncElement("set_ExitCode", SystemNative::SetExitCode)
     FCFuncElement("get_ExitCode", SystemNative::GetExitCode)
@@ -708,10 +709,6 @@ FCFuncEnd()
 #ifdef FEATURE_COMINTEROP
 FCFuncStart(gVariantFuncs)
     FCFuncElement("SetFieldsObject", COMVariant::SetFieldsObject)
-    FCFuncElement("SetFieldsR4", COMVariant::SetFieldsR4)
-    FCFuncElement("SetFieldsR8", COMVariant::SetFieldsR8)
-    FCFuncElement("GetR4FromVar", COMVariant::GetR4FromVar)
-    FCFuncElement("GetR8FromVar", COMVariant::GetR8FromVar)
     FCFuncElement("BoxEnum", COMVariant::BoxEnum)
 FCFuncEnd()
 #endif // FEATURE_COMINTEROP

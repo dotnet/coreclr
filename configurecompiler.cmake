@@ -1,3 +1,18 @@
+# Set initial flags for each configuration
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+set(CLR_DEFINES_DEBUG_INIT              DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_CHECKED=1)
+set(CLR_DEFINES_CHECKED_INIT            DEBUG _DEBUG _DBG URTBLDENV_FRIENDLY=Checked BUILDENV_CHECKED=1)
+set(CLR_DEFINES_RELEASE_INIT            NDEBUG URTBLDENV_FRIENDLY=Retail)
+set(CLR_DEFINES_RELWITHDEBINFO_INIT     NDEBUG URTBLDENV_FRIENDLY=Retail)
+
+include(${CMAKE_CURRENT_LIST_DIR}/configureoptimization.cmake)
+
 #----------------------------------------
 # Detect and set platform variable names
 #     - for non-windows build platform & architecture is detected using inbuilt CMAKE variables and cross target component configure
@@ -62,11 +77,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   set(CLR_CMAKE_PLATFORM_UNIX 1)
   set(CLR_CMAKE_PLATFORM_UNIX_AMD64 1)
   set(CLR_CMAKE_PLATFORM_DARWIN 1)
-  if(CMAKE_VERSION VERSION_LESS "3.4.0")
-    set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> -o <OBJECT> -c <SOURCE>")
-  else()
-    set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> <INCLUDES> -o <OBJECT> -c <SOURCE>")
-  endif(CMAKE_VERSION VERSION_LESS "3.4.0")
+  set(CMAKE_ASM_COMPILE_OBJECT "${CMAKE_C_COMPILER} <FLAGS> <DEFINES> <INCLUDES> -o <OBJECT> -c <SOURCE>")
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
 if(CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
@@ -174,12 +185,24 @@ endif()
 # Initialize Cmake compiler flags and other variables
 #-----------------------------------------------------
 
+if(WIN32)
+    add_compile_options(/Zi /FC /Zc:strictStrings)
+elseif (CLR_CMAKE_PLATFORM_UNIX)
+    add_compile_options(-g)
+    add_compile_options(-Wall)
+    if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        add_compile_options(-Wno-null-conversion)
+    else()
+        add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Werror=conversion-null>)
+    endif()
+endif()
+
 if (CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
     set(CMAKE_CONFIGURATION_TYPES "Debug;Checked;Release;RelWithDebInfo" CACHE STRING "" FORCE)
 endif (CMAKE_CONFIGURATION_TYPES)
 
-set(CMAKE_C_FLAGS_CHECKED ${CLR_C_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
-set(CMAKE_CXX_FLAGS_CHECKED ${CLR_CXX_FLAGS_CHECKED_INIT} CACHE STRING "Flags used by the compiler during checked builds.")
+set(CMAKE_C_FLAGS_CHECKED "")
+set(CMAKE_CXX_FLAGS_CHECKED "")
 set(CMAKE_EXE_LINKER_FLAGS_CHECKED "")
 set(CMAKE_SHARED_LINKER_FLAGS_CHECKED "")
 
@@ -263,7 +286,7 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
   # set the different configuration defines.
   if (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG)
     # First DEBUG
-    set_property(DIRECTORY  PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_DEBUG_INIT})
+    set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_DEBUG_INIT})
   elseif (UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
     # Then CHECKED
     set_property(DIRECTORY PROPERTY COMPILE_DEFINITIONS ${CLR_DEFINES_CHECKED_INIT})
@@ -453,9 +476,9 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   add_compile_options(-Wno-unused-function)
 
   #These seem to indicate real issues
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-invalid-offsetof")
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-Wno-invalid-offsetof>)
 
-  if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     # The -ferror-limit is helpful during the porting, it makes sure the compiler doesn't stop
     # after hitting just about 20 errors.
     add_compile_options(-ferror-limit=4096)
@@ -485,8 +508,11 @@ if (CLR_CMAKE_PLATFORM_UNIX)
     add_compile_options(-Wno-unused-but-set-variable)
     add_compile_options(-fms-extensions)
     add_compile_options(-Wno-unknown-pragmas)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0)
+      add_compile_options(-Wno-nonnull-compare)
+    endif()
     if (COMPILER_SUPPORTS_F_ALIGNED_NEW)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -faligned-new")
+      add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-faligned-new>)
     endif()
   endif()
 
@@ -566,7 +592,7 @@ if (WIN32)
   # enable control-flow-guard support for native components for non-Arm64 builds
   # Added using variables instead of add_compile_options to let individual projects override it
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /guard:cf")
-  set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /guard:cf")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /guard:cf")
 
   # Statically linked CRT (libcmt[d].lib, libvcruntime[d].lib and libucrt[d].lib) by default. This is done to avoid
   # linking in VCRUNTIME140.DLL for a simplified xcopy experience by reducing the dependency on VC REDIST.

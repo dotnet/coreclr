@@ -7,6 +7,9 @@ include_directories(${ARCH_SOURCES_DIR})
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
+if(FEATURE_AUTO_TRACE)
+  add_definitions(-DFEATURE_AUTO_TRACE)
+endif(FEATURE_AUTO_TRACE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)
@@ -308,6 +311,7 @@ set(VM_SOURCES_WKS
     comwaithandle.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
+    autotrace.cpp
     diagnosticserver.cpp
     dllimportcallback.cpp
     eeconfig.cpp
@@ -422,6 +426,7 @@ set(VM_HEADERS_WKS
     comwaithandle.h
     customattribute.h
     custommarshalerinfo.h
+    autotrace.h
     diagnosticserver.h
     diagnosticsprotocol.h
     dllimportcallback.h
