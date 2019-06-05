@@ -79,10 +79,22 @@ namespace System.Collections.Generic
                 _comparer = comparer;
             }
 
-            if (typeof(TKey) == typeof(string) && _comparer == null)
+            FixupComparer();
+        }
+
+        void FixupComparer()
+        {
+            if (typeof(TKey) == typeof(string))
             {
-                // To start, move off default comparer for string which is randomised
-                _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
+                if (_comparer == null)
+                {
+                    // To start, move off default comparer for string which is randomised
+                    _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
+                }
+                else if (_comparer == StringComparer.Ordinal)
+                {
+                    _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Ordinal;
+                }
             }
         }
 
@@ -149,7 +161,12 @@ namespace System.Collections.Generic
         {
             get
             {
-                return (_comparer == null || _comparer is NonRandomizedStringEqualityComparer) ? EqualityComparer<TKey>.Default : _comparer;
+                return _comparer switch
+                {
+                    null => EqualityComparer<TKey>.Default,
+                    NonRandomizedStringEqualityComparer nr => (IEqualityComparer<TKey>)nr.BackingComparer,
+                    _ => _comparer
+                };
             }
         }
 
@@ -355,7 +372,7 @@ namespace System.Collections.Generic
             }
 
             info.AddValue(VersionName, _version);
-            info.AddValue(ComparerName, _comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
+            info.AddValue(ComparerName, Comparer, typeof(IEqualityComparer<TKey>));
             info.AddValue(HashSizeName, _buckets == null ? 0 : _buckets.Length); // This is the length of the bucket array
 
             if (_buckets != null)
@@ -662,11 +679,11 @@ namespace System.Collections.Generic
             _version++;
 
             // Value types never rehash
-            if (default(TKey)! == null && collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
+            if (default(TKey)! == null && collisionCount > HashHelpers.HashCollisionThreshold && comparer is NonRandomizedStringEqualityComparer nr) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
             {
                 // If we hit the collision threshold we'll need to switch to the comparer which is using randomized string hashing
                 // i.e. EqualityComparer<string>.Default.
-                _comparer = null;
+                _comparer = (IEqualityComparer<TKey>?)(nr.BackingComparer == EqualityComparer<string?>.Default ? null : nr.BackingComparer);
                 Resize(entries.Length, true);
             }
 
@@ -687,6 +704,7 @@ namespace System.Collections.Generic
             int realVersion = siInfo.GetInt32(VersionName);
             int hashsize = siInfo.GetInt32(HashSizeName);
             _comparer = (IEqualityComparer<TKey>)siInfo.GetValue(ComparerName, typeof(IEqualityComparer<TKey>))!; // When serialized if comparer is null, we use the default.
+            FixupComparer();
 
             if (hashsize != 0)
             {
