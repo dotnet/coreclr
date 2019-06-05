@@ -28,7 +28,7 @@ else()
   message("Using Windows SDK version ${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION} for WinRT interop tests.")
 endif()
 
-get_filename_component(WINDOWS_KITS_DIR "[HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows Kits\\Installed Roots;KitsRoot10]" ABSOLUTE CACHE)
+file(TO_CMAKE_PATH "$ENV{WindowsSdkDir}" WINDOWS_KITS_DIR)
 
 set (METADATA_DIR "${WINDOWS_KITS_DIR}/References/${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}/windows.foundation.foundationcontract/*" )
 set (REFERENCE_WINMDS
