@@ -76,7 +76,7 @@ public:
     void DeleteSession(EventPipeSession *pSession);
 
     // Check that a single bit is set.
-    bool IsValidId(EventPipeSessionID id)
+    static bool IsValidId(EventPipeSessionID id)
     {
         return (id > 0) && ((id & (id - 1)) == 0);
     }

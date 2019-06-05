@@ -373,7 +373,7 @@ private:
         LIMITED_METHOD_CONTRACT;
         _ASSERTE(IsLockOwnedByCurrentThread());
 
-        for (Volatile<EventPipeSession *> &session : s_pSessions)
+        for (VolatilePtr<EventPipeSession> &session : s_pSessions)
         {
             // Entering EventPipe lock gave us a barrier, we don't need
             // more of them
@@ -394,8 +394,7 @@ private:
     static Volatile<bool> s_tracingInitialized;
     static EventPipeConfiguration s_config;
     static const uint32_t MaxNumberOfSessions = 64;
-    static Volatile<EventPipeSession *> s_pSessions[MaxNumberOfSessions];
-    static Volatile<EventPipeSession *> s_pRundownSession;
+    static VolatilePtr<EventPipeSession> s_pSessions[MaxNumberOfSessions];
     static EventPipeEventSource *s_pEventSource;
     static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFlushTime;

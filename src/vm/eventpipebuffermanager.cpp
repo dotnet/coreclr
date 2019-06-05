@@ -7,6 +7,8 @@
 #include "eventpipeconfiguration.h"
 #include "eventpipebuffer.h"
 #include "eventpipebuffermanager.h"
+#include "eventpipefile.h"
+#include "eventpipesession.h"
 
 #ifdef FEATURE_PERFTRACING
 
@@ -22,14 +24,9 @@ void AcquireEventPipeThreadRef(EventPipeThread *pThread)
     pThread->AddRef();
 }
 
-#ifndef __GNUC__
-__declspec(thread)
-#else  // !__GNUC__
-thread_local
-#endif // !__GNUC__
-    EventPipeThreadHolder EventPipeThread::gCurrentEventPipeThreadHolder;
+EVENTPIPE_THREAD_LOCAL EventPipeThreadHolder EventPipeThread::gCurrentEventPipeThreadHolder;
 
-EventPipeThread::EventPipeThread()
+EventPipeThread::EventPipeThread() : m_writingEventInProgress(UINT64_MAX)
 {
     CONTRACTL
     {
@@ -59,6 +56,30 @@ EventPipeThread::~EventPipeThread()
 /*static */ EventPipeThread *EventPipeThread::Get()
 {
     LIMITED_METHOD_CONTRACT;
+    return gCurrentEventPipeThreadHolder;
+}
+
+/*static */ EventPipeThread *EventPipeThread::GetOrCreate()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (gCurrentEventPipeThreadHolder == nullptr)
+    {
+        EX_TRY
+        {
+            gCurrentEventPipeThreadHolder = new EventPipeThread();
+        }
+        EX_CATCH
+        {
+        }
+        EX_END_CATCH(SwallowAllExceptions);
+    }
     return gCurrentEventPipeThreadHolder;
 }
 
@@ -192,6 +213,7 @@ EventPipeBufferManager::EventPipeBufferManager()
     m_pPerThreadBufferList = new SList<SListElem<EventPipeBufferList *>>();
     m_sizeOfAllBuffers = 0;
     m_lock.Init(LOCK_TYPE_DEFAULT);
+    m_writeEventSuspending = FALSE;
 
 #ifdef _DEBUG
     m_numBuffersAllocated = 0;
@@ -214,6 +236,7 @@ EventPipeBufferManager::~EventPipeBufferManager()
     CONTRACTL_END;
 
     // setting this true should have no practical effect other than satisfying asserts at this point.
+    m_writeEventSuspending = TRUE;
     DeAllocateBuffers();
 }
 
@@ -239,7 +262,7 @@ EventPipeBuffer *EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     SpinLockHolder _slh(&m_lock);
 
     // if we are deallocating then give up, see the comments in SuspendWriteEvents() for why this is important.
-    if (session.IsWriteEventSuspending())
+    if (m_writeEventSuspending.Load())
     {
         writeSuspended = TRUE;
         return NULL;
@@ -249,26 +272,9 @@ EventPipeBuffer *EventPipeBufferManager::AllocateBufferForThread(EventPipeSessio
     // If not, we guarantee that each thread gets at least one (to prevent thrashing when the circular buffer size is too small).
     bool allocateNewBuffer = false;
 
-    EventPipeThread *pEventPipeThread = EventPipeThread::Get();
-
+    EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
     if (pEventPipeThread == NULL)
-    {
-        EX_TRY
-        {
-            pEventPipeThread = new EventPipeThread();
-            EventPipeThread::Set(pEventPipeThread);
-        }
-        EX_CATCH
-        {
-            pEventPipeThread = NULL;
-        }
-        EX_END_CATCH(SwallowAllExceptions);
-
-        if (pEventPipeThread == NULL)
-        {
-            return NULL;
-        }
-    }
+        return NULL;
 
     EventPipeBufferList *pThreadBufferList = pEventPipeThread->GetBufferList(this);
     if (pThreadBufferList == NULL)
@@ -438,7 +444,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     else
     {
         SpinLockHolder _slh(pEventPipeThread->GetLock());
-        pEventPipeThread->SetWritingEvent(true);
         pBuffer = pEventPipeThread->GetWriteBuffer(this);
 
         if (pBuffer == NULL)
@@ -470,22 +475,15 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
             // We treat this as the WriteEvent() call occurring after this session stopped listening for events, effectively the
             // same as if event.IsEnabled() test above returned false.
             if (writeSuspended)
-            {
-                if (pEventPipeThread)
-                    pEventPipeThread->SetWritingEvent(false);
                 return false;
-            }
         }
         else
         {
-            if (pEventPipeThread == nullptr)
-                pEventPipeThread = EventPipeThread::Get();
-            _ASSERTE(pEventPipeThread != nullptr);
-            if (pEventPipeThread != nullptr) // TODO: Is this ever expected to be null?
+            pEventPipeThread = EventPipeThread::Get();
+            _ASSERTE(pEventPipeThread != NULL);
             {
                 SpinLockHolder _slh(pEventPipeThread->GetLock());
-                pEventPipeThread->SetWritingEvent(true);
-                if (session.IsWriteEventSuspending())
+                if (m_writeEventSuspending.Load())
                 {
                     // After leaving the manager's lock in AllocateBufferForThread some other thread decided to suspend writes.
                     // We need to immediately return the buffer we just took without storing it or writing to it.
@@ -494,7 +492,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
 
                     // We treat this as the WriteEvent() call occurring after this session stopped listening for events, effectively the
                     // same as if event.IsEnabled() returned false.
-                    pEventPipeThread->SetWritingEvent(false);
                     return false;
                 }
                 else
@@ -521,8 +518,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         InterlockedIncrement(&m_numEventsDropped);
     }
 #endif // _DEBUG
-    if (pEventPipeThread)
-        pEventPipeThread->SetWritingEvent(false);
     return !allocNewBuffer;
 }
 
@@ -707,7 +702,7 @@ EventPipeEventInstance *EventPipeBufferManager::GetNextEvent()
     return pOldestInstance;
 }
 
-void EventPipeBufferManager::SuspendWriteEvent()
+void EventPipeBufferManager::SuspendWriteEvent(EventPipeSessionID sessionId)
 {
     CONTRACTL
     {
@@ -723,11 +718,15 @@ void EventPipeBufferManager::SuspendWriteEvent()
     CQuickArrayList<EventPipeThread *> threadList;
     {
         SpinLockHolder _slh(&m_lock);
-        // From this point onward, it is impossible
+        m_writeEventSuspending.Store(TRUE);
+        // From this point until m_writeEventSuspending is reset to FALSE it is impossible
         // for new EventPipeBufferLists to be added to the m_pPerThreadBufferList. The only
         // way AllocateBufferForThread is allowed to add one is by:
         // 1) take m_lock - AllocateBufferForThread can't own it now because this thread owns it,
         //                  but after this thread gives it up lower in this function it could be acquired.
+        // 2) observe m_writeEventSuspending = False - that won't happen, acquiring m_lock
+        //                  guarantees AllocateBufferForThread will observe all the memory changes this
+        //                  thread made prior to releasing m_lock and we've already set it TRUE.
         // This ensures that we iterate over the list of threads below we've got the complete list.
         SListElem<EventPipeBufferList *> *pElem = m_pPerThreadBufferList->GetHead();
         while (pElem != NULL)
@@ -745,13 +744,15 @@ void EventPipeBufferManager::SuspendWriteEvent()
         {
             SpinLockHolder _slh(pThread->GetLock());
             pThread->SetWriteBuffer(this, nullptr);
-            // pThread->Remove(this); // TODO: Remove loop below.
 
-            // From this point onward, it is impossible
+            // From this point until m_writeEventSuspending is reset to FALSE it is impossible
             // for new EventPipeBufferLists to be added to the m_pPerThreadBufferList. The only
             // way AllocateBufferForThread is allowed to add one is by:
             // 1) take m_lock - AllocateBufferForThread can't own it now because this thread owns it,
             //                  but after this thread gives it up lower in this function it could be acquired.
+            // 2) observe m_writeEventSuspending = False - that won't happen, acquiring m_lock
+            //                  guarantees AllocateBufferForThread will observe all the memory changes this
+            //                  thread made prior to releasing m_lock and we've already set it TRUE.
         }
     }
 
@@ -763,17 +764,26 @@ void EventPipeBufferManager::SuspendWriteEvent()
         while (pElem != NULL)
         {
             // Get the list and remove it from the thread.
-            EventPipeBufferList *pBufferList = pElem->GetValue();
-            for (EventPipeBuffer *pBuffer = pBufferList->GetHead(); pBuffer != nullptr; pBuffer = pBuffer->GetNext())
+            EventPipeBufferList *const pBufferList = pElem->GetValue();
+            if (pBufferList != nullptr)
             {
-                // Above we guaranteed that other threads wouldn't acquire new buffers or keep the ones they
-                // already have indefinitely, but we haven't quite guaranteed the buffer has been relinquished
-                // back to us. It's possible the WriteEvent thread allocated the buffer before we took m_lock
-                // above, but it hasn't yet acquired EventPipeThread::m_lock in order to observe that it needs
-                // to relinquish the buffer. In this state, it has a pointer to the buffer stored in registers
-                // or on the stack. If the thread is in that tiny window, all we have to do is wait for it.
-                YIELD_WHILE(pBufferList->GetThread()->IsWritingEvent() && pBuffer->GetVolatileState() != EventPipeBufferState::READ_ONLY);
+                EventPipeThread *const pEventPipeThread = pBufferList->GetThread();
+                if (pEventPipeThread != nullptr)
+                {
+                    YIELD_WHILE(pEventPipeThread->GetSessionWriteInProgress() == sessionId);
+                    // It still guarantees that the thread has returned its buffer, but it also now guarantees that
+                    // that the thread has returned from Session::WriteEvent() and has relinquished the session pointer
+                    // This yield is guaranteed to eventually finish because threads will eventually exit WriteEvent()
+                    // setting the flag back to -1. If the thread could quickly re-enter WriteEvent and set the flag
+                    // back to this_session_id we could theoretically get unlucky and never observe the gap, but
+                    // setting s_pSessions[this_session_id] = NULL above guaranteed that can't happen indefinately.
+                    // Sooner or later the thread is going to see the NULL value and once it does it won't store
+                    // this_session_id into the flag again.
+                    // As above I'm pretty sure this read barrier isn't necessary for correctness, but this isn't the hot
+                    // path so I am not being stingy
+                }
             }
+
             pElem = m_pPerThreadBufferList->GetNext(pElem);
         }
     }
@@ -800,6 +810,7 @@ void EventPipeBufferManager::DeAllocateBuffers()
     CONTRACTL_END;
 
     _ASSERTE(EnsureConsistency());
+    _ASSERTE(m_writeEventSuspending);
 
     // Take the buffer manager manipulation lock
     SpinLockHolder _slh(&m_lock);
@@ -834,20 +845,6 @@ void EventPipeBufferManager::DeAllocateBuffers()
     }
 }
 
-void EventPipeBufferManager::ResumeWriteEvent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // All calls to this method must be synchronized by our caller.
-
-    _ASSERTE(EventPipe::IsLockOwnedByCurrentThread());
-    _ASSERTE(EnsureConsistency());
-
-    // At this point threads are allowed to again allocate new BufferLists and Buffers. However our caller
-    // presumablyh disabled all the events and until events are re-enabled no thread is going to get past
-    // the event.IsEnabled() checks in WriteEvent() to make any of those allocations happen.
-}
-
 #ifdef _DEBUG
 bool EventPipeBufferManager::EnsureConsistency()
 {
@@ -871,7 +868,7 @@ EventPipeBufferList::EventPipeBufferList(EventPipeBufferManager *pManager, Event
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(pManager != nullptr);
-    _ASSERTE(pThread != nullptr); // Is this correct?
+    _ASSERTE(pThread != nullptr); // TODO: Is this the correct assumption?
 
     m_pManager = pManager;
     m_pThread = pThread;

@@ -32,8 +32,7 @@ Volatile<bool> EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration EventPipe::s_config;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
 HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
-Volatile<EventPipeSession *> EventPipe::s_pSessions[MaxNumberOfSessions];
-Volatile<EventPipeSession *> EventPipe::s_pRundownSession(nullptr);
+VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
 ULONGLONG EventPipe::s_lastFlushTime = 0;
 
 #ifdef FEATURE_PAL
@@ -192,7 +191,7 @@ void EventPipe::Initialize()
         (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE));
 
     // Initialize the session container to nullptr.
-    for (Volatile<EventPipeSession *> &session : s_pSessions)
+    for (VolatilePtr<EventPipeSession> &session : s_pSessions)
         session.Store(nullptr);
 
     s_config.Initialize();
@@ -308,10 +307,10 @@ EventPipeSessionID EventPipe::Enable(
     return sessionId;
 }
 
-static uint64_t GetArrayIndex(uint64_t mask)
+static uint64_t GetArrayIndex(EventPipeSessionID mask)
 {
     for (uint64_t i = 0; i < 64; ++i)
-        if ((static_cast<uint64_t>(1) << i) & mask)
+        if ((1ULL << i) & mask)
             return i;
     return UINT64_MAX;
 }
@@ -353,7 +352,11 @@ EventPipeSessionID EventPipe::EnableInternal(
     s_pEventSource->Enable(pSession);
 
     // Save the session.
-    _ASSERTE(s_pSessions[index].Load() == nullptr);
+    if (s_pSessions[index].LoadWithoutBarrier() != nullptr)
+    {
+        _ASSERTE(!"Attempting to override an existing session.");
+        return 0;
+    }
     s_pSessions[index].Store(pSession);
 
     // Enable tracing.
@@ -408,7 +411,7 @@ static void LogProcessInformationEvent(EventPipeEventSource &eventSource)
     eventSource.SendProcessInfo(pCmdLine);
 }
 
-void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
@@ -419,25 +422,22 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     }
     CONTRACTL_END;
 
-    if (!s_config.Enabled())
+    if (!s_config.Enabled() || !s_config.IsSessionIdValid(id))
         return;
 
     // Get the specified session ID.
-    EventPipeSession *pSession = nullptr;
-    uint64_t i = 0;
-    bool found = false;
-    for (; i < MaxNumberOfSessions; ++i)
+    const uint64_t index = GetArrayIndex(id);
+    if (index >= 64)
     {
-        pSession = s_pSessions[i].Load();
-        if ((pSession != nullptr) && (pSession->GetId() == id))
-        {
-            found = true;
-            break;
-        }
+        _ASSERTE(!"Computed index was out of range.");
+        return;
     }
 
+    EventPipeSession *const pSession = s_pSessions[index].LoadWithoutBarrier() != nullptr ?
+        s_pSessions[index].Load() : nullptr;
+
     // If the session was not found, then there is nothing else to do.
-    if (pSession == nullptr || !found)
+    if (pSession == nullptr)
         return;
 
     // Disable the profiler.
@@ -451,22 +451,32 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
     // Disable pSession tracing.
     s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
-    pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
     // At this point, we should not be writing events to this session anymore
     // This is a good time to remove the session from the array.
-    s_pSessions[i].Store(nullptr);
+    s_pSessions[index].Store(nullptr);
+
+    pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
     // Do rundown before fully stopping the session.
     pSession->EnableRundown(); // Set Rundown provider.
-    s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
-    s_pRundownSession.Store(pSession);
+    EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
+    if (pEventPipeThread != nullptr)
     {
-        pSession->ExecuteRundown();
-        s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+        pEventPipeThread->SetAsRundownThread(pSession);
+        {
+            s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+            pSession->ExecuteRundown();
+            s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+        }
+        pEventPipeThread->SetAsRundownThread(nullptr);
     }
-    s_pRundownSession.Store(nullptr);
+    else
+    {
+        _ASSERTE(!"Failed to get or create the EventPipeThread for rundown events.");
+        return;
+    }
 
     // Remove the session.
     s_config.DeleteSession(pSession);
@@ -480,20 +490,21 @@ EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
 	_ASSERTE(s_tracingInitialized);
-    CrstHolder _crst(GetLock());
+    CrstHolder _crst(GetLock()); // TODO: Is this correct?
 
     if (!s_tracingInitialized)
         return nullptr;
 
     // Attempt to get the specified session ID.
-    for (uint64_t i = 0; i < MaxNumberOfSessions; ++i)
+    const uint64_t index = GetArrayIndex(id);
+    if (index >= 64)
     {
-        EventPipeSession *const pSession = s_pSessions[i].Load();
-        if (pSession != nullptr || pSession->GetId() == id)
-            return pSession;
+        _ASSERTE(!"Computed index was out of range.");
+        return nullptr;
     }
 
-    return nullptr;
+    return s_pSessions[index].LoadWithoutBarrier() != nullptr ?
+        s_pSessions[index].Load() : nullptr;
 }
 
 bool EventPipe::Enabled()
@@ -629,60 +640,88 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         return;
 
     // Get the current thread;
-    Thread *pThread = GetThread();
+    Thread *const pThread = GetThread();
 
     // If the activity id isn't specified AND we are in a managed thread, pull it from the current thread.
     // If pThread is NULL (we aren't in writing from a managed thread) then pActivityId can be NULL
-    if (pActivityId == NULL && pThread != NULL)
+    if (pActivityId == nullptr && pThread != nullptr)
         pActivityId = pThread->GetActivityId();
 
-    if (s_pRundownSession.LoadWithoutBarrier() != nullptr)
+    EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
+    if (pEventPipeThread == nullptr)
     {
-        EventPipeSession *const pRundownSession = s_pRundownSession.Load();
-        if ((pRundownSession != nullptr) && pRundownSession->RundownEnabled() && pRundownSession->IsRundownThread())
-        {
-            _ASSERTE(pThread != nullptr);
-            BYTE *pData = payload.GetFlatData();
-            if (pData != NULL)
-            {
-                // Write synchronously to the file.
-                // We're under lock and blocking the disabling thread.
-                // This copy occurs here (rather than at file write) because
-                // A) The FastSerializer API would need to change if we waited
-                // B) It is unclear there is a benefit to multiple file write calls
-                //    as opposed a a buffer copy here
-                EventPipeEventInstance instance(
-                    event,
-                    pThread->GetOSThreadId(),
-                    pData,
-                    payload.GetSize(),
-                    pActivityId,
-                    pRelatedActivityId);
-                instance.EnsureStack(*pRundownSession);
+        _ASSERTE(!"Failed to get or create an EventPipeThread.");
+        return;
+    }
 
-                // EventPipeFile::WriteEvent needs to allocate a metadata event
-                // and can therefore throw. In this context we will silently
-                // fail rather than disrupt the caller
-                EX_TRY
-                {
+    if (pEventPipeThread->IsRundownThread())
+    {
+        EventPipeSession *const pRundownSession = pEventPipeThread->GetRundownSession();
+        _ASSERTE(pRundownSession != nullptr);
+        _ASSERTE(pThread != nullptr);
+
+        BYTE *pData = payload.GetFlatData();
+        if (pThread != nullptr && pRundownSession != nullptr && pData != nullptr)
+        {
+            // Write synchronously to the file.
+            // We're under lock and blocking the disabling thread.
+            // This copy occurs here (rather than at file write) because
+            // A) The FastSerializer API would need to change if we waited
+            // B) It is unclear there is a benefit to multiple file write calls
+            //    as opposed a a buffer copy here
+            EventPipeEventInstance instance(
+                event,
+                pThread->GetOSThreadId(),
+                pData,
+                payload.GetSize(),
+                pActivityId,
+                pRelatedActivityId);
+            instance.EnsureStack(*pRundownSession);
+
+            // EventPipeFile::WriteEvent needs to allocate a metadata event
+            // and can therefore throw. In this context we will silently
+            // fail rather than disrupt the caller
+            EX_TRY
+            {
+                _ASSERTE(pRundownSession != nullptr);
+                if (pRundownSession != nullptr)
                     pRundownSession->WriteEvent(instance);
-                }
-                EX_CATCH {}
-                EX_END_CATCH(SwallowAllExceptions);
             }
+            EX_CATCH {}
+            EX_END_CATCH(SwallowAllExceptions);
         }
     }
     else
     {
-        for (Volatile<EventPipeSession *> &session : s_pSessions)
+        for (int64_t i = 0; i < MaxNumberOfSessions; ++i)
         {
-            EventPipeSession *const pSession = session.Load();
-            if (pSession == nullptr)
+            // This read is OK because we aren't derefencing the pointer and if we observe a value that
+            // isn't up-to-date (whether null or non-null) that is just the natural race timing of trying to
+            // write to a session while it is being concurrently enabled/disabled.
+            if (s_pSessions[i].LoadWithoutBarrier() == nullptr)
                 continue;
-            if (!pSession->RundownEnabled())
-                pSession->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId);
+
+            // Now that we know this session is probably live we pay the perf cost of the memory barriers
+            // Setting this flag lets a thread trying to do a concurrent disable that it is not safe to delete
+            // session ID i. The if check above also ensures that once the session is unpublished this thread
+            // will eventually stop ever storing ID i into the WriteInProgress flag. This is important to
+            // guarantee termination of the YIELD_WHILE loop in SuspendWriteEvents.
+            pEventPipeThread->SetSessionWriteInProgress(i);
+            {
+                EventPipeSession *const pSession = s_pSessions[i].Load();
+
+                // The NULL check above may make this check below appear redundant but it is not. Disable is
+                // allowed to set s_pSessions[i] = NULL at any time and that may have occured in between
+                // the check and the load
+                if (pSession != nullptr)
+                    pSession->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId);
+            }
+            // Do not reference pSession past this point, we are signaling Disable() that it is safe to
+            // delete it
+            pEventPipeThread->SetSessionWriteInProgress(UINT64_MAX);
         }
     }
+
 }
 
 void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData, unsigned int length)
@@ -704,13 +743,12 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
     // Write the event to the thread's buffer.
     // Specify the sampling thread as the "current thread", so that we select the right buffer.
     // Specify the target thread so that the event gets properly attributed.
-    for (Volatile<EventPipeSession *> &session : s_pSessions)
+    for (VolatilePtr<EventPipeSession> &session : s_pSessions)
     {
-        EventPipeSession *const pSession = session.Load();
-        if (pSession == nullptr)
+        if (session.LoadWithoutBarrier() == nullptr)
             continue;
-        _ASSERTE(s_config.IsSessionIdValid(pSession->GetId()));
 
+        EventPipeSession *const pSession = session.Load();
         pSession->WriteEvent(
             pSamplingThread,
             *pEvent,

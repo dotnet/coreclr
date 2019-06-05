@@ -25,8 +25,7 @@ EventPipeSession::EventPipeSession(
                            m_CircularBufferSizeInBytes(static_cast<size_t>(circularBufferSizeInMB) << 20),
                            m_pBufferManager(new EventPipeBufferManager()),
                            m_rundownEnabled(rundownEnabled),
-                           m_SessionType(sessionType),
-                           m_writeEventSuspending(false)
+                           m_SessionType(sessionType)
 {
     CONTRACTL
     {
@@ -184,14 +183,17 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 
             if (!fSuccess)
             {
-                EventPipe::RunWithCallbackPostponed([pEventPipeSession](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue){pEventPipeSession->Disable();});
+                // TODO: Notify `EventPipe::Disable` instead, this would disable the session, and remove it from the active list.
+                EventPipe::RunWithCallbackPostponed([pEventPipeSession](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+                    pEventPipeSession->Disable();
+                });
             }
         }
         EX_CATCH
         {
             pEventPipeSession->SetThreadShutdownEvent();
             // TODO: STRESS_LOG ?
-            // TODO: Should we notify EventPipe itself to remove this session from the list.
+            // TODO: Notify `EventPipe` itself to remove this session from the list.
         }
         EX_END_CATCH(SwallowAllExceptions);
     }
@@ -236,7 +238,7 @@ bool EventPipeSession::IsValid()
     }
     CONTRACTL_END;
 
-    return (m_pProviderList != nullptr) && (!m_pProviderList->IsEmpty());
+    return !m_pProviderList->IsEmpty();
 }
 
 void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
@@ -393,7 +395,6 @@ void EventPipeSession::EnableRundown()
             Config.GetFilterData()));
     }
 
-    m_pRundownThread = GetThread();
     m_rundownEnabled = true;
 }
 
@@ -438,8 +439,7 @@ void EventPipeSession::Disable()
 
     // Force all in-progress writes to either finish or cancel
     // This is required to ensure we can safely flush and delete the buffers
-    m_writeEventSuspending.Store(true);
-    m_pBufferManager->SuspendWriteEvent();
+    m_pBufferManager->SuspendWriteEvent(GetId());
     WriteAllBuffersToFile();
     m_pProviderList->Clear();
 }
