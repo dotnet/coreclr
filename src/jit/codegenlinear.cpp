@@ -1662,14 +1662,13 @@ void CodeGen::genSetBlockSize(GenTreeBlk* blkNode, regNumber sizeReg)
     if (sizeReg != REG_NA)
     {
         unsigned blockSize = blkNode->Size();
-        if (blockSize != 0)
+        if (!blkNode->OperIs(GT_STORE_DYN_BLK))
         {
             assert((blkNode->gtRsvdRegs & genRegMask(sizeReg)) != 0);
             genSetRegToIcon(sizeReg, blockSize);
         }
         else
         {
-            noway_assert(blkNode->gtOper == GT_STORE_DYN_BLK);
             GenTree* sizeNode = blkNode->AsDynBlk()->gtDynamicSize;
             if (sizeNode->gtRegNum != sizeReg)
             {
@@ -1691,6 +1690,7 @@ void CodeGen::genConsumeBlockSrc(GenTreeBlk* blkNode)
     if (blkNode->OperIsCopyBlkOp())
     {
         // For a CopyBlk we need the address of the source.
+        assert(src->isContained());
         if (src->OperGet() == GT_IND)
         {
             src = src->gtOp.gtOp1;
@@ -1771,9 +1771,15 @@ void CodeGen::genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber
 
     GenTree* const dstAddr = blkNode->Addr();
 
-    // First, consume all the sources in order.
+    // First, consume all the sources in order, and verify that registers have been allocated appropriately,
+    // based on the 'gtBlkOpKind'.
+
+    // The destination is always in a register; 'genConsumeReg' asserts that.
     genConsumeReg(dstAddr);
+    // The source may be a local or in a register; 'genConsumeBlockSrc' will check that.
     genConsumeBlockSrc(blkNode);
+    // 'genSetBlockSize' (called below) will ensure that a register has been reserved as needed
+    // in the case where the size is a constant (i.e. it is not GT_STORE_DYN_BLK).
     if (blkNode->OperGet() == GT_STORE_DYN_BLK)
     {
         genConsumeReg(blkNode->AsDynBlk()->gtDynamicSize);

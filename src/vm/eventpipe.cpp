@@ -259,6 +259,11 @@ void EventPipe::Shutdown()
     EX_CATCH {}
     EX_END_CATCH(SwallowAllExceptions);
 
+    // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
+    // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
+    delete s_pEventSource;
+    s_pEventSource = nullptr;
+
     EventPipeConfiguration *pConfig = s_pConfig;
     EventPipeSessions *pSessions = s_pSessions;
 
@@ -271,8 +276,6 @@ void EventPipe::Shutdown()
     // Free resources.
     delete pConfig;
     delete pSessions;
-    delete s_pEventSource;
-    s_pEventSource = nullptr;
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -457,7 +460,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(IsLockOwnedByCurrentThread());
+    CrstHolder _crst(GetLock());
 
     if (s_pSessions == nullptr)
         return nullptr;
