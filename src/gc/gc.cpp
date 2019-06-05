@@ -12350,6 +12350,9 @@ found_fit:
     if (cookie != -1)
     {
         allocated += limit;
+
+        GCToOSInterface::Sleep (1);
+
         bgc_loh_alloc_clr (old_alloc, limit, acontext, flags, align_const, cookie, TRUE, seg);
     }
     else
@@ -12368,6 +12371,9 @@ found_fit:
         }
 
         allocated += limit;
+
+        GCToOSInterface::Sleep (1);
+
         adjust_limit_clr (old_alloc, limit, size, acontext, flags, seg, align_const, gen_number);
     }
 
