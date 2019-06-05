@@ -291,11 +291,6 @@ BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem)
     }
     CONTRACTL_END;
 
-#ifdef _DEBUG
-    // Check whether (indispensable) implicit casting in ClrFreeInProcessHeapBootstrap is safe.
-    static FastFreeInProcessHeapFunc pFunc = EEHeapFreeInProcessHeap;
-#endif
-
     static HANDLE ProcessHeap = NULL;
 
     if (ProcessHeap == NULL)
