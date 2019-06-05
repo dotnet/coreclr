@@ -19,6 +19,9 @@ private:
     // The one and only PerfMap for the process.
     static PerfMap * s_Current;
 
+    // Indicates whether optimization tiers should be shown for methods in perf maps
+    static bool s_ShowOptimizationTiers;
+
     // The file stream to write the map to.
     CFileStream * m_FileStream;
 

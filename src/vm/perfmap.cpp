@@ -23,6 +23,7 @@
 #endif
 
 PerfMap * PerfMap::s_Current = nullptr;
+bool PerfMap::s_ShowOptimizationTiers = false;
 
 // Initialize the map for the process - called from EEStartupHelper.
 void PerfMap::Initialize()
@@ -43,6 +44,11 @@ void PerfMap::Initialize()
         if (signalNum > 0)
         {
             PAL_IgnoreProfileSignal(signalNum);
+        }
+
+        if (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_PerfMapShowOptimizationTiers) != 0)
+        {
+            s_ShowOptimizationTiers = true;
         }
     }
 }
@@ -184,7 +190,7 @@ void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, cons
         StackScratchBuffer scratch;
         SString line;
         line.Printf(FMT_CODE_ADDR " %x %s", pCode, codeSize, fullMethodSignature.GetANSI(scratch));
-        if (optimizationTier != nullptr)
+        if (optimizationTier != nullptr && s_ShowOptimizationTiers)
         {
             line.AppendPrintf("[%s]\n", optimizationTier);
         }
@@ -248,52 +254,9 @@ void PerfMap::LogJITCompiledMethod(MethodDesc * pMethod, PCODE pCode, size_t cod
 
     const char *optimizationTier = nullptr;
 #ifndef CROSSGEN_COMPILE
-    if (pConfig != nullptr)
+    if (s_ShowOptimizationTiers)
     {
-        if (pConfig->JitSwitchedToMinOpt())
-        {
-            optimizationTier = "MinOptJitted";
-        }
-#ifdef FEATURE_TIERED_COMPILATION
-        else if (pConfig->JitSwitchedToOptimized())
-        {
-            _ASSERTE(pMethod->IsEligibleForTieredCompilation());
-            _ASSERTE(pConfig->GetCodeVersion().GetOptimizationTier() == NativeCodeVersion::OptimizationTierOptimized);
-            optimizationTier = "Optimized";
-        }
-        else if (pMethod->IsEligibleForTieredCompilation())
-        {
-            switch (pConfig->GetCodeVersion().GetOptimizationTier())
-            {
-                case NativeCodeVersion::OptimizationTier0:
-                    optimizationTier = "QuickJitted";
-                    break;
-
-                case NativeCodeVersion::OptimizationTier1:
-                    optimizationTier = "OptimizedTier1";
-                    break;
-
-                case NativeCodeVersion::OptimizationTierOptimized:
-                    optimizationTier = "Optimized";
-                    break;
-
-                default:
-                    UNREACHABLE();
-            }
-        }
-#endif
-    }
-
-    if (optimizationTier == nullptr)
-    {
-        if (pMethod->IsJitOptimizationDisabled())
-        {
-            optimizationTier = "MinOptJitted";
-        }
-        else
-        {
-            optimizationTier = "Optimized";
-        }
+        optimizationTier = PrepareCodeConfig::GetJitOptimizationTierStr(pConfig, pMethod);
     }
 #endif // CROSSGEN_COMPILE
 
