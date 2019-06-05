@@ -2237,8 +2237,6 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                     CorInfoIntrinsics intrinsic = getIntrinsicID(pResult->hMethod, &dummy);
                     if ((intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContext)
                      || (intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
-                     || (intrinsic == CORINFO_INTRINSIC_StubHelpers_InitDeclaringType)
-                     || (intrinsic == CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget)
                      )
                     {
                         // These intrinsics are always expanded directly in the jit and do not correspond to external methods

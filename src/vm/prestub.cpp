@@ -377,10 +377,10 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     STANDARD_VM_CONTRACT;
     PCODE pCode = NULL;
 
-    if (pConfig->MayUsePrecompiledCode() && !CORProfilerTrackTransitions())
+    if (pConfig->MayUsePrecompiledCode())
     {
 #ifdef FEATURE_READYTORUN
-        if (this->IsDynamicMethod())
+        if (this->IsDynamicMethod() && GetLoaderModule()->IsSystem() && MayUsePrecompiledILStub())
         {
             DynamicMethodDesc *stubMethodDesc = this->AsDynamicMethodDesc();
             if (stubMethodDesc->IsILStub() && stubMethodDesc->IsPInvokeStub())

@@ -6194,15 +6194,11 @@ void CEEPreloader::GenerateMethodStubs(
     MethodDesc* pMD = GetMethod(hMethod);
     MethodDesc* pStubMD = NULL;
 
-    // Do not generate IL stubs when generating ReadyToRun images
+    // Do not generate IL stubs when generating ReadyToRun images except for System.Private.Corelib
     // This prevents versionability concerns around IL stubs exposing internal
     // implementation details of the CLR.
-    if (IsReadyToRunCompilation() && !pMD->IsNDirect())
+    if (IsReadyToRunCompilation() && (!GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem() || !pMD->IsNDirect()))
         return;
-
-    // FUTURE: This can probably be extended to cases where we have a version bubble that includes
-    //         the system dll.
-    OverrideNonR2RSafeILStubChecksHolder allowArbitraryILInILStubs(GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem());
 
     DWORD dwNGenStubFlags = NDIRECTSTUB_FL_NGENEDSTUB;
 
@@ -6295,8 +6291,8 @@ void CEEPreloader::GenerateMethodStubs(
                 {
                     s_stubMethodsOfMethod.Add(CORINFO_METHOD_HANDLE(pStubMD), CORINFO_METHOD_HANDLE(pMD));
                 }
-                 SetStubMethodDescOnInteropMethodDesc(pMD, pStubMD, false /* fReverseStub */);
-                 pStubMD = NULL;
+                SetStubMethodDescOnInteropMethodDesc(pMD, pStubMD, false /* fReverseStub */);
+                pStubMD = NULL;
             }
 
         }
@@ -6306,6 +6302,10 @@ void CEEPreloader::GenerateMethodStubs(
         LOG((LF_ZAP, LL_WARNING, "NGEN_ILSTUB: Generating forward interop stub FAILED: %s::%s\n", pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName));
     }
     EX_END_CATCH(RethrowTransientExceptions);
+
+    // Only P/Invoke stubs are eligible to be created in R2R
+    if (IsReadyToRunCompilation())
+        return;
 
     //
     // Now take care of reverse P/Invoke stubs for delegates

@@ -730,7 +730,6 @@ public:
                 // reverse interop needs to seed the return value if the
                 // managed function returns void but we're doing hresult
                 // swapping.
-                OverrideNonR2RSafeILStubChecksHolder r2rILStubsAreSafe(true);
                 pcsUnmarshal->EmitLDC(S_OK);
             }
         }
@@ -995,7 +994,6 @@ public:
         {
             COR_ILMETHOD_SECT_EH* pEHSect = pResolver->AllocEHSect(nEHClauses);
             PopulateEHSect(pEHSect, nEHClauses, &cleanupTryFinally, &convertToHRTryCatch);
-            pResolver->FinalizeEHSect(nEHClauses);
         }
 
         m_slIL.GenerateCode(pbBuffer, cbCode);
@@ -1687,10 +1685,7 @@ NDirectStubLinker::NDirectStubLinker(
     //
     // Add locals
     m_dwArgMarshalIndexLocalNum = NewLocal(ELEMENT_TYPE_I4);
-    {
-        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true);
-        m_pcsMarshal->EmitLDC(0);
-    }
+    m_pcsMarshal->EmitLDC(0);
     m_pcsMarshal->EmitSTLOC(m_dwArgMarshalIndexLocalNum);
     
 #ifdef FEATURE_COMINTEROP
@@ -2133,7 +2128,6 @@ void NDirectStubLinker::Begin(DWORD dwStubFlags)
         if (SF_IsStubWithCctorTrigger(dwStubFlags))
         {
             EmitLoadStubContext(m_pcsSetup, dwStubFlags);
-            OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // This is handled as a JIT intrinsic as part of the R2R contract
             m_pcsSetup->EmitCALL(METHOD__STUBHELPERS__INIT_DECLARING_TYPE, 1, 0);
         }
     }
@@ -2301,42 +2295,23 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 #endif // FEATURE_COMINTEROP
             {
                 EmitLoadStubContext(pcsEmit, dwStubFlags);
+                // pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
+                pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
+                pcsEmit->EmitADD();
 
+                if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
                 {
-                    OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // Getting the NDirect target via the helper call is part of the R2R contract
-                    // Perf: inline the helper for now
-                    bool inlineHelper = true;
-
-                    if (IsReadyToRunCompilation())
-                    {
-                        if (!SystemDomain::SystemModule()->IsInCurrentVersionBubble())
-                        {
-                            // If the system assembly isn't in the version bubble, use helper call to get P/invoke target
-                            pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
-                            inlineHelper = false;
-                        }
-                    }
-
-                    if (inlineHelper)
-                    {
-                        pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
-                        pcsEmit->EmitADD();
-
-                        if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
-                        {
-                            pcsEmit->EmitDUP();
-                        }
-
-                        pcsEmit->EmitLDIND_I();
-
-                        if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
-                        {
-                            pcsEmit->EmitADD();
-                        }
-
-                        pcsEmit->EmitLDIND_I();
-                    }
+                    pcsEmit->EmitDUP();
                 }
+
+                pcsEmit->EmitLDIND_I();
+
+                if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                {
+                    pcsEmit->EmitADD();
+                }
+
+                pcsEmit->EmitLDIND_I();
             }
 #ifdef FEATURE_COMINTEROP
             else
@@ -2602,7 +2577,6 @@ void NDirectStubLinker::EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubF
 #endif // FEATURE_COMINTEROP
     {
         // get the secret argument via intrinsic
-        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // The stub context argument is part of the R2R contract
         pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT, 0, 1);
     }
 }

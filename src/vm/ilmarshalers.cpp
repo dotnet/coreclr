@@ -190,7 +190,6 @@ void ILBoolMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
 
     if (falseValue == 0 && trueValue == 1)
     {
-        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true);
         // this can be done without jumps
         pslILEmit->EmitLDC(0);
         pslILEmit->EmitCEQ();
@@ -199,7 +198,6 @@ void ILBoolMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
     }
     else
     {
-        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true);
         pslILEmit->EmitBRFALSE(pLoadFalseLabel);
         pslILEmit->EmitLDC(trueValue);
         pslILEmit->EmitBR(pDoneLabel);
@@ -222,13 +220,10 @@ void ILBoolMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
 
     EmitLoadNativeValue(pslILEmit);
 
-    {
-        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true);
-        pslILEmit->EmitLDC(falseValue);
-        pslILEmit->EmitCEQ();
-        pslILEmit->EmitLDC(0);
-        pslILEmit->EmitCEQ();
-    }
+    pslILEmit->EmitLDC(falseValue);
+    pslILEmit->EmitCEQ();
+    pslILEmit->EmitLDC(0);
+    pslILEmit->EmitCEQ();
 
     EmitStoreManagedValue(pslILEmit);
 }    
@@ -426,10 +421,7 @@ void ILWSTRMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* p
         EmitLoadManagedValue(pslILEmit);
         pslILEmit->EmitSTLOC(dwPinnedLocal);
         pslILEmit->EmitLDLOC(dwPinnedLocal);
-        {
-            OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // The layout of fields is fixed by the R2R format
-            pslILEmit->EmitLDFLDA(fieldDef);
-        }
+        pslILEmit->EmitLDFLDA(fieldDef);
         EmitStoreNativeValue(pslILEmit);
 
         if (g_pConfig->InteropLogArguments())
@@ -2526,11 +2518,8 @@ void ILBlittablePtrMarshaler::EmitMarshalArgumentCLRToNative()
     m_pcsMarshal->EmitCONV_U();
     m_pcsMarshal->EmitDUP();
     m_pcsMarshal->EmitBRFALSE(pSkipAddLabel);
-    {
-        OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // layout of the Object type is assumed in R2R images
-        m_pcsMarshal->EmitLDC(Object::GetOffsetOfFirstField());
-        m_pcsMarshal->EmitADD();
-    }
+    m_pcsMarshal->EmitLDC(Object::GetOffsetOfFirstField());
+    m_pcsMarshal->EmitADD();
     m_pcsMarshal->EmitLabel(pSkipAddLabel);
 
     if (g_pConfig->InteropLogArguments())
@@ -3911,11 +3900,8 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitCONV_I();
         // Optimize marshalling by emitting the data ptr offset directly into the IL stream
         // instead of doing an FCall to recalulate it each time when possible.
-        {
-            OverrideNonR2RSafeILStubChecksHolder r2rSafe(true); // The layout of arrays is part of the R2R contract
-            m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
-            m_pcsMarshal->EmitADD();
-        }
+        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
+        m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
         if (g_pConfig->InteropLogArguments())

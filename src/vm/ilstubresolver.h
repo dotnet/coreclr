@@ -56,7 +56,6 @@ public:
     COR_ILMETHOD_DECODER * AllocGeneratedIL(size_t cbCode, DWORD cbLocalSig, UINT maxStack);
     COR_ILMETHOD_DECODER * GetILHeader();
     COR_ILMETHOD_SECT_EH* AllocEHSect(size_t nClauses);
-    void FinalizeEHSect(size_t nClauses);
 
     bool IsCompiled();
     bool IsILGenerated();

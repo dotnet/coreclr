@@ -3524,21 +3524,6 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         // must be done regardless of DbgCode and MinOpts
         return gtNewLclvNode(lvaStubArgumentVar, TYP_I_IMPL);
     }
-    if (opts.IsReadyToRun())
-    {
-        if (intrinsicID == CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget)
-        {
-            GenTree* op1 = impPopStack().val; // stub context
-            return gtNewHelperCallNode(CORINFO_HELP_READYTORUN_STUBHELPERS_GET_NDIRECT_TARGET, TYP_I_IMPL,
-                                                        gtNewArgList(op1));
-        }
-        else if (intrinsicID == CORINFO_INTRINSIC_StubHelpers_InitDeclaringType)
-        {
-            GenTree* op1 = impPopStack().val; // stub context
-            return gtNewHelperCallNode(CORINFO_HELP_READYTORUN_STUBHELPERS_INIT_DECLARING_TYPE, TYP_VOID,
-                                                        gtNewArgList(op1));
-        }
-    }
 #ifdef _TARGET_64BIT_
     if (intrinsicID == CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
     {
