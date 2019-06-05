@@ -21,10 +21,10 @@ if NOT [%ERRORLEVEL%]==[0] (
   exit /b %ERRORLEVEL%
 )
 
-if "%DOTNET_INSTALL_DIR%"=="" (
+if "%DOTNET_TOOL_DIR%"=="" (
   set __DotnetDir=%~dp0
 ) else (
-  set __DotnetDir=%DOTNET_INSTALL_DIR%
+  set __DotnetDir=%DOTNET_TOOL_DIR%
 )
 
 pushd %~dp0

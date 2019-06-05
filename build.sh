@@ -153,7 +153,7 @@ restore_optdata()
 
         # Init dotnet
         source "${__ProjectRoot}/init-dotnet.sh"
-        local DotNetCli=${DOTNET_INSTALL_DIR}/dotnet
+        local DotNetCli=${_InitializeDotNetCli}/dotnet
 
         __PgoOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo)
         if [ $? != 0 ]; then
