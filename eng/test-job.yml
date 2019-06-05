@@ -92,7 +92,7 @@ jobs:
     # this number should be adjusted accordingly.
     ${{ if eq(parameters.testGroup, 'innerloop') }}:
       timeoutInMinutes: 240
-    ${{ if eq(parameters.testGroup, 'outerloop') }}:
+    ${{ if in(parameters.testGroup, 'outerloop', 'outerloop-r2r') }}:
       timeoutInMinutes: 360
     ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 480
@@ -168,7 +168,7 @@ jobs:
           timeoutPerTestCollectionInMinutes: 30
           # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
           timeoutPerTestInMinutes: 10
-        ${{ if eq(parameters.testGroup, 'outerloop') }}:
+        ${{ if in(parameters.testGroup, 'outerloop', 'outerloop-r2r') }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 10
         ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstress-isas-arm', 'outerloop-jitstress-isas-x86', 'outerloop-jitstressregs-x86', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
@@ -279,9 +279,12 @@ jobs:
           - gcstress0xc_jitstress1
           - gcstress0xc_jitstress2
           - gcstress0xc_jitminopts_heapverify1
-        ${{ if eq(parameters.testGroup, 'outerloop-r2r-extra') }}:
+        ${{ if eq(parameters.testGroup, 'outerloop-r2r') }}:
           scenarios:
           - normal
+          - no_tiered_compilation
+        ${{ if eq(parameters.testGroup, 'outerloop-r2r-extra') }}:
+          scenarios:
           - jitstress1
           - jitstress2
           - jitstress1_tiered
@@ -297,7 +300,6 @@ jobs:
           - jitminopts
           - forcerelocs
           - gcstress15
-          - no_tiered_compilation
 
 
     # Publish Logs
