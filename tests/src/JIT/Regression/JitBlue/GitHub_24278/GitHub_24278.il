@@ -6,6 +6,12 @@
 .assembly GitHub_24278 { }
 .module GitHub_24278.exe
 
+// GitHub 24278: a bug is reproduced when
+// 1) a register is used in a prolog for initializing GSSecurityCookie (i.e. the register contains a random non-zero value) and
+// 2) the same register holds a must-init GC variable in the next basic block and
+// 3) the variable is live at the beginning of this basic block.
+// The register was not zeroed at the end of prolog and this was causing segmentation fault during GC.Collect().
+
 .class private auto ansi beforefieldinit GitHub_24278.Program
        extends [System.Runtime]System.Object
 {
