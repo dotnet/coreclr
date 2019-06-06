@@ -4,11 +4,12 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${ARCH_SOURCES_DIR})
 
-# EventPipe stress testing support
-# add_definitions(-DFEATURE_AUTO_TRACE)
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
+if(FEATURE_AUTO_TRACE)
+  add_definitions(-DFEATURE_AUTO_TRACE)
+endif(FEATURE_AUTO_TRACE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)
@@ -16,7 +17,7 @@ if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    add_definitions(-DWRITE_BARRIER_CHECK)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
