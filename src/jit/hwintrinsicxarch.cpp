@@ -1094,6 +1094,17 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
             break;
         }
 
+        case NI_Vector128_Count:
+        case NI_Vector256_Count:
+        {
+            assert(sig->numArgs == 0);
+
+            GenTreeIntCon* countNode = gtNewIconNode(getSIMDVectorLength(simdSize, baseType), TYP_INT);
+            countNode->gtFlags |= GTF_ICON_SIMD_COUNT;
+            retNode = countNode;
+            break;
+        }
+
         case NI_Vector128_CreateScalarUnsafe:
         {
             assert(sig->numArgs == 1);
