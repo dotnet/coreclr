@@ -50,7 +50,10 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
     {
         if (callback != nullptr)
             callback(strerror(errno), errno);
-        _ASSERTE(serverSocket != -1);
+#ifdef __APPLE__
+        umask(prev_mask);
+#endif // __APPLE__
+        _ASSERTE(!"Failed to create diagnostics IPC socket.");
         return nullptr;
     }
     sockaddr_un serverAddress{};
