@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include "diagnosticsipc.h"
 #include "processdescriptor.h"
 
@@ -59,6 +60,11 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_Pid,
         pd.m_ApplicationGroupId,
         "socket");
+
+    if (fchmod(serverSocket, S_IRWXU) == -1)
+    {
+        return nullptr;
+    }
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
