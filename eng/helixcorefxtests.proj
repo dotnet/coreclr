@@ -107,8 +107,8 @@
       For Windows, we need to use "call", since the command is going to be called from a batch script created by Helix.
       We "exit /b" at the end of RunTests.cmd. Helix runs some other commands after ours within the batch script,
       so if we don't use call, then we cause the parent script to exit, and anything after will not be executed.
-      The arguments passed in to the run script in are the runtime directory (-r), the dotnet root directory (-d) (for
-      Helix submissions this is the same as the runtime directory) and the global tools directory (-g).
+      The arguments passed in to the run script in are the runtime directory (-r) and the exclusion response file
+      passed to xunit (--rsp-file).
     -->
     <HelixCommand Condition="'$(TargetsWindows)' == 'true'">call RunTests.cmd -r %HELIX_CORRELATION_PAYLOAD% --rsp-file %HELIX_CORRELATION_PAYLOAD%\CoreFX.issues.rsp </HelixCommand>
     <HelixCommand Condition="'$(TargetsWindows)' != 'true'">./RunTests.sh -r $HELIX_CORRELATION_PAYLOAD --rsp-file $HELIX_CORRELATION_PAYLOAD/CoreFX.issues.rsp </HelixCommand>
