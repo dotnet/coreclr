@@ -489,22 +489,25 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
-	_ASSERTE(s_tracingInitialized);
-    CrstHolder _crst(GetLock()); // TODO: Is this correct?
+    _ASSERTE(s_tracingInitialized);
 
     if (!s_tracingInitialized)
         return nullptr;
 
-    // Attempt to get the specified session ID.
-    const uint64_t index = GetArrayIndex(id);
-    if (index >= 64)
     {
-        _ASSERTE(!"Computed index was out of range.");
-        return nullptr;
-    }
+        CrstHolder _crst(GetLock());
 
-    return s_pSessions[index].LoadWithoutBarrier() != nullptr ?
-        s_pSessions[index].Load() : nullptr;
+        // Attempt to get the specified session ID.
+        const uint64_t index = GetArrayIndex(id);
+        if (index >= 64)
+        {
+            _ASSERTE(!"Computed index was out of range.");
+            return nullptr;
+        }
+
+        return s_pSessions[index].LoadWithoutBarrier() != nullptr ?
+            s_pSessions[index].Load() : nullptr;
+    }
 }
 
 bool EventPipe::Enabled()
