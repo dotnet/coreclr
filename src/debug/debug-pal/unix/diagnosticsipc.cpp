@@ -41,8 +41,9 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
-
+#ifdef __APPLE__
     mode_t prev_mask = umask(177); // This will set the default permission bit to 600
+#endif // __APPLE__
 
     const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (serverSocket == -1)
@@ -63,6 +64,16 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_ApplicationGroupId,
         "socket");
 
+#ifndef __APPLE__
+    if (fchmod(serverSocket, S_IRUSR | S_IWUSR) == -1)
+    {
+        if (callback != nullptr)
+            callback(strerror(errno), errno);
+        _ASSERTE(!"Failed to set permissions on diagnostics IPC socket.");
+        return nullptr;
+    }
+#endif // __APPLE__
+
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
     {
@@ -72,7 +83,10 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
         const int fSuccessClose = ::close(serverSocket);
         _ASSERTE(fSuccessClose != -1);
+
+#ifdef __APPLE__
         umask(prev_mask);
+#endif // __APPLE__
 
         return nullptr;
     }
@@ -89,11 +103,16 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
         const int fSuccessClose = ::close(serverSocket);
         _ASSERTE(fSuccessClose != -1);
+#ifdef __APPLE__
         umask(prev_mask);
+#endif // __APPLE__
         return nullptr;
     }
 
+#ifdef __APPLE__
     umask(prev_mask);
+#endif // __APPLE__
+
     return new IpcStream::DiagnosticsIpc(serverSocket, &serverAddress);
 }
 
