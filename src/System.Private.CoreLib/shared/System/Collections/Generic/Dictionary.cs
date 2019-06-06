@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
+using Internal.Runtime.CompilerServices;
 
 namespace System.Collections.Generic
 {
@@ -89,11 +90,11 @@ namespace System.Collections.Generic
                 if (_comparer == null)
                 {
                     // To start, move off default comparer for string which is randomised
-                    _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Default;
+                    _comparer = Unsafe.As<IEqualityComparer<TKey>>(NonRandomizedStringEqualityComparer.Default);
                 }
                 else if (_comparer == StringComparer.Ordinal)
                 {
-                    _comparer = (IEqualityComparer<TKey>)NonRandomizedStringEqualityComparer.Ordinal;
+                    _comparer = Unsafe.As<IEqualityComparer<TKey>>(NonRandomizedStringEqualityComparer.Ordinal);
                 }
             }
         }
@@ -164,7 +165,7 @@ namespace System.Collections.Generic
                 return _comparer switch
                 {
                     null => EqualityComparer<TKey>.Default,
-                    NonRandomizedStringEqualityComparer nr => (IEqualityComparer<TKey>)nr.BackingComparer,
+                    NonRandomizedStringEqualityComparer nr => Unsafe.As<IEqualityComparer<TKey>>(nr.BackingComparer),
                     _ => _comparer
                 };
             }
