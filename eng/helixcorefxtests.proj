@@ -234,6 +234,7 @@
     <HelixConfiguration Condition=" '$(Scenario)' == 'normal' ">$(BuildType)</HelixConfiguration>
     <HelixConfiguration Condition=" '$(Scenario)' != 'normal' ">$(BuildType)-$(Scenario)</HelixConfiguration>
 
+    <TestRunNamePrefix>CoreFX </TestRunNamePrefix>
     <TestRunNamePrefix Condition=" '$(Scenario)' == 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) @ </TestRunNamePrefix>
     <TestRunNamePrefix Condition=" '$(Scenario)' != 'normal' ">$(TestRunNamePrefix)$(BuildOS) $(BuildArch) $(BuildType) $(Scenario) @ </TestRunNamePrefix>
 
