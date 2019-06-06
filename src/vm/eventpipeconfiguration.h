@@ -18,7 +18,7 @@ class EventPipeSession;
 class EventPipeConfiguration
 {
 public:
-    EventPipeConfiguration();
+    EventPipeConfiguration() = default;
     ~EventPipeConfiguration() = default;
 
     // Perform initialization that cannot be performed in the constructor.
@@ -110,19 +110,20 @@ private:
     EventPipeSessionProvider *GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider);
 
     // The list of event pipe providers.
-    SList<SListElem<EventPipeProvider *>> *m_pProviderList;
+    SList<SListElem<EventPipeProvider *>> *m_pProviderList = nullptr;
 
     // The provider used to write configuration events to the event stream.
-    EventPipeProvider *m_pConfigProvider;
+    EventPipeProvider *m_pConfigProvider = nullptr;
 
     // The event used to write event information to the event stream.
-    EventPipeEvent *m_pMetadataEvent;
+    EventPipeEvent *m_pMetadataEvent = nullptr;
 
     // The provider name for the configuration event pipe provider.
     // This provider is used to emit configuration events.
     const static WCHAR *s_configurationProviderName;
 
-    uint64_t m_activeSessions;
+    // Bitmask tracking EventPipe active sessions.
+    uint64_t m_activeSessions = 0;
 };
 
 #endif // FEATURE_PERFTRACING

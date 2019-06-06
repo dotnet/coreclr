@@ -14,13 +14,6 @@
 
 const WCHAR *EventPipeConfiguration::s_configurationProviderName = W("Microsoft-DotNETCore-EventPipeConfiguration");
 
-EventPipeConfiguration::EventPipeConfiguration() : m_pProviderList(new SList<SListElem<EventPipeProvider *>>()),
-                                                   m_pConfigProvider(nullptr),
-                                                   m_activeSessions(0)
-{
-    STANDARD_VM_CONTRACT;
-}
-
 void EventPipeConfiguration::Initialize()
 {
     CONTRACTL
@@ -30,6 +23,8 @@ void EventPipeConfiguration::Initialize()
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
+
+    m_pProviderList = new SList<SListElem<EventPipeProvider *>>();
 
     EventPipe::RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
         // Create the configuration provider.
