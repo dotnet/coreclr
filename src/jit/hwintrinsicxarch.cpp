@@ -757,6 +757,7 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
 //    the expanded intrinsic.
 //
 GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
+                                  CORINFO_CLASS_HANDLE  clsHnd,
                                   CORINFO_METHOD_HANDLE method,
                                   CORINFO_SIG_INFO*     sig,
                                   bool                  mustExpand)
@@ -954,7 +955,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     {
         case InstructionSet_Vector128:
         case InstructionSet_Vector256:
-            return impBaseIntrinsic(intrinsic, method, sig, mustExpand);
+            return impBaseIntrinsic(intrinsic, clsHnd, method, sig, mustExpand);
         case InstructionSet_SSE:
             return impSSEIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_SSE2:
@@ -1002,6 +1003,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 //    the expanded intrinsic.
 //
 GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                                    CORINFO_CLASS_HANDLE  clsHnd,
                                     CORINFO_METHOD_HANDLE method,
                                     CORINFO_SIG_INFO*     sig,
                                     bool                  mustExpand)
@@ -1035,9 +1037,8 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
             retType = getSIMDTypeForSize(retSimdSize);
         }
     }
-    else
+    else if (retType == TYP_STRUCT)
     {
-        assert(retType == TYP_STRUCT);
         baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeClass, &simdSize);
         retType  = getSIMDTypeForSize(simdSize);
     }
@@ -1099,7 +1100,7 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
         {
             assert(sig->numArgs == 0);
 
-            GenTreeIntCon* countNode = gtNewIconNode(getSIMDVectorLength(simdSize, baseType), TYP_INT);
+            GenTreeIntCon* countNode = gtNewIconNode(getSIMDVectorLength(clsHnd), TYP_INT);
             countNode->gtFlags |= GTF_ICON_SIMD_COUNT;
             retNode = countNode;
             break;

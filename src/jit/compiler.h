@@ -3527,6 +3527,7 @@ protected:
 
 #ifdef FEATURE_HW_INTRINSICS
     GenTree* impHWIntrinsic(NamedIntrinsic        intrinsic,
+                            CORINFO_CLASS_HANDLE  clsHnd,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
                             bool                  mustExpand);
@@ -3540,6 +3541,7 @@ protected:
 
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
                               bool                  mustExpand);
