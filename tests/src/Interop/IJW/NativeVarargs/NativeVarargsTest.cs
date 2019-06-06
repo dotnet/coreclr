@@ -22,6 +22,7 @@ namespace NativeVarargsTest
                 return 100;
             }
 
+            // Use the same seed for consistency between runs.
             int seed = 42;
 
             try

@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <vector>
 #include <cstdarg>
+#include <cstdint>
 #include <numeric>
 #include <array>
 #include <functional>
@@ -15,11 +16,12 @@ public enum class TestCases
 {
     SumInts,
     SumFloats,
-    SumLongLongs,
-    SumPromotedShorts,
+    SumSumInt64s,
+    SumWidenedShorts,
     SumDoubles,
-    SumPromotedFloats,
-    SumHFAs
+    SumWidenedFloats,
+    SumHFAs,
+    DoublesInIntegerRegisters
 };
 
 struct HFA
@@ -45,14 +47,14 @@ int SumInts(std::size_t numElements, ...)
     return sum;
 }
 
-long long SumLongLongs(std::size_t numElements, ...)
+std::int64_t SumSumInt64s(std::size_t numElements, ...)
 {
     va_list args;
     va_start(args, numElements);
-    long long sum = 0;
+    std::int64_t sum = 0;
     for (std::size_t i = 0; i < numElements; ++i)
     {
-        sum += va_arg(args, long long);
+        sum += va_arg(args, std::int64_t);
     }
     va_end(args);
     return sum;
@@ -105,22 +107,28 @@ public:
         {
             failedTests->Add(TestCases::SumDoubles);
         }
-        if (!RunLongLongsTest(rng))
+        if (!RunSumInt64sTest(rng))
         {
-            failedTests->Add(TestCases::SumLongLongs);
+            failedTests->Add(TestCases::SumSumInt64s);
         }
-        if (!RunPromotedShortsTest(rng))
+        if (!RunWidenedShortsTest(rng))
         {
-            failedTests->Add(TestCases::SumPromotedShorts);
+            failedTests->Add(TestCases::SumWidenedShorts);
         }
-        if (!RunPromotedFloatsTest(rng))
+        if (!RunWidenedFloatsTest(rng))
         {
-            failedTests->Add(TestCases::SumPromotedFloats);
+            failedTests->Add(TestCases::SumWidenedFloats);
         }
         if (!RunHFAsTest(rng))
         {
             failedTests->Add(TestCases::SumHFAs);
         }
+#if _WIN64
+        if (!RunDoublesInIntegerRegistersTest())
+        {
+            failedTests->Add(TestCases::DoublesInIntegerRegisters);
+        }
+#endif
 
         return failedTests;
     }
@@ -313,16 +321,16 @@ private:
         return current + hfa.f1 + hfa.f2 + hfa.f3 + hfa.f4;
     }
 
-    bool RunLongLongsTest(System::Random^ rng)
+    bool RunSumInt64sTest(System::Random^ rng)
     {
-        std::array<long long, NumArgsPerCall> values;
+        std::array<std::int64_t, NumArgsPerCall> values;
         for (std::size_t i = 0; i < NumArgsPerCall; ++i)
         {
             values[i] = rng->Next(System::Int32::MinValue, System::Int32::MaxValue);
         }
 
         auto expected = std::accumulate(values.begin(), values.end(), 0LL, std::plus<>{});
-        auto actual = SumLongLongs(NumArgsPerCall,
+        auto actual = SumSumInt64s(NumArgsPerCall,
             values[0],
             values[1],
             values[2],
@@ -368,12 +376,12 @@ private:
         bool result = expected == actual;
         if (!result)
         {
-            std::cout << "RunLongLongsTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
+            std::cout << "RunSumInt64sTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
         }
         return result;
     }
 
-    bool RunPromotedShortsTest(System::Random^ rng)
+    bool RunWidenedShortsTest(System::Random^ rng)
     {
         std::array<int, NumArgsPerCall / 2> intValues;
         std::array<short, NumArgsPerCall - (NumArgsPerCall / 2)> shortValues;
@@ -413,12 +421,12 @@ private:
         bool result = expected == actual;
         if (!result)
         {
-            std::cout << "RunPromotedShortsTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
+            std::cout << "RunWidenedShortsTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
         }
         return result;
     }
 
-    bool RunPromotedFloatsTest(System::Random^ rng)
+    bool RunWidenedFloatsTest(System::Random^ rng)
     {
         std::array<float, NumArgsPerCall / 2> floatValues;
         std::array<double, NumArgsPerCall - (NumArgsPerCall / 2)> doubleValues;
@@ -467,7 +475,20 @@ private:
         bool result = expected == actual;
         if (!result)
         {
-            std::cout << "RunPromotedFloatsTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
+            std::cout << "RunWidenedFloatsTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
+        }
+        return result;
+    }
+
+    bool RunDoublesInIntegerRegistersTest()
+    {
+        double a = 123.456;
+        std::int64_t expected = *reinterpret_cast<std::int64_t*>(&a);
+        std::int64_t actual = SumSumInt64s(a);
+        bool result = expected == actual;
+        if (!result)
+        {
+            std::cout << "RunDoublesInIntegerRegistersTest Failed:" << "Expected:" << expected << '\t' << "Actual:" << actual << std::endl;
         }
         return result;
     }
