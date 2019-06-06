@@ -1652,9 +1652,11 @@ static size_t GetCacheSizeFromCpuId()
     STATIC_CONTRACT_GC_NOTRIGGER;
 
     // Can't return from a PAL_TRY. Instead, have it write to its parameter.
-    struct Param {
+    struct Param : DefaultCatchFilterParam {
         size_t maxSize;
-    } param = { 0 };
+    } param;
+    param.pv = COMPLUS_EXCEPTION_EXECUTE_HANDLER;
+    param.maxSize = 0;
 
     PAL_TRY(Param *, pParam, &param)
     {
