@@ -1042,6 +1042,10 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
         baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeClass, &simdSize);
         retType  = getSIMDTypeForSize(simdSize);
     }
+    else
+    {
+        baseType = getBaseTypeAndSizeOfSIMDType(clsHnd, &simdSize);
+    }
 
     if (!varTypeIsArithmetic(baseType))
     {
@@ -1100,7 +1104,7 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
         {
             assert(sig->numArgs == 0);
 
-            GenTreeIntCon* countNode = gtNewIconNode(getSIMDVectorLength(clsHnd), TYP_INT);
+            GenTreeIntCon* countNode = gtNewIconNode(getSIMDVectorLength(simdSize, baseType), TYP_INT);
             countNode->gtFlags |= GTF_ICON_SIMD_COUNT;
             retNode = countNode;
             break;
