@@ -61,8 +61,9 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_ApplicationGroupId,
         "socket");
 
-    if (fchmod(serverSocket, S_IRWXU) == -1)
+    if (fchmod(serverSocket, S_IRUSR | S_IWUSR) == -1)
     {
+        _ASSERTE(!"Failed to set permissions on diagnostics IPC socket.");
         return nullptr;
     }
 
