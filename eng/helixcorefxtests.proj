@@ -246,11 +246,10 @@
     <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
 
-    <TimeoutPerTestCollectionInMinutes Condition="'$(TimeoutPerTestCollectionInMinutes)' == ''">10</TimeoutPerTestCollectionInMinutes>
-    <CommandTimeoutSpan>$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</CommandTimeoutSpan>
-
     <!-- Specify the retry policy for Helix jobs -->
+    <!-- REVIEW: currently don't do any retries
     <MaxRetryCount Condition="'$(MaxRetryCount)' == ''">4</MaxRetryCount>
+    -->
   </PropertyGroup>
 
   <!--
@@ -269,7 +268,7 @@
       <HelixWorkItem Include="@(TestAssetBlobInfos -> '%(FileName)')">
         <PayloadUri>$(TestAssetBlobFeedUrl)/%(Identity)</PayloadUri>
         <Command>$(HelixCommand)</Command>
-        <Timeout>$(CommandTimeoutSpan)</Timeout>
+        <Timeout Condition=" '$(TimeoutPerTestCollectionInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</Timeout>
       </HelixWorkItem>
     </ItemGroup>
   </Target>
