@@ -40,7 +40,6 @@
         PublishTestResults=$(_PublishTestResults);
         RunCrossGen=$(_RunCrossGen);
         TimeoutPerTestCollectionInMinutes=$(_TimeoutPerTestCollectionInMinutes);
-        TimeoutPerTestInMinutes=$(_TimeoutPerTestInMinutes)
       </_PropertiesToPass>
     </PropertyGroup>
 
@@ -99,7 +98,6 @@
 
     <TestHostRootPath>$(TestWorkingDir)testhost\</TestHostRootPath>
     <TestArchiveRuntimeRoot>$(TestWorkingDir)helix\</TestArchiveRuntimeRoot>
-    <TestArchiveRuntimeFile>$(TestArchiveRuntimeRoot)testhost-runtime.zip</TestArchiveRuntimeFile>
 
     <TestAssetBlobFeedUrl>https://dotnetfeed.blob.core.windows.net/dotnet-core</TestAssetBlobFeedUrl>
   </PropertyGroup>
@@ -115,10 +113,6 @@
     <HelixCommand Condition="'$(TargetsWindows)' == 'true'">call RunTests.cmd -r %HELIX_CORRELATION_PAYLOAD% --rsp-file %HELIX_CORRELATION_PAYLOAD%\CoreFX.issues.rsp </HelixCommand>
     <HelixCommand Condition="'$(TargetsWindows)' != 'true'">./RunTests.sh -r $HELIX_CORRELATION_PAYLOAD --rsp-file $HELIX_CORRELATION_PAYLOAD/CoreFX.issues.rsp </HelixCommand>
   </PropertyGroup>
-
-  <ItemGroup>
-    <TestArchiveRuntimeInputs Include="$(TestHostRootPath)**/*" />
-  </ItemGroup>
 
   <!--
     Copy the CoreFX test exclusion response file (which is passed to the xunit console runner) to someplace we can
@@ -172,35 +166,11 @@
   </Target>
 
   <!--
-    Compress the testhost directory into a ZIP file to pass it as the Helix correlation directory.
-    Note: this might be unnecessary; I've been told you can just pass the directory to Helix without
-    compressing it to a single file, and it will do the compression/uncompression itself.
-  -->
-  <Target Name="CompressRuntimeDirectory"
-          Inputs="@(TestArchiveRuntimeInputs)"
-          Outputs="$(TestArchiveRuntimeFile)"
-          DependsOnTargets="CopyRSPFile;CreateAllScenarioTestEnvFiles" >
-
-    <!-- TEMPORARY: don't actually ZIP the testhost directory. See if executable permissions get preserved on Linux.
-
-    <MakeDir Directories="$(TestArchiveRuntimeRoot)" />
-
-    <ZipDirectory
-        SourceDirectory="$(TestHostRootPath)"
-        DestinationFile="$(TestArchiveRuntimeFile)"
-        Overwrite="true" />
-
-    <Message Importance="High" Text="Zipped correlation payload into $(TestArchiveRuntimeFile)" />
-
-    END TEMPORARY -->
-  </Target>
-
-  <!--
     Collect all the tasks needed to be run once, to prepare the Helix correlation payload directory.
     This just causes its dependent targets to be run.
   -->
   <Target Name="PrepareCorrelationPayloadDirectory"
-          DependsOnTargets="CompressRuntimeDirectory">
+          DependsOnTargets="CopyRSPFile;CreateAllScenarioTestEnvFiles" >
   </Target>
 
   <!--
@@ -242,12 +212,16 @@
     <HelixPreCommand Include="set __TestEnv=%HELIX_CORRELATION_PAYLOAD%\$(TestEnvFileName)" />
     <HelixPreCommand Include="type %__TestEnv%" />
     <HelixPreCommand Include="call %__TestEnv%" />
+    <!-- Display the interesting COMPlus variables that are set in the environment -->
+    <HelixPreCommand Include="set COMPlus" />
   </ItemGroup>
 
   <ItemGroup Condition=" '$(TargetsWindows)' != 'true' ">
     <HelixPreCommand Include="export __TestEnv=$HELIX_CORRELATION_PAYLOAD/$(TestEnvFileName)" />
     <HelixPreCommand Include="cat $__TestEnv" />
     <HelixPreCommand Include=". $__TestEnv" /> <!-- Use "." not "source"; some clients appear to run scripts with "sh" not "bash" -->
+    <!-- Display the interesting COMPlus variables that are set in the environment -->
+    <HelixPreCommand Include="printenv | grep COMPlus" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -272,9 +246,8 @@
     <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
 
-    <!-- REVIEW: should we be using "TimeoutPerTestInMinutes" or "TimeoutPerTestCollectionInMinutes"? -->
-    <TimeoutInSeconds Condition="'$(TimeoutInSeconds)' == ''">600</TimeoutInSeconds>
-    <CommandTimeoutSpan>$([System.TimeSpan]::FromSeconds($(TimeoutInSeconds)))</CommandTimeoutSpan>
+    <TimeoutPerTestCollectionInMinutes Condition="'$(TimeoutPerTestCollectionInMinutes)' == ''">10</TimeoutPerTestCollectionInMinutes>
+    <CommandTimeoutSpan>$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</CommandTimeoutSpan>
 
     <!-- Specify the retry policy for Helix jobs -->
     <MaxRetryCount Condition="'$(MaxRetryCount)' == ''">4</MaxRetryCount>
@@ -291,9 +264,6 @@
   -->
   <Target Name="BuildHelixWorkItems" DependsOnTargets="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
     <ItemGroup Condition=" '$(UsesHelixSdk)' == 'true' ">
-      <!-- TEMPORARY: try passing directory, not ZIP file.
-      <HelixCorrelationPayload Include="$(TestArchiveRuntimeFile)" />
-      -->
       <HelixCorrelationPayload Include="$(TestHostRootPath)" />
 
       <HelixWorkItem Include="@(TestAssetBlobInfos -> '%(FileName)')">
