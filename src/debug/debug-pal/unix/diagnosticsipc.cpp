@@ -42,7 +42,7 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
 #ifdef __APPLE__
-    mode_t prev_mask = umask(177); // This will set the default permission bit to 600
+    mode_t prev_mask = umask(~(S_IRUSR | S_IWUSR)); // This will set the default permission bit to 600
 #endif // __APPLE__
 
     const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
