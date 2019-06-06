@@ -41,6 +41,9 @@ IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
+
+    mode_t prev_mask = umask(177); // This will set the default permission bit to 600
+
     const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (serverSocket == -1)
     {
@@ -49,7 +52,6 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         _ASSERTE(serverSocket != -1);
         return nullptr;
     }
-
     sockaddr_un serverAddress{};
     serverAddress.sun_family = AF_UNIX;
     const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
@@ -61,12 +63,6 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_ApplicationGroupId,
         "socket");
 
-    if (fchmod(serverSocket, S_IRUSR | S_IWUSR) == -1)
-    {
-        _ASSERTE(!"Failed to set permissions on diagnostics IPC socket.");
-        return nullptr;
-    }
-
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
     {
@@ -76,6 +72,7 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
         const int fSuccessClose = ::close(serverSocket);
         _ASSERTE(fSuccessClose != -1);
+        umask(prev_mask);
 
         return nullptr;
     }
@@ -92,10 +89,11 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
         const int fSuccessClose = ::close(serverSocket);
         _ASSERTE(fSuccessClose != -1);
-
+        umask(prev_mask);
         return nullptr;
     }
 
+    umask(prev_mask);
     return new IpcStream::DiagnosticsIpc(serverSocket, &serverAddress);
 }
 
