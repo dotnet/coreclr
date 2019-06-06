@@ -21,51 +21,6 @@ EventPipeConfiguration::EventPipeConfiguration() : m_pProviderList(new SList<SLi
     STANDARD_VM_CONTRACT;
 }
 
-EventPipeConfiguration::~EventPipeConfiguration()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (m_pConfigProvider != NULL)
-    {
-        // This unregisters the provider, which takes a
-        // HOST_BREAKABLE lock
-        EX_TRY
-        {
-            DeleteProvider(m_pConfigProvider);
-        }
-        EX_CATCH {}
-        EX_END_CATCH(SwallowAllExceptions);
-    }
-
-    // We swallow exceptions here because the HOST_BREAKABLE
-    // lock may throw and this destructor gets called in throw
-    // intolerant places. If that happens the provider list will leak
-    EX_TRY
-    {
-        // Take the lock before manipulating the list.
-        CrstHolder _crst(EventPipe::GetLock());
-
-        SListElem<EventPipeProvider *> *pElem = m_pProviderList->GetHead();
-        while (pElem != NULL)
-        {
-            // We don't delete provider itself because it can be in-use
-            SListElem<EventPipeProvider *> *pCurElem = pElem;
-            pElem = m_pProviderList->GetNext(pElem);
-            delete pCurElem;
-        }
-
-        delete m_pProviderList;
-    }
-    EX_CATCH {}
-    EX_END_CATCH(SwallowAllExceptions);
-}
-
 void EventPipeConfiguration::Initialize()
 {
     CONTRACTL
@@ -88,6 +43,58 @@ void EventPipeConfiguration::Initialize()
         0, /* eventVersion */
         EventPipeEventLevel::LogAlways,
         false); /* needStack */
+}
+
+void EventPipeConfiguration::Shutdown()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_pConfigProvider != nullptr)
+    {
+        // This unregisters the provider, which takes a
+        // HOST_BREAKABLE lock
+        EX_TRY
+        {
+            DeleteProvider(m_pConfigProvider);
+        }
+        EX_CATCH {}
+        EX_END_CATCH(SwallowAllExceptions);
+
+        m_pConfigProvider = nullptr;
+    }
+
+    if (m_pProviderList != nullptr)
+    {
+        // We swallow exceptions here because the HOST_BREAKABLE
+        // lock may throw and this destructor gets called in throw
+        // intolerant places. If that happens the provider list will leak
+        EX_TRY
+        {
+            // Take the lock before manipulating the list.
+            CrstHolder _crst(EventPipe::GetLock());
+
+            SListElem<EventPipeProvider *> *pElem = m_pProviderList->GetHead();
+            while (pElem != nullptr)
+            {
+                // We don't delete provider itself because it can be in-use
+                SListElem<EventPipeProvider *> *pCurElem = pElem;
+                pElem = m_pProviderList->GetNext(pElem);
+                delete pCurElem;
+            }
+
+            delete m_pProviderList;
+        }
+        EX_CATCH {}
+        EX_END_CATCH(SwallowAllExceptions);
+
+        m_pProviderList = nullptr;
+    }
 }
 
 EventPipeProvider *EventPipeConfiguration::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)

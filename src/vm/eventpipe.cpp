@@ -258,6 +258,8 @@ void EventPipe::Shutdown()
     // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
     delete s_pEventSource;
     s_pEventSource = nullptr;
+
+    s_config.Shutdown();
 }
 
 EventPipeSessionID EventPipe::Enable(

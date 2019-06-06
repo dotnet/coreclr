@@ -19,10 +19,13 @@ class EventPipeConfiguration
 {
 public:
     EventPipeConfiguration();
-    ~EventPipeConfiguration();
+    ~EventPipeConfiguration() = default;
 
     // Perform initialization that cannot be performed in the constructor.
     void Initialize();
+
+    // Perform cleanup that cannot be performed in the destructor.
+    void Shutdown();
 
     // Create a new provider.
     EventPipeProvider *CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
@@ -107,7 +110,7 @@ private:
     EventPipeSessionProvider *GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider);
 
     // The list of event pipe providers.
-    SList<SListElem<EventPipeProvider *>> *const m_pProviderList;
+    SList<SListElem<EventPipeProvider *>> *m_pProviderList;
 
     // The provider used to write configuration events to the event stream.
     EventPipeProvider *m_pConfigProvider;
