@@ -108,7 +108,7 @@
       We "exit /b" at the end of RunTests.cmd. Helix runs some other commands after ours within the batch script,
       so if we don't use call, then we cause the parent script to exit, and anything after will not be executed.
       The arguments passed in to the run script in are the runtime directory (-r) and the exclusion response file
-      passed to xunit (--rsp-file).
+      passed to xunit (rsp-file).
     -->
     <HelixCommand Condition="'$(TargetsWindows)' == 'true'">call RunTests.cmd -r %HELIX_CORRELATION_PAYLOAD% --rsp-file %HELIX_CORRELATION_PAYLOAD%\CoreFX.issues.rsp </HelixCommand>
     <HelixCommand Condition="'$(TargetsWindows)' != 'true'">./RunTests.sh -r $HELIX_CORRELATION_PAYLOAD --rsp-file $HELIX_CORRELATION_PAYLOAD/CoreFX.issues.rsp </HelixCommand>
