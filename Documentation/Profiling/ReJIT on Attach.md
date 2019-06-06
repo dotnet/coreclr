@@ -38,9 +38,11 @@ The other value `COR_PRF_REJIT_INLINING_CALLBACKS` controls whether you get a `I
 
 With this API you are no longer required to monitor JIT callbacks to manually block inlining from occurring. To acheive that the runtime now globally blocks a ReJITted method from being inlined (even if it was ReJITted with `ICorProfilerInfo4::RequestReJIT` and not the new API). Once a method is reverted with `ICorProfilerInfo4::RequestRevert` inlining will occur again for any future jittings.
 
-It is important to mention here how `RequestRevert` works. When you revert a ReJITted method, the original native code is activated. This means there are potential pitfalls for calling `RequestRevert`. Consider an app where method A has previously inlined both method B and method C (among potentially others), then a profiler calls `RequestReJITWithInliners` for B and C. If the profiler then wants to revert the ReJIT for method B, it might seem logical to revert method B and method A. However, when the method A code is reverted the original native code (without modification) will be activated, and that original code includes method C inlined. The result is that even though method C has been ReJITted, any future calls to method A will not call the ReJITted method C and will instead call the inlined (default IL) of method C.
+It is important to mention here how `RequestRevert` works. When you revert a ReJITted method, the original native code is activated. This means there are potential pitfalls for calling `RequestRevert`. Consider an app where method A inlines method B and the profiler wants to ReJIT both A and B. Once A and B are both ReJITted, the application will behave as expected. However, if later on the profiler decides to revert method A but intends to leave method B ReJITted, it might be surprising to find that once the original native code for A is activated this includes the inlined non-ReJIT IL for method B. Effectively any calls to B through A will be calling the original, unmodified IL.
 
-The limiation of collectible and dynamic methods has not been lifted. It is not currently possible to ReJIT these types of methods, although we would like to lift that restriction in the future.
+To revert a method without having to reason about the inline sequence, we suggest calling RequestReJIT again on the method but providing the original IL in GetReJITParameters.
+
+The limiation of collectible and dynamic methods has not been lifted. It is not currently possible to ReJIT these types of methods, although we would like to lift that restriction in the future. Even if you never intend to call RequestReJIT directly on a collectible or dynamic method, this may still affect you when doing ReJIT on attach if the method you would like to ReJIT has been inlined in a collectible or dynamic method. I.e. if you would like to ReJIT method A which has been inlined in collectible method B, there is currently no way to make method B call the updated method A.
 
 ## Metadata Changes on Attach
 
@@ -50,14 +52,15 @@ To work around this a set of metadata changes is now legal to make at any point 
 * `DefineUserString`
 * `DefineTypeRefByName`
 * `DefineMemberRef`
-* `DefineTypeDef `
-* `DefineMethod` - methods on new types, or non-virtual methods on existing types
+* `DefineTypeDef`
+* `DefineMethod`            - methods on new types, or non-virtual methods on existing types
+* `DefineNestedType`        - only on new types
 * `DefineCustomAttribute`
 * `DefinePinvokeMap`
 * `DefineModuleRef`
-* `DefineField` - only on new types
+* `DefineField`             - only on new types
 * `DefineEvent`
-* `DefineMethodImpl` - only on new types
+* `DefineMethodImpl`        - only on new types
 * `DefineMethodSpec`
 
 
@@ -65,4 +68,4 @@ There are still some metadata changes that are definitely illegal and will almos
 * Adding a virtual method to an existing type
 * Adding a field to an existing type
 
-Anything not listed in either of these areas is untested and should not be assumed to work
+Anything not listed as either legal or illegal is untested and should not be assumed to work.
