@@ -39,7 +39,7 @@
         HelixType=$(_HelixType);
         PublishTestResults=$(_PublishTestResults);
         RunCrossGen=$(_RunCrossGen);
-        TimeoutPerTestCollectionInMinutes=$(_TimeoutPerTestCollectionInMinutes);
+        TimeoutPerTestCollectionInMinutes=$(_TimeoutPerTestCollectionInMinutes)
       </_PropertiesToPass>
     </PropertyGroup>
 
@@ -262,13 +262,15 @@
     during the other invocations of this Project, such as when "RunInParallelForEachScenario" is run.
   -->
   <Target Name="BuildHelixWorkItems" DependsOnTargets="GetTestAssetManifest" Condition=" '$(UsesHelixSdk)' == 'true' " >
+    <Error Condition=" '$(TimeoutPerTestCollectionInMinutes)' == '' " Text="TimeoutPerTestCollectionInMinutes not set" />
+
     <ItemGroup Condition=" '$(UsesHelixSdk)' == 'true' ">
       <HelixCorrelationPayload Include="$(TestHostRootPath)" />
 
       <HelixWorkItem Include="@(TestAssetBlobInfos -> '%(FileName)')">
         <PayloadUri>$(TestAssetBlobFeedUrl)/%(Identity)</PayloadUri>
         <Command>$(HelixCommand)</Command>
-        <Timeout Condition=" '$(TimeoutPerTestCollectionInMinutes)' != '' ">$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</Timeout>
+        <Timeout>$([System.TimeSpan]::FromMinutes($(TimeoutPerTestCollectionInMinutes)))</Timeout>
       </HelixWorkItem>
     </ItemGroup>
   </Target>
