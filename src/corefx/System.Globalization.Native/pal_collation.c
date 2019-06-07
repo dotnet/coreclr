@@ -42,7 +42,7 @@ typedef struct { int32_t key; UCollator* UCollator; } TCollatorMap;
  */
 struct SortHandle
 {
-    _Atomic(UCollator*) collatorsPerOption[CompareOptionsMask + 1];
+    _Atomic(intptr_t) collatorsPerOption[CompareOptionsMask + 1];
 };
 
 typedef struct { UChar* items; size_t size; } UCharList;
@@ -355,7 +355,7 @@ ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandl
 
     UErrorCode err = U_ZERO_ERROR;
 
-    (*ppSortHandle)->collatorsPerOption[0] = ucol_open(lpLocaleName, &err);
+    (*ppSortHandle)->collatorsPerOption[0] = (intptr_t)ucol_open(lpLocaleName, &err);
 
     if (U_FAILURE(err))
     {
@@ -370,10 +370,10 @@ void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
 {
     for (int i = 0; i <= CompareOptionsMask; i++)
     {
-        if (pSortHandle->collatorsPerOption[i] != NULL)
+        if (pSortHandle->collatorsPerOption[i] != (intptr_t)NULL)
         {
-            ucol_close(pSortHandle->collatorsPerOption[i]);
-            pSortHandle->collatorsPerOption[i] = NULL;
+            ucol_close((UCollator*)pSortHandle->collatorsPerOption[i]);
+            pSortHandle->collatorsPerOption[i] = (intptr_t)NULL;
         }
     }
 
@@ -384,24 +384,24 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
 {
     if (options == 0)
     {
-        return pSortHandle->collatorsPerOption[0];
+        return (UCollator*)pSortHandle->collatorsPerOption[0];
     }
     else
     {
         options &= CompareOptionsMask;
-        UCollator* pCollator = pSortHandle->collatorsPerOption[options];
+        UCollator* pCollator = (UCollator*)pSortHandle->collatorsPerOption[options];
         if (pCollator != NULL)
         {
             return pCollator;
         }
 
-        pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+        pCollator = CloneCollatorWithOptions((UCollator*)pSortHandle->collatorsPerOption[0], options, pErr);
 
-        UCollator* pNull = NULL; // callee requires a non-null argument
-        if (!atomic_compare_exchange_strong(&pSortHandle->collatorsPerOption[options], &pNull, pCollator))
+        intptr_t pNull = (intptr_t)NULL;
+        if (!atomic_compare_exchange_strong(&pSortHandle->collatorsPerOption[options], &pNull, (intptr_t)pCollator))
         {
             ucol_close(pCollator);
-            pCollator = pSortHandle->collatorsPerOption[options];
+            pCollator = (UCollator*)pSortHandle->collatorsPerOption[options];
             assert(pCollator != NULL && "pCollator not expected to be null here.");
         }
 
