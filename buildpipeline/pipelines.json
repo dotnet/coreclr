@@ -11,32 +11,6 @@
       "Name": "Product-Build",
       "Definitions": [
         {
-          "Name": "DotNet-CoreClr-Trusted-Linux",
-          "Parameters": {
-            "DockerTag": "rhel-7-dd8aa64-20170320090348",
-            "Rid": "linux"
-          },
-          "ReportingParameters": {
-            "OperatingSystem": "Linux",
-            "Type": "build/product/",
-            "Architecture": "x64",
-            "PB_BuildType": null
-          }
-        },
-        {
-          "Name": "DotNet-CoreClr-Trusted-Mac",
-          "Parameters": {
-            "Rid": "osx"
-          },
-          "ReportingParameters": {
-            "OperatingSystem": "OSX",
-            "Type": "build/product/",
-            "SubType": "PortableBuild",
-            "Architecture": "x64",
-            "PB_BuildType": null
-          }
-        },
-        {
           "Name": "DotNet-CoreClr-Trusted-Windows",
           "Parameters": {
             "Architecture": "x64"
@@ -85,26 +59,6 @@
             "Type": "build/product/",
             "SubType" : "PortableBuild",
             "Architecture": "x86",
-            "PB_BuildType": null
-          }
-        }
-      ]
-    },
-    {
-      "Name": "Linux-CrossBuild",
-      "Definitions": [
-        {
-          "Name": "DotNet-CoreClr-Trusted-Linux-Crossbuild",
-          "Parameters": {
-            "DockerTag": "ubuntu-14.04-cross-0cd4667-20172211042239",
-            "Architecture": "arm",
-            "Rid": "linux"
-          },
-          "ReportingParameters": {
-            "OperatingSystem": "Linux",
-            "SubType": "PortableCrossBuild",
-            "Type": "build/product/",
-            "Architecture": "arm",
             "PB_BuildType": null
           }
         }
@@ -158,51 +112,6 @@
       ]
     },
     {
-      "Name": "Trusted-Crossbuild-Release",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Release"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Release"
-      },
-      "DefinitionGroupRefs": [
-        "Linux-CrossBuild"
-      ]
-    },
-    {
-      "Name": "Trusted-Crossbuild-Debug",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Debug"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Debug"
-      },
-      "DefinitionGroupRefs": [
-        "Linux-CrossBuild"
-      ]
-    },
-    {
-      "Name": "Trusted-Crossbuild-Checked",
-      "Parameters": {
-        "TreatWarningsAsErrors": "false"
-      },
-      "BuildParameters": {
-        "PB_BuildType": "Checked"
-      },
-      "ReportingParameters": {
-        "PB_BuildType": "Checked"
-      },
-      "DefinitionGroupRefs": [
-        "Linux-CrossBuild"
-      ]
-    },
-    {
       "Name": "Publish Packages to Feeds - Release",
       "Parameters": {
         "TreatWarningsAsErrors": "false"
@@ -227,7 +136,6 @@
       ],
       "DependsOn": [
         "Trusted-All-Release",
-        "Trusted-Crossbuild-Release"
       ]
     },
     {
@@ -280,8 +188,7 @@
         }
       ],
       "DependsOn": [
-        "Trusted-All-Release",
-        "Trusted-Crossbuild-Release"
+        "Trusted-All-Release"
       ]
     },
     {
