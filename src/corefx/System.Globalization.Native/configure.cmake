@@ -10,7 +10,7 @@ CHECK_C_SOURCE_COMPILES("
 
 CHECK_C_SOURCE_COMPILES("
     #include <stdatomic.h>
-    void increment(atomic_size_t *arg) { atomic_fetch_add(arg, 1); }
+    int main(void) { _Atomic int global = 0; global++; return global; }
 " HAVE_WORKING_STDATOMIC)
 
 if(NOT CLR_CMAKE_PLATFORM_DARWIN)
