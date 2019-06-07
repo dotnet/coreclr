@@ -6200,6 +6200,12 @@ void CEEPreloader::GenerateMethodStubs(
     if (IsReadyToRunCompilation() && (!GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem() || !pMD->IsNDirect()))
         return;
 
+#if defined(_TARGET_ARM_) && defined(FEATURE_PAL)
+    // Cross-bitness compilation of il stubs does not work. Disable here.
+    if (IsReadyToRunCompilation())
+        return;
+#endif // defined(_TARGET_ARM_) && defined(FEATURE_PAL)
+
     DWORD dwNGenStubFlags = NDIRECTSTUB_FL_NGENEDSTUB;
 
     if (fNgenProfilerImage)
