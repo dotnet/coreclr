@@ -8,6 +8,11 @@ CHECK_C_SOURCE_COMPILES("
     int main(void) { enum UDateFormatSymbolType e = UDAT_STANDALONE_SHORTER_WEEKDAYS; }
 " HAVE_UDAT_STANDALONE_SHORTER_WEEKDAYS)
 
+CHECK_C_SOURCE_COMPILES("
+    #include <stdatomic.h>
+    void increment(atomic_size_t *arg) { atomic_fetch_add(arg, 1); }
+" HAVE_WORKING_STDATOMIC)
+
 if(NOT CLR_CMAKE_PLATFORM_DARWIN)
     set(CMAKE_REQUIRED_LIBRARIES ${ICUUC} ${ICUI18N})
 else()
