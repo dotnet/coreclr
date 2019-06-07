@@ -1774,8 +1774,6 @@ static void MonitorExit(Object* obj, BYTE* pbLockTaken)
         COMPlusThrow(kSynchronizationLockException);
 
     if (pbLockTaken != 0) *pbLockTaken = 0;
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -1794,7 +1792,6 @@ static void MonitorExitStatic(AwareLock *lock, BYTE* pbLockTaken)
     if (!lock->Leave())
         COMPlusThrow(kSynchronizationLockException);
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -5995,7 +5992,7 @@ void Interpreter::NewArr()
         pArrayMT->CheckRunClassInitThrowing();
 
         INT32 size32 = (INT32)sz;
-        Object* newarray = OBJECTREFToObject(AllocateArrayEx(pArrayMT, &size32, 1));
+        Object* newarray = OBJECTREFToObject(AllocateSzArray(pArrayMT, size32));
 
         GCX_FORBID();
         OpStackTypeSet(stkInd, InterpreterType(CORINFO_TYPE_CLASS));
@@ -7231,7 +7228,7 @@ void Interpreter::LdFld(FieldDesc* fldIn)
                 // Large struct case: allocate space on the large struct operand stack.
                 void* destPtr = LargeStructOperandStackPush(sz);
                 OpStackSet<void*>(stackInd, destPtr);
-                CopyValueClass(destPtr, srcPtr, valClsMT, obj->GetAppDomain());
+                CopyValueClass(destPtr, srcPtr, valClsMT);
             }
             else
             {

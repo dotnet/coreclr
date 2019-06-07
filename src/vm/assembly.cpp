@@ -47,7 +47,6 @@
 
 #include "caparser.h"
 #include "../md/compiler/custattr.h"
-#include "mdaassistants.h"
 
 #include "peimagelayout.inl"
 
@@ -80,6 +79,8 @@
 // the thread we crash in. Be aware of this when using this value
 // to help your debugging.
 DWORD g_dwLoaderReasonForNotSharing = 0; // See code:DomainFile::m_dwReasonForRejectingNativeImage for a similar variable.
+
+volatile uint32_t g_cAssemblies = 0;
 
 // These will sometimes result in a crash with error code 0x80131401 SECURITY_E_INCOMPATIBLE_SHARE
 // "Loading this assembly would produce a different grant set from other instances."
@@ -126,7 +127,7 @@ Assembly::Assembly(BaseDomain *pDomain, PEAssembly* pFile, DebuggerAssemblyContr
 #ifdef FEATURE_COMINTEROP
     , m_InteropAttributeStatus(INTEROP_ATTRIBUTE_UNSET)
 #endif
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     , m_isInstrumentedStatus(IS_INSTRUMENTED_UNSET)
 #endif
 {
@@ -180,6 +181,8 @@ void Assembly::Init(AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocat
 #endif
         m_pManifest = Module::Create(this, mdFileNil, GetManifestFile(), pamTracker);
 
+    FastInterlockIncrement((LONG*)&g_cAssemblies);
+
     PrepareModuleForAssembly(m_pManifest, pamTracker);
 
     CacheManifestFiles();
@@ -230,8 +233,7 @@ BOOL Assembly::IsDisabledPrivateReflection()
 
     if (m_isDisabledPrivateReflection == UNINITIALIZED)
     {
-        IMDInternalImport *pImport = GetManifestImport();
-        HRESULT hr = pImport->GetCustomAttributeByName(GetManifestToken(), DISABLED_PRIVATE_REFLECTION_TYPE, NULL, 0);
+        HRESULT hr = GetManifestModule()->GetCustomAttribute(GetManifestToken(), WellKnownAttribute::DisablePrivateReflectionType, NULL, 0);
         IfFailThrow(hr);
 
         if (hr == S_OK)
@@ -328,6 +330,7 @@ void Assembly::StartUnload()
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_FORBID_FAULT;
+
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())
     {
@@ -352,6 +355,8 @@ void Assembly::Terminate( BOOL signalProfiler )
         delete m_pClassLoader;
         m_pClassLoader = NULL;
     }
+
+    FastInterlockDecrement((LONG*)&g_cAssemblies);
 
 #ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackAssemblyLoads())
@@ -726,35 +731,10 @@ void Assembly::SetDomainAssembly(DomainAssembly *pDomainAssembly)
 
 #endif // #ifndef DACCESS_COMPILE
 
-DomainAssembly *Assembly::GetDomainAssembly(AppDomain *pDomain)
+DomainAssembly *Assembly::GetDomainAssembly()
 {
-    CONTRACT(DomainAssembly *)
-    {
-        PRECONDITION(CheckPointer(pDomain, NULL_NOT_OK));
-        POSTCONDITION(CheckPointer(RETVAL));
-        THROWS;
-        GC_TRIGGERS;
-    }
-    CONTRACT_END;
-
-    RETURN GetManifestModule()->GetDomainAssembly(pDomain);
-}
-
-DomainAssembly *Assembly::FindDomainAssembly(AppDomain *pDomain)
-{
-    CONTRACT(DomainAssembly *)
-    {
-        PRECONDITION(CheckPointer(pDomain));
-        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-        NOTHROW;
-        GC_NOTRIGGER;
-        FORBID_FAULT;
-        SUPPORTS_DAC;
-    }
-    CONTRACT_END;
-
-    PREFIX_ASSUME (GetManifestModule() !=NULL); 
-    RETURN GetManifestModule()->FindDomainAssembly(pDomain);
+    LIMITED_METHOD_DAC_CONTRACT;
+    return GetManifestModule()->GetDomainAssembly();
 }
 
 PTR_LoaderHeap Assembly::GetLowFrequencyHeap()
@@ -883,7 +863,7 @@ Module *Assembly::FindModuleByExportedType(mdExportedType mdType,
 #ifndef DACCESS_COMPILE
                     // LoadAssembly never returns NULL
                     DomainAssembly * pDomainAssembly =
-                        GetManifestModule()->LoadAssembly(::GetAppDomain(), mdLinkRef);
+                        GetManifestModule()->LoadAssembly(mdLinkRef);
                     PREFIX_ASSUME(pDomainAssembly != NULL);
 
                     RETURN pDomainAssembly->GetCurrentModule();
@@ -1137,7 +1117,6 @@ Module * Assembly::FindModuleByTypeRef(
 
             
             DomainAssembly * pDomainAssembly = pModule->LoadAssembly(
-                    ::GetAppDomain(), 
                     tkType, 
                     szNamespace, 
                     szClassName);
@@ -1177,11 +1156,11 @@ Module *Assembly::FindModuleByName(LPCSTR pszModuleName)
     }
     CONTRACT_END;
 
-    CQuickBytes qbLC;
+    SString moduleName(SString::Utf8, pszModuleName);
+    moduleName.LowerCase();
 
-    // Need to perform case insensitive hashing.
-    UTF8_TO_LOWER_CASE(pszModuleName, qbLC);
-    pszModuleName = (LPUTF8) qbLC.Ptr();
+    StackScratchBuffer buffer;
+    pszModuleName = moduleName.GetUTF8(buffer);
 
     mdFile kFile = GetManifestFileToken(pszModuleName);
     if (kFile == mdTokenNil)
@@ -1866,7 +1845,7 @@ BOOL Assembly::GetResource(LPCSTR szName, DWORD *cbResource,
     return result;
 }
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
 BOOL Assembly::IsInstrumented()
 {
     STATIC_CONTRACT_THROWS;

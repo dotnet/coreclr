@@ -92,6 +92,13 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_LE:
             case GT_GE:
             case GT_GT:
+            case GT_ARR_BOUNDS_CHECK:
+#ifdef FEATURE_SIMD
+            case GT_SIMD_CHK:
+#endif
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif
                 return emitter::emitIns_valid_imm_for_cmp(immVal, size);
             case GT_AND:
             case GT_OR:
@@ -892,6 +899,11 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
             {
                 MakeSrcContained(node, op2);
 
+#if 0
+                // This is currently not supported downstream. The following (at least) need to be modifed:
+                //   GenTree::isContainableHWIntrinsic() needs to handle this.
+                //   CodeGen::genConsumRegs()
+                // 
                 GenTree* op3 = argList->Rest()->Rest()->Current();
 
                 // In the HW intrinsics C# API there is no direct way to specify a vector element to element mov
@@ -909,6 +921,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                         MakeSrcContained(node, op3);
                     }
                 }
+#endif
             }
             break;
 

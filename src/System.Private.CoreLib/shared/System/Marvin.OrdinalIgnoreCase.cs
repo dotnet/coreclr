@@ -74,7 +74,7 @@ namespace System
         {
             Debug.Assert(count > 0);
 
-            char[] borrowedArr = null;
+            char[]? borrowedArr = null;
             Span<char> scratch = (uint)count <= 64 ? stackalloc char[64] : (borrowedArr = ArrayPool<char>.Shared.Rent(count));
 
             int charsWritten = new ReadOnlySpan<char>(ref data, count).ToUpperInvariant(scratch);

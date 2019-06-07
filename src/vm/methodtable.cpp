@@ -449,6 +449,7 @@ PTR_Module MethodTable::GetModuleIfLoaded()
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_PREJIT
     g_IBCLogger.LogMethodTableAccess(this);
 
     MethodTable * pMTForModule = IsArray() ? this : GetCanonicalMethodTable();
@@ -456,6 +457,9 @@ PTR_Module MethodTable::GetModuleIfLoaded()
         return pMTForModule->GetLoaderModule();
 
     return Module::RestoreModulePointerIfLoaded(pMTForModule->GetModuleOverridePtr(), pMTForModule->GetLoaderModule());
+#else
+    return GetModule();
+#endif
 }
 
 #ifndef DACCESS_COMPILE
@@ -509,7 +513,7 @@ BOOL MethodTable::ValidateWithPossibleAV()
 #ifndef DACCESS_COMPILE
 
 //==========================================================================================
-BOOL  MethodTable::IsClassInited(AppDomain* pAppDomain /* = NULL */)
+BOOL  MethodTable::IsClassInited()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -519,15 +523,7 @@ BOOL  MethodTable::IsClassInited(AppDomain* pAppDomain /* = NULL */)
     if (IsSharedByGenericInstantiations())
         return FALSE;
 
-    DomainLocalModule *pLocalModule;
-    if (pAppDomain == NULL)
-    {
-        pLocalModule = GetDomainLocalModule();
-    }
-    else
-    {
-        pLocalModule = GetDomainLocalModule(pAppDomain);
-    }
+    DomainLocalModule *pLocalModule = GetDomainLocalModule();
 
     _ASSERTE(pLocalModule != NULL);
 
@@ -3224,6 +3220,7 @@ void MethodTable::AllocateRegularStaticBoxes()
 
     GCPROTECT_BEGININTERIOR(pStaticBase);
 
+#ifdef FEATURE_PREJIT
     // In ngened case, we have cached array with boxed statics MTs. In JITed case, we have just the FieldDescs
     ClassCtorInfoEntry *pClassCtorInfoEntry = GetClassCtorInfoIfExists();
     if (pClassCtorInfoEntry != NULL)
@@ -3237,9 +3234,8 @@ void MethodTable::AllocateRegularStaticBoxes()
         DWORD numBoxedStatics = pClassCtorInfoEntry->numBoxedStatics;
         for (DWORD i = 0; i < numBoxedStatics; i++)
         {
-#ifdef FEATURE_PREJIT
             Module::RestoreMethodTablePointer(&(ppMTs[i]), GetLoaderModule());
-#endif
+
             MethodTable *pFieldMT = ppMTs[i].GetValue();
 
             _ASSERTE(pFieldMT);
@@ -3252,6 +3248,7 @@ void MethodTable::AllocateRegularStaticBoxes()
         GCPROTECT_END();
     }
     else
+#endif
     {
         // We should never take this codepath in zapped images.
         _ASSERTE(!IsZapped());
@@ -5265,8 +5262,6 @@ void MethodTableWriteableData::Fixup(DataImage *image, MethodTable *pMT, BOOL ne
 
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
-#ifdef FEATURE_PREJIT
-
 //==========================================================================================
 void MethodTable::CheckRestore()
 {
@@ -5285,15 +5280,6 @@ void MethodTable::CheckRestore()
 
     g_IBCLogger.LogMethodTableAccess(this);
 }
-
-#else // !FEATURE_PREJIT
-//==========================================================================================
-void MethodTable::CheckRestore()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-#endif // !FEATURE_PREJIT
-
 
 #ifndef DACCESS_COMPILE
 
@@ -5661,7 +5647,7 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
         Module * pModule = GetModule();
 
         // No sanity checks for ready-to-run compiled images if possible
-        if (pModule->IsReadyToRun() && pModule->GetReadyToRunInfo()->SkipTypeValidation())
+        if (pModule->IsSystem() || (pModule->IsReadyToRun() && pModule->GetReadyToRunInfo()->SkipTypeValidation()))
             fNeedsSanityChecks = false;
     }
 #endif
@@ -8222,6 +8208,14 @@ DWORD MethodTable::HasFixedAddressVTStatics()
 }
 
 //==========================================================================================
+BOOL MethodTable::HasOnlyAbstractMethods()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return GetClass()->HasOnlyAbstractMethods();
+}
+
+//==========================================================================================
 WORD MethodTable::GetNumHandleRegularStatics()
 {
     LIMITED_METHOD_CONTRACT;
@@ -8250,6 +8244,7 @@ ClassCtorInfoEntry* MethodTable::GetClassCtorInfoIfExists()
 {
     LIMITED_METHOD_CONTRACT;
 
+#ifdef FEATURE_PREJIT
     if (!IsZapped())
         return NULL;
 
@@ -8292,6 +8287,7 @@ ClassCtorInfoEntry* MethodTable::GetClassCtorInfoIfExists()
             }
         }
     }
+#endif // FEATURE_PREJIT
 
     return NULL;
 }
@@ -8448,7 +8444,9 @@ InteropMethodTableData *MethodTable::CreateComInteropData(AllocMemTracker *pamTr
         PRECONDITION(GetParentMethodTable() == NULL || GetParentMethodTable()->LookupComInteropData() != NULL);
     } CONTRACTL_END;
 
-    ClassCompat::MethodTableBuilder builder(this);
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
+
+    ClassCompat::MethodTableBuilder builder(this, pStackingAllocator);
 
     InteropMethodTableData *pData = builder.BuildInteropVTable(pamTracker);
     _ASSERTE(pData);
@@ -8552,20 +8550,19 @@ UINT32 MethodTable::MethodDataObject::GetObjectSize(MethodTable *pMT)
 
 //==========================================================================================
 // This will fill in all the MethodEntry slots present in the current MethodTable
-void MethodTable::MethodDataObject::Init(MethodTable *pMT, MethodData *pParentData)
+void MethodTable::MethodDataObject::Init(MethodData *pParentData)
 {
     CONTRACTL {
         THROWS;
         WRAPPER(GC_TRIGGERS);
-        PRECONDITION(CheckPointer(pMT));
+        PRECONDITION(CheckPointer(m_pDeclMT));
         PRECONDITION(CheckPointer(pParentData, NULL_OK));
-        PRECONDITION(!pMT->IsInterface());
+        PRECONDITION(!m_pDeclMT->IsInterface());
         PRECONDITION(pParentData == NULL ||
-                     (pMT->ParentEquals(pParentData->GetDeclMethodTable()) &&
-                      pMT->ParentEquals(pParentData->GetImplMethodTable())));
+                     (m_pDeclMT->ParentEquals(pParentData->GetDeclMethodTable()) &&
+                      m_pDeclMT->ParentEquals(pParentData->GetImplMethodTable())));
     } CONTRACTL_END;
 
-    m_pMT = pMT;
     m_iNextChainDepth = 0;
     m_containsMethodImpl = FALSE;
 
@@ -8585,7 +8582,7 @@ BOOL MethodTable::MethodDataObject::PopulateNextLevel()
         return FALSE;
     }
     // Now move up the chain to the target.
-    MethodTable *pMTCur = m_pMT;
+    MethodTable *pMTCur = m_pDeclMT;
     for (UINT32 i = 0; pMTCur != NULL && i < iChainDepth; i++) {
         pMTCur = pMTCur->GetParentMethodTable();
     }
@@ -8628,7 +8625,7 @@ void MethodTable::MethodDataObject::FillEntryDataForAncestor(MethodTable * pMT)
     if (pMT->GetClass()->ContainsMethodImpls())
         m_containsMethodImpl = TRUE;
 
-    if (m_containsMethodImpl && pMT != m_pMT)
+    if (m_containsMethodImpl && pMT != m_pDeclMT)
         return;
 
     unsigned nVirtuals = pMT->GetNumVirtuals();
@@ -8645,7 +8642,7 @@ void MethodTable::MethodDataObject::FillEntryDataForAncestor(MethodTable * pMT)
 
         // We want to fill all methods introduced by the actual type we're gathering 
         // data for, and the virtual methods of the parent and above
-        if (pMT == m_pMT)
+        if (pMT == m_pDeclMT)
         {
             if (m_containsMethodImpl && slot < nVirtuals)
                 continue;
@@ -8701,7 +8698,7 @@ DispatchSlot MethodTable::MethodDataObject::GetImplSlot(UINT32 slotNumber)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(slotNumber < GetNumMethods());
-    return DispatchSlot(m_pMT->GetRestoredSlot(slotNumber));
+    return DispatchSlot(m_pDeclMT->GetRestoredSlot(slotNumber));
 }
 
 //==========================================================================================
@@ -8735,13 +8732,13 @@ MethodDesc *MethodTable::MethodDataObject::GetImplMethodDesc(UINT32 slotNumber)
     if (pMDRet == NULL)
     {
         _ASSERTE(slotNumber < GetNumVirtuals());
-        pMDRet = m_pMT->GetMethodDescForSlot(slotNumber);
+        pMDRet = m_pDeclMT->GetMethodDescForSlot(slotNumber);
         _ASSERTE(CheckPointer(pMDRet));
         pEntry->SetImplMethodDesc(pMDRet);
     }
     else
     {
-        _ASSERTE(slotNumber >= GetNumVirtuals() || pMDRet == m_pMT->GetMethodDescForSlot(slotNumber));
+        _ASSERTE(slotNumber >= GetNumVirtuals() || pMDRet == m_pDeclMT->GetMethodDescForSlot(slotNumber));
     }
 
     return pMDRet;
@@ -8761,7 +8758,7 @@ void MethodTable::MethodDataObject::InvalidateCachedVirtualSlot(UINT32 slotNumbe
 MethodDesc *MethodTable::MethodDataInterface::GetDeclMethodDesc(UINT32 slotNumber)
 {
     WRAPPER_NO_CONTRACT;
-    return m_pMT->GetMethodDescForSlot(slotNumber);
+    return m_pDeclMT->GetMethodDescForSlot(slotNumber);
 }
 
 //==========================================================================================
@@ -8835,7 +8832,8 @@ MethodTable::MethodDataInterfaceImpl::MethodDataInterfaceImpl(
     const DispatchMapTypeID * rgDeclTypeIDs, 
     UINT32                    cDeclTypeIDs, 
     MethodData *              pDecl, 
-    MethodData *              pImpl)
+    MethodData *              pImpl) :
+    MethodData(pImpl->GetDeclMethodTable(), pDecl->GetDeclMethodTable())
 {
     WRAPPER_NO_CONTRACT;
     Init(rgDeclTypeIDs, cDeclTypeIDs, pDecl, pImpl);
@@ -8976,7 +8974,7 @@ void MethodTable::CheckInitMethodDataCache()
     if (s_pMethodDataCache == NULL)
     {
         UINT32 cb = MethodDataCache::GetObjectSize(8);
-        NewHolder<BYTE> hb(new BYTE[cb]);
+        NewArrayHolder<BYTE> hb(new BYTE[cb]);
         MethodDataCache *pCache = new (hb.GetValue()) MethodDataCache(8);
         if (InterlockedCompareExchangeT(
                 &s_pMethodDataCache, pCache, NULL) == NULL)
@@ -9085,7 +9083,7 @@ MethodTable::GetMethodDataHelper(
     MethodDataWrapper hImpl(GetMethodData(pMTImpl, FALSE));
 
     UINT32 cb = MethodDataInterfaceImpl::GetObjectSize(pMTDecl);
-    NewHolder<BYTE> pb(new BYTE[cb]);
+    NewArrayHolder<BYTE> pb(new BYTE[cb]);
     MethodDataInterfaceImpl * pData = new (pb.GetValue()) MethodDataInterfaceImpl(rgDeclTypeIDs, cDeclTypeIDs, hDecl, hImpl);
     pb.SuppressRelease();
 
@@ -9128,7 +9126,7 @@ MethodTable::MethodData *MethodTable::GetMethodDataHelper(MethodTable *pMTDecl,
         }
         else {
             UINT32 cb = MethodDataObject::GetObjectSize(pMTDecl);
-            NewHolder<BYTE> pb(new BYTE[cb]);
+            NewArrayHolder<BYTE> pb(new BYTE[cb]);
             MethodDataHolder h(FindParentMethodDataHelper(pMTDecl));
             pData = new (pb.GetValue()) MethodDataObject(pMTDecl, h.GetValue());
             pb.SuppressRelease();

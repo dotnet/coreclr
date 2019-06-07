@@ -21,19 +21,19 @@ namespace System.Reflection
                 throw new ArgumentException(SR.Format_StringZeroLength);
 
             _name = assemblyName;
-            nInit(out RuntimeAssembly dummy, false);
+            nInit();
         }
 
-        internal AssemblyName(string name,
-            byte[] publicKey,
-            byte[] publicKeyToken,
-            Version version,
-            CultureInfo cultureInfo,
+        internal AssemblyName(string? name,
+            byte[]? publicKey,
+            byte[]? publicKeyToken,
+            Version? version,
+            CultureInfo? cultureInfo,
             AssemblyHashAlgorithm hashAlgorithm,
             AssemblyVersionCompatibility versionCompatibility,
-            string codeBase,
+            string? codeBase,
             AssemblyNameFlags flags,
-            StrongNameKeyPair keyPair) // Null if ref, matching Assembly if def
+            StrongNameKeyPair? keyPair) // Null if ref, matching Assembly if def
         {
             _name = name;
             _publicKey = publicKey;
@@ -48,7 +48,7 @@ namespace System.Reflection
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal extern void nInit(out RuntimeAssembly assembly, bool raiseResolveEvent);
+        internal extern void nInit();
         
         // This call opens and closes the file, but does not add the
         // assembly to the domain.
@@ -62,7 +62,7 @@ namespace System.Reflection
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern byte[] ComputePublicKeyToken();
+        private extern byte[]? ComputePublicKeyToken();
 
         internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
         {

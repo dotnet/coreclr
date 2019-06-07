@@ -3019,6 +3019,11 @@ public:
     // registers across an NDirect call.
     TADDR                m_pCalleeSavedFP;
 
+    // This field is used to cache the current thread object where this frame is
+    // executing. This is especially helpful on Unix platforms for the PInvoke assembly
+    // stubs, since there is no easy way to inline an implementation of GetThread.
+    PTR_VOID             m_pThread;
+
 public:
     //---------------------------------------------------------------
     // Expose key offsets and values for stub generation.
@@ -3610,9 +3615,12 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGININTERIOR(ObjRefStruct)           do {            \
+                /* work around Wsizeof-pointer-div warning as we */     \
+                /* mean to capture pointer or object size */            \
+                UINT subjectSize = sizeof(ObjRefStruct);                \
                 FrameWithCookie<GCFrame> __gcframe(                     \
                         (OBJECTREF*)&(ObjRefStruct),                    \
-                        sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
+                        subjectSize/sizeof(OBJECTREF),                  \
                         TRUE);                                          \
                 /* work around unreachable code warning */              \
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)

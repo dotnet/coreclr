@@ -1926,7 +1926,7 @@ FCIMPL1(void, ReflectionInvocation::RunModuleConstructor, ReflectModuleBaseObjec
 
     Assembly *pAssem = pModule->GetAssembly();
 
-    DomainFile *pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile *pDomainFile = pModule->GetDomainFile();
     if (pDomainFile==NULL || !pDomainFile->IsActive())
     {
         HELPER_METHOD_FRAME_BEGIN_1(refModule);
@@ -2709,13 +2709,13 @@ public:
     }
 };
 
-void QCALLTYPE ReflectionEnum::GetEnumValuesAndNames(EnregisteredTypeHandle pEnumType, QCall::ObjectHandleOnStack pReturnValues, QCall::ObjectHandleOnStack pReturnNames, BOOL fGetNames)
+void QCALLTYPE ReflectionEnum::GetEnumValuesAndNames(QCall::TypeHandle pEnumType, QCall::ObjectHandleOnStack pReturnValues, QCall::ObjectHandleOnStack pReturnNames, BOOL fGetNames)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
 
-    TypeHandle th = TypeHandle::FromPtr(pEnumType);
+    TypeHandle th = pEnumType.AsTypeHandle();
 
     if (!th.IsEnum())
         COMPlusThrow(kArgumentException, W("Arg_MustBeEnum"));
@@ -2886,40 +2886,10 @@ FCIMPLEND
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************
-//      ReflectionBinder
+//      ReflectionEnum
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************
-
-FCIMPL2(FC_BOOL_RET, ReflectionBinder::DBCanConvertPrimitive, ReflectClassBaseObject* source, ReflectClassBaseObject* target) {
-    FCALL_CONTRACT;
-    
-    VALIDATEOBJECT(source);
-    VALIDATEOBJECT(target);
-
-    CorElementType tSRC = source->GetType().GetSignatureCorElementType();
-    CorElementType tTRG = target->GetType().GetSignatureCorElementType();
-
-    FC_RETURN_BOOL(InvokeUtil::IsPrimitiveType(tTRG) && InvokeUtil::CanPrimitiveWiden(tTRG, tSRC));
-}
-FCIMPLEND
-
-FCIMPL2(FC_BOOL_RET, ReflectionBinder::DBCanConvertObjectPrimitive, Object* sourceObj, ReflectClassBaseObject* target) {
-    FCALL_CONTRACT;
-    
-    VALIDATEOBJECT(sourceObj);
-    VALIDATEOBJECT(target);
-
-    if (sourceObj == 0)
-        FC_RETURN_BOOL(true);
-
-    TypeHandle th(sourceObj->GetMethodTable());
-    CorElementType tSRC = th.GetVerifierCorElementType();
-
-    CorElementType tTRG = target->GetType().GetSignatureCorElementType();
-    FC_RETURN_BOOL(InvokeUtil::IsPrimitiveType(tTRG) && InvokeUtil::CanPrimitiveWiden(tTRG, tSRC));
-}
-FCIMPLEND
 
 FCIMPL2(FC_BOOL_RET, ReflectionEnum::InternalEquals, Object *pRefThis, Object* pRefTarget)
 {

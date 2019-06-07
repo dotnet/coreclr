@@ -79,8 +79,8 @@ jobs:
         - ${{ if eq(variables['System.TeamProject'], 'public') }}:
           - (Alpine.38.Amd64.Open)Ubuntu.1604.Amd64.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-45b1fa2-20190327215821
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-          - Alpine.36.Amd64
-          - Alpine.38.Amd64
+          - (Alpine.38.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
+          - (Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Linux musl arm64
@@ -175,7 +175,7 @@ jobs:
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
           - OSX.1013.Amd64.Open
         - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-          # TODO: add OSX.1012.Amd64.Open once Jenkins has been shutdown
+          - OSX.1012.Amd64.Open
           - OSX.1013.Amd64.Open
           - OSX.1014.Amd64.Open
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
@@ -206,7 +206,7 @@ jobs:
           - Windows.81.Amd64
           - Windows.10.Amd64
           - Windows.10.Amd64.Core
-          - Windows.10.Nano.Amd64
+          - (Windows.Nano.1803.Amd64)windows.10.amd64.serverrs4@mcr.microsoft.com/dotnet-buildtools/prereqs:nanoserver-1803-helix-amd64-05227e1-20190509225944
         ${{ insert }}: ${{ parameters.jobParameters }}
 
   # Windows x86
@@ -242,7 +242,9 @@ jobs:
         osGroup: Windows_NT
         osIdentifier: Windows_NT
         helixQueues:
-        # TODO: add Windows.10.Arm64.Open once Jenkins has been shutdown
+        # TODO: Due to the limited capacity of the machines in Windows.10.Arm64.Open queue limit this to CI builds and only to Windows_NT/arm
+        - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+          - Windows.10.Arm64.Open
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Windows.10.Arm64
         ${{ insert }}: ${{ parameters.jobParameters }}
@@ -257,7 +259,7 @@ jobs:
         osGroup: Windows_NT
         osIdentifier: Windows_NT
         helixQueues:
-        # TODO: add Windows.10.Arm64.Open once Jenkins has been shutdown
+        # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
         - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
           - Windows.10.Arm64
         ${{ insert }}: ${{ parameters.jobParameters }}

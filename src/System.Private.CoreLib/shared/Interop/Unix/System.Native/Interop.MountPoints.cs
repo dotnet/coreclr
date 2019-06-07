@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -28,13 +27,13 @@ internal static partial class Interop
                 {
                     if (count == found.Length)
                     {
-                        Array.Resize(ref found, count * 2);
+                        Array.Resize(ref found!, count * 2); // TODO-NULLABLE: Remove ! when nullable attributes are respected
                     }
-                    found[count++] = Marshal.PtrToStringAnsi((IntPtr)name);
+                    found[count++] = Marshal.PtrToStringAnsi((IntPtr)name)!;
                 });
             }
 
-            Array.Resize(ref found, count);
+            Array.Resize(ref found!, count); // TODO-NULLABLE: Remove ! when nullable attributes are respected
             return found;
         }
     }

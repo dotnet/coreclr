@@ -4,6 +4,7 @@
 
 using System.Buffers;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -19,6 +20,7 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _Exit(int exitCode);
 
+        [DoesNotReturn]
         public static void Exit(int exitCode) => _Exit(exitCode);
 
         public static extern int ExitCode
@@ -32,8 +34,9 @@ namespace System
         // Note: The CLR's Watson bucketization code looks at the caller of the FCALL method
         // to assign blame for crashes.  Don't mess with this, such as by making it call 
         // another managed helper method, unless you consult with some CLR Watson experts.
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(string message);
+        public static extern void FailFast(string? message);
 
         // This overload of FailFast will allow you to specify the exception object
         // whose bucket details *could* be used when undergoing the failfast process.
@@ -48,11 +51,13 @@ namespace System
         //    if the exception object is preallocated, the runtime will use the callsite's
         //    IP for bucketing. If the exception object is not preallocated, it will use the bucket
         //    details contained in the object (if any).
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(string message, Exception exception);
+        public static extern void FailFast(string? message, Exception? exception);
 
+        [DoesNotReturn]
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(string message, Exception exception, string errorMessage);
+        public static extern void FailFast(string? message, Exception? exception, string? errorMessage);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string[] GetCommandLineArgsNative();
@@ -88,7 +93,7 @@ namespace System
         // If you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
-        internal static string GetResourceStringLocal(string key) => SR.GetResourceString(key);
+        internal static string? GetResourceStringLocal(string key) => SR.GetResourceString(key);
 
         public static string StackTrace
         {
@@ -96,26 +101,35 @@ namespace System
             get => new StackTrace(true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
         }
 
+        /// <summary>Gets the number of milliseconds elapsed since the system started.</summary>
+        /// <value>A 32-bit signed integer containing the amount of time in milliseconds that has passed since the last time the computer was started.</value>
         public static extern int TickCount
         {
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
 
+        /// <summary>Gets the number of milliseconds elapsed since the system started.</summary>
+        /// <value>A 64-bit signed integer containing the amount of time in milliseconds that has passed since the last time the computer was started.</value>
+        public static extern long TickCount64
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
+
 #if FEATURE_COMINTEROP
-        // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
+        // Separate type so a .cctor is not created for Enviroment which then would be triggered during startup
         private static class WinRT
         {
             // Cache the value in readonly static that can be optimized out by the JIT
-            public readonly static bool IsSupported = WinRTSupported();
+            public readonly static bool IsSupported = WinRTSupported() != Interop.BOOL.FALSE;
         }
 
         // Does the current version of Windows have Windows Runtime suppport?
         internal static bool IsWinRTSupported => WinRT.IsSupported;
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool WinRTSupported();
+        private static extern Interop.BOOL WinRTSupported();
 #endif // FEATURE_COMINTEROP
     }
 }

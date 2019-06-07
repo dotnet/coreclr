@@ -2181,12 +2181,6 @@ HRESULT CordbProcess::QueryInterface(REFIID id, void **pInterface)
     {
         *pInterface = static_cast<ICorDebugProcess10*>(this);
     }
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-    else if (id == IID_ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly)
-    {
-        *pInterface = static_cast<ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly*>(this);
-    }
-#endif
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
@@ -2544,20 +2538,6 @@ COM_METHOD CordbProcess::EnableGCNotificationEvents(BOOL fEnable)
     PUBLIC_API_END(hr);
     return hr;
 }
-
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-
-COM_METHOD CordbProcess::InvokePauseCallback()
-{
-    return S_OK;
-}
-
-COM_METHOD CordbProcess::InvokeResumeCallback()
-{
-    return S_OK;
-}
-
-#endif
 
 HRESULT CordbProcess::GetTypeForObject(CORDB_ADDRESS addr, CordbAppDomain* pAppDomainOverride, CordbType **ppType, CordbAppDomain **pAppDomain)
 {
@@ -7300,7 +7280,7 @@ HRESULT CordbProcess::WriteMemory(CORDB_ADDRESS address, DWORD size,
         if (bufferCopy != NULL)
         {
             memmove(buffer, bufferCopy, size);
-            delete bufferCopy;
+            delete [] bufferCopy;
         }
     }
 
@@ -9578,7 +9558,7 @@ void Ls_Rs_BaseBuffer::CopyLSDataToRSWorker(ICorDebugDataTarget * pTarget)
         ThrowHR(E_INVALIDARG);
     }
 
-    NewHolder<BYTE> pData(new BYTE[cbCacheSize]);
+    NewArrayHolder<BYTE> pData(new BYTE[cbCacheSize]);
 
     ULONG32 cbRead;
     HRESULT hrRead = pTarget->ReadVirtual(PTR_TO_CORDB_ADDRESS(m_pbLS), pData, cbCacheSize , &cbRead);
@@ -12225,7 +12205,7 @@ Reaction CordbProcess::TriageExcep1stChanceAndInit(CordbUnmanagedThread * pUnman
     LOG((LF_CORDB, LL_INFO1000, "CP::TE1stCAI: Enter\n"));
 
 #ifdef _DEBUG
-    // Some Interop bugs involve threads that land at a crazy IP. Since we're interop-debugging, we can't
+    // Some Interop bugs involve threads that land at a bad IP. Since we're interop-debugging, we can't
     // attach a debugger to the LS. So we have some debug mode where we enable the SS flag and thus
     // produce a trace of where a thread is going.
     if (pUnmanagedThread->IsDEBUGTrace() && (dwExCode == STATUS_SINGLE_STEP))
@@ -12784,7 +12764,7 @@ void CordbProcess::HandleDebugEventForInteropDebugging(const DEBUG_EVENT * pEven
         STRESS_LOG1(LF_CORDB, LL_INFO1000, "W32ET::W32EL: Thread 0x%x is suspended\n", pEvent->dwThreadId);
     }
 
-    // For debugging crazy races in retail, we'll keep a rolling queue of win32 debug events.
+    // For debugging races in retail, we'll keep a rolling queue of win32 debug events.
     this->DebugRecordWin32Event(pEvent, pUnmanagedThread);
 
 
@@ -13390,7 +13370,7 @@ DWORD GetDbgContinueFlag()
 }
 
 
-// Some Interop bugs involve threads that land at a crazy IP. Since we're interop-debugging, we can't
+// Some Interop bugs involve threads that land at a bad IP. Since we're interop-debugging, we can't
 // attach a debugger to the LS. So we have some debug mode where we enable the SS flag and thus
 // produce a trace of where a thread is going.
 #ifdef _DEBUG

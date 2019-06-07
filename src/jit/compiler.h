@@ -134,6 +134,61 @@ const unsigned FLG_CCTOR = (CORINFO_FLG_CONSTRUCTOR | CORINFO_FLG_STATIC);
 const int BAD_STK_OFFS = 0xBAADF00D; // for LclVarDsc::lvStkOffs
 #endif
 
+//------------------------------------------------------------------------
+// HFA info shared by LclVarDsc and fgArgTabEntry
+//------------------------------------------------------------------------
+#ifdef FEATURE_HFA
+enum HfaElemKind : unsigned int
+{
+    HFA_ELEM_NONE,
+    HFA_ELEM_FLOAT,
+    HFA_ELEM_DOUBLE,
+    HFA_ELEM_SIMD16
+};
+inline bool IsHfa(HfaElemKind kind)
+{
+    return kind != HFA_ELEM_NONE;
+}
+inline var_types HfaTypeFromElemKind(HfaElemKind kind)
+{
+    switch (kind)
+    {
+        case HFA_ELEM_FLOAT:
+            return TYP_FLOAT;
+        case HFA_ELEM_DOUBLE:
+            return TYP_DOUBLE;
+#ifdef FEATURE_SIMD
+        case HFA_ELEM_SIMD16:
+            return TYP_SIMD16;
+#endif
+        case HFA_ELEM_NONE:
+            return TYP_UNDEF;
+        default:
+            assert(!"Invalid HfaElemKind");
+            return TYP_UNDEF;
+    }
+}
+inline HfaElemKind HfaElemKindFromType(var_types type)
+{
+    switch (type)
+    {
+        case TYP_FLOAT:
+            return HFA_ELEM_FLOAT;
+        case TYP_DOUBLE:
+            return HFA_ELEM_DOUBLE;
+#ifdef FEATURE_SIMD
+        case TYP_SIMD16:
+            return HFA_ELEM_SIMD16;
+#endif
+        case TYP_UNDEF:
+            return HFA_ELEM_NONE;
+        default:
+            assert(!"Invalid HFA Type");
+            return HFA_ELEM_NONE;
+    }
+}
+#endif // FEATURE_HFA
+
 // The following holds the Local var info (scope information)
 typedef const char* VarName; // Actual ASCII string
 struct VarScopeDsc
@@ -297,191 +352,6 @@ enum RefCountState
     RCS_NORMAL,  // normal ref counts (from lvaMarkRefs onward)
 };
 
-#ifdef USING_VARIABLE_LIVE_RANGE
-//--------------------------------------------
-//
-// VariableLiveKeeper: Holds an array of "VariableLiveDescriptor", one for each variable
-//  whose location we track. It provides start/end/update/count operations over the
-//  "LiveRangeList" of any variable.
-//
-// Notes:
-//  This method could be implemented on Compiler class too, but the intention is to move code
-//  out of that class, which is huge. With this solution the only code needed in Compiler is
-//  a getter and an initializer of this class.
-//  The index of each variable in this array corresponds to the one in "compiler->lvaTable".
-//  We care about tracking the variable locations of arguments, special arguments, and local IL
-//  variables, and we ignore any other variable (like JIT temporary variables).
-//
-class VariableLiveKeeper
-{
-public:
-    //--------------------------------------------
-    //
-    // VariableLiveRange: Represent part of the life of a variable. A
-    //      variable lives in a location (represented with struct "siVarLoc")
-    //      between two native offsets.
-    //
-    // Notes:
-    //    We use emitLocation and not NATTIVE_OFFSET because location
-    //    is captured when code is being generated (genCodeForBBList
-    //    and genGeneratePrologsAndEpilogs) but only after the whole
-    //    method's code is generated can we obtain a final, fixed
-    //    NATIVE_OFFSET representing the actual generated code offset.
-    //    There is also a IL_OFFSET, but this is more accurate and the
-    //    debugger is expecting assembly offsets.
-    //    This class doesn't have behaviour attached to itself, it is
-    //    just putting a name to a representation. It is used to build
-    //    typedefs LiveRangeList and LiveRangeListIterator, which are
-    //    basically a list of this class and a const_iterator of that
-    //    list.
-    //
-    class VariableLiveRange
-    {
-    public:
-        emitLocation               m_StartEmitLocation; // first position from where "m_VarLocation" becomes valid
-        emitLocation               m_EndEmitLocation;   // last position where "m_VarLocation" is valid
-        CodeGenInterface::siVarLoc m_VarLocation;       // variable location
-
-        VariableLiveRange(CodeGenInterface::siVarLoc varLocation,
-                          emitLocation               startEmitLocation,
-                          emitLocation               endEmitLocation)
-            : m_StartEmitLocation(startEmitLocation), m_EndEmitLocation(endEmitLocation), m_VarLocation(varLocation)
-        {
-        }
-
-#ifdef DEBUG
-        // Dump "VariableLiveRange" when code has not been generated. We don't have the native code offset,
-        // but we do have "emitLocation"s and "siVarLoc".
-        void dumpVariableLiveRange(const CodeGenInterface* codeGen) const;
-
-        // Dump "VariableLiveRange" when code has been generated and we have the native code offset of each
-        // "emitLocation"
-        void dumpVariableLiveRange(emitter* emit, const CodeGenInterface* codeGen) const;
-#endif // DEBUG
-    };
-
-    typedef jitstd::list<VariableLiveRange> LiveRangeList;
-    typedef LiveRangeList::const_iterator   LiveRangeListIterator;
-
-private:
-#ifdef DEBUG
-    //--------------------------------------------
-    //
-    // LiveRangeDumper: Used for debugging purposes during code
-    //  generation on genCodeForBBList. Keeps an iterator to the first
-    //  edited/added "VariableLiveRange" of a variable during the
-    //  generation of code of one block.
-    //
-    // Notes:
-    //  The first "VariableLiveRange" reported for a variable during
-    //  a BasicBlock is sent to "setDumperStartAt" so we can dump all
-    //  the "VariableLiveRange"s from that one.
-    //  After we dump all the "VariableLiveRange"s we call "reset" with
-    //  the "liveRangeList" to set the barrier to nullptr or the last
-    //  "VariableLiveRange" if it is opened.
-    //  If no "VariableLiveRange" was edited/added during block,
-    //  the iterator points to the end of variable's LiveRangeList.
-    //
-    class LiveRangeDumper
-    {
-        // Iterator to the first edited/added position during actual block code generation. If last
-        // block had a closed "VariableLiveRange" (with a valid "m_EndEmitLocation") and not changes
-        // were applied to variable liveness, it points to the end of variable's LiveRangeList.
-        LiveRangeListIterator m_StartingLiveRange;
-        bool                  m_hasLiveRangestoDump; // True if a live range for this variable has been
-                                                     // reported from last call to EndBlock
-
-    public:
-        LiveRangeDumper(const LiveRangeList* liveRanges)
-            : m_StartingLiveRange(liveRanges->end()), m_hasLiveRangestoDump(false){};
-
-        // Make the dumper point to the last "VariableLiveRange" opened or nullptr if all are closed
-        void resetDumper(const LiveRangeList* list);
-
-        // Make "LiveRangeDumper" instance points the last "VariableLiveRange" added so we can
-        // start dumping from there after the actual "BasicBlock"s code is generated.
-        void setDumperStartAt(const LiveRangeListIterator liveRangeIt);
-
-        // Return an iterator to the first "VariableLiveRange" edited/added during the current
-        // "BasicBlock"
-        LiveRangeListIterator getStartForDump() const;
-
-        // Return whether at least a "VariableLiveRange" was alive during the current "BasicBlock"'s
-        // code generation
-        bool hasLiveRangesToDump() const;
-    };
-#endif // DEBUG
-
-    //--------------------------------------------
-    //
-    // VariableLiveDescriptor: This class persist and update all the changes
-    //  to the home of a variable. It has an instance of "LiveRangeList"
-    //  and methods to report the start/end of a VariableLiveRange.
-    //
-    class VariableLiveDescriptor
-    {
-        LiveRangeList* m_VariableLiveRanges; // the variable locations of this variable
-        INDEBUG(LiveRangeDumper* m_VariableLifeBarrier);
-
-    public:
-        VariableLiveDescriptor(CompAllocator allocator);
-
-        bool           hasVariableLiveRangeOpen() const;
-        LiveRangeList* getLiveRanges() const;
-
-        void startLiveRangeFromEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
-        void endLiveRangeAtEmitter(emitter* emit) const;
-        void updateLiveRangeAtEmitter(CodeGenInterface::siVarLoc varLocation, emitter* emit) const;
-
-#ifdef DEBUG
-        void dumpAllRegisterLiveRangesForBlock(emitter* emit, const CodeGenInterface* codeGen) const;
-        void dumpRegisterLiveRangesForBlockBeforeCodeGenerated(const CodeGenInterface* codeGen) const;
-        bool hasVarLiveRangesToDump() const;
-        bool hasVarLiverRangesFromLastBlockToDump() const;
-        void endBlockLiveRanges();
-#endif // DEBUG
-    };
-
-    unsigned int m_LiveDscCount;  // count of args, special args, and IL local variables to report home
-    unsigned int m_LiveArgsCount; // count of arguments to report home
-
-    Compiler* m_Compiler;
-
-    VariableLiveDescriptor* m_vlrLiveDsc; // Array of descriptors that manage VariableLiveRanges.
-                                          // Its indices correspond to lvaTable indexes (or lvSlotNum).
-
-    bool m_LastBasicBlockHasBeenEmited; // When true no more siEndVariableLiveRange is considered.
-                                        // No update/start happens when code has been generated.
-
-public:
-    VariableLiveKeeper(unsigned int  totalLocalCount,
-                       unsigned int  argsCount,
-                       Compiler*     compiler,
-                       CompAllocator allocator);
-
-    // For tracking locations during code generation
-    void siStartOrCloseVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum, bool isBorn, bool isDying);
-    void siStartOrCloseVariableLiveRanges(VARSET_VALARG_TP varsIndexSet, bool isBorn, bool isDying);
-    void siStartVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
-    void siEndVariableLiveRange(unsigned int varNum);
-    void siUpdateVariableLiveRange(const LclVarDsc* varDsc, unsigned int varNum);
-    void siEndAllVariableLiveRange(VARSET_VALARG_TP varsToClose);
-    void siEndAllVariableLiveRange();
-
-    LiveRangeList* getLiveRangesForVar(unsigned int varNum) const;
-    size_t getLiveRangesCount() const;
-
-    // For parameters locations on prolog
-    void psiStartVariableLiveRange(CodeGenInterface::siVarLoc varLocation, unsigned int varNum);
-    void psiClosePrologVariableRanges();
-
-#ifdef DEBUG
-    void dumpBlockVariableLiveRanges(const BasicBlock* block);
-    void dumpLvaVariableLiveRanges() const;
-#endif // DEBUG
-};
-#endif // USING_VARIABLE_LIVE_RANGE
-
 class LclVarDsc
 {
 public:
@@ -555,8 +425,12 @@ public:
     unsigned char lvHasILStoreOp : 1;         // there is at least one STLOC or STARG on this local
     unsigned char lvHasMultipleILStoreOp : 1; // there is more than one STLOC on this local
 
-    unsigned char lvIsTemp : 1; // Short-lifetime compiler temp (if lvIsParam is false), or implicit byref parameter
-                                // (if lvIsParam is true)
+    unsigned char lvIsTemp : 1; // Short-lifetime compiler temp
+
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    unsigned char lvIsImplicitByRef : 1; // Set if the argument is an implicit byref.
+#endif                                   // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
 #if OPT_BOOL_OPS
     unsigned char lvIsBoolean : 1; // set if variable is boolean
 #endif
@@ -595,11 +469,8 @@ public:
     unsigned char lvIsMultiRegRet : 1; // true if this is a multireg LclVar struct assigned from a multireg call
 
 #ifdef FEATURE_HFA
-    unsigned char _lvIsHfa : 1;          // Is this a struct variable who's class handle is an HFA type
-    unsigned char _lvIsHfaRegArg : 1;    // Is this a HFA argument variable?    // TODO-CLEANUP: Remove this and replace
-                                         // with (lvIsRegArg && lvIsHfa())
-    unsigned char _lvHfaTypeIsFloat : 1; // Is the HFA type float or double?
-#endif                                   // FEATURE_HFA
+    HfaElemKind _lvHfaElemKind : 2; // What kind of an HFA this is (HFA_ELEM_NONE if it is not an HFA).
+#endif                              // FEATURE_HFA
 
 #ifdef DEBUG
     // TODO-Cleanup: See the note on lvSize() - this flag is only in use by asserts that are checking for struct
@@ -666,70 +537,60 @@ public:
     bool lvIsHfa() const
     {
 #ifdef FEATURE_HFA
-        return _lvIsHfa;
+        return IsHfa(_lvHfaElemKind);
 #else
         return false;
-#endif
-    }
-
-    void lvSetIsHfa()
-    {
-#ifdef FEATURE_HFA
-        _lvIsHfa = true;
 #endif
     }
 
     bool lvIsHfaRegArg() const
     {
 #ifdef FEATURE_HFA
-        return _lvIsHfaRegArg;
+        return lvIsRegArg && lvIsHfa();
 #else
         return false;
 #endif
     }
 
-    void lvSetIsHfaRegArg(bool value = true)
-    {
-#ifdef FEATURE_HFA
-        _lvIsHfaRegArg = value;
-#endif
-    }
-
-    bool lvHfaTypeIsFloat() const
-    {
-#ifdef FEATURE_HFA
-        return _lvHfaTypeIsFloat;
-#else
-        return false;
-#endif
-    }
-
-    void lvSetHfaTypeIsFloat(bool value)
-    {
-#ifdef FEATURE_HFA
-        _lvHfaTypeIsFloat = value;
-#endif
-    }
-
-    // on Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
-    // on Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
+    //------------------------------------------------------------------------------
+    // lvHfaSlots: Get the number of slots used by an HFA local
+    //
+    // Return Value:
+    //    On Arm64 - Returns 1-4 indicating the number of register slots used by the HFA
+    //    On Arm32 - Returns the total number of single FP register slots used by the HFA, max is 8
     //
     unsigned lvHfaSlots() const
     {
         assert(lvIsHfa());
         assert(varTypeIsStruct(lvType));
+        unsigned slots = 0;
 #ifdef _TARGET_ARM_
-        return lvExactSize / sizeof(float);
-#else  //  _TARGET_ARM64_
-        if (lvHfaTypeIsFloat())
+        slots = lvExactSize / sizeof(float);
+        assert(slots <= 8);
+#elif defined(_TARGET_ARM64_)
+        switch (_lvHfaElemKind)
         {
-            return lvExactSize / sizeof(float);
+            case HFA_ELEM_NONE:
+                assert(!"lvHfaSlots called for non-HFA");
+                break;
+            case HFA_ELEM_FLOAT:
+                assert((lvExactSize % 4) == 0);
+                slots = lvExactSize >> 2;
+                break;
+            case HFA_ELEM_DOUBLE:
+                assert((lvExactSize % 8) == 0);
+                slots = lvExactSize >> 3;
+                break;
+            case HFA_ELEM_SIMD16:
+                assert((lvExactSize % 16) == 0);
+                slots = lvExactSize >> 4;
+                break;
+            default:
+                unreached();
         }
-        else
-        {
-            return lvExactSize / sizeof(double);
-        }
+        assert(slots <= 4);
 #endif //  _TARGET_ARM64_
+        return slots;
     }
 
     // lvIsMultiRegArgOrRet()
@@ -750,7 +611,7 @@ private:
     regNumberSmall _lvOtherReg; // Used for "upper half" of long var.
 #endif                          // !defined(_TARGET_64BIT_)
 
-    regNumberSmall _lvArgReg; // The register in which this argument is passed.
+    regNumberSmall _lvArgReg; // The (first) register in which this argument is passed.
 
 #if FEATURE_MULTIREG_ARGS
     regNumberSmall _lvOtherArgReg; // Used for the second part of the struct passed in a register.
@@ -915,7 +776,7 @@ public:
 
 private:
     unsigned short m_lvRefCnt; // unweighted (real) reference count.  For implicit by reference
-                               // parameters, this gets hijacked from fgMarkImplicitByRefArgs
+                               // parameters, this gets hijacked from fgResetImplicitByRefRefCount
                                // through fgMarkDemotedImplicitByRefArgs, to provide a static
                                // appearance count (computed during address-exposed analysis)
                                // that fgMakeOutgoingStructArgCopy consults during global morph
@@ -1030,14 +891,22 @@ public:
     {
         return isFloatRegType(lvType) || lvIsHfaRegArg();
     }
+
     var_types GetHfaType() const
     {
-        return lvIsHfa() ? (lvHfaTypeIsFloat() ? TYP_FLOAT : TYP_DOUBLE) : TYP_UNDEF;
+#ifdef FEATURE_HFA
+        assert(lvIsHfa());
+        return HfaTypeFromElemKind(_lvHfaElemKind);
+#else
+        return TYP_UNDEF;
+#endif // FEATURE_HFA
     }
+
     void SetHfaType(var_types type)
     {
-        assert(varTypeIsFloating(type));
-        lvSetHfaTypeIsFloat(type == TYP_FLOAT);
+#ifdef FEATURE_HFA
+        _lvHfaElemKind = HfaElemKindFromType(type);
+#endif // FEATURE_HFA
     }
 
     var_types lvaArgType();
@@ -1487,8 +1356,7 @@ public:
     bool _isSplit : 1; // True when this argument is split between the registers and OutArg area
 #endif                 // FEATURE_ARG_SPLIT
 #ifdef FEATURE_HFA
-    bool _isHfaArg : 1;    // True when the argument is an HFA type.
-    bool _isDoubleHfa : 1; // True when the argument is an HFA, with an element type of DOUBLE.
+    HfaElemKind _hfaElemKind : 2; // What kind of an HFA this is (HFA_ELEM_NONE if it is not an HFA).
 #endif
 
     bool isLateArg()
@@ -1569,7 +1437,7 @@ public:
     bool getIsHfaArg()
     {
 #ifdef FEATURE_HFA
-        return _isHfaArg;
+        return IsHfa(_hfaElemKind);
 #else
         return false;
 #endif
@@ -1579,23 +1447,23 @@ public:
     bool getIsHfaRegArg()
     {
 #ifdef FEATURE_HFA
-        return _isHfaArg && isPassedInRegisters();
+        return IsHfa(_hfaElemKind) && isPassedInRegisters();
 #else
         return false;
 #endif
     }
 
-    __declspec(property(get = getHfaType)) var_types hfaType;
-    var_types getHfaType()
+    __declspec(property(get = GetHfaType)) var_types hfaType;
+    var_types GetHfaType()
     {
 #ifdef FEATURE_HFA
-        return _isHfaArg ? (_isDoubleHfa ? TYP_DOUBLE : TYP_FLOAT) : TYP_UNDEF;
+        return HfaTypeFromElemKind(_hfaElemKind);
 #else
         return TYP_UNDEF;
-#endif
+#endif // FEATURE_HFA
     }
 
-    void setHfaType(var_types type, unsigned hfaSlots)
+    void SetHfaType(var_types type, unsigned hfaSlots)
     {
 #ifdef FEATURE_HFA
         if (type != TYP_UNDEF)
@@ -1607,29 +1475,33 @@ public:
             // Note that hfaSlots is the number of registers we will use. For ARM, that is twice
             // the number of "double registers".
             unsigned numHfaRegs = hfaSlots;
-            if (isPassedInRegisters())
-            {
 #ifdef _TARGET_ARM_
-                if (type == TYP_DOUBLE)
-                {
-                    // Must be an even number of registers.
-                    assert((numRegs & 1) == 0);
-                    numHfaRegs = hfaSlots / 2;
-                }
+            if (type == TYP_DOUBLE)
+            {
+                // Must be an even number of registers.
+                assert((numRegs & 1) == 0);
+                numHfaRegs = hfaSlots / 2;
+            }
 #endif // _TARGET_ARM_
-                if (_isHfaArg)
-                {
-                    // This should already be set correctly.
-                    assert(numRegs == numHfaRegs);
-                    assert(_isDoubleHfa == (type == TYP_DOUBLE));
-                }
-                else
+
+            if (!isHfaArg)
+            {
+                // We haven't previously set this; do so now.
+                _hfaElemKind = HfaElemKindFromType(type);
+                if (isPassedInRegisters())
                 {
                     numRegs = numHfaRegs;
                 }
             }
-            _isDoubleHfa = (type == TYP_DOUBLE);
-            _isHfaArg    = true;
+            else
+            {
+                // We've already set this; ensure that it's consistent.
+                if (isPassedInRegisters())
+                {
+                    assert(numRegs == numHfaRegs);
+                }
+                assert(type == HfaTypeFromElemKind(_hfaElemKind));
+            }
         }
 #endif // FEATURE_HFA
     }
@@ -1701,22 +1573,32 @@ public:
     {
         unsigned size = getSlotCount();
 #ifdef FEATURE_HFA
+        if (isHfaRegArg)
+        {
 #ifdef _TARGET_ARM_
-        // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
-        if (isHfaRegArg && (hfaType == TYP_DOUBLE))
-        {
-            assert(!isSplit);
-            size <<= 1;
-        }
+            // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
+            if (hfaType == TYP_DOUBLE)
+            {
+                assert(!isSplit);
+                size <<= 1;
+            }
 #elif defined(_TARGET_ARM64_)
-        // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size.
-        if (isHfaRegArg && (hfaType == TYP_FLOAT))
-        {
-            // Round up in case of odd HFA count.
-            size = (size + 1) >> 1;
-        }
+            // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size,
+            // or if they are SIMD16 vector hfa regs we have to double the size.
+            if (hfaType == TYP_FLOAT)
+            {
+                // Round up in case of odd HFA count.
+                size = (size + 1) >> 1;
+            }
+#ifdef FEATURE_SIMD
+            else if (hfaType == TYP_SIMD16)
+            {
+                size <<= 1;
+            }
+#endif // FEATURE_SIMD
 #endif // _TARGET_ARM64_
-#endif
+        }
+#endif // FEATURE_HFA
         return size;
     }
 
@@ -2080,14 +1962,6 @@ class Compiler
     */
 
 public:
-#ifdef USING_VARIABLE_LIVE_RANGE
-    VariableLiveKeeper* varLiveKeeper; // Used to manage VariableLiveRanges of variables
-
-    void initializeVariableLiveKeeper();
-
-    VariableLiveKeeper* getVariableLiveKeeper() const;
-#endif // USING_VARIABLE_LIVE_RANGE
-
     hashBvGlobalData hbvGlobalData; // Used by the hashBv bitvector package.
 
 #ifdef DEBUG
@@ -2927,7 +2801,14 @@ public:
     static fgWalkPreFn gtMarkColonCond;
     static fgWalkPreFn gtClearColonCond;
 
-    GenTree** gtFindLink(GenTreeStmt* stmt, GenTree* node);
+    struct FindLinkData
+    {
+        GenTree*  nodeToFind;
+        GenTree** result;
+        GenTree*  parent;
+    };
+
+    FindLinkData gtFindLink(GenTreeStmt* stmt, GenTree* node);
     bool gtHasCatchArg(GenTree* tree);
 
     typedef ArrayStack<GenTree*> GenTreeStack;
@@ -3287,16 +3168,16 @@ public:
     BOOL lvaIsOriginalThisReadOnly();           // return TRUE if there is no place in the code
                                                 // that writes to arg0
 
-    // Struct parameters that are passed by reference are marked as both lvIsParam and lvIsTemp
-    // (this is an overload of lvIsTemp because there are no temp parameters).
     // For x64 this is 3, 5, 6, 7, >8 byte structs that are passed by reference.
     // For ARM64, this is structs larger than 16 bytes that are passed by reference.
     bool lvaIsImplicitByRefLocal(unsigned varNum)
     {
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-        LclVarDsc* varDsc = &(lvaTable[varNum]);
-        if (varDsc->lvIsParam && varDsc->lvIsTemp)
+        LclVarDsc* varDsc = lvaGetDesc(varNum);
+        if (varDsc->lvIsImplicitByRef)
         {
+            assert(varDsc->lvIsParam);
+
             assert(varTypeIsStruct(varDsc) || (varDsc->lvType == TYP_BYREF));
             return true;
         }
@@ -3646,6 +3527,7 @@ protected:
 
 #ifdef FEATURE_HW_INTRINSICS
     GenTree* impHWIntrinsic(NamedIntrinsic        intrinsic,
+                            CORINFO_CLASS_HANDLE  clsHnd,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
                             bool                  mustExpand);
@@ -3659,6 +3541,7 @@ protected:
 
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
                               bool                  mustExpand);
@@ -5222,6 +5105,13 @@ protected:
     void        fgInitBBLookup();
     BasicBlock* fgLookupBB(unsigned addr);
 
+    bool fgHasBackwardJump;
+
+    bool fgCanSwitchToOptimized();
+    void fgSwitchToOptimized();
+
+    bool fgMayExplicitTailCall();
+
     void fgFindJumpTargets(const BYTE* codeAddr, IL_OFFSET codeSize, FixedBitVect* jumpTarget);
 
     void fgMarkBackwardJump(BasicBlock* startBlock, BasicBlock* endBlock);
@@ -5242,10 +5132,10 @@ protected:
 
     void fgAdjustForAddressExposedOrWrittenThis();
 
-    bool                        fgProfileData_ILSizeMismatch;
-    ICorJitInfo::ProfileBuffer* fgProfileBuffer;
-    ULONG                       fgProfileBufferCount;
-    ULONG                       fgNumProfileRuns;
+    bool                      fgProfileData_ILSizeMismatch;
+    ICorJitInfo::BlockCounts* fgBlockCounts;
+    UINT32                    fgBlockCountsCount;
+    UINT32                    fgNumProfileRuns;
 
     unsigned fgStressBBProf()
     {
@@ -5608,8 +5498,8 @@ private:
     void fgMorphStructField(GenTree* tree, GenTree* parent);
     void fgMorphLocalField(GenTree* tree, GenTree* parent);
 
-    // Identify which parameters are implicit byrefs, and flag their LclVarDscs.
-    void fgMarkImplicitByRefArgs();
+    // Reset the refCount for implicit byrefs.
+    void fgResetImplicitByRefRefCount();
 
     // Change implicit byrefs' types from struct to pointer, and for any that were
     // promoted, create new promoted struct temps.
@@ -5882,7 +5772,7 @@ public:
 #define LPFLG_VAR_LIMIT 0x0100    // iterator is compared with a local var (var # found in lpVarLimit)
 #define LPFLG_CONST_LIMIT 0x0200  // iterator is compared with a constant (found in lpConstLimit)
 #define LPFLG_ARRLEN_LIMIT 0x0400 // iterator is compared with a.len or a[i].len (found in lpArrLenLimit)
-#define LPFLG_SIMD_LIMIT 0x0080   // iterator is compared with Vector<T>.Count (found in lpConstLimit)
+#define LPFLG_SIMD_LIMIT 0x0080   // iterator is compared with vector element count (found in lpConstLimit)
 
 #define LPFLG_HAS_PREHEAD 0x0800 // lpHead is known to be a preHead for this loop
 #define LPFLG_REMOVED 0x1000     // has been removed from the loop table (unrolled or optimized away)
@@ -7613,6 +7503,17 @@ private:
 
     // Should we support SIMD intrinsics?
     bool featureSIMD;
+
+    // Should we recognize SIMD types?
+    // We always do this on ARM64 to support HVA types.
+    bool supportSIMDTypes()
+    {
+#ifdef _TARGET_ARM64_
+        return true;
+#else
+        return featureSIMD;
+#endif
+    }
 
     // Have we identified any SIMD types?
     // This is currently used by struct promotion to avoid getting type information for a struct

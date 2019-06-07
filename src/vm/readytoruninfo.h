@@ -14,12 +14,9 @@
 
 #include "nativeformatreader.h"
 #include "inlinetracking.h"
+#include "wellknownattributes.h"
 
 typedef DPTR(struct READYTORUN_SECTION) PTR_READYTORUN_SECTION;
-
-#ifndef FEATURE_PREJIT
-typedef DPTR(struct READYTORUN_IMPORT_SECTION) PTR_CORCOMPILE_IMPORT_SECTION;
-#endif
 
 class PrepareCodeConfig;
 
@@ -44,6 +41,7 @@ class ReadyToRunInfo
     NativeFormat::NativeHashtable   m_instMethodEntryPoints;
     NativeFormat::NativeHashtable   m_availableTypesHashtable;
     NativeFormat::NativeHashtable   m_pMetaDataHashtable;
+    NativeFormat::NativeCuckooFilter m_attributesPresence;
 
     Crst                            m_Crst;
     PtrHashMap                      m_entryPointToMethodDescMap;
@@ -62,7 +60,7 @@ public:
     MethodDesc * GetMethodDescForEntryPoint(PCODE entryPoint);
 
     BOOL HasHashtableOfTypes();
-    BOOL TryLookupTypeTokenFromName(NameHandle *pName, mdToken * pFoundTypeToken);
+    BOOL TryLookupTypeTokenFromName(const NameHandle *pName, mdToken * pFoundTypeToken);
 
     BOOL SkipTypeValidation()
     {
@@ -138,6 +136,9 @@ public:
     {
         return m_pPersistentInlineTrackingMap;
     }
+
+    bool MayHaveCustomAttribute(WellKnownAttribute attribute, mdToken token);
+    void DisableCustomAttributeFilter();
 
 private:
     BOOL GetTypeNameFromToken(IMDInternalImport * pImport, mdToken mdType, LPCUTF8 * ppszName, LPCUTF8 * ppszNameSpace);

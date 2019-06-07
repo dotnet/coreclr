@@ -26,21 +26,12 @@ class FinalizerThread
     {
         kLowMemoryNotification  = 0,
         kFinalizer              = 1,
-
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH 
-        kProfilingAPIAttach     = 2,
-#endif // FEATURE_PROFAPI_ATTACH_DETACH 
-
         kHandleCount,
     };
 
     static HANDLE MHandles[kHandleCount];
 
     static void WaitForFinalizerEvent (CLREvent *event);
-
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
-    static void ProcessProfilerAttachIfNecessary(ULONGLONG * pui64TimestampLastCheckedEventMs);
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
     static void DoOneFinalization(Object* fobj, Thread* pThread);
 
@@ -68,7 +59,11 @@ public:
 
         // Do not wait for FinalizerThread if the current one is FinalizerThread.
         if (GetThread() != GetFinalizerThread())
-            hEventFinalizerToShutDown->Wait(INFINITE,FALSE);
+        {
+            // This wait must be alertable to handle cases where the current
+            // thread's context is needed (i.e. RCW cleanup)
+            hEventFinalizerToShutDown->Wait(INFINITE, /*alertable*/ TRUE);
+        }
     }
 
     static void FinalizerThreadWait(DWORD timeout = INFINITE);

@@ -4,6 +4,7 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
@@ -36,22 +37,22 @@ namespace System
         /// <summary>
         /// Compares two <see cref="Utf8String"/> instances for equality using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public static bool operator ==(Utf8String left, Utf8String right) => Equals(left, right);
+        public static bool operator ==(Utf8String? left, Utf8String? right) => Equals(left, right);
 
         /// <summary>
         /// Compares two <see cref="Utf8String"/> instances for inequality using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public static bool operator !=(Utf8String left, Utf8String right) => !Equals(left, right);
+        public static bool operator !=(Utf8String? left, Utf8String? right) => !Equals(left, right);
 
         /// <summary>
         /// Projects a <see cref="Utf8String"/> instance as a <see cref="ReadOnlySpan{Byte}"/>.
         /// </summary>
-        public static explicit operator ReadOnlySpan<byte>(Utf8String value) => value.AsBytes();
+        public static explicit operator ReadOnlySpan<byte>(Utf8String? value) => value.AsBytes();
 
         /// <summary>
         /// Projects a <see cref="Utf8String"/> instance as a <see cref="ReadOnlySpan{Char8}"/>.
         /// </summary>
-        public static implicit operator ReadOnlySpan<Char8>(Utf8String value) => value.AsSpan();
+        public static implicit operator ReadOnlySpan<Char8>(Utf8String? value) => value.AsSpan();
 
         /*
          * INSTANCE PROPERTIES
@@ -84,25 +85,6 @@ namespace System
             }
         }
 
-        /// <summary>
-        /// Gets the <see cref="Char8"/> at the specified position.
-        /// </summary>
-        public Char8 this[Index index]
-        {
-            get
-            {
-                // Just like String, we don't allow indexing into the null terminator itself.
-
-                int actualIndex = index.GetOffset(Length);
-                return this[actualIndex];
-            }
-        }
-
-        /// <summary>
-        /// Gets a substring of this <see cref="Utf8String"/> based on the provided <paramref name="range"/>.
-        /// </summary>
-        public Utf8String this[Range range] => Substring(range);
-
         /*
          * METHODS
          */
@@ -129,7 +111,7 @@ namespace System
         /// <summary>
         /// Performs an equality comparison using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is Utf8String other && this.Equals(other);
         }
@@ -137,7 +119,9 @@ namespace System
         /// <summary>
         /// Performs an equality comparison using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public bool Equals(Utf8String value)
+#pragma warning disable CS8614 // TODO-NULLABLE: Covariant interface arguments (https://github.com/dotnet/roslyn/issues/35817)
+        public bool Equals(Utf8String? value)
+#pragma warning restore CS8614
         {
             // First, a very quick check for referential equality.
 
@@ -156,7 +140,7 @@ namespace System
         /// <summary>
         /// Compares two <see cref="Utf8String"/> instances using a <see cref="StringComparison.Ordinal"/> comparer.
         /// </summary>
-        public static bool Equals(Utf8String left, Utf8String right)
+        public static bool Equals(Utf8String? left, Utf8String? right)
         {
             // First, a very quick check for referential equality.
 
@@ -198,7 +182,7 @@ namespace System
         /// Returns <see langword="true"/> if <paramref name="value"/> is <see langword="null"/> or zero length;
         /// <see langword="false"/> otherwise.
         /// </summary>
-        public static bool IsNullOrEmpty(Utf8String value)
+        public static bool IsNullOrEmpty([NotNullWhen(false)] Utf8String? value)
         {
             // Copied from String.IsNullOrEmpty. See that method for detailed comments on why this pattern is used.
             return (value is null || 0u >= (uint)value.Length) ? true : false;

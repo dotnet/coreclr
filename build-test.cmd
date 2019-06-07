@@ -33,7 +33,7 @@ if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__TestDir=%__ProjectDir%\tests"
 set "__ProjectFilesDir=%__TestDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\packages"
+set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
@@ -166,6 +166,9 @@ REM ===
 REM =========================================================================================
 
 call "%__ProjectDir%\init-tools.cmd"
+if NOT [%ERRORLEVEL%]==[0] (
+    exit /b %ERRORLEVEL%
+)
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
@@ -206,7 +209,8 @@ if not defined VSINSTALLDIR (
 if not exist "%VSINSTALLDIR%DIA SDK" goto NoDIA
 
 pushd "%__NativeTestIntermediatesDir%"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch%
+set __ExtraCmakeArgs="-DCMAKE_SYSTEM_VERSION=10.0"
+call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
 @if defined _echo @echo on
 popd
 
@@ -358,7 +362,7 @@ if exist "%CORE_ROOT%" rd /s /q "%CORE_ROOT%"
 if exist "%CORE_ROOT_STAGE%" rd /s /q "%CORE_ROOT_STAGE%"
 md "%CORE_ROOT%"
 md "%CORE_ROOT_STAGE%"
-xcopy "%__BinDir%" "%CORE_ROOT_STAGE%"
+xcopy /s "%__BinDir%" "%CORE_ROOT_STAGE%"
 
 REM =========================================================================================
 REM ===
@@ -562,7 +566,11 @@ echo "%2" | findstr /b "xunit." >nul && (
   exit /b 0
 )
 
-"%CORE_ROOT_STAGE%\crossgen.exe" /Platform_Assemblies_Paths "%CORE_ROOT%" /in "%1" /out "%CORE_ROOT%/temp.ni.dll" >nul 2>nul
+set __CrossgenExe="%CORE_ROOT_STAGE%\crossgen.exe"
+if /i "%__BuildArch%" == "arm" ( set __CrossgenExe="%CORE_ROOT_STAGE%\x86\crossgen.exe" )
+if /i "%__BuildArch%" == "arm64" ( set __CrossgenExe="%CORE_ROOT_STAGE%\x64\crossgen.exe" )
+
+"%__CrossgenExe%" /Platform_Assemblies_Paths "%CORE_ROOT%" /in "%1" /out "%CORE_ROOT%/temp.ni.dll" >nul 2>nul
 set /a __exitCode = %errorlevel%
 if "%__exitCode%" == "-2146230517" (
     echo %2 is not a managed assembly.
@@ -570,7 +578,7 @@ if "%__exitCode%" == "-2146230517" (
 )
 
 if %__exitCode% neq 0 (
-    echo Unable to precompile %2
+    echo Unable to precompile %2, Exit Code is %__exitCode%
     exit /b 0
 )
 

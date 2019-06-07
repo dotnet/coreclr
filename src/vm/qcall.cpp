@@ -71,8 +71,8 @@ void QCall::ObjectHandleOnStack::SetGuidArray(const GUID * p, COUNT_T length)
 
     GCX_COOP();
 
-    TypeHandle typeHandle = MscorlibBinder::GetClass(CLASS__GUID);
-    BASEARRAYREF arr = (BASEARRAYREF) AllocateValueSzArray(typeHandle, length);
+    ::TypeHandle typeHandle = MscorlibBinder::GetClass(CLASS__GUID);
+    BASEARRAYREF arr = (BASEARRAYREF) AllocateSzArray(typeHandle.MakeSZArray(), length);
     memcpyNoGCRefs(arr->GetDataPtr(), p, length * sizeof(GUID));
     Set(arr);
 }

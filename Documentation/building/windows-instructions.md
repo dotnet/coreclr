@@ -42,6 +42,7 @@ For Visual Studio 2017:
     * Windows 10 SDK or Windows 8.1 SDK
 * To build for Arm32, Make sure that you have the Windows 10 SDK installed (or selected to be installed as part of VS installation). To explicitly install Windows SDK, download it from here: [Windows SDK for Windows 10](https://developer.microsoft.com/en-us/windows/downloads).
   * In addition, ensure you install the ARM tools. In the "Individual components" window, in the "Compilers, build tools, and runtimes" section, check the box for "Visual C++ compilers and libraries for ARM".
+* To build the tests, make sure you have a Windows 10 SDK for at least version 10.0.17763 or newer.
 * **Important:** You must have the `msdia120.dll` COM Library registered in order to build the repository.
   * This binary is registered by default when installing the "VC++ Tools" with Visual Studio 2015
   * You can also manually register the binary by launching the "Developer Command Prompt for VS2017" with Administrative privileges and running `regsvr32.exe "%VSINSTALLDIR%\Common7\IDE\msdia120.dll"`
@@ -88,7 +89,7 @@ Powershell version must be 3.0 or higher. This should be the case for Windows 8 
 ## DotNet Core SDK
 While not strictly needed to build or test the .NET Core repository, having the .NET Core SDK installed lets you use the dotnet.exe command to run .NET Core applications in the 'normal' way.   We use this in the 
 [Using Your Build](../workflow/UsingYourBuild.md) instructions.  Visual Studio should have
-installed the .NET Core SDK, but in case it did not you can get it from the [Installing the .NET Core SDK](https://www.microsoft.com/net/core) page.  
+installed the .NET Core SDK, but in case it did not you can get it from the [Installing the .NET Core SDK](https://dotnet.microsoft.com/download) page.  
 
 ## Adding to the default PATH variable
 

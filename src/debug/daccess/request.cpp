@@ -1131,32 +1131,56 @@ HRESULT ClrDataAccess::GetTieredVersions(
                     goto cleanup;
                 }
 
+                TADDR r2rImageBase = NULL;
+                TADDR r2rImageEnd = NULL;
+                {
+                    PTR_Module pModule = (PTR_Module)pMD->GetModule();
+                    if (pModule->IsReadyToRun())
+                    {
+                        PTR_PEImageLayout pImage = pModule->GetReadyToRunInfo()->GetImage();
+                        r2rImageBase = dac_cast<TADDR>(pImage->GetBase());
+                        r2rImageEnd = r2rImageBase + pImage->GetSize();
+                    }
+                }
+
                 NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
                 int count = 0;
                 for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
                 {
-                    nativeCodeAddrs[count].NativeCodeAddr = (*iter).GetNativeCode();
+                    TADDR pNativeCode = PCODEToPINSTR((*iter).GetNativeCode());
+                    nativeCodeAddrs[count].NativeCodeAddr = pNativeCode;
                     PTR_NativeCodeVersionNode pNode = (*iter).AsNode();
                     nativeCodeAddrs[count].NativeCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(pNode));
 
-                    if (pMD->IsEligibleForTieredCompilation())
+                    if (r2rImageBase <= pNativeCode && pNativeCode < r2rImageEnd)
+                    {
+                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_ReadyToRun;
+                    }
+                    else if (pMD->IsEligibleForTieredCompilation())
                     {
                         switch ((*iter).GetOptimizationTier())
                         {
                         default:
-                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_UNKNOWN;
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Unknown;
                             break;
                         case NativeCodeVersion::OptimizationTier0:
-                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_0;
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_QuickJitted;
                             break;
                         case NativeCodeVersion::OptimizationTier1:
-                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_1;
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_OptimizedTier1;
+                            break;
+                        case NativeCodeVersion::OptimizationTierOptimized:
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
                             break;
                         }
                     }
+                    else if (pMD->IsJitOptimizationDisabled())
+                    {
+                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_MinOptJitted;
+                    }
                     else
                     {
-                        nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::NON_TIERED;
+                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
                     }
 
                     ++count;
@@ -2316,9 +2340,8 @@ ClrDataAccess::GetAppDomainData(CLRDATA_ADDRESS addr, struct DacpAppDomainData *
         if (pBaseDomain->IsAppDomain())
         {
             AppDomain * pAppDomain = pBaseDomain->AsAppDomain();
-            appdomainData->DomainLocalBlock = appdomainData->AppDomainPtr +
-                offsetof(AppDomain, m_sDomainLocalBlock);
-            appdomainData->pDomainLocalModules = PTR_CDADDR(pAppDomain->m_sDomainLocalBlock.m_pModuleSlots);
+            appdomainData->DomainLocalBlock = 0;
+            appdomainData->pDomainLocalModules = 0;
 
             appdomainData->dwId = DefaultADID;
             appdomainData->appDomainStage = (DacpAppDomainDataStage)pAppDomain->m_Stage.Load();
@@ -3197,7 +3220,7 @@ ClrDataAccess::GetDomainLocalModuleDataFromModule(CLRDATA_ADDRESS addr, struct D
     SOSDacEnter();
 
     Module* pModule = PTR_Module(TO_TADDR(addr));
-    DomainLocalModule* pLocalModule = PTR_DomainLocalModule(pModule->GetDomainLocalModule(NULL));
+    DomainLocalModule* pLocalModule = PTR_DomainLocalModule(pModule->GetDomainLocalModule());
     if (!pLocalModule)
     {
         hr = E_INVALIDARG;
@@ -3217,35 +3240,9 @@ ClrDataAccess::GetDomainLocalModuleDataFromModule(CLRDATA_ADDRESS addr, struct D
 HRESULT
 ClrDataAccess::GetDomainLocalModuleDataFromAppDomain(CLRDATA_ADDRESS appDomainAddr, int moduleID, struct DacpDomainLocalModuleData *pLocalModuleData)
 {
-    if (appDomainAddr == 0 || moduleID < 0 || pLocalModuleData == NULL)
-        return E_INVALIDARG;
-
-    SOSDacEnter();
-
-    pLocalModuleData->appDomainAddr = appDomainAddr;
-    pLocalModuleData->ModuleID = moduleID;
-
-    AppDomain *pAppDomain = PTR_AppDomain(TO_TADDR(appDomainAddr));
-    ModuleIndex index = Module::IDToIndex(moduleID);
-    DomainLocalModule* pLocalModule = pAppDomain->GetDomainLocalBlock()->GetModuleSlot(index);
-    if (!pLocalModule)
-    {
-        hr = E_INVALIDARG;
-    }
-    else
-    {
-        pLocalModuleData->pGCStaticDataStart    = TO_CDADDR(PTR_TO_TADDR(pLocalModule->GetPrecomputedGCStaticsBasePointer()));
-        pLocalModuleData->pNonGCStaticDataStart = TO_CDADDR(pLocalModule->GetPrecomputedNonGCStaticsBasePointer());
-        pLocalModuleData->pDynamicClassTable    = PTR_CDADDR(pLocalModule->m_pDynamicClassTable.Load());
-        pLocalModuleData->pClassData            = (TADDR) (PTR_HOST_MEMBER_TADDR(DomainLocalModule, pLocalModule, m_pDataBlob));
-    }
-
-    SOSDacLeave();
-    return hr;
+    // CoreCLR does not support multi-appdomain shared assembly loading. Thus, a non-pointer sized moduleID cannot exist.
+    return E_INVALIDARG;
 }
-
-
-
 
 HRESULT
 ClrDataAccess::GetThreadLocalModuleData(CLRDATA_ADDRESS thread, unsigned int index, struct DacpThreadLocalModuleData *pLocalModuleData)

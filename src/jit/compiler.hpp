@@ -1178,6 +1178,12 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
     /* 'GT_FIELD' nodes may later get transformed into 'GT_IND' */
     assert(GenTree::s_gtNodeSizes[GT_IND] <= GenTree::s_gtNodeSizes[GT_FIELD]);
 
+    if (typ == TYP_STRUCT)
+    {
+        CORINFO_CLASS_HANDLE fieldClass;
+        (void)info.compCompHnd->getFieldType(fldHnd, &fieldClass);
+        typ = impNormStructType(fieldClass);
+    }
     GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 
     // If "obj" is the address of a local, note that a field of that struct local has been accessed.
@@ -1437,7 +1443,7 @@ inline void GenTree::ChangeOperConst(genTreeOps oper)
 
 inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 {
-    assert(!OperIsConst(oper)); // use ChangeOperLeaf() instead
+    assert(!OperIsConst(oper)); // use ChangeOperConst() instead
 
     unsigned mask = GTF_COMMON_MASK;
     if (this->OperIsIndirOrArrLength() && OperIsIndirOrArrLength(oper))
@@ -1451,9 +1457,24 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     switch (oper)
     {
         case GT_LCL_FLD:
+        {
+            // The original GT_LCL_VAR might be annotated with a zeroOffset field.
+            FieldSeqNode* zeroFieldSeq = nullptr;
+            Compiler*     compiler     = JitTls::GetCompiler();
+            bool          isZeroOffset = compiler->GetZeroOffsetFieldMap()->Lookup(this, &zeroFieldSeq);
+
             gtLclFld.gtLclOffs  = 0;
             gtLclFld.gtFieldSeq = FieldSeqStore::NotAField();
+
+            if (zeroFieldSeq != nullptr)
+            {
+                // Set the zeroFieldSeq in the GT_LCL_FLD node
+                gtLclFld.gtFieldSeq = zeroFieldSeq;
+                // and remove the annotation from the ZeroOffsetFieldMap
+                compiler->GetZeroOffsetFieldMap()->Remove(this);
+            }
             break;
+        }
         default:
             break;
     }
@@ -1756,8 +1777,15 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, R
         if (weight != 0)
         {
             // We double the weight of internal temps
-            //
-            if (lvIsTemp && (weight * 2 > weight))
+
+            bool doubleWeight = lvIsTemp;
+
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+            // and, for the time being, implict byref params
+            doubleWeight |= lvIsImplicitByRef;
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+            if (doubleWeight && (weight * 2 > weight))
             {
                 weight *= 2;
             }
@@ -2665,7 +2693,7 @@ inline bool Compiler::fgIsThrowHlpBlk(BasicBlock* block)
     }
 
     // We can get to this point for blocks that we didn't create as throw helper blocks
-    // under stress, with crazy flow graph optimizations. So, walk the fgAddCodeList
+    // under stress, with implausible flow graph optimizations. So, walk the fgAddCodeList
     // for the final determination.
 
     for (AddCodeDsc* add = fgAddCodeList; add; add = add->acdNext)
@@ -2919,7 +2947,7 @@ inline regNumber genMapFloatRegArgNumToRegNum(unsigned argNum)
 
 __forceinline regNumber genMapRegArgNumToRegNum(unsigned argNum, var_types type)
 {
-    if (varTypeIsFloating(type))
+    if (varTypeUsesFloatArgReg(type))
     {
         return genMapFloatRegArgNumToRegNum(argNum);
     }
@@ -2957,7 +2985,7 @@ inline regMaskTP genMapFloatRegArgNumToRegMask(unsigned argNum)
 __forceinline regMaskTP genMapArgNumToRegMask(unsigned argNum, var_types type)
 {
     regMaskTP result;
-    if (varTypeIsFloating(type))
+    if (varTypeUsesFloatArgReg(type))
     {
         result = genMapFloatRegArgNumToRegMask(argNum);
 #ifdef _TARGET_ARM_
@@ -3076,7 +3104,7 @@ inline unsigned genMapFloatRegNumToRegArgNum(regNumber regNum)
 
 inline unsigned genMapRegNumToRegArgNum(regNumber regNum, var_types type)
 {
-    if (varTypeIsFloating(type))
+    if (varTypeUsesFloatArgReg(type))
     {
         return genMapFloatRegNumToRegArgNum(regNum);
     }

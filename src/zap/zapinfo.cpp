@@ -207,10 +207,7 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
     if (IsReadyToRunCompilation())
     {
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_READYTORUN);
-#ifndef PLATFORM_UNIX
-        // PInvoke Helpers are not yet implemented on non-Windows platforms
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
-#endif
     }
 #endif  // FEATURE_READYTORUN_COMPILER
 
@@ -876,23 +873,23 @@ bool ZapInfo::runWithErrorTrap(void (*function)(void*), void* param)
     return m_pEEJitInfo->runWithErrorTrap(function, param);
 }
 
-HRESULT ZapInfo::allocBBProfileBuffer (
-    ULONG                         cBlock,
-    ICorJitInfo::ProfileBuffer ** ppBlock
+HRESULT ZapInfo::allocMethodBlockCounts (
+    UINT32                        count,           // the count of <ILOffset, ExecutionCount> tuples
+    ICorJitInfo::BlockCounts **   pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
     )
 {
     HRESULT hr;
 
     if (m_zapper->m_pOpt->m_compilerFlags.IsSet(CORJIT_FLAGS::CORJIT_FLAG_IL_STUB))
     {
-        *ppBlock = NULL;
+        *pBlockCounts = nullptr;
         return E_NOTIMPL;
     }
 
     // @TODO: support generic methods from other assemblies
     if (m_currentMethodModule != m_pImage->m_hModule)
     {
-        *ppBlock = NULL;
+        *pBlockCounts = nullptr;
         return E_NOTIMPL;
     }
 
@@ -921,39 +918,39 @@ HRESULT ZapInfo::allocBBProfileBuffer (
     // of the latest copy in this case.
     // _ASSERTE(m_pProfileData == NULL);
 
-    DWORD totalSize = (DWORD) (cBlock * sizeof(ICorJitInfo::ProfileBuffer)) + sizeof(CORBBTPROF_METHOD_HEADER);
+    DWORD totalSize = (DWORD) (count * sizeof(ICorJitInfo::BlockCounts)) + sizeof(CORBBTPROF_METHOD_HEADER);
     m_pProfileData = ZapBlobWithRelocs::NewAlignedBlob(m_pImage, NULL, totalSize, sizeof(DWORD));
     CORBBTPROF_METHOD_HEADER * profileData = (CORBBTPROF_METHOD_HEADER *) m_pProfileData->GetData();
     profileData->size           = totalSize;
     profileData->cDetail        = 0;
     profileData->method.token   = md;
     profileData->method.ILSize  = m_currentMethodInfo.ILCodeSize;
-    profileData->method.cBlock  = cBlock;
+    profileData->method.cBlock  = count;
 
-    *ppBlock = (ICorJitInfo::ProfileBuffer *)(&profileData->method.block[0]);
+    *pBlockCounts = (ICorJitInfo::BlockCounts *)(&profileData->method.block[0]);
 
     return S_OK;
 }
 
-HRESULT ZapInfo::getBBProfileData (
-    CORINFO_METHOD_HANDLE         ftnHnd,
-    ULONG *                       pCount,
-    ICorJitInfo::ProfileBuffer ** ppBlock,
-    ULONG *                       numRuns
+HRESULT ZapInfo::getMethodBlockCounts (
+    CORINFO_METHOD_HANDLE ftnHnd,
+    UINT32 *              pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+    BlockCounts **        pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+    UINT32 *              pNumRuns
     )
 {
-    _ASSERTE(ppBlock);
-    _ASSERTE(pCount);
+    _ASSERTE(pBlockCounts != nullptr);
+    _ASSERTE(pCount != nullptr);
     _ASSERTE(ftnHnd == m_currentMethodHandle);
 
     HRESULT hr;
 
     // Initialize outputs in case we return E_FAIL
-    *ppBlock = NULL;
+    *pBlockCounts = nullptr;
     *pCount = 0;
-    if (numRuns)
+    if (pNumRuns != nullptr)
     {
-        *numRuns = 0;
+        *pNumRuns = 0;
     }
 
     // For generic instantiations whose IL is in another module,
@@ -992,9 +989,9 @@ HRESULT ZapInfo::getBBProfileData (
         return E_FAIL;
     }
 
-    if (numRuns)
+    if (pNumRuns != nullptr)
     {
-        *numRuns =  m_pImage->m_profileDataNumRuns;
+        *pNumRuns =  m_pImage->m_profileDataNumRuns;
     }
 
     const ZapImage::ProfileDataHashEntry * foundEntry = m_pImage->profileDataHashTable.LookupPtr(md);
@@ -1029,7 +1026,7 @@ HRESULT ZapInfo::getBBProfileData (
     _ASSERTE(profileData->method.token == foundEntry->md);  // We should be looking at the right method
     _ASSERTE(profileData->size == foundEntry->size);        // and the cached size must match
 
-    *ppBlock = (ICorJitInfo::ProfileBuffer *) &profileData->method.block[0];
+    *pBlockCounts = (ICorJitInfo::BlockCounts *) &profileData->method.block[0];
     *pCount  = profileData->method.cBlock;
 
     // If the ILSize is non-zero the the ILCodeSize also must match
@@ -2152,7 +2149,16 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         if (pResult->thisTransform == CORINFO_BOX_THIS)
         {
             // READYTORUN: FUTURE: Optionally create boxing stub at runtime
-            ThrowHR(E_NOTIMPL);
+            // We couldn't resolve the constrained call into a valuetype instance method and we're asking the JIT
+            // to box and do a virtual dispatch. If we were to allow the boxing to happen now, it could break future code
+            // when the user adds a method to the valuetype that makes it possible to avoid boxing (if there is state
+            // mutation in the method).
+            
+            // We allow this at least for primitives and enums because we control them
+            // and we know there's no state mutation.
+            CorInfoType constrainedType = getTypeForPrimitiveValueClass(pConstrainedResolvedToken->hClass);
+            if (constrainedType == CORINFO_TYPE_UNDEF)
+                ThrowHR(E_NOTIMPL);
         }
     }
 
@@ -3858,13 +3864,13 @@ CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
                                                        CORINFO_SIG_INFO* sig)
 {
-#ifdef PLATFORM_UNIX
-    // TODO: Support for pinvoke helpers on non-Windows platforms
+#if defined(_TARGET_X86_) && defined(PLATFORM_UNIX)
+    // FUTURE ReadyToRun: x86 pinvoke stubs on Unix platforms
     if (IsReadyToRunCompilation())
         return TRUE; 
 #endif
 
-    if (IsReadyToRunCompilation() && !m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getMethodModule(method)))
+    if (IsReadyToRunCompilation() && method != NULL && !m_pImage->GetCompileInfo()->IsInCurrentVersionBubble(m_pEEJitInfo->getMethodModule(method)))
     {
         // FUTURE: ZapSig::EncodeMethod does not yet handle cross module references for ReadyToRun
         // See zapsig.cpp around line 1217.
@@ -4026,8 +4032,8 @@ template<> void LoadTable<CORINFO_METHOD_HANDLE>::EmitLoadFixups(CORINFO_METHOD_
 BOOL ZapInfo::CurrentMethodHasProfileData()
 {
     WRAPPER_NO_CONTRACT;
-    ULONG size;
-    ICorJitInfo::ProfileBuffer * profileBuffer;
-    return SUCCEEDED(getBBProfileData(m_currentMethodHandle, &size, &profileBuffer, NULL));
+    UINT32 size;
+    ICorJitInfo::BlockCounts * pBlockCounts;
+    return SUCCEEDED(getMethodBlockCounts(m_currentMethodHandle, &size, &pBlockCounts, NULL));
 }
 

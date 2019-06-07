@@ -210,16 +210,13 @@ class MethodDesc
 
 public:
 
-    enum
-    {
 #ifdef _WIN64
-        ALIGNMENT_SHIFT = 3,
+    static const int ALIGNMENT_SHIFT = 3;
 #else
-        ALIGNMENT_SHIFT = 2,
+    static const int ALIGNMENT_SHIFT = 2;
 #endif
-        ALIGNMENT       = (1<<ALIGNMENT_SHIFT),
-        ALIGNMENT_MASK  = (ALIGNMENT-1)
-    };
+    static const size_t ALIGNMENT = (1 << ALIGNMENT_SHIFT);
+    static const size_t ALIGNMENT_MASK = (ALIGNMENT - 1);
 
 #ifdef _DEBUG 
 
@@ -869,6 +866,16 @@ public:
         return pModule->GetMDImport();
     }
 
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData) const
+    {
+        WRAPPER_NO_CONTRACT;
+        Module *pModule = GetModule();
+        PREFIX_ASSUME(pModule != NULL);
+        return pModule->GetCustomAttribute(GetMemberDef(), attribute, ppData, pcbData);
+    }
+
 #ifndef DACCESS_COMPILE 
     IMetaDataEmit* GetEmitter()
     {
@@ -1245,6 +1252,8 @@ public:
     // Is this method allowed to be recompiled and the entrypoint redirected so that we
     // can optimize its performance? Eligibility is invariant for the lifetime of a method.
     bool DetermineAndSetIsEligibleForTieredCompilation();
+
+    bool IsJitOptimizationDisabled();
 
 private:
     // This function is not intended to be called in most places, and is named as such to discourage calling it accidentally
@@ -1653,18 +1662,17 @@ public:
     MethodDesc *ResolveGenericVirtualMethod(OBJECTREF *orThis);
 
 
+private:
+    ReturnKind ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors = false));
+
 public:
-
-    // does this function return an object reference?
-    MetaSig::RETURNTYPE ReturnsObject(
-#ifdef _DEBUG 
-        bool supportStringConstructors = false,
-#endif
-        MethodTable** pMT = NULL
-        );
-
-
-    void Destruct();
+    // This method is used to restore ReturnKind using the class handle, it is fully supported only on x64 Ubuntu,
+    // other platforms do not support multi-reg return case with pointers. 
+    // Use this method only when you can't hit this case
+    // (like ComPlusMethodFrame::GcScanRoots) or when you can tolerate RT_Illegal return.
+    // Also, on the other platforms for a single field struct return case
+    // the function can't distinguish RT_Object and RT_ByRef.
+    ReturnKind GetReturnKind(INDEBUG(bool supportStringConstructors = false));
 
 public:
     // In general you don't want to call GetCallTarget - you want to
@@ -2058,6 +2066,56 @@ public:
     BOOL ReadyToRunRejectedPrecompiledCode();
     void SetProfilerRejectedPrecompiledCode();
     void SetReadyToRunRejectedPrecompiledCode();
+
+#ifndef CROSSGEN_COMPILE
+    bool JitSwitchedToMinOpt() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToMinOpt;
+    }
+
+    void SetJitSwitchedToMinOpt()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+        m_jitSwitchedToOptimized = false;
+#endif
+        m_jitSwitchedToMinOpt = true;
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+    bool JitSwitchedToOptimized() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToOptimized;
+    }
+
+    void SetJitSwitchedToOptimized()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (!m_jitSwitchedToMinOpt)
+        {
+            m_jitSwitchedToOptimized = true;
+        }
+    }
+#endif
+
+    PrepareCodeConfig *GetNextInSameThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nextInSameThread;
+    }
+
+    void SetNextInSameThread(PrepareCodeConfig *config)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(config == nullptr || m_nextInSameThread == nullptr);
+
+        m_nextInSameThread = config;
+    }
+#endif // !CROSSGEN_COMPILE
     
 protected:
     MethodDesc* m_pMethodDesc;
@@ -2066,6 +2124,15 @@ protected:
     BOOL m_mayUsePrecompiledCode;
     BOOL m_ProfilerRejectedPrecompiledCode;
     BOOL m_ReadyToRunRejectedPrecompiledCode;
+
+#ifndef CROSSGEN_COMPILE
+private:
+    bool m_jitSwitchedToMinOpt; // when it wasn't requested
+#ifdef FEATURE_TIERED_COMPILATION
+    bool m_jitSwitchedToOptimized; // when a different tier was requested
+#endif
+    PrepareCodeConfig *m_nextInSameThread;
+#endif // !CROSSGEN_COMPILE
 };
 
 #ifdef FEATURE_CODE_VERSIONING
@@ -3023,14 +3090,10 @@ public:
     //  Find the entry point name and function address
     //  based on the module and data from NDirectMethodDesc
     //
-    LPVOID FindEntryPoint(HINSTANCE hMod) const;
+    LPVOID FindEntryPoint(NATIVE_LIBRARY_HANDLE hMod) const;
 
 private:
-    FARPROC FindEntryPointWithMangling(HINSTANCE mod, PTR_CUTF8 entryPointName) const;
-
-#ifdef MDA_SUPPORTED    
-    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub);
-#endif // MDA_SUPPORTED
+    FARPROC FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE mod, PTR_CUTF8 entryPointName) const;
 
 public:
 

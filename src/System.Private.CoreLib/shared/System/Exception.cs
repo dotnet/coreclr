@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections;
 using System.Runtime.Serialization;
 
@@ -41,8 +40,8 @@ namespace System
                 throw new ArgumentNullException(nameof(info));
 
             _message = info.GetString("Message"); // Do not rename (binary serialization)
-            _data = (IDictionary)(info.GetValueNoThrow("Data", typeof(IDictionary))); // Do not rename (binary serialization)
-            _innerException = (Exception)(info.GetValue("InnerException", typeof(Exception))); // Do not rename (binary serialization)
+            _data = (IDictionary?)(info.GetValueNoThrow("Data", typeof(IDictionary))); // Do not rename (binary serialization)
+            _innerException = (Exception?)(info.GetValue("InnerException", typeof(Exception))); // Do not rename (binary serialization)
             _helpURL = info.GetString("HelpURL"); // Do not rename (binary serialization)
             _stackTraceString = info.GetString("StackTraceString"); // Do not rename (binary serialization)
             _HResult = info.GetInt32("HResult"); // Do not rename (binary serialization)
@@ -142,14 +141,9 @@ namespace System
 
         public override string ToString()
         {
-            return ToString(true, true);
-        }
-
-        private string ToString(bool needFileLineInfo, bool needMessage)
-        {
             string s = GetClassName();
 
-            string? message = (needMessage ? Message : null);
+            string? message = Message;
             if (!string.IsNullOrEmpty(message))
             {
                 s += ": " + message;
@@ -157,11 +151,11 @@ namespace System
 
             if (_innerException != null)
             {
-                s = s + " ---> " + _innerException.ToString(needFileLineInfo, needMessage) + Environment.NewLine +
+                s = s + " ---> " + _innerException.ToString() + Environment.NewLine +
                 "   " + SR.Exception_EndOfInnerExceptionStack;
             }
 
-            string? stackTrace = GetStackTrace(needFileLineInfo);
+            string? stackTrace = StackTrace;
             if (stackTrace != null)
             {
                 s += Environment.NewLine + stackTrace;

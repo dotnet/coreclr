@@ -7,7 +7,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
@@ -45,7 +44,7 @@ namespace System.Runtime.Loader
 
         private event Action<AssemblyLoadContext> _unloading;
 
-        private readonly string _name;
+        private readonly string? _name;
 
         // Contains the reference to VM's representation of the AssemblyLoadContext
         private readonly IntPtr _nativeAssemblyLoadContext;
@@ -67,11 +66,11 @@ namespace System.Runtime.Loader
         {
         }
 
-        public AssemblyLoadContext(string name, bool isCollectible = false) : this(false, isCollectible, name)
+        public AssemblyLoadContext(string? name, bool isCollectible = false) : this(false, isCollectible, name)
         {
         }
 
-        private protected AssemblyLoadContext(bool representsTPALoadContext, bool isCollectible, string name)
+        private protected AssemblyLoadContext(bool representsTPALoadContext, bool isCollectible, string? name)
         {
             // Initialize the VM side of AssemblyLoadContext if not already done.
             _isCollectible = isCollectible;
@@ -119,7 +118,7 @@ namespace System.Runtime.Loader
         private void RaiseUnloadEvent()
         {
             // Ensure that we raise the Unload event only once
-            Interlocked.Exchange(ref _unloading, null)?.Invoke(this);
+            Interlocked.Exchange(ref _unloading, null!)?.Invoke(this);
         }
 
         private void InitiateUnload()
@@ -153,7 +152,7 @@ namespace System.Runtime.Loader
             {
                 foreach (Assembly a in GetLoadedAssemblies())
                 {
-                    AssemblyLoadContext alc = GetLoadContext(a);
+                    AssemblyLoadContext? alc = GetLoadContext(a);
 
                     if (alc == this)
                     {
@@ -187,7 +186,7 @@ namespace System.Runtime.Loader
         //
         // Inputs: The AssemblyLoadContext and AssemblyName to be loaded
         // Returns: The Loaded assembly object.
-        public event Func<AssemblyLoadContext, AssemblyName, Assembly> Resolving
+        public event Func<AssemblyLoadContext, AssemblyName, Assembly?> Resolving
         {
             add
             {
@@ -228,7 +227,7 @@ namespace System.Runtime.Loader
 
         public bool IsCollectible { get { return _isCollectible;} }
 
-        public string Name { get { return _name;} }
+        public string? Name { get { return _name;} }
 
         public override string ToString() => "\"" + Name + "\" " + GetType().ToString() + " #" + _id;
 
@@ -236,9 +235,9 @@ namespace System.Runtime.Loader
         {
             get
             {
-                AssemblyLoadContext d = AssemblyLoadContext.Default; // Ensure default is initialized
+                _ = AssemblyLoadContext.Default; // Ensure default is initialized
 
-                List<WeakReference<AssemblyLoadContext>> alcList = null;
+                List<WeakReference<AssemblyLoadContext>>? alcList = null;
                 lock (s_allContexts)
                 {
                     // To make this thread safe we need a quick snapshot while locked
@@ -247,7 +246,7 @@ namespace System.Runtime.Loader
 
                 foreach (WeakReference<AssemblyLoadContext> weakAlc in alcList)
                 {
-                    AssemblyLoadContext alc = null;
+                    AssemblyLoadContext? alc = null;
 
                     weakAlc.TryGetTarget(out alc);
 
@@ -273,7 +272,7 @@ namespace System.Runtime.Loader
         // Custom AssemblyLoadContext implementations can override this
         // method to perform custom processing and use one of the protected
         // helpers above to load the assembly.
-        protected virtual Assembly Load(AssemblyName assemblyName)
+        protected virtual Assembly? Load(AssemblyName assemblyName)
         {
             return null;
         }
@@ -311,7 +310,7 @@ namespace System.Runtime.Loader
             }
         }
 
-        public Assembly LoadFromNativeImagePath(string nativeImagePath, string assemblyPath)
+        public Assembly LoadFromNativeImagePath(string nativeImagePath, string? assemblyPath)
         {
             if (nativeImagePath == null)
             {
@@ -341,7 +340,7 @@ namespace System.Runtime.Loader
             return LoadFromStream(assembly, null);
         }
 
-        public Assembly LoadFromStream(Stream assembly, Stream assemblySymbols)
+        public Assembly LoadFromStream(Stream assembly, Stream? assemblySymbols)
         {
             if (assembly == null)
             {
@@ -362,7 +361,7 @@ namespace System.Runtime.Loader
             assembly.Read(arrAssembly, 0, iAssemblyStreamLength);
 
             // Get the symbol stream in byte[] if provided
-            byte[] arrSymbols = null;
+            byte[]? arrSymbols = null;
             if (assemblySymbols != null)
             {
                 var iSymbolLength = (int)assemblySymbols.Length;
@@ -443,7 +442,7 @@ namespace System.Runtime.Loader
             }
         }
 
-        private static AsyncLocal<AssemblyLoadContext> s_asyncLocalCurrent;
+        private static AsyncLocal<AssemblyLoadContext?>? s_asyncLocalCurrent;
 
         /// <summary>Nullable current AssemblyLoadContext used for context sensitive reflection APIs</summary>
         /// <remarks>
@@ -469,18 +468,18 @@ namespace System.Runtime.Loader
         ///
         /// For more details see https://github.com/dotnet/coreclr/blob/master/Documentation/design-docs/AssemblyLoadContext.ContextualReflection.md
         /// </remarks>
-        public static AssemblyLoadContext CurrentContextualReflectionContext
+        public static AssemblyLoadContext? CurrentContextualReflectionContext
         {
             get { return s_asyncLocalCurrent?.Value; }
         }
 
-        private static void SetCurrentContextualReflectionContext(AssemblyLoadContext value)
+        private static void SetCurrentContextualReflectionContext(AssemblyLoadContext? value)
         {
             if (s_asyncLocalCurrent == null)
             {
-                Interlocked.CompareExchange(ref s_asyncLocalCurrent, new AsyncLocal<AssemblyLoadContext>(), null);
+                Interlocked.CompareExchange<AsyncLocal<AssemblyLoadContext?>?>(ref s_asyncLocalCurrent, new AsyncLocal<AssemblyLoadContext?>(), null);
             }
-            s_asyncLocalCurrent.Value = value;
+            s_asyncLocalCurrent!.Value = value; // Remove ! when compiler specially-recognizes CompareExchange for nullability
         }
 
         /// <summary>Enter scope using this AssemblyLoadContext for ContextualReflection</summary>
@@ -507,12 +506,12 @@ namespace System.Runtime.Loader
         /// Returns a disposable ContextualReflectionScope for use in a using block. When the using calls the
         /// Dispose() method, it restores the ContextualReflectionScope to its previous value.
         /// </remarks>
-        public static ContextualReflectionScope EnterContextualReflection(Assembly activating)
+        public static ContextualReflectionScope EnterContextualReflection(Assembly? activating)
         {
             if (activating == null)
                 return new ContextualReflectionScope(null);
 
-            AssemblyLoadContext assemblyLoadContext = GetLoadContext(activating);
+            AssemblyLoadContext? assemblyLoadContext = GetLoadContext(activating);
 
             if (assemblyLoadContext == null)
             {
@@ -533,11 +532,11 @@ namespace System.Runtime.Loader
         [EditorBrowsable(EditorBrowsableState.Never)]
         public struct ContextualReflectionScope : IDisposable
         {
-            private readonly AssemblyLoadContext _activated;
-            private readonly AssemblyLoadContext _predecessor;
+            private readonly AssemblyLoadContext? _activated;
+            private readonly AssemblyLoadContext? _predecessor;
             private readonly bool _initialized;
 
-            internal ContextualReflectionScope(AssemblyLoadContext activating)
+            internal ContextualReflectionScope(AssemblyLoadContext? activating)
             {
                 _predecessor = AssemblyLoadContext.CurrentContextualReflectionContext;
                 AssemblyLoadContext.SetCurrentContextualReflectionContext(activating);
@@ -554,6 +553,43 @@ namespace System.Runtime.Loader
                     AssemblyLoadContext.SetCurrentContextualReflectionContext(_predecessor);
                 }
             }
+        }
+
+        private Assembly? ResolveSatelliteAssembly(AssemblyName assemblyName)
+        {
+            // Called by native runtime when CultureName is not empty
+            Debug.Assert(assemblyName.CultureName?.Length > 0);
+
+            string satelliteSuffix = ".resources";
+
+            if (assemblyName.Name == null || !assemblyName.Name.EndsWith(satelliteSuffix, StringComparison.Ordinal))
+                return null;
+
+            string parentAssemblyName = assemblyName.Name.Substring(0, assemblyName.Name.Length - satelliteSuffix.Length);
+
+            Assembly parentAssembly = LoadFromAssemblyName(new AssemblyName(parentAssemblyName));
+
+            AssemblyLoadContext parentALC = GetLoadContext(parentAssembly)!;
+
+            string parentDirectory = Path.GetDirectoryName(parentAssembly.Location)!;
+
+            string assemblyPath = Path.Combine(parentDirectory, assemblyName.CultureName!, $"{assemblyName.Name}.dll");
+
+            if (Internal.IO.File.InternalExists(assemblyPath))
+            {
+                return parentALC.LoadFromAssemblyPath(assemblyPath);
+            }
+            else if (Path.IsCaseSensitive)
+            {
+                assemblyPath = Path.Combine(parentDirectory, assemblyName.CultureName!.ToLowerInvariant(), $"{assemblyName.Name}.dll");
+
+                if (Internal.IO.File.InternalExists(assemblyPath))
+                {
+                    return parentALC.LoadFromAssemblyPath(assemblyPath);
+                }
+            }
+
+            return null;
         }
     }
 

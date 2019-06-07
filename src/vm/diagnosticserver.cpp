@@ -5,10 +5,17 @@
 #include "common.h"
 #include "diagnosticserver.h"
 #include "eventpipeprotocolhelper.h"
+#include "dumpdiagnosticprotocolhelper.h"
+#include "profilerdiagnosticprotocolhelper.h"
+#include "diagnosticsprotocol.h"
 
 #ifdef FEATURE_PAL
 #include "pal.h"
 #endif // FEATURE_PAL
+
+#ifdef FEATURE_AUTO_TRACE
+#include "autotrace.h"
+#endif
 
 #ifdef FEATURE_PERFTRACING
 
@@ -20,7 +27,7 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(lpThreadParameter != nullptr);
     }
     CONTRACTL_END;
@@ -42,35 +49,49 @@ static DWORD WINAPI DiagnosticsServerThread(LPVOID lpThreadParameter)
         {
             // FIXME: Ideally this would be something like a std::shared_ptr
             IpcStream *pStream = pIpc->Accept(LoggingCallback);
+            
             if (pStream == nullptr)
                 continue;
-
-            // TODO: Read operation should happen in a loop.
-            uint32_t nNumberOfBytesRead = 0;
-            MessageHeader header;
-            bool fSuccess = pStream->Read(&header, sizeof(header), nNumberOfBytesRead);
-            if (!fSuccess || nNumberOfBytesRead != sizeof(header))
+#ifdef FEATURE_AUTO_TRACE
+            auto_trace_signal();
+#endif
+            DiagnosticsIpc::IpcMessage message;
+            if (!message.Initialize(pStream))
             {
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_BAD_ENCODING);
                 delete pStream;
                 continue;
             }
 
-            switch (header.RequestType)
+            if (::strcmp((char *)message.GetHeader().Magic, (char *)DiagnosticsIpc::DotnetIpcMagic_V1.Magic) != 0)
             {
-            case DiagnosticMessageType::EnableEventPipe:
-                EventPipeProtocolHelper::EnableFileTracingEventHandler(pStream);
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_MAGIC);
+                delete pStream;
+                continue;
+            }
+
+            switch ((DiagnosticsIpc::DiagnosticServerCommandSet)message.GetHeader().CommandSet)
+            {
+            case DiagnosticsIpc::DiagnosticServerCommandSet::EventPipe:
+                EventPipeProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
 
-            case DiagnosticMessageType::DisableEventPipe:
-                EventPipeProtocolHelper::DisableFileTracingEventHandler(pStream);
+#ifdef FEATURE_PAL
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Dump:
+                DumpDiagnosticProtocolHelper::HandleIpcMessage(message, pStream);
                 break;
+#endif
 
-            case DiagnosticMessageType::StreamEventPipe:
-                EventPipeProtocolHelper::AttachTracingEventHandler(pStream);
+#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+            case DiagnosticsIpc::DiagnosticServerCommandSet::Profiler:
+                ProfilerDiagnosticProtocolHelper::AttachProfiler(message, pStream);
                 break;
+#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
             default:
-                LOG((LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknow request type (%d)\n", header.RequestType));
+                STRESS_LOG1(LF_DIAGNOSTICS_PORT, LL_WARNING, "Received unknown request type (%d)\n", message.GetHeader().CommandSet);
+                DiagnosticsIpc::IpcMessage::SendErrorMessage(pStream, CORDIAGIPC_E_UNKNOWN_COMMAND);
+                delete pStream;
                 break;
             }
         }
@@ -114,6 +135,10 @@ bool DiagnosticServer::Initialize()
 
         if (s_pIpc != nullptr)
         {
+#ifdef FEATURE_AUTO_TRACE
+            auto_trace_init();
+            auto_trace_launch();
+#endif
             DWORD dwThreadId = 0;
             HANDLE hThread = ::CreateThread( // TODO: Is it correct to have this "lower" level call here?
                 nullptr,                     // no security attribute
@@ -134,6 +159,9 @@ bool DiagnosticServer::Initialize()
             }
             else
             {
+#ifdef FEATURE_AUTO_TRACE
+                auto_trace_wait();
+#endif
                 // FIXME: Maybe hold on to the thread to abort/cleanup at exit?
                 ::CloseHandle(hThread);
 

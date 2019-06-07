@@ -3532,6 +3532,9 @@ struct GenTreeCall final : public GenTree
         return varTypeIsLong(gtType);
 #elif FEATURE_MULTIREG_RET && defined(_TARGET_ARM_)
         return varTypeIsLong(gtType) || (varTypeIsStruct(gtType) && !HasRetBufArg());
+#elif defined(FEATURE_HFA) && defined(_TARGET_ARM64_)
+        // SIMD types are returned in vector regs on ARM64.
+        return (gtType == TYP_STRUCT) && !HasRetBufArg();
 #elif FEATURE_MULTIREG_RET
         return varTypeIsStruct(gtType) && !HasRetBufArg();
 #else
@@ -6516,8 +6519,7 @@ inline bool GenTree::isUsedFromSpillTemp() const
 
 /*****************************************************************************/
 
-// In debug, on some platforms (e.g., when LATE_DISASM is defined), GenTreeIntCon is bigger than GenTreeLclFld.
-const size_t TREE_NODE_SZ_SMALL = max(sizeof(GenTreeIntCon), sizeof(GenTreeLclFld));
+const size_t TREE_NODE_SZ_SMALL = sizeof(GenTreeLclFld);
 const size_t TREE_NODE_SZ_LARGE = sizeof(GenTreeCall);
 
 enum varRefKinds

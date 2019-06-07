@@ -16,6 +16,14 @@ if(NOT CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT CMAKE_SYSTEM_NAME STREQUAL Free
   set(CMAKE_REQUIRED_DEFINITIONS "-D_BSD_SOURCE -D_SVID_SOURCE -D_DEFAULT_SOURCE -D_POSIX_C_SOURCE=200809L")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL Linux AND NOT CLR_CMAKE_PLATFORM_ANDROID)
+  set(CMAKE_RT_LIBS rt)
+elseif(CMAKE_SYSTEM_NAME STREQUAL FreeBSD OR CMAKE_SYSTEM_NAME STREQUAL NetBSD)
+  set(CMAKE_RT_LIBS rt)
+else()
+  set(CMAKE_RT_LIBS "")
+endif()
+
 list(APPEND CMAKE_REQUIRED_DEFINITIONS -D_FILE_OFFSET_BITS=64)
 
 check_include_files(ieeefp.h HAVE_IEEEFP_H)
@@ -45,6 +53,22 @@ endif()
 set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_DL_LIBS})
 
 check_cxx_source_compiles("
+#include <sys/mman.h>
+int main()
+{
+  return VM_FLAGS_SUPERPAGE_SIZE_ANY;
+}
+" HAVE_VM_FLAGS_SUPERPAGE_SIZE_ANY)
+
+check_cxx_source_compiles("
+#include <sys/mman.h>
+int main()
+{
+  return MAP_HUGETLB;
+}
+" HAVE_MAP_HUGETLB)
+
+check_cxx_source_compiles("
 #include <lttng/tracepoint.h>
 int main(int argc, char **argv) {
   return 0;
@@ -53,6 +77,7 @@ int main(int argc, char **argv) {
 set(CMAKE_REQUIRED_LIBRARIES)
 
 check_include_files(sys/sysctl.h HAVE_SYS_SYSCTL_H)
+check_function_exists(sysctlbyname HAVE_SYSCTLBYNAME)
 check_include_files(gnu/lib-names.h HAVE_GNU_LIBNAMES_H)
 
 check_function_exists(kqueue HAVE_KQUEUE)
@@ -77,6 +102,7 @@ check_library_exists(${PTHREAD_LIBRARY} pthread_getattr_np "" HAVE_PTHREAD_GETAT
 check_library_exists(${PTHREAD_LIBRARY} pthread_getcpuclockid "" HAVE_PTHREAD_GETCPUCLOCKID)
 check_library_exists(${PTHREAD_LIBRARY} pthread_sigqueue "" HAVE_PTHREAD_SIGQUEUE)
 check_library_exists(${PTHREAD_LIBRARY} pthread_getaffinity_np "" HAVE_PTHREAD_GETAFFINITY_NP)
+check_library_exists(${PTHREAD_LIBRARY} pthread_attr_setaffinity_np "" HAVE_PTHREAD_ATTR_SETAFFINITY_NP)
 
 check_function_exists(sigreturn HAVE_SIGRETURN)
 check_function_exists(_thread_sys_sigreturn HAVE__THREAD_SYS_SIGRETURN)
@@ -366,6 +392,8 @@ int main()
 
   exit(ret);
 }" HAVE_WORKING_GETTIMEOFDAY)
+
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -379,6 +407,9 @@ int main()
 
   exit(ret);
 }" HAVE_WORKING_CLOCK_GETTIME)
+set(CMAKE_REQUIRED_LIBRARIES)
+
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -392,9 +423,11 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC)
+set(CMAKE_REQUIRED_LIBRARIES)
 
 check_library_exists(${PTHREAD_LIBRARY} pthread_condattr_setclock "" HAVE_PTHREAD_CONDATTR_SETCLOCK)
 
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -408,6 +441,8 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_MONOTONIC_COARSE)
+set(CMAKE_REQUIRED_LIBRARIES)
+
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <mach/mach_time.h>
@@ -420,6 +455,8 @@ int main()
   mach_absolute_time();
   exit(ret);
 }" HAVE_MACH_ABSOLUTE_TIME)
+
+set(CMAKE_REQUIRED_LIBRARIES ${CMAKE_RT_LIBS})
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <time.h>
@@ -433,6 +470,8 @@ int main()
 
   exit(ret);
 }" HAVE_CLOCK_THREAD_CPUTIME)
+set(CMAKE_REQUIRED_LIBRARIES)
+
 check_cxx_source_runs("
 #include <stdlib.h>
 #include <sys/types.h>
@@ -500,9 +539,10 @@ check_cxx_source_runs("
 #include <string.h>
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <algorithm>
 
 #define MEM_SIZE 1024
-
+#define TEMP_FILE_TEMPLATE \"${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeTmp/multiplemaptestXXXXXX\"
 int main(void)
 {
   char * fname;
@@ -510,10 +550,10 @@ int main(void)
   int ret;
   void * pAddr0, * pAddr1;
 
-  fname = (char *)malloc(MEM_SIZE);
+  fname = (char *)malloc(std::max((size_t)MEM_SIZE, sizeof(TEMP_FILE_TEMPLATE)));
   if (!fname)
     exit(1);
-  strcpy(fname, \"/tmp/name/multiplemaptestXXXXXX\");
+  strcpy(fname, TEMP_FILE_TEMPLATE);
 
   fd = mkstemp(fname);
   if (fd < 0)

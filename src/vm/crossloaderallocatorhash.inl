@@ -30,7 +30,7 @@ template <class TKey_, class TValue_>
     }
     else if ((entriesInArrayTotal >= 2) && (pStartOfValuesData[entriesInArrayTotal - 2] == (TValue)0))
     {
-        usedEntries = (DWORD)pStartOfValuesData[entriesInArrayTotal - 1];
+        usedEntries = (DWORD)(SIZE_T)pStartOfValuesData[entriesInArrayTotal - 1];
     }
     else if (pStartOfValuesData[entriesInArrayTotal - 1] == (TValue)0)
     {
@@ -57,7 +57,7 @@ template <class TKey_, class TValue_>
         }
         else
         {
-            pStartOfValuesData[entriesInArrayTotal - 1] = (TValue)(usedEntries);
+            pStartOfValuesData[entriesInArrayTotal - 1] = (TValue)((INT_PTR)usedEntries);
             pStartOfValuesData[entriesInArrayTotal - 2] = (TValue)0;
         }
     }
@@ -80,7 +80,7 @@ template <class TKey_, class TValue_>
 
     if (*pKeyValueStore == NULL)
     {
-        *pKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, IsNull(value) ? sizeof(TKey) : sizeof(TKey) + sizeof(TValue), FALSE);
+        *pKeyValueStore = AllocatePrimitiveArray(ELEMENT_TYPE_I1, IsNull(value) ? sizeof(TKey) : sizeof(TKey) + sizeof(TValue));
         updatedKeyValueStore = true;
         TKey* pKeyLoc = (TKey*)((I1ARRAYREF)*pKeyValueStore)->GetDirectPointerToNonObjectElements();
         *pKeyLoc = key;
@@ -108,7 +108,7 @@ template <class TKey_, class TValue_>
                 COMPlusThrow(kOverflowException);
 
             // Allocate the new array.
-            I1ARRAYREF newKeyValueStore = (I1ARRAYREF)AllocatePrimitiveArray(ELEMENT_TYPE_I1, newSize*sizeof(TValue) + sizeof(TKey), FALSE);
+            I1ARRAYREF newKeyValueStore = (I1ARRAYREF)AllocatePrimitiveArray(ELEMENT_TYPE_I1, newSize*sizeof(TValue) + sizeof(TKey));
 
             // Since, AllocatePrimitiveArray may have triggered a GC, recapture all data pointers from GC objects
             void* pStartOfNewArray = newKeyValueStore->GetDirectPointerToNonObjectElements();
@@ -1099,7 +1099,24 @@ LAHASHDEPENDENTHASHTRACKERREF CrossLoaderAllocatorHash<TRAITS>::GetDependentTrac
         {
             gc.dependentTracker = (LAHASHDEPENDENTHASHTRACKERREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__LAHASHDEPENDENTHASHTRACKER));
             gc.GCHeapHashForKeyToValueStore = (GCHEAPHASHOBJECTREF)AllocateObject(MscorlibBinder::GetExistingClass(CLASS__GCHEAPHASH));
-            OBJECTHANDLE dependentHandle = GetAppDomain()->CreateDependentHandle(pLoaderAllocator->GetExposedObject(), gc.GCHeapHashForKeyToValueStore);
+
+            OBJECTREF exposedObject = pLoaderAllocator->GetExposedObject();
+            if (exposedObject == NULL)
+            {
+                if (m_globalDependentTrackerRootHandle == NULL)
+                {
+                    // Global LoaderAllocator does not have an exposed object, so create a fake one
+                    exposedObject = AllocateObject(MscorlibBinder::GetExistingClass(CLASS__OBJECT));
+                    m_globalDependentTrackerRootHandle = GetAppDomain()->CreateHandle(exposedObject);
+                    m_pLoaderAllocator->RegisterHandleForCleanup(m_globalDependentTrackerRootHandle);
+                }
+                else
+                {
+                    exposedObject = ObjectFromHandle(m_globalDependentTrackerRootHandle);
+                }
+            }
+
+            OBJECTHANDLE dependentHandle = GetAppDomain()->CreateDependentHandle(exposedObject, gc.GCHeapHashForKeyToValueStore);
             gc.dependentTracker->Init(dependentHandle, pLoaderAllocator);
             gc.dependentTrackerHash.Add(&pLoaderAllocator, [&gc](PTRARRAYREF arr, INT32 index)
             {

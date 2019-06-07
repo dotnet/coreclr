@@ -687,18 +687,30 @@ GenTreeStmt* Compiler::impExtractLastStmt()
     return stmt;
 }
 
-/*****************************************************************************
- *
- *  Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore"
- */
-
+//-------------------------------------------------------------------------
+// impInsertStmtBefore: Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore".
+//
+// Arguments:
+//    stmt       - a statement to insert;
+//    stmtBefore - an insertion point to insert "stmt" before.
+//
 inline void Compiler::impInsertStmtBefore(GenTreeStmt* stmt, GenTreeStmt* stmtBefore)
 {
-    GenTreeStmt* stmtPrev = stmtBefore->getPrevStmt();
-    stmt->gtPrev          = stmtPrev;
-    stmt->gtNext          = stmtBefore;
-    stmtPrev->gtNext      = stmt;
-    stmtBefore->gtPrev    = stmt;
+    assert(stmt != nullptr);
+    assert(stmtBefore != nullptr);
+
+    if (stmtBefore == impStmtList)
+    {
+        impStmtList = stmt;
+    }
+    else
+    {
+        GenTreeStmt* stmtPrev = stmtBefore->getPrevStmt();
+        stmt->gtPrev          = stmtPrev;
+        stmtPrev->gtNext      = stmt;
+    }
+    stmt->gtNext       = stmtBefore;
+    stmtBefore->gtPrev = stmt;
 }
 
 /*****************************************************************************
@@ -1217,7 +1229,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                 // If it is a multi-reg struct return, don't change the oper to GT_LCL_FLD.
                 // That is, the IR will be of the form lclVar = call for multi-reg return
                 //
-                GenTree* lcl = destAddr->gtOp.gtOp1;
+                GenTreeLclVar* lcl = destAddr->gtOp.gtOp1->AsLclVar();
                 if (src->AsCall()->HasMultiRegRetVal())
                 {
                     // Mark the struct LclVar as used in a MultiReg return context
@@ -1227,7 +1239,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
                     lcl->gtFlags |= GTF_DONT_CSE;
                     lvaTable[lcl->gtLclVarCommon.gtLclNum].lvIsMultiRegRet = true;
                 }
-                else // The call result is not a multireg return
+                else if (lcl->gtType != src->gtType)
                 {
                     // We change this to a GT_LCL_FLD (from a GT_ADDR of a GT_LCL_VAR)
                     lcl->ChangeOper(GT_LCL_FLD);
@@ -1330,7 +1342,8 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
 
         assert(OFFSETOF__CORINFO_TypedReference__dataPtr == 0);
         assert(destAddr->gtType == TYP_I_IMPL || destAddr->gtType == TYP_BYREF);
-        GetZeroOffsetFieldMap()->Set(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
+        fgAddFieldSeqForZeroOffset(destAddr, GetFieldSeqStore()->CreateSingleton(GetRefanyDataField()));
+
         GenTree*       ptrSlot         = gtNewOperNode(GT_IND, TYP_I_IMPL, destAddr);
         GenTreeIntCon* typeFieldOffset = gtNewIconNode(OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL);
         typeFieldOffset->gtFieldSeq    = GetFieldSeqStore()->CreateSingleton(GetRefanyTypeField());
@@ -1476,7 +1489,19 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
             // for Op2, but that would be out of order with op1, so we need to
             // spill op1 onto the statement list after whatever was last
             // before we recursed on Op2 (i.e. before whatever Op2 appended).
-            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, oldLastStmt->getNextStmt());
+            GenTreeStmt* beforeStmt;
+            if (oldLastStmt == nullptr)
+            {
+                // The op1 stmt should be the first in the list.
+                beforeStmt = impStmtList;
+            }
+            else
+            {
+                // Insert after the oldLastStmt before the first inserted for op2.
+                beforeStmt = oldLastStmt->getNextStmt();
+            }
+
+            impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, beforeStmt);
             structVal->gtOp.gtOp1 = gtNewNothingNode();
         }
 
@@ -1532,7 +1557,7 @@ var_types Compiler::impNormStructType(CORINFO_CLASS_HANDLE structHnd,
 
 #ifdef FEATURE_SIMD
     // Check to see if this is a SIMD type.
-    if (featureSIMD && !mayContainGCPtrs)
+    if (supportSIMDTypes() && !mayContainGCPtrs)
     {
         unsigned originalSize = info.compCompHnd->getClassSize(structHnd);
 
@@ -3475,7 +3500,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
             if ((ni > NI_HW_INTRINSIC_START) && (ni < NI_HW_INTRINSIC_END))
             {
-                GenTree* hwintrinsic = impHWIntrinsic(ni, method, sig, mustExpand);
+                GenTree* hwintrinsic = impHWIntrinsic(ni, clsHnd, method, sig, mustExpand);
 
                 if (mustExpand && (hwintrinsic == nullptr))
                 {
@@ -4322,10 +4347,13 @@ NamedIntrinsic Compiler::lookupNamedIntrinsic(CORINFO_METHOD_HANDLE method)
 #else // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
 #error Unsupported platform
 #endif // !defined(_TARGET_XARCH_) && !defined(_TARGET_ARM64_)
+        else if (strcmp(methodName, "get_IsSupported") == 0)
+        {
+            return NI_IsSupported_False;
+        }
         else
         {
-            assert(strcmp(methodName, "get_IsSupported") == 0);
-            return NI_IsSupported_False;
+            return gtIsRecursiveCall(method) ? NI_Throw_PlatformNotSupportedException : NI_Illegal;
         }
     }
 #endif // FEATURE_HW_INTRINSICS
@@ -9022,13 +9050,16 @@ GenTree* Compiler::impFixupStructReturnType(GenTree* op, CORINFO_CLASS_HANDLE re
             // This LCL_VAR stays as a TYP_STRUCT
             unsigned lclNum = op->gtLclVarCommon.gtLclNum;
 
-            // Make sure this struct type is not struct promoted
-            lvaTable[lclNum].lvIsMultiRegRet = true;
+            if (!lvaIsImplicitByRefLocal(lclNum))
+            {
+                // Make sure this struct type is not struct promoted
+                lvaTable[lclNum].lvIsMultiRegRet = true;
 
-            // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
-            op->gtFlags |= GTF_DONT_CSE;
+                // TODO-1stClassStructs: Handle constant propagation and CSE-ing of multireg returns.
+                op->gtFlags |= GTF_DONT_CSE;
 
-            return op;
+                return op;
+            }
         }
 
         if (op->gtOper == GT_CALL)
@@ -9057,7 +9088,7 @@ REDO_RETURN_NODE:
     {
         // It is possible that we now have a lclVar of scalar type.
         // If so, don't transform it to GT_LCL_FLD.
-        if (varTypeIsStruct(lvaTable[op->AsLclVar()->gtLclNum].lvType))
+        if (lvaTable[op->AsLclVar()->gtLclNum].lvType != info.compRetNativeType)
         {
             op->ChangeOper(GT_LCL_FLD);
         }
@@ -16397,7 +16428,6 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     }
 
                     op2 = tmpOp2;
-
 #ifdef DEBUG
                     if (impInlineInfo->retExpr)
                     {
@@ -16407,6 +16437,45 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                         assert(impInlineInfo->retExpr->gtLclVarCommon.gtLclNum == op2->gtLclVarCommon.gtLclNum);
                     }
 #endif
+                }
+
+                // If we are inlining a method that returns a struct byref, check whether we are "reinterpreting" the
+                // struct.
+                GenTree* effectiveRetVal = op2->gtEffectiveVal();
+                if ((returnType == TYP_BYREF) && (info.compRetType == TYP_BYREF) &&
+                    (effectiveRetVal->OperGet() == GT_ADDR))
+                {
+                    GenTree* addrChild = effectiveRetVal->gtGetOp1();
+                    if (addrChild->OperGet() == GT_LCL_VAR)
+                    {
+                        LclVarDsc* varDsc = lvaGetDesc(addrChild->AsLclVarCommon());
+
+                        if (varTypeIsStruct(addrChild->TypeGet()) && !isOpaqueSIMDLclVar(varDsc))
+                        {
+                            CORINFO_CLASS_HANDLE referentClassHandle;
+                            CorInfoType          referentType =
+                                info.compCompHnd->getChildType(info.compMethodInfo->args.retTypeClass,
+                                                               &referentClassHandle);
+                            if (varTypeIsStruct(JITtype2varType(referentType)) &&
+                                (varDsc->lvVerTypeInfo.GetClassHandle() != referentClassHandle))
+                            {
+                                // We are returning a byref to struct1; the method signature specifies return type as
+                                // byref
+                                // to struct2. struct1 and struct2 are different so we are "reinterpreting" the struct.
+                                // This may happen in, for example, System.Runtime.CompilerServices.Unsafe.As<TFrom,
+                                // TTo>.
+                                // We need to mark the source struct variable as having overlapping fields because its
+                                // fields may be accessed using field handles of a different type, which may confuse
+                                // optimizations, in particular, value numbering.
+
+                                JITDUMP("\nSetting lvOverlappingFields to true on V%02u because of struct "
+                                        "reinterpretation\n",
+                                        addrChild->AsLclVarCommon()->gtLclNum);
+
+                                varDsc->lvOverlappingFields = true;
+                            }
+                        }
+                    }
                 }
 
 #ifdef DEBUG
@@ -18929,22 +18998,28 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         var_types type = (var_types)eeGetArgType(localsSig, &methInfo->locals, &isPinned);
 
         lclVarInfo[i + argCnt].lclHasLdlocaOp = false;
-        lclVarInfo[i + argCnt].lclIsPinned    = isPinned;
         lclVarInfo[i + argCnt].lclTypeInfo    = type;
 
         if (varTypeIsGC(type))
         {
+            if (isPinned)
+            {
+                JITDUMP("Inlinee local #%02u is pinned\n", i);
+                lclVarInfo[i + argCnt].lclIsPinned = true;
+
+                // Pinned locals may cause inlines to fail.
+                inlineResult->Note(InlineObservation::CALLEE_HAS_PINNED_LOCALS);
+                if (inlineResult->IsFailure())
+                {
+                    return;
+                }
+            }
+
             pInlineInfo->numberOfGcRefLocals++;
         }
-
-        if (isPinned)
+        else if (isPinned)
         {
-            // Pinned locals may cause inlines to fail.
-            inlineResult->Note(InlineObservation::CALLEE_HAS_PINNED_LOCALS);
-            if (inlineResult->IsFailure())
-            {
-                return;
-            }
+            JITDUMP("Ignoring pin on inlinee local #%02u -- not a GC type\n", i);
         }
 
         lclVarInfo[i + argCnt].lclVerTypeInfo = verParseArgSigToTypeInfo(&methInfo->locals, localsSig);
@@ -18983,7 +19058,7 @@ void Compiler::impInlineInitVars(InlineInfo* pInlineInfo)
         if ((!foundSIMDType || (type == TYP_STRUCT)) && isSIMDorHWSIMDClass(&(lclVarInfo[i + argCnt].lclVerTypeInfo)))
         {
             foundSIMDType = true;
-            if (featureSIMD && type == TYP_STRUCT)
+            if (supportSIMDTypes() && type == TYP_STRUCT)
             {
                 var_types structType = impNormStructType(lclVarInfo[i + argCnt].lclVerTypeInfo.GetClassHandle());
                 lclVarInfo[i + argCnt].lclTypeInfo = structType;

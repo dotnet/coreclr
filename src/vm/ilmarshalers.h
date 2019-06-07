@@ -583,9 +583,7 @@ public:
         bool byrefNativeReturn = false;
         CorElementType typ = ELEMENT_TYPE_VOID;
         UINT32 nativeSize = 0;
-        bool nativeMethodIsMemberFunction = (m_pslNDirect->TargetHasThis() && IsCLRToNative(m_dwMarshalFlags))
-            || (m_pslNDirect->HasThis() && !IsCLRToNative(m_dwMarshalFlags))
-            || ((CorInfoCallConv)m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL);
+        bool nativeMethodIsMemberFunction = (CorInfoCallConv)m_pslNDirect->GetStubTargetCallingConv() == CORINFO_CALLCONV_THISCALL;
             
         // we need to convert value type return types to primitives as
         // JIT does not inline P/Invoke calls that return structures
@@ -1822,27 +1820,6 @@ protected:
     virtual BinderFieldID GetStructureFieldID() {LIMITED_METHOD_CONTRACT; return (BinderFieldID)0;}
     virtual BinderFieldID GetObjectFieldID() = 0;
     virtual BinderClassID GetManagedTypeBinderID() = 0;
-};
-
-class ILIRuntimeMethodInfoMarshaler : public ILReflectionObjectMarshaler
-{
-protected:
-    virtual BinderFieldID GetObjectFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__STUBMETHODINFO__HANDLE; }
-    virtual BinderClassID GetManagedTypeBinderID() { LIMITED_METHOD_CONTRACT; return CLASS__STUBMETHODINFO; }
-};
-
-class ILRuntimeModuleMarshaler : public ILReflectionObjectMarshaler
-{
-protected:
-    virtual BinderFieldID GetObjectFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__MODULE__DATA; }
-    virtual BinderClassID GetManagedTypeBinderID() { LIMITED_METHOD_CONTRACT; return CLASS__MODULE; }
-};
-
-class ILRuntimeAssemblyMarshaler : public ILReflectionObjectMarshaler
-{
-protected:
-    virtual BinderFieldID GetObjectFieldID() { LIMITED_METHOD_CONTRACT; return FIELD__ASSEMBLY__HANDLE; }
-    virtual BinderClassID GetManagedTypeBinderID() { LIMITED_METHOD_CONTRACT; return CLASS__ASSEMBLY; }
 };
 
 class ILRuntimeTypeHandleMarshaler : public ILReflectionObjectMarshaler

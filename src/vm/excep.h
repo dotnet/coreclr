@@ -566,12 +566,8 @@ void VerifyValidTransitionFromManagedCode(Thread *pThread, CrawlFrame *pCF);
 // This is a workaround designed to allow the use of the StubLinker object at bootup
 // time where the EE isn't sufficient awake to create COM+ exception objects.
 // Instead, COMPlusThrow(rexcep) does a simple RaiseException using this code.
-// Or use COMPlusThrowBoot() to explicitly do so.
 //==========================================================================
 #define BOOTUP_EXCEPTION_COMPLUS  0xC0020001
-
-void COMPlusThrowBoot(HRESULT hr);
-
 
 //==========================================================================
 // Used by the classloader to record a managed exception object to explain
@@ -579,7 +575,7 @@ void COMPlusThrowBoot(HRESULT hr);
 //
 // - Can be called with gc enabled or disabled.
 //   This allows a catch-all error path to post a generic catchall error
-//   message w/out bonking more specific error messages posted by inner functions.
+//   message w/out overwriting more specific error messages posted by inner functions.
 //==========================================================================
 VOID DECLSPEC_NORETURN ThrowTypeLoadException(LPCUTF8 pNameSpace, LPCUTF8 pTypeName,
                            LPCWSTR pAssemblyName, LPCUTF8 pMessageArg,

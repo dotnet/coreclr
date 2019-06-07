@@ -7845,13 +7845,10 @@ STDAPI OutOfProcessExceptionEventSignatureCallback(__in PDWORD pContext,
     }
     EX_CATCH_HRESULT(hr);
 
-#ifndef FEATURE_WINDOWSPHONE
-    // we can't assert this on phone as it's possible for the OS to kill
+    // it's possible for the OS to kill
     // the faulting process before WER crash reporting has completed.
-    _ASSERTE(hr == S_OK);
-#else
     _ASSERTE(hr == S_OK || hr == CORDBG_E_READVIRTUAL_FAILURE);
-#endif
+
     if (hr != S_OK)
     {
         // S_FALSE means either it is not a managed exception or we do not have Watson buckets.
@@ -8472,7 +8469,6 @@ StackWalkAction DacStackReferenceWalker::Callback(CrawlFrame *pCF, VOID *pData)
 
     MethodDesc *pMD = pCF->GetFunction();
     gcctx->sc->pMD = pMD;
-    gcctx->sc->pCurrentDomain = pCF->GetAppDomain();
 
     PREGDISPLAY pRD = pCF->GetRegisterSet();
     dsc->sp = (TADDR)GetRegdisplaySP(pRD);;

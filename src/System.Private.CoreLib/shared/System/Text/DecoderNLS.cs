@@ -36,13 +36,6 @@ namespace System.Text
             this.Reset();
         }
 
-        // This is used by our child deserializers
-        internal DecoderNLS()
-        {
-            _encoding = null;
-            this.Reset();
-        }
-
         public override void Reset()
         {
             ClearLeftoverData();
@@ -90,6 +83,7 @@ namespace System.Text
             _throwOnOverflow = true;
 
             // By default just call the encoding version, no flush by default
+            Debug.Assert(_encoding != null);
             return _encoding.GetCharCount(bytes, count, this);
         }
 
@@ -146,6 +140,7 @@ namespace System.Text
             _throwOnOverflow = true;
 
             // By default just call the encodings version
+            Debug.Assert(_encoding != null);
             return _encoding.GetChars(bytes, byteCount, chars, charCount, this);
         }
 
@@ -208,6 +203,7 @@ namespace System.Text
             _bytesUsed = 0;
 
             // Do conversion
+            Debug.Assert(_encoding != null);
             charsUsed = _encoding.GetChars(bytes, byteCount, chars, charCount, this);
             bytesUsed = _bytesUsed;
 
@@ -275,6 +271,7 @@ namespace System.Text
             combinedBuffer = combinedBuffer.Slice(0, ConcatInto(GetLeftoverData(), bytes, combinedBuffer));
             int charCount = 0;
 
+            Debug.Assert(_encoding != null);
             switch (_encoding.DecodeFirstRune(combinedBuffer, out Rune value, out int combinedBufferBytesConsumed))
             {
                 case OperationStatus.Done:
@@ -303,7 +300,7 @@ namespace System.Text
 
             if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: 0))
             {
-                charCount = _fallbackBuffer.DrainRemainingDataForGetCharCount();
+                charCount = _fallbackBuffer!.DrainRemainingDataForGetCharCount();
                 Debug.Assert(charCount >= 0, "Fallback buffer shouldn't have returned a negative char count.");
             }
 
@@ -331,6 +328,7 @@ namespace System.Text
 
             bool persistNewCombinedBuffer = false;
 
+            Debug.Assert(_encoding != null);
             switch (_encoding.DecodeFirstRune(combinedBuffer, out Rune value, out int combinedBufferBytesConsumed))
             {
                 case OperationStatus.Done:
@@ -365,7 +363,7 @@ namespace System.Text
             // Couldn't decode the buffer. Fallback the buffer instead.
 
             if (FallbackBuffer.Fallback(combinedBuffer.Slice(0, combinedBufferBytesConsumed).ToArray(), index: 0)
-                && !_fallbackBuffer.TryDrainRemainingDataForGetChars(chars, out charsWritten))
+                && !_fallbackBuffer!.TryDrainRemainingDataForGetChars(chars, out charsWritten))
             {
                 goto DestinationTooSmall;
             }
@@ -400,7 +398,7 @@ namespace System.Text
             // opportunity for any code before us to make forward progress, so we must fail immediately.
 
             _encoding.ThrowCharsOverflow(this, nothingDecoded: true);
-            throw null; // will never reach this point
+            throw null!; // will never reach this point
         }
 
         /// <summary>

@@ -545,70 +545,6 @@ void NPrintToStdErrW(const WCHAR *pwzString, size_t nchars)
 }
 //----------------------------------------------------------------------------
 
-
-
-
-
-//+--------------------------------------------------------------------------
-//
-//  Function:   VMDebugOutputA( . . . . )
-//              VMDebugOutputW( . . . . )
-//  
-//  Synopsis:   Output a message formatted in printf fashion to the debugger.
-//              ANSI and wide character versions are both provided.  Only 
-//              present in debug builds (i.e. when _DEBUG is defined).
-//
-//  Arguments:  [format]     ---   ANSI or Wide character format string
-//                                 in printf/OutputDebugString-style format.
-// 
-//              [ ... ]      ---   Variable length argument list compatible
-//                                 with the format string.
-//
-//  Returns:    Nothing.
-// 
-//  Notes:      Has internal static sized character buffer of 
-//              width specified by the preprocessor constant DEBUGOUT_BUFSIZE.
-//
-//---------------------------------------------------------------------------
-#ifdef _DEBUG
-
-#define DEBUGOUT_BUFSIZE 1024
-
-void __cdecl VMDebugOutputA(__in LPSTR format, ...)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-
-    va_list     argPtr;
-    va_start(argPtr, format);
-
-    char szBuffer[DEBUGOUT_BUFSIZE];
-
-    if(vsprintf_s(szBuffer, DEBUGOUT_BUFSIZE-1, format, argPtr) > 0)
-        OutputDebugStringA(szBuffer);
-    va_end(argPtr);
-}
-
-void __cdecl VMDebugOutputW(__in LPWSTR format, ...)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_DEBUG_ONLY;
-
-    va_list     argPtr;
-    va_start(argPtr, format);
-    
-    WCHAR wszBuffer[DEBUGOUT_BUFSIZE];
-
-    if(vswprintf_s(wszBuffer, DEBUGOUT_BUFSIZE-2, format, argPtr) > 0)
-        WszOutputDebugString(wszBuffer);
-    va_end(argPtr);
-}
-
-#endif   // #ifdef DACCESS_COMPILE
-
 //*****************************************************************************
 // Compare VarLoc's
 //*****************************************************************************
@@ -1254,152 +1190,9 @@ HRESULT VMPostError(                    // Returned error.
 }
 
 #ifndef CROSSGEN_COMPILE
-void VMDumpCOMErrors(HRESULT hrErr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(FAILED(hrErr));
-    }
-    CONTRACTL_END;
-
-    SafeComHolderPreemp<IErrorInfo> pIErr(NULL);// Error interface.
-    BSTRHolder bstrDesc(NULL);                  // Description text.
-
-    // Try to get an error info object and display the message.
-    if (SafeGetErrorInfo(&pIErr) == S_OK && pIErr->GetDescription(&bstrDesc) == S_OK)
-    {
-        EEMessageBoxCatastrophic(IDS_EE_GENERIC, IDS_FATAL_ERROR, (BSTR)bstrDesc);
-    }
-    else
-    {
-        // Just give out the failed hr return code.
-        EEMessageBoxCatastrophic(IDS_COMPLUS_ERROR, IDS_FATAL_ERROR, hrErr);
-    }
-}
 
 //-----------------------------------------------------------------------------
 #ifndef FEATURE_PAL
-
-// Wrap registry functions to use CQuickWSTR to allocate space. This does it
-// in a stack friendly manner.
-//-----------------------------------------------------------------------------
-LONG UtilRegEnumKey(HKEY hKey,            // handle to key to query
-                    DWORD dwIndex,        // index of subkey to query
-                    CQuickWSTR* lpName) // buffer for subkey name
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        INJECT_FAULT(return ERROR_NOT_ENOUGH_MEMORY;);
-    }
-    CONTRACTL_END;
-
-    DWORD size = (DWORD)lpName->MaxSize();
-    LONG result = WszRegEnumKeyEx(hKey,
-                                  dwIndex,
-                                  lpName->Ptr(),
-                                  &size,
-                                  NULL,
-                                  NULL,
-                                  NULL,
-                                  NULL);
-
-    if (result == ERROR_SUCCESS || result == ERROR_MORE_DATA) {
-
-        // Grow or shrink buffer to correct size
-        if (lpName->ReSizeNoThrow(size+1) != NOERROR)
-            result = ERROR_NOT_ENOUGH_MEMORY;
-
-        if (result == ERROR_MORE_DATA) {
-            size = (DWORD)lpName->MaxSize();
-            result = WszRegEnumKeyEx(hKey,
-                                     dwIndex,
-                                     lpName->Ptr(),
-                                     &size,
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     NULL);
-        }
-    }
-
-    return result;
-}
-
-LONG UtilRegQueryStringValueEx(HKEY hKey,           // handle to key to query
-                               LPCWSTR lpValueName, // address of name of value to query
-                               LPDWORD lpReserved,  // reserved
-                               LPDWORD lpType,      // address of buffer for value type
-                               CQuickWSTR* lpData)// data buffer
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        INJECT_FAULT(return ERROR_NOT_ENOUGH_MEMORY;);
-    }
-    CONTRACTL_END;
-
-    DWORD size = (DWORD)lpData->MaxSize();
-    LONG result = WszRegQueryValueEx(hKey,
-                                     lpValueName,
-                                     lpReserved,
-                                     lpType,
-                                     (LPBYTE) lpData->Ptr(),
-                                     &size);
-
-    if (result == ERROR_SUCCESS || result == ERROR_MORE_DATA) {
-
-        // Grow or shrink buffer to correct size
-        if (lpData->ReSizeNoThrow(size+1) != NOERROR)
-            result = ERROR_NOT_ENOUGH_MEMORY;
-
-        if (result == ERROR_MORE_DATA) {
-            size = (DWORD)lpData->MaxSize();
-            result = WszRegQueryValueEx(hKey,
-                                        lpValueName,
-                                        lpReserved,
-                                        lpType,
-                                        (LPBYTE) lpData->Ptr(),
-                                        &size);
-        }
-    }
-    
-    return result;
-}
-
-BOOL ReportEventCLR(
-     WORD       wType,
-     WORD       wCategory,
-     DWORD      dwEventID,
-     PSID       lpUserSid,
-     SString  * message)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    GCX_PREEMP();
-
-    SString buff;
-    buff.Printf(W(".NET Runtime version %s - %s"), VER_FILEVERSION_STR_L, message->GetUnicode());
-
-    DWORD dwRetVal = ClrReportEvent(W(".NET Runtime"),
-                        wType,          // event type 
-                        wCategory,      // category
-                        dwEventID,      // event identifier 
-                        lpUserSid,      // user security identifier
-                        buff.GetUnicode()); // one substitution string 
-
-    // Return BOOLEAN based upon return code
-    return (dwRetVal == ERROR_SUCCESS)?TRUE:FALSE;
-}
 
 // This function checks to see if GetLogicalProcessorInformation API is supported. 
 // On success, this function allocates a SLPI array, sets nEntries to number 
@@ -2055,11 +1848,6 @@ HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName)
 }
 #endif // !FEATURE_PAL
 
-LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes);
-BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem);
-void ShutdownRuntimeWithoutExiting(int exitCode);
-BOOL IsRuntimeStarted(DWORD *pdwStartupFlags);
-
 void *GetCLRFunction(LPCSTR FunctionName)
 {
 
@@ -2068,23 +1856,7 @@ void *GetCLRFunction(LPCSTR FunctionName)
 
     LIMITED_METHOD_CONTRACT;
 
-    if (strcmp(FunctionName, "EEHeapAllocInProcessHeap") == 0)
     {
-        func = (void*)EEHeapAllocInProcessHeap;
-    }
-    else if (strcmp(FunctionName, "EEHeapFreeInProcessHeap") == 0)
-    {
-        func = (void*)EEHeapFreeInProcessHeap;
-    }
-    else if (strcmp(FunctionName, "ShutdownRuntimeWithoutExiting") == 0)
-    {
-        func = (void*)ShutdownRuntimeWithoutExiting;
-    }
-    else if (strcmp(FunctionName, "IsRuntimeStarted") == 0)
-    {
-        func = (void*)IsRuntimeStarted;
-    }
-    else {
         _ASSERTE ("Unknown function name");
         func = NULL;
     }
@@ -2096,7 +1868,7 @@ void *GetCLRFunction(LPCSTR FunctionName)
 #endif // CROSSGEN_COMPILE
 
 LPVOID
-CLRMapViewOfFileEx(
+CLRMapViewOfFile(
     IN HANDLE hFileMappingObject,
     IN DWORD dwDesiredAccess,
     IN DWORD dwFileOffsetHigh,
@@ -2155,20 +1927,6 @@ CLRMapViewOfFileEx(
 
     return pv;
 }
-
-LPVOID
-CLRMapViewOfFile(
-    IN HANDLE hFileMappingObject,
-    IN DWORD dwDesiredAccess,
-    IN DWORD dwFileOffsetHigh,
-    IN DWORD dwFileOffsetLow,
-    IN SIZE_T dwNumberOfBytesToMap
-    )
-{
-    WRAPPER_NO_CONTRACT;
-    return CLRMapViewOfFileEx(hFileMappingObject,dwDesiredAccess,dwFileOffsetHigh,dwFileOffsetLow,dwNumberOfBytesToMap,NULL);
-}
-
 
 BOOL
 CLRUnmapViewOfFile(
@@ -2281,17 +2039,6 @@ BOOL CLRFreeLibrary(HMODULE hModule)
     STATIC_CONTRACT_FORBID_FAULT;
 
     return FreeLibrary(hModule);
-}
-
-VOID CLRFreeLibraryAndExitThread(HMODULE hModule,DWORD dwExitCode)
-{
-    // Don't use dynamic contract: will override GetLastError value
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_FORBID_FAULT;
-
-    // This is no-return
-    FreeLibraryAndExitThread(hModule,dwExitCode);
 }
 
 #endif // CROSSGEN_COMPILE
@@ -3074,126 +2821,6 @@ BOOL DACNotify::ParseExceptionCatcherEnterNotification(TADDR Args[], TADDR& Meth
     return TRUE;
 }
 
-
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-
-
-#if defined(_DEBUG) && !defined(FEATURE_PAL)
-
-typedef USHORT
-(__stdcall *PFNRtlCaptureStackBackTrace)(
-    IN ULONG FramesToSkip,
-    IN ULONG FramesToCapture,
-    OUT PVOID * BackTrace,
-    OUT PULONG BackTraceHash);
-
-static PFNRtlCaptureStackBackTrace s_RtlCaptureStackBackTrace = NULL;
-
-WORD UtilCaptureStackBackTrace(
-    ULONG FramesToSkip,
-    ULONG FramesToCapture,
-    PVOID * BackTrace,
-    OUT PULONG BackTraceHash)
-{
-    WRAPPER_NO_CONTRACT;
-
-#ifdef _DEBUG
-    Thread* t = GetThread();
-    if (t != NULL) {
-        // the thread should not have a hijack set up or we can't walk the stack. 
-        _ASSERTE(!(t->m_State & Thread::TS_Hijacked));    
-    }
-#endif
-
-    if(!s_RtlCaptureStackBackTrace)
-    {
-        // Don't need to worry about race conditions here since it will be the same value
-        HMODULE hModNtdll = GetModuleHandleA("ntdll.dll");
-        s_RtlCaptureStackBackTrace = reinterpret_cast<PFNRtlCaptureStackBackTrace>(
-            GetProcAddress(hModNtdll, "RtlCaptureStackBackTrace"));
-    }
-    if (!s_RtlCaptureStackBackTrace) {
-        return 0;
-    }
-    ULONG hash;
-    if (BackTraceHash == NULL) {
-        BackTraceHash = &hash;
-    }
-    return s_RtlCaptureStackBackTrace(FramesToSkip, FramesToCapture, BackTrace, BackTraceHash);
-}
-
-#endif // #if _DEBUG && !FEATURE_PAL
-
-
-#ifdef _DEBUG
-DisableDelayLoadCheckForOleaut32::DisableDelayLoadCheckForOleaut32()
-{
-    GetThread()->SetThreadStateNC(Thread::TSNC_DisableOleaut32Check);
-}
-
-DisableDelayLoadCheckForOleaut32::~DisableDelayLoadCheckForOleaut32()
-{
-    GetThread()->ResetThreadStateNC(Thread::TSNC_DisableOleaut32Check);
-}
-
-BOOL DelayLoadOleaut32CheckDisabled()
-{
-    Thread *pThread = GetThread();
-    if (pThread && pThread->HasThreadStateNC(Thread::TSNC_DisableOleaut32Check))
-    {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-#endif
-
-BOOL EnableARM()
-{
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    CONTRACTL
-    {
-        NOTHROW;
-        // TODO: this should really be GC_TRIGGERS so we wouldn't need the 
-        // CONTRACT_VIOLATION below but the hosting API that calls this
-        // can be called on a COOP thread and it has a GC_NOTRIGGER contract. 
-        // We should use the AD unload thread to call this function on.
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    BOOL fARMEnabled = g_fEnableARM;
-
-    if (!fARMEnabled)
-    {
-        if (ThreadStore::s_pThreadStore)
-        {
-            // We need to establish the baselines for the CPU usage counting.
-            Thread *pThread = NULL;
-            CONTRACT_VIOLATION(GCViolation);
-
-            // Take the thread store lock while we enumerate threads.
-            ThreadStoreLockHolder tsl ;
-
-            while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
-            {
-                if (pThread->IsUnstarted() || pThread->IsDead())
-                    continue;
-                pThread->QueryThreadProcessorUsage();
-            }
-        }
-        g_fEnableARM = TRUE;
-    }
-
-    return fARMEnabled;
-#else // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    return FALSE;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-}
-
-#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
-
-
 static BOOL TrustMeIAmSafe(void *pLock) 
 {
     LIMITED_METHOD_CONTRACT;
@@ -3202,10 +2829,8 @@ static BOOL TrustMeIAmSafe(void *pLock)
 
 LockOwner g_lockTrustMeIAmThreadSafe = { NULL, TrustMeIAmSafe };
 
-
-DangerousNonHostedSpinLock g_randomLock;
-CLRRandom g_random;
-
+static DangerousNonHostedSpinLock g_randomLock;
+static CLRRandom g_random;
 
 int GetRandomInt(int maxVal)
 {
@@ -3250,179 +2875,6 @@ int __cdecl stricmpUTF8(const char* szStr1, const char* szStr2)
 }
 
 #ifndef DACCESS_COMPILE
-//
-// Casing Table Helpers for use in the EE.
-//
-
-// // Convert szIn to lower case in the Invariant locale.
-INT32 InternalCasingHelper::InvariantToLower(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-    } CONTRACTL_END
-
-    return InvariantToLowerHelper(szOut, cMaxBytes, szIn, TRUE /*fAllowThrow*/);
-}
-
-// Convert szIn to lower case in the Invariant locale.
-INT32 InternalCasingHelper::InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        INJECT_FAULT(return 0;);
-    } CONTRACTL_END
-
-
-    return InvariantToLowerHelper(szOut, cMaxBytes, szIn, FALSE /*fAllowThrow*/);
-}
-
-// Convert szIn to lower case in the Invariant locale.
-INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn, BOOL fAllowThrow)
-{
-
-    CONTRACTL {
-        // This fcn can trigger a lazy load of the TextInfo class.
-        if (fAllowThrow) THROWS; else NOTHROW;
-        if (fAllowThrow) GC_TRIGGERS; else GC_NOTRIGGER;
-        if (fAllowThrow) {INJECT_FAULT(COMPlusThrowOM());} else {INJECT_FAULT(return 0);}
-        MODE_ANY;
-
-        PRECONDITION((cMaxBytes == 0) || CheckPointer(szOut));
-        PRECONDITION(CheckPointer(szIn));
-    } CONTRACTL_END
-
-    int inLength = (int)(strlen(szIn)+1);
-    INT32 result = 0;
-
-    LPCUTF8 szInSave = szIn;
-    LPUTF8 szOutSave = szOut;
-    BOOL bFoundHighChars=FALSE;
-    //Compute our end point.
-    LPCUTF8 szEnd;
-    INT32 wideCopyLen;
-
-    CQuickBytes qbOut;
-    LPWSTR szWideOut;
-
-    if (cMaxBytes != 0 && szOut == NULL) {
-        if (fAllowThrow) {
-            COMPlusThrowHR(ERROR_INVALID_PARAMETER);
-        }
-        SetLastError(ERROR_INVALID_PARAMETER);
-        result = 0;
-        goto Exit;
-    }
-
-    if (cMaxBytes) {
-        szEnd = szOut + min(inLength, cMaxBytes);
-        //Walk the string copying the characters.  Change the case on
-        //any character between A-Z.
-        for (; szOut<szEnd; szOut++, szIn++) {
-            if (*szIn>='A' && *szIn<='Z') {
-                *szOut = *szIn | 0x20;
-            }
-            else {
-                if (((UINT32)(*szIn))>((UINT32)0x80)) {
-                    bFoundHighChars = TRUE;
-                    break;
-                }
-                *szOut = *szIn;
-            }
-        }
-
-        if (!bFoundHighChars) {
-            //If we copied everything, tell them how many bytes we copied,
-            //and arrange it so that the original position of the string + the returned
-            //length gives us the position of the null (useful if we're appending).
-            if (--inLength > cMaxBytes) {
-                if (fAllowThrow) {
-                    COMPlusThrowHR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
-                }
-                SetLastError(ERROR_INSUFFICIENT_BUFFER);
-                result = 0;
-                goto Exit;
-            }
-
-            result = inLength;
-            goto Exit;
-        }
-    }
-    else {
-        szEnd = szIn + inLength;
-        for (; szIn<szEnd; szIn++) {
-            if (((UINT32)(*szIn))>((UINT32)0x80)) {
-                bFoundHighChars = TRUE;
-                break;
-            }
-        }
-
-        if (!bFoundHighChars) {
-            result = inLength;
-            goto Exit;
-        }
-    }
-
-    szOut = szOutSave;
-
-#ifndef FEATURE_PAL
-   
-    //convert the UTF8 to Unicode
-    //MAKE_WIDEPTR_FROMUTF8(szInWide, szInSave);
-
-    int __lszInWide;
-    LPWSTR szInWide;
-    __lszInWide = WszMultiByteToWideChar(CP_UTF8, 0, szInSave, -1, 0, 0);
-    if (__lszInWide > MAKE_MAX_LENGTH)
-         RaiseException(EXCEPTION_INT_OVERFLOW, EXCEPTION_NONCONTINUABLE, 0, 0);
-    szInWide = (LPWSTR) alloca(__lszInWide*sizeof(WCHAR));
-    if (szInWide == NULL) {
-        if (fAllowThrow) {
-            COMPlusThrowOM();
-        } else {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            result = 0;
-            goto Exit;
-        }
-    }
-    if (0==WszMultiByteToWideChar(CP_UTF8, 0, szInSave, -1, szInWide, __lszInWide)) {
-        RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
-    }
-
-
-    wideCopyLen = (INT32)wcslen(szInWide)+1;
-    if (fAllowThrow) {
-        szWideOut = (LPWSTR)qbOut.AllocThrows(wideCopyLen * sizeof(WCHAR));
-    }
-    else {
-        szWideOut = (LPWSTR)qbOut.AllocNoThrow(wideCopyLen * sizeof(WCHAR));
-        if (!szWideOut) {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            result = 0;
-            goto Exit;
-        }
-    }
-
-    //Do the casing operation
-    ::LCMapStringEx(W(""), LCMAP_LOWERCASE, szInWide, wideCopyLen, szWideOut, wideCopyLen, NULL, NULL, 0);
-
-    //Convert the Unicode back to UTF8
-    result = WszWideCharToMultiByte(CP_UTF8, 0, szWideOut, wideCopyLen, szOut, cMaxBytes, NULL, NULL);
-
-    if ((result == 0) && fAllowThrow) {
-        COMPlusThrowWin32();
-    }
-
-#endif // !FEATURE_PAL
-    
-Exit:
-    return result;
-}
-
 //
 //
 // COMCharacter and Helper functions

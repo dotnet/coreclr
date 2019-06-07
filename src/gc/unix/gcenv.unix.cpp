@@ -48,6 +48,14 @@
 # endif
 #endif
 
+#if HAVE_PTHREAD_NP_H
+#include <pthread_np.h>
+#endif
+
+#if HAVE_CPUSET_T
+typedef cpuset_t cpu_set_t;
+#endif
+
 #include <time.h> // nanosleep
 #include <sched.h> // sched_yield
 #include <errno.h>
@@ -88,8 +96,8 @@ FOR_ALL_NUMA_FUNCTIONS
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_ONLN
 #endif
 
-// The cached number of logical CPUs observed.
-static uint32_t g_logicalCpuCount = 0;
+// The cached total number of CPUs that can be used in the OS.
+static uint32_t g_totalCpuCount = 0;
 
 // The cached number of CPUs available for the current process.
 static uint32_t g_currentProcessCpuCount = 0;
@@ -135,10 +143,6 @@ static size_t g_RestrictedPhysicalMemoryLimit = 0;
 uint32_t g_pageSizeUnixInl = 0;
 
 AffinitySet g_processAffinitySet;
-
-#if HAVE_CPUSET_T
-typedef cpuset_t cpu_set_t;
-#endif
 
 // The highest NUMA node available
 int g_highestNumaNode = 0;
@@ -220,7 +224,7 @@ bool GCToOSInterface::Initialize()
         return false;
     }
 
-    g_logicalCpuCount = cpuCount;
+    g_totalCpuCount = cpuCount;
 
     //
     // support for FlusProcessWriteBuffers
@@ -285,11 +289,11 @@ bool GCToOSInterface::Initialize()
     g_currentProcessCpuCount = 0;
 
     cpu_set_t cpuSet;
-    int st = sched_getaffinity(0, sizeof(cpu_set_t), &cpuSet);
+    int st = sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuSet);
 
     if (st == 0)
     {
-        for (size_t i = 0; i < g_logicalCpuCount; i++)
+        for (size_t i = 0; i < g_totalCpuCount; i++)
         {
             if (CPU_ISSET(i, &cpuSet))
             {
@@ -307,14 +311,20 @@ bool GCToOSInterface::Initialize()
 
 #else // HAVE_SCHED_GETAFFINITY
 
-    g_currentProcessCpuCount = g_logicalCpuCount;
+    g_currentProcessCpuCount = g_totalCpuCount;
 
-    for (size_t i = 0; i < g_logicalCpuCount; i++)
+    for (size_t i = 0; i < g_totalCpuCount; i++)
     {
         g_processAffinitySet.Add(i);
     }
 
 #endif // HAVE_SCHED_GETAFFINITY
+
+    uint32_t cpuLimit;
+    if (GetCpuLimit(&cpuLimit) && cpuLimit < g_currentProcessCpuCount)
+    {
+        g_currentProcessCpuCount = cpuLimit;
+    }
 
     NUMASupportInitialize();
 
@@ -369,7 +379,8 @@ uint32_t GCToOSInterface::GetCurrentProcessId()
 //  true if it has succeeded, false if it has failed
 bool GCToOSInterface::SetCurrentThreadIdealAffinity(uint16_t srcProcNo, uint16_t dstProcNo)
 {
-    return GCToOSInterface::SetThreadAffinity(dstProcNo);
+    // There is no way to set a thread ideal processor on Unix, so do nothing.
+    return true;
 }
 
 // Get the number of the current processor
@@ -545,6 +556,8 @@ void* GCToOSInterface::VirtualReserveAndCommitLargePages(size_t size)
 {
 #if HAVE_MAP_HUGETLB
     uint32_t largePagesFlag = MAP_HUGETLB;
+#elif HAVE_VM_FLAGS_SUPERPAGE_SIZE_ANY
+    uint32_t largePagesFlag = VM_FLAGS_SUPERPAGE_SIZE_ANY;
 #else
     uint32_t largePagesFlag = 0;
 #endif
@@ -889,7 +902,7 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
 {
     // Calculated in GCToOSInterface::Initialize using
     // sysconf(_SC_NPROCESSORS_ONLN)
-    return g_logicalCpuCount;
+    return g_totalCpuCount;
 }
 
 bool GCToOSInterface::CanEnableGCNumaAware()
@@ -909,7 +922,7 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
     bool success = false;
 
     uint16_t availableProcNumber = 0;
-    for (size_t procNumber = 0; procNumber < g_logicalCpuCount; procNumber++)
+    for (size_t procNumber = 0; procNumber < g_totalCpuCount; procNumber++)
     {
         if (g_processAffinitySet.Contains(procNumber))
         {

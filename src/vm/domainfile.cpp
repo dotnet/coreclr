@@ -851,8 +851,7 @@ void DomainFile::CheckZapRequired()
     GetFile()->FlushExternalLog();
 
     StackSString ss;
-    ss.Printf("ZapRequire: Could not get native image for %s.\n"
-              "Use FusLogVw.exe to check the reason.",
+    ss.Printf("ZapRequire: Could not get native image for %s.\n",
               GetSimpleName());
 
 #if defined(_DEBUG)
@@ -1004,14 +1003,6 @@ void DomainFile::PostLoadLibrary()
 void DomainFile::AddDependencies()
 {
     STANDARD_VM_CONTRACT;
-
-#ifdef FEATURE_PREJIT
-
-    //
-    // CoreCLR hard binds to mscorlib.dll only. No need to track hardbound dependencies.
-    //
-
-#endif // FEATURE_PREJIT
 }
 
 void DomainFile::EagerFixups()
@@ -1023,8 +1014,9 @@ void DomainFile::EagerFixups()
     {
         GetCurrentModule()->RunEagerFixups();
     }
-#ifdef FEATURE_READYTORUN
     else
+#endif // FEATURE_PREJIT
+#ifdef FEATURE_READYTORUN
     if (GetCurrentModule()->IsReadyToRun())
     {
 #ifndef CROSSGEN_COMPILE
@@ -1041,8 +1033,6 @@ void DomainFile::EagerFixups()
                                          GetCurrentModule() /* (void *)pLayout */);
     }
 #endif // FEATURE_READYTORUN
-
-#endif // FEATURE_PREJIT
 }
 
 void DomainFile::VtableFixups()
@@ -2407,6 +2397,12 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
          GCHeapUtilities::IsServerHeap()   &&
          IsGCSpecialThread());
 
+    if (IsCollectible())
+    {
+        // Collectible assemblies have statics stored in managed arrays, so they don't need special handlings
+        return;
+    }
+
     DomainModuleIterator i = IterateModules(kModIterIncludeLoaded);
     while (i.Next())
     {
@@ -2416,8 +2412,8 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
         {
             // We guarantee that at this point the module has it's DomainLocalModule set up
             // , as we create it while we load the module
-            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule(this->GetAppDomain()));
-            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(this->GetAppDomain(), fn, sc);
+            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule());
+            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(fn, sc);
 
             // We current to do not iterate over the ThreadLocalModules that correspond
             // to this Module. The GC discovers thread statics through the handle table.

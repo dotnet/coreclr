@@ -1044,20 +1044,6 @@ void LCGMethodResolver::GetJitContext(SecurityControlFlags * securityControlFlag
     } CONTRACTL_END;
     
     GCX_COOP();
-    GetJitContextCoop(securityControlFlags, typeOwner);
-}
-
-void LCGMethodResolver::GetJitContextCoop(SecurityControlFlags * securityControlFlags,
-                                      TypeHandle *typeOwner)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        INJECT_FAULT(COMPlusThrowOM(););
-        PRECONDITION(CheckPointer(securityControlFlags));
-        PRECONDITION(CheckPointer(typeOwner));
-    } CONTRACTL_END;
 
     MethodDescCallSite getJitContext(METHOD__RESOLVER__GET_JIT_CONTEXT, m_managedResolver);
 
@@ -1098,8 +1084,7 @@ BYTE* LCGMethodResolver::GetCodeInfo(unsigned *pCodeSize, unsigned *pStackSize, 
         OBJECTREF resolver = ObjectFromHandle(m_managedResolver);
         VALIDATEOBJECTREF(resolver); // gc root must be up the stack
 
-        DWORD initLocals = 0, EHSize = 0;
-        unsigned short stackSize = 0;
+        int32_t stackSize = 0, initLocals = 0, EHSize = 0;
         ARG_SLOT args[] =
         {
             ObjToArgSlot(resolver),
@@ -1109,7 +1094,7 @@ BYTE* LCGMethodResolver::GetCodeInfo(unsigned *pCodeSize, unsigned *pStackSize, 
         };
         U1ARRAYREF dataArray = (U1ARRAYREF) getCodeInfo.Call_RetOBJECTREF(args);
         DWORD codeSize = dataArray->GetNumComponents();
-        NewHolder<BYTE> code(new BYTE[codeSize]);
+        NewArrayHolder<BYTE> code(new BYTE[codeSize]);
         memcpy(code, dataArray->GetDataPtr(), codeSize);
         m_CodeSize = codeSize;
         _ASSERTE(FitsIn<unsigned short>(stackSize));
@@ -1157,7 +1142,7 @@ LCGMethodResolver::GetLocalSig()
         };
         U1ARRAYREF dataArray = (U1ARRAYREF) getLocalsSignature.Call_RetOBJECTREF(args);
         DWORD localSigSize = dataArray->GetNumComponents();
-        NewHolder<COR_SIGNATURE> localSig(new COR_SIGNATURE[localSigSize]);
+        NewArrayHolder<COR_SIGNATURE> localSig(new COR_SIGNATURE[localSigSize]);
         memcpy((void *)localSig, dataArray->GetDataPtr(), localSigSize);
 
         m_LocalSig = SigPointer((PCCOR_SIGNATURE)localSig, localSigSize);
@@ -1504,7 +1489,7 @@ void* ChunkAllocator::New(size_t size)
     if (size + (sizeof(void*) * 2) < CHUNK_SIZE)
     {
         // make the allocation
-        NewHolder<BYTE> newBlock(new BYTE[CHUNK_SIZE]);
+        NewArrayHolder<BYTE> newBlock(new BYTE[CHUNK_SIZE]);
         pNewBlock = (BYTE*)newBlock;
         ((size_t*)pNewBlock)[1] = CHUNK_SIZE - size - (sizeof(void*) * 2); 
         LOG((LF_BCL, LL_INFO10, "Level1 - DM - Allocator [0x%p] - new block {0x%p}\n", this, pNewBlock));
@@ -1513,7 +1498,7 @@ void* ChunkAllocator::New(size_t size)
     else
     {
         // request bigger than default size this is going to be a single block
-        NewHolder<BYTE> newBlock(new BYTE[size + (sizeof(void*) * 2)]);
+        NewArrayHolder<BYTE> newBlock(new BYTE[size + (sizeof(void*) * 2)]);
         pNewBlock = (BYTE*)newBlock;
         ((size_t*)pNewBlock)[1] = 0; // no available bytes left
         LOG((LF_BCL, LL_INFO10, "Level1 - DM - Allocator [0x%p] - new BIG block {0x%p}\n", this, pNewBlock));

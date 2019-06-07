@@ -176,8 +176,7 @@ precompile_coreroot_fx()
 
     local overlayDir=$CORE_ROOT
 
-    # TODO: Remove System.Xml.XDocument.dll exclusion - it was added because "custom" xunit.console.dll fails when running from Core_Root with crossgen-d framework.
-    filesToPrecompile=$(find -L $overlayDir -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -not -name System.Xml.XDocument.dll -type f)
+    filesToPrecompile=$(find -L $overlayDir -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -type f)
     for fileToPrecompile in ${filesToPrecompile}
     do
         local filename=${fileToPrecompile}
@@ -491,13 +490,14 @@ build_native_projects()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                                     /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                                     /p:UsePartialNGENOptimization=false /maxcpucount \
-                                     $__ProjectDir/build.proj /t:GenerateVersionHeader \
-                                     /p:GenerateVersionHeader=true /p:NativeVersionSourceFile=$__versionSourceFile \
-                                     /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                     $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            $__ProjectRoot/eng/common/msbuild.sh $__ProjectRoot/eng/empty.csproj \
+                                                 /p:NativeVersionFile=$__versionSourceFile \
+                                                 /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore \
+                                                 $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            if [ $? -ne 0 ]; then
+                echo "Failed to generate native version file."
+                exit $?
+            fi
         else
             # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -666,7 +666,7 @@ __IncludeTests=INCLUDE_TESTS
 # Set the various build properties here so that CMake and MSBuild can pick them up
 export __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="$__ProjectDir/packages"
+__PackagesDir="$__ProjectDir/.packages"
 __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
 __DotNetCli="$__ProjectDir/dotnet.sh"
@@ -994,7 +994,12 @@ fi
 # init the target distro name
 initTargetDistroRid
 
-# Override tool directory
+if [ $__PortableBuild == 0 ]; then
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
+fi
+
+# Restore Build Tools
+source $__ProjectRoot/init-tools.sh
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests

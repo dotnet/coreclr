@@ -11,7 +11,6 @@
 **
 ===========================================================*/
 
-#nullable enable
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -38,7 +37,7 @@ namespace System
             }
 
             object thisObj = (object)this;
-            object thisResult, thatResult;
+            object? thisResult, thatResult;
 
             // if there are no GC references in this object we can avoid reflection 
             // and do a fast memcmp

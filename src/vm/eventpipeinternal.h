@@ -47,11 +47,8 @@ public:
     static UINT64 QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
         UINT32 circularBufferSizeInMB,
-        INT64 profilerSamplingRateInNanoseconds,
         EventPipeProviderConfiguration *pProviders,
         UINT32 numProviders);
-
-    //! TODO: Add a ListActiveSessions to get the live SessionID in order to Disable?
 
     //!
     //! Disables the specified session Id.
@@ -98,6 +95,7 @@ public:
         LPCGUID pActivityId, LPCGUID pRelatedActivityId);
 
     static bool QCALLTYPE GetNextEvent(
+        UINT64 sessionID,
         EventPipeEventInstanceData *pInstance);
 };
 

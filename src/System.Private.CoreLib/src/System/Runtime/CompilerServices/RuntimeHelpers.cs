@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -27,7 +28,8 @@ namespace System.Runtime.CompilerServices
         // Of course, reference types are not cloned.
         //
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern object GetObjectValue(object obj);
+        [return: NotNullIfNotNull("obj")]
+        public static extern object? GetObjectValue(object? obj);
 
         // RunClassConstructor causes the class constructor for the given type to be triggered
         // in the current domain.  After this call returns, the class constructor is guaranteed to
@@ -63,7 +65,7 @@ namespace System.Runtime.CompilerServices
 
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void _CompileMethod(IRuntimeMethodInfo method);
+        internal static extern void _CompileMethod(RuntimeMethodHandleInternal method);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
@@ -76,12 +78,12 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation)
+        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[]? instantiation)
         {
             unsafe
             {
                 int length;
-                IntPtr[] instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
+                IntPtr[]? instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
                 fixed (IntPtr* pInstantiation = instantiationHandles)
                 {
                     _PrepareMethod(method.GetMethodInfo(), pInstantiation, length);
@@ -97,7 +99,7 @@ namespace System.Runtime.CompilerServices
         public static extern int GetHashCode(object o);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public new static extern bool Equals(object o1, object o2);
+        public new static extern bool Equals(object? o1, object? o2);
 
         public static int OffsetToStringData
         {
@@ -136,9 +138,9 @@ namespace System.Runtime.CompilerServices
         public static extern bool TryEnsureSufficientExecutionStack();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object userData);
+        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object? userData);
 
-        internal static void ExecuteBackoutCodeHelper(object backoutCode, object userData, bool exceptionThrown)
+        internal static void ExecuteBackoutCodeHelper(object backoutCode, object? userData, bool exceptionThrown)
         {
             ((CleanupCode)backoutCode)(userData, exceptionThrown);
         }

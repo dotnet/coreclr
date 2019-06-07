@@ -24,16 +24,6 @@
 #include "cordbpriv.h"
 #include "assemblyspec.hpp"
 
-// A helper macro for the assembly's module hash (m_pAllowedFiles).
-#define UTF8_TO_LOWER_CASE(str, qb)                                                             \
-{                                                                                               \
-    WRAPPER_NO_CONTRACT;                                                                           \
-    INT32 allocBytes = InternalCasingHelper::InvariantToLower(NULL, 0, str);                    \
-    qb.AllocThrows(allocBytes);                                                                 \
-    InternalCasingHelper::InvariantToLower((LPUTF8) qb.Ptr(), allocBytes, str);                 \
-}
-
-
 class BaseDomain;
 class AppDomain;
 class DomainAssembly;
@@ -314,6 +304,16 @@ public:
         return m_pManifestFile->GetPersistentMDImport();
     }
 
+    HRESULT GetCustomAttribute(mdToken parentToken,
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+    {
+        WRAPPER_NO_CONTRACT;
+        SUPPORTS_DAC;
+        return GetManifestModule()->GetCustomAttribute(parentToken, attribute, ppData, pcbData);
+    }
+
 #ifndef DACCESS_COMPILE
     IMetaDataAssemblyImport* GetManifestAssemblyImporter()
     {
@@ -432,16 +432,8 @@ public:
 
     //****************************************************************************************
 
-    DomainAssembly *GetDomainAssembly(AppDomain *pDomain);
+    DomainAssembly *GetDomainAssembly();
     void SetDomainAssembly(DomainAssembly *pAssembly);
-
-    // Verison of GetDomainAssembly that uses the current AppDomain (N/A in DAC builds)
-#ifndef DACCESS_COMPILE
-    DomainAssembly *GetDomainAssembly()     { WRAPPER_NO_CONTRACT; return GetDomainAssembly(GetAppDomain()); }
-#endif
-
-    // FindDomainAssembly will return NULL if the assembly is not in the given domain
-    DomainAssembly *FindDomainAssembly(AppDomain *pDomain);
 
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
@@ -449,7 +441,7 @@ public:
 
     BOOL IsSIMDVectorAssembly() { LIMITED_METHOD_DAC_CONTRACT; return m_fIsSIMDVectorAssembly; }
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     BOOL IsInstrumented();
     BOOL IsInstrumentedHelper();
 #endif // FEATURE_PREJIT
@@ -567,9 +559,9 @@ protected:
 
         if (!IsWinMD()) // ignore classic COM interop CAs in .winmd
         {
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_IMPORTEDFROMTYPELIB_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::ImportedFromTypeLib, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_IMPORTED_FROM_TYPELIB;
-            if (this->GetManifestImport()->GetCustomAttributeByName(TokenFromRid(1, mdtAssembly), INTEROP_PRIMARYINTEROPASSEMBLY_TYPE, 0, 0) == S_OK)
+            if (GetManifestModule()->GetCustomAttribute(TokenFromRid(1, mdtAssembly), WellKnownAttribute::PrimaryInteropAssembly, NULL, 0) == S_OK)
                 mask |= INTEROP_ATTRIBUTE_PRIMARY_INTEROP_ASSEMBLY;
         }
         
@@ -627,7 +619,7 @@ private:
 
     BOOL                  m_fIsSIMDVectorAssembly;
 
-#ifdef FEATURE_PREJIT
+#if defined(FEATURE_PREJIT) || defined(FEATURE_READYTORUN)
     enum IsInstrumentedStatus {
         IS_INSTRUMENTED_UNSET = 0,
         IS_INSTRUMENTED_FALSE = 1,

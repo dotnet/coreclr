@@ -36,7 +36,6 @@ class    ArrayClass;
 class    ArrayMethodDesc;
 struct   ClassCtorInfoEntry;
 class ClassLoader;
-class    DomainLocalBlock;
 class FCallMethodDesc;
 class    EEClass;
 class    EnCFieldDesc;
@@ -64,6 +63,7 @@ class   ComCallWrapperTemplate;
 class ClassFactoryBase;
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 class ArgDestination;
+enum class WellKnownAttribute : DWORD;
 
 //============================================================================
 // This is the in-memory structure of a class and it will evolve.
@@ -693,12 +693,7 @@ public:
     void SetLoaderAllocator(LoaderAllocator* pAllocator);
 
     // Get the domain local module - useful for static init checks
-    PTR_DomainLocalModule GetDomainLocalModule(AppDomain * pAppDomain);
-
-#ifndef DACCESS_COMPILE
-    // Version of GetDomainLocalModule which relies on the current AppDomain
     PTR_DomainLocalModule   GetDomainLocalModule();
-#endif
 
     MethodTable *LoadEnclosingMethodTable(ClassLoadLevel targetLevel = CLASS_DEPENDENCIES_LOADED);
 
@@ -877,7 +872,7 @@ public:
 
     //-------------------------------------------------------------------
     // THE CLASS INITIALIZATION CONDITION 
-    //  (and related DomainLocalBlock/DomainLocalModule storage)
+    //  (and related DomainLocalModule storage)
     //
     // - populate the DomainLocalModule if needed
     // - run the cctor 
@@ -914,7 +909,7 @@ public:
     // mark the class as having its cctor run.  
 #ifndef DACCESS_COMPILE
     void SetClassInited();
-    BOOL  IsClassInited(AppDomain* pAppDomain = NULL);   
+    BOOL  IsClassInited();
 
     BOOL IsInitError();
     void SetClassInitError();
@@ -1929,6 +1924,9 @@ public:
     bool IsHFA();
 #endif // FEATURE_HFA
 
+    // Returns the size in bytes of this type if it is a HW vector type; 0 otherwise.
+    int GetVectorSize();
+
     // Get the HFA type. This is supported both with FEATURE_HFA, in which case it
     // depends on the cached bit on the class, or without, in which case it is recomputed
     // for each invocation.
@@ -2572,6 +2570,9 @@ public:
 
     DWORD HasFixedAddressVTStatics();
 
+    // Indicates if the MethodTable only contains abstract methods
+    BOOL HasOnlyAbstractMethods();
+
     //-------------------------------------------------------------------
     // PER-INSTANTIATION STATICS INFO
     //
@@ -2868,6 +2869,10 @@ public:
 
     // Get the MD Import for the metadata for the corresponding type declaration
     IMDInternalImport* GetMDImport();
+
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData);
     
     mdTypeDef GetEnclosingCl();
 
@@ -3186,17 +3191,19 @@ public:
 
       protected:
         ULONG m_cRef;
+        MethodTable *const m_pImplMT;
+        MethodTable *const m_pDeclMT;
 
       public:
-        MethodData() : m_cRef(1) { LIMITED_METHOD_CONTRACT; }
+        MethodData(MethodTable *implMT, MethodTable *declMT) : m_cRef(1), m_pImplMT(implMT), m_pDeclMT(declMT) { LIMITED_METHOD_CONTRACT; }
         virtual ~MethodData() { LIMITED_METHOD_CONTRACT; }
 
         virtual MethodData  *GetDeclMethodData() = 0;
-        virtual MethodTable *GetDeclMethodTable() = 0;
+        MethodTable *GetDeclMethodTable() { return m_pDeclMT; }
         virtual MethodDesc  *GetDeclMethodDesc(UINT32 slotNumber) = 0;
         
         virtual MethodData  *GetImplMethodData() = 0;
-        virtual MethodTable *GetImplMethodTable() = 0;
+        MethodTable *GetImplMethodTable() { return m_pImplMT; }
         virtual DispatchSlot GetImplSlot(UINT32 slotNumber) = 0;
         // Returns INVALID_SLOT_NUMBER if no implementation exists.
         virtual UINT32       GetImplSlotNumber(UINT32 slotNumber) = 0;
@@ -3286,41 +3293,34 @@ protected:
         static UINT32 GetObjectSize(MethodTable *pMT);
 
         // Constructor. Make sure you have allocated enough memory using GetObjectSize.
-        inline MethodDataObject(MethodTable *pMT)
-            { WRAPPER_NO_CONTRACT; Init(pMT, NULL); }
+        inline MethodDataObject(MethodTable *pMT) : MethodData(pMT, pMT)
+            { WRAPPER_NO_CONTRACT; Init(NULL); }
 
-        inline MethodDataObject(MethodTable *pMT, MethodData *pParentData)
-            { WRAPPER_NO_CONTRACT; Init(pMT, pParentData); }
+        inline MethodDataObject(MethodTable *pMT, MethodData *pParentData) : MethodData(pMT, pMT)
+            { WRAPPER_NO_CONTRACT; Init(pParentData); }
 
         virtual ~MethodDataObject() { LIMITED_METHOD_CONTRACT; }
 
         virtual MethodData  *GetDeclMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetDeclMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual MethodDesc *GetDeclMethodDesc(UINT32 slotNumber);
 
         virtual MethodData  *GetImplMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetImplMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual DispatchSlot GetImplSlot(UINT32 slotNumber);
         virtual UINT32       GetImplSlotNumber(UINT32 slotNumber);
         virtual MethodDesc  *GetImplMethodDesc(UINT32 slotNumber);
         virtual void InvalidateCachedVirtualSlot(UINT32 slotNumber);
 
         virtual UINT32 GetNumVirtuals()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetNumVirtuals(); }
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetNumVirtuals(); }
         virtual UINT32 GetNumMethods()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetCanonicalMethodTable()->GetNumMethods(); }
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetCanonicalMethodTable()->GetNumMethods(); }
 
       protected:
-        void Init(MethodTable *pMT, MethodData *pParentData);
+        void Init(MethodData *pParentData);
 
         BOOL PopulateNextLevel();
-
-        // This is the method table for the actual type we're gathering the data for
-        MethodTable *m_pMT;
 
         // This is used in staged map decoding - it indicates which type we will next decode.
         UINT32       m_iNextChainDepth;
@@ -3388,12 +3388,11 @@ protected:
             { LIMITED_METHOD_CONTRACT; return sizeof(MethodDataInterface); }
 
         // Constructor. Make sure you have allocated enough memory using GetObjectSize.
-        MethodDataInterface(MethodTable *pMT)
+        MethodDataInterface(MethodTable *pMT) : MethodData(pMT, pMT)
         {
             LIMITED_METHOD_CONTRACT;
             CONSISTENCY_CHECK(CheckPointer(pMT));
             CONSISTENCY_CHECK(pMT->IsInterface());
-            m_pMT = pMT;
         }
         virtual ~MethodDataInterface()
             { LIMITED_METHOD_CONTRACT; }
@@ -3403,8 +3402,6 @@ protected:
         //
         virtual MethodData  *GetDeclMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetDeclMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual MethodDesc *GetDeclMethodDesc(UINT32 slotNumber);
 
         //
@@ -3412,10 +3409,8 @@ protected:
         //
         virtual MethodData  *GetImplMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetImplMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual DispatchSlot GetImplSlot(UINT32 slotNumber)
-            { WRAPPER_NO_CONTRACT; return DispatchSlot(m_pMT->GetRestoredSlot(slotNumber)); }
+            { WRAPPER_NO_CONTRACT; return DispatchSlot(m_pDeclMT->GetRestoredSlot(slotNumber)); }
         virtual UINT32       GetImplSlotNumber(UINT32 slotNumber)
             { LIMITED_METHOD_CONTRACT; return slotNumber; }
         virtual MethodDesc  *GetImplMethodDesc(UINT32 slotNumber);
@@ -3425,13 +3420,9 @@ protected:
         // Slot count data
         //
         virtual UINT32 GetNumVirtuals()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetNumVirtuals(); }
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetNumVirtuals(); }
         virtual UINT32 GetNumMethods()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetNumMethods(); }
-
-      protected:
-        // This is the method table for the actual type we're gathering the data for
-        MethodTable *m_pMT;
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetNumMethods(); }
     };  // class MethodDataInterface
 
     //--------------------------------------------------------------------------------------

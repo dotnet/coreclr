@@ -10,8 +10,8 @@
 
 #ifndef _CODEGEN_H_
 #define _CODEGEN_H_
-#include "compiler.h" // temporary??
 #include "codegeninterface.h"
+#include "compiler.h" // temporary??
 #include "regset.h"
 #include "jitgcinfo.h"
 
@@ -316,6 +316,11 @@ protected:
     void genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pInitRegZeroed, regMaskTP maskArgRegsLiveIn);
 
 #if defined(_TARGET_ARM_)
+
+    bool genInstrWithConstant(
+        instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, ssize_t imm, insFlags flags, regNumber tmpReg);
+
+    bool genStackPointerAdjustment(ssize_t spAdjustment, regNumber tmpReg);
 
     void genPushFltRegs(regMaskTP regMask);
     void genPopFltRegs(regMaskTP regMask);
@@ -1092,9 +1097,11 @@ protected:
     void genCodeForStoreInd(GenTreeStoreInd* tree);
     void genCodeForSwap(GenTreeOp* tree);
     void genCodeForCpObj(GenTreeObj* cpObjNode);
-    void genCodeForCpBlk(GenTreeBlk* cpBlkNode);
     void genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode);
     void genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode);
+#ifndef _TARGET_X86_
+    void genCodeForCpBlkHelper(GenTreeBlk* cpBlkNode);
+#endif
     void genCodeForPhysReg(GenTreePhysReg* tree);
     void genCodeForNullCheck(GenTreeOp* tree);
     void genCodeForCmpXchg(GenTreeCmpXchg* tree);
@@ -1168,7 +1175,9 @@ protected:
 #endif // _TARGET_ARM64_
 
     void genCodeForStoreBlk(GenTreeBlk* storeBlkNode);
-    void genCodeForInitBlk(GenTreeBlk* initBlkNode);
+#ifndef _TARGET_X86_
+    void genCodeForInitBlkHelper(GenTreeBlk* initBlkNode);
+#endif
     void genCodeForInitBlkRepStos(GenTreeBlk* initBlkNode);
     void genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode);
     void genJumpTable(GenTree* tree);
@@ -1211,11 +1220,16 @@ protected:
 
     void genReturn(GenTree* treeNode);
 
+#ifdef _TARGET_ARMARCH_
+    void genStackPointerConstantAdjustment(ssize_t spDelta);
+#else  // !_TARGET_ARMARCH_
+    void genStackPointerConstantAdjustment(ssize_t spDelta, regNumber regTmp);
+#endif // !_TARGET_ARMARCH_
+
+    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, regNumber regTmp);
+    target_ssize_t genStackPointerConstantAdjustmentLoopWithProbe(ssize_t spDelta, regNumber regTmp);
+
 #if defined(_TARGET_XARCH_)
-    void genStackPointerConstantAdjustmentWithProbe(ssize_t spDelta, bool hideSpChangeFromEmitter, regNumber regTmp);
-    void genStackPointerConstantAdjustmentLoopWithProbe(ssize_t   spDelta,
-                                                        bool      hideSpChangeFromEmitter,
-                                                        regNumber regTmp);
     void genStackPointerDynamicAdjustmentWithProbe(regNumber regSpDelta, regNumber regTmp);
 #endif // defined(_TARGET_XARCH_)
 
@@ -1398,9 +1412,6 @@ public:
     void instGen_Load_Reg_From_Lcl(var_types srcType, regNumber dstReg, int varNum, int offs);
 
     void instGen_Store_Reg_Into_Lcl(var_types dstType, regNumber srcReg, int varNum, int offs);
-
-    void instGen_Store_Imm_Into_Lcl(
-        var_types dstType, emitAttr sizeAttr, ssize_t imm, int varNum, int offs, regNumber regToUse = REG_NA);
 
 #ifdef DEBUG
     void __cdecl instDisp(instruction ins, bool noNL, const char* fmt, ...);

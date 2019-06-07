@@ -123,25 +123,25 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
-add_definitions(-DPLATFORM_UNIX=1)
-add_definitions(-DLP64COMPATIBLE=1)
-add_definitions(-DFEATURE_PAL=1)
-add_definitions(-DCORECLR=1)
-add_definitions(-DPIC=1)
+add_definitions(-DPLATFORM_UNIX)
+add_definitions(-DLP64COMPATIBLE)
+add_definitions(-DFEATURE_PAL)
+add_definitions(-DCORECLR)
+add_definitions(-DPIC)
 add_definitions(-D_FILE_OFFSET_BITS=64)
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-  add_definitions(-DBIT64=1)
-  add_definitions(-D_WIN64=1)
+  add_definitions(-DBIT64)
+  add_definitions(-D_WIN64)
   set(PAL_ARCH_SOURCES_DIR amd64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
-  add_definitions(-DBIT32=1)
+  add_definitions(-DBIT32)
   set(PAL_ARCH_SOURCES_DIR arm)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
-  add_definitions(-DBIT64=1)
-  add_definitions(-D_WIN64=1)
+  add_definitions(-DBIT64)
+  add_definitions(-D_WIN64)
   set(PAL_ARCH_SOURCES_DIR arm64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
-  add_definitions(-DBIT32=1)
+  add_definitions(-DBIT32)
   set(PAL_ARCH_SOURCES_DIR i386)
 endif()
 
@@ -212,7 +212,7 @@ set(SOURCES
   loader/module.cpp
   loader/modulename.cpp
   locale/unicode.cpp
-  locale/unicode_data.cpp
+  locale/unicodedata.cpp
   locale/utf8.cpp
   map/common.cpp
   map/map.cpp
@@ -410,8 +410,9 @@ endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 add_subdirectory(examples)
 
 if(FEATURE_EVENT_TRACE)
-  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
+  add_subdirectory(eventprovider)
 endif(FEATURE_EVENT_TRACE)
+
 
 # Install the static PAL library for VS
 _install (TARGETS coreclrpal DESTINATION lib)
