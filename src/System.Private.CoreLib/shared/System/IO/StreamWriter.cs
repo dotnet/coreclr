@@ -351,12 +351,9 @@ namespace System.IO
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
-        public override void Write(char[] buffer, int index, int count)
+        public override void Write(char[]? buffer, int index, int count)
         {
-            if (buffer == null)
-            {
-                throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
-            }
+            int length = buffer != null ? buffer.Length : 0;
             if (index < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -365,12 +362,15 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (buffer.Length - index < count)
+            if (length - index < count)
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
 
-            WriteSpan(buffer.AsSpan(index, count), appendNewLine: false);
+            if (buffer != null)
+            {
+                WriteSpan(buffer.AsSpan(index, count), appendNewLine: false);
+            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)] // prevent WriteSpan from bloating call sites
@@ -768,8 +768,9 @@ namespace System.IO
             _this.CharPos_Prop = charPos;
         }
 
-        public override Task WriteAsync(char[] buffer, int index, int count)
+        public override Task WriteAsync(char[]? buffer, int index, int count)
         {
+            int length = buffer != null ? buffer.Length : 0;
             if (buffer == null)
             {
                 throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
@@ -782,7 +783,7 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (buffer.Length - index < count)
+            if (length - index < count)
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
@@ -799,9 +800,17 @@ namespace System.IO
             ThrowIfDisposed();
             CheckAsyncTaskInProgress();
 
-            Task task = WriteAsyncInternal(this, new ReadOnlyMemory<char>(buffer, index, count), _charBuffer, _charPos, _charLen, CoreNewLine, _autoFlush, appendNewLine: false, cancellationToken: default);
-            _asyncWriteTask = task;
+            Task task;
+            if (buffer == null)
+            {
+                task = Task.CompletedTask;
+            }
+            else
+            {
+                task = WriteAsyncInternal(this, new ReadOnlyMemory<char>(buffer, index, count), _charBuffer, _charPos, _charLen, CoreNewLine, _autoFlush, appendNewLine: false, cancellationToken: default);
+            }
 
+            _asyncWriteTask = task;
             return task;
         }
 
