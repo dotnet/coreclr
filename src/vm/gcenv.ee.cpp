@@ -888,6 +888,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
+        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         g_ephemeral_low = args->ephemeral_low;
         g_ephemeral_high = args->ephemeral_high;
         stompWBCompleteActions |= ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
