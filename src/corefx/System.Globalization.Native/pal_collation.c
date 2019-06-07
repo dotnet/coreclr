@@ -127,6 +127,11 @@ static int IsHalfFullHigherSymbol(UChar character)
         || (0xff61 <= character && character <= 0xff65);
 }
 
+static void increment(atomic_size_t* arg)
+{
+    atomic_fetch_add(arg, 1);
+}
+
 /*
 Gets a string of custom collation rules, if necessary.
 
