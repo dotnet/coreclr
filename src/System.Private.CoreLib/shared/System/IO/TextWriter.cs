@@ -159,9 +159,12 @@ namespace System.IO
         // write count characters of data into this TextWriter from the
         // buffer character array starting at position index.
         //
-        public virtual void Write(char[]? buffer, int index, int count)
+        public virtual void Write(char[] buffer, int index, int count)
         {
-            int length = buffer != null ? buffer.Length : 0;
+            if (buffer == null)
+            {
+                throw new ArgumentNullException(nameof(buffer), SR.ArgumentNull_Buffer);
+            }
             if (index < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(index), SR.ArgumentOutOfRange_NeedNonNegNum);
@@ -170,16 +173,12 @@ namespace System.IO
             {
                 throw new ArgumentOutOfRangeException(nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
             }
-            if (length - index < count)
+            if (buffer.Length - index < count)
             {
                 throw new ArgumentException(SR.Argument_InvalidOffLen);
             }
 
-            if (buffer != null)
-            {
-                for (int i = 0; i < count; i++)
-                    Write(buffer[index + i]);
-            }
+            for (int i = 0; i < count; i++) Write(buffer[index + i]);
         }
 
         // Writes a span of characters to the text stream.
@@ -373,7 +372,7 @@ namespace System.IO
         // Writes a range of a character array followed by a line terminator to the
         // text stream.
         //
-        public virtual void WriteLine(char[]? buffer, int index, int count)
+        public virtual void WriteLine(char[] buffer, int index, int count)
         {
             Write(buffer, index, count);
             WriteLine();
@@ -596,13 +595,8 @@ namespace System.IO
             return WriteAsync(buffer, 0, buffer.Length);
         }
 
-        public virtual Task WriteAsync(char[]? buffer, int index, int count)
+        public virtual Task WriteAsync(char[] buffer, int index, int count)
         {
-            if (buffer == null)
-            {
-                return Task.CompletedTask;
-            }
-
             var tuple = new Tuple<TextWriter, char[], int, int>(this, buffer, index, count);
             return Task.Factory.StartNew(state =>
             {
@@ -726,7 +720,7 @@ namespace System.IO
                 }
             }
 
-            public override void Write(char[]? buffer, int index, int count)
+            public override void Write(char[] buffer, int index, int count)
             {
             }
 
@@ -804,7 +798,7 @@ namespace System.IO
             public override void Write(char[]? buffer) => _out.Write(buffer);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
-            public override void Write(char[]? buffer, int index, int count) => _out.Write(buffer, index, count);
+            public override void Write(char[] buffer, int index, int count) => _out.Write(buffer, index, count);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void Write(ReadOnlySpan<char> buffer) => _out.Write(buffer);
@@ -867,7 +861,7 @@ namespace System.IO
             public override void WriteLine(char[]? buffer) => _out.WriteLine(buffer);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
-            public override void WriteLine(char[]? buffer, int index, int count) => _out.WriteLine(buffer, index, count);
+            public override void WriteLine(char[] buffer, int index, int count) => _out.WriteLine(buffer, index, count);
 
             [MethodImpl(MethodImplOptions.Synchronized)]
             public override void WriteLine(ReadOnlySpan<char> buffer) => _out.WriteLine(buffer);
@@ -952,7 +946,7 @@ namespace System.IO
             }
 
             [MethodImpl(MethodImplOptions.Synchronized)]
-            public override Task WriteAsync(char[]? buffer, int index, int count)
+            public override Task WriteAsync(char[] buffer, int index, int count)
             {
                 Write(buffer, index, count);
                 return Task.CompletedTask;

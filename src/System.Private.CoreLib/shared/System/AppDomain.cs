@@ -101,9 +101,9 @@ namespace System
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_AppDomains);
         }
 
-        public int ExecuteAssembly(string assemblyFile) => ExecuteAssembly(assemblyFile, null!);
+        public int ExecuteAssembly(string assemblyFile) => ExecuteAssembly(assemblyFile, null);
 
-        public int ExecuteAssembly(string assemblyFile, string?[] args)
+        public int ExecuteAssembly(string assemblyFile, string?[]? args)
         {
             if (assemblyFile == null)
             {
