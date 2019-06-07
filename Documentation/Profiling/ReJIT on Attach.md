@@ -42,7 +42,7 @@ It is important to mention here how `RequestRevert` works. When you revert a ReJ
 
 To revert a method without having to reason about the inline sequence, we suggest calling RequestReJIT again on the method but providing the original IL in GetReJITParameters.
 
-The limiation of collectible and dynamic methods has not been lifted. It is not currently possible to ReJIT these types of methods, although we would like to lift that restriction in the future. Even if you never intend to call RequestReJIT directly on a collectible or dynamic method, this may still affect you when doing ReJIT on attach if the method you would like to ReJIT has been inlined in a collectible or dynamic method. I.e. if you would like to ReJIT method A which has been inlined in collectible method B, there is currently no way to make method B call the updated method A.
+The limitation of collectible and dynamic methods has not been lifted. It is not currently possible to ReJIT these types of methods, although we would like to lift that restriction in the future. Even if you never intend to call RequestReJIT directly on a collectible or dynamic method, this may still affect you when doing ReJIT on attach if the method you would like to ReJIT has been inlined in a collectible or dynamic method. I.e. if you would like to ReJIT method A which has been inlined in collectible method B, there is currently no way to make method B call the updated method A.
 
 ## Metadata Changes on Attach
 
