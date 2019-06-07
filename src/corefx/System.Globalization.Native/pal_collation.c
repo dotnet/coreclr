@@ -42,7 +42,7 @@ typedef struct { int32_t key; UCollator* UCollator; } TCollatorMap;
  */
 struct SortHandle
 {
-    _Atomic(UCollator*) collatorsPerOption[CompareOptionsMask + 1];
+    UCollator* collatorsPerOption[CompareOptionsMask + 1];
 };
 
 typedef struct { UChar* items; size_t size; } UCharList;
@@ -398,7 +398,7 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
         pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
 
         UCollator* pNull = NULL; // callee requires a non-null argument
-        if (!atomic_compare_exchange_strong(&pSortHandle->collatorsPerOption[options], &pNull, pCollator))
+        if (!atomic_compare_exchange_strong((_Atomic(UCollator*)*)&pSortHandle->collatorsPerOption[options], &pNull, pCollator))
         {
             ucol_close(pCollator);
             pCollator = pSortHandle->collatorsPerOption[options];
