@@ -8295,6 +8295,11 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 }
             }
         }
+#elif defined(_TARGET_UNIX_)
+        if (!canFastTailCall && szFailReason == nullptr)
+        {
+            szFailReason = "Morphing Vararg call that needed for tail call on non Windows targets is not yet implemented.";
+        }
 #endif // !_TARGET_X86_
 
         if (szFailReason != nullptr)
