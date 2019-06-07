@@ -484,7 +484,7 @@ private:
     {
         double a = 123.456;
         std::int64_t expected = *reinterpret_cast<std::int64_t*>(&a);
-        std::int64_t actual = SumSumInt64s(a);
+        std::int64_t actual = SumSumInt64s(1, a);
         bool result = expected == actual;
         if (!result)
         {
