@@ -432,9 +432,6 @@ void EventPipeSession::Disable()
     }
     CONTRACTL_END;
 
-    if (m_pFile == nullptr)
-        return;
-
     DisableIpcStreamingThread();
 
     // Force all in-progress writes to either finish or cancel
