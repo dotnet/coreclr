@@ -247,6 +247,9 @@
     <FailOnWorkItemFailure>true</FailOnWorkItemFailure>
     <WaitForWorkItemCompletion>true</WaitForWorkItemCompletion>
 
+    <!-- Set AzurePipelinesDisableFlakyTestSupport. Otherwise, the first (non-flaky) test failure causes all subsequent test jobs to fail. -->
+    <AzurePipelinesDisableFlakyTestSupport>true</AzurePipelinesDisableFlakyTestSupport>
+
     <!-- Specify the retry policy for Helix jobs -->
     <!-- REVIEW: currently don't do any retries
     <MaxRetryCount Condition="'$(MaxRetryCount)' == ''">4</MaxRetryCount>
