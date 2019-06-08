@@ -21,6 +21,10 @@ void EventPipeConfiguration::Initialize()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(m_pProviderList == nullptr);
+        PRECONDITION(m_pConfigProvider == nullptr);
+        PRECONDITION(m_pMetadataEvent == nullptr);
+        PRECONDITION(m_activeSessions == 0);
     }
     CONTRACTL_END;
 
