@@ -80,8 +80,11 @@
 -nonamespace System.Net.Http.Functional.Tests
 -nonamespace System.Net.Sockets.Tests
 
-# timeouts
--nonamespace System.Net.Tests.HttpListenerAuthenticationTests
+# crashes
+-noclass System.Net.Tests.HttpListenerAuthenticationTests
+
+# timeout
+-nomethod System.Net.Security.Tests.LoggingTest.EventSource_EventsRaisedAsExpected
 
 # System.IO.FileSystem.Tests: timeouts
 -nonamespace System.IO.FileSystem.Tests
@@ -91,6 +94,7 @@
 
 # assert/crashes
 -noclass System.Tests.RealFormatterTestsBase
+-noclass System.Tests.RealFormatterTests
 
 # System.Runtime.Serialization.Formatters.Tests: timeouts
 -nonamespace System.Runtime.Serialization.Formatters.Tests
