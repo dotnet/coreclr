@@ -4,10 +4,9 @@
 //
 
 #include <assert.h>
-#include <pthread.h>
 #include <stdint.h>
 #include <vector>
-#include <map>
+#include <atomic>
 
 #include "icushim.h"
 #include "locale.hpp"
@@ -18,6 +17,7 @@ const int32_t CompareOptionsIgnoreNonSpace = 0x2;
 const int32_t CompareOptionsIgnoreSymbols = 0x4;
 const int32_t CompareOptionsIgnoreKanaType = 0x8;
 const int32_t CompareOptionsIgnoreWidth = 0x10;
+const int32_t CompareOptionsMask = 0x1f;
 // const int32_t CompareOptionsStringSort = 0x20000000;
 // ICU's default is to use "StringSort", i.e. nonalphanumeric symbols come before alphanumeric.
 // When StringSort is not specified (.NET's default), the sort order will be different between
@@ -28,9 +28,6 @@ const int32_t CompareOptionsIgnoreWidth = 0x10;
 // change ICU's default behavior here isn't really justified unless someone has a strong reason
 // for !StringSort to behave differently.
 
-typedef std::map<int32_t, UCollator*> TCollatorMap;
-typedef std::pair<int32_t, UCollator*> TCollatorMapPair;
-
 /*
  * For increased performance, we cache the UCollator objects for a locale and
  * share them across threads. This is safe (and supported in ICU) if we ensure
@@ -38,19 +35,7 @@ typedef std::pair<int32_t, UCollator*> TCollatorMapPair;
  */
 typedef struct _sort_handle
 {
-    UCollator* regular;
-    TCollatorMap collatorsPerOption;
-    pthread_mutex_t collatorsLockObject;
-
-    _sort_handle() : regular(nullptr)
-    {
-        int result = pthread_mutex_init(&collatorsLockObject, NULL);
-        if (result != 0)
-        {
-            assert(false && "Unexpected pthread_mutex_init return value.");
-        }
-    }
-
+    std::atomic<UCollator*> collatorsPerOption[CompareOptionsMask + 1];
 } SortHandle;
 
 // Hiragana character range
@@ -339,12 +324,12 @@ extern "C" ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName
 
     UErrorCode err = U_ZERO_ERROR;
 
-    (*ppSortHandle)->regular = ucol_open(lpLocaleName, &err);
+    (*ppSortHandle)->collatorsPerOption[0] = ucol_open(lpLocaleName, &err);
 
     if (U_FAILURE(err))
     {
-        if ((*ppSortHandle)->regular != nullptr)
-            ucol_close((*ppSortHandle)->regular);
+        if ((*ppSortHandle)->collatorsPerOption[0] != nullptr)
+            ucol_close((*ppSortHandle)->collatorsPerOption[0]);
 
         delete (*ppSortHandle);
         (*ppSortHandle) = nullptr;
@@ -355,50 +340,45 @@ extern "C" ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName
 
 extern "C" void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
 {
-    ucol_close(pSortHandle->regular);
-    pSortHandle->regular = nullptr;
-
-    TCollatorMap::iterator it;
-    for (it = pSortHandle->collatorsPerOption.begin(); it != pSortHandle->collatorsPerOption.end(); it++)
+    for (int i = 0; i <= CompareOptionsMask; i++)
     {
-        ucol_close(it->second);
+        if (pSortHandle->collatorsPerOption[i] != nullptr)
+        {
+            ucol_close(pSortHandle->collatorsPerOption[i]);
+            pSortHandle->collatorsPerOption[i] = nullptr;
+        }
     }
-
-    pthread_mutex_destroy(&pSortHandle->collatorsLockObject);
 
     delete pSortHandle;
 }
 
 const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t options, UErrorCode* pErr)
 {
-    UCollator* pCollator;
     if (options == 0)
     {
-        pCollator = pSortHandle->regular;
+        return pSortHandle->collatorsPerOption[0];
     }
     else
     {
-        int lockResult = pthread_mutex_lock(&pSortHandle->collatorsLockObject);
-        if (lockResult != 0)
+        options &= CompareOptionsMask;
+        UCollator* pCollator = pSortHandle->collatorsPerOption[options];
+        if (pCollator != nullptr)
         {
-            assert(false && "Unexpected pthread_mutex_lock return value.");
+            return pCollator;
         }
-
-        TCollatorMap::iterator entry = pSortHandle->collatorsPerOption.find(options);
-        if (entry == pSortHandle->collatorsPerOption.end())
+        
+        pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+        UCollator* pNull = nullptr;
+        
+        if (!atomic_compare_exchange_strong(&pSortHandle->collatorsPerOption[options], &pNull, pCollator))
         {
-            pCollator = CloneCollatorWithOptions(pSortHandle->regular, options, pErr);
-            pSortHandle->collatorsPerOption[options] = pCollator;
+            ucol_close(pCollator);
+            pCollator = pSortHandle->collatorsPerOption[options];
+            assert(pCollator != nullptr && "pCollator not expected to be null here.");
         }
-        else
-        {
-            pCollator = entry->second;
-        }
-
-        pthread_mutex_unlock(&pSortHandle->collatorsLockObject);
+        
+        return pCollator;
     }
-
-    return pCollator;
 }
 
 extern "C" int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)
