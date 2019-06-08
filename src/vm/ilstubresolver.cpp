@@ -233,6 +233,11 @@ bool ILStubResolver::IsNativeToCLRInteropStub()
     return (m_type == NativeToCLRInteropStub);
 }
 
+bool ILStubResolver::IsCLRToNativeInteropStub()
+{
+    return (m_type == CLRToNativeInteropStub);
+}
+
 void ILStubResolver::SetStubType(ILStubType stubType)
 {
     LIMITED_METHOD_CONTRACT;
