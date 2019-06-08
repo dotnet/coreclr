@@ -340,9 +340,7 @@ t17 = ▌  DIV       double $146
 
 Lowering is responsible for transforming the IR in such a way that the control flow, and any register requirements, are fully exposed.
 
-It accomplishes this in two passes.
-
-The first pass is an execution-order traversal that performs context-dependent transformations such as expanding switch statements (using a switch table or a series of conditional branches), constructing addressing modes, etc.  For example, this:
+It does an execution-order traversal that performs context-dependent transformations such as expanding switch statements (using a switch table or a series of conditional branches), constructing addressing modes, determining the code generation strategy for block assignments (e.g. `GT_STORE_BLK`) which may become helper calls, unrolled loops, or an instruction like `rep stos` etc.  For example, this:
 ```
 t47 =    LCL_VAR   ref    V00 arg0
 t48 =    LCL_VAR   int    V01 arg1
@@ -375,8 +373,7 @@ t79 = ▌  LEA(b+(i*4)+16) byref
      ┌──▌  t79    byref  
 t44 = ▌  IND       int
 ```
-
-The next pass annotates the nodes with register requirements. This is done in an execution order traversal in order to ensure that each node's operands are visited prior to the node itself. This pass may also do some transformations that do not require the parent context, such as determining the code generation strategy for block assignments (e.g. `GT_STORE_BLK`) which may become helper calls, unrolled loops, or an instruction like `rep stos`.
+After all nodes are lowered, liveness is run in preparation for register allocation.
 
 ## <a name="reg-alloc"/>Register allocation
 
