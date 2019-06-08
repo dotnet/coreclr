@@ -25,6 +25,8 @@ namespace GitHub_25020
             string b = "abcd";
             
             Console.WriteLine(dm.Invoke(null, BindingFlags.Default, null, new object[] {a, b}, null));
+
+            return 100;
         }
     }
 }
