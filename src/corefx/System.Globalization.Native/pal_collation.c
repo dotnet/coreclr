@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <stdatomic.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <search.h>
@@ -396,12 +397,12 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
         }
 
         pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+        UCollator* pNull = NULL;
 
 #if HAVE_WORKING_STDATOMIC
-        UCollator* pNull = NULL;
         if (!atomic_compare_exchange_strong((_Atomic(UCollator*)*)&pSortHandle->collatorsPerOption[options], &pNull, pCollator))
 #else
-        if (!__sync_bool_compare_and_swap(&pSortHandle->collatorsPerOption[options], NULL, pCollator))
+        if (!__atomic_compare_exchange_n(&pSortHandle->collatorsPerOption[options], &pNull, pCollator, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
 #endif
         {
             ucol_close(pCollator);
