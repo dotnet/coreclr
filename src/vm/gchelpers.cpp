@@ -1512,6 +1512,8 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
+    auto card_table = g_card_table;
+
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
     if (((BYTE*)dst < g_lowest_address) || ((BYTE*)dst >= g_highest_address))
@@ -1532,7 +1534,7 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
     {
         // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
         // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
-        BYTE* pCardByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
+        BYTE* pCardByte = (BYTE *)card_table + card_byte((BYTE *)dst);
         if (*pCardByte != 0xFF)
         {
             *pCardByte = 0xFF;
