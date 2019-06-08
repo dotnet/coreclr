@@ -817,11 +817,6 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
         g_card_table = args->card_table;
 
-#undef Sleep
-        // delay publishing of the table size
-        ::Sleep(10);
-#define Sleep(a) Dont_Use_Sleep(a)
-
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         assert(args->card_bundle_table != nullptr);
         g_card_bundle_table = args->card_bundle_table;
