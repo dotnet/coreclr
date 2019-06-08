@@ -18,9 +18,6 @@ class EventPipeSession;
 class EventPipeConfiguration
 {
 public:
-    EventPipeConfiguration() = default;
-    ~EventPipeConfiguration() = default;
-
     // Perform initialization that cannot be performed in the constructor.
     void Initialize();
 
