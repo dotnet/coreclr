@@ -649,6 +649,32 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     if (pActivityId == nullptr && pThread != nullptr)
         pActivityId = pThread->GetActivityId();
 
+    WriteEventInternal(
+        pThread,
+        event,
+        payload,
+        pActivityId,
+        pRelatedActivityId);
+}
+
+void EventPipe::WriteEventInternal(
+    Thread *pThread,
+    EventPipeEvent &event,
+    EventPipeEventPayload &payload,
+    LPCGUID pActivityId,
+    LPCGUID pRelatedActivityId,
+    Thread *pEventThread,
+    StackContents *pStack)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+        PRECONDITION(s_tracingInitialized);
+    }
+    CONTRACTL_END;
+
     EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
     if (pEventPipeThread == nullptr)
     {
@@ -695,7 +721,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     else
     {
-        for (int64_t i = 0; i < MaxNumberOfSessions; ++i)
+        for (uint64_t i = 0; i < MaxNumberOfSessions; ++i)
         {
             // This read is OK because we aren't derefencing the pointer and if we observe a value that
             // isn't up-to-date (whether null or non-null) that is just the natural race timing of trying to
@@ -716,14 +742,20 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
                 // allowed to set s_pSessions[i] = NULL at any time and that may have occured in between
                 // the check and the load
                 if (pSession != nullptr)
-                    pSession->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId);
+                    pSession->WriteEvent(
+                        pThread,
+                        event,
+                        payload,
+                        pActivityId,
+                        pRelatedActivityId,
+                        pEventThread,
+                        pStack);
             }
             // Do not reference pSession past this point, we are signaling Disable() that it is safe to
             // delete it
             pEventPipeThread->SetSessionWriteInProgress(UINT64_MAX);
         }
     }
-
 }
 
 void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent *pEvent, Thread *pTargetThread, StackContents &stackContents, BYTE *pData, unsigned int length)
@@ -733,6 +765,7 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(pEvent != nullptr);
     }
     CONTRACTL_END;
 
@@ -741,25 +774,15 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         return;
 
     EventPipeEventPayload payload(pData, length);
-
-    // Write the event to the thread's buffer.
-    // Specify the sampling thread as the "current thread", so that we select the right buffer.
-    // Specify the target thread so that the event gets properly attributed.
-    for (VolatilePtr<EventPipeSession> &session : s_pSessions)
-    {
-        if (session.LoadWithoutBarrier() == nullptr)
-            continue;
-
-        EventPipeSession *const pSession = session.Load();
-        pSession->WriteEvent(
-            pSamplingThread,
-            *pEvent,
-            payload,
-            NULL /* pActivityId */,
-            NULL /* pRelatedActivityId */,
-            pTargetThread,
-            &stackContents);
-    }
+    WriteEventInternal(
+        pSamplingThread,
+        *pEvent,
+        payload,
+        nullptr /* pActivityId */,
+        nullptr /* pRelatedActivityId */,
+        pTargetThread,
+        &stackContents
+    );
 }
 
 bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)

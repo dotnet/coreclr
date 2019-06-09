@@ -355,7 +355,20 @@ public:
 
 private:
     // The counterpart to WriteEvent which after the payload is constructed
-    static void WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId = NULL, LPCGUID pRelatedActivityId = NULL);
+    static void WriteEventInternal(
+        EventPipeEvent &event,
+        EventPipeEventPayload &payload,
+        LPCGUID pActivityId = nullptr,
+        LPCGUID pRelatedActivityId = nullptr);
+
+    static void WriteEventInternal(
+        Thread *pThread,
+        EventPipeEvent &event,
+        EventPipeEventPayload &payload,
+        LPCGUID pActivityId,
+        LPCGUID pRelatedActivityId,
+        Thread *pEventThread = nullptr,
+        StackContents *pStack = nullptr);
 
     static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
