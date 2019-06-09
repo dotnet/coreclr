@@ -4,7 +4,6 @@
 //
 
 #include <assert.h>
-#include <stdatomic.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -399,11 +398,8 @@ const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t opti
         pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
         UCollator* pNull = NULL;
 
-#if HAVE_WORKING_STDATOMIC
-        if (!atomic_compare_exchange_strong((_Atomic(UCollator*)*)&pSortHandle->collatorsPerOption[options], &pNull, pCollator))
-#else
+        // we are not using the standard atomic_compare_exchange_strong to workaround bugs in clang 5.0 (https://bugs.llvm.org/show_bug.cgi?id=37457)
         if (!__atomic_compare_exchange_n(&pSortHandle->collatorsPerOption[options], &pNull, pCollator, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
-#endif
         {
             ucol_close(pCollator);
             pCollator = pSortHandle->collatorsPerOption[options];
