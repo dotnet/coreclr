@@ -435,10 +435,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         return;
     }
 
-    EventPipeSession *const pSession = s_pSessions[index].LoadWithoutBarrier() != nullptr ?
-        s_pSessions[index].Load() : nullptr;
-
     // If the session was not found, then there is nothing else to do.
+    EventPipeSession *const pSession = s_pSessions[index];
     if (pSession == nullptr)
         return;
 
@@ -507,8 +505,7 @@ EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
             return nullptr;
         }
 
-        return s_pSessions[index].LoadWithoutBarrier() != nullptr ?
-            s_pSessions[index].Load() : nullptr;
+        return s_pSessions[index];
     }
 }
 

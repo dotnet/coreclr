@@ -414,16 +414,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         return false;
     }
 
-    // TODO: Checking twice? Why not more times?
-    // Check one more time to make sure that the event is still enabled.
-    // We do this because we might be trying to disable tracing and free buffers, so we
-    // must make sure that the event is enabled after we mark that we're writing to avoid
-    // races with the destructing thread.
-    if (!event.IsEnabled())
-    {
-        return false;
-    }
-
     StackContents stackContents;
     if (pStack == NULL && event.NeedStack() && !session.RundownEnabled())
     {
@@ -508,7 +498,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     }
 
 #ifdef _DEBUG
-    // TODO: These stats might need to be protected.
     if (!allocNewBuffer)
     {
         InterlockedIncrement(&m_numEventsStored);
@@ -779,8 +768,6 @@ void EventPipeBufferManager::SuspendWriteEvent(EventPipeSessionID sessionId)
                     // setting s_pSessions[this_session_id] = NULL above guaranteed that can't happen indefinately.
                     // Sooner or later the thread is going to see the NULL value and once it does it won't store
                     // this_session_id into the flag again.
-                    // As above I'm pretty sure this read barrier isn't necessary for correctness, but this isn't the hot
-                    // path so I am not being stingy
                 }
             }
 
