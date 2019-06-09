@@ -3,8 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections;
-using System.Text;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace System
 {
@@ -161,12 +161,15 @@ namespace System
             return s;
         }
 
-        protected internal string InnerExceptionToString()
+        // Returns the indented inner exception's ToString() prefixed with a newline.
+        // If there is no inner exception, returns empty string.
+        protected internal virtual string InnerExceptionToString(Exception? inner = null)
         {
-            if (_innerException == null)
+            inner ??= _innerException;
+            if (inner == null)
                 return "";
 
-            var sb = new StringBuilder(_innerException.ToString());
+            var sb = new StringBuilder(inner.ToString());
             sb.Replace("\r\n", "\n");
             sb.Replace("\n", Environment.NewLine + "      ");
 

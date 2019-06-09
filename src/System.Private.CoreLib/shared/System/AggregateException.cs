@@ -440,26 +440,14 @@ namespace System
             }
         }
 
-        /// <summary>
-        /// Creates and returns a string representation of the current <see cref="AggregateException"/>.
-        /// </summary>
-        /// <returns>A string representation of the current exception.</returns>
-        public override string ToString()
+        protected internal override string InnerExceptionToString(Exception? inner = null)
         {
-            StringBuilder text = new StringBuilder();
-            text.Append(base.ToString());
-
-            for (int i = 0; i < m_innerExceptions.Count; i++)
+            var sb = new StringBuilder();
+            foreach(Exception ex in m_innerExceptions)
             {
-                text.AppendLine();
-                text.Append("---> ");
-                text.AppendFormat(CultureInfo.InvariantCulture, SR.AggregateException_InnerException, i);
-                text.Append(m_innerExceptions[i].ToString());
-                text.Append("<---");
-                text.AppendLine();
+                sb.Append(base.InnerExceptionToString(ex));
             }
-
-            return text.ToString();
+            return sb.ToString();
         }
 
         /// <summary>
