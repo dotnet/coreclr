@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections;
+using System.Text;
 using System.Runtime.Serialization;
 
 namespace System
@@ -162,13 +163,14 @@ namespace System
 
         protected internal string InnerExceptionToString()
         {
-            string s = String.Empty;
-            if (_innerException != null)
-            {
-                s += " ---> " + _innerException.ToString() + Environment.NewLine +
-                "   " + SR.Exception_EndOfInnerExceptionStack;
-            }
-            return s;
+            if (_innerException == null)
+                return "";
+
+            var sb = new StringBuilder(_innerException.ToString());
+            sb.Replace("\r\n", "\n");
+            sb.Replace("\n", Environment.NewLine + "      ");
+
+            return Environment.NewLine + " ---> " + sb.ToString();
         }
 
         protected event EventHandler<SafeSerializationEventArgs> SerializeObjectState
