@@ -1512,7 +1512,7 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-    auto card_table = g_card_table;
+    auto card_table = g_card_table;  
 
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
