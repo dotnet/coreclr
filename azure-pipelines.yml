@@ -198,6 +198,7 @@ jobs:
 # Checked test builds
 #
 # The test jobs that can be triggered by a PR, manually from ADO and that are scheduled
+# TODO: This long 'in' condition needs to be make data driven, perhaps by adding another layer of template.
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'Manual', 'Schedule'), in(variables['Build.DefinitionName'], 'coreclr-ci', 'coreclr-outerloop', 'coreclr-outerloop-jitstress', 'coreclr-outerloop-jitstress-isas-arm', 'coreclr-outerloop-jitstress-isas-x86', 'coreclr-outerloop-jitstressregs-x86', 'coreclr-outerloop-jitstressregs', 'coreclr-outerloop-jitstress2-jitstressregs', 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra', 'coreclr-outerloop-r2r', 'coreclr-outerloop-r2r-extra')) }}:
   - template: eng/platform-matrix.yml
     parameters:
@@ -289,6 +290,7 @@ jobs:
 
 # PR innerloop checked build
 
+# TODO: This long 'in' condition needs to be make data driven, perhaps by adding another layer of template.
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'Manual', 'Schedule'), in(variables['Build.DefinitionName'], 'coreclr-ci', 'coreclr-corefx', 'coreclr-corefx-jitstress', 'coreclr-corefx-jitstressregs', 'coreclr-corefx-jitstress2-jitstressregs')) }}:
   - template: eng/platform-matrix.yml
     parameters:
