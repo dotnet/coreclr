@@ -4,18 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <AssemblyName>ReliableUnmarshalTest</AssemblyName>
     <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{8E3244CB-407F-4142-BAAB-E7A55901A5FA}</ProjectGuid>
+    <ProjectGuid>{F1E66554-8C8E-4141-85CF-D0CD6A0CD0B0}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <CLRTestKind>BuildAndRun</CLRTestKind>
+    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\..\</SolutionDir>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
-    <CLRTestPriority>0</CLRTestPriority>
-    <GCStressIncompatible>true</GCStressIncompatible>
-    <!-- Due to https://github.com/dotnet/coreclr/issues/22247 -->
-    <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
-    <DisableProjectBuild Condition="'$(Platform)' == 'arm'">true</DisableProjectBuild>
+    <!-- Test unsupported outside of windows -->
+    <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
+    <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'"></PropertyGroup>
@@ -26,8 +24,14 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="TwoKeywords.cs" />
-    <ProjectReference Include="../../common/common.csproj" />
+    <Compile Include="ReliableUnmarshalTest.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82A7F48D-3B50-4B1E-B82E-3ADA8210C358}" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="CMakeLists.txt" />
+  </ItemGroup>
+  <Import Project="../../../Interop.settings.targets" />
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

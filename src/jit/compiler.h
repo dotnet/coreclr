@@ -3527,6 +3527,7 @@ protected:
 
 #ifdef FEATURE_HW_INTRINSICS
     GenTree* impHWIntrinsic(NamedIntrinsic        intrinsic,
+                            CORINFO_CLASS_HANDLE  clsHnd,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
                             bool                  mustExpand);
@@ -3540,6 +3541,7 @@ protected:
 
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
                               bool                  mustExpand);
@@ -5770,7 +5772,7 @@ public:
 #define LPFLG_VAR_LIMIT 0x0100    // iterator is compared with a local var (var # found in lpVarLimit)
 #define LPFLG_CONST_LIMIT 0x0200  // iterator is compared with a constant (found in lpConstLimit)
 #define LPFLG_ARRLEN_LIMIT 0x0400 // iterator is compared with a.len or a[i].len (found in lpArrLenLimit)
-#define LPFLG_SIMD_LIMIT 0x0080   // iterator is compared with Vector<T>.Count (found in lpConstLimit)
+#define LPFLG_SIMD_LIMIT 0x0080   // iterator is compared with vector element count (found in lpConstLimit)
 
 #define LPFLG_HAS_PREHEAD 0x0800 // lpHead is known to be a preHead for this loop
 #define LPFLG_REMOVED 0x1000     // has been removed from the loop table (unrolled or optimized away)
@@ -7439,8 +7441,8 @@ private:
 #endif // _TARGET_ARM_
 
 #if defined(_TARGET_UNIX_)
-    int mapRegNumToDwarfReg(regNumber reg);
-    void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
+    short mapRegNumToDwarfReg(regNumber reg);
+    void createCfiCode(FuncInfoDsc* func, UNATIVE_OFFSET codeOffset, UCHAR opcode, short dwarfReg, INT offset = 0);
     void unwindPushPopCFI(regNumber reg);
     void unwindBegPrologCFI();
     void unwindPushPopMaskCFI(regMaskTP regMask, bool isFloat);

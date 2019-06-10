@@ -68,9 +68,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/baseservices/threading/waithandle/waitany/waitanyex2a/*">
             <Issue>19406</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/keyword/TwoKeywords/TwoKeywords/*">
-            <Issue>23224, often fails with timeout in release</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/tracecontrol/tracecontrol/*">
             <Issue>20299</Issue>
         </ExcludeList>
@@ -207,6 +204,48 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/Tailcall/TailcallVerifyWithPrefix/*">
             <Issue>Uses illagal il tailcall pop ret</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall_v4/hijacking/*">
+            <Issue>13828</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
+            <Issue>Varargs supported on this platform</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport/*">
+            <Issue>Varargs supported on this platform</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/arglist/vararg/*">
+            <Issue>Needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/baseservices/exceptions/WindowsEventLog/WindowsEventLog/*">
+            <Issue>Needs triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i53/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i13/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i03/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i33/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i63/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i73/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i83/*">
+            <Issue>Needs Triage</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall/_il_dbgtest_implicit/*">
+            <Issue>Unix doesn't support slow tail calls #2556, arm32 doesn't support fast tail calls #13828.</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall/_il_reltest_implicit/*">
+            <Issue>Unix doesn't support slow tail calls #2556, arm32 doesn't support fast tail calls #13828.</Issue>
         </ExcludeList>
     </ItemGroup>
 
@@ -428,46 +467,6 @@
         </ExcludeList>
     </ItemGroup>
 
-    <!-- arm32 All OS specific excludes -->
-    <ItemGroup Condition="'$(XunitTestBinBase)' != '' and  ('$(BuildArch)' == 'arm' or '$(AltJitArch)' == 'arm')">
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/tailcall_v4/hijacking/*">
-            <Issue>13828</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport_r/*">
-            <Issue>Varargs supported on this platform</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/varargs/varargsupport/*">
-            <Issue>Varargs supported on this platform</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/arglist/vararg/*">
-            <Issue>Needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/baseservices/exceptions/WindowsEventLog/WindowsEventLog/*">
-            <Issue>Needs triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i53/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i13/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i03/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i33/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i63/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i73/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i83/*">
-            <Issue>Needs Triage</Issue>
-        </ExcludeList>
-    </ItemGroup>
-
     <!-- The following are x64 Unix failures. -->
     <ItemGroup Condition="'$(XunitTestBinBase)' != '' and '$(BuildArch)' == 'x64' and '$(TargetsWindows)' != 'true'">
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/refany/_il_dbgseq/*">
@@ -517,12 +516,6 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_19601/Github_19601/*">
             <Issue>Needs Triage</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/eventsource/**/*">
-            <Issue>Failing on alpine, being tracked by #24772</Issue>
-        </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/**/*">
-            <Issue>Failing on alpine, being tracked by #24772</Issue>
         </ExcludeList>
     </ItemGroup>
 

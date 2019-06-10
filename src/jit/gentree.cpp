@@ -245,7 +245,7 @@ void GenTree::InitNodeSize()
     GenTree::s_gtNodeSizes[GT_FTN_ADDR]         = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_BOX]              = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_INDEX]            = TREE_NODE_SZ_LARGE;
-    GenTree::s_gtNodeSizes[GT_INDEX_ADDR]        = TREE_NODE_SZ_LARGE;
+    GenTree::s_gtNodeSizes[GT_INDEX_ADDR]       = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_ARR_BOUNDS_CHECK] = TREE_NODE_SZ_LARGE;
 #ifdef FEATURE_SIMD
     GenTree::s_gtNodeSizes[GT_SIMD_CHK] = TREE_NODE_SZ_LARGE;
@@ -317,6 +317,7 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeQmark)        <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeIntrinsic)    <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeIndex)        <= TREE_NODE_SZ_LARGE); // *** large node
+    static_assert_no_msg(sizeof(GenTreeIndexAddr)    <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeArrLen)       <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeBoundsChk)    <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeArrElem)      <= TREE_NODE_SZ_LARGE); // *** large node
@@ -5937,8 +5938,8 @@ GenTree* Compiler::gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSE
                (lvaIsImplicitByRefLocal(lnum) && fgGlobalMorph && (lvaTable[lnum].lvType == TYP_BYREF)));
     }
     // This local variable node may later get transformed into a large node
-    assert(GenTree::s_gtNodeSizes[GT_CALL] > GenTree::s_gtNodeSizes[GT_LCL_VAR]);
-    GenTree* node = new (this, GT_CALL) GenTreeLclVar(type, lnum DEBUGARG(ILoffs) DEBUGARG(/*largeNode*/ true));
+    assert(GenTree::s_gtNodeSizes[LargeOpOpcode()] > GenTree::s_gtNodeSizes[GT_LCL_VAR]);
+    GenTree* node = new (this, LargeOpOpcode()) GenTreeLclVar(type, lnum DEBUGARG(ILoffs) DEBUGARG(/*largeNode*/ true));
     return node;
 }
 
@@ -10195,7 +10196,7 @@ void Compiler::gtDispConst(GenTree* tree)
 #ifdef FEATURE_SIMD
                 if ((tree->gtFlags & GTF_ICON_SIMD_COUNT) != 0)
                 {
-                    printf(" Vector<T>.Count");
+                    printf(" vector element count");
                 }
 #endif
 
@@ -15456,9 +15457,8 @@ bool GenTree::DefinesLocal(Compiler* comp, GenTreeLclVarCommon** pLclVarTree, bo
         GenTree* destAddr = blkNode->Addr();
         unsigned width    = blkNode->gtBlkSize;
         // Do we care about whether this assigns the entire variable?
-        if (pIsEntire != nullptr && width == 0)
+        if (pIsEntire != nullptr && blkNode->OperIs(GT_DYN_BLK))
         {
-            assert(blkNode->gtOper == GT_DYN_BLK);
             GenTree* blockWidth = blkNode->AsDynBlk()->gtDynamicSize;
             if (blockWidth->IsCnsIntOrI())
             {
@@ -18007,8 +18007,9 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
 {
 #ifdef _TARGET_XARCH_
     return OperIsMemoryLoad() || OperIsMemoryStore();
-#endif // _TARGET_XARCH_
+#else
     return false;
+#endif
 }
 
 #endif // FEATURE_HW_INTRINSICS
