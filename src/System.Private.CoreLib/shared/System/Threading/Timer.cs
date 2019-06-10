@@ -290,9 +290,7 @@ namespace System.Threading
 
         #region Queue implementation
 
-        private long _count;
-
-        public long Count => Volatile.Read(ref _count);
+        public long Count { get; private set; }
 
         public bool UpdateTimer(TimerQueueTimer timer, uint dueTime, uint period)
         {
@@ -308,7 +306,7 @@ namespace System.Threading
                 // If the timer wasn't previously scheduled, now add it to the right list.
                 timer._short = shouldBeShort;
                 LinkTimer(timer);
-                ++_count;
+                ++Count;
             }
             else if (timer._short != shouldBeShort)
             {
@@ -384,7 +382,7 @@ namespace System.Threading
         {
             if (timer._dueTime != Timeout.UnsignedInfinite)
             {
-                --_count;
+                --Count;
                 UnlinkTimer(timer);
                 timer._prev = null;
                 timer._next = null;
@@ -842,7 +840,10 @@ namespace System.Threading
                 long count = 0;
                 foreach (TimerQueue queue in TimerQueue.Instances)
                 {
-                    count += queue.Count;
+                    lock (queue)
+                    {
+                        count += queue.Count;
+                    }
                 }
                 return count;
             }
