@@ -346,18 +346,6 @@ jobs:
         readyToRun: true
         displayNameArgs: R2R
 
-  - template: eng/platform-matrix.yml
-    parameters:
-      jobTemplate: test-job.yml
-      buildConfig: checked
-      platforms:
-      # Temporary: only one known good platform for outerloop CoreFX jobs
-      - Windows_NT_x64
-      jobParameters:
-        testGroup: outerloop
-        corefxTests: true
-        displayNameArgs: CoreFX
-
 #
 # Release test builds
 #
@@ -390,18 +378,6 @@ jobs:
         testGroup: outerloop
         readyToRun: true
         displayNameArgs: R2R
-
-  - template: eng/platform-matrix.yml
-    parameters:
-      jobTemplate: test-job.yml
-      buildConfig: release
-      platforms:
-      # Temporary: only one known good platform for outerloop CoreFX jobs
-      - Windows_NT_x64
-      jobParameters:
-        testGroup: outerloop
-        corefxTests: true
-        displayNameArgs: CoreFX
 
 # Format
 - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
