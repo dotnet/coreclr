@@ -174,7 +174,8 @@ do                                                      \
             TypeHandle pNestedType = fsig.GetLastTypeHandleThrowing(ClassLoader::LoadTypes,
                                                                     CLASS_LOAD_APPROXPARENTS,
                                                                     TRUE);
-            if (pNestedType.GetMethodTable()->IsManagedSequential())
+            if (pNestedType.GetMethodTable()->IsManagedSequential() &&
+                !pNestedType.GetMethodTable()->IsByRefLike())
             {
                 pfwalk->m_managedPlacement.m_size = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
 
