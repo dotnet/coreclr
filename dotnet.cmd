@@ -7,7 +7,6 @@ set "__ProjectDir=%~dp0"
 :: misleading value (such as 'MCD' in HP PCs) may lead to build breakage (issue: #69).
 set Platform=
 set __ProjectDir=
-set __DotnetDir=
 
 :: Don't resolve runtime, shared framework, or SDK from other locations to ensure build determinism
 set DOTNET_MULTILEVEL_LOOKUP=0
@@ -21,17 +20,10 @@ if NOT [%ERRORLEVEL%]==[0] (
   exit /b %ERRORLEVEL%
 )
 
-if "%DOTNET_TOOL_DIR%"=="" (
-  set __DotnetDir=%~dp0
-) else (
-  set __DotnetDir=%DOTNET_TOOL_DIR%
-)
-
 pushd %~dp0
 echo Running: dotnet %*
-call "%__DotnetDir%\dotnet.exe" %*
+call "%~dp0\.dotnet\dotnet.exe" %*
 popd
-
 if NOT [%ERRORLEVEL%]==[0] (
   exit /b 1
 )
