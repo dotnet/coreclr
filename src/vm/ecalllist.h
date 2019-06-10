@@ -1264,7 +1264,7 @@ FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFu
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
 #if FEATURE_PAL
-FCClassElement("Kernel32", "Interop", gPalKernel32Funcs)
+FCClassElement("Kernel32", "", gPalKernel32Funcs)
 #endif
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
 FCClassElement("Marshal", "System.Runtime.InteropServices", gInteropMarshalFuncs)
@@ -1293,8 +1293,8 @@ FCClassElement("Object", "System", gObjectFuncs)
 FCClassElement("ObjectMarshaler", "System.StubHelpers", gObjectMarshalerFuncs)
 #endif
 #ifdef FEATURE_PAL
-FCClassElement("Ole32", "Interop", gPalOle32Funcs)
-FCClassElement("OleAut32", "Interop", gPalOleAut32Funcs)
+FCClassElement("Ole32", "", gPalOle32Funcs)
+FCClassElement("OleAut32", "", gPalOleAut32Funcs)
 #endif
 FCClassElement("OverlappedData", "System.Threading", gOverlappedFuncs)
 
