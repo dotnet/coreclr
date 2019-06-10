@@ -81,6 +81,9 @@
 -nonamespace System.Net.Sockets.Tests
 -noclass System.Net.Tests.HttpListenerContextTests
 
+# timeout
+-nomethod System.Net.Tests.HttpListenerResponseTests.CloseResponseEntity_NullResponseEntity_ThrowsArgumentNullException
+
 # crashes
 -noclass System.Net.Tests.HttpListenerAuthenticationTests
 
