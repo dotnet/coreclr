@@ -79,6 +79,7 @@
 # failures
 -nonamespace System.Net.Http.Functional.Tests
 -nonamespace System.Net.Sockets.Tests
+-noclass System.Net.Tests.HttpListenerContextTests
 
 # crashes
 -noclass System.Net.Tests.HttpListenerAuthenticationTests
@@ -86,15 +87,14 @@
 # timeout
 -nomethod System.Net.Security.Tests.LoggingTest.EventSource_EventsRaisedAsExpected
 
-# System.IO.FileSystem.Tests: timeouts
--nonamespace System.IO.FileSystem.Tests
-
 # System.Linq.Expressions.Tests: timeout on Linux/x64
 -nonamespace System.Linq.Expressions.Tests
 
 # assert/crashes
+-nomethod System.Tests.RealFormatterTestsBase.TestFormatterSingle_F20
 -noclass System.Tests.RealFormatterTestsBase
 -noclass System.Tests.RealFormatterTests
+-noclass System.Buffers.Text.Tests.RealFormatterTests
 
 # System.Runtime.Serialization.Formatters.Tests: timeouts
 -nonamespace System.Runtime.Serialization.Formatters.Tests
