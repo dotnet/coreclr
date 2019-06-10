@@ -2145,6 +2145,10 @@ DWORD FilterMethodAttribsForIsSupported(DWORD attribs, CORINFO_METHOD_HANDLE ftn
             || strcmp(namespaceName, "System.Runtime.Intrinsics") == 0)
         {
             attribs &= ~CORINFO_FLG_JIT_INTRINSIC;
+
+            // The intrinsic just recursively calls itself in IL so it wouldn't inline anyway,
+            // but let's make that explicit.
+            attribs |= CORINFO_FLG_DONT_INLINE;
         }
     }
 
