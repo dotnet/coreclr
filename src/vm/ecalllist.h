@@ -1263,6 +1263,9 @@ FCClassElement("IReflect", "System.Reflection", gStdMngIReflectFuncs)
 FCClassElement("InterfaceMarshaler", "System.StubHelpers", gInterfaceMarshalerFuncs)
 #endif
 FCClassElement("Interlocked", "System.Threading", gInterlockedFuncs)
+#if FEATURE_PAL
+FCClassElement("Kernel32", "Interop", gPalKernel32Funcs)
+#endif
 FCClassElement("LoaderAllocatorScout", "System.Reflection", gLoaderAllocatorFuncs)
 FCClassElement("Marshal", "System.Runtime.InteropServices", gInteropMarshalFuncs)
 FCClassElement("Math", "System", gMathFuncs)
@@ -1288,6 +1291,10 @@ FCClassElement("OAVariantLib", "Microsoft.Win32", gOAVariantFuncs)
 FCClassElement("Object", "System", gObjectFuncs)
 #ifdef FEATURE_COMINTEROP
 FCClassElement("ObjectMarshaler", "System.StubHelpers", gObjectMarshalerFuncs)
+#endif
+#ifdef FEATURE_PAL
+FCClassElement("Ole32", "Interop", gPalOle32Funcs)
+FCClassElement("OleAut32", "Interop", gPalOleAut32Funcs)
 #endif
 FCClassElement("OverlappedData", "System.Threading", gOverlappedFuncs)
 
@@ -1347,12 +1354,6 @@ FCClassElement("WindowsRuntimeMarshal", "System.Runtime.InteropServices.WindowsR
 #if defined(FEATURE_EVENTSOURCE_XPLAT)
 FCClassElement("XplatEventLogger", "System.Diagnostics.Tracing", gEventLogger)
 #endif //defined(FEATURE_EVENTSOURCE_XPLAT)
-
-#ifdef FEATURE_PAL
-FCClassElement("Kernel32", "Interop", gPalKernel32Funcs)
-FCClassElement("Ole32", "Interop", gPalOle32Funcs)
-FCClassElement("OleAut32", "Interop", gPalOleAut32Funcs)
-#endif
 
 #undef FCFuncElement
 #undef FCFuncElementSig
