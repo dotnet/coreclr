@@ -814,10 +814,16 @@ namespace System.IO
         {
             if (relativeTo == null)
                 throw new ArgumentNullException(nameof(relativeTo));
-            if (relativeTo.Length == 0)
+
+            if (PathInternal.IsEffectivelyEmpty(relativeTo.AsSpan()))
                 throw new ArgumentException(nameof(relativeTo));
-            if (PathInternal.IsEffectivelyEmpty(path.AsSpan()))
+
+            if (path == null)
                 throw new ArgumentNullException(nameof(path));
+
+            if (PathInternal.IsEffectivelyEmpty(path.AsSpan()))
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(path));
+
             Debug.Assert(comparisonType == StringComparison.Ordinal || comparisonType == StringComparison.OrdinalIgnoreCase);
 
             relativeTo = GetFullPath(relativeTo);
