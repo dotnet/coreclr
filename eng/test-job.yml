@@ -177,11 +177,19 @@ jobs:
 
         publishTestResults: true
 
-        ${{ if eq(parameters.testGroup, 'innerloop') }}:
-          # "PerCollection" is time needed for the "biggest" xUnit test collection to complete.
-          # In case xUnit test wrappers get refactored this number should also be adjusted.
+        # Set job timeouts
+        #
+        # "timeoutPerTestCollectionInMinutes" is the time needed for the "biggest" xUnit test collection to complete.
+        # In case xUnit test wrappers get refactored this number should also be adjusted.
+        #
+        # "timeoutPerTestInMinutes" corresponds to individual test running time. This is implemented by setting
+        # the __TestTimeout variable, which is later read by the coreclr xunit test wrapper code (the code in the
+        # xunit test dlls that invokes the actual tests). Note this doesn't apply to CoreFX testing.
+
+        ${{ if and(eq(parameters.corefxTests, true), eq(parameters.testGroup, 'innerloop')) }}:
+          timeoutPerTestCollectionInMinutes: 120
+        ${{ if and(ne(parameters.corefxTests, true), eq(parameters.testGroup, 'innerloop')) }}:
           timeoutPerTestCollectionInMinutes: 30
-          # "PerTest" corresponds to individual test running time (i.e. __TestTimeout).
           timeoutPerTestInMinutes: 10
         ${{ if in(parameters.testGroup, 'outerloop') }}:
           timeoutPerTestCollectionInMinutes: 120
@@ -206,7 +214,7 @@ jobs:
         # Choose which tests to send to Helix: CoreFX or CoreCLR.
         ${{ if eq(parameters.corefxTests, true) }}:
           helixProjectArguments: 'eng/helixcorefxtests.proj'
-        ${{ if eq(parameters.corefxTests, false) }}:
+        ${{ if ne(parameters.corefxTests, true) }}:
           helixProjectArguments: 'tests/helixpublishwitharcade.proj'
 
         # Error checking
