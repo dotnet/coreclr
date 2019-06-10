@@ -290,6 +290,10 @@ namespace System.Threading
 
         #region Queue implementation
 
+        private long _count;
+
+        public long Count => Volatile.Read(ref _count);
+
         public bool UpdateTimer(TimerQueueTimer timer, uint dueTime, uint period)
         {
             int nowTicks = TickCount;
@@ -304,6 +308,7 @@ namespace System.Threading
                 // If the timer wasn't previously scheduled, now add it to the right list.
                 timer._short = shouldBeShort;
                 LinkTimer(timer);
+                ++_count;
             }
             else if (timer._short != shouldBeShort)
             {
@@ -379,6 +384,7 @@ namespace System.Threading
         {
             if (timer._dueTime != Timeout.UnsignedInfinite)
             {
+                --_count;
                 UnlinkTimer(timer);
                 timer._prev = null;
                 timer._next = null;
@@ -824,6 +830,22 @@ namespace System.Threading
                 throw new ArgumentOutOfRangeException(nameof(period), SR.ArgumentOutOfRange_PeriodTooLarge);
 
             return _timer._timer.Change((uint)dueTime, (uint)period);
+        }
+
+        /// <summary>
+        /// Gets the number of timers that are currently scheduled.
+        /// </summary>
+        public static long Count
+        {
+            get
+            {
+                long count = 0;
+                foreach (TimerQueue queue in TimerQueue.Instances)
+                {
+                    count += queue.Count;
+                }
+                return count;
+            }
         }
 
         public bool Dispose(WaitHandle notifyObject)
