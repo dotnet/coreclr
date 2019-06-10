@@ -2220,9 +2220,6 @@
   <data name="EventSource_VarArgsParameterMismatch" xml:space="preserve">
     <value>The parameters to the Event method do not match the parameters to the WriteEvent method. This may cause the event to be displayed incorrectly.</value>
   </data>
-  <data name="Exception_EndStackTraceFromPreviousThrow" xml:space="preserve">
-    <value>--- End of stack trace from previous location where exception was thrown ---</value>
-  </data>
   <data name="Exception_WasThrown" xml:space="preserve">
     <value>Exception of type '{0}' was thrown.</value>
   </data>
