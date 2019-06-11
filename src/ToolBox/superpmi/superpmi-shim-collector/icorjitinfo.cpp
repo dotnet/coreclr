@@ -1118,6 +1118,13 @@ CorInfoType interceptor_ICJI::getFieldType(CORINFO_FIELD_HANDLE  field,
                                            )
 {
     mc->cr->AddCall("getFieldType");
+    // 'structType' may be null, but since we use only 'field' and 'memberParent' as keys,
+    // we don't want to pass null, in case we have a subsequent call with non-null 'structType'.
+    CORINFO_CLASS_HANDLE dummyStructType;
+    if (structType == nullptr)
+    {
+        structType = &dummyStructType;
+    }
     CorInfoType temp = original_ICorJitInfo->getFieldType(field, structType, memberParent);
     mc->recGetFieldType(field, structType, memberParent, temp);
     return temp;
