@@ -71,6 +71,10 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_argIterator.NumFixedArgs();
     }
+    
+#ifdef UNIX_AMD64_ABI
+    LPVOID ProfileArgIterator::CopyStructFromRegisters();
+#endif // UNIX_AMD64_ABI
 
     //
     // After initialization, this method is called repeatedly until it
