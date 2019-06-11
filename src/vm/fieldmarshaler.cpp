@@ -1077,7 +1077,10 @@ BOOL IsStructMarshalable(TypeHandle th)
         if (th.IsArray())
             return FALSE;
         else
-            return TRUE;
+        {
+            // ByReference<T> shows up as blittable, but it actually isn't.
+            return !th.GetMethodTable()->HasSameTypeDefAs(g_pByReferenceClass);
+        }
     }
 
     // Check to see if the type has layout.
@@ -1086,6 +1089,9 @@ BOOL IsStructMarshalable(TypeHandle th)
 
     MethodTable *pMT= th.GetMethodTable();
     PREFIX_ASSUME(pMT != NULL);
+
+    // ByReference<T> should have taken the blittable path above
+    assert(!pMT->HasSameTypeDefAs(g_pByReferenceClass));
     
     if (pMT->IsStructMarshalable())
         return TRUE;
