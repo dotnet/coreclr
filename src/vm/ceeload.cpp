@@ -3422,8 +3422,8 @@ BOOL Module::IsInSameVersionBubble(Module *target)
 {
     CONTRACT(BOOL)
     {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACT_END;
