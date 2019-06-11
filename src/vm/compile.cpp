@@ -73,7 +73,9 @@
 
 #ifdef CROSSGEN_COMPILE
 CompilationDomain * theDomain;
+#ifdef FEATURE_READYTORUN_COMPILER
 MapSHash<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE> s_stubMethodsOfMethod;
+#endif // FEATURE_READYTORUN_COMPILER
 #endif
 
 VerboseLevel g_CorCompileVerboseLevel = CORCOMPILE_NO_LOG;
@@ -6293,10 +6295,12 @@ void CEEPreloader::GenerateMethodStubs(
             // that we can recover the stub MethodDesc at prestub time, do the fixups, and wire up the native code
             if (pStubMD != NULL)
             {
+#ifdef FEATURE_READYTORUN_COMPILER
                 if (IsReadyToRunCompilation())
                 {
                     s_stubMethodsOfMethod.Add(CORINFO_METHOD_HANDLE(pStubMD), CORINFO_METHOD_HANDLE(pMD));
                 }
+#endif // FEATURE_READYTORUN_COMPILER
                 SetStubMethodDescOnInteropMethodDesc(pMD, pStubMD, false /* fReverseStub */);
                 pStubMD = NULL;
             }
@@ -7307,10 +7311,12 @@ HRESULT CompilationDomain::SetPlatformWinmdPaths(LPCWSTR pwzPlatformWinmdPaths)
     return S_OK;
 }
 
+#ifdef FEATURE_READYTORUN_COMPILER
+
 class MethodsForStubEnumerator
 {
-    SHash < NoRemoveSHashTraits<MapSHashTraits<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE>>>::KeyIterator current;
-    SHash < NoRemoveSHashTraits<MapSHashTraits<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE>>>::KeyIterator end;
+    SHash<NoRemoveSHashTraits<MapSHashTraits<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE>>>::KeyIterator current;
+    SHash<NoRemoveSHashTraits<MapSHashTraits<CORINFO_METHOD_HANDLE, CORINFO_METHOD_HANDLE>>>::KeyIterator end;
     bool started = false;
     bool complete = false;
 
@@ -7349,20 +7355,26 @@ public:
         return current->Value();
     }
 };
+#endif // FEATURE_READYTORUN_COMPILER
 
 BOOL CEECompileInfo::EnumMethodsForStub(CORINFO_METHOD_HANDLE hMethod, void** enumerator)
 {
+#ifdef FEATURE_READYTORUN_COMPILER
     *enumerator = NULL;
     if (s_stubMethodsOfMethod.LookupPtr(hMethod) == NULL)
         return FALSE;
 
     *enumerator = new MethodsForStubEnumerator(hMethod);
     return TRUE;
+#else
+    return FALSE;
+#endif // FEATURE_READYTORUN_COMPILER
 }
 
 BOOL CEECompileInfo::EnumNextMethodForStub(void * enumerator, CORINFO_METHOD_HANDLE *hMethod)
 {
     *hMethod = NULL;
+#ifdef FEATURE_READYTORUN_COMPILER
     auto stubEnum = (MethodsForStubEnumerator*)enumerator;
     if (stubEnum->Next())
     {
@@ -7373,12 +7385,17 @@ BOOL CEECompileInfo::EnumNextMethodForStub(void * enumerator, CORINFO_METHOD_HAN
     {
         return FALSE;
     }
+#else
+    return FALSE;
+#endif // FEATURE_READYTORUN_COMPILER
 }
 
 void CEECompileInfo::EnumCloseForStubEnumerator(void *enumerator)
 {
+#ifdef FEATURE_READYTORUN_COMPILER
     auto stubEnum = (MethodsForStubEnumerator*)enumerator;
     delete stubEnum;
+#endif // FEATURE_READYTORUN_COMPILER
 }
 
 #endif // CROSSGEN_COMPILE

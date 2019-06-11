@@ -395,7 +395,7 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
                         if (pCode != NULL)
                         {
                             LOG((LF_ZAP, LL_INFO10000,
-                                "ZAP: Using R2R precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+                                "ZAP: Using R2R precompiled code" FMT_ADDR " for %s.%s sig=\"%s\" (token %x).\n",
                                 DBG_ADDR(pCode),
                                 m_pszDebugClassName,
                                 m_pszDebugMethodName,
@@ -458,7 +458,7 @@ PCODE MethodDesc::GetPrecompiledCode(PrepareCodeConfig* pConfig)
         if (pCode != NULL)
         {
             LOG((LF_ZAP, LL_INFO10000,
-                    "ZAP: Using R2R precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+                    "ZAP: Using R2R precompiled code" FMT_ADDR " for %s.%s sig=\"%s\" (token %x).\n",
                     DBG_ADDR(pCode),
                     m_pszDebugClassName,
                     m_pszDebugMethodName,
@@ -517,7 +517,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
     if (pCode != NULL)
     {
         LOG((LF_ZAP, LL_INFO10000,
-            "ZAP: Using NGEN precompiled code" FMT_ADDR "for %s.%s sig=\"%s\" (token %x).\n",
+            "ZAP: Using NGEN precompiled code " FMT_ADDR " for %s.%s sig=\"%s\" (token %x).\n",
             DBG_ADDR(pCode),
             m_pszDebugClassName,
             m_pszDebugMethodName,

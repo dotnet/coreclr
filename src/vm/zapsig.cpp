@@ -1326,6 +1326,8 @@ BOOL ZapSig::EncodeMethod(
             pMethod->GetModule() :
             IsDynamicScope(pResolvedToken->tokenScope) ? NULL: GetModule(pResolvedToken->tokenScope);
 
+        // pReferencingModule may be NULL if the method is a dynamic method.
+
         if (pReferencingModule != NULL && !pReferencingModule->IsInCurrentVersionBubble())
         {
             // FUTURE: Encoding of new cross-module references for ReadyToRun
@@ -1354,12 +1356,32 @@ BOOL ZapSig::EncodeMethod(
 
             if (pInfoModule == pMethod->GetModule())
             {
+                // This is assuming that the current module being compiled is the same as the module
+                // associated with the method being called. If so, we can identify the method by a MethodDef
+                // token. Otherwise, a more complex operation would be necessary.
                 methodToken = pMethod->GetMemberDef_NoLogging();
             }
             else
             {
-                // TODO: Distinguish this case so it doesn't print to the console
-                ThrowHR(E_FAIL); // Attempt to compile IL stub with use of helper function outside of CoreLib
+                // Attempt to compile IL stub with use of helper function outside of CoreLib
+                _ASSERTE(FALSE);
+                ThrowHR(E_FAIL); 
+            }
+
+            if (!ownerType.IsTypicalTypeDefinition() || pMethod->HasMethodInstantiation())
+            {
+                _ASSERTE(FALSE); // IL Stubs are not expected to have use of generic functions
+                ThrowHR(E_FAIL); // Attempt to compile IL stub with use of generic function. This encoding does not support that.
+            }
+        }
+
+        if (TypeFromToken(methodToken) != mdtMethodDef)
+        {
+            if (pReferencingModule == NULL)
+            {
+                // Invalid situation. Null pReferencingModule can only happen with a dynamic scope,
+                // and in that case the reference can only be a methoddef.
+                ThrowHR(E_FAIL);
             }
         }
 
