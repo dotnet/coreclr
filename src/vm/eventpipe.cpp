@@ -185,6 +185,10 @@ bool EventPipeProviderCallbackDataQueue::TryDequeue(EventPipeProviderCallbackDat
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
+    PRECONDITION(!s_tracingInitialized);
+
+    if (s_tracingInitialized)
+        return;
 
     const bool tracingInitialized = s_configCrst.InitNoThrow(
         CrstEventPipe,
@@ -206,7 +210,10 @@ void EventPipe::Initialize()
     const unsigned long DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
     SampleProfiler::SetSamplingRate(DefaultProfilerSamplingRateInNanoseconds);
 
-    s_tracingInitialized = tracingInitialized;
+    {
+        CrstHolder _crst(GetLock());
+        s_tracingInitialized = tracingInitialized;
+    }
 }
 
 void EventPipe::Shutdown()
@@ -216,10 +223,12 @@ void EventPipe::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        // These 3 pointers are initialized once on EventPipe::Initialize
-        //PRECONDITION(s_pEventSource != nullptr);
+        PRECONDITION(s_tracingInitialized);
     }
     CONTRACTL_END;
+
+    if (!s_tracingInitialized)
+        return;
 
     if (s_pEventSource == nullptr)
         return;
@@ -238,12 +247,15 @@ void EventPipe::Shutdown()
         return;
     }
 
-    // Mark tracing as no longer initialized.
-    s_tracingInitialized = false;
-
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
+        // Mark tracing as no longer initialized.
+        {
+            CrstHolder _crst(GetLock());
+            s_tracingInitialized = false;
+        }
+
         for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
         {
             EventPipeSession *pSession = s_pSessions[i].Load();
@@ -282,9 +294,6 @@ EventPipeSessionID EventPipe::Enable(
     }
     CONTRACTL_END;
 
-    if (!s_tracingInitialized)
-        return 0;
-
     // If the state or arguments are invalid, bail here.
     if (sessionType == EventPipeSessionType::File && strOutputPath == nullptr)
         return 0;
@@ -293,6 +302,9 @@ EventPipeSessionID EventPipe::Enable(
 
     EventPipeSessionID sessionId = 0;
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
+        if (!s_tracingInitialized)
+            return;
+
         EventPipeSession *const pSession = s_config.CreateSession(
             strOutputPath,
             pStream,
