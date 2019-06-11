@@ -290,7 +290,7 @@ namespace System.Threading
 
         #region Queue implementation
 
-        public long Count { get; private set; }
+        public long ActiveCount { get; private set; }
 
         public bool UpdateTimer(TimerQueueTimer timer, uint dueTime, uint period)
         {
@@ -306,7 +306,7 @@ namespace System.Threading
                 // If the timer wasn't previously scheduled, now add it to the right list.
                 timer._short = shouldBeShort;
                 LinkTimer(timer);
-                ++Count;
+                ++ActiveCount;
             }
             else if (timer._short != shouldBeShort)
             {
@@ -382,8 +382,8 @@ namespace System.Threading
         {
             if (timer._dueTime != Timeout.UnsignedInfinite)
             {
-                --Count;
-                Debug.Assert(Count >= 0);
+                --ActiveCount;
+                Debug.Assert(ActiveCount >= 0);
                 UnlinkTimer(timer);
                 timer._prev = null;
                 timer._next = null;
@@ -832,9 +832,10 @@ namespace System.Threading
         }
 
         /// <summary>
-        /// Gets the number of timers that are currently scheduled.
+        /// Gets the number of timers that are currently active. An active timer is registered to tick at some point in the
+        /// future, and has not yet been canceled.
         /// </summary>
-        public static long Count
+        public static long ActiveCount
         {
             get
             {
