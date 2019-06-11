@@ -7352,7 +7352,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
 {
 #if defined(_TARGET_UNIX_)
-    noway_assert("Slow tail calls not supported on non-windows platforms.");
+    noway_assert(!"Slow tail calls not supported on non-Windows platforms.");
 #endif
 
     JITDUMP("fgMorphTailCall (before):\n");
