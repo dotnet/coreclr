@@ -14,20 +14,20 @@
     <UsingToolXliff>false</UsingToolXliff>
     <!-- Package versions -->
     <!-- arcade -->
-    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19304.1</MicrosoftDotNetBuildTasksFeedVersion>
-    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19304.1</MicrosoftDotNetBuildTasksPackagingVersion>
+    <MicrosoftDotNetBuildTasksFeedVersion>2.2.0-beta.19310.24</MicrosoftDotNetBuildTasksFeedVersion>
+    <MicrosoftDotNetBuildTasksPackagingVersion>1.0.0-beta.19310.24</MicrosoftDotNetBuildTasksPackagingVersion>
     <MicrosoftDotNetXUnitConsoleRunnerVersion>2.5.1-beta.19278.1</MicrosoftDotNetXUnitConsoleRunnerVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview7.19305.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview7.19305.1</MicrosoftNETCorePlatformsVersion>
-    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19305.1</MicrosoftBclAsyncInterfacesVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview7.19311.1</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-preview7.19311.1</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19311.1</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.0.0-preview7-27804-03</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview7-27810-02</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190605.1</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190605.1</optimizationPGOCoreCLRVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190610.3</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190610.3</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>

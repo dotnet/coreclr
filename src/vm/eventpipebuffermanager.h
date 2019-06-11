@@ -8,81 +8,17 @@
 #ifdef FEATURE_PERFTRACING
 
 #include "eventpipe.h"
-#include "eventpipefile.h"
-#include "eventpipebuffer.h"
-#include "eventpipesession.h"
+#include "eventpipeeventinstance.h"
+#include "eventpipethread.h"
 #include "spinlock.h"
 
+class EventPipeBuffer;
 class EventPipeBufferList;
 class EventPipeBufferManager;
+class EventPipeFile;
+class EventPipeSession;
 class EventPipeThread;
-
-void ReleaseEventPipeThreadRef(EventPipeThread* pThread);
-void AcquireEventPipeThreadRef(EventPipeThread* pThread);
-typedef Wrapper<EventPipeThread*, AcquireEventPipeThreadRef, ReleaseEventPipeThreadRef> EventPipeThreadHolder;
-
-typedef MapSHashWithRemove<EventPipeBufferManager *, EventPipeBuffer *> EventPipeWriteBuffers;
-typedef MapSHashWithRemove<EventPipeBufferManager *, EventPipeBufferList *> EventPipeBufferLists;
-
-class EventPipeThread
-{
-#ifndef __GNUC__
-    __declspec(thread) static
-#else  // !__GNUC__
-    thread_local static
-#endif // !__GNUC__
-        EventPipeThreadHolder gCurrentEventPipeThreadHolder;
-
-    ~EventPipeThread();
-
-    // The EventPipeThreadHolder maintains one count while the thread is alive
-    // and each session's EventPipeBufferList maintains one count while it
-    // exists
-    LONG m_refCount;
-
-    // this is a dictionary of { buffer-manager, buffer } this thread is
-    // allowed to write to if exists or non-null, it must match the tail of the
-    // m_bufferList
-    // this pointer is protected by m_lock
-    EventPipeWriteBuffers *m_pWriteBuffers = nullptr;
-
-    // this is a dictionary of { buffer-manager, list of buffers } that were
-    // written to by this thread
-    // it is protected by EventPipeBufferManager::m_lock
-    EventPipeBufferLists *m_pBufferLists = nullptr;
-
-    // This lock is designed to have low contention. Normally it is only taken by this thread,
-    // but occasionally it may also be taken by another thread which is trying to collect and drain
-    // buffers from all threads.
-    SpinLock m_lock;
-
-#ifdef DEBUG
-    template <typename T>
-    static bool AllValuesAreNull(T &map)
-    {
-        LIMITED_METHOD_CONTRACT;
-        for (typename T::Iterator iter = map.Begin(); iter != map.End(); ++iter)
-            if (iter->Value() != nullptr)
-                return false;
-        return true;
-    }
-#endif // DEBUG
-
-public:
-    static EventPipeThread *Get();
-    static void Set(EventPipeThread *pThread);
-
-    EventPipeThread();
-    void AddRef();
-    void Release();
-    SpinLock *GetLock();
-
-    EventPipeBuffer *GetWriteBuffer(EventPipeBufferManager *pBufferManager);
-    void SetWriteBuffer(EventPipeBufferManager *pBufferManager, EventPipeBuffer *pNewBuffer);
-    EventPipeBufferList *GetBufferList(EventPipeBufferManager *pBufferManager);
-    void SetBufferList(EventPipeBufferManager *pBufferManager, EventPipeBufferList *pBufferList);
-    void Remove(EventPipeBufferManager *pBufferManager);
-};
+struct EventPipeSequencePoint;
 
 class EventPipeBufferManager
 {
@@ -91,21 +27,47 @@ class EventPipeBufferManager
     friend class EventPipeBufferList;
 
 private:
+    // The session this buffer manager belongs to
+    EventPipeSession* m_pSession;
 
-    // A list of linked-lists of buffer objects.
-    // Each entry in this list represents a set of buffers owned by a single thread.
-    // The actual Thread object has a pointer to the object contained in this list.  This ensures that
-    // each thread can access its own list, while at the same time, ensuring that when
-    // a thread is destroyed, we keep the buffers around without having to perform any
-    // migration or book-keeping.
-    SList<SListElem<EventPipeBufferList*>> *m_pPerThreadBufferList;
+    // A list of per-thread session state
+    // Each entry in this list represents the session state owned by a single thread
+    // which includes the list of buffers the thread has written and its current
+    // event sequence number. The EventPipeThread object also has a pointer to the
+    // session state contained in this list.  This ensures that each thread can access
+    // its own data, while at the same time, ensuring that when a thread is destroyed,
+    // we keep the buffers around without having to perform any migration or
+    // book-keeping.
+    SList<SListElem<EventPipeThreadSessionState*>> *m_pThreadSessionStateList;
 
     // The total allocation size of buffers under management.
     size_t m_sizeOfAllBuffers;
 
+    // The maximum allowable size of buffers under management.
+    // Attempted allocations above this threshold result in
+    // dropped events.
+    size_t m_maxSizeOfAllBuffers;
+
+    // The amount of allocations we can do at this moment before
+    // triggering a sequence point
+    size_t m_remainingSequencePointAllocationBudget;
+
+    // The total amount of allocations we can do after one sequence
+    // point before triggering the next one
+    size_t m_sequencePointAllocationBudget;
+
+    // A queue of sequence points.
+    SList<EventPipeSequencePoint> m_sequencePoints;
+
     // Lock to protect access to the per-thread buffer list and total allocation size.
     SpinLock m_lock;
     Volatile<BOOL> m_writeEventSuspending;
+
+    // Iterator state for reader thread
+    // These are not protected by m_lock and expected to only be used on the reader thread
+    EventPipeEventInstance* m_pCurrentEvent;
+    EventPipeBuffer* m_pCurrentBuffer;
+    EventPipeBufferList* m_pCurrentBufferList;
 
 #ifdef _DEBUG
     // For debugging purposes.
@@ -114,26 +76,78 @@ private:
     unsigned int m_numBuffersLeaked;
     Volatile<LONG> m_numEventsStored;
     Volatile<LONG> m_numEventsDropped;
+    unsigned long m_numEventsWritten;
 #endif // _DEBUG
 
-    unsigned long m_numEventsWritten;
     // Allocate a new buffer for the specified thread.
     // This function will store the buffer in the thread's buffer list for future use and also return it here.
     // A NULL return value means that a buffer could not be allocated.
-    EventPipeBuffer* AllocateBufferForThread(EventPipeSession &session, unsigned int requestSize, BOOL & writeSuspended);
+    EventPipeBuffer* AllocateBufferForThread(EventPipeThreadSessionState* pSessionState, unsigned int requestSize, BOOL & writeSuspended);
 
     // Add a buffer to the thread buffer list.
     void AddBufferToThreadBufferList(EventPipeBufferList *pThreadBuffers, EventPipeBuffer *pBuffer);
 
-    // Find the thread that owns the oldest buffer that is eligible to be stolen.
-    EventPipeBufferList* FindThreadToStealFrom();
+    // Enqueue a sequence point into the queue.
+    void EnqueueSequencePoint(EventPipeSequencePoint* pEnqueuedSequencePoint);
+
+    // Dequeue a sequence point from the queue. This is a no-op if the queue is empty.
+    void DequeueSequencePoint();
+
+    // Peek the first sequence point in the queue. Returns FALSE if the queue is empty.
+    bool TryPeekSequencePoint(EventPipeSequencePoint** ppSequencePoint);
+
+    // Inits a sequence point that has the list of current threads and sequence
+    // numbers (Requires m_lock is already held)
+    void InitSequencePointThreadListHaveLock(EventPipeSequencePoint* pSequencePoint);
 
     // De-allocates the input buffer.
     void DeAllocateBuffer(EventPipeBuffer *pBuffer);
 
+    // Detaches this buffer from an active writer thread and marks it read-only so that the reader
+    // thread can use it. If the writer thread has not yet stored the buffer into its thread-local
+    // slot it will not be converted, but such buffers have no events in them so there is no reason
+    // to read them.
+    bool TryConvertBufferToReadOnly(EventPipeBuffer* pNewReadBuffer);
+
+    // Finds the first buffer in EventPipeBufferList that has a readable event prior to beforeTimeStamp,
+    // starting with pBuffer
+    EventPipeBuffer* AdvanceToNonEmptyBuffer(EventPipeBufferList* pBufferList,
+                                             EventPipeBuffer* pBuffer,
+                                             LARGE_INTEGER beforeTimeStamp);
+
+    //  -------------- Reader Iteration API ----------------
+    // An iterator that can enumerate all the events which have been written into this buffer manager.
+    // Initially the iterator starts uninitialized and GetCurrentEvent() returns NULL. Calling MoveNextXXX()
+    // attempts to advance the cursor to the next event. If there is no event prior to stopTimeStamp then
+    // the GetCurrentEvent() again returns NULL, otherwise it returns that event. The event pointer returned
+    // by GetCurrentEvent() is valid until MoveNextXXX() is called again. Once all events in a buffer have 
+    // been read the iterator will delete that buffer from the pool.
+
+    // Moves to the next oldest event searching across all threads. If there is no event older than
+    // stopTimeStamp then GetCurrentEvent() will return NULL.
+    void MoveNextEventAnyThread(LARGE_INTEGER stopTimeStamp);
+
+    // Moves to the next oldest event from the same thread as the current event. If there is no event 
+    // older than stopTimeStamp then GetCurrentEvent() will return NULL. This should only be called
+    // when GetCurrentEvent() is non-null (because we need to know what thread's events to iterate)
+    void MoveNextEventSameThread(LARGE_INTEGER stopTimeStamp);
+
+    // Returns the current event the iteration cursor is on, or NULL if the iteration is unitialized/
+    // the last call to MoveNextXXX() didn't find any suitable event.
+    EventPipeEventInstance* GetCurrentEvent();
+
+    // Gets the sequence number corresponding to event from GetCurrentEvent()
+    unsigned int GetCurrentSequenceNumber();
+
+    // Gets the buffer corresponding to event from GetCurrentEvent()
+    EventPipeBuffer* GetCurrentEventBuffer();
+
+    // Gets the buffer list corresponding to event from GetCurrentEvent()
+    EventPipeBufferList* GetCurrentEventBufferList();
+
 public:
 
-    EventPipeBufferManager();
+    EventPipeBufferManager(EventPipeSession* pEventSession, size_t maxSizeOfAllBuffers, size_t sequencePointAllocationBudget);
     ~EventPipeBufferManager();
 
     // Write an event to the input thread's current event buffer.
@@ -143,13 +157,10 @@ public:
     // Otherwise, if a stack trace is needed, one will be automatically collected.
     bool WriteEvent(Thread *pThread, EventPipeSession &session, EventPipeEvent &event, EventPipeEventPayload &payload, LPCGUID pActivityId, LPCGUID pRelatedActivityId, Thread *pEventThread = NULL, StackContents *pStack = NULL);
 
-    // Ends the suspension period created by SuspendWriteEvent(). After this call returns WriteEvent()
-    // can again be called succesfully, new BufferLists and Buffers may be allocated.
-    // The caller is required to synchronize all calls to SuspendWriteEvent() and ResumeWriteEvent()
-    void ResumeWriteEvent();
+    // Inits a sequence point that has the list of current threads and sequence
+    // numbers
+    void InitSequencePointThreadList(EventPipeSequencePoint* pSequencePoint);
 
-    // From the time this function returns until ResumeWriteEvent() is called a suspended state will
-    // be in effect that blocks all WriteEvent activity. All existing buffers will be in the
     // READ_ONLY state and no new EventPipeBuffers or EventPipeBufferLists can be created. Calls to
     // WriteEvent that start during the suspension period or were in progress but hadn't yet recorded
     // their event into a buffer before the start of the suspension period will return false and the
@@ -158,13 +169,14 @@ public:
     // EXPECTED USAGE: First the caller will disable all events via configuration, then call
     // SuspendWriteEvent() to force any WriteEvent calls that may still be in progress to either
     // finish or cancel. After that all BufferLists and Buffers can be safely drained and/or deleted.
-    // The caller is required to synchronize all calls to SuspendWriteEvent() and ResumeWriteEvent()
-    void SuspendWriteEvent();
+    void SuspendWriteEvent(EventPipeSessionID sessionId);
 
     // Write the contents of the managed buffers to the specified file.
     // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
     // skip any events that might be partially written due to races when tracing is stopped.
     void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
+    void WriteAllBuffersToFileV3(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
+    void WriteAllBuffersToFileV4(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
 
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
     // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity
@@ -199,6 +211,10 @@ private:
     // The number of buffers in the list.
     unsigned int m_bufferCount;
 
+    // The sequence number of the last event that was read, only
+    // updated/read by the reader thread. 
+    unsigned int m_lastReadSequenceNumber;
+
 public:
 
     EventPipeBufferList(EventPipeBufferManager *pManager, EventPipeThread* pThread);
@@ -218,18 +234,12 @@ public:
     // Get the count of buffers in the list.
     unsigned int GetCount() const;
 
-    // Pop the event from the buffer, and potentially clean-up the previous buffer
-    // pNext is expected to be the last event returned from TryGetBuffer()->PeekNext()
-    void PopNextEvent(EventPipeBuffer *pContainingBuffer, EventPipeEventInstance *pNext);
-
     // Get the thread associated with this list.
     EventPipeThread* GetThread();
 
-    // Get the first buffer that might contain the oldest event
-    EventPipeBuffer* TryGetBuffer(LARGE_INTEGER beforeTimeStamp);
-
-    // Convert the buffer into read only
-    void ConvertBufferToReadOnly(EventPipeBuffer *pNewReadBuffer);
+    // Read/Write the last read sequence number
+    unsigned int GetLastReadSequenceNumber();
+    void SetLastReadSequenceNumber(unsigned int sequenceNumber);
 
 #ifdef _DEBUG
     // Validate the consistency of the list.

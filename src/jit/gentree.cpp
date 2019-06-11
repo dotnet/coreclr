@@ -10196,7 +10196,7 @@ void Compiler::gtDispConst(GenTree* tree)
 #ifdef FEATURE_SIMD
                 if ((tree->gtFlags & GTF_ICON_SIMD_COUNT) != 0)
                 {
-                    printf(" Vector<T>.Count");
+                    printf(" vector element count");
                 }
 #endif
 
@@ -18007,8 +18007,9 @@ bool GenTreeHWIntrinsic::OperIsMemoryLoadOrStore()
 {
 #ifdef _TARGET_XARCH_
     return OperIsMemoryLoad() || OperIsMemoryStore();
-#endif // _TARGET_XARCH_
+#else
     return false;
+#endif
 }
 
 #endif // FEATURE_HW_INTRINSICS

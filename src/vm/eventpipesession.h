@@ -16,6 +16,7 @@ class EventPipeEventInstance;
 class EventPipeFile;
 class EventPipeSessionProvider;
 class EventPipeSessionProviderList;
+class EventPipeThread;
 
 // TODO: Revisit the need of this enum and its usage.
 enum class EventPipeSessionType
@@ -25,20 +26,35 @@ enum class EventPipeSessionType
     IpcStream
 };
 
+enum class EventPipeSerializationFormat
+{
+    // Default format used in .Net Core 2.0-3.0 Preview 6
+    // TBD - it may remain the default format .Net Core 3.0 when 
+    // used with private EventPipe managed API via reflection.
+    // This format had limited official exposure in documented
+    // end-user RTM scenarios, but it is supported by PerfView,
+    // TraceEvent, and was used by AI profiler
+    NetPerfV3,
+
+    // Default format we plan to use in .Net Core 3 Preview7+
+    // for most if not all scenarios
+    NetTraceV4,
+
+    Count
+};
+
 class EventPipeSession
 {
 private:
 
     const EventPipeSessionID m_Id;
+    const unsigned int m_index;
 
     // The set of configurations for each provider in the session.
-    EventPipeSessionProviderList *m_pProviderList;
-
-    // The configured size of the circular buffer.
-    const size_t m_CircularBufferSizeInBytes;
+    EventPipeSessionProviderList *const m_pProviderList;
 
     // Session buffer manager.
-    EventPipeBufferManager *const m_pBufferManager;
+    EventPipeBufferManager * m_pBufferManager;
 
     // True if rundown is enabled.
     Volatile<bool> m_rundownEnabled;
@@ -46,6 +62,10 @@ private:
     // The type of the session.
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
     const EventPipeSessionType m_SessionType;
+
+    // For file/IPC sessions this controls the format emitted. For in-proc EventListener it is
+    // irrelevant.
+    EventPipeSerializationFormat m_format;
 
     // Start date and time in UTC.
     FILETIME m_sessionStartTime;
@@ -65,9 +85,6 @@ private:
     //
     CLREvent m_threadShutdownEvent;
 
-    //
-    Thread *m_pRundownThread = nullptr;
-
     void CreateIpcStreamingThread();
 
     static DWORD WINAPI ThreadProc(void *args);
@@ -80,10 +97,11 @@ private:
 
 public:
     EventPipeSession(
-        EventPipeSessionID id,
+        unsigned int index,
         LPCWSTR strOutputPath,
         IpcStream *const pStream,
         EventPipeSessionType sessionType,
+        EventPipeSerializationFormat format,
         unsigned int circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
@@ -96,6 +114,12 @@ public:
         return m_Id;
     }
 
+    unsigned int GetIndex() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_index;
+    }
+
     // Get the session type.
     EventPipeSessionType GetSessionType() const
     {
@@ -103,11 +127,11 @@ public:
         return m_SessionType;
     }
 
-    // Get the configured size of the circular buffer.
-    size_t GetCircularBufferSize() const
+    // Get the format version used by the file/IPC serializer
+    EventPipeSerializationFormat GetSerializationFormat() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_CircularBufferSizeInBytes;
+        return m_format;
     }
 
     // Determine if rundown is enabled.
@@ -124,12 +148,6 @@ public:
         return m_sessionStartTime;
     }
 
-    bool IsRundownThread() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_pRundownThread == GetThread());
-    }
-
     // Get the session start timestamp.
     LARGE_INTEGER GetStartTimeStamp() const
     {
@@ -143,6 +161,14 @@ public:
         return m_ipcStreamingEnabled;
     }
 
+#ifdef DEBUG
+    EventPipeBufferManager* GetBufferManager() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pBufferManager;
+    }
+#endif
+
     // Add a new provider to the session.
     void AddSessionProvider(EventPipeSessionProvider *pProvider);
 
@@ -151,7 +177,7 @@ public:
 
     bool WriteAllBuffersToFile();
 
-    bool WriteEvent(
+    bool WriteEventBuffered(
         Thread *pThread,
         EventPipeEvent &event,
         EventPipeEventPayload &payload,
@@ -160,7 +186,10 @@ public:
         Thread *pEventThread = nullptr,
         StackContents *pStack = nullptr);
 
-    void WriteEvent(EventPipeEventInstance &instance);
+    void WriteEventUnbuffered(EventPipeEventInstance &instance, EventPipeThread* pThread);
+
+    // Write a sequence point into the output stream synchronously
+    void WriteSequencePointUnbuffered();
 
     EventPipeEventInstance *GetNextEvent();
 

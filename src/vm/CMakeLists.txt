@@ -17,7 +17,7 @@ if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    add_definitions(-DWRITE_BARRIER_CHECK)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
@@ -331,6 +331,7 @@ set(VM_SOURCES_WKS
     eventpipemetadatagenerator.cpp
     eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
+    eventpipethread.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
