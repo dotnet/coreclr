@@ -844,7 +844,7 @@ namespace System.Threading
                 {
                     lock (queue)
                     {
-                        count += queue.Count;
+                        count += queue.ActiveCount;
                     }
                 }
                 return count;
