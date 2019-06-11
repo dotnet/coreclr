@@ -394,8 +394,12 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
 
             if (pProvider->IsEnabled(session.GetId()))
             {
+                EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
                 EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
-                    session.GetId());
+                    session.GetId(),
+                    pSessionProvider->GetKeywords(),
+                    pSessionProvider->GetLevel(),
+                    pSessionProvider->GetFilterData());
                 pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
             }
 
