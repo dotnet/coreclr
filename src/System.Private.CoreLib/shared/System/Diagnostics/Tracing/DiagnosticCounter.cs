@@ -45,6 +45,7 @@ namespace System.Diagnostics.Tracing
             _group = CounterGroup.GetCounterGroup(eventSource);
             _group.Add(this);
             Name = name;
+            DisplayUnits = string.Empty;
             EventSource = eventSource;
         }
 
@@ -77,7 +78,7 @@ namespace System.Diagnostics.Tracing
 
         public string? DisplayName { get; set; }
 
-        public string? DisplayUnits { get; set; }
+        public string DisplayUnits { get; set; }
 
         public string Name { get; }
 
