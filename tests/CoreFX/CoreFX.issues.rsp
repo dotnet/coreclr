@@ -76,19 +76,15 @@
 # Temporarily disable tests while bringing more CoreFX job configurations online.
 #
 
-# failures
 -nonamespace System.Net.Http.Functional.Tests
 -nonamespace System.Net.Sockets.Tests
+
 -noclass System.Net.Tests.HttpListenerContextTests
-
-# timeout
--nomethod System.Net.Tests.HttpListenerResponseTests.CloseResponseEntity_NullResponseEntity_ThrowsArgumentNullException
-
-# crashes
 -noclass System.Net.Tests.HttpListenerAuthenticationTests
+-noclass System.Net.Tests.HttpListenerResponseTests
 
-# timeout
 -nomethod System.Net.Security.Tests.LoggingTest.EventSource_EventsRaisedAsExpected
+-nomethod System.Net.Security.Tests.SslStreamSniTest.SslStream_NoSniFromClient_CallbackReturnsNull
 
 # System.Linq.Expressions.Tests: timeout on Linux/x64
 -nonamespace System.Linq.Expressions.Tests
@@ -105,6 +101,5 @@
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ReferenceTypeKey
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ValueTypeKey
 -nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
--nomethod System.Net.Security.Tests.SslStreamSniTest.SslStream_NoSniFromClient_CallbackReturnsNull
 -nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 -nomethod System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
