@@ -138,7 +138,7 @@ public:
     void AddSessionProvider(EventPipeSessionProvider *pProvider);
 
     // Get the session provider for the specified provider if present.
-    EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider);
+    EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider) const;
 
     bool WriteAllBuffersToFile();
 

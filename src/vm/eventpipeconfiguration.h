@@ -104,7 +104,7 @@ private:
     EventPipeProvider *GetProviderNoLock(const SString &providerID);
 
     // Get the enabled provider.
-    EventPipeSessionProvider *GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider);
+    EventPipeSessionProvider *GetSessionProvider(const EventPipeSession &session, EventPipeProvider *pProvider);
 
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider *>> *m_pProviderList = nullptr;
