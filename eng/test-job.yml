@@ -3,7 +3,7 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
-  testGroup: 'UNDEFINED'
+  testGroup: ''
   readyToRun: false
   helixQueues: ''
   crossrootfsDir: ''
@@ -217,10 +217,6 @@ jobs:
         ${{ if ne(parameters.corefxTests, true) }}:
           helixProjectArguments: 'tests/helixpublishwitharcade.proj'
 
-        # Error checking
-        ${{ if in(parameters.testGroup, 'UNDEFINED') }}:
-          scenarios:
-          - UNDEFINED
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
           - normal
