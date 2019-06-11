@@ -2233,8 +2233,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             {
                 if (pResult->methodFlags & CORINFO_FLG_INTRINSIC)
                 {
-                    bool dummy;
-                    CorInfoIntrinsics intrinsic = getIntrinsicID(pResult->hMethod, &dummy);
+                    bool unused;
+                    CorInfoIntrinsics intrinsic = getIntrinsicID(pResult->hMethod, &unused);
                     if ((intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContext)
                      || (intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
                      )
