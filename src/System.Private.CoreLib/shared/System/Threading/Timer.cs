@@ -383,6 +383,7 @@ namespace System.Threading
             if (timer._dueTime != Timeout.UnsignedInfinite)
             {
                 --Count;
+                Debug.Assert(Count >= 0);
                 UnlinkTimer(timer);
                 timer._prev = null;
                 timer._next = null;
