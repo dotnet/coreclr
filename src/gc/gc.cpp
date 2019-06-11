@@ -2912,10 +2912,6 @@ heap_segment* gc_heap::saved_loh_segment_no_gc = 0;
 
 BOOL        gc_heap::gen0_bricks_cleared = FALSE;
 
-#ifdef FFIND_OBJECT
-int         gc_heap::gen0_must_clear_bricks = 0;
-#endif //FFIND_OBJECT
-
 #ifdef FEATURE_PREMORTEM_FINALIZATION
 CFinalize*  gc_heap::finalize_queue = 0;
 #endif // FEATURE_PREMORTEM_FINALIZATION
@@ -10481,9 +10477,7 @@ gc_heap::init_gc_heap (int  h_number)
 
     max_overflow_address = 0;
 
-    gen0_bricks_cleared = FALSE;
-
-    gen0_must_clear_bricks = 0;
+    gen0_bricks_cleared = TRUE;
 
     allocation_quantum = CLR_SIZE;
 
@@ -11580,28 +11574,20 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size,
     }
 
     //this portion can be done after we release the lock
-    if (seg == ephemeral_heap_segment)
+    if (seg == ephemeral_heap_segment ||
+        seg == nullptr && gen_number == 0 && limit_size >= CLR_SIZE/2)
     {
-#ifdef FFIND_OBJECT
-        if (gen0_must_clear_bricks > 0)
-        {
-            //set the brick table to speed up find_object
-            size_t b = brick_of (acontext->alloc_ptr);
-            set_brick (b, acontext->alloc_ptr - brick_address (b));
-            b++;
-            dprintf (3, ("Allocation Clearing bricks [%Ix, %Ix[",
-                         b, brick_of (align_on_brick (start + limit_size))));
-            volatile short* x = &brick_table [b];
-            short* end_x = &brick_table [brick_of (align_on_brick (start + limit_size))];
+        //set the brick table to speed up find_object
+        size_t b = brick_of (acontext->alloc_ptr);
+        set_brick (b, acontext->alloc_ptr - brick_address (b));
+        b++;
+        dprintf (3, ("Allocation Clearing bricks [%Ix, %Ix[",
+                        b, brick_of (align_on_brick (start + limit_size))));
+        volatile short* x = &brick_table [b];
+        short* end_x = &brick_table [brick_of (align_on_brick (start + limit_size))];
 
-            for (;x < end_x;x++)
-                *x = -1;
-        }
-        else
-#endif //FFIND_OBJECT
-        {
-            gen0_bricks_cleared = FALSE;
-        }
+        for (;x < end_x;x++)
+            *x = -1;
     }
 
     // verifying the memory is completely cleared.
@@ -17393,14 +17379,6 @@ uint8_t* gc_heap::find_object (uint8_t* interior, uint8_t* low)
             set_brick (b, -1);
         }
     }
-#ifdef FFIND_OBJECT
-    //indicate that in the future this needs to be done during allocation
-#ifdef MULTIPLE_HEAPS
-    gen0_must_clear_bricks = FFIND_DECAY*gc_heap::n_heaps;
-#else
-    gen0_must_clear_bricks = FFIND_DECAY;
-#endif //MULTIPLE_HEAPS
-#endif //FFIND_OBJECT
 
     int brick_entry = get_brick_entry(brick_of (interior));
     if (brick_entry == 0)
@@ -19856,11 +19834,6 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
         dd_num_npinned_plugs (dd) = 0;
 #endif //RESPECT_LARGE_ALIGNMENT || FEATURE_STRUCTALIGN
     }
-
-#ifdef FFIND_OBJECT
-    if (gen0_must_clear_bricks > 0)
-        gen0_must_clear_bricks--;
-#endif //FFIND_OBJECT
 
     size_t last_promoted_bytes = 0;
 
@@ -26011,11 +25984,6 @@ void gc_heap::background_mark_phase ()
     start = GetCycleCount32();
 #endif //TIME_GC
 
-#ifdef FFIND_OBJECT
-    if (gen0_must_clear_bricks > 0)
-        gen0_must_clear_bricks--;
-#endif //FFIND_OBJECT
-
     background_soh_alloc_count = 0;
     background_loh_alloc_count = 0;
     bgc_overflow_count = 0;
@@ -26480,8 +26448,6 @@ void gc_heap::background_mark_phase ()
         bgc_t_join.restart();
 #endif //MULTIPLE_HEAPS
     }
-
-    gen0_bricks_cleared = FALSE;
 
     dprintf (2, ("end of bgc mark: loh: %d, soh: %d", 
                  generation_size (max_generation + 1), 
