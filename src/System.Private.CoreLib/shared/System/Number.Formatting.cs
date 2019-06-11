@@ -2376,7 +2376,13 @@ namespace System
             while (i < pos && dig[i] != 0)
                 i++;
 
-            if (i == pos && dig[i] >= '5')
+            // We only want to round up if the digit is greater than or equal to 5 and we are
+            // not rounding a floating-point number. This is because the floating-point format
+            // algorithms already produce a correctly rounded result. They may, however, still
+            // produce trailing zeros that we don't currently display and so we still utilize
+            // the logic in the else block to trim those.
+
+            if ((i == pos) && (dig[i] >= 5) && (number.Kind != NumberBufferKind.FloatingPoint))
             {
                 while (i > 0 && dig[i - 1] == '9')
                     i--;
@@ -2397,6 +2403,7 @@ namespace System
                 while (i > 0 && dig[i - 1] == '0')
                     i--;
             }
+
             if (i == 0)
             {
                 if (number.Kind != NumberBufferKind.FloatingPoint)
