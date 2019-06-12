@@ -394,7 +394,7 @@ namespace System
 
                 // divide out the scale to extract the digit
                 outputDigit = BigInteger.HeuristicDivide(ref scaledValue, ref scale);
-                Debug.Assert(outputDigit < 10);
+                Debug.Assert((0 < outputDigit) && (outputDigit < 10));
 
                 if ((outputDigit > 5) || ((outputDigit == 5) && !scaledValue.IsZero()))
                 {
