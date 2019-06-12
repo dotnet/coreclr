@@ -330,12 +330,6 @@ void ILWSTRMarshaler::EmitClearNativeTemp(ILCodeStream* pslILEmit)
     UNREACHABLE_MSG("The string is either pinned or a copy is stack-allocated, NeedsClearNative should have returned false");
 }
 
-bool ILWSTRMarshaler::CanUsePinnedManagedString(DWORD dwMarshalFlags)
-{
-    LIMITED_METHOD_CONTRACT;
-    return IsCLRToNative(dwMarshalFlags) && !IsByref(dwMarshalFlags) && IsIn(dwMarshalFlags) && !IsOut(dwMarshalFlags);
-}
-
 //
 // input stack:  0: managed string
 // output stack: 0: (string_length+1) * sizeof(WCHAR)
@@ -393,70 +387,69 @@ void ILWSTRMarshaler::EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslIL
     pslILEmit->EmitLabel(pNullRefLabel);
 }
 
+void ILWSTRMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
+{
+    STANDARD_VM_CONTRACT;
+
+    LocalDesc locDesc = GetManagedType();
+    locDesc.MakePinned();
+    DWORD dwPinnedLocal = pslILEmit->NewLocal(locDesc);
+    int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__STRING__M_FIRST_CHAR));
+    ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
+    
+    pslILEmit->EmitLoadNullPtr();
+    EmitStoreNativeValue(pslILEmit);
+
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitBRFALSE(pNullRefLabel);
+
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitSTLOC(dwPinnedLocal);
+    pslILEmit->EmitLDLOC(dwPinnedLocal);
+    pslILEmit->EmitLDFLDA(fieldDef);
+    EmitStoreNativeValue(pslILEmit);
+
+    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+
+    pslILEmit->EmitLabel(pNullRefLabel);
+}
+
 void ILWSTRMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
-    if (CanUsePinnedManagedString(m_dwMarshalFlags))
-    {
-        LocalDesc locDesc = GetManagedType();
-        locDesc.MakePinned();
-        DWORD dwPinnedLocal = pslILEmit->NewLocal(locDesc);
-        int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__STRING__M_FIRST_CHAR));
-        ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
-        
-        pslILEmit->EmitLoadNullPtr();
-        EmitStoreNativeValue(pslILEmit);
+    ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
+    DWORD dwLengthLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
+    
+    pslILEmit->EmitLoadNullPtr();
+    EmitStoreNativeValue(pslILEmit);
+    
+    EmitLoadManagedValue(pslILEmit);
+    pslILEmit->EmitBRFALSE(pNullRefLabel);
+    
+    EmitLoadManagedValue(pslILEmit);
+    EmitCheckManagedStringLength(pslILEmit);
 
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitBRFALSE(pNullRefLabel);
+    // cb
 
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitSTLOC(dwPinnedLocal);
-        pslILEmit->EmitLDLOC(dwPinnedLocal);
-        pslILEmit->EmitLDFLDA(fieldDef);
-        EmitStoreNativeValue(pslILEmit);
+    pslILEmit->EmitDUP();
+    pslILEmit->EmitSTLOC(dwLengthLocalNum);
 
-        EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+    // cb
 
-        pslILEmit->EmitLabel(pNullRefLabel);
+    pslILEmit->EmitLOCALLOC();              // @TODO: add a non-localloc path for large strings
+    EmitStoreNativeValue(pslILEmit);
 
-    }
-    else
-    {
-        ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
-        DWORD dwLengthLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
-        
-        pslILEmit->EmitLoadNullPtr();
-        EmitStoreNativeValue(pslILEmit);
-        
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitBRFALSE(pNullRefLabel);
-        
-        EmitLoadManagedValue(pslILEmit);
-        EmitCheckManagedStringLength(pslILEmit);
+    EmitLoadManagedValue(pslILEmit);
+    EmitLoadNativeValue(pslILEmit);
 
-        // cb
+    // src, dst
 
-        pslILEmit->EmitDUP();
-        pslILEmit->EmitSTLOC(dwLengthLocalNum);
-
-        // cb
-
-        pslILEmit->EmitLOCALLOC();              // @TODO: add a non-localloc path for large strings
-        EmitStoreNativeValue(pslILEmit);
-
-        EmitLoadManagedValue(pslILEmit);
-        EmitLoadNativeValue(pslILEmit);
-
-        // src, dst
-
-        pslILEmit->EmitLDLOC(dwLengthLocalNum); // length
-        
-        // static void System.String.InternalCopy(String src, IntPtr dest,int len)
-        pslILEmit->EmitCALL(METHOD__STRING__INTERNAL_COPY, 3, 0);
-        pslILEmit->EmitLabel(pNullRefLabel);
-    }
+    pslILEmit->EmitLDLOC(dwLengthLocalNum); // length
+    
+    // static void System.String.InternalCopy(String src, IntPtr dest,int len)
+    pslILEmit->EmitCALL(METHOD__STRING__INTERNAL_COPY, 3, 0);
+    pslILEmit->EmitLabel(pNullRefLabel);
 }
 
 //

@@ -2089,14 +2089,20 @@ protected:
     void EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
 
-    virtual void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
-    virtual void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
+    void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
+    void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
 
     bool NeedsClearNative() override;
     void EmitClearNative(ILCodeStream* pslILEmit) override;
     void EmitClearNativeTemp(ILCodeStream* pslILEmit) override;
 
-    static bool CanUsePinnedManagedString(DWORD dwMarshalFlags);
+    bool CanMarshalViaPinning() override
+    {
+        LIMITED_METHOD_CONTRACT;
+        return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && IsIn(m_dwMarshalFlags) && !IsOut(m_dwMarshalFlags);
+    }
+    void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
+
     static void EmitCheckManagedStringLength(ILCodeStream* pslILEmit);
     static void EmitCheckNativeStringLength(ILCodeStream* pslILEmit);
 };
