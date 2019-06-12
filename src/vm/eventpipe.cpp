@@ -30,7 +30,7 @@
 CrstStatic EventPipe::s_configCrst;
 Volatile<bool> EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration EventPipe::s_config;
-EventPipeEventSource *EventPipe::s_pEventSource = NULL;
+EventPipeEventSource *EventPipe::s_pEventSource = nullptr;
 VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
 ULONGLONG EventPipe::s_lastFlushTime = 0;
 
@@ -226,12 +226,6 @@ void EventPipe::Shutdown()
     }
     CONTRACTL_END;
 
-    if (!s_tracingInitialized)
-        return;
-
-    if (s_pEventSource == nullptr)
-        return;
-
     if (g_fProcessDetach)
     {
         // If g_fProcessDetach is true, all threads except this got ripped because someone called ExitProcess().
@@ -249,28 +243,34 @@ void EventPipe::Shutdown()
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        // Mark tracing as no longer initialized.
+        bool tracingInitialized = false;
         {
             CrstHolder _crst(GetLock());
+            tracingInitialized = s_tracingInitialized;
+
+            // Mark tracing as no longer initialized.
             s_tracingInitialized = false;
         }
 
-        for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
+        if (tracingInitialized)
         {
-            EventPipeSession *pSession = s_pSessions[i].Load();
-            if (pSession)
-                Disable(static_cast<EventPipeSessionID>(1ULL << i));
+            for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
+            {
+                EventPipeSession *pSession = s_pSessions[i].Load();
+                if (pSession)
+                    Disable(static_cast<EventPipeSessionID>(1ULL << i));
+            }
+
+            // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
+            // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
+            delete s_pEventSource;
+            s_pEventSource = nullptr;
+
+            s_config.Shutdown();
         }
     }
     EX_CATCH {}
     EX_END_CATCH(SwallowAllExceptions);
-
-    // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
-    // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
-    delete s_pEventSource;
-    s_pEventSource = nullptr;
-
-    s_config.Shutdown();
 }
 
 EventPipeSessionID EventPipe::Enable(
