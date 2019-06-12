@@ -3680,11 +3680,6 @@ void ILMngdMarshaler::EmitCallMngdMarshalerMethod(ILCodeStream* pslILEmit, Metho
 void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
-
-    if (CanMarshalViaPinning()) // We don't need a managed marshaler if we are just pinning.
-    {
-        return;
-    }
             
     m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
         
@@ -4563,24 +4558,21 @@ void ILHiddenLengthArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEm
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanMarshalViaPinning())
-    {
-        m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
-        
-        pslILEmit->EmitLDC(sizeof(MngdHiddenLengthArrayMarshaler));
-        pslILEmit->EmitLOCALLOC();
-        pslILEmit->EmitSTLOC(m_dwMngdMarshalerLocalNum);
+    m_dwMngdMarshalerLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
+    
+    pslILEmit->EmitLDC(sizeof(MngdHiddenLengthArrayMarshaler));
+    pslILEmit->EmitLOCALLOC();
+    pslILEmit->EmitSTLOC(m_dwMngdMarshalerLocalNum);
 
-        MethodTable *pElementMT = m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().GetMethodTable();
-        pslILEmit->EmitLDLOC(m_dwMngdMarshalerLocalNum);
-        pslILEmit->EmitLDTOKEN(pslILEmit->GetToken(pElementMT));
-        pslILEmit->EmitCALL(METHOD__RT_TYPE_HANDLE__GETVALUEINTERNAL, 1, 1);
+    MethodTable *pElementMT = m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().GetMethodTable();
+    pslILEmit->EmitLDLOC(m_dwMngdMarshalerLocalNum);
+    pslILEmit->EmitLDTOKEN(pslILEmit->GetToken(pElementMT));
+    pslILEmit->EmitCALL(METHOD__RT_TYPE_HANDLE__GETVALUEINTERNAL, 1, 1);
 
-        pslILEmit->EmitLDC(m_pargs->na.m_cbElementSize);
-        pslILEmit->EmitLDC(m_pargs->na.m_vt);
+    pslILEmit->EmitLDC(m_pargs->na.m_cbElementSize);
+    pslILEmit->EmitLDC(m_pargs->na.m_vt);
 
-        pslILEmit->EmitCALL(METHOD__MNGD_HIDDEN_LENGTH_ARRAY_MARSHALER__CREATE_MARSHALER, 4, 0);
-    }
+    pslILEmit->EmitCALL(METHOD__MNGD_HIDDEN_LENGTH_ARRAY_MARSHALER__CREATE_MARSHALER, 4, 0);
 }
 
 void ILHiddenLengthArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
@@ -4624,28 +4616,17 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit
     pslILEmit->EmitLabel(pMarshalDoneLabel);
 }
 
-
-void ILHiddenLengthArrayMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit)
-{
-    STANDARD_VM_CONTRACT;
-
-    ILMngdMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(pslILEmit);
-}
-
 void ILHiddenLengthArrayMarshaler::EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanMarshalViaPinning())
-    {
-        EmitLoadMngdMarshaler(pslILEmit);
-        EmitLoadManagedHomeAddr(pslILEmit);
-        EmitLoadNativeHomeAddr(pslILEmit);
-        EmitLoadNativeArrayLength(pslILEmit);
-        
-        // MngdHiddenLengthArrayMarshaler::ConvertSpaceToManaged
-        pslILEmit->EmitCALL(pslILEmit->GetToken(GetConvertSpaceToManagedMethod()), 4, 0);
-    }
+    EmitLoadMngdMarshaler(pslILEmit);
+    EmitLoadManagedHomeAddr(pslILEmit);
+    EmitLoadNativeHomeAddr(pslILEmit);
+    EmitLoadNativeArrayLength(pslILEmit);
+    
+    // MngdHiddenLengthArrayMarshaler::ConvertSpaceToManaged
+    pslILEmit->EmitCALL(pslILEmit->GetToken(GetConvertSpaceToManagedMethod()), 4, 0);
 }
 
 void ILHiddenLengthArrayMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit)
@@ -4684,82 +4665,76 @@ void ILHiddenLengthArrayMarshaler::EmitConvertSpaceCLRToNative(ILCodeStream* psl
         }
     }
 
-    if (!CanMarshalViaPinning())
-    {
-        ILMngdMarshaler::EmitConvertSpaceCLRToNative(pslILEmit);
-    }
+    ILMngdMarshaler::EmitConvertSpaceCLRToNative(pslILEmit);
 }
 
 void ILHiddenLengthArrayMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanMarshalViaPinning())
+    if (m_pargs->na.m_vt == VTHACK_REDIRECTEDTYPE &&
+        (m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri ||
+            m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs ||
+            m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs))
     {
-        if (m_pargs->na.m_vt == VTHACK_REDIRECTEDTYPE &&
-            (m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri ||
-             m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs ||
-             m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs))
+        // System.Uri/NotifyCollectionChangedEventArgs don't live in mscorlib so there's no marshaling helper to call - inline the loop
+        DWORD dwLoopCounterLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
+        DWORD dwNativePtrLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
+        ILCodeLabel *pConditionLabel = pslILEmit->NewCodeLabel();
+        ILCodeLabel *pLoopBodyLabel = pslILEmit->NewCodeLabel();
+
+        // for (IntPtr ptr = pNative, int i = 0; ...
+        pslILEmit->EmitLDC(0);
+        pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
+        EmitLoadNativeValue(pslILEmit);
+        pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
+        pslILEmit->EmitBR(pConditionLabel);
+
+        // *ptr = EmitConvertCLR*ToWinRT*(pManaged[i]);
+        pslILEmit->EmitLabel(pLoopBodyLabel);
+        pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
+        EmitLoadManagedValue(pslILEmit);
+        pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
+        pslILEmit->EmitLDELEM_REF();
+
+        switch (m_pargs->na.m_redirectedTypeIndex)
         {
-            // System.Uri/NotifyCollectionChangedEventArgs don't live in mscorlib so there's no marshaling helper to call - inline the loop
-            DWORD dwLoopCounterLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
-            DWORD dwNativePtrLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
-            ILCodeLabel *pConditionLabel = pslILEmit->NewCodeLabel();
-            ILCodeLabel *pLoopBodyLabel = pslILEmit->NewCodeLabel();
+            case WinMDAdapter::RedirectedTypeIndex_System_Uri:
+                ILUriMarshaler::EmitConvertCLRUriToWinRTUri(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
+                break;
 
-            // for (IntPtr ptr = pNative, int i = 0; ...
-            pslILEmit->EmitLDC(0);
-            pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
-            EmitLoadNativeValue(pslILEmit);
-            pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
-            pslILEmit->EmitBR(pConditionLabel);
+            case WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs:
+                ILNCCEventArgsMarshaler::EmitConvertCLREventArgsToWinRTEventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
+                break;
 
-            // *ptr = EmitConvertCLR*ToWinRT*(pManaged[i]);
-            pslILEmit->EmitLabel(pLoopBodyLabel);
-            pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
-            EmitLoadManagedValue(pslILEmit);
-            pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
-            pslILEmit->EmitLDELEM_REF();
+            case WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs:
+                ILPCEventArgsMarshaler::EmitConvertCLREventArgsToWinRTEventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
+                break;
 
-            switch (m_pargs->na.m_redirectedTypeIndex)
-            {
-                case WinMDAdapter::RedirectedTypeIndex_System_Uri:
-                    ILUriMarshaler::EmitConvertCLRUriToWinRTUri(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
-                    break;
-
-                case WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs:
-                    ILNCCEventArgsMarshaler::EmitConvertCLREventArgsToWinRTEventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
-                    break;
-
-                case WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs:
-                    ILPCEventArgsMarshaler::EmitConvertCLREventArgsToWinRTEventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
-                    break;
-
-                default: UNREACHABLE();
-            }
-
-            pslILEmit->EmitSTIND_I();
-
-            // ... i++, ptr += IntPtr.Size ...
-            pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
-            pslILEmit->EmitLDC(1);
-            pslILEmit->EmitADD();
-            pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
-            pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
-            pslILEmit->EmitLDC(sizeof(LPVOID));
-            pslILEmit->EmitADD();
-            pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
-
-            // ... i < pManaged.Length; ...
-            pslILEmit->EmitLabel(pConditionLabel);
-            pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
-            EmitLoadNativeArrayLength(pslILEmit);
-            pslILEmit->EmitBLT(pLoopBodyLabel);
-        }            
-        else
-        {
-            ILMngdMarshaler::EmitConvertContentsCLRToNative(pslILEmit);
+            default: UNREACHABLE();
         }
+
+        pslILEmit->EmitSTIND_I();
+
+        // ... i++, ptr += IntPtr.Size ...
+        pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
+        pslILEmit->EmitLDC(1);
+        pslILEmit->EmitADD();
+        pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
+        pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
+        pslILEmit->EmitLDC(sizeof(LPVOID));
+        pslILEmit->EmitADD();
+        pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
+
+        // ... i < pManaged.Length; ...
+        pslILEmit->EmitLabel(pConditionLabel);
+        pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
+        EmitLoadNativeArrayLength(pslILEmit);
+        pslILEmit->EmitBLT(pLoopBodyLabel);
+    }            
+    else
+    {
+        ILMngdMarshaler::EmitConvertContentsCLRToNative(pslILEmit);
     }
 }
 
@@ -4767,72 +4742,69 @@ void ILHiddenLengthArrayMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* 
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanMarshalViaPinning())
+    if (m_pargs->na.m_vt == VTHACK_REDIRECTEDTYPE &&
+        (m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri ||
+            m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs ||
+            m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs))
     {
-        if (m_pargs->na.m_vt == VTHACK_REDIRECTEDTYPE &&
-            (m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Uri ||
-             m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs ||
-             m_pargs->na.m_redirectedTypeIndex == WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs))
+        // System.Uri/NotifyCollectionChangedEventArgs don't live in mscorlib so there's no marshaling helper to call - inline the loop
+        DWORD dwLoopCounterLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
+        DWORD dwNativePtrLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
+        ILCodeLabel *pConditionLabel = pslILEmit->NewCodeLabel();
+        ILCodeLabel *pLoopBodyLabel = pslILEmit->NewCodeLabel();
+
+        // for (IntPtr ptr = pNative, int i = 0; ...
+        pslILEmit->EmitLDC(0);
+        pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
+        EmitLoadNativeValue(pslILEmit);
+        pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
+        pslILEmit->EmitBR(pConditionLabel);
+
+        // pManaged[i] = EmitConvertWinRT*ToCLR*(*ptr);
+        pslILEmit->EmitLabel(pLoopBodyLabel);
+        EmitLoadManagedValue(pslILEmit);
+        pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
+        pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
+        pslILEmit->EmitLDIND_I();
+
+        switch (m_pargs->na.m_redirectedTypeIndex)
         {
-            // System.Uri/NotifyCollectionChangedEventArgs don't live in mscorlib so there's no marshaling helper to call - inline the loop
-            DWORD dwLoopCounterLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
-            DWORD dwNativePtrLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I);
-            ILCodeLabel *pConditionLabel = pslILEmit->NewCodeLabel();
-            ILCodeLabel *pLoopBodyLabel = pslILEmit->NewCodeLabel();
+            case WinMDAdapter::RedirectedTypeIndex_System_Uri:
+                ILUriMarshaler::EmitConvertWinRTUriToCLRUri(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
+                break;
 
-            // for (IntPtr ptr = pNative, int i = 0; ...
-            pslILEmit->EmitLDC(0);
-            pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
-            EmitLoadNativeValue(pslILEmit);
-            pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
-            pslILEmit->EmitBR(pConditionLabel);
+            case WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs:
+                ILNCCEventArgsMarshaler::EmitConvertWinRTEventArgsToCLREventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
+                break;
 
-            // pManaged[i] = EmitConvertWinRT*ToCLR*(*ptr);
-            pslILEmit->EmitLabel(pLoopBodyLabel);
-            EmitLoadManagedValue(pslILEmit);
-            pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
-            pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
-            pslILEmit->EmitLDIND_I();
+            case WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs:
+                ILPCEventArgsMarshaler::EmitConvertWinRTEventArgsToCLREventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
+                break;
 
-            switch (m_pargs->na.m_redirectedTypeIndex)
-            {
-                case WinMDAdapter::RedirectedTypeIndex_System_Uri:
-                    ILUriMarshaler::EmitConvertWinRTUriToCLRUri(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
-                    break;
-
-                case WinMDAdapter::RedirectedTypeIndex_System_Collections_Specialized_NotifyCollectionChangedEventArgs:
-                    ILNCCEventArgsMarshaler::EmitConvertWinRTEventArgsToCLREventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
-                    break;
-
-                case WinMDAdapter::RedirectedTypeIndex_System_ComponentModel_PropertyChangedEventArgs:
-                    ILPCEventArgsMarshaler::EmitConvertWinRTEventArgsToCLREventArgs(pslILEmit, m_pargs->m_pMarshalInfo->GetModule()->GetLoaderAllocator());
-                    break;
-
-                default: UNREACHABLE();
-            }
-            
-            pslILEmit->EmitSTELEM_REF();
-
-            // ... i++, ptr += IntPtr.Size)
-            pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
-            pslILEmit->EmitLDC(1);
-            pslILEmit->EmitADD();
-            pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
-            pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
-            pslILEmit->EmitLDC(sizeof(LPVOID));
-            pslILEmit->EmitADD();
-            pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
-
-            // ... i < pManaged.Length; ...
-            pslILEmit->EmitLabel(pConditionLabel);
-            pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
-            EmitLoadNativeArrayLength(pslILEmit);
-            pslILEmit->EmitBLT(pLoopBodyLabel);
-        }            
-        else
-        {
-            ILMngdMarshaler::EmitConvertContentsNativeToCLR(pslILEmit);
+            default: UNREACHABLE();
         }
+        
+        pslILEmit->EmitSTELEM_REF();
+
+        // ... i++, ptr += IntPtr.Size)
+        pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
+        pslILEmit->EmitLDC(1);
+        pslILEmit->EmitADD();
+        pslILEmit->EmitSTLOC(dwLoopCounterLocalNum);
+        pslILEmit->EmitLDLOC(dwNativePtrLocalNum);
+        pslILEmit->EmitLDC(sizeof(LPVOID));
+        pslILEmit->EmitADD();
+        pslILEmit->EmitSTLOC(dwNativePtrLocalNum);
+
+        // ... i < pManaged.Length; ...
+        pslILEmit->EmitLabel(pConditionLabel);
+        pslILEmit->EmitLDLOC(dwLoopCounterLocalNum);
+        EmitLoadNativeArrayLength(pslILEmit);
+        pslILEmit->EmitBLT(pLoopBodyLabel);
+    }            
+    else
+    {
+        ILMngdMarshaler::EmitConvertContentsNativeToCLR(pslILEmit);
     }
 }
 
@@ -4842,38 +4814,32 @@ void ILHiddenLengthArrayMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
 
     EmitClearNativeContents(pslILEmit);
 
-    if (!CanMarshalViaPinning())
-    {
-        EmitLoadNativeValue(pslILEmit);
-        pslILEmit->EmitCALL(pslILEmit->GetToken(GetClearNativeMethod()), 1, 0);
-    }
+    EmitLoadNativeValue(pslILEmit);
+    pslILEmit->EmitCALL(pslILEmit->GetToken(GetClearNativeMethod()), 1, 0);
 }
 
 void ILHiddenLengthArrayMarshaler::EmitClearNativeContents(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
 
-    if (!CanMarshalViaPinning())
+    MethodDesc *pMD = GetClearNativeContentsMethod();
+    if (pMD != NULL)
     {
-        MethodDesc *pMD = GetClearNativeContentsMethod();
-        if (pMD != NULL)
+        MetaSig sig(pMD);
+        UINT numArgs = sig.NumFixedArgs();
+
+        if (numArgs == 3)
         {
-            MetaSig sig(pMD);
-            UINT numArgs = sig.NumFixedArgs();
-
-            if (numArgs == 3)
-            {
-                EmitLoadMngdMarshaler(pslILEmit);
-            }
-            else
-            {
-                _ASSERTE(numArgs == 2);
-            }
-
-            EmitLoadNativeHomeAddr(pslILEmit);
-            EmitLoadNativeArrayLength(pslILEmit);
-            pslILEmit->EmitCALL(pslILEmit->GetToken(pMD), numArgs, 0);
+            EmitLoadMngdMarshaler(pslILEmit);
         }
+        else
+        {
+            _ASSERTE(numArgs == 2);
+        }
+
+        EmitLoadNativeHomeAddr(pslILEmit);
+        EmitLoadNativeArrayLength(pslILEmit);
+        pslILEmit->EmitCALL(pslILEmit->GetToken(pMD), numArgs, 0);
     }
 }
 

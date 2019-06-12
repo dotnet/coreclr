@@ -407,7 +407,13 @@ public:
         // before we were able to marshal them. Therefore this must not happen within the try block so we don't try
         // to use marshalers that have not been initialized. Potentially leaking unmanaged resources is by-design and
         // there's not much we can do about it (we cannot do cleanup if we cannot create the marshaler).
-        EmitCreateMngdMarshaler(m_pslNDirect->GetSetupCodeStream());
+        // Some marshalers have a managed marshaler for the general path but can pin on the fast path.
+        // If we're in a scenario where this marshaler can pin on a by-value managed->native call,
+        // we know that we don't need a managed marshaler since we will just pin.
+        if (!CanMarshalViaPinning())
+        {
+            EmitCreateMngdMarshaler(m_pslNDirect->GetSetupCodeStream());
+        }
 
         EmitSetupArgumentForMarshalling(m_pslNDirect->GetSetupCodeStream());
 
@@ -454,7 +460,11 @@ public:
         CONTRACTL_END;
 
         Init(pcsMarshal, pcsUnmarshal, hiddenArgIndex, dwMarshalFlags, pargs);
-        EmitCreateMngdMarshaler(m_pslNDirect->GetSetupCodeStream());
+
+        if (!CanMarshalViaPinning())
+        {
+            EmitCreateMngdMarshaler(m_pslNDirect->GetSetupCodeStream());
+        }
 
         EmitSetupArgumentForMarshalling(m_pslNDirect->GetSetupCodeStream());
 
@@ -3306,7 +3316,6 @@ protected:
 
     void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
     void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override;
-    void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
     void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
     void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
