@@ -79,8 +79,6 @@ typedef enum tagEnumType
     // You could get this kind of enum if you perform a non-simple query (such as EnumMethodWithName).
     // 
     MDDynamicArrayEnum = 0x2,                   // dynamic array that holds tokens
-
-    MDCustomEnum = 0x3,                         // Custom enumerator that doesnt work with the enum functions
 } EnumType;
 
 //*****************************************
@@ -337,19 +335,6 @@ DECLARE_INTERFACE_(IMDInternalImport, IUnknown)
     STDMETHOD(EnumTypeDefInit)(             // return hresult
         HENUMInternal *phEnum) PURE;        // [OUT] buffer to fill for enumerator data
 
-    STDMETHOD_(ULONG, EnumTypeDefGetCount)(
-        HENUMInternal *phEnum) PURE;        // [IN] the enumerator to retrieve information  
-
-    STDMETHOD_(void, EnumTypeDefReset)(
-        HENUMInternal *phEnum) PURE;        // [IN] the enumerator to retrieve information  
-
-    STDMETHOD_(bool, EnumTypeDefNext)(      // return hresult
-        HENUMInternal *phEnum,              // [IN] input enum
-        mdTypeDef   *ptd) PURE;             // [OUT] return token
-
-    STDMETHOD_(void, EnumTypeDefClose)(
-        HENUMInternal *phEnum) PURE;        // [IN] the enumerator to retrieve information  
-
     //*****************************************************************************
     // enumerator for MethodImpl
     //*****************************************************************************
@@ -361,7 +346,10 @@ DECLARE_INTERFACE_(IMDInternalImport, IUnknown)
     
     STDMETHOD_(ULONG, EnumMethodImplGetCount)(
         HENUMInternal   *phEnumBody,        // [IN] MethodBody enumerator.  
-        HENUMInternal   *phEnumDecl) PURE;  // [IN] MethodDecl enumerator.
+        HENUMInternal   *phEnumDecl)        // [IN] MethodDecl enumerator.
+    {
+        return phEnumBody->m_ulCount;
+    }
     
     STDMETHOD_(void, EnumMethodImplReset)(
         HENUMInternal   *phEnumBody,        // [IN] MethodBody enumerator.
@@ -402,27 +390,53 @@ DECLARE_INTERFACE_(IMDInternalImport, IUnknown)
         DWORD       tkKind,                 // [IN] which table to work on
         HENUMInternal *phEnum) PURE;        // [OUT] the enumerator to fill 
 
-    STDMETHOD_(bool, EnumNext)(
+    bool EnumNext(
         HENUMInternal *phEnum,              // [IN] the enumerator to retrieve information  
-        mdToken     *ptk) PURE;             // [OUT] token to scope the search
+        mdToken     *ptk)                   // [OUT] token to scope the search
+    {
+        _ASSERTE(phEnum && ptk);
+        if (phEnum->u.m_ulCur >= phEnum->u.m_ulEnd)
+            return false;
 
-    STDMETHOD_(ULONG, EnumGetCount)(
-        HENUMInternal *phEnum) PURE;        // [IN] the enumerator to retrieve information  
+        if ( phEnum->m_EnumType == MDSimpleEnum )
+        {
+            *ptk = phEnum->u.m_ulCur | phEnum->m_tkKind;
+            phEnum->u.m_ulCur++;
+        }
+        else 
+        {
+            TOKENLIST       *pdalist = (TOKENLIST *)&(phEnum->m_cursor);
 
-    STDMETHOD_(void, EnumReset)(
-        HENUMInternal *phEnum) PURE;        // [IN] the enumerator to be reset  
+            _ASSERTE( phEnum->m_EnumType == MDDynamicArrayEnum );
+            *ptk = *( pdalist->Get(phEnum->u.m_ulCur++) );
+        }
+        return true;
+    }
 
-    STDMETHOD_(void, EnumClose)(
-        HENUMInternal *phEnum) PURE;        // [IN] the enumerator to be closed
+    ULONG EnumGetCount(
+        HENUMInternal *phEnum)        // [IN] the enumerator to retrieve information  
+    {
+        _ASSERTE(phEnum);
+        return phEnum->m_ulCount;
+    }
 
-    //*****************************************
-    // Enumerator helpers for declsecurity.
-    //*****************************************
-    __checkReturn 
-    STDMETHOD(EnumPermissionSetsInit)(      // return S_FALSE if record not found
-        mdToken     tkParent,               // [IN] token to scope the search
-        CorDeclSecurity Action,             // [IN] Action to scope the search
-        HENUMInternal *phEnum) PURE;        // [OUT] the enumerator to fill 
+    void EnumReset(
+        HENUMInternal *phEnum)        // [IN] the enumerator to be reset  
+    {
+        _ASSERTE(phEnum);
+        _ASSERTE( phEnum->m_EnumType == MDSimpleEnum || phEnum->m_EnumType == MDDynamicArrayEnum);
+
+        phEnum->u.m_ulCur = phEnum->u.m_ulStart;
+    } // MDInternalRW::EnumReset
+
+    void EnumClose(
+        HENUMInternal *phEnum)        // [IN] the enumerator to be closed
+    {
+        _ASSERTE( phEnum->m_EnumType == MDSimpleEnum || 
+            phEnum->m_EnumType == MDDynamicArrayEnum);
+        if (phEnum->m_EnumType == MDDynamicArrayEnum)
+            HENUMInternal::ClearEnum(phEnum);
+    }
 
     //*****************************************
     // Enumerator helpers for CustomAttribute
@@ -1043,20 +1057,6 @@ DECLARE_INTERFACE_(IMDInternalImport, IUnknown)
 
 
     __checkReturn 
-    STDMETHOD(SafeAndSlowEnumCustomAttributeByNameInit)(// return S_FALSE if record not found
-        mdToken     tkParent,               // [IN] token to scope the search
-        LPCSTR      szName,                 // [IN] CustomAttribute's name to scope the search
-        HENUMInternal *phEnum) PURE;             // [OUT] The enumerator
-
-    __checkReturn 
-    STDMETHOD(SafeAndSlowEnumCustomAttributeByNameNext)(// return S_FALSE if record not found
-        mdToken     tkParent,               // [IN] token to scope the search
-        LPCSTR      szName,                 // [IN] CustomAttribute's name to scope the search
-        HENUMInternal *phEnum,              // [IN] The enumerator
-        mdCustomAttribute *mdAttribute) PURE;     // [OUT] The custom attribute that was found 
-
-
-    __checkReturn 
     STDMETHOD(GetTypeDefRefTokenInTypeSpec)(// return S_FALSE if enclosing type does not have a token
         mdTypeSpec  tkTypeSpec,               // [IN] TypeSpec token to look at
         mdToken    *tkEnclosedToken) PURE;    // [OUT] The enclosed type token
@@ -1186,7 +1186,7 @@ HRESULT CreateRemoteMDInternalRWSource(TADDR mdInternalRWRemoteAddress, ICorDebu
 
 void DECLSPEC_NORETURN ThrowHR(HRESULT hr);
 
-// This wrapper class ensures that the HENUMInternal is EnumTypeDefClose'd no matter how the scope is exited.
+// This wrapper class ensures that the HENUMInternal is EnumClose'd no matter how the scope is exited.
 class HENUMTypeDefInternalHolder
 {
 public:
@@ -1235,7 +1235,7 @@ public:
 
         if (m_fAcquired)
         {
-            m_pInternalImport->EnumTypeDefClose(&m_hEnum);
+            m_pInternalImport->EnumClose(&m_hEnum);
         }
     }
 
@@ -1272,28 +1272,6 @@ public:
 
         m_pInternalImport = pInternalImport;
         m_fAcquired       = FALSE;
-    }
-
-    FORCEINLINE BOOL EnumPermissionSetsInit(mdToken tkToken, CorDeclSecurity action)
-    {
-        CONTRACTL {
-            THROWS;
-        } CONTRACTL_END;
-
-        _ASSERTE(!m_fAcquired);
-        HRESULT hr = m_pInternalImport->EnumPermissionSetsInit(tkToken, action, &m_hEnum);
-  
-        if (hr == CLDB_E_RECORD_NOTFOUND)
-            return FALSE;
-
-        if (FAILED(hr) )
-        {
-            ThrowHR(hr);
-        }
-
-        m_fAcquired = TRUE;
-
-        return TRUE;
     }
 
     FORCEINLINE VOID EnumGlobalFunctionsInit()
