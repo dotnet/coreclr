@@ -66,9 +66,7 @@ FORCEINLINE void InlinedSetCardsAfterBulkCopyHelper(Object **start, size_t len)
 
     // calculate the number of clumps to mark (round_up(end) - start)
     size_t clumpCount = endingClump - startingClump;
-    // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered
-    // with g_lowest/highest_address check at the beginning of this function.
-    uint8_t* card = ((uint8_t*)VolatileLoadWithoutBarrier(&g_card_table)) + startingClump;
+    uint8_t* card = (uint8_t*)g_card_table + startingClump;
 
     // Fill the cards. To avoid cache line thrashing we check whether the cards have already been set before
     // writing.
@@ -89,7 +87,7 @@ FORCEINLINE void InlinedSetCardsAfterBulkCopyHelper(Object **start, size_t len)
     size_t endBundleByte = (endAddress + (1 << card_bundle_byte_shift) - 1) >> card_bundle_byte_shift;
     size_t bundleByteCount = endBundleByte - startBundleByte;
 
-    uint8_t* pBundleByte = ((uint8_t*)VolatileLoadWithoutBarrier(&g_card_bundle_table)) + startBundleByte;
+    uint8_t* pBundleByte = (uint8_t*)g_card_bundle_table + startBundleByte;
 
     do
     {
