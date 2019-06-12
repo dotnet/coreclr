@@ -183,10 +183,12 @@ bool EventPipeProviderCallbackDataQueue::TryDequeue(EventPipeProviderCallbackDat
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
-    PRECONDITION(!s_tracingInitialized);
 
     if (s_tracingInitialized)
+    {
+        _ASSERTE(!"EventPipe::Initialize was already initialized.");
         return;
+    }
 
     const bool tracingInitialized = s_configCrst.InitNoThrow(
         CrstEventPipe,
@@ -345,10 +347,6 @@ EventPipeSessionID EventPipe::EnableInternal(
     }
     CONTRACTL_END;
 
-    // If tracing is not initialized or is already enabled, bail here.
-    if (!s_tracingInitialized)
-        return 0;
-
     if (pSession == nullptr || !pSession->IsValid())
         return 0;
 
@@ -506,13 +504,15 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(s_tracingInitialized);
-
-    if (!s_tracingInitialized)
-        return nullptr;
 
     {
         CrstHolder _crst(GetLock());
+
+        if (!s_tracingInitialized)
+        {
+            _ASSERTE(!"EventPipe::GetSession invoked before EventPipe was initialized.");
+            return nullptr;
+        }
 
         // Attempt to get the specified session ID.
         const uint64_t index = GetArrayIndex(id);
@@ -650,10 +650,6 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     }
     CONTRACTL_END;
 
-    // We can't proceed if tracing is not initialized.
-    if (!s_tracingInitialized)
-        return;
-
     // Exit early if the event is not enabled.
     if (!event.IsEnabled())
         return;
@@ -688,7 +684,6 @@ void EventPipe::WriteEventInternal(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION(s_tracingInitialized);
     }
     CONTRACTL_END;
 
@@ -785,10 +780,6 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         PRECONDITION(pEvent != nullptr);
     }
     CONTRACTL_END;
-
-    // We can't proceed if tracing is not initialized.
-    if (!s_tracingInitialized)
-        return;
 
     EventPipeEventPayload payload(pData, length);
     WriteEventInternal(
