@@ -31,7 +31,6 @@ CrstStatic EventPipe::s_configCrst;
 Volatile<bool> EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration EventPipe::s_config;
 EventPipeEventSource *EventPipe::s_pEventSource = NULL;
-HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
 VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
 ULONGLONG EventPipe::s_lastFlushTime = 0;
 

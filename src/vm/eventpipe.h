@@ -412,7 +412,6 @@ private:
     static EventPipeConfiguration s_config;
     static VolatilePtr<EventPipeSession> s_pSessions[MaxNumberOfSessions];
     static EventPipeEventSource *s_pEventSource;
-    static HANDLE s_fileSwitchTimerHandle;
     static ULONGLONG s_lastFlushTime;
 };
 
