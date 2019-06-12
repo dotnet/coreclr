@@ -1651,6 +1651,22 @@ HRESULT ShimChain::GetStackRange(CORDB_ADDRESS * pStart, CORDB_ADDRESS * pEnd)
         VALIDATE_POINTER_TO_OBJECT_OR_NULL(pStart, CORDB_ADDRESS *);
         VALIDATE_POINTER_TO_OBJECT_OR_NULL(pEnd, CORDB_ADDRESS *);
 
+        // If the debugger stops inside of a IL_STUB_PInvoke frame being called from another IL_STUB_PInvoke frame, 
+        // stack values in the shim chain may be incorrect. If this occurs, return E_UNEXPECTED.
+        if (m_fpRoot.GetSPValue() < CORDbgGetSP(&m_context))
+        {
+            if (pStart)
+            {
+                *pStart = NULL;
+            }
+            if (pEnd)
+            {
+                *pEnd = NULL;
+            }
+            hr = E_UNEXPECTED;
+            return hr;
+        }
+
         // Return the leafmost end of the stack range.
         // The leafmost end is represented by the register set.
         if (pStart)
@@ -1662,11 +1678,6 @@ HRESULT ShimChain::GetStackRange(CORDB_ADDRESS * pStart, CORDB_ADDRESS * pEnd)
         if (pEnd)
         {
             *pEnd = PTR_TO_CORDB_ADDRESS(m_fpRoot.GetSPValue());
-        }
-
-        if (m_fpRoot.GetSPValue() < CORDbgGetSP(&m_context))
-        {
-            hr = E_FAIL;
         }
     }
     EX_CATCH_HRESULT(hr);
