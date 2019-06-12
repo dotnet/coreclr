@@ -352,12 +352,12 @@ public:
             InvokeCallback(eventPipeProviderCallbackData);
     }
 
+private:
     static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
 
     // Get the event used to write metadata to the event stream.
     static EventPipeEventInstance *BuildEventMetadataEvent(EventPipeEventInstance &instance, unsigned int metadataId);
 
-private:
     // The counterpart to WriteEvent which after the payload is constructed
     static void WriteEventInternal(
         EventPipeEvent &event,
