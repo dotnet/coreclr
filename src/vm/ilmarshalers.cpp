@@ -301,35 +301,6 @@ void ILWSTRMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit)
     pslILEmit->EmitLabel(pIsNullLabel);
 }    
 
-bool ILWSTRMarshaler::NeedsClearNative()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // will evaluate to true iff there is something CoTaskMemAlloc'ed that we need to free
-    bool needsClear = (IsByref(m_dwMarshalFlags) && IsOut(m_dwMarshalFlags)) || IsRetval(m_dwMarshalFlags);
-    
-    // m_fCoMemoryAllocated => needsClear
-    // (if we allocated the memory, we will free it; for byref [out] and retval we free memory allocated by the callee)
-    _ASSERTE(!m_fCoMemoryAllocated || needsClear);
-
-    return needsClear;
-}
-
-void ILWSTRMarshaler::EmitClearNative(ILCodeStream* pslILEmit)
-{
-    STANDARD_VM_CONTRACT;
-
-    EmitLoadNativeValue(pslILEmit);
-    // static void CoTaskMemFree(IntPtr ptr)
-    pslILEmit->EmitCALL(METHOD__MARSHAL__FREE_CO_TASK_MEM, 1, 0);
-}
-
-void ILWSTRMarshaler::EmitClearNativeTemp(ILCodeStream* pslILEmit)
-{
-    LIMITED_METHOD_CONTRACT;
-    UNREACHABLE_MSG("The string is either pinned or a copy is stack-allocated, NeedsClearNative should have returned false");
-}
-
 //
 // input stack:  0: managed string
 // output stack: 0: (string_length+1) * sizeof(WCHAR)
@@ -349,8 +320,6 @@ void ILWSTRMarshaler::EmitCheckManagedStringLength(ILCodeStream* pslILEmit)
 void ILWSTRMarshaler::EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslILEmit)
 {
     STANDARD_VM_CONTRACT;
-
-    INDEBUG(m_fCoMemoryAllocated = true);
 
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
     DWORD dwLengthLocalNum = pslILEmit->NewLocal(ELEMENT_TYPE_I4);
@@ -430,14 +399,32 @@ void ILWSTRMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* p
     EmitLoadManagedValue(pslILEmit);
     EmitCheckManagedStringLength(pslILEmit);
 
-    // cb
-
-    pslILEmit->EmitDUP();
     pslILEmit->EmitSTLOC(dwLengthLocalNum);
 
-    // cb
+    ILCodeLabel* pAllocRejoin = pslILEmit->NewCodeLabel();
+    ILCodeLabel* pNoOptimize = pslILEmit->NewCodeLabel();
+    m_dwLocalBuffer = pslILEmit->NewLocal(ELEMENT_TYPE_I);
 
-    pslILEmit->EmitLOCALLOC();              // @TODO: add a non-localloc path for large strings
+    // LocalBuffer = 0
+    pslILEmit->EmitLoadNullPtr();
+    pslILEmit->EmitSTLOC(m_dwLocalBuffer);
+
+    pslILEmit->EmitLDLOC(dwLengthLocalNum);
+    // if (alloc_size_in_bytes > MAX_LOCAL_BUFFER_LENGTH) goto NoOptimize
+    pslILEmit->EmitDUP();
+    pslILEmit->EmitLDC(MAX_LOCAL_BUFFER_LENGTH);
+    pslILEmit->EmitCGT_UN();
+    pslILEmit->EmitBRTRUE(pNoOptimize);
+
+    pslILEmit->EmitLOCALLOC();
+    pslILEmit->EmitDUP();
+    pslILEmit->EmitSTLOC(m_dwLocalBuffer);
+    pslILEmit->EmitBR(pAllocRejoin);
+
+    pslILEmit->EmitLabel(pNoOptimize);
+
+    pslILEmit->EmitCALL(METHOD__MARSHAL__ALLOC_CO_TASK_MEM, 1, 1);
+    pslILEmit->EmitLabel(pAllocRejoin);
     EmitStoreNativeValue(pslILEmit);
 
     EmitLoadManagedValue(pslILEmit);

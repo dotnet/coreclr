@@ -2048,65 +2048,6 @@ protected:
 };
 #endif // FEATURE_COMINTEROP
 
-class ILWSTRMarshaler : public ILMarshaler
-{
-public:
-    enum
-    {
-        c_fInOnly               = FALSE,
-        c_nativeSize            = sizeof(void *),
-        c_CLRSize               = sizeof(OBJECTREF),
-    };
-
-#ifdef _DEBUG
-    bool m_fCoMemoryAllocated;
-
-    ILWSTRMarshaler()
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_fCoMemoryAllocated = false;
-    }
-#endif // _DEBUG
-
-    
-    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override
-    {
-        if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags) && IsCLRToNative(dwMarshalFlags))
-        {
-            *pErrorResID = IDS_EE_BADMARSHAL_STRING_OUT;
-            return false;
-        }
-
-        return true;
-    }
-
-protected:
-    LocalDesc GetNativeType() override;
-    LocalDesc GetManagedType() override;
-
-    void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
-    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
-    void EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslILEmit) override;
-    void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
-
-    void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
-    void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
-
-    bool NeedsClearNative() override;
-    void EmitClearNative(ILCodeStream* pslILEmit) override;
-    void EmitClearNativeTemp(ILCodeStream* pslILEmit) override;
-
-    bool CanMarshalViaPinning() override
-    {
-        LIMITED_METHOD_CONTRACT;
-        return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && IsIn(m_dwMarshalFlags) && !IsOut(m_dwMarshalFlags);
-    }
-    void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
-
-    static void EmitCheckManagedStringLength(ILCodeStream* pslILEmit);
-    static void EmitCheckNativeStringLength(ILCodeStream* pslILEmit);
-};
-
 // A marshaler that makes run-time decision based on argument size whether native space will
 // be allocated using localloc or on the heap. The ctor argument is a heap free function.
 class ILOptimizedAllocMarshaler : public ILMarshaler
@@ -2717,7 +2658,62 @@ protected:
 	void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
 };
 
+class ILWSTRMarshaler : public ILOptimizedAllocMarshaler
+{
+public:
+    enum
+    {
+        c_fInOnly               = FALSE,
+        c_nativeSize            = sizeof(void *),
+        c_CLRSize               = sizeof(OBJECTREF),
+    };
 
+    enum
+    {
+        // If required buffer length > MAX_LOCAL_BUFFER_LENGTH, don't optimize by allocating memory on stack
+        MAX_LOCAL_BUFFER_LENGTH = (MAX_PATH_FNAME + 1) * 2
+    };
+
+    ILWSTRMarshaler()
+        :ILOptimizedAllocMarshaler(METHOD__MARSHAL__FREE_CO_TASK_MEM)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    
+    bool SupportsArgumentMarshal(DWORD dwMarshalFlags, UINT* pErrorResID) override
+    {
+        if (IsOut(dwMarshalFlags) && !IsByref(dwMarshalFlags) && IsCLRToNative(dwMarshalFlags))
+        {
+            *pErrorResID = IDS_EE_BADMARSHAL_STRING_OUT;
+            return false;
+        }
+
+        return true;
+    }
+
+protected:
+    LocalDesc GetNativeType() override;
+    LocalDesc GetManagedType() override;
+
+    void EmitConvertSpaceCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitConvertSpaceAndContentsCLRToNative(ILCodeStream* pslILEmit) override;
+    void EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeStream* pslILEmit) override;
+
+    void EmitConvertSpaceNativeToCLR(ILCodeStream* pslILEmit) override;
+    void EmitConvertContentsNativeToCLR(ILCodeStream* pslILEmit) override;
+
+    bool CanMarshalViaPinning() override
+    {
+        LIMITED_METHOD_CONTRACT;
+        return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && IsIn(m_dwMarshalFlags) && !IsOut(m_dwMarshalFlags);
+    }
+    void EmitMarshalViaPinning(ILCodeStream* pslILEmit) override;
+
+    static void EmitCheckManagedStringLength(ILCodeStream* pslILEmit);
+    static void EmitCheckNativeStringLength(ILCodeStream* pslILEmit);
+};
 
 class ILCSTRMarshaler : public ILOptimizedAllocMarshaler
 {
