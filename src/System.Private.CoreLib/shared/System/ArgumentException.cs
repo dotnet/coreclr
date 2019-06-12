@@ -93,7 +93,8 @@ namespace System
 
         private void SetMessageField()
         {
-            if (_message == null && HResult == System.HResults.COR_E_ARGUMENT)
+            if (_message == null && HResult == System.HResults.COR_E_ARGUMENT) 
+            {
                     _message = SR.Arg_ArgumentException;
             }
         }
