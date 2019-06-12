@@ -7,6 +7,21 @@
 .assembly GitHub_20799 { }
 .module GitHub_20799.exe
 
+// GitHub 20799: a bug is reproduced when
+// 1) a method requires GSSecurityCookie (e.g. when allocating unsafe buffer using localloc)
+// 2) one of the method parameter is "vulnerable" and requires a shadow variable to be created
+//    and used instead of the original parameter variable
+// 3) the method parameter has small signed integer type (i.e. int8 or int16)
+// 4) the value of the parameter is converted to unsigned type (e.g. uint8 or uint16)
+//
+// For example, these IL patterns are morphed by JIT into a GT_LCL_FLD(uint8, arg1) node
+// * conv.u1(ldfld(ldarga arg1))
+// * conv.u1(ldind.i1(ldarga arg1))
+//
+// In the process of replacement arg1 with a shadow variable the node type was also changed to TYP_INT and,
+// as a consequence, 'mov dstReg, dword ptr [shadowVarLoc]' was generated for such conversion
+// instead of 'movzx dstReg, byte ptr [shadowVarLoc]'.
+
 .class private sequential ansi sealed beforefieldinit GitHub_20799.SByte
        extends [System.Runtime]System.ValueType
 {
