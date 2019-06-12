@@ -438,6 +438,8 @@ void ZapInfo::CompileMethod()
     // this they can add the hint and reduce the perf cost at runtime.
     m_pImage->m_pPreloader->PrePrepareMethodIfNecessary(m_currentMethodHandle);
 
+    // Retrieve method attributes from EEJitInfo - the ZapInfo's version updates
+    // some of the flags related to hardware intrinsics but we don't want that.
     DWORD methodAttribs = m_pEEJitInfo->getMethodAttribs(m_currentMethodHandle);
     if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
     {
@@ -2123,8 +2125,8 @@ DWORD FilterHardwareIntrinsicMethodAttribs(DWORD attribs, CORINFO_METHOD_HANDLE 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
         bool fIsX86intrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0;
 
-        // If it's anything related to Sse/Sse2, we can expand unconditionally since this is reliably
-        // available everywhere.
+        // If it's anything related to Sse/Sse2, we can expand unconditionally since this is a baseline
+        // requirement of CoreCLR.
         if (fIsX86intrinsic
             && (
                 strcmp(className, "Sse") == 0 || strcmp(className, "Sse2") == 0
@@ -2165,14 +2167,15 @@ DWORD FilterHardwareIntrinsicMethodAttribs(DWORD attribs, CORINFO_METHOD_HANDLE 
             if (fIsGetIsSupportedMethod)
                 return attribs;
 
-            // Treat as a regular method call (into a JITted method).
+            // Treat other intrinsic methods as a regular method call (into a JITted method).
             return (attribs & ~CORINFO_FLG_JIT_INTRINSIC) | CORINFO_FLG_DONT_INLINE;
         }
 
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
 
-        // Do not report the get_IsSupported method as an intrinsic. This will turn the call into a regular
-        // call. We also make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
+        // Do not report the get_IsSupported method as an intrinsic if it's an intrinsic on the architecture
+        // we are targeting. This will turn the call into a regular call.
+        // We also make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
         // (see ZapInfo::CompileMethod) but get JITted instead. The JITted method will have the correct
         // answer for the CPU the code is running on.
         if (fIsGetIsSupportedMethod && (
