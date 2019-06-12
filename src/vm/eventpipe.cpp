@@ -32,7 +32,6 @@ Volatile<bool> EventPipe::s_tracingInitialized = false;
 EventPipeConfiguration EventPipe::s_config;
 EventPipeEventSource *EventPipe::s_pEventSource = nullptr;
 VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
-ULONGLONG EventPipe::s_lastFlushTime = 0;
 
 #ifdef FEATURE_PAL
 // This function is auto-generated from /src/scripts/genEventPipe.py
