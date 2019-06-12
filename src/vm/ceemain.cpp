@@ -1290,9 +1290,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
-    DiagnosticServer::Shutdown();
+    if (!fIsDllUnloading)
+    {
+        EventPipe::Shutdown();
+        DiagnosticServer::Shutdown();
+    }
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)
