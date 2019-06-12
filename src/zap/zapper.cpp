@@ -1189,7 +1189,7 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
 #endif // _TARGET_X86_
 
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
-    // If we're crossgenning CoreLib, allow generating all intrinsics. The generated code might
+    // If we're crossgenning CoreLib, allow generating non-VEX intrinsics. The generated code might
     // not actually be supported by the processor at runtime so we compensate for it by
     // not letting the get_IsSupported method to be intrinsically expanded in crossgen
     // (see special handling around CORINFO_FLG_JIT_INTRINSIC in ZapInfo).
@@ -1209,10 +1209,9 @@ void Zapper::InitializeCompilerFlags(CORCOMPILE_VERSION_INFO * pVersionInfo)
         m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_SSE42);
         m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_POPCNT);
         // Leaving out CORJIT_FLAGS::CORJIT_FLAG_USE_AVX, CORJIT_FLAGS::CORJIT_FLAG_USE_FMA
-        // CORJIT_FLAGS::CORJIT_FLAG_USE_AVX2 on purpose - these enable JIT to use VEX encoding
-        // and that's not safe.
-        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_BMI1);
-        m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_BMI2);
+        // CORJIT_FLAGS::CORJIT_FLAG_USE_AVX2, CORJIT_FLAGS::CORJIT_FLAG_USE_BMI1,
+        // CORJIT_FLAGS::CORJIT_FLAG_USE_BMI2 on purpose - these require VEX encodings
+        // and the JIT doesn't support generating code for methods with mixed encodings.
         m_pOpt->m_compilerFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_LZCNT);
 #endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
     }
