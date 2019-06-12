@@ -2175,13 +2175,13 @@ DWORD FilterHardwareIntrinsicMethodAttribs(DWORD attribs, CORINFO_METHOD_HANDLE 
         // call. We also make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
         // (see ZapInfo::CompileMethod) but get JITted instead. The JITted method will have the correct
         // answer for the CPU the code is running on.
-        if (fIsGetIsSupportedMethod &&
+        if (fIsGetIsSupportedMethod && (
 #if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
             fIsX86intrinsic ||
 #elif _TARGET_ARM64_
             strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0 ||
 #endif
-            strcmp(namespaceName, "System.Runtime.Intrinsics") == 0)
+            strcmp(namespaceName, "System.Runtime.Intrinsics") == 0))
         {
             // Treat as a regular method call (into a JITted method).
             return (attribs & ~CORINFO_FLG_JIT_INTRINSIC) | CORINFO_FLG_DONT_INLINE;
