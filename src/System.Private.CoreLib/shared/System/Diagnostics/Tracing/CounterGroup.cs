@@ -22,10 +22,15 @@ namespace System.Diagnostics.Tracing
         private readonly EventSource _eventSource;
         private readonly List<DiagnosticCounter> _counters;
 
+        // As of now, EventCounter sessions are distinguished by the polling interval.
+        // This list contains the list of polling interval. 
+        private readonly Dictionary<int, DateTime> _sessions;
+
         internal CounterGroup(EventSource eventSource)
         {
             _eventSource = eventSource;
             _counters = new List<DiagnosticCounter>();
+            _sessions = new Dictionary<int, DateTime>();
             RegisterCommandCallback();
         }
 
@@ -53,16 +58,26 @@ namespace System.Diagnostics.Tracing
             if (e.Command == EventCommand.Enable || e.Command == EventCommand.Update)
             {
                 string valueStr;
-                float value;
+                int value;
                 Debug.Assert(e.Arguments != null);
 
-                if (e.Arguments.TryGetValue("EventCounterIntervalSec", out valueStr) && float.TryParse(valueStr, out value))
+                if (e.Arguments.TryGetValue("EventCounterIntervalSec", out valueStr) && Int32.TryParse(valueStr, out value))
                 {
+
                     lock (this)      // Lock the CounterGroup
                     {
+                        // If we received an enable command with a different polling interval, we are trying to add a session.
+                        if (e.Command == EventCommand.Enable && (value * 1000) != _pollingIntervalInMilliseconds)
+                        {
+                            _sessions.Add(value * 1000, DateTime.MinValue);
+                        }
+
                         EnableTimer(value);
                     }
                 }
+
+                Debug.WriteLine($"perEventSourceSessionId: {e.perEventSourceSessionId}");
+                Debug.WriteLine($"etwSessionId: {e.etwSessionId}");
             }
             else if (e.Command == EventCommand.Disable)
             {
@@ -134,7 +149,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private void EnableTimer(float pollingIntervalInSeconds)
+        private void EnableTimer(int pollingIntervalInSeconds)
         {
             Debug.Assert(Monitor.IsEntered(this));
             if (pollingIntervalInSeconds <= 0)
@@ -145,7 +160,7 @@ namespace System.Diagnostics.Tracing
             else if (_pollingIntervalInMilliseconds == 0 || pollingIntervalInSeconds * 1000 < _pollingIntervalInMilliseconds)
             {
                 Debug.WriteLine("Polling interval changed at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
-                _pollingIntervalInMilliseconds = (int)(pollingIntervalInSeconds * 1000);
+                _pollingIntervalInMilliseconds = pollingIntervalInSeconds * 1000;
                 DisposeTimer();
                 _timeStampSinceCollectionStarted = DateTime.UtcNow;
                 // Don't capture the current ExecutionContext and its AsyncLocals onto the timer causing them to live forever
@@ -181,10 +196,19 @@ namespace System.Diagnostics.Tracing
                     DateTime now = DateTime.UtcNow;
                     TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
 
-                    foreach (var counter in _counters)
+                    foreach (var session in _sessions)
                     {
-                        counter.WritePayload((float)elapsed.TotalSeconds, _pollingIntervalInMilliseconds);
+                        TimeSpan elapsedSinceLastUpdate = now - session.Value;
+                        if (elapsedSinceLastUpdate.TotalMilliseconds > session.Key)
+                        {
+                            foreach (var counter in _counters)
+                            {
+                                counter.WritePayload((float)elapsed.TotalSeconds, session.Key);
+                            }
+                            _sessions[session.Key] = now;
+                        }
                     }
+
                     _timeStampSinceCollectionStarted = now;
                 }
                 else
