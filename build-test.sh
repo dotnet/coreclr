@@ -159,6 +159,10 @@ generate_layout()
         nextCommand="\"$__TestDir/setup-stress-dependencies.sh\" --outputDir=$CORE_ROOT"
         echo "Resolve runtime dependences via $nextCommand"
         eval $nextCommand
+        if [ $? != 0 ]; then
+            echo "${__MsgPrefix}Error: setup-stress-dependencies failed."
+            exit 1
+        fi
     fi
 
     # Precompile framework assemblies with crossgen if required
