@@ -1257,7 +1257,7 @@ OBJECTREF AllocateObject(MethodTable *pMT
 
 static void SetCardBundleByte(BYTE* addr)
 {
-    BYTE* cbByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte(addr);
+    BYTE* cbByte = (BYTE *)g_card_bundle_table + card_bundle_byte(addr);
     if (*cbByte != 0xFF)
     {
         *cbByte = 0xFF;
@@ -1406,9 +1406,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
         CheckedAfterRefInEphemFilter++;
 #endif
-        // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
-        // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
-        BYTE* pCardByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
+        BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
         if(*pCardByte != 0xFF)
         {
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1467,7 +1465,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
         UncheckedAfterRefInEphemFilter++;
 #endif
-        BYTE* pCardByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
+        BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
         if(*pCardByte != 0xFF)
         {
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1530,9 +1528,7 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
 
     if ((BYTE*) OBJECTREFToObject(ref) >= g_ephemeral_low && (BYTE*) OBJECTREFToObject(ref) < g_ephemeral_high)
     {
-        // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
-        // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
-        BYTE* pCardByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
+        BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
         if (*pCardByte != 0xFF)
         {
             *pCardByte = 0xFF;
@@ -1572,7 +1568,7 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
         if((BYTE*) refObject >= g_ephemeral_low && (BYTE*) refObject < g_ephemeral_high)
         {
             // See comment above
-            BYTE* pCardByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
+            BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
             if( !((*pCardByte) & card_bit((BYTE *)dst)) )
             {
                 *pCardByte = 0xFF;

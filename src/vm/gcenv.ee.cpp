@@ -816,6 +816,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->highest_address != nullptr);
 
         g_card_table = args->card_table;
+        g_lowest_address = args->lowest_address;
+        g_highest_address = args->highest_address;
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         assert(args->card_bundle_table != nullptr);
@@ -832,51 +834,53 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
         stompWBCompleteActions |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
 
-        // We need to make sure that other threads executing checked write barriers
-        // will see the g_card_table update before g_lowest/highest_address updates.
-        // Otherwise, the checked write barrier may AV accessing the old card table
-        // with address that it does not cover.
+        // At this point either the old or the new set of globals (card_table, bounds etc) can be used. Card tables and card bundles allow such use. 
+        // When card tables are de-published (at EE suspension) all the info will be merged, so the information will not be lost.
+        // Another point - we should not yet have any manaded objects/addresses outside of the former bounds, so either old or new bounds are fine.
+        // That is - because bounds can only become widerand we are not yet done with widening.
         //
-        // Even x86's total store ordering is insufficient here because threads reading
-        // g_card_table do so via the instruction cache, whereas g_lowest/highest_address
-        // are read via the data cache.
+        // However!!
+        // Once we are done, a new object can (and likely will) be allocated outside of the former bounds.
+        // So, before such object can be used in a write barier, we must ensure that the barrier also uses the new card table and bounds.
         //
-        // The g_card_table update is covered by section 8.1.3 of the Intel Software
-        // Development Manual, Volume 3A (System Programming Guide, Part 1), about
-        // "cross-modifying code": We need all _executing_ threads to invalidate
-        // their instruction cache, which FlushProcessWriteBuffers achieves by sending
-        // an IPI (inter-process interrupt).
+        // This is easy to arrange for architectures with strong memory ordering. We only need to ensure that 
+        // - object is allocated/published _after_ we publish table/bounds here
+        // - write barrier reads table/bounds after reading the new object locations
+        //
+        // for architectures with strong memory ordering (x86/x64) both conditions above are naturally guaranteed. 
+        //
+        // One tricky part is the literal data that is "bashed" directly into bodies of write barriers, since Icache and Dcache are not necessarily coherent.  
+        // We will request a flush of Icache manually and let the API/OS sort it out.
+        //
+        // Systems with weak ordering are more interesting. We could either:
+        // a) issue a write fence here and pair it with a read fence in the write barrier, or
+        // b) issue a process-wide full fence here and do ordinary reads in the barrier.
+        //
+        // We will do "b" because executing write barrier is by far more common than updating card table.
+        //
+        // I.E. - for weak archeitectures we have to do a proccess-wide fence. 
+        //
+        // NOTE: suspending/resuming EE works the same as process-wide fence for our purposes here. 
+        //       (we care only about managed threads and suspend/resume will do full fences - good enough for us).
+        //
 
         if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
         {
-            // flushing icache on current processor (thread)
+            // flushing/invalidating the write barrier's body for the current process 
+            // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
             ::FlushWriteBarrierInstructionCache();
-            // asking other processors (threads) to invalidate their icache
-            FlushProcessWriteBuffers();
         }
-
-        g_lowest_address = args->lowest_address;
-        VolatileStore(&g_highest_address, args->highest_address);
 
 #if defined(_ARM64_) || defined(_ARM_)
-        // Need to reupdate for changes to g_highest_address g_lowest_address
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
-        stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
-
-#ifdef _ARM_
-        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
-        {
-            ::FlushWriteBarrierInstructionCache();
-        }
-#endif
-
-        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
+      
         if(!is_runtime_suspended)
         {
-            // If runtime is not suspended, force updated state to be visible to all threads
-            MemoryBarrier();
+            // If runtime is not suspended, force all threads to see the changed state before observing future allocations.
+            FlushProcessWriteBuffers();
         }
 #endif
+
         if (stompWBCompleteActions & SWB_EE_RESTART)
         {
             assert(!args->is_runtime_suspended &&
@@ -885,6 +889,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
         return; // unlike other branches we have already done cleanup so bailing out here
     case WriteBarrierOp::StompEphemeral:
+        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         // StompEphemeral requires a new ephemeral low and a new ephemeral high
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
@@ -893,6 +898,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         stompWBCompleteActions |= ::StompWriteBarrierEphemeral(args->is_runtime_suspended);
         break;
     case WriteBarrierOp::Initialize:
+        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         // This operation should only be invoked once, upon initialization.
         assert(g_card_table == nullptr);
         assert(g_lowest_address == nullptr);
@@ -902,7 +908,6 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->highest_address != nullptr);
         assert(args->ephemeral_low != nullptr);
         assert(args->ephemeral_high != nullptr);
-        assert(args->is_runtime_suspended && "the runtime must be suspended here!");
         assert(!args->requires_upper_bounds_check && "the ephemeral generation must be at the top of the heap!");
 
         g_card_table = args->card_table;
@@ -926,8 +931,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         break;
     case WriteBarrierOp::SwitchToWriteWatch:
 #ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
-        assert(args->write_watch_table != nullptr);
         assert(args->is_runtime_suspended && "the runtime must be suspended here!");
+        assert(args->write_watch_table != nullptr);
         g_sw_ww_table = args->write_watch_table;
         g_sw_ww_enabled_for_gc_heap = true;
         stompWBCompleteActions |= ::SwitchToWriteWatchBarrier(true);
