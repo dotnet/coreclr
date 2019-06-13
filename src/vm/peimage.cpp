@@ -1258,7 +1258,7 @@ void PEImage::Load()
         {
             _ASSERTE(m_pLayouts[IMAGE_FLAT] != NULL);
 
-            if (!m_pLayouts[IMAGE_FLAT]->CheckILOnly())
+            if (!m_pLayouts[IMAGE_FLAT]->CheckILOnly() && !m_pLayouts[IMAGE_FLAT]->HasReadyToRunHeader())
                 ThrowHR(COR_E_BADIMAGEFORMAT);
             if(m_pLayouts[IMAGE_LOADED]==NULL)
                 SetLayout(IMAGE_LOADED,PEImageLayout::LoadFromFlat(m_pLayouts[IMAGE_FLAT]));
@@ -1307,15 +1307,16 @@ void PEImage::LoadNoFile()
         PRECONDITION(!IsFile());
     }
     CONTRACTL_END;
+
     if (HasLoadedLayout())
         return;
 
-    PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,0));
-    if (!pLayout->CheckILOnly())
+    PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY, 0));
+    if (!pLayout->CheckILOnly() && !pLayout->HasReadyToRunHeader())
         ThrowHR(COR_E_BADIMAGEFORMAT);
     SimpleWriteLockHolder lock(m_pLayoutLock);
-    if(m_pLayouts[IMAGE_LOADED]==NULL)
-        SetLayout(IMAGE_LOADED,pLayout.Extract());
+    if (m_pLayouts[IMAGE_LOADED] == NULL)
+        SetLayout(IMAGE_LOADED, pLayout.Extract());
 }
 
 
