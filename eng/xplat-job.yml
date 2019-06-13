@@ -8,6 +8,7 @@ parameters:
   helixType: '(unspecified)'
   condition: ''
   dependsOn: ''
+  container: ''
   containerName: ''
   timeoutInMinutes: ''
   crossrootfsDir: ''
