@@ -126,7 +126,9 @@ ProfileArgIterator::ProfileArgIterator(MetaSig * pSig, void * platformSpecificHa
 
     m_handle = platformSpecificHandle;
     PROFILE_PLATFORM_SPECIFIC_DATA* pData = (PROFILE_PLATFORM_SPECIFIC_DATA*)m_handle;
+#ifdef UNIX_AMD64_ABI
     pData->bufferPos = 0;
+#endif // UNIX_AMD64_ABI
 
     // unwind a frame and get the Rsp for the profiled method to make sure it matches
     // what the JIT gave us
