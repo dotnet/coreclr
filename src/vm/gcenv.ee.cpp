@@ -856,7 +856,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
 #endif
 
-        VolatileStoreWithoutBarrier(&g_lowest_address, args->lowest_address);
+        g_lowest_address = args->lowest_address;
         g_highest_address = args->highest_address;
 
 #if defined(_ARM64_) || defined(_ARM_)
