@@ -687,6 +687,10 @@ void EventPipe::WriteEventInternal(
     }
     CONTRACTL_END;
 
+    // We can't proceed if tracing is not initialized.
+    if (!s_tracingInitialized)
+        return;
+
     EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
     if (pEventPipeThread == nullptr)
     {
