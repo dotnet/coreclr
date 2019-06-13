@@ -41,6 +41,11 @@ if /i "%__Arch%" == "arm" (
     exit /b 0
 )
 
+if /i "%__Arch%" == "arm64" (
+    echo No runtime dependencies for Arm64.
+    exit /b 0
+)
+
 REM =========================================================================================
 REM ===
 REM === Check if dotnet CLI and necessary directories exist
