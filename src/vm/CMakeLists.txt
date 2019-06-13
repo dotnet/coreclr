@@ -504,6 +504,7 @@ set(VM_HEADERS_WKS
     sha1.h
     simplerwlock.hpp
     sourceline.h
+    stackcontents.h
     stackingallocator.h
     stringliteralmap.h
     stubcache.h
