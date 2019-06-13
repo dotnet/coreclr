@@ -1257,7 +1257,7 @@ OBJECTREF AllocateObject(MethodTable *pMT
 
 static void SetCardBundleByte(BYTE* addr)
 {
-    BYTE* cbByte = (BYTE *)g_card_bundle_table + card_bundle_byte(addr);
+    BYTE* cbByte = (BYTE *)VolatileLoadWithoutBarrier(&g_card_bundle_table) + card_bundle_byte(addr);
     if (*cbByte != 0xFF)
     {
         *cbByte = 0xFF;

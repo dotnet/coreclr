@@ -90,7 +90,7 @@ FORCEINLINE void InlinedSetCardsAfterBulkCopyHelper(Object **start, size_t len)
     size_t endBundleByte = (endAddress + (1 << card_bundle_byte_shift) - 1) >> card_bundle_byte_shift;
     size_t bundleByteCount = endBundleByte - startBundleByte;
 
-    uint8_t* pBundleByte = (uint8_t*)g_card_bundle_table + startBundleByte;
+    uint8_t* pBundleByte = ((uint8_t*)VolatileLoadWithoutBarrier(&g_card_bundle_table)) + startBundleByte;
 
     do
     {
