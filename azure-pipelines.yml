@@ -1,5 +1,6 @@
 variables:
-  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+- name: DOTNET_SKIP_FIRST_TIME_EXPERIENCE
+  value: true
 
 resources:
   containers:
