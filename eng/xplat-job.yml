@@ -75,10 +75,7 @@ jobs:
       clean: all
 
     ${{ if ne(parameters.containerName, '') }}:
-      container: ${{ parameters.containerName }}
-
-    ${{ if ne(parameters.container, '') }}:
-      container: ${{ format('{0}:{1}', 'mcr.microsoft.com/dotnet-buildtools/prereqs', parameters.container) }}
+      container: ${{ format('{0}:{1}', 'mcr.microsoft.com/dotnet-buildtools/prereqs', parameters.containerName) }}
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
