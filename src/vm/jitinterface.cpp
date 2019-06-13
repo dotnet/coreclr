@@ -7459,12 +7459,12 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
 
     // We are only interested if ftn's token and CompareExchange<T> token match
     if (ftn->GetMemberDef() != MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_T)->GetMemberDef())
-        return false;       
+        return false;
 
-    // Get MethodDesc for System.Threading.Interlocked.CompareExchangeFast()
+    // Get MethodDesc for non-generic System.Threading.Interlocked.CompareExchange()
     MethodDesc* cmpxchgFast = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
 
-    // The MethodDesc lookup must not fail, and it should have the name "CompareExchangeFast"
+    // The MethodDesc lookup must not fail, and it should have the name "CompareExchange"
     _ASSERTE(cmpxchgFast != NULL);
     _ASSERTE(strcmp(cmpxchgFast->GetName(), "CompareExchange") == 0);
 
@@ -7585,6 +7585,39 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
     return false;
 }
 
+bool getILIntrinsicImplementationForActivator(MethodDesc* ftn,
+    CORINFO_METHOD_INFO* methInfo,
+    SigPointer* pSig)
+{
+    STANDARD_VM_CONTRACT;
+
+    // Precondition: ftn is a method in mscorlib in the System.Threading.Interlocked class
+    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__ACTIVATOR));
+
+    // We are only interested if ftn's token and CreateInstance<T> token match
+    if (ftn->GetMemberDef() != MscorlibBinder::GetMethod(METHOD__ACTIVATOR__CREATE_INSTANCE_OF_T)->GetMemberDef())
+        return false;
+
+    _ASSERTE(ftn->HasMethodInstantiation());
+    Instantiation inst = ftn->GetMethodInstantiation();
+
+    _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+    TypeHandle typeHandle = inst[0];
+    MethodTable* methodTable = typeHandle.GetMethodTable();
+
+    if (!methodTable->IsValueType() || methodTable->HasDefaultConstructor())
+        return false;
+
+    // Replace the body with implementation that just returns "default"
+    MethodDesc* createDefaultInstance = MscorlibBinder::GetMethod(METHOD__ACTIVATOR__CREATE_DEFAULT_INSTANCE_OF_T);
+    COR_ILMETHOD_DECODER header(createDefaultInstance->GetILHeader(FALSE), createDefaultInstance->GetMDImport(), NULL);
+    getMethodInfoILMethodHeaderHelper(&header, methInfo);
+    *pSig = SigPointer(header.LocalVarSig, header.cbLocalVarSig);
+
+    return true;
+}
+
 //---------------------------------------------------------------------------------------
 // 
 //static
@@ -7640,6 +7673,15 @@ getMethodInfoHelper(
             {
                 fILIntrinsic = getILIntrinsicImplementationForRuntimeHelpers(ftn, methInfo);
             }
+            else if (MscorlibBinder::IsClass(pMT, CLASS__ACTIVATOR))
+            {
+                SigPointer localSig;
+                fILIntrinsic = getILIntrinsicImplementationForActivator(ftn, methInfo, &localSig);
+                if (fILIntrinsic)
+                {
+                    localSig.GetSignature(&pLocalSig, &cbLocalSig);
+                }
+            }
         }
 
         if (!fILIntrinsic)
@@ -7653,7 +7695,7 @@ getMethodInfoHelper(
     {
         _ASSERTE(ftn->IsDynamicMethod());
 
-        DynamicResolver * pResolver = ftn->AsDynamicMethodDesc()->GetResolver();        
+        DynamicResolver * pResolver = ftn->AsDynamicMethodDesc()->GetResolver();
         unsigned int EHCount;
         methInfo->ILCode = pResolver->GetCodeInfo(&methInfo->ILCodeSize,
                                                   &methInfo->maxStack,
