@@ -803,7 +803,7 @@ void GCToEEInterface::DiagWalkBGCSurvivors(void* gcContext)
 void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 {
     int stompWBCompleteActions = SWB_PASS;
-    bool is_runtime_suspended = false;
+    bool is_runtime_suspended = args->is_runtime_suspended;
 
     assert(args != nullptr);
     switch (args->operation)
@@ -816,8 +816,6 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->highest_address != nullptr);
 
         g_card_table = args->card_table;
-        g_lowest_address = args->lowest_address;
-        g_highest_address = args->highest_address;
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         assert(args->card_bundle_table != nullptr);
@@ -832,26 +830,63 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         }
 #endif // FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 
-        stompWBCompleteActions |= ::StompWriteBarrierResize(args->is_runtime_suspended, args->requires_upper_bounds_check);
+        stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
+        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || is_runtime_suspended;
+
+        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
+        {
+            // flushing/invalidating the write barrier's body for the current process 
+            // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
+            ::FlushWriteBarrierInstructionCache();
+        }
+
+        // NB: managed heap segments may surround unmanaged/stack segments. In such cases adding another managed heap segment
+        //     may put a stack/unmanaged write inside the new heap range. However the old card table would not cover it.
+        //     Therefore we must ensure that the write barriers see the new table before seeing new bounds.
+        //
+        //     On archtectures with strong ordering, we only need to prevent compiler reordering.
+        //     Otherwise we put a process-wide fence here (so that we could use an ordinary read in the barrier)
+
+#if defined(_ARM64_) || defined(_ARM_)      
+        if(!is_runtime_suspended)
+        {
+            // If runtime is not suspended, force all threads to see the changed table before seeing updated heap boundaries.
+            // See:Dev11 #346765
+            FlushProcessWriteBuffers();
+        }
+#endif
+
+        VolatileStoreWithoutBarrier(&g_lowest_address, args->lowest_address);
+        g_highest_address = args->highest_address;
+
+#if defined(_ARM64_) || defined(_ARM_)
+        // Need to reupdate for changes to g_highest_address g_lowest_address
+        stompWBCompleteActions |= ::StompWriteBarrierResize(is_runtime_suspended, args->requires_upper_bounds_check);
+
+#ifdef _ARM_
+        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
+        {
+            // flushing/invalidating the write barrier's body for the current process 
+            // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
+            ::FlushWriteBarrierInstructionCache();
+        }
+#endif
+#endif
 
         // At this point either the old or the new set of globals (card_table, bounds etc) can be used. Card tables and card bundles allow such use. 
         // When card tables are de-published (at EE suspension) all the info will be merged, so the information will not be lost.
         // Another point - we should not yet have any manaded objects/addresses outside of the former bounds, so either old or new bounds are fine.
-        // That is - because bounds can only become widerand we are not yet done with widening.
+        // That is - because bounds can only become wider and we are not yet done with widening.
         //
         // However!!
         // Once we are done, a new object can (and likely will) be allocated outside of the former bounds.
-        // So, before such object can be used in a write barier, we must ensure that the barrier also uses the new card table and bounds.
+        // So, before such object can be used in a write barier, we must ensure that the barrier also uses the new bounds.
         //
         // This is easy to arrange for architectures with strong memory ordering. We only need to ensure that 
-        // - object is allocated/published _after_ we publish table/bounds here
-        // - write barrier reads table/bounds after reading the new object locations
+        // - object is allocated/published _after_ we publish bounds here
+        // - write barrier reads bounds after reading the new object locations
         //
         // for architectures with strong memory ordering (x86/x64) both conditions above are naturally guaranteed. 
-        //
-        // One tricky part is the literal data that is "bashed" directly into bodies of write barriers, since Icache and Dcache are not necessarily coherent.  
-        // We will request a flush of Icache manually and let the API/OS sort it out.
-        //
         // Systems with weak ordering are more interesting. We could either:
         // a) issue a write fence here and pair it with a read fence in the write barrier, or
         // b) issue a process-wide full fence here and do ordinary reads in the barrier.
@@ -864,16 +899,8 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         //       (we care only about managed threads and suspend/resume will do full fences - good enough for us).
         //
 
-        if (stompWBCompleteActions & SWB_ICACHE_FLUSH)
-        {
-            // flushing/invalidating the write barrier's body for the current process 
-            // NOTE: the underlying API may flush more than needed or nothing at all if Icache is coherent.
-            ::FlushWriteBarrierInstructionCache();
-        }
-
-#if defined(_ARM64_) || defined(_ARM_)
-        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || args->is_runtime_suspended;
-      
+#if defined(_ARM64_) || defined(_ARM_)      
+        is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || is_runtime_suspended;
         if(!is_runtime_suspended)
         {
             // If runtime is not suspended, force all threads to see the changed state before observing future allocations.

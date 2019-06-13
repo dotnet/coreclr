@@ -1373,7 +1373,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
     
     // no HELPER_METHOD_FRAME because we are MODE_COOPERATIVE, GC_NOTRIGGER
     
-    *dst = ref;
+    VolatileStore(dst, ref);
 
     // if the dst is outside of the heap (unboxed value classes) then we
     //      simply exit
@@ -1406,7 +1406,9 @@ extern "C" HCIMPL2_RAW(VOID, JIT_CheckedWriteBarrier, Object **dst, Object *ref)
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
         CheckedAfterRefInEphemFilter++;
 #endif
-        BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
+        // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
+        // with g_lowest/highest_address check above. See comment in StompWriteBarrier.
+        BYTE* pCardByte = (BYTE*)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
         if(*pCardByte != 0xFF)
         {
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1438,7 +1440,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 #endif
     // no HELPER_METHOD_FRAME because we are MODE_COOPERATIVE, GC_NOTRIGGER
     
-    *dst = ref;
+    VolatileStore(dst, ref);
 
     // If the store above succeeded, "dst" should be in the heap.
    assert(GCHeapUtilities::GetGCHeap()->IsHeapPointer((void*)dst));
@@ -1465,7 +1467,9 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
         UncheckedAfterRefInEphemFilter++;
 #endif
-        BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
+        // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
+        // with g_lowest/highest_address check above. See comment in StompWriteBarrier.
+        BYTE* pCardByte = (BYTE*)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
         if(*pCardByte != 0xFF)
         {
 #ifdef FEATURE_COUNT_GC_WRITE_BARRIERS
@@ -1476,7 +1480,6 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             SetCardBundleByte((BYTE*)dst);
 #endif
-
         }
     }
 }
@@ -1496,6 +1499,7 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrierEnsureNonHeapTarget, Object **dst, 
 
     // no HELPER_METHOD_FRAME because we are MODE_COOPERATIVE, GC_NOTRIGGER
     
+    // not a release store because NonHeap.
     *dst = ref;
 }
 HCIMPLEND_RAW
@@ -1528,7 +1532,9 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
 
     if ((BYTE*) OBJECTREFToObject(ref) >= g_ephemeral_low && (BYTE*) OBJECTREFToObject(ref) < g_ephemeral_high)
     {
-        BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
+        // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
+        // with g_lowest/highest_address check above. See comment in StompWriteBarrier.
+        BYTE* pCardByte = (BYTE*)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
         if (*pCardByte != 0xFF)
         {
             *pCardByte = 0xFF;
@@ -1536,7 +1542,6 @@ void ErectWriteBarrier(OBJECTREF *dst, OBJECTREF ref)
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
             SetCardBundleByte((BYTE*)dst);
 #endif
-
         }
     }
 }
@@ -1567,8 +1572,9 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
         BYTE *refObject = *(BYTE **)((MethodTable*)ref)->GetLoaderAllocatorObjectHandle();
         if((BYTE*) refObject >= g_ephemeral_low && (BYTE*) refObject < g_ephemeral_high)
         {
-            // See comment above
-            BYTE* pCardByte = (BYTE *)g_card_table + card_byte((BYTE *)dst);
+            // VolatileLoadWithoutBarrier() is used here to prevent fetch of g_card_table from being reordered 
+            // with g_lowest/highest_address check above. See comment in StompWriteBarrier.
+            BYTE* pCardByte = (BYTE*)VolatileLoadWithoutBarrier(&g_card_table) + card_byte((BYTE *)dst);
             if( !((*pCardByte) & card_bit((BYTE *)dst)) )
             {
                 *pCardByte = 0xFF;
@@ -1576,7 +1582,6 @@ void ErectWriteBarrierForMT(MethodTable **dst, MethodTable *ref)
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
                 SetCardBundleByte((BYTE*)dst);
 #endif
-
             }
         }
     }
