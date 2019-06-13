@@ -440,9 +440,9 @@ void Compiler::gsParamsToShadows()
 
     class ReplaceShadowParamsVisitor final : public GenTreeVisitor<ReplaceShadowParamsVisitor>
     {
-    // Walk the locals of the method (i.e. GT_LCL_FLD and GT_LCL_VAR nodes) and replace the ones that correspond to
-    // "vulnerable" parameters with their shadow copies. If an original local variable has small type than replace
-    // the GT_LCL_VAR node type with TYP_INT.
+        // Walk the locals of the method (i.e. GT_LCL_FLD and GT_LCL_VAR nodes) and replace the ones that correspond to
+        // "vulnerable" parameters with their shadow copies. If an original local variable has small type than replace
+        // the GT_LCL_VAR node type with TYP_INT.
     public:
         enum
         {
