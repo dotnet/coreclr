@@ -239,7 +239,6 @@ LPVOID ProfileArgIterator::CopyStructFromRegisters()
     EEClass* eeClass = argLocDesc->m_eeClass;
     _ASSERTE(eeClass != NULL);
 
-    // We start at the first eightByte that the destOffset didn't skip completely.
     for (int i = 0; i < eeClass->GetNumberEightBytes(); i++)
     {
         int eightByteSize = eeClass->GetEightByteSize(i);
@@ -285,7 +284,7 @@ LPVOID ProfileArgIterator::CopyStructFromRegisters()
     }
 
     _ASSERTE(remainingBytes == 0);
-
+    _ASSERTE(pData->bufferPos < PROFILE_PLATFORM_SPECIFIC_DATA_BUFFER_SIZE);
     LPVOID destOrig = (LPVOID)&pData->buffer[pData->bufferPos];
     //Increase bufferPos by ceiling(fieldBytes/8)
     pData->bufferPos += (fieldBytes + 7) / 8;

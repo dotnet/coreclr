@@ -73,7 +73,7 @@ public:
     }
     
 #ifdef UNIX_AMD64_ABI
-    LPVOID ProfileArgIterator::CopyStructFromRegisters();
+    LPVOID CopyStructFromRegisters();
 #endif // UNIX_AMD64_ABI
 
     //
