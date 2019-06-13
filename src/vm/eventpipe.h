@@ -414,6 +414,8 @@ private:
     static EventPipeEventSource *s_pEventSource;
 };
 
+static_assert(EventPipe::MaxNumberOfSessions == 64, "Maximum number of EventPipe sessions is not 64.");
+
 struct EventPipeProviderConfiguration
 {
 private:
