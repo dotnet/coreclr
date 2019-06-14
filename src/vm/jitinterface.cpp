@@ -7000,8 +7000,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__JIT_HELPERS));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7129,8 +7128,7 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__UNSAFE));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7371,10 +7369,7 @@ bool getILIntrinsicImplementationForVolatile(MethodDesc * ftn,
     // we substitute raw IL bodies for these methods that use the correct volatile instructions.
     //
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Volatile class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__VOLATILE));
-    _ASSERTE(strcmp(ftn->GetMethodTable()->GetClass()->GetDebugClassName(), "System.Threading.Volatile") == 0);
 
     const size_t VolatileMethodBodySize = 6;
 
@@ -7453,8 +7448,6 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Interlocked class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__INTERLOCKED));
 
     // We are only interested if ftn's token and CompareExchange<T> token match
@@ -7462,11 +7455,7 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
         return false;
 
     // Get MethodDesc for non-generic System.Threading.Interlocked.CompareExchange()
-    MethodDesc* cmpxchgFast = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
-
-    // The MethodDesc lookup must not fail, and it should have the name "CompareExchange"
-    _ASSERTE(cmpxchgFast != NULL);
-    _ASSERTE(strcmp(cmpxchgFast->GetName(), "CompareExchange") == 0);
+    MethodDesc* cmpxchgObject = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
 
     // Setup up the body of the method
     static BYTE il[] = {
@@ -7477,12 +7466,12 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
                           CEE_RET
                         };
 
-    // Get the token for System.Threading.Interlocked.CompareExchangeFast(), and patch [target]
-    mdMethodDef cmpxchgFastToken = cmpxchgFast->GetMemberDef();
-    il[4] = (BYTE)((int)cmpxchgFastToken >> 0);
-    il[5] = (BYTE)((int)cmpxchgFastToken >> 8);
-    il[6] = (BYTE)((int)cmpxchgFastToken >> 16);
-    il[7] = (BYTE)((int)cmpxchgFastToken >> 24);
+    // Get the token for non-generic System.Threading.Interlocked.CompareExchange(), and patch [target]
+    mdMethodDef cmpxchgObjectToken = cmpxchgObject->GetMemberDef();
+    il[4] = (BYTE)((int)cmpxchgObjectToken >> 0);
+    il[5] = (BYTE)((int)cmpxchgObjectToken >> 8);
+    il[6] = (BYTE)((int)cmpxchgObjectToken >> 16);
+    il[7] = (BYTE)((int)cmpxchgObjectToken >> 24);
 
     // Initialize methInfo
     methInfo->ILCode = const_cast<BYTE*>(il);
@@ -7499,8 +7488,7 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__RUNTIME_HELPERS));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7591,8 +7579,6 @@ bool getILIntrinsicImplementationForActivator(MethodDesc* ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Interlocked class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__ACTIVATOR));
 
     // We are only interested if ftn's token and CreateInstance<T> token match

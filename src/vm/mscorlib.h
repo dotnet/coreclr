@@ -459,10 +459,8 @@ DEFINE_METHOD(ICUSTOM_QUERYINTERFACE,     GET_INTERFACE,    GetInterface,       
 DEFINE_CLASS(CUSTOMQUERYINTERFACERESULT,  Interop,          CustomQueryInterfaceResult)
 #endif //FEATURE_COMINTEROP
 
-
-DEFINE_CLASS(SERIALIZATION_INFO,    Serialization,          SerializationInfo)
-DEFINE_CLASS(DESERIALIZATION_TRACKER, Serialization, DeserializationTracker)
-
+DEFINE_CLASS(SERIALIZATION_INFO,        Serialization,      SerializationInfo)
+DEFINE_CLASS(DESERIALIZATION_TRACKER,   Serialization,      DeserializationTracker)
 
 DEFINE_CLASS(IENUMERATOR,           Collections,            IEnumerator)
 

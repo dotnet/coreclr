@@ -4455,7 +4455,7 @@ namespace System
         }
 
         // the cache entry
-        private sealed class ActivatorCacheEntry
+        private sealed class ActivatorCache
         {
             // the delegate containing the call to the ctor
             internal readonly RuntimeMethodHandleInternal _hCtorMethodHandle;
@@ -4467,7 +4467,7 @@ namespace System
 
             private static ConstructorInfo? s_delegateCtorInfo;
 
-            internal ActivatorCacheEntry(RuntimeMethodHandleInternal rmh)
+            internal ActivatorCache(RuntimeMethodHandleInternal rmh)
             {
                 _hCtorMethodHandle = rmh;
             }
@@ -4512,7 +4512,7 @@ namespace System
             if (canBeCached && fillCache)
             {
                 // cache the ctor
-                GenericCache = new ActivatorCacheEntry(runtimeCtor);
+                GenericCache = new ActivatorCache(runtimeCtor);
             }
 
             return instance;
@@ -4526,7 +4526,7 @@ namespace System
         internal object CreateInstanceDefaultCtor(bool publicOnly, bool skipCheckThis, bool fillCache, bool wrapExceptions)
         {
             // Call the cached 
-            ActivatorCacheEntry? cacheEntry = GenericCache as ActivatorCacheEntry;
+            ActivatorCache? cacheEntry = GenericCache as ActivatorCache;
             if (cacheEntry != null)
             {
                 cacheEntry.EnsureInitialized();
