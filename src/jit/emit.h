@@ -1584,7 +1584,6 @@ private:
 
     void emitSetShortJump(instrDescJmp* id);
     void emitSetMediumJump(instrDescJmp* id);
-    UNATIVE_OFFSET emitInstCodeSz(instrDesc* id);
 
 public:
     CORINFO_FIELD_HANDLE emitAnyConst(const void* cnsAddr, unsigned cnsSize, emitDataAlignment alignment);
