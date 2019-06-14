@@ -369,9 +369,9 @@ bool Compiler::gsFindVulnerableParams()
     return hasOneVulnerable;
 }
 
-// gsParamsToShadows
-// Copy each vulnerable param ptr or buffer to a local shadow copy and replace
-// uses of the param by the shadow copy
+//-------------------------------------------------------------------------------
+// gsParamsToShadows: Copy each vulnerable param ptr or buffer to a local shadow
+//                    copy and replace uses of the param by the shadow copy.
 void Compiler::gsParamsToShadows()
 {
     // Cache old count since we'll add new variables, and
@@ -441,7 +441,7 @@ void Compiler::gsParamsToShadows()
     class ReplaceShadowParamsVisitor final : public GenTreeVisitor<ReplaceShadowParamsVisitor>
     {
         // Walk the locals of the method (i.e. GT_LCL_FLD and GT_LCL_VAR nodes) and replace the ones that correspond to
-        // "vulnerable" parameters with their shadow copies. If an original local variable has small type than replace
+        // "vulnerable" parameters with their shadow copies. If an original local variable has small type then replace
         // the GT_LCL_VAR node type with TYP_INT.
     public:
         enum
@@ -457,29 +457,27 @@ void Compiler::gsParamsToShadows()
         Compiler::fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
         {
             GenTree* tree = *use;
-            assert(tree != nullptr);
-            assert(tree->IsLocal());
 
             unsigned int lclNum       = tree->AsLclVarCommon()->GetLclNum();
             unsigned int shadowLclNum = m_compiler->gsShadowVarInfo[lclNum].shadowCopy;
 
             if (shadowLclNum != NO_SHADOW_COPY)
             {
-                LclVarDsc* varDsc = m_compiler->lvaTable + lclNum;
+                LclVarDsc* varDsc = m_compiler->lvaGetDesc(lclNum);
                 assert(ShadowParamVarInfo::mayNeedShadowCopy(varDsc));
 
                 tree->AsLclVarCommon()->SetLclNum(shadowLclNum);
 
                 if (varTypeIsSmall(varDsc->TypeGet()))
                 {
-                    if (user->OperIs(GT_ASG))
-                    {
-                        user->gtType = TYP_INT;
-                    }
-
                     if (tree->OperIs(GT_LCL_VAR))
                     {
                         tree->gtType = TYP_INT;
+
+                        if (user->OperIs(GT_ASG) && user->gtGetOp1() == tree)
+                        {
+                            user->gtType = TYP_INT;
+                        }
                     }
                 }
             }
@@ -488,11 +486,9 @@ void Compiler::gsParamsToShadows()
         }
     };
 
-    BasicBlock* block;
-
-    foreach_block(this, block)
+    for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
         {
             ReplaceShadowParamsVisitor replaceShadowParamsVisitor(this);
             replaceShadowParamsVisitor.WalkTree(&stmt->gtStmtExpr, nullptr);
