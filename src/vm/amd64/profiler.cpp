@@ -54,7 +54,6 @@ typedef struct _PROFILE_PLATFORM_SPECIFIC_DATA
     UINT32      flags;
 #if defined(UNIX_AMD64_ABI)
     // A buffer to copy structs in to so they are sequential for GetFunctionEnter3Info
-    UINT64      bufferPos;
     UINT64      buffer[PROFILE_PLATFORM_SPECIFIC_DATA_BUFFER_SIZE];
 #endif
 } PROFILE_PLATFORM_SPECIFIC_DATA, *PPROFILE_PLATFORM_SPECIFIC_DATA;
@@ -127,7 +126,7 @@ ProfileArgIterator::ProfileArgIterator(MetaSig * pSig, void * platformSpecificHa
     m_handle = platformSpecificHandle;
     PROFILE_PLATFORM_SPECIFIC_DATA* pData = (PROFILE_PLATFORM_SPECIFIC_DATA*)m_handle;
 #ifdef UNIX_AMD64_ABI
-    pData->bufferPos = 0;
+    m_bufferPos = 0;
 #endif // UNIX_AMD64_ABI
 
     // unwind a frame and get the Rsp for the profiled method to make sure it matches
@@ -227,7 +226,7 @@ LPVOID ProfileArgIterator::CopyStructFromRegisters()
     PROFILE_PLATFORM_SPECIFIC_DATA* pData = (PROFILE_PLATFORM_SPECIFIC_DATA*)m_handle;
     ArgLocDesc *argLocDesc = m_argIterator.GetArgLocDescForStructInRegs();
 
-    LPVOID dest = (LPVOID)&pData->buffer[pData->bufferPos];
+    LPVOID dest = (LPVOID)&pData->buffer[m_bufferPos];
     BYTE* genRegSrc = (BYTE*)&pData->rdi + argLocDesc->m_idxGenReg * 8;
     BYTE* floatRegSrc = (BYTE*)&pData->flt0 + argLocDesc->m_idxFloatReg * 8;
 
@@ -284,10 +283,10 @@ LPVOID ProfileArgIterator::CopyStructFromRegisters()
     }
 
     _ASSERTE(remainingBytes == 0);
-    _ASSERTE(pData->bufferPos < PROFILE_PLATFORM_SPECIFIC_DATA_BUFFER_SIZE);
-    LPVOID destOrig = (LPVOID)&pData->buffer[pData->bufferPos];
+    LPVOID destOrig = (LPVOID)&pData->buffer[m_bufferPos];
     //Increase bufferPos by ceiling(fieldBytes/8)
-    pData->bufferPos += (fieldBytes + 7) / 8;
+    m_bufferPos += (fieldBytes + 7) / 8;
+    _ASSERTE(m_bufferPos <= PROFILE_PLATFORM_SPECIFIC_DATA_BUFFER_SIZE);
 
     return destOrig;
 }
