@@ -92,6 +92,10 @@ typedef DPTR(DictionaryEntryLayout) PTR_DictionaryEntryLayout;
 class DictionaryLayout;
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
 
+// Number of slots to initially allocate in a generic method dictionary layout.
+// Also the number of additional slots to add to an existing dictionary layout when expanding its size
+#define NUM_DICTIONARY_SLOTS 8
+
 // The type of dictionary layouts. We don't include the number of type
 // arguments as this is obtained elsewhere
 class DictionaryLayout
@@ -101,26 +105,34 @@ class DictionaryLayout
     friend class NativeImageDumper;
 #endif
 private:
-    // Next bucket of slots (only used to track entries that won't fit in the dictionary)
-    DictionaryLayout* m_pNext;
-
     // Number of non-type-argument slots in this bucket
     WORD m_numSlots;
 
     // m_numSlots of these
     DictionaryEntryLayout m_slots[1];
 
-    static BOOL FindTokenWorker(LoaderAllocator *pAllocator,
-                                DWORD numGenericArgs,
-                                DictionaryLayout *pDictLayout,
-                                CORINFO_RUNTIME_LOOKUP *pResult,
-                                SigBuilder * pSigBuilder,
-                                BYTE * pSig,
-                                DWORD cbSig,
-                                int nFirstOffset,
-                                DictionaryEntrySignatureSource signatureSource,
-                                WORD * pSlotOut);
+    static BOOL FindTokenWorker(LoaderAllocator*                    pAllocator,
+                                DWORD                               numGenericArgs,
+                                DictionaryLayout*                   pDictLayout,
+                                SigBuilder*                         pSigBuilder,
+                                BYTE*                               pSig,
+                                DWORD                               cbSig,
+                                int                                 nFirstOffset,
+                                DictionaryEntrySignatureSource      signatureSource,
+                                CORINFO_RUNTIME_LOOKUP*             pResult,
+                                BOOL                                useEmptySlotIfFound = FALSE);
 
+
+    static DictionaryLayout* ExpandDictionaryLayout(LoaderAllocator*                pAllocator,
+                                                    DictionaryLayout*               pCurrentDictLayout,
+                                                    DWORD                           numGenericArgs,
+                                                    SigBuilder*                     pSigBuilder,
+                                                    BYTE*                           pSig,
+                                                    int                             nFirstOffset,
+                                                    DictionaryEntrySignatureSource  signatureSource,
+                                                    CORINFO_RUNTIME_LOOKUP*         pResult);
+     
+    static PVOID CreateSignatureWithSlotData(SigBuilder* pSigBuilder, LoaderAllocator* pAllocator, WORD slot);
 
 public:
     // Create an initial dictionary layout with a single bucket containing numSlots slots
@@ -130,22 +142,21 @@ public:
     // another structure (e.g. MethodTable)
     static DWORD GetFirstDictionaryBucketSize(DWORD numGenericArgs, PTR_DictionaryLayout pDictLayout);
 
-    static BOOL FindToken(LoaderAllocator *pAllocator,
-                          DWORD numGenericArgs,
-                          DictionaryLayout *pDictLayout,
-                          CORINFO_RUNTIME_LOOKUP *pResult,
-                          SigBuilder * pSigBuilder,
-                          int nFirstOffset,
-                          DictionaryEntrySignatureSource signatureSource);
+    static BOOL FindToken(MethodTable*                      pMT,
+                          LoaderAllocator*                  pAllocator,
+                          int                               nFirstOffset,
+                          SigBuilder*                       pSigBuilder,
+                          BYTE*                             pSig,
+                          DictionaryEntrySignatureSource    signatureSource,
+                          CORINFO_RUNTIME_LOOKUP*           pResult);
 
-    static BOOL FindToken(LoaderAllocator * pAllocator,
-                          DWORD numGenericArgs,
-                          DictionaryLayout * pDictLayout,
-                          CORINFO_RUNTIME_LOOKUP * pResult,
-                          BYTE * signature,
-                          int nFirstOffset,
-                          DictionaryEntrySignatureSource signatureSource,
-                          WORD * pSlotOut);
+    static BOOL FindToken(MethodDesc*                       pMD,
+                          LoaderAllocator*                  pAllocator,
+                          int                               nFirstOffset,
+                          SigBuilder*                       pSigBuilder,
+                          BYTE*                             pSig,
+                          DictionaryEntrySignatureSource    signatureSource,
+                          CORINFO_RUNTIME_LOOKUP*           pResult);
 
     DWORD GetMaxSlots();
     DWORD GetNumUsedSlots();
@@ -158,7 +169,6 @@ public:
             dac_cast<TADDR>(this) + offsetof(DictionaryLayout, m_slots) + sizeof(DictionaryEntryLayout) * i);
     }
 
-    DictionaryLayout* GetNextLayout() { LIMITED_METHOD_CONTRACT; return m_pNext; }
 
 #ifdef FEATURE_PREJIT
     DWORD GetObjectSize();

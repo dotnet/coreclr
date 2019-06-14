@@ -973,6 +973,76 @@ void ClassLoader::LoadExactParents(MethodTable *pMT)
     RETURN;
 }
 
+/*static*/
+void ClassLoader::RecordDependenciesForDictionaryExpansion(MethodTable* pMT)
+{
+    CONTRACT_VOID
+    {
+        STANDARD_VM_CHECK;
+        PRECONDITION(CheckPointer(pMT));
+        PRECONDITION(pMT->CheckLoadLevel(CLASS_LOAD_APPROXPARENTS));
+    }
+    CONTRACT_END; 
+
+
+#ifndef CROSSGEN_COMPILE
+    if (pMT->GetNumDicts() == 0)
+        RETURN;
+
+    // Check if there are no dependencies that need tracking. There is no point in taking the lock
+    // below if we don't need to track anything.
+    {
+        bool hasSharedMethodTables = false;
+        MethodTable* pCurrentMT = pMT;
+        while (pCurrentMT)
+        {
+            if (pCurrentMT->HasInstantiation() && !pCurrentMT->IsCanonicalMethodTable())
+            {
+                hasSharedMethodTables = true;
+                break;
+            }
+            pCurrentMT = pCurrentMT->GetParentMethodTable();
+        }
+
+        if (!hasSharedMethodTables)
+            RETURN;
+    }
+
+    SystemDomain::LockHolder lh;
+    {
+        // Update all inherited dictionary pointers which we could not embed, in case they got updated by some 
+        // other thread during a dictionary expansion before taking this current lock.
+        MethodTable* pParentMT = pMT->GetParentMethodTable();
+        if (pParentMT != NULL && pParentMT->HasPerInstInfo())
+        {
+            DWORD nDicts = pParentMT->GetNumDicts();
+            for (DWORD iDict = 0; iDict < nDicts; iDict++)
+            {
+                if (pMT->GetPerInstInfo()[iDict].GetValueMaybeNull() != pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull())
+                {
+                    EnsureWritablePages(&pMT->GetPerInstInfo()[iDict]);
+                    pMT->GetPerInstInfo()[iDict].SetValueMaybeNull(pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull());
+                }
+            }
+        }
+
+        // Add the current type as a dependency to its canonical version, as well as a dependency to all parent
+        // types in the hierarchy with dictionaries, so that if one of the base types gets a dictionary expansion, we make
+        // sure to update the derived type's parent dictionary pointer.
+        MethodTable* pCurrentMT = pMT;
+        while (pCurrentMT)
+        {
+            if (pCurrentMT->HasInstantiation() && !pCurrentMT->IsCanonicalMethodTable())
+                pCurrentMT->GetModule()->RecordTypeForDictionaryExpansion_Locked(pCurrentMT, pMT);
+
+            pCurrentMT = pCurrentMT->GetParentMethodTable();
+        }
+    }
+#endif
+
+    RETURN;
+}
+
 //*******************************************************************************
 // This is the routine that computes the internal type of a given type.  It normalizes
 // structs that have only one field (of int/ptr sized values), to be that underlying type.

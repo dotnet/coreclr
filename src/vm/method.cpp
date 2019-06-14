@@ -1594,7 +1594,9 @@ MethodDesc *MethodDesc::GetWrappedMethodDesc()
                                                             this->GetMethodTable(),
                                                             FALSE, /* no unboxing entrypoint */
                                                             this->GetMethodInstantiation(),
-                                                            TRUE /* get shared code */ );
+                                                            TRUE, /* get shared code */ 
+                                                            FALSE /* forceRemotableMethod */, 
+                                                            FALSE /* allowCreate */);
         _ASSERTE(pAltMD == pRet);
 #endif // _DEBUG
         return pRet;
