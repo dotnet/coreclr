@@ -1584,7 +1584,6 @@ private:
 
     void emitSetShortJump(instrDescJmp* id);
     void emitSetMediumJump(instrDescJmp* id);
-    UNATIVE_OFFSET emitSizeOfJump(instrDescJmp* jmp);
     UNATIVE_OFFSET emitInstCodeSz(instrDesc* id);
 
 public:

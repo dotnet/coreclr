@@ -3772,7 +3772,7 @@ AGAIN:
 
         /* Get hold of the current jump size */
 
-        jsz = emitSizeOfJump(jmp);
+        jsz = jmp->idCodeSize();
 
         /* Get the group the jump is in */
 
@@ -3860,7 +3860,7 @@ AGAIN:
 
             if (jmp->idjShort)
             {
-                assert(emitSizeOfJump(jmp) == ssz);
+                assert(jmp->idCodeSize() == ssz);
 
                 // We should not be jumping/branching across funclets/functions
                 emitCheckFuncletBranch(jmp, jmpIG);
@@ -4229,7 +4229,7 @@ AGAIN:
 
         /* Make sure the size of the jump is marked correctly */
 
-        assert((0 == (jsz | jmpDist)) || (jsz == emitSizeOfJump(jmp)));
+        assert((0 == (jsz | jmpDist)) || (jsz == jmp->idCodeSize()));
 
 #ifdef DEBUG
         if (EMITVERBOSE)

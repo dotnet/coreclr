@@ -17,11 +17,6 @@ inline UNATIVE_OFFSET emitter::emitInstCodeSz(instrDesc* id)
     return id->idCodeSize();
 }
 
-inline UNATIVE_OFFSET emitter::emitSizeOfJump(instrDescJmp* jmp)
-{
-    return jmp->idCodeSize();
-}
-
 #ifdef _TARGET_XARCH_
 
 /* static */
