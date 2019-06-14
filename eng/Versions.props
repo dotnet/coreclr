@@ -22,12 +22,12 @@
     <MicrosoftNETCorePlatformsVersion>3.0.0-preview7.19311.1</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19311.1</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
-    <MicrosoftNETCoreAppVersion>3.0.0-preview7-27811-01</MicrosoftNETCoreAppVersion>
+    <MicrosoftNETCoreAppVersion>3.0.0-preview7-27812-11</MicrosoftNETCoreAppVersion>
     <!-- dotnet-core-internal-tooling -->
     <IbcMergePackageVersion>5.0.6-beta.19203.1</IbcMergePackageVersion>
     <!-- dotnet-optimization -->
-    <optimizationIBCCoreCLRVersion>99.99.99-master-20190610.3</optimizationIBCCoreCLRVersion>
-    <optimizationPGOCoreCLRVersion>99.99.99-master-20190610.3</optimizationPGOCoreCLRVersion>
+    <optimizationIBCCoreCLRVersion>99.99.99-master-20190613.1</optimizationIBCCoreCLRVersion>
+    <optimizationPGOCoreCLRVersion>99.99.99-master-20190613.1</optimizationPGOCoreCLRVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>
