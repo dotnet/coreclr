@@ -16,8 +16,10 @@ namespace System
         // Determine optimal value for Windows.
         // https://github.com/dotnet/coreclr/issues/13843
         private const nuint MemmoveNativeThreshold = ulong.MaxValue;
+        private const nuint MemmoveIntrinsicNativeThreshold = MemmoveNativeThreshold;
 #else
         private const nuint MemmoveNativeThreshold = 2048;
+        private const nuint MemmoveIntrinsicNativeThreshold = 4096;
 #endif
     }
 }

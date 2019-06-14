@@ -10,6 +10,8 @@ using System.Diagnostics;
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Runtime.Intrinsics;
+using System.Runtime.Intrinsics.X86;
 
 using Internal.Runtime.CompilerServices;
 
@@ -158,7 +160,7 @@ namespace System
             // Copy bytes which are multiples of 16 and leave the remainder for MCPY01 to handle.
             Debug.Assert(len > 16 && len <= 64);
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)dest = *(Block16*)src;                   // [0,16]
+            Unsafe.AsRef<Vector128<byte>>(dest) = Unsafe.AsRef<Vector128<byte>>(src); // [0,16]
 #elif BIT64
             *(long*)dest = *(long*)src;
             *(long*)(dest + 8) = *(long*)(src + 8);             // [0,16]
@@ -170,7 +172,7 @@ namespace System
 #endif
             if (len <= 32) goto MCPY01;
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)(dest + 16) = *(Block16*)(src + 16);     // [0,32]
+            Unsafe.AsRef<Vector128<byte>>(dest + 16) = Unsafe.AsRef<Vector128<byte>>(src + 16); // [0,32]
 #elif BIT64
             *(long*)(dest + 16) = *(long*)(src + 16);
             *(long*)(dest + 24) = *(long*)(src + 24);           // [0,32]
@@ -182,7 +184,7 @@ namespace System
 #endif
             if (len <= 48) goto MCPY01;
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)(dest + 32) = *(Block16*)(src + 32);     // [0,48]
+            Unsafe.AsRef<Vector128<byte>>(dest + 32) = Unsafe.AsRef<Vector128<byte>>(src + 32); // [0,48]
 #elif BIT64
             *(long*)(dest + 32) = *(long*)(src + 32);
             *(long*)(dest + 40) = *(long*)(src + 40);           // [0,48]
@@ -197,7 +199,7 @@ namespace System
             // Unconditionally copy the last 16 bytes using destEnd and srcEnd and return.
             Debug.Assert(len > 16 && len <= 64);
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)(destEnd - 16) = *(Block16*)(srcEnd - 16);
+            Unsafe.AsRef<Vector128<byte>>(destEnd - 16) = Unsafe.AsRef<Vector128<byte>>(srcEnd - 16);
 #elif BIT64
             *(long*)(destEnd - 16) = *(long*)(srcEnd - 16);
             *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
@@ -232,7 +234,7 @@ namespace System
             *(int*)(destEnd - 4) = *(int*)(srcEnd - 4);
             return;
 
-            MCPY04:
+        MCPY04:
             // Copy the first byte. For pending bytes, do an unconditionally copy of the last 2 bytes and return.
             Debug.Assert(len < 4);
             if (len == 0) return;
@@ -241,8 +243,18 @@ namespace System
             *(short*)(destEnd - 2) = *(short*)(srcEnd - 2);
             return;
 
-            MCPY05:
+        MCPY05:
             // PInvoke to the native version when the copy length exceeds the threshold.
+#if HAS_CUSTOM_BLOCKS
+            if (Avx.IsSupported)
+            {
+                if (len > MemmoveIntrinsicNativeThreshold)
+                {
+                    goto PInvoke;
+                }
+            }
+            else
+#endif
             if (len > MemmoveNativeThreshold)
             {
                 goto PInvoke;
@@ -250,12 +262,19 @@ namespace System
 
             // Copy 64-bytes at a time until the remainder is less than 64.
             // If remainder is greater than 16 bytes, then jump to MCPY00. Otherwise, unconditionally copy the last 16 bytes and return.
-            Debug.Assert(len > 64 && len <= MemmoveNativeThreshold);
+#if HAS_CUSTOM_BLOCKS
+            if (Avx.IsSupported)
+                Debug.Assert(len > 64 && len <= MemmoveIntrinsicNativeThreshold);
+            else
+#endif
+                Debug.Assert(len > 64 && len <= MemmoveNativeThreshold);
+
             nuint n = len >> 6;
 
         MCPY06:
 #if HAS_CUSTOM_BLOCKS
-            *(Block64*)dest = *(Block64*)src;
+            Unsafe.AsRef<Vector256<byte>>(dest) = Unsafe.AsRef<Vector256<byte>>(src);
+            Unsafe.AsRef<Vector256<byte>>(dest + 32) = Unsafe.AsRef<Vector256<byte>>(src + 32);
 #elif BIT64
             *(long*)dest = *(long*)src;
             *(long*)(dest + 8) = *(long*)(src + 8);
@@ -291,7 +310,7 @@ namespace System
             len %= 64;
             if (len > 16) goto MCPY00;
 #if HAS_CUSTOM_BLOCKS
-            *(Block16*)(destEnd - 16) = *(Block16*)(srcEnd - 16);
+            Unsafe.AsRef<Vector128<byte>>(destEnd - 16) = Unsafe.AsRef<Vector128<byte>>(srcEnd - 16);
 #elif BIT64
             *(long*)(destEnd - 16) = *(long*)(srcEnd - 16);
             *(long*)(destEnd - 8) = *(long*)(srcEnd - 8);
@@ -359,7 +378,7 @@ namespace System
             // Copy bytes which are multiples of 16 and leave the remainder for MCPY01 to handle.
             Debug.Assert(len > 16 && len <= 64);
 #if HAS_CUSTOM_BLOCKS
-            Unsafe.As<byte, Block16>(ref dest) = Unsafe.As<byte, Block16>(ref src); // [0,16]
+            Unsafe.As<byte, Vector128<byte>>(ref dest) = Unsafe.As<byte, Vector128<byte>>(ref src); // [0,16]
 #elif BIT64
             Unsafe.As<byte, long>(ref dest) = Unsafe.As<byte, long>(ref src);
             Unsafe.As<byte, long>(ref Unsafe.Add(ref dest, 8)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref src, 8)); // [0,16]
@@ -372,7 +391,7 @@ namespace System
             if (len <= 32)
                 goto MCPY01;
 #if HAS_CUSTOM_BLOCKS
-            Unsafe.As<byte, Block16>(ref Unsafe.Add(ref dest, 16)) = Unsafe.As<byte, Block16>(ref Unsafe.Add(ref src, 16)); // [0,32]
+            Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref dest, 16)) = Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref src, 16)); // [0,32]
 #elif BIT64
             Unsafe.As<byte, long>(ref Unsafe.Add(ref dest, 16)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref src, 16));
             Unsafe.As<byte, long>(ref Unsafe.Add(ref dest, 24)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref src, 24)); // [0,32]
@@ -385,7 +404,7 @@ namespace System
             if (len <= 48)
                 goto MCPY01;
 #if HAS_CUSTOM_BLOCKS
-            Unsafe.As<byte, Block16>(ref Unsafe.Add(ref dest, 32)) = Unsafe.As<byte, Block16>(ref Unsafe.Add(ref src, 32)); // [0,48]
+            Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref dest, 32)) = Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref src, 32)); // [0,48]
 #elif BIT64
             Unsafe.As<byte, long>(ref Unsafe.Add(ref dest, 32)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref src, 32));
             Unsafe.As<byte, long>(ref Unsafe.Add(ref dest, 40)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref src, 40)); // [0,48]
@@ -400,7 +419,7 @@ namespace System
             // Unconditionally copy the last 16 bytes using destEnd and srcEnd and return.
             Debug.Assert(len > 16 && len <= 64);
 #if HAS_CUSTOM_BLOCKS
-            Unsafe.As<byte, Block16>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, Block16>(ref Unsafe.Add(ref srcEnd, -16));
+            Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref srcEnd, -16));
 #elif BIT64
             Unsafe.As<byte, long>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref srcEnd, -16));
             Unsafe.As<byte, long>(ref Unsafe.Add(ref destEnd, -8)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref srcEnd, -8));
@@ -450,6 +469,16 @@ namespace System
 
         MCPY05:
             // PInvoke to the native version when the copy length exceeds the threshold.
+#if HAS_CUSTOM_BLOCKS
+            if (Avx.IsSupported)
+            {
+                if (len > MemmoveIntrinsicNativeThreshold)
+                {
+                    goto PInvoke;
+                }
+            }
+            else
+#endif
             if (len > MemmoveNativeThreshold)
             {
                 goto PInvoke;
@@ -457,12 +486,19 @@ namespace System
 
             // Copy 64-bytes at a time until the remainder is less than 64.
             // If remainder is greater than 16 bytes, then jump to MCPY00. Otherwise, unconditionally copy the last 16 bytes and return.
-            Debug.Assert(len > 64 && len <= MemmoveNativeThreshold);
+#if HAS_CUSTOM_BLOCKS
+            if (Avx.IsSupported)
+                Debug.Assert(len > 64 && len <= MemmoveIntrinsicNativeThreshold);
+            else
+#endif
+                Debug.Assert(len > 64 && len <= MemmoveNativeThreshold);
+
             nuint n = len >> 6;
 
         MCPY06:
 #if HAS_CUSTOM_BLOCKS
-            Unsafe.As<byte, Block64>(ref dest) = Unsafe.As<byte, Block64>(ref src);
+            Unsafe.As<byte, Vector256<byte>>(ref dest) = Unsafe.As<byte, Vector256<byte>>(ref src);
+            Unsafe.As<byte, Vector256<byte>>(ref Unsafe.Add(ref dest, 32)) = Unsafe.As<byte, Vector256<byte>>(ref Unsafe.Add(ref src, 32));
 #elif BIT64
             Unsafe.As<byte, long>(ref dest) = Unsafe.As<byte, long>(ref src);
             Unsafe.As<byte, long>(ref Unsafe.Add(ref dest, 8)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref src, 8));
@@ -500,7 +536,7 @@ namespace System
             if (len > 16)
                 goto MCPY00;
 #if HAS_CUSTOM_BLOCKS
-            Unsafe.As<byte, Block16>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, Block16>(ref Unsafe.Add(ref srcEnd, -16));
+            Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, Vector128<byte>>(ref Unsafe.Add(ref srcEnd, -16));
 #elif BIT64
             Unsafe.As<byte, long>(ref Unsafe.Add(ref destEnd, -16)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref srcEnd, -16));
             Unsafe.As<byte, long>(ref Unsafe.Add(ref destEnd, -8)) = Unsafe.As<byte, long>(ref Unsafe.Add(ref srcEnd, -8));
@@ -540,13 +576,5 @@ namespace System
             fixed (byte* pSrc = &src)
                 __Memmove(pDest, pSrc, len);
         }
-
-#if HAS_CUSTOM_BLOCKS
-        [StructLayout(LayoutKind.Sequential, Size = 16)]
-        private struct Block16 { }
-
-        [StructLayout(LayoutKind.Sequential, Size = 64)]
-        private struct Block64 { }
-#endif // HAS_CUSTOM_BLOCKS
     }
 }
