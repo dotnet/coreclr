@@ -63,7 +63,6 @@
 // should be the normalized representative genericMethodArgs (see typehandle.h)
 //
 
-
 // Helper method that creates a method-desc off a template method desc
 static MethodDesc* CreateMethodDesc(LoaderAllocator *pAllocator,
                                     MethodTable *pMT,
@@ -378,8 +377,7 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
             }
             else if (getWrappedCode)
             {
-                // 4 seems like a good number
-                pDL = DictionaryLayout::Allocate(4, pAllocator, &amt);
+                pDL = DictionaryLayout::Allocate(NUM_DICTIONARY_SLOTS, pAllocator, &amt);
 #ifdef _DEBUG 
                 {
                     SString name;
@@ -1182,6 +1180,14 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
                                                                             pWrappedMD,
                                                                             methodInst,
                                                                             FALSE);
+
+#ifndef CROSSGEN_COMPILE
+                if (pInstMD->HasMethodInstantiation())
+                {
+                    SystemDomain::LockHolder lh;
+                    pInstMD->GetModule()->RecordMethodForDictionaryExpansion_Locked(pInstMD);
+                }
+#endif
             }
         }
         else
