@@ -53,7 +53,7 @@ typedef struct _PROFILE_PLATFORM_SPECIFIC_DATA
 #endif
     UINT32      flags;
 #if defined(UNIX_AMD64_ABI)
-    // A buffer to copy structs in to so they are sequential for GetFunctionEnter3Info
+    // A buffer to copy structs in to so they are sequential for GetFunctionEnter3Info.
     UINT64      buffer[PROFILE_PLATFORM_SPECIFIC_DATA_BUFFER_SIZE];
 #endif
 } PROFILE_PLATFORM_SPECIFIC_DATA, *PPROFILE_PLATFORM_SPECIFIC_DATA;
