@@ -71,7 +71,7 @@ namespace System.Diagnostics.Tracing
                 _lohSizeCounter = _lohSizeCounter ?? new PollingCounter("loh-size", this, () => GC.GetGenerationSize(3)) { DisplayName = "LOH Size" };
                 _allocRateCounter = _allocRateCounter ?? new IncrementingPollingCounter("alloc-rate", this, () => GC.GetTotalAllocatedBytes()) { DisplayName = "Allocation Rate", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
                 _assemblyCounter = _assemblyCounter ?? new PollingCounter("assembly-count", this, () => System.Reflection.Assembly.GetAssemblyCount()) { DisplayName = "Number of Assemblies Loaded" };
-                _timerCounter = _timerCounter ?? new PollingCounter("active-timer-count", this, () => Timer.ActiveCount) { DisplayName = "Number of Active Counters" };
+                _timerCounter = _timerCounter ?? new PollingCounter("active-timer-count", this, () => Timer.ActiveCount) { DisplayName = "Number of Active Timers" };
             }
         }
     }
