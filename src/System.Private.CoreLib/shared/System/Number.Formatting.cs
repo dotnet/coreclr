@@ -256,7 +256,7 @@ namespace System
         // In order to support more digits, we would need to update ParseFormatSpecifier to pre-parse
         // the format and determine exactly how many digits are being requested and whether they
         // represent "significant digits" or "digits after the decimal point".
-        private const int SinglePrecisionCustomFormat = 6;
+        private const int SinglePrecisionCustomFormat = 7;
         private const int DoublePrecisionCustomFormat = 15;
 
         private const int DefaultPrecisionExponentialFormat = 6;
