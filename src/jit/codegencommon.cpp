@@ -4719,7 +4719,7 @@ void CodeGen::genCheckUseBlockInit()
  */
 
 #if defined(_TARGET_ARM64_)
-void CodeGen::genPushCalleeSavedRegisters(regNumber initReg, bool* pInitRegZeroed)
+void CodeGen::genPushCalleeSavedRegisters(regNumber initReg, bool* pInitRegModified)
 #else
 void          CodeGen::genPushCalleeSavedRegisters()
 #endif
@@ -5208,7 +5208,7 @@ void          CodeGen::genPushCalleeSavedRegisters()
 
             JITDUMP("    spAdjustment2=%d\n", spAdjustment2);
 
-            genPrologSaveRegPair(REG_FP, REG_LR, alignmentAdjustment2, -spAdjustment2, false, initReg, pInitRegZeroed);
+            genPrologSaveRegPair(REG_FP, REG_LR, alignmentAdjustment2, -spAdjustment2, false, initReg, pInitRegModified);
             offset += spAdjustment2;
 
             // Now subtract off the #outsz (or the rest of the #outsz if it was unaligned, and the above "sub"
@@ -5228,13 +5228,13 @@ void          CodeGen::genPushCalleeSavedRegisters()
 
             // We've already established the frame pointer, so no need to report the stack pointer change to unwind
             // info.
-            genStackPointerAdjustment(-spAdjustment3, initReg, pInitRegZeroed, /* reportUnwindData */ false);
+            genStackPointerAdjustment(-spAdjustment3, initReg, pInitRegModified, /* reportUnwindData */ false);
             offset += spAdjustment3;
         }
         else
         {
             genPrologSaveRegPair(REG_FP, REG_LR, compiler->lvaOutgoingArgSpaceSize, -remainingFrameSz, false, initReg,
-                                 pInitRegZeroed);
+                                 pInitRegModified);
             offset += remainingFrameSz;
 
             offsetSpToSavedFp = compiler->lvaOutgoingArgSpaceSize;
@@ -5266,7 +5266,7 @@ void          CodeGen::genPushCalleeSavedRegisters()
         JITDUMP("    remainingFrameSz=%d\n", remainingFrameSz);
 
         // We've already established the frame pointer, so no need to report the stack pointer change to unwind info.
-        genStackPointerAdjustment(-remainingFrameSz, initReg, pInitRegZeroed, /* reportUnwindData */ false);
+        genStackPointerAdjustment(-remainingFrameSz, initReg, pInitRegModified, /* reportUnwindData */ false);
         offset += remainingFrameSz;
     }
     else
@@ -6018,17 +6018,17 @@ void CodeGen::genPopCalleeSavedRegisters(bool jmpEpilog)
 
 #endif // _TARGET_*
 
-// We need a register with value zero. Zero the initReg, if necessary, and set *pInitRegZeroed if so.
+// We need a register with value zero. Zero the initReg, if necessary, and set *pInitRegModified if so.
 // Return the register to use. On ARM64, we never touch the initReg, and always just return REG_ZR.
-regNumber CodeGen::genGetZeroReg(regNumber initReg, bool* pInitRegZeroed)
+regNumber CodeGen::genGetZeroReg(regNumber initReg, bool* pInitRegModified)
 {
 #ifdef _TARGET_ARM64_
     return REG_ZR;
 #else  // !_TARGET_ARM64_
-    if (*pInitRegZeroed == false)
+    if (*pInitRegModified == false)
     {
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-        *pInitRegZeroed = true;
+        *pInitRegModified = true;
     }
     return initReg;
 #endif // !_TARGET_ARM64_
@@ -6039,14 +6039,14 @@ regNumber CodeGen::genGetZeroReg(regNumber initReg, bool* pInitRegZeroed)
  * Do we have any untracked pointer locals at all,
  * or do we need to initialize memory for locspace?
  *
- * untrLclHi      - (Untracked locals High-Offset)   The upper bound offset at which the zero init code will end
+ * untrLclHi        - (Untracked locals High-Offset)   The upper bound offset at which the zero init code will end
  * initializing memory (not inclusive).
- * untrLclLo      - (Untracked locals Low-Offset)    The lower bound at which the zero init code will start zero
+ * untrLclLo        - (Untracked locals Low-Offset)    The lower bound at which the zero init code will start zero
  * initializing memory.
- * initReg        - A scratch register (that gets set to zero on some platforms).
- * pInitRegZeroed - Sets a flag that tells the callee whether or not the initReg register got zeroed.
+ * initReg          - A scratch register (that gets set to zero on some platforms).
+ * pInitRegModified - Sets a flag that tells the callee whether or not the initReg register got zeroed.
  */
-void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, bool* pInitRegZeroed)
+void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, bool* pInitRegModified)
 {
     assert(compiler->compGeneratingProlog);
 
@@ -6121,8 +6121,8 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 
 #else // !define(_TARGET_ARM_)
 
-        rAddr           = initReg;
-        *pInitRegZeroed = false;
+        rAddr             = initReg;
+        *pInitRegModified = false;
 
 #endif // !defined(_TARGET_ARM_)
 
@@ -6163,7 +6163,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             // Load immediate into the InitReg register
             instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, (ssize_t)untrLclLo);
             getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, rAddr, genFramePointerReg(), initReg);
-            *pInitRegZeroed = false;
+            *pInitRegModified = false;
         }
 
         if (useLoop)
@@ -6175,7 +6175,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
         }
 
 #if defined(_TARGET_ARM_)
-        rZero1 = genGetZeroReg(initReg, pInitRegZeroed);
+        rZero1 = genGetZeroReg(initReg, pInitRegModified);
         instGen_Set_Reg_To_Zero(EA_PTRSIZE, rZero2);
         target_ssize_t stmImm = (target_ssize_t)(genRegMask(rZero1) | genRegMask(rZero2));
 #endif // _TARGET_ARM_
@@ -6347,13 +6347,13 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
                     if (gcPtrs[i] != TYPE_GC_NONE)
                     {
                         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE,
-                                                  genGetZeroReg(initReg, pInitRegZeroed), varNum, i * REGSIZE_BYTES);
+                                                  genGetZeroReg(initReg, pInitRegModified), varNum, i * REGSIZE_BYTES);
                     }
                 }
             }
             else
             {
-                regNumber zeroReg = genGetZeroReg(initReg, pInitRegZeroed);
+                regNumber zeroReg = genGetZeroReg(initReg, pInitRegModified);
 
                 // zero out the whole thing rounded up to a single stack slot size
                 unsigned lclSize = roundUp(compiler->lvaLclSize(varNum), (unsigned)sizeof(int));
@@ -6387,7 +6387,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 
                 // printf("initialize untracked spillTmp [EBP-%04X]\n", stkOffs);
 
-                inst_ST_RV(ins_Store(TYP_I_IMPL), tempThis, 0, genGetZeroReg(initReg, pInitRegZeroed), TYP_I_IMPL);
+                inst_ST_RV(ins_Store(TYP_I_IMPL), tempThis, 0, genGetZeroReg(initReg, pInitRegModified), TYP_I_IMPL);
             }
         }
     }
@@ -6402,7 +6402,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
  *  ICodeManager::GetParamTypeArg().
  */
 
-void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed)
+void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegModified)
 {
     assert(compiler->compGeneratingProlog);
 
@@ -6461,8 +6461,8 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
 
         // We will just use the initReg since it is an available register
         // and we are probably done using it anyway...
-        reg             = initReg;
-        *pInitRegZeroed = false;
+        reg               = initReg;
+        *pInitRegModified = false;
 
         // mov reg, [compiler->info.compTypeCtxtArg]
         getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, genFramePointerReg(), varDsc->lvStkOffs);
@@ -6489,8 +6489,8 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
 // genProfilingEnterCallback: Generate the profiling function enter callback.
 //
 // Arguments:
-//     initReg        - register to use as scratch register
-//     pInitRegZeroed - OUT parameter. *pInitRegZeroed set to 'false' if 'initReg' is
+//     initReg          - register to use as scratch register
+//     pInitRegModified - OUT parameter. *pInitRegModified set to 'false' if 'initReg' is
 //                      not zero after this call.
 //
 // Return Value:
@@ -6510,7 +6510,7 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
 // 4. All registers are preserved.
 // 5. The helper pops the FunctionIDOrClientID argument from the stack.
 //
-void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
+void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegModified)
 {
     assert(compiler->compGeneratingProlog);
 
@@ -6648,7 +6648,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     // If initReg is one of RBM_CALLEE_TRASH, then it needs to be zero'ed before using.
     if ((RBM_CALLEE_TRASH & genRegMask(initReg)) != 0)
     {
-        *pInitRegZeroed = false;
+        *pInitRegModified = false;
     }
 
 #else // !defined(UNIX_AMD64_ABI)
@@ -6697,7 +6697,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     // If initReg is one of RBM_CALLEE_TRASH, then it needs to be zero'ed before using.
     if ((RBM_CALLEE_TRASH & genRegMask(initReg)) != 0)
     {
-        *pInitRegZeroed = false;
+        *pInitRegModified = false;
     }
 
 #endif // !defined(UNIX_AMD64_ABI)
@@ -6770,7 +6770,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
 #elif defined(_TARGET_ARM_)
     if (initReg == argReg)
     {
-        *pInitRegZeroed = false;
+        *pInitRegModified = false;
     }
 #else  // _TARGET_*
     NYI("Pushing the profilerHandle & caller's sp for the profiler callout and locking registers");
@@ -9773,7 +9773,7 @@ void CodeGen::genCaptureFuncletPrologEpilogInfo()
  *  correctly reported, the PSPSym could be omitted in some cases.)
  ***********************************
  */
-void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
+void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegModified)
 {
     assert(compiler->compGeneratingProlog);
 
@@ -9819,8 +9819,8 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
 
     // We will just use the initReg since it is an available register
     // and we are probably done using it anyway...
-    regNumber regTmp = initReg;
-    *pInitRegZeroed  = false;
+    regNumber regTmp   = initReg;
+    *pInitRegModified  = false;
 
     getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regTmp, regBase, callerSPOffs);
     getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
@@ -9831,8 +9831,8 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
 
     // We will just use the initReg since it is an available register
     // and we are probably done using it anyway...
-    regNumber regTmp = initReg;
-    *pInitRegZeroed  = false;
+    regNumber regTmp   = initReg;
+    *pInitRegModified  = false;
 
     getEmitter()->emitIns_R_R_Imm(INS_add, EA_PTRSIZE, regTmp, REG_SPBASE, SPtoCallerSPdelta);
     getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
