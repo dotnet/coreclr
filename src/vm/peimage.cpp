@@ -1307,16 +1307,15 @@ void PEImage::LoadNoFile()
         PRECONDITION(!IsFile());
     }
     CONTRACTL_END;
-
     if (HasLoadedLayout())
         return;
 
-    PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY, 0));
+    PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY,0));
     if (!pLayout->CheckILOnly())
         ThrowHR(COR_E_BADIMAGEFORMAT);
     SimpleWriteLockHolder lock(m_pLayoutLock);
-    if (m_pLayouts[IMAGE_LOADED] == NULL)
-        SetLayout(IMAGE_LOADED, pLayout.Extract());
+    if(m_pLayouts[IMAGE_LOADED]==NULL)
+        SetLayout(IMAGE_LOADED,pLayout.Extract());
 }
 
 

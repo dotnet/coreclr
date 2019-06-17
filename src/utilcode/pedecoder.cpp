@@ -1406,18 +1406,25 @@ CHECK PEDecoder::CheckILOnly() const
 
     CHECK(CheckCorHeader());
 
+    if (HasReadyToRunHeader())
+    {
+        // Pretend R2R images are IL-only 
+        const_cast<PEDecoder *>(this)->m_flags |= FLAG_IL_ONLY_CHECKED;
+        CHECK_OK;
+    }
+
     // Allow only verifiable directories.
 
     static int s_allowedBitmap =
-        ((1 << (IMAGE_DIRECTORY_ENTRY_EXPORT    )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_EXCEPTION )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_IMPORT    )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_RESOURCE  )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_SECURITY  )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_BASERELOC )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_DEBUG     )) |
-         (1 << (IMAGE_DIRECTORY_ENTRY_IAT       )) |
+        ((1 << (IMAGE_DIRECTORY_ENTRY_IMPORT   )) |
+         (1 << (IMAGE_DIRECTORY_ENTRY_RESOURCE )) |
+         (1 << (IMAGE_DIRECTORY_ENTRY_SECURITY )) |
+         (1 << (IMAGE_DIRECTORY_ENTRY_BASERELOC)) |
+         (1 << (IMAGE_DIRECTORY_ENTRY_DEBUG    )) |
+         (1 << (IMAGE_DIRECTORY_ENTRY_IAT      )) |
          (1 << (IMAGE_DIRECTORY_ENTRY_COMHEADER)));
+
+
 
 
     for (UINT32 entry=0; entry<GetNumberOfRvaAndSizes(); ++entry)
@@ -1436,19 +1443,13 @@ CHECK PEDecoder::CheckILOnly() const
         if (HasDirectoryEntry(entry))
         {
             CHECK((s_allowedBitmap & (1 << entry)) != 0);
-            
-            // Pretend R2R images are IL-only 
-            if(entry == IMAGE_DIRECTORY_ENTRY_EXPORT || entry == IMAGE_DIRECTORY_ENTRY_EXCEPTION)
-                CHECK(HasReadyToRunHeader());
-            
-            if (entry != IMAGE_DIRECTORY_ENTRY_SECURITY)  //ignored by OS loader
+            if (entry!=IMAGE_DIRECTORY_ENTRY_SECURITY)  //ignored by OS loader
                 CHECK(CheckDirectoryEntry(entry,IMAGE_SCN_MEM_SHARED,NULL_NOT_OK));
         }
     }
-    if (!HasReadyToRunHeader() && 
-        (HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_IMPORT) ||
+    if (HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_IMPORT) ||
         HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_BASERELOC) ||
-        FindNTHeaders()->OptionalHeader.AddressOfEntryPoint != 0))
+        FindNTHeaders()->OptionalHeader.AddressOfEntryPoint != 0)
     {
         // When the image is LoadLibrary'd, we whack the import, IAT directories and the entrypoint. We have to relax
         // the verification for mapped images. Ideally, we would only do it for a post-LoadLibrary image.
