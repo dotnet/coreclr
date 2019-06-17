@@ -638,7 +638,7 @@ protected:
 
     private:
 #if defined(_TARGET_XARCH_)
-        unsigned _idCodeSize : 4; // size of instruction in bytes, max is 15 bytes, because of the Intel decoder limit.
+        unsigned _idCodeSize : 4; // size of instruction in bytes. Max size of an Intel instruction is 15 bytes.
         opSize   _idOpSize : 3;   // operand size: 0=1 , 1=2 , 2=4 , 3=8, 4=16, 5=32
                                   // At this point we have fully consumed first DWORD so that next field
                                   // doesn't cross a byte boundary.
@@ -886,6 +886,7 @@ protected:
         {
             assert(sz <= 15); // Intel decoder limit.
             _idCodeSize = sz;
+            assert(sz == _idCodeSize);
         }
 
 #elif defined(_TARGET_ARM64_)
