@@ -2763,7 +2763,7 @@ int LinearScan::BuildOperandUses(GenTree* node, regMaskTP candidates)
     }
     if (node->OperIs(GT_LEA))
     {
-        BuildAddrUses(node, candidates);
+        return BuildAddrUses(node, candidates);
     }
 #ifdef FEATURE_HW_INTRINSICS
     if (node->OperIsHWIntrinsic())
