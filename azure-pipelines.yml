@@ -197,6 +197,7 @@ jobs:
     parameters:
       jobTemplate: build-job.yml
       buildConfig: release
+      platformGroup: all
       jobParameters:
         platformGroup: all
         # Publishing packages to blob feeds sometimes takes a long time
