@@ -6,7 +6,7 @@ When a performance problem is encountered on Linux, these instructions can be us
 # EventPipe and dotnet-trace (.NET Core 3.0 Preview 5 or later)
 
 ## Intro ##
-EventPipe is a new cross-platform tracing mechanism we built into the runtime from .NET Core 3.0. It works the same across all platforms we support (Windows, macOS, and Linux), and we have built various diagnostics tools on top of it. dotnet-trace is a dotnet CLI tool that allows you to trace your .NET application using EventPipe. To read more about how to use dotnet-trace, please refer to the [dotnet-trace documentation](https://github.com/dotnet/diagnostics/blob/master/documentation/dotnet-trace-instructions.md).
+EventPipe is a new cross-platform tracing mechanism we built into the runtime from .NET Core 3.0. It works the same across all platforms we support (Windows, macOS, and Linux), and we have built various diagnostics tools on top of it. dotnet-trace is a dotnet CLI tool that allows you to trace your .NET application using EventPipe. 
 
 ## Installing dotnet-trace ##
 dotnet-trace can be installed by using the dotnet CLI: 
