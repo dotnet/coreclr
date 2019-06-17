@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -1579,7 +1580,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T, TComparer>(
             this Span<T> span, T value, TComparer comparer)
-            where TComparer : IComparer<T>
+            where TComparer : IComparer<T>?
         {
             return BinarySearch((ReadOnlySpan<T>)span, value, comparer);
         }
@@ -1653,14 +1654,17 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T, TComparer>(
             this ReadOnlySpan<T> span, T value, TComparer comparer)
-            where TComparer : IComparer<T>
+            where TComparer : IComparer<T>?
         {
-            if (comparer == null)
-                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparer);
 
-            var comparable = new SpanHelpers.ComparerComparable<T, TComparer>(
-                value, comparer);
-            return BinarySearch(span, comparable);
+            if (comparer == null)
+            {
+                return BinarySearch(span,
+                    new SpanHelpers.ComparerComparable<T, Comparer<T>>(value, Comparer<T>.Default));
+            }
+
+            return BinarySearch(span,
+                new SpanHelpers.ComparerComparable<T, TComparer>(value, comparer));
         }
     }
 }
