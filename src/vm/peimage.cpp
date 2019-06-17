@@ -1258,7 +1258,7 @@ void PEImage::Load()
         {
             _ASSERTE(m_pLayouts[IMAGE_FLAT] != NULL);
 
-            if (!m_pLayouts[IMAGE_FLAT]->CheckILOnly() && !m_pLayouts[IMAGE_FLAT]->HasReadyToRunHeader())
+            if (!m_pLayouts[IMAGE_FLAT]->CheckILOnly())
                 ThrowHR(COR_E_BADIMAGEFORMAT);
             if(m_pLayouts[IMAGE_LOADED]==NULL)
                 SetLayout(IMAGE_LOADED,PEImageLayout::LoadFromFlat(m_pLayouts[IMAGE_FLAT]));
@@ -1312,7 +1312,7 @@ void PEImage::LoadNoFile()
         return;
 
     PEImageLayoutHolder pLayout(GetLayout(PEImageLayout::LAYOUT_ANY, 0));
-    if (!pLayout->CheckILOnly() && !pLayout->HasReadyToRunHeader())
+    if (!pLayout->CheckILOnly())
         ThrowHR(COR_E_BADIMAGEFORMAT);
     SimpleWriteLockHolder lock(m_pLayoutLock);
     if (m_pLayouts[IMAGE_LOADED] == NULL)
