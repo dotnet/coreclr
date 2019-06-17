@@ -34,7 +34,7 @@ CHECK PEDecoder::CheckFormat() const
         {
             CHECK(CheckCorHeader());
 
-            if (IsILOnly() && !HasReadyToRunHeader())
+            if (IsILOnly())
                 CHECK(CheckILOnly());
 
             if (HasNativeHeader())
