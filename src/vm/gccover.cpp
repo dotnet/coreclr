@@ -162,13 +162,16 @@ bool IsOriginalInstruction(PBYTE instrPtr, GCCoverageInfo* gcCover, DWORD offset
 
 
 void SetupAndSprinkleBreakpoints(
-    MethodDesc                    * pMD,     
+    NativeCodeVersion               nativeCodeVersion,
     EECodeInfo                    * pCodeInfo,
     IJitManager::MethodRegionInfo   methodRegionInfo,
     BOOL                            fZapped
     )
 {
+    _ASSERTE(!nativeCodeVersion.IsNull());
+
     // Allocate room for the GCCoverageInfo and copy of the method instructions
+    MethodDesc *pMD = nativeCodeVersion.GetMethodDesc();
     size_t memSize = sizeof(GCCoverageInfo) + methodRegionInfo.hotSize + methodRegionInfo.coldSize;
     GCCoverageInfo* gcCover = (GCCoverageInfo*)(void*) pMD->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocAlignedMem(memSize, CODE_SIZE_ALIGN);
 
@@ -179,8 +182,6 @@ void SetupAndSprinkleBreakpoints(
     gcCover->gcInfoToken       = pCodeInfo->GetGCInfoToken();
     gcCover->callerThread      = 0;
     gcCover->doingEpilogChecks = true;    
-
-    gcCover->lastMD            = pMD;   /* pass pMD to SprinkleBreakpoints */
 
     gcCover->SprinkleBreakpoints(gcCover->savedCode, 
                                  gcCover->methodRegion.hotStartAddress,  
@@ -200,16 +201,15 @@ void SetupAndSprinkleBreakpoints(
     }
 #endif
 
-    gcCover->lastMD = NULL;     /* clear lastMD */
-
-    _ASSERTE(!pMD->m_GcCover);
-    *EnsureWritablePages(&pMD->m_GcCover) = gcCover;
+    nativeCodeVersion.SetGCCoverageInfo(gcCover);
 }
 
-void SetupAndSprinkleBreakpointsForJittedMethod(MethodDesc                    * pMD, 
+void SetupAndSprinkleBreakpointsForJittedMethod(NativeCodeVersion               nativeCodeVersion,
                                                 PCODE                           codeStart
                                                )
 {
+    _ASSERTE(!nativeCodeVersion.IsNull());
+
     EECodeInfo codeInfo(codeStart);
     _ASSERTE(codeInfo.IsValid());
     _ASSERTE(codeInfo.GetRelOffset() == 0);
@@ -220,9 +220,9 @@ void SetupAndSprinkleBreakpointsForJittedMethod(MethodDesc                    * 
     _ASSERTE(PCODEToPINSTR(codeStart) == methodRegionInfo.hotStartAddress);
 
 #ifdef _DEBUG
-    if (!g_pConfig->SkipGCCoverage(pMD->GetModule()->GetSimpleName()))
+    if (!g_pConfig->SkipGCCoverage(nativeCodeVersion.GetMethodDesc()->GetModule()->GetSimpleName()))
 #endif
-    SetupAndSprinkleBreakpoints(pMD,
+    SetupAndSprinkleBreakpoints(nativeCodeVersion,
                                 &codeInfo,
                                 methodRegionInfo,
                                 FALSE
@@ -232,10 +232,12 @@ void SetupAndSprinkleBreakpointsForJittedMethod(MethodDesc                    * 
 /****************************************************************************/
 /* called when a method is first jitted when GCStress level 4 or 8 is on */
 
-void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
+void SetupGcCoverage(NativeCodeVersion nativeCodeVersion, BYTE* methodStartPtr)
+{
+    _ASSERTE(!nativeCodeVersion.IsNull());
 
 #ifdef _DEBUG
-    if (!g_pConfig->ShouldGcCoverageOnMethod(pMD->m_pszDebugMethodName)) {
+    if (!g_pConfig->ShouldGcCoverageOnMethod(nativeCodeVersion.GetMethodDesc()->m_pszDebugMethodName)) {
         return;
     }
 #endif
@@ -258,22 +260,23 @@ void SetupGcCoverage(MethodDesc* pMD, BYTE* methodStartPtr) {
     // code, and since the rejitted method does not get instrumented
     // we should be able to tolerate that the gc cover info does not
     // match.
-    if (pMD->m_GcCover)
+    if (nativeCodeVersion.GetGCCoverageInfo() != NULL)
     {
         return;
     }
 
     PCODE codeStart = (PCODE) methodStartPtr;
-    SetupAndSprinkleBreakpointsForJittedMethod(pMD, codeStart);
+    SetupAndSprinkleBreakpointsForJittedMethod(nativeCodeVersion, codeStart);
 }
 
 #ifdef FEATURE_PREJIT
 
-void SetupGcCoverageForNativeMethod(MethodDesc* pMD, 
+void SetupGcCoverageForNativeMethod(NativeCodeVersion nativeCodeVersion,
                                     PCODE codeStart, 
                                      IJitManager::MethodRegionInfo& methodRegionInfo
                                    ) 
 {
+    _ASSERTE(!nativeCodeVersion.IsNull());
 
     EECodeInfo codeInfo(codeStart);
     _ASSERTE(codeInfo.IsValid());
@@ -281,7 +284,7 @@ void SetupGcCoverageForNativeMethod(MethodDesc* pMD,
 
     _ASSERTE(PCODEToPINSTR(codeStart) == methodRegionInfo.hotStartAddress);
 
-    SetupAndSprinkleBreakpoints(pMD,
+    SetupAndSprinkleBreakpoints(nativeCodeVersion,
                                 &codeInfo,
                                 methodRegionInfo,
                                 TRUE
@@ -333,7 +336,7 @@ void SetupGcCoverageForNativeImage(Module* module)
         IJitManager::MethodRegionInfo methodRegionInfo;
         mi.GetMethodRegionInfo(&methodRegionInfo);
 
-        SetupGcCoverageForNativeMethod(pMD, pMethodStart, methodRegionInfo);
+        SetupGcCoverageForNativeMethod(NativeCodeVersion(pMD), pMethodStart, methodRegionInfo);
     }
 }
 #endif
@@ -1350,7 +1353,7 @@ bool IsGcCoverageInterrupt(LPVOID ip)
         return false;
     }
 
-    GCCoverageInfo *gcCover = codeInfo.GetMethodDesc()->m_GcCover;
+    GCCoverageInfo *gcCover = codeInfo.GetNativeCodeVersion().GetGCCoverageInfo();
     if (gcCover == nullptr)
     {
         return false;
@@ -1412,7 +1415,7 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
     forceStack[1] = &pMD;                // This is so I can see it fastchecked
     forceStack[2] = &offset;             // This is so I can see it fastchecked
 
-    GCCoverageInfo* gcCover = pMD->m_GcCover;
+    GCCoverageInfo* gcCover = codeInfo.GetNativeCodeVersion().GetGCCoverageInfo();
     forceStack[3] = &gcCover;            // This is so I can see it fastchecked
     if (gcCover == 0)
         return(FALSE);        // we aren't doing code gcCoverage on this function
@@ -1446,7 +1449,7 @@ BOOL OnGcCoverageInterrupt(PCONTEXT regs)
 #ifdef _DEBUG
     if (!g_pConfig->SkipGCCoverage(pMD->GetModule()->GetSimpleName()))
 #endif
-    DoGcStress(regs, pMD);
+    DoGcStress(regs, codeInfo.GetNativeCodeVersion());
 
 #endif // !USE_REDIRECT_FOR_GCSTRESS
 
@@ -1464,22 +1467,22 @@ FORCEINLINE void UpdateGCStressInstructionWithoutGC ()
 
 /****************************************************************************/
 
-void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
+void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
 {
     PCODE controlPc = GetIP(regs);
     PBYTE instrPtr = reinterpret_cast<PBYTE>(PCODEToPINSTR(controlPc));
 
-    if (!pMD)
+    if (nativeCodeVersion.IsNull())
     {
-        pMD = ExecutionManager::GetCodeMethodDesc(controlPc);
-        if (!pMD)
+        nativeCodeVersion = ExecutionManager::GetNativeCodeVersion(controlPc);
+        if (nativeCodeVersion.IsNull())
             return;
     }
 
-    GCCoverageInfo *gcCover = pMD->m_GcCover;
+    GCCoverageInfo *gcCover = nativeCodeVersion.GetGCCoverageInfo();
 
     EECodeInfo codeInfo(controlPc);
-    _ASSERTE(codeInfo.GetMethodDesc() == pMD);
+    _ASSERTE(codeInfo.GetNativeCodeVersion() == nativeCodeVersion);
     DWORD offset = codeInfo.GetRelOffset();
 
     Thread *pThread = GetThread();
@@ -1808,17 +1811,9 @@ void DoGcStress (PCONTEXT regs, MethodDesc *pMD)
         gcFrame.Init(pThread, (OBJECTREF*)retValRegs, numberOfRegs, TRUE);
     }
 
-    if (gcCover->lastMD != pMD) 
-    {
-        LOG((LF_GCROOTS, LL_INFO100000, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
-                 pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, offset));
-        gcCover->lastMD =pMD;
-    } 
-    else 
-    {
-        LOG((LF_GCROOTS, LL_EVERYTHING, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
-                pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, offset));
-    }
+    MethodDesc *pMD = nativeCodeVersion.GetMethodDesc();
+    LOG((LF_GCROOTS, LL_EVERYTHING, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
+            pMD->m_pszDebugClassName, pMD->m_pszDebugMethodName, offset));
 
     //-------------------------------------------------------------------------
     // Do the actual stress work
