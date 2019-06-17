@@ -162,6 +162,8 @@ jobs:
         platforms:
         - Linux_x64
         - Windows_NT_x64
+        # We only want to run on a single, latest queue. We don't need to run on all the platforms.
+        helixQueueGroup: latest
       ${{ if eq(variables['Build.DefinitionName'], 'coreclr-runincontext') }}:
         platforms:
         - Linux_x64
@@ -323,6 +325,8 @@ jobs:
         platforms:
         - Linux_x64
         - Windows_NT_x64
+      # We only want to run on a single, latest queue. We don't need to run on all the platforms.
+      helixQueueGroup: latest
       jobParameters:
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
           testGroup: innerloop
