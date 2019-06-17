@@ -2940,10 +2940,8 @@ public:
     };
 
 protected:
-    static const BYTE ML_IN  = 0x10;
-    static const BYTE ML_OUT = 0x20;
 
-    virtual bool IsAnsi() = 0;
+    virtual bool IsAnsi() const = 0;
     LocalDesc GetNativeType() override final;
     LocalDesc GetManagedType() override final;
     void EmitCreateMngdMarshaler(ILCodeStream* pslILEmit) override final;
@@ -2960,7 +2958,13 @@ protected:
     }
 
 private:
-    DWORD GetAsAnyFlags()
+    // These flags correspond to System.StubHelpers.AsAnyMarshaler.AsAnyFlags.In and Out respectively.
+    // We have to pre-calculate the flags and emit them into the IL stream since the AsAny marshalers
+    // are effectively lazily resolved based on the runtime type of the object.
+    static const BYTE ML_IN  = 0x10;
+    static const BYTE ML_OUT = 0x20;
+
+    DWORD GetAsAnyFlags() const
     {
         BYTE inout = (IsIn(m_dwMarshalFlags) ? ML_IN : 0) | (IsOut(m_dwMarshalFlags) ? ML_OUT : 0);
         BYTE fIsAnsi = IsAnsi() ? 1 : 0;
@@ -2986,7 +2990,7 @@ public:
     };
 
 protected:
-    bool IsAnsi() override
+    bool IsAnsi() const override
     {
         return false;
     }
@@ -3001,7 +3005,7 @@ public:
     };
 
 protected:
-    bool IsAnsi() override
+    bool IsAnsi() const override
     {
         return true;
     }
