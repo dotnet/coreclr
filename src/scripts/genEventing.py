@@ -530,6 +530,11 @@ def generatePlatformIndependentFiles(sClrEtwAllMan, incDir, etmDummyFile, extern
             #vm header:
             Clrallevents.write(generateClrallEvents(eventNodes, allTemplates) + "\n")
 
+            providerName = providerNode.getAttribute('name')
+            providerSymbol = providerNode.getAttribute('symbol')
+
+            eventpipeProviderCtxName = providerSymbol + "_EVENTPIPE_Context"
+            Clrallevents.write('EXTERN_C __declspec(selectany) EVENTPIPE_TRACE_CONTEXT ' + eventpipeProviderCtxName + ' = { W("' + providerName + '"), 0, false, 0 };')
 
     clreventpipewriteevents = os.path.join(incDir, "clreventpipewriteevents.h")
     with open_for_update(clreventpipewriteevents) as Clreventpipewriteevents:
