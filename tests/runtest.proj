@@ -163,6 +163,7 @@ using System%3B
 using System.Collections.Generic%3B
 using System.Diagnostics%3B
 using System.Reflection%3B
+using System.Text.RegularExpressions%3B
 using CoreclrTestLib%3B
 
 namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").Replace("-","_"))
@@ -314,6 +315,16 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                     testOutput.Add("To run the test:")%3B
                     testOutput.Add("> set CORE_ROOT=" + _Global.coreRoot)%3B
                     testOutput.Add("> " + testExecutable)%3B
+
+                    var unicodeControlCharsRegex = new Regex("\\p{C}+")%3B
+
+                    // Remove all characters that have no visual or spatial representation.
+                    for (int i = 0%3B i < testOutput.Count%3B i++)
+                    {
+                        string line = testOutput[i]%3B
+                        line = unicodeControlCharsRegex.Replace(line, string.Empty)%3B
+                        testOutput[i] = line%3B
+                    }
 
                     foreach (string line in testOutput)
                     {
