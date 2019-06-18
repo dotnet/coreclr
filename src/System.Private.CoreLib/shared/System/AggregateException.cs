@@ -454,7 +454,7 @@ namespace System
                 if (m_innerExceptions[i] == InnerException)
                     continue; // Already logged in base.ToString()
 
-                text.Append(InnerExceptionPrefix);
+                text.Append(Environment.NewLine).Append(InnerExceptionPrefix);
                 text.AppendFormat(CultureInfo.InvariantCulture, SR.AggregateException_InnerException, i);
                 text.Append(m_innerExceptions[i].ToString());
                 text.Append("<---");
