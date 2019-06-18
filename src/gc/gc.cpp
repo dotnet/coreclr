@@ -681,6 +681,7 @@ process_sync_log_stats()
 }
 
 #ifdef MULTIPLE_HEAPS
+#ifndef DACCESS_COMPILE
 
 enum gc_join_stage
 {
@@ -1123,6 +1124,8 @@ t_join gc_t_join;
 #ifdef BACKGROUND_GC
 t_join bgc_t_join;
 #endif //BACKGROUND_GC
+
+#endif // DACCESS_COMPILE
 
 #endif //MULTIPLE_HEAPS
 
@@ -3097,7 +3100,7 @@ void gc_heap::fire_pevents()
                gc_data_global.condemned_generation, 
                gc_data_global.gen0_reduction_count, 
                gc_data_global.reason, 
-               gc_data_global.global_mechanims_p, 
+               gc_data_global.global_mechanisms_p, 
                gc_data_global.pause_mode, 
                gc_data_global.mem_pressure);
 
@@ -3240,7 +3243,7 @@ gc_heap::dt_estimate_reclaim_space_p (gc_tuning_point tp, int gen_number)
 }
 
 // DTREVIEW: Right now we only estimate gen2 fragmentation. 
-// on 64-bit though we should consider gen1 or even gen0 fragmentatioin as
+// on 64-bit though we should consider gen1 or even gen0 fragmentation as
 // well 
 inline BOOL 
 gc_heap::dt_estimate_high_frag_p (gc_tuning_point tp, int gen_number, uint64_t available_mem)
@@ -3796,7 +3799,7 @@ gc_heap* seg_mapping_table_heap_of_worker (uint8_t* o)
 
     gc_heap* hp = ((o > entry->boundary) ? entry->h1 : entry->h0);
 
-    dprintf (2, ("checking obj %Ix, index is %Id, entry: boundry: %Ix, h0: %Ix, seg0: %Ix, h1: %Ix, seg1: %Ix",
+    dprintf (2, ("checking obj %Ix, index is %Id, entry: boundary: %Ix, h0: %Ix, seg0: %Ix, h1: %Ix, seg1: %Ix",
         o, index, (entry->boundary + 1), 
         (uint8_t*)(entry->h0), (uint8_t*)(entry->seg0),
         (uint8_t*)(entry->h1), (uint8_t*)(entry->seg1)));
@@ -3865,7 +3868,7 @@ heap_segment* seg_mapping_table_segment_of (uint8_t* o)
     size_t index = (size_t)o >> gc_heap::min_segment_size_shr;
     seg_mapping* entry = &seg_mapping_table[index];
 
-    dprintf (2, ("checking obj %Ix, index is %Id, entry: boundry: %Ix, seg0: %Ix, seg1: %Ix",
+    dprintf (2, ("checking obj %Ix, index is %Id, entry: boundary: %Ix, seg0: %Ix, seg1: %Ix",
         o, index, (entry->boundary + 1), 
         (uint8_t*)(entry->seg0), (uint8_t*)(entry->seg1)));
 
@@ -4312,7 +4315,7 @@ BOOL reserve_initial_memory (size_t normal_size, size_t large_size, size_t num_h
     if (allatonce_block)
     {
         g_gc_lowest_address =  allatonce_block;
-        g_gc_highest_address = allatonce_block + (memory_details.block_count * (large_size + normal_size));
+        g_gc_highest_address = allatonce_block + requestedMemory;
         memory_details.allocation_pattern = initial_memory_details::ALLATONCE;
 
         for(size_t i = 0; i < memory_details.block_count; i++)
@@ -5034,24 +5037,14 @@ extern "C" uint64_t __rdtsc();
 #else // _MSC_VER
     extern "C" ptrdiff_t get_cycle_count(void);
 #endif // _MSC_VER
-#elif defined(_TARGET_ARM_)
-    static ptrdiff_t get_cycle_count()
-    {
-        // @ARMTODO: cycle counter is not exposed to user mode by CoreARM. For now (until we can show this
-        // makes a difference on the ARM configurations on which we'll run) just return 0. This will result in
-        // all buffer access times being reported as equal in access_time().
-        return 0;
-    }
-#elif defined(_TARGET_ARM64_)
-    static ptrdiff_t get_cycle_count()
-    {
-        // @ARM64TODO: cycle counter is not exposed to user mode by CoreARM. For now (until we can show this
-        // makes a difference on the ARM configurations on which we'll run) just return 0. This will result in
-        // all buffer access times being reported as equal in access_time().
-        return 0;
-    }
 #else
-#error NYI platform: get_cycle_count
+    static ptrdiff_t get_cycle_count()
+    {
+        // @ARMTODO, @ARM64TODO, @WASMTODO: cycle counter is not exposed to user mode. For now (until we can show this
+        // makes a difference on the configurations on which we'll run) just return 0. This will result in
+        // all buffer access times being reported as equal in access_time().
+        return 0;
+    }
 #endif //_TARGET_X86_
 
 class heap_select
@@ -5571,7 +5564,7 @@ public:
     // Supposedly Pinned objects cannot have references but we are seeing some from pinvoke 
     // frames. Also if it's an artificially pinned plug created by us, it can certainly 
     // have references. 
-    // We know these cases will be rare so we can optimize this to be only allocated on decommand. 
+    // We know these cases will be rare so we can optimize this to be only allocated on demand. 
     gap_reloc_pair saved_post_plug_reloc;
 
     // We need to calculate this after we are done with plan phase and before compact
@@ -5843,7 +5836,7 @@ void gc_mechanisms::record (gc_history_global* history)
     history->reason = reason;
     history->pause_mode = (int)pause_mode;
     history->mem_pressure = entry_memory_load;
-    history->global_mechanims_p = 0;
+    history->global_mechanisms_p = 0;
 
     // start setting the boolean values.
     if (concurrent)
@@ -6372,7 +6365,7 @@ void gc_heap::set_pinned_info (uint8_t* last_pinned_plug, size_t plug_len, gener
 
 size_t gc_heap::deque_pinned_plug ()
 {
-    dprintf (3, ("dequed: %Id", mark_stack_bos));
+    dprintf (3, ("deque: %Id", mark_stack_bos));
     size_t m = mark_stack_bos;
     mark_stack_bos++;
     return m;
@@ -7263,7 +7256,7 @@ int gc_heap::grow_brick_card_tables (uint8_t* start,
     if ((la != saved_g_lowest_address ) || (ha != saved_g_highest_address))
     {
         {
-            //modify the higest address so the span covered
+            //modify the highest address so the span covered
             //is twice the previous one.
             uint8_t* top = (uint8_t*)0 + Align (GCToOSInterface::GetVirtualMemoryLimit());
             // On non-Windows systems, we get only an approximate value that can possibly be
@@ -8518,7 +8511,7 @@ void gc_heap::combine_mark_lists()
         assert (end_of_list < &g_mark_list [n_heaps*mark_list_size]);
         if (end_of_list > &g_mark_list[0])
             _sort (&g_mark_list[0], end_of_list, 0);
-        //adjust the mark_list to the begining of the resulting mark list.
+        //adjust the mark_list to the beginning of the resulting mark list.
         for (int i = 0; i < n_heaps; i++)
         {
             g_heaps [i]->mark_list = g_mark_list;
@@ -8529,7 +8522,7 @@ void gc_heap::combine_mark_lists()
     else
     {
         uint8_t** end_of_list = g_mark_list;
-        //adjust the mark_list to the begining of the resulting mark list.
+        //adjust the mark_list to the beginning of the resulting mark list.
         //put the index beyond the end to turn off mark list processing
         for (int i = 0; i < n_heaps; i++)
         {
@@ -8554,7 +8547,7 @@ class seg_free_spaces
     struct free_space_bucket
     {
         seg_free_space* free_space;
-        ptrdiff_t count_add; // Assigned when we first contruct the array.
+        ptrdiff_t count_add; // Assigned when we first construct the array.
         ptrdiff_t count_fit; // How many items left when we are fitting plugs.
     };
 
@@ -8838,7 +8831,7 @@ public:
         // BARTOKTODO (4841): this code path is disabled (see can_fit_all_blocks_p) until we take alignment requirements into account
         _ASSERTE(requiredAlignment == DATA_ALIGNMENT && false);
 #endif // FEATURE_STRUCTALIGN
-        // TODO: this is also not large alignment ready. We would need to consider alignment when chosing the 
+        // TODO: this is also not large alignment ready. We would need to consider alignment when choosing the 
         // the bucket.
 
         size_t plug_size_to_fit = plug_size;
@@ -9483,6 +9476,9 @@ inline void gc_heap::verify_card_bundle_bits_set(size_t first_card_word, size_t 
             dprintf (3, ("Card bundle %Ix not set", x));
         }
     }
+#else
+    UNREFERENCED_PARAMETER(first_card_word);
+    UNREFERENCED_PARAMETER(last_card_word);
 #endif
 }
 
@@ -9758,7 +9754,7 @@ void gc_heap::restart_vm()
 {
     //assert (generation_allocation_pointer (youngest_generation) == 0);
     dprintf (3, ("Restarting EE"));
-    STRESS_LOG0(LF_GC, LL_INFO10000, "Concurrent GC: Retarting EE\n");
+    STRESS_LOG0(LF_GC, LL_INFO10000, "Concurrent GC: Restarting EE\n");
     ee_proceed_event.Set();
 }
 
@@ -10650,7 +10646,7 @@ gc_heap::init_gc_heap (int  h_number)
     {
 #ifndef INTERIOR_POINTERS
         //set the brick_table for large objects
-        //but default value is clearded
+        //but default value is cleared
         //clear_brick_table ((uint8_t*)heap_segment_mem (lseg),
         //                   (uint8_t*)heap_segment_reserved (lseg));
 
@@ -14875,9 +14871,7 @@ int gc_heap::joined_generation_to_condemn (BOOL should_evaluate_elevation,
             }
         }
         // for traditional GC stress
-        else
-#endif // !FEATURE_REDHAWK
-        if (*blocking_collection_p)
+        else if (*blocking_collection_p)
         {
             // We call StressHeap() a lot for Concurrent GC Stress. However,
             // if we can not do a concurrent collection, no need to stress anymore.
@@ -14885,6 +14879,7 @@ int gc_heap::joined_generation_to_condemn (BOOL should_evaluate_elevation,
             GCStressPolicy::GlobalDisable();
         }
         else
+#endif // !FEATURE_REDHAWK
         {
             n = max_generation;
         }
@@ -15200,7 +15195,7 @@ int gc_heap::generation_to_condemn (int n_initial,
         }
     }
 
-    //figure out which ephemeral generation is too fragramented
+    //figure out which ephemeral generation is too fragmented
     temp_gen = n;
     for (i = n+1; i < max_generation; i++)
     {
@@ -15605,20 +15600,20 @@ void fire_overflow_event (uint8_t* overflow_min,
 
 void gc_heap::concurrent_print_time_delta (const char* msg)
 {
+    UNREFERENCED_PARAMETER(msg);
 #ifdef TRACE_GC
     size_t current_time = GetHighPrecisionTimeStamp();
     size_t elapsed_time = current_time - time_bgc_last;
     time_bgc_last = current_time;
 
     dprintf (2, ("h%d: %s T %Id ms", heap_number, msg, elapsed_time));
-#else
-    UNREFERENCED_PARAMETER(msg);
 #endif //TRACE_GC
 }
 
 void gc_heap::free_list_info (int gen_num, const char* msg)
 {
     UNREFERENCED_PARAMETER(gen_num);
+    UNREFERENCED_PARAMETER(msg);
 #if defined (BACKGROUND_GC) && defined (TRACE_GC)
     dprintf (3, ("h%d: %s", heap_number, msg));
     for (int i = 0; i <= (max_generation + 1); i++)
@@ -15639,8 +15634,6 @@ void gc_heap::free_list_info (int gen_num, const char* msg)
                 generation_free_obj_space (gen)));
         }
     }
-#else
-    UNREFERENCED_PARAMETER(msg);
 #endif // BACKGROUND_GC && TRACE_GC
 }
 
@@ -16296,7 +16289,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
     num_heaps = n_heaps;
 #endif // MULTIPLE_HEAPS
 
-    uint64_t total_allowed_soh_allocation = max_soh_allocated * num_heaps;
+    uint64_t total_allowed_soh_allocation = (uint64_t)max_soh_allocated * num_heaps;
     // [LOCALGC TODO]
     // In theory, the upper limit here is the physical memory of the machine, not
     // SIZE_T_MAX. This is not true today because total_physical_mem can be
@@ -16333,7 +16326,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     if (allocation_no_gc_soh != 0)
     {
-        current_no_gc_region_info.soh_allocation_size = static_cast<size_t>(allocation_no_gc_soh);
+        current_no_gc_region_info.soh_allocation_size = (size_t)allocation_no_gc_soh;
         size_per_heap = current_no_gc_region_info.soh_allocation_size;
 #ifdef MULTIPLE_HEAPS
         size_per_heap /= n_heaps;
@@ -16349,7 +16342,7 @@ start_no_gc_region_status gc_heap::prepare_for_no_gc_region (uint64_t total_size
 
     if (allocation_no_gc_loh != 0)
     {
-        current_no_gc_region_info.loh_allocation_size = static_cast<size_t>(allocation_no_gc_loh);
+        current_no_gc_region_info.loh_allocation_size = (size_t)allocation_no_gc_loh;
         size_per_heap = current_no_gc_region_info.loh_allocation_size;
 #ifdef MULTIPLE_HEAPS
         size_per_heap /= n_heaps;
@@ -17926,7 +17919,7 @@ void gc_heap::enque_pinned_plug (uint8_t* plug,
             // risks. This happens very rarely and fixing it in the
             // way so that we can continue is a bit involved and will
             // not be done in Dev10.
-            GCToEEInterface::HandleFatalError(CORINFO_EXCEPTION_GC);
+            GCToEEInterface::HandleFatalError((unsigned int)CORINFO_EXCEPTION_GC);
         }
     }
 
@@ -24308,6 +24301,7 @@ void gc_heap::relocate_survivor_helper (uint8_t* plug, uint8_t* plug_end)
 // if we expanded, right now we are not handling it as We are not saving the new reloc info.
 void gc_heap::verify_pins_with_post_plug_info (const char* msg)
 {
+    UNREFERENCED_PARAMETER(msg);
 #if defined  (_DEBUG) && defined (VERIFY_HEAP)
     if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
     {
@@ -24360,8 +24354,6 @@ void gc_heap::verify_pins_with_post_plug_info (const char* msg)
 
         dprintf (3, ("%s verified", msg));
     }
-#else // _DEBUG && VERIFY_HEAP
-    UNREFERENCED_PARAMETER(msg);
 #endif // _DEBUG && VERIFY_HEAP
 }
 
@@ -25017,7 +25009,7 @@ void gc_heap::copy_cards_range (uint8_t* dest, uint8_t* src, size_t len, BOOL co
         clear_card_for_addresses (dest, dest + len);
 }
 
-// POPO TODO: We should actually just recover the artifically made gaps here..because when we copy
+// POPO TODO: We should actually just recover the artificially made gaps here..because when we copy
 // we always copy the earlier plugs first which means we won't need the gap sizes anymore. This way
 // we won't need to individually recover each overwritten part of plugs.
 inline
@@ -26000,7 +25992,7 @@ BOOL gc_heap::commit_mark_array_bgc_init (uint32_t* mark_array_addr)
 // the mark_array flag for these segments will remain the same.
 BOOL gc_heap::commit_new_mark_array (uint32_t* new_mark_array_addr)
 {
-    dprintf (GC_TABLE_LOG, ("commiting existing segs on MA %Ix", new_mark_array_addr));
+    dprintf (GC_TABLE_LOG, ("committing existing segs on MA %Ix", new_mark_array_addr));
     generation* gen = generation_of (max_generation);
     heap_segment* seg = heap_segment_in_range (generation_start_segment (gen));
     while (1)
@@ -27229,7 +27221,7 @@ BOOL gc_heap::prepare_bgc_thread(gc_heap* gh)
     gh->bgc_threads_timeout_cs.Enter();
     if (!(gh->bgc_thread_running))
     {
-        dprintf (2, ("GC thread not runnning"));
+        dprintf (2, ("GC thread not running"));
         if ((gh->bgc_thread == 0) && create_bgc_thread(gh))
         {
             success = TRUE;
@@ -28554,7 +28546,7 @@ void gc_heap::count_plug (size_t last_plug_size, uint8_t*& last_plug)
     {
         deque_pinned_plug();
         update_oldest_pinned_plug();
-        dprintf (3, ("dequed pin,now oldest pin is %Ix", pinned_plug (oldest_pin())));
+        dprintf (3, ("deque pin,now oldest pin is %Ix", pinned_plug (oldest_pin())));
     }
     else
     {
@@ -30052,6 +30044,8 @@ void gc_heap::init_static_data()
             max (6*1024*1024,  min ( Align(soh_segment_size/2), 200*1024*1024)));
 #endif //MULTIPLE_HEAPS
 
+    gen0_max_size = max (gen0_min_size, gen0_max_size);
+
     if (heap_hard_limit)
     {
         size_t gen0_max_size_seg = soh_segment_size / 4;
@@ -30808,7 +30802,7 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
         heap_number, settings.condemned_generation, 
         fragmentation, (int)(fragmentation_burden * 100.0)));
 
-#ifdef STRESS_HEAP
+#if defined(STRESS_HEAP) && !defined(FEATURE_REDHAWK)
     // for pure GC stress runs we need compaction, for GC stress "mix"
     // we need to ensure a better mix of compacting and sweeping collections
     if (GCStress<cfg_any>::IsEnabled() && !settings.concurrent
@@ -30829,7 +30823,7 @@ BOOL gc_heap::decide_on_compacting (int condemned_gen_number,
         }
     }
 #endif // GC_STATS
-#endif //STRESS_HEAP
+#endif //defined(STRESS_HEAP) && !defined(FEATURE_REDHAWK)
 
     if (GCConfig::GetForceCompact())
         should_compact = TRUE;
@@ -31832,20 +31826,16 @@ void gc_heap::background_ephemeral_sweep()
             if (i >= 1)
             {
                 thread_gap (plug_end, end - plug_end, current_gen);
-                fix_brick_to_highest (plug_end, end);
             }
             else
             {
                 heap_segment_allocated (ephemeral_heap_segment) = plug_end;
                 // the following line is temporary.
                 heap_segment_saved_bg_allocated (ephemeral_heap_segment) = plug_end;
-#ifdef VERIFY_HEAP
-                if (GCConfig::GetHeapVerifyLevel() & GCConfig::HEAPVERIFY_GC)
-                {
-                    make_unused_array (plug_end, (end - plug_end));
-                }
-#endif //VERIFY_HEAP
+                make_unused_array (plug_end, (end - plug_end));
             }
+
+            fix_brick_to_highest (plug_end, end);
         }
 
         dd_fragmentation (dynamic_data_of (i)) = 
@@ -34678,7 +34668,7 @@ static int32_t GCStressCurCount = 0;
 static int32_t GCStressStartAtJit = -1;
 
 // the maximum number of foreground GCs we'll induce during one BGC
-// (this number does not include "naturally" occuring GCs).
+// (this number does not include "naturally" occurring GCs).
 static int32_t GCStressMaxFGCsPerBGC = -1;
 
 // CLRRandom implementation can produce FPU exceptions if 
@@ -34839,7 +34829,7 @@ bool GCHeap::StressHeap(gc_alloc_context * context)
         if (str)
         {
             // Chop off the end of the string and form a new object out of it.
-            // This will 'free' an object at the begining of the heap, which will
+            // This will 'free' an object at the beginning of the heap, which will
             // force data movement.  Note that we can only do this so many times.
             // before we have to move on to the next string.
             unsigned sizeOfNewObj = (unsigned)Align(min_obj_size * 31);
@@ -35561,7 +35551,7 @@ void gc_heap::record_interesting_info_per_heap()
             heap_number,
             (size_t)settings.gc_index,
             settings.condemned_generation,
-            // TEMP - I am just doing this for wks GC 'cuase I wanna see the pattern of doing C/S GCs.
+            // TEMP - I am just doing this for wks GC 'cause I wanna see the pattern of doing C/S GCs.
             (settings.compaction ? (((compact_reason >= 0) && gc_heap_compact_reason_mandatory_p[compact_reason]) ? "M" : "W") : ""), // compaction
             ((expand_mechanism >= 0)? "X" : ""), // EX
             ((expand_mechanism == expand_reuse_normal) ? "X" : ""), // NF
@@ -36003,7 +35993,7 @@ GCHeap::GarbageCollectGeneration (unsigned int gen, gc_reason reason)
 size_t      GCHeap::GetTotalBytesInUse ()
 {
 #ifdef MULTIPLE_HEAPS
-    //enumarate all the heaps and get their size.
+    //enumerate all the heaps and get their size.
     size_t tot_size = 0;
     for (int i = 0; i < gc_heap::n_heaps; i++)
     {
@@ -36234,10 +36224,10 @@ int GCHeap::GetLOHCompactionMode()
     return pGenGCHeap->loh_compaction_mode;
 }
 
-void GCHeap::SetLOHCompactionMode (int newLOHCompactionyMode)
+void GCHeap::SetLOHCompactionMode (int newLOHCompactionMode)
 {
 #ifdef FEATURE_LOH_COMPACTION
-    pGenGCHeap->loh_compaction_mode = (gc_loh_compaction_mode)newLOHCompactionyMode;
+    pGenGCHeap->loh_compaction_mode = (gc_loh_compaction_mode)newLOHCompactionMode;
 #endif //FEATURE_LOH_COMPACTION
 }
 
@@ -36350,7 +36340,7 @@ HRESULT GCHeap::GetGcCounters(int gen, gc_counters* counters)
     counters->promoted_size = 0;
     counters->collection_count = 0;
 
-    //enumarate all the heaps and get their counters.
+    //enumerate all the heaps and get their counters.
     for (int i = 0; i < gc_heap::n_heaps; i++)
     {
         dynamic_data* dd = gc_heap::g_heaps [i]->dynamic_data_of (gen);
@@ -36470,7 +36460,7 @@ Object* GCHeap::GetNextFinalizableObject()
         if (O)
             return O;
     }
-    //return the first non crtitical/critical one in the first queue.
+    //return the first non critical/critical one in the first queue.
     for (int hn = 0; hn < gc_heap::n_heaps; hn++)
     {
         gc_heap* hp = gc_heap::g_heaps [hn];
@@ -37611,5 +37601,7 @@ void PopulateDacVars(GcDacVars *gcDacVars)
     gcDacVars->n_heaps = &gc_heap::n_heaps;
     gcDacVars->g_heaps = reinterpret_cast<dac_gc_heap***>(&gc_heap::g_heaps);
 #endif // MULTIPLE_HEAPS
+#else
+    UNREFERENCED_PARAMETER(gcDacVars);
 #endif // DACCESS_COMPILE
 }

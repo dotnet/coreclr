@@ -94,7 +94,7 @@ private:
     unsigned int GenerateSessionIndex() const
     {
         LIMITED_METHOD_CONTRACT;
-        _ASSERTE(EventPipe::MaxNumberOfSessions == 64);
+
         uint64_t id = 1;
         for (unsigned int i = 0; i < 64; ++i, id <<= i)
             if ((m_activeSessions & id) == 0)
@@ -106,7 +106,7 @@ private:
     EventPipeProvider *GetProviderNoLock(const SString &providerID);
 
     // Get the enabled provider.
-    EventPipeSessionProvider *GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider);
+    EventPipeSessionProvider *GetSessionProvider(const EventPipeSession &session, EventPipeProvider *pProvider);
 
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider *>> *m_pProviderList = nullptr;

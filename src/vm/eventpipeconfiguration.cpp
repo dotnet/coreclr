@@ -51,6 +51,7 @@ void EventPipeConfiguration::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(m_activeSessions == 0);
     }
     CONTRACTL_END;
 
@@ -266,7 +267,7 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     return NULL;
 }
 
-EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(EventPipeSession &session, EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const EventPipeSession &session, EventPipeProvider *pProvider)
 {
     CONTRACTL
     {
@@ -394,9 +395,16 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
 
             if (pProvider->IsEnabled(session.GetId()))
             {
-                EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
-                    session.GetId());
-                pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+                EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
+                if (pSessionProvider != nullptr)
+                {
+                    EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
+                        session.GetId(),
+                        pSessionProvider->GetKeywords(),
+                        pSessionProvider->GetLevel(),
+                        pSessionProvider->GetFilterData());
+                    pEventPipeProviderCallbackDataQueue->Enqueue(&eventPipeProviderCallbackData);
+                }
             }
 
             pElem = m_pProviderList->GetNext(pElem);

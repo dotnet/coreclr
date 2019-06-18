@@ -45,6 +45,7 @@ jobs:
 ##           \---------> Pri1 -----------------> plain runtests
 ##           |                \----------------> jitstress
 ##           |                \----------------> gcstress
+##           |                \----------------> runincontext
 ##           |                \----------------> maybe more (dynamically selected runtest modes)
 ##           |
 ##           \---------> Pri1 crossgen --------> plain runtests
@@ -89,16 +90,16 @@ jobs:
 #
 # Debug builds
 #
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
       buildConfig: debug
-      ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+      ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
         platforms:
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      ${{ if and(in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
         platforms:
         - Linux_arm
         - Linux_arm64
@@ -111,7 +112,7 @@ jobs:
         - Windows_NT_arm64
 
 #
-# Checked build
+# Checked builds
 #
 - ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
@@ -129,13 +130,10 @@ jobs:
         - Windows_NT_arm64
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra', 'coreclr-outerloop-r2r', 'coreclr-outerloop-r2r-extra') }}:
-        platforms:
-        - Linux_arm
-        - Linux_arm64
-        - Linux_x64
-        - Windows_NT_x64
-        - Windows_NT_x86
+      ${{ if and(in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+        platformGroup: all
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop', 'coreclr-outerloop-jitstress', 'coreclr-outerloop-jitstressregs', 'coreclr-outerloop-jitstress2-jitstressregs') }}:
+        platformGroup: all
       ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
         platforms:
         - Linux_arm64
@@ -151,16 +149,34 @@ jobs:
         - Linux_x64
         - Windows_NT_x64
         - Windows_NT_x86
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra', 'coreclr-outerloop-r2r-extra') }}:
+        platformGroup: gcstress
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r') }}:
+        platforms:
+        - Linux_arm
+        - Linux_arm64
+        - Linux_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-corefx', 'coreclr-corefx-jitstress', 'coreclr-corefx-jitstressregs', 'coreclr-corefx-jitstress2-jitstressregs') }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-runincontext') }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
 
 #
 # Release builds
 #
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
       buildConfig: release
-      ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+      ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
         platforms:
         - Linux_arm64
         - Linux_musl_x64
@@ -168,7 +184,7 @@ jobs:
         - Windows_NT_arm
         - Windows_NT_arm64
         - Windows_NT_x64
-      ${{ if in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI') }}:
+      ${{ if and(in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
         platforms:
         - Linux_arm
         - Linux_musl_arm64
@@ -176,14 +192,12 @@ jobs:
         - OSX_x64
         - Windows_NT_x86
 
-#
-# Release builds (Official build) - non-PullRequest
-#
 - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: build-job.yml
       buildConfig: release
+      platformGroup: all
       jobParameters:
         # Publishing packages to blob feeds sometimes takes a long time
         # due to waiting for an exclusive lock on the feed.
@@ -210,13 +224,8 @@ jobs:
         - Windows_NT_arm64
         - Windows_NT_x64
         - Windows_NT_x86
-      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra', 'coreclr-outerloop-r2r', 'coreclr-outerloop-r2r-extra') }}:
-        platforms:
-        - Linux_arm
-        - Linux_arm64
-        - Linux_x64
-        - Windows_NT_x64
-        - Windows_NT_x86
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop', 'coreclr-outerloop-jitstress', 'coreclr-outerloop-jitstressregs', 'coreclr-outerloop-jitstress2-jitstressregs') }}:
+        platformGroup: all
       ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
         platforms:
         - Linux_arm64
@@ -232,69 +241,110 @@ jobs:
         - Linux_x64
         - Windows_NT_x64
         - Windows_NT_x86
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc', 'coreclr-outerloop-gcstress-extra') }}:
+        platformGroup: gcstress
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-runincontext') }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
       jobParameters:
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
           testGroup: innerloop
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop') }}:
           testGroup: outerloop
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress') }}:
-          testGroup: outerloop-jitstress
+          testGroup: jitstress
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-arm') }}:
-          testGroup: outerloop-jitstress-isas-arm
+          testGroup: jitstress-isas-arm
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress-isas-x86') }}:
-          testGroup: outerloop-jitstress-isas-x86
+          testGroup: jitstress-isas-x86
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstressregs-x86') }}:
-          testGroup: outerloop-jitstressregs-x86
+          testGroup: jitstressregs-x86
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstressregs') }}:
-          testGroup: outerloop-jitstressregs
+          testGroup: jitstressregs
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress2-jitstressregs') }}:
-          testGroup: outerloop-jitstress2-jitstressregs
+          testGroup: jitstress2-jitstressregs
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc') }}:
-          testGroup: outerloop-gcstress0x3-gcstress0xc
+          testGroup: gcstress0x3-gcstress0xc
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress-extra') }}:
-          testGroup: outerloop-gcstress-extra
+          testGroup: gcstress-extra
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-runincontext') }}:
+          testGroup: outerloop
+          runInUnloadableContext: true
+          displayNameArgs: RunInContext
+
+# ReadyToRun test jobs that are triggered by default from a PR.
+
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
+  - template: eng/platform-matrix.yml
+    parameters:
+      jobTemplate: test-job.yml
+      buildConfig: checked
+      ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+        platforms:
+        - Linux_x64
+        - OSX_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r') }}:
+        platforms:
+        - Linux_arm
+        - Linux_arm64
+        - Linux_x64
+        - Windows_NT_x64
+        - Windows_NT_x86
+      ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r-extra') }}:
+        platformGroup: gcstress # r2r-extra testGroup runs gcstress15 scenario
+      jobParameters:
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
+          testGroup: innerloop
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r') }}:
           testGroup: outerloop
-          readyToRun: true
-          displayNameArgs: R2R
         ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r-extra') }}:
-          testGroup: outerloop-r2r-extra
-          readyToRun: true
-          displayNameArgs: R2R
+          testGroup: r2r-extra
+        readyToRun: true
+        displayNameArgs: R2R
 
-# The ReadyToRun test jobs that are triggered by default from a PR.
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+#
+# CoreFX test runs against CoreCLR
+#
+
+- ${{ if eq(variables['System.TeamProject'], 'public') }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
-      platforms:
-      - Linux_x64
-      - OSX_x64
-      - Windows_NT_x64
-      - Windows_NT_x86
+      ${{ if and(eq(variables['Build.Reason'], 'PullRequest'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
+      ${{ if in(variables['Build.DefinitionName'], 'coreclr-corefx', 'coreclr-corefx-jitstress', 'coreclr-corefx-jitstressregs', 'coreclr-corefx-jitstress2-jitstressregs') }}:
+        platforms:
+        - Linux_x64
+        - Windows_NT_x64
       jobParameters:
-        readyToRun: true
-        testGroup: innerloop
-        displayNameArgs: R2R
-  # The CoreFX runs against CoreCLR
-  - template: eng/platform-matrix.yml
-    parameters:
-      jobTemplate: test-job.yml
-      buildConfig: release
-      platforms:
-      - Windows_NT_x64
-      jobParameters:
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-ci') }}:
+          testGroup: innerloop
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx') }}:
+          testGroup: outerloop
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstress') }}:
+          testGroup: jitstress
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstressregs') }}:
+          testGroup: jitstressregs
+        ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstress2-jitstressregs') }}:
+          testGroup: jitstress2-jitstressregs
         corefxTests: true
-        testGroup: innerloop
         displayNameArgs: CoreFX
 
-# CI
-- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI')) }}:
+# CI (merge) jobs
+
+- ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'IndividualCI', 'BatchedCI'), eq(variables['Build.DefinitionName'], 'coreclr-ci')) }}:
   - template: eng/platform-matrix.yml
     parameters:
       jobTemplate: test-job.yml
       buildConfig: checked
+      platformGroup: all
       jobParameters:
         testGroup: outerloop
 
@@ -314,8 +364,8 @@ jobs:
       - Windows_NT_arm
       - Windows_NT_arm64
       jobParameters:
-        readyToRun: true
         testGroup: outerloop
+        readyToRun: true
         displayNameArgs: R2R
 
 #
@@ -339,6 +389,7 @@ jobs:
     parameters:
       jobTemplate: test-job.yml
       buildConfig: release
+      platformGroup: all
       jobParameters:
         testGroup: outerloop
 
@@ -346,6 +397,7 @@ jobs:
     parameters:
       jobTemplate: test-job.yml
       buildConfig: release
+      platformGroup: all
       jobParameters:
         testGroup: outerloop
         readyToRun: true
