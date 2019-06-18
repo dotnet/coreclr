@@ -572,7 +572,7 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
 //
 // Arguments:
 //     initReg          - register to use as a scratch register
-//     pInitRegModified - OUT parameter. *pInitRegModified is set to 'false' if and only if
+//     pInitRegModified - OUT parameter. *pInitRegModified is set to 'true' if and only if
 //                      this call sets 'initReg' to a non-zero value.
 //
 // Return Value:
@@ -602,7 +602,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegModified)
         getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
     }
 
-    *pInitRegModified = false;
+    *pInitRegModified = true;
 }
 
 //---------------------------------------------------------------------
@@ -3909,7 +3909,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
             instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, -(ssize_t)probeOffset);
             getEmitter()->emitIns_R_R_R(INS_ldr, EA_4BYTE, rTemp, REG_SPBASE, initReg);
             regSet.verifyRegUsed(initReg);
-            *pInitRegModified = false; // The initReg does not contain zero
+            *pInitRegModified = true; // The initReg does not contain zero
 
 #ifdef _TARGET_ARM64_
             lastTouchDelta -= pageSize;
@@ -4003,7 +4003,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, rLimit, rOffset); // If equal, we need to probe again
         getEmitter()->emitIns_J(INS_bls, NULL, -4);
 
-        *pInitRegModified = false; // The initReg does not contain zero
+        *pInitRegModified = true; // The initReg does not contain zero
 
         compiler->unwindPadding();
 
@@ -4025,7 +4025,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
         compiler->unwindPadding();
 
         regSet.verifyRegUsed(initReg);
-        *pInitRegModified = false; // The initReg does not contain zero
+        *pInitRegModified = true; // The initReg does not contain zero
     }
 #endif // _TARGET_ARM64_
 

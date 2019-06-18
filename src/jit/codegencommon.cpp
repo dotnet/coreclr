@@ -6122,7 +6122,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 #else // !define(_TARGET_ARM_)
 
         rAddr             = initReg;
-        *pInitRegModified = false;
+        *pInitRegModified = true;
 
 #endif // !defined(_TARGET_ARM_)
 
@@ -6163,7 +6163,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             // Load immediate into the InitReg register
             instGen_Set_Reg_To_Imm(EA_PTRSIZE, initReg, (ssize_t)untrLclLo);
             getEmitter()->emitIns_R_R_R(INS_add, EA_PTRSIZE, rAddr, genFramePointerReg(), initReg);
-            *pInitRegModified = false;
+            *pInitRegModified = true;
         }
 
         if (useLoop)
@@ -6462,7 +6462,7 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegModifi
         // We will just use the initReg since it is an available register
         // and we are probably done using it anyway...
         reg               = initReg;
-        *pInitRegModified = false;
+        *pInitRegModified = true;
 
         // mov reg, [compiler->info.compTypeCtxtArg]
         getEmitter()->emitIns_R_AR(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, genFramePointerReg(), varDsc->lvStkOffs);
@@ -6490,7 +6490,7 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegModifi
 //
 // Arguments:
 //     initReg          - register to use as scratch register
-//     pInitRegModified - OUT parameter. *pInitRegModified set to 'false' if 'initReg' is
+//     pInitRegModified - OUT parameter. *pInitRegModified set to 'true' if 'initReg' is
 //                      not zero after this call.
 //
 // Return Value:
@@ -6648,7 +6648,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegModifie
     // If initReg is one of RBM_CALLEE_TRASH, then it needs to be zero'ed before using.
     if ((RBM_CALLEE_TRASH & genRegMask(initReg)) != 0)
     {
-        *pInitRegModified = false;
+        *pInitRegModified = true;
     }
 
 #else // !defined(UNIX_AMD64_ABI)
@@ -6697,7 +6697,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegModifie
     // If initReg is one of RBM_CALLEE_TRASH, then it needs to be zero'ed before using.
     if ((RBM_CALLEE_TRASH & genRegMask(initReg)) != 0)
     {
-        *pInitRegModified = false;
+        *pInitRegModified = true;
     }
 
 #endif // !defined(UNIX_AMD64_ABI)
@@ -6770,7 +6770,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegModifie
 #elif defined(_TARGET_ARM_)
     if (initReg == argReg)
     {
-        *pInitRegModified = false;
+        *pInitRegModified = true;
     }
 #else  // _TARGET_*
     NYI("Pushing the profilerHandle & caller's sp for the profiler callout and locking registers");
@@ -9820,7 +9820,7 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegModified)
     // We will just use the initReg since it is an available register
     // and we are probably done using it anyway...
     regNumber regTmp   = initReg;
-    *pInitRegModified  = false;
+    *pInitRegModified  = true;
 
     getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regTmp, regBase, callerSPOffs);
     getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
@@ -9832,7 +9832,7 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegModified)
     // We will just use the initReg since it is an available register
     // and we are probably done using it anyway...
     regNumber regTmp   = initReg;
-    *pInitRegModified  = false;
+    *pInitRegModified  = true;
 
     getEmitter()->emitIns_R_R_Imm(INS_add, EA_PTRSIZE, regTmp, REG_SPBASE, SPtoCallerSPdelta);
     getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);

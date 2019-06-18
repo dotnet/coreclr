@@ -54,7 +54,7 @@ void CodeGen::genSetRegToIcon(regNumber reg, ssize_t val, var_types type, insFla
 //
 // Arguments:
 //     initReg          - register to use as a scratch register
-//     pInitRegModified - OUT parameter. *pInitRegModified is set to 'false' if and only if
+//     pInitRegModified - OUT parameter. *pInitRegModified is set to 'true' if and only if
 //                      this call sets 'initReg' to a non-zero value.
 //
 // Return Value:
@@ -78,7 +78,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegModified)
             // initReg = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = initReg
             genSetRegToIcon(initReg, compiler->gsGlobalSecurityCookieVal, TYP_I_IMPL);
             getEmitter()->emitIns_S_R(INS_mov, EA_PTRSIZE, initReg, compiler->lvaGSSecurityCookie, 0);
-            *pInitRegModified = false;
+            *pInitRegModified = true;
         }
         else
 #endif
@@ -99,7 +99,7 @@ void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegModified)
         getEmitter()->emitIns_S_R(INS_mov, EA_PTRSIZE, REG_EAX, compiler->lvaGSSecurityCookie, 0);
         if (initReg == REG_EAX)
         {
-            *pInitRegModified = false;
+            *pInitRegModified = true;
         }
     }
 }
@@ -2389,7 +2389,7 @@ void CodeGen::genAllocLclFrame(unsigned frameSize, regNumber initReg, bool* pIni
 
 #endif // _TARGET_UNIX_
 
-        *pInitRegModified = false; // The initReg does not contain zero
+        *pInitRegModified = true; // The initReg does not contain zero
 
         if (pushedStubParam)
         {
