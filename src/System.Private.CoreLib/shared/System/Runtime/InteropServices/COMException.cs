@@ -61,7 +61,7 @@ namespace System.Runtime.InteropServices
             Exception? innerException = InnerException;
             if (innerException != null)
             {
-                s.Append(" ---> ").Append(innerException.ToString());
+                s.Append(InnerExceptionPrefix).Append(innerException.ToString());
             }
 
             string? stackTrace = StackTrace;
