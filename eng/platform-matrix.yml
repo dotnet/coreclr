@@ -199,7 +199,7 @@ jobs:
         - Windows.7.Amd64.Open
         - Windows.81.Amd64.Open
         - Windows.10.Amd64.Open
-      - ${{ if or(eq(parameters.helixQueueGroup, 'all'), and(ne(parameters.helixQueueGroup, ''), eq(variables['System.TeamProject'], 'internal'))) }}:
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - Windows.7.Amd64
         - Windows.81.Amd64
         - Windows.10.Amd64
@@ -223,7 +223,7 @@ jobs:
         - Windows.7.Amd64.Open
         - Windows.81.Amd64.Open
         - Windows.10.Amd64.Open
-      - ${{ if or(eq(parameters.helixQueueGroup, 'all'), and(ne(parameters.helixQueueGroup, ''), eq(variables['System.TeamProject'], 'internal'))) }}:
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - Windows.7.Amd64
         - Windows.81.Amd64
         - Windows.10.Amd64
