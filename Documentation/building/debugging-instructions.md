@@ -35,7 +35,7 @@ Debugging CoreCLR on Linux and macOS
 
 See the SOS installation instructions [here](https://github.com/dotnet/diagnostics/blob/master/documentation/installing-sos-windows-instructions.md). After SOS is installed, it will automatically be loaded by lldb.
 
-Only lldb is supported by the SOS. gdb can be used to debug the coreclr code but with no SOS support. Visual Studio 2015 RTM remote debugging isn't currently supported.
+Only lldb is supported by SOS. Gdb can be used to debug the coreclr code but with no SOS support.
 
 1. Perform a build of the coreclr repo.
 2. Install the corefx managed assemblies to the binaries directory.
