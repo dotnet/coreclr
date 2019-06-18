@@ -451,6 +451,9 @@ namespace System
 
             for (int i = 0; i < m_innerExceptions.Count; i++)
             {
+                if (m_innerExceptions[i] == InnerException)
+                    continue; // Already logged in base.ToString()
+
                 text.AppendLine();
                 text.Append("---> ");
                 text.AppendFormat(CultureInfo.InvariantCulture, SR.AggregateException_InnerException, i);
