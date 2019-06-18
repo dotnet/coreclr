@@ -23,13 +23,13 @@ Revision History:
 #include "pal/thread.hpp"
 
 #include "pal/palinternal.h"
-#include "pal/unicode_data.h"
 #include "pal/dbgmsg.h"
 #include "pal/file.h"
 #include "pal/utf8.h"
 #include "pal/locale.h"
 #include "pal/cruntime.h"
 #include "pal/stackstring.hpp"
+#include "pal/unicodedata.h"
 
 #if !(HAVE_PTHREAD_RWLOCK_T || HAVE_COREFOUNDATION)
 #error Either pthread rwlocks or Core Foundation are required for Unicode support
@@ -80,7 +80,6 @@ static const CP_MAPPING CP_TO_NATIVE_TABLE[] = {
 // - We want Ansi marshalling to mean marshal to UTF-8 on Mac and Linux
 static const UINT PAL_ACP = 65001;
 
-#if !HAVE_COREFOUNDATION
 /*++
 Function:
 UnicodeDataComp
@@ -101,22 +100,18 @@ Return value:
 static int UnicodeDataComp(const void *pnKey, const void *elem)
 {
     WCHAR uValue = ((UnicodeDataRec*)elem)->nUnicodeValue;
-    WORD  rangeValue = ((UnicodeDataRec*)elem)->rangeValue;
 
     if (*((INT*)pnKey) < uValue)
     {
         return -1;
     }
+    else if (*((INT*)pnKey) > uValue)
+    {
+        return 1;
+    }
     else
     {
-        if (*((INT*)pnKey) > (uValue + rangeValue))
-        {
-            return 1;
-        }
-        else
-        {
-            return 0;
-        }
+        return 0;
     }
 }
 
@@ -136,32 +131,86 @@ TRUE if the Unicode character was found.
 
 --*/
 BOOL GetUnicodeData(INT nUnicodeValue, UnicodeDataRec *pDataRec)
-{
-    BOOL bRet;
-    if (nUnicodeValue <= (INT)UNICODE_DATA_DIRECT_ACCESS)
+{ 
+    BOOL bRet; 
+
+    UnicodeDataRec *dataRec;
+    INT nNumOfChars = UNICODE_DATA_SIZE;
+    dataRec = (UnicodeDataRec *) bsearch(&nUnicodeValue, UnicodeData, nNumOfChars,
+                   sizeof(UnicodeDataRec), UnicodeDataComp);
+    if (dataRec == NULL)
     {
-        *pDataRec = UnicodeData[nUnicodeValue];
-        bRet = TRUE;
+        bRet = FALSE;
     }
     else
     {
-        UnicodeDataRec *dataRec;
-        INT nNumOfChars = UNICODE_DATA_SIZE;
-        dataRec = (UnicodeDataRec *) bsearch(&nUnicodeValue, UnicodeData, nNumOfChars,
-                       sizeof(UnicodeDataRec), UnicodeDataComp);
-        if (dataRec == NULL)
-        {
-            bRet = FALSE;
-        }
-        else
-        {
-            bRet = TRUE;
-            *pDataRec = *dataRec;
-        }
+        bRet = TRUE;
+        *pDataRec = *dataRec;
     }
     return bRet;
 }
-#endif /* !HAVE_COREFOUNDATION */
+
+wchar_16
+__cdecl
+PAL_ToUpperInvariant( wchar_16 c )
+{
+    UnicodeDataRec dataRec;
+
+    PERF_ENTRY(PAL_ToUpperInvariant);
+    ENTRY("PAL_ToUpperInvariant (c=%d)\n", c);
+
+    if (!GetUnicodeData(c, &dataRec))
+    {
+        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
+        LOGEXIT("PAL_ToUpperInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToUpperInvariant);
+        return c;
+    }
+
+    if ( dataRec.nFlag != LOWER_CASE )
+    {
+        LOGEXIT("PAL_ToUpperInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToUpperInvariant);
+        return c;
+    }
+    else
+    {
+        LOGEXIT("PAL_ToUpperInvariant returns int %d\n", dataRec.nOpposingCase );
+        PERF_EXIT(PAL_ToUpperInvariant);
+        return dataRec.nOpposingCase;
+    }
+}
+
+wchar_16
+__cdecl
+PAL_ToLowerInvariant( wchar_16 c )
+{
+    UnicodeDataRec dataRec;
+
+    PERF_ENTRY(PAL_ToLowerInvariant);
+    ENTRY("PAL_ToLowerInvariant (c=%d)\n", c);
+
+    if (!GetUnicodeData(c, &dataRec))
+    {
+        TRACE( "Unable to retrieve unicode data for the character %c.\n", c );
+        LOGEXIT("PAL_ToLowerInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToLowerInvariant);
+        return c;
+    }
+
+    if ( dataRec.nFlag != UPPER_CASE )
+    {
+        LOGEXIT("PAL_ToLowerInvariant returns int %d\n", c );
+        PERF_EXIT(PAL_ToLowerInvariant);
+        return c;
+    }
+    else
+    {
+        LOGEXIT("PAL_ToLowerInvariant returns int %d\n", dataRec.nOpposingCase );
+        PERF_EXIT(PAL_ToLowerInvariant);
+        return dataRec.nOpposingCase;
+    }
+}
 
 /*++
 Function:

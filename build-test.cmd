@@ -33,7 +33,7 @@ if %__ProjectDir:~-1%==\ set "__ProjectDir=%__ProjectDir:~0,-1%"
 set "__TestDir=%__ProjectDir%\tests"
 set "__ProjectFilesDir=%__TestDir%"
 set "__SourceDir=%__ProjectDir%\src"
-set "__PackagesDir=%__ProjectDir%\packages"
+set "__PackagesDir=%__ProjectDir%\.packages"
 set "__RootBinDir=%__ProjectDir%\bin"
 set "__LogsDir=%__RootBinDir%\Logs"
 set "__MsbuildDebugLogsDir=%__LogsDir%\MsbuildDebugLogs"
@@ -166,6 +166,9 @@ REM ===
 REM =========================================================================================
 
 call "%__ProjectDir%\init-tools.cmd"
+if NOT [%ERRORLEVEL%]==[0] (
+    exit /b %ERRORLEVEL%
+)
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
@@ -177,6 +180,10 @@ REM ===
 REM =========================================================================================
 
 call "%__TestDir%\setup-stress-dependencies.cmd" /arch %__BuildArch% /outputdir %__BinDir%
+if errorlevel 1 (
+    echo %__MsgPrefix%Error: setup-stress-dependencies failed.
+    goto     :Exit_Failure
+)
 @if defined _echo @echo on
 
 REM =========================================================================================
@@ -206,7 +213,8 @@ if not defined VSINSTALLDIR (
 if not exist "%VSINSTALLDIR%DIA SDK" goto NoDIA
 
 pushd "%__NativeTestIntermediatesDir%"
-call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch%
+set __ExtraCmakeArgs="-DCMAKE_SYSTEM_VERSION=10.0"
+call "%__SourceDir%\pal\tools\gen-buildsys-win.bat" ""%__ProjectFilesDir%"" %__VSVersion% %__BuildArch% !__ExtraCmakeArgs!
 @if defined _echo @echo on
 popd
 

@@ -117,7 +117,6 @@ static InstructionSet X64VersionOfIsa(InstructionSet isa)
             return InstructionSet_POPCNT_X64;
         default:
             unreached();
-            return InstructionSet_ILLEGAL;
     }
 }
 
@@ -396,10 +395,7 @@ GenTree* HWIntrinsicInfo::lookupLastOp(const GenTreeHWIntrinsic* node)
         }
 
         default:
-        {
             unreached();
-            return nullptr;
-        }
     }
 }
 
@@ -660,7 +656,6 @@ GenTree* Compiler::impNonConstFallback(NamedIntrinsic intrinsic, var_types simdT
 
         default:
             unreached();
-            return nullptr;
     }
 }
 
@@ -715,17 +710,18 @@ GenTree* Compiler::addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* last
 // Arguments:
 //    isa - Instruction set
 // Return Value:
-//    true if
+//    true if EnableHWIntrinsic=true and
 //    - isa is a scalar ISA
 //    - isa is a SIMD ISA and featureSIMD=true
 //    - isa is fully implemented or EnableIncompleteISAClass=true
 bool Compiler::compSupportsHWIntrinsic(InstructionSet isa)
 {
-    return (featureSIMD || HWIntrinsicInfo::isScalarIsa(isa)) && (
+    return JitConfig.EnableHWIntrinsic() && (featureSIMD || HWIntrinsicInfo::isScalarIsa(isa)) &&
+           (
 #ifdef DEBUG
-                                                                     JitConfig.EnableIncompleteISAClass() ||
+               JitConfig.EnableIncompleteISAClass() ||
 #endif
-                                                                     HWIntrinsicInfo::isFullyImplementedIsa(isa));
+               HWIntrinsicInfo::isFullyImplementedIsa(isa));
 }
 
 //------------------------------------------------------------------------
@@ -756,6 +752,7 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
 //    the expanded intrinsic.
 //
 GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
+                                  CORINFO_CLASS_HANDLE  clsHnd,
                                   CORINFO_METHOD_HANDLE method,
                                   CORINFO_SIG_INFO*     sig,
                                   bool                  mustExpand)
@@ -904,9 +901,9 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
                 op3 = addRangeCheckIfNeeded(intrinsic, op3, mustExpand);
 
-                argType = JITtype2varType(strip(info.compCompHnd->getArgType(sig, arg2, &argClass)));
-                op2     = getArgForHWIntrinsic(argType, argClass);
-                var_types op2Type;
+                argType           = JITtype2varType(strip(info.compCompHnd->getArgType(sig, arg2, &argClass)));
+                op2               = getArgForHWIntrinsic(argType, argClass);
+                var_types op2Type = TYP_UNDEF;
                 if (intrinsic == NI_AVX2_GatherVector128 || intrinsic == NI_AVX2_GatherVector256)
                 {
                     assert(varTypeIsSIMD(op2->TypeGet()));
@@ -953,7 +950,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
     {
         case InstructionSet_Vector128:
         case InstructionSet_Vector256:
-            return impBaseIntrinsic(intrinsic, method, sig, mustExpand);
+            return impBaseIntrinsic(intrinsic, clsHnd, method, sig, mustExpand);
         case InstructionSet_SSE:
             return impSSEIntrinsic(intrinsic, method, sig, mustExpand);
         case InstructionSet_SSE2:
@@ -1001,6 +998,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 //    the expanded intrinsic.
 //
 GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                                    CORINFO_CLASS_HANDLE  clsHnd,
                                     CORINFO_METHOD_HANDLE method,
                                     CORINFO_SIG_INFO*     sig,
                                     bool                  mustExpand)
@@ -1034,11 +1032,14 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
             retType = getSIMDTypeForSize(retSimdSize);
         }
     }
-    else
+    else if (retType == TYP_STRUCT)
     {
-        assert(retType == TYP_STRUCT);
         baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeClass, &simdSize);
         retType  = getSIMDTypeForSize(simdSize);
+    }
+    else
+    {
+        baseType = getBaseTypeAndSizeOfSIMDType(clsHnd, &simdSize);
     }
 
     if (!varTypeIsArithmetic(baseType))
@@ -1090,6 +1091,17 @@ GenTree* Compiler::impBaseIntrinsic(NamedIntrinsic        intrinsic,
             retNode = impSIMDPopStack(retType, /* expectAddr: */ false, sig->retTypeClass);
             SetOpLclRelatedToSIMDIntrinsic(retNode);
             assert(retNode->gtType == getSIMDTypeForSize(getSIMDTypeSizeInBytes(sig->retTypeSigClass)));
+            break;
+        }
+
+        case NI_Vector128_Count:
+        case NI_Vector256_Count:
+        {
+            assert(sig->numArgs == 0);
+
+            GenTreeIntCon* countNode = gtNewIconNode(getSIMDVectorLength(simdSize, baseType), TYP_INT);
+            countNode->gtFlags |= GTF_ICON_SIMD_COUNT;
+            retNode = countNode;
             break;
         }
 
@@ -1941,10 +1953,7 @@ GenTree* Compiler::impBMI1OrBMI2Intrinsic(NamedIntrinsic        intrinsic,
         }
 
         default:
-        {
             unreached();
-            return nullptr;
-        }
     }
 }
 

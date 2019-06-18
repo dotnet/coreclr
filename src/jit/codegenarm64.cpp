@@ -634,6 +634,8 @@ void CodeGen::genSaveCalleeSavedRegisterGroup(regMaskTP regsMask, int spDelta, i
 void CodeGen::genSaveCalleeSavedRegistersHelp(regMaskTP regsToSaveMask, int lowestCalleeSavedOffset, int spDelta)
 {
     assert(spDelta <= 0);
+    assert(-spDelta <= STACK_PROBE_BOUNDARY_THRESHOLD_BYTES);
+
     unsigned regsToSaveCount = genCountBits(regsToSaveMask);
     if (regsToSaveCount == 0)
     {
@@ -1178,13 +1180,13 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
 
             // Load the CallerSP of the main function (stored in the PSP of the dynamically containing funclet or
             // function)
-            genInstrWithConstant(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1,
-                                 genFuncletInfo.fiCallerSP_to_PSP_slot_delta, REG_R2, false);
+            genInstrWithConstant(INS_ldr, EA_PTRSIZE, REG_R1, REG_R1, genFuncletInfo.fiCallerSP_to_PSP_slot_delta,
+                                 REG_R2, false);
             regSet.verifyRegUsed(REG_R1);
 
             // Store the PSP value (aka CallerSP)
-            genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE,
-                                 genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2, false);
+            genInstrWithConstant(INS_str, EA_PTRSIZE, REG_R1, REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2,
+                                 false);
 
             // re-establish the frame pointer
             genInstrWithConstant(INS_add, EA_PTRSIZE, REG_FPBASE, REG_R1,
@@ -1199,8 +1201,8 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
                                  -genFuncletInfo.fiFunction_CallerSP_to_FP_delta, REG_R2, false);
             regSet.verifyRegUsed(REG_R3);
 
-            genInstrWithConstant(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE,
-                                 genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2, false);
+            genInstrWithConstant(INS_str, EA_PTRSIZE, REG_R3, REG_SPBASE, genFuncletInfo.fiSP_to_PSP_slot_delta, REG_R2,
+                                 false);
         }
     }
 }
@@ -1507,7 +1509,7 @@ BasicBlock* CodeGen::genCallFinally(BasicBlock* block)
 
     if (compiler->lvaPSPSym != BAD_VAR_NUM)
     {
-        getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R0, compiler->lvaPSPSym, 0);
+        getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, REG_R0, compiler->lvaPSPSym, 0);
     }
     else
     {
@@ -1843,9 +1845,7 @@ void CodeGen::genCodeForLclVar(GenTreeLclVar* tree)
         assert(targetType != TYP_STRUCT);
 
         instruction ins  = ins_Load(targetType);
-        emitAttr    attr = emitTypeSize(targetType);
-
-        attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
+        emitAttr    attr = emitActualTypeSize(targetType);
 
         emit->emitIns_R_S(ins, attr, tree->gtRegNum, varNum, 0);
         genProduceReg(tree);
@@ -1905,9 +1905,7 @@ void CodeGen::genCodeForStoreLclFld(GenTreeLclFld* tree)
 
     instruction ins = ins_Store(targetType);
 
-    emitAttr attr = emitTypeSize(targetType);
-
-    attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
+    emitAttr attr = emitActualTypeSize(targetType);
 
     emit->emitIns_S_R(ins, attr, dataReg, varNum, offset);
 
@@ -1984,9 +1982,7 @@ void CodeGen::genCodeForStoreLclVar(GenTreeLclVar* tree)
             inst_set_SV_var(tree);
 
             instruction ins  = ins_Store(targetType);
-            emitAttr    attr = emitTypeSize(targetType);
-
-            attr = varTypeIsFloating(targetType) ? attr : emit->emitInsAdjustLoadStoreAttr(ins, attr);
+            emitAttr    attr = emitActualTypeSize(targetType);
 
             emit->emitIns_S_R(ins, attr, dataReg, varNum, /* offset */ 0);
 
@@ -2070,14 +2066,17 @@ void CodeGen::genLclHeap(GenTree* tree)
     GenTree* size = tree->gtOp.gtOp1;
     noway_assert((genActualType(size->gtType) == TYP_INT) || (genActualType(size->gtType) == TYP_I_IMPL));
 
-    regNumber   targetReg       = tree->gtRegNum;
-    regNumber   regCnt          = REG_NA;
-    regNumber   pspSymReg       = REG_NA;
-    var_types   type            = genActualType(size->gtType);
-    emitAttr    easz            = emitTypeSize(type);
-    BasicBlock* endLabel        = nullptr;
-    BasicBlock* loop            = nullptr;
-    unsigned    stackAdjustment = 0;
+    regNumber            targetReg                = tree->gtRegNum;
+    regNumber            regCnt                   = REG_NA;
+    regNumber            pspSymReg                = REG_NA;
+    var_types            type                     = genActualType(size->gtType);
+    emitAttr             easz                     = emitTypeSize(type);
+    BasicBlock*          endLabel                 = nullptr;
+    BasicBlock*          loop                     = nullptr;
+    unsigned             stackAdjustment          = 0;
+    const target_ssize_t ILLEGAL_LAST_TOUCH_DELTA = (target_ssize_t)-1;
+    target_ssize_t       lastTouchDelta =
+        ILLEGAL_LAST_TOUCH_DELTA; // The number of bytes from SP to the last stack address probed.
 
     noway_assert(isFramePointerUsed()); // localloc requires Frame Pointer to be established since SP changes
     noway_assert(genStackLevel == 0);   // Can't have anything on the stack
@@ -2131,8 +2130,6 @@ void CodeGen::genLclHeap(GenTree* tree)
         inst_RV_IV(INS_and, regCnt, ~(STACK_ALIGN - 1), emitActualTypeSize(type));
     }
 
-    stackAdjustment = 0;
-
     // If we have an outgoing arg area then we must adjust the SP by popping off the
     // outgoing arg area. We will restore it right before we return from this method.
     //
@@ -2172,6 +2169,8 @@ void CodeGen::genLclHeap(GenTree* tree)
                 stpCount -= 1;
             }
 
+            lastTouchDelta = 0;
+
             goto ALLOC_DONE;
         }
         else if (!compiler->info.compInitMem && (amount < compiler->eeGetPageSize())) // must be < not <=
@@ -2184,6 +2183,8 @@ void CodeGen::genLclHeap(GenTree* tree)
             getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, REG_ZR, REG_SP, 0);
 
             inst_RV_IV(INS_sub, REG_SP, amount, EA_PTRSIZE);
+
+            lastTouchDelta = amount;
 
             goto ALLOC_DONE;
         }
@@ -2228,6 +2229,8 @@ void CodeGen::genLclHeap(GenTree* tree)
         assert(genIsValidIntReg(regCnt));
         inst_RV_IV(INS_subs, regCnt, 16, emitActualTypeSize(type));
         inst_JMP(EJ_ne, loop);
+
+        lastTouchDelta = 0;
     }
     else
     {
@@ -2296,15 +2299,28 @@ void CodeGen::genLclHeap(GenTree* tree)
 
         // Now just move the final value to SP
         getEmitter()->emitIns_R_R(INS_mov, EA_PTRSIZE, REG_SPBASE, regCnt);
+
+        // lastTouchDelta is dynamic, and can be up to a page. So if we have outgoing arg space,
+        // we're going to assume the worst and probe.
     }
 
 ALLOC_DONE:
-    // Re-adjust SP to allocate out-going arg area
+    // Re-adjust SP to allocate outgoing arg area. We must probe this adjustment.
     if (stackAdjustment != 0)
     {
         assert((stackAdjustment % STACK_ALIGN) == 0); // This must be true for the stack to remain aligned
-        assert(stackAdjustment > 0);
-        genInstrWithConstant(INS_sub, EA_PTRSIZE, REG_SPBASE, REG_SPBASE, (ssize_t)stackAdjustment, rsGetRsvdReg());
+        assert((lastTouchDelta == ILLEGAL_LAST_TOUCH_DELTA) || (lastTouchDelta >= 0));
+
+        if ((lastTouchDelta == ILLEGAL_LAST_TOUCH_DELTA) ||
+            (stackAdjustment + (unsigned)lastTouchDelta + STACK_PROBE_BOUNDARY_THRESHOLD_BYTES >
+             compiler->eeGetPageSize()))
+        {
+            genStackPointerConstantAdjustmentLoopWithProbe(-(ssize_t)stackAdjustment, REG_ZR);
+        }
+        else
+        {
+            genStackPointerConstantAdjustment(-(ssize_t)stackAdjustment);
+        }
 
         // Return the stackalloc'ed address in result register.
         // TargetReg = SP + stackAdjustment.
@@ -3186,13 +3202,6 @@ void CodeGen::genCodeForReturnTrap(GenTreeOp* tree)
 //
 void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
 {
-    GenTree*    data       = tree->Data();
-    GenTree*    addr       = tree->Addr();
-    var_types   targetType = tree->TypeGet();
-    emitter*    emit       = getEmitter();
-    emitAttr    attr       = emitTypeSize(tree);
-    instruction ins        = ins_Store(targetType);
-
 #ifdef FEATURE_SIMD
     // Storing Vector3 of size 12 bytes through indirection
     if (tree->TypeGet() == TYP_SIMD12)
@@ -3201,6 +3210,9 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
         return;
     }
 #endif // FEATURE_SIMD
+
+    GenTree* data = tree->Data();
+    GenTree* addr = tree->Addr();
 
     GCInfo::WriteBarrierForm writeBarrierForm = gcInfo.gcIsWriteBarrierCandidate(tree, data);
     if (writeBarrierForm != GCInfo::WBF_NoBarrier)
@@ -3225,8 +3237,6 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
     }
     else // A normal store, not a WriteBarrier store
     {
-        bool     dataIsUnary = false;
-        GenTree* nonRMWsrc   = nullptr;
         // We must consume the operands in the proper execution order,
         // so that liveness is updated appropriately.
         genConsumeAddress(addr);
@@ -3236,7 +3246,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             genConsumeRegs(data);
         }
 
-        regNumber dataReg = REG_NA;
+        regNumber dataReg;
         if (data->isContainedIntOrIImmed())
         {
             assert(data->IsIntegralConst(0));
@@ -3248,33 +3258,25 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             dataReg = data->gtRegNum;
         }
 
-        assert((attr != EA_1BYTE) || !(tree->gtFlags & GTF_IND_UNALIGNED));
+        var_types   type = tree->TypeGet();
+        instruction ins  = ins_Store(type);
 
-        if (tree->gtFlags & GTF_IND_VOLATILE)
+        if ((tree->gtFlags & GTF_IND_VOLATILE) != 0)
         {
-            bool useStoreRelease =
-                genIsValidIntReg(dataReg) && !addr->isContained() && !(tree->gtFlags & GTF_IND_UNALIGNED);
+            bool addrIsInReg   = addr->isUsedFromReg();
+            bool addrIsAligned = ((tree->gtFlags & GTF_IND_UNALIGNED) == 0);
 
-            if (useStoreRelease)
+            if ((ins == INS_strb) && addrIsInReg)
             {
-                switch (EA_SIZE(attr))
-                {
-                    case EA_1BYTE:
-                        assert(ins == INS_strb);
-                        ins = INS_stlrb;
-                        break;
-                    case EA_2BYTE:
-                        assert(ins == INS_strh);
-                        ins = INS_stlrh;
-                        break;
-                    case EA_4BYTE:
-                    case EA_8BYTE:
-                        assert(ins == INS_str);
-                        ins = INS_stlr;
-                        break;
-                    default:
-                        assert(false); // We should not get here
-                }
+                ins = INS_stlrb;
+            }
+            else if ((ins == INS_strh) && addrIsInReg && addrIsAligned)
+            {
+                ins = INS_stlrh;
+            }
+            else if ((ins == INS_str) && genIsValidIntReg(dataReg) && addrIsInReg && addrIsAligned)
+            {
+                ins = INS_stlr;
             }
             else
             {
@@ -3283,7 +3285,7 @@ void CodeGen::genCodeForStoreInd(GenTreeStoreInd* tree)
             }
         }
 
-        emit->emitInsLoadStoreOp(ins, attr, dataReg, tree);
+        getEmitter()->emitInsLoadStoreOp(ins, emitActualTypeSize(type), dataReg, tree);
     }
 }
 
@@ -4709,9 +4711,6 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
             {
                 int         offset = (int)index * genTypeSize(baseType);
                 instruction ins    = ins_Load(baseType);
-                baseTypeSize       = varTypeIsFloating(baseType)
-                                   ? baseTypeSize
-                                   : getEmitter()->emitInsAdjustLoadStoreAttr(ins, baseTypeSize);
 
                 assert(!op1->isUsedFromReg());
 
@@ -4719,7 +4718,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
                 {
                     unsigned varNum = op1->gtLclVarCommon.gtLclNum;
 
-                    getEmitter()->emitIns_R_S(ins, baseTypeSize, targetReg, varNum, offset);
+                    getEmitter()->emitIns_R_S(ins, emitActualTypeSize(baseType), targetReg, varNum, offset);
                 }
                 else
                 {
@@ -4730,7 +4729,7 @@ void CodeGen::genSIMDIntrinsicGetItem(GenTreeSIMD* simdNode)
                     regNumber baseReg = addr->gtRegNum;
 
                     // ldr targetReg, [baseReg, #offset]
-                    getEmitter()->emitIns_R_R_I(ins, baseTypeSize, targetReg, baseReg, offset);
+                    getEmitter()->emitIns_R_R_I(ins, emitActualTypeSize(baseType), targetReg, baseReg, offset);
                 }
             }
             else
@@ -5025,7 +5024,7 @@ void CodeGen::genStoreIndTypeSIMD12(GenTree* treeNode)
     assert(tmpReg != addr->gtRegNum);
 
     // 8-byte write
-    getEmitter()->emitIns_R_R(ins_Store(TYP_DOUBLE), EA_8BYTE, data->gtRegNum, addr->gtRegNum);
+    getEmitter()->emitIns_R_R(INS_str, EA_8BYTE, data->gtRegNum, addr->gtRegNum);
 
     // Extract upper 4-bytes from data
     getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, tmpReg, data->gtRegNum, 2);
@@ -5061,7 +5060,7 @@ void CodeGen::genLoadIndTypeSIMD12(GenTree* treeNode)
     regNumber tmpReg = treeNode->GetSingleTempReg();
 
     // 8-byte read
-    getEmitter()->emitIns_R_R(ins_Load(TYP_DOUBLE), EA_8BYTE, targetReg, addr->gtRegNum);
+    getEmitter()->emitIns_R_R(INS_ldr, EA_8BYTE, targetReg, addr->gtRegNum);
 
     // 4-byte read
     getEmitter()->emitIns_R_R_I(INS_ldr, EA_4BYTE, tmpReg, addr->gtRegNum, 8);
@@ -5104,7 +5103,7 @@ void CodeGen::genStoreLclTypeSIMD12(GenTree* treeNode)
     regNumber tmpReg = treeNode->GetSingleTempReg();
 
     // store lower 8 bytes
-    getEmitter()->emitIns_S_R(ins_Store(TYP_DOUBLE), EA_8BYTE, operandReg, varNum, offs);
+    getEmitter()->emitIns_S_R(INS_str, EA_8BYTE, operandReg, varNum, offs);
 
     // Extract upper 4-bytes from data
     getEmitter()->emitIns_R_R_I(INS_mov, EA_4BYTE, tmpReg, operandReg, 2);

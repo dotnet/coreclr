@@ -4,7 +4,7 @@
 //
 
 #include <assert.h>
-#include <pthread.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <search.h>
@@ -17,13 +17,13 @@ c_static_assert_msg(UCOL_LESS < 0, "managed side requires less than zero for a <
 c_static_assert_msg(UCOL_GREATER > 0, "managed side requires greater than zero for a > b");
 c_static_assert_msg(USEARCH_DONE == -1, "managed side requires -1 for not found");
 
-const int32_t CompareOptionsIgnoreCase = 0x1;
-const int32_t CompareOptionsIgnoreNonSpace = 0x2;
-const int32_t CompareOptionsIgnoreSymbols = 0x4;
-const int32_t CompareOptionsIgnoreKanaType = 0x8;
-const int32_t CompareOptionsIgnoreWidth = 0x10;
-const int32_t CompareOptionsMask = 0x1f;
-// const int32_t CompareOptionsStringSort = 0x20000000;
+#define CompareOptionsIgnoreCase 0x1
+#define CompareOptionsIgnoreNonSpace 0x2
+#define CompareOptionsIgnoreSymbols 0x4
+#define CompareOptionsIgnoreKanaType 0x8
+#define CompareOptionsIgnoreWidth 0x10
+#define CompareOptionsMask 0x1f
+// #define CompareOptionsStringSort 0x20000000
 // ICU's default is to use "StringSort", i.e. nonalphanumeric symbols come before alphanumeric.
 // When StringSort is not specified (.NET's default), the sort order will be different between
 // Windows and Unix platforms. The nonalphanumeric symbols will come after alphanumeric
@@ -42,7 +42,6 @@ typedef struct { int32_t key; UCollator* UCollator; } TCollatorMap;
  */
 struct SortHandle
 {
-    pthread_mutex_t collatorsLockObject;
     UCollator* collatorsPerOption[CompareOptionsMask + 1];
 };
 
@@ -342,12 +341,6 @@ void CreateSortHandle(SortHandle** ppSortHandle)
     }
 
     memset(*ppSortHandle, 0, sizeof(SortHandle));
-
-    int result = pthread_mutex_init(&(*ppSortHandle)->collatorsLockObject, NULL);
-    if (result != 0)
-    {
-        assert(FALSE && "Unexpected pthread_mutex_init return value.");
-    }
 }
 
 ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandle** ppSortHandle)
@@ -366,7 +359,6 @@ ResultCode GlobalizationNative_GetSortHandle(const char* lpLocaleName, SortHandl
 
     if (U_FAILURE(err))
     {
-        pthread_mutex_destroy(&(*ppSortHandle)->collatorsLockObject);
         free(*ppSortHandle);
         (*ppSortHandle) = NULL;
     }
@@ -385,38 +377,37 @@ void GlobalizationNative_CloseSortHandle(SortHandle* pSortHandle)
         }
     }
 
-    pthread_mutex_destroy(&pSortHandle->collatorsLockObject);
-
     free(pSortHandle);
 }
 
 const UCollator* GetCollatorFromSortHandle(SortHandle* pSortHandle, int32_t options, UErrorCode* pErr)
 {
-    UCollator* pCollator;
     if (options == 0)
     {
-        pCollator = pSortHandle->collatorsPerOption[0];
+        return pSortHandle->collatorsPerOption[0];
     }
     else
     {
-        int lockResult = pthread_mutex_lock(&pSortHandle->collatorsLockObject);
-        if (lockResult != 0)
-        {
-            assert(FALSE && "Unexpected pthread_mutex_lock return value.");
-        }
-
         options &= CompareOptionsMask;
-        pCollator = pSortHandle->collatorsPerOption[options];
-        if (pCollator == NULL)
+        UCollator* pCollator = pSortHandle->collatorsPerOption[options];
+        if (pCollator != NULL)
         {
-            pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
-            pSortHandle->collatorsPerOption[options] = pCollator;
+            return pCollator;
         }
 
-        pthread_mutex_unlock(&pSortHandle->collatorsLockObject);
-    }
+        pCollator = CloneCollatorWithOptions(pSortHandle->collatorsPerOption[0], options, pErr);
+        UCollator* pNull = NULL;
 
-    return pCollator;
+        // we are not using the standard atomic_compare_exchange_strong to workaround bugs in clang 5.0 (https://bugs.llvm.org/show_bug.cgi?id=37457)
+        if (!__atomic_compare_exchange_n(&pSortHandle->collatorsPerOption[options], &pNull, pCollator, false, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST))
+        {
+            ucol_close(pCollator);
+            pCollator = pSortHandle->collatorsPerOption[options];
+            assert(pCollator != NULL && "pCollator not expected to be null here.");
+        }
+
+        return pCollator;
+    }
 }
 
 int32_t GlobalizationNative_GetSortVersion(SortHandle* pSortHandle)

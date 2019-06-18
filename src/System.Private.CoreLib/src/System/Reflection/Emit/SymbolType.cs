@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System.Reflection.Emit
@@ -319,7 +318,7 @@ namespace System.Reflection.Emit
         }
 
         public override object InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target,
-            object[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
+            object?[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
         {
             throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
@@ -392,12 +391,10 @@ namespace System.Reflection.Emit
             get { return m_baseType.Namespace; }
         }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         public override Type BaseType
         {
             get { return typeof(System.Array); }
         }
-#pragma warning restore CS8608
 
         protected override ConstructorInfo GetConstructorImpl(BindingFlags bindingAttr, Binder? binder,
                 CallingConventions callConvention, Type[] types, ParameterModifier[]? modifiers)

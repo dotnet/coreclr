@@ -6,6 +6,7 @@
 #if netcoreapp
 using Internal.Runtime.CompilerServices;
 #endif
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics.Hashing;
 using System.Runtime.CompilerServices;
@@ -764,7 +765,7 @@ namespace System.Numerics
         /// </summary>
         /// <param name="destination">The destination span which the values are copied into</param>
         /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination span</exception>
-        public void CopyTo(Span<byte> destination)
+        public readonly void CopyTo(Span<byte> destination)
         {
             ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
             if ((uint)destination.Length < (uint)Vector<byte>.Count)
@@ -779,7 +780,7 @@ namespace System.Numerics
         /// </summary>
         /// <param name="destination">The destination span which the values are copied into</param>
         /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination span</exception>
-        public void CopyTo(Span<T> destination)
+        public readonly void CopyTo(Span<T> destination)
         {
             if ((uint)destination.Length < (uint)Count)
             {
@@ -1577,7 +1578,7 @@ namespace System.Numerics
         /// <param name="destination">The destination span which the values are copied into</param>
         /// <returns>True if the source vector was successfully copied to <paramref name="destination"/>. False if
         /// <paramref name="destination"/> is not large enough to hold the source vector.</returns>
-        public bool TryCopyTo(Span<byte> destination)
+        public readonly bool TryCopyTo(Span<byte> destination)
         {
             ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
             if ((uint)destination.Length < (uint)Vector<byte>.Count)
@@ -1595,7 +1596,7 @@ namespace System.Numerics
         /// <param name="destination">The destination span which the values are copied into</param>
         /// <returns>True if the source vector was successfully copied to <paramref name="destination"/>. False if
         /// <paramref name="destination"/> is not large enough to hold the source vector.</returns>
-        public bool TryCopyTo(Span<T> destination)
+        public readonly bool TryCopyTo(Span<T> destination)
         {
             if ((uint)destination.Length < (uint)Count)
             {
@@ -5351,6 +5352,7 @@ namespace System.Numerics
         #endregion Same-Size Conversion
 
         #region Throw Helpers
+        [DoesNotReturn]
         internal static void ThrowInsufficientNumberOfElementsException(int requiredElementCount)
         {
             throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, requiredElementCount, "values"));

@@ -5262,8 +5262,6 @@ void MethodTableWriteableData::Fixup(DataImage *image, MethodTable *pMT, BOOL ne
 
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 
-#ifdef FEATURE_PREJIT
-
 //==========================================================================================
 void MethodTable::CheckRestore()
 {
@@ -5282,15 +5280,6 @@ void MethodTable::CheckRestore()
 
     g_IBCLogger.LogMethodTableAccess(this);
 }
-
-#else // !FEATURE_PREJIT
-//==========================================================================================
-void MethodTable::CheckRestore()
-{
-    LIMITED_METHOD_CONTRACT;
-}
-#endif // !FEATURE_PREJIT
-
 
 #ifndef DACCESS_COMPILE
 
@@ -8561,20 +8550,19 @@ UINT32 MethodTable::MethodDataObject::GetObjectSize(MethodTable *pMT)
 
 //==========================================================================================
 // This will fill in all the MethodEntry slots present in the current MethodTable
-void MethodTable::MethodDataObject::Init(MethodTable *pMT, MethodData *pParentData)
+void MethodTable::MethodDataObject::Init(MethodData *pParentData)
 {
     CONTRACTL {
         THROWS;
         WRAPPER(GC_TRIGGERS);
-        PRECONDITION(CheckPointer(pMT));
+        PRECONDITION(CheckPointer(m_pDeclMT));
         PRECONDITION(CheckPointer(pParentData, NULL_OK));
-        PRECONDITION(!pMT->IsInterface());
+        PRECONDITION(!m_pDeclMT->IsInterface());
         PRECONDITION(pParentData == NULL ||
-                     (pMT->ParentEquals(pParentData->GetDeclMethodTable()) &&
-                      pMT->ParentEquals(pParentData->GetImplMethodTable())));
+                     (m_pDeclMT->ParentEquals(pParentData->GetDeclMethodTable()) &&
+                      m_pDeclMT->ParentEquals(pParentData->GetImplMethodTable())));
     } CONTRACTL_END;
 
-    m_pMT = pMT;
     m_iNextChainDepth = 0;
     m_containsMethodImpl = FALSE;
 
@@ -8594,7 +8582,7 @@ BOOL MethodTable::MethodDataObject::PopulateNextLevel()
         return FALSE;
     }
     // Now move up the chain to the target.
-    MethodTable *pMTCur = m_pMT;
+    MethodTable *pMTCur = m_pDeclMT;
     for (UINT32 i = 0; pMTCur != NULL && i < iChainDepth; i++) {
         pMTCur = pMTCur->GetParentMethodTable();
     }
@@ -8637,7 +8625,7 @@ void MethodTable::MethodDataObject::FillEntryDataForAncestor(MethodTable * pMT)
     if (pMT->GetClass()->ContainsMethodImpls())
         m_containsMethodImpl = TRUE;
 
-    if (m_containsMethodImpl && pMT != m_pMT)
+    if (m_containsMethodImpl && pMT != m_pDeclMT)
         return;
 
     unsigned nVirtuals = pMT->GetNumVirtuals();
@@ -8654,7 +8642,7 @@ void MethodTable::MethodDataObject::FillEntryDataForAncestor(MethodTable * pMT)
 
         // We want to fill all methods introduced by the actual type we're gathering 
         // data for, and the virtual methods of the parent and above
-        if (pMT == m_pMT)
+        if (pMT == m_pDeclMT)
         {
             if (m_containsMethodImpl && slot < nVirtuals)
                 continue;
@@ -8710,7 +8698,7 @@ DispatchSlot MethodTable::MethodDataObject::GetImplSlot(UINT32 slotNumber)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(slotNumber < GetNumMethods());
-    return DispatchSlot(m_pMT->GetRestoredSlot(slotNumber));
+    return DispatchSlot(m_pDeclMT->GetRestoredSlot(slotNumber));
 }
 
 //==========================================================================================
@@ -8744,13 +8732,13 @@ MethodDesc *MethodTable::MethodDataObject::GetImplMethodDesc(UINT32 slotNumber)
     if (pMDRet == NULL)
     {
         _ASSERTE(slotNumber < GetNumVirtuals());
-        pMDRet = m_pMT->GetMethodDescForSlot(slotNumber);
+        pMDRet = m_pDeclMT->GetMethodDescForSlot(slotNumber);
         _ASSERTE(CheckPointer(pMDRet));
         pEntry->SetImplMethodDesc(pMDRet);
     }
     else
     {
-        _ASSERTE(slotNumber >= GetNumVirtuals() || pMDRet == m_pMT->GetMethodDescForSlot(slotNumber));
+        _ASSERTE(slotNumber >= GetNumVirtuals() || pMDRet == m_pDeclMT->GetMethodDescForSlot(slotNumber));
     }
 
     return pMDRet;
@@ -8770,7 +8758,7 @@ void MethodTable::MethodDataObject::InvalidateCachedVirtualSlot(UINT32 slotNumbe
 MethodDesc *MethodTable::MethodDataInterface::GetDeclMethodDesc(UINT32 slotNumber)
 {
     WRAPPER_NO_CONTRACT;
-    return m_pMT->GetMethodDescForSlot(slotNumber);
+    return m_pDeclMT->GetMethodDescForSlot(slotNumber);
 }
 
 //==========================================================================================
@@ -8844,7 +8832,8 @@ MethodTable::MethodDataInterfaceImpl::MethodDataInterfaceImpl(
     const DispatchMapTypeID * rgDeclTypeIDs, 
     UINT32                    cDeclTypeIDs, 
     MethodData *              pDecl, 
-    MethodData *              pImpl)
+    MethodData *              pImpl) :
+    MethodData(pImpl->GetDeclMethodTable(), pDecl->GetDeclMethodTable())
 {
     WRAPPER_NO_CONTRACT;
     Init(rgDeclTypeIDs, cDeclTypeIDs, pDecl, pImpl);

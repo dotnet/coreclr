@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Reflection;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -295,7 +294,7 @@ namespace System
                 {
                     if (objAttr[i] != null)
                     {
-                        attributes[count] = (Attribute)objAttr[i]!; // TODO-NULLABLE https://github.com/dotnet/roslyn/issues/34644
+                        attributes[count] = (Attribute)objAttr[i]!; // TODO-NULLABLE Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                         count++;
                     }
                 }
@@ -391,7 +390,7 @@ namespace System
             for (int i = 0; i < attributes.Length; i++)
             {
                 Type attrType = attributes[i].GetType();
-                AttributeUsageAttribute usage;
+                AttributeUsageAttribute? usage;
                 types.TryGetValue(attrType, out usage);
 
                 if (usage == null)

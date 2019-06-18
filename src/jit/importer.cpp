@@ -3500,7 +3500,7 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
             if ((ni > NI_HW_INTRINSIC_START) && (ni < NI_HW_INTRINSIC_END))
             {
-                GenTree* hwintrinsic = impHWIntrinsic(ni, method, sig, mustExpand);
+                GenTree* hwintrinsic = impHWIntrinsic(ni, clsHnd, method, sig, mustExpand);
 
                 if (mustExpand && (hwintrinsic == nullptr))
                 {
@@ -13787,8 +13787,10 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 constraintCall = (prefixFlags & PREFIX_CONSTRAINED) != 0;
 
                 bool newBBcreatedForTailcallStress;
+                bool passedStressModeValidation;
 
                 newBBcreatedForTailcallStress = false;
+                passedStressModeValidation    = true;
 
                 if (compIsForInlining())
                 {
@@ -13816,22 +13818,41 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                             (OPCODE)getU1LittleEndian(codeAddr + sz) == CEE_RET; // Next opcode is a CEE_RET
 
                         bool hasTailPrefix = (prefixFlags & PREFIX_TAILCALL_EXPLICIT);
-                        if (newBBcreatedForTailcallStress && !hasTailPrefix && // User hasn't set "tail." prefix yet.
-                            verCheckTailCallConstraint(opcode, &resolvedToken,
-                                                       constraintCall ? &constrainedResolvedToken : nullptr,
-                                                       true) // Is it legal to do tailcall?
-                            )
+                        if (newBBcreatedForTailcallStress && !hasTailPrefix)
                         {
-                            CORINFO_METHOD_HANDLE declaredCalleeHnd = callInfo.hMethod;
-                            bool                  isVirtual         = (callInfo.kind == CORINFO_VIRTUALCALL_STUB) ||
-                                             (callInfo.kind == CORINFO_VIRTUALCALL_VTABLE);
-                            CORINFO_METHOD_HANDLE exactCalleeHnd = isVirtual ? nullptr : declaredCalleeHnd;
-                            if (info.compCompHnd->canTailCall(info.compMethodHnd, declaredCalleeHnd, exactCalleeHnd,
-                                                              hasTailPrefix)) // Is it legal to do tailcall?
+                            // Do a more detailed evaluation of legality
+                            const bool returnFalseIfInvalid = true;
+                            const bool passedConstraintCheck =
+                                verCheckTailCallConstraint(opcode, &resolvedToken,
+                                                           constraintCall ? &constrainedResolvedToken : nullptr,
+                                                           returnFalseIfInvalid);
+
+                            if (passedConstraintCheck)
                             {
-                                // Stress the tailcall.
-                                JITDUMP(" (Tailcall stress: prefixFlags |= PREFIX_TAILCALL_EXPLICIT)");
-                                prefixFlags |= PREFIX_TAILCALL_EXPLICIT;
+                                // Now check with the runtime
+                                CORINFO_METHOD_HANDLE declaredCalleeHnd = callInfo.hMethod;
+                                bool                  isVirtual         = (callInfo.kind == CORINFO_VIRTUALCALL_STUB) ||
+                                                 (callInfo.kind == CORINFO_VIRTUALCALL_VTABLE);
+                                CORINFO_METHOD_HANDLE exactCalleeHnd = isVirtual ? nullptr : declaredCalleeHnd;
+                                if (info.compCompHnd->canTailCall(info.compMethodHnd, declaredCalleeHnd, exactCalleeHnd,
+                                                                  hasTailPrefix)) // Is it legal to do tailcall?
+                                {
+                                    // Stress the tailcall.
+                                    JITDUMP(" (Tailcall stress: prefixFlags |= PREFIX_TAILCALL_EXPLICIT)");
+                                    prefixFlags |= PREFIX_TAILCALL_EXPLICIT;
+                                }
+                                else
+                                {
+                                    // Runtime disallows this tail call
+                                    JITDUMP(" (Tailcall stress: runtime preventing tailcall)");
+                                    passedStressModeValidation = false;
+                                }
+                            }
+                            else
+                            {
+                                // Constraints disallow this tail call
+                                JITDUMP(" (Tailcall stress: constraint check failed)");
+                                passedStressModeValidation = false;
                             }
                         }
                     }
@@ -13841,9 +13862,16 @@ void Compiler::impImportBlockCode(BasicBlock* block)
                 bool isRecursive;
                 isRecursive = !compIsForInlining() && (callInfo.hMethod == info.compMethodHnd);
 
-                // Note that when running under tail call stress, a call will be marked as explicit tail prefixed
-                // hence will not be considered for implicit tail calling.
-                if (impIsImplicitTailCallCandidate(opcode, codeAddr + sz, codeEndp, prefixFlags, isRecursive))
+                // If we've already disqualified this call as a tail call under tail call stress,
+                // don't consider it for implicit tail calling either.
+                //
+                // When not running under tail call stress, we may mark this call as an implicit
+                // tail call candidate. We'll do an "equivalent" validation during impImportCall.
+                //
+                // Note that when running under tail call stress, a call marked as explicit
+                // tail prefixed will not be considered for implicit tail calling.
+                if (passedStressModeValidation &&
+                    impIsImplicitTailCallCandidate(opcode, codeAddr + sz, codeEndp, prefixFlags, isRecursive))
                 {
                     if (compIsForInlining())
                     {
@@ -16428,7 +16456,6 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                     }
 
                     op2 = tmpOp2;
-
 #ifdef DEBUG
                     if (impInlineInfo->retExpr)
                     {
@@ -16438,6 +16465,45 @@ bool Compiler::impReturnInstruction(BasicBlock* block, int prefixFlags, OPCODE& 
                         assert(impInlineInfo->retExpr->gtLclVarCommon.gtLclNum == op2->gtLclVarCommon.gtLclNum);
                     }
 #endif
+                }
+
+                // If we are inlining a method that returns a struct byref, check whether we are "reinterpreting" the
+                // struct.
+                GenTree* effectiveRetVal = op2->gtEffectiveVal();
+                if ((returnType == TYP_BYREF) && (info.compRetType == TYP_BYREF) &&
+                    (effectiveRetVal->OperGet() == GT_ADDR))
+                {
+                    GenTree* addrChild = effectiveRetVal->gtGetOp1();
+                    if (addrChild->OperGet() == GT_LCL_VAR)
+                    {
+                        LclVarDsc* varDsc = lvaGetDesc(addrChild->AsLclVarCommon());
+
+                        if (varTypeIsStruct(addrChild->TypeGet()) && !isOpaqueSIMDLclVar(varDsc))
+                        {
+                            CORINFO_CLASS_HANDLE referentClassHandle;
+                            CorInfoType          referentType =
+                                info.compCompHnd->getChildType(info.compMethodInfo->args.retTypeClass,
+                                                               &referentClassHandle);
+                            if (varTypeIsStruct(JITtype2varType(referentType)) &&
+                                (varDsc->lvVerTypeInfo.GetClassHandle() != referentClassHandle))
+                            {
+                                // We are returning a byref to struct1; the method signature specifies return type as
+                                // byref
+                                // to struct2. struct1 and struct2 are different so we are "reinterpreting" the struct.
+                                // This may happen in, for example, System.Runtime.CompilerServices.Unsafe.As<TFrom,
+                                // TTo>.
+                                // We need to mark the source struct variable as having overlapping fields because its
+                                // fields may be accessed using field handles of a different type, which may confuse
+                                // optimizations, in particular, value numbering.
+
+                                JITDUMP("\nSetting lvOverlappingFields to true on V%02u because of struct "
+                                        "reinterpretation\n",
+                                        addrChild->AsLclVarCommon()->gtLclNum);
+
+                                varDsc->lvOverlappingFields = true;
+                            }
+                        }
+                    }
                 }
 
 #ifdef DEBUG

@@ -26,7 +26,6 @@
 #include "clsload.hpp"
 #include "cgensys.h"
 #include "virtualcallstub.h"
-#include "mdaassistants.h"
 #include "dllimport.h"
 #include "gcrefmap.h"
 #include "asmconstants.h"
@@ -967,15 +966,21 @@ void GCFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
 
     PTR_PTR_Object pRefs = dac_cast<PTR_PTR_Object>(m_pObjRefs);
 
-    for (UINT i = 0;i < m_numObjRefs; i++)  {
-
-        LOG((LF_GC, INFO3, "GC Protection Frame Promoting" FMT_ADDR "to",
-             DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i])) ));
+    for (UINT i = 0; i < m_numObjRefs; i++)
+    {
+        auto fromAddress = OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i]);
         if (m_MaybeInterior)
-            PromoteCarefully(fn, pRefs + i, sc, GC_CALL_INTERIOR|CHECK_APP_DOMAIN);
+        {
+            PromoteCarefully(fn, pRefs + i, sc, GC_CALL_INTERIOR | CHECK_APP_DOMAIN);
+        }
         else
+        {
             (*fn)(pRefs + i, sc, 0);
-        LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i])) ));
+        }
+
+        auto toAddress = OBJECTREF_TO_UNCHECKED_OBJECTREF(m_pObjRefs[i]);
+        LOG((LF_GC, INFO3, "GC Protection Frame promoted" FMT_ADDR "to" FMT_ADDR "\n",
+            DBG_ADDR(fromAddress), DBG_ADDR(toAddress)));
     }
 }
 
@@ -1106,7 +1111,7 @@ void HijackFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
         case RT_ByRef:
             LOG((LF_GC, INFO3, "Hijack Frame Carefully Promoting pointer" FMT_ADDR "to",
                 DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
-            PromoteCarefully(fn, objPtr, sc, GC_CALL_INTERIOR | GC_CALL_CHECK_APP_DOMAIN);
+            PromoteCarefully(fn, objPtr, sc, GC_CALL_INTERIOR);
             LOG((LF_GC, INFO3, FMT_ADDR "\n", DBG_ADDR(OBJECTREF_TO_UNCHECKED_OBJECTREF(*objPtr))));
             break;
 
@@ -1335,7 +1340,7 @@ void TransitionFrame::PromoteCallerStackUsingGCRefMap(promote_func* fn, ScanCont
             fn(dac_cast<PTR_PTR_Object>(ppObj), sc, CHECK_APP_DOMAIN);
             break;
         case GCREFMAP_INTERIOR:
-            PromoteCarefully(fn, dac_cast<PTR_PTR_Object>(ppObj), sc, GC_CALL_INTERIOR | GC_CALL_CHECK_APP_DOMAIN);
+            PromoteCarefully(fn, dac_cast<PTR_PTR_Object>(ppObj), sc, GC_CALL_INTERIOR);
             break;
         case GCREFMAP_METHOD_PARAM:
             if (sc->promotion)
@@ -1417,7 +1422,7 @@ ComPlusMethodFrame::ComPlusMethodFrame(TransitionBlock * pTransitionBlock, Metho
 #endif // #ifndef DACCESS_COMPILE
 
 //virtual
-void ComPlusMethodFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
+void ComPlusMethodFrame::GcScanRoots(promote_func* fn, ScanContext* sc)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1427,13 +1432,23 @@ void ComPlusMethodFrame::GcScanRoots(promote_func *fn, ScanContext* sc)
     FramedMethodFrame::GcScanRoots(fn, sc);
     PromoteCallerStack(fn, sc);
 
-    MetaSig::RETURNTYPE returnType = GetFunction()->ReturnsObject();
 
     // Promote the returned object
-    if(returnType == MetaSig::RETOBJ)
+    MethodDesc* methodDesc = GetFunction();
+    ReturnKind returnKind = methodDesc->GetReturnKind();
+    if (returnKind == RT_Object)
+    {
         (*fn)(GetReturnObjectPtr(), sc, CHECK_APP_DOMAIN);
-    else if (returnType == MetaSig::RETBYREF)
-        PromoteCarefully(fn, GetReturnObjectPtr(), sc, GC_CALL_INTERIOR|CHECK_APP_DOMAIN);
+    }
+    else if (returnKind == RT_ByRef)
+    {
+        PromoteCarefully(fn, GetReturnObjectPtr(), sc, GC_CALL_INTERIOR | CHECK_APP_DOMAIN);
+    }
+    else
+    {
+        _ASSERTE_MSG(!IsStructReturnKind(returnKind), "NYI: We can't promote multiregs struct returns");
+        _ASSERTE_MSG(IsScalarReturnKind(returnKind), "Non-scalar types must be promoted.");
+    }
 }
 #endif // FEATURE_COMINTEROP
 

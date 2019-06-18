@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -14,12 +13,6 @@ namespace System
 {
     internal static partial class SR
     {
-        private static ResourceManager? ResourceManager
-        {
-            get;
-            set;
-        }
-
         // This method is used to decide if we need to append the exception message parameters to the message when calling SR.Format. 
         // by default it returns false.
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -121,10 +114,6 @@ namespace System
 
                 _currentlyLoading.Add(key); // Push
 
-                if (ResourceManager == null)
-                {
-                    ResourceManager = new ResourceManager(SR.ResourceType);
-                }
                 string? s = ResourceManager.GetString(key, null);
                 _currentlyLoading.RemoveAt(_currentlyLoading.Count - 1); // Pop
 
@@ -136,7 +125,7 @@ namespace System
                 if (lockTaken)
                 {
                     // Backout code - throw away potentially corrupt state
-                    ResourceManager = null;
+                    s_resourceManager = null;
                     _currentlyLoading = null;
                 }
                 throw;

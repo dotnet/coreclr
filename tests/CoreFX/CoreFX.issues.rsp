@@ -1,0 +1,110 @@
+-notrait category=OuterLoop 
+-notrait category=RequiresElevation
+
+# Wrong Microsoft.Bcl.AsyncInterfaces binary (netcoreapp vs. netstandard)
+-noclass System.Threading.Tasks.Sources.Tests.ManualResetValueTaskSourceTests
+
+# Old System.Composition.Runtime
+-nomethod System.Composition.Runtime.Tests.CompositionContractTests.Equals_Object_ReturnsExpected
+-noclass System.Composition.Hosting.Tests.ContainerConfigurationTests
+
+# Missing OOB dependencies
+-nonamespace System.Numerics.Tensors.Tests
+-nonamespace System.Numerics.Tensors
+-nonamespace System.Resources.Extensions.Tests
+-nonamespace System.Data.SqlClient.Tests
+-nonamespace System.Data.SqlClient.ManualTesting.Tests
+-nonamespace System.Drawing.Printing.Tests
+-nonamespace System.Media.Test
+-noclass System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests
+
+# Missing OOB dependencies - Disable UTF8 string tests
+-noclass System.Net.Http.Tests.Utf8StringContentTests
+-noclass System.Tests.Char8Tests
+-noclass System.Tests.MemoryTests
+-noclass System.Tests.ReflectionTests
+-noclass System.Tests.Utf8ExtensionsTests
+-noclass System.Tests.Utf8StringTests
+
+# Missing OOB dependencies - Disable Tests from System.ComponentModel entirely
+-nonamespace System.ComponentModel.Composition
+-nonamespace System.ComponentModel.Composition.AttributedModel
+-nonamespace System.ComponentModel.Composition.Extensibility
+-nonamespace System.ComponentModel.Composition.Factories
+-nonamespace System.ComponentModel.Composition.Hosting
+-nonamespace System.ComponentModel.Composition.Primitives
+-nonamespace System.ComponentModel.Composition.ReflectionModel
+-nonamespace System.ComponentModel.Tests
+-nonamespace System.ComponentModel.Design.Tests
+-nonamespace System.ComponentModel.Design.Serialization.Tests
+-nonamespace System.ComponentModel.Design.Tests
+-nonamespace System.ComponentModel.TypeConverterTests
+-nonamespace Tests.Integration
+
+# https://github.com/dotnet/corefx/issues/37886
+-nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
+
+# requires corefx test updates
+-nomethod System.Diagnostics.Tests.DebugTestsNoListeners.Print
+-nomethod System.Diagnostics.Tests.DebugTestsUsingListeners.Print
+-nomethod System.Tests.ArrayTests.Copy_SourceAndDestinationNeverConvertible_ThrowsArrayTypeMismatchException
+
+#
+#
+# Temporarily disable tests while bringing more CoreFX job configurations online.
+#
+
+-nonamespace System.Net.Http.Functional.Tests
+-nonamespace System.Net.Sockets.Tests
+
+-noclass System.Net.Tests.HttpListenerContextTests
+-noclass System.Net.Tests.HttpListenerAuthenticationTests
+-noclass System.Net.Tests.HttpListenerResponseTests
+-noclass System.Net.Tests.HttpListenerResponseCookiesTests
+
+-nomethod System.Net.Tests.HttpListenerResponseTests.Redirect_Invoke_SetsRedirectionProperties
+-nomethod System.Net.Mail.Tests.SmtpClientTest.TestMailDeliveryAsync
+
+-nomethod System.Net.Security.Tests.LoggingTest.EventSource_EventsRaisedAsExpected
+-nomethod System.Net.Security.Tests.SslStreamSniTest.SslStream_NoSniFromClient_CallbackReturnsNull
+
+# System.Linq.Expressions.Tests: timeout on Linux/x64
+-nonamespace System.Linq.Expressions.Tests
+
+# assert/crashes
+-nomethod System.Tests.RealFormatterTestsBase.TestFormatterSingle_F20
+-noclass System.Tests.RealFormatterTestsBase
+-noclass System.Tests.RealFormatterTests
+-noclass System.Buffers.Text.Tests.RealFormatterTests
+
+# System.Runtime.Serialization.Formatters.Tests: timeouts
+-nonamespace System.Runtime.Serialization.Formatters.Tests
+
+-nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ReferenceTypeKey
+-nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ValueTypeKey
+-nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
+-nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
+-nomethod System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
+
+# Assert with JITMinOpts=1: https://github.com/dotnet/coreclr/issues/25070
+-nonamespace Microsoft.VisualBasic.Tests
+
+# Assert: https://github.com/dotnet/coreclr/issues/25050
+-nonamespace System.Data.Common.Tests
+
+# requires corefx test updates https://github.com/dotnet/corefx/pull/38452
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfAny_ManyInteger
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfAny_ManyString
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfMany_Byte
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthIndexOfMany_Char
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthLastIndexOfAny_Byte_ManyByte
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthLastIndexOfAny_ManyByte
+-nomethod System.SpanTests.ReadOnlySpanTests.ZeroLengthLastIndexOfAny_String_ManyByte
+-nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfAny_ManyInteger
+-nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfAny_ManyString
+-nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfMany_Byte
+-nomethod System.SpanTests.SpanTests.ZeroLengthIndexOfMany_Char
+-nomethod System.SpanTests.SpanTests.ZeroLengthLastIndexOfAny_Byte_ManyByte
+-nomethod System.SpanTests.SpanTests.ZeroLengthLastIndexOfAny_ManyByte
+-nomethod System.SpanTests.SpanTests.ZeroLengthLastIndexOfAny_String_ManyByte
+

@@ -34,11 +34,7 @@ CHECK PEDecoder::CheckFormat() const
         {
             CHECK(CheckCorHeader());
 
-#if !defined(FEATURE_PREJIT)
-            CHECK(IsILOnly());
-#endif
-
-            if (IsILOnly() && !HasReadyToRunHeader())
+            if (IsILOnly())
                 CHECK(CheckILOnly());
 
             if (HasNativeHeader())
@@ -1410,6 +1406,12 @@ CHECK PEDecoder::CheckILOnly() const
 
     CHECK(CheckCorHeader());
 
+    if (HasReadyToRunHeader())
+    {
+        // Pretend R2R images are IL-only 
+        const_cast<PEDecoder *>(this)->m_flags |= FLAG_IL_ONLY_CHECKED;
+        CHECK_OK;
+    }
 
     // Allow only verifiable directories.
 
@@ -2081,7 +2083,7 @@ bool EnumerateLangIDs(const PEDecoder *pDecoder, DWORD rvaOfResourceSection, boo
 
     BYTE *pData = (BYTE*)pDecoder->GetRvaData(resourceDataRva);
 
-    return state->langIDcallback(state->nameName, state->nameType, (DWORD)name, pData, cbData, state->context);
+    return state->langIDcallback(state->nameName, state->nameType, (DWORD)(uintptr_t)name, pData, cbData, state->context);
 }
 
 
@@ -2843,7 +2845,7 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
     }
     CONTRACT_END;
     
-    IMAGE_DATA_DIRECTORY *pDir;
+    IMAGE_DATA_DIRECTORY *pDir = NULL;
 #ifdef FEATURE_PREJIT
     if (!HasReadyToRunHeader())
     {
@@ -2862,8 +2864,22 @@ PTR_CVOID PEDecoder::GetNativeManifestMetadata(COUNT_T *pSize) const
 
             READYTORUN_SECTION * pSection = pSections + i;
             if (pSection->Type == READYTORUN_SECTION_MANIFEST_METADATA)
+            {
                 // Set pDir to the address of the manifest metadata section
                 pDir = &pSection->Section;
+                break;
+            }
+        }
+
+        // ReadyToRun file without large version bubble support doesn't have the READYTORUN_SECTION_MANIFEST_METADATA
+        if (pDir == NULL)
+        {
+            if (pSize != NULL)
+            {
+                *pSize = 0;
+            }
+
+            RETURN NULL;
         }
     }
 

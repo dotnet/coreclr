@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
@@ -343,7 +342,9 @@ namespace System.Reflection.Emit
             {
                 // Compile the method since accessibility checks are done as part of compilation.
                 GetMethodDescriptor();
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle!);
+                IRuntimeMethodInfo? methodHandle = m_methodHandle;
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                GC.KeepAlive(methodHandle);
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, null, GetMethodDescriptor());
@@ -358,7 +359,9 @@ namespace System.Reflection.Emit
             {
                 // Compile the method since accessibility checks are done as part of compilation
                 GetMethodDescriptor();
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle!);
+                IRuntimeMethodInfo? methodHandle = m_methodHandle;
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                GC.KeepAlive(methodHandle);
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, target, GetMethodDescriptor());
@@ -487,11 +490,11 @@ namespace System.Reflection.Emit
 
         public override bool IsDefined(Type attributeType, bool inherit) { return m_dynMethod.IsDefined(attributeType, inherit); }
 
-        public override Type? ReturnType { get { return m_dynMethod.ReturnType; } }
+        public override Type ReturnType { get { return m_dynMethod.ReturnType; } }
 
-        public override ParameterInfo? ReturnParameter { get { return m_dynMethod.ReturnParameter; } }
+        public override ParameterInfo ReturnParameter { get { return m_dynMethod.ReturnParameter; } }
 
-        public override ICustomAttributeProvider? ReturnTypeCustomAttributes { get { return m_dynMethod.ReturnTypeCustomAttributes; } }
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes { get { return m_dynMethod.ReturnTypeCustomAttributes; } }
 
         //
         // DynamicMethod specific methods
@@ -703,7 +706,6 @@ namespace System.Reflection.Emit
                 get { return m_owner.IsSecurityTransparent; }
             }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
             public override Type ReturnType
             {
                 get
@@ -711,23 +713,13 @@ namespace System.Reflection.Emit
                     return m_owner.m_returnType;
                 }
             }
-#pragma warning restore CS8608
 
-            public override ParameterInfo? ReturnParameter
+            public override ParameterInfo ReturnParameter
             {
-                get { return null; }
+                get { return new RuntimeParameterInfo(this, null, m_owner.m_returnType, -1); }
             }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
-            public override ICustomAttributeProvider ReturnTypeCustomAttributes
-            {
-                get { return GetEmptyCAHolder(); }
-            }
-#pragma warning restore CS8608
-
-            //
-            // private implementation
-            //
+            public override ICustomAttributeProvider ReturnTypeCustomAttributes => new EmptyCAHolder();
 
             internal RuntimeParameterInfo[] LoadParameters()
             {
@@ -742,34 +734,6 @@ namespace System.Reflection.Emit
                         m_parameters = parameters;
                 }
                 return m_parameters;
-            }
-
-            // private implementation of CA for the return type
-            private ICustomAttributeProvider GetEmptyCAHolder()
-            {
-                return new EmptyCAHolder();
-            }
-
-            ///////////////////////////////////////////////////
-            // EmptyCAHolder
-            private class EmptyCAHolder : ICustomAttributeProvider
-            {
-                internal EmptyCAHolder() { }
-
-                object[] ICustomAttributeProvider.GetCustomAttributes(Type attributeType, bool inherit)
-                {
-                    return Array.Empty<object>();
-                }
-
-                object[] ICustomAttributeProvider.GetCustomAttributes(bool inherit)
-                {
-                    return Array.Empty<object>();
-                }
-
-                bool ICustomAttributeProvider.IsDefined(Type attributeType, bool inherit)
-                {
-                    return false;
-                }
             }
         }
     }

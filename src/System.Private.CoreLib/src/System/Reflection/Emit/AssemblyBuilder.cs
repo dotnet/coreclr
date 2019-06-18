@@ -19,7 +19,6 @@
 //
 // "internal" and "external" ModuleBuilders are similar
 
-#nullable enable
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.SymbolStore;
@@ -498,7 +497,7 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetType(name, throwOnError, ignoreCase);
         }
 
-        public override Module? ManifestModule => _manifestModuleBuilder.InternalModule;
+        public override Module ManifestModule => _manifestModuleBuilder.InternalModule;
 
         public override bool ReflectionOnly => InternalAssembly.ReflectionOnly;
 

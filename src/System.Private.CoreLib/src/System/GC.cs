@@ -13,11 +13,11 @@
 **
 ===========================================================*/
 
-#nullable enable
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Collections.Generic;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -81,7 +81,10 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
-        
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
@@ -99,6 +102,12 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int GetLastGCPercentTimeInGC();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern ulong GetGenerationSize(int gen);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);
@@ -336,18 +345,21 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, int sectionSize);
+        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, IntPtr sectionSize);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern long _GetAllocatedBytesForCurrentThread();
+        public static extern long GetAllocatedBytesForCurrentThread();
 
-        public static long GetAllocatedBytesForCurrentThread()
-        {
-            return _GetAllocatedBytesForCurrentThread();
-        }
+
+        /// <summary>
+        /// Get a count of the bytes allocated over the lifetime of the process.
+        /// <param name="precise">If true, gather a precise number, otherwise gather a fairly count. Gathering a precise value triggers at a significant performance penalty.</param>
+        /// </summary>
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern long GetTotalAllocatedBytes(bool precise = false);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
@@ -642,6 +654,34 @@ namespace System
                 // We only register the callback from the runtime in InvokeMemoryLoadChangeNotifications, so to avoid race conditions between
                 // UnregisterMemoryLoadChangeNotification and InvokeMemoryLoadChangeNotifications in native.
             }
+        }
+
+        // Skips zero-initialization of the array if possible. If T contains object references, 
+        // the array is always zero-initialized.
+        internal static T[] AllocateUninitializedArray<T>(int length)
+        {
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            {
+                return new T[length];
+            }
+
+            if (length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+#if DEBUG
+            // in DEBUG arrays of any length can be created uninitialized
+#else
+            // otherwise small arrays are allocated using `new[]` as that is generally faster.
+            //
+            // The threshold was derived from various simulations. 
+            // As it turned out the threshold depends on overal pattern of all allocations and is typically in 200-300 byte range.
+            // The gradient around the number is shallow (there is no perf cliff) and the exact value of the threshold does not matter a lot.
+            // So it is 256 bytes including array header.
+            if (Unsafe.SizeOf<T>() * length < 256 - 3 * IntPtr.Size)
+            {
+                return new T[length];
+            }
+#endif
+            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
         }
     }
 }

@@ -580,7 +580,14 @@ ReJITID ILCodeVersionNode::GetVersionId() const
 ILCodeVersion::RejitFlags ILCodeVersionNode::GetRejitState() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    return m_rejitState.Load();
+    return static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ILCodeVersion::kStateMask);
+}
+
+BOOL ILCodeVersionNode::GetEnableReJITCallback() const
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return (m_rejitState.Load() & ILCodeVersion::kSuppressParams) == ILCodeVersion::kSuppressParams;
 }
 
 PTR_COR_ILMETHOD ILCodeVersionNode::GetIL() const
@@ -613,7 +620,29 @@ PTR_ILCodeVersionNode ILCodeVersionNode::GetNextILVersionNode() const
 void ILCodeVersionNode::SetRejitState(ILCodeVersion::RejitFlags newState)
 {
     LIMITED_METHOD_CONTRACT;
-    m_rejitState.Store(newState);
+    // We're doing a non thread safe modification to m_rejitState
+    _ASSERTE(LockOwnedByCurrentThread());
+
+    ILCodeVersion::RejitFlags oldNonMaskFlags = 
+        static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ~ILCodeVersion::kStateMask);
+    m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(newState | oldNonMaskFlags));
+}
+
+void ILCodeVersionNode::SetEnableReJITCallback(BOOL state)
+{
+    LIMITED_METHOD_CONTRACT;
+    // We're doing a non thread safe modification to m_rejitState
+    _ASSERTE(LockOwnedByCurrentThread());
+
+    ILCodeVersion::RejitFlags oldFlags = m_rejitState.Load();
+    if (state)
+    {
+        m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(oldFlags | ILCodeVersion::kSuppressParams));
+    }
+    else
+    {
+        m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(oldFlags & ~ILCodeVersion::kSuppressParams));
+    }
 }
 
 void ILCodeVersionNode::SetIL(COR_ILMETHOD* pIL)
@@ -784,6 +813,19 @@ ILCodeVersion::RejitFlags ILCodeVersion::GetRejitState() const
     }
 }
 
+BOOL ILCodeVersion::GetEnableReJITCallback() const
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        return AsNode()->GetEnableReJITCallback();
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
 PTR_COR_ILMETHOD ILCodeVersion::GetIL() const
 {
     CONTRACTL
@@ -876,6 +918,12 @@ void ILCodeVersion::SetRejitState(RejitFlags newState)
 {
     LIMITED_METHOD_CONTRACT;
     AsNode()->SetRejitState(newState);
+}
+
+void ILCodeVersion::SetEnableReJITCallback(BOOL state)
+{
+    LIMITED_METHOD_CONTRACT;
+    return AsNode()->SetEnableReJITCallback(state);
 }
 
 void ILCodeVersion::SetIL(COR_ILMETHOD* pIL)
@@ -2075,7 +2123,13 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
 
     // step 3 - update each pre-existing method instantiation
     {
+        // Backpatching entry point slots requires cooperative GC mode, see
+        // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+        // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+        // must be used here to prevent deadlock.
+        GCX_COOP();
         TableLockHolder lock(this);
+
         for (DWORD i = 0; i < cActiveVersions; i++)
         {
             // Its possible the active IL version has changed if
@@ -2187,7 +2241,8 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             pCode = pMethodDesc->PrepareCode(activeVersion);
         }
 
-        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
+        bool mayHaveEntryPointSlotsToBackpatch = pMethodDesc->MayHaveEntryPointSlotsToBackpatch();
+        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
 
         // suspend in preparation for publishing if needed
         if (fEESuspend)
@@ -2196,7 +2251,13 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         }
 
         {
+            // Backpatching entry point slots requires cooperative GC mode, see
+            // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+            // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+            // must be used here to prevent deadlock.
+            GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
             TableLockHolder lock(this);
+
             // The common case is that newActiveCode == activeCode, however we did leave the lock so there is
             // possibility that the active version has changed. If it has we need to restart the compilation
             // and publishing process with the new active version instead.
@@ -2250,7 +2311,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
                     break;
                 }
             }
-        } // exit lock
+        } // exit lock, revert GC mode
 
         if (fEESuspend)
         {
@@ -2270,9 +2331,29 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
 {
     // TODO: This function needs to make sure it does not change the precode's target if call counting is in progress. Track
     // whether call counting is currently being done for the method, and use a lock to ensure the expected precode target.
-    WRAPPER_NO_CONTRACT;
+
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+
+        // Backpatching entry point slots requires cooperative GC mode, see MethodDescBackpatchInfoTracker::Backpatch_Locked().
+        // The code version manager's table lock is an unsafe lock that may be taken in any GC mode. The lock is taken in
+        // cooperative GC mode on other paths, so the caller must use the same ordering to prevent deadlock (switch to
+        // cooperative GC mode before taking the lock).
+        if (pMethod->MayHaveEntryPointSlotsToBackpatch())
+        {
+            MODE_COOPERATIVE;
+        }
+        else
+        {
+            MODE_ANY;
+        }
+    }
+    CONTRACTL_END;
+
     _ASSERTE(LockOwnedByCurrentThread());
     _ASSERTE(pMethod->IsVersionable());
+
     HRESULT hr = S_OK;
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
     if (pMethod->IsVersionableWithoutJumpStamp())

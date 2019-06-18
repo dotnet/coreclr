@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System.Reflection.Emit
@@ -14,7 +13,7 @@ namespace System.Reflection.Emit
         private Type m_containingType;
         private string m_name;
         private CallingConventions m_callingConvention;
-        private Type? m_returnType;
+        private Type m_returnType;
         private MethodToken m_mdMethod;
         private Type[] m_parameterTypes;
         private SignatureHelper m_signature;
@@ -34,7 +33,7 @@ namespace System.Reflection.Emit
             m_mdMethod = token;
 
             // The ParameterTypes are also a bit interesting in that they may be unbaked TypeBuilders.
-            m_returnType = returnType;
+            m_returnType = returnType ?? typeof(void);
             if (parameterTypes != null)
             {
                 m_parameterTypes = new Type[parameterTypes.Length];
@@ -119,7 +118,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region MethodInfo Overrides
-        public override Type? ReturnType
+        public override Type ReturnType
         {
             get
             {
@@ -127,10 +126,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override ICustomAttributeProvider? ReturnTypeCustomAttributes
-        {
-            get { return null; }
-        }
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes => new EmptyCAHolder();
 
         public override object Invoke(object? obj, BindingFlags invokeAttr, Binder? binder, object?[]? parameters, CultureInfo? culture)
         {

@@ -11,7 +11,6 @@
 **
 ===========================================================*/
 
-#nullable enable
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -89,7 +88,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetHashCodeOfPtr(IntPtr ptr);
 
-        public override string ToString()
+        public override string? ToString()
         {
             return this.GetType().ToString();
         }

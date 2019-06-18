@@ -11,6 +11,7 @@
 //      GC-internal type's fields, while still maintaining the same layout.
 // This interface is strictly versioned, see gcinterface.dacvars.def for more information.
 
+#define HEAP_SEGMENT_FLAGS_READONLY     1
 #define NUM_GC_DATA_POINTS              9
 #define MAX_COMPACT_REASONS_COUNT       11
 #define MAX_EXPAND_MECHANISMS_COUNT     6
@@ -53,15 +54,11 @@ public:
 
 class dac_handle_table {
 public:
-    // On the handle table side, this is an ADIndex. They should still have
-    // the same layout.
-    //
     // We do try to keep everything that the DAC knows about as close to the
     // start of the struct as possible to avoid having padding members. However,
     // HandleTable has rgTypeFlags at offset 0 for performance reasons and
     // we don't want to disrupt that.
     uint32_t padding[HANDLE_MAX_INTERNAL_TYPES];
-    DWORD uADIndex;
 };
 
 class dac_handle_table_bucket {

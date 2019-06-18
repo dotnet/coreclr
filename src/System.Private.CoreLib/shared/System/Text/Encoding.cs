@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 
@@ -370,7 +370,7 @@ namespace System.Text
         // Returns the name for this encoding that can be used with mail agent body tags.
         // If the encoding may not be used, the string is empty.
 
-        public virtual string? BodyName
+        public virtual string BodyName
         {
             get
             {
@@ -383,7 +383,7 @@ namespace System.Text
         }
 
         // Returns the human-readable description of the encoding ( e.g. Hebrew (DOS)).
-        public virtual string? EncodingName
+        public virtual string EncodingName
         {
             get
             {
@@ -399,7 +399,7 @@ namespace System.Text
         // Returns the name for this encoding that can be used with mail agent header
         // tags.  If the encoding may not be used, the string is empty.
 
-        public virtual string? HeaderName
+        public virtual string HeaderName
         {
             get
             {
@@ -412,7 +412,7 @@ namespace System.Text
         }
 
         // Returns the IANA preferred name for this encoding.
-        public virtual string? WebName
+        public virtual string WebName
         {
             get
             {
@@ -1182,6 +1182,7 @@ namespace System.Text
             return Array.Empty<char>();
         }
 
+        [DoesNotReturn]
         internal void ThrowBytesOverflow()
         {
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken
@@ -1205,12 +1206,15 @@ namespace System.Text
             encoder!.ClearMustFlush();
         }
 
+        [DoesNotReturn]
         [StackTraceHidden]
         internal static void ThrowConversionOverflow()
         {
             throw new ArgumentException(SR.Argument_ConversionOverflow);
         }
 
+        [DoesNotReturn]
+        [StackTraceHidden]
         internal void ThrowCharsOverflow()
         {
             // Special message to include fallback type in case fallback's GetMaxCharCount is broken

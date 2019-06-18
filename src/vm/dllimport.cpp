@@ -26,7 +26,6 @@
 #include "comutilnative.h"
 #include "corhost.h"
 #include "asmconstants.h"
-#include "mdaassistants.h"
 #include "customattribute.h"
 #include "ilstubcache.h"
 #include "typeparse.h"
@@ -452,8 +451,7 @@ public:
         STANDARD_VM_CONTRACT;
 
         ILCodeStream* pcs = m_slIL.GetDispatchCodeStream();
-        
-#ifdef FEATURE_USE_LCID
+
         if (SF_IsReverseStub(m_dwStubFlags))
         {
             if ((m_slIL.GetStubTargetCallingConv() & IMAGE_CEE_CS_CALLCONV_HASTHIS) == IMAGE_CEE_CS_CALLCONV_HASTHIS)
@@ -505,12 +503,6 @@ public:
                 pcs->EmitCALL(METHOD__CULTURE_INFO__GET_ID, 1, 1);
             }
         }
-#else // FEATURE_USE_LCID
-        if (SF_IsForwardStub(m_dwStubFlags))
-        {
-            pcs->EmitLDC(0x0409); // LCID_ENGLISH_US
-        }
-#endif // FEATURE_USE_LCID
 
         // add the extra arg to the unmanaged signature
         LocalDesc locDescNative(ELEMENT_TYPE_I4);
@@ -627,24 +619,6 @@ public:
         bool returnTheHRESULT = SF_IsHRESULTSwapping(m_dwStubFlags) || 
                                     (managedReturnElemType == ELEMENT_TYPE_I4) ||
                                     (managedReturnElemType == ELEMENT_TYPE_U4);
-
-#ifdef MDA_SUPPORTED
-        if (!returnTheHRESULT)
-        {
-            MdaExceptionSwallowedOnCallFromCom* mda = MDA_GET_ASSISTANT(ExceptionSwallowedOnCallFromCom);
-            if (mda)
-            {
-                // on the stack: exception object, but the stub linker doesn't know it
-                pcsExceptionHandler->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT, 0, 1);
-                pcsExceptionHandler->EmitCALL(METHOD__STUBHELPERS__TRIGGER_EXCEPTION_SWALLOWED_MDA, 
-                    1,  // WARNING: This method takes 2 input args, the exception object and the stub context.
-                        //          But the ILStubLinker has no knowledge that the exception object is on the 
-                        //          stack (because it is unaware that we've just entered a catch block), so we 
-                        //          lie and claim that we only take one input argument.
-                    1); // returns the exception object back
-            }
-        }
-#endif // MDA_SUPPORTED
 
         DWORD retvalLocalNum = m_slIL.GetReturnValueLocalNum();
         BinderMethodID getHRForException;
@@ -818,49 +792,6 @@ public:
         }
 #endif // _DEBUG
 
-#ifdef FEATURE_COMINTEROP
-        if (SF_IsForwardCOMStub(m_dwStubFlags))
-        {
-#if defined(MDA_SUPPORTED)
-            // We won't use this NGEN'ed stub if RaceOnRCWCleanup is enabled at run-time
-            if (!SF_IsNGENedStub(m_dwStubFlags))
-            {
-                // This code may change the type of the frame we use, so it has to be run before the code below where we
-                // retrieve the stack arg size based on the frame type.
-                MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
-                if (mda)
-                {
-                    // Here we have to register the RCW of the "this" object to the RCWStack and schedule the clean-up for it.
-                    // Emit a call to StubHelpers::StubRegisterRCW() and StubHelpers::StubUnregisterRCW() to do this.
-                    m_slIL.EmitLoadRCWThis(pcsMarshal, m_dwStubFlags);
-                    pcsMarshal->EmitCALL(METHOD__STUBHELPERS__STUB_REGISTER_RCW, 1, 0);
-
-                    // We use an extra local to track whether we need to unregister the RCW on cleanup
-                    ILCodeStream *pcsSetup = m_slIL.GetSetupCodeStream();
-                    DWORD dwRCWRegisteredLocalNum = pcsSetup->NewLocal(ELEMENT_TYPE_BOOLEAN);
-                    pcsSetup->EmitLDC(0);
-                    pcsSetup->EmitSTLOC(dwRCWRegisteredLocalNum);
-
-                    pcsMarshal->EmitLDC(1);
-                    pcsMarshal->EmitSTLOC(dwRCWRegisteredLocalNum);
-
-                    ILCodeStream *pcsCleanup = m_slIL.GetCleanupCodeStream();
-                    ILCodeLabel *pSkipCleanupLabel = pcsCleanup->NewCodeLabel();
-                    
-                    m_slIL.SetCleanupNeeded();
-                    pcsCleanup->EmitLDLOC(dwRCWRegisteredLocalNum);
-                    pcsCleanup->EmitBRFALSE(pSkipCleanupLabel);
-
-                    m_slIL.EmitLoadRCWThis(pcsCleanup, m_dwStubFlags);
-                    pcsCleanup->EmitCALL(METHOD__STUBHELPERS__STUB_UNREGISTER_RCW, 1, 0);
-
-                    pcsCleanup->EmitLabel(pSkipCleanupLabel);
-                }
-            }
-#endif // MDA_SUPPORTED
-        }
-#endif // FEATURE_COMINTEROP
-
         // <NOTE>
         // The profiler helpers below must be called immediately before and after the call to the target.
         // The debugger trace call helpers are invoked from StubRareDisableWorker
@@ -870,20 +801,12 @@ public:
         DWORD dwMethodDescLocalNum = (DWORD)-1;
 
         // Notify the profiler of call out of the runtime
-        if (!SF_IsReverseCOMStub(m_dwStubFlags) && (CORProfilerTrackTransitions() || SF_IsNGENedStubForProfiling(m_dwStubFlags)))
+        if (!SF_IsReverseCOMStub(m_dwStubFlags) && (CORProfilerTrackTransitions() || (!IsReadyToRunCompilation() && SF_IsNGENedStubForProfiling(m_dwStubFlags))))
         {
             dwMethodDescLocalNum = m_slIL.EmitProfilerBeginTransitionCallback(pcsDispatch, m_dwStubFlags);
             _ASSERTE(dwMethodDescLocalNum != (DWORD)-1);
         }
 #endif // PROFILING_SUPPORTED
-
-#ifdef MDA_SUPPORTED
-        if (SF_IsForwardStub(m_dwStubFlags) && !SF_IsNGENedStub(m_dwStubFlags) &&
-            MDA_GET_ASSISTANT(GcManagedToUnmanaged))
-        {
-            m_slIL.EmitCallGcCollectForMDA(pcsDispatch, m_dwStubFlags);
-        }
-#endif // MDA_SUPPORTED
 
         // For CoreClr, clear the last error before calling the target that returns last error.
         // There isn't always a way to know the function have failed without checking last error,
@@ -911,14 +834,6 @@ public:
             pcsDispatch->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
         }
 #endif // defined(_TARGET_X86_)
-
-#ifdef MDA_SUPPORTED
-        if (SF_IsForwardStub(m_dwStubFlags) && !SF_IsNGENedStub(m_dwStubFlags) &&
-            MDA_GET_ASSISTANT(GcUnmanagedToManaged))
-        {
-            m_slIL.EmitCallGcCollectForMDA(pcsDispatch, m_dwStubFlags);
-        }
-#endif // MDA_SUPPORTED
 
 #ifdef VERIFY_HEAP
         if (SF_IsForwardStub(m_dwStubFlags) && g_pConfig->InteropValidatePinnedObjects())
@@ -2218,28 +2133,8 @@ void NDirectStubLinker::Begin(DWORD dwStubFlags)
     }
     else
     {
-#ifdef MDA_SUPPORTED
-        if (!SF_IsNGENedStub(dwStubFlags) && MDA_GET_ASSISTANT(GcUnmanagedToManaged))
-        {
-            EmitCallGcCollectForMDA(m_pcsSetup, dwStubFlags);
-        }
-#endif // MDA_SUPPORTED
-
         if (SF_IsDelegateStub(dwStubFlags))
         {
-#if defined(MDA_SUPPORTED)
-            // GC was induced (gcUnmanagedToManagedMDA), arguments have been marshaled, and we are about
-            // to touch the UMEntryThunk and extract the delegate target from it so this is the right time
-            // to do the collected delegate MDA check.
-
-            // The call to CheckCollectedDelegateMDA is emitted regardless of whether the MDA is on at the
-            // moment. This is to avoid having to ignore NGENed stubs without the call just as we do for
-            // the GC MDA (callbackOncollectedDelegateMDA is turned on under managed debugger by default
-            // so the impact would be substantial). The helper bails out fast if the MDA is not enabled.
-            EmitLoadStubContext(m_pcsDispatch, dwStubFlags);
-            m_pcsDispatch->EmitCALL(METHOD__STUBHELPERS__CHECK_COLLECTED_DELEGATE_MDA, 1, 0);
-#endif // MDA_SUPPORTED
-
             //
             // recover delegate object from UMEntryThunk
 
@@ -2344,14 +2239,6 @@ void NDirectStubLinker::End(DWORD dwStubFlags)
         m_pcsCleanup->EmitLabel(m_pCleanupFinallyEndLabel);
     }
 
-#ifdef MDA_SUPPORTED
-    if (SF_IsReverseStub(dwStubFlags) && !SF_IsNGENedStub(dwStubFlags) &&
-        MDA_GET_ASSISTANT(GcManagedToUnmanaged))
-    {
-        EmitCallGcCollectForMDA(pcs, dwStubFlags);
-    }
-#endif // MDA_SUPPORTED
-
     if (IsExceptionCleanupNeeded())
     {
         m_pcsExceptionCleanup->EmitLabel(m_pSkipExceptionCleanupLabel);
@@ -2373,7 +2260,7 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
         if (SF_IsDelegateStub(dwStubFlags)) // delegate invocation
         {
             // get the delegate unmanaged target - we call a helper instead of just grabbing
-            // the _methodPtrAux field because we may need to intercept the call for host, MDA, etc.
+            // the _methodPtrAux field because we may need to intercept the call for host, etc.
             pcsEmit->EmitLoadThis();
 #ifdef _TARGET_64BIT_
             // on AMD64 GetDelegateTarget will return address of the generic stub for host when we are hosted
@@ -2408,27 +2295,23 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 #endif // FEATURE_COMINTEROP
             {
                 EmitLoadStubContext(pcsEmit, dwStubFlags);
+                // pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
+                pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
+                pcsEmit->EmitADD();
 
+                if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
                 {
-                    // Perf: inline the helper for now
-                    //pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
-                    pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
-                    pcsEmit->EmitADD();
-
-                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
-                    {
-                        pcsEmit->EmitDUP();
-                    }
-
-                    pcsEmit->EmitLDIND_I();
-
-                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
-                    {
-                        pcsEmit->EmitADD();
-                    }
-
-                    pcsEmit->EmitLDIND_I();
+                    pcsEmit->EmitDUP();
                 }
+
+                pcsEmit->EmitLDIND_I();
+
+                if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                {
+                    pcsEmit->EmitADD();
+                }
+
+                pcsEmit->EmitLDIND_I();
             }
 #ifdef FEATURE_COMINTEROP
             else
@@ -2698,34 +2581,6 @@ void NDirectStubLinker::EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubF
     }
 }
 
-#ifdef MDA_SUPPORTED
-void NDirectStubLinker::EmitCallGcCollectForMDA(ILCodeStream *pcsEmit, DWORD dwStubFlags)
-{
-    STANDARD_VM_CONTRACT;
-
-    ILCodeLabel *pSkipGcLabel = NULL;
-
-    if (SF_IsForwardPInvokeStub(dwStubFlags) &&
-        !SF_IsDelegateStub(dwStubFlags) &&
-        !SF_IsCALLIStub(dwStubFlags))
-    {
-        // don't call GC if this is a QCall
-        EmitLoadStubContext(pcsEmit, dwStubFlags);
-        pcsEmit->EmitCALL(METHOD__STUBHELPERS__IS_QCALL, 1, 1);
-
-        pSkipGcLabel = pcsEmit->NewCodeLabel();
-        pcsEmit->EmitBRTRUE(pSkipGcLabel);
-    }
-
-    pcsEmit->EmitCALL(METHOD__STUBHELPERS__TRIGGER_GC_FOR_MDA, 0, 0);
-
-    if (pSkipGcLabel != NULL)
-    {
-        pcsEmit->EmitLabel(pSkipGcLabel);
-    }
-}
-#endif // MDA_SUPPORTED
-
 #ifdef FEATURE_COMINTEROP
 
 class DispatchStubState : public StubState // For CLR-to-COM late-bound/eventing calls
@@ -2850,7 +2705,7 @@ void PInvokeStaticSigInfo::PreInit(Module* pModule, MethodTable * pMT)
     }
     else
     {
-        ReadBestFitCustomAttribute(m_pModule->GetMDImport(), mdTypeDefNil, &bBestFit, &bThrowOnUnmappableChar);
+        ReadBestFitCustomAttribute(m_pModule, mdTypeDefNil, &bBestFit, &bThrowOnUnmappableChar);
     }
 
     SetBestFitMapping (bBestFit);
@@ -2924,8 +2779,8 @@ PInvokeStaticSigInfo::PInvokeStaticSigInfo(MethodDesc* pMD, ThrowOnError throwOn
     LONG cData = 0;
     CorPinvokeMap callConv = (CorPinvokeMap)0;
 
-    HRESULT hRESULT = pMT->GetMDImport()->GetCustomAttributeByName(
-        pMT->GetCl(), g_UnmanagedFunctionPointerAttribute, (const VOID **)(&pData), (ULONG *)&cData);
+    HRESULT hRESULT = pMT->GetCustomAttribute(
+        WellKnownAttribute::UnmanagedFunctionPointer, (const VOID **)(&pData), (ULONG *)&cData);
     IfFailThrow(hRESULT);
     if (cData != 0)
     {
@@ -3180,7 +3035,7 @@ BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
     if (!pGetLastError)
     {
         // No need to use a holder here, since no cleanup is necessary.
-        HMODULE hMod = CLRGetModuleHandle(WINDOWS_KERNEL32_DLLNAME_W);
+        HMODULE hMod = WszGetModuleHandle(WINDOWS_KERNEL32_DLLNAME_W);
         if (hMod)
         {
             pGetLastError = (LPBYTE)GetProcAddress(hMod, "GetLastError");
@@ -4791,15 +4646,14 @@ HRESULT FindPredefinedILStubMethod(MethodDesc *pTargetMD, DWORD dwStubFlags, Met
         if (pTargetMD->IsInterface())
         {
             _ASSERTE(!pTargetMD->GetAssembly()->IsWinMD());
-            hr = pTargetMD->GetMDImport()->GetCustomAttributeByName(
-                pTargetMD->GetMemberDef(),
-                FORWARD_INTEROP_STUB_METHOD_TYPE,
+            hr = pTargetMD->GetCustomAttribute(
+                WellKnownAttribute::ManagedToNativeComInteropStub,
                 &pBytes,
                 &cbBytes);
                 
             if (FAILED(hr)) 
                 RETURN hr;
-            // GetCustomAttributeByName returns S_FALSE when it cannot find the attribute but nothing fails...
+            // GetCustomAttribute returns S_FALSE when it cannot find the attribute but nothing fails...
             // Translate that to E_FAIL
             else if (hr == S_FALSE)
                 RETURN E_FAIL;               
@@ -5496,15 +5350,6 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
     STANDARD_VM_CONTRACT;
 
     BOOL fGcMdaEnabled = FALSE;
-#ifdef MDA_SUPPORTED
-    if (MDA_GET_ASSISTANT(GcManagedToUnmanaged) || MDA_GET_ASSISTANT(GcUnmanagedToManaged))
-    {
-        // We never generate checks for these MDAs to NGEN'ed stubs so if they are
-        // enabled, a new stub must be generated (the perf impact is huge anyway).
-        fGcMdaEnabled = TRUE;
-    }
-#endif // MDA_SUPPORTED
-
 #ifdef FEATURE_COMINTEROP
     if (SF_IsReverseCOMStub(dwStubFlags))
     {
@@ -5529,14 +5374,6 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
 #ifdef FEATURE_COMINTEROP
     else if (pMD->IsComPlusCall() || pMD->IsGenericComPlusCall())
     {
-#ifdef MDA_SUPPORTED
-        if (MDA_GET_ASSISTANT(RaceOnRCWCleanup))
-        {
-            // we never generate this callout to NGEN'ed stubs
-            return NULL;
-        }
-#endif // MDA_SUPPORTED
-
         if (fGcMdaEnabled)
             return NULL;
 
@@ -5884,7 +5721,7 @@ void CreateCLRToDispatchCOMStub(
 #endif // FEATURE_COMINTEROP
 
 /*static*/
-LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod)
+LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, NATIVE_LIBRARY_HANDLE hMod)
 {
     // GetProcAddress cannot be called while preemptive GC is disabled.
     // It requires the OS to take the loader lock.
@@ -5897,10 +5734,6 @@ LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod)
     CONTRACT_END;
 
     g_IBCLogger.LogNDirectCodeAccess(pMD);
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(PInvokeLog, LogPInvoke(pMD, hMod));
-#endif
 
     RETURN pMD->FindEntryPoint(hMod);
 }
@@ -5919,20 +5752,6 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     CONTRACTL_END;
 
     Stub *pInterceptStub = NULL;
-
-#ifdef _TARGET_X86_
-
-
-#ifdef MDA_SUPPORTED
-    if (!IsQCall() && MDA_GET_ASSISTANT(PInvokeStackImbalance))
-    {
-        pInterceptStub = GenerateStubForMDA(pTarget, pInterceptStub);
-    }
-#endif // MDA_SUPPORTED
-
-
-#endif // _TARGET_X86_
-
 
     NDirectWriteableData* pWriteableData = GetWriteableData();
     EnsureWritablePages(pWriteableData);
@@ -5961,29 +5780,6 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     }
 }
 
-
-
-#if defined(_TARGET_X86_) && defined(MDA_SUPPORTED)
-EXTERN_C VOID __stdcall PInvokeStackImbalanceWorker(StackImbalanceCookie *pSICookie, DWORD dwPostESP)
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_PREEMPTIVE; // we've already switched to preemptive
-
-    // make sure we restore the original Win32 last error before leaving this function - we are
-    // called right after returning from the P/Invoke target and the error has not been saved yet
-    BEGIN_PRESERVE_LAST_ERROR;
-
-    MdaPInvokeStackImbalance* pProbe = MDA_GET_ASSISTANT(PInvokeStackImbalance);
-
-    // This MDA must be active if we generated a call to PInvokeStackImbalanceHelper
-    _ASSERTE(pProbe);
-
-    pProbe->CheckStack(pSICookie, dwPostESP);
-
-    END_PRESERVE_LAST_ERROR;
-}
-#endif // _TARGET_X86_ && MDA_SUPPORTED
 
 
 // Preserving good error info from DllImport-driven LoadLibrary is tricky because we keep loading from different places
@@ -6122,11 +5918,7 @@ static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, 
 
 #ifndef FEATURE_PAL
 
-    if ((flags & 0xFFFFFF00) != 0
-#ifndef FEATURE_CORESYSTEM
-        && NDirect::SecureLoadLibrarySupported()
-#endif // !FEATURE_CORESYSTEM
-        )
+    if ((flags & 0xFFFFFF00) != 0)
     {
         hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
         if (hmod != NULL)
@@ -6155,10 +5947,6 @@ static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, 
     
     return hmod;
 }
-
-#if !defined(FEATURE_PAL)
-bool         NDirect::s_fSecureLoadLibrarySupported = false;
-#endif
 
 #define TOLOWER(a) (((a) >= W('A') && (a) <= W('Z')) ? (W('a') + (a - W('A'))) : (a))
 #define TOHEX(a)   ((a)>=10 ? W('a')+(a)-10 : W('0')+(a))
@@ -6341,7 +6129,7 @@ INT_PTR NDirect::GetNativeLibraryExport(NATIVE_LIBRARY_HANDLE handle, LPCWSTR sy
     if ((address == NULL) && throwOnError)
         COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDR_WIN_DLL, symbolName);
 #else // !FEATURE_PAL
-    INT_PTR address = reinterpret_cast<INT_PTR>(PAL_GetProcAddressDirect((NATIVE_LIBRARY_HANDLE)handle, lpstr));
+    INT_PTR address = reinterpret_cast<INT_PTR>(PAL_GetProcAddressDirect(handle, lpstr));
     if ((address == NULL) && throwOnError)
         COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDR_UNIX_SO, symbolName);
 #endif // !FEATURE_PAL
@@ -6808,11 +6596,11 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleBySearch(Assembly *callingAssemb
         if (SUCCEEDED(spec.Init(szComma)))
         {
             // Need to perform case insensitive hashing.
-            CQuickBytes qbLC;
-            {
-                UTF8_TO_LOWER_CASE(szLibName, qbLC);
-                szLibName = (LPUTF8) qbLC.Ptr();
-            }
+            SString moduleName(SString::Utf8, szLibName);
+            moduleName.LowerCase();
+
+            StackScratchBuffer buffer;
+            szLibName = (LPSTR)moduleName.GetUTF8(buffer);
 
             Assembly *pAssembly = spec.LoadAssembly(FILE_LOADED);
             Module *pModule = pAssembly->FindModuleByName(szLibName);
@@ -6825,7 +6613,7 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleBySearch(Assembly *callingAssemb
 }
 
 // This Method returns an instance of the PAL-Registered handle
-HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
+NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
     CONTRACTL
     {
@@ -6841,12 +6629,9 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     PREFIX_ASSUME( name != NULL );
     MAKE_WIDEPTR_FROMUTF8( wszLibName, name );
 
-    ModuleHandleHolder hmod = LoadLibraryModuleViaCallback(pMD, wszLibName);
+    NativeLibraryHandleHolder hmod = LoadLibraryModuleViaCallback(pMD, wszLibName);
     if (hmod != NULL)
     {
-#ifdef FEATURE_PAL
-        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
         return hmod.Extract();
     }
 
@@ -6859,9 +6644,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         hmod = LoadLibraryModuleViaHost(pMD, wszLibName);
         if (hmod != NULL)
         {
-#ifdef FEATURE_PAL
-            hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
             return hmod.Extract();
         }
     }
@@ -6875,10 +6657,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     hmod = LoadLibraryModuleBySearch(pMD, pErrorTracker, wszLibName);
     if (hmod != NULL)
     {
-#ifdef FEATURE_PAL
-        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
-
         // If we have a handle add it to the cache.
         pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
         return hmod.Extract();
@@ -6889,9 +6667,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         hmod = LoadLibraryModuleViaEvent(pMD, wszLibName);
         if (hmod != NULL)
         {
-#ifdef FEATURE_PAL
-            hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
             return hmod.Extract();
         }
     }
@@ -6946,24 +6721,12 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     LoadLibErrorTracker errorTracker;
 
     BOOL fSuccess = FALSE;
-    HINSTANCE hmod = LoadLibraryModule( pMD, &errorTracker );
+    NATIVE_LIBRARY_HANDLE hmod = LoadLibraryModule( pMD, &errorTracker );
     if ( hmod )
     {
         LPVOID pvTarget = NDirectGetEntryPoint(pMD, hmod);
         if (pvTarget)
         {
-
-#ifdef MDA_SUPPORTED
-            MdaInvalidOverlappedToPinvoke *pOverlapCheck = MDA_GET_ASSISTANT(InvalidOverlappedToPinvoke);
-            if (pOverlapCheck && pOverlapCheck->ShouldHook(pMD))
-            {
-                LPVOID pNewTarget = pOverlapCheck->Register(hmod,pvTarget);
-                if (pNewTarget)
-                {
-                    pvTarget = pNewTarget;
-                }
-            }
-#endif
             pMD->SetNDirectTarget(pvTarget);
             fSuccess = TRUE;
         }
@@ -6994,35 +6757,6 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
 #endif
     }
 }
-
-
-//---------------------------------------------------------
-// One-time init
-//---------------------------------------------------------
-/*static*/ void NDirect::Init()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-    }
-    CONTRACTL_END;
-
-#if !defined(FEATURE_PAL)
-    // Check if the OS supports the new secure LoadLibraryEx flags introduced in KB2533623
-    HMODULE hMod = CLRGetModuleHandle(WINDOWS_KERNEL32_DLLNAME_W);
-    _ASSERTE(hMod != NULL);
-
-    if (GetProcAddress(hMod, "AddDllDirectory") != NULL)
-    {
-        // The AddDllDirectory export was added in KB2533623 together with the new flag support
-        s_fSecureLoadLibrarySupported = true;
-    }
-#endif // !FEATURE_PAL
-}
-
 
 //==========================================================================
 // This function is reached only via NDirectImportThunk. It's purpose

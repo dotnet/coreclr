@@ -32,7 +32,6 @@
 #include "dllimport.h"
 #include "mlinfo.h"
 #include "dbginterface.h"
-#include "mdaassistants.h"
 #include "sigbuilder.h"
 #include "notifyexternals.h"
 #include "comdelegate.h"
@@ -137,30 +136,19 @@ extern "C" HRESULT STDCALL StubRareDisableHRWorker(Thread *pThread)
     // dangerous mode.  If we call managed code, we will potentially be active in
     // the GC heap, even as GC's are occuring!
 
-    // Check for ShutDown scenario.  This happens only when we have initiated shutdown 
-    // and someone is trying to call in after the CLR is suspended.  In that case, we
-    // must either raise an unmanaged exception or return an HRESULT, depending on the
-    // expectations of our caller.
-    if (!CanRunManagedCode())
+    // We must do the following in this order, because otherwise we would be constructing
+    // the exception for the abort without synchronizing with the GC.  Also, we have no
+    // CLR SEH set up, despite the fact that we may throw a ThreadAbortException.
+    pThread->RareDisablePreemptiveGC();
+    EX_TRY
     {
-        hr = E_PROCESS_SHUTDOWN_REENTRY;
+        pThread->HandleThreadAbort();
     }
-    else
+    EX_CATCH
     {
-        // We must do the following in this order, because otherwise we would be constructing
-        // the exception for the abort without synchronizing with the GC.  Also, we have no
-        // CLR SEH set up, despite the fact that we may throw a ThreadAbortException.
-        pThread->RareDisablePreemptiveGC();
-        EX_TRY
-        {
-            pThread->HandleThreadAbort();
-        }
-        EX_CATCH
-        {
-            hr = GET_EXCEPTION()->GetHR();
-        }
-        EX_END_CATCH(SwallowAllExceptions);
+        hr = GET_EXCEPTION()->GetHR();
     }
+    EX_END_CATCH(SwallowAllExceptions);
 
     // should always be in coop mode here
     _ASSERTE(pThread->PreemptiveGCDisabled());
@@ -597,10 +585,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         }
     }
 
-    // Check for an illegal coop->coop transition.  We may fire the Reentrancy MDA as a result.
-    if (pThread->PreemptiveGCDisabled())
-        HasIllegalReentrancy();
-
     // Attempt to switch GC modes.  Note that this is performed manually just like in the x86 stub because
     // we have additional checks for shutdown races, MDAs, and thread abort that are performed only when 
     // g_TrapReturningThreads is set.
@@ -611,18 +595,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         if (S_OK != hr)
             goto ErrorExit;
     }
-
-#ifdef MDA_SUPPORTED
-    // Check for and trigger the LoaderLock MDA
-    if (ShouldCheckLoaderLock())
-    {
-        BOOL IsHeld;
-        if (AuxUlibIsDLLSynchronizationHeld(&IsHeld) && IsHeld)
-        {
-            MDA_TRIGGER_ASSISTANT(LoaderLock, ReportViolation(0));
-        }
-    }
-#endif // MDA_SUPPORTED
 
     // Initialize the frame's VPTR and GS cookie.
     *((TADDR*)pFrame) = ComMethodFrame::GetMethodFrameVPtr();
@@ -727,11 +699,6 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     }
     CONTRACTL_END;
 
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(GcUnmanagedToManaged, TriggerGC());
-#endif
-
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker enter\n"));
     
     HRESULT hrRetVal = S_OK;
@@ -766,10 +733,6 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     }
 
     GCPROTECT_END();
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(GcManagedToUnmanaged, TriggerGC());
-#endif
 
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker leave\n"));
 
@@ -1145,7 +1108,7 @@ void ComCallMethodDesc::InitNativeInfo()
             // Look up the best fit mapping info via Assembly & Interface level attributes
             BOOL BestFit = TRUE;
             BOOL ThrowOnUnmappableChar = FALSE;
-            ReadBestFitCustomAttribute(fsig.GetModule()->GetMDImport(), pFD->GetEnclosingMethodTable()->GetCl(), &BestFit, &ThrowOnUnmappableChar);
+            ReadBestFitCustomAttribute(fsig.GetModule(), pFD->GetEnclosingMethodTable()->GetCl(), &BestFit, &ThrowOnUnmappableChar);
 
             MarshalInfo info(fsig.GetModule(), fsig.GetArgProps(), fsig.GetSigTypeContext(), pFD->GetMemberDef(), MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                              (CorNativeLinkType)0, (CorNativeLinkFlags)0, 
@@ -1449,7 +1412,7 @@ void ComCall::PopulateComCallMethodDesc(ComCallMethodDesc *pCMD, DWORD *pdwStubF
         _ASSERTE(IsMemberVisibleFromCom(pFD->GetApproxEnclosingMethodTable(), pFD->GetMemberDef(), mdTokenNil) && "Calls are not permitted on this member since it isn't visible from COM. The only way you can have reached this code path is if your native interface doesn't match the managed interface.");
 
         MethodTable *pMT = pFD->GetEnclosingMethodTable();
-        ReadBestFitCustomAttribute(pMT->GetMDImport(), pMT->GetCl(), &BestFit, &ThrowOnUnmappableChar);
+        ReadBestFitCustomAttribute(pMT->GetModule(), pMT->GetCl(), &BestFit, &ThrowOnUnmappableChar);
     }
     else
     {

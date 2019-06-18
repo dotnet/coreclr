@@ -19,10 +19,10 @@
 #include "dllimport.h"
 #include "fieldmarshaler.h"
 #include "encee.h"
-#include "mdaassistants.h"
 #include "ecmakey.h"
 #include "customattribute.h"
 #include "typestring.h"
+#include "compile.h"
 
 //*******************************************************************************
 // Helper functions to sort GCdescs by offset (decending order)
@@ -1421,17 +1421,17 @@ MethodTableBuilder::BuildMethodTableThrowing(
     {
         bmtProp->fIsValueClass = true;
 
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
-                                                                g_CompilerServicesUnsafeValueTypeAttribute,
-                                                                NULL, NULL);
+        HRESULT hr = GetCustomAttribute(bmtInternal->pType->GetTypeDefToken(),
+                                        WellKnownAttribute::UnsafeValueType,
+                                        NULL, NULL);
         IfFailThrow(hr);
         if (hr == S_OK)
         {
             SetUnsafeValueClass();
         }
 
-        hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
-            g_CompilerServicesIsByRefLikeAttribute,
+        hr = GetCustomAttribute(bmtInternal->pType->GetTypeDefToken(),
+            WellKnownAttribute::IsByRefLike,
             NULL, NULL);
         IfFailThrow(hr);
         if (hr == S_OK)
@@ -1487,8 +1487,8 @@ MethodTableBuilder::BuildMethodTableThrowing(
     // We check this here fairly early to ensure other downstream checks on these types can be slightly more efficient.
     if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
     {
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(bmtInternal->pType->GetTypeDefToken(),
-            g_CompilerServicesIntrinsicAttribute,
+        HRESULT hr = GetCustomAttribute(bmtInternal->pType->GetTypeDefToken(),
+            WellKnownAttribute::Intrinsic,
             NULL,
             NULL);
 
@@ -1518,12 +1518,17 @@ MethodTableBuilder::BuildMethodTableThrowing(
         if (hr == S_OK && (strcmp(nameSpace, "System.Runtime.Intrinsics.X86") == 0))
 #endif
         {
-            if (IsCompilationProcess())
+#if defined(CROSSGEN_COMPILE)
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+            if ((!IsNgenPDBCompilationProcess()
+                && GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule()))
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
             {
-                // Disable AOT compiling for managed implementation of hardware intrinsics in mscorlib.
+                // Disable AOT compiling for managed implementation of hardware intrinsics.
                 // We specially treat them here to ensure correct ISA features are set during compilation
                 COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
             }
+#endif // defined(CROSSGEN_COMPILE)
             bmtProp->fIsHardwareIntrinsic = true;
         }
     }
@@ -2435,7 +2440,7 @@ HRESULT MethodTableBuilder::FindMethodDeclarationForMethodImpl(
         if (TypeFromToken(typeref) == mdtMethodDef)
         {   // If parent is a method def then this is a varags method
             mdTypeDef typeDef;
-            hr = pMDInternalImport->GetParentToken(typeref, &typeDef);
+            IfFailRet(pMDInternalImport->GetParentToken(typeref, &typeDef));
 
             if (TypeFromToken(typeDef) != mdtTypeDef)
             {   // A mdtMethodDef must be parented by a mdtTypeDef
@@ -3390,9 +3395,9 @@ MethodTableBuilder::EnumerateClassFields()
 
                 // If this static field is thread static, then we need
                 // to increment bmtEnumFields->dwNumThreadStaticFields
-                hr = pMDInternalImport->GetCustomAttributeByName(tok,
-                                                                 g_ThreadStaticAttributeClassName,
-                                                                 NULL, NULL);
+                hr = GetCustomAttribute(tok,
+                                        WellKnownAttribute::ThreadStatic,
+                                        NULL, NULL);
                 IfFailThrow(hr);
                 if (hr == S_OK)
                 {
@@ -3795,9 +3800,9 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
 
             HRESULT hr;
  
-            hr = pInternalImport->GetCustomAttributeByName(bmtMetaData->pFields[i],
-                                                           g_ThreadStaticAttributeClassName,
-                                                           NULL, NULL);
+            hr = GetCustomAttribute(bmtMetaData->pFields[i],
+                                    WellKnownAttribute::ThreadStatic,
+                                    NULL, NULL);
             IfFailThrow(hr);
             if (hr == S_OK)
             {
@@ -3807,9 +3812,9 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
 
             if (ElementType == ELEMENT_TYPE_VALUETYPE)
             {
-                hr = pInternalImport->GetCustomAttributeByName(bmtMetaData->pFields[i],
-                                                               g_CompilerServicesFixedAddressValueTypeAttribute,
-                                                               NULL, NULL);
+                hr = GetCustomAttribute(bmtMetaData->pFields[i],
+                                        WellKnownAttribute::FixedAddressValueType,
+                                        NULL, NULL);
                 IfFailThrow(hr);
                 if (hr == S_OK)
                 {
@@ -4183,7 +4188,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                     pSrcFieldMarshaler->CopyTo(pNextFieldMarshaler, MAXFIELDMARSHALERSIZE);
 
                     pNextFieldMarshaler->SetFieldDesc(pFD);
-                    pNextFieldMarshaler->SetExternalOffset(pwalk->m_offset);
+                    pNextFieldMarshaler->SetExternalOffset(pwalk->m_nativePlacement.m_offset);
 
                     ((BYTE*&)pNextFieldMarshaler) += MAXFIELDMARSHALERSIZE;
                     break;
@@ -4221,7 +4226,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                     (*pByValueClassCache)[dwCurrentDeclaredField]->GetNumInstanceFieldBytes();
 
                 if (pLayoutFieldInfo)
-                    IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_offset));
+                    IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_nativePlacement.m_offset));
                 else
                     pFD->SetOffset(FIELD_OFFSET_VALUE_CLASS);
             }
@@ -4230,7 +4235,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 (DWORD_PTR &)pFD->m_pMTOfEnclosingClass =
                     (*pByValueClassCache)[dwCurrentDeclaredField]->GetNumInstanceFieldBytes();
 
-                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_managedOffset));
+                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_managedPlacement.m_offset));
             }
             else
             {
@@ -4251,9 +4256,9 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
             // mark it as either GC or non-GC and as unplaced; it will get placed later on in an optimized way.
 
             if ((IsBlittable() || HasExplicitFieldOffsetLayout()) && !fIsStatic)
-                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_offset));
+                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_nativePlacement.m_offset));
             else if (IsManagedSequential() && !fIsStatic)
-                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_managedOffset));
+                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_managedPlacement.m_offset));
             else if (bCurrentFieldIsGCPointer)
                 pFD->SetOffset(FIELD_OFFSET_UNPLACED_GC_PTR);
             else
@@ -5125,12 +5130,10 @@ MethodTableBuilder::InitNewMethodDesc(
     // Check for methods marked as [Intrinsic]
     if (GetModule()->IsSystem() || GetAssembly()->IsSIMDVectorAssembly())
     {
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(pMethod->GetMethodSignature().GetToken(),
-            g_CompilerServicesIntrinsicAttribute,
-            NULL,
-            NULL);
-
-        if (hr == S_OK || bmtProp->fIsHardwareIntrinsic)
+        if (bmtProp->fIsHardwareIntrinsic || (S_OK == GetCustomAttribute(pMethod->GetMethodSignature().GetToken(),
+                                                    WellKnownAttribute::Intrinsic,
+                                                    NULL,
+                                                    NULL)))
         {
             pNewMD->SetIsJitIntrinsic();
         }
@@ -6959,6 +6962,11 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
 #ifdef FEATURE_TIERED_COMPILATION
     // Keep in-sync with MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     if (g_pConfig->TieredCompilation() &&
+
+        // Policy - If QuickJit is disabled and the module does not have any pregenerated code, the method would be ineligible
+        // for tiering currently to avoid some unnecessary overhead
+        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
+
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
         return TRUE;
@@ -8389,6 +8397,16 @@ MethodTableBuilder::HandleExplicitLayout(
             if (pFD->IsByValue())
             {
                 MethodTable *pByValueMT = pByValueClassCache[valueClassCacheIndex];
+                if (pByValueMT->IsByRefLike())
+                {
+                    if ((pFD->GetOffset_NoLogging() & ((ULONG)TARGET_POINTER_SIZE - 1)) != 0)
+                    {
+                        // If we got here, then a byref-like valuetype was misaligned.
+                        badOffset = pFD->GetOffset_NoLogging();
+                        fieldTrust.SetTrust(ExplicitFieldTrust::kNone);
+                        break;
+                    }
+                }
                 if (pByValueMT->ContainsPointers())
                 {
                     if ((pFD->GetOffset_NoLogging() & ((ULONG)TARGET_POINTER_SIZE - 1)) == 0)
@@ -9544,16 +9562,21 @@ void MethodTableBuilder::CheckForSystemTypes()
                 // These __m128 and __m256 types, among other requirements, are special in that they must always
                 // be aligned properly.
 
-                if (IsCompilationProcess())
+#ifdef CROSSGEN_COMPILE
+                // Disable AOT compiling for the SIMD hardware intrinsic types. These types require special
+                // ABI handling as they represent fundamental data types (__m64, __m128, and __m256) and not
+                // aggregate or union types. See https://github.com/dotnet/coreclr/issues/15943
+                //
+                // Once they are properly handled according to the ABI requirements, we can remove this check
+                // and allow them to be used in crossgen/AOT scenarios.
+                //
+                // We can allow these to AOT compile in CoreLib since CoreLib versions with the runtime.
+                if (!IsNgenPDBCompilationProcess() &&
+                    GetAppDomain()->ToCompilationDomain()->GetTargetModule() != g_pObjectClass->GetModule())
                 {
-                    // Disable AOT compiling for the SIMD hardware intrinsic types. These types require special
-                    // ABI handling as they represent fundamental data types (__m64, __m128, and __m256) and not
-                    // aggregate or union types. See https://github.com/dotnet/coreclr/issues/15943
-                    //
-                    // Once they are properly handled according to the ABI requirements, we can remove this check
-                    // and allow them to be used in crossgen/AOT scenarios.
                     COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
                 }
+#endif
 
                 if (strcmp(name, g_Vector64Name) == 0)
                 {
@@ -10354,7 +10377,7 @@ MethodTableBuilder::SetupMethodTable2(
         {
             const BYTE *        pVal;                 
             ULONG               cbVal;        
-            HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetCl(), g_WindowsFoundationMarshalingBehaviorAttributeClassName, (const void **) &pVal, &cbVal);
+            HRESULT hr = GetCustomAttribute(GetCl(), WellKnownAttribute::WinRTMarshalingBehaviorAttribute, (const void **) &pVal, &cbVal);
             if (hr == S_OK)
             {
                 CustomAttributeParser cap(pVal, cbVal);
@@ -11236,7 +11259,7 @@ VOID MethodTableBuilder::CheckForSpecialTypes()
     // Check to see if the type is a COM event interface (classic COM interop only).
     if (IsInterface() && !GetHalfBakedClass()->IsProjectedFromWinRT())
     {
-        HRESULT hr = pMDImport->GetCustomAttributeByName(GetCl(), INTEROP_COMEVENTINTERFACE_TYPE, NULL, NULL);
+        HRESULT hr = GetCustomAttribute(GetCl(), WellKnownAttribute::ComEventInterface, NULL, NULL);
         if (hr == S_OK)
         {
             bmtProp->fComEventItfType = true;
@@ -11286,6 +11309,12 @@ BOOL MethodTableBuilder::NeedsAlignedBaseOffset()
     if (IsValueClass())
         return FALSE;
 
+    MethodTable * pParentMT = GetParentMethodTable();
+
+    // Trivial parents
+    if (pParentMT == NULL || pParentMT == g_pObjectClass)
+        return FALSE;
+
     // Always use the ReadyToRun field layout algorithm if the source IL image was ReadyToRun, independent on
     // whether ReadyToRun is actually enabled for the module. It is required to allow mixing and matching 
     // ReadyToRun images with NGen.
@@ -11296,16 +11325,30 @@ BOOL MethodTableBuilder::NeedsAlignedBaseOffset()
             return FALSE;
     }
 
-    MethodTable * pParentMT = GetParentMethodTable();
-
-    // Trivial parents
-    if (pParentMT == NULL || pParentMT == g_pObjectClass)
-        return FALSE;
-
     if (pParentMT->GetModule() == GetModule())
     {
         if (!pParentMT->GetClass()->HasLayoutDependsOnOtherModules())
             return FALSE;
+    }
+    else
+    {
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (IsReadyToRunCompilation())
+        {
+            if (pParentMT->GetModule()->IsInCurrentVersionBubble())
+            {
+                return FALSE;
+            }
+        }
+#else // FEATURE_READYTORUN_COMPILER
+        if (GetModule()->GetFile()->IsILImageReadyToRun())
+        {
+            if (GetModule()->IsInSameVersionBubble(pParentMT->GetModule()))
+            {
+                return FALSE;
+            }
+        }
+#endif // FEATURE_READYTORUN_COMPILER
     }
 
     return TRUE;
@@ -11604,7 +11647,7 @@ void MethodTableBuilder::GetCoClassAttribInfo()
     if (!GetHalfBakedClass()->IsProjectedFromWinRT()) // ignore classic COM interop CA on WinRT interfaces
     {
         // Retrieve the CoClassAttribute CA.
-        HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetCl(), INTEROP_COCLASS_TYPE, NULL, NULL);
+        HRESULT hr = GetCustomAttribute(GetCl(), WellKnownAttribute::CoClass, NULL, NULL);
         if (hr == S_OK)
         {
             // COM class interfaces may lazily populate the m_pCoClassForIntf field of EEClass. This field is

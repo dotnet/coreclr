@@ -170,7 +170,7 @@ CustomAttributeManagedValues Attribute::GetManagedCaValue(CaValue* pCaVal)
 
             if (length != (ULONG)-1)
             {
-                gc.array = (CaValueArrayREF)AllocateValueSzArray(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT), length);
+                gc.array = (CaValueArrayREF)AllocateSzArray(TypeHandle(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT)).MakeSZArray(), length);
                 CustomAttributeValue* pValues = gc.array->GetDirectPointerToNonObjectElements();
 
                 for (COUNT_T i = 0; i < length; i ++)
@@ -768,7 +768,7 @@ FCIMPL6(LPVOID, COMCustomAttribute::CreateCaObject, ReflectModuleBaseObject* pAt
         memset((void*)argToProtect, 0, cArgs * sizeof(OBJECTREF));
 
         // load the this pointer
-        argToProtect[0] = pCtorMD->GetMethodTable()->Allocate(); // this is the value to return after the ctor invocation
+        argToProtect[0] = gc.refCaType->GetType().GetMethodTable()->Allocate(); // this is the value to return after the ctor invocation
 
         if (pBlob) 
         {
@@ -1310,7 +1310,7 @@ void COMCustomAttribute::ReadArray(Assembly *pCtorAssembly,
         TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(th);
         if (arrayHandle.IsNull()) 
             goto badBlob;
-        *pArray = (BASEARRAYREF)AllocateArrayEx(arrayHandle, &bounds, 1);
+        *pArray = (BASEARRAYREF)AllocateSzArray(arrayHandle, bounds);
         BOOL fSuccess;
         switch (elementSize)
         {

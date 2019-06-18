@@ -72,6 +72,8 @@
 // NOTE: Make this window really wide if you want to read the table...
 
 DEFINE_CLASS(ACTIVATOR,             System,                 Activator)
+DEFINE_METHOD(ACTIVATOR,            CREATE_INSTANCE_OF_T,   CreateInstance, GM_RetT)
+DEFINE_METHOD(ACTIVATOR,            CREATE_DEFAULT_INSTANCE_OF_T,   CreateDefaultInstance,  GM_RetT)
 
 DEFINE_CLASS(ACCESS_VIOLATION_EXCEPTION, System,            AccessViolationException)
 DEFINE_FIELD(ACCESS_VIOLATION_EXCEPTION, IP,                _ip)
@@ -272,10 +274,8 @@ DEFINE_CLASS(CULTURE_INFO,          Globalization,          CultureInfo)
 DEFINE_METHOD(CULTURE_INFO,         STR_CTOR,               .ctor,                      IM_Str_RetVoid)
 DEFINE_FIELD(CULTURE_INFO,          CURRENT_CULTURE,        s_userDefaultCulture)
 DEFINE_PROPERTY(CULTURE_INFO,       NAME,                   Name,                       Str)
-#ifdef FEATURE_USE_LCID
 DEFINE_METHOD(CULTURE_INFO,         INT_CTOR,               .ctor,                      IM_Int_RetVoid)
 DEFINE_PROPERTY(CULTURE_INFO,       ID,                     LCID,                       Int)
-#endif
 DEFINE_FIELD(CULTURE_INFO,          CULTURE,                s_currentThreadCulture)
 DEFINE_FIELD(CULTURE_INFO,          UI_CULTURE,             s_currentThreadUICulture)
 DEFINE_STATIC_SET_PROPERTY(CULTURE_INFO, CURRENT_CULTURE,      CurrentCulture,     CultureInfo)
@@ -359,8 +359,6 @@ DEFINE_METHOD(EXCEPTION,            GET_CLASS_NAME,         GetClassName,       
 DEFINE_PROPERTY(EXCEPTION,          MESSAGE,                Message,                    Str)
 DEFINE_PROPERTY(EXCEPTION,          SOURCE,                 Source,                     Str)
 DEFINE_PROPERTY(EXCEPTION,          HELP_LINK,              HelpLink,                   Str)
-DEFINE_METHOD(EXCEPTION,            INTERNAL_TO_STRING,     InternalToString,           IM_RetStr)
-DEFINE_METHOD(EXCEPTION,            TO_STRING,              ToString,                   IM_Bool_Bool_RetStr)
 DEFINE_METHOD(EXCEPTION,            INTERNAL_PRESERVE_STACK_TRACE, InternalPreserveStackTrace, IM_RetVoid)
 #ifdef FEATURE_COMINTEROP
 DEFINE_METHOD(EXCEPTION,            ADD_EXCEPTION_DATA_FOR_RESTRICTED_ERROR_INFO, AddExceptionDataForRestrictedErrorInfo, IM_Str_Str_Str_Obj_Bool_RetVoid)
@@ -436,6 +434,11 @@ DEFINE_CLASS(VARIANT,               System,                 Variant)
 DEFINE_METHOD(VARIANT,              CONVERT_OBJECT_TO_VARIANT,MarshalHelperConvertObjectToVariant,SM_Obj_RefVariant_RetVoid)
 DEFINE_METHOD(VARIANT,              CAST_VARIANT,           MarshalHelperCastVariant,   SM_Obj_Int_RefVariant_RetVoid)
 DEFINE_METHOD(VARIANT,              CONVERT_VARIANT_TO_OBJECT,MarshalHelperConvertVariantToObject,SM_RefVariant_RetObject)
+
+DEFINE_CLASS_U(System,              Variant,                VariantData)
+DEFINE_FIELD_U(_objref,             VariantData,            m_objref)
+DEFINE_FIELD_U(_data,               VariantData,            m_data)
+DEFINE_FIELD_U(_flags,              VariantData,            m_flags)
 #endif // FEATURE_COMINTEROP
 
 DEFINE_CLASS(IASYNCRESULT,          System,                 IAsyncResult)
@@ -456,14 +459,8 @@ DEFINE_METHOD(ICUSTOM_QUERYINTERFACE,     GET_INTERFACE,    GetInterface,       
 DEFINE_CLASS(CUSTOMQUERYINTERFACERESULT,  Interop,          CustomQueryInterfaceResult)
 #endif //FEATURE_COMINTEROP
 
-
-DEFINE_CLASS(ISERIALIZABLE,         Serialization,          ISerializable)
-DEFINE_CLASS(IOBJECTREFERENCE,      Serialization,          IObjectReference)
-DEFINE_CLASS(IDESERIALIZATIONCB,    Serialization,          IDeserializationCallback)
-DEFINE_CLASS(STREAMING_CONTEXT,     Serialization,          StreamingContext)
-DEFINE_CLASS(SERIALIZATION_INFO,    Serialization,          SerializationInfo)
-DEFINE_CLASS(DESERIALIZATION_TRACKER, Serialization, DeserializationTracker)
-
+DEFINE_CLASS(SERIALIZATION_INFO,        Serialization,      SerializationInfo)
+DEFINE_CLASS(DESERIALIZATION_TRACKER,   Serialization,      DeserializationTracker)
 
 DEFINE_CLASS(IENUMERATOR,           Collections,            IEnumerator)
 
@@ -843,8 +840,6 @@ DEFINE_FIELD_U(_requireWaitNotification, SynchronizationContextObject, _requireW
 DEFINE_CLASS(SYNCHRONIZATION_CONTEXT,    Threading,              SynchronizationContext)
 DEFINE_METHOD(SYNCHRONIZATION_CONTEXT,  INVOKE_WAIT_METHOD_HELPER, InvokeWaitMethodHelper, SM_SyncCtx_ArrIntPtr_Bool_Int_RetInt)
 
-DEFINE_CLASS(CONTEXTCALLBACK,       Threading,       ContextCallback)
-
 #ifdef _DEBUG
 DEFINE_CLASS(STACKCRAWMARK,         Threading,       StackCrawlMark)
 #endif
@@ -968,19 +963,11 @@ DEFINE_METHOD(STUBHELPERS,          GET_COM_IP_FROM_RCW_WINRT,                Ge
 DEFINE_METHOD(STUBHELPERS,          GET_COM_IP_FROM_RCW_WINRT_SHARED_GENERIC, GetCOMIPFromRCW_WinRTSharedGeneric, SM_Obj_IntPtr_RefIntPtr_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          GET_COM_IP_FROM_RCW_WINRT_DELEGATE,       GetCOMIPFromRCW_WinRTDelegate,      SM_Obj_IntPtr_RefIntPtr_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          SHOULD_CALL_WINRT_INTERFACE,              ShouldCallWinRTInterface,           SM_Obj_IntPtr_RetBool)
-DEFINE_METHOD(STUBHELPERS,          STUB_REGISTER_RCW,                        StubRegisterRCW,                    SM_Obj_RetVoid)
-DEFINE_METHOD(STUBHELPERS,          STUB_UNREGISTER_RCW,                      StubUnregisterRCW,                  SM_Obj_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          GET_WINRT_FACTORY_OBJECT,                 GetWinRTFactoryObject,              SM_IntPtr_RetObj)
 DEFINE_METHOD(STUBHELPERS,          GET_DELEGATE_INVOKE_METHOD,               GetDelegateInvokeMethod,            SM_Delegate_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          GET_WINRT_FACTORY_RETURN_VALUE,           GetWinRTFactoryReturnValue,         SM_Obj_IntPtr_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          GET_OUTER_INSPECTABLE,                    GetOuterInspectable,                SM_Obj_IntPtr_RetIntPtr)
-#ifdef MDA_SUPPORTED
-DEFINE_METHOD(STUBHELPERS,          TRIGGER_EXCEPTION_SWALLOWED_MDA,          TriggerExceptionSwallowedMDA,       SM_Exception_IntPtr_RetException)
-#endif // MDA_SUPPORTED
 #endif // FEATURE_COMINTEROP
-#if defined(MDA_SUPPORTED)
-DEFINE_METHOD(STUBHELPERS,          CHECK_COLLECTED_DELEGATE_MDA, CheckCollectedDelegateMDA, SM_IntPtr_RetVoid)
-#endif // MDA_SUPPORTED
 DEFINE_METHOD(STUBHELPERS,          SET_LAST_ERROR,         SetLastError,               SM_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          CLEAR_LAST_ERROR,       ClearLastError,             SM_RetVoid)
 
@@ -1007,9 +994,6 @@ DEFINE_METHOD(STUBHELPERS,          LOG_PINNED_ARGUMENT,                LogPinne
 #ifdef _TARGET_64BIT_
 DEFINE_METHOD(STUBHELPERS,          GET_STUB_CONTEXT_ADDR,              GetStubContextAddr,             SM_RetIntPtr)
 #endif // _TARGET_64BIT_
-#ifdef MDA_SUPPORTED
-DEFINE_METHOD(STUBHELPERS,          TRIGGER_GC_FOR_MDA,                 TriggerGCForMDA,                SM_RetVoid)
-#endif
 DEFINE_METHOD(STUBHELPERS,          SAFE_HANDLE_ADD_REF,    SafeHandleAddRef,           SM_SafeHandle_RefBool_RetIntPtr)
 DEFINE_METHOD(STUBHELPERS,          SAFE_HANDLE_RELEASE,    SafeHandleRelease,          SM_SafeHandle_RetVoid)
 

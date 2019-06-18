@@ -13,7 +13,6 @@
 ** 
 ===========================================================*/
 
-#nullable enable
 using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System.Reflection.Emit
@@ -84,7 +83,7 @@ namespace System.Reflection.Emit
             BindingFlags invokeAttr,
             Binder? binder,
             object? target,
-            object[]? args,
+            object?[]? args,
             ParameterModifier[]? modifiers,
             CultureInfo? culture,
             string[]? namedParameters)

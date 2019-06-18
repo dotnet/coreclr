@@ -29,6 +29,7 @@
 
 
 #include "profilinghelper.h"
+#include "profilinghelper.inl"
 
 
 class ProfilerFunctionEnum;
@@ -56,6 +57,9 @@ class ProfileArgIterator
 private:
     void        *m_handle;
     ArgIterator  m_argIterator;
+#ifdef UNIX_AMD64_ABI
+    UINT64       m_bufferPos;
+#endif // UNIX_AMD64_ABI
 
 public:
     ProfileArgIterator(MetaSig * pMetaSig, void* platformSpecificHandle);
@@ -70,6 +74,10 @@ public:
         LIMITED_METHOD_CONTRACT;
         return m_argIterator.NumFixedArgs();
     }
+    
+#ifdef UNIX_AMD64_ABI
+    LPVOID CopyStructFromRegisters();
+#endif // UNIX_AMD64_ABI
 
     //
     // After initialization, this method is called repeatedly until it
@@ -577,7 +585,7 @@ public:
 
     // end ICorProfilerInfo8
 
-    // beging ICorProfilerInfo9
+    // begin ICorProfilerInfo9
 
     COM_METHOD GetNativeCodeStartAddresses(
         FunctionID functionID, 
@@ -602,16 +610,23 @@ public:
 
     // beging ICorProfilerInfo10
 
-    COM_METHOD GetObjectReferences(
-        ObjectID objectId,
-        ULONG32 cNumReferences,
-        ULONG32 *pcNumReferences,
-        ObjectID references[],
-        SIZE_T offsets[]);
+    COM_METHOD EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData);
 
     COM_METHOD IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
 
-    // end ICorProfilerInfo10
+    COM_METHOD GetLOHObjectSizeThreshold(DWORD *pThreshold);
+
+    COM_METHOD RequestReJITWithInliners(
+        DWORD       dwRejitFlags,
+        ULONG       cFunctions,
+        ModuleID    moduleIds[],
+        mdMethodDef methodIds[]);
+
+    COM_METHOD SuspendRuntime();
+
+    COM_METHOD ResumeRuntime();
+
+    // end ICorProfilerInfo10    
 
 protected:
 

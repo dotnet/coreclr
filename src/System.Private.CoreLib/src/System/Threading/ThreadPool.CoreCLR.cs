@@ -11,7 +11,6 @@
 **
 =============================================================================*/
 
-#nullable enable
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
@@ -53,7 +52,7 @@ namespace System.Threading
             m_internalWaitObject = waitObject;
             if (waitObject != null)
             {
-                m_internalWaitObject.SafeWaitHandle!.DangerousAddRef(ref bReleaseNeeded); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2384
+                m_internalWaitObject.SafeWaitHandle.DangerousAddRef(ref bReleaseNeeded);
             }
         }
 
@@ -83,7 +82,7 @@ namespace System.Threading
                                 if (bReleaseNeeded)
                                 {
                                     Debug.Assert(m_internalWaitObject != null, "Must be non-null for bReleaseNeeded to be true");
-                                    m_internalWaitObject.SafeWaitHandle!.DangerousRelease(); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2384
+                                    m_internalWaitObject.SafeWaitHandle.DangerousRelease();
                                     bReleaseNeeded = false;
                                 }
                                 // if result not true don't release/suppress here so finalizer can make another attempt
@@ -145,7 +144,7 @@ namespace System.Threading
                         if (bReleaseNeeded)
                         {
                             Debug.Assert(m_internalWaitObject != null, "Must be non-null for bReleaseNeeded to be true");
-                            m_internalWaitObject.SafeWaitHandle!.DangerousRelease(); // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2384
+                            m_internalWaitObject.SafeWaitHandle.DangerousRelease();
                             bReleaseNeeded = false;
                         }
                         SetHandle(InvalidHandle);
@@ -255,11 +254,10 @@ namespace System.Threading
         /// <remarks>
         /// For a thread pool implementation that may have different types of work items, the count includes all types.
         /// </remarks>
-        public static extern long CompletedWorkItemCount
-        {
-            [MethodImpl(MethodImplOptions.InternalCall)]
-            get;
-        }
+        public static long CompletedWorkItemCount => GetCompletedWorkItemCount();
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern long GetCompletedWorkItemCount();
 
         private static extern long PendingUnmanagedWorkItemCount
         {
@@ -300,7 +298,7 @@ namespace System.Threading
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool RequestWorkerThread();
+        internal static extern Interop.BOOL RequestWorkerThread();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);

@@ -1209,6 +1209,9 @@ typedef unsigned char   regNumberSmall;
   #define JCC_SIZE_MEDIUM         (4)
   #define JCC_SIZE_LARGE          (6)
 
+  // The first thing in an ARM32 prolog pushes LR to the stack, so this can be 0.
+  #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 0
+
 #elif defined(_TARGET_ARM64_)
 
   #define CPU_LOAD_STORE_ARCH      1
@@ -1544,6 +1547,12 @@ typedef unsigned char   regNumberSmall;
   #define LDC_SIZE_SMALL          (4)
 
   #define JMP_SIZE_SMALL          (4)
+
+  // The number of bytes from the end the last probed page that must also be probed, to allow for some
+  // small SP adjustments without probes. If zero, then the stack pointer can point to the last byte/word
+  // on the stack guard page, and must be touched before any further "SUB SP".
+  // For arm64, this is the maximum prolog establishment pre-indexed (that is SP pre-decrement) offset.
+  #define STACK_PROBE_BOUNDARY_THRESHOLD_BYTES 512
 
 #else
   #error Unsupported or unset target architecture

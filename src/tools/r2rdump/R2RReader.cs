@@ -474,7 +474,7 @@ namespace R2RDump
                 uint methodFlags = decoder.ReadUInt();
                 if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_OwnerType) != 0)
                 {
-                    owningType = decoder.ReadTypeSignature();
+                    owningType = decoder.ReadTypeSignatureNoEmit();
                 }
                 if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_SlotInsteadOfToken) != 0)
                 {
@@ -497,14 +497,14 @@ namespace R2RDump
                     methodTypeArgs = new string[typeArgCount];
                     for (int typeArgIndex = 0; typeArgIndex < typeArgCount; typeArgIndex++)
                     {
-                        methodTypeArgs[typeArgIndex] = decoder.ReadTypeSignature();
+                        methodTypeArgs[typeArgIndex] = decoder.ReadTypeSignatureNoEmit();
                     }
                 }
 
                 string constrainedType = null;
                 if ((methodFlags & (uint)ReadyToRunMethodSigFlags.READYTORUN_METHOD_SIG_Constrained) != 0)
                 {
-                    constrainedType = decoder.ReadTypeSignature();
+                    constrainedType = decoder.ReadTypeSignatureNoEmit();
                 }
 
                 int runtimeFunctionId;
@@ -553,15 +553,7 @@ namespace R2RDump
                         unwindInfo = new Amd64.UnwindInfo(Image, unwindOffset);
                         if (isEntryPoint[runtimeFunctionId])
                         {
-                            try
-                            {
-                                gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
-                                Console.WriteLine($"Warning: Could not parse GC Info for method: {method.SignatureString}");
-                            }
-
+                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
                         }
                     }
                     else if (Machine == Machine.I386)

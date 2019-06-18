@@ -4353,6 +4353,7 @@ void MethodContext::recGetFieldType(CORINFO_FIELD_HANDLE  field,
     key.A = (DWORDLONG)field;
     key.B = (DWORDLONG)memberParent;
 
+    value.B = (DWORD)result;
     if (structType == nullptr)
     {
         value.A = 0;
@@ -4360,9 +4361,18 @@ void MethodContext::recGetFieldType(CORINFO_FIELD_HANDLE  field,
     else
     {
         value.A = (DWORDLONG)*structType;
-    }
-    value.B = (DWORD)result;
 
+        // If we had a previous call with null 'structType', we will not have captured the
+        // class handle (we use only 'field' and 'memberParent' as keys).
+        // Update the value in that case.
+        unsigned index = GetFieldType->GetIndex(key);
+        if ((index != -1) && (GetFieldType->GetItem(index).A == 0))
+        {
+            GetFieldType->Update(index, value);
+            DEBUG_REC(dmpGetFieldType(key, value));
+            return;
+        }
+    }
     GetFieldType->Add(key, value);
     DEBUG_REC(dmpGetFieldType(key, value));
 }
@@ -5237,49 +5247,49 @@ DWORD MethodContext::repGetFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE field, v
     return (DWORD)value.B;
 }
 
-void MethodContext::recGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                                        ULONG*                       count,
-                                        ICorJitInfo::ProfileBuffer** profileBuffer,
-                                        ULONG*                       numRuns,
-                                        HRESULT                      result)
+void MethodContext::recGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                            UINT32 *                     pCount,
+                                            ICorJitInfo::BlockCounts**   pBlockCounts,
+                                            UINT32 *                     pNumRuns,
+                                            HRESULT                      result)
 {
-    if (GetBBProfileData == nullptr)
-        GetBBProfileData = new LightWeightMap<DWORDLONG, Agnostic_GetBBProfileData>();
+    if (GetMethodBlockCounts == nullptr)
+        GetMethodBlockCounts = new LightWeightMap<DWORDLONG, Agnostic_GetMethodBlockCounts>();
 
-    Agnostic_GetBBProfileData value;
+    Agnostic_GetMethodBlockCounts value;
 
-    value.count = (DWORD)*count;
-    value.profileBuffer_index =
-        GetBBProfileData->AddBuffer((unsigned char*)*profileBuffer, sizeof(ICorJitInfo::ProfileBuffer) * (*count));
-    value.numRuns = (DWORD)*numRuns;
+    value.count = (DWORD)*pCount;
+    value.pBlockCounts_index =
+        GetMethodBlockCounts->AddBuffer((unsigned char*)*pBlockCounts, sizeof(ICorJitInfo::BlockCounts) * (*pCount));
+    value.numRuns = (DWORD)*pNumRuns;
     value.result  = (DWORD)result;
 
-    GetBBProfileData->Add((DWORDLONG)ftnHnd, value);
+    GetMethodBlockCounts->Add((DWORDLONG)ftnHnd, value);
 }
-void MethodContext::dmpGetBBProfileData(DWORDLONG key, const Agnostic_GetBBProfileData& value)
+void MethodContext::dmpGetMethodBlockCounts(DWORDLONG key, const Agnostic_GetMethodBlockCounts& value)
 {
-    printf("GetBBProfileData key ftn-%016llX, value cnt-%u profileBuf-", key, value.count);
-    ICorJitInfo::ProfileBuffer* pBuf =
-        (ICorJitInfo::ProfileBuffer*)GetBBProfileData->GetBuffer(value.profileBuffer_index);
+    printf("GetMethodBlockCounts key ftn-%016llX, value cnt-%u profileBuf-", key, value.count);
+    ICorJitInfo::BlockCounts* pBuf =
+        (ICorJitInfo::BlockCounts*)GetMethodBlockCounts->GetBuffer(value.pBlockCounts_index);
     for (DWORD i = 0; i < value.count; i++, pBuf++)
     {
         printf("{il-%u,cnt-%u}", pBuf->ILOffset, pBuf->ExecutionCount);
     }
-    GetBBProfileData->Unlock();
+    GetMethodBlockCounts->Unlock();
     printf(" numRuns-%u result-%u", value.numRuns, value.result);
 }
-HRESULT MethodContext::repGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                                           ULONG*                       count,
-                                           ICorJitInfo::ProfileBuffer** profileBuffer,
-                                           ULONG*                       numRuns)
+HRESULT MethodContext::repGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                               UINT32 *                     pCount,
+                                               ICorJitInfo::BlockCounts**   pBlockCounts,
+                                               UINT32 *                     pNumRuns)
 {
-    Agnostic_GetBBProfileData tempValue;
+    Agnostic_GetMethodBlockCounts tempValue;
 
-    tempValue = GetBBProfileData->Get((DWORDLONG)ftnHnd);
+    tempValue = GetMethodBlockCounts->Get((DWORDLONG)ftnHnd);
 
-    *count         = (ULONG)tempValue.count;
-    *profileBuffer = (ICorJitInfo::ProfileBuffer*)GetBBProfileData->GetBuffer(tempValue.profileBuffer_index);
-    *numRuns       = (ULONG)tempValue.numRuns;
+    *pCount        = (UINT32)tempValue.count;
+    *pBlockCounts  = (ICorJitInfo::BlockCounts*)GetMethodBlockCounts->GetBuffer(tempValue.pBlockCounts_index);
+    *pNumRuns      = (UINT32)tempValue.numRuns;
     HRESULT result = (HRESULT)tempValue.result;
     return result;
 }

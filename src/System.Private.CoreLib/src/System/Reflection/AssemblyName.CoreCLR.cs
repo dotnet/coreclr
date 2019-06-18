@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Configuration.Assemblies;
 using System.Globalization;
 using System.IO;
@@ -63,7 +62,7 @@ namespace System.Reflection
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern byte[] ComputePublicKeyToken();
+        private extern byte[]? ComputePublicKeyToken();
 
         internal void SetProcArchIndex(PortableExecutableKinds pek, ImageFileMachine ifm)
         {

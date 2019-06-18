@@ -115,6 +115,10 @@ struct ProfControlBlock
 
     // Whether we've turned off concurrent GC during attach
     BOOL fConcurrentGCDisabledForAttach;
+
+    Volatile<BOOL> fProfControlBlockInitialized;
+
+    Volatile<BOOL> fProfilerRequestedRuntimeSuspend;
     
     void Init();
     void ResetPerSessionStatus();    

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
@@ -37,7 +36,10 @@ namespace System.Collections.Generic
         }
     }
 
-    public sealed partial class GenericEqualityComparer<T> : EqualityComparer<T> where T : IEquatable<T>
+    public sealed partial class GenericEqualityComparer<T> : EqualityComparer<T>
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
+        where T : IEquatable<T>
+#nullable restore
     {
         internal override int IndexOf(T[] array, T value, int startIndex, int count)
         {
@@ -80,7 +82,10 @@ namespace System.Collections.Generic
         }
     }
 
-    public sealed partial class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct, IEquatable<T>
+    public sealed partial class NullableEqualityComparer<T> : EqualityComparer<T?> where T : struct,
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
+        IEquatable<T>
+#nullable restore
     {
         internal override int IndexOf(T?[] array, T? value, int startIndex, int count)
         {
@@ -139,7 +144,7 @@ namespace System.Collections.Generic
             {
                 for (int i = startIndex; i < endIndex; i++)
                 {
-                    if (array[i] != null && array[i]!.Equals(value)) return i; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                    if (array[i] != null && array[i]!.Equals(value)) return i; // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                 }
             }
             return -1;
@@ -159,7 +164,7 @@ namespace System.Collections.Generic
             {
                 for (int i = startIndex; i >= endIndex; i--)
                 {
-                    if (array[i] != null && array[i]!.Equals(value)) return i; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/34644
+                    if (array[i] != null && array[i]!.Equals(value)) return i; // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
                 }
             }
             return -1;

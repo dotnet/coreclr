@@ -13,7 +13,6 @@
 **
 =============================================================================*/
 
-#nullable enable
 using System;
 using System.Runtime;
 using System.Threading;
@@ -21,6 +20,8 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.Versioning;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Threading
 {
@@ -52,6 +53,7 @@ namespace System.Threading
             Debug.Assert(lockTaken);
         }
 
+        [DoesNotReturn]
         private static void ThrowLockTakenException()
         {
             throw new ArgumentException(SR.Argument_MustBeFalse, "lockTaken");
@@ -237,10 +239,9 @@ namespace System.Threading
         /// <summary>
         /// Gets the number of times there was contention upon trying to take a <see cref="Monitor"/>'s lock so far.
         /// </summary>
-        public static extern long LockContentionCount
-        {
-            [MethodImpl(MethodImplOptions.InternalCall)]
-            get;
-        }
+        public static long LockContentionCount => GetLockContentionCount();
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern long GetLockContentionCount();
     }
 }

@@ -167,6 +167,7 @@ enum      BinderMethodID : int;
 class     CRWLock;
 struct    LockEntry;
 class     PendingTypeLoadHolder;
+class     PrepareCodeConfig;
 
 struct    ThreadLocalBlock;
 typedef DPTR(struct ThreadLocalBlock) PTR_ThreadLocalBlock;
@@ -375,9 +376,6 @@ public:
     {
         TSNC_OwnsSpinLock               = 0x00000400, // The thread owns a spinlock.
 
-        TSNC_DisableOleaut32Check       = 0x00040000, // Disable oleaut32 delay load check.  Oleaut32 has  
-                                                      // been loaded
-
         TSNC_LoadsTypeViolation         = 0x40000000, // Use by type loader to break deadlocks caused by type load level ordering violations
     };
 
@@ -416,25 +414,19 @@ public:
         m_pPendingTypeLoad = pPendingTypeLoad;
     }
 #endif
+    void SetProfilerCallbackFullState(DWORD dwFullState)
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+    
+    DWORD SetProfilerCallbackStateFlags(DWORD dwFlags)
+    {
+        LIMITED_METHOD_CONTRACT;
+        return dwFlags;
+    }
 
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     enum ApartmentState { AS_Unknown };
-#endif
-
-#if defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-    void RegisterRCW(RCW *pRCW)
-    {
-    }
-
-    BOOL RegisterRCWNoThrow(RCW *pRCW)
-    {
-        return FALSE;
-    }
-
-    RCW *UnregisterRCW(INDEBUG(SyncBlock *pSB))
-    {
-        return NULL;
-    }
 #endif
 
     DWORD       m_dwLastError;
@@ -1214,8 +1206,7 @@ public:
         TSNC_InRestoringSyncBlock       = 0x00020000, // The thread is restoring its SyncBlock for Object.Wait.
                                                       // After the thread is interrupted once, we turn off interruption
                                                       // at the beginning of wait.
-        TSNC_DisableOleaut32Check       = 0x00040000, // Disable oleaut32 delay load check.  Oleaut32 has  
-                                                      // been loaded
+        // unused                       = 0x00040000,
         TSNC_CannotRecycle              = 0x00080000, // A host can not recycle this Thread object.  When a thread
                                                       // has orphaned lock, we will apply this.
         TSNC_RaiseUnloadEvent           = 0x00100000, // Finalize thread is raising managed unload event which 
@@ -2570,6 +2561,10 @@ public:
         return m_ThreadId;
     }
 
+    // The actual OS thread ID may be 64 bit on some platforms but 
+    // the runtime has historically used 32 bit IDs. We continue to
+    // downcast by default to limit the impact but GetOSThreadId64()
+    // is available for code-paths which correctly handle it.
     DWORD       GetOSThreadId()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2577,17 +2572,29 @@ public:
 #ifndef DACCESS_COMPILE
         _ASSERTE (m_OSThreadId != 0xbaadf00d);
 #endif // !DACCESS_COMPILE
+        return (DWORD)m_OSThreadId;
+    }
+
+    // Allows access to the full 64 bit id on platforms which use it
+    SIZE_T      GetOSThreadId64()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SUPPORTS_DAC;
+#ifndef DACCESS_COMPILE
+        _ASSERTE(m_OSThreadId != 0xbaadf00d);
+#endif // !DACCESS_COMPILE
         return m_OSThreadId;
     }
 
     // This API is to be used for Debugger only.
     // We need to be able to return the true value of m_OSThreadId.
+    // On platforms with 64 bit thread IDs we downcast to 32 bit.
     //
     DWORD       GetOSThreadIdForDebugger()
     {
         SUPPORTS_DAC;
         LIMITED_METHOD_CONTRACT;
-        return m_OSThreadId;
+        return (DWORD) m_OSThreadId;
     }
 
     BOOL        IsThreadPoolThread()
@@ -2969,8 +2976,6 @@ public:
     }
 #endif
 
-#ifdef FEATURE_PREJIT
-
     private:
 
     ThreadLocalIBCInfo* m_pIBCInfo;
@@ -3001,8 +3006,6 @@ public:
     }
 
 #endif // #ifndef DACCESS_COMPILE
-
-#endif // #ifdef FEATURE_PREJIT
 
     // Indicate whether this thread should run in the background.  Background threads
     // don't interfere with the EE shutting down.  Whereas a running non-background
@@ -3652,7 +3655,7 @@ private:
                 || handle == SWITCHOUT_HANDLE_VALUE
                 || m_OSThreadId == 0
                 || m_OSThreadId == 0xbaadf00d
-                || ::MatchThreadHandleToOsId(handle, m_OSThreadId) );
+                || ::MatchThreadHandleToOsId(handle, (DWORD)m_OSThreadId) );
         }
 #endif
 
@@ -3668,7 +3671,7 @@ private:
             || h == SWITCHOUT_HANDLE_VALUE
             || m_OSThreadId == 0
             || m_OSThreadId == 0xbaadf00d
-            || ::MatchThreadHandleToOsId(h, m_OSThreadId) );
+            || ::MatchThreadHandleToOsId(h, (DWORD)m_OSThreadId) );
 #endif
         FastInterlockExchangePointer(&m_ThreadHandle, h);
     }
@@ -3685,7 +3688,7 @@ private:
     HANDLE          m_ThreadHandleForClose;
     HANDLE          m_ThreadHandleForResume;
     BOOL            m_WeOwnThreadHandle;
-    DWORD           m_OSThreadId;
+    SIZE_T          m_OSThreadId;
 
     BOOL CreateNewOSThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
 
@@ -3864,7 +3867,7 @@ private:
     //---------------------------------------------------------------
     DWORD m_profilerCallbackState;
 
-#if defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     //---------------------------------------------------------------
     // m_dwProfilerEvacuationCounter keeps track of how many profiler
     // callback calls remain on the stack
@@ -3872,7 +3875,7 @@ private:
     // Why volatile?
     // See code:ProfilingAPIUtility::InitializeProfiling#LoadUnloadCallbackSynchronization.
     Volatile<DWORD> m_dwProfilerEvacuationCounter;
-#endif // defined(FEATURE_PROFAPI_ATTACH_DETACH) || defined(DATA_PROFAPI_ATTACH_DETACH)
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
 private:
     UINT32 m_workerThreadPoolCompletionCount;
@@ -4051,7 +4054,7 @@ public:
         return m_pProfilerFilterContext;
     }
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+#ifdef PROFILING_SUPPORTED
 
     FORCEINLINE DWORD GetProfilerEvacuationCounter(void)
     {
@@ -4073,7 +4076,7 @@ public:
         m_dwProfilerEvacuationCounter--;
     }
 
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#endif // PROFILING_SUPPORTED
 
     //-------------------------------------------------------------------------
     // The hijack lock enforces that a thread on which a profiler is currently
@@ -4851,18 +4854,8 @@ public:
     // Holds per-thread information the debugger uses to expose locking information
     // See ThreadDebugBlockingInfo.h for more details
     ThreadDebugBlockingInfo DebugBlockingInfo;
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    // For the purposes of tracking resource usage we implement a simple cpu resource usage counter on each
-    // thread. Every time QueryThreadProcessorUsage() is invoked it returns the amount of cpu time (a
-    // combination of user and kernel mode time) used since the last call to QueryThreadProcessorUsage(). The
-    // result is in 100 nanosecond units.
-    ULONGLONG QueryThreadProcessorUsage();
 
 private:
-    // The amount of processor time (both user and kernel) in 100ns units used by this thread at the time of
-    // the last call to QueryThreadProcessorUsage().
-    ULONGLONG m_ullProcessorUsageBaseline;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
 
     // Disables pumping and thread join in RCW creation
     bool m_fDisableComObjectEagerCleanup;
@@ -4870,7 +4863,6 @@ private:
     // See ThreadStore::TriggerGCForDeadThreadsIfNecessary()
     bool m_fHasDeadThreadBeenConsideredForGCTrigger;
 
-private:
     CLRRandom m_random;
 
 public:
@@ -5026,6 +5018,35 @@ public:
 
 private:
     OBJECTHANDLE m_DeserializationTracker;
+
+public:
+    static uint64_t dead_threads_non_alloc_bytes;
+
+#ifndef DACCESS_COMPILE
+public:
+    class CurrentPrepareCodeConfigHolder
+    {
+    private:
+        Thread *const m_thread;
+#ifdef _DEBUG
+        PrepareCodeConfig *const m_config;
+#endif
+
+    public:
+        CurrentPrepareCodeConfigHolder(Thread *thread, PrepareCodeConfig *config);
+        ~CurrentPrepareCodeConfigHolder();
+    };
+
+public:
+    PrepareCodeConfig *GetCurrentPrepareCodeConfig() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_currentPrepareCodeConfig;
+    }
+#endif // !DACCESS_COMPILE
+
+private:
+    PrepareCodeConfig *m_currentPrepareCodeConfig;
 };
 
 // End of class Thread
@@ -6525,12 +6546,6 @@ class GCForbidLoaderUseHolder
 #define FORBIDGC_LOADER_USE_ENABLED() (sizeof(YouCannotUseThisHere) != 0)
 #endif  // _DEBUG_IMPL
 #endif // DACCESS_COMPILE
-
-// There is an MDA which can detect illegal reentrancy into the CLR.  For instance, if you call managed
-// code from a native vectored exception handler, this might cause a reverse PInvoke to occur.  But if the
-// exception was triggered from code that was executing in cooperative GC mode, we now have GC holes and
-// general corruption.
-BOOL HasIllegalReentrancy();
 
 // We have numerous places where we start up a managed thread.  This includes several places in the
 // ThreadPool, the 'new Thread(...).Start()' case, and the Finalizer.  Try to factor the code so our

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System;
 using System.Diagnostics;
 using System.Collections;
@@ -57,7 +56,7 @@ namespace System.Diagnostics.Tracing
         {
             try
             {
-                lock (MyLock)
+                lock (this)
                 {
                     _increment = _totalValueProvider();
                 }
@@ -68,18 +67,21 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal override void WritePayload(float intervalSec)
+        internal override void WritePayload(float intervalSec, int pollingIntervalMillisec)
         {
             UpdateMetric();
-            lock (MyLock)     // Lock the counter
+            lock (this)     // Lock the counter
             {
                 IncrementingCounterPayload payload = new IncrementingCounterPayload();
                 payload.Name = Name;
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
                 payload.IntervalSec = intervalSec;
+                payload.Series = $"Interval={pollingIntervalMillisec}"; // TODO: This may need to change when we support multi-session
+                payload.CounterType = "Sum";
                 payload.Metadata = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
+                payload.DisplayUnits = DisplayUnits ?? "";
                 _prevIncrement = _increment;
                 EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingPollingCounterPayloadType(payload));
             }

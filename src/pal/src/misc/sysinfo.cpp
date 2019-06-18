@@ -80,6 +80,7 @@ Revision History:
 #endif
 
 #include "pal/dbgmsg.h"
+#include "pal/process.h"
 
 #include <algorithm>
 
@@ -139,21 +140,24 @@ DWORD
 PALAPI
 PAL_GetLogicalCpuCountFromOS()
 {
-    int nrcpus = 0;
+    static int nrcpus = -1;
 
+    if (nrcpus == -1)
+    {
 #if HAVE_SCHED_GETAFFINITY
 
-    cpu_set_t cpuSet;
-    int st = sched_getaffinity(0, sizeof(cpu_set_t), &cpuSet);
-    if (st != 0)
-    {
-        ASSERT("sched_getaffinity failed (%d)\n", errno);
-    }
+        cpu_set_t cpuSet;
+        int st = sched_getaffinity(gPID, sizeof(cpu_set_t), &cpuSet);
+        if (st != 0)
+        {
+            ASSERT("sched_getaffinity failed (%d)\n", errno);
+        }
 
-    nrcpus = CPU_COUNT(&cpuSet);
+        nrcpus = CPU_COUNT(&cpuSet);
 #else // HAVE_SCHED_GETAFFINITY
-    nrcpus = PAL_GetTotalCpuCount();
+        nrcpus = PAL_GetTotalCpuCount();
 #endif // HAVE_SCHED_GETAFFINITY
+    }
 
     return nrcpus;
 }
@@ -522,6 +526,22 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
         DWORD logicalCPUs = PAL_GetLogicalCpuCountFromOS();
 
         cacheSize = logicalCPUs*std::min(1536, std::max(256, (int)logicalCPUs*128))*1024;
+    }
+#endif
+
+#if HAVE_SYSCTLBYNAME
+    if (cacheSize == 0)
+    {
+        int64_t cacheSizeFromSysctl = 0;
+        size_t sz = sizeof(cacheSizeFromSysctl);
+        const bool success = sysctlbyname("hw.l3cachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0
+            || sysctlbyname("hw.l2cachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0
+            || sysctlbyname("hw.l1dcachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0;
+        if (success)
+        {
+            _ASSERTE(cacheSizeFromSysctl > 0);
+            cacheSize = (size_t) cacheSizeFromSysctl;
+        }
     }
 #endif
 

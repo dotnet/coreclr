@@ -13,7 +13,8 @@
 ** 
 ===========================================================*/
 
-#nullable enable
+using System.Runtime.CompilerServices;
+
 namespace System.Reflection.Emit
 {
     // 
@@ -54,8 +55,9 @@ namespace System.Reflection.Emit
             }
 
             m_type.ThrowIfCreated();
+            ModuleBuilder module = m_module;
             TypeBuilder.DefineMethodSemantics(
-                m_module.GetNativeHandle(),
+                JitHelpers.GetQCallModuleOnStack(ref module),
                 m_evToken.Token,
                 semantics,
                 mdBuilder.GetToken().Token);

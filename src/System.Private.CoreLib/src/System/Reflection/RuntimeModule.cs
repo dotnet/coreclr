@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Collections.Generic;
@@ -16,16 +15,16 @@ namespace System.Reflection
 
         #region FCalls
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetType(RuntimeModule module, string className, bool throwOnError, bool ignoreCase, ObjectHandleOnStack type, ObjectHandleOnStack keepAlive);
+        private static extern void GetType(QCallModule module, string className, bool throwOnError, bool ignoreCase, ObjectHandleOnStack type, ObjectHandleOnStack keepAlive);
 
         [DllImport(JitHelpers.QCall)]
-        private static extern bool nIsTransientInternal(RuntimeModule module);
+        private static extern bool nIsTransientInternal(QCallModule module);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetScopeName(RuntimeModule module, StringHandleOnStack retString);
+        private static extern void GetScopeName(QCallModule module, StringHandleOnStack retString);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetFullyQualifiedName(RuntimeModule module, StringHandleOnStack retString);
+        private static extern void GetFullyQualifiedName(QCallModule module, StringHandleOnStack retString);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern RuntimeType[] GetTypes(RuntimeModule module);
@@ -375,7 +374,7 @@ namespace System.Reflection
             get
             {
                 if (m_runtimeType == null)
-                    m_runtimeType = ModuleHandle.GetModuleType(GetNativeHandle());
+                    m_runtimeType = ModuleHandle.GetModuleType(this);
 
                 return m_runtimeType;
             }
@@ -383,7 +382,8 @@ namespace System.Reflection
 
         internal bool IsTransientInternal()
         {
-            return RuntimeModule.nIsTransientInternal(this.GetNativeHandle());
+            RuntimeModule thisAsLocal = this;
+            return RuntimeModule.nIsTransientInternal(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal));
         }
 
         internal MetadataImport MetadataImport
@@ -392,7 +392,7 @@ namespace System.Reflection
             {
                 unsafe
                 {
-                    return ModuleHandle.GetMetadataImport(GetNativeHandle());
+                    return ModuleHandle.GetMetadataImport(this);
                 }
             }
         }
@@ -450,7 +450,8 @@ namespace System.Reflection
 
             RuntimeType? retType = null;
             object? keepAlive = null;
-            GetType(GetNativeHandle(), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
+            RuntimeModule thisAsLocal = this;
+            GetType(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal), className, throwOnError, ignoreCase, JitHelpers.GetObjectHandleOnStack(ref retType), JitHelpers.GetObjectHandleOnStack(ref keepAlive));
             GC.KeepAlive(keepAlive);
             return retType;
         }
@@ -458,7 +459,8 @@ namespace System.Reflection
         internal string GetFullyQualifiedName()
         {
             string? fullyQualifiedName = null;
-            GetFullyQualifiedName(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref fullyQualifiedName));
+            RuntimeModule thisAsLocal = this;
+            GetFullyQualifiedName(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal), JitHelpers.GetStringHandleOnStack(ref fullyQualifiedName));
             return fullyQualifiedName!;
         }
 
@@ -537,7 +539,8 @@ namespace System.Reflection
             get
             {
                 string? scopeName = null;
-                GetScopeName(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref scopeName));
+                RuntimeModule thisAsLocal = this;
+                GetScopeName(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal),JitHelpers.GetStringHandleOnStack(ref scopeName));
                 return scopeName!;
             }
         }
@@ -581,6 +584,11 @@ namespace System.Reflection
         internal RuntimeModule GetNativeHandle()
         {
             return this;
+        }
+
+        internal IntPtr GetUnderlyingNativeHandle()
+        {
+            return m_pData;
         }
         #endregion
     }

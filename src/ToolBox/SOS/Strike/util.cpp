@@ -46,6 +46,7 @@ PIMAGEHLP_SYMBOL sym = (PIMAGEHLP_SYMBOL) symBuffer;
 #include <sys/stat.h>
 #include <coreruncommon.h>
 #include <dlfcn.h>
+#include <wctype.h>
 #endif // !FEATURE_PAL
 
 #include <coreclrhost.h>
@@ -2838,8 +2839,12 @@ Failure:
 *    Find the EE data given a name.                                    *  
 *                                                                      *
 \**********************************************************************/
-void GetInfoFromName(DWORD_PTR ModulePtr, const char* name)
+void GetInfoFromName(DWORD_PTR ModulePtr, const char* name, mdTypeDef* retMdTypeDef)
 {
+    DWORD_PTR ignoredModuleInfoRet = NULL;
+    if (retMdTypeDef)
+        *retMdTypeDef = 0;
+
     ToRelease<IMetaDataImport> pImport = MDImportForModule (ModulePtr);    
     if (pImport == 0)
         return;
@@ -2864,13 +2869,13 @@ void GetInfoFromName(DWORD_PTR ModulePtr, const char* name)
             BOOL fStatus = FALSE;
             while (ModuleDefinition->EnumMethodDefinitionByName(&h, &pMeth) == S_OK)
             {
-                if (fStatus)
+                if (fStatus && !retMdTypeDef)
                     ExtOut("-----------------------\n");
 
                 mdTypeDef token;
                 if (pMeth->GetTokenAndScope(&token, NULL) == S_OK)
                 {
-                    GetInfoFromModule(ModulePtr, token);
+                    GetInfoFromModule(ModulePtr, token, retMdTypeDef ? &ignoredModuleInfoRet : NULL);
                     fStatus = TRUE;
                 }
                 pMeth->Release();
@@ -2899,7 +2904,10 @@ void GetInfoFromName(DWORD_PTR ModulePtr, const char* name)
     // @todo:  Handle Nested classes correctly.
     if (SUCCEEDED (pImport->FindTypeDefByName (pName, tkEnclose, &cl)))
     {
-        GetInfoFromModule(ModulePtr, cl);
+        if (retMdTypeDef)
+            *retMdTypeDef = cl;
+        
+        GetInfoFromModule(ModulePtr, cl, retMdTypeDef ? &ignoredModuleInfoRet : NULL);
         return;
     }
     
@@ -2916,6 +2924,9 @@ void GetInfoFromName(DWORD_PTR ModulePtr, const char* name)
     // @todo:  Handle Nested classes correctly.
     if (SUCCEEDED(pImport->FindTypeDefByName (pName, tkEnclose, &cl)))
     {
+        if (retMdTypeDef)
+            *retMdTypeDef = cl;
+
         mdMethodDef token;
         ULONG cTokens;
         HCORENUM henum = NULL;
@@ -2926,8 +2937,8 @@ void GetInfoFromName(DWORD_PTR ModulePtr, const char* name)
                                                      &token, 1, &cTokens))
             && cTokens == 1)
         {
-            ExtOut("Member (mdToken token) of\n");
-            GetInfoFromModule(ModulePtr, cl);
+            if (!retMdTypeDef) ExtOut("Member (mdToken token) of\n");
+            GetInfoFromModule(ModulePtr, cl, retMdTypeDef ? &ignoredModuleInfoRet : NULL);
             return;
         }
 
@@ -2937,8 +2948,8 @@ void GetInfoFromName(DWORD_PTR ModulePtr, const char* name)
                                                      &token, 1, &cTokens))
             && cTokens == 1)
         {
-            ExtOut("Field (mdToken token) of\n");
-            GetInfoFromModule(ModulePtr, cl);
+            if (!retMdTypeDef) ExtOut("Field (mdToken token) of\n");
+            GetInfoFromModule(ModulePtr, cl, retMdTypeDef ? &ignoredModuleInfoRet : NULL);
             return;
         }
     }
@@ -3251,21 +3262,27 @@ void DumpTieredNativeCodeAddressInfo(struct DacpTieredVersionData * pTieredVersi
     for(int i = cTieredVersionData - 1; i >= 0; --i)
     {
         const char *descriptor = NULL;
-        switch(pTieredVersionData[i].TieredInfo)
+        switch(pTieredVersionData[i].OptimizationTier)
         {
-        case DacpTieredVersionData::TIERED_UNKNOWN:
+        case DacpTieredVersionData::OptimizationTier_Unknown:
         default:
             _ASSERTE(!"Update SOS to understand the new tier");
             descriptor = "Unknown Tier";
             break;
-        case DacpTieredVersionData::NON_TIERED:
-            descriptor = "Non-Tiered";
+        case DacpTieredVersionData::OptimizationTier_MinOptJitted:
+            descriptor = "MinOptJitted";
             break;
-        case DacpTieredVersionData::TIERED_0:
-            descriptor = "Tier 0";
+        case DacpTieredVersionData::OptimizationTier_Optimized:
+            descriptor = "Optimized";
             break;
-        case DacpTieredVersionData::TIERED_1:
-            descriptor = "Tier 1";
+        case DacpTieredVersionData::OptimizationTier_QuickJitted:
+            descriptor = "QuickJitted";
+            break;
+        case DacpTieredVersionData::OptimizationTier_OptimizedTier1:
+            descriptor = "OptimizedTier1";
+            break;
+        case DacpTieredVersionData::OptimizationTier_ReadyToRun:
+            descriptor = "ReadyToRun";
             break;
         }
 
@@ -3827,7 +3844,7 @@ void StringObjectContent(size_t obj, BOOL fLiteral, const int length)
             ULONG j,k=0;
             for (j = 0; j < wcharsRead; j ++) 
             {
-                if (_iswprint (buffer[j])) {
+                if (iswprint (buffer[j])) {
                     out[k] = buffer[j];
                     k ++;
                 }

@@ -20,7 +20,6 @@
 UINT64 QCALLTYPE EventPipeInternal::Enable(
     __in_z LPCWSTR outputFile,
     UINT32 circularBufferSizeInMB,
-    UINT64 profilerSamplingRateInNanoseconds,
     EventPipeProviderConfiguration *pProviders,
     UINT32 numProviders)
 {
@@ -30,7 +29,6 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     // Invalid input!
     if (circularBufferSizeInMB == 0 ||
-        profilerSamplingRateInNanoseconds == 0 ||
         numProviders == 0 ||
         pProviders == nullptr)
     {
@@ -39,13 +37,24 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     BEGIN_QCALL;
     {
+        // This was a quick and dirty mechanism for testing but it may not be the final
+        // configuration scheme we want. This path handles both the AI profiler scenario
+        // doing private reflection and the EnableEventPipe env var. If we want to flip
+        // the default for one but not the other we'll have to hoist the configuration
+        // check into managed code.
+        EventPipeSerializationFormat format = EventPipeSerializationFormat::NetPerfV3;
+        if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeNetTraceFormat) > 0)
+        {
+            format = EventPipeSerializationFormat::NetTraceV4;
+        }
+
         sessionID = EventPipe::Enable(
             outputFile,
             circularBufferSizeInMB,
-            profilerSamplingRateInNanoseconds,
             pProviders,
             numProviders,
-            outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+            outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Listener,
+            format,
             nullptr);
     }
     END_QCALL;
@@ -250,7 +259,7 @@ void QCALLTYPE EventPipeInternal::WriteEventData(
     END_QCALL;
 }
 
-bool QCALLTYPE EventPipeInternal::GetNextEvent(EventPipeEventInstanceData *pInstance)
+bool QCALLTYPE EventPipeInternal::GetNextEvent(UINT64 sessionID, EventPipeEventInstanceData *pInstance)
 {
     QCALL_CONTRACT;
 
@@ -259,12 +268,12 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(EventPipeEventInstanceData *pInst
 
     _ASSERTE(pInstance != NULL);
 
-    pNextInstance = EventPipe::GetNextEvent();
+    pNextInstance = EventPipe::GetNextEvent(sessionID);
     if (pNextInstance)
     {
         pInstance->ProviderID = pNextInstance->GetEvent()->GetProvider();
         pInstance->EventID = pNextInstance->GetEvent()->GetEventID();
-        pInstance->ThreadID = pNextInstance->GetThreadId();
+        pInstance->ThreadID = pNextInstance->GetThreadId32();
         pInstance->TimeStamp.QuadPart = pNextInstance->GetTimeStamp()->QuadPart;
         pInstance->ActivityId = *pNextInstance->GetActivityId();
         pInstance->RelatedActivityId = *pNextInstance->GetRelatedActivityId();
