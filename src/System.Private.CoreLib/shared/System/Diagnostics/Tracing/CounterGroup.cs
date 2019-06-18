@@ -66,10 +66,12 @@ namespace System.Diagnostics.Tracing
 
                     lock (this)      // Lock the CounterGroup
                     {
+                        int pollingIntervalInMilliseconds = value * 1000;
                         // If we received an enable command with a different polling interval, we are trying to add a session.
-                        if (e.Command == EventCommand.Enable && (value * 1000) != _pollingIntervalInMilliseconds)
+                        if (e.Command == EventCommand.Enable && pollingIntervalInMilliseconds != _pollingIntervalInMilliseconds)
                         {
-                            _sessions.Add(value * 1000, DateTime.MinValue);
+                            if (!_sessions.ContainsKey(pollingIntervalInMilliseconds))
+                                _sessions.Add(pollingIntervalInMilliseconds, DateTime.MinValue);
                         }
 
                         EnableTimer(value);
@@ -83,6 +85,7 @@ namespace System.Diagnostics.Tracing
             {
                 lock (this)
                 {
+                    Debug.WriteLine("Disable called");
                     _pollingIntervalInMilliseconds = 0;
                 }
             }
@@ -195,6 +198,7 @@ namespace System.Diagnostics.Tracing
                 {
                     DateTime now = DateTime.UtcNow;
                     TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
+                    List<int> modified = new List<int>();
 
                     foreach (var session in _sessions)
                     {
@@ -205,8 +209,13 @@ namespace System.Diagnostics.Tracing
                             {
                                 counter.WritePayload((float)elapsed.TotalSeconds, session.Key);
                             }
-                            _sessions[session.Key] = now;
+                            modified.Add(session.Key);
                         }
+                    }
+
+                    foreach (var sessionInterval in modified)
+                    {
+                        _sessions[sessionInterval] = now;
                     }
 
                     _timeStampSinceCollectionStarted = now;
