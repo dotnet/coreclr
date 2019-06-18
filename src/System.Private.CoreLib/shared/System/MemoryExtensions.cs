@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -1580,7 +1579,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T, TComparer>(
             this Span<T> span, T value, TComparer comparer)
-            where TComparer : IComparer<T>?
+            where TComparer : IComparer<T>
         {
             return BinarySearch((ReadOnlySpan<T>)span, value, comparer);
         }
@@ -1648,20 +1647,20 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="value"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="ReadOnlySpan{T}.Length"/>.
         /// </returns>
-        /// <remarks>If <paramref name="comparer"/> is null, <see cref="System.Collections.Generic.Comparer{T}.Default"/> will be used.</remarks>
+        /// <exception cref="T:System.ArgumentNullException">
+        /// <paramref name = "comparer" /> is <see langword="null"/> .
+        /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T, TComparer>(
             this ReadOnlySpan<T> span, T value, TComparer comparer)
-            where TComparer : IComparer<T>?
+            where TComparer : IComparer<T>
         {
             if (comparer == null)
-            {
-                return BinarySearch(span,
-                    new SpanHelpers.ComparerComparable<T, Comparer<T>>(value, Comparer<T>.Default));
-            }
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.comparer);
 
-            return BinarySearch(span,
-                new SpanHelpers.ComparerComparable<T, TComparer>(value, comparer));
+            var comparable = new SpanHelpers.ComparerComparable<T, TComparer>(
+                value, comparer);
+            return BinarySearch(span, comparable);
         }
     }
 }

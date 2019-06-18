@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -64,7 +63,7 @@ namespace System
 
         // Helper to allow sharing all code via IComparable<T> inlineable
         internal readonly struct ComparerComparable<T, TComparer> : IComparable<T>
-            where TComparer : IComparer<T>?
+            where TComparer : IComparer<T>
         {
             private readonly T _value;
             private readonly TComparer _comparer;
@@ -76,7 +75,7 @@ namespace System
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public int CompareTo(T other) => _comparer!.Compare(_value, other);
+            public int CompareTo(T other) => _comparer.Compare(_value, other);
         }
     }
 }
