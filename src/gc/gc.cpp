@@ -2916,9 +2916,7 @@ heap_segment* gc_heap::saved_loh_segment_no_gc = 0;
 
 BOOL        gc_heap::gen0_bricks_cleared = FALSE;
 
-#ifdef FFIND_OBJECT
 int         gc_heap::gen0_must_clear_bricks = 0;
-#endif //FFIND_OBJECT
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
 CFinalize*  gc_heap::finalize_queue = 0;
@@ -11619,9 +11617,9 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     }
 
     //this portion can be done after we release the lock
-    if (seg == ephemeral_heap_segment)
+    if (seg == ephemeral_heap_segment ||
+        seg == nullptr && gen_number == 0 && limit_size >= CLR_SIZE / 2)
     {
-#ifdef FFIND_OBJECT
         if (gen0_must_clear_bricks > 0)
         {
             //set the brick table to speed up find_object
@@ -11637,7 +11635,6 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
                 *x = -1;
         }
         else
-#endif //FFIND_OBJECT
         {
             gen0_bricks_cleared = FALSE;
         }
@@ -16179,6 +16176,28 @@ void gc_heap::gc1()
             fire_pevents();
             pm_full_gc_init_or_clear();
 
+            // distribute gen0_must_clear_bricks to all heaps -
+            // if one heap encountered an interior pointer during this GC,
+            // the next GC might see one on another heap
+
+            // first, compute max
+            int max_gen0_must_clear_bricks = 0;
+            for (int i = 0; i < gc_heap::n_heaps; i++)
+            {
+                gc_heap* hp = gc_heap::g_heaps[i];
+                if (max_gen0_must_clear_bricks < hp->gen0_must_clear_bricks)
+                    max_gen0_must_clear_bricks = hp->gen0_must_clear_bricks;
+            }
+            // if max > 0, distribute to all heaps
+            if (max_gen0_must_clear_bricks > 0)
+            {
+                for (int i = 0; i < gc_heap::n_heaps; i++)
+                {
+                    gc_heap* hp = gc_heap::g_heaps[i];
+                    hp->gen0_must_clear_bricks = max_gen0_must_clear_bricks;
+                }
+            }
+
             gc_t_join.restart();
         }
         alloc_context_count = 0;
@@ -17532,14 +17551,8 @@ uint8_t* gc_heap::find_object (uint8_t* interior, uint8_t* low)
             set_brick (b, -1);
         }
     }
-#ifdef FFIND_OBJECT
     //indicate that in the future this needs to be done during allocation
-#ifdef MULTIPLE_HEAPS
-    gen0_must_clear_bricks = FFIND_DECAY*gc_heap::n_heaps;
-#else
     gen0_must_clear_bricks = FFIND_DECAY;
-#endif //MULTIPLE_HEAPS
-#endif //FFIND_OBJECT
 
     int brick_entry = get_brick_entry(brick_of (interior));
     if (brick_entry == 0)
@@ -19992,10 +20005,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 #endif //RESPECT_LARGE_ALIGNMENT || FEATURE_STRUCTALIGN
     }
 
-#ifdef FFIND_OBJECT
     if (gen0_must_clear_bricks > 0)
         gen0_must_clear_bricks--;
-#endif //FFIND_OBJECT
 
     size_t last_promoted_bytes = 0;
 
@@ -26130,10 +26141,8 @@ void gc_heap::background_mark_phase ()
     start = GetCycleCount32();
 #endif //TIME_GC
 
-#ifdef FFIND_OBJECT
     if (gen0_must_clear_bricks > 0)
         gen0_must_clear_bricks--;
-#endif //FFIND_OBJECT
 
     background_soh_alloc_count = 0;
     background_loh_alloc_count = 0;
