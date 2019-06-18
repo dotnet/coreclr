@@ -1968,6 +1968,17 @@ bool FloatingPointUtils::isNormal(float x)
     return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
 }
 
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check double for precise reciprocal. E.g. 2.0 <--> 0.5
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
+
 bool FloatingPointUtils::hasPreciseReciprocal(double x)
 {
     if (!isNormal(x))
@@ -1978,6 +1989,17 @@ bool FloatingPointUtils::hasPreciseReciprocal(double x)
     uint64_t mantissa = i & 0xFFFFFFFFFFFFFul;
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
+
+//------------------------------------------------------------------------
+// hasPreciseReciprocal: check float for precise reciprocal. E.g. 2.0f <--> 0.5f
+//
+// Arguments:
+//    x - value to check for precise reciprocal
+//
+// Return Value:
+//    True if 'x' is a power of two value and is not denormal (denormals may not be well-defined
+//    on some platforms such as if the user modified the floating-point environment via a P/Invoke)
+//
 
 bool FloatingPointUtils::hasPreciseReciprocal(float x)
 {
