@@ -581,7 +581,9 @@ EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNT
 #include "clreventpipewriteevents.h"
 
 """)
-        Clrallevents.write(trace_context_typedef)
+        if write_xplatheader:
+            Clrallevents.write(trace_context_typedef)
+
         for providerNode in tree.getElementsByTagName('provider'):
             templateNodes = providerNode.getElementsByTagName('template')
             allTemplates  = parseTemplateNodes(templateNodes)
@@ -596,45 +598,46 @@ EXTERN_C __declspec(selectany) DOTNET_TRACE_CONTEXT MICROSOFT_WINDOWS_DOTNETRUNT
             eventpipeProviderCtxName = providerSymbol + "_EVENTPIPE_Context"
             Clrallevents.write('EXTERN_C __declspec(selectany) EVENTPIPE_TRACE_CONTEXT ' + eventpipeProviderCtxName + ' = { W("' + providerName + '"), 0, false, 0 };')
 
-        Clrallevents.write(trace_context_instdef)
+        if write_xplatheader:
+            Clrallevents.write(trace_context_instdef)
 
-    clrproviders = os.path.join(incDir, "clrproviders.h")
-    with open_for_update(clrproviders) as Clrproviders:
-        Clrproviders.write("""
-typedef struct _EVENT_DESCRIPTOR
-{
-    int const Level;
-    ULONGLONG const Keyword;
-} EVENT_DESCRIPTOR;
-""")
-        allProviders = []
-        for providerNode in tree.getElementsByTagName('provider'):
-            keywords = []
-            keywordsToMask = {}
-            providerName = str(providerNode.getAttribute('name'))
-            providerSymbol = str(providerNode.getAttribute('symbol'))
-            nbKeywords = 0
+    if write_xplatheader:
+        clrproviders = os.path.join(incDir, "clrproviders.h")
+        with open_for_update(clrproviders) as Clrproviders:
+            Clrproviders.write("""
+    typedef struct _EVENT_DESCRIPTOR
+    {
+        int const Level;
+        ULONGLONG const Keyword;
+    } EVENT_DESCRIPTOR;
+    """)
+            allProviders = []
+            for providerNode in tree.getElementsByTagName('provider'):
+                keywords = []
+                keywordsToMask = {}
+                providerName = str(providerNode.getAttribute('name'))
+                providerSymbol = str(providerNode.getAttribute('symbol'))
+                nbKeywords = 0
 
-            Clrproviders.write("// Keywords\n");
-            for keywordNode in providerNode.getElementsByTagName('keyword'):
-                keywordName = keywordNode.getAttribute('name')
-                keywordMask = keywordNode.getAttribute('mask')
-                keywordSymbol = keywordNode.getAttribute('symbol')
-                Clrproviders.write("#define " + keywordSymbol + " " + keywordMask + "\n")
+                Clrproviders.write("// Keywords\n");
+                for keywordNode in providerNode.getElementsByTagName('keyword'):
+                    keywordName = keywordNode.getAttribute('name')
+                    keywordMask = keywordNode.getAttribute('mask')
+                    keywordSymbol = keywordNode.getAttribute('symbol')
+                    Clrproviders.write("#define " + keywordSymbol + " " + keywordMask + "\n")
 
-                keywords.append("{ \"" + keywordName + "\", " + keywordMask + " }")
-                keywordsToMask[keywordName] = int(keywordMask, 16)
-                nbKeywords += 1
+                    keywords.append("{ \"" + keywordName + "\", " + keywordMask + " }")
+                    keywordsToMask[keywordName] = int(keywordMask, 16)
+                    nbKeywords += 1
 
-            for eventNode in providerNode.getElementsByTagName('event'):
-                levelName = eventNode.getAttribute('level')
-                symbolName = eventNode.getAttribute('symbol')
-                keywords = eventNode.getAttribute('keywords')
-                level = convertToLevelId(levelName)
-                Clrproviders.write("EXTERN_C __declspec(selectany) EVENT_DESCRIPTOR const " + symbolName + " = { " + str(level) + ", " + hex(getKeywordsMaskCombined(keywords, keywordsToMask)) + " };\n")
+                for eventNode in providerNode.getElementsByTagName('event'):
+                    levelName = eventNode.getAttribute('level')
+                    symbolName = eventNode.getAttribute('symbol')
+                    keywords = eventNode.getAttribute('keywords')
+                    level = convertToLevelId(levelName)
+                    Clrproviders.write("EXTERN_C __declspec(selectany) EVENT_DESCRIPTOR const " + symbolName + " = { " + str(level) + ", " + hex(getKeywordsMaskCombined(keywords, keywordsToMask)) + " };\n")
 
-
-            allProviders.append("&" + providerSymbol + "_Context")
+                allProviders.append("&" + providerSymbol + "_Context")
 
 
     clreventpipewriteevents = os.path.join(incDir, "clreventpipewriteevents.h")

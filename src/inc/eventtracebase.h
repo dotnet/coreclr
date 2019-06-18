@@ -79,7 +79,7 @@ enum EtwThreadFlags
 // if the fields in the event are not cheap to calculate
 //
 #define ETW_EVENT_ENABLED(Context, EventDescriptor) \
-    ((MCGEN_ENABLE_CHECK(Context.EtwProvider, EventDescriptor)) || EVENT_PIPE_ENABLED())
+    ((MCGEN_ENABLE_CHECK(Context.EtwProvider, EventDescriptor)) || EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword))
 
 //
 // Use this macro to check if a category of events is enabled
