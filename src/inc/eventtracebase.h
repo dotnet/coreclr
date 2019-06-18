@@ -103,12 +103,12 @@ enum EtwThreadFlags
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
 #define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword) || \
-        (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.Keyword)))
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled(Context, Level, Keyword) || \
-        (XplatEventLogger::IsEventLoggingEnabled() && XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword)))
+        (XplatEventLogger::IsEventLoggingEnabled()))
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || \
+        (XplatEventLogger::IsEventLoggingEnabled())
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || \
-        (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, Level, Keyword)))
+        (XplatEventLogger::IsEventLoggingEnabled()))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
 #else //defined(FEATURE_PERFTRACING)
 #define ETW_INLINE
@@ -116,7 +116,7 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword))
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || (XplatEventLogger::IsEventLoggingEnabled()))
 #define ETW_EVENT_ENABLED(Context, EventDescriptor) (ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.Keyword))
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
@@ -222,6 +222,24 @@ struct ProfilingScanContext;
 extern UINT32 g_nClrInstanceId;
 
 #define GetClrInstanceId()  (static_cast<UINT16>(g_nClrInstanceId))
+#if defined(FEATURE_PAL) && (defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT))
+#define KEYWORDZERO 0x0
+
+/***************************************/
+/* Tracing levels supported by CLR ETW */
+/***************************************/
+#define ETWMAX_TRACE_LEVEL 6        // Maximum Number of Trace Levels supported
+#define TRACE_LEVEL_NONE        0   // Tracing is not on
+#define TRACE_LEVEL_FATAL       1   // Abnormal exit or termination
+#define TRACE_LEVEL_ERROR       2   // Severe errors that need logging
+#define TRACE_LEVEL_WARNING     3   // Warnings such as allocation failure
+#define TRACE_LEVEL_INFORMATION 4   // Includes non-error cases such as Entry-Exit
+#define TRACE_LEVEL_VERBOSE     5   // Detailed traces from intermediate steps
+
+#define DEF_LTTNG_KEYWORD_ENABLED 1
+#include "clrproviders.h"
+#include "clrconfig.h"
+#endif  // defined(FEATURE_PAL) && (defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT))
 
 
 #if defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT)
