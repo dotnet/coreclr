@@ -4222,12 +4222,16 @@ VOID EtwCallbackCommon(
     {
     case DotNETRuntime:
         ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context;
+        break;
     case DotNETRuntimeRundown:
         ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context;
+        break;
     case DotNETRuntimePrivate:
         ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context;
+        break;
     case DotNETRuntimeStress:
         ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context;
+        break;
     default:
         _ASSERTE(!"EtwCallbackCommon was called with invalid context");
         return;
