@@ -4217,6 +4217,25 @@ VOID EtwCallbackCommon(
     GCEventLevel level = static_cast<GCEventLevel>(Level);
     GCHeapUtilities::RecordEventStateChange(bIsPublicTraceHandle, keywords, level);
 
+    DOTNET_TRACE_CONTEXT * ctxToUpdate;
+    switch(ProviderIndex)
+    {
+    case DotNETRuntime:
+        ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context;
+    case DotNETRuntimeRundown:
+        ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context;
+    case DotNETRuntimePrivate:
+        ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context;
+    case DotNETRuntimeStress:
+        ctxToUpdate = &MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context;
+    default:
+        _ASSERTE(!"EtwCallbackCommon was called with invalid context");
+        return;
+    }
+
+    ctxToUpdate->EventpipeProvider.Level = Level;
+    ctxToUpdate->EventpipeProvider.EnabledKeywordsBitmask = MatchAnyKeyword;
+
     // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
     // flick this to force a full GC.
     if (g_fEEStarted && !g_fEEShutDown && bIsPublicTraceHandle &&
