@@ -1648,15 +1648,12 @@ namespace System
         /// of the index of the next element that is larger than <paramref name="value"/> or, if there is
         /// no larger element, the bitwise complement of <see cref="ReadOnlySpan{T}.Length"/>.
         /// </returns>
-        /// <exception cref="T:System.ArgumentNullException">
-        /// <paramref name = "comparer" /> is <see langword="null"/> .
-        /// </exception>
+        /// <remarks>If <paramref name="comparer"/> is null, <see cref="System.Collections.Generic.Comparer{T}.Default"/> will be used.</remarks>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int BinarySearch<T, TComparer>(
             this ReadOnlySpan<T> span, T value, TComparer comparer)
             where TComparer : IComparer<T>?
         {
-
             if (comparer == null)
             {
                 return BinarySearch(span,
