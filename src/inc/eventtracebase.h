@@ -86,7 +86,7 @@ enum EtwThreadFlags
 //
 
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((Context.EtwProvider.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EventPipeHelper::IsEnabled(Context, Level, Keyword))
 
 
 // This macro only checks if a provider is enabled
@@ -102,12 +102,12 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::Enabled() || \
-        (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.KeywordsBitmask)))
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || \
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword) || \
+        (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.Keyword)))
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled(Context, Level, Keyword) || \
         (XplatEventLogger::IsEventLoggingEnabled() && XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword)))
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::Enabled() || \
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || \
         (XplatEventLogger::IsEventLoggingEnabled() && ETW_CATEGORY_ENABLED(Context, Level, Keyword)))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
 #else //defined(FEATURE_PERFTRACING)
@@ -117,7 +117,7 @@ enum EtwThreadFlags
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsKeywordEnabled(Context, Level, Keyword))
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.KeywordsBitmask))
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.Keyword))
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
 #define ETW_PROVIDER_ENABLED(ProviderSymbol) (XplatEventLogger::IsProviderEnabled(Context))
@@ -179,7 +179,7 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the event is enabled
 //
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) \
-    ((Context.EtwProvider.IsEnabled && ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)) || EVENT_PIPE_ENABLED())
+    ((Context.EtwProvider.IsEnabled && ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)))
 
 //
 // Using KEYWORDZERO means when checking the events category ignore the keyword
@@ -190,7 +190,8 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the category is enabled
 //
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || EVENT_PIPE_ENABLED())
+    ((ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || \
+        EventPipeHelper::IsEnabled(Context, Level, Keyword))
 
     #define ETWOnStartup(StartEventName, EndEventName) \
         ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
@@ -222,13 +223,6 @@ extern UINT32 g_nClrInstanceId;
 
 #define GetClrInstanceId()  (static_cast<UINT16>(g_nClrInstanceId))
 
-#if defined(FEATURE_PERFTRACING)
-class EventPipeHelper
-{
-public:
-    static bool Enabled();
-};
-#endif // defined(FEATURE_PERFTRACING)
 
 #if defined(FEATURE_EVENT_TRACE) || defined(FEATURE_EVENTSOURCE_XPLAT)
 
@@ -338,6 +332,14 @@ extern "C" {
 #endif //!FEATURE_PAL
 
 #include "clretwallmain.h"
+#if defined(FEATURE_PERFTRACING)
+class EventPipeHelper
+{
+public:
+    static bool Enabled();
+    static bool IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONGLONG Keyword);
+};
+#endif // defined(FEATURE_PERFTRACING)
 
 #endif // FEATURE_EVENT_TRACE
 

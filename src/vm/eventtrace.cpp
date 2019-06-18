@@ -7490,4 +7490,21 @@ bool EventPipeHelper::Enabled()
     LIMITED_METHOD_CONTRACT;
     return EventPipe::Enabled();
 }
+
+bool EventPipeHelper::IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONGLONG Keyword)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END
+
+    if (Level <= Context.EventpipeProvider.Level || Context.EventpipeProvider.Level == 0)
+    {
+        return (Keyword & Context.EventpipeProvider.EnabledKeywordsBitmask) != 0;
+    }
+
+    return false;
+}
 #endif // FEATURE_PERFTRACING
