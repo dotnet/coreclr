@@ -1744,9 +1744,7 @@ bool MethodSet::IsActiveMethod(const char* methodName, int methodHash)
 }
 
 #ifdef FEATURE_JIT_METHOD_PERF
-CycleCount::CycleCount() : cps(CycleTimer::CyclesPerSecond())
-{
-}
+CycleCount::CycleCount() : cps(CycleTimer::CyclesPerSecond()) {}
 
 bool CycleCount::GetCycles(unsigned __int64* time)
 {
@@ -1828,7 +1826,7 @@ double FloatingPointUtils::convertUInt64ToDouble(unsigned __int64 uIntVal)
         uint64_t adjHex = 0x43F0000000000000UL;
         d               = (double)s64 + *(double*)&adjHex;
 #else
-        d                             = (double)uIntVal;
+        d = (double)uIntVal;
 #endif
     }
     else
@@ -1876,7 +1874,7 @@ unsigned __int64 FloatingPointUtils::convertDoubleToUInt64(double d)
 
     u64 = UINT64(INT64(d));
 #else
-    u64                               = UINT64(d);
+    u64 = UINT64(d);
 #endif // _TARGET_XARCH_
 
     return u64;
@@ -1982,9 +1980,11 @@ bool FloatingPointUtils::isNormal(float x)
 bool FloatingPointUtils::hasPreciseReciprocal(double x)
 {
     if (!isNormal(x))
+    {
         return false;
+    }
 
-    uint64_t i = *(uint64_t*)&x;
+    uint64_t i        = *(uint64_t*)&x;
     uint64_t exponent = (i >> 52) && 0x7FFul;
     uint64_t mantissa = i & 0xFFFFFFFFFFFFFul;
     return mantissa == 0 && exponent != 0 && exponent != 1023;
@@ -2004,10 +2004,12 @@ bool FloatingPointUtils::hasPreciseReciprocal(double x)
 bool FloatingPointUtils::hasPreciseReciprocal(float x)
 {
     if (!isNormal(x))
+    {
         return false;
+    }
 
-    uint32_t i = *(uint32_t*)&x;
-    uint8_t exponent = (uint8_t)(i >> 23);
+    uint32_t i        = *(uint32_t*)&x;
+    uint8_t  exponent = (uint8_t)(i >> 23);
     uint32_t mantissa = i & 0x7fffff;
     return mantissa == 0 && exponent != 0 && exponent != 127;
 }
@@ -2343,4 +2345,4 @@ int64_t GetSigned64Magic(int64_t d, int* shift /*out*/)
     return GetSignedMagic<int64_t>(d, shift);
 }
 #endif
-}
+} // namespace MagicDivide

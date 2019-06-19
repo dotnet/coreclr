@@ -16,33 +16,38 @@ public class Program
     public static int Main(string[] args)
     {
         // Some corner cases
-        var floatValues = new List<float>(
-            new[] { 0, 1, MathF.PI, MathF.E, float.MinValue, float.MinValue, int.MaxValue, int.MinValue, float.NegativeInfinity, float.PositiveInfinity, float.NaN, (float) double.MaxValue, (float) double.MinValue });
+        var testValues = new List<double>(new []
+            {
+                0, 0.01, 1.333, 1/3.0, 0.5, 1, 2, 3, 4,
+                MathF.PI, MathF.E, Math.PI, Math.E,
+                float.MinValue, double.MinValue,
+                float.MaxValue, double.MaxValue,
+                int.MaxValue, long.MaxValue,
+                int.MinValue, long.MinValue,
+                float.NegativeInfinity, double.NegativeInfinity,
+                float.PositiveInfinity, double.PositiveInfinity,
+                float.NaN, double.NaN
+            });
 
-        var doubleValues = new List<double>(
-            new[] { 0, 1, Math.PI, Math.E, double.MinValue, double.MinValue, long.MaxValue, long.MinValue, double.NegativeInfinity, double.PositiveInfinity, double.NaN, 0.0, 1.0 });
 
-        var random = new Random();
         // Also, add some random values
+        var random = new Random();
         for (int i = 0; i < 100000; i++)
+            testValues.Add(random.NextDouble());
+
+        foreach (double value in testValues)
         {
-            floatValues.Add((float) random.NextDouble());
-            doubleValues.Add(random.NextDouble());
-        }
+            TestPowOfTwo_Single((float)value);
+            TestPowOfTwo_Single(-(float)value);
 
-        for (int i = 0; i < floatValues.Count; i++)
-        {
-            TestPowOfTwo_Single(floatValues[i]);
-            TestPowOfTwo_Single(-floatValues[i]);
+            TestPowOfTwo_Double(value);
+            TestPowOfTwo_Double(-value);
 
-            TestPowOfTwo_Double(doubleValues[i]);
-            TestPowOfTwo_Double(-doubleValues[i]);
+            TestNotPowOfTwo_Single((float)value);
+            TestNotPowOfTwo_Single(-(float)value);
 
-            TestNotPowOfTwo_Single(floatValues[i]);
-            TestNotPowOfTwo_Single(-floatValues[i]);
-
-            TestNotPowOfTwo_Double(doubleValues[i]);
-            TestNotPowOfTwo_Double(-doubleValues[i]);
+            TestNotPowOfTwo_Double(value);
+            TestNotPowOfTwo_Double(-value);
         }
 
         return resultCode;
@@ -55,6 +60,7 @@ public class Program
         AssertEquals(expected: x / ConstToVar(4), actual: x / 4);
         AssertEquals(expected: x / ConstToVar(8), actual: x / 8);
         AssertEquals(expected: x / ConstToVar(16), actual: x / 16);
+
         AssertEquals(expected: x / ConstToVar(134217728), actual: x / 134217728);
         AssertEquals(expected: x / ConstToVar(268435456), actual: x / 268435456);
         AssertEquals(expected: x / ConstToVar(536870912), actual: x / 536870912);
@@ -64,6 +70,7 @@ public class Program
         AssertEquals(expected: x / ConstToVar(0.25f), actual: x / 0.25f);
         AssertEquals(expected: x / ConstToVar(0.125f), actual: x / 0.125f);
         AssertEquals(expected: x / ConstToVar(0.0625f), actual: x / 0.0625f);
+
         AssertEquals(expected: x / ConstToVar(0.0009765625f), actual: x / 0.0009765625f);
         AssertEquals(expected: x / ConstToVar(0.00048828125f), actual: x / 0.00048828125f);
         AssertEquals(expected: x / ConstToVar(0.00024414062f), actual: x / 0.00024414062f);
@@ -82,6 +89,7 @@ public class Program
         AssertEquals(expected: x / ConstToVar(4), actual: x / 4);
         AssertEquals(expected: x / ConstToVar(8), actual: x / 8);
         AssertEquals(expected: x / ConstToVar(16), actual: x / 16);
+
         AssertEquals(expected: x / ConstToVar(9007199254740992), actual: x / 9007199254740992);
         AssertEquals(expected: x / ConstToVar(18014398509481984), actual: x / 18014398509481984);
         AssertEquals(expected: x / ConstToVar(36028797018963970), actual: x / 36028797018963970);
@@ -91,9 +99,9 @@ public class Program
         AssertEquals(expected: x / ConstToVar(0.25), actual: x / 0.25);
         AssertEquals(expected: x / ConstToVar(0.125), actual: x / 0.125);
         AssertEquals(expected: x / ConstToVar(0.0625), actual: x / 0.0625);
+
         AssertEquals(expected: x / ConstToVar(0.00390625), actual: x / 0.00390625);
         AssertEquals(expected: x / ConstToVar(0.001953125), actual: x / 0.001953125);
-        AssertEquals(expected: x / ConstToVar(0.0009765625), actual: x / 0.0009765625);
         AssertEquals(expected: x / ConstToVar(0.00048828125), actual: x / 0.00048828125);
         AssertEquals(expected: x / ConstToVar(0.0001220703125), actual: x / 0.0001220703125);
 
@@ -104,7 +112,7 @@ public class Program
 
     private static void TestNotPowOfTwo_Single(float x)
     {
-        // TestNotPowOfTwo_Single should not contain 'mul' instructions
+        // TestNotPowOfTwo_Single should not contain 'mul' instructions (the optimization should not be applied here)
         AssertEquals(expected: x / ConstToVar(3), actual: x / 3);
         AssertEquals(expected: x / ConstToVar(9), actual: x / 9);
         AssertEquals(expected: x / ConstToVar(2.5f), actual: x / 2.5f);

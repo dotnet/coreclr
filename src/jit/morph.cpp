@@ -11541,12 +11541,13 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 
         case GT_DIV:
             // Replace "val / dcon" with "val * (1.0 / dcon)" if dcon is a power of two.
-            // Powers of two within range are always exactly represented, 
+            // Powers of two within range are always exactly represented,
             // so multiplication by the reciprocal is safe in this scenario
             if (op2->IsCnsFltOrDbl())
             {
                 double divisor = op2->AsDblCon()->gtDconVal;
-                if ((typ == TYP_DOUBLE && FloatingPointUtils::hasPreciseReciprocal(divisor)) || (typ == TYP_FLOAT && FloatingPointUtils::hasPreciseReciprocal(forceCastToFloat(divisor))))
+                if ((typ == TYP_DOUBLE && FloatingPointUtils::hasPreciseReciprocal(divisor)) ||
+                    (typ == TYP_FLOAT && FloatingPointUtils::hasPreciseReciprocal(forceCastToFloat(divisor))))
                 {
                     oper = GT_MUL;
                     tree->ChangeOper(oper);
