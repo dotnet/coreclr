@@ -29,11 +29,6 @@ public class Program
                 float.NaN, double.NaN
             });
 
-
-        // Also, add some random values
-        for (int i = 0; i < 100000; i++)
-            testValues.Add(TestLibrary.Generator.GetDouble());
-
         foreach (double value in testValues)
         {
             TestPowOfTwo_Single((float)value);
@@ -123,7 +118,10 @@ public class Program
         AssertEquals(expected: x / ConstToVar(-0.51f), actual: x / -0.51f);
 
         AssertEquals(expected: x / ConstToVar(0.0f), actual: x / 0.0f);
+        AssertEquals(expected: x / ConstToVar(1.0f), actual: x / 1.0f);
         AssertEquals(expected: x / ConstToVar(-0.0f), actual: x / -0.0f);
+        AssertEquals(expected: x / ConstToVar(-1.0f), actual: x / -1.0f);
+
         AssertEquals(expected: x / ConstToVar(float.Epsilon), actual: x / float.Epsilon);
         AssertEquals(expected: x / ConstToVar(float.MinValue), actual: x / float.MinValue);
         AssertEquals(expected: x / ConstToVar(float.MaxValue), actual: x / float.MaxValue);
@@ -148,7 +146,10 @@ public class Program
         AssertEquals(expected: x / ConstToVar(0.00012207031), actual: x / 0.00012207031);
 
         AssertEquals(expected: x / ConstToVar(0.0), actual: x / 0.0);
+        AssertEquals(expected: x / ConstToVar(1.0), actual: x / 1.0);
         AssertEquals(expected: x / ConstToVar(-0.0), actual: x / -0.0);
+        AssertEquals(expected: x / ConstToVar(-1.0), actual: x / -1.0);
+
         AssertEquals(expected: x / ConstToVar(double.Epsilon), actual: x / double.Epsilon);
         AssertEquals(expected: x / ConstToVar(double.MinValue), actual: x / double.MinValue);
         AssertEquals(expected: x / ConstToVar(double.MaxValue), actual: x / double.MaxValue);

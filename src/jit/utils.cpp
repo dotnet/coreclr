@@ -1988,7 +1988,7 @@ bool FloatingPointUtils::hasPreciseReciprocal(double x)
 
     uint64_t i        = reinterpret_cast<uint64_t &>(x);
     uint64_t exponent = (i >> 52) & 0x7FFul; // 0x7FF mask drops the sign bit
-    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul; // 0xFFFFFFFFFFFFF mask drops sign + exponent bits
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul; // 0xFFFFFFFFFFFFF mask drops the sign + exponent bits
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
 
@@ -2012,7 +2012,7 @@ bool FloatingPointUtils::hasPreciseReciprocal(float x)
 
     uint32_t i        = reinterpret_cast<uint32_t &>(x);
     uint32_t exponent = (i >> 23) & 0xFFu; // 0xFF mask drops the sign bit
-    uint32_t mantissa = i & 0x7FFFFFu; // 0x7FFFFF mask drops sign + exponent bits
+    uint32_t mantissa = i & 0x7FFFFFu; // 0x7FFFFF mask drops the sign + exponent bits
     return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
