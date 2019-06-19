@@ -11,11 +11,8 @@
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System;
-using System.Security;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics;
 
 namespace System.Threading.Tasks
 {
@@ -33,7 +30,11 @@ namespace System.Threading.Tasks
         }
 
         // static delegate for threads allocated to handle LongRunning tasks.
-        private static readonly ParameterizedThreadStart s_longRunningThreadWork = s => ((Task)s).ExecuteEntryUnsafe(threadPoolThread: null);
+        private static readonly ParameterizedThreadStart s_longRunningThreadWork = s =>
+        {
+            Debug.Assert(s is Task);
+            ((Task)s).ExecuteEntryUnsafe(threadPoolThread: null);
+        };
 
         /// <summary>
         /// Schedules a task to the ThreadPool.

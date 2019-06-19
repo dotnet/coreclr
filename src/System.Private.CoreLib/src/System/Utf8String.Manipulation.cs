@@ -4,8 +4,6 @@
 
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
 
 namespace System
 {
@@ -21,7 +19,6 @@ namespace System
             Debug.Assert(length >= 0, "Length cannot be negative.");
             Debug.Assert(startIndex + length <= this.Length, "StartIndex and Length cannot point beyond the end of the string.");
 
-            Debug.Assert(startIndex != 0 && startIndex != this.Length, "Caller should handle StartIndex boundary conditions.");
             Debug.Assert(length != 0 && length != this.Length, "Caller should handle Length boundary conditions.");
 
             Utf8String newString = FastAllocate(length);
@@ -79,12 +76,12 @@ namespace System
             return InternalSubstring(startIndex, length);
         }
 
+        // Slice intended to be used by the compiler only to provide indexer with range parameter functionality.
+        // Developers should be using Substring method instead.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Utf8String Substring(Range range)
-        {
-            (int start, int length) = range.GetOffsetAndLength(Length);
-            return Substring(start, length);
-        }
+        [ComponentModel.EditorBrowsable(ComponentModel.EditorBrowsableState.Never)]
+        public Utf8String Slice(int startIndex, int length) => Substring(startIndex, length);
+
 
         [StackTraceHidden]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -5,10 +5,6 @@
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Diagnostics.Contracts;
-using System.Runtime.InteropServices;
-
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -22,7 +18,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     /// <typeparam name="TKey">Type of objects that act as keys.</typeparam>    
     /// <typeparam name="TValue">Type of objects that act as entries / values.</typeparam>
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue>
+    internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue> where TKey : object
     {
         private class KeyValuePairComparator : IComparer<KeyValuePair<TKey, TValue>>
         {
@@ -100,6 +96,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
             if (!found)
             {
+                Debug.Assert(key != null);
                 Exception e = new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, key.ToString()));
                 e.HResult = HResults.E_BOUNDS;
                 throw e;
@@ -131,7 +128,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return new IKeyValuePairEnumerator(items, firstItemIndex, lastItemIndex);
         }
 
-        public void Split(out IMapView<TKey, TValue> firstPartition, out IMapView<TKey, TValue> secondPartition)
+        public void Split(out IMapView<TKey, TValue>? firstPartition, out IMapView<TKey, TValue>? secondPartition)
         {
             if (Count < 2)
             {
@@ -150,12 +147,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default);
+            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default!); // TODO-NULLABLE-GENERIC
             int index = Array.BinarySearch(items, firstItemIndex, Count, searchKey, keyValuePairComparator);
 
             if (index < 0)
             {
-                value = default;
+                value = default!; // TODO-NULLABLE-GENERIC
                 return false;
             }
 
@@ -208,7 +205,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            object IEnumerator.Current
+            object? IEnumerator.Current // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
             {
                 get
                 {

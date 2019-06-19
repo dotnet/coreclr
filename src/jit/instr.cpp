@@ -1077,39 +1077,48 @@ void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenT
 
             regSet.tmpRlsTemp(tmpDsc);
         }
-        else if (rmOp->OperIsHWIntrinsic())
+        else if (rmOp->isIndir() || rmOp->OperIsHWIntrinsic())
         {
-            getEmitter()->emitIns_R_AR_I(ins, attr, reg1, rmOp->gtGetOp1()->gtRegNum, 0, ival);
-            return;
-        }
-        else if (rmOp->isIndir())
-        {
-            GenTreeIndir* memIndir = rmOp->AsIndir();
-            GenTree*      memBase  = memIndir->gtOp1;
+            GenTree*      addr;
+            GenTreeIndir* memIndir = nullptr;
 
-            switch (memBase->OperGet())
+            if (rmOp->isIndir())
+            {
+                memIndir = rmOp->AsIndir();
+                addr     = memIndir->Addr();
+            }
+            else
+            {
+                assert(rmOp->AsHWIntrinsic()->OperIsMemoryLoad());
+                assert(HWIntrinsicInfo::lookupNumArgs(rmOp->AsHWIntrinsic()) == 1);
+                addr = rmOp->gtGetOp1();
+            }
+
+            switch (addr->OperGet())
             {
                 case GT_LCL_VAR_ADDR:
                 {
-                    varNum = memBase->AsLclVarCommon()->GetLclNum();
+                    varNum = addr->AsLclVarCommon()->GetLclNum();
                     offset = 0;
-
-                    // Ensure that all the GenTreeIndir values are set to their defaults.
-                    assert(!memIndir->HasIndex());
-                    assert(memIndir->Scale() == 1);
-                    assert(memIndir->Offset() == 0);
-
                     break;
                 }
 
                 case GT_CLS_VAR_ADDR:
                 {
-                    getEmitter()->emitIns_R_C_I(ins, attr, reg1, memBase->gtClsVar.gtClsVarHnd, 0, ival);
+                    getEmitter()->emitIns_R_C_I(ins, attr, reg1, addr->gtClsVar.gtClsVarHnd, 0, ival);
                     return;
                 }
 
                 default:
                 {
+                    if (memIndir == nullptr)
+                    {
+                        // This is the HW intrinsic load case.
+                        // Until we improve the handling of addressing modes in the emitter, we'll create a
+                        // temporary GT_IND to generate code with.
+                        GenTreeIndir load = indirForm(rmOp->TypeGet(), addr);
+                        memIndir          = &load;
+                    }
                     getEmitter()->emitIns_R_A_I(ins, attr, reg1, memIndir, ival);
                     return;
                 }

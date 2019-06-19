@@ -16,10 +16,10 @@ namespace System.Security.Principal
     public interface IIdentity
     {
         // Access to the name string
-        string Name { get; }
+        string? Name { get; }
 
         // Access to Authentication 'type' info
-        string AuthenticationType { get; }
+        string? AuthenticationType { get; }
 
         // Determine if this represents the unauthenticated identity
         bool IsAuthenticated { get; }

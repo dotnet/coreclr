@@ -124,7 +124,7 @@ void Compiler::lvaInitTypeRef()
     info.compILargsCount = info.compArgsCount;
 
 #ifdef FEATURE_SIMD
-    if (featureSIMD && (info.compRetNativeType == TYP_STRUCT))
+    if (supportSIMDTypes() && (info.compRetNativeType == TYP_STRUCT))
     {
         var_types structType = impNormStructType(info.compMethodInfo->args.retTypeClass);
         info.compRetType     = structType;
@@ -149,7 +149,7 @@ void Compiler::lvaInitTypeRef()
         if ((howToReturnStruct == SPK_PrimitiveType) || (howToReturnStruct == SPK_EnclosingType))
         {
             assert(returnType != TYP_UNKNOWN);
-            assert(!varTypeIsStruct(returnType));
+            assert(returnType != TYP_STRUCT);
 
             info.compRetNativeType = returnType;
 
@@ -255,7 +255,19 @@ void Compiler::lvaInitTypeRef()
 
         lvaInitVarDsc(varDsc, varNum, corInfoType, typeHnd, localsSig, &info.compMethodInfo->locals);
 
-        varDsc->lvPinned  = ((corInfoTypeWithMod & CORINFO_TYPE_MOD_PINNED) != 0);
+        if ((corInfoTypeWithMod & CORINFO_TYPE_MOD_PINNED) != 0)
+        {
+            if ((corInfoType == CORINFO_TYPE_CLASS) || (corInfoType == CORINFO_TYPE_BYREF))
+            {
+                JITDUMP("Setting lvPinned for V%02u\n", varNum);
+                varDsc->lvPinned = 1;
+            }
+            else
+            {
+                JITDUMP("Ignoring pin for non-GC type V%02u\n", varNum);
+            }
+        }
+
         varDsc->lvOnFrame = true; // The final home for this local variable might be our local stack frame
 
         if (corInfoType == CORINFO_TYPE_CLASS)
@@ -397,7 +409,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
         {
             varDsc->lvType = TYP_BYREF;
 #ifdef FEATURE_SIMD
-            if (featureSIMD)
+            if (supportSIMDTypes())
             {
                 var_types simdBaseType = TYP_UNKNOWN;
                 var_types type         = impNormStructType(info.compClassHnd, nullptr, nullptr, &simdBaseType);
@@ -505,7 +517,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
             }
         }
 #ifdef FEATURE_SIMD
-        else if (featureSIMD && varTypeIsSIMD(info.compRetType))
+        else if (supportSIMDTypes() && varTypeIsSIMD(info.compRetType))
         {
             varDsc->lvSIMDType = true;
             varDsc->lvBaseType =
@@ -598,8 +610,9 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             // If the argType is a struct, then check if it is an HFA
             if (varTypeIsStruct(argType))
             {
-                hfaType  = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-                isHfaArg = varTypeIsFloating(hfaType);
+                // hfaType is set to float, double or SIMD type if it is an HFA, otherwise TYP_UNDEF.
+                hfaType  = GetHfaType(typeHnd);
+                isHfaArg = varTypeIsValidHfaType(hfaType);
             }
         }
         else if (info.compIsVarArgs)
@@ -616,11 +629,12 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
         if (isHfaArg)
         {
-            // We have an HFA argument, so from here on out treat the type as a float or double.
+            // We have an HFA argument, so from here on out treat the type as a float, double or vector.
             // The orginal struct type is available by using origArgType
             // We also update the cSlots to be the number of float/double fields in the HFA
             argType = hfaType;
-            cSlots  = varDsc->lvHfaSlots();
+            varDsc->SetHfaType(hfaType);
+            cSlots = varDsc->lvHfaSlots();
         }
         // The number of slots that must be enregistered if we are to consider this argument enregistered.
         // This is normally the same as cSlots, since we normally either enregister the entire object,
@@ -818,18 +832,31 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
             if (isHfaArg)
             {
                 // We need to save the fact that this HFA is enregistered
-                varDsc->lvSetIsHfa();
-                varDsc->lvSetIsHfaRegArg();
-                varDsc->SetHfaType(hfaType);
-                varDsc->lvIsMultiRegArg = (varDsc->lvHfaSlots() > 1);
+                // Note that we can have HVAs of SIMD types even if we are not recognizing intrinsics.
+                // In that case, we won't have normalized the vector types on the varDsc, so if we have a single vector
+                // register, we need to set the type now. Otherwise, later we'll assume this is passed by reference.
+                if (varDsc->lvHfaSlots() != 1)
+                {
+                    varDsc->lvIsMultiRegArg = true;
+                }
             }
 
             varDsc->lvIsRegArg = 1;
 
 #if FEATURE_MULTIREG_ARGS
+#ifdef _TARGET_ARM64_
+            if (argType == TYP_STRUCT)
+            {
+                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
+                if (cSlots == 2)
+                {
+                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
+                    varDscInfo->hasMultiSlotStruct = true;
+                }
+            }
+#elif defined(UNIX_AMD64_ABI)
             if (varTypeIsStruct(argType))
             {
-#if defined(UNIX_AMD64_ABI)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, firstEightByteType);
 
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
@@ -844,17 +871,13 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 {
                     varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(secondAllocatedRegArgNum, secondEightByteType);
                 }
-#else // ARM32 or ARM64
-                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
-#ifdef _TARGET_ARM64_
-                if (cSlots == 2)
-                {
-                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
-                    varDscInfo->hasMultiSlotStruct = true;
-                }
-#endif //  _TARGET_ARM64_
-#endif // defined(UNIX_AMD64_ABI)
             }
+#else  // ARM32
+            if (varTypeIsStruct(argType))
+            {
+                varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
+            }
+#endif // ARM32
             else
 #endif // FEATURE_MULTIREG_ARGS
             {
@@ -879,14 +902,13 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                     isFloat = varTypeIsFloating(firstEightByteType);
                 }
                 else
-#else
+#endif // !UNIX_AMD64_ABI
                 {
                     isFloat = varTypeIsFloating(argType);
                 }
-#endif // !UNIX_AMD64_ABI
 
 #if defined(UNIX_AMD64_ABI)
-                    if (varTypeIsStruct(argType))
+                if (varTypeIsStruct(argType))
                 {
                     // Print both registers, just to be clear
                     if (firstEightByteType == TYP_UNDEF)
@@ -1270,7 +1292,15 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
         varDsc->lvStructGcCount = 1;
     }
 
-    // Set the lvType (before this point it is TYP_UNDEF).
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+    varDsc->lvIsImplicitByRef = 0;
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+// Set the lvType (before this point it is TYP_UNDEF).
+
+#ifdef FEATURE_HFA
+    varDsc->SetHfaType(TYP_UNDEF);
+#endif
     if ((varTypeIsStruct(type)))
     {
         lvaSetStruct(varNum, typeHnd, typeHnd != nullptr, !tiVerificationNeeded);
@@ -2149,6 +2179,10 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
         fieldVarDsc->lvParentLcl     = lclNum;
         fieldVarDsc->lvIsParam       = varDsc->lvIsParam;
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+        // Reset the implicitByRef flag.
+        fieldVarDsc->lvIsImplicitByRef = 0;
+
         // Do we have a parameter that can be enregistered?
         //
         if (varDsc->lvIsRegArg)
@@ -2476,11 +2510,12 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
             varDsc->lvExactSize = info.compCompHnd->getHeapClassSize(typeHnd);
         }
 
-        size_t lvSize = varDsc->lvSize();
-        assert((lvSize % TARGET_POINTER_SIZE) ==
-               0); // The struct needs to be a multiple of TARGET_POINTER_SIZE bytes for getClassGClayout() to be valid.
-        varDsc->lvGcLayout = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
-        unsigned  numGCVars;
+        // Normalize struct types, and fill in GC info for all types
+        unsigned lvSize = varDsc->lvSize();
+        // The struct needs to be a multiple of TARGET_POINTER_SIZE bytes for getClassGClayout() to be valid.
+        assert((lvSize % TARGET_POINTER_SIZE) == 0);
+        varDsc->lvGcLayout     = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
+        unsigned  numGCVars    = 0;
         var_types simdBaseType = TYP_UNKNOWN;
         if (isValueClass)
         {
@@ -2496,10 +2531,27 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
         {
             numGCVars = 7;
         }
+
         varDsc->lvStructGcCount = numGCVars;
 
         if (isValueClass)
         {
+
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+            // Mark implicit byref struct parameters
+            if (varDsc->lvIsParam && !varDsc->lvIsStructField)
+            {
+                structPassingKind howToReturnStruct;
+                getArgTypeForStruct(typeHnd, &howToReturnStruct, this->info.compIsVarArgs, varDsc->lvExactSize);
+
+                if (howToReturnStruct == SPK_ByReference)
+                {
+                    JITDUMP("Marking V%02i as a byref parameter\n", varNum);
+                    varDsc->lvIsImplicitByRef = 1;
+                }
+            }
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
 #if FEATURE_SIMD
             if (simdBaseType != TYP_UNKNOWN)
             {
@@ -2513,10 +2565,9 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
             if (varDsc->lvExactSize <= MAX_PASS_MULTIREG_BYTES)
             {
                 var_types hfaType = GetHfaType(typeHnd); // set to float or double if it is an HFA, otherwise TYP_UNDEF
-                if (varTypeIsFloating(hfaType))
+                if (varTypeIsValidHfaType(hfaType))
                 {
-                    varDsc->_lvIsHfa = true;
-                    varDsc->lvSetHfaTypeIsFloat(hfaType == TYP_FLOAT);
+                    varDsc->SetHfaType(hfaType);
 
                     // hfa variables can never contain GC pointers
                     assert(varDsc->lvStructGcCount == 0);
@@ -2588,8 +2639,7 @@ void Compiler::lvaSetStructUsedAsVarArg(unsigned varNum)
     LclVarDsc* varDsc = &lvaTable[varNum];
     // For varargs methods incoming and outgoing arguments should not be treated
     // as HFA.
-    varDsc->_lvIsHfa          = false;
-    varDsc->_lvHfaTypeIsFloat = false;
+    varDsc->SetHfaType(TYP_UNDEF);
 #endif // defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_)
 #endif // FEATURE_HFA
 }
@@ -4553,7 +4603,6 @@ unsigned Compiler::lvaGetMaxSpillTempSize()
  *
  *
  *  The frame is laid out as follows for ARM64 (this is a general picture; details may differ for different conditions):
- *  TODO-ARM64-NYI: this is preliminary (copied from ARM and modified), and needs to be reviewed.
  *  NOTE: SP must be 16-byte aligned, so there may be alignment slots in the frame.
  *  We will often save and establish a frame pointer to create better ETW stack walks.
  *
@@ -6914,16 +6963,9 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
         }
     }
 
-    if (varDsc->lvIsHfaRegArg())
+    if (varDsc->lvIsHfa())
     {
-        if (varDsc->lvHfaTypeIsFloat())
-        {
-            printf(" (enregistered HFA: float) ");
-        }
-        else
-        {
-            printf(" (enregistered HFA: double)");
-        }
+        printf(" HFA(%s) ", varTypeName(varDsc->GetHfaType()));
     }
 
     if (varDsc->lvDoNotEnregister)

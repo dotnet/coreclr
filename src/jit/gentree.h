@@ -2812,14 +2812,14 @@ struct GenTreeBox : public GenTreeUnOp
     }
     // This is the statement that contains the assignment tree when the node is an inlined GT_BOX on a value
     // type
-    GenTree* gtAsgStmtWhenInlinedBoxValue;
+    GenTreeStmt* gtAsgStmtWhenInlinedBoxValue;
     // And this is the statement that copies from the value being boxed to the box payload
-    GenTree* gtCopyStmtWhenInlinedBoxValue;
+    GenTreeStmt* gtCopyStmtWhenInlinedBoxValue;
 
-    GenTreeBox(var_types type,
-               GenTree*  boxOp,
-               GenTree*  asgStmtWhenInlinedBoxValue,
-               GenTree*  copyStmtWhenInlinedBoxValue)
+    GenTreeBox(var_types    type,
+               GenTree*     boxOp,
+               GenTreeStmt* asgStmtWhenInlinedBoxValue,
+               GenTreeStmt* copyStmtWhenInlinedBoxValue)
         : GenTreeUnOp(GT_BOX, type, boxOp)
         , gtAsgStmtWhenInlinedBoxValue(asgStmtWhenInlinedBoxValue)
         , gtCopyStmtWhenInlinedBoxValue(copyStmtWhenInlinedBoxValue)
@@ -3532,6 +3532,9 @@ struct GenTreeCall final : public GenTree
         return varTypeIsLong(gtType);
 #elif FEATURE_MULTIREG_RET && defined(_TARGET_ARM_)
         return varTypeIsLong(gtType) || (varTypeIsStruct(gtType) && !HasRetBufArg());
+#elif defined(FEATURE_HFA) && defined(_TARGET_ARM64_)
+        // SIMD types are returned in vector regs on ARM64.
+        return (gtType == TYP_STRUCT) && !HasRetBufArg();
 #elif FEATURE_MULTIREG_RET
         return varTypeIsStruct(gtType) && !HasRetBufArg();
 #else

@@ -24,9 +24,9 @@ namespace System.Diagnostics.Tracing
     /// EventSource APIs.
     /// Preserving the order of the elements as they were found inside user defined types is the most important characteristic of this class.
     /// </summary>
-    internal class EventPayload : IDictionary<string, object>
+    internal class EventPayload : IDictionary<string, object?>
     {
-        internal EventPayload(List<string> payloadNames, List<object> payloadValues) 
+        internal EventPayload(List<string> payloadNames, List<object?> payloadValues) 
         {
             Debug.Assert(payloadNames.Count == payloadValues.Count);
 
@@ -35,9 +35,9 @@ namespace System.Diagnostics.Tracing
         }
 
         public ICollection<string> Keys { get { return m_names; } }
-        public ICollection<object> Values { get { return m_values; } }
+        public ICollection<object?> Values { get { return m_values; } }
 
-        public object this[string key]
+        public object? this[string key]
         {
             get
             {
@@ -62,12 +62,12 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public void Add(string key, object value)
+        public void Add(string key, object? value)
         {
             throw new System.NotSupportedException();
         }
 
-        public void Add(KeyValuePair<string, object> payloadEntry)
+        public void Add(KeyValuePair<string, object?> payloadEntry)
         {
             throw new System.NotSupportedException();
         }
@@ -77,7 +77,7 @@ namespace System.Diagnostics.Tracing
             throw new System.NotSupportedException();
         }
 
-        public bool Contains(KeyValuePair<string, object> entry)
+        public bool Contains(KeyValuePair<string, object?> entry)
         {
             return ContainsKey(entry.Key);
         }
@@ -99,21 +99,21 @@ namespace System.Diagnostics.Tracing
 
         public bool IsReadOnly { get { return true; } }
 
-        public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
+        public IEnumerator<KeyValuePair<string, object?>> GetEnumerator()
         {
             for (int i = 0; i < Keys.Count; i++)
             {
-                yield return new KeyValuePair<string, object>(this.m_names[i], this.m_values[i]);
+                yield return new KeyValuePair<string, object?>(this.m_names[i], this.m_values[i]);
             }
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            var instance = this as IEnumerable<KeyValuePair<string, object>>;
+            var instance = this as IEnumerable<KeyValuePair<string, object?>>;
             return instance.GetEnumerator();
         }
 
-        public void CopyTo(KeyValuePair<string, object>[] payloadEntries, int count)
+        public void CopyTo(KeyValuePair<string, object?>[] payloadEntries, int count)
         {
             throw new System.NotSupportedException();
         }
@@ -123,12 +123,12 @@ namespace System.Diagnostics.Tracing
             throw new System.NotSupportedException();
         }
 
-        public bool Remove(KeyValuePair<string, object> entry)
+        public bool Remove(KeyValuePair<string, object?> entry)
         {
             throw new System.NotSupportedException();
         }
        
-        public bool TryGetValue(string key, out object value)
+        public bool TryGetValue(string key, out object? value)
         {
             if (key == null)
                 throw new System.ArgumentNullException(nameof(key));
@@ -150,7 +150,7 @@ namespace System.Diagnostics.Tracing
 
         #region private
         private List<string> m_names;
-        private List<object> m_values;
+        private List<object?> m_values;
         #endregion
     }
 }

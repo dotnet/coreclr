@@ -11,7 +11,7 @@ namespace System.Reflection
         // This class can only be created from inside the EE.
         private RuntimeExceptionHandlingClause() { }
         
-        private RuntimeMethodBody _methodBody;
+        private RuntimeMethodBody _methodBody = null!;
         private ExceptionHandlingClauseOptions _flags;
         private int _tryOffset;
         private int _tryLength;
@@ -37,18 +37,18 @@ namespace System.Reflection
             }
         }
 
-        public override Type CatchType
+        public override Type? CatchType
         {
             get
             {
                 if (_flags != ExceptionHandlingClauseOptions.Clause)
                     throw new InvalidOperationException(SR.Arg_EHClauseNotClause);
 
-                Type type = null;
+                Type? type = null;
 
                 if (!MetadataToken.IsNullToken(_catchMetadataToken))
                 {
-                    Type declaringType = _methodBody._methodBase.DeclaringType;
+                    Type? declaringType = _methodBody._methodBase.DeclaringType;
                     Module module = (declaringType == null) ? _methodBody._methodBase.Module : declaringType.Module;
                     type = module.ResolveType(_catchMetadataToken, (declaringType == null) ? null : declaringType.GetGenericArguments(),
                         _methodBody._methodBase is MethodInfo ? _methodBody._methodBase.GetGenericArguments() : null);

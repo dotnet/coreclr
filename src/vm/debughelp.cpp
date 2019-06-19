@@ -461,6 +461,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
     int nLen = MAX_CLASSNAME_LENGTH * 4 + 400;  // this should be enough
 
     wchar_t *buff = (wchar_t *) qb.AllocThrows(nLen * sizeof(wchar_t));
+    wchar_t *buffEnd = buff + nLen;
 
     while (ptr < end)
     {
@@ -476,7 +477,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
 
         if (isRetAddr((TADDR)*ptr, &whereCalled))
         {
-            if (_snwprintf_s(buffPtr, buff+NumItems(buff)-buffPtr-1, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr)  <0)
+            if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE,  W("STK[%08X] = %08X "), (size_t)ptr, *ptr) < 0)
             {
                 return(0);
             }
@@ -519,7 +520,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
                 ftn = ExecutionManager::GetCodeMethodDesc((PCODE)(*ptr));
             }
 
-            if(_snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W("%s "), kind) < 0)
+            if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W("%s "), kind) < 0)
             {
                 return(0);
             }
@@ -529,7 +530,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
             if (ftn != 0)
             {
                 // buffer is not large enough
-                if( formatMethodDesc(ftn, buffPtr, static_cast<DWORD>(buff+ nLen -buffPtr-1)) == NULL)
+                if (formatMethodDesc(ftn, buffPtr, static_cast<DWORD>(buffEnd - buffPtr)) == NULL)
                 {
                     return(0);
                 }
@@ -538,13 +539,13 @@ int dumpStack(BYTE* topOfStack, unsigned len)
             }
             else
             {
-                wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("<UNKNOWN FTN>"), _TRUNCATE);
+                wcsncpy_s(buffPtr, buffEnd - buffPtr, W("<UNKNOWN FTN>"), _TRUNCATE);
                 buffPtr += wcslen(buffPtr);
             }
 
             if (whereCalled != 0)
             {
-                if(_snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W(" Caller called Entry %X"), whereCalled) <0)
+                if (_snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W(" Caller called Entry %X"), whereCalled) < 0)
                 {
                     return(0);
                 }
@@ -552,7 +553,7 @@ int dumpStack(BYTE* topOfStack, unsigned len)
                 buffPtr += wcslen(buffPtr);
             }
 
-            wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("\n"), _TRUNCATE);
+            wcsncpy_s(buffPtr, buffEnd - buffPtr, W("\n"), _TRUNCATE);
             buffPtr += wcslen(buffPtr);
             WszOutputDebugString(buff);
         }
@@ -561,21 +562,21 @@ int dumpStack(BYTE* topOfStack, unsigned len)
         if (pMT != 0)
         {
             buffPtr = buff;
-            if( _snwprintf_s(buffPtr, buff+ nLen -buffPtr-1, _TRUNCATE, W("STK[%08X] = %08X          MT PARAM "), (size_t)ptr, *ptr ) <0)
+            if ( _snwprintf_s(buffPtr, buffEnd - buffPtr, _TRUNCATE, W("STK[%08X] = %08X          MT PARAM "), (size_t)ptr, *ptr ) < 0)
             {
                 return(0);
             }
 
             buffPtr += wcslen(buffPtr);
 
-            if( formatMethodTable(pMT, buffPtr, static_cast<DWORD>(buff+ nLen -buffPtr-1)) == NULL)
+            if (formatMethodTable(pMT, buffPtr, static_cast<DWORD>(buffEnd - buffPtr)) == NULL)
             {
                 return(0);
             }
 
             buffPtr += wcslen(buffPtr);
 
-            wcsncpy_s(buffPtr, nLen - (buffPtr - buff), W("\n"), _TRUNCATE);
+            wcsncpy_s(buffPtr, buffEnd - buffPtr, W("\n"), _TRUNCATE);
             WszOutputDebugString(buff);
 
         }
@@ -712,60 +713,6 @@ Thread * CurrentThreadInfo ()
     return GetThread ();
 }
 
-AppDomain *GetAppDomainForObject(UINT_PTR obj)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((Object*)obj)->GetAppDomain();
-}
-
-ADIndex GetAppDomainIndexForObject(UINT_PTR obj)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((Object*)obj)->GetHeader()->GetAppDomainIndex();
-}
-
-AppDomain *GetAppDomainForObjectHeader(UINT_PTR hdr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    ADIndex indx = ((ObjHeader*)hdr)->GetAppDomainIndex();
-    if (!indx.m_dwIndex)
-    {
-        return NULL;
-    }
-
-    return SystemDomain::GetAppDomainAtIndex(indx);
-}
-
-ADIndex GetAppDomainIndexForObjectHeader(UINT_PTR hdr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    return ((ObjHeader*)hdr)->GetAppDomainIndex();
-}
-
 SyncBlock *GetSyncBlockForObject(UINT_PTR obj)
 {
     CONTRACTL
@@ -870,7 +817,6 @@ const char* FormatSig(MethodDesc* pMD, AppDomain *pDomain, AllocMemTracker *pamT
 
 struct PrintCallbackData {
     BOOL toStdout;
-    BOOL withAppDomain;
 #ifdef _DEBUG
     BOOL toLOG;
 #endif
@@ -898,19 +844,6 @@ StackWalkAction PrintStackTraceCallback(CrawlFrame* pCF, VOID* pData)
     if (pMD != 0)
     {
         MethodTable * pMT = pMD->GetMethodTable();
-
-        if (pCBD->withAppDomain)
-        {
-            if(_snwprintf_s(&buff[wcslen(buff)],
-                          nLen - wcslen(buff) - 1,
-                          _TRUNCATE,
-                          W("{[%3.3x] %s} "),
-                          pCF->GetAppDomain()->GetId().m_dwId,
-                          pCF->GetAppDomain()->GetFriendlyName(FALSE)) < 0)
-            {
-                return SWA_CONTINUE;
-            }
-        }
 
         DefineFullyQualifiedNameForClass();
 
@@ -1020,7 +953,7 @@ void PrintStackTrace()
     CONTRACTL_END;
 
     WszOutputDebugString(W("***************************************************\n"));
-    PrintCallbackData cbd = {0, 0};
+    PrintCallbackData cbd = {0};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 
@@ -1033,7 +966,7 @@ void PrintStackTraceToStdout()
     }
     CONTRACTL_END;
 
-    PrintCallbackData cbd = {1, 0};
+    PrintCallbackData cbd = {1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 
@@ -1047,63 +980,8 @@ void PrintStackTraceToLog()
     }
     CONTRACTL_END;
 
-    PrintCallbackData cbd = {0, 0, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-#endif
-
-void PrintStackTraceWithAD()
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    WszOutputDebugString(W("***************************************************\n"));
     PrintCallbackData cbd = {0, 1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-void PrintStackTraceWithADToStdout()
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {1, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-#ifdef _DEBUG
-void PrintStackTraceWithADToLog()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {0, 1, 1};
-    GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
-}
-
-void PrintStackTraceWithADToLog(Thread *pThread)
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        DISABLED(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    PrintCallbackData cbd = {0, 1, 1};
-    pThread->StackWalkFrames(PrintStackTraceCallback, &cbd, ALLOW_ASYNC_STACK_WALK, 0);
 }
 #endif
 
@@ -1242,7 +1120,7 @@ void LogStackTrace()
 {
     WRAPPER_NO_CONTRACT;
 
-    PrintCallbackData cbd = {0, 0, 1};
+    PrintCallbackData cbd = {0, 1};
     GetThread()->StackWalkFrames(PrintStackTraceCallback, &cbd,ALLOW_ASYNC_STACK_WALK, 0);
 }
 #endif

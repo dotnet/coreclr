@@ -121,7 +121,7 @@ int Compiler::getSIMDTypeAlignment(var_types simdType)
 //
 var_types Compiler::getBaseTypeAndSizeOfSIMDType(CORINFO_CLASS_HANDLE typeHnd, unsigned* sizeBytes /*= nullptr */)
 {
-    assert(featureSIMD);
+    assert(supportSIMDTypes());
 
     if (m_simdHandleCache == nullptr)
     {
@@ -2274,13 +2274,13 @@ GenTree* Compiler::createAddressNodeForSIMDInit(GenTree* tree, unsigned simdSize
 // Arguments:
 //      stmt - GenTree*. Input statement node.
 
-void Compiler::impMarkContiguousSIMDFieldAssignments(GenTree* stmt)
+void Compiler::impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt)
 {
     if (!featureSIMD || opts.OptimizationDisabled())
     {
         return;
     }
-    GenTree* expr = stmt->gtStmt.gtStmtExpr;
+    GenTree* expr = stmt->gtStmtExpr;
     if (expr->OperGet() == GT_ASG && expr->TypeGet() == TYP_FLOAT)
     {
         GenTree*  curDst            = expr->gtOp.gtOp1;
@@ -2300,7 +2300,7 @@ void Compiler::impMarkContiguousSIMDFieldAssignments(GenTree* stmt)
         else if (fgPreviousCandidateSIMDFieldAsgStmt != nullptr)
         {
             assert(index > 0);
-            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->gtStmt.gtStmtExpr;
+            GenTree* prevAsgExpr = fgPreviousCandidateSIMDFieldAsgStmt->gtStmtExpr;
             GenTree* prevDst     = prevAsgExpr->gtOp.gtOp1;
             GenTree* prevSrc     = prevAsgExpr->gtOp.gtOp2;
             if (!areArgumentsContiguous(prevDst, curDst) || !areArgumentsContiguous(prevSrc, curSrc))

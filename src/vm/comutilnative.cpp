@@ -34,6 +34,7 @@
 #include "typestring.h"
 #include "sha1.h"
 #include "finalizerthread.h"
+#include "threadsuspend.h"
 
 #ifdef FEATURE_COMINTEROP
     #include "comcallablewrapper.h"
@@ -780,7 +781,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
         {
             const CorElementType dstET = dst->GetArrayElementType();
             if (!CorTypeInfo::IsPrimitiveType_NoThrow(dstET))
-                FCThrowArgumentVoid(W("dest"), W("Arg_MustBePrimArray"));
+                FCThrowArgumentVoid(W("dst"), W("Arg_MustBePrimArray"));
         }
     }
 
@@ -814,6 +815,28 @@ FCIMPLEND
 void QCALLTYPE MemoryNative::Clear(void *dst, size_t length)
 {
     QCALL_CONTRACT;
+
+#if defined(_X86_) || defined(_AMD64_)
+    if (length > 0x100)
+    {
+        // memset ends up calling rep stosb if the hardware claims to support it efficiently. rep stosb is up to 2x slower
+        // on misaligned blocks. Workaround this issue by aligning the blocks passed to memset upfront.
+
+        *(uint64_t*)dst = 0;
+        *((uint64_t*)dst + 1) = 0;
+        *((uint64_t*)dst + 2) = 0;
+        *((uint64_t*)dst + 3) = 0;
+
+        void* end = (uint8_t*)dst + length;
+        *((uint64_t*)end - 1) = 0;
+        *((uint64_t*)end - 2) = 0;
+        *((uint64_t*)end - 3) = 0;
+        *((uint64_t*)end - 4) = 0;
+
+        dst = ALIGN_UP((uint8_t*)dst + 1, 32);
+        length = ALIGN_DOWN((uint8_t*)end - 1, 32) - (uint8_t*)dst;
+    }
+#endif
 
     memset(dst, 0, length);
 }
@@ -1237,6 +1260,74 @@ FCIMPL0(INT64, GCInterface::GetAllocatedBytesForCurrentThread)
     return currentAllocated;
 }
 FCIMPLEND
+
+/*===============================AllocateNewArray===============================
+**Action: Allocates a new array object. Allows passing extra flags
+**Returns: The allocated array.
+**Arguments: elementTypeHandle -> type of the element, 
+**           length -> number of elements, 
+**           zeroingOptional -> whether caller prefers to skip clearing the content of the array, if possible.
+**Exceptions: IDS_EE_ARRAY_DIMENSIONS_EXCEEDED when size is too large. OOM if can't allocate.
+==============================================================================*/
+FCIMPL3(Object*, GCInterface::AllocateNewArray, void* arrayTypeHandle, INT32 length, CLR_BOOL zeroingOptional)
+{
+    CONTRACTL {
+        FCALL_CHECK;
+        PRECONDITION(length >= 0);
+    } CONTRACTL_END;
+
+    OBJECTREF pRet = NULL;
+    TypeHandle arrayType = TypeHandle::FromPtr(arrayTypeHandle);
+
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
+
+    pRet = AllocateSzArray(arrayType, length, zeroingOptional ? GC_ALLOC_ZEROING_OPTIONAL : GC_ALLOC_NO_FLAGS);
+
+    HELPER_METHOD_FRAME_END();
+
+    return OBJECTREFToObject(pRet);
+}
+FCIMPLEND
+
+
+FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
+{
+    FCALL_CONTRACT;
+
+    if (!precise)
+    {
+        // NOTE: we do not want to make imprecise flavor too slow. 
+        // As it could be noticed we read 64bit values that may be concurrently updated.
+        // Such reads are not guaranteed to be atomic on 32bit and inrare cases we may see torn values resultng in outlier results.
+        // That would be extremely rare and in a context of imprecise helper is not worth additional synchronization.
+        uint64_t unused_bytes = Thread::dead_threads_non_alloc_bytes;
+        return GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
+    }
+
+    INT64 allocated;
+
+    HELPER_METHOD_FRAME_BEGIN_RET_0();
+
+    // We need to suspend/restart the EE to get each thread's
+    // non-allocated memory from their allocation contexts
+
+    ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
+
+    allocated = GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - Thread::dead_threads_non_alloc_bytes;
+
+    for (Thread *pThread = ThreadStore::GetThreadList(NULL); pThread; pThread = ThreadStore::GetThreadList(pThread))
+    {
+        gc_alloc_context* ac = pThread->GetAllocContext();
+        allocated -= ac->alloc_limit - ac->alloc_ptr;
+    }
+
+    ThreadSuspend::RestartEE(FALSE, TRUE);
+
+    HELPER_METHOD_FRAME_END();
+
+    return allocated;
+}
+FCIMPLEND;
 
 #ifdef FEATURE_BASICFREEZE
 

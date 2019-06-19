@@ -119,10 +119,9 @@ namespace System.Globalization
             int lastError = Marshal.GetLastWin32Error();
 
             throw new ArgumentException(
-                lastError == Interop.Errors.ERROR_INVALID_NAME ? SR.Argument_IdnIllegalName : 
+                lastError == Interop.Errors.ERROR_INVALID_NAME ? SR.Argument_IdnIllegalName :
                     (unicode ? SR.Argument_InvalidCharSequenceNoIndex : SR.Argument_IdnBadPunycode),
                 unicode ? "unicode" : "ascii");
         }
     }
 }
-

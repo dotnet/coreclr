@@ -92,7 +92,7 @@ namespace System.Globalization
             return 0;
         }
 
-        public override bool Equals(object value)
+        public override bool Equals(object? value)
         {
             return value is SortKey otherSortKey && Compare(this, otherSortKey) == 0;
         }

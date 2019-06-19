@@ -8422,9 +8422,8 @@ BYTE* emitter::emitOutputLoadLabel(BYTE* dst, BYTE* srcAddr, BYTE* dstAddr, inst
     {
         // adrp x, [rel page addr] -- compute page address: current page addr + rel page addr
         assert(fmt == IF_LARGEADR);
-        ssize_t relPageAddr =
-            (((ssize_t)dstAddr & 0xFFFFFFFFFFFFF000LL) - ((ssize_t)srcAddr & 0xFFFFFFFFFFFFF000LL)) >> 12;
-        dst = emitOutputShortAddress(dst, INS_adrp, IF_DI_1E, relPageAddr, dstReg);
+        ssize_t relPageAddr = computeRelPageAddr((size_t)dstAddr, (size_t)srcAddr);
+        dst                 = emitOutputShortAddress(dst, INS_adrp, IF_DI_1E, relPageAddr, dstReg);
 
         // add x, x, page offs -- compute address = page addr + page offs
         ssize_t imm12 = (ssize_t)dstAddr & 0xFFF; // 12 bits
@@ -8524,8 +8523,7 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
             {
                 // adrp x, [rel page addr] -- compute page address: current page addr + rel page addr
                 assert(fmt == IF_LARGELDC);
-                ssize_t relPageAddr =
-                    (((ssize_t)dstAddr & 0xFFFFFFFFFFFFF000LL) - ((ssize_t)srcAddr & 0xFFFFFFFFFFFFF000LL)) >> 12;
+                ssize_t relPageAddr = computeRelPageAddr((size_t)dstAddr, (size_t)srcAddr);
                 if (isVectorRegister(dstReg))
                 {
                     // Update addrReg with the reserved integer register
@@ -10698,7 +10696,7 @@ void emitter::emitDispAddrRRExt(regNumber reg1, regNumber reg2, insOpts opt, boo
  *  Display (optionally) the instruction encoding in hex
  */
 
-void emitter::emitDispInsHex(BYTE* code, size_t sz)
+void emitter::emitDispInsHex(instrDesc* id, BYTE* code, size_t sz)
 {
     // We do not display the instruction hex if we want diff-able disassembly
     if (!emitComp->opts.disDiffable)
@@ -10709,6 +10707,7 @@ void emitter::emitDispInsHex(BYTE* code, size_t sz)
         }
         else
         {
+            assert(sz == 0);
             printf("              ");
         }
     }
@@ -10742,7 +10741,7 @@ void emitter::emitDispIns(
 
     /* Display the instruction hex code */
 
-    emitDispInsHex(pCode, sz);
+    emitDispInsHex(id, pCode, sz);
 
     printf("      ");
 

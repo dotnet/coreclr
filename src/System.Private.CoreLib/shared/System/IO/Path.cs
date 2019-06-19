@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#nullable enable
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -45,7 +46,7 @@ namespace System.IO
         // returns null. If path does not contain a file extension,
         // the new file extension is appended to the path. If extension
         // is null, any existing extension is removed from path.
-        public static string ChangeExtension(string path, string extension)
+        public static string? ChangeExtension(string? path, string? extension) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
             if (path == null)
                 return null;
@@ -98,7 +99,7 @@ namespace System.IO
         /// <remarks>
         /// Directory separators are normalized in the returned string.
         /// </remarks>
-        public static string GetDirectoryName(string path)
+        public static string? GetDirectoryName(string? path) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
             if (path == null || PathInternal.IsEffectivelyEmpty(path.AsSpan()))
                 return null;
@@ -146,7 +147,7 @@ namespace System.IO
         /// The returned value is null if the given path is null or empty if the given path does not include an
         /// extension.
         /// </summary>
-        public static string GetExtension(string path)
+        public static string? GetExtension(string? path) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
             if (path == null)
                 return null;
@@ -185,7 +186,7 @@ namespace System.IO
         /// the characters of path that follow the last separator in path. The resulting string is
         /// null if path is null.
         /// </summary>
-        public static string GetFileName(string path)
+        public static string? GetFileName(string? path)
         {
             if (path == null)
                 return null;
@@ -216,7 +217,7 @@ namespace System.IO
             return path;
         }
 
-        public static string GetFileNameWithoutExtension(string path)
+        public static string? GetFileNameWithoutExtension(string? path) // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
         {
             if (path == null)
                 return null;
@@ -290,7 +291,7 @@ namespace System.IO
         /// Tests if a path's file name includes a file extension. A trailing period
         /// is not considered an extension.
         /// </summary>
-        public static bool HasExtension(string path)
+        public static bool HasExtension(string? path)
         {
             if (path != null)
             {
@@ -345,7 +346,7 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(paths));
             }
 
-            int finalSize = 0;
+            int maxSize = 0;
             int firstComponent = 0;
 
             // We have two passes, the first calculates how large a buffer to allocate and does some precondition
@@ -366,19 +367,21 @@ namespace System.IO
                 if (IsPathRooted(paths[i]))
                 {
                     firstComponent = i;
-                    finalSize = paths[i].Length;
+                    maxSize = paths[i].Length;
                 }
                 else
                 {
-                    finalSize += paths[i].Length;
+                    maxSize += paths[i].Length;
                 }
 
                 char ch = paths[i][paths[i].Length - 1];
                 if (!PathInternal.IsDirectorySeparator(ch))
-                    finalSize++;
+                    maxSize++;
             }
 
-            StringBuilder finalPath = StringBuilderCache.Acquire(finalSize);
+            Span<char> initialBuffer = stackalloc char[260];    // MaxShortPath on Windows
+            var builder = new ValueStringBuilder(initialBuffer);
+            builder.EnsureCapacity(maxSize);
 
             for (int i = firstComponent; i < paths.Length; i++)
             {
@@ -387,23 +390,23 @@ namespace System.IO
                     continue;
                 }
 
-                if (finalPath.Length == 0)
+                if (builder.Length == 0)
                 {
-                    finalPath.Append(paths[i]);
+                    builder.Append(paths[i]);
                 }
                 else
                 {
-                    char ch = finalPath[finalPath.Length - 1];
+                    char ch = builder[builder.Length - 1];
                     if (!PathInternal.IsDirectorySeparator(ch))
                     {
-                        finalPath.Append(PathInternal.DirectorySeparatorChar);
+                        builder.Append(PathInternal.DirectorySeparatorChar);
                     }
 
-                    finalPath.Append(paths[i]);
+                    builder.Append(paths[i]);
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(finalPath);
+            return builder.ToString();
         }
 
         // Unlike Combine(), Join() methods do not consider rooting. They simply combine paths, ensuring that there
@@ -433,14 +436,86 @@ namespace System.IO
             return JoinInternal(path1, path2, path3);
         }
 
-        public static string Join(string path1, string path2)
+        public static string Join(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, ReadOnlySpan<char> path3, ReadOnlySpan<char> path4)
+        {
+            if (path1.Length == 0)
+                return Join(path2, path3, path4);
+
+            if (path2.Length == 0)
+                return Join(path1, path3, path4);
+
+            if (path3.Length == 0)
+                return Join(path1, path2, path4);
+
+            if (path4.Length == 0)
+                return Join(path1, path2, path3);
+
+            return JoinInternal(path1, path2, path3, path4);
+        }
+
+        public static string Join(string? path1, string? path2)
         {
             return Join(path1.AsSpan(), path2.AsSpan());
         }
 
-        public static string Join(string path1, string path2, string path3)
+        public static string Join(string? path1, string? path2, string? path3)
         {
             return Join(path1.AsSpan(), path2.AsSpan(), path3.AsSpan());
+        }
+
+        public static string Join(string? path1, string? path2, string? path3, string? path4)
+        {
+            return Join(path1.AsSpan(), path2.AsSpan(), path3.AsSpan(), path4.AsSpan());
+        }
+
+        public static string Join(params string[] paths)
+        {
+            if (paths == null)
+            {
+                throw new ArgumentNullException(nameof(paths));
+            }
+
+            if (paths.Length == 0)
+            {
+                return string.Empty;
+            }
+            
+            int maxSize = 0;
+            foreach (string path in paths)
+            {
+                maxSize += path?.Length ?? 0;
+            }
+            maxSize += paths.Length - 1;
+
+            Span<char> initialBuffer = stackalloc char[260];    // MaxShortPath on Windows
+            var builder = new ValueStringBuilder(initialBuffer);
+            builder.EnsureCapacity(maxSize);
+
+            for (int i = 0; i < paths.Length; i++)
+            {
+                if ((paths[i]?.Length ?? 0) == 0)
+                {
+                    continue;
+                }
+
+                string path = paths[i];
+
+                if (builder.Length == 0)
+                {
+                    builder.Append(path);
+                }
+                else
+                {
+                    if (!PathInternal.IsDirectorySeparator(builder[builder.Length - 1]) && !PathInternal.IsDirectorySeparator(path[0]))
+                    {
+                        builder.Append(PathInternal.DirectorySeparatorChar);
+                    }
+
+                    builder.Append(path);
+                }
+            }
+
+            return builder.ToString();
         }
 
         public static bool TryJoin(ReadOnlySpan<char> path1, ReadOnlySpan<char> path2, Span<char> destination, out int charsWritten)

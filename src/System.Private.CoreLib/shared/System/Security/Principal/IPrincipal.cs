@@ -16,7 +16,7 @@ namespace System.Security.Principal
     public interface IPrincipal
     {
         // Retrieve the identity object
-        IIdentity Identity { get; }
+        IIdentity? Identity { get; }
 
         // Perform a check for a specific role
         bool IsInRole(string role);

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Diagnostics;
 
 using Internal.Runtime.Augments;
@@ -47,7 +46,7 @@ namespace System.Globalization
 
         // PAL Layer ends here
 
-        private static readonly string[] s_JapaneseErasEnglishNames = new string[] { "M", "T", "S", "H" };
+        private static readonly string[] s_JapaneseErasEnglishNames = new string[] { "M", "T", "S", "H", "R" };
 
         private static string GetJapaneseEnglishEraName(int era)
         {

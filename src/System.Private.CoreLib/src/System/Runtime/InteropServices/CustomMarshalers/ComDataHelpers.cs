@@ -2,10 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections.Generic;
-using System.Text;
-
 namespace System.Runtime.InteropServices.CustomMarshalers
 {
     internal static class ComDataHelpers
@@ -22,7 +18,7 @@ namespace System.Runtime.InteropServices.CustomMarshalers
             managedView = createCallback((T)comObject);
             if (!Marshal.SetComObjectData(comObject, key, managedView))
             {
-                managedView = (TView)Marshal.GetComObjectData(comObject, key);
+                managedView = (TView)Marshal.GetComObjectData(comObject, key)!;
             }
             return managedView;
         }

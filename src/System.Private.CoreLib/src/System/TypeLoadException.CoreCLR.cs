@@ -10,9 +10,9 @@ namespace System
     public partial class TypeLoadException : SystemException
     {
         // This is called from inside the EE. 
-        private TypeLoadException(string className,
-            string assemblyName,
-            string messageArg,
+        private TypeLoadException(string? className,
+            string? assemblyName,
+            string? messageArg,
             int resourceId)
             : base(null)
         {
@@ -40,9 +40,9 @@ namespace System
                     if (_className == null)
                         _className = SR.IO_UnknownFileName;
 
-                    string format = null;
+                    string? format = null;
                     GetTypeLoadExceptionMessage(_resourceId, JitHelpers.GetStringHandleOnStack(ref format));
-                    _message = string.Format(format, _className, _assemblyName, _messageArg);
+                    _message = string.Format(format!, _className, _assemblyName, _messageArg);
                 }
             }
         }

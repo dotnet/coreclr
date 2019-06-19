@@ -275,7 +275,7 @@ FCIMPL3(Object*, ReflectionInvocation::AllocateValueType, ReflectClassBaseObject
             gc.obj = allocMT->Allocate();
 
             if (gc.value != NULL)
-                    CopyValueClassUnchecked(gc.obj->UnBox(), gc.value->UnBox(), allocMT);
+                    CopyValueClass(gc.obj->UnBox(), gc.value->UnBox(), allocMT);
         }
     }
 
@@ -1352,17 +1352,17 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
             {
                 COMPlusThrow(kNullReferenceException, IDS_INVOKE_NULLREF_RETURNED);
             }
-            CopyValueClass(gc.retVal->GetData(), pReturnedReference, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+            CopyValueClass(gc.retVal->GetData(), pReturnedReference, gc.retVal->GetMethodTable());
         }
         // if the structure is returned by value, then we need to copy in the boxed object
         // we have allocated for this purpose.
         else if (!fHasRetBuffArg) 
         {
-            CopyValueClass(gc.retVal->GetData(), &callDescrData.returnValue, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+            CopyValueClass(gc.retVal->GetData(), &callDescrData.returnValue, gc.retVal->GetMethodTable());
         }
         else if (pRetBufStackCopy)
         {
-            CopyValueClass(gc.retVal->GetData(), pRetBufStackCopy, gc.retVal->GetMethodTable(), gc.retVal->GetAppDomain());
+            CopyValueClass(gc.retVal->GetData(), pRetBufStackCopy, gc.retVal->GetMethodTable());
         }
         // From here on out, it is OK to have GCs since the return object (which may have had
         // GC pointers has been put into a GC object and thus protected. 
@@ -1389,7 +1389,7 @@ FCIMPL5(Object*, RuntimeMethodHandle::InvokeMethod,
 
     while (byRefToNullables != NULL) {
         OBJECTREF obj = Nullable::Box(byRefToNullables->data, byRefToNullables->type.GetMethodTable());
-        SetObjectReference(&gc.args->m_Array[byRefToNullables->argNum], obj, gc.args->GetAppDomain());
+        SetObjectReference(&gc.args->m_Array[byRefToNullables->argNum], obj);
         byRefToNullables = byRefToNullables->next;
     }
 
@@ -1835,7 +1835,7 @@ FCIMPL5(void, RuntimeFieldHandle::SetValueDirect, ReflectFieldObject *pFieldUNSA
     case ELEMENT_TYPE_ARRAY:            // General Array
     case ELEMENT_TYPE_CLASS:
     case ELEMENT_TYPE_OBJECT:
-        SetObjectReferenceUnchecked((OBJECTREF*)pDst, gc.oValue);
+        SetObjectReference((OBJECTREF*)pDst, gc.oValue);
     break;
 
     case ELEMENT_TYPE_VALUETYPE:
@@ -1926,7 +1926,7 @@ FCIMPL1(void, ReflectionInvocation::RunModuleConstructor, ReflectModuleBaseObjec
 
     Assembly *pAssem = pModule->GetAssembly();
 
-    DomainFile *pDomainFile = pModule->FindDomainFile(GetAppDomain());
+    DomainFile *pDomainFile = pModule->GetDomainFile();
     if (pDomainFile==NULL || !pDomainFile->IsActive())
     {
         HELPER_METHOD_FRAME_BEGIN_1(refModule);
@@ -2886,40 +2886,10 @@ FCIMPLEND
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************
-//      ReflectionBinder
+//      ReflectionEnum
 //*************************************************************************************************
 //*************************************************************************************************
 //*************************************************************************************************
-
-FCIMPL2(FC_BOOL_RET, ReflectionBinder::DBCanConvertPrimitive, ReflectClassBaseObject* source, ReflectClassBaseObject* target) {
-    FCALL_CONTRACT;
-    
-    VALIDATEOBJECT(source);
-    VALIDATEOBJECT(target);
-
-    CorElementType tSRC = source->GetType().GetSignatureCorElementType();
-    CorElementType tTRG = target->GetType().GetSignatureCorElementType();
-
-    FC_RETURN_BOOL(InvokeUtil::IsPrimitiveType(tTRG) && InvokeUtil::CanPrimitiveWiden(tTRG, tSRC));
-}
-FCIMPLEND
-
-FCIMPL2(FC_BOOL_RET, ReflectionBinder::DBCanConvertObjectPrimitive, Object* sourceObj, ReflectClassBaseObject* target) {
-    FCALL_CONTRACT;
-    
-    VALIDATEOBJECT(sourceObj);
-    VALIDATEOBJECT(target);
-
-    if (sourceObj == 0)
-        FC_RETURN_BOOL(true);
-
-    TypeHandle th(sourceObj->GetMethodTable());
-    CorElementType tSRC = th.GetVerifierCorElementType();
-
-    CorElementType tTRG = target->GetType().GetSignatureCorElementType();
-    FC_RETURN_BOOL(InvokeUtil::IsPrimitiveType(tTRG) && InvokeUtil::CanPrimitiveWiden(tTRG, tSRC));
-}
-FCIMPLEND
 
 FCIMPL2(FC_BOOL_RET, ReflectionEnum::InternalEquals, Object *pRefThis, Object* pRefTarget)
 {

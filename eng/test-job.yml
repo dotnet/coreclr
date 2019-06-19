@@ -7,6 +7,9 @@ parameters:
   readyToRun: false
   helixQueues: ''
   crossrootfsDir: ''
+  # If true, run the corefx tests instead of the coreclr ones
+  corefxTests: false
+  displayNameArgs: ''
 
 ### Test job
 
@@ -20,21 +23,16 @@ jobs:
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    helixType: 'build/tests/'
 
     # Compute job name from template parameters
-    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
-      name: ${{ format('testbuild_pri0_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-      displayName: ${{ format('Test Pri0 {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-    ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, true)) }}:
-      name: ${{ format('testbuild_pri0_r2r_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-      displayName: ${{ format('Test Pri0 R2R {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if eq(parameters.testGroup, 'innerloop') }}:
+      name: ${{ format('testbuild_pri0_{0}_{1}_{2}_{3}', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri0 {0} {1} {2}_{3}', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
-    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, false)) }}:
-      name: ${{ format('testbuild_pri1_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-      displayName: ${{ format('Test Pri1 {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-    ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.readyToRun, true)) }}:
-      name: ${{ format('testbuild_pri1_r2r_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-      displayName: ${{ format('Test Pri1 R2R {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if ne(parameters.testGroup, 'innerloop') }}:
+      name: ${{ format('testbuild_pri1_{0}_{1}_{2}_{3}', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Test Pri1 {0} {1} {2} {3}', parameters.displayNameArgs, parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
@@ -68,11 +66,15 @@ jobs:
       - name: clangArg
         value: '-clang5.0'
 
-    # TODO: Enable crossgen in build-test.sh. It currently doesn't
-    # accept a crossgen arg, so disable the macos/linux crossgen test
-    # build jobs.
-    ${{ if and(eq(parameters.readyToRun, true), in(parameters.osGroup, 'Linux', 'OSX')) }}:
-      condition: false
+    - name: testhostArg
+      value: ''
+    - ${{ if eq(parameters.corefxTests, true) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - name: testhostArg
+          value: 'generatetesthostonly'
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - name: testhostArg
+          value: 'buildtesthostonly'
 
     # FreeBSD test jobs are disabled since we don't have any FreeBSD helix queues.
     ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
@@ -92,8 +94,10 @@ jobs:
       timeoutInMinutes: 240
     ${{ if eq(parameters.testGroup, 'outerloop') }}:
       timeoutInMinutes: 360
-    ${{ if in(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
+    ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 480
+    ${{ if eq(parameters.testGroup, 'outerloop-gcstress-extra') }}:
+      timeoutInMinutes: 600
 
     steps:
 
@@ -119,12 +123,11 @@ jobs:
 
 
     # Build tests
-    # TODO: enable crossgen in build-test.sh
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg)
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg)
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg)
+      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg)
         displayName: Build tests
 
 
@@ -132,7 +135,7 @@ jobs:
     - template: /eng/send-to-helix-step.yml
       parameters:
         displayName: Send tests to Helix
-        buildConfig: ${{ parameters.buildConfig }}
+        buildConfig: $(buildConfigUpper)
         archType: ${{ parameters.archType }}
         osGroup: ${{ parameters.osGroup }}
 
@@ -140,13 +143,7 @@ jobs:
           creator: $(Build.DefinitionName)
 
         helixBuild: $(Build.BuildNumber)
-
-        ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
-          helixSource: official/dotnet/coreclr/$(Build.SourceBranch)
-        ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
-          helixSource: pr/dotnet/coreclr/$(Build.SourceBranch)
-        ${{ if and(eq(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
-          helixSource: ci/dotnet/coreclr/$(Build.SourceBranch)
+        helixSource: $(_HelixSource)
 
         ${{ if eq(parameters.readyToRun, false) }}:
           helixType: 'test/functional/cli/'
@@ -155,7 +152,8 @@ jobs:
 
         helixQueues: ${{ parameters.helixQueues }}
 
-        ${{ if eq(parameters.helixQueues.asString, '') }}:
+        # This tests whether an array is empty
+        ${{ if eq(join('', parameters.helixQueues), '') }}:
           condition: false
 
         publishTestResults: true
@@ -169,9 +167,15 @@ jobs:
         ${{ if eq(parameters.testGroup, 'outerloop') }}:
           timeoutPerTestCollectionInMinutes: 60
           timeoutPerTestInMinutes: 10
-        ${{ if in(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs', 'outerloop-gcstress0x3-gcstress0xc') }}:
+        ${{ if in(parameters.testGroup, 'outerloop-jitstress', 'outerloop-jitstressregs', 'outerloop-jitstress2-jitstressregs') }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
+        ${{ if in(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
+          timeoutPerTestCollectionInMinutes: 240
+          timeoutPerTestInMinutes: 60
+        ${{ if in(parameters.testGroup, 'outerloop-gcstress-extra') }}:
+          timeoutPerTestCollectionInMinutes: 300
+          timeoutPerTestInMinutes: 90
 
         runCrossGen: ${{ parameters.readyToRun }}
 
@@ -180,51 +184,58 @@ jobs:
           # DotNet-HelixApi-Access variable group
           helixAccessToken: $(HelixApiAccessToken)
 
+        # Sets up the template to run the corefx tests
+        ${{ if eq(parameters.corefxTests, true) }}:
+          helixProjectArguments: 'eng/helixcorefxtests.proj /t:Test /p:ArcadeBuild=True'
+        ${{ if eq(parameters.corefxTests, false) }}:
+          helixProjectArguments: 'tests/helixpublishwitharcade.proj'
+
         ${{ if in(parameters.testGroup, 'innerloop', 'outerloop') }}:
           scenarios:
-            asString: 'normal,no_tiered_compilation'
-            asArray:
-            - normal
-            - no_tiered_compilation
-        ${{ if eq(parameters.testGroup, 'outerloop-jitminopts-jitstress1-jitstress2') }}:
+          - normal
+          - no_tiered_compilation
+        ${{ if eq(parameters.testGroup, 'outerloop-jitstress') }}:
           scenarios:
-            asString: 'jitminopts,jitstress1,jitstress1_tiered,jitstress2,jitstress2_tiered'
-            asArray:
-            - jitminopts
-            - jitstress1
-            - jitstress1_tiered
-            - jitstress2
-            - jitstress2_tiered
+          - jitminopts
+          - jitstress1
+          - jitstress1_tiered
+          - jitstress2
+          - jitstress2_tiered
+          - zapdisable
+          - tailcallstress
         ${{ if eq(parameters.testGroup, 'outerloop-jitstressregs') }}:
           scenarios:
-            asString: 'jitstressregs1,jitstressregs2,jitstressregs3,jitstressregs4,jitstressregs8,jitstressregs0x10,jitstressregs0x80,jitstressregs0x1000'
-            asArray:
-            - jitstressregs1
-            - jitstressregs2
-            - jitstressregs3
-            - jitstressregs4
-            - jitstressregs8
-            - jitstressregs0x10
-            - jitstressregs0x80
-            - jitstressregs0x1000
+          - jitstressregs1
+          - jitstressregs2
+          - jitstressregs3
+          - jitstressregs4
+          - jitstressregs8
+          - jitstressregs0x10
+          - jitstressregs0x80
+          - jitstressregs0x1000
         ${{ if eq(parameters.testGroup, 'outerloop-jitstress2-jitstressregs') }}:
           scenarios:
-            asString: 'jitstress2_jitstressregs1,jitstress2_jitstressregs2,jitstress2_jitstressregs3,jitstress2_jitstressregs4,jitstress2_jitstressregs8,jitstress2_jitstressregs0x10,jitstress2_jitstressregs0x80,jitstress2_jitstressregs0x1000'
-            asArray:
-            - jitstress2_jitstressregs1
-            - jitstress2_jitstressregs2
-            - jitstress2_jitstressregs3
-            - jitstress2_jitstressregs4
-            - jitstress2_jitstressregs8
-            - jitstress2_jitstressregs0x10
-            - jitstress2_jitstressregs0x80
-            - jitstress2_jitstressregs0x1000
+          - jitstress2_jitstressregs1
+          - jitstress2_jitstressregs2
+          - jitstress2_jitstressregs3
+          - jitstress2_jitstressregs4
+          - jitstress2_jitstressregs8
+          - jitstress2_jitstressregs0x10
+          - jitstress2_jitstressregs0x80
+          - jitstress2_jitstressregs0x1000
         ${{ if eq(parameters.testGroup, 'outerloop-gcstress0x3-gcstress0xc') }}:
           scenarios:
-            asString: 'gcstress0x3,gcstress0xc'
-            asArray:
-            - gcstress0x3
-            - gcstress0xc
+          - gcstress0x3
+          - gcstress0xc
+        ${{ if eq(parameters.testGroup, 'outerloop-gcstress-extra') }}:
+          scenarios:
+          - heapverify1
+          - gcstress0xc_zapdisable
+          - gcstress0xc_zapdisable_jitstress2
+          - gcstress0xc_zapdisable_heapverify1
+          - gcstress0xc_jitstress1
+          - gcstress0xc_jitstress2
+          - gcstress0xc_jitminopts_heapverify1
 
     # Publish Logs
     - task: PublishPipelineArtifact@0

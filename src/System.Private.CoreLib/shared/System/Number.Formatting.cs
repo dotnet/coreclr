@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
 using System.Buffers.Text;
 using System.Diagnostics;
 using System.Globalization;
@@ -2218,6 +2217,7 @@ namespace System
 
             if (nMaxDigits > 0)
             {
+                Debug.Assert(sDecimal != null);
                 sb.Append(sDecimal);
                 if ((digPos < 0) && (nMaxDigits > 0))
                 {

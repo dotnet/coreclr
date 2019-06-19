@@ -37,7 +37,7 @@ namespace System
             RuntimeType targetType = (RuntimeType)target.GetType();
             for (int i = 0; i < flds.Length; i++)
             {
-                RuntimeFieldInfo field = flds[i] as RuntimeFieldInfo;
+                RuntimeFieldInfo? field = flds[i] as RuntimeFieldInfo;
                 if (field == null)
                     throw new ArgumentException(SR.Argument_MustBeRuntimeFieldInfo);
 
@@ -80,7 +80,7 @@ namespace System
                 return __reftype(this).GetHashCode();
         }
 
-        public override bool Equals(object o)
+        public override bool Equals(object? o)
         {
             throw new NotSupportedException(SR.NotSupported_NYI);
         }
@@ -113,12 +113,12 @@ namespace System
 
         //  This may cause the type to be changed.
         [CLSCompliant(false)]
-        public static unsafe void SetTypedReference(TypedReference target, object value)
+        public static unsafe void SetTypedReference(TypedReference target, object? value)
         {
             InternalSetTypedReference(&target, value);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern unsafe void InternalSetTypedReference(void* target, object value);
+        internal static extern unsafe void InternalSetTypedReference(void* target, object? value);
     }
 }

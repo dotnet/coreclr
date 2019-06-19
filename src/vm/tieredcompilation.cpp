@@ -75,7 +75,7 @@ TieredCompilationManager::TieredCompilationManager() :
 }
 
 // Called at AppDomain Init
-void TieredCompilationManager::Init(ADID appDomainId)
+void TieredCompilationManager::Init()
 {
     CONTRACTL
     {
@@ -84,9 +84,6 @@ void TieredCompilationManager::Init(ADID appDomainId)
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-
-    CrstHolder holder(&m_lock);
-    m_domainId = appDomainId;
 }
 
 #endif // FEATURE_TIERED_COMPILATION && !DACCESS_COMPILE
@@ -96,7 +93,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != NULL);
 
-#if defined(FEATURE_TIERED_COMPILATION) && !defined(DACCESS_COMPILE)
+#ifdef FEATURE_TIERED_COMPILATION
     if (!pMethodDesc->IsEligibleForTieredCompilation())
     {
         // The optimization tier is not used
@@ -116,7 +113,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
         return NativeCodeVersion::OptimizationTier0;
     }
 
-    if (!pMethodDesc->GetCallCounter()->IsTier0CallCountingEnabled(pMethodDesc))
+    if (!pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
     {
         // Tier 0 call counting may have been disabled based on information about precompiled code or for other reasons, the
         // intention is to begin at tier 1
@@ -135,7 +132,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
 //
 // currentCallCountLimit is pre-decremented, that is to say the value is <= 0 when the
 //      threshold for promoting to tier 1 is reached.
-void TieredCompilationManager::OnTier0MethodCalled(
+void TieredCompilationManager::OnMethodCalled(
     MethodDesc* pMethodDesc,
     bool isFirstCall,
     int currentCallCountLimit,
@@ -151,7 +148,7 @@ void TieredCompilationManager::OnTier0MethodCalled(
         // Stop call counting when the delay is in effect
         IsTieringDelayActive() ||
         // Initiate the delay on tier 0 activity (when a new eligible method is called the first time)
-        (isFirstCall && g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0) ||
+        (isFirstCall && g_pConfig->TieredCompilation_CallCountingDelayMs() != 0) ||
         // Stop call counting when ready for tier 1 promotion
         currentCallCountLimit <= 0;
 
@@ -169,7 +166,7 @@ void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTierPromotion(M
     _ASSERTE(pMethodDesc != nullptr);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
-    if (g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() == 0 ||
+    if (g_pConfig->TieredCompilation_CallCountingDelayMs() == 0 ||
         !pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
     {
         return;
@@ -315,7 +312,7 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(g_pConfig->TieredCompilation());
-    _ASSERTE(g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0);
+    _ASSERTE(g_pConfig->TieredCompilation_CallCountingDelayMs() != 0);
 
     NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
     if (methodsPendingCountingHolder == nullptr)
@@ -343,7 +340,6 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
     {
         return false;
     }
-    timerContextHolder->AppDomainId = m_domainId;
     timerContextHolder->TimerId = 0;
 
     {
@@ -366,7 +362,7 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
                     &m_tieringDelayTimerHandle,
                     TieringDelayTimerCallback,
                     timerContextHolder,
-                    g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                    g_pConfig->TieredCompilation_CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */,
                     0 /* flags */))
             {
@@ -400,7 +396,7 @@ void WINAPI TieredCompilationManager::TieringDelayTimerCallback(PVOID parameter,
     EX_TRY
     {
         GCX_COOP();
-        ManagedThreadBase::ThreadPool(timerContext->AppDomainId, TieringDelayTimerCallbackInAppDomain, nullptr);
+        ManagedThreadBase::ThreadPool(TieringDelayTimerCallbackInAppDomain, nullptr);
     }
     EX_CATCH
     {
@@ -422,7 +418,6 @@ void TieredCompilationManager::TieringDelayTimerCallbackInAppDomain(LPVOID param
 void TieredCompilationManager::TieringDelayTimerCallbackWorker()
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
     HANDLE tieringDelayTimerHandle;
     bool tier1CallCountingCandidateMethodRecentlyRecorded;
@@ -451,7 +446,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
         {
             if (ThreadpoolMgr::ChangeTimerQueueTimer(
                     tieringDelayTimerHandle,
-                    g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                    g_pConfig->TieredCompilation_CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */))
             {
                 success = true;
@@ -582,11 +577,7 @@ void TieredCompilationManager::OptimizeMethodsCallback()
     EX_TRY
     {
         GCX_COOP();
-        ENTER_DOMAIN_ID(m_domainId);
-        {
-            OptimizeMethods();
-        }
-        END_DOMAIN_TRANSITION;
+        OptimizeMethods();
     }
     EX_CATCH
     {
@@ -609,7 +600,6 @@ void TieredCompilationManager::OptimizeMethods()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(DebugGetWorkerThreadCount() != 0);
-    _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
     ULONGLONG startTickCount = CLRGetTickCount64();
     NativeCodeVersion nativeCodeVersion;
@@ -826,8 +816,7 @@ CORJIT_FLAGS TieredCompilationManager::GetJitFlags(NativeCodeVersion nativeCodeV
         return flags;
     }
     
-    if (nativeCodeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-        !g_pConfig->TieredCompilation_OptimizeTier0())
+    if (nativeCodeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0)
     {
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
     }

@@ -521,7 +521,7 @@ RefPosition* LinearScan::newRefPosition(
     newRP->registerAssignment = mask;
 
     newRP->setMultiRegIdx(0);
-    newRP->setAllocateIfProfitable(false);
+    newRP->setRegOptional(false);
 
     // We can't have two RefPositions on a RegRecord at the same location, unless they are different types.
     assert((regRecord->lastRefPosition == nullptr) || (regRecord->lastRefPosition->nodeLocation < theLocation) ||
@@ -619,7 +619,7 @@ RefPosition* LinearScan::newRefPosition(Interval*    theInterval,
     newRP->registerAssignment = mask;
 
     newRP->setMultiRegIdx(multiRegIdx);
-    newRP->setAllocateIfProfitable(false);
+    newRP->setRegOptional(false);
 
     associateRefPosWithInterval(newRP);
 
@@ -657,7 +657,7 @@ RefPosition* LinearScan::newUseRefPosition(Interval* theInterval,
     RefPosition* pos = newRefPosition(theInterval, currentLoc, RefTypeUse, treeNode, mask, multiRegIdx);
     if (theTreeNode->IsRegOptional())
     {
-        pos->setAllocateIfProfitable(true);
+        pos->setRegOptional(true);
     }
     return pos;
 }
@@ -1314,95 +1314,130 @@ void LinearScan::buildInternalRegisterUses()
 
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 //------------------------------------------------------------------------
+// makeUpperVectorInterval - Create an Interval for saving and restoring
+//                           the upper half of a large vector.
+//
+// Arguments:
+//    varIndex - The tracked index for a large vector lclVar.
+//
+void LinearScan::makeUpperVectorInterval(unsigned varIndex)
+{
+    Interval* lclVarInterval = getIntervalForLocalVar(varIndex);
+    assert(varTypeNeedsPartialCalleeSave(lclVarInterval->registerType));
+    Interval* newInt        = newInterval(LargeVectorSaveType);
+    newInt->relatedInterval = lclVarInterval;
+    newInt->isUpperVector   = true;
+}
+
+//------------------------------------------------------------------------
+// getUpperVectorInterval - Get the Interval for saving and restoring
+//                          the upper half of a large vector.
+//
+// Arguments:
+//    varIndex - The tracked index for a large vector lclVar.
+//
+Interval* LinearScan::getUpperVectorInterval(unsigned varIndex)
+{
+    // TODO-Throughput: Consider creating a map from varIndex to upperVector interval.
+    for (Interval& interval : intervals)
+    {
+        if (interval.isLocalVar)
+        {
+            continue;
+        }
+        noway_assert(interval.isUpperVector);
+        if (interval.relatedInterval->getVarIndex(compiler) == varIndex)
+        {
+            return &interval;
+        }
+    }
+    unreached();
+}
+
+//------------------------------------------------------------------------
 // buildUpperVectorSaveRefPositions - Create special RefPositions for saving
 //                                    the upper half of a set of large vectors.
 //
 // Arguments:
-//    tree             - The current node being handled.
-//    currentLoc       - The location of the current node.
-//    liveLargeVectors - The set of large vector lclVars live across 'tree'.
+//    tree       - The current node being handled
+//    currentLoc - The location of the current node
+//    fpCalleeKillSet - The set of registers killed by this node.
 //
-// Notes:
-//    At this time we create these RefPositions for any large vectors that are live across this node,
-//    though we don't yet know which, if any, will be in a callee-save register at this point.
-//    (If they're in a caller-save register, they will simply be fully spilled.)
-//    This method is called after all the use and kill RefPositions are created for 'tree' but before
-//    any definitions.
+// Notes: This is called by BuildDefsWithKills for any node that kills registers in the
+//        RBM_FLT_CALLEE_TRASH set. We actually need to find any calls that kill the upper-half
+//        of the callee-save vector registers.
+//        But we will use as a proxy any node that kills floating point registers.
+//        (Note that some calls are masquerading as other nodes at this point so we can't just check for calls.)
 //
-void LinearScan::buildUpperVectorSaveRefPositions(GenTree*         tree,
-                                                  LsraLocation     currentLoc,
-                                                  VARSET_VALARG_TP liveLargeVectors)
+void LinearScan::buildUpperVectorSaveRefPositions(GenTree* tree, LsraLocation currentLoc, regMaskTP fpCalleeKillSet)
 {
     if (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, largeVectorVars))
     {
+        assert((fpCalleeKillSet & RBM_FLT_CALLEE_TRASH) != RBM_NONE);
+
+        // We only need to save the upper half of any large vector vars that are currently live.
+        VARSET_TP       liveLargeVectors(VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
         VarSetOps::Iter iter(compiler, liveLargeVectors);
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            Interval* varInterval    = getIntervalForLocalVar(varIndex);
-            Interval* tempInterval   = newInterval(varInterval->registerType);
-            tempInterval->isInternal = true;
-            RefPosition* pos =
-                newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveDef, tree, RBM_FLT_CALLEE_SAVED);
-            // We are going to save the existing relatedInterval of varInterval on tempInterval, so that we can set
-            // the tempInterval as the relatedInterval of varInterval, so that we can build the corresponding
-            // RefTypeUpperVectorSaveUse RefPosition.  We will then restore the relatedInterval onto varInterval,
-            // and set varInterval as the relatedInterval of tempInterval.
-            tempInterval->relatedInterval = varInterval->relatedInterval;
-            varInterval->relatedInterval  = tempInterval;
+            Interval* varInterval = getIntervalForLocalVar(varIndex);
+            if (!varInterval->isPartiallySpilled)
+            {
+                Interval*    upperVectorInterval = getUpperVectorInterval(varIndex);
+                RefPosition* pos =
+                    newRefPosition(upperVectorInterval, currentLoc, RefTypeUpperVectorSave, tree, RBM_FLT_CALLEE_SAVED);
+                varInterval->isPartiallySpilled = true;
+#ifdef _TARGET_XARCH_
+                pos->regOptional = true;
+#endif
+            }
         }
     }
-    // For any non-lclVar large vector intervals that are live at this point (i.e. tree temps in the DefList),
-    // we will also create a RefTypeUpperVectorSaveDef. For now these will all be spilled at this point,
-    // as we don't currently have a mechanism to communicate any non-lclVar intervals that need to be restored.
-    // TODO-CQ: Consider reworking this as part of addressing GitHub Issues #18144 and #17481.
+    // For any non-lclVar intervals that are live at this point (i.e. in the DefList), we will also create
+    // a RefTypeUpperVectorSave. For now these will all be spilled at this point, as we don't currently
+    // have a mechanism to communicate any non-lclVar intervals that need to be restored.
+    // TODO-CQ: We could consider adding such a mechanism, but it's unclear whether this rare
+    // case of a large vector temp live across a call is worth the added complexity.
     for (RefInfoListNode *listNode = defList.Begin(), *end = defList.End(); listNode != end;
          listNode = listNode->Next())
     {
-        var_types treeType = listNode->treeNode->TypeGet();
-        if (varTypeIsSIMD(treeType) && varTypeNeedsPartialCalleeSave(treeType))
+        if (varTypeNeedsPartialCalleeSave(listNode->treeNode->TypeGet()))
         {
-            RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSaveDef, tree,
-                                              RBM_FLT_CALLEE_SAVED);
+            // In the rare case where such an interval is live across nested calls, we don't need to insert another.
+            if (listNode->ref->getInterval()->recentRefPosition->refType != RefTypeUpperVectorSave)
+            {
+                RefPosition* pos = newRefPosition(listNode->ref->getInterval(), currentLoc, RefTypeUpperVectorSave,
+                                                  tree, RBM_FLT_CALLEE_SAVED);
+            }
         }
     }
 }
 
-// buildUpperVectorRestoreRefPositions - Create special RefPositions for restoring
-//                                       the upper half of a set of large vectors.
+//------------------------------------------------------------------------
+// buildUpperVectorRestoreRefPosition - Create a RefPosition for restoring
+//                                      the upper half of a large vector.
 //
 // Arguments:
-//    tree             - The current node being handled.
-//    currentLoc       - The location of the current node.
-//    liveLargeVectors - The set of large vector lclVars live across 'tree'.
+//    lclVarInterval - A lclVarInterval that is live at 'currentLoc'
+//    currentLoc     - The current location for which we're building RefPositions
+//    node           - The node, if any, that the restore would be inserted before.
+//                     If null, the restore will be inserted at the end of the block.
 //
-// Notes:
-//    This is called after all the RefPositions for 'tree' have been created, since the restore,
-//    if needed, will be inserted after the call.
-//
-void LinearScan::buildUpperVectorRestoreRefPositions(GenTree*         tree,
-                                                     LsraLocation     currentLoc,
-                                                     VARSET_VALARG_TP liveLargeVectors)
+void LinearScan::buildUpperVectorRestoreRefPosition(Interval* lclVarInterval, LsraLocation currentLoc, GenTree* node)
 {
-    assert(enregisterLocalVars);
-    if (!VarSetOps::IsEmpty(compiler, liveLargeVectors))
+    if (lclVarInterval->isPartiallySpilled)
     {
-        VarSetOps::Iter iter(compiler, liveLargeVectors);
-        unsigned        varIndex = 0;
-        while (iter.NextElem(&varIndex))
-        {
-            Interval* varInterval  = getIntervalForLocalVar(varIndex);
-            Interval* tempInterval = varInterval->relatedInterval;
-            assert(tempInterval->isInternal == true);
-            RefPosition* pos =
-                newRefPosition(tempInterval, currentLoc, RefTypeUpperVectorSaveUse, tree, RBM_FLT_CALLEE_SAVED);
-            // Restore the relatedInterval onto varInterval, and set varInterval as the relatedInterval
-            // of tempInterval.
-            varInterval->relatedInterval  = tempInterval->relatedInterval;
-            tempInterval->relatedInterval = varInterval;
-        }
+        unsigned     varIndex            = lclVarInterval->getVarIndex(compiler);
+        Interval*    upperVectorInterval = getUpperVectorInterval(varIndex);
+        RefPosition* pos = newRefPosition(upperVectorInterval, currentLoc, RefTypeUpperVectorRestore, node, RBM_NONE);
+        lclVarInterval->isPartiallySpilled = false;
+#ifdef _TARGET_XARCH_
+        pos->regOptional = true;
+#endif
     }
 }
+
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
 #ifdef DEBUG
@@ -1638,13 +1673,6 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
             {
                 minRegCountForRef++;
             }
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-            else if (newRefPosition->refType == RefTypeUpperVectorSaveDef)
-            {
-                // TODO-Cleanup: won't need a register once #18144 is fixed.
-                minRegCountForRef += 1;
-            }
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
             newRefPosition->minRegCandidateCount = minRegCountForRef;
             if (newRefPosition->IsActualRef() && doReverseCallerCallee())
@@ -1750,6 +1778,7 @@ void LinearScan::insertZeroInitRefPositions()
                 GenTree*     firstNode = getNonEmptyBlock(compiler->fgFirstBB)->firstNode();
                 RefPosition* pos =
                     newRefPosition(interval, MinLocation, RefTypeZeroInit, firstNode, allRegs(interval->registerType));
+                pos->setRegOptional(true);
                 varDsc->lvMustInit = true;
             }
             else
@@ -1842,15 +1871,7 @@ void LinearScan::updateRegStateForArg(LclVarDsc* argDsc)
     {
         RegState* intRegState   = &compiler->codeGen->intRegState;
         RegState* floatRegState = &compiler->codeGen->floatRegState;
-        // In the case of AMD64 we'll still use the floating point registers
-        // to model the register usage for argument on vararg calls, so
-        // we will ignore the varargs condition to determine whether we use
-        // XMM registers or not for setting up the call.
-        bool isFloat = (isFloatRegType(argDsc->lvType)
-#ifndef _TARGET_AMD64_
-                        && !compiler->info.compIsVarArgs
-#endif
-                        && !compiler->opts.compUseSoftFP);
+        bool      isFloat       = emitter::isFloatReg(argDsc->lvArgReg);
 
         if (argDsc->lvIsHfaRegArg())
         {
@@ -1992,6 +2013,7 @@ void LinearScan::buildIntervals()
                 assignPhysReg(inArgReg, interval);
             }
             RefPosition* pos = newRefPosition(interval, MinLocation, RefTypeParamDef, nullptr, mask);
+            pos->setRegOptional(true);
         }
         else if (varTypeIsStruct(argDsc->lvType))
         {
@@ -2005,6 +2027,7 @@ void LinearScan::buildIntervals()
                     Interval*    interval = getIntervalForLocalVar(fieldVarDsc->lvVarIndex);
                     RefPosition* pos =
                         newRefPosition(interval, MinLocation, RefTypeParamDef, nullptr, allRegs(TypeGet(fieldVarDsc)));
+                    pos->setRegOptional(true);
                 }
             }
         }
@@ -2119,6 +2142,7 @@ void LinearScan::buildIntervals()
                         Interval*    interval = getIntervalForLocalVar(varIndex);
                         RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr,
                                                           allRegs(interval->registerType));
+                        pos->setRegOptional(true);
                     }
                 }
                 JITDUMP("Finished creating dummy definitions\n\n");
@@ -2161,6 +2185,22 @@ void LinearScan::buildIntervals()
 #endif // DEBUG
             currentLoc += 2;
         }
+
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+        // At the end of each block, create upperVectorRestores for any largeVectorVars that may be
+        // partiallySpilled (during the build phase all intervals will be marked isPartiallySpilled if
+        // they *may) be partially spilled at any point.
+        if (enregisterLocalVars)
+        {
+            VarSetOps::Iter largeVectorVarsIter(compiler, largeVectorVars);
+            unsigned        largeVectorVarIndex = 0;
+            while (largeVectorVarsIter.NextElem(&largeVectorVarIndex))
+            {
+                Interval* lclVarInterval = getIntervalForLocalVar(largeVectorVarIndex);
+                buildUpperVectorRestoreRefPosition(lclVarInterval, currentLoc, nullptr);
+            }
+        }
+#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
         // Note: the visited set is cleared in LinearScan::doLinearScan()
         markBlockVisited(block);
@@ -2225,6 +2265,7 @@ void LinearScan::buildIntervals()
                     Interval*    interval = getIntervalForLocalVar(varIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
+                    pos->setRegOptional(true);
                     JITDUMP(" V%02u", varNum);
                 }
                 JITDUMP("\n");
@@ -2281,6 +2322,7 @@ void LinearScan::buildIntervals()
                 Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
                 RefPosition* pos =
                     newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
+                pos->setRegOptional(true);
             }
         }
 
@@ -2296,6 +2338,7 @@ void LinearScan::buildIntervals()
                     Interval*    interval = getIntervalForLocalVar(varDsc->lvVarIndex);
                     RefPosition* pos =
                         newRefPosition(interval, currentLoc, RefTypeExpUse, nullptr, allRegs(interval->registerType));
+                    pos->setRegOptional(true);
                 }
             }
         }
@@ -2485,6 +2528,9 @@ RefPosition* LinearScan::BuildDef(GenTree* tree, regMaskTP dstCandidates, int mu
     setTgtPref(interval, tgtPrefUse);
     setTgtPref(interval, tgtPrefUse2);
 #endif // _TARGET_XARCH_
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+    assert(!interval->isPartiallySpilled);
+#endif
     return defRefPosition;
 }
 
@@ -2554,12 +2600,7 @@ void LinearScan::BuildDefs(GenTree* tree, int dstCount, regMaskTP dstCandidates)
 //
 void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCandidates, regMaskTP killMask)
 {
-    // Generate Kill RefPositions
     assert(killMask == getKillSetForNode(tree));
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    VARSET_TP liveLargeVectorVars(VarSetOps::UninitVal());
-    bool      doLargeVectorRestore = false;
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 
     // Call this even when killMask is RBM_NONE, as we have to check for some special cases
     buildKillPositionsForNode(tree, currentLoc + 1, killMask);
@@ -2576,30 +2617,17 @@ void LinearScan::BuildDefsWithKills(GenTree* tree, int dstCount, regMaskTP dstCa
         // even if 'enregisterLocalVars' is false, or 'liveLargeVectors' is empty, though currently the allocation
         // phase will fully (rather than partially) spill those, so we don't need to build the UpperVectorRestore
         // RefPositions in that case.
+        // This must be done after the kills, so that we know which large vectors are still live.
         //
         if ((killMask & RBM_FLT_CALLEE_TRASH) != RBM_NONE)
         {
-            if (enregisterLocalVars)
-            {
-                VarSetOps::AssignNoCopy(compiler, liveLargeVectorVars,
-                                        VarSetOps::Intersection(compiler, currentLiveVars, largeVectorVars));
-            }
-            buildUpperVectorSaveRefPositions(tree, currentLoc, liveLargeVectorVars);
-            doLargeVectorRestore = (enregisterLocalVars && !VarSetOps::IsEmpty(compiler, liveLargeVectorVars));
+            buildUpperVectorSaveRefPositions(tree, currentLoc + 1, killMask);
         }
 #endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
     }
 
     // Now, create the Def(s)
     BuildDefs(tree, dstCount, dstCandidates);
-
-#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
-    // Finally, generate the UpperVectorRestores
-    if (doLargeVectorRestore)
-    {
-        buildUpperVectorRestoreRefPositions(tree, currentLoc, liveLargeVectorVars);
-    }
-#endif // FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 }
 
 //------------------------------------------------------------------------
@@ -2642,6 +2670,9 @@ RefPosition* LinearScan::BuildUse(GenTree* operand, regMaskTP candidates, int mu
             unsigned varIndex = interval->getVarIndex(compiler);
             VarSetOps::RemoveElemD(compiler, currentLiveVars, varIndex);
         }
+#if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
+        buildUpperVectorRestoreRefPosition(interval, currentLoc, operand);
+#endif
     }
     else
     {
@@ -2653,7 +2684,7 @@ RefPosition* LinearScan::BuildUse(GenTree* operand, regMaskTP candidates, int mu
         operand = nullptr;
     }
     RefPosition* useRefPos = newRefPosition(interval, currentLoc, RefTypeUse, operand, candidates, multiRegIdx);
-    useRefPos->setAllocateIfProfitable(regOptional);
+    useRefPos->setRegOptional(regOptional);
     return useRefPos;
 }
 
@@ -3059,6 +3090,15 @@ int LinearScan::BuildReturn(GenTree* tree)
         regMaskTP useCandidates = RBM_NONE;
 
 #if FEATURE_MULTIREG_RET
+#ifdef _TARGET_ARM64_
+        if (varTypeIsSIMD(tree))
+        {
+            useCandidates = allSIMDRegs();
+            BuildUse(op1, useCandidates);
+            return 1;
+        }
+#endif // !_TARGET_ARM64_
+
         if (varTypeIsStruct(tree))
         {
             // op1 has to be either an lclvar or a multi-reg returning call
@@ -3198,7 +3238,7 @@ int LinearScan::BuildPutArgReg(GenTreeUnOp* node)
         GenTreeObj* obj  = op1->AsObj();
         GenTree*    addr = obj->Addr();
         unsigned    size = obj->gtBlkSize;
-        assert(size <= TARGET_POINTER_SIZE);
+        assert(size <= MAX_PASS_SINGLEREG_BYTES);
         if (addr->OperIsLocalAddr())
         {
             // We don't need a source register.

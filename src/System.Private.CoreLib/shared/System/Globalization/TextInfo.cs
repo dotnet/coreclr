@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
+using System.Text.Unicode;
 using Internal.Runtime.CompilerServices;
 
 #if BIT64
@@ -33,7 +34,7 @@ namespace System.Globalization
             True = 2
         }
 
-        private string _listSeparator;
+        private string? _listSeparator;
         private bool _isReadOnly = false;
 
         private readonly string _cultureName;
@@ -50,7 +51,7 @@ namespace System.Globalization
             get => s_invariant ?? (s_invariant = new TextInfo(CultureData.Invariant));
         }
 
-        private volatile static TextInfo s_invariant;
+        private volatile static TextInfo? s_invariant;
 
         internal TextInfo(CultureData cultureData)
         {
@@ -602,7 +603,7 @@ namespace System.Globalization
         /// </summary>
         public bool IsRightToLeft => _cultureData.IsRightToLeft;
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is TextInfo otherTextInfo
                 && CultureName.Equals(otherTextInfo.CultureName);
@@ -640,7 +641,7 @@ namespace System.Globalization
             }
 
             StringBuilder result = new StringBuilder();
-            string lowercaseData = null;
+            string? lowercaseData = null;
             // Store if the current culture is Dutch (special case)
             bool isDutchCulture = CultureName.StartsWith("nl-", StringComparison.OrdinalIgnoreCase);
 

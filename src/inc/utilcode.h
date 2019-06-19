@@ -1331,10 +1331,7 @@ BYTE * ClrVirtualAllocWithinRange(const BYTE *pMinAddr,
 // Allocate free memory with specific alignment                                   
 //
 LPVOID ClrVirtualAllocAligned(LPVOID lpAddress, SIZE_T dwSize, DWORD flAllocationType, DWORD flProtect, SIZE_T alignment);
-                                   
-//******************************************************************************
-// Returns the number of processors that a process has been configured to run on
-//******************************************************************************
+
 class NumaNodeInfo 
 {
 private:
@@ -1350,9 +1347,15 @@ public: 	// functions
 
     static LPVOID VirtualAllocExNuma(HANDLE hProc, LPVOID lpAddr, SIZE_T size,
                                      DWORD allocType, DWORD prot, DWORD node);
+#ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+#else // !FEATURE_PAL
+    static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
+#endif // !FEATURE_PAL
 #endif
 };
+
+#ifndef FEATURE_PAL
 
 struct CPU_Group_Info 
 {
@@ -1402,6 +1405,7 @@ public:
     static BOOL GetSystemTimes(FILETIME *idleTime, FILETIME *kernelTime, FILETIME *userTime);
     static void ChooseCPUGroupAffinity(GROUP_AFFINITY *gf);
     static void ClearCPUGroupAffinity(GROUP_AFFINITY *gf);
+    static BOOL GetCPUGroupRange(WORD group_number, WORD* group_begin, WORD* group_size);
 #endif
 
 public:
@@ -1412,8 +1416,14 @@ public:
     }
 };
 
-int GetCurrentProcessCpuCount();
 DWORD_PTR GetCurrentProcessCpuMask();
+
+#endif // !FEATURE_PAL
+
+//******************************************************************************
+// Returns the number of processors that a process has been configured to run on
+//******************************************************************************
+int GetCurrentProcessCpuCount();
 
 uint32_t GetOsPageSize();
 
@@ -1889,12 +1899,12 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         _ASSERTE(iIndex < m_iCount);
-        return ((void *) ((size_t) Ptr() + (iIndex * m_iElemSize)));
+        return (BYTE*) Ptr() + (iIndex * (size_t)m_iElemSize);
     }
-    int Size()
+    size_t Size()
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_iCount * m_iElemSize);
+        return (m_iCount * (size_t)m_iElemSize);
     }
     int Count()
     {
@@ -2398,7 +2408,7 @@ protected:
     HASHENTRY *EntryPtr(ULONG iEntry)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return (PTR_HASHENTRY(m_pcEntries + (iEntry * m_iEntrySize)));
+        return (PTR_HASHENTRY(m_pcEntries + (iEntry * (size_t)m_iEntrySize)));
     }
 
     ULONG     ItemIndex(HASHENTRY *p)
@@ -2849,7 +2859,7 @@ void CHashTableAndData<MemMgr>::InitFreeChain(
     BYTE* pcPtr;
     _ASSERTE(iEnd > iStart);
 
-    pcPtr = (BYTE*)m_pcEntries + iStart * m_iEntrySize;
+    pcPtr = (BYTE*)m_pcEntries + iStart * (size_t)m_iEntrySize;
     for (++iStart; iStart < iEnd; ++iStart)
     {
         ((FREEHASHENTRY *) pcPtr)->iFree = iStart;
@@ -3107,13 +3117,13 @@ class CClosedHashBase
     BYTE *EntryPtr(int iEntry)
     {
         LIMITED_METHOD_CONTRACT;
-        return (m_rgData + (iEntry * m_iEntrySize));
+        return (m_rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
     BYTE *EntryPtr(int iEntry, BYTE *rgData)
     {
         LIMITED_METHOD_CONTRACT;
-        return (rgData + (iEntry * m_iEntrySize));
+        return (rgData + (iEntry * (size_t)m_iEntrySize));
     }
 
 public:

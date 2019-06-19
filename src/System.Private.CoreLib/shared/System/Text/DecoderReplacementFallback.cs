@@ -82,13 +82,13 @@ namespace System.Text
             }
         }
 
-        public override bool Equals(object value)
+        public override bool Equals(object? value)
         {
             if (value is DecoderReplacementFallback that)
             {
-                return (_strDefault == that._strDefault);
+                return _strDefault == that._strDefault;
             }
-            return (false);
+            return false;
         }
 
         public override int GetHashCode()
@@ -109,6 +109,7 @@ namespace System.Text
         // Construction
         public DecoderReplacementFallbackBuffer(DecoderReplacementFallback fallback)
         {
+            // TODO-NULLABLE: NullReferenceException (fallback)
             _strDefault = fallback.DefaultString;
         }
 

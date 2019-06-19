@@ -13,9 +13,11 @@ enum Flag
 {
 #define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa) isa = 1ULL << InstructionSet_##isa,
 #include "hwintrinsiclistArm64.h"
-    None     = 0,
-    Base     = 1ULL << InstructionSet_Base,
-    EveryISA = ~0ULL
+    None      = 0,
+    Base      = 1ULL << InstructionSet_Base,
+    Vector64  = 1ULL << InstructionSet_Vector64,
+    Vector128 = 1ULL << InstructionSet_Vector128,
+    EveryISA  = ~0ULL
 };
 
 Flag operator|(Flag a, Flag b)
@@ -31,13 +33,6 @@ Flag flag(InstructionSet isa)
 
 // clang-format off
 static const HWIntrinsicInfo hwIntrinsicInfoArray[] = {
-    // Add lookupHWIntrinsic special cases see lookupHWIntrinsic() below
-    //     NI_ARM64_IsSupported_True is used to expand get_IsSupported to const true
-    //     NI_ARM64_IsSupported_False is used to expand get_IsSupported to const false
-    //     NI_ARM64_PlatformNotSupported to throw PlatformNotSupported exception for every intrinsic not supported on the running platform
-    {NI_ARM64_IsSupported_True,     "get_IsSupported",                 IsaFlag::EveryISA, HWIntrinsicInfo::IsSupported, HWIntrinsicInfo::None, {}},
-    {NI_ARM64_IsSupported_False,    "::NI_ARM64_IsSupported_False",    IsaFlag::EveryISA, HWIntrinsicInfo::IsSupported, HWIntrinsicInfo::None, {}},
-    {NI_ARM64_PlatformNotSupported, "::NI_ARM64_PlatformNotSupported", IsaFlag::EveryISA, HWIntrinsicInfo::Unsupported, HWIntrinsicInfo::None, {}},
 #define HARDWARE_INTRINSIC(id, isa, name, form, i0, i1, i2, flags) \
     {id,                            #name,                             IsaFlag::isa,      HWIntrinsicInfo::form,        HWIntrinsicInfo::flags, { i0, i1, i2 }},
 #include "hwintrinsiclistArm64.h"
@@ -77,6 +72,10 @@ InstructionSet Compiler::lookupHWIntrinsicISA(const char* className)
     {
         if (strcmp(className, "Base") == 0)
             return InstructionSet_Base;
+        if (strncmp(className, "Vector64", 8) == 0)
+            return InstructionSet_Vector64;
+        if (strncmp(className, "Vector128", 9) == 0)
+            return InstructionSet_Vector128;
 #define HARDWARE_INTRINSIC_CLASS(flag, jit_config, isa)                                                                \
     if (strcmp(className, #isa) == 0)                                                                                  \
         return InstructionSet_##isa;
@@ -95,37 +94,45 @@ InstructionSet Compiler::lookupHWIntrinsicISA(const char* className)
 //
 // Return Value:
 //    Id for the hardware intrinsic.
-//
-// TODO-Throughput: replace sequential search by hash lookup
 NamedIntrinsic Compiler::lookupHWIntrinsic(const char* className, const char* methodName)
 {
-    InstructionSet isa    = lookupHWIntrinsicISA(className);
-    NamedIntrinsic result = NI_Illegal;
-    if (isa != InstructionSet_NONE)
+    // TODO-Throughput: replace sequential search by binary search
+    InstructionSet isa = lookupHWIntrinsicISA(className);
+
+    if (isa == InstructionSet_NONE)
     {
-        IsaFlag::Flag isaFlag = IsaFlag::flag(isa);
-        for (int i = 0; i < NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START; i++)
+        // There are several platform-agnostic intrinsics (e.g., Vector256) that
+        // are not supported in Arm64, so early return NI_Illegal
+        return NI_Illegal;
+    }
+
+    bool isIsaSupported = compSupports(isa) && compSupportsHWIntrinsic(isa);
+
+    if (strcmp(methodName, "get_IsSupported") == 0)
+    {
+        return isIsaSupported ? NI_IsSupported_True : NI_IsSupported_False;
+    }
+    else if (!isIsaSupported)
+    {
+        return NI_Throw_PlatformNotSupportedException;
+    }
+
+    for (int i = 0; i < (NI_HW_INTRINSIC_END - NI_HW_INTRINSIC_START - 1); i++)
+    {
+        if ((IsaFlag::flag(isa) & hwIntrinsicInfoArray[i].isaflags) == 0)
         {
-            if ((isaFlag & hwIntrinsicInfoArray[i].isaflags) && strcmp(methodName, hwIntrinsicInfoArray[i].name) == 0)
-            {
-                if (compSupportsHWIntrinsic(isa))
-                {
-                    // Intrinsic is supported on platform
-                    result = hwIntrinsicInfoArray[i].id;
-                }
-                else
-                {
-                    // When the intrinsic class is not supported
-                    // Return NI_ARM64_PlatformNotSupported for all intrinsics
-                    // Return NI_ARM64_IsSupported_False for the IsSupported property
-                    result = (hwIntrinsicInfoArray[i].id != NI_ARM64_IsSupported_True) ? NI_ARM64_PlatformNotSupported
-                                                                                       : NI_ARM64_IsSupported_False;
-                }
-                break;
-            }
+            continue;
+        }
+
+        if (strcmp(methodName, hwIntrinsicInfoArray[i].name) == 0)
+        {
+            return hwIntrinsicInfoArray[i].id;
         }
     }
-    return result;
+
+    // There are several helper intrinsics that are implemented in managed code
+    // Those intrinsics will hit this code path and need to return NI_Illegal
+    return NI_Illegal;
 }
 
 //------------------------------------------------------------------------
@@ -151,6 +158,8 @@ bool HWIntrinsicInfo::isFullyImplementedIsa(InstructionSet isa)
         case InstructionSet_Simd:
         case InstructionSet_Sha1:
         case InstructionSet_Sha256:
+        case InstructionSet_Vector64:
+        case InstructionSet_Vector128:
             return true;
 
         default:
@@ -179,6 +188,8 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
         case InstructionSet_Simd:
         case InstructionSet_Sha1:
         case InstructionSet_Sha256:
+        case InstructionSet_Vector64:
+        case InstructionSet_Vector128:
             return false;
 
         default:
@@ -203,8 +214,8 @@ GenTree* Compiler::addRangeCheckIfNeeded(GenTree* immOp, unsigned int max, bool 
 {
     assert(immOp != nullptr);
 
-    // Need to range check only if we're must expand and don't have an appropriate constant
-    if (mustExpand && (!immOp->IsCnsIntOrI() || (immOp->AsIntConCommon()->IconValue() < max)))
+    // Need to range check only if we're must expand.
+    if (mustExpand)
     {
         GenTree* upperBoundNode = new (this, GT_CNS_INT) GenTreeIntCon(TYP_INT, max);
         GenTree* index          = nullptr;
@@ -325,24 +336,24 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
     switch (intrinsic)
     {
-        case NI_Base_Vector64_AsByte:
-        case NI_Base_Vector64_AsInt16:
-        case NI_Base_Vector64_AsInt32:
-        case NI_Base_Vector64_AsSByte:
-        case NI_Base_Vector64_AsSingle:
-        case NI_Base_Vector64_AsUInt16:
-        case NI_Base_Vector64_AsUInt32:
-        case NI_Base_Vector128_As:
-        case NI_Base_Vector128_AsByte:
-        case NI_Base_Vector128_AsDouble:
-        case NI_Base_Vector128_AsInt16:
-        case NI_Base_Vector128_AsInt32:
-        case NI_Base_Vector128_AsInt64:
-        case NI_Base_Vector128_AsSByte:
-        case NI_Base_Vector128_AsSingle:
-        case NI_Base_Vector128_AsUInt16:
-        case NI_Base_Vector128_AsUInt32:
-        case NI_Base_Vector128_AsUInt64:
+        case NI_Vector64_AsByte:
+        case NI_Vector64_AsInt16:
+        case NI_Vector64_AsInt32:
+        case NI_Vector64_AsSByte:
+        case NI_Vector64_AsSingle:
+        case NI_Vector64_AsUInt16:
+        case NI_Vector64_AsUInt32:
+        case NI_Vector128_As:
+        case NI_Vector128_AsByte:
+        case NI_Vector128_AsDouble:
+        case NI_Vector128_AsInt16:
+        case NI_Vector128_AsInt32:
+        case NI_Vector128_AsInt64:
+        case NI_Vector128_AsSByte:
+        case NI_Vector128_AsSingle:
+        case NI_Vector128_AsUInt16:
+        case NI_Vector128_AsUInt32:
+        case NI_Vector128_AsUInt64:
         {
             if (!featureSIMD)
             {
@@ -416,12 +427,6 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
     switch (HWIntrinsicInfo::lookup(intrinsic).form)
     {
-        case HWIntrinsicInfo::IsSupported:
-            return gtNewIconNode((intrinsic == NI_ARM64_IsSupported_True) ? 1 : 0);
-
-        case HWIntrinsicInfo::Unsupported:
-            return impUnsupportedHWIntrinsic(CORINFO_HELP_THROW_PLATFORM_NOT_SUPPORTED, method, sig, mustExpand);
-
         case HWIntrinsicInfo::UnaryOp:
             op1 = impPopStack().val;
 
@@ -458,20 +463,40 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
             return gtNewSimdHWIntrinsicNode(simdType, op1, intrinsic, simdBaseType, simdSizeBytes);
 
         case HWIntrinsicInfo::SimdExtractOp:
-            op2 =
-                addRangeCheckIfNeeded(impPopStack().val, getSIMDVectorLength(simdSizeBytes, simdBaseType), mustExpand);
+        {
+            int vectorLength = getSIMDVectorLength(simdSizeBytes, simdBaseType);
+            op2              = impStackTop().val;
+            if (!mustExpand && (!op2->IsCnsIntOrI() || op2->AsIntConCommon()->IconValue() >= vectorLength))
+            {
+                // This is either an out-of-range constant or a non-constant.
+                // We won't expand it; it will be handled recursively, at which point 'mustExpand'
+                // will be true.
+                return nullptr;
+            }
+            op2 = impPopStack().val;
+            op2 = addRangeCheckIfNeeded(op2, vectorLength, mustExpand);
             op1 = impSIMDPopStack(simdType);
 
             return gtNewScalarHWIntrinsicNode(JITtype2varType(sig->retType), op1, op2, intrinsic);
-
+        }
         case HWIntrinsicInfo::SimdInsertOp:
+        {
+            int vectorLength = getSIMDVectorLength(simdSizeBytes, simdBaseType);
+            op2              = impStackTop(1).val;
+            if (!mustExpand && (!op2->IsCnsIntOrI() || op2->AsIntConCommon()->IconValue() >= vectorLength))
+            {
+                // This is either an out-of-range constant or a non-constant.
+                // We won't expand it; it will be handled recursively, at which point 'mustExpand'
+                // will be true.
+                return nullptr;
+            }
             op3 = impPopStack().val;
-            op2 =
-                addRangeCheckIfNeeded(impPopStack().val, getSIMDVectorLength(simdSizeBytes, simdBaseType), mustExpand);
+            op2 = impPopStack().val;
+            op2 = addRangeCheckIfNeeded(op2, vectorLength, mustExpand);
             op1 = impSIMDPopStack(simdType);
 
             return gtNewSimdHWIntrinsicNode(simdType, op1, op2, op3, intrinsic, simdBaseType, simdSizeBytes);
-
+        }
         case HWIntrinsicInfo::Sha1HashOp:
             op3 = impSIMDPopStack(simdType);
             op2 = impPopStack().val;

@@ -24,6 +24,24 @@ check_cxx_source_compiles("
     }
     " HAVE_PTHREAD_GETTHREADID_NP)
 
+check_cxx_source_compiles("
+    #include <sys/mman.h>
+
+    int main()
+    {
+        return VM_FLAGS_SUPERPAGE_SIZE_ANY;
+    }
+    " HAVE_VM_FLAGS_SUPERPAGE_SIZE_ANY)
+
+check_cxx_source_compiles("
+    #include <sys/mman.h>
+
+    int main()
+    {
+        return MAP_HUGETLB;
+    }
+    " HAVE_MAP_HUGETLB)
+
 check_cxx_source_runs("
     #include <sched.h>
 
@@ -54,6 +72,16 @@ check_cxx_source_runs("
     }
     " HAVE_MACH_ABSOLUTE_TIME)
 
+
 check_library_exists(c sched_getaffinity "" HAVE_SCHED_GETAFFINITY)
+check_library_exists(pthread pthread_create "" HAVE_LIBPTHREAD)
+
+if (HAVE_LIBPTHREAD)
+  set(PTHREAD_LIBRARY pthread)
+elseif (HAVE_PTHREAD_IN_LIBC)
+  set(PTHREAD_LIBRARY c)
+endif()
+
+check_library_exists(${PTHREAD_LIBRARY} pthread_getaffinity_np "" HAVE_PTHREAD_GETAFFINITY_NP)
 
 configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)

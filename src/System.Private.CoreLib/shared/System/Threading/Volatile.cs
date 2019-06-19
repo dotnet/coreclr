@@ -214,16 +214,16 @@ namespace System.Threading
         #endregion
 
         #region T
-        private struct VolatileObject { public volatile object Value; }
+        private struct VolatileObject { public volatile object? Value; }
 
         [Intrinsic]
         [NonVersionable]
-        public static T Read<T>(ref T location) where T : class =>
+        public static T Read<T>(ref T location) where T : class? =>
             Unsafe.As<T>(Unsafe.As<T, VolatileObject>(ref location).Value);
 
         [Intrinsic]
         [NonVersionable]
-        public static void Write<T>(ref T location, T value) where T : class =>
+        public static void Write<T>(ref T location, T value) where T : class? =>
             Unsafe.As<T, VolatileObject>(ref location).Value = value;
         #endregion
     }

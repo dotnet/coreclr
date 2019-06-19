@@ -26,7 +26,6 @@
 #include "comutilnative.h"
 #include "corhost.h"
 #include "asmconstants.h"
-#include "mdaassistants.h"
 #include "customattribute.h"
 #include "ilstubcache.h"
 #include "typeparse.h"
@@ -612,24 +611,6 @@ public:
                                     (managedReturnElemType == ELEMENT_TYPE_I4) ||
                                     (managedReturnElemType == ELEMENT_TYPE_U4);
 
-#ifdef MDA_SUPPORTED
-        if (!returnTheHRESULT)
-        {
-            MdaExceptionSwallowedOnCallFromCom* mda = MDA_GET_ASSISTANT(ExceptionSwallowedOnCallFromCom);
-            if (mda)
-            {
-                // on the stack: exception object, but the stub linker doesn't know it
-                pcsExceptionHandler->EmitCALL(METHOD__STUBHELPERS__GET_STUB_CONTEXT, 0, 1);
-                pcsExceptionHandler->EmitCALL(METHOD__STUBHELPERS__TRIGGER_EXCEPTION_SWALLOWED_MDA, 
-                    1,  // WARNING: This method takes 2 input args, the exception object and the stub context.
-                        //          But the ILStubLinker has no knowledge that the exception object is on the 
-                        //          stack (because it is unaware that we've just entered a catch block), so we 
-                        //          lie and claim that we only take one input argument.
-                    1); // returns the exception object back
-            }
-        }
-#endif // MDA_SUPPORTED
-
         DWORD retvalLocalNum = m_slIL.GetReturnValueLocalNum();
         BinderMethodID getHRForException;
         if (SF_IsWinRTStub(m_dwStubFlags))
@@ -791,49 +772,6 @@ public:
         }
 #endif // _DEBUG
 
-#ifdef FEATURE_COMINTEROP
-        if (SF_IsForwardCOMStub(m_dwStubFlags))
-        {
-#if defined(MDA_SUPPORTED)
-            // We won't use this NGEN'ed stub if RaceOnRCWCleanup is enabled at run-time
-            if (!SF_IsNGENedStub(m_dwStubFlags))
-            {
-                // This code may change the type of the frame we use, so it has to be run before the code below where we
-                // retrieve the stack arg size based on the frame type.
-                MdaRaceOnRCWCleanup* mda = MDA_GET_ASSISTANT(RaceOnRCWCleanup);
-                if (mda)
-                {
-                    // Here we have to register the RCW of the "this" object to the RCWStack and schedule the clean-up for it.
-                    // Emit a call to StubHelpers::StubRegisterRCW() and StubHelpers::StubUnregisterRCW() to do this.
-                    m_slIL.EmitLoadRCWThis(pcsMarshal, m_dwStubFlags);
-                    pcsMarshal->EmitCALL(METHOD__STUBHELPERS__STUB_REGISTER_RCW, 1, 0);
-
-                    // We use an extra local to track whether we need to unregister the RCW on cleanup
-                    ILCodeStream *pcsSetup = m_slIL.GetSetupCodeStream();
-                    DWORD dwRCWRegisteredLocalNum = pcsSetup->NewLocal(ELEMENT_TYPE_BOOLEAN);
-                    pcsSetup->EmitLDC(0);
-                    pcsSetup->EmitSTLOC(dwRCWRegisteredLocalNum);
-
-                    pcsMarshal->EmitLDC(1);
-                    pcsMarshal->EmitSTLOC(dwRCWRegisteredLocalNum);
-
-                    ILCodeStream *pcsCleanup = m_slIL.GetCleanupCodeStream();
-                    ILCodeLabel *pSkipCleanupLabel = pcsCleanup->NewCodeLabel();
-                    
-                    m_slIL.SetCleanupNeeded();
-                    pcsCleanup->EmitLDLOC(dwRCWRegisteredLocalNum);
-                    pcsCleanup->EmitBRFALSE(pSkipCleanupLabel);
-
-                    m_slIL.EmitLoadRCWThis(pcsCleanup, m_dwStubFlags);
-                    pcsCleanup->EmitCALL(METHOD__STUBHELPERS__STUB_UNREGISTER_RCW, 1, 0);
-
-                    pcsCleanup->EmitLabel(pSkipCleanupLabel);
-                }
-            }
-#endif // MDA_SUPPORTED
-        }
-#endif // FEATURE_COMINTEROP
-
         // <NOTE>
         // The profiler helpers below must be called immediately before and after the call to the target.
         // The debugger trace call helpers are invoked from StubRareDisableWorker
@@ -849,14 +787,6 @@ public:
             _ASSERTE(dwMethodDescLocalNum != (DWORD)-1);
         }
 #endif // PROFILING_SUPPORTED
-
-#ifdef MDA_SUPPORTED
-        if (SF_IsForwardStub(m_dwStubFlags) && !SF_IsNGENedStub(m_dwStubFlags) &&
-            MDA_GET_ASSISTANT(GcManagedToUnmanaged))
-        {
-            m_slIL.EmitCallGcCollectForMDA(pcsDispatch, m_dwStubFlags);
-        }
-#endif // MDA_SUPPORTED
 
         // For CoreClr, clear the last error before calling the target that returns last error.
         // There isn't always a way to know the function have failed without checking last error,
@@ -884,14 +814,6 @@ public:
             pcsDispatch->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
         }
 #endif // defined(_TARGET_X86_)
-
-#ifdef MDA_SUPPORTED
-        if (SF_IsForwardStub(m_dwStubFlags) && !SF_IsNGENedStub(m_dwStubFlags) &&
-            MDA_GET_ASSISTANT(GcUnmanagedToManaged))
-        {
-            m_slIL.EmitCallGcCollectForMDA(pcsDispatch, m_dwStubFlags);
-        }
-#endif // MDA_SUPPORTED
 
 #ifdef VERIFY_HEAP
         if (SF_IsForwardStub(m_dwStubFlags) && g_pConfig->InteropValidatePinnedObjects())
@@ -2142,28 +2064,8 @@ void NDirectStubLinker::Begin(DWORD dwStubFlags)
     }
     else
     {
-#ifdef MDA_SUPPORTED
-        if (!SF_IsNGENedStub(dwStubFlags) && MDA_GET_ASSISTANT(GcUnmanagedToManaged))
-        {
-            EmitCallGcCollectForMDA(m_pcsSetup, dwStubFlags);
-        }
-#endif // MDA_SUPPORTED
-
         if (SF_IsDelegateStub(dwStubFlags))
         {
-#if defined(MDA_SUPPORTED)
-            // GC was induced (gcUnmanagedToManagedMDA), arguments have been marshaled, and we are about
-            // to touch the UMEntryThunk and extract the delegate target from it so this is the right time
-            // to do the collected delegate MDA check.
-
-            // The call to CheckCollectedDelegateMDA is emitted regardless of whether the MDA is on at the
-            // moment. This is to avoid having to ignore NGENed stubs without the call just as we do for
-            // the GC MDA (callbackOncollectedDelegateMDA is turned on under managed debugger by default
-            // so the impact would be substantial). The helper bails out fast if the MDA is not enabled.
-            EmitLoadStubContext(m_pcsDispatch, dwStubFlags);
-            m_pcsDispatch->EmitCALL(METHOD__STUBHELPERS__CHECK_COLLECTED_DELEGATE_MDA, 1, 0);
-#endif // MDA_SUPPORTED
-
             //
             // recover delegate object from UMEntryThunk
 
@@ -2268,14 +2170,6 @@ void NDirectStubLinker::End(DWORD dwStubFlags)
         m_pcsCleanup->EmitLabel(m_pCleanupFinallyEndLabel);
     }
 
-#ifdef MDA_SUPPORTED
-    if (SF_IsReverseStub(dwStubFlags) && !SF_IsNGENedStub(dwStubFlags) &&
-        MDA_GET_ASSISTANT(GcManagedToUnmanaged))
-    {
-        EmitCallGcCollectForMDA(pcs, dwStubFlags);
-    }
-#endif // MDA_SUPPORTED
-
     if (IsExceptionCleanupNeeded())
     {
         m_pcsExceptionCleanup->EmitLabel(m_pSkipExceptionCleanupLabel);
@@ -2297,7 +2191,7 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
         if (SF_IsDelegateStub(dwStubFlags)) // delegate invocation
         {
             // get the delegate unmanaged target - we call a helper instead of just grabbing
-            // the _methodPtrAux field because we may need to intercept the call for host, MDA, etc.
+            // the _methodPtrAux field because we may need to intercept the call for host, etc.
             pcsEmit->EmitLoadThis();
 #ifdef _TARGET_64BIT_
             // on AMD64 GetDelegateTarget will return address of the generic stub for host when we are hosted
@@ -2622,34 +2516,6 @@ void NDirectStubLinker::EmitLoadStubContext(ILCodeStream* pcsEmit, DWORD dwStubF
     }
 }
 
-#ifdef MDA_SUPPORTED
-void NDirectStubLinker::EmitCallGcCollectForMDA(ILCodeStream *pcsEmit, DWORD dwStubFlags)
-{
-    STANDARD_VM_CONTRACT;
-
-    ILCodeLabel *pSkipGcLabel = NULL;
-
-    if (SF_IsForwardPInvokeStub(dwStubFlags) &&
-        !SF_IsDelegateStub(dwStubFlags) &&
-        !SF_IsCALLIStub(dwStubFlags))
-    {
-        // don't call GC if this is a QCall
-        EmitLoadStubContext(pcsEmit, dwStubFlags);
-        pcsEmit->EmitCALL(METHOD__STUBHELPERS__IS_QCALL, 1, 1);
-
-        pSkipGcLabel = pcsEmit->NewCodeLabel();
-        pcsEmit->EmitBRTRUE(pSkipGcLabel);
-    }
-
-    pcsEmit->EmitCALL(METHOD__STUBHELPERS__TRIGGER_GC_FOR_MDA, 0, 0);
-
-    if (pSkipGcLabel != NULL)
-    {
-        pcsEmit->EmitLabel(pSkipGcLabel);
-    }
-}
-#endif // MDA_SUPPORTED
-
 #ifdef FEATURE_COMINTEROP
 
 class DispatchStubState : public StubState // For CLR-to-COM late-bound/eventing calls
@@ -2889,8 +2755,14 @@ PInvokeStaticSigInfo::PInvokeStaticSigInfo(MethodDesc* pMD, ThrowOnError throwOn
         case nltAnsi:
             nlt = nltAnsi; break;
         case nltUnicode:
-        case nltAuto:   // Since Win9x isn't supported anymore, nltAuto always represents unicode strings.
             nlt = nltUnicode; break;
+        case nltAuto:
+#ifdef PLATFORM_WINDOWS
+            nlt = nltUnicode;
+#else
+            nlt = nltAnsi; // We don't have a utf8 charset in metadata yet, but ANSI == UTF-8 off-Windows
+#endif
+        break;
         default:
             hr = E_FAIL; goto ErrExit;
         }
@@ -3012,7 +2884,6 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
     if (mappingFlags & pmNoMangle)
         SetLinkFlags ((CorNativeLinkFlags)(GetLinkFlags() | nlfNoMangle));
 
-    // XXX Tue 07/19/2005
     // Keep in sync with the handling of CorNativeLinkType in
     // PInvokeStaticSigInfo::PInvokeStaticSigInfo.
     
@@ -3022,10 +2893,17 @@ void PInvokeStaticSigInfo::DllImportInit(MethodDesc* pMD, LPCUTF8 *ppLibName, LP
     {
         SetCharSet (nltAnsi);
     }
-    else if (charSetMask == pmCharSetUnicode || charSetMask == pmCharSetAuto)
+    else if (charSetMask == pmCharSetUnicode)
     {
-        // Since Win9x isn't supported anymore, pmCharSetAuto always represents unicode strings.
         SetCharSet (nltUnicode);
+    }
+    else if (charSetMask == pmCharSetAuto)
+    {
+#ifdef PLATFORM_WINDOWS
+        SetCharSet(nltUnicode);
+#else
+        SetCharSet(nltAnsi); // We don't have a utf8 charset in metadata yet, but ANSI == UTF-8 off-Windows
+#endif
     }
     else
     {
@@ -3396,6 +3274,14 @@ BOOL NDirect::MarshalingRequired(MethodDesc *pMD, PCCOR_SIGNATURE pSig /*= NULL*
                     return TRUE;
                 }
 
+#ifdef FEATURE_READYTORUN_COMPILER
+                if (IsReadyToRunCompilation())
+                {
+                    if (!hndArgType.AsMethodTable()->IsLayoutInCurrentVersionBubble())
+                        return TRUE;
+                }
+#endif
+
                 // return value is fine as long as it can be normalized to an integer
                 if (i == 0)
                 {
@@ -3483,7 +3369,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                                                      CorNativeLinkFlags nlFlags,
                                                      UINT               argidx,  // this is used for reverse pinvoke hresult swapping
                                                      StubState*         pss,
-                                                     BOOL               fThisCall,
+                                                     BOOL               isInstanceMethod,
                                                      int                argOffset,
                                                      DWORD              dwStubFlags,
                                                      MethodDesc         *pMD,
@@ -3551,6 +3437,7 @@ static MarshalInfo::MarshalType DoMarshalReturnValue(MetaSig&           msig,
                                 SF_IsBestFit(dwStubFlags),
                                 SF_IsThrowOnUnmappableChar(dwStubFlags),
                                 TRUE,
+                                isInstanceMethod,
                                 pMD,
                                 TRUE
                                 DEBUG_ARG(pDebugName)
@@ -3859,6 +3746,10 @@ static void CreateNDirectStubWorker(StubState*         pss,
     BOOL fMarshalReturnValueFirst = FALSE;
 
     BOOL fReverseWithReturnBufferArg = FALSE;
+    // Only consider ThisCall methods to be instance methods.
+    // Techinically COM methods are also instance methods, but we don't want to change the behavior of the built-in
+    // COM abi work because there are many users that rely on the current behavior (for example WPF).
+    bool isInstanceMethod = fThisCall;
     
     // We can only change fMarshalReturnValueFirst to true when we are NOT doing HRESULT-swapping!
     // When we are HRESULT-swapping, the managed return type is actually the type of the last parameter and not the return type.
@@ -3867,7 +3758,6 @@ static void CreateNDirectStubWorker(StubState*         pss,
     // to make sure we match the native signature correctly (when marshalling parameters, we add them to the native stub signature).
     if (!SF_IsHRESULTSwapping(dwStubFlags))
     {
-        bool isInstanceMethod = fStubNeedsCOM || fThisCall;
         // We cannot just use pSig.GetReturnType() here since it will return ELEMENT_TYPE_VALUETYPE for enums.
         bool isReturnTypeValueType = msig.GetRetTypeHandleThrowing().GetVerifierCorElementType() == ELEMENT_TYPE_VALUETYPE;
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
@@ -3887,7 +3777,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
         // On Windows-X86, the native signature might need a return buffer when the managed doesn't (specifically when the native signature is a member function).
         fMarshalReturnValueFirst = HasRetBuffArg(&msig) || (isInstanceMethod && isReturnTypeValueType);
 #endif // UNIX_X86_ABI
-#elif defined(_TARGET_AMD64_)
+#elif defined(_TARGET_AMD64_) || defined (_TARGET_ARM64_)
         fMarshalReturnValueFirst = isInstanceMethod && isReturnTypeValueType;
 #endif // defined(_TARGET_X86_) || defined(_TARGET_ARM_)
 #ifdef _WIN32
@@ -3940,6 +3830,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
                                                  SF_IsBestFit(dwStubFlags),
                                                  SF_IsThrowOnUnmappableChar(dwStubFlags),
                                                  TRUE,
+                                                 isInstanceMethod ? TRUE : FALSE,
                                                  pMD,
                                                  TRUE
                                                  DEBUG_ARG(pSigDesc->m_pDebugName)
@@ -3996,7 +3887,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
                                            nlFlags,
                                            0,
                                            pss,
-                                           fThisCall,
+                                           isInstanceMethod,
                                            argOffset,
                                            dwStubFlags,
                                            pMD,
@@ -4109,7 +4000,7 @@ static void CreateNDirectStubWorker(StubState*         pss,
                              nlFlags,
                              argidx,
                              pss,
-                             fThisCall,
+                             isInstanceMethod,
                              argOffset,
                              dwStubFlags,
                              pMD,
@@ -5395,24 +5286,19 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
     STANDARD_VM_CONTRACT;
 
     BOOL fGcMdaEnabled = FALSE;
-#ifdef MDA_SUPPORTED
-    if (MDA_GET_ASSISTANT(GcManagedToUnmanaged) || MDA_GET_ASSISTANT(GcUnmanagedToManaged))
-    {
-        // We never generate checks for these MDAs to NGEN'ed stubs so if they are
-        // enabled, a new stub must be generated (the perf impact is huge anyway).
-        fGcMdaEnabled = TRUE;
-    }
-#endif // MDA_SUPPORTED
-
 #ifdef FEATURE_COMINTEROP
     if (SF_IsReverseCOMStub(dwStubFlags))
     {
+#ifdef FEATURE_PREJIT
         if (fGcMdaEnabled)
             return NULL;
 
         // reverse COM stubs live in a hash table
         StubMethodHashTable *pHash = pMD->GetLoaderModule()->GetStubMethodHashTable();
         return (pHash == NULL ? NULL : pHash->FindMethodDesc(pMD));
+#else
+        return NULL;
+#endif
     }
     else
 #endif // FEATURE_COMINTEROP
@@ -5424,14 +5310,6 @@ MethodDesc* GetStubMethodDescFromInteropMethodDesc(MethodDesc* pMD, DWORD dwStub
 #ifdef FEATURE_COMINTEROP
     else if (pMD->IsComPlusCall() || pMD->IsGenericComPlusCall())
     {
-#ifdef MDA_SUPPORTED
-        if (MDA_GET_ASSISTANT(RaceOnRCWCleanup))
-        {
-            // we never generate this callout to NGEN'ed stubs
-            return NULL;
-        }
-#endif // MDA_SUPPORTED
-
         if (fGcMdaEnabled)
             return NULL;
 
@@ -5793,10 +5671,6 @@ LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod)
 
     g_IBCLogger.LogNDirectCodeAccess(pMD);
 
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(PInvokeLog, LogPInvoke(pMD, hMod));
-#endif
-
     RETURN pMD->FindEntryPoint(hMod);
 }
 
@@ -5814,20 +5688,6 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     CONTRACTL_END;
 
     Stub *pInterceptStub = NULL;
-
-#ifdef _TARGET_X86_
-
-
-#ifdef MDA_SUPPORTED
-    if (!IsQCall() && MDA_GET_ASSISTANT(PInvokeStackImbalance))
-    {
-        pInterceptStub = GenerateStubForMDA(pTarget, pInterceptStub);
-    }
-#endif // MDA_SUPPORTED
-
-
-#endif // _TARGET_X86_
-
 
     NDirectWriteableData* pWriteableData = GetWriteableData();
     EnsureWritablePages(pWriteableData);
@@ -5856,29 +5716,6 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     }
 }
 
-
-
-#if defined(_TARGET_X86_) && defined(MDA_SUPPORTED)
-EXTERN_C VOID __stdcall PInvokeStackImbalanceWorker(StackImbalanceCookie *pSICookie, DWORD dwPostESP)
-{
-    STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_PREEMPTIVE; // we've already switched to preemptive
-
-    // make sure we restore the original Win32 last error before leaving this function - we are
-    // called right after returning from the P/Invoke target and the error has not been saved yet
-    BEGIN_PRESERVE_LAST_ERROR;
-
-    MdaPInvokeStackImbalance* pProbe = MDA_GET_ASSISTANT(PInvokeStackImbalance);
-
-    // This MDA must be active if we generated a call to PInvokeStackImbalanceHelper
-    _ASSERTE(pProbe);
-
-    pProbe->CheckStack(pSICookie, dwPostESP);
-
-    END_PRESERVE_LAST_ERROR;
-}
-#endif // _TARGET_X86_ && MDA_SUPPORTED
 
 
 // Preserving good error info from DllImport-driven LoadLibrary is tricky because we keep loading from different places
@@ -6007,7 +5844,7 @@ private:
 
 // Load the library directly. On Unix systems, don't register it yet with PAL. 
 // * External callers like AssemblyNative::InternalLoadUnmanagedDllFromPath() and the upcoming 
-//   System.Runtime.Interop.Marshall.LoadLibrary() need the raw system handle
+//   System.Runtime.InteropServices.NativeLibrary.Load() need the raw system handle
 // * Internal callers like LoadLibraryModule() can convert this handle to a HMODULE via PAL APIs on Unix
 static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, LoadLibErrorTracker *pErrorTracker )
 {
@@ -6703,11 +6540,11 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleBySearch(Assembly *callingAssemb
         if (SUCCEEDED(spec.Init(szComma)))
         {
             // Need to perform case insensitive hashing.
-            CQuickBytes qbLC;
-            {
-                UTF8_TO_LOWER_CASE(szLibName, qbLC);
-                szLibName = (LPUTF8) qbLC.Ptr();
-            }
+            SString moduleName(SString::Utf8, szLibName);
+            moduleName.LowerCase();
+
+            StackScratchBuffer buffer;
+            szLibName = (LPSTR)moduleName.GetUTF8(buffer);
 
             Assembly *pAssembly = spec.LoadAssembly(FILE_LOADED);
             Module *pModule = pAssembly->FindModuleByName(szLibName);
@@ -6847,18 +6684,6 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
         LPVOID pvTarget = NDirectGetEntryPoint(pMD, hmod);
         if (pvTarget)
         {
-
-#ifdef MDA_SUPPORTED
-            MdaInvalidOverlappedToPinvoke *pOverlapCheck = MDA_GET_ASSISTANT(InvalidOverlappedToPinvoke);
-            if (pOverlapCheck && pOverlapCheck->ShouldHook(pMD))
-            {
-                LPVOID pNewTarget = pOverlapCheck->Register(hmod,pvTarget);
-                if (pNewTarget)
-                {
-                    pvTarget = pNewTarget;
-                }
-            }
-#endif
             pMD->SetNDirectTarget(pvTarget);
             fSuccess = TRUE;
         }

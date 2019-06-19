@@ -14,9 +14,10 @@
 ===========================================================*/
 
 using System.Runtime.CompilerServices;
-using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
+using System.Collections.Generic;
+using Internal.Runtime.CompilerServices;
 
 namespace System
 {
@@ -60,12 +61,30 @@ namespace System
                                                   out UIntPtr lastRecordedHeapSize,
                                                   out UIntPtr lastRecordedFragmentation);
 
+        public static GCMemoryInfo GetGCMemoryInfo()
+        {
+            GetMemoryInfo(out uint highMemLoadThreshold,
+                          out ulong totalPhysicalMem,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr lastRecordedHeapSize,
+                          out UIntPtr lastRecordedFragmentation);
+
+            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
+                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
+                                    (long)totalPhysicalMem,
+                                    (long)(ulong)lastRecordedHeapSize,
+                                    (long)(ulong)lastRecordedFragmentation);
+        }
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _EndNoGCRegion();
-        
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern Array AllocateNewArray(IntPtr typeHandle, int length, bool zeroingOptional);
+
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern int GetGenerationWR(IntPtr handle);
 
@@ -236,7 +255,7 @@ namespace System
         // If we insert a call to GC.KeepAlive(this) at the end of Problem(), then
         // Foo doesn't get finalized and the stream stays open.
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // disable optimizations
-        public static void KeepAlive(object obj)
+        public static void KeepAlive(object? obj)
         {
         }
 
@@ -326,12 +345,15 @@ namespace System
         private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern long _GetAllocatedBytesForCurrentThread();
+        public static extern long GetAllocatedBytesForCurrentThread();
 
-        public static long GetAllocatedBytesForCurrentThread()
-        {
-            return _GetAllocatedBytesForCurrentThread();
-        }
+
+        /// <summary>
+        /// Get a count of the bytes allocated over the lifetime of the process.
+        /// <param name="precise">If true, gather a precise number, otherwise gather a fairly count. Gathering a precise value triggers at a significant performance penalty.</param>
+        /// </summary>
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern long GetTotalAllocatedBytes(bool precise = false);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool _RegisterForFullGCNotification(int maxGenerationPercentage, int largeObjectHeapPercentage);
@@ -492,6 +514,163 @@ namespace System
         public static void EndNoGCRegion()
         {
             EndNoGCRegionWorker();
+        }
+
+        private readonly struct MemoryLoadChangeNotification
+        {
+            public float LowMemoryPercent { get; }
+            public float HighMemoryPercent { get; }
+            public Action Notification { get; }
+
+            public MemoryLoadChangeNotification(float lowMemoryPercent, float highMemoryPercent, Action notification)
+            {
+                LowMemoryPercent = lowMemoryPercent;
+                HighMemoryPercent = highMemoryPercent;
+                Notification = notification;
+            }
+        }
+
+        private static readonly List<MemoryLoadChangeNotification> s_notifications = new List<MemoryLoadChangeNotification>();
+        private static float s_previousMemoryLoad = float.MaxValue;
+
+        private static float GetMemoryLoad()
+        {
+            GetMemoryInfo(out uint _,
+                          out ulong _,
+                          out uint lastRecordedMemLoad,
+                          out UIntPtr _,
+                          out UIntPtr _);
+
+            return (float)lastRecordedMemLoad / 100;
+        }
+
+        private static bool InvokeMemoryLoadChangeNotifications()
+        {
+            float currentMemoryLoad = GetMemoryLoad();
+
+            lock (s_notifications)
+            {
+                if (s_previousMemoryLoad == float.MaxValue)
+                {
+                    s_previousMemoryLoad = currentMemoryLoad;
+                    return true;
+                }
+
+                // We need to take a snapshot of s_notifications.Count, so that in the case that s_notifications[i].Notification() registers new notifications,
+                // we neither get rid of them nor iterate over them
+                int count = s_notifications.Count;
+
+                // If there is no existing notifications, we won't be iterating over any and we won't be adding any new one. Also, there wasn't any added since
+                // we last invoked this method so it's safe to assume we can reset s_previousMemoryLoad.
+                if (count == 0)
+                {
+                    s_previousMemoryLoad = float.MaxValue;
+                    return false;
+                }
+
+                int last = 0;
+                for (int i = 0; i < count; ++i)
+                {
+                    // If s_notifications[i] changes from within s_previousMemoryLoad bound to outside s_previousMemoryLoad, we trigger the notification
+                    if (s_notifications[i].LowMemoryPercent <= s_previousMemoryLoad && s_previousMemoryLoad <= s_notifications[i].HighMemoryPercent
+                         && !(s_notifications[i].LowMemoryPercent <= currentMemoryLoad && currentMemoryLoad <= s_notifications[i].HighMemoryPercent))
+                    {
+                        s_notifications[i].Notification();
+                        // it will then be overwritten or removed
+                    }
+                    else
+                    {
+                        s_notifications[last++] = s_notifications[i];
+                    }
+                }
+
+                if (last < count)
+                {
+                    s_notifications.RemoveRange(last, count - last);
+                }
+
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Register a notification to occur *AFTER* a GC occurs in which the memory load changes from within the bound specified
+        /// to outside of the bound specified. This notification will occur once. If repeated notifications are required, the notification
+        /// must be reregistered. The notification will occur on a thread which should not be blocked. Complex processing in the notification should defer work to the threadpool.
+        /// </summary>
+        /// <param name="lowMemoryPercent">percent of HighMemoryLoadThreshold to use as lower bound. Must be a number >= 0 or an ArgumentOutOfRangeException will be thrown.</param>
+        /// <param name="highMemoryPercent">percent of HighMemoryLoadThreshold use to use as lower bound. Must be a number > lowMemory or an ArgumentOutOfRangeException will be thrown. </param>
+        /// <param name="notification">delegate to invoke when operation occurs</param>s
+        internal static void RegisterMemoryLoadChangeNotification(float lowMemoryPercent, float highMemoryPercent, Action notification)
+        {
+            if (highMemoryPercent < 0 || highMemoryPercent > 1.0 || highMemoryPercent <= lowMemoryPercent)
+            {
+                throw new ArgumentOutOfRangeException(nameof(highMemoryPercent));
+            }
+            if (lowMemoryPercent < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(lowMemoryPercent));
+            }
+            if (notification == null)
+            {
+                throw new ArgumentNullException(nameof(notification));
+            }
+
+            lock (s_notifications)
+            {
+                s_notifications.Add (new MemoryLoadChangeNotification(lowMemoryPercent, highMemoryPercent, notification));
+
+                if (s_notifications.Count == 1)
+                {
+                    Gen2GcCallback.Register(InvokeMemoryLoadChangeNotifications);
+                }
+            }
+        }
+
+        internal static void UnregisterMemoryLoadChangeNotification(Action notification)
+        {
+            if (notification == null)
+            {
+                throw new ArgumentNullException(nameof(notification));
+            }
+
+            lock (s_notifications)
+            {
+                for (int i = 0; i < s_notifications.Count; ++i)
+                {
+                    if (s_notifications[i].Notification == notification)
+                    {
+                        s_notifications.RemoveAt(i);
+                        break;
+                    }
+                }
+
+                // We only register the callback from the runtime in InvokeMemoryLoadChangeNotifications, so to avoid race conditions between
+                // UnregisterMemoryLoadChangeNotification and InvokeMemoryLoadChangeNotifications in native.
+            }
+        }
+
+        // Skips zero-initialization of the array if possible. If T contains object references, 
+        // the array is always zero-initialized.
+        internal static T[] AllocateUninitializedArray<T>(int length)
+        {
+            if (length < 0)
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
+#if DEBUG
+            // in DEBUG arrays of any length can be created uninitialized
+#else
+            // otherwise small arrays are allocated using `new[]` as that is generally faster.
+            //
+            // The threshold was derived from various simulations. 
+            // As it turned out the threshold depends on overal pattern of all allocations and is typically in 200-300 byte range.
+            // The gradient around the number is shallow (there is no perf cliff) and the exact value of the threshold does not matter a lot.
+            // So it is 256 bytes including array header.
+            if (Unsafe.SizeOf<T>() * length < 256 - 3 * IntPtr.Size)
+            {
+                return new T[length];
+            }
+#endif
+            return (T[])AllocateNewArray(typeof(T[]).TypeHandle.Value, length, zeroingOptional: true);
         }
     }
 }

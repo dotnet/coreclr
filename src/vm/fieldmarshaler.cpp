@@ -142,7 +142,7 @@ do                                                      \
         // This type may qualify for ManagedSequential. Collect managed size and alignment info.
         if (CorTypeInfo::IsPrimitiveType(corElemType))
         {
-            pfwalk->m_managedSize = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
+            pfwalk->m_managedPlacement.m_size = ((UINT32)CorTypeInfo::Size(corElemType)); // Safe cast - no primitive type is larger than 4gb!
 #if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
             switch (corElemType)
             {
@@ -151,24 +151,24 @@ do                                                      \
                 case ELEMENT_TYPE_U8:
                 case ELEMENT_TYPE_R8:
                 {
-                    pfwalk->m_managedAlignmentReq = 4;
+                    pfwalk->m_managedPlacement.m_alignment = 4;
                     break;
                 }
 
                 default:
                 {
-                    pfwalk->m_managedAlignmentReq = pfwalk->m_managedSize;
+                    pfwalk->m_managedPlacement.m_alignment = pfwalk->m_managedPlacement.m_size;
                     break;
                 }
             }
 #else // _TARGET_X86_ && UNIX_X86_ABI
-            pfwalk->m_managedAlignmentReq = pfwalk->m_managedSize;
+            pfwalk->m_managedPlacement.m_alignment = pfwalk->m_managedPlacement.m_size;
 #endif
         }
         else if (corElemType == ELEMENT_TYPE_PTR)
         {
-            pfwalk->m_managedSize = TARGET_POINTER_SIZE;
-            pfwalk->m_managedAlignmentReq = TARGET_POINTER_SIZE;
+            pfwalk->m_managedPlacement.m_size = TARGET_POINTER_SIZE;
+            pfwalk->m_managedPlacement.m_alignment = TARGET_POINTER_SIZE;
         }
         else if (corElemType == ELEMENT_TYPE_VALUETYPE)
         {
@@ -177,10 +177,10 @@ do                                                      \
                                                                     TRUE);
             if (pNestedType.GetMethodTable()->IsManagedSequential())
             {
-                pfwalk->m_managedSize = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
+                pfwalk->m_managedPlacement.m_size = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
 
                 _ASSERTE(pNestedType.GetMethodTable()->HasLayout()); // If it is ManagedSequential(), it also has Layout but doesn't hurt to check before we do a cast!
-                pfwalk->m_managedAlignmentReq = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
+                pfwalk->m_managedPlacement.m_alignment = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
             }
             else
             {
@@ -588,12 +588,16 @@ do                                                      \
                 {
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_WINRT_ILLEGAL_TYPE));
                 }
+                else if (COMDelegate::IsDelegate(thNestedType.GetMethodTable()))
+                {
+                    INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE));
+                }
                 else
                 {
                     ItfMarshalInfo itfInfo;
                     if (FAILED(MarshalInfo::TryGetItfMarshalInfo(thNestedType, FALSE, FALSE, &itfInfo)))
                         break;
-
+                        
                     INITFIELDMARSHALER(NFT_INTERFACE, FieldMarshaler_Interface, (itfInfo.thClass.GetMethodTable(), itfInfo.thItf.GetMethodTable(), itfInfo.dwFlags));
                 }
             }
@@ -792,6 +796,16 @@ do                                                      \
                 {
                     INITFIELDMARSHALER(NFT_DELEGATE, FieldMarshaler_Delegate, (thNestedType.GetMethodTable()));
                 }
+#ifdef FEATURE_COMINTEROP
+                else if (ntype == NATIVE_TYPE_IDISPATCH)
+                {
+                    ItfMarshalInfo itfInfo;
+                    if (FAILED(MarshalInfo::TryGetItfMarshalInfo(thNestedType, FALSE, FALSE, &itfInfo)))
+                        break;
+
+                    INITFIELDMARSHALER(NFT_INTERFACE, FieldMarshaler_Interface, (itfInfo.thClass.GetMethodTable(), itfInfo.thItf.GetMethodTable(), itfInfo.dwFlags));
+                }
+#endif // FEATURE_COMINTEROP
                 else
                 {
                     INITFIELDMARSHALER(NFT_ILLEGAL, FieldMarshaler_Illegal, (IDS_EE_BADMARSHAL_DELEGATE));
@@ -1177,7 +1191,7 @@ VOID LayoutUpdateNative(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, Metho
             {
                 pCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 pFM->UpdateNative(&pCLRValue, pNativeData + pFM->GetExternalOffset(), ppCleanupWorkListOnStack);
-                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), pCLRValue);
+                SetObjectReference( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), pCLRValue);
             }
 
             // The cleanup work list is not used to clean up the native contents. It is used
@@ -1319,7 +1333,7 @@ VOID LayoutUpdateCLR(LPVOID *ppProtectedManagedData, SIZE_T offsetbias, MethodTa
             {
                 gc.pOldCLRValue = *(OBJECTREF*)(internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData));
                 pFM->UpdateCLR( pNativeData + pFM->GetExternalOffset(), &gc.pCLRValue, &gc.pOldCLRValue );
-                SetObjectReferenceUnchecked( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
+                SetObjectReference( (OBJECTREF*) (internalOffset + offsetbias + (BYTE*)(*ppProtectedManagedData)), gc.pCLRValue );
             }
 
             ((BYTE*&)pFM) += MAXFIELDMARSHALERSIZE;
@@ -2812,7 +2826,7 @@ VOID FieldMarshaler_FixedArray::UpdateCLRImpl(const VOID *pNativeValue, OBJECTRE
     CONTRACTL_END;
 
     // Allocate the value class array.
-    *ppProtectedCLRValue = AllocateArrayEx(m_arrayType.GetValue(), (INT32*)&m_numElems, 1);
+    *ppProtectedCLRValue = AllocateSzArray(m_arrayType.GetValue(), (INT32)m_numElems);
 
     // Marshal the contents from the native array to the managed array.
     const OleVariant::Marshaler *pMarshaler = OleVariant::GetMarshalerForVarType(m_vt, TRUE);        

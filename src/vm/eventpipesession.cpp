@@ -14,23 +14,22 @@ EventPipeSession::EventPipeSession(
     EventPipeSessionType sessionType,
     unsigned int circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
-    uint32_t numProviders,
-    uint64_t multiFileTraceLengthInSeconds)
+    uint32_t numProviders)
 {
     CONTRACTL
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        PRECONDITION((numProviders == 0) || (numProviders > 0 && pProviders != nullptr));
+        PRECONDITION(circularBufferSizeInMB > 0);
+        PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
 
     m_sessionType = sessionType;
-    m_circularBufferSizeInBytes = circularBufferSizeInMB * 1024 * 1024; // 1MB;
+    m_circularBufferSizeInBytes = (size_t)circularBufferSizeInMB << 20; // 1MB;
     m_rundownEnabled = false;
     m_pProviderList = new EventPipeSessionProviderList(pProviders, numProviders);
-    m_multiFileTraceLengthInSeconds = multiFileTraceLengthInSeconds;
     GetSystemTimeAsFileTime(&m_sessionStartTime);
     QueryPerformanceCounter(&m_sessionStartTimeStamp);
 }

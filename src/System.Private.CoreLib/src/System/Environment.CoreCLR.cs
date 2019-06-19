@@ -33,7 +33,7 @@ namespace System
         // to assign blame for crashes.  Don't mess with this, such as by making it call 
         // another managed helper method, unless you consult with some CLR Watson experts.
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(string message);
+        public static extern void FailFast(string? message);
 
         // This overload of FailFast will allow you to specify the exception object
         // whose bucket details *could* be used when undergoing the failfast process.
@@ -49,10 +49,10 @@ namespace System
         //    IP for bucketing. If the exception object is not preallocated, it will use the bucket
         //    details contained in the object (if any).
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(string message, Exception exception);
+        public static extern void FailFast(string? message, Exception? exception);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern void FailFast(string message, Exception exception, string errorMessage);
+        public static extern void FailFast(string? message, Exception? exception, string? errorMessage);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string[] GetCommandLineArgsNative();
@@ -77,11 +77,8 @@ namespace System
                 GetCommandLineArgsNative();
         }
 
-        public static extern bool HasShutdownStarted
-        {
-            [MethodImpl(MethodImplOptions.InternalCall)]
-            get;
-        }
+        // Unconditionally return false since .NET Core does not support object finalization during shutdown.
+        public static bool HasShutdownStarted => false;
 
         public static int ProcessorCount => GetProcessorCount();
 
@@ -91,7 +88,7 @@ namespace System
         // If you change this method's signature then you must change the code that calls it
         // in excep.cpp and probably you will have to visit mscorlib.h to add the new signature
         // as well as metasig.h to create the new signature type
-        internal static string GetResourceStringLocal(string key) => SR.GetResourceString(key);
+        internal static string? GetResourceStringLocal(string key) => SR.GetResourceString(key);
 
         public static string StackTrace
         {
@@ -104,40 +101,6 @@ namespace System
             [MethodImpl(MethodImplOptions.InternalCall)]
             get;
         }
-
-#if !FEATURE_PAL
-        internal static bool IsWindows8OrAbove => WindowsVersion.IsWindows8OrAbove;
-
-        // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup
-        private static class WindowsVersion
-        {
-            // Cache the value in readonly static that can be optimized out by the JIT
-            internal readonly static bool IsWindows8OrAbove = GetIsWindows8OrAbove();
-
-            private static bool GetIsWindows8OrAbove()
-            {
-                ulong conditionMask = Interop.Kernel32.VerSetConditionMask(0, Interop.Kernel32.VER_MAJORVERSION, Interop.Kernel32.VER_GREATER_EQUAL);
-                conditionMask = Interop.Kernel32.VerSetConditionMask(conditionMask, Interop.Kernel32.VER_MINORVERSION, Interop.Kernel32.VER_GREATER_EQUAL);
-                conditionMask = Interop.Kernel32.VerSetConditionMask(conditionMask, Interop.Kernel32.VER_SERVICEPACKMAJOR, Interop.Kernel32.VER_GREATER_EQUAL);
-                conditionMask = Interop.Kernel32.VerSetConditionMask(conditionMask, Interop.Kernel32.VER_SERVICEPACKMINOR, Interop.Kernel32.VER_GREATER_EQUAL);
-
-                // Windows 8 version is 6.2
-                Interop.Kernel32.OSVERSIONINFOEX version = default;
-                unsafe
-                {
-                    version.dwOSVersionInfoSize = sizeof(Interop.Kernel32.OSVERSIONINFOEX);
-                }
-                version.dwMajorVersion = 6;
-                version.dwMinorVersion = 2;
-                version.wServicePackMajor = 0;
-                version.wServicePackMinor = 0;
-
-                return Interop.Kernel32.VerifyVersionInfoW(ref version,
-                    Interop.Kernel32.VER_MAJORVERSION | Interop.Kernel32.VER_MINORVERSION | Interop.Kernel32.VER_SERVICEPACKMAJOR | Interop.Kernel32.VER_SERVICEPACKMINOR,
-                    conditionMask);
-            }
-        }
-#endif
 
 #if FEATURE_COMINTEROP
         // Seperate type so a .cctor is not created for Enviroment which then would be triggered during startup

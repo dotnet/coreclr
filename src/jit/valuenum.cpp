@@ -1779,7 +1779,7 @@ ValueNum ValueNumStore::VNForDoubleCon(double cnsVal)
     }
 }
 
-ValueNum ValueNumStore::VNForByrefCon(INT64 cnsVal)
+ValueNum ValueNumStore::VNForByrefCon(size_t cnsVal)
 {
     ValueNum res;
     if (GetByrefCnsMap()->Lookup(cnsVal, &res))
@@ -2777,8 +2777,8 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
         }
         else // both args are TYP_REF or both args are TYP_BYREF
         {
-            INT64 arg0Val = ConstantValue<size_t>(arg0VN); // We represent ref/byref constants as size_t's.
-            INT64 arg1Val = ConstantValue<size_t>(arg1VN); // Also we consider null to be zero.
+            size_t arg0Val = ConstantValue<size_t>(arg0VN); // We represent ref/byref constants as size_t's.
+            size_t arg1Val = ConstantValue<size_t>(arg1VN); // Also we consider null to be zero.
 
             if (VNFuncIsComparison(func))
             {
@@ -2787,14 +2787,14 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
             }
             else if (typ == TYP_INT) // We could see GT_OR of a constant ByRef and Null
             {
-                int resultVal = (int)EvalOp<INT64>(func, arg0Val, arg1Val);
+                int resultVal = (int)EvalOp<size_t>(func, arg0Val, arg1Val);
                 result        = VNForIntCon(resultVal);
             }
             else // We could see GT_OR of a constant ByRef and Null
             {
                 assert((typ == TYP_BYREF) || (typ == TYP_LONG));
-                INT64 resultVal = EvalOp<INT64>(func, arg0Val, arg1Val);
-                result          = VNForByrefCon(resultVal);
+                size_t resultVal = EvalOp<size_t>(func, arg0Val, arg1Val);
+                result           = VNForByrefCon(resultVal);
             }
         }
     }
@@ -2824,7 +2824,7 @@ ValueNum ValueNumStore::EvalFuncForConstantArgs(var_types typ, VNFunc func, Valu
             switch (typ)
             {
                 case TYP_BYREF:
-                    result = VNForByrefCon(resultVal);
+                    result = VNForByrefCon((size_t)resultVal);
                     break;
                 case TYP_LONG:
                     result = VNForLongCon(resultVal);
@@ -2981,14 +2981,7 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                     else
                     {
                         assert(typ == TYP_BYREF);
-                        if (srcIsUnsigned)
-                        {
-                            return VNForByrefCon(INT64(unsigned(arg0Val)));
-                        }
-                        else
-                        {
-                            return VNForByrefCon(INT64(arg0Val));
-                        }
+                        return VNForByrefCon(size_t(arg0Val));
                     }
 #else // TARGET_32BIT
                     if (srcIsUnsigned)
@@ -2998,7 +2991,8 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
 #endif
                 case TYP_BYREF:
                     assert(typ == TYP_BYREF);
-                    return VNForByrefCon((INT64)arg0Val);
+                    return VNForByrefCon(size_t(arg0Val));
+
                 case TYP_FLOAT:
                     assert(typ == TYP_FLOAT);
                     if (srcIsUnsigned)
@@ -3059,7 +3053,7 @@ ValueNum ValueNumStore::EvalCastForConstantArgs(var_types typ, VNFunc func, Valu
                             return arg0VN;
                         case TYP_BYREF:
                             assert(typ == TYP_BYREF);
-                            return VNForByrefCon((INT64)arg0Val);
+                            return VNForByrefCon((size_t)arg0Val);
                         case TYP_FLOAT:
                             assert(typ == TYP_FLOAT);
                             if (srcIsUnsigned)
@@ -5759,10 +5753,9 @@ void Compiler::fgValueNumber()
         for (BasicBlock* blk = fgFirstBB; blk != nullptr; blk = blk->bbNext)
         {
             // Now iterate over the block's statements, and their trees.
-            for (GenTree* stmts = blk->FirstNonPhiDef(); stmts != nullptr; stmts = stmts->gtNext)
+            for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
-                assert(stmts->IsStatement());
-                for (GenTree* tree = stmts->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+                for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
                 {
                     tree->gtVNPair.SetBoth(ValueNumStore::NoVN);
                 }
@@ -5925,12 +5918,12 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 
     // First: visit phi's.  If "newVNForPhis", give them new VN's.  If not,
     // first check to see if all phi args have the same value.
-    GenTree* firstNonPhi = blk->FirstNonPhiDef();
-    for (GenTree* phiDefs = blk->bbTreeList; phiDefs != firstNonPhi; phiDefs = phiDefs->gtNext)
+    GenTreeStmt* firstNonPhi = blk->FirstNonPhiDef();
+    for (GenTreeStmt* phiDefStmt = blk->firstStmt(); phiDefStmt != firstNonPhi; phiDefStmt = phiDefStmt->getNextStmt())
     {
         // TODO-Cleanup: It has been proposed that we should have an IsPhiDef predicate.  We would use it
         // in Block::FirstNonPhiDef as well.
-        GenTree* phiDef = phiDefs->gtStmt.gtStmtExpr;
+        GenTree* phiDef = phiDefStmt->gtStmtExpr;
         assert(phiDef->OperGet() == GT_ASG);
         GenTreeLclVarCommon* newSsaVar = phiDef->gtOp.gtOp1->AsLclVarCommon();
 
@@ -6133,21 +6126,19 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     }
 
     // Now iterate over the remaining statements, and their trees.
-    for (GenTree* stmt = firstNonPhi; stmt != nullptr; stmt = stmt->gtNext)
+    for (GenTreeStmt* stmt = firstNonPhi; stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        assert(stmt->IsStatement());
-
 #ifdef DEBUG
         compCurStmtNum++;
         if (verbose)
         {
             printf("\n***** " FMT_BB ", stmt %d (before)\n", blk->bbNum, compCurStmtNum);
-            gtDispTree(stmt->gtStmt.gtStmtExpr);
+            gtDispTree(stmt->gtStmtExpr);
             printf("\n");
         }
 #endif
 
-        for (GenTree* tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
             fgValueNumberTree(tree);
         }
@@ -6156,7 +6147,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
         if (verbose)
         {
             printf("\n***** " FMT_BB ", stmt %d (after)\n", blk->bbNum, compCurStmtNum);
-            gtDispTree(stmt->gtStmt.gtStmtExpr);
+            gtDispTree(stmt->gtStmtExpr);
             printf("\n");
             if (stmt->gtNext)
             {
@@ -7519,17 +7510,6 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                             ValueNum      arrVN  = funcApp.m_args[1];
                             ValueNum      inxVN  = funcApp.m_args[2];
                             FieldSeqNode* fldSeq = vnStore->FieldSeqVNToFieldSeq(funcApp.m_args[3]);
-
-                            if (arg->gtOper != GT_LCL_VAR)
-                            {
-                                // Does the child of the GT_IND 'arg' have an associated zero-offset field sequence?
-                                FieldSeqNode* addrFieldSeq = nullptr;
-                                if (GetZeroOffsetFieldMap()->Lookup(arg, &addrFieldSeq))
-                                {
-                                    fldSeq = GetFieldSeqStore()->Append(addrFieldSeq, fldSeq);
-                                }
-                            }
-
 #ifdef DEBUG
                             if (verbose)
                             {

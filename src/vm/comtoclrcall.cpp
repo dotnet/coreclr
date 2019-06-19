@@ -32,7 +32,6 @@
 #include "dllimport.h"
 #include "mlinfo.h"
 #include "dbginterface.h"
-#include "mdaassistants.h"
 #include "sigbuilder.h"
 #include "notifyexternals.h"
 #include "comdelegate.h"
@@ -597,10 +596,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         }
     }
 
-    // Check for an illegal coop->coop transition.  We may fire the Reentrancy MDA as a result.
-    if (pThread->PreemptiveGCDisabled())
-        HasIllegalReentrancy();
-
     // Attempt to switch GC modes.  Note that this is performed manually just like in the x86 stub because
     // we have additional checks for shutdown races, MDAs, and thread abort that are performed only when 
     // g_TrapReturningThreads is set.
@@ -611,18 +606,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         if (S_OK != hr)
             goto ErrorExit;
     }
-
-#ifdef MDA_SUPPORTED
-    // Check for and trigger the LoaderLock MDA
-    if (ShouldCheckLoaderLock())
-    {
-        BOOL IsHeld;
-        if (AuxUlibIsDLLSynchronizationHeld(&IsHeld) && IsHeld)
-        {
-            MDA_TRIGGER_ASSISTANT(LoaderLock, ReportViolation(0));
-        }
-    }
-#endif // MDA_SUPPORTED
 
     // Initialize the frame's VPTR and GS cookie.
     *((TADDR*)pFrame) = ComMethodFrame::GetMethodFrameVPtr();
@@ -727,11 +710,6 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     }
     CONTRACTL_END;
 
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(GcUnmanagedToManaged, TriggerGC());
-#endif
-
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker enter\n"));
     
     HRESULT hrRetVal = S_OK;
@@ -766,10 +744,6 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     }
 
     GCPROTECT_END();
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(GcManagedToUnmanaged, TriggerGC());
-#endif
 
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker leave\n"));
 
@@ -1149,7 +1123,7 @@ void ComCallMethodDesc::InitNativeInfo()
 
             MarshalInfo info(fsig.GetModule(), fsig.GetArgProps(), fsig.GetSigTypeContext(), pFD->GetMemberDef(), MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                              (CorNativeLinkType)0, (CorNativeLinkFlags)0, 
-                             FALSE, 0, fsig.NumFixedArgs(), BestFit, ThrowOnUnmappableChar, FALSE, NULL, FALSE
+                             FALSE, 0, fsig.NumFixedArgs(), BestFit, ThrowOnUnmappableChar, FALSE, TRUE, NULL, FALSE
 #ifdef _DEBUG
                              , szDebugName, szDebugClassName, 0
 #endif
@@ -1255,7 +1229,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetArgProps(), msig.GetSigTypeContext(), params[iArg],
                                  WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                  (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, FALSE
+                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                  , szDebugName, szDebugClassName, iArg
 #endif
@@ -1317,7 +1291,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetReturnProps(), msig.GetSigTypeContext(), params[0],
                                     WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                     (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, FALSE
+                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                 ,szDebugName, szDebugClassName, 0
 #endif

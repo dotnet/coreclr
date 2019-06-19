@@ -5,6 +5,7 @@ parameters:
   osIdentifier: ''
   name: ''
   displayName: ''
+  helixType: '(unspecified)'
   condition: ''
   dependsOn: ''
   containerName: ''
@@ -28,9 +29,10 @@ jobs:
     dependsOn: ${{ parameters.dependsOn }}
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
-    # Send telemetry for official builds
-    enableTelemetry: ${{ and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}
+    # Send telemetry for all builds
+    enableTelemetry: true
     helixRepo: 'dotnet/coreclr'
+    helixType: ${{ parameters.helixType }}
 
     enableMicrobuild: ${{ parameters.enableMicrobuild }}
 
@@ -38,12 +40,12 @@ jobs:
 
       # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
-        name:  NetCorePublic-Int-Pool
+        name:  NetCorePublic-Pool
         queue: BuildPool.Ubuntu.1604.Amd64.Open
 
       # Official Build Linux Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: NetCoreInternal-Int-Pool
+        name: NetCoreInternal-Pool
         queue: BuildPool.Ubuntu.1604.Amd64
 
       # FreeBSD builds only in the internal project
@@ -60,12 +62,12 @@ jobs:
 
       # Official Build Windows Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), ne(variables['System.TeamProject'], 'public')) }}:
-        name: NetCoreInternal-Int-Pool
+        name: NetCoreInternal-Pool
         queue: BuildPool.Windows.10.Amd64.VS2017
 
       # Public Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: NetCorePublic-Int-Pool
+        name: NetCorePublic-Pool
         queue: BuildPool.Windows.10.Amd64.VS2017.Open
 
     workspace:
@@ -104,6 +106,9 @@ jobs:
       - name: buildConfigUpper
         value: 'Release'
 
+    - name: _BuildConfig
+      value: $(buildConfigUpper)
+
     - name: archType
       value: ${{ parameters.archType }}
 
@@ -113,6 +118,16 @@ jobs:
     - name: osIdentifier
       value: ${{ parameters.osIdentifier }}
       
+    - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: _HelixSource
+        value: official/dotnet/coreclr/$(Build.SourceBranch)
+    - ${{ if and(eq(variables['System.TeamProject'], 'public'), eq(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: _HelixSource
+        value: pr/dotnet/coreclr/$(Build.SourceBranch)
+    - ${{ if and(eq(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - name: _HelixSource
+        value: ci/dotnet/coreclr/$(Build.SourceBranch)
+
     - ${{ if ne(parameters.crossrootfsDir, '') }}:
       - name: crossArg
         value: 'cross'

@@ -20,14 +20,22 @@
 UINT64 QCALLTYPE EventPipeInternal::Enable(
     __in_z LPCWSTR outputFile,
     UINT32 circularBufferSizeInMB,
-    INT64 profilerSamplingRateInNanoseconds,
+    UINT64 profilerSamplingRateInNanoseconds,
     EventPipeProviderConfiguration *pProviders,
-    UINT32 numProviders,
-    UINT64 multiFileTraceLengthInSeconds)
+    UINT32 numProviders)
 {
     QCALL_CONTRACT;
 
     UINT64 sessionID = 0;
+
+    // Invalid input!
+    if (circularBufferSizeInMB == 0 ||
+        profilerSamplingRateInNanoseconds == 0 ||
+        numProviders == 0 ||
+        pProviders == nullptr)
+    {
+        return 0;
+    }
 
     BEGIN_QCALL;
     {
@@ -37,7 +45,8 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
             profilerSamplingRateInNanoseconds,
             pProviders,
             numProviders,
-            multiFileTraceLengthInSeconds);
+            outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Streaming,
+            nullptr);
     }
     END_QCALL;
 

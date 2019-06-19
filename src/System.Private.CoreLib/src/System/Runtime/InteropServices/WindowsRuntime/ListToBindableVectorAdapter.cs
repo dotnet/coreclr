@@ -2,17 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-using System.Security;
-using System.Reflection;
 using System.Collections;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -33,7 +24,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // object GetAt(uint index)
-        internal object GetAt(uint index)
+        internal object? GetAt(uint index)
         {
             IList _this = Unsafe.As<IList>(this);
             EnsureIndexInt32(index, _this.Count);
@@ -63,7 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool IndexOf(object value, out uint index)
-        internal bool IndexOf(object value, out uint index)
+        internal bool IndexOf(object? value, out uint index)
         {
             IList _this = Unsafe.As<IList>(this);
             int ind = _this.IndexOf(value);
@@ -79,7 +70,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void SetAt(uint index, object value)
-        internal void SetAt(uint index, object value)
+        internal void SetAt(uint index, object? value)
         {
             IList _this = Unsafe.As<IList>(this);
             EnsureIndexInt32(index, _this.Count);
@@ -95,7 +86,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void InsertAt(uint index, object value)
-        internal void InsertAt(uint index, object value)
+        internal void InsertAt(uint index, object? value)
         {
             IList _this = Unsafe.As<IList>(this);
 
@@ -134,7 +125,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // void Append(object value)
-        internal void Append(object value)
+        internal void Append(object? value)
         {
             IList _this = Unsafe.As<IList>(this);
             _this.Add(value);

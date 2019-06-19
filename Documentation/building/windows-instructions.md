@@ -50,7 +50,7 @@ Visual Studio Express is not supported.
 
 ## CMake
 
-The CoreCLR repo build has been validated using CMake 3.9.3.
+The CoreCLR repo build has been validated using CMake 3.9.3. When using Visual Studio 2019 at least version 3.14.1 is required. 
 
 - Install [CMake](http://www.cmake.org/download) for Windows.
 - Add its location (e.g. C:\Program Files (x86)\CMake\bin) to the PATH environment variable.  
@@ -60,7 +60,7 @@ The CoreCLR repo build has been validated using CMake 3.9.3.
 
 ## Python
 
-Python is used in the build system. We are currently using python 2.7.9, although
+Python is used in the build system. We are currently using Python 2.7.9, although
 any recent (2.4+) version of Python should work, including Python 3.
 - Install [Python](https://www.python.org/downloads/) for Windows.
 - Add its location (e.g. C:\Python*\) to the PATH environment variable.  
@@ -88,7 +88,7 @@ Powershell version must be 3.0 or higher. This should be the case for Windows 8 
 ## DotNet Core SDK
 While not strictly needed to build or test the .NET Core repository, having the .NET Core SDK installed lets you use the dotnet.exe command to run .NET Core applications in the 'normal' way.   We use this in the 
 [Using Your Build](../workflow/UsingYourBuild.md) instructions.  Visual Studio should have
-installed the .NET Core SDK, but in case it did not you can get it from the [Installing the .NET Core SDK](https://www.microsoft.com/net/core) page.  
+installed the .NET Core SDK, but in case it did not you can get it from the [Installing the .NET Core SDK](https://dotnet.microsoft.com/download) page.  
 
 ## Adding to the default PATH variable
 

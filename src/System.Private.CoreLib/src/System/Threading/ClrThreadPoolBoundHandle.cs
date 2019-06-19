@@ -128,7 +128,7 @@ namespace System.Threading
         ///     This method was called after the <see cref="ThreadPoolBoundHandle"/> was disposed.
         /// </exception>
         [CLSCompliant(false)]
-        public unsafe NativeOverlapped* AllocateNativeOverlapped(IOCompletionCallback callback, object state, object pinData)
+        public unsafe NativeOverlapped* AllocateNativeOverlapped(IOCompletionCallback callback, object? state, object? pinData)
         {
             if (callback == null)
                 throw new ArgumentNullException(nameof(callback));
@@ -254,7 +254,7 @@ namespace System.Threading
         ///     <paramref name="overlapped"/> is <see langword="null"/>.
         /// </exception>
         [CLSCompliant(false)]
-        public static unsafe object GetNativeOverlappedState(NativeOverlapped* overlapped)
+        public static unsafe object? GetNativeOverlappedState(NativeOverlapped* overlapped)
         {
             if (overlapped == null)
                 throw new ArgumentNullException(nameof(overlapped));
@@ -264,7 +264,7 @@ namespace System.Threading
             return wrapper._userState;
         }
 
-        private static unsafe ThreadPoolBoundHandleOverlapped GetOverlappedWrapper(NativeOverlapped* overlapped, ThreadPoolBoundHandle expectedBoundHandle)
+        private static unsafe ThreadPoolBoundHandleOverlapped GetOverlappedWrapper(NativeOverlapped* overlapped, ThreadPoolBoundHandle? expectedBoundHandle)
         {
             ThreadPoolBoundHandleOverlapped wrapper;
             try

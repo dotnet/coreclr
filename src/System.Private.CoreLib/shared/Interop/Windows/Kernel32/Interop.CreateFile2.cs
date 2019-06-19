@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using Microsoft.Win32.SafeHandles;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -25,8 +26,9 @@ internal partial class Interop
             FileMode dwCreationDisposition,
             ref Kernel32.CREATEFILE2_EXTENDED_PARAMETERS pCreateExParams)
         {
-            lpFileName = PathInternal.EnsureExtendedPrefixOverMaxPath(lpFileName);
-            return CreateFile2Private(lpFileName, dwDesiredAccess, dwShareMode, dwCreationDisposition, ref pCreateExParams);
+            string? lpFileNameWithPrefix = PathInternal.EnsureExtendedPrefixIfNeeded(lpFileName);
+            Debug.Assert(lpFileNameWithPrefix != null, "null not expected when non-null passed"); // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            return CreateFile2Private(lpFileNameWithPrefix, dwDesiredAccess, dwShareMode, dwCreationDisposition, ref pCreateExParams);
         }
     }
 }

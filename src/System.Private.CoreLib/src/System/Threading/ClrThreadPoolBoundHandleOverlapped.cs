@@ -12,13 +12,13 @@ namespace System.Threading
         private static readonly unsafe IOCompletionCallback s_completionCallback = CompletionCallback;
 
         private readonly IOCompletionCallback _userCallback;
-        internal readonly object _userState;
-        internal PreAllocatedOverlapped _preAllocated;
+        internal readonly object? _userState;
+        internal PreAllocatedOverlapped? _preAllocated;
         internal unsafe NativeOverlapped* _nativeOverlapped;
-        internal ThreadPoolBoundHandle _boundHandle;
+        internal ThreadPoolBoundHandle? _boundHandle;
         internal bool _completed;
 
-        public unsafe ThreadPoolBoundHandleOverlapped(IOCompletionCallback callback, object state, object pinData, PreAllocatedOverlapped preAllocated)
+        public unsafe ThreadPoolBoundHandleOverlapped(IOCompletionCallback callback, object? state, object? pinData, PreAllocatedOverlapped? preAllocated)
         {
             _userCallback = callback;
             _userState = state;

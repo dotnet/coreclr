@@ -496,6 +496,7 @@ BEGIN
 STRINGTABLE DISCARDABLE 
 BEGIN
     CEE_E_CVTRES_NOT_FOUND                  "Could not execute CVTRES.EXE."
+    IDS_EE_THREAD_APARTMENT_NOT_SUPPORTED   "The system does not support the %1 thread apartment."
     IDS_EE_NDIRECT_UNSUPPORTED_SIG          "Method's type signature is not PInvoke compatible."
     IDS_EE_COM_UNSUPPORTED_SIG              "Method's type signature is not Interop compatible."
     IDS_EE_COM_UNSUPPORTED_TYPE             "The method returned a COM Variant type that is not Interop compatible."
@@ -586,7 +587,8 @@ BEGIN
     IDS_EE_BADMARSHAL_R8                    "Invalid managed/unmanaged type combination (Double must be paired with R8)."
     IDS_EE_BADMARSHAL_PTR                   "Invalid managed/unmanaged type combination (pointers must not have a MarshalAs attribute set)."
     IDS_EE_BADMARSHAL_NOLAYOUT              "The type definition of this type has no layout information."
-    IDS_EE_BADMARSHAL_DELEGATE              "Invalid managed/unmanaged type combination (Delegates must be paired with FunctionPtr or Interface)."
+    IDS_EE_BADMARSHAL_DELEGATE              "Invalid managed/unmanaged type combination (Delegates must be paired with FunctionPtr or IDispatch)."
+    IDS_EE_BADMARSHAL_DELEGATE_TLB_INTERFACE ".NET Core does not support marshalling delegates to the _Delegate interface provided by the .NET Framework COM Type Library. To marshal a delegate as an interface, marshal it as an IDispatch pointer."
     IDS_EE_BADMARSHAL_FNPTR                 "Invalid managed/unmanaged type combination (function pointers must be paired with FunctionPtr)."
     IDS_EE_BADMARSHAL_INTERFACE             "Invalid managed/unmanaged type combination (Interfaces must be paired with Interface)."
     IDS_EE_BADMARSHAL_CLASS                 "Invalid managed/unmanaged type combination (this type must be paired with LPStruct or Interface)."
@@ -732,6 +734,7 @@ BEGIN
     IDS_CLASSLOAD_MI_FINAL_IMPL             "Method implementation on an interface '%1' from assembly '%2' must be a final method."
     IDS_CLASSLOAD_AMBIGUOUS_OVERRIDE        "Could not call method '%1' on interface '%2' with type '%3' from assembly '%4' because there are multiple incompatible interface methods overriding this method."
     IDS_CLASSLOAD_UNSUPPORTED_DISPATCH      "Could not make constrained call to method '%1' on interface '%2' with type '%3' from assembly '%4'. Dispatch to default interface methods is not supported in this situation."
+    IDS_CLASSLOAD_METHOD_NOT_IMPLEMENTED    "Could not call method '%1' on type '%2' with an instance of '%3' from assembly '%4' because there is no implementation for the method."
 
     IDS_CLASSLOAD_MISSINGMETHODRVA          "Could not load type '%1' from assembly '%2' because the method '%3' has no implementation (no RVA)."
     SECURITY_E_INCOMPATIBLE_EVIDENCE        "Assembly '%1' already loaded without additional security evidence."
@@ -911,8 +914,9 @@ BEGIN
     
     IDS_EE_COM_INVISIBLE_PARENT "Type '%1' has a ComVisible(false) parent '%2' in its hierarchy, therefore QueryInterface calls for IDispatch or class interfaces are disallowed."
 
-    IDS_EE_COMIMPORT_METHOD_NO_INTERFACE    "Method '%1' in ComImport class '%2' must implement an interface method."
     IDS_EE_ATTEMPT_TO_CREATE_GENERIC_CCW    "Generic types cannot be marshaled to COM interface pointers."
+    IDS_EE_ATTEMPT_TO_CREATE_NON_ABSTRACT_CCW "Types with non-abstract methods cannot be marshaled to COM interface pointers."
+    IDS_EE_COMIMPORT_METHOD_NO_INTERFACE    "Method '%1' in ComImport class '%2' must implement an interface method."
 
     IDS_CLASSLOAD_BAD_METHOD_COUNT          "Metadata method count does not match method enumeration length for type '%1' from assembly '%2'."
     IDS_CLASSLOAD_BAD_FIELD_COUNT           "Metadata field count does not match field enumeration length for type '%1' from assembly '%2'."

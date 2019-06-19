@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -13,37 +12,6 @@ namespace System.Threading
     internal partial class TimerQueue
     {
         #region interface to native per-AppDomain timer
-
-#if !FEATURE_PAL
-        private static int TickCount
-        {
-            get
-            {
-                // We need to keep our notion of time synchronized with the calls to SleepEx that drive
-                // the underlying native timer.  In Win8, SleepEx does not count the time the machine spends
-                // sleeping/hibernating.  Environment.TickCount (GetTickCount) *does* count that time,
-                // so we will get out of sync with SleepEx if we use that method.
-                //
-                // So, on Win8, we use QueryUnbiasedInterruptTime instead; this does not count time spent
-                // in sleep/hibernate mode.
-                if (Environment.IsWindows8OrAbove)
-                {
-                    ulong time100ns;
-
-                    bool result = Interop.Kernel32.QueryUnbiasedInterruptTime(out time100ns);
-                    if (!result)
-                        throw Marshal.GetExceptionForHR(Marshal.GetLastWin32Error());
-
-                    // convert to 100ns to milliseconds, and truncate to 32 bits.
-                    return (int)(uint)(time100ns / 10000);
-                }
-                else
-                {
-                    return Environment.TickCount;
-                }
-            }
-        }
-#endif
 
         // We use a SafeHandle to ensure that the native timer is destroyed when the AppDomain is unloaded.
         private sealed class AppDomainTimerSafeHandle : SafeHandleZeroOrMinusOneIsInvalid
@@ -61,7 +29,7 @@ namespace System.Threading
 
         private readonly int _id; // TimerQueues[_id] == this
 
-        private AppDomainTimerSafeHandle m_appDomainTimer;
+        private AppDomainTimerSafeHandle? m_appDomainTimer;
 
         private TimerQueue(int id)
         {

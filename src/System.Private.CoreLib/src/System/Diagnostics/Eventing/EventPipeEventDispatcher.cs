@@ -32,7 +32,7 @@ namespace System.Diagnostics.Tracing
         private Int64 m_timeQPCFrequency;
 
         private bool m_stopDispatchTask;
-        private Task m_dispatchTask = null;
+        private Task? m_dispatchTask = null;
         private object m_dispatchControlLock = new object();
         private Dictionary<EventListener, EventListenerSubscription> m_subscriptions = new Dictionary<EventListener, EventListenerSubscription>();
 
@@ -110,7 +110,7 @@ namespace System.Diagnostics.Tracing
                 new EventPipeProviderConfiguration(NativeRuntimeEventSource.EventSourceName, (ulong) aggregatedKeywords, (uint) highestLevel, null)
             };
 
-            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1, 0);
+            m_sessionID = EventPipeInternal.Enable(null, 1024, 1, providerConfiguration, 1);
             Debug.Assert(m_sessionID != 0);
 
             // Get the session information that is required to properly dispatch events.

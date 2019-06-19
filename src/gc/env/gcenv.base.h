@@ -71,6 +71,8 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define E_FAIL                  0x80004005
 #define E_OUTOFMEMORY           0x8007000E
 #define COR_E_EXECUTIONENGINE   0x80131506
+#define CLR_E_GC_BAD_AFFINITY_CONFIG 0x8013200A
+#define CLR_E_GC_BAD_AFFINITY_CONFIG_FORMAT 0x8013200B
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460
@@ -535,23 +537,5 @@ inline bool FitsInU1(uint64_t val)
 {
     return val == (uint64_t)(uint8_t)val;
 }
-
-// -----------------------------------------------------------------------------------------------------------
-//
-// AppDomain emulation. The we don't have these in Redhawk so instead we emulate the bare minimum of the API
-// touched by the GC/HandleTable and pretend we have precisely one (default) appdomain.
-//
-
-#define RH_DEFAULT_DOMAIN_ID 1
-
-struct ADIndex
-{
-    DWORD m_dwIndex;
-
-    ADIndex () : m_dwIndex(RH_DEFAULT_DOMAIN_ID) {}
-    explicit ADIndex (DWORD id) : m_dwIndex(id) {}
-    BOOL operator==(const ADIndex& ad) const { return m_dwIndex == ad.m_dwIndex; }
-    BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
-};
 
 #endif // __GCENV_BASE_INCLUDED__
