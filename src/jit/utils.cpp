@@ -1986,9 +1986,9 @@ bool FloatingPointUtils::hasPreciseReciprocal(double x)
         return false;
     }
 
-    uint64_t i        = *(uint64_t*)&x;
-    uint64_t exponent = (i >> 52) && 0x7FFul;
-    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul;
+    uint64_t i        = reinterpret_cast<uint64_t &>(x);
+    uint64_t exponent = (i >> 52) & 0x7FFul; // 0x7FF mask drops the sign bit
+    uint64_t mantissa = i & 0xFFFFFFFFFFFFFul; // 0xFFFFFFFFFFFFF mask drops sign + exponent bits
     return mantissa == 0 && exponent != 0 && exponent != 1023;
 }
 
@@ -2010,9 +2010,9 @@ bool FloatingPointUtils::hasPreciseReciprocal(float x)
         return false;
     }
 
-    uint32_t i        = *(uint32_t*)&x;
-    uint8_t  exponent = (uint8_t)(i >> 23);
-    uint32_t mantissa = i & 0x7fffff;
+    uint32_t i        = reinterpret_cast<uint32_t &>(x);
+    uint32_t exponent = (i >> 23) & 0xFFu; // 0xFF mask drops the sign bit
+    uint32_t mantissa = i & 0x7FFFFFu; // 0x7FFFFF mask drops sign + exponent bits
     return mantissa == 0 && exponent != 0 && exponent != 127;
 }
 
