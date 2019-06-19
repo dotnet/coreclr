@@ -31,7 +31,7 @@ public class Program
 
 
         // Also, add some random values
-        var random = new Random();
+        var random = new Random(42314); // fixed seed
         for (int i = 0; i < 100000; i++)
             testValues.Add(random.NextDouble());
 
@@ -134,7 +134,7 @@ public class Program
 
     private static void TestNotPowOfTwo_Double(double x)
     {
-        // TestNotPowOfTwo_Double should not contain 'mul' instructions
+        // TestNotPowOfTwo_Double should not contain 'mul' instructions (the optimization should not be applied here)
         AssertEquals(expected: x / ConstToVar(3), actual: x / 3);
         AssertEquals(expected: x / ConstToVar(9), actual: x / 9);
         AssertEquals(expected: x / ConstToVar(2.5), actual: x / 2.5);
