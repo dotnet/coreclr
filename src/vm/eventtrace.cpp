@@ -4243,8 +4243,8 @@ VOID EtwCallbackCommon(
     // from EventPipe, but not from ETW.
     if (isEventPipeCallback)
     {
-        ctxToUpdate->EventpipeProvider.Level = Level;
-        ctxToUpdate->EventpipeProvider.EnabledKeywordsBitmask = MatchAnyKeyword;
+        ctxToUpdate->EventPipeProvider.Level = Level;
+        ctxToUpdate->EventPipeProvider.EnabledKeywordsBitmask = MatchAnyKeyword;
     }
 
     // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
@@ -7530,9 +7530,9 @@ bool EventPipeHelper::IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONG
     }
     CONTRACTL_END
 
-    if (Level <= Context.EventpipeProvider.Level || Context.EventpipeProvider.Level == 0)
+    if (Level <= Context.EventPipeProvider.Level || Context.EventPipeProvider.Level == 0)
     {
-        return (Keyword & Context.EventpipeProvider.EnabledKeywordsBitmask) != 0;
+        return (Keyword & Context.EventPipeProvider.EnabledKeywordsBitmask) != 0;
     }
 
     return false;

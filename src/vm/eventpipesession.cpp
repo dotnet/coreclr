@@ -430,9 +430,9 @@ void EventPipeSession::EnableRundown()
     const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
 
     // update the provider context here since the callback doesn't happen till we actually try to do rundown.
-    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventpipeProvider.Level = VerboseLoggingLevel;
-    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventpipeProvider.EnabledKeywordsBitmask = Keywords;
-    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventpipeProvider.IsEnabled = true;
+    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventPipeProvider.Level = VerboseLoggingLevel;
+    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventPipeProvider.EnabledKeywordsBitmask = Keywords;
+    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventPipeProvider.IsEnabled = true;
 
     // Update provider list with rundown configuration.
     for (uint32_t i = 0; i < RundownProvidersSize; ++i)
