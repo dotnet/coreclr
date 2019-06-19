@@ -27,6 +27,87 @@ trigger:
 pr:
 - master
 
+schedules:
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress') }}:
+    - cron: '0 20 * * *'
+      displayName: 'coreclr-outerloop-jitstress 8pm daily build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstressregs') }}:
+    - cron: '0 2 * * 0,6'
+      displayName: 'coreclr-outerloop-jitstressregs 2am Sat/Sun build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-jitstress2-jitstressregs') }}:
+    - cron: '0 9 * * 0,6'
+      displayName: 'coreclr-outerloop-jitstress2-jitstressregs 9am Sat/Sun build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress0x3-gcstress0xc') }}:
+    - cron: '0 5 * * 0,6'
+      displayName: 'coreclr-outerloop-gcstress0x3-gcstress0xc 5pm Sat/Sun build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-gcstress-extra') }}:
+    - cron: '0 13 * * 0,6'
+      displayName: 'coreclr-outerloop-gcstress-extra 1pm Sat/Sun build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-outerloop-r2r-extra') }}:
+    - cron: '0 18 * * 0,6'
+      displayName: 'coreclr-outerloop-r2r-extra 6pm Sat/Sun build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx') }}:
+    - cron: '0 3 * * *'
+      displayName: 'coreclr-corefx 3am nightly build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstress') }}:
+    - cron: '30 0 * * *'
+      displayName: 'coreclr-corefx-jitstress 12:30am nightly build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstressregs') }}:
+    - cron: '0 4 * * *'
+      displayName: 'coreclr-corefx-jitstressregs 4am nightly build'
+      branches:
+        include:
+        - master
+      always: true
+
+  - ${{ if eq(variables['Build.DefinitionName'], 'coreclr-corefx-jitstress2-jitstressregs') }}:
+    - cron: '30 1 * * *'
+      displayName: 'coreclr-corefx-jitstress2-jitstressregs 1:30am nightly build'
+      branches:
+        include:
+        - master
+      always: true
+
 jobs:
 
 ##   The following is the matrix of test runs that we have. This is
