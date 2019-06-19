@@ -85,6 +85,9 @@
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ValueTypeKey
 -nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
 -nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
+
+# Timeout in System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
+# https://github.com/dotnet/coreclr/issues/18912
 -nomethod System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
 
 # Assert with JITMinOpts=1: https://github.com/dotnet/coreclr/issues/25070
