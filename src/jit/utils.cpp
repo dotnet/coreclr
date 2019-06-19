@@ -1853,7 +1853,7 @@ unsigned __int64 FloatingPointUtils::convertDoubleToUInt64(double d)
         const double two63 = 2147483648.0 * 4294967296.0;
         if (d < two63)
         {
-            u64                               = UINT64(d);
+            u64 = UINT64(d);
         }
         else
         {
@@ -1876,7 +1876,7 @@ unsigned __int64 FloatingPointUtils::convertDoubleToUInt64(double d)
 
     u64 = UINT64(INT64(d));
 #else
-    u64 = UINT64(d);
+    u64                               = UINT64(d);
 #endif // _TARGET_XARCH_
 
     return u64;
