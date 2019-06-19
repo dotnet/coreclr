@@ -2,15 +2,6 @@ variables:
 - name: DOTNET_SKIP_FIRST_TIME_EXPERIENCE
   value: true
 
-resources:
-  containers:
-
-  - container: centos7_x64_build_image
-    image: mcr.microsoft.com/dotnet-buildtools/prereqs:centos-7-3e800f1-20190501005343
-
-  - container: centos6_x64_build_image
-    image: mcr.microsoft.com/dotnet-buildtools/prereqs:centos-6-3e800f1-20190501005338
-
 trigger:
 - master
 

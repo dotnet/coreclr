@@ -9,7 +9,6 @@ parameters:
   condition: ''
   dependsOn: ''
   container: ''
-  containerName: ''
   timeoutInMinutes: ''
   crossrootfsDir: ''
   enableMicrobuild: ''
@@ -74,8 +73,10 @@ jobs:
     workspace:
       clean: all
 
-    ${{ if ne(parameters.containerName, '') }}:
-      container: ${{ format('{0}:{1}', 'mcr.microsoft.com/dotnet-buildtools/prereqs', parameters.containerName) }}
+    ${{ if contains(parameters.container, ':') }}:
+      container: ${{ parameters.container }}
+    ${{ if and(ne(parameters.container, ''), not(contains(parameters.container, ':')) }}:
+      container: ${{ format('{0}:{1}', 'mcr.microsoft.com/dotnet-buildtools/prereqs', parameters.container) }}
 
     ${{ if eq(parameters.osGroup, 'Linux') }}:
       agentOs: Ubuntu
