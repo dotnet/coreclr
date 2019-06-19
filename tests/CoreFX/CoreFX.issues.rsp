@@ -1,4 +1,4 @@
--notrait category=OuterLoop 
+-notrait category=OuterLoop
 -notrait category=RequiresElevation
 
 # Wrong Microsoft.Bcl.AsyncInterfaces binary (netcoreapp vs. netstandard)
@@ -80,6 +80,7 @@
 # System.Runtime.Serialization.Formatters.Tests: timeouts
 -nonamespace System.Runtime.Serialization.Formatters.Tests
 
+# Assert with TieredCompilation=1 JitStress=1/2: https://github.com/dotnet/coreclr/issues/25263
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ReferenceTypeKey
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ValueTypeKey
 
