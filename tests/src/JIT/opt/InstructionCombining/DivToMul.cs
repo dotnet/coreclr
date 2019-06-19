@@ -31,9 +31,8 @@ public class Program
 
 
         // Also, add some random values
-        var random = new Random(42314); // fixed seed
         for (int i = 0; i < 100000; i++)
-            testValues.Add(random.NextDouble());
+            testValues.Add(TestLibrary.Generator.GetDouble());
 
         foreach (double value in testValues)
         {
