@@ -1956,14 +1956,14 @@ float FloatingPointUtils::round(float x)
 
 bool FloatingPointUtils::isNormal(double x)
 {
-    int64_t bits = *(int64_t*)&x;
+    int64_t bits = reinterpret_cast<int64_t &>(x);
     bits &= 0x7FFFFFFFFFFFFFFF;
     return (bits < 0x7FF0000000000000) && (bits != 0) && ((bits & 0x7FF0000000000000) != 0);
 }
 
 bool FloatingPointUtils::isNormal(float x)
 {
-    int32_t bits = *(int32_t*)&x;
+    int32_t bits = reinterpret_cast<int32_t &>(x);
     bits &= 0x7FFFFFFF;
     return (bits < 0x7F800000) && (bits != 0) && ((bits & 0x7F800000) != 0);
 }
