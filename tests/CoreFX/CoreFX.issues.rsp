@@ -83,6 +83,8 @@
 
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ReferenceTypeKey
 -nomethod Generic.Dictionary.DictionaryConcurrentAccessDetectionTests.DictionaryConcurrentAccessDetection_ValueTypeKey
+
+# Test failure: https://github.com/dotnet/corefx/issues/37989
 -nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
 -nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 
