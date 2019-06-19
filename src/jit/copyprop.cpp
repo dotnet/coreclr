@@ -180,6 +180,13 @@ void Compiler::optCopyProp(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree, 
             continue;
         }
 
+        // Do not copy propagate if the old lclVar was 'doNotEnregister', but not the new one, in case
+        // this is an address-taken context.
+        if (lvaTable[lclNum].lvDoNotEnregister && !lvaTable[newLclNum].lvDoNotEnregister)
+        {
+            continue;
+        }
+
         if (op->gtFlags & GTF_VAR_CAST)
         {
             continue;
