@@ -2252,10 +2252,13 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
         if (uStubCallingConvInfo & IMAGE_CEE_CS_CALLCONV_GENERIC)
             IfFailThrow(m_managedSigPtr.GetData(NULL));    // skip number of type parameters
 
+        ULONG numParams = 0;
+        IfFailThrow(m_managedSigPtr.GetData(&numParams));
+        // If we are a reverse stub, then the target signature called in the stub
+        // is the managed signature. In that case, we calculate the target IL stack delta
+        // here from the managed signature.
         if (fIsReverseStub)
         {
-            ULONG numParams = 0;
-            IfFailThrow(m_managedSigPtr.GetData(&numParams));
             // As per ECMA 335, the max number of parameters is 0x1FFFFFFF (see section 11.23.2), which fits in a 32-bit signed integer 
             // So this cast is safe.
             m_iTargetStackDelta -= (INT)numParams;
@@ -2263,10 +2266,6 @@ ILStubLinker::ILStubLinker(Module* pStubSigModule, const Signature &signature, S
             {
                 m_iTargetStackDelta++;
             }
-        }
-        else
-        {
-            IfFailThrow(m_managedSigPtr.GetData(NULL));        // skip number of parameters
         }
         IfFailThrow(m_managedSigPtr.SkipExactlyOne()); // skip return type
     }
@@ -2518,7 +2517,7 @@ void ILStubLinker::SetStubTargetCallingConv(CorCallingConvention uNativeCallingC
     {
         if ( (originalCallingConvention & CORINFO_CALLCONV_HASTHIS) && !(uNativeCallingConv & CORINFO_CALLCONV_HASTHIS))
         {
-            // Our calling convention had an implied-this beforehand and now it doesnt.
+            // Our calling convention had an implied-this beforehand and now it doesn't.
             // Account for this in the target stack delta.
             m_iTargetStackDelta++;
         }
@@ -2798,6 +2797,11 @@ ILStubLinker::SetStubTargetArgType(
 
     DWORD dwArgNum = m_nativeFnSigBuilder.NewArg(pLoc);
 
+    // If we are a reverse stub, then the native function signature is the signature of the
+    // stub instead of the signature of the target.
+    // Otherwise, the native signature is the signature of the target.
+    // So, we only want to modify the target IL stack delta here if we are calling the native
+    // function as our target signature.
     if (!m_fIsReverseStub)
     {
         m_iTargetStackDelta--;
