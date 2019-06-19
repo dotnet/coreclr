@@ -71,7 +71,8 @@
 # System.Linq.Expressions.Tests: timeout on Linux/x64
 -nonamespace System.Linq.Expressions.Tests
 
-# assert/crashes
+# Assertion in System.Number.FormatDouble
+# https://github.com/dotnet/coreclr/issues/25081
 -nomethod System.Tests.RealFormatterTestsBase.TestFormatterSingle_F20
 -noclass System.Tests.RealFormatterTestsBase
 -noclass System.Tests.RealFormatterTests
