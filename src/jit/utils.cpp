@@ -1744,7 +1744,9 @@ bool MethodSet::IsActiveMethod(const char* methodName, int methodHash)
 }
 
 #ifdef FEATURE_JIT_METHOD_PERF
-CycleCount::CycleCount() : cps(CycleTimer::CyclesPerSecond()) {}
+CycleCount::CycleCount() : cps(CycleTimer::CyclesPerSecond())
+{
+}
 
 bool CycleCount::GetCycles(unsigned __int64* time)
 {
@@ -1826,7 +1828,7 @@ double FloatingPointUtils::convertUInt64ToDouble(unsigned __int64 uIntVal)
         uint64_t adjHex = 0x43F0000000000000UL;
         d               = (double)s64 + *(double*)&adjHex;
 #else
-        d = (double)uIntVal;
+        d                             = (double)uIntVal;
 #endif
     }
     else
@@ -1851,7 +1853,7 @@ unsigned __int64 FloatingPointUtils::convertDoubleToUInt64(double d)
         const double two63 = 2147483648.0 * 4294967296.0;
         if (d < two63)
         {
-            u64 = UINT64(d);
+            u64                               = UINT64(d);
         }
         else
         {
@@ -2345,4 +2347,4 @@ int64_t GetSigned64Magic(int64_t d, int* shift /*out*/)
     return GetSignedMagic<int64_t>(d, shift);
 }
 #endif
-} // namespace MagicDivide
+}
