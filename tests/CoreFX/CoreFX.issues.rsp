@@ -68,8 +68,7 @@
 -nomethod System.Net.Security.Tests.LoggingTest.EventSource_EventsRaisedAsExpected
 -nomethod System.Net.Security.Tests.SslStreamSniTest.SslStream_NoSniFromClient_CallbackReturnsNull
 
-# System.Linq.Expressions.Tests: timeout on Linux/x64
--nonamespace System.Linq.Expressions.Tests
+-nomethod System.Linq.Expressions.Tests.ArrayBoundsTests.NewArrayBounds
 
 # Assertion in System.Number.FormatDouble
 # https://github.com/dotnet/coreclr/issues/25081
