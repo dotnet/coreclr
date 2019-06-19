@@ -4200,7 +4200,8 @@ VOID EtwCallbackCommon(
     ULONG ControlCode,
     UCHAR Level,
     ULONGLONG MatchAnyKeyword,
-    PVOID pFilterData)
+    PVOID pFilterData,
+    BOOL isEventPipeCallback)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -4237,8 +4238,14 @@ VOID EtwCallbackCommon(
         return;
     }
 
-    ctxToUpdate->EventpipeProvider.Level = Level;
-    ctxToUpdate->EventpipeProvider.EnabledKeywordsBitmask = MatchAnyKeyword;
+    // This callback gets called on both ETW/EventPipe session enable/disable.
+    // We need toupdate the EventPipe provider context if we are in a callback
+    // from EventPipe, but not from ETW.
+    if (isEventPipeCallback)
+    {
+        ctxToUpdate->EventpipeProvider.Level = Level;
+        ctxToUpdate->EventpipeProvider.EnabledKeywordsBitmask = MatchAnyKeyword;
+    }
 
     // Special check for the runtime provider's GCHeapCollectKeyword.  Profilers
     // flick this to force a full GC.
@@ -4274,7 +4281,7 @@ VOID EventPipeEtwCallbackDotNETRuntimeStress(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword, FilterData);
+    EtwCallbackCommon(DotNETRuntimeStress, ControlCode, Level, MatchAnyKeyword, FilterData, true);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntime(
@@ -4288,7 +4295,7 @@ VOID EventPipeEtwCallbackDotNETRuntime(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword, FilterData);
+    EtwCallbackCommon(DotNETRuntime, ControlCode, Level, MatchAnyKeyword, FilterData, true);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntimeRundown(
@@ -4302,7 +4309,7 @@ VOID EventPipeEtwCallbackDotNETRuntimeRundown(
 {
     LIMITED_METHOD_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword, FilterData);
+    EtwCallbackCommon(DotNETRuntimeRundown, ControlCode, Level, MatchAnyKeyword, FilterData, true);
 }
 
 VOID EventPipeEtwCallbackDotNETRuntimePrivate(
@@ -4316,7 +4323,7 @@ VOID EventPipeEtwCallbackDotNETRuntimePrivate(
 {
     WRAPPER_NO_CONTRACT;
 
-    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword, FilterData);
+    EtwCallbackCommon(DotNETRuntimePrivate, ControlCode, Level, MatchAnyKeyword, FilterData, true);
 }
 
 
@@ -4390,13 +4397,13 @@ extern "C"
             (1<<(Descriptor->Id%8))) != 0)
         {
             if(RegHandle == Microsoft_Windows_DotNETRuntimeHandle) {                
-                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, &CLRStackWalk, &CLRStackId);
+                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, &CLRStackWalk, &CLRStackId);
             } else if(RegHandle == Microsoft_Windows_DotNETRuntimeRundownHandle) {
-                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context, &CLRStackWalkDCStart, &CLRStackRundownId);
+                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context, &CLRStackWalkDCStart, &CLRStackRundownId);
             } else if(RegHandle == Microsoft_Windows_DotNETRuntimePrivateHandle) {
-                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, &CLRStackWalkPrivate, &CLRStackPrivateId);
+                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, &CLRStackWalkPrivate, &CLRStackPrivateId);
             } else if(RegHandle == Microsoft_Windows_DotNETRuntimeStressHandle) {
-                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_DOTNET_Context, &CLRStackWalkStress, &CLRStackStressId);
+                ETW::SamplingLog::SendStackTrace(MICROSOFT_WINDOWS_DOTNETRUNTIME_STRESS_PROVIDER_Context, &CLRStackWalkStress, &CLRStackStressId);
             }
         }
     }
@@ -4476,7 +4483,7 @@ extern "C"
             return;
         }
 
-        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword, FilterData);
+        EtwCallbackCommon(providerIndex, ControlCode, Level, MatchAnyKeyword, FilterData, false);
 
         // TypeSystemLog needs a notification when certain keywords are modified, so
         // give it a hook here.

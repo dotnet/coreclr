@@ -86,7 +86,7 @@ enum EtwThreadFlags
 //
 
 #define ETW_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((Context.EtwProvider.IsEnabled && McGenEventProviderEnabled(&Context, Level, Keyword)) || EventPipeHelper::IsEnabled(Context, Level, Keyword))
+    ((Context.EtwProvider.IsEnabled && McGenEventProviderEnabled(&(Context.EtwProvider), Level, Keyword)) || EventPipeHelper::IsEnabled(Context, Level, Keyword))
 
 
 // This macro only checks if a provider is enabled
@@ -116,11 +116,11 @@ enum EtwThreadFlags
 #define ETWFireEvent(EventName)
 
 #define ETW_TRACING_INITIALIZED(RegHandle) (TRUE)
-#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (EventPipeHelper::IsEnabled(Context, Level, Keyword) || (XplatEventLogger::IsEventLoggingEnabled()))
-#define ETW_EVENT_ENABLED(Context, EventDescriptor) (ETW_CATEGORY_ENABLED(Context, EventDescriptor.Level, EventDescriptor.Keyword))
-#define ETW_TRACING_ENABLED(Context, EventDescriptor) (ETW_EVENT_ENABLED(Context, EventDescriptor) && EventEnabled##EventDescriptor())
-#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (ETW_CATEGORY_ENABLED(Context, Level, Keyword))
-#define ETW_PROVIDER_ENABLED(ProviderSymbol) (XplatEventLogger::IsProviderEnabled(Context))
+#define ETW_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_EVENT_ENABLED(Context, EventDescriptor) (XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_TRACING_ENABLED(Context, EventDescriptor) (EventEnabled##EventDescriptor())
+#define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) (XplatEventLogger::IsEventLoggingEnabled())
+#define ETW_PROVIDER_ENABLED(ProviderSymbol) (TRUE)
 #endif // defined(FEATURE_PERFTRACING)
 #endif // !defined(FEATURE_PAL)
 
@@ -179,7 +179,8 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the event is enabled
 //
 #define ETW_TRACING_ENABLED(Context, EventDescriptor) \
-    ((Context.EtwProvider.IsEnabled && ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor)))
+    ((Context.EtwProvider.IsEnabled && ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_EVENT_ENABLED(Context, EventDescriptor))|| \
+        EventPipeHelper::IsEnabled(Context, EventDescriptor.Level, EventDescriptor.Keyword))
 
 //
 // Using KEYWORDZERO means when checking the events category ignore the keyword
@@ -190,13 +191,12 @@ struct ProfilingScanContext;
 // Use this macro to check if ETW is initialized and the category is enabled
 //
 #define ETW_TRACING_CATEGORY_ENABLED(Context, Level, Keyword) \
-    ((ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword)) || \
-        EventPipeHelper::IsEnabled(Context, Level, Keyword))
+    (ETW_TRACING_INITIALIZED(Context.EtwProvider.RegistrationHandle) && ETW_CATEGORY_ENABLED(Context, Level, Keyword))
 
-    #define ETWOnStartup(StartEventName, EndEventName) \
-        ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
-    #define ETWFireEvent(EventName) \
-        ETWTraceStartup::StartupTraceEvent(Microsoft_Windows_DotNETRuntimePrivateHandle, &EventName, &StartupId);
+#define ETWOnStartup(StartEventName, EndEventName) \
+    ETWTraceStartup trace##StartEventName##(Microsoft_Windows_DotNETRuntimePrivateHandle, &StartEventName, &StartupId, &EndEventName, &StartupId);
+#define ETWFireEvent(EventName) \
+    ETWTraceStartup::StartupTraceEvent(Microsoft_Windows_DotNETRuntimePrivateHandle, &EventName, &StartupId);
 
 #ifndef FEATURE_REDHAWK
 // Headers
@@ -228,8 +228,7 @@ extern UINT32 g_nClrInstanceId;
 /***************************************/
 /* Tracing levels supported by CLR ETW */
 /***************************************/
-#define ETWMAX_TRACE_LEVEL 6        // Maximum Number of Trace Levels supported
-#define TRACE_LEVEL_NONE        0   // Tracing is not on
+#define MAX_TRACE_LEVEL         6   // Maximum Number of Trace Levels supported
 #define TRACE_LEVEL_FATAL       1   // Abnormal exit or termination
 #define TRACE_LEVEL_ERROR       2   // Severe errors that need logging
 #define TRACE_LEVEL_WARNING     3   // Warnings such as allocation failure
@@ -516,7 +515,7 @@ namespace ETW
         VOID Append(SIZE_T currentFrame);
         EtwStackWalkStatus SaveCurrentStack(int skipTopNFrames=1);
     public:
-        static ULONG SendStackTrace(DOTNET_TRACE_CONTEXT TraceContext, PCEVENT_DESCRIPTOR Descriptor, LPCGUID EventGuid);
+        static ULONG SendStackTrace(MCGEN_TRACE_CONTEXT TraceContext, PCEVENT_DESCRIPTOR Descriptor, LPCGUID EventGuid);
         EtwStackWalkStatus GetCurrentThreadsCallStack(UINT32 *frameCount, PVOID **Stack);
 #endif // FEATURE_EVENT_TRACE && !defined(FEATURE_PAL)
     };
@@ -1079,7 +1078,7 @@ public:
 FORCEINLINE
 BOOLEAN __stdcall
 McGenEventTracingEnabled(
-    __in PDOTNET_TRACE_CONTEXT EnableInfo,
+    __in PMCGEN_TRACE_CONTEXT EnableInfo,
     __in PCEVENT_DESCRIPTOR EventDescriptor
     )
 {
@@ -1096,16 +1095,16 @@ McGenEventTracingEnabled(
     // all levels are enabled.
     //
 
-    if ((EventDescriptor->Level <= EnableInfo->EtwProvider.Level) || // This also covers the case of Level == 0.
-        (EnableInfo->EtwProvider.Level == 0)) {
+    if ((EventDescriptor->Level <= EnableInfo->Level) || // This also covers the case of Level == 0.
+        (EnableInfo->Level == 0)) {
 
         //
         // Check if Keyword is enabled
         //
 
         if ((EventDescriptor->Keyword == (ULONGLONG)0) ||
-            ((EventDescriptor->Keyword & EnableInfo->EtwProvider.MatchAnyKeyword) &&
-             ((EventDescriptor->Keyword & EnableInfo->EtwProvider.MatchAllKeyword) == EnableInfo->EtwProvider.MatchAllKeyword))) {
+            ((EventDescriptor->Keyword & EnableInfo->MatchAnyKeyword) &&
+             ((EventDescriptor->Keyword & EnableInfo->MatchAllKeyword) == EnableInfo->MatchAllKeyword))) {
             return TRUE;
         }
     }
@@ -1117,7 +1116,7 @@ McGenEventTracingEnabled(
 ETW_INLINE
 ULONG
 ETW::SamplingLog::SendStackTrace(
-    DOTNET_TRACE_CONTEXT TraceContext,
+    MCGEN_TRACE_CONTEXT TraceContext,
     PCEVENT_DESCRIPTOR Descriptor,
     LPCGUID EventGuid)
 {
@@ -1128,8 +1127,8 @@ typedef struct _MCGEN_TRACE_BUFFER {
     EVENT_DATA_DESCRIPTOR EventData[ARGUMENT_COUNT_CLRStackWalk];
 } MCGEN_TRACE_BUFFER;
 
-    REGHANDLE RegHandle = TraceContext.EtwProvider.RegistrationHandle;
-    if(!TraceContext.EtwProvider.IsEnabled || !McGenEventTracingEnabled(&TraceContext, Descriptor))
+    REGHANDLE RegHandle = TraceContext.RegistrationHandle;
+    if(!TraceContext.IsEnabled || !McGenEventTracingEnabled(&TraceContext, Descriptor))
     {
         return Result;
     }
@@ -1174,7 +1173,7 @@ struct CallStackFrame
 FORCEINLINE
 BOOLEAN __stdcall
 McGenEventProviderEnabled(
-    __in PDOTNET_TRACE_CONTEXT Context,
+    __in PMCGEN_TRACE_CONTEXT Context,
     __in UCHAR Level,
     __in ULONGLONG Keyword
     )
@@ -1190,16 +1189,16 @@ McGenEventProviderEnabled(
     // all levels are enabled.
     //
 
-    if ((Level <= Context->EtwProvider.Level) || // This also covers the case of Level == 0.
-        (Context->EtwProvider.Level == 0)) {
+    if ((Level <= Context->Level) || // This also covers the case of Level == 0.
+        (Context->Level == 0)) {
 
         //
         // Check if Keyword is enabled
         //
 
         if ((Keyword == (ULONGLONG)0) ||
-            ((Keyword & Context->EtwProvider.MatchAnyKeyword) &&
-             ((Keyword & Context->EtwProvider.MatchAllKeyword) == Context->EtwProvider.MatchAllKeyword))) {
+            ((Keyword & Context->MatchAnyKeyword) &&
+             ((Keyword & Context->MatchAllKeyword) == Context->MatchAllKeyword))) {
             return TRUE;
         }
     }
