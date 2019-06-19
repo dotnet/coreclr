@@ -897,7 +897,6 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // FEATURE_COMINTEROP
 
         StubHelpers::Init();
-        NDirect::Init();
 
         // Before setting up the execution manager initialize the first part
         // of the JIT helpers.
@@ -1290,9 +1289,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
-    DiagnosticServer::Shutdown();
+    if (!fIsDllUnloading)
+    {
+        EventPipe::Shutdown();
+        DiagnosticServer::Shutdown();
+    }
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)

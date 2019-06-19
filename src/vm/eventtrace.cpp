@@ -3833,6 +3833,27 @@ VOID ETW::EnumerationLog::ModuleRangeRundown()
 
 
 /****************************************************************************/
+// Called when ETW is turned ON or OFF on an existing process, to send
+// events that are only sent once per rundown
+/****************************************************************************/
+VOID ETW::EnumerationLog::SendOneTimeRundownEvents()
+{
+    CONTRACTL {
+        NOTHROW;
+        GC_TRIGGERS;
+    } CONTRACTL_END;
+
+    // Fire the runtime information event
+    ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Callback);
+
+    if (ETW::CompilationLog::TieredCompilation::Rundown::IsEnabled() && g_pConfig->TieredCompilation())
+    {
+        ETW::CompilationLog::TieredCompilation::Rundown::SendSettings();
+    }
+}
+
+
+/****************************************************************************/
 /* Called when ETW is turned ON on an existing process */
 /****************************************************************************/
 VOID ETW::EnumerationLog::StartRundown()
@@ -3844,6 +3865,8 @@ VOID ETW::EnumerationLog::StartRundown()
 
     EX_TRY
     {
+        SendOneTimeRundownEvents();
+
         BOOL bIsPerfTrackRundownEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context,
                                                                  TRACE_LEVEL_INFORMATION,
                                                                  CLR_RUNDOWNPERFTRACK_KEYWORD);
@@ -4016,6 +4039,8 @@ VOID ETW::EnumerationLog::EndRundown()
 
     EX_TRY
     {
+        SendOneTimeRundownEvents();
+
         BOOL bIsPerfTrackRundownEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_Context,
                                                                  TRACE_LEVEL_INFORMATION,
                                                                  CLR_RUNDOWNPERFTRACK_KEYWORD);
@@ -4181,7 +4206,6 @@ VOID EtwCallbackCommon(
 
     bool bIsPublicTraceHandle = ProviderIndex == DotNETRuntime;
 #if !defined(FEATURE_PAL)
-    static_assert(GCEventLevel_None == TRACE_LEVEL_NONE, "GCEventLevel_None value mismatch");
     static_assert(GCEventLevel_Fatal == TRACE_LEVEL_FATAL, "GCEventLevel_Fatal value mismatch");
     static_assert(GCEventLevel_Error == TRACE_LEVEL_ERROR, "GCEventLevel_Error value mismatch");
     static_assert(GCEventLevel_Warning == TRACE_LEVEL_WARNING, "GCEventLevel_Warning mismatch");
@@ -4461,14 +4485,6 @@ extern "C"
 
             if(g_fEEStarted && !g_fEEShutDown && bIsRundownTraceHandle)
             {
-                // Fire the runtime information event
-                ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Callback);
-
-                if (ETW::CompilationLog::TieredCompilation::Rundown::IsEnabled() && g_pConfig->TieredCompilation())
-                {
-                    ETW::CompilationLog::TieredCompilation::Rundown::SendSettings();
-                }
-
                 // Start and End Method/Module Rundowns
                 // Used to fire events that we missed since we started the controller after the process started
                 // flags for immediate start rundown
@@ -6777,7 +6793,6 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
         GC_TRIGGERS;
     } CONTRACTL_END;
 
-#ifdef FEATURE_PREJIT
     if (!pModule)
         return;
 
@@ -6798,6 +6813,8 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
         return;
     }
 #endif // FEATURE_READYTORUN
+
+#ifdef FEATURE_PREJIT
     if (pModule->HasNativeImage())
     {
         MethodIterator mi(pModule);

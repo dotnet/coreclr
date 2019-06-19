@@ -34,7 +34,6 @@ EventPipeSession::EventPipeSession(
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(index < EventPipe::MaxNumberOfSessions);
-        PRECONDITION(EventPipe::MaxNumberOfSessions == 64); // If MaxNumberOfSessions ever changed, fix the m_id calculation above
         PRECONDITION(format < EventPipeSerializationFormat::Count);
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
@@ -269,7 +268,7 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     m_pProviderList->AddSessionProvider(pProvider);
 }
 
-EventPipeSessionProvider *EventPipeSession::GetSessionProvider(EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeSession::GetSessionProvider(EventPipeProvider *pProvider) const
 {
     CONTRACTL
     {
