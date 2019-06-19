@@ -13812,10 +13812,12 @@ int emitter::getInsThroughput(instrDesc* id)
             }
             break;
 
+#ifdef _TARGET_AMD64_
+        case INS_movsxd:
+#endif
         case INS_mov:
         case INS_movsx:
         case INS_movzx:
-        case INS_movsxd:
         case INS_add:
         case INS_sub:
         case INS_cmp:
