@@ -8972,7 +8972,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
             {
                 callType   = emitter::EC_INDIR_ARD;
                 indCallReg = REG_RAX;
-                addr       = NULL;
+                addr       = nullptr;
                 instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
                 regSet.verifyRegUsed(indCallReg);
             }
