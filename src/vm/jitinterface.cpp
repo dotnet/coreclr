@@ -12602,10 +12602,10 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_ALIGN_LOOPS);
 
     // Only set CORJIT_FLAG_PROF_REJIT_NOPS when we aren't versionable using 
-    // the Tiering mechanism.This will controls both the JIT time and the
+    // the Tiering mechanism.This will control both the JIT time and the
     // crossgen time decision.
     //
-    if ((ftn->IsVersionableWithJumpStamp()) || g_pConfig->AddRejitNops())
+    if (ftn->IsVersionableWithJumpStamp() || g_pConfig->AddRejitNops())
     {
         flags.Set(CORJIT_FLAGS::CORJIT_FLAG_PROF_REJIT_NOPS);
     }

@@ -370,7 +370,7 @@ void Compiler::fgInstrumentMethod()
         // Read Basic-Block count value
         GenTree* valueNode = gtNewIndOfIconHandleNode(TYP_INT, addrOfFirstExecutionCount, GTF_ICON_BBC_PTR, false);
 
-        valueNode->gtFlags |= GTF_DONT_CSE; // We don't want to formn a CSE with this
+        valueNode->gtFlags |= GTF_DONT_CSE; // We don't want to form a CSE with this
 
         // Compare Basic-Block count value against zero
         GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, valueNode, gtNewIconNode(0, TYP_INT));

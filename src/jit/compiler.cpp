@@ -3525,7 +3525,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         }
         if (jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
         {
-            printf("OPTIONS: Tier-1 recompilation\n");
+            printf("OPTIONS: Tier-1 compilation\n");
         }
 
         printf("OPTIONS: compCodeOpt = %s\n",
