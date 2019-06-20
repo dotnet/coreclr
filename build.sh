@@ -47,6 +47,7 @@ usage()
     echo "-skipnuget - skip building nuget packages."
     echo "-skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "-skipcrossgen - skip native image generation"
+    echo "-skipmanagedtools -- skip build tools such as R2Rdump and RunInContext"
     echo "-crossgenonly - only run native image generation"
     echo "-partialngen - build CoreLib as PartialNGen"
     echo "-verbose - optional argument to enable verbose build output."
@@ -151,22 +152,26 @@ restore_optdata()
     if [ $__isMSBuildOnNETCoreSupported == 1 ]; then
         # Parse the optdata package versions out of msbuild so that we can pass them on to CMake
 
-        # Init dotnet
-        source "${__ProjectRoot}/init-dotnet.sh"
-        local DotNetCli=${_InitializeDotNetCli}/dotnet
+        local PgoDataPackageVersionOutputFile="${__IntermediatesDir}/optdataversion.txt"
+        local IbcDataPackageVersionOutputFile="${__IntermediatesDir}/ibcoptdataversion.txt"
 
-        __PgoOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion /nologo)
-        if [ $? != 0 ]; then
+        # Writes into ${PgoDataPackageVersionOutputFile}
+        ${__ProjectDir}/dotnet.sh msbuild $OptDataProjectFilePath /t:DumpPgoDataPackageVersion ${__CommonMSBuildArgs} /p:PgoDataPackageVersionOutputFile=${PgoDataPackageVersionOutputFile} /nologo 2>&1 > /dev/null
+        if [ $? != 0 ] || [ ! -f "${PgoDataPackageVersionOutputFile}" ]; then
             echo "Failed to get PGO data package version."
             exit $?
         fi
-        __PgoOptDataVersion=$(echo $__PgoOptDataVersion | sed 's/^\s*//')
-        __IbcOptDataVersion=$(DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1 $DotNetCli msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion /nologo)
-        if [ $? != 0 ]; then
+
+        __PgoOptDataVersion=$(<"${PgoDataPackageVersionOutputFile}")
+
+        # Writes into ${IbcDataPackageVersionOutputFile}
+        ${__ProjectDir}/dotnet.sh msbuild $OptDataProjectFilePath /t:DumpIbcDataPackageVersion ${__CommonMSBuildArgs} /p:IbcDataPackageVersionOutputFile=${IbcDataPackageVersionOutputFile} /nologo 2>&1 > /dev/null
+        if [ $? != 0 ] || [ ! -f "${IbcDataPackageVersionOutputFile}" ]; then
             echo "Failed to get IBC data package version."
             exit $?
         fi
-        __IbcOptDataVersion=$(echo $__IbcOptDataVersion | sed 's/^[[:blank:]]*//')
+
+        __IbcOptDataVersion=$(<"${IbcDataPackageVersionOutputFile}")
     fi
 }
 
@@ -868,6 +873,10 @@ while :; do
             __SkipCrossgen=1
             ;;
 
+        skipmanagedtools | -skipmanagedtools)
+            __BuildManagedTools=0
+            ;;
+
         crossgenonly|-crossgenonly)
             __SkipMSCorLib=1
             __SkipCoreCLR=1
@@ -970,7 +979,7 @@ while :; do
     shift
 done
 
-__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
+__CommonMSBuildArgs="/p:__BuildArch=$__BuildArch /p:__BuildType=$__BuildType /p:__BuildOS=$__BuildOS /nodeReuse:false $__OfficialBuildIdArg $__SignTypeArg $__SkipRestoreArg"
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then

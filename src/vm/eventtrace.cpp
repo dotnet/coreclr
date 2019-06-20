@@ -4206,7 +4206,6 @@ VOID EtwCallbackCommon(
 
     bool bIsPublicTraceHandle = ProviderIndex == DotNETRuntime;
 #if !defined(FEATURE_PAL)
-    static_assert(GCEventLevel_None == TRACE_LEVEL_NONE, "GCEventLevel_None value mismatch");
     static_assert(GCEventLevel_Fatal == TRACE_LEVEL_FATAL, "GCEventLevel_Fatal value mismatch");
     static_assert(GCEventLevel_Error == TRACE_LEVEL_ERROR, "GCEventLevel_Error value mismatch");
     static_assert(GCEventLevel_Warning == TRACE_LEVEL_WARNING, "GCEventLevel_Warning mismatch");
@@ -6794,7 +6793,6 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
         GC_TRIGGERS;
     } CONTRACTL_END;
 
-#ifdef FEATURE_PREJIT
     if (!pModule)
         return;
 
@@ -6815,6 +6813,8 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
         return;
     }
 #endif // FEATURE_READYTORUN
+
+#ifdef FEATURE_PREJIT
     if (pModule->HasNativeImage())
     {
         MethodIterator mi(pModule);

@@ -320,7 +320,7 @@ namespace System.Runtime.InteropServices
 
         // This method is identical to Type.GetTypeFromCLSID. Since it's interop specific, we expose it
         // on Marshal for more consistent API surface.
-        public static Type GetTypeFromCLSID(Guid clsid) => RuntimeType.GetTypeFromCLSIDImpl(clsid, null, throwOnError: false);
+        public static Type? GetTypeFromCLSID(Guid clsid) => RuntimeType.GetTypeFromCLSIDImpl(clsid, null, throwOnError: false);
 
         /// <summary>
         /// Return the IUnknown* for an Object if the current context is the one
@@ -388,7 +388,7 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr CreateAggregatedObject(IntPtr pOuter, object o);
 
-        public static IntPtr CreateAggregatedObject<T>(IntPtr pOuter, T o) where T : object
+        public static IntPtr CreateAggregatedObject<T>(IntPtr pOuter, T o) where T : notnull
         {
             return CreateAggregatedObject(pOuter, (object)o);
         }
@@ -687,7 +687,7 @@ namespace System.Runtime.InteropServices
         {
             object?[] objects = GetObjectsForNativeVariants(aSrcNativeVariant, cVars);
 
-            T[]? result = new T[objects.Length];
+            T[] result = new T[objects.Length];
             Array.Copy(objects, 0, result, 0, objects.Length);
 
             return result;

@@ -48,7 +48,7 @@ namespace System
         FullName,
     }
 
-    internal sealed class RuntimeType : TypeInfo, ICloneable
+    internal sealed partial class RuntimeType : TypeInfo, ICloneable
     {
         #region Definitions
 
@@ -128,15 +128,14 @@ namespace System
                         _items = new T[_capacity];
                         _items[0] = _item;
                     }
-                    else
-                    if (_capacity == _count)
+                    else if (_capacity == _count)
                     {
                         int newCapacity = 2 * _capacity;
                         Array.Resize(ref _items, newCapacity);
                         _capacity = newCapacity;
                     }
 
-                    _items![_count] = item; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                    _items![_count] = item;
                 }
                 _count++;
             }
@@ -1863,7 +1862,7 @@ namespace System
 
         internal object? GenericCache
         {
-            get => Cache.GenericCache;
+            get => CacheIfExists?.GenericCache;
             set => Cache.GenericCache = value;
         }
 
@@ -2375,6 +2374,21 @@ namespace System
         internal override bool CacheEquals(object? o)
         {
             return (o is RuntimeType t) && (t.m_handle == m_handle);
+        }
+
+        private RuntimeTypeCache? CacheIfExists
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get
+            {
+                if (m_cache != IntPtr.Zero)
+                {
+                    object cache = GCHandle.InternalGet(m_cache);
+                    Debug.Assert(cache == null || cache is RuntimeTypeCache);
+                    return Unsafe.As<RuntimeTypeCache>(cache);
+                }
+                return null;
+            }
         }
 
         private RuntimeTypeCache Cache
@@ -3055,17 +3069,6 @@ namespace System
         #endregion
 
         #region Identity
-        public override Module Module => GetRuntimeModule();
-
-        internal RuntimeModule GetRuntimeModule() => RuntimeTypeHandle.GetModule(this);
-
-        public override Assembly Assembly => GetRuntimeAssembly();
-
-        internal RuntimeAssembly GetRuntimeAssembly() => RuntimeTypeHandle.GetAssembly(this);
-
-        public override RuntimeTypeHandle TypeHandle => new RuntimeTypeHandle(this);
-
-        internal sealed override RuntimeTypeHandle GetTypeHandleInternal() => new RuntimeTypeHandle(this);
 
         public sealed override bool IsCollectible
         {
@@ -3074,67 +3077,6 @@ namespace System
                 RuntimeType thisType = this;
                 return RuntimeTypeHandle.IsCollectible(JitHelpers.GetQCallTypeHandleOnStack(ref thisType)) != Interop.BOOL.FALSE;
             }
-        }
-
-        protected override TypeCode GetTypeCodeImpl()
-        {
-            TypeCode typeCode = Cache.TypeCode;
-
-            if (typeCode != TypeCode.Empty)
-                return typeCode;
-
-            CorElementType corElementType = RuntimeTypeHandle.GetCorElementType(this);
-            switch (corElementType)
-            {
-                case CorElementType.ELEMENT_TYPE_BOOLEAN:
-                    typeCode = TypeCode.Boolean; break;
-                case CorElementType.ELEMENT_TYPE_CHAR:
-                    typeCode = TypeCode.Char; break;
-                case CorElementType.ELEMENT_TYPE_I1:
-                    typeCode = TypeCode.SByte; break;
-                case CorElementType.ELEMENT_TYPE_U1:
-                    typeCode = TypeCode.Byte; break;
-                case CorElementType.ELEMENT_TYPE_I2:
-                    typeCode = TypeCode.Int16; break;
-                case CorElementType.ELEMENT_TYPE_U2:
-                    typeCode = TypeCode.UInt16; break;
-                case CorElementType.ELEMENT_TYPE_I4:
-                    typeCode = TypeCode.Int32; break;
-                case CorElementType.ELEMENT_TYPE_U4:
-                    typeCode = TypeCode.UInt32; break;
-                case CorElementType.ELEMENT_TYPE_I8:
-                    typeCode = TypeCode.Int64; break;
-                case CorElementType.ELEMENT_TYPE_U8:
-                    typeCode = TypeCode.UInt64; break;
-                case CorElementType.ELEMENT_TYPE_R4:
-                    typeCode = TypeCode.Single; break;
-                case CorElementType.ELEMENT_TYPE_R8:
-                    typeCode = TypeCode.Double; break;
-                case CorElementType.ELEMENT_TYPE_STRING:
-                    typeCode = TypeCode.String; break;
-                case CorElementType.ELEMENT_TYPE_VALUETYPE:
-                    if (this == Convert.ConvertTypes[(int)TypeCode.Decimal])
-                        typeCode = TypeCode.Decimal;
-                    else if (this == Convert.ConvertTypes[(int)TypeCode.DateTime])
-                        typeCode = TypeCode.DateTime;
-                    else if (IsEnum)
-                        typeCode = GetTypeCode(Enum.GetUnderlyingType(this));
-                    else
-                        typeCode = TypeCode.Object;
-                    break;
-                default:
-                    if (this == Convert.ConvertTypes[(int)TypeCode.DBNull])
-                        typeCode = TypeCode.DBNull;
-                    else if (this == Convert.ConvertTypes[(int)TypeCode.String])
-                        typeCode = TypeCode.String;
-                    else
-                        typeCode = TypeCode.Object;
-                    break;
-            }
-
-            Cache.TypeCode = typeCode;
-
-            return typeCode;
         }
 
         public override MethodBase? DeclaringMethod
@@ -3155,7 +3097,6 @@ namespace System
         #endregion
 
         #region Hierarchy
-        public override bool IsInstanceOfType(object? o) => RuntimeTypeHandle.IsInstanceOfType(this, o);
 
         public override bool IsSubclassOf(Type type)
         {
@@ -3184,53 +3125,6 @@ namespace System
             return false;
         }
 
-        public override bool IsAssignableFrom(TypeInfo? typeInfo)
-        {
-            if (typeInfo == null) return false;
-            return IsAssignableFrom(typeInfo.AsType());
-        }
-
-        public override bool IsAssignableFrom(Type? c)
-        {
-            if (c is null)
-                return false;
-
-            if (ReferenceEquals(c, this))
-                return true;
-
-            // For runtime type, let the VM decide.
-            if (c.UnderlyingSystemType is RuntimeType fromType)
-            {
-                // both this and c (or their underlying system types) are runtime types
-                return RuntimeTypeHandle.CanCastTo(fromType, this);
-            }
-
-            // Special case for TypeBuilder to be backward-compatible.
-            if (c is System.Reflection.Emit.TypeBuilder)
-            {
-                // If c is a subclass of this class, then c can be cast to this type.
-                if (c.IsSubclassOf(this))
-                    return true;
-
-                if (IsInterface)
-                {
-                    return c.ImplementInterface(this);
-                }
-                else if (IsGenericParameter)
-                {
-                    Type[] constraints = GetGenericParameterConstraints();
-                    for (int i = 0; i < constraints.Length; i++)
-                        if (!constraints[i].IsAssignableFrom(c))
-                            return false;
-
-                    return true;
-                }
-            }
-
-            // For anything else we return false.
-            return false;
-        }
-
 #if FEATURE_TYPEEQUIVALENCE
         // Reflexive, symmetric, transitive.
         public override bool IsEquivalentTo(Type? other)
@@ -3250,55 +3144,6 @@ namespace System
         }
 #endif // FEATURE_TYPEEQUIVALENCE
         
-        public override Type? BaseType => GetBaseType();
-
-        private RuntimeType? GetBaseType()
-        {
-            if (IsInterface)
-                return null;
-
-            if (RuntimeTypeHandle.IsGenericVariable(this))
-            {
-                Type[] constraints = GetGenericParameterConstraints();
-
-                RuntimeType baseType = ObjectType;
-
-                for (int i = 0; i < constraints.Length; i++)
-                {
-                    RuntimeType constraint = (RuntimeType)constraints[i];
-
-                    if (constraint.IsInterface)
-                        continue;
-
-                    if (constraint.IsGenericParameter)
-                    {
-                        GenericParameterAttributes special;
-                        special = constraint.GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
-
-                        if ((special & GenericParameterAttributes.ReferenceTypeConstraint) == 0 &&
-                            (special & GenericParameterAttributes.NotNullableValueTypeConstraint) == 0)
-                            continue;
-                    }
-
-                    baseType = constraint;
-                }
-
-                if (baseType == ObjectType)
-                {
-                    GenericParameterAttributes special;
-                    special = GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
-                    if ((special & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)
-                        baseType = ValueType;
-                }
-
-                return baseType;
-            }
-
-            return RuntimeTypeHandle.GetBaseType(this);
-        }
-
-        public override Type UnderlyingSystemType => this;
-
         #endregion
 
         #region Name
@@ -3337,11 +3182,6 @@ namespace System
 
         #region Attributes
 
-        protected override TypeAttributes GetAttributeFlagsImpl()
-        {
-            return RuntimeTypeHandle.GetAttributes(this);
-        }
-
         public override Guid GUID
         {
             get
@@ -3354,18 +3194,6 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void GetGUID(ref Guid result);
-
-        protected override bool IsContextfulImpl() => false;
-
-        protected override bool IsByRefImpl() => RuntimeTypeHandle.IsByRef(this);
-
-        protected override bool IsPrimitiveImpl() => RuntimeTypeHandle.IsPrimitive(this);
-
-        protected override bool IsPointerImpl() => RuntimeTypeHandle.IsPointer(this);
-
-        protected override bool IsCOMObjectImpl() => RuntimeTypeHandle.IsComObject(this, false);
-
-        public sealed override bool IsByRefLike => RuntimeTypeHandle.IsByRefLike(this);
 
 #if FEATURE_COMINTEROP
         internal override bool IsWindowsRuntimeObjectImpl() => IsWindowsRuntimeObjectType(this);
@@ -3383,19 +3211,6 @@ namespace System
 
         internal bool IsDelegate() => GetBaseType() == typeof(MulticastDelegate);
 
-        protected override bool IsValueTypeImpl()
-        {
-            // We need to return true for generic parameters with the ValueType constraint.
-            // So we cannot use the faster RuntimeTypeHandle.IsValueType because it returns 
-            // false for all generic parameters.
-            if (this == typeof(ValueType) || this == typeof(Enum))
-                return false;
-
-            return IsSubclassOf(typeof(ValueType));
-        }
-
-        protected override bool HasElementTypeImpl() => RuntimeTypeHandle.HasElementType(this);
-
         public override GenericParameterAttributes GenericParameterAttributes
         {
             get
@@ -3411,135 +3226,14 @@ namespace System
             }
         }
 
-        public override bool IsSecurityCritical => true;
-
-        public override bool IsSecuritySafeCritical => false;
-
-        public override bool IsSecurityTransparent => false;
-
         #endregion
 
         #region Arrays
 
         public sealed override bool IsSZArray => RuntimeTypeHandle.IsSZArray(this);
 
-        protected override bool IsArrayImpl() => RuntimeTypeHandle.IsArray(this);
-
-        public override int GetArrayRank()
-        {
-            if (!IsArrayImpl())
-                throw new ArgumentException(SR.Argument_HasToBeArrayClass);
-
-            return RuntimeTypeHandle.GetArrayRank(this);
-        }
-
-        public override Type GetElementType() => RuntimeTypeHandle.GetElementType(this);
-
         internal object[] GetEmptyArray() => Cache.GetEmptyArray();
 
-        #endregion
-
-        #region Enums
-
-        public override string[] GetEnumNames()
-        {
-            if (!IsEnum)
-                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-
-            string[] ret = Enum.InternalGetNames(this);
-
-            // Make a copy since we can't hand out the same array since users can modify them
-            return new ReadOnlySpan<string>(ret).ToArray();
-        }
-
-        public override Array GetEnumValues()
-        {
-            if (!IsEnum)
-                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-
-            // Get all of the values
-            ulong[] values = Enum.InternalGetValues(this);
-
-            // Create a generic Array
-            Array ret = Array.CreateInstance(this, values.Length);
-
-            for (int i = 0; i < values.Length; i++)
-            {
-                object val = Enum.ToObject(this, values[i]);
-                ret.SetValue(val, i);
-            }
-
-            return ret;
-        }
-
-        public override Type GetEnumUnderlyingType()
-        {
-            if (!IsEnum)
-                throw new ArgumentException(SR.Arg_MustBeEnum, "enumType");
-
-            return Enum.InternalGetUnderlyingType(this);
-        }
-
-        public override bool IsEnumDefined(object value)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            // Check if both of them are of the same type
-            RuntimeType valueType = (RuntimeType)value.GetType();
-
-            // If the value is an Enum then we need to extract the underlying value from it
-            if (valueType.IsEnum)
-            {
-                if (!valueType.IsEquivalentTo(this))
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, valueType, this));
-
-                valueType = (RuntimeType)valueType.GetEnumUnderlyingType();
-            }
-
-            // If a string is passed in
-            if (valueType == StringType)
-            {
-                // Get all of the Fields, calling GetHashEntry directly to avoid copying
-                string[] names = Enum.InternalGetNames(this);
-                if (Array.IndexOf(names, value) >= 0)
-                    return true;
-                else
-                    return false;
-            }
-
-            // If an enum or integer value is passed in
-            if (Type.IsIntegerType(valueType))
-            {
-                RuntimeType underlyingType = Enum.InternalGetUnderlyingType(this);
-                if (underlyingType != valueType)
-                    throw new ArgumentException(SR.Format(SR.Arg_EnumUnderlyingTypeAndObjectMustBeSameType, valueType, underlyingType));
-
-                ulong[] ulValues = Enum.InternalGetValues(this);
-                ulong ulValue = Enum.ToUInt64(value);
-
-                return (Array.BinarySearch(ulValues, ulValue) >= 0);
-            }
-            else
-            {
-                throw new InvalidOperationException(SR.InvalidOperation_UnknownEnumType);
-            }
-        }
-
-        public override string? GetEnumName(object value)
-        {
-            if (value == null)
-                throw new ArgumentNullException(nameof(value));
-
-            Type valueType = value.GetType();
-
-            if (!(valueType.IsEnum || IsIntegerType(valueType)))
-                throw new ArgumentException(SR.Arg_MustBeEnumBaseTypeOrEnum, nameof(value));
-
-            ulong ulValue = Enum.ToUInt64(value);
-
-            return Enum.GetEnumName(this, ulValue);
-        }
         #endregion
 
         #region Generics
@@ -3620,10 +3314,6 @@ namespace System
             return ret;
         }
 
-        public override bool IsGenericTypeDefinition => RuntimeTypeHandle.IsGenericTypeDefinition(this);
-
-        public override bool IsGenericParameter => RuntimeTypeHandle.IsGenericVariable(this);
-
         public override int GenericParameterPosition
         {
             get
@@ -3634,18 +3324,6 @@ namespace System
                 return new RuntimeTypeHandle(this).GetGenericVariableIndex();
             }
         }
-
-        public override Type GetGenericTypeDefinition()
-        {
-            if (!IsGenericType)
-                throw new InvalidOperationException(SR.InvalidOperation_NotGenericType);
-
-            return RuntimeTypeHandle.GetGenericTypeDefinition(this);
-        }
-
-        public override bool IsGenericType => RuntimeTypeHandle.HasInstantiation(this);
-
-        public override bool IsConstructedGenericType => IsGenericType && !IsGenericTypeDefinition;
 
         public override bool ContainsGenericParameters
         {
@@ -3668,8 +3346,6 @@ namespace System
 
         #region Misc
         public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeType>(other);
-
-        public override bool IsTypeDefinition => RuntimeTypeHandle.IsTypeDefinition(this);
 
         public override Type MakePointerType() => new RuntimeTypeHandle(this).MakePointer();
 
@@ -3816,25 +3492,6 @@ namespace System
             }
 
             throw new ArgumentException(SR.Format(SR.Arg_ObjObjEx, value.GetType(), this));
-        }
-
-        // GetDefaultMembers
-        // This will return a MemberInfo that has been marked with the [DefaultMemberAttribute]
-        public override MemberInfo[] GetDefaultMembers()
-        {
-            // See if we have cached the default member name
-            MemberInfo[] members = null!;
-
-            string? defaultMemberName = GetDefaultMemberName();
-            if (defaultMemberName != null)
-            {
-                members = GetMember(defaultMemberName);
-            }
-
-            if (members == null)
-                members = Array.Empty<MemberInfo>();
-
-            return members;
         }
 
         [DebuggerStepThrough]
@@ -4205,7 +3862,7 @@ namespace System
                 object? result = ((MethodInfo)invokeMethod).Invoke(target, bindingFlags, binder, providedArgs, culture);
 
                 if (state != null)
-                    binder.ReorderArgumentArray(ref providedArgs!, state); // TODO-NULLABLE: Pass non-null string? to string ref (https://github.com/dotnet/roslyn/issues/34874)
+                    binder.ReorderArgumentArray(ref providedArgs, state);
 
                 return result;
             }
@@ -4217,65 +3874,7 @@ namespace System
 
         #endregion
 
-        #region Object Overrides
-
-        public override bool Equals(object? obj)
-        {
-            // ComObjects are identified by the instance of the Type object and not the TypeHandle.
-            return obj == (object)this;
-        }
-
-        public override int GetHashCode() => RuntimeHelpers.GetHashCode(this);
-
         public override string ToString() => GetCachedName(TypeNameKind.ToString)!;
-
-        #endregion
-
-        #region ICloneable
-
-        public object Clone() => this;
-
-        #endregion
-
-        #region ICustomAttributeProvider
-
-        public override object[] GetCustomAttributes(bool inherit)
-        {
-            return CustomAttribute.GetCustomAttributes(this, ObjectType, inherit);
-        }
-
-        public override object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
-            if (attributeType is null)
-                throw new ArgumentNullException(nameof(attributeType));
-
-            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
-
-            if (attributeRuntimeType == null)
-                throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
-
-            return CustomAttribute.GetCustomAttributes(this, attributeRuntimeType, inherit);
-        }
-
-        public override bool IsDefined(Type attributeType, bool inherit)
-        {
-            if (attributeType is null)
-                throw new ArgumentNullException(nameof(attributeType));
-
-            RuntimeType? attributeRuntimeType = attributeType.UnderlyingSystemType as RuntimeType;
-
-            if (attributeRuntimeType == null)
-                throw new ArgumentException(SR.Arg_MustBeType, nameof(attributeType));
-
-            return CustomAttribute.IsDefined(this, attributeRuntimeType, inherit);
-        }
-
-        public override IList<CustomAttributeData> GetCustomAttributesData()
-        {
-            return CustomAttributeData.GetCustomAttributesInternal(this);
-        }
-
-        #endregion
 
         #region MemberInfo Overrides
 
@@ -4316,22 +3915,7 @@ namespace System
         [MethodImpl(MethodImplOptions.NoInlining)]
         private string? GetCachedName(TypeNameKind kind) => Cache.GetName(kind);
 
-        public override MemberTypes MemberType
-        {
-            get
-            {
-                if (IsPublic || IsNotPublic)
-                    return MemberTypes.TypeInfo;
-                    
-                return MemberTypes.NestedType;
-            }
-        }
-
         public override Type? DeclaringType => Cache.GetEnclosingType();
-
-        public override Type? ReflectedType => DeclaringType;
-
-        public override int MetadataToken => RuntimeTypeHandle.GetToken(this);
 
         #endregion
 
@@ -4407,7 +3991,7 @@ namespace System
 
                 try
                 {
-                    invokeMethod = binder.BindToMethod(bindingAttr, cons, ref args!, null, culture, null, out state); //TODO-NULLABLE: Pass non-null string? to string ref (https://github.com/dotnet/roslyn/issues/34874)
+                    invokeMethod = binder.BindToMethod(bindingAttr, cons, ref args, null, culture, null, out state);
                 }
                 catch (MissingMethodException) { invokeMethod = null; }
 
@@ -4432,7 +4016,7 @@ namespace System
                 {
                     server = ((ConstructorInfo)invokeMethod).Invoke(bindingAttr, binder, args, culture);
                     if (state != null)
-                        binder.ReorderArgumentArray(ref args!, state);
+                        binder.ReorderArgumentArray(ref args, state);
                 }
             }
 
@@ -4440,83 +4024,44 @@ namespace System
         }
 
         // the cache entry
-        private class ActivatorCacheEntry
+        private sealed class ActivatorCache
         {
-            // the type to cache
-            internal readonly RuntimeType _type;
-            // the delegate containing the call to the ctor, will be replaced by an IntPtr to feed a calli with
-            internal volatile CtorDelegate? _ctor;
+            // the delegate containing the call to the ctor
             internal readonly RuntimeMethodHandleInternal _hCtorMethodHandle;
-            internal readonly MethodAttributes _ctorAttributes;
+            internal MethodAttributes _ctorAttributes;
+            internal CtorDelegate? _ctor;
+
             // Lazy initialization was performed
             internal volatile bool _isFullyInitialized;
 
-            internal ActivatorCacheEntry(RuntimeType t, RuntimeMethodHandleInternal rmh)
+            private static ConstructorInfo? s_delegateCtorInfo;
+
+            internal ActivatorCache(RuntimeMethodHandleInternal rmh)
             {
-                _type = t;
                 _hCtorMethodHandle = rmh;
+            }
+
+            private void Initialize()
+            {
                 if (!_hCtorMethodHandle.IsNullHandle())
-                    _ctorAttributes = RuntimeMethodHandle.GetAttributes(_hCtorMethodHandle);
-            }
-        }
-
-        private class ActivatorCache
-        {
-            private const int CacheSize = 16;
-            private volatile int hash_counter; //Counter for wrap around
-            private readonly ActivatorCacheEntry[] cache = new ActivatorCacheEntry[CacheSize];
-
-            private volatile ConstructorInfo? delegateCtorInfo;
-
-            private void InitializeDelegateCreator()
-            {
-                ConstructorInfo? ctorInfo = typeof(CtorDelegate).GetConstructor(new Type[] { typeof(object), typeof(IntPtr) });
-                delegateCtorInfo = ctorInfo; // this assignment should be last
-            }
-
-            private void InitializeCacheEntry(ActivatorCacheEntry ace)
-            {
-                if (!ace._type.IsValueType)
                 {
-                    Debug.Assert(!ace._hCtorMethodHandle.IsNullHandle(), "Expected the default ctor method handle for a reference type.");
+                    _ctorAttributes = RuntimeMethodHandle.GetAttributes(_hCtorMethodHandle);
 
-                    if (delegateCtorInfo == null)
-                        InitializeDelegateCreator();
+                    // The default ctor path is optimized for reference types only
+                    ConstructorInfo delegateCtorInfo = s_delegateCtorInfo ?? (s_delegateCtorInfo = typeof(CtorDelegate).GetConstructor(new Type[] { typeof(object), typeof(IntPtr) })!);
 
                     // No synchronization needed here. In the worst case we create extra garbage
-                    CtorDelegate ctor = (CtorDelegate)delegateCtorInfo!.Invoke(new object?[] { null, RuntimeMethodHandle.GetFunctionPointer(ace._hCtorMethodHandle) });
-                    ace._ctor = ctor;
+                    _ctor = (CtorDelegate)delegateCtorInfo.Invoke(new object?[] { null, RuntimeMethodHandle.GetFunctionPointer(_hCtorMethodHandle) });
                 }
-                ace._isFullyInitialized = true;
+                _isFullyInitialized = true;
             }
 
-            internal ActivatorCacheEntry? GetEntry(RuntimeType t)
+            public void EnsureInitialized()
             {
-                int index = hash_counter;
-                for (int i = 0; i < CacheSize; i++)
-                {
-                    ActivatorCacheEntry ace = Volatile.Read(ref cache[index]);
-                    if (ace != null && ace._type == t) //check for type match..
-                    {
-                        if (!ace._isFullyInitialized)
-                            InitializeCacheEntry(ace);
-                        return ace;
-                    }
-                    index = (index + 1) & (ActivatorCache.CacheSize - 1);
-                }
-                return null;
-            }
-
-            internal void SetEntry(ActivatorCacheEntry ace)
-            {
-                // fill the array backwards to hit the most recently filled entries first in GetEntry
-                int index = (hash_counter - 1) & (ActivatorCache.CacheSize - 1);
-                hash_counter = index;
-                Volatile.Write(ref cache[index], ace);
+                if (!_isFullyInitialized)
+                    Initialize();
             }
         }
-
-        private static volatile ActivatorCache s_ActivatorCache;
 
         /// <summary>
         /// The slow path of CreateInstanceDefaultCtor
@@ -4535,17 +4080,8 @@ namespace System
 
             if (canBeCached && fillCache)
             {
-                ActivatorCache activatorCache = s_ActivatorCache;
-                if (activatorCache == null)
-                {
-                    // No synchronization needed here. In the worst case we create extra garbage
-                    activatorCache = new ActivatorCache();
-                    s_ActivatorCache = activatorCache;
-                }
-
                 // cache the ctor
-                ActivatorCacheEntry ace = new ActivatorCacheEntry(this, runtimeCtor);
-                activatorCache.SetEntry(ace);
+                GenericCache = new ActivatorCache(runtimeCtor);
             }
 
             return instance;
@@ -4559,9 +4095,11 @@ namespace System
         internal object CreateInstanceDefaultCtor(bool publicOnly, bool skipCheckThis, bool fillCache, bool wrapExceptions)
         {
             // Call the cached 
-            ActivatorCacheEntry? cacheEntry = s_ActivatorCache?.GetEntry(this);
+            ActivatorCache? cacheEntry = GenericCache as ActivatorCache;
             if (cacheEntry != null)
             {
+                cacheEntry.EnsureInitialized();
+
                 if (publicOnly)
                 {
                     if (cacheEntry._ctor != null &&
@@ -4620,10 +4158,10 @@ namespace System
 
 #if FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern Type GetTypeFromProgIDImpl(string progID, string? server, bool throwOnError);
+        internal static extern Type? GetTypeFromProgIDImpl(string progID, string? server, bool throwOnError);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern Type GetTypeFromCLSIDImpl(Guid clsid, string? server, bool throwOnError);
+        internal static extern Type? GetTypeFromCLSIDImpl(Guid clsid, string? server, bool throwOnError);
 #else // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
         internal static Type GetTypeFromProgIDImpl(String progID, String? server, bool throwOnError)
         {

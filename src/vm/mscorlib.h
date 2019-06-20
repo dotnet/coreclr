@@ -72,6 +72,8 @@
 // NOTE: Make this window really wide if you want to read the table...
 
 DEFINE_CLASS(ACTIVATOR,             System,                 Activator)
+DEFINE_METHOD(ACTIVATOR,            CREATE_INSTANCE_OF_T,   CreateInstance, GM_RetT)
+DEFINE_METHOD(ACTIVATOR,            CREATE_DEFAULT_INSTANCE_OF_T,   CreateDefaultInstance,  GM_RetT)
 
 DEFINE_CLASS(ACCESS_VIOLATION_EXCEPTION, System,            AccessViolationException)
 DEFINE_FIELD(ACCESS_VIOLATION_EXCEPTION, IP,                _ip)
@@ -457,14 +459,8 @@ DEFINE_METHOD(ICUSTOM_QUERYINTERFACE,     GET_INTERFACE,    GetInterface,       
 DEFINE_CLASS(CUSTOMQUERYINTERFACERESULT,  Interop,          CustomQueryInterfaceResult)
 #endif //FEATURE_COMINTEROP
 
-
-DEFINE_CLASS(ISERIALIZABLE,         Serialization,          ISerializable)
-DEFINE_CLASS(IOBJECTREFERENCE,      Serialization,          IObjectReference)
-DEFINE_CLASS(IDESERIALIZATIONCB,    Serialization,          IDeserializationCallback)
-DEFINE_CLASS(STREAMING_CONTEXT,     Serialization,          StreamingContext)
-DEFINE_CLASS(SERIALIZATION_INFO,    Serialization,          SerializationInfo)
-DEFINE_CLASS(DESERIALIZATION_TRACKER, Serialization, DeserializationTracker)
-
+DEFINE_CLASS(SERIALIZATION_INFO,        Serialization,      SerializationInfo)
+DEFINE_CLASS(DESERIALIZATION_TRACKER,   Serialization,      DeserializationTracker)
 
 DEFINE_CLASS(IENUMERATOR,           Collections,            IEnumerator)
 
@@ -844,8 +840,6 @@ DEFINE_FIELD_U(_requireWaitNotification, SynchronizationContextObject, _requireW
 DEFINE_CLASS(SYNCHRONIZATION_CONTEXT,    Threading,              SynchronizationContext)
 DEFINE_METHOD(SYNCHRONIZATION_CONTEXT,  INVOKE_WAIT_METHOD_HELPER, InvokeWaitMethodHelper, SM_SyncCtx_ArrIntPtr_Bool_Int_RetInt)
 
-DEFINE_CLASS(CONTEXTCALLBACK,       Threading,       ContextCallback)
-
 #ifdef _DEBUG
 DEFINE_CLASS(STACKCRAWMARK,         Threading,       StackCrawlMark)
 #endif
@@ -979,7 +973,7 @@ DEFINE_METHOD(STUBHELPERS,          CLEAR_LAST_ERROR,       ClearLastError,     
 
 DEFINE_METHOD(STUBHELPERS,          THROW_INTEROP_PARAM_EXCEPTION, ThrowInteropParamException,   SM_Int_Int_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          ADD_TO_CLEANUP_LIST_SAFEHANDLE,    AddToCleanupList,           SM_RefCleanupWorkListElement_SafeHandle_RetIntPtr)
-DEFINE_METHOD(STUBHELPERS,          ADD_TO_CLEANUP_LIST_DELEGATE,    AddToCleanupList,             SM_RefCleanupWorkListElement_Delegate_RetVoid)
+DEFINE_METHOD(STUBHELPERS,          KEEP_ALIVE_VIA_CLEANUP_LIST,    KeepAliveViaCleanupList,       SM_RefCleanupWorkListElement_Obj_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          DESTROY_CLEANUP_LIST,   DestroyCleanupList,         SM_RefCleanupWorkListElement_RetVoid)
 DEFINE_METHOD(STUBHELPERS,          GET_HR_EXCEPTION_OBJECT, GetHRExceptionObject,      SM_Int_RetException)
 DEFINE_METHOD(STUBHELPERS,          CREATE_CUSTOM_MARSHALER_HELPER, CreateCustomMarshalerHelper, SM_IntPtr_Int_IntPtr_RetIntPtr)

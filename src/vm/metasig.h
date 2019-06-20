@@ -587,7 +587,7 @@ DEFINE_METASIG(SM(RefObject_Object_Object_RetObject, r(j) j j, j))
 
 DEFINE_METASIG_T(SM(RefCleanupWorkListElement_RetVoid, r(C(CLEANUP_WORK_LIST_ELEMENT)), v))
 DEFINE_METASIG_T(SM(RefCleanupWorkListElement_SafeHandle_RetIntPtr, r(C(CLEANUP_WORK_LIST_ELEMENT)) C(SAFE_HANDLE), I))
-DEFINE_METASIG_T(SM(RefCleanupWorkListElement_Delegate_RetVoid, r(C(CLEANUP_WORK_LIST_ELEMENT)) C(DELEGATE), v))
+DEFINE_METASIG_T(SM(RefCleanupWorkListElement_Obj_RetVoid, r(C(CLEANUP_WORK_LIST_ELEMENT)) j, v))
 
 #ifdef FEATURE_ICASTABLE
 DEFINE_METASIG_T(SM(ICastable_RtType_RefException_RetBool, C(ICASTABLE) C(CLASS) r(C(EXCEPTION)), F))
@@ -600,6 +600,8 @@ DEFINE_METASIG_T(IM(IAsyncResult_RetVoid, C(IASYNCRESULT), v))
 
 DEFINE_METASIG(IM(Int_RetRefT, i, r(G(0))))
 DEFINE_METASIG_T(IM(Int_RetReadOnlyRefT, i, Q(INATTRIBUTE) r(G(0))))
+
+DEFINE_METASIG(GM(RetT, IMAGE_CEE_CS_CALLCONV_DEFAULT, 1, _, M(0)))
 
 // Undefine macros in case we include the file again in the compilation unit
 

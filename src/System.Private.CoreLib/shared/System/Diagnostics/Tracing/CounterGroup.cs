@@ -57,11 +57,8 @@ namespace System.Diagnostics.Tracing
         {
             if (e.Command == EventCommand.Enable || e.Command == EventCommand.Update)
             {
-                string valueStr;
-                int value;
                 Debug.Assert(e.Arguments != null);
-
-                if (e.Arguments.TryGetValue("EventCounterIntervalSec", out valueStr) && Int32.TryParse(valueStr, out value))
+                if (e.Arguments.TryGetValue("EventCounterIntervalSec", out string? valueStr) && Int32.TryParse(valueStr, out int value))
                 {
 
                     lock (this)      // Lock the CounterGroup
@@ -200,14 +197,15 @@ namespace System.Diagnostics.Tracing
                     TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
                     List<int> modified = new List<int>();
 
-                    foreach (var session in _sessions)
+                    foreach (DiagnosticCounter counter in _counters)
                     {
-                        TimeSpan elapsedSinceLastUpdate = now - session.Value;
-                        if (elapsedSinceLastUpdate.TotalMilliseconds > session.Key)
+                        CounterPayload payload = counter.GeneratePayload((float)elapsed.TotalSeconds);
+                        foreach (var session in _sessions)
                         {
-                            foreach (var counter in _counters)
+                            TimeSpan elapsedSinceLastUpdate = now - session.Value;
+                            if (elapsedSinceLastUpdate.TotalMilliseconds > session.Key)
                             {
-                                counter.WritePayload((float)elapsed.TotalSeconds, session.Key);
+                                counter.WritePayload(payload, session.Key);
                             }
                             modified.Add(session.Key);
                         }

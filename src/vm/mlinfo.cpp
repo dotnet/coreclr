@@ -3269,7 +3269,7 @@ void MarshalInfo::GenerateArgumentIL(NDirectStubLinker* psl,
     pcsMarshal->EmitNOP("// } argument");
     pcsUnmarshal->EmitNOP("// } argument");
 
-    pMarshaler->EmitSetupArgument(pcsDispatch);
+    pMarshaler->EmitSetupArgumentForDispatch(pcsDispatch);
     if (m_paramidx == 0)
     {
         CorCallingConvention callConv = psl->GetStubTargetCallingConv();
@@ -4277,9 +4277,8 @@ VOID MarshalInfo::MarshalTypeToString(SString& strMarshalType, BOOL fSizeIsSpeci
     {
         GCX_COOP();
         
-        OBJECTHANDLE objHandle = m_pCMHelper->GetCustomMarshalerInfo()->GetCustomMarshaler();
+        OBJECTREF pObjRef = m_pCMHelper->GetCustomMarshalerInfo()->GetCustomMarshaler();
         {
-            OBJECTREF pObjRef = ObjectFromHandle(objHandle);
             DefineFullyQualifiedNameForClassW();
 
             strMarshalType.Printf(W("custom marshaler (%s)"),
@@ -4690,7 +4689,7 @@ void MarshalInfo::MarshalHiddenLengthArgument(NDirectStubLinker *psl, BOOL manag
     if (managedToNative)
     {
         ILCodeStream* pcsDispatch = psl->GetDispatchCodeStream();
-        pHiddenLengthMarshaler->EmitSetupArgument(pcsDispatch);
+        pHiddenLengthMarshaler->EmitSetupArgumentForDispatch(pcsDispatch);
     }
 }
 
