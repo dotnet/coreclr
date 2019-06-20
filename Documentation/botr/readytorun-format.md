@@ -263,7 +263,7 @@ position of the reference in the stack frame and ``token`` is type of GC referen
 | GCREFMAP_TYPE_PARAM        |     4 | Hidden type instantiation argument to generic method |
 | GCREFMAP_VASIG_COOKIE      |     5 | VARARG signature cookie |
 
-The position values are calculated in ``size_t`` aka ``IntPtr`` units (4 bytes for 32-bit architectures vs. 8 bytes for 64-bit architectures) and start at the offset ``TransitionBlock::GetOffsetOfFirstGCRefMapSlot`` relative to the transition frame address. For x86 the position encoding is [somewhat more complicated](https://github.com/dotnet/coreclr/blob/d5d18896900561b7aaf38ba9501a8525a4b9caea/src/vm/frames.cpp#L1326).
+The position values are calculated in ``size_t`` aka ``IntPtr`` units (4 bytes for 32-bit architectures vs. 8 bytes for 64-bit architectures) and start at the offset ``TransitionBlock::GetOffsetOfFirstGCRefMapSlot`` relative to the transition frame address.
 
 * The encoding always starts at the byte boundary. The high order bit of each byte is used to signal end of the encoding stream. The last byte has the high order bit zero. It means that there are 7 useful bits in each byte. 
 
