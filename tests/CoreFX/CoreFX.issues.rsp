@@ -92,6 +92,12 @@
 # Assert: https://github.com/dotnet/coreclr/issues/25050
 -nonamespace System.Data.Common.Tests
 
+# System.IO.Tests: These are very slow with Checked builds.
+-nomethod System.IO.Tests.File_Copy_str_str.CopyFileWithData_MemberData
+-nomethod System.IO.Tests.File_Copy_str_str_b.CopyFileWithData_MemberData
+-nomethod System.IO.Tests.FileInfo_CopyTo_str.CopyFileWithData_MemberData
+-nomethod System.IO.Tests.FileInfo_CopyTo_str_b.CopyFileWithData_MemberData
+
 # requires corefx test updates
 -nomethod System.Data.Tests.Common.DbConnectionStringBuilderTest.Add_Keyword_Invalid
 -nomethod System.Data.Tests.Common.DbConnectionStringBuilderTest.Indexer_Keyword_Invalid
