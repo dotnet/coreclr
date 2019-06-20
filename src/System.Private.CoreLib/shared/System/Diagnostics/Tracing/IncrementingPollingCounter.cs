@@ -67,7 +67,14 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal override void WritePayload(float intervalSec, int pollingIntervalMillisec)
+        internal override void WritePayload(IEnumerable<KeyValuePair<string, object?>> payload, int pollingIntervalMillisec)
+        {
+            IncrementingCounterPayload sessionPayload = (IncrementingCounterPayload)payload;
+            sessionPayload.Series = $"Interval={pollingIntervalMillisec}";
+            EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingPollingCounterPayloadType(sessionPayload));
+        }
+
+        internal override IEnumerable<KeyValuePair<string, object?>> GeneratePayload(float intervalSec)
         {
             UpdateMetric();
             lock (this)     // Lock the counter
@@ -77,13 +84,11 @@ namespace System.Diagnostics.Tracing
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayRateTimeScale = (DisplayRateTimeScale == TimeSpan.Zero) ? "" : DisplayRateTimeScale.ToString("c");
                 payload.IntervalSec = intervalSec;
-                payload.Series = $"Interval={pollingIntervalMillisec}"; // TODO: This may need to change when we support multi-session
                 payload.CounterType = "Sum";
                 payload.Metadata = GetMetadataString();
                 payload.Increment = _increment - _prevIncrement;
                 payload.DisplayUnits = DisplayUnits ?? "";
                 _prevIncrement = _increment;
-                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new IncrementingPollingCounterPayloadType(payload));
             }
         }
     }

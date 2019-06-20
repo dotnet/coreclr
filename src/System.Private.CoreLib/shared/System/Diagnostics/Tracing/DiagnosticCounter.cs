@@ -109,7 +109,9 @@ namespace System.Diagnostics.Tracing
         private CounterGroup _group;
         private Dictionary<string, string>? _metadata;
 
-        internal abstract void WritePayload(float intervalSec, int pollingIntervalMillisec);
+        internal abstract void WritePayload(IEnumerable<KeyValuePair<string, object?>> payload, int pollingIntervalMillisec);
+
+        internal abstract IEnumerable<KeyValuePair<string, object?>> GeneratePayload(float intervalSec);
 
         internal void ReportOutOfBandMessage(string message)
         {

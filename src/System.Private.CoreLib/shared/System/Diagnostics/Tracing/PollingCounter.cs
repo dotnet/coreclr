@@ -45,7 +45,14 @@ namespace System.Diagnostics.Tracing
         private Func<double> _metricProvider;
         private double _lastVal;
 
-        internal override void WritePayload(float intervalSec, int pollingIntervalMillisec)
+        internal override void WritePayload(IEnumerable<KeyValuePair<string, object?>> payload, int pollingIntervalMillisec)
+        {
+            CounterPayload sessionPayload = (CounterPayload)payload;
+            sessionPayload.Series = $"Interval={pollingIntervalMillisec}"; // TODO: This may need to change when we support multi-session
+            EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(sessionPayload));
+        }
+
+        internal override CounterPayload GeneratePayload(float intervalSec)
         {
             lock (this)
             {
@@ -64,7 +71,6 @@ namespace System.Diagnostics.Tracing
                 payload.DisplayName = DisplayName ?? "";
                 payload.Count = 1; // NOTE: These dumb-looking statistics is intentional
                 payload.IntervalSec = intervalSec;
-                payload.Series = $"Interval={pollingIntervalMillisec}";  // TODO: This may need to change when we support multi-session
                 payload.CounterType = "Mean";
                 payload.Mean = value;
                 payload.Max = value;
@@ -73,7 +79,7 @@ namespace System.Diagnostics.Tracing
                 payload.StandardDeviation = 0;
                 payload.DisplayUnits = DisplayUnits ?? "";
                 _lastVal = value;
-                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(payload));
+                return payload;
             }
         }
     }

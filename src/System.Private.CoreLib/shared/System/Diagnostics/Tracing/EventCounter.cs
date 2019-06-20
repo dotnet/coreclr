@@ -83,7 +83,14 @@ namespace System.Diagnostics.Tracing
             _count++;
         }
 
-        internal override void WritePayload(float intervalSec, int pollingIntervalMillisec)
+        internal override void WritePayload(IEnumerable<KeyValuePair<string, object?>> payload, int pollingIntervalMillisec)
+        {
+            CounterPayload sessionPayload = (CounterPayload)payload;
+            sessionPayload.Series = $"Interval={pollingIntervalMillisec}"; // TODO: This may need to change when we support multi-session
+            EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new CounterPayloadType(sessionPayload));
+        }
+
+        internal override IEnumerable<KeyValuePair<string, object?>> GeneratePayload(float intervalSec)
         {
             lock (this)
             {
@@ -103,14 +110,13 @@ namespace System.Diagnostics.Tracing
                 }
                 payload.Min = _min;
                 payload.Max = _max;
-                payload.Series = $"Interval={pollingIntervalMillisec}"; // TODO: This may need to change when we support multi-session
                 payload.CounterType = "Mean";
                 payload.Metadata = GetMetadataString();
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayUnits = DisplayUnits ?? "";
                 payload.Name = Name;
                 ResetStatistics();
-                EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new CounterPayloadType(payload));
+                return payload;
             }
         }
 
