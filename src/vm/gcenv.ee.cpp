@@ -844,11 +844,11 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         //     may put a stack/unmanaged write inside the new heap range. However the old card table would not cover it.
         //     Therefore we must ensure that the write barriers see the new table before seeing new bounds.
         //
-        //     On archtectures with strong ordering, we only need to prevent compiler reordering.
+        //     On architectures with strong ordering, we only need to prevent compiler reordering.
         //     Otherwise we put a process-wide fence here (so that we could use an ordinary read in the barrier)
 
 #if defined(_ARM64_) || defined(_ARM_)      
-        if(!is_runtime_suspended)
+        if (!is_runtime_suspended)
         {
             // If runtime is not suspended, force all threads to see the changed table before seeing updated heap boundaries.
             // See:Dev11 #346765
@@ -875,7 +875,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
         // At this point either the old or the new set of globals (card_table, bounds etc) can be used. Card tables and card bundles allow such use. 
         // When card tables are de-published (at EE suspension) all the info will be merged, so the information will not be lost.
-        // Another point - we should not yet have any manaded objects/addresses outside of the former bounds, so either old or new bounds are fine.
+        // Another point - we should not yet have any managed objects/addresses outside of the former bounds, so either old or new bounds are fine.
         // That is - because bounds can only become wider and we are not yet done with widening.
         //
         // However!!
@@ -901,7 +901,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
 
 #if defined(_ARM64_) || defined(_ARM_)      
         is_runtime_suspended = (stompWBCompleteActions & SWB_EE_RESTART) || is_runtime_suspended;
-        if(!is_runtime_suspended)
+        if (!is_runtime_suspended)
         {
             // If runtime is not suspended, force all threads to see the changed state before observing future allocations.
             FlushProcessWriteBuffers();
