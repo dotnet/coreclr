@@ -9,6 +9,7 @@
       <ContainsPackageReferences>true</ContainsPackageReferences>
       <CLRTestKind>SharedLibrary</CLRTestKind>
       <IsTestProject>false</IsTestProject>
+      <MicrosoftDiagnosticsRuntimePackageVersion>1.0.5</MicrosoftDiagnosticsRuntimePackageVersion>
   </PropertyGroup>
 
   <!-- Switch RuntimeIdentifier according to currently targeted OSGroup -->
@@ -22,6 +23,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Private.CoreFx.OOB">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Diagnostics.Runtime">
+      <Version>$(MicrosoftDiagnosticsRuntimePackageVersion)</Version>
     </PackageReference>
   </ItemGroup>
 
