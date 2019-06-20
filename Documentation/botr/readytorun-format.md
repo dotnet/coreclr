@@ -77,9 +77,9 @@ native code from image of version 3.0.
 
 ### READYTORUN_HEADER::Flags
 
-| Flag | Value | Description |
-|:-----|------:|:------------|
-| ``READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE`` | 0x00000001 | Set if the original IL image was platform neutral. The platform neutrality is part of assembly name. This flag can be used to reconstruct the full original assembly name. |
+| Flag                                    |      Value | Description |
+|:----------------------------------------|-----------:|:------------|
+| READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE | 0x00000001 | Set if the original IL image was platform neutral. The platform neutrality is part of assembly name. This flag can be used to reconstruct the full original assembly name. |
 
 ## READYTORUN_SECTION
 
@@ -91,7 +91,7 @@ struct READYTORUN_SECTION
 };
 ```
  
-This section contains array of ``EADYTORUN_SECTION`` records immediately follows 
+This section contains array of ``READYTORUN_SECTION`` records immediately follows 
 ``READYTORUN_HEADER``. Number of elements in the array is ``READYTORUN_HEADER::NumberOfSections``. 
 Each record contains section type and its location within the binary. The array is sorted by section type 
 to allow binary searching.
@@ -151,13 +151,13 @@ struct READYTORUN_IMPORT_SECTION
 
 | ReadyToRunImportSectionFlags           | Value  | Description                                               |
 |:---------------------------------------|-------:|:----------------------------------------------------------|
-| ``READYTORUN_IMPORT_SECTION_FLAGS_EAGER``  | 0x0001 | Set if the slots in the section have to be initialized at image load time. It is used to avoid lazy initialization when it cannot be done or when it would have undesirable reliability or performance effects (unexpected failure or GC trigger points, overhead of lazy initialization).                                     |
+| READYTORUN_IMPORT_SECTION_FLAGS_EAGER  | 0x0001 | Set if the slots in the section have to be initialized at image load time. It is used to avoid lazy initialization when it cannot be done or when it would have undesirable reliability or performance effects (unexpected failure or GC trigger points, overhead of lazy initialization).                                     |
 
 ### READYTORUN_IMPORT_SECTIONS::Type
 
 | ReadyToRunImportSectionType            | Value  | Description                                               |
 |:---------------------------------------|-------:|:----------------------------------------------------------|
-| ``READYTORUN_IMPORT_SECTION_TYPE_UNKNOWN`` | 0      | The type of slots in this section is unspecified.         |
+| READYTORUN_IMPORT_SECTION_TYPE_UNKNOWN | 0      | The type of slots in this section is unspecified.         |
 
 *Future*: The section type can be used to group slots of the same type together. For example, all virtual 
 stub dispatch slots may be grouped together to simplify resetting of virtual stub dispatch cells into their 
@@ -170,43 +170,43 @@ signature that contains the information required to fill the corresponding slot.
 builds upon the encoding used for signatures in ECMA-335. The first element of the signature describes the 
 fixup kind, the rest of the signature varies based on the fixup kind.
 
-| ReadyToRunFixupKind                    | Value | Description                                     |
-|:---------------------------------------|------:|:------------------------------------------------|
-| ``READYTORUN_FIXUP_ThisObjDictionaryLookup`` | 0x07 | Generic lookup using ``this``; followed by the type signature and by the method signature |
-| ``READYTORUN_FIXUP_TypeDictionaryLookup`` | 0x08 | Type-based generic lookup for methods on instantiated types; followed by the typespec signature |
-| ``READYTORUN_FIXUP_MethodDictionaryLookup`` | 0x09 | Generic method lookup; followed by the method spec signature |
-| ``READYTORUN_FIXUP_TypeHandle``            |  0x10 | Pointer uniquely identifying the type to the runtime, followed by typespec signature (see ECMA-335) |
-| ``READYTORUN_FIXUP_MethodHandle``          |  0x11 | Pointer uniquely identifying the method to the runtime, followed by method signature (see below) |
-| ``READYTORUN_FIXUP_FieldHandle``           |  0x12 | Pointer uniquely identifying the field to the runtime, followed by field signature (see below) |
-| ``READYTORUN_FIXUP_MethodEntry``           |  0x13 | Method entrypoint or call, followed by method signature |
-| ``READYTORUN_FIXUP_MethodEntry_DefToken``  |  0x14 | Method entrypoint or call, followed by methoddef token (shortcut) |
-| ``READYTORUN_FIXUP_MethodEntry_RefToken``  |  0x15 | Method entrypoint or call, followed by methodref token (shortcut) |
-| ``READYTORUN_FIXUP_VirtualEntry``          |  0x16 | Virtual method entrypoint or call, followed by method signature |
-| ``READYTORUN_FIXUP_VirtualEntry_DefToken`` |  0x17 | Virtual method entrypoint or call, followed by methoddef token (shortcut) |
-| ``READYTORUN_FIXUP_VirtualEntry_RefToken`` |  0x18 | Virtual method entrypoint or call, followed by methodref token (shortcut) |
-| ``READYTORUN_FIXUP_VirtualEntry_Slot``     |  0x19 | Virtual method entrypoint or call, followed by typespec signature and slot |
-| ``READYTORUN_FIXUP_Helper``                |  0x1A | Helper call, followed by helper call id (see chapter 4 Helper calls) |
-| ``READYTORUN_FIXUP_StringHandle``          |  0x1B | String handle, followed by metadata string token |
-| ``READYTORUN_FIXUP_NewObject``             |  0x1C | New object helper, followed by typespec  signature |
-| ``READYTORUN_FIXUP_NewArray``              |  0x1D | New array helper, followed by typespec signature |
-| ``READYTORUN_FIXUP_IsInstanceOf``          |  0x1E | isinst helper, followed by typespec signature |
-| ``READYTORUN_FIXUP_ChkCast``               |  0x1F | chkcast helper, followed by typespec signature |
-| ``READYTORUN_FIXUP_FieldAddress``          |  0x20 | Field address, followed by field signature |
-| ``READYTORUN_FIXUP_CctorTrigger``          |  0x21 | Static constructor trigger, followed by typespec signature |
-| ``READYTORUN_FIXUP_StaticBaseNonGC``       |  0x22 | Non-GC static base, followed by typespec signature |
-| ``READYTORUN_FIXUP_StaticBaseGC``          |  0x23 | GC static base, followed by typespec signature |
-| ``READYTORUN_FIXUP_ThreadStaticBaseNonGC`` |  0x24 | Non-GC thread-local static base, followed by typespec signature |
-| ``READYTORUN_FIXUP_ThreadStaticBaseGC``    |  0x25 | GC thread-local static base, followed by typespec signature |
-| ``READYTORUN_FIXUP_FieldBaseOffset``       |  0x26 | Starting offset of fields for given type, followed by typespec signature. Used to address base class fragility. |
-| ``READYTORUN_FIXUP_FieldOffset``           |  0x27 | Field offset, followed by field signature |
-| ``READYTORUN_FIXUP_TypeDictionary``        |  0x28 | Hidden dictionary argument for generic code, followed by typespec signature |
-| ``READYTORUN_FIXUP_MethodDictionary``      |  0x29 | Hidden dictionary argument for generic code, followed by method signature |
-| ``READYTORUN_FIXUP_Check_TypeLayout``      |  0x2A | Verification of type layout, followed by typespec and expected type layout descriptor |
-| ``READYTORUN_FIXUP_Check_FieldOffset``     |  0x2B | Verification of field offset, followed by field signature and expected field layout descriptor |
-| ``READYTORUN_FIXUP_DelegateCtor``          |  0x2C | Delegate constructor, followed by method signature |
-| ``READYTORUN_FIXUP_DeclaringTypeHandle``   |  0x2D | Dictionary lookup for method declaring type. Followed by the type signature. |
-| ``READYTORUN_FIXUP_IndirectPInvokeTarget`` | 0x2E | Target of an inlined PInvoke. Followed by method signature. |
-| ``READYTORUN_FIXUP_ModuleOverride``        | 0x80 | When or-ed to the fixup ID, the fixup byte in the signature is followed by an encoded uint with assemblyref index, either within the MSIL metadata of the master context module for the signature or within the manifest metadata R2R header table (used in cases inlining brings in references to assemblies not seen in the input MSIL). |
+| ReadyToRunFixupKind                      | Value | Description                                     |
+|:-----------------------------------------|------:|:------------------------------------------------|
+| READYTORUN_FIXUP_ThisObjDictionaryLookup |  0x07 | Generic lookup using ``this``; followed by the type signature and by the method signature |
+| READYTORUN_FIXUP_TypeDictionaryLookup    |  0x08 | Type-based generic lookup for methods on instantiated types; followed by the typespec signature |
+| READYTORUN_FIXUP_MethodDictionaryLookup  |  0x09 | Generic method lookup; followed by the method spec signature |
+| READYTORUN_FIXUP_TypeHandle              |  0x10 | Pointer uniquely identifying the type to the runtime, followed by typespec signature (see ECMA-335) |
+| READYTORUN_FIXUP_MethodHandle            |  0x11 | Pointer uniquely identifying the method to the runtime, followed by method signature (see below) |
+| READYTORUN_FIXUP_FieldHandle             |  0x12 | Pointer uniquely identifying the field to the runtime, followed by field signature (see below) |
+| READYTORUN_FIXUP_MethodEntry             |  0x13 | Method entrypoint or call, followed by method signature |
+| READYTORUN_FIXUP_MethodEntry_DefToken    |  0x14 | Method entrypoint or call, followed by methoddef token (shortcut) |
+| READYTORUN_FIXUP_MethodEntry_RefToken    |  0x15 | Method entrypoint or call, followed by methodref token (shortcut) |
+| READYTORUN_FIXUP_VirtualEntry            |  0x16 | Virtual method entrypoint or call, followed by method signature |
+| READYTORUN_FIXUP_VirtualEntry_DefToken   |  0x17 | Virtual method entrypoint or call, followed by methoddef token (shortcut) |
+| READYTORUN_FIXUP_VirtualEntry_RefToken   |  0x18 | Virtual method entrypoint or call, followed by methodref token (shortcut) |
+| READYTORUN_FIXUP_VirtualEntry_Slot       |  0x19 | Virtual method entrypoint or call, followed by typespec signature and slot |
+| READYTORUN_FIXUP_Helper                  |  0x1A | Helper call, followed by helper call id (see chapter 4 Helper calls) |
+| READYTORUN_FIXUP_StringHandle            |  0x1B | String handle, followed by metadata string token |
+| READYTORUN_FIXUP_NewObject               |  0x1C | New object helper, followed by typespec  signature |
+| READYTORUN_FIXUP_NewArray                |  0x1D | New array helper, followed by typespec signature |
+| READYTORUN_FIXUP_IsInstanceOf            |  0x1E | isinst helper, followed by typespec signature |
+| READYTORUN_FIXUP_ChkCast                 |  0x1F | chkcast helper, followed by typespec signature |
+| READYTORUN_FIXUP_FieldAddress            |  0x20 | Field address, followed by field signature |
+| READYTORUN_FIXUP_CctorTrigger            |  0x21 | Static constructor trigger, followed by typespec signature |
+| READYTORUN_FIXUP_StaticBaseNonGC         |  0x22 | Non-GC static base, followed by typespec signature |
+| READYTORUN_FIXUP_StaticBaseGC            |  0x23 | GC static base, followed by typespec signature |
+| READYTORUN_FIXUP_ThreadStaticBaseNonGC   |  0x24 | Non-GC thread-local static base, followed by typespec signature |
+| READYTORUN_FIXUP_ThreadStaticBaseGC      |  0x25 | GC thread-local static base, followed by typespec signature |
+| READYTORUN_FIXUP_FieldBaseOffset         |  0x26 | Starting offset of fields for given type, followed by typespec signature. Used to address base class fragility. |
+| READYTORUN_FIXUP_FieldOffset             |  0x27 | Field offset, followed by field signature |
+| READYTORUN_FIXUP_TypeDictionary          |  0x28 | Hidden dictionary argument for generic code, followed by typespec signature |
+| READYTORUN_FIXUP_MethodDictionary        |  0x29 | Hidden dictionary argument for generic code, followed by method signature |
+| READYTORUN_FIXUP_Check_TypeLayout        |  0x2A | Verification of type layout, followed by typespec and expected type layout descriptor |
+| READYTORUN_FIXUP_Check_FieldOffset       |  0x2B | Verification of field offset, followed by field signature and expected field layout descriptor |
+| READYTORUN_FIXUP_DelegateCtor            |  0x2C | Delegate constructor, followed by method signature |
+| READYTORUN_FIXUP_DeclaringTypeHandle     |  0x2D | Dictionary lookup for method declaring type. Followed by the type signature. |
+| READYTORUN_FIXUP_IndirectPInvokeTarget   | 0x2E | Target of an inlined PInvoke. Followed by method signature. |
+| READYTORUN_FIXUP_ModuleOverride          | 0x80 | When or-ed to the fixup ID, the fixup byte in the signature is followed by an encoded uint with assemblyref index, either within the MSIL metadata of the master context module for the signature or within the manifest metadata R2R header table (used in cases inlining brings in references to assemblies not seen in the input MSIL). |
 
 #### Method Signatures
 
@@ -216,13 +216,13 @@ token, and additional data determined by the flags.
 
 | ReadyToRunMethodSigFlags                  | Value | Description                                |
 |:------------------------------------------|------:|:-------------------------------------------|
-| ``READYTORUN_METHOD_SIG_UnboxingStub``        |  0x01 | Unboxing entrypoint of the method. |
-| ``READYTORUN_METHOD_SIG_InstantiatingStub``   |  0x02 | Instantiating entrypoint of the method does not take hidden dictionary generic argument. |
-| ``READYTORUN_METHOD_SIG_MethodInstantiation`` |  0x04 | Method instantitation. Number of instantiation arguments followed by typespec for each of them appended as additional data. |
-| ``READYTORUN_METHOD_SIG_SlotInsteadOfToken``  |  0x08 | If set, the token is slot number. Used for multidimensional array methods that do not have metadata token, and also as an optimization for stable interface methods. Cannot be combined with ``MemberRefToken``. |
-| ``READYTORUN_METHOD_SIG_MemberRefToken``      |  0x10 | If set, the token is memberref token. If not set, the token is methoddef token. |
-| ``READYTORUN_METHOD_SIG_Constrained``         |  0x20 | Constrained type for method resolution. Typespec appended as additional data. |
-| ``READYTORUN_METHOD_SIG_OwnerType``           |  0x40 | Method type. Typespec appended as additional data. |
+| READYTORUN_METHOD_SIG_UnboxingStub        |  0x01 | Unboxing entrypoint of the method. |
+| READYTORUN_METHOD_SIG_InstantiatingStub   |  0x02 | Instantiating entrypoint of the method does not take hidden dictionary generic argument. |
+| READYTORUN_METHOD_SIG_MethodInstantiation |  0x04 | Method instantitation. Number of instantiation arguments followed by typespec for each of them appended as additional data. |
+| READYTORUN_METHOD_SIG_SlotInsteadOfToken  |  0x08 | If set, the token is slot number. Used for multidimensional array methods that do not have metadata token, and also as an optimization for stable interface methods. Cannot be combined with ``MemberRefToken``. |
+| READYTORUN_METHOD_SIG_MemberRefToken      |  0x10 | If set, the token is memberref token. If not set, the token is methoddef token. |
+| READYTORUN_METHOD_SIG_Constrained         |  0x20 | Constrained type for method resolution. Typespec appended as additional data. |
+| READYTORUN_METHOD_SIG_OwnerType           |  0x40 | Method type. Typespec appended as additional data. |
 
 #### Field Signatures
 
@@ -232,9 +232,9 @@ additional data determined by the flags.
 
 | ReadyToRunFieldSigFlags                  | Value | Description                                 |
 |:-----------------------------------------|------:|:--------------------------------------------|
-| ``READYTORUN_FIELD_SIG_IndexInsteadOfToken`` |  0x08 | Used as an optimization for stable fields. Cannot be combined with ``MemberRefToken``. |
-| ``READYTORUN_FIELD_SIG_MemberRefToken``      |  0x10 | If set, the token is memberref token. If not set, the token is fielddef token. |
-| ``READYTORUN_FIELD_SIG_OwnerType``           |  0x40 | Field type. Typespec appended as additional data. |
+| READYTORUN_FIELD_SIG_IndexInsteadOfToken |  0x08 | Used as an optimization for stable fields. Cannot be combined with ``MemberRefToken``. |
+| READYTORUN_FIELD_SIG_MemberRefToken      |  0x10 | If set, the token is memberref token. If not set, the token is fielddef token. |
+| READYTORUN_FIELD_SIG_OwnerType           |  0x40 | Field type. Typespec appended as additional data. |
 
 ### READYTORUN_IMPORT_SECTIONS::AuxiliaryData
 
@@ -243,25 +243,25 @@ compressed argument maps that allow precise GC stack scanning while the helper i
 
 The auxiliary data table is supposed to contain the exact same number of GC ref map records as there are method entries in the import section. To accelerate GC ref map lookup, the auxiliary data section starts with a lookup table holding the offset of every 1024-th method in the runtime function table within the linearized GC ref map.
 
-| Offset in auxiliary data | Size | Content |
-|-------------------------:|-----:|:--------|
-| 0 | 4 | Offset to GC ref map info for method #0 relative to this byte i.e. 4 * (MethodCount / 1024 + 1) |
-| 4 | 4 | Offset to GC ref map info for method #1024 |
-| 8 | 4 | Offset to GC ref map info for method #2048 |
-| ... | | |
-4 * (MethodCount / 1024 + 1) | ... | Serialized GC ref map info |
+|     Offset in auxiliary data | Size | Content |
+|-----------------------------:|-----:|:--------|
+|                            0 |    4 | Offset to GC ref map info for method #0 relative to this byte i.e. 4 * (MethodCount / 1024 + 1) |
+|                            4 |    4 | Offset to GC ref map info for method #1024 |
+|                            8 |    4 | Offset to GC ref map info for method #2048 |
+|                          ... |      | |
+| 4 * (MethodCount / 1024 + 1) |  ... | Serialized GC ref map info |
 
 The GCRef map is used to encode GC type of arguments for callsites. Logically, it is a sequence ``<pos, token>`` where ``pos`` is 
 position of the reference in the stack frame and ``token`` is type of GC reference (one of [``GCREFMAP_XXX``](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/corcompile.h#L633) values):
 
 | CORCOMPILE_GCREFMAP_TOKENS | Value | Stack frame entry interpretation |
-|:---------------------------|------:|:--------|
-| ``GCREFMAP_SKIP`` | 0 | Not a GC-relevant entry |
-| ``GCREFMAP_REF`` | 1 | GC reference |
-| ``GCREFMAP_INTERIOR`` | 2 | Pointer to a GC reference |
-| ``GCREFMAP_METHOD_PARAM`` | 3 | Hidden method instantiation argument to generic method |
-| ``GCREFMAP_TYPE_PARAM`` | 4 | Hidden type instantiation argument to generic method |
-| ``GCREFMAP_VASIG_COOKIE`` | 5 | VARARG signature cookie |
+|:---------------------------|------:|:---------------------------------|
+| GCREFMAP_SKIP              |     0 | Not a GC-relevant entry |
+| GCREFMAP_REF               |     1 | GC reference |
+| GCREFMAP_INTERIOR          |     2 | Pointer to a GC reference |
+| GCREFMAP_METHOD_PARAM      |     3 | Hidden method instantiation argument to generic method |
+| GCREFMAP_TYPE_PARAM        |     4 | Hidden type instantiation argument to generic method |
+| GCREFMAP_VASIG_COOKIE      |     5 | VARARG signature cookie |
 
 The position values are calculated in ``size_t`` aka ``IntPtr`` units (4 bytes for 32-bit architectures vs. 8 bytes for 64-bit architectures) and start at the offset ``TransitionBlock::GetOffsetOfFirstGCRefMapSlot`` relative to the transition frame address. For x86 the position encoding is [somewhat more complicated](https://github.com/dotnet/coreclr/blob/d5d18896900561b7aaf38ba9501a8525a4b9caea/src/vm/frames.cpp#L1326).
 
@@ -281,22 +281,22 @@ basic encoding, with extended encoding for large values).
 This section contains sorted array of ``RUNTIME_FUNCTION`` entries that describe all functions in the 
 image with pointers to their unwind info. The standard Windows xdata/pdata format is used.
 ARM format is used for x86 to compensate for lack of x86 unwind info standard.
-The unwind info blob is immediately followed by GC info blob. The encoding slightly differs for amd64 which encodes an extra 4-byte  representing the end RVA of the frame info blob.
+The unwind info blob is immediately followed by GC info blob. The encoding slightly differs for amd64 which encodes an extra 4-byte representing the end RVA of the unwind info blob.
 
 ### RUNTIME_FUNCTION (x86, arm, arm64, size = 8 bytes)
 
-| Offset | Size | Value |
-|-------:|-----:|:------|
-| 0 | 4 | Frame info start RVA |
-| 4 | 4 | GC info start RVA |
+| Offset | Size | Value                 |
+|-------:|-----:|:----------------------|
+|      0 |    4 | Unwind info start RVA |
+|      4 |    4 | GC info start RVA     |
 
 ### RUNTIME_FUNCTION (amd64, size = 12 bytes)
 
-| Offset | Size | Value |
-|-------:|-----:|:------|
-| 0 | 4 | Frame info start RVA |
-| 4 | 4 | Frame info end RVA (1 plus RVA of last byte) |
-| 8 | 4 | GC info start RVA |
+| Offset | Size | Value                                         |
+|-------:|-----:|:----------------------------------------------|
+|      0 |    4 | Unwind info start RVA                         |
+|      4 |    4 | Unwind info end RVA (1 plus RVA of last byte) |
+|      8 |    4 | GC info start RVA                             |
 
 ## READYTORUN_SECTION_METHODDEF_ENTRYPOINTS
 
@@ -384,14 +384,14 @@ debuggers are able to handle debug info stored separately.
 
 ## READYTORUN_SECTION_AVAILABLE_TYPES
 
-This section contains a native hashtable of all defined & export types within the compilation module. The key is a checksum of the full type name, the value is the exported type or defined type token row ID left-shifted by one and or-ed with bit 0 defining the token type:
+This section contains a native hashtable of all defined & export types within the compilation module. The key is a version-resilient hash of the full type name, the value is the exported type or defined type token row ID left-shifted by one and or-ed with bit 0 defining the token type:
 
-| Bit value | Token type |
-|----------:|:-----------|
-| 0         | defined type |
-| 1         | exported type |
+| Bit value | Token type    |
+|----------:|:--------------|
+|         0 | defined type  |
+|         1 | exported type |
 
-The checksum algorithm is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
+The version-resilient hashing algorithm is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
 
 ## READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS
 
@@ -413,11 +413,11 @@ As of R2R version 3.0, The metadata is only searched for the AssemblyRef table. 
 
 The module override index translation algorithm is as follows:
 
-| Module override index | Reference assembly |
-|:----------------------|:-------------------|
-| 0                     | Global context - assembly containing the signature |
+| Module override index       | Reference assembly |
+|:----------------------------|:-------------------|
+| 0                           | Global context - assembly containing the signature |
 | 1 .. MSIL.AssemblyRef.Count | Index into the MSIL AssemblyRef table |
-| i > MSIL.AssemblyRef.Count | (i - MSIL.AssemblyRef.Count - 1) is the zero-based index into the AssemblyRef table in the manifest metadata |
+| i > MSIL.AssemblyRef.Count  | (i - MSIL.AssemblyRef.Count - 1) is the zero-based index into the AssemblyRef table in the manifest metadata |
 
 ## READYTORUN_SECTION_ATTRIBUTEPRESENCE
 
