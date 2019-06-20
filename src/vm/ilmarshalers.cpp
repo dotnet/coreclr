@@ -78,17 +78,7 @@ void ILReflectionObjectMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* p
 
     if (IsCLRToNative(m_dwMarshalFlags))
     {
-        EmitLoadCleanupWorkList(pslILEmit);
-        if (tokStruct__m_object != 0)
-        {
-            EmitLoadManagedHomeAddr(pslILEmit);
-            pslILEmit->EmitLDFLD(tokStruct__m_object);
-        }
-        else
-        {
-            EmitLoadManagedValue(pslILEmit);
-        }
-        pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
+        EmitKeepAliveManagedValue();
     }
 }
 
@@ -128,10 +118,12 @@ void ILDelegateMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmit
     EmitLoadManagedValue(pslILEmit);
     pslILEmit->EmitCALL(METHOD__MARSHAL__GET_FUNCTION_POINTER_FOR_DELEGATE, 1, 1);
     EmitStoreNativeValue(pslILEmit);
-    EmitLoadCleanupWorkList(pslILEmit);
-    EmitLoadManagedValue(pslILEmit);
-    pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
-    
+
+    if (IsCLRToNative(m_dwMarshalFlags))
+    {
+        EmitKeepAliveManagedValue();
+    }
+
     pslILEmit->EmitLabel(pNullLabel);
 }
 
@@ -1368,9 +1360,7 @@ void ILInterfaceMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslILEmi
         //
         // The fix is to extend the lifetime of the argument across the call to native by doing a GC.KeepAlive
         // keep the delegate ref alive across the call-out to native
-        EmitLoadCleanupWorkList(pslILEmit);
-        EmitLoadManagedValue(pslILEmit);
-        pslILEmit->EmitCALL(METHOD__STUBHELPERS__KEEP_ALIVE_VIA_CLEANUP_LIST, 2, 0);
+        EmitKeepAliveManagedValue();
     }
 }
 
@@ -2735,13 +2725,28 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
         }
         else
         {
+            // Don't use the CleanupWorkList here.
+            // We can't afford allocating for every SafeHandle by-value argument.
+            // Instead, duplicate what the CleanupWorkList does as raw IL instructions here.
+            psl->SetCleanupNeeded();
+            ILCodeStream* pslILCleanup = psl->GetCleanupCodeStream();
+            pslIL->SetStubTargetArgType(ELEMENT_TYPE_I);
+
             DWORD dwNativeHandle = pslIL->NewLocal(ELEMENT_TYPE_I);
-            psl->LoadCleanupWorkList(pslIL);
+            DWORD dwAddRefd = pslIL->NewLocal(ELEMENT_TYPE_BOOLEAN);
             pslIL->EmitLDARG(argidx);
-            pslIL->EmitCALL(METHOD__STUBHELPERS__ADD_TO_CLEANUP_LIST_SAFEHANDLE, 2, 1);
+            pslIL->EmitLDLOCA(dwAddRefd);
+            pslIL->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_ADD_REF, 2, 1);
             pslIL->EmitSTLOC(dwNativeHandle);
 
             pslILDispatch->EmitLDLOC(dwNativeHandle);
+
+            pslILCleanup->EmitLDLOC(dwAddRefd);
+            ILCodeLabel* pAfterReleaseLabel = pslILCleanup->NewCodeLabel();
+            pslILCleanup->EmitBRFALSE(pAfterReleaseLabel);
+            pslILCleanup->EmitLDARG(argidx);
+            pslILCleanup->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_RELEASE, 1, 0);
+            pslILCleanup->EmitLabel(pAfterReleaseLabel);
         }
 
         return OVERRIDDEN;

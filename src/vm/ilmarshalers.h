@@ -1541,6 +1541,21 @@ protected:
         return false;
     }
 
+    virtual void EmitLoadValueToKeepAlive(ILCodeStream* pslILEmit)
+    {
+        LIMITED_METHOD_CONTRACT;
+        EmitLoadManagedValue(pslILEmit);
+    }
+
+    void EmitKeepAliveManagedValue()
+    {
+        // Don't use the cleanup work list to avoid any extra allocations.
+        m_pslNDirect->SetCleanupNeeded();
+        ILCodeStream* pslILEmit = m_pslNDirect->GetCleanupCodeStream();
+        EmitLoadValueToKeepAlive(pslILEmit);
+        pslILEmit->EmitCALL(METHOD__GC__KEEP_ALIVE, 1, 0);
+    }
+
 public:
     
     // Extension point to allow a marshaler to conditionally override all of the ILMarshaler logic with its own or block marshalling when marshalling an argument.
@@ -1915,6 +1930,23 @@ protected:
     virtual BinderFieldID GetStructureFieldID() { LIMITED_METHOD_CONTRACT; return (BinderFieldID)0; }
     virtual BinderFieldID GetObjectFieldID() = 0;
     virtual BinderClassID GetManagedTypeBinderID() = 0;
+    void EmitLoadValueToKeepAlive(ILCodeStream* pslILEmit) override
+    {
+        BinderFieldID structField = GetStructureFieldID();
+
+        // This marshaler can generate code for marshaling an object containing a handle, and for 
+        // marshaling a struct referring to an object containing a handle.
+        if (structField != 0)
+        {
+            int tokStruct__m_object = pslILEmit->GetToken(MscorlibBinder::GetField(structField));
+            EmitLoadManagedHomeAddr(pslILEmit);
+            pslILEmit->EmitLDFLD(tokStruct__m_object);
+        }
+        else
+        {
+            EmitLoadManagedValue(pslILEmit);
+        }
+    }
 };
 
 class ILRuntimeTypeHandleMarshaler : public ILReflectionObjectMarshaler
