@@ -54,6 +54,7 @@
 # Temporarily disable tests while bringing more CoreFX job configurations online.
 #
 
+# System.Net.Tests are known for their instability
 -nonamespace System.Net.Http.Functional.Tests
 -nonamespace System.Net.Sockets.Tests
 
