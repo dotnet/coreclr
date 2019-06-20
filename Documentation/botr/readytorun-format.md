@@ -5,8 +5,7 @@ Author: [Jan Kotas](https://github.com/jkotas) - 2015
 
 # Introduction
 
-This document describes ReadyToRun format implemented in CoreCLR as of March 2015. It assumes 
-familiarity with concepts described in [1].
+This document describes ReadyToRun format implemented in CoreCLR as of March 2015.
 
 # PE Headers and CLI Headers
 
@@ -81,7 +80,7 @@ native code from image of version 3.0.
 ### READYTORUN_HEADER::Flags
 
 | Flag | Value | Description |
-|:-----|------:|-------------|
+|:-----|------:|:------------|
 | ``READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE`` | 0x00000001 | Set if the original IL image was platform neutral. The platform neutrality is part of assembly name. This flag can be used to reconstruct the full original assembly name. |
 
 ## READYTORUN_SECTION
@@ -163,7 +162,7 @@ initial state.
 
 This field points to array of RVAs that is parallel with the array of slots. Each RVA points to fixup 
 signature that contains the information required to fill the corresponding slot. The signature encoding 
-builds upon the encoding used for signatures in [2]. The first element of the signature describes the 
+builds upon the encoding used for signatures in [1]. The first element of the signature describes the 
 fixup kind, the rest of the signature varies based on the fixup kind.
 
 | ReadyToRunFixupKind                    | Value | Description                                     |
@@ -489,6 +488,4 @@ enum ReadyToRunHelper
 
 # References
 
-[1: Managed Executables with Native Code](https://microsoft.sharepoint.com/teams/netfx/CLR/coreclr/Shared%20Documents1/ReadyToRun/ManagedNativeCode.docx)
-
-[2: ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm)
+[1: ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm)
