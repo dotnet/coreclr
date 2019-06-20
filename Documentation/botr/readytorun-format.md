@@ -384,18 +384,18 @@ debuggers are able to handle debug info stored separately.
 
 ## READYTORUN_SECTION_AVAILABLE_TYPES
 
-This section contains a native hashtable of all defined & export types within the compilation module. The key is a version-resilient hash of the full type name, the value is the exported type or defined type token row ID left-shifted by one and or-ed with bit 0 defining the token type:
+This section contains a native hashtable of all defined & export types within the compilation module. The key is the full type name, the value is the exported type or defined type token row ID left-shifted by one and or-ed with bit 0 defining the token type:
 
 | Bit value | Token type    |
 |----------:|:--------------|
 |         0 | defined type  |
 |         1 | exported type |
 
-The version-resilient hashing algorithm is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
+The version-resilient hashing algorithm used for hashing the type names is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
 
 ## READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS
 
-This section contains a native hashtable of all generic method instantiations compiled into the R2R executable. The key is the version-resilient method hash code implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128); the value, represented by the ``EntryPointWithBlobVertex`` class, stores the method index in the runtime function table, the fixups blob and a blob encoding the method signature.
+This section contains a native hashtable of all generic method instantiations compiled into the R2R executable. The key is the method instance signature; the appropriate version-resilient hash code calculation is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128); the value, represented by the ``EntryPointWithBlobVertex`` class, stores the method index in the runtime function table, the fixups blob and a blob encoding the method signature.
 
 ## READYTORUN_SECTION_INLINING_INFO
 
