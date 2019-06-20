@@ -199,7 +199,7 @@ namespace System.Diagnostics.Tracing
 
                     foreach (DiagnosticCounter counter in _counters)
                     {
-                        CounterPayload payload = counter.GeneratePayload((float)elapsed.TotalSeconds);
+                        IEnumerable<KeyValuePair<string, object?>> payload = counter.GeneratePayload((float)elapsed.TotalSeconds);
                         foreach (var session in _sessions)
                         {
                             TimeSpan elapsedSinceLastUpdate = now - session.Value;

@@ -89,6 +89,7 @@ namespace System.Diagnostics.Tracing
                 payload.Increment = _increment - _prevIncrement;
                 payload.DisplayUnits = DisplayUnits ?? "";
                 _prevIncrement = _increment;
+                return payload;
             }
         }
     }

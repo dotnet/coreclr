@@ -52,7 +52,7 @@ namespace System.Diagnostics.Tracing
             EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(sessionPayload));
         }
 
-        internal override CounterPayload GeneratePayload(float intervalSec)
+        internal override IEnumerable<KeyValuePair<string, object?>> GeneratePayload(float intervalSec)
         {
             lock (this)
             {
