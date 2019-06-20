@@ -85,7 +85,6 @@
 
 # Test failure: https://github.com/dotnet/corefx/issues/37989
 -nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
--nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 
 # Timeout in System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
 # https://github.com/dotnet/coreclr/issues/22414
