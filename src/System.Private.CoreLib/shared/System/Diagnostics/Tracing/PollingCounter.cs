@@ -48,7 +48,7 @@ namespace System.Diagnostics.Tracing
         internal override void WritePayload(IEnumerable<KeyValuePair<string, object?>> payload, int pollingIntervalMillisec)
         {
             CounterPayload sessionPayload = (CounterPayload)payload;
-            sessionPayload.Series = $"Interval={pollingIntervalMillisec}"; // TODO: This may need to change when we support multi-session
+            sessionPayload.Series = $"Interval={pollingIntervalMillisec}";
             EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new PollingPayloadType(sessionPayload));
         }
 
