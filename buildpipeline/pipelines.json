@@ -162,8 +162,7 @@
         }
       ],
       "DependsOn": [
-        "Trusted-All-Debug",
-        "Trusted-Crossbuild-Debug"
+        "Trusted-All-Debug"
       ]
     },
     {
@@ -215,8 +214,7 @@
         }
       ],
       "DependsOn": [
-        "Trusted-All-Checked",
-        "Trusted-Crossbuild-Checked"
+        "Trusted-All-Checked"
       ]
     },
     {
