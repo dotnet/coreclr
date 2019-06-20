@@ -75,14 +75,11 @@ namespace System.Diagnostics.Tracing
                     }
                 }
 
-                Debug.WriteLine($"perEventSourceSessionId: {e.perEventSourceSessionId}");
-                Debug.WriteLine($"etwSessionId: {e.etwSessionId}");
             }
             else if (e.Command == EventCommand.Disable)
             {
                 lock (this)
                 {
-                    Debug.WriteLine("Disable called");
                     _pollingIntervalInMilliseconds = 0;
                 }
             }
@@ -206,8 +203,8 @@ namespace System.Diagnostics.Tracing
                             if (elapsedSinceLastUpdate.TotalMilliseconds > session.Key)
                             {
                                 counter.WritePayload(payload, session.Key);
+                                modified.Add(session.Key);
                             }
-                            modified.Add(session.Key);
                         }
                     }
 
