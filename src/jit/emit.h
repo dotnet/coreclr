@@ -1577,7 +1577,14 @@ private:
 #endif // defined(_TARGET_X86_)
 
     size_t emitIssue1Instr(insGroup* ig, instrDesc* id, BYTE** dp);
+
+#ifdef _TARGET_XARCH_
+    template <bool generateCode = true>
     size_t emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp);
+    void emitPredictInstSize(instrDesc* id, UNATIVE_OFFSET prevSize, bool skipNewSize = false);
+#else
+    size_t emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp);
+#endif
 
     bool emitHasFramePtr;
 
@@ -2705,6 +2712,11 @@ inline void emitter::emitEnableGC()
     emitForceNewIG = true;
 }
 #endif // !defined(JIT32_GCENCODER)
+
+#ifdef _TARGET_XARCH_
+template size_t emitter::emitOutputInstr<true>(insGroup* ig, instrDesc* id, BYTE** dp);
+template size_t emitter::emitOutputInstr<false>(insGroup* ig, instrDesc* id, BYTE** dp);
+#endif
 
 /*****************************************************************************/
 #endif // _EMIT_H_

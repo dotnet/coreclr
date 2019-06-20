@@ -51,17 +51,26 @@ UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code, int val);
 UNATIVE_OFFSET emitInsSizeCV(instrDesc* id, code_t code);
 UNATIVE_OFFSET emitInsSizeCV(instrDesc* id, code_t code, int val);
 
+template <bool generateCode>
 BYTE* emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = nullptr);
+template <bool generateCode>
 BYTE* emitOutputSV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = nullptr);
+template <bool generateCode>
 BYTE* emitOutputCV(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = nullptr);
 
+template <bool generateCode>
 BYTE* emitOutputR(BYTE* dst, instrDesc* id);
+template <bool generateCode>
 BYTE* emitOutputRI(BYTE* dst, instrDesc* id);
+template <bool generateCode>
 BYTE* emitOutputRR(BYTE* dst, instrDesc* id);
+template <bool generateCode>
 BYTE* emitOutputIV(BYTE* dst, instrDesc* id);
 
+template <bool generateCode>
 BYTE* emitOutputRRR(BYTE* dst, instrDesc* id);
 
+template <bool generateCode>
 BYTE* emitOutputLJ(BYTE* dst, instrDesc* id);
 
 unsigned emitOutputRexOrVexPrefixIfNeeded(instruction ins, BYTE* dst, code_t& code);

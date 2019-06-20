@@ -3510,7 +3510,16 @@ size_t emitter::emitIssue1Instr(insGroup* ig, instrDesc* id, BYTE** dp)
 
         ig->igFlags |= IGF_UPD_ISZ;
 #if defined(_TARGET_XARCH_)
-        id->idCodeSize(csz);
+        if ((id->idIns() != INS_jmp) && (id->idIns() != INS_call) && (id->idIns() != INS_push_hide) &&
+            (id->idIns() != INS_push) && (id->idIns() != INS_lea) && (id->idIns() != INS_mov))
+        {
+            // IMPL_LIMITATION("Over-estimated instruction size");
+            id->idCodeSize(csz);
+        }
+        else
+        {
+            id->idCodeSize(csz);
+        }
 #elif defined(_TARGET_ARM_)
 // This is done as part of emitSetShortJump();
 // insSize isz = emitInsSize(id->idInsFmt());
@@ -5000,6 +5009,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         for (unsigned cnt = ig->igInsCnt; cnt; cnt--)
         {
+            assert(cp >= emitCodeBlock && cp <= emitCodeBlock + emitTotalHotCodeSize);
             castto(id, BYTE*) += emitIssue1Instr(ig, id, &cp);
         }
 
