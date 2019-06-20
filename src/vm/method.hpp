@@ -2552,6 +2552,7 @@ protected:
         // mdStatic               = 0x0010,
         nomdCALLIStub             = 0x0020,
         nomdDelegateStub          = 0x0040,
+        // unused                 = 0x0080
         nomdUnbreakable           = 0x0100,
         nomdDelegateCOMStub       = 0x0200,  // CLR->COM or COM->CLR call via a delegate (WinRT specific)
         nomdSignatureNeedsRestore = 0x0400,
@@ -3243,7 +3244,7 @@ struct ComPlusCallInfo
         return m_cbStackArgumentSize;
     }
 
-    LPVOID      m_pRetThunk;         // used for late-bound calls
+    LPVOID      m_pRetThunk;
 
 #else // _TARGET_X86_
     void InitStackArgumentSize()
