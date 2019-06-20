@@ -3,34 +3,17 @@
 
 When a performance problem is encountered on Linux, these instructions can be used to gather detailed information about what was happening on the machine at the time of the performance problem.
 
-# EventPipe and dotnet-trace (.NET Core 3.0 Preview 5 or later)
+CoreCLR supports two different mechanisms for tracing .NET applications on Linux: EventPipe and LTTng. They both have tools built by the .NET team, namely dotnet-trace (which uses EventPipe) and PerfCollect (which uses LTTng). Here are some notable differences between the two tools to help you decide which to use:
 
-## Intro ##
-EventPipe is a new cross-platform tracing mechanism we built into the runtime from .NET Core 3.0. It works the same across all platforms we support (Windows, macOS, and Linux), and we have built various diagnostics tools on top of it. dotnet-trace is a dotnet CLI tool that allows you to trace your .NET application using EventPipe. 
+1. PerfCollect is leverages LTTng, which is a tracing framework built for the Linux kernel, so it can only be used on Linux. dotnet-trace is OS agnostic, so you can use it the same way across Windows/macOS and Linux. 
 
-## Installing dotnet-trace ##
-dotnet-trace can be installed by using the dotnet CLI: 
-```
-dotnet tool install --global dotnet-trace --version 1.0.4-preview6.19311.1
-```
+2. PerfCollect uses [perf](https://perf.wiki.kernel.org/index.php/Main_Page), which gives you native callstacks. dotnet-trace can only give you managed callstack.
 
-## Collecting a trace ##
-To see which .NET processes are available for collecting traces on, you can run the following command to get their process IDs (PID):
-```
-dotnet-trace list-processes
-```
+3. PerfCollect has a machine-wide scope, so it can be used to capture events from multiple processes running on the same machine. dotnet-trace is specific to a single runtime instance. 
 
-Once you know the PID of the process you want to collect traces, you can run the following command to start tracing:
-```
-dotnet-trace collect --process-id <PID>
-```
+4. PerfCollect can be started prior to the process start, whereas dotnet-trace can only be attached after the process has started and runtime has set up the necessary internal data structures to allow attach.
 
-## Viewing the Trace ##
-The resulting trace can be viewed in [PerfView](http://aka.ms/perfview) on Windows. Alternatively on Linux/macOS, it can be viewed on [SpeedScope](https://speedscope.app) if you convert the trace format to speedscope by passing `--format speedscope` argument when collecting the trace.
-
-## More Information ##
-To read more about how to use dotnet-trace, please refer to the [dotnet-trace documentation](https://github.com/dotnet/diagnostics/blob/master/documentation/dotnet-trace-instructions.md).
-
+5. PerfCollect supports .NET Core 2.1 or later. dotnet-trace supports .NET Core 3.0 or later. 
 
 # LTTng and PerfCollect (.NET Core 2.1 or later) #
 
@@ -259,4 +242,34 @@ The current prerequisites are:
 
 1. perf: Also known as perf_event, the Linux Performance Events sub-system and companion user-mode collection/viewer application.  perf is part of the Linux kernel source, but is not usually installed by default.
 2. LTTng: Stands for "Linux Tracing Toolkit Next Generation", and is used to capture event data emitted at runtime by CoreCLR.  This data is then used to analyze the behavior of various runtime components such as the GC, JIT and thread pool.
+
+
+
+# EventPipe and dotnet-trace (.NET Core 3.0 Preview 5 or later)
+
+## Intro ##
+EventPipe is a new cross-platform tracing mechanism we built into the runtime from .NET Core 3.0. It works the same across all platforms we support (Windows, macOS, and Linux), and we have built various diagnostics tools on top of it. dotnet-trace is a dotnet CLI tool that allows you to trace your .NET application using EventPipe. 
+
+## Installing dotnet-trace ##
+dotnet-trace can be installed by using the dotnet CLI: 
+```
+dotnet tool install --global dotnet-trace --version 1.0.4-preview6.19311.1
+```
+
+## Collecting a trace ##
+To see which .NET processes are available for collecting traces on, you can run the following command to get their process IDs (PID):
+```
+dotnet-trace list-processes
+```
+
+Once you know the PID of the process you want to collect traces, you can run the following command to start tracing:
+```
+dotnet-trace collect --process-id <PID>
+```
+
+## Viewing the Trace ##
+The resulting trace can be viewed in [PerfView](http://aka.ms/perfview) on Windows. Alternatively on Linux/macOS, it can be viewed on [SpeedScope](https://speedscope.app) if you convert the trace format to speedscope by passing `--format speedscope` argument when collecting the trace.
+
+## More Information ##
+To read more about how to use dotnet-trace, please refer to the [dotnet-trace documentation](https://github.com/dotnet/diagnostics/blob/master/documentation/dotnet-trace-instructions.md).
 
