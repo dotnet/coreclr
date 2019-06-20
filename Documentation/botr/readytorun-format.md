@@ -1,15 +1,17 @@
-ReadyToRun File Format v1
-=========================
+ReadyToRun File Format
+======================
 
-Author: [Jan Kotas](https://github.com/jkotas) - 2015
+Revisions:
+* 1.1 - [Jan Kotas](https://github.com/jkotas) - 2015
+* 3.0 - [Tomas Rylek](https://github.com/trylek) - 2019
 
 # Introduction
 
-This document describes ReadyToRun format implemented in CoreCLR as of March 2015.
+This document describes ReadyToRun format implemented in CoreCLR as of June 2019.
 
 # PE Headers and CLI Headers
 
-ReadyToRun v1 images conform to CLI file format as described in ECMA-335, with the following 
+ReadyToRun v1-3 images conform to CLI file format as described in ECMA-335, with the following 
 customizations:
 
 - The PE file is always platform specific
@@ -21,10 +23,6 @@ The image contains full copy of the IL and metadata that it was generated from.
 ## Future Improvements
 
 The limitations of the current format are:
-
-- **No support for generics code**: This requires a new section that maps generic methods 
-  instantiations to their entry points. The JITing of generics is the top performance issues 
-  identified by analyzing ReadyToRun performance in real world scenarios.
 
 - **Type loading from IL metadata**: All types are built from IL metadata at runtime currently.
   It is bloating the size - prevents stripping full metadata from the image, and fragile -
@@ -70,7 +68,7 @@ ReadyToRun images from other CLI images with ManagedNativeHeader (e.g. NGen imag
 
 ### READYTORUN_HEADER::MajorVersion/MinorVersion
 
-The current format version is 1.1. MajorVersion increments are meant for file format breaking changes. 
+The current format version is 3.0. MajorVersion increments are meant for file format breaking changes. 
 MinorVersion increments are meant to compatible file format changes.  
  
 **Example**: Assume the highest version supported by the runtime is 2.3. The runtime should be able to 
@@ -114,6 +112,13 @@ enum ReadyToRunSectionType
     READYTORUN_SECTION_EXCEPTION_INFO               = 104,
     READYTORUN_SECTION_DEBUG_INFO                   = 105,
     READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS  = 106,
+    // 107 used by an older format of READYTORUN_SECTION_AVAILABLE_TYPES
+    READYTORUN_SECTION_AVAILABLE_TYPES              = 108,
+    READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS  = 109,
+    READYTORUN_SECTION_INLINING_INFO                = 110, // Added in V2.1
+    READYTORUN_SECTION_PROFILEDATA_INFO             = 111, // Added in V2.2
+    READYTORUN_SECTION_MANIFEST_METADATA            = 112, // Added in V2.3
+    READYTORUN_SECTION_ATTRIBUTEPRESENCE            = 113, // Added in V3.1
 };
 ```
 
@@ -162,11 +167,14 @@ initial state.
 
 This field points to array of RVAs that is parallel with the array of slots. Each RVA points to fixup 
 signature that contains the information required to fill the corresponding slot. The signature encoding 
-builds upon the encoding used for signatures in [1]. The first element of the signature describes the 
+builds upon the encoding used for signatures in ECMA-335. The first element of the signature describes the 
 fixup kind, the rest of the signature varies based on the fixup kind.
 
 | ReadyToRunFixupKind                    | Value | Description                                     |
 |:---------------------------------------|------:|:------------------------------------------------|
+| ``READYTORUN_FIXUP_ThisObjDictionaryLookup`` | 0x07 | Generic lookup using ``this``; followed by the type signature and by the method signature |
+| ``READYTORUN_FIXUP_TypeDictionaryLookup`` | 0x08 | Type-based generic lookup for methods on instantiated types; followed by the typespec signature |
+| ``READYTORUN_FIXUP_MethodDictionaryLookup`` | 0x09 | Generic method lookup; followed by the method spec signature |
 | ``READYTORUN_FIXUP_TypeHandle``            |  0x10 | Pointer uniquely identifying the type to the runtime, followed by typespec signature (see ECMA-335) |
 | ``READYTORUN_FIXUP_MethodHandle``          |  0x11 | Pointer uniquely identifying the method to the runtime, followed by method signature (see below) |
 | ``READYTORUN_FIXUP_FieldHandle``           |  0x12 | Pointer uniquely identifying the field to the runtime, followed by field signature (see below) |
@@ -196,6 +204,9 @@ fixup kind, the rest of the signature varies based on the fixup kind.
 | ``READYTORUN_FIXUP_Check_TypeLayout``      |  0x2A | Verification of type layout, followed by typespec and expected type layout descriptor |
 | ``READYTORUN_FIXUP_Check_FieldOffset``     |  0x2B | Verification of field offset, followed by field signature and expected field layout descriptor |
 | ``READYTORUN_FIXUP_DelegateCtor``          |  0x2C | Delegate constructor, followed by method signature |
+| ``READYTORUN_FIXUP_DeclaringTypeHandle``   |  0x2D | Dictionary lookup for method declaring type. Followed by the type signature. |
+| ``READYTORUN_FIXUP_IndirectPInvokeTarget`` | 0x2E | Target of an inlined PInvoke. Followed by method signature. |
+| ``READYTORUN_FIXUP_ModuleOverride``        | 0x80 | When or-ed to the fixup ID, the fixup byte in the signature is followed by an encoded uint with assemblyref index, either within the MSIL metadata of the master context module for the signature or within the manifest metadata R2R header table (used in cases inlining brings in references to assemblies not seen in the input MSIL). |
 
 #### Method Signatures
 
@@ -225,22 +236,67 @@ additional data determined by the flags.
 | ``READYTORUN_FIELD_SIG_MemberRefToken``      |  0x10 | If set, the token is memberref token. If not set, the token is fielddef token. |
 | ``READYTORUN_FIELD_SIG_OwnerType``           |  0x40 | Field type. Typespec appended as additional data. |
 
-### READYTORUN_ IMPORT_SECTIONS::AuxiliaryData
+### READYTORUN_IMPORT_SECTIONS::AuxiliaryData
 
 For slots resolved lazily via ``READYTORUN_HELPER_DelayLoad_MethodCall`` helper, auxiliary data are 
-compressed argument maps that allow precise GC stack scanning while the helper is running.
+compressed argument maps that allow precise GC stack scanning while the helper is running. The CoreCLR runtime class [``GCRefMapDecoder``](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/gcrefmap.h#L157) is used to parse this information. This data would not be required for runtimes that allow conservative stack scanning.
 
-**TODO**: Document the GC info encoding. It is the same encoding as used by NGen. The typical cost is 1 
-byte per slot. This data would not be required for runtimes that allow conservative stack scanning.
+The auxiliary data table is supposed to contain the exact same number of GC ref map records as there are method entries in the import section. To accelerate GC ref map lookup, the auxiliary data section starts with a lookup table holding the offset of every 1024-th method in the runtime function table within the linearized GC ref map.
+
+| Offset in auxiliary data | Size | Content |
+|-------------------------:|-----:|:--------|
+| 0 | 4 | Offset to GC ref map info for method #0 relative to this byte i.e. 4 * (MethodCount / 1024 + 1) |
+| 4 | 4 | Offset to GC ref map info for method #1024 |
+| 8 | 4 | Offset to GC ref map info for method #2048 |
+| ... | | |
+4 * (MethodCount / 1024 + 1) | ... | Serialized GC ref map info |
+
+The GCRef map is used to encode GC type of arguments for callsites. Logically, it is a sequence ``<pos, token>`` where ``pos`` is 
+position of the reference in the stack frame and ``token`` is type of GC reference (one of [``GCREFMAP_XXX``](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/corcompile.h#L633) values):
+
+| CORCOMPILE_GCREFMAP_TOKENS | Value | Stack frame entry interpretation |
+|:---------------------------|------:|:--------|
+| ``GCREFMAP_SKIP`` | 0 | Not a GC-relevant entry |
+| ``GCREFMAP_REF`` | 1 | GC reference |
+| ``GCREFMAP_INTERIOR`` | 2 | Pointer to a GC reference |
+| ``GCREFMAP_METHOD_PARAM`` | 3 | Hidden method instantiation argument to generic method |
+| ``GCREFMAP_TYPE_PARAM`` | 4 | Hidden type instantiation argument to generic method |
+| ``GCREFMAP_VASIG_COOKIE`` | 5 | VARARG signature cookie |
+
+The position values are calculated in ``size_t`` aka ``IntPtr`` units (4 bytes for 32-bit architectures vs. 8 bytes for 64-bit architectures) and start at the offset ``TransitionBlock::GetOffsetOfFirstGCRefMapSlot`` relative to the transition frame address. For x86 the position encoding is [somewhat more complicated](https://github.com/dotnet/coreclr/blob/d5d18896900561b7aaf38ba9501a8525a4b9caea/src/vm/frames.cpp#L1326).
+
+* The encoding always starts at the byte boundary. The high order bit of each byte is used to signal end of the encoding stream. The last byte has the high order bit zero. It means that there are 7 useful bits in each byte. 
+
+* "pos" is always encoded as delta from previous pos.
+
+* The basic encoding unit is two bits. Values 0, 1 and 2 are the common constructs (skip single slot, GC reference, interior pointer). Value 3 means that extended encoding follows. 
+
+* The extended information is integer encoded in one or more four bit blocks. The high order bit of the four bit block is used to signal the end.
+
+* For x86, the encoding starts with size of the callee popped stack. The size is encoded using the same mechanism as above (two bit
+basic encoding, with extended encoding for large values).
 
 ## READYTORUN_SECTION_RUNTIME_FUNCTIONS
 
 This section contains sorted array of ``RUNTIME_FUNCTION`` entries that describe all functions in the 
 image with pointers to their unwind info. The standard Windows xdata/pdata format is used.
 ARM format is used for x86 to compensate for lack of x86 unwind info standard.
-The unwind info blob is immediately followed by gc info blob.
+The unwind info blob is immediately followed by GC info blob. The encoding slightly differs for amd64 which encodes an extra 4-byte  representing the end RVA of the frame info blob.
 
-**TODO**: Document the GC info encoding. It is the same encoding as used by JIT and NGen.
+### RUNTIME_FUNCTION (x86, arm, arm64, size = 8 bytes)
+
+| Offset | Size | Value |
+|-------:|-----:|:------|
+| 0 | 4 | Frame info start RVA |
+| 4 | 4 | GC info start RVA |
+
+### RUNTIME_FUNCTION (amd64, size = 12 bytes)
+
+| Offset | Size | Value |
+|-------:|-----:|:------|
+| 0 | 4 | Frame info start RVA |
+| 4 | 4 | Frame info end RVA (1 plus RVA of last byte) |
+| 8 | 4 | GC info start RVA |
 
 ## READYTORUN_SECTION_METHODDEF_ENTRYPOINTS
 
@@ -326,6 +382,47 @@ This section marks region that contains thunks for ``READYTORUN_HELPER_DelayLoad
 helper. It is used by debugger for step-in into lazily resolved calls. It should not be required when 
 debuggers are able to handle debug info stored separately.
 
+## READYTORUN_SECTION_AVAILABLE_TYPES
+
+This section contains a native hashtable of all defined & export types within the compilation module. The key is a checksum of the full type name, the value is the exported type or defined type token row ID left-shifted by one and or-ed with bit 0 defining the token type:
+
+| Bit value | Token type |
+|----------:|:-----------|
+| 0         | defined type |
+| 1         | exported type |
+
+The checksum algorithm is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L75).
+
+## READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS
+
+This section contains a native hashtable of all generic method instantiations compiled into the R2R executable. The key is the version-resilient method hash code implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128); the value, represented by the ``EntryPointWithBlobVertex`` class, stores the method index in the runtime function table, the fixups blob and a blob encoding the method signature.
+
+## READYTORUN_SECTION_INLINING_INFO
+
+**TODO**: document inlining info encoding
+
+## READYTORUN_SECTION_PROFILEDATA_INFO
+
+**TODO**: document profile data encoding
+
+## READYTORUN_SECTION_MANIFEST_METADATA
+
+Manifest metadata is ab [ECMA-335] metadata blob containing extra reference assemblies introduced by inlining on top of input assembly references stored in the MSIL. This can only happen for non-versionable method or for methods within the same *version bubble*.
+
+As of R2R version 3.0, The metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the ``READYTORUN_FIXUP_ModuleOverride`` bit flag on the signature fixup byte or the ``ENCODE_MODULE_OVERRIDE`` COR element type).
+
+The module override index translation algorithm is as follows:
+
+| Module override index | Reference assembly |
+|:----------------------|:-------------------|
+| 0                     | Global context - assembly containing the signature |
+| 1 .. MSIL.AssemblyRef.Count | Index into the MSIL AssemblyRef table |
+| i > MSIL.AssemblyRef.Count | (i - MSIL.AssemblyRef.Count - 1) is the zero-based index into the AssemblyRef table in the manifest metadata |
+
+## READYTORUN_SECTION_ATTRIBUTEPRESENCE
+
+**TODO**: document attribute presence encoding
+
 # Native Format
 
 Native format is set of encoding patterns that allow persisting type system data in a binary format that is 
@@ -394,6 +491,8 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_Overflow                  = 0x22,
     READYTORUN_HELPER_RngChkFail                = 0x23,
     READYTORUN_HELPER_FailFast                  = 0x24,
+    READYTORUN_HELPER_ThrowNullRef              = 0x25,
+    READYTORUN_HELPER_ThrowDivZero              = 0x26,
 
     // Write barriers
     READYTORUN_HELPER_WriteBarrier              = 0x30,
@@ -410,6 +509,9 @@ enum ReadyToRunHelper
     // Get string handle lazily
     READYTORUN_HELPER_GetString                 = 0x50,
 
+    // Used by /Tuning for Profile optimizations
+    READYTORUN_HELPER_LogMethodEnter            = 0x51,
+
     // Reflection helpers
     READYTORUN_HELPER_GetRuntimeTypeHandle      = 0x54,
     READYTORUN_HELPER_GetRuntimeMethodHandle    = 0x55,
@@ -420,6 +522,18 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_Unbox                     = 0x5A,
     READYTORUN_HELPER_Unbox_Nullable            = 0x5B,
     READYTORUN_HELPER_NewMultiDimArr            = 0x5C,
+    READYTORUN_HELPER_NewMultiDimArr_NonVarArg  = 0x5D,
+
+    // Helpers used with generic handle lookup cases
+    READYTORUN_HELPER_NewObject                 = 0x60,
+    READYTORUN_HELPER_NewArray                  = 0x61,
+    READYTORUN_HELPER_CheckCastAny              = 0x62,
+    READYTORUN_HELPER_CheckInstanceAny          = 0x63,
+    READYTORUN_HELPER_GenericGcStaticBase       = 0x64,
+    READYTORUN_HELPER_GenericNonGcStaticBase    = 0x65,
+    READYTORUN_HELPER_GenericGcTlsBase          = 0x66,
+    READYTORUN_HELPER_GenericNonGcTlsBase       = 0x67,
+    READYTORUN_HELPER_VirtualFuncPtr            = 0x68,
 
     // Long mul/div/shift ops
     READYTORUN_HELPER_LMul                      = 0xC0,
@@ -483,9 +597,12 @@ enum ReadyToRunHelper
 
     // JIT32 x86-specific exception handling
     READYTORUN_HELPER_EndCatch                  = 0x110,
+
+    // A flag to indicate that a helper call uses VSD
+    READYTORUN_HELPER_FLAG_VSD                  = 0x10000000,
 };
 ```
 
 # References
 
-[1: ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm)
+[ECMA-335](http://www.ecma-international.org/publications/standards/Ecma-335.htm)
