@@ -815,7 +815,13 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         assert(args->lowest_address != nullptr);
         assert(args->highest_address != nullptr);
 
-        g_card_table = args->card_table;
+        // We are sensitive to the order of writes here (more comments on this further in the method)
+        // In particular g_card_table must be written before writing the heap bounds.
+        // For platforms with weak memory ordering we will issue fences, for x64/x86 we are ok 
+        // as long as compiler does not reorder these writes. 
+        // That is unlikely since we have method calls in between. 
+        // Just to be robust agains possible refactoring/inlining we will do a compiler-fenced store here.
+        VolatileStoreWithoutBarrier(&g_card_table, args->card_table);
 
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
         assert(args->card_bundle_table != nullptr);
