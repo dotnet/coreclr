@@ -529,6 +529,7 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
 #ifdef FEATURE_PREJIT
         VerifyNativeImageDependencies();
 #endif
+        VerifyReadyToRunImageDependencies();
         break;
 
     case FILE_LOAD_ALLOCATE:
@@ -591,6 +592,41 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
 #endif
 
     return TRUE;
+}
+
+void DomainAssembly::VerifyReadyToRunImageDependencies()
+{
+    //
+    // Verify that the IL image is consistent with the R2R images loaded into appdomain
+    //
+
+    AssemblySpec spec;
+    spec.InitializeSpec(GetFile());
+
+    GUID mvid;
+    GetFile()->GetMVID(&mvid);
+
+    GetAppDomain()->CheckForMismatchedNativeImages(&spec, &mvid);
+    
+    if (GetFile()->IsILImageReadyToRun())
+    {
+        PTR_PEImage pImage = GetFile()->GetILimage();
+
+        COUNT_T cDependencies;
+        CORCOMPILE_DEPENDENCY* pDependencies = GetFile()->GetLoaded()->GetNativeDependencies(&cDependencies);
+
+        for (COUNT_T iDependency = 0; iDependency < cDependencies; iDependency++)
+        {
+            CORCOMPILE_DEPENDENCY* pDependency = &(pDependencies[iDependency]);
+
+            AssemblySpec name;
+            name.InitializeSpec(pDependency->dwAssemblyRef,
+                pImage->GetNativeMDImport(),
+                GetDomainAssembly());
+
+            GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependency->signAssemblyDef.mvid);
+        }
+    }
 }
 
 #ifdef FEATURE_PREJIT

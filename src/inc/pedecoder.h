@@ -302,6 +302,8 @@ class PEDecoder
     // Debug directory access, returns NULL if no such entry
     PTR_IMAGE_DEBUG_DIRECTORY GetDebugDirectoryEntry(UINT index) const;
 
+    PTR_IMAGE_DATA_DIRECTORY PEDecoder::GetReadyToRunSection(DWORD section) const;
+
     PTR_CVOID GetNativeManifestMetadata(COUNT_T* pSize = NULL) const;
 
 #ifdef FEATURE_PREJIT
@@ -328,7 +330,6 @@ class PEDecoder
     BOOL IsNativeILILOnly() const;
     BOOL IsNativeILDll() const;
     void GetNativeILPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMachine) const;
-    CORCOMPILE_DEPENDENCY * GetNativeDependencies(COUNT_T *pCount = NULL) const;
 
     PTR_CORCOMPILE_IMPORT_SECTION GetNativeImportSections(COUNT_T *pCount = NULL) const;
     PTR_CORCOMPILE_IMPORT_SECTION GetNativeImportSectionFromIndex(COUNT_T index) const;
@@ -337,6 +338,8 @@ class PEDecoder
     TADDR GetStubsTable(COUNT_T *pSize = NULL) const;
     TADDR GetVirtualSectionsTable(COUNT_T *pSize = NULL) const;
 #endif // FEATURE_PREJIT
+
+    CORCOMPILE_DEPENDENCY* GetNativeDependencies(COUNT_T* pCount = NULL) const;
 
     BOOL HasReadyToRunHeader() const;
     READYTORUN_HEADER *GetReadyToRunHeader() const;

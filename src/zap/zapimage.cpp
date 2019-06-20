@@ -681,8 +681,17 @@ void ZapImage::SetVersionInfo(CORCOMPILE_VERSION_INFO * pVersionInfo)
 
 void ZapImage::SetDependencies(CORCOMPILE_DEPENDENCY *pDependencies, DWORD cDependencies)
 {
-    m_pDependencies = new (GetHeap()) ZapDependencies(pDependencies, cDependencies);
-    m_pHeaderSection->Place(m_pDependencies);
+    if (IsReadyToRunCompilation())
+    {
+        ZapNode* pBlob = new (GetHeap()) ZapDependencies(pDependencies, cDependencies);
+        GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_NATIVE_DEPENDENCIES, pBlob);
+        m_pHeaderSection->Place(pBlob);
+    }
+    else
+    {
+        m_pDependencies = new (GetHeap()) ZapDependencies(pDependencies, cDependencies);
+        m_pHeaderSection->Place(m_pDependencies);
+    }
 }
 
 void ZapImage::SetPdbFileName(const SString &strFileName)

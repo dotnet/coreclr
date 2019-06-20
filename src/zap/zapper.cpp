@@ -1395,7 +1395,7 @@ void Zapper::CompileAssembly(CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig)
         // Record Dependencies
         //
 
-        if (!IsReadyToRunCompilation())
+        if (!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled())
         {
             CORCOMPILE_DEPENDENCY *pDependencies;
             DWORD cDependencies;

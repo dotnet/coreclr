@@ -335,6 +335,10 @@ class DomainFile
 
 #endif // FEATURE_PREJIT
 
+#ifndef DACCESS_COMPILE
+    virtual void VerifyReadyToRunImageDependencies() = 0;
+#endif
+
     void SetProfilerNotified() { LIMITED_METHOD_CONTRACT; m_notifyflags|= PROFILER_NOTIFIED; }
     void SetDebuggerNotified() { LIMITED_METHOD_CONTRACT; m_notifyflags|=DEBUGGER_NOTIFIED; }
     void SetShouldNotifyDebugger() { LIMITED_METHOD_CONTRACT; m_notifyflags|=DEBUGGER_NEEDNOTIFICATION; }
@@ -727,6 +731,10 @@ private:
     void FindNativeImage();
 #endif
 #endif // FEATURE_PREJIT
+
+#ifndef DACCESS_COMPILE
+    void VerifyReadyToRunImageDependencies();
+#endif
 
     BOOL IsInstrumented();
 

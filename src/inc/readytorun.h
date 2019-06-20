@@ -16,7 +16,7 @@
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
 #define READYTORUN_MAJOR_VERSION 0x0003
-#define READYTORUN_MINOR_VERSION 0x0001
+#define READYTORUN_MINOR_VERSION 0x0002
 #define MINIMUM_READYTORUN_MAJOR_VERSION 0x003
 // R2R Version 2.1 adds the READYTORUN_SECTION_INLINING_INFO section
 // R2R Version 2.2 adds the READYTORUN_SECTION_PROFILEDATA_INFO section
@@ -68,6 +68,7 @@ enum ReadyToRunSectionType
     READYTORUN_SECTION_PROFILEDATA_INFO             = 111, // Added in V2.2
     READYTORUN_SECTION_MANIFEST_METADATA            = 112, // Added in V2.3
     READYTORUN_SECTION_ATTRIBUTEPRESENCE            = 113, // Added in V3.1
+    READYTORUN_SECTION_NATIVE_DEPENDENCIES          = 114, // Added in V3.2
 
 	// If you add a new section consider whether it is a breaking or non-breaking change.
 	// Usually it is non-breaking, but if it is preferable to have older runtimes fail

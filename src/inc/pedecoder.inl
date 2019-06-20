@@ -1100,26 +1100,46 @@ inline void PEDecoder::GetNativeILPEKindAndMachine(DWORD* pdwKind, DWORD* pdwMac
         *pdwMachine = pNativeHeader->Machine;
 }
 
-inline CORCOMPILE_DEPENDENCY * PEDecoder::GetNativeDependencies(COUNT_T *pCount) const
+#endif  // FEATURE_PREJIT
+
+inline CORCOMPILE_DEPENDENCY * PEDecoder::GetNativeDependencies(COUNT_T* pCount) const
 {
     CONTRACTL
     {
         INSTANCE_CHECK;
-        PRECONDITION(CheckNativeHeader());
+        PRECONDITION(HasReadyToRunHeader() || CheckNativeHeader());
         NOTHROW;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
-    IMAGE_DATA_DIRECTORY *pDir = &GetNativeHeader()->Dependencies;
+    IMAGE_DATA_DIRECTORY *pDir;
+
+    if (HasReadyToRunHeader())
+    {
+        pDir = GetReadyToRunSection(READYTORUN_SECTION_NATIVE_DEPENDENCIES);
+        
+        // The section won't be present if there was no version bubble spanning assemblies.
+        if (pDir == NULL)
+        {
+            IMAGE_DATA_DIRECTORY dummy = { 0 };
+            pDir = &dummy;
+        }
+    }
+    else
+    {
+#if FEATURE_PREJIT
+        pDir = &GetNativeHeader()->Dependencies;
+#else
+        __UNREACHABLE();
+#endif
+    }
 
     if (pCount != NULL)
         *pCount = VAL32(pDir->Size)/sizeof(CORCOMPILE_DEPENDENCY);
 
     return (CORCOMPILE_DEPENDENCY *) GetDirectoryData(pDir);
 }
-
-#endif  // FEATURE_PREJIT
 
 // static
 inline PTR_IMAGE_SECTION_HEADER PEDecoder::FindFirstSection(IMAGE_NT_HEADERS * pNTHeaders)
