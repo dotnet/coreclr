@@ -840,9 +840,9 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
             ::FlushWriteBarrierInstructionCache();
         }
 
-        // NB: managed heap segments may surround unmanaged/stack segments. In such cases adding another managed heap segment
-        //     may put a stack/unmanaged write inside the new heap range. However the old card table would not cover it.
-        //     Therefore we must ensure that the write barriers see the new table before seeing new bounds.
+        // IMPORTANT: managed heap segments may surround unmanaged/stack segments. In such cases adding another managed 
+        //     heap segment may put a stack/unmanaged write inside the new heap range. However the old card table would 
+        //     not cover it. Therefore we must ensure that the write barriers see the new table before seeing the new bounds.
         //
         //     On architectures with strong ordering, we only need to prevent compiler reordering.
         //     Otherwise we put a process-wide fence here (so that we could use an ordinary read in the barrier)
@@ -851,7 +851,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         if (!is_runtime_suspended)
         {
             // If runtime is not suspended, force all threads to see the changed table before seeing updated heap boundaries.
-            // See:Dev11 #346765
+            // See: http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/346765
             FlushProcessWriteBuffers();
         }
 #endif
@@ -893,7 +893,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         //
         // We will do "b" because executing write barrier is by far more common than updating card table.
         //
-        // I.E. - for weak archeitectures we have to do a proccess-wide fence. 
+        // I.E. - for weak architectures we have to do a process-wide fence.  
         //
         // NOTE: suspending/resuming EE works the same as process-wide fence for our purposes here. 
         //       (we care only about managed threads and suspend/resume will do full fences - good enough for us).
