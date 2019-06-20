@@ -45,8 +45,6 @@
 -nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
 
 # requires corefx test updates
--nomethod System.Diagnostics.Tests.DebugTestsNoListeners.Print
--nomethod System.Diagnostics.Tests.DebugTestsUsingListeners.Print
 -nomethod System.Tests.ArrayTests.Copy_SourceAndDestinationNeverConvertible_ThrowsArrayTypeMismatchException
 
 #
