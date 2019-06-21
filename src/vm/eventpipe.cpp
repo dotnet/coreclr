@@ -36,7 +36,7 @@ VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
 #ifndef FEATURE_PAL
 unsigned int * EventPipe::s_pProcGroupOffsets = nullptr;
 #endif
-uint32_t EventPipe::s_NumberOfSessions = 0;
+Volatile<uint32_t> EventPipe::s_numberOfSessions = 0;
 
 // This function is auto-generated from /src/scripts/genEventPipe.py
 #ifdef FEATURE_PAL
@@ -336,8 +336,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
     // Remove the session from the array, and mask.
     s_pSessions[pSession->GetIndex()].Store(nullptr);
-    if (s_NumberOfSessions > 0)
-        --s_NumberOfSessions;
+    if (s_numberOfSessions > 0)
+        --s_numberOfSessions;
 
     pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
@@ -364,13 +364,11 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     }
 
     // Write a final sequence point to the file now that all events have
-    // been emitted
+    // been emitted.
     pSession->WriteSequencePointUnbuffered();
 
-    // Delete the session.
     delete pSession;
 
-    // Delete deferred providers.
     // Providers can't be deleted during tracing because they may be needed when serializing the file.
     s_config.DeleteDeferredProviders();
 }
@@ -745,7 +743,7 @@ uint32_t EventPipe::GenerateSessionIndex()
     {
         if (s_pSessions[i].LoadWithoutBarrier() == nullptr)
         {
-            ++s_NumberOfSessions;
+            ++s_numberOfSessions;
             return i;
         }
     }
