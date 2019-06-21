@@ -3217,7 +3217,6 @@ HRESULT NDirect::HasNAT_LAttribute(IMDInternalImport *pInternalImport, mdToken t
     return S_FALSE;
 }
 
-
 // Either MD or signature & module must be given.
 /*static*/
 BOOL NDirect::MarshalingRequired(MethodDesc *pMD, PCCOR_SIGNATURE pSig /*= NULL*/, Module *pModule /*= NULL*/)
@@ -3315,6 +3314,20 @@ BOOL NDirect::MarshalingRequired(MethodDesc *pMD, PCCOR_SIGNATURE pSig /*= NULL*
                     }
                 }
                 if (i > 0) dwStackSize += sizeof(SLOT);
+                break;
+            }
+
+            case ELEMENT_TYPE_BYREF:
+            {
+                IfFailThrow(arg.GetElemType(NULL)); // skip ELEMENT_TYPE_BYREF
+                IfFailThrow(arg.PeekElemType(&type));
+
+                if (!CorTypeInfo::IsPrimitiveType(type))
+                    return TRUE;
+
+                if (i > 0) 
+                    dwStackSize += StackElemSize(CorTypeInfo::Size(type));
+
                 break;
             }
 
