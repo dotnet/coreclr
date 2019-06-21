@@ -407,17 +407,19 @@ This section contains a native hashtable of all generic method instantiations co
 
 ## READYTORUN_SECTION_MANIFEST_METADATA
 
-Manifest metadata is ab [ECMA-335] metadata blob containing extra reference assemblies introduced by inlining on top of input assembly references stored in the MSIL. This can only happen for non-versionable method or for methods within the same *version bubble*.
+Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies introduced by inlining on top of assembly references stored in the input MSIL. This can only happen for non-versionable methods or for methods within the same *version bubble*.
 
-As of R2R version 3.0, The metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the ``READYTORUN_FIXUP_ModuleOverride`` bit flag on the signature fixup byte or the ``ENCODE_MODULE_OVERRIDE`` COR element type).
+As of R2R version 3.0, The metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the ``READYTORUN_FIXUP_ModuleOverride`` bit flag on the signature fixup byte or the ``ELEMENT_TYPE_MODULE_ZAPSIG`` COR element type).
 
-The module override index translation algorithm is as follows:
+The module override index translation algorithm is as follows (**ILAR** = *the number of `AssemblyRef` rows in the input MSIL*):
 
-| Module override index       | Reference assembly                                                                                           |
-|:----------------------------|:-------------------------------------------------------------------------------------------------------------|
-| 0                           | Global context - assembly containing the signature                                                           |
-| 1 .. MSIL.AssemblyRef.Count | Index into the MSIL AssemblyRef table                                                                        |
-| i > MSIL.AssemblyRef.Count  | (i - MSIL.AssemblyRef.Count - 1) is the zero-based index into the AssemblyRef table in the manifest metadata |
+| Module override index (*i*) | Reference assembly                                                                               |
+|:----------------------------|:-------------------------------------------------------------------------------------------------|
+| *i* = 0                     | Global context - assembly containing the signature                                               |
+| 1 <= *i* <= **ILAR**        | *i* is the index into the MSIL `AssemblyRef` table                                               |
+| *i* > **ILAR**              | *i* - **ILAR** - 1 is the zero-based index into the `AssemblyRef` table in the manifest metadata |
+
+**Note:** This means that the entry corresponding to *i* = **ILAR** + 1 is actually undefined as it corresponds to the `NULL` entry (ROWID #0) in the manifest metadata AssemblyRef table. The first meaningful index into the manifest metadata, *i* = **ILAR** + 2, corresponding to ROWID #1, is historically filled in by Crossgen with the input assembly info but this shouldn't be depended upon, in fact the input assembly is useless in the manifest metadata as the module override to it can be encoded by using the special index 0.
 
 ## READYTORUN_SECTION_ATTRIBUTEPRESENCE
 
