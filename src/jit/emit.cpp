@@ -1256,7 +1256,7 @@ int emitter::getInsThroughput(instrDesc* id)
 //    The block weight for the current block
 //
 // Notes:
-//    The current block is recorded in emitComp->compCurBB by 
+//    The current block is recorded in emitComp->compCurBB by
 //    CodeGen::genCodeForBBlist() as it walks the blocks.
 //    When we are in the prolog/epilog this value is nullptr.
 //
@@ -1267,7 +1267,7 @@ BasicBlock::weight_t emitter::getCurrentBlockWeight()
     {
         return emitComp->compCurBB->getBBWeight(emitComp);
     }
-    else  // we have a null compCurBB
+    else // we have a null compCurBB
     {
         // prolog or epilog case, so just use the standard weight
         return BB_UNITY_WEIGHT;
@@ -4961,7 +4961,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
             {
                 printf("\nG_M%03u_IG%02u:", Compiler::s_compMethodsCount, ig->igNum);
 
-                // Display the block weight, but only when it isn't the standard BB_UNITY_WEIGHT 
+                // Display the block weight, but only when it isn't the standard BB_UNITY_WEIGHT
                 if (ig->igWeight != BB_UNITY_WEIGHT)
                 {
                     printf("\t\t;; bbWeight=%s", refCntWtd2str(ig->igWeight));

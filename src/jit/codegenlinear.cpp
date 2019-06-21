@@ -368,7 +368,7 @@ void CodeGen::genCodeForBBlist()
             // Do this after setting up compCurBB
             getEmitter()->emitEndIG();
         }
-#endif  // DEBUG || LATE_DISASM
+#endif // DEBUG || LATE_DISASM
 
         // Needed when jitting debug code
         siBeginBlock(block);
