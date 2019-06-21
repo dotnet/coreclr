@@ -740,7 +740,7 @@ uint32_t EventPipe::GenerateSessionIndex()
     PRECONDITION(IsLockOwnedByCurrentThread());
 
     uint64_t id = 1;
-    for (uint32_t i = 0; i < MaxNumberOfSessions; ++i, id <<= i)
+    for (uint32_t i = 0; i < MaxNumberOfSessions; ++i, id <<= 1)
     {
         if ((s_activeSessions & id) == 0)
         {
