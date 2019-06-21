@@ -36,6 +36,7 @@ VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
 #ifndef FEATURE_PAL
 unsigned int * EventPipe::s_pProcGroupOffsets = nullptr;
 #endif
+uint32_t EventPipe::s_NumberOfSessions = 0;
 
 // This function is auto-generated from /src/scripts/genEventPipe.py
 #ifdef FEATURE_PAL
@@ -739,12 +740,11 @@ uint32_t EventPipe::GenerateSessionIndex()
     LIMITED_METHOD_CONTRACT;
     PRECONDITION(IsLockOwnedByCurrentThread());
 
-    uint64_t id = 1;
-    for (uint32_t i = 0; i < MaxNumberOfSessions; ++i, id <<= 1)
+    for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
     {
-        if ((s_activeSessions & id) == 0)
+        if (s_pSessions[i].LoadWithoutBarrier() == nullptr)
         {
-            s_activeSessions |= id;
+            ++s_NumberOfSessions;
             return i;
         }
     }
@@ -754,10 +754,11 @@ uint32_t EventPipe::GenerateSessionIndex()
 void EventPipe::ResetSessionIndex(uint64_t mask)
 {
     LIMITED_METHOD_CONTRACT;
-    PRECONDITION((s_activeSessions & mask) != 0);
+    PRECONDITION(s_NumberOfSessions > 0);
     PRECONDITION(IsLockOwnedByCurrentThread());
 
-    s_activeSessions &= ~mask;
+    if (s_NumberOfSessions > 0)
+        --s_NumberOfSessions;
 }
 
 bool EventPipe::IsSessionIdInCollection(EventPipeSessionID id)

@@ -63,7 +63,7 @@ public:
     static bool Enabled()
     {
         LIMITED_METHOD_CONTRACT;
-        return s_tracingInitialized && (s_activeSessions != 0);
+        return s_tracingInitialized && (s_NumberOfSessions > 0);
     }
 
     // Create a provider.
@@ -201,13 +201,13 @@ private:
     static VolatilePtr<EventPipeSession> s_pSessions[MaxNumberOfSessions];
     static EventPipeEventSource *s_pEventSource;
 
-    // A mapping from windows processor group index to the total number of processors
+    //! Bitmask tracking EventPipe active sessions.
     // in all groups preceding it. For example if there are three groups with sizes: 
     // 1, 7, 6 the table would be 0, 1, 8
 #ifndef FEATURE_PAL
     static unsigned int * s_pProcGroupOffsets;
 #endif
-    static Volatile<uint64_t> s_activeSessions;
+    static uint32_t s_NumberOfSessions;
 };
 
 static_assert(EventPipe::MaxNumberOfSessions == 64, "Maximum number of EventPipe sessions is not 64.");
