@@ -743,6 +743,7 @@ namespace System.Threading.Tasks
         /// <summary>Gets the result.</summary>
         public TResult Result
         {
+            [StackTraceHidden]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
