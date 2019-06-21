@@ -358,6 +358,18 @@ void CodeGen::genCodeForBBlist()
 
         compiler->compCurBB = block;
 
+#if defined(DEBUG) || defined(LATE_DISASM)
+        // We will start a new Instruction group if we need accurate bbWeights in the emitter
+        // We do this when our previous block was a BBJ_COND and it has a different weight than us.
+        //
+        if ((block->bbPrev != nullptr) && (block->bbPrev->bbJumpKind == BBJ_COND) &&
+            (block->bbWeight != block->bbPrev->bbWeight))
+        {
+            // Do this after setting up compCurBB
+            getEmitter()->emitEndIG();
+        }
+#endif  // DEBUG || LATE_DISASM
+
         // Needed when jitting debug code
         siBeginBlock(block);
 

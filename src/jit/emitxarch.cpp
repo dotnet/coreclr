@@ -13665,6 +13665,11 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
     }
 #endif
 
+#if defined(DEBUG) || defined(LATE_DISASM)
+    int      insThroughput = getInsThroughput(id);
+    emitComp->info.compPerfScore += (insThroughput * ig->igWeight / INS_THROUGHPUT_DEFAULT);
+#endif // defined(DEBUG) || defined(LATE_DISASM)
+
     return sz;
 }
 #ifdef _PREFAST_

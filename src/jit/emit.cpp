@@ -1227,11 +1227,52 @@ int emitter::instrDesc::idAddrUnion::iiaGetJitDataOffset() const
 }
 
 #ifndef _TARGET_XARCH_
+//----------------------------------------------------------------------------------------
+// getInsThroughput: Return an estimate of the instruction execution throughput
+//
+// Arguments:
+//    id  - THe current intstruction descriptor to be evaluated
+//
+// Return Value:
+//    The estimated instruction execution cost
+//
+// Notes:
+//    This is the default implementation that can be used when we don't
+//    have a target specific implementation available
+//
 int emitter::getInsThroughput(instrDesc* id)
 {
     return INS_THROUGHPUT_DEFAULT;
 }
 #endif // ! _TARGET_XARCH_
+
+//----------------------------------------------------------------------------------------
+// getCurrentBlockWeight: Return the block weight for the currently active block
+//
+// Arguments:
+//    None
+//
+// Return Value:
+//    The block weight for the current block
+//
+// Notes:
+//    The current block is recorded in emitComp->compCurBB by 
+//    CodeGen::genCodeForBBlist() as it walks the blocks.
+//    When we are in the prolog/epilog this value is nullptr.
+//
+BasicBlock::weight_t emitter::getCurrentBlockWeight()
+{
+    // If we have a non-null compCurBB, then use it to get the current block weight
+    if (emitComp->compCurBB != nullptr)
+    {
+        return emitComp->compCurBB->getBBWeight(emitComp);
+    }
+    else  // we have a null compCurBB
+    {
+        // prolog or epilog case, so just use the standard weight
+        return BB_UNITY_WEIGHT;
+    }
+}
 
 void emitter::dispIns(instrDesc* id)
 {
@@ -1249,12 +1290,6 @@ void emitter::dispIns(instrDesc* id)
     size_t sz = emitSizeOfInsDsc(id);
     assert(id->idDebugOnlyInfo()->idSize == sz);
 #endif // DEBUG
-#if defined(DEBUG) || defined(LATE_DISASM)
-    int      insThroughput = getInsThroughput(id);
-    unsigned curBlockWeight =
-        (emitComp->compCurBB != nullptr) ? emitComp->compCurBB->getBBWeight(emitComp) : BB_UNITY_WEIGHT;
-    emitComp->info.compPerfScore += (insThroughput * curBlockWeight / INS_THROUGHPUT_DEFAULT);
-#endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #if EMITTER_STATS
     emitIFcounts[id->idInsFmt()]++;
@@ -4924,7 +4959,14 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
             }
             else
             {
-                printf("\nG_M%03u_IG%02u:\n", Compiler::s_compMethodsCount, ig->igNum);
+                printf("\nG_M%03u_IG%02u:", Compiler::s_compMethodsCount, ig->igNum);
+
+                // Display the block weight, but only when it isn't the standard BB_UNITY_WEIGHT 
+                if (ig->igWeight != BB_UNITY_WEIGHT)
+                {
+                    printf("\t\t;; bbWeight=%s", refCntWtd2str(ig->igWeight));
+                }
+                printf("\n");
             }
         }
 
@@ -6911,6 +6953,10 @@ insGroup* emitter::emitAllocIG()
 
 #ifdef DEBUG
     ig->igSelf = ig;
+#endif
+
+#if defined(DEBUG) || defined(LATE_DISASM)
+    ig->igWeight = getCurrentBlockWeight();
 #endif
 
 #if EMITTER_STATS

@@ -262,6 +262,9 @@ struct insGroup
 #ifdef DEBUG
     insGroup* igSelf; // for consistency checking
 #endif
+#if defined(DEBUG) || defined(LATE_DISASM)
+    BasicBlock::weight_t igWeight; // the block weight used for this insGroup
+#endif
 
     UNATIVE_OFFSET igNum;     // for ordering (and display) purposes
     UNATIVE_OFFSET igOffs;    // offset of this group within method
@@ -1226,6 +1229,8 @@ protected:
 
     int getInsThroughput(instrDesc* id);
 
+    BasicBlock::weight_t getCurrentBlockWeight();
+
     void dispIns(instrDesc* id);
 
     void appendToCurIG(instrDesc* id);
@@ -1744,6 +1749,15 @@ private:
     bool emitCurIGnonEmpty()
     {
         return (emitCurIG && emitCurIGfreeNext > emitCurIGfreeBase);
+    }
+
+    // Tell the emitter to end the current instruction group and start a new one.
+    inline void emitEndIG()
+    {
+        if (emitCurIGnonEmpty())
+        {
+            emitNxtIG();
+        }
     }
 
     instrDesc* emitLastIns;
@@ -2705,6 +2719,7 @@ inline void emitter::emitEnableGC()
     emitForceNewIG = true;
 }
 #endif // !defined(JIT32_GCENCODER)
+
 
 /*****************************************************************************/
 #endif // _EMIT_H_

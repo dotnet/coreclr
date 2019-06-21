@@ -70,6 +70,8 @@ void Compiler::optSetBlockWeights()
             block->bbSetRunRarely();
         }
 
+        // This is questionable as it simply makes soem methods have 0.25 weight conditional blocks
+        // Probably should just be removed
         if (block->bbWeight != BB_ZERO_WEIGHT)
         {
             // Calculate our bbWeight:
@@ -101,6 +103,7 @@ void Compiler::optSetBlockWeights()
 #if DEBUG
                 changed = true;
 #endif
+
                 block->modifyBBWeight(block->bbWeight / 2);
                 noway_assert(block->bbWeight);
             }
