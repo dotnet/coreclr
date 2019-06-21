@@ -159,6 +159,10 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
         m_pProviderList->InsertTail(new SListElem<EventPipeProvider *>(&provider));
     }
 
+    INT64 keywordForAllSessions;
+    EventPipeEventLevel levelForAllSessions;
+    ComputeKeywordAndLevel(provider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
     EventPipe::ForEachSession([&](EventPipeSession &session) {
         // Set the provider configuration and enable it if it has been requested by a session.
         EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, &provider);
@@ -166,6 +170,8 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
             return;
 
         EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
+            keywordForAllSessions,
+            levelForAllSessions,
             session.GetMask(),
             pSessionProvider->GetKeywords(),
             pSessionProvider->GetLevel(),
@@ -279,6 +285,30 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const Event
     return session.GetSessionProvider(pProvider);
 }
 
+void EventPipeConfiguration::ComputeKeywordAndLevel(EventPipeProvider& provider, INT64& keywordForAllSessions, EventPipeEventLevel& levelForAllSessions)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+    keywordForAllSessions = 0;
+    levelForAllSessions = EventPipeEventLevel::LogAlways;
+    EventPipe::ForEachSession([&](EventPipeSession &session) {
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, &provider);
+        if (pSessionProvider != nullptr)
+        {
+            INT64 sessionKeyword = pSessionProvider->GetKeywords();
+            EventPipeEventLevel sessionLevel = pSessionProvider->GetLevel();
+            keywordForAllSessions = keywordForAllSessions | sessionKeyword;
+            levelForAllSessions = (sessionLevel > levelForAllSessions) ? sessionLevel : levelForAllSessions;
+        }
+    });
+}
+
 void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
@@ -298,12 +328,18 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
         {
             EventPipeProvider *pProvider = pElem->GetValue();
 
+            INT64 keywordForAllSessions;
+            EventPipeEventLevel levelForAllSessions;
+            ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
             // Enable the provider if it has been configured.
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
             if (pSessionProvider != NULL)
             {
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
                     pProvider->SetConfiguration(
+                        keywordForAllSessions,
+                        levelForAllSessions,
                         session.GetMask(),
                         pSessionProvider->GetKeywords(),
                         pSessionProvider->GetLevel(),
@@ -335,12 +371,18 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         {
             EventPipeProvider *pProvider = pElem->GetValue();
 
+            INT64 keywordForAllSessions;
+            EventPipeEventLevel levelForAllSessions;
+            ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
             if (pProvider->IsEnabled(session.GetMask()))
             {
                 EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
                 if (pSessionProvider != nullptr)
                 {
                     EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
+                        keywordForAllSessions,
+                        levelForAllSessions,
                         session.GetMask(),
                         pSessionProvider->GetKeywords(),
                         pSessionProvider->GetLevel(),

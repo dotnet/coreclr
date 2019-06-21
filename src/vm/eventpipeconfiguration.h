@@ -62,6 +62,9 @@ private:
     // Get the enabled provider.
     EventPipeSessionProvider *GetSessionProvider(const EventPipeSession &session, EventPipeProvider *pProvider);
 
+    // Compute the keyword union and maximum level for a provider across all sessions
+    void ComputeKeywordAndLevel(/* const */EventPipeProvider& provider, INT64& keywordsForAllSessions, EventPipeEventLevel& levelForAllSessions); /* const */
+
     // The list of event pipe providers.
     SList<SListElem<EventPipeProvider *>> *m_pProviderList = nullptr;
 
