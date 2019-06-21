@@ -3350,7 +3350,7 @@ namespace System.Threading.Tasks
             lock (continuations) { }
             int continuationCount = continuations.Count;
 
-            // Fire the asynchronous continuations first.  However, if we're not able to run any continuations synchronously,
+            // Fire the asynchronous continuations first. However, if we're not able to run any continuations synchronously,
             // then we can skip this first pass, since the second pass that tries to run everything synchronously will instead
             // run everything asynchronously anyway.
             if (canInlineContinuations)
@@ -3363,7 +3363,7 @@ namespace System.Threading.Tasks
                     // they get what they asked for. ITaskCompletionActions are only ever created by the runtime, and we always
                     // try to execute them synchronously. For all other continuations (related to await), we only run it synchronously
                     // if it's the first such continuation; otherwise, we force it to run asynchronously so as to not artificially
-                    // delay an await continuation behind other arbitrary user code created as a previous await continuatio.
+                    // delay an await continuation behind other arbitrary user code created as a previous await continuation.
 
                     object? currentContinuation = continuations[i];
                     if (currentContinuation == null)
