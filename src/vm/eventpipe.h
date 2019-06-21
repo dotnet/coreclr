@@ -169,7 +169,6 @@ private:
     //! Returns EventPipe::MaxNumberOfSessions if there are no free indexes
     static uint32_t GenerateSessionIndex();
 
-    static void ResetSessionIndex(uint64_t mask);
     static bool IsSessionIdInCollection(EventPipeSessionID id);
 
     template <typename EventPipeSessionHandlerCallback>

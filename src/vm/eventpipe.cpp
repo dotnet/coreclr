@@ -336,7 +336,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
     // Remove the session from the array, and mask.
     s_pSessions[pSession->GetIndex()].Store(nullptr);
-    ResetSessionIndex(pSession->GetMask());
+    if (s_NumberOfSessions > 0)
+        --s_NumberOfSessions;
 
     pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
@@ -749,16 +750,6 @@ uint32_t EventPipe::GenerateSessionIndex()
         }
     }
     return MaxNumberOfSessions;
-}
-
-void EventPipe::ResetSessionIndex(uint64_t mask)
-{
-    LIMITED_METHOD_CONTRACT;
-    PRECONDITION(s_NumberOfSessions > 0);
-    PRECONDITION(IsLockOwnedByCurrentThread());
-
-    if (s_NumberOfSessions > 0)
-        --s_NumberOfSessions;
 }
 
 bool EventPipe::IsSessionIdInCollection(EventPipeSessionID id)
