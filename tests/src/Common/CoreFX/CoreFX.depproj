@@ -21,14 +21,19 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Microsoft.Private.CoreFx.OOB is a meta-package that contains references to most of what we need -->
     <PackageReference Include="Microsoft.Private.CoreFx.OOB">
       <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
-  </ItemGroup>
 
-  <ItemGroup>
+    <!-- The following are needed and seem to be missing from Microsoft.Private.CoreFx.OOB, either intentionally
+         or not.
+    -->
     <PackageReference Include="Microsoft.Diagnostics.Runtime">
       <Version>$(MicrosoftDiagnosticsRuntimePackageVersion)</Version>
+    </PackageReference>
+    <PackageReference Include="System.Text.Encoding.CodePages">
+      <Version>$(MicrosoftPrivateCoreFxNETCoreAppVersion)</Version>
     </PackageReference>
   </ItemGroup>
 
