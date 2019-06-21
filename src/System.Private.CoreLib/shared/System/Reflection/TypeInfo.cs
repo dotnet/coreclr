@@ -79,7 +79,7 @@ namespace System.Reflection
             return false;
         }
 
-        private protected string GetRankString(int rank)
+        internal static string GetRankString(int rank)
         {
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
