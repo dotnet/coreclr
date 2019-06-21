@@ -98,7 +98,7 @@ namespace System.Resources
             public ResourceSet? lastResourceSet;
         }
 
-        protected string? BaseNameField;
+        protected string BaseNameField = string.Empty;
         protected Assembly? MainAssembly;    // Need the assembly manifest sometimes.
 
         private Dictionary<string, ResourceSet>? _resourceSets;
@@ -256,7 +256,7 @@ namespace System.Resources
         }
 
         // Gets the base name for the ResourceManager.
-        public virtual string? BaseName
+        public virtual string BaseName
         {
             get { return BaseNameField; }
         }
@@ -310,7 +310,7 @@ namespace System.Resources
             }
         }
 
-        public static ResourceManager CreateFileBasedResourceManager(string baseName, string resourceDir, Type usingResourceSet)
+        public static ResourceManager CreateFileBasedResourceManager(string baseName, string resourceDir, Type? usingResourceSet)
         {
             return new ResourceManager(baseName, resourceDir, usingResourceSet);
         }
@@ -676,7 +676,7 @@ namespace System.Resources
         // Looks up a resource value for a particular name.  Looks in the 
         // specified CultureInfo, and if not found, all parent CultureInfos.
         // Returns null if the resource wasn't found.
-        public virtual object? GetObject(string name, CultureInfo culture)
+        public virtual object? GetObject(string name, CultureInfo? culture)
         {
             return GetObject(name, culture, true);
         }
@@ -835,7 +835,7 @@ namespace System.Resources
 
             // this is weird because we have BaseNameField accessor above, but we're sticking
             // with it for compat.
-            internal string? BaseName
+            internal string BaseName
             {
                 get { return _rm.BaseName; }
             }
