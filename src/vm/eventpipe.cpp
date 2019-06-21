@@ -74,20 +74,25 @@ void EventPipe::Initialize()
     const unsigned long DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
     SampleProfiler::SetSamplingRate(DefaultProfilerSamplingRateInNanoseconds);
 
-#ifndef FEATURE_PAL
-    // setup the windows processor group offset table
-    WORD numGroups = ::GetActiveProcessorGroupCount();
-    s_pProcGroupOffsets = new (nothrow) unsigned int[numGroups];
-    if (s_pProcGroupOffsets)
+
+    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeProcNumbers) != 0)
     {
-        unsigned int countProcs = 0;
-        for (WORD i = 0; i < numGroups; i++)
+#ifndef FEATURE_PAL
+        // setup the windows processor group offset table
+        WORD numGroups = ::GetActiveProcessorGroupCount();
+        s_pProcGroupOffsets = new (nothrow) unsigned int[numGroups];
+        if (s_pProcGroupOffsets)
         {
-            s_pProcGroupOffsets[i] = countProcs;
-            countProcs += GetActiveProcessorCount(i);
+            unsigned int countProcs = 0;
+            for (WORD i = 0; i < numGroups; i++)
+            {
+                s_pProcGroupOffsets[i] = countProcs;
+                countProcs += GetActiveProcessorCount(i);
+            }
         }
-    }
 #endif
+    }
+
 
     {
         CrstHolder _crst(GetLock());
