@@ -60,7 +60,11 @@ public:
     static EventPipeSession *GetSession(EventPipeSessionID id);
 
     // Specifies whether or not the event pipe is enabled.
-    static bool Enabled();
+    static bool Enabled()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_tracingInitialized && (s_activeSessions != 0);
+    }
 
     // Create a provider.
     static EventPipeProvider *CreateProvider(
@@ -154,12 +158,19 @@ private:
     static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
-    static EventPipeSessionID EnableInternal(
+    static bool EnableInternal(
         EventPipeSession *const pSession,
         EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
+
+    //! Helper function used to locate a free index in the range 0 - EventPipe::MaxNumberOfSessions
+    //! Returns EventPipe::MaxNumberOfSessions if there are no free indexes
+    static uint32_t GenerateSessionIndex();
+
+    static void ResetSessionIndex(uint64_t mask);
+    static bool IsSessionIdInCollection(EventPipeSessionID id);
 
     template <typename EventPipeSessionHandlerCallback>
     static void ForEachSession(EventPipeSessionHandlerCallback callback)
@@ -196,6 +207,7 @@ private:
 #ifndef FEATURE_PAL
     static unsigned int * s_pProcGroupOffsets;
 #endif
+    static Volatile<uint64_t> s_activeSessions;
 };
 
 static_assert(EventPipe::MaxNumberOfSessions == 64, "Maximum number of EventPipe sessions is not 64.");
