@@ -51,6 +51,7 @@ void EventPipeConfiguration::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(m_activeSessions == 0);
     }
     CONTRACTL_END;
 
@@ -452,6 +453,7 @@ EventPipeEventInstance *EventPipeConfiguration::BuildEventMetadataEvent(EventPip
     // Construct the event instance.
     EventPipeEventInstance *pInstance = new EventPipeEventInstance(
         *m_pMetadataEvent,
+        EventPipe::GetCurrentProcessorNumber(),
 #ifdef FEATURE_PAL
         PAL_GetCurrentOSThreadId(),
 #else

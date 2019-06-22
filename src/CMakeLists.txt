@@ -16,13 +16,9 @@ endif(WIN32 AND FEATURE_EVENT_TRACE)
 
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-  if(CLR_CMAKE_PLATFORM_LINUX)
-    if(CLR_CMAKE_PLATFORM_UNIX_AMD64 OR CLR_CMAKE_PLATFORM_UNIX_ARM)
-      add_subdirectory(debug/createdump)
-    endif()
-  endif(CLR_CMAKE_PLATFORM_LINUX)
-
-  add_subdirectory(ToolBox/SOS/Strike)
+  if(CLR_CMAKE_PLATFORM_LINUX AND NOT CLR_CMAKE_PLATFORM_UNIX_X86)
+    add_subdirectory(debug/createdump)
+  endif(CLR_CMAKE_PLATFORM_LINUX AND NOT CLR_CMAKE_PLATFORM_UNIX_X86)
 
   # Include the dummy c++ include files
   include_directories("pal/inc/rt/cpp")
