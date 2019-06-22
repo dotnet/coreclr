@@ -11436,8 +11436,8 @@ void Compiler::gtDispLIRNode(GenTree* node, const char* prefixMsg /* = nullptr *
             printf("%*s", (int)prefixIndent, "");
         }
 
-        // 49 spaces for alignment
-        printf("%-49s", "");
+        // 50 spaces for alignment
+        printf("%-50s", "");
 #if FEATURE_SET_FLAGS
         // additional flag enlarges the flag field by one character
         printf(" ");
@@ -13027,6 +13027,12 @@ GenTree* Compiler::gtFoldExprConst(GenTree* tree)
         return tree;
     }
 #endif // FEATURE_SIMD
+#ifdef FEATURE_HW_INTRINSICS
+    if (tree->OperGet() == GT_HWIntrinsic)
+    {
+        return tree;
+    }
+#endif
 
     if (tree->gtOper == GT_ALLOCOBJ)
     {

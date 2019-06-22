@@ -5,6 +5,7 @@
 #include "common.h"
 #include "eventpipe.h"
 #include "eventpipeeventinstance.h"
+#include "eventpipeeventpayload.h"
 #include "eventpipebuffer.h"
 #include "eventpipebuffermanager.h"
 
@@ -87,9 +88,11 @@ bool EventPipeBuffer::WriteEvent(Thread *pThread, EventPipeSession &session, Eve
             pStack = &s;
         }
 
+        unsigned int procNumber = EventPipe::GetCurrentProcessorNumber();
         EventPipeEventInstance *pInstance = new (m_pCurrent) EventPipeEventInstance(
             event,
-            (pThread == NULL) ? 
+            procNumber,
+            (pThread == NULL) ?
 #ifdef FEATURE_PAL
                 ::PAL_GetCurrentOSThreadId()
 #else
