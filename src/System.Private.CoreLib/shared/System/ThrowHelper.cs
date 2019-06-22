@@ -969,6 +969,7 @@ namespace System
         Arg_RanksAndBounds,
         InvalidOperation_IComparerFailed,
         NotSupported_FixedSizeCollection,
+        NotSupported_SpanOverlappedOperation,
         Rank_MultiDimNotSupported,
         Arg_TypeNotSupported,
     }
