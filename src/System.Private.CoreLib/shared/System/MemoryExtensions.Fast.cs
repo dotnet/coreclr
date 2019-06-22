@@ -225,7 +225,7 @@ namespace System
         public static int ToLower(this ReadOnlySpan<char> source, Span<char> destination, CultureInfo? culture)
         {
             if (source.Overlaps(destination))
-               ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotSupported_SpanOverlappedOperation);
+                throw new InvalidOperationException(SR.NotSupported_SpanOverlappedOperation);
 
             if (culture == null)
                 culture = CultureInfo.CurrentCulture;
@@ -252,7 +252,7 @@ namespace System
         public static int ToLowerInvariant(this ReadOnlySpan<char> source, Span<char> destination)
         {
             if (source.Overlaps(destination))
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotSupported_SpanOverlappedOperation);
+                throw new InvalidOperationException(SR.NotSupported_SpanOverlappedOperation);
 
             // Assuming that changing case does not affect length
             if (destination.Length < source.Length)
@@ -278,7 +278,7 @@ namespace System
         public static int ToUpper(this ReadOnlySpan<char> source, Span<char> destination, CultureInfo? culture)
         {
             if (source.Overlaps(destination))
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotSupported_SpanOverlappedOperation);
+                throw new InvalidOperationException(SR.NotSupported_SpanOverlappedOperation);
 
             if (culture == null)
                 culture = CultureInfo.CurrentCulture;
@@ -305,7 +305,7 @@ namespace System
         public static int ToUpperInvariant(this ReadOnlySpan<char> source, Span<char> destination)
         {
             if (source.Overlaps(destination))
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotSupported_SpanOverlappedOperation);
+                throw new InvalidOperationException(SR.NotSupported_SpanOverlappedOperation);
 
             // Assuming that changing case does not affect length
             if (destination.Length < source.Length)
