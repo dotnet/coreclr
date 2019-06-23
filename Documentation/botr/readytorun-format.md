@@ -407,9 +407,9 @@ This section contains a native hashtable of all generic method instantiations co
 
 ## READYTORUN_SECTION_MANIFEST_METADATA
 
-Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies introduced by inlining on top of assembly references stored in the input MSIL. This can only happen for non-versionable methods or for methods within the same *version bubble*.
+Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies within the version bubble introduced by inlining on top of assembly references stored in the input MSIL. As of R2R version 3.1, the metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the ``READYTORUN_FIXUP_ModuleOverride`` bit flag on the signature fixup byte or the ``ELEMENT_TYPE_MODULE_ZAPSIG`` COR element type).
 
-As of R2R version 3.0, the metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the ``READYTORUN_FIXUP_ModuleOverride`` bit flag on the signature fixup byte or the ``ELEMENT_TYPE_MODULE_ZAPSIG`` COR element type).
+**Note:** It doesn't make sense to store references to assemblies external to the version bubble in the manifest metadata as there's no guarantee that their metadata token values remain constant; thus we cannot encode signatures relative to them.
 
 The module override index translation algorithm is as follows (**ILAR** = *the number of `AssemblyRef` rows in the input MSIL*):
 
