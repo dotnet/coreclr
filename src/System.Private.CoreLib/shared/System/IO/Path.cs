@@ -816,7 +816,7 @@ namespace System.IO
                 throw new ArgumentNullException(nameof(relativeTo));
 
             if (PathInternal.IsEffectivelyEmpty(relativeTo.AsSpan()))
-                throw new ArgumentException(nameof(relativeTo));
+                throw new ArgumentException(SR.Arg_PathEmpty, nameof(relativeTo));
 
             if (path == null)
                 throw new ArgumentNullException(nameof(path));
