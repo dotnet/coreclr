@@ -98,7 +98,7 @@ namespace System.Resources
             public ResourceSet? lastResourceSet;
         }
 
-        protected string BaseNameField = string.Empty;
+        protected string BaseNameField;
         protected Assembly? MainAssembly;    // Need the assembly manifest sometimes.
 
         private Dictionary<string, ResourceSet>? _resourceSets;
@@ -155,6 +155,7 @@ namespace System.Resources
             _lastUsedResourceCache = new CultureNameResourceSetPair();
             ResourceManagerMediator mediator = new ResourceManagerMediator(this);
             _resourceGroveler = new ManifestBasedResourceGroveler(mediator);
+            BaseNameField = string.Empty;
         }
 
         // Constructs a Resource Manager for files beginning with 
@@ -595,7 +596,7 @@ namespace System.Resources
         // 
         public virtual string? GetString(string name)
         {
-            return GetString(name, (CultureInfo?)null);
+            return GetString(name, null);
         }
 
         // Looks up a resource value for a particular name.  Looks in the 
@@ -670,7 +671,7 @@ namespace System.Resources
         // 
         public virtual object? GetObject(string name)
         {
-            return GetObject(name, (CultureInfo?)null, true);
+            return GetObject(name, null, true);
         }
 
         // Looks up a resource value for a particular name.  Looks in the 
@@ -746,7 +747,7 @@ namespace System.Resources
 
         public UnmanagedMemoryStream? GetStream(string name)
         {
-            return GetStream(name, (CultureInfo?)null);
+            return GetStream(name, null);
         }
 
         public UnmanagedMemoryStream? GetStream(string name, CultureInfo? culture)
