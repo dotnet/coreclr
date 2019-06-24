@@ -440,6 +440,8 @@ The module override index translation algorithm is as follows (**ILAR** = *the n
 
 **TODO**: document attribute presence encoding
 
+**Note**: We already know this table uses assembly-relative token encoding so it has similar characteristics like `READYTORUN_SECTION_AVAILABLE_TYPES` or `READYTORUN_SECTION_METHOD_ENTRYPOINTS`. No matter what component assembly-relative encoding we end up choosing for these tables, we should use the same encoding for ATTRIBUTEPRESENCE.
+
 ## READYTORUN_SECTION_ASSEMBLIES (v3.2+)
 
 This section is only present in composite R2R files. It is a straight binary array of the entries `READYTORUN_SECTION_ASSEMBLIES_ENTRY` parallel to the indices in the manifest metadata AssemblyRef table in the sense that it's a linear table where the row indices correspond to the equivalent AssemblyRef indices. Just like in the AssemblyRef ECMA 335 table, the indexing is 1-based (the first entry in the table corresponds to index 1).
