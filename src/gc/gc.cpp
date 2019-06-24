@@ -11614,7 +11614,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
 
     //this portion can be done after we release the lock
     if (seg == ephemeral_heap_segment ||
-        seg == nullptr && gen_number == 0 && limit_size >= CLR_SIZE / 2)
+       (seg == nullptr && gen_number == 0 && limit_size >= CLR_SIZE / 2))
     {
         if (gen0_must_clear_bricks > 0)
         {
