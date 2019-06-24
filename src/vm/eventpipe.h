@@ -201,12 +201,12 @@ private:
     static EventPipeEventSource *s_pEventSource;
 
     //! Bitmask tracking EventPipe active sessions.
-    // in all groups preceding it. For example if there are three groups with sizes: 
+    // in all groups preceding it. For example if there are three groups with sizes:
     // 1, 7, 6 the table would be 0, 1, 8
 #ifndef FEATURE_PAL
     static unsigned int * s_pProcGroupOffsets;
 #endif
-    static Volatile<uint32_t> s_numberOfSessions;
+    static uint32_t s_numberOfSessions;
 };
 
 static_assert(EventPipe::MaxNumberOfSessions == 64, "Maximum number of EventPipe sessions is not 64.");

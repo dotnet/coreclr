@@ -36,7 +36,7 @@ VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
 #ifndef FEATURE_PAL
 unsigned int * EventPipe::s_pProcGroupOffsets = nullptr;
 #endif
-Volatile<uint32_t> EventPipe::s_numberOfSessions = 0;
+uint32_t EventPipe::s_numberOfSessions = 0;
 
 // This function is auto-generated from /src/scripts/genEventPipe.py
 #ifdef FEATURE_PAL
@@ -238,6 +238,12 @@ bool EventPipe::EnableInternal(
         return false;
     }
 
+    if (s_numberOfSessions > MaxNumberOfSessions)
+    {
+        _ASSERTE(!"Max number of sessions reached.");
+        return false;
+    }
+
     // Register the SampleProfiler the very first time.
     SampleProfiler::Initialize(pEventPipeProviderCallbackDataQueue);
 
@@ -251,6 +257,7 @@ bool EventPipe::EnableInternal(
         return false;
     }
     s_pSessions[pSession->GetIndex()].Store(pSession);
+    ++s_numberOfSessions;
 
     // Enable tracing.
     s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
@@ -283,7 +290,8 @@ void EventPipe::Disable(EventPipeSessionID id)
     GCX_PREEMP();
 
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        DisableInternal(id, pEventPipeProviderCallbackDataQueue);
+        if (s_numberOfSessions > 0)
+            DisableInternal(id, pEventPipeProviderCallbackDataQueue);
     });
 }
 
@@ -311,6 +319,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(id != 0);
+        PRECONDITION(s_numberOfSessions > 0);
         PRECONDITION(IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -336,8 +345,6 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
     // Remove the session from the array, and mask.
     s_pSessions[pSession->GetIndex()].Store(nullptr);
-    if (s_numberOfSessions > 0)
-        --s_numberOfSessions;
 
     pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
@@ -362,6 +369,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         _ASSERTE(!"Failed to get or create the EventPipeThread for rundown events.");
         return;
     }
+
+    --s_numberOfSessions;
 
     // Write a final sequence point to the file now that all events have
     // been emitted.
@@ -740,13 +749,8 @@ uint32_t EventPipe::GenerateSessionIndex()
     PRECONDITION(IsLockOwnedByCurrentThread());
 
     for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
-    {
         if (s_pSessions[i].LoadWithoutBarrier() == nullptr)
-        {
-            ++s_numberOfSessions;
             return i;
-        }
-    }
     return MaxNumberOfSessions;
 }
 
