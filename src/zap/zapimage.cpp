@@ -683,7 +683,7 @@ void ZapImage::SetDependencies(CORCOMPILE_DEPENDENCY *pDependencies, DWORD cDepe
 {
     if (IsReadyToRunCompilation())
     {
-        ZapNode* pBlob = new (GetHeap()) ZapDependencies(pDependencies, cDependencies);
+        ZapNode* pBlob = new (GetHeap()) ZapReadyToRunDependencies(pDependencies, cDependencies);
         GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_NATIVE_DEPENDENCIES, pBlob);
         m_pHeaderSection->Place(pBlob);
     }

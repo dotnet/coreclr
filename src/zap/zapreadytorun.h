@@ -63,4 +63,40 @@ public:
 	DWORD EncodeModuleHelper(LPVOID compileContext, CORINFO_MODULE_HANDLE referencedModule);
 };
 
+class ZapReadyToRunDependencies : public ZapNode
+{
+    DWORD m_cDependencies;
+    CORCOMPILE_DEPENDENCY* m_pDependencies;
+
+public:
+    ZapReadyToRunDependencies(CORCOMPILE_DEPENDENCY* pDependencies, DWORD cDependencies)
+        : m_cDependencies(cDependencies), m_pDependencies(pDependencies)
+    {
+    }
+
+    virtual DWORD GetSize()
+    {
+        return sizeof(READYTORUN_DEPENDENCY) * m_cDependencies;
+    }
+
+    virtual UINT GetAlignment()
+    {
+        return sizeof(ULARGE_INTEGER);
+    }
+
+    virtual ZapNodeType GetType()
+    {
+        return ZapNodeType_Dependencies;
+    }
+
+    virtual void Save(ZapWriter* pZapWriter)
+    {
+        for (DWORD i = 0; i < m_cDependencies; i++)
+        {
+            pZapWriter->Write(&m_pDependencies[i].dwAssemblyRef, sizeof(mdAssemblyRef));
+            pZapWriter->Write(&m_pDependencies[i].signAssemblyDef.mvid, sizeof(GUID));
+            static_assert(sizeof(READYTORUN_DEPENDENCY) == sizeof(mdAssemblyRef) + sizeof(GUID), "");
+        }
+    }
+};
 #endif // __ZAPREADYTORUN_H__

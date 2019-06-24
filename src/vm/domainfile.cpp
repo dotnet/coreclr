@@ -529,7 +529,9 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
 #ifdef FEATURE_PREJIT
         VerifyNativeImageDependencies();
 #endif
+#ifndef CROSSGEN_COMPILE
         VerifyReadyToRunImageDependencies();
+#endif
         break;
 
     case FILE_LOAD_ALLOCATE:
@@ -612,19 +614,22 @@ void DomainAssembly::VerifyReadyToRunImageDependencies()
     {
         PTR_PEImage pImage = GetFile()->GetILimage();
 
-        COUNT_T cDependencies;
-        CORCOMPILE_DEPENDENCY* pDependencies = GetFile()->GetLoaded()->GetNativeDependencies(&cDependencies);
-
-        for (COUNT_T iDependency = 0; iDependency < cDependencies; iDependency++)
+        PTR_IMAGE_DATA_DIRECTORY pDependencyDirectory = GetFile()->GetLoaded()->GetReadyToRunSection(READYTORUN_SECTION_NATIVE_DEPENDENCIES);
+        if (pDependencyDirectory != NULL)
         {
-            CORCOMPILE_DEPENDENCY* pDependency = &(pDependencies[iDependency]);
+            READYTORUN_DEPENDENCY* pDependencies = (READYTORUN_DEPENDENCY*)GetFile()->GetLoaded()->GetDirectoryData(pDependencyDirectory);
+            COUNT_T cDependencies = pDependencyDirectory->Size / sizeof(READYTORUN_DEPENDENCY);
+            for (COUNT_T iDependency = 0; iDependency < cDependencies; iDependency++)
+            {
+                READYTORUN_DEPENDENCY* pDependency = &(pDependencies[iDependency]);
 
-            AssemblySpec name;
-            name.InitializeSpec(pDependency->dwAssemblyRef,
-                pImage->GetNativeMDImport(),
-                GetDomainAssembly());
+                AssemblySpec name;
+                name.InitializeSpec(pDependency->AssemblyToken,
+                    pImage->GetNativeMDImport(),
+                    GetDomainAssembly());
 
-            GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependency->signAssemblyDef.mvid);
+                GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependency->Mvid);
+            }
         }
     }
 }

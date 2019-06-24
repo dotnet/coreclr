@@ -361,4 +361,10 @@ struct READYTORUN_EXCEPTION_CLAUSE
     };  
 };
 
+struct READYTORUN_DEPENDENCY
+{
+    mdAssemblyRef       AssemblyToken;
+    GUID                Mvid;
+};
+
 #endif // __READYTORUN_H__
