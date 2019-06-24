@@ -8,66 +8,7 @@ Revisions:
 
 # Introduction
 
-*Currently this is a bit of a mess as it's a combo of the format document and bits of design ideas and specs. I think we have multiple options to proceed - leave the design bits in (possibly with some highlighting) and removing them after actually implementing the composite format, siphon them off into a separate doc or just deleting them once we converge on the new format design within the PR process.*
-
 This document describes ReadyToRun format 3.1 implemented in CoreCLR as of June 2019 and not yet implemented proposed extensions 3.2 for the support of composite R2R file format. **Composite R2R file format** has basically the same structure as the traditional R2R file format defined in earlier revisions except that the output file represents a larger number of input MSIL assemblies compiled together as a logical unit.
-
-## Traditional vs. composite R2R image
-
-The logical goal of a composite R2R image is to have a single PE R2R binary represent a semantic union of multiple input MSIL assemblies compiled as a unit by the R2R compiler to produce the composite output.
-
-Some motivations for producing composite R2R images include:
-
-* Better performance: compiling multiple MSIL assemblies into a single output R2R executable creates an even tighter coupling than the large version bubble using separate files and the compiler and runtime can be more efficient (e.g. the compiler may elide MVID checks and type layout checks within the "tight" version bubble).
-* Easier deployment: desire to avoid having to deal with potentially hundreds or thousands of assemblies.
-* Side-by-side deployment: a self-contained app doesn't need to care about the location of its dependencies, their proper versions, about sharing them with other apps (including other versions of the same app).
-
-Semantic requirements for the composite R2R format flow from the combination of the basic design principle that the R2R file is a code cache to save jitting time and from the fact that the tighter coupling can be utilized to improve codegen quality.
-
-### R2R file is a code cache
-
-A corollary of this basic principle is that the composite file must maintain full functionality of single-input R2R files w.r.t. things like reflection, dynamic or generics. To achieve this goal the composite R2R file must store all the original MSIL metadata blobs for all input assemblies in the output R2R file. This is a substantial deviation from the previous format that only had one COR header addressed by the COM data directory entry in the COFF header.
-
-To achieve this goal, we propose using two complementary strategies:
-
-* In the composite R2R file, there must be a new table of COR headers and metadata blobs representing the MSIL metadata from all the input assemblies. The table must be indexable by simple assembly name for fast lookup. 
-
-* We propose slightly variating the purpose of the "main" COR header and metadata blob: in composite R2R files, where a "singleton" ECMA-335 metadata blob doesn't make much sense, we'd reuse the "main" metadata for the manifest metadata.
-
-* We may be able to leverage this semantic shift to include some virtual "composite assembly information" in the assembly attributes of the manifest metadata assembly to facilitate versioning and deployment.
-
-**Note:** As of this proposal we're not addressing managed C++ code including both native and managed code. For pre-built native code, it's generally not possible to relocate RVA's as the fixup table information is not rich enough. As a consequence, it's simply not possible to roll multiple managed C++ modules containing native code into a single output R2R PE binary. We might be able to consider some mitigations like allowing a single managed binary containing native code in a composite build but I'm not sure whether they are worth the effort and desirable in general.
-
-### Better codegen in composite R2R files
-
-The perf improvements for composite R2R files can stem from the following facts:
-
-* The composite R2R file forms a tightly-bound version bubble where an individual assembly cannot be accidentally replaced on disk so we don't need to emit any type layout checks.
-* Similarly, the runtime doesn't need to check reference assembly MVID's within the tightly-bound version bubble represented by the composite file.
-* The composite R2R file can / should share generic instantiations. This both saves space and improves perf as we should be able to emit more instantiations i.o.w. avoid their jitting.
-
-### Structural format changes specific to composite build mode
-
-When a R2R file has the `READYTORUN_FLAG_COMPOSITE` bit set in the R2R header, it conforms to the composite file format. The main differences between composite and single-input R2R PE files are as follows:
-
-* In single-input R2R PE files the COFF header points at the COR header of the input MSIL metadata. In composite R2R files there are multiple input MSIL metadata so that the COFF header instead points at the COR header and metadata representing the manifest metadata and the "actual" input assemblies are tracked under the new R2R header table `READYTORUN_SECTION_ASSEMBLIES`.
-
-* In single-input R2R PE files compiled in the large version bubble mode, the metadata manifest contains the set of assemblies containing functions called from the input assembly (possibly with some transitivity due to inlining); in composite R2R PE files the manifest metadata is supposed to contain all assemblies contained within the composite file. The linear indices of the assemblies in the manifest metadata AssemblyRef table correspond to indexing within the `READYTORUN_SECTION_ASSEMBLIES` and `READYTORUN_SECTION_SIMPLE_ASSEMBLY_NAME_LOOKUP` tables.
-
-* In single-input R2R PE files the R2R section `READYTORUN_SECTION_AVAILABLE_TYPES` encodes a native hashtable of types within a given assembly. In composite R2R files, the available types need to be split per input assembly and are referenced from `READYTORUN_SECTION_ASSEMBLIES`.
-
-* In single-input R2R PE files the R2R section `READYTORUN_SECTION_METHOD_ENTRYPOINTS` encodes a native hashtable of methods within a given assembly. In composite R2R files, the method entrypoints need to be split per input assembly and are referenced from `READYTORUN_SECTION_ASSEMBLIES`.
-
-* In single-input R2R PE files the  generic instantiations generated for the input MSIL assembly are placed in `READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS`. In composite R2R files, this section represents all instance entrypoints emitted within the composite build (i.e. generic instantiations needed by any of the input assemblies). With the proposed change to make the "input MSIL" represent the manifest metadata, we should be able to easily refer to all required reference assemblies in the signature encodings even without the manifest module override (**note:** this is a minute technical detail).
-
-### Required CoreCLR runtime changes
-
-CoreCLR runtime will need to understand the `READYTORUN_FLAG_COMPOSITE` flag and behave accordingly:
-
-* For composite files, we shouldn't be checking MVID's of reference assemblies within the tight version bubble represented by the single file.
-* We need to improve generic instantiation lookup algorithm to be able to locate all instantiations emitted into the composite file.
-* CoreCLR runtime will need to parse the manifest metadata (and possibly the `READYTORUN_SECTION_SIMPLE_ASSEMBLY_NAME_LOOKUP` section) and set up lookup structures to facilitate fast assembly lookup for available types and method entrypoints.
-* The runtime will need to start consulting the `READYTORUN_SECTION_ASSEMBLIES` table to locate MSIL metadata within the composite executable - this logic should definitely take precedence to arbitrary files on the disk to satisfy consistency guarantees.
 
 # PE Headers and CLI Headers
 
@@ -80,7 +21,9 @@ customizations:
 
 The image contains full copy of the IL and metadata that it was generated from.
 
-For single-file R2R PE files, the COR header and ECMA 335 metadata pointed to by the COM descriptor data directory item in the COFF header represents the actual input MSIL metadata of the compiled module. For composite R2R files (denoted by the `READYTORUN_FLAG_COMPOSITE` flag in the R2R header) the "main" ECMA 335 metadata represent the manifest metadata and the "actual" input metadata is accessed via the R2R section `READYTORUN_SECTION_ASSEMBLIES`.
+For **single-file R2R PE files**, the COR header and ECMA 335 metadata pointed to by the COM descriptor data directory item in the COFF header represents the actual input MSIL metadata of the compiled module.
+
+For **composite R2R files** (denoted by the `READYTORUN_FLAG_COMPOSITE` flag in the R2R header) there is no global COR header (as there are potentially multiple metadata blocks in the file). The ReadyToRun header structure is pointed to by the well-known export symbol `RTR_HEADER`. The "actual" metadata for the individual component assemblies is accessed via the R2R section `READYTORUN_SECTION_ASSEMBLIES`.
 
 ## Future Improvements
 
@@ -183,7 +126,6 @@ enum ReadyToRunSectionType
     READYTORUN_SECTION_MANIFEST_METADATA            = 112, // Added in V2.3
     READYTORUN_SECTION_ATTRIBUTEPRESENCE            = 113, // Added in V3.1
     READYTORUN_SECTION_ASSEMBLIES                   = 114, // Added in V3.2
-    READYTORUN_SECTION_SIMPLE_ASSEMBLY_NAME_LOOKUP  = 115, // Added in V3.2
 };
 ```
 
@@ -503,19 +445,13 @@ This section is only present in composite R2R files. It is a straight binary arr
 ```C++
 struct READYTORUN_SECTION_ASSEMBLIES_ENTRY
 {
-    DWORD  CorHeaderRva;          // RVA of the input MSIL metadata COR header
-    DWORD  AvailableTypesRva;     // RVA of the available types table
-    DWORD  AvailableTypesSize;    // Size in bytes of the available types table
-    DWORD  MethodEntrypointsRva;  // RVA of the method entrypoint table
-    DWORD  MethodEntrypointsSize; // Size of the method entrypoint table
+    IMAGE_DATA_DIRECTORY CorHeader;         // Input MSIL metadata COR header
+    IMAGE_DATA_DIRECTORY AvailableTypes;    // Available types table
+    IMAGE_DATA_DIRECTORY MethodEntrypoints; // Method entrypoint table
 };
 ```
 
 **TODO:** I suspect that `READYTORUN_SECTION_DEBUG_INFO`, `READYTORUN_SECTION_METHODCALL_THUNKS` and / or `READYTORUN_SECTION_INLINING_INFO` may also require changes specific to the composite R2R file format.
-
-## READYTORUN_SECTION_SIMPLE_ASSEMBLY_NAME_LOOKUP (v3.2+)
-
-This section is only present in composite R2R files. It contains a native hashtable where the key is the simple assembly name and the value is the set of potentially matching one-based indices in the AssemblyRef table in the manifest metadata and in the `READYTORUN_SECTION_ASSEMBLIES` table.
 
 # Native Format
 
