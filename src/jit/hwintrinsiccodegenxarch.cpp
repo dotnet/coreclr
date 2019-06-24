@@ -2316,23 +2316,14 @@ void CodeGen::genFMAIntrinsic(GenTreeHWIntrinsic* node)
         op2Reg = op3->gtRegNum;
         op3    = op2;
     }
-    else if (op1->isContained() || op1->isUsedFromSpillTemp())
+    else
     {
-        // 231 form: op3 = (op2 * op3) + [op1]
+        // 231 form: o1 = (op2 * op3) + [op1]
 
         ins    = (instruction)(ins + 1);
         op1Reg = op3->gtRegNum;
         op2Reg = op2->gtRegNum;
         op3    = op1;
-    }
-    else
-    {
-        // 213 form: op1 = (op2 * op1) + op3
-
-        op1Reg = op1->gtRegNum;
-        op2Reg = op2->gtRegNum;
-
-        isCommutative = !copiesUpperBits;
     }
 
     if (isCommutative && (op1Reg != targetReg) && (op2Reg == targetReg))

@@ -2606,37 +2606,15 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                     srcCount += BuildOperandUses(op2);
                     srcCount += BuildDelayFreeUses(op3);
                 }
-                else if (op1->isContained())
+                else
                 {
-                    // 231 form: op3 = (op2 * op3) + [op1]
+                    // 231 form: op1 = (op2 * op3) + [op1]
 
                     tgtPrefUse = BuildUse(op3);
 
                     srcCount += BuildOperandUses(op1);
                     srcCount += BuildDelayFreeUses(op2);
                     srcCount += 1;
-                }
-                else
-                {
-                    // 213 form: op1 = (op2 * op1) + op3
-
-                    if (copiesUpperBits)
-                    {
-                        tgtPrefUse = BuildUse(op1);
-
-                        srcCount += 1;
-                        srcCount += BuildDelayFreeUses(op2);
-                    }
-                    else
-                    {
-                        // op1 and op2 are commutative, so don't
-                        // set either to be tgtPref or delayFree
-
-                        srcCount += BuildOperandUses(op1);
-                        srcCount += BuildOperandUses(op2);
-                    }
-
-                    srcCount += BuildDelayFreeUses(op3);
                 }
 
                 buildUses = false;
