@@ -3406,7 +3406,7 @@ BOOL DacDbiInterfaceImpl::IsExceptionObject(MethodTable* pMT)
     return FALSE;
 }
 
-HRESULT DacDbiInterfaceImpl::GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD)
+HRESULT DacDbiInterfaceImpl::GetMethodDescPtrFromIpEx(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD)
 {
     DD_ENTER_MAY_THROW;
 
@@ -3416,15 +3416,17 @@ HRESULT DacDbiInterfaceImpl::GetMethodDescFromIP(CORDB_ADDRESS funcIp, VMPTR_Met
     if (S_OK == hr)
     {
         ppMD->SetDacTargetPtr(CLRDATA_ADDRESS_TO_TADDR(mdAddr));
+        return hr;
     }
-    else
-    {
-        // Otherwise get the method desc from stubs of unjitted method.
-        DacpCodeHeaderData headerData;
-        hr = ClrDataAccess::GetCodeHeaderData(funcIp, &headerData);
-        ppMD->SetDacTargetPtr(CLRDATA_ADDRESS_TO_TADDR(headerData.MethodDescPtr));
-    }
-    return hr;
+
+    // Otherwise try to see if a method desc is available for the method that isn't jitted by walking the code stubs.
+    MethodDesc* pMD = MethodTable::GetMethodDescForSlotAddress(funcIp);
+
+    if (pMD == NULL)
+        return E_INVALIDARG;
+
+    ppMD->SetDacTargetPtr(PTR_HOST_TO_TADDR(pMD));
+    return S_OK;
 }
 
 BOOL DacDbiInterfaceImpl::IsDelegate(VMPTR_Object vmObject)
@@ -3540,12 +3542,11 @@ HRESULT DacDbiInterfaceImpl::GetDelegateFunctionData(
         return E_FAIL;
     }
 
-    hr = GetMethodDescFromIP(targetMethodPtr, &pMD);
+    hr = GetMethodDescPtrFromIpEx(targetMethodPtr, &pMD);
     if (hr != S_OK)
         return hr;
 
-    AppDomain *pTargetObjAppDomain = pMD.GetDacPtr()->GetDomain()->AsAppDomain();
-    ppFunctionDomainFile->SetDacTargetPtr(dac_cast<TADDR>(pMD.GetDacPtr()->GetModule()->GetDomainFile(pTargetObjAppDomain)));
+    ppFunctionDomainFile->SetDacTargetPtr(dac_cast<TADDR>(pMD.GetDacPtr()->GetModule()->GetDomainFile()));
     *pMethodDef = pMD.GetDacPtr()->GetMemberDef();
 
     return hr;

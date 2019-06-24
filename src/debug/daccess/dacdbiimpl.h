@@ -349,7 +349,7 @@ public:
     // Returns true if the argument is a runtime callable wrapper
     BOOL IsRcw(VMPTR_Object vmObject);
 
-    HRESULT GetMethodDescFromIP(
+    HRESULT GetMethodDescPtrFromIpEx(
         CORDB_ADDRESS funcIp,
         OUT VMPTR_MethodDesc *ppMD);
 

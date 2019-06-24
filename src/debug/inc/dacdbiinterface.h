@@ -2710,24 +2710,10 @@ public:
     virtual
         HRESULT EnableGCNotificationEvents(BOOL fEnable) = 0;
 
-    virtual
-    HRESULT GetMethodDescFromIP(
-        CORDB_ADDRESS funcIp,
-        OUT VMPTR_MethodDesc *ppMD) = 0;
 
-    // Returns true if the object is a type deriving from System.Delegate
-    //
-    // Arguments:
-    //    vmObject - object to identify as delegate.
-    //
-    virtual
-    BOOL IsDelegate(VMPTR_Object vmObject) = 0;
-
-    // Special cases not considered:
-    //   -special signature closed delegate.
     typedef enum
     {
-        kClosedDelegate, // Both static extension/closed and instance types
+        kClosedDelegate,
         kOpenDelegate,
         kOpenInstanceNonVSD,
         kOpenInstanceVSD,
@@ -2737,6 +2723,20 @@ public:
         kUnmanagedFunctionDelegate,
         kUnknownDelegateType
     } DelegateType;
+
+    // Returns true if the object is a type deriving from System.Delegate
+    //
+    // Arguments:
+    //    vmObject - object to identify as delegate.
+    //
+    virtual
+    BOOL IsDelegate(VMPTR_Object vmObject) = 0;
+
+    //
+    virtual
+    HRESULT GetMethodDescPtrFromIpEx(
+        CORDB_ADDRESS funcIp,
+        OUT VMPTR_MethodDesc *ppMD) = 0;
 
     // Returns the delegate type
     virtual
