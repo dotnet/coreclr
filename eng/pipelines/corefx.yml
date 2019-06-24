@@ -26,7 +26,7 @@ jobs:
     platforms:
     - Linux_x64
     - Windows_NT_x64
-    helixQueueGroup: ci
+    helixQueueGroup: pr
     jobParameters:
       testGroup: outerloop
       corefxTests: true
