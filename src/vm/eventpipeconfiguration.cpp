@@ -271,7 +271,7 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     return NULL;
 }
 
-EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const EventPipeSession &session, EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const EventPipeSession &session, const EventPipeProvider *pProvider) const
 {
     CONTRACTL
     {
@@ -285,7 +285,7 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const Event
     return session.GetSessionProvider(pProvider);
 }
 
-void EventPipeConfiguration::ComputeKeywordAndLevel(EventPipeProvider& provider, INT64& keywordForAllSessions, EventPipeEventLevel& levelForAllSessions)
+void EventPipeConfiguration::ComputeKeywordAndLevel(const EventPipeProvider& provider, INT64& keywordForAllSessions, EventPipeEventLevel& levelForAllSessions) const
 {
     CONTRACTL
     {
