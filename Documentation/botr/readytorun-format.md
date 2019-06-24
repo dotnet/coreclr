@@ -15,8 +15,8 @@ ReadyToRun images conform to CLI file format as described in ECMA-335, with the 
 customizations:
 
 - The PE file is always platform specific
-- CLI Header Flags field has set ``COMIMAGE_FLAGS_IL_LIBRARY`` (0x00000004) bit set
-- CLI Header ``ManagedNativeHeader`` points to READYTORUN_HEADER
+- CLI Header Flags field has set `COMIMAGE_FLAGS_IL_LIBRARY` (0x00000004) bit set
+- CLI Header `ManagedNativeHeader` points to READYTORUN_HEADER
 
 The image contains full copy of the IL and metadata that it was generated from.
 
@@ -91,8 +91,8 @@ struct READYTORUN_SECTION
 };
 ```
  
-This section contains array of ``READYTORUN_SECTION`` records immediately follows 
-``READYTORUN_HEADER``. Number of elements in the array is ``READYTORUN_HEADER::NumberOfSections``. 
+This section contains array of `READYTORUN_SECTION` records immediately follows 
+`READYTORUN_HEADER`. Number of elements in the array is `READYTORUN_HEADER::NumberOfSections`. 
 Each record contains section type and its location within the binary. The array is sorted by section type 
 to allow binary searching.
 
@@ -127,7 +127,7 @@ enum ReadyToRunSectionType
 This section contains zero terminated ASCII string that identifies the compiler used to produce the 
 image.
 
-**Example**: ``CoreCLR 4.6.22727.0 PROJECTK``
+**Example**: `CoreCLR 4.6.22727.0 PROJECTK`
 
 ## READYTORUN_SECTION_IMPORT_SECTIONS
 
@@ -172,7 +172,7 @@ fixup kind, the rest of the signature varies based on the fixup kind.
 
 | ReadyToRunFixupKind                      | Value | Description
 |:-----------------------------------------|------:|:-----------
-| READYTORUN_FIXUP_ThisObjDictionaryLookup |  0x07 | Generic lookup using ``this``; followed by the type signature and by the method signature
+| READYTORUN_FIXUP_ThisObjDictionaryLookup |  0x07 | Generic lookup using `this`; followed by the type signature and by the method signature
 | READYTORUN_FIXUP_TypeDictionaryLookup    |  0x08 | Type-based generic lookup for methods on instantiated types; followed by the typespec signature
 | READYTORUN_FIXUP_MethodDictionaryLookup  |  0x09 | Generic method lookup; followed by the method spec signature
 | READYTORUN_FIXUP_TypeHandle              |  0x10 | Pointer uniquely identifying the type to the runtime, followed by typespec signature (see ECMA-335)
@@ -219,7 +219,7 @@ token, and additional data determined by the flags.
 | READYTORUN_METHOD_SIG_UnboxingStub        |  0x01 | Unboxing entrypoint of the method.
 | READYTORUN_METHOD_SIG_InstantiatingStub   |  0x02 | Instantiating entrypoint of the method does not take hidden dictionary generic argument.
 | READYTORUN_METHOD_SIG_MethodInstantiation |  0x04 | Method instantitation. Number of instantiation arguments followed by typespec for each of them appended as additional data.
-| READYTORUN_METHOD_SIG_SlotInsteadOfToken  |  0x08 | If set, the token is slot number. Used for multidimensional array methods that do not have metadata token, and also as an optimization for stable interface methods. Cannot be combined with ``MemberRefToken``.
+| READYTORUN_METHOD_SIG_SlotInsteadOfToken  |  0x08 | If set, the token is slot number. Used for multidimensional array methods that do not have metadata token, and also as an optimization for stable interface methods. Cannot be combined with `MemberRefToken`.
 | READYTORUN_METHOD_SIG_MemberRefToken      |  0x10 | If set, the token is memberref token. If not set, the token is methoddef token.
 | READYTORUN_METHOD_SIG_Constrained         |  0x20 | Constrained type for method resolution. Typespec appended as additional data.
 | READYTORUN_METHOD_SIG_OwnerType           |  0x40 | Method type. Typespec appended as additional data.
@@ -232,14 +232,14 @@ additional data determined by the flags.
 
 | ReadyToRunFieldSigFlags                  | Value | Description
 |:-----------------------------------------|------:|:-----------
-| READYTORUN_FIELD_SIG_IndexInsteadOfToken |  0x08 | Used as an optimization for stable fields. Cannot be combined with ``MemberRefToken``.
+| READYTORUN_FIELD_SIG_IndexInsteadOfToken |  0x08 | Used as an optimization for stable fields. Cannot be combined with `MemberRefToken`.
 | READYTORUN_FIELD_SIG_MemberRefToken      |  0x10 | If set, the token is memberref token. If not set, the token is fielddef token.
 | READYTORUN_FIELD_SIG_OwnerType           |  0x40 | Field type. Typespec appended as additional data.
 
 ### READYTORUN_IMPORT_SECTIONS::AuxiliaryData
 
-For slots resolved lazily via ``READYTORUN_HELPER_DelayLoad_MethodCall`` helper, auxiliary data are 
-compressed argument maps that allow precise GC stack scanning while the helper is running. The CoreCLR runtime class [``GCRefMapDecoder``](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/gcrefmap.h#L157) is used to parse this information. This data would not be required for runtimes that allow conservative stack scanning.
+For slots resolved lazily via `READYTORUN_HELPER_DelayLoad_MethodCall` helper, auxiliary data are 
+compressed argument maps that allow precise GC stack scanning while the helper is running. The CoreCLR runtime class [`GCRefMapDecoder`](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/gcrefmap.h#L157) is used to parse this information. This data would not be required for runtimes that allow conservative stack scanning.
 
 The auxiliary data table contains the exact same number of GC ref map records as there are method entries in the import section. To accelerate GC ref map lookup, the auxiliary data section starts with a lookup table holding the offset of every 1024-th method in the runtime function table within the linearized GC ref map.
 
@@ -251,8 +251,8 @@ The auxiliary data table contains the exact same number of GC ref map records as
 |                          ... |      |
 | 4 * (MethodCount / 1024 + 1) |  ... | Serialized GC ref map info
 
-The GCRef map is used to encode GC type of arguments for callsites. Logically, it is a sequence ``<pos, token>`` where ``pos`` is 
-position of the reference in the stack frame and ``token`` is type of GC reference (one of [``GCREFMAP_XXX``](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/corcompile.h#L633) values):
+The GCRef map is used to encode GC type of arguments for callsites. Logically, it is a sequence `<pos, token>` where `pos` is 
+position of the reference in the stack frame and `token` is type of GC reference (one of [`GCREFMAP_XXX`](https://github.com/dotnet/coreclr/blob/6b9a3d3a87825b1a34bd8f114c9b181ce75b3b2e/src/inc/corcompile.h#L633) values):
 
 | CORCOMPILE_GCREFMAP_TOKENS | Value | Stack frame entry interpretation
 |:---------------------------|------:|:--------------------------------
@@ -263,7 +263,7 @@ position of the reference in the stack frame and ``token`` is type of GC referen
 | GCREFMAP_TYPE_PARAM        |     4 | Hidden type instantiation argument to generic method
 | GCREFMAP_VASIG_COOKIE      |     5 | VARARG signature cookie
 
-The position values are calculated in ``size_t`` aka ``IntPtr`` units (4 bytes for 32-bit architectures vs. 8 bytes for 64-bit architectures) starting at the first position in the transition frame that may contain GC references. For all architectures except for **arm64** this is the beginning of the array of spilled argument registers. On arm64 it is the offset of the `X8` register used to pass the location to be filled in with the return value by the called method.
+The position values are calculated in `size_t` aka `IntPtr` units (4 bytes for 32-bit architectures vs. 8 bytes for 64-bit architectures) starting at the first position in the transition frame that may contain GC references. For all architectures except for **arm64** this is the beginning of the array of spilled argument registers. On arm64 it is the offset of the `X8` register used to pass the location to be filled in with the return value by the called method.
 
 * The encoding always starts at the byte boundary. The high order bit of each byte is used to signal end of the encoding stream. The last byte has the high order bit zero. It means that there are 7 useful bits in each byte. 
 
@@ -278,7 +278,7 @@ basic encoding, with extended encoding for large values).
 
 ## READYTORUN_SECTION_RUNTIME_FUNCTIONS
 
-This section contains sorted array of ``RUNTIME_FUNCTION`` entries that describe all functions in the 
+This section contains sorted array of `RUNTIME_FUNCTION` entries that describe all functions in the 
 image with pointers to their unwind info. The standard Windows xdata/pdata format is used.
 ARM format is used for x86 to compensate for lack of x86 unwind info standard.
 The unwind info blob is immediately followed by GC info blob. The encoding slightly differs for amd64 which encodes an extra 4-byte representing the end RVA of the unwind info blob.
@@ -302,13 +302,13 @@ The unwind info blob is immediately followed by GC info blob. The encoding sligh
 
 This section contains in native format sparse array (see 4 Native Format) that maps methoddef row to 
 method entrypoint. Methoddef is used as index into the array. The element of the array is index of the 
-method in ``READYTORUN_SECTION_RUNTIME_FUNCTIONS``, followed by list of slots that needs to be 
+method in `READYTORUN_SECTION_RUNTIME_FUNCTIONS`, followed by list of slots that needs to be 
 filled before method can be executed executing.
 
 The index of the method is shift left by 1 bit, with the low bit indicating whether the list of slots to fixup 
 follows. The list of slots is encoded as follows (same encoding as used by NGen):
 
-```
+``
 READYTORUN_IMPORT_SECTIONS absolute index
     absolute slot index 
     slot index delta 
@@ -328,7 +328,7 @@ READYTORUN_IMPORT_SECTIONS index delta
     slot delta 
     0
 0
-```
+``
 
 The fixup list is a stream of integers encoded as nibbles (1 nibble = 4 bits). 3 bits of a nibble are used to 
 store 3 bits of the value, and the top bit indicates if the following nibble contains rest of the value. If the 
@@ -342,8 +342,8 @@ The list is terminated by a 0 (0 is not meaningful as valid delta).
 ## READYTORUN_SECTION_EXCEPTION_INFO
 
 Exception handling information. This section contains array of 
-``READYTORUN_EXCEPTION_LOOKUP_TABLE_ENTRY`` sorted by ``MethodStart`` RVA. ``ExceptionInfo`` is RVA of 
-``READYTORUN_EXCEPTION_CLAUSE`` array that described the exception handling information for given 
+`READYTORUN_EXCEPTION_LOOKUP_TABLE_ENTRY` sorted by `MethodStart` RVA. `ExceptionInfo` is RVA of 
+`READYTORUN_EXCEPTION_CLAUSE` array that described the exception handling information for given 
 method.
 
 ```C++
@@ -378,7 +378,7 @@ required when debuggers are able to handle debug info stored separately.
 
 ## READYTORUN_SECTION_DELAYLOAD_METHODCALL_THUNKS
 
-This section marks region that contains thunks for ``READYTORUN_HELPER_DelayLoad_MethodCall`` 
+This section marks region that contains thunks for `READYTORUN_HELPER_DelayLoad_MethodCall` 
 helper. It is used by debugger for step-in into lazily resolved calls. It should not be required when 
 debuggers are able to handle debug info stored separately.
 
@@ -395,7 +395,7 @@ The version-resilient hashing algorithm used for hashing the type names is imple
 
 ## READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS
 
-This section contains a native hashtable of all generic method instantiations compiled into the R2R executable. The key is the method instance signature; the appropriate version-resilient hash code calculation is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128); the value, represented by the ``EntryPointWithBlobVertex`` class, stores the method index in the runtime function table, the fixups blob and a blob encoding the method signature.
+This section contains a native hashtable of all generic method instantiations compiled into the R2R executable. The key is the method instance signature; the appropriate version-resilient hash code calculation is implemented in [vm/versionresilienthashcode.cpp](https://github.com/dotnet/coreclr/blob/ec2a74e7649f1c0ecff32ce86724bf3ca80bfd46/src/vm/versionresilienthashcode.cpp#L128); the value, represented by the `EntryPointWithBlobVertex` class, stores the method index in the runtime function table, the fixups blob and a blob encoding the method signature.
 
 ## READYTORUN_SECTION_INLINING_INFO
 
@@ -407,7 +407,9 @@ This section contains a native hashtable of all generic method instantiations co
 
 ## READYTORUN_SECTION_MANIFEST_METADATA
 
-Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies within the version bubble introduced by inlining on top of assembly references stored in the input MSIL. As of R2R version 3.1, the metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the ``READYTORUN_FIXUP_ModuleOverride`` bit flag on the signature fixup byte or the ``ELEMENT_TYPE_MODULE_ZAPSIG`` COR element type).
+Manifest metadata is an [ECMA-335] metadata blob containing extra reference assemblies within the version bubble introduced by inlining on top of assembly references stored in the input MSIL. As of R2R version 3.1, the metadata is only searched for the AssemblyRef table. This is used to translate module override indices in signatures to the actual reference modules (using either the `READYTORUN_FIXUP_ModuleOverride` bit flag on the signature fixup byte or the `ELEMENT_TYPE_MODULE_ZAPSIG` COR element type).
+
+**Disclaimer:** The manifest metadata is a new feature that hasn't shipped yet; it involves straightforward adaptation of a fragile nGen technology to ReadyToRun images as an expedite means for enabling new functionality (larger version bubble support). The precise details of this encoding are still work in progress and likely to further evolve.
 
 **Note:** It doesn't make sense to store references to assemblies external to the version bubble in the manifest metadata as there's no guarantee that their metadata token values remain constant; thus we cannot encode signatures relative to them.
 
@@ -436,20 +438,20 @@ used by .NET Native.)
 Native format uses a variable length encoding scheme for signed and unsigned numbers. The low bits of 
 the first byte of the encoding specify the number of following bytes as follows:
 
-* ``xxxxxxx0`` (i.e. the least significant bit is 0): no more bytes follow. Shift the byte one bit right, and 
+* `xxxxxxx0` (i.e. the least significant bit is 0): no more bytes follow. Shift the byte one bit right, and 
   sign or zero extend for signed and unsigned number, respectively.
-* ``xxxxxx01``: one more byte follows. Build a 16-bit number from the two bytes read (little-endian 
+* `xxxxxx01`: one more byte follows. Build a 16-bit number from the two bytes read (little-endian 
   order), shift it right by 2 bits, then sign or zero extend.
-* ``xxxxx011``: two more bytes follow. Build a 24-bit number from the three bytes read (little-endian 
+* `xxxxx011`: two more bytes follow. Build a 24-bit number from the three bytes read (little-endian 
   order), shift it right by 3 bits, then sign or zero extend.
-* ``xxxx0111``: three more bytes follow. Build a 32-bit number from the four bytes read, then sign or 
+* `xxxx0111`: three more bytes follow. Build a 32-bit number from the four bytes read, then sign or 
   zero extend
-* ``xxxx1111``: four more bytes follow. Discard the first byte, build the signed or unsigned number 
+* `xxxx1111`: four more bytes follow. Discard the first byte, build the signed or unsigned number 
   from the following four bytes (again little-endian order).
 
 **Examples**:
-* the unsigned number 12 (``0x0000000c``) would be expressed as the single byte ``0x18``.
-* The unsigned number 1000 (``0x000003e8``) would be expressed as the two bytes ``0xa1, 0x0f``
+* the unsigned number 12 (`0x0000000c`) would be expressed as the single byte `0x18`.
+* The unsigned number 1000 (`0x000003e8`) would be expressed as the two bytes `0xa1, 0x0f`
 
 ## Sparse Array
 
