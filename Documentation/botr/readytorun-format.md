@@ -4,11 +4,13 @@ ReadyToRun File Format
 Revisions:
 * 1.1 - [Jan Kotas](https://github.com/jkotas) - 2015
 * 3.1 - [Tomas Rylek](https://github.com/trylek) - 2019
-* 3.2 - [Tomas Rylek](https://github.com/trylek) - 2019 - *I'm not clear on whether we need to bump this up to 4.0*
+* 3.2 - [Tomas Rylek](https://github.com/trylek) - 2019
 
 # Introduction
 
 This document describes ReadyToRun format 3.1 implemented in CoreCLR as of June 2019 and not yet implemented proposed extensions 3.2 for the support of composite R2R file format. **Composite R2R file format** has basically the same structure as the traditional R2R file format defined in earlier revisions except that the output file represents a larger number of input MSIL assemblies compiled together as a logical unit.
+
+**Note**: The addition of the new composite R2R file format flavor doesn't require bumping up the major ReadyToRun format version number. This is because, according to the format definition, the composite R2R file format doesn't technically conform to the single-input R2R supported by older versions of CoreCLR so there's no risk of *"the old loader"* messing up by incorrectly trying to run *"the new file"*. The only downside is that the *"new composite R2R file"* won't run with the *"old loader"* and thus it will somewhat violate the design principle that R2R is a mere code cache.
 
 # PE Headers and CLI Headers
 
