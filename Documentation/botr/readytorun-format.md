@@ -451,7 +451,7 @@ struct READYTORUN_SECTION_ASSEMBLIES_ENTRY
 };
 ```
 
-**TODO:** I suspect that `READYTORUN_SECTION_DEBUG_INFO`, `READYTORUN_SECTION_METHODCALL_THUNKS` and / or `READYTORUN_SECTION_INLINING_INFO` may also require changes specific to the composite R2R file format.
+**TODO:** It remains to be seen whether `READYTORUN_SECTION_METHODCALL_THUNKS` and / or `READYTORUN_SECTION_INLINING_INFO` also require changes specific to the composite R2R file format.
 
 # Native Format
 
