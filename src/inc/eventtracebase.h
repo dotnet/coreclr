@@ -299,9 +299,9 @@ private:
     {
         if (configString == nullptr || *configString == L'\0')
         {
-            _provider = W("");
-            _enabledKeywords =  (ULONGLONG)(0);
-            _level  = 0;
+            _provider = W("*");
+            _enabledKeywords =  (ULONGLONG)(-1);
+            _level  = TRACE_LEVEL_VERBOSE;
             return;
         }
 
