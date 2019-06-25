@@ -27,9 +27,9 @@ jobs:
     container: ${{ parameters.containerName }}
 
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupArguments: --corerootdirectory $(corerootParentPath)/Core_Root
+      extraSetupArguments: --corerootdirectory $(corerootParentPath)/Core_Root --architecture ${{ parameters.archType }}
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupArguments: -CoreRootDirectory $(corerootParentPath)\Core_Root
+      extraSetupArguments: -CoreRootDirectory $(corerootParentPath)\Core_Root -Architecture ${{ parameters.archType }}
 
     variables:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
