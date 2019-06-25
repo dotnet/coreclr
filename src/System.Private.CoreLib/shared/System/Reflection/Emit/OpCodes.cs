@@ -1875,7 +1875,7 @@ namespace System.Reflection.Emit
             ((int)StackBehaviour.Popref_popi_pop1 << OpCode.StackBehaviourPopShift) |
             ((int)StackBehaviour.Push0 << OpCode.StackBehaviourPushShift) |
             (1 << OpCode.SizeShift) |
-            (0 << OpCode.StackChangeShift)
+            (-3 << OpCode.StackChangeShift)
         );
 
         public static readonly OpCode Unbox_Any = new OpCode(OpCodeValues.Unbox_Any,
