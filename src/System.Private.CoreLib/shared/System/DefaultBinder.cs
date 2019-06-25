@@ -1214,8 +1214,13 @@ namespace System
                 (source == typeof(UIntPtr) && target == typeof(UIntPtr)))
                 return true;
 
-            Primitives widerCodes = s_primitiveConversions[(int)(Type.GetTypeCode(source))];
-            Primitives targetCode = (Primitives)(1 << (int)(Type.GetTypeCode(target)));
+            return CanChangePrimitive(Type.GetTypeCode(source), Type.GetTypeCode(target));
+        }
+
+        internal static bool CanChangePrimitive(TypeCode source, TypeCode target)
+        {
+            Primitives widerCodes = s_primitiveConversions[(int)source];
+            Primitives targetCode = (Primitives)(1 << (int)target);
 
             return (widerCodes & targetCode) != 0;
         }
