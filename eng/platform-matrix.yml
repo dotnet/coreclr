@@ -32,7 +32,6 @@ jobs:
       containerName: centos7_x64_build_image
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        - ${{ if contains(parameters.jobTemplate, 'perf') }}:
           - Ubuntu.1804.Amd64.Open
       ${{ insert }}: ${{ parameters.jobParameters }}
 
@@ -47,6 +46,8 @@ jobs:
       osIdentifier: Windows_NT
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
+        - ${{ if not(contains(parameters.jobTemplate, 'perf')) }}:
+          - Windows.10.Amd64.Open
         - ${{ if contains(parameters.jobTemplate, 'perf') }}:
           - Windows.10.Amd64.ClientRS4.DevEx.15.8.Open
       ${{ insert }}: ${{ parameters.jobParameters }}
