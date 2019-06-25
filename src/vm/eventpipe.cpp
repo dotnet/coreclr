@@ -148,7 +148,7 @@ void EventPipe::Shutdown()
 
             // dotnet/corecl: issue 24850: EventPipe shutdown race conditions
             // Deallocating providers/events here might cause AV if a WriteEvent
-            // was to occur. Thus, we are not doing this cleanup (shame shame shame)
+            // was to occur. Thus, we are not doing this cleanup.
 
             // // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
             // // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
