@@ -273,8 +273,12 @@ def generateClrallEvents(eventNodes,allTemplates):
         clrallEvents.append("inline BOOL EventEnabled")
         clrallEvents.append(eventName)
         clrallEvents.append("() {return ")
-        clrallEvents.append("EventPipeEventEnabled" + eventName + "() || ")
-        clrallEvents.append("(XplatEventLogger::IsEventLoggingEnabled() && EventXplatEnabled" + eventName + "());}\n\n")
+        clrallEvents.append("EventPipeEventEnabled" + eventName + "()")
+
+        if os.name == 'posix':
+            clrallEvents.append("|| (XplatEventLogger::IsEventLoggingEnabled() && EventXplatEnabled" + eventName + "());}\n\n")
+        else:
+            clrallEvents.append(";}\n\n")
         #generate FireEtw functions
         fnptype     = []
         fnbody      = []

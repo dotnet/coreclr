@@ -527,19 +527,11 @@ public:
         return false;
     }
 
-private:
-
-    static bool IsInitialized()
-    {
-        static bool initialize = InitializeLogger();
-        return initialize;
-    }
-
-    static bool InitializeLogger()
+    static void InitializeLogger()
     {
         if (!IsEventLoggingEnabled())
         {
-            return false;
+            return;
         }
 
         LPWSTR xplatEventConfig = NULL;
@@ -549,7 +541,18 @@ private:
         configuration.Initialize(xplatEventConfig);
 
         XplatEventLoggerController::Initialize(configuration);
-        return configuration.IsValid();
+        if (configuration.IsValid())
+        {
+            initialized = true;
+        }
+        return initialized;
+    }
+private:
+    static bool initialized = false;
+
+    static bool IsInitialized()
+    {
+        return initialized;
     }
 };
 
