@@ -339,7 +339,11 @@ namespace System.Diagnostics
         private static bool ShowInStackTrace(MethodBase mb)
         {
             Debug.Assert(mb != null);
-            return !(mb.IsDefined(typeof(StackTraceHiddenAttribute)) || (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute)) ?? false));
+
+            // Don't show AggressiveInlining or StackTraceHidden items
+            return !(((mb.MethodImplementationFlags & MethodImplAttributes.AggressiveInlining) != 0) ||
+                mb.IsDefined(typeof(StackTraceHiddenAttribute), inherit: false) ||
+                (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute), inherit: false) ?? false));
         }
 
         private static bool TryResolveStateMachineMethod(ref MethodBase method, out Type declaringType)
