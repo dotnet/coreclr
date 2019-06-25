@@ -4,7 +4,6 @@ pr:
 - master
 
 jobs:
-
 #
 # Debug builds
 #
