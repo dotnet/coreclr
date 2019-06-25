@@ -146,7 +146,7 @@ void EventPipe::Shutdown()
                     Disable(static_cast<EventPipeSessionID>(1ULL << i));
             }
 
-            // dotnet/corecl: issue 24850: EventPipe shutdown race conditions
+            // dotnet/coreclr: issue 24850: EventPipe shutdown race conditions
             // Deallocating providers/events here might cause AV if a WriteEvent
             // was to occur. Thus, we are not doing this cleanup.
 
