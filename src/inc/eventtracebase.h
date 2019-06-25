@@ -318,7 +318,6 @@ private:
 
         auto levelComponent = GetNextComponentString(keywordsComponent.End + 1);
         _level = ParseEnabledKeywordsMask(levelComponent);
-
         _isValid = true;
     }
 
@@ -371,7 +370,6 @@ private:
     LPCWSTR _provider;
     ULONGLONG _enabledKeywords;
     UINT _level;
-
     bool _isValid;
 };
 
@@ -389,7 +387,7 @@ public:
         auto providerName = config.GetProviderName();
         auto enabledKeywordsMask = config.GetEnabledKeywordsMask();
         auto level = config.GetLevel();
-        if (wcslen(providerName) == 1 && _wcsicmp(providerName, W("*")) == 0 && enabledKeywordsMask == (ULONGLONG)(-1) && level == TRACE_LEVEL_VERBOSE)
+        if (_wcsicmp(providerName, W("*")) == 0 && enabledKeywordsMask == (ULONGLONG)(-1) && level == TRACE_LEVEL_VERBOSE)
         {
             ActivateAllKeywordsOfAllProviders();
         }
@@ -411,7 +409,7 @@ private:
     static LTTNG_TRACE_CONTEXT * const GetProvider(LPCWSTR providerName)
     {
         auto length = wcslen(providerName);
-        for(auto provider : ALL_LTTNG_PROVIDERS_CONTEXT)
+        for (auto provider : ALL_LTTNG_PROVIDERS_CONTEXT)
         {
             if (_wcsicmp(provider->Name, providerName) == 0)
             {
@@ -423,7 +421,7 @@ private:
 
     static void ActivateAllKeywordsOfAllProviders()
     {
-        for(LTTNG_TRACE_CONTEXT * const  provider : ALL_LTTNG_PROVIDERS_CONTEXT)
+        for (LTTNG_TRACE_CONTEXT * const provider : ALL_LTTNG_PROVIDERS_CONTEXT)
         {
             provider->EnabledKeywordsBitmask = (ULONGLONG)(-1);
             provider->Level = TRACE_LEVEL_VERBOSE;
@@ -470,7 +468,6 @@ public:
                 return true;
             }
         }
-
         return false;
     }
 
