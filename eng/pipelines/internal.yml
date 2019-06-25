@@ -1,4 +1,8 @@
-trigger: none
+trigger:
+  batch: true
+  branches:
+    include:
+    - release/3.0
 
 pr: none
 
