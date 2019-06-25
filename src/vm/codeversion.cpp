@@ -2127,7 +2127,7 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
         // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
         // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
         // must be used here to prevent deadlock.
-        GCX_COOP();
+        GCX_COOP_NO_THREAD_BROKEN();
         TableLockHolder lock(this);
 
         for (DWORD i = 0; i < cActiveVersions; i++)
@@ -2348,6 +2348,7 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
         {
             MODE_ANY;
         }
+        NOTHROW;
     }
     CONTRACTL_END;
 
