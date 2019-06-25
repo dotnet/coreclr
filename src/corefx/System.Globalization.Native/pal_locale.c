@@ -131,6 +131,32 @@ static int IsEnvVarSet(const char* name)
     return (value != NULL) && (strcmp("", value) != 0);
 }
 
+static int IsCLocale(const char* environmentVariableName)
+{
+    char* value = getenv(environmentVariableName);
+
+    // We call IsEnvVarSet and ensure it return true before calling IsCLocale
+    assert(value != NULL);
+
+    int len = strlen(value);
+    
+    // We call IsEnvVarSet and ensure it return true before calling IsCLocale
+    assert(len > 0);
+
+    if (value[0] != 'c' && value[0] != 'C')
+        return FALSE;
+
+    if (len == 1)
+    {
+        return TRUE;
+    }
+
+    if (value[1] == '.')
+        return TRUE;
+
+    return FALSE;
+}
+
 // The behavior of uloc_getDefault() on POSIX systems is to query
 // setlocale(LC_MESSAGES) and use that value, unless it is C or
 // POSIX. In that case it tries to read LC_ALL, LC_MESSAGES and LANG
@@ -156,7 +182,26 @@ const char* DetectDefaultLocaleName()
         }
     }
 
-    return uloc_getDefault();
+    // Check if defined default locale is "C" and then map it to invariant instead of posix locale
+    const char* icuLocale = uloc_getDefault();
+    if (strcmp(icuLocale, "en_US_POSIX") == 0)
+    {
+        if (IsEnvVarSet("LC_ALL"))
+        {
+            // LC_ALL override LANG, so no need to check LANG if LC_ALL is defined
+            if (IsCLocale("LC_ALL"))
+                return "";
+            
+            return icuLocale;
+        }
+
+        if (IsEnvVarSet("LANG") && IsCLocale("LANG"))
+        {
+            return "";
+        }
+    }
+
+    return icuLocale;
 }
 
 // GlobalizationNative_GetLocales gets all locale names and store it in the value buffer
