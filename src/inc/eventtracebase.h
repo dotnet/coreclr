@@ -238,57 +238,6 @@ extern UINT32 g_nClrInstanceId;
 #include "clrproviders.h"
 #include "clrconfig.h"
 
-
-// TODO: REMOVE 
-/*
-class XplatEventLogger
-{
-public:
-    inline static BOOL IsEventLoggingEnabled()
-    {
-        static ConfigDWORD configEventLogging;
-        return configEventLogging.val(CLRConfig::EXTERNAL_EnableEventLog);
-    }
-
-    inline static BOOL IsProviderEnabled(LTTNG_TRACE_CONTEXT providerCtx)
-    {
-        return providerCtx.IsEnabled;
-    }
-
-    inline static BOOL IsKeywordEnabled(LTTNG_TRACE_CONTEXT providerCtx, UCHAR level, ULONGLONG keyword)
-    {
-        if (!providerCtx.IsEnabled) return false;
-
-        if ((level <= providerCtx.Level) || (providerCtx.Level == 0))
-        {
-            if ((keyword & providerCtx.EnabledKeywordsBitmask) != 0)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    inline static void ParseConfiguration(LPCWSTR lttngConfig)
-    {
-        WCHAR delimiter = W(":");
-        auto it = lttngConfig.begin();
-        while (it != lttngConfig.end())
-        {
-            auto part = wcschr(it, 
-        }
-    }
-
-    static void Initialize()
-    {
-        if (!IsEventLoggingEnabled())
-            return;
-        LPWSTR lttngConfig;
-        CLRConfig::GetConfigValue(CLRConfig::INTERNAL_LTTngConfig, &lttngConfig);
-    }
-};
-*/ // TODO: REMOVE
-
 class XplatEventLoggerConfiguration
 {
 public:
@@ -305,7 +254,6 @@ public:
 
     ~XplatEventLoggerConfiguration()
     {
-        //delete[] _provider;
         _provider = nullptr;
     }
 
@@ -335,7 +283,6 @@ public:
     }
 
 private:
-
     struct ComponentSpan
     {
     public:
@@ -352,9 +299,9 @@ private:
     {
         if (configString == nullptr || *configString == L'\0')
         {
-            _provider = W("*");
-            _enabledKeywords =  (ULONGLONG)(-1);
-            _level  = TRACE_LEVEL_VERBOSE;
+            _provider = W("");
+            _enabledKeywords =  (ULONGLONG)(0);
+            _level  = 0;
             return;
         }
 
@@ -529,6 +476,8 @@ public:
 
     static void InitializeLogger()
     {
+        initialized = false;
+
         if (!IsEventLoggingEnabled())
         {
             return;
@@ -545,10 +494,9 @@ public:
         {
             initialized = true;
         }
-        return initialized;
     }
 private:
-    static bool initialized = false;
+    static bool initialized;
 
     static bool IsInitialized()
     {
