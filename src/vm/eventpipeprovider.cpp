@@ -107,7 +107,9 @@ bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLe
 }
 
 EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
-    uint64_t sessionId,
+    INT64 keywordsForAllSessions,
+    EventPipeEventLevel providerLevelForAllSessions,
+    uint64_t sessionMask,
     INT64 keywords,
     EventPipeEventLevel providerLevel,
     LPCWSTR pFilterData)
@@ -117,41 +119,45 @@ EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(sessionId != 0);
+        PRECONDITION((m_sessions & sessionMask) == 0);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    m_sessions |= sessionId;
+    m_sessions |= sessionMask;
 
-    // Set Keywords to be the union of all keywords
-    m_keywords |= keywords;
+    m_keywords = keywordsForAllSessions;
+    m_providerLevel = providerLevelForAllSessions;
 
-    // Set the provider level to "Log Always" or the biggest verbosity.
-    m_providerLevel = (providerLevel < m_providerLevel) ? m_providerLevel : providerLevel;
-
-    RefreshAllEvents(sessionId, keywords, providerLevel);
+    RefreshAllEvents();
     return PrepareCallbackData(keywords, providerLevel, pFilterData);
 }
 
 EventPipeProviderCallbackData EventPipeProvider::UnsetConfiguration(
-        uint64_t sessionId,
-        INT64 keywords,
-        EventPipeEventLevel providerLevel,
-        LPCWSTR pFilterData)
+    INT64 keywordsForAllSessions,
+    EventPipeEventLevel providerLevelForAllSessions,
+    uint64_t sessionMask,
+    INT64 keywords,
+    EventPipeEventLevel providerLevel,
+    LPCWSTR pFilterData)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION((m_sessions & sessionId) != 0);
+        PRECONDITION((m_sessions & sessionMask) != 0);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (m_sessions & sessionId)
-        m_sessions &= ~sessionId;
+    if (m_sessions & sessionMask)
+        m_sessions &= ~sessionMask;
+
+    m_keywords = keywordsForAllSessions;
+    m_providerLevel = providerLevelForAllSessions;
+
+    RefreshAllEvents();
     return PrepareCallbackData(keywords, providerLevel, pFilterData);
 }
 
@@ -293,10 +299,7 @@ void EventPipeProvider::SetDeleteDeferred()
     m_deleteDeferred = true;
 }
 
-void EventPipeProvider::RefreshAllEvents(
-    uint64_t sessionId,
-    INT64 keywords,
-    EventPipeEventLevel providerLevel)
+void EventPipeProvider::RefreshAllEvents()
 {
     CONTRACTL
     {
