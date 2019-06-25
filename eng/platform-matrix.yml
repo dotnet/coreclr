@@ -22,7 +22,7 @@ jobs:
 
 # Linux x64
 
-- ${{ if or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+- ${{ if containsValue(parameters.platforms, 'Linux_x64') }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       buildConfig: ${{ parameters.buildConfig }}
@@ -32,23 +32,8 @@ jobs:
       containerName: centos7_x64_build_image
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        - ${{ if not(contains(parameters.jobTemplate, 'perf')) }}:
-          - Ubuntu.1804.Amd64.Open
         - ${{ if contains(parameters.jobTemplate, 'perf') }}:
           - Ubuntu.1604.Amd64.Open
-      - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        - Debian.9.Amd64.Open
-        - Ubuntu.1604.Amd64.Open
-        - Ubuntu.1804.Amd64.Open
-        - Centos.7.Amd64.Open
-        - RedHat.7.Amd64.Open
-      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-        - Debian.9.Amd64
-        - Ubuntu.1604.Amd64
-        - Ubuntu.1804.Amd64
-        - Centos.7.Amd64
-        - (Fedora.28.Amd64)Ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:fedora-28-helix-45b1fa2-20190327215722
-        - RedHat.7.Amd64
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Windows x64
@@ -62,19 +47,6 @@ jobs:
       osIdentifier: Windows_NT
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        - ${{ if not(contains(parameters.jobTemplate, 'perf')) }}:
-          - Windows.10.Amd64.Open
         - ${{ if contains(parameters.jobTemplate, 'perf') }}:
           - Windows.10.Amd64.ClientRS4.DevEx.15.8.Open
-      - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-        # TODO: add Windows.10.Nano.Amd64.Open once https://github.com/dotnet/coreclr/issues/21693 has been resolved
-        - Windows.7.Amd64.Open
-        - Windows.81.Amd64.Open
-        - Windows.10.Amd64.Open
-      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-        - Windows.7.Amd64
-        - Windows.81.Amd64
-        - Windows.10.Amd64
-        - Windows.10.Amd64.Core
-        - Windows.10.Nano.Amd64
       ${{ insert }}: ${{ parameters.jobParameters }}
