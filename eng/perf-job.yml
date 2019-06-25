@@ -18,6 +18,9 @@ jobs:
     # Compute job name from template parameters
     jobName: ${{ format('perfbuild_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
     pool: Hosted VS2017
+    archType: ${{ parameters.archType }}
+    osGroup: ${{ parameters.osGroup }}
+    osIdentifier: ${{ parameters.osIdentifier }}
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
@@ -26,24 +29,23 @@ jobs:
     # Note that the containers are resources defined in azure-pipelines.yml
     container: ${{ parameters.containerName }}
 
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupArguments: --corerootdirectory $(corerootParentPath)/Core_Root --architecture ${{ parameters.archType }}
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupArguments: -CoreRootDirectory $(corerootParentPath)\Core_Root -Architecture ${{ parameters.archType }}
+    extraSetupArguments: $(setupArguments)
 
     variables:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - name: productPath
-        value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).Release
       - name: corerootParentPath
-        value: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/Tests
+        value: $(productPath)/Tests
+      - name: setupArguments
+        value: --corerootdirectory $(corerootParentPath)/Core_Root --architecture $(archType)
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: productPath
-        value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).Release
       - name: corerootParentPath
-        value: $(Build.SourcesDirectory)\bin\tests\$(osGroup).$(archType).$(buildConfigUpper)\Tests
+        value: $(productPath)\Tests
+      - name: setupArguments
+        value: -CoreRootDirectory $(corerootParentPath)\Core_Root -Architecture $(archType)
     steps:
 
     # Download product build from pipeline artifact storage
