@@ -529,9 +529,6 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
 #ifdef FEATURE_PREJIT
         VerifyNativeImageDependencies();
 #endif
-#ifndef CROSSGEN_COMPILE
-        VerifyReadyToRunImageDependencies();
-#endif
         break;
 
     case FILE_LOAD_ALLOCATE:
@@ -556,6 +553,9 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
 
     case FILE_LOAD_EAGER_FIXUPS:
         EagerFixups();
+#ifndef CROSSGEN_COMPILE
+        VerifyReadyToRunImageDependencies();
+#endif
         break;
 
     case FILE_LOAD_DELIVER_EVENTS:
