@@ -481,6 +481,8 @@ HRESULT EEConfig::Cleanup()
     delete [] pszBreakOnComToClrNativeInfoInit;
     delete [] pszBreakOnStructMarshalSetup;
     delete [] pszGcCoverageOnMethod;
+    delete [] pszGCHeapAffinitizeRanges;
+
 #endif
 #ifdef _DEBUG
     if (pPerfTypesToLog)
@@ -688,6 +690,29 @@ DWORD EEConfig::GetConfigDWORDInternal_DontUse_(__in_z LPCWSTR name, DWORD defVa
 
 /**************************************************************/
 
+static LPCWSTR CopyStr(LPCWSTR str)
+{
+    if (str == nullptr)
+    {
+        return nullptr;
+    }
+
+    const size_t len = wcslen(str);
+    //WStringHolder result = new (nothrow) WCHAR[len + 1];
+    LPWSTR result = new (nothrow) WCHAR[len + 1];
+    if (result == nullptr)
+    {
+        return nullptr;
+    }
+
+    for (size_t i = 0; i < len; i++)
+    {
+        result[i] = str[i];
+    }
+    result[len] = '\0';
+    return result;
+}
+
 HRESULT EEConfig::sync()
 {
     CONTRACTL {
@@ -720,7 +745,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     // for mapping a DWORD CLRConfig to a boolean configuration treats -1 as true (just
     // like any other nonzero value), we will explicitly check the DWORD later if this
     // check returns false.
-    gcConcurrentWasForced = Configuration::GetKnobBooleanValue(W("System.GC.Concurrent"), false);
+    gcConcurrentWasForced = Configuration::GetKnobBooleanValueWithDefault(W("System.GC.Concurrent"), false);
 
     int gcConcurrentConfigVal = 0;
     if (!gcConcurrentWasForced)
@@ -832,6 +857,11 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
 #endif //_WIN64
 
+    iGCHighMemPercent = Configuration::GetKnobDWORDValueWithDefault(W("System.GC.HighMemPercent"), 0);
+    iGCHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    fGCLargePages = Configuration::GetKnobBooleanValue(W("System.GC.LargePages"), CLRConfig::EXTERNAL_GCLargePages);
+    pszGCHeapAffinitizeRanges = CopyStr(Configuration::GetKnobStringValue(W("System.GC.HeapAffinitizeRanges"), CLRConfig::EXTERNAL_GCHeapAffinitizeRanges));
+
     if (g_IGCHoardVM)
         iGCHoardVM = g_IGCHoardVM;
     else
@@ -857,8 +887,11 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
 #endif // FEATURE_CONSERVATIVE_GC
 
 #ifdef _WIN64
-    iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
+    iGCAllowVeryLargeObjects = Configuration::GetKnobBooleanValue(W("System.GC.AllowVeryLargeObjects"), CLRConfig::EXTERNAL_gcAllowVeryLargeObjects);
+    // (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
+
+    iGCCpuGroup = Configuration::GetKnobBooleanValue(W("System.GC.CpuGroup"), CLRConfig::EXTERNAL_GCCpuGroup);
 
     fGCBreakOnOOM   =  (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCBreakOnOOM, fGCBreakOnOOM) != 0);
 

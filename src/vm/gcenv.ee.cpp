@@ -1059,6 +1059,34 @@ bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
         *value = !!g_pConfig->GetGCRetainVM();
         return true;
     }
+    
+    if (strcmp(key, "gcAllowVeryLargeObjects") == 0)
+    {
+#ifdef _WIN64
+        *value = g_pConfig->GetGCAllowVeryLargeObjects();
+#else
+        *value = false;
+#endif
+        return true;
+    }
+
+    if (strcmp(key, "GCCpuGroup") == 0)
+    {
+        *value = g_pConfig->GetGCCpuGroup();
+        return true;
+    }
+
+    if (strcmp(key, "GCNoAffinitize") == 0)
+    {
+        *value = g_pConfig->GetGCNoAffinitize();
+        return true;
+    }
+
+    if (strcmp(key, "GCLargePages") == 0)
+    {
+        *value = g_pConfig->GetGCLargePages();
+        return true;
+    }
 
     WCHAR configKey[MaxConfigKeyLength];
     if (MultiByteToWideChar(CP_ACP, 0, key, -1 /* key is null-terminated */, configKey, MaxConfigKeyLength) == 0)
@@ -1103,6 +1131,30 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return true;
     }
 
+    if (strcmp(key, "GCHeapCount") == 0)
+    {
+        *value = g_pConfig->GetGCHeapCount();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapAffinitizeMask") == 0)
+    {
+        *value = g_pConfig->GetGCAffinityMask();
+        return true;
+    }
+
+    if (strcmp(key, "GCHighMemPercent") == 0)
+    {
+        *value = g_pConfig->GetGCHighMemPercent();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapHardLimit") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimit();
+        return true;
+    }
+
     WCHAR configKey[MaxConfigKeyLength];
     if (MultiByteToWideChar(CP_ACP, 0, key, -1 /* key is null-terminated */, configKey, MaxConfigKeyLength) == 0)
     {
@@ -1143,6 +1195,36 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
     return false;
 }
 
+static bool GetStringConfigValueHelper(LPCWSTR out, const char** value)
+{
+    int charCount = WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */, NULL, 0, nullptr, nullptr);
+    if (charCount == 0)
+    {
+        // this should only happen if the config subsystem gives us a string that's not valid
+        // unicode.
+        return false;
+    }
+
+    // not allocated on the stack since it escapes this function
+    AStringHolder configResult = new (nothrow) char[charCount];
+    if (!configResult)
+    {
+        return false;
+    }
+
+    if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */,
+          configResult.GetValue(), charCount, nullptr, nullptr) == 0)
+    {
+        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should 
+        // have caught all issues.
+        assert(false);
+        return false;
+    }
+
+    *value = configResult.Extract();
+    return true;
+}
+
 bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
 {
     CONTRACTL {
@@ -1158,43 +1240,29 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
     }
 
     CLRConfig::ConfigStringInfo info { configKey, CLRConfig::EEConfig_default };
-    LPWSTR out = CLRConfig::GetConfigValue(info);
-    if (!out)
-    {
-        // config not found
-        return false;
-    }
 
-    int charCount = WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */, NULL, 0, nullptr, nullptr);
-    if (charCount == 0)
+    if (strcmp(key, "GCHeapAffinitizeRanges") == 0)
     {
-        // this should only happen if the config subsystem gives us a string that's not valid
-        // unicode.
+        // Do not free, the one we get from eeconfig is just a reference to its own string and not a copy
+        LPCWSTR out = g_pConfig->GetGCHeapAffinitizeRanges();
+        if (!out)
+        {
+            return false;
+        }
+        return GetStringConfigValueHelper(out, value);
+    }
+    else
+    {
+        LPWSTR out = CLRConfig::GetConfigValue(info);
+        if (!out)
+        {
+            // config not found
+            return false;
+        }
+        bool result = GetStringConfigValueHelper(out, value);
         CLRConfig::FreeConfigString(out);
-        return false;
+        return result;
     }
-
-    // not allocated on the stack since it escapes this function
-    AStringHolder configResult = new (nothrow) char[charCount];
-    if (!configResult)
-    {
-        CLRConfig::FreeConfigString(out);
-        return false;
-    }
-
-    if (WideCharToMultiByte(CP_ACP, 0, out, -1 /* out is null-terminated */,
-          configResult.GetValue(), charCount, nullptr, nullptr) == 0)
-    {
-        // this should never happen, the previous call to WideCharToMultiByte that computed the charCount should 
-        // have caught all issues.
-        assert(false);
-        CLRConfig::FreeConfigString(out);
-        return false;
-    }
-
-    *value = configResult.Extract();
-    CLRConfig::FreeConfigString(out);
-    return true;
 }
 
 void GCToEEInterface::FreeStringConfigValue(const char* value)

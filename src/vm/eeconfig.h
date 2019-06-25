@@ -615,6 +615,10 @@ public:
     int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
     int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
     size_t  GetGCAffinityMask()             const {LIMITED_METHOD_CONTRACT; return iGCAffinityMask;}
+    LPCWSTR GetGCHeapAffinitizeRanges()     const {LIMITED_METHOD_CONTRACT; return pszGCHeapAffinitizeRanges;}
+    int     GetGCHighMemPercent()           const {LIMITED_METHOD_CONTRACT; return iGCHighMemPercent;}
+    size_t  GetGCHeapHardLimit()            const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimit;}
+    bool    GetGCLargePages()               const {LIMITED_METHOD_CONTRACT; return fGCLargePages;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -631,6 +635,8 @@ public:
 #ifdef _DEBUG
     bool    SkipGCCoverage(LPCUTF8 assemblyName) const {WRAPPER_NO_CONTRACT; return (pSkipGCCoverageList != NULL 
                                                                                     && pSkipGCCoverageList->IsInList(assemblyName));}
+
+    bool    GetGCCpuGroup()                 const {LIMITED_METHOD_CONTRACT; return iGCCpuGroup;}
 #endif
 
 #ifdef _DEBUG
@@ -920,6 +926,10 @@ private: //----------------------------------------------------------------
     int  iGCHeapCount;
     int  iGCNoAffinitize;
     size_t  iGCAffinityMask;
+    LPCWSTR pszGCHeapAffinitizeRanges;
+    int iGCHighMemPercent;
+    size_t iGCHeapHardLimit;
+    bool fGCLargePages;
 
 #ifdef GCTRIMCOMMIT
 
@@ -933,6 +943,7 @@ private: //----------------------------------------------------------------
 #ifdef _WIN64
     bool iGCAllowVeryLargeObjects;
 #endif // _WIN64
+    bool iGCCpuGroup;
 
     bool fGCBreakOnOOM;
 

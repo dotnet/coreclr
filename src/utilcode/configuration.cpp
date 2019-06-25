@@ -68,7 +68,7 @@ DWORD Configuration::GetKnobDWORDValue(LPCWSTR name, const CLRConfig::ConfigDWOR
     return legacyValue;
 }
 
-DWORD Configuration::GetKnobDWORDValue(LPCWSTR name, DWORD defaultValue)
+DWORD Configuration::GetKnobDWORDValueWithDefault(LPCWSTR name, DWORD defaultValue)
 {
     LPCWSTR knobValue = GetConfigurationValue(name);
     if (knobValue != nullptr)
@@ -124,7 +124,7 @@ bool Configuration::GetKnobBooleanValue(LPCWSTR name, const CLRConfig::ConfigDWO
     return (legacyValue != 0);
 }
 
-bool Configuration::GetKnobBooleanValue(LPCWSTR name, bool defaultValue)
+bool Configuration::GetKnobBooleanValueWithDefault(LPCWSTR name, bool defaultValue)
 {
     LPCWSTR knobValue = GetConfigurationValue(name);
     if (knobValue != nullptr)

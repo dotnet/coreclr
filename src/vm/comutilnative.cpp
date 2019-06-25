@@ -892,11 +892,45 @@ FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* 
 
     FC_GC_POLL_NOT_NEEDED();
     
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem, 
+    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem,
                                                        lastRecordedMemLoad, 
                                                        lastRecordedHeapSize, lastRecordedFragmentation);
 }
 FCIMPLEND
+
+void QCALLTYPE GCInterface::GetConfigInfo(
+         bool* allowVeryLargeObjects,
+         bool* cpuGroup,
+         UINT32* heapCount,
+         bool* noAffinitize,
+         UINT64* heapAffinitizeMask,
+         QCall::StringHandleOnStack heapAffinitizeRanges,
+         UINT32* highMemPercent,
+         UINT64* heapHardLimit,
+         bool* largePages,
+         UINT64* lohThreshold)
+{
+    QCALL_CONTRACT;
+
+    BEGIN_QCALL;
+
+    const char* heapAffinitizeRangesAsCStr;
+
+    GCHeapUtilities::GetGCHeap()->GetConfigInfo(allowVeryLargeObjects,
+                                                cpuGroup,
+                                                heapCount,
+                                                noAffinitize,
+                                                heapAffinitizeMask,
+                                                &heapAffinitizeRangesAsCStr,
+                                                highMemPercent,
+                                                heapHardLimit,
+                                                largePages,
+                                                lohThreshold);
+
+    heapAffinitizeRanges.Set(heapAffinitizeRangesAsCStr);
+
+    END_QCALL;
+}
 
 FCIMPL0(int, GCInterface::GetGcLatencyMode)
 {

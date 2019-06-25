@@ -611,6 +611,17 @@ public:
                                size_t* lastRecordedHeapSize,
                                size_t* lastRecordedFragmentation) = 0;
 
+    virtual void GetConfigInfo(bool* allowVeryLargeObjects,
+                               bool* cpuGroup,
+                               uint32_t* heapCount,
+                               bool* noAffinitize,
+                               uint64_t* heapAffinitizeMask,
+                               const char** heapAffinitizeRanges,
+                               uint32_t* highMemPercent,
+                               uint64_t* heapHardLimit,
+                               bool* largePages,
+                               uint64_t* lohThreshold) = 0;
+
     // Gets the current GC latency mode.
     virtual int GetGcLatencyMode() = 0;
 

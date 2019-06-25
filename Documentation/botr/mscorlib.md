@@ -94,8 +94,8 @@ Do not replicate the comments into your actual QCall implementation. This is for
 	        string retString = null;
 
 	        // The strings are returned from QCalls by taking address
-	        // of a local variable using JitHelpers.GetStringHandle method
-	        if (!Bar(flags, this.Id, JitHelpers.GetStringHandle(ref retString)))
+	        // of a local variable using JitHelpers.GetStringHandleOnStack method
+	        if (!Bar(flags, this.Id, JitHelpers.GetStringHandleOnStack(ref retString)))
 	            FatalError();
 
 	        return retString;

@@ -20,7 +20,7 @@ BOOL QCALLTYPE ClrConfigNative::GetConfigBoolValue(LPCWSTR name, BOOL *exist)
     if (Configuration::GetKnobStringValue(name) != nullptr)
     {
         *exist = TRUE;
-        retValue = Configuration::GetKnobBooleanValue(name, FALSE);
+        retValue = Configuration::GetKnobBooleanValueWithDefault(name, FALSE);
     }
     END_QCALL;
     return(retValue);

@@ -36177,6 +36177,35 @@ void GCHeap::GetMemoryInfo(uint32_t* highMemLoadThreshold,
     *lastRecordedFragmentation = gc_heap::last_gc_fragmentation;
 }
 
+void GCHeap::GetConfigInfo(bool* allowVeryLargeObjects,
+                           bool* cpuGroup,
+                           uint32_t* heapCount,
+                           bool* noAffinitize,
+                           uint64_t* heapAffinitizeMask,
+                           const char** heapAffinitizeRanges,
+                           uint32_t* highMemPercent,
+                           uint64_t* heapHardLimit,
+                           bool* largePages,
+                           uint64_t* lohThreshold)
+{
+    *allowVeryLargeObjects = GCConfig::GetAllowVeryLargeObjects();//g_pConfig->GetGCAllowVeryLargeObjects();
+    *cpuGroup = GCConfig::GetGCCpuGroup();
+#ifdef MULTIPLE_HEAPS
+    *heapCount = gc_heap::n_heaps;
+    *noAffinitize = gc_heap::gc_thread_no_affinitize_p;
+#else
+    *heapCount = 1;
+    *noAffinitize = false;
+#endif
+    *heapAffinitizeMask = GCConfig::GetGCHeapAffinitizeMask();
+    // GetGCHeapAffinitizeRanges returns a GCConfigStringHolder which will delete the string, but not if we Extract() it.
+    *heapAffinitizeRanges = GCConfig::GetGCHeapAffinitizeRanges().Extract();
+    *highMemPercent = gc_heap::high_memory_load_th;
+    *heapHardLimit = gc_heap::heap_hard_limit;
+    *largePages = gc_heap::use_large_pages_p;
+    *lohThreshold = loh_size_threshold;
+}
+
 int GCHeap::GetGcLatencyMode()
 {
     return (int)(pGenGCHeap->settings.pause_mode);

@@ -77,6 +77,47 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        internal static extern void GetConfigInfo(out bool allowVeryLargeObjects,
+                                                  out bool cpuGroup,
+                                                  out uint heapCount,
+                                                  out bool noAffinitize,
+                                                  out ulong heapAffinitizeMask,
+                                                  StringHandleOnStack heapAffinitizeRanges,
+                                                  out uint highMemPercent,
+                                                  out ulong heapHardLimit,
+                                                  out bool largePages,
+                                                  out ulong lohThreshold);
+
+        public static GCConfigInfo GetGCConfigInfo()
+        {
+            string heapAffinitizeRanges = "";
+
+            GetConfigInfo(
+                out bool allowVeryLargeObjects,
+                out bool cpuGroup,
+                out uint heapCount,
+                out bool noAffinitize,
+                out ulong heapAffinitizeMask,
+                JitHelpers.GetStringHandleOnStack(ref heapAffinitizeRanges),
+                out uint highMemPercent,
+                out ulong heapHardLimit,
+                out bool largePages,
+                out ulong lohThreshold);
+
+            return new GCConfigInfo(
+                allowVeryLargeObjects: allowVeryLargeObjects,
+                cpuGroup: cpuGroup,
+                heapCount: (long)heapCount,
+                noAffinitize: noAffinitize,
+                heapAffinitizeMask: (long)heapAffinitizeMask,
+                heapAffinitizeRanges: heapAffinitizeRanges,
+                highMemPercent: (long)highMemPercent,
+                heapHardLimit: (long)heapHardLimit,
+                largePages: largePages,
+                lohThreshold: (long)lohThreshold);
+        }
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern int _StartNoGCRegion(long totalSize, bool lohSizeKnown, long lohSize, bool disallowFullBlockingGC);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
