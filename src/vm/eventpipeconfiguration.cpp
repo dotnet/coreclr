@@ -328,14 +328,14 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
         {
             EventPipeProvider *pProvider = pElem->GetValue();
 
-            INT64 keywordForAllSessions;
-            EventPipeEventLevel levelForAllSessions;
-            ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
-
             // Enable the provider if it has been configured.
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
             if (pSessionProvider != NULL)
             {
+                INT64 keywordForAllSessions;
+                EventPipeEventLevel levelForAllSessions;
+                ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
                     pProvider->SetConfiguration(
                         keywordForAllSessions,
@@ -370,16 +370,15 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         while (pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-
-            INT64 keywordForAllSessions;
-            EventPipeEventLevel levelForAllSessions;
-            ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
-
             if (pProvider->IsEnabled(session.GetMask()))
             {
                 EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
                 if (pSessionProvider != nullptr)
                 {
+                    INT64 keywordForAllSessions;
+                    EventPipeEventLevel levelForAllSessions;
+                    ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
                     EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
                         keywordForAllSessions,
                         levelForAllSessions,

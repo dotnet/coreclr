@@ -129,7 +129,7 @@ EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
     m_keywords = keywordsForAllSessions;
     m_providerLevel = providerLevelForAllSessions;
 
-    RefreshAllEvents(m_keywords, m_providerLevel);
+    RefreshAllEvents();
     return PrepareCallbackData(keywords, providerLevel, pFilterData);
 }
 
@@ -157,7 +157,7 @@ EventPipeProviderCallbackData EventPipeProvider::UnsetConfiguration(
     m_keywords = keywordsForAllSessions;
     m_providerLevel = providerLevelForAllSessions;
 
-    RefreshAllEvents(m_keywords, m_providerLevel);
+    RefreshAllEvents();
     return PrepareCallbackData(keywords, providerLevel, pFilterData);
 }
 
@@ -299,9 +299,7 @@ void EventPipeProvider::SetDeleteDeferred()
     m_deleteDeferred = true;
 }
 
-void EventPipeProvider::RefreshAllEvents(
-    INT64 keywords,
-    EventPipeEventLevel providerLevel)
+void EventPipeProvider::RefreshAllEvents()
 {
     CONTRACTL
     {

@@ -107,9 +107,7 @@ private:
         LPCWSTR pFilterData);
 
     // Refresh the runtime state of all events.
-    void RefreshAllEvents(
-        INT64 keywords,
-        EventPipeEventLevel providerLevel);
+    void RefreshAllEvents();
 
     // Prepare the data required for invoking callback
     EventPipeProviderCallbackData PrepareCallbackData(
