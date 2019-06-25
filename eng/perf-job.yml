@@ -33,19 +33,19 @@ jobs:
 
     variables:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - name: productPath
-        value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).Release
-      - name: corerootParentPath
-        value: $(productPath)/Tests
-      - name: setupArguments
-        value: --corerootdirectory $(corerootParentPath)/Core_Root --architecture $(archType)
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - name: productPath
-        value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).Release
-      - name: corerootParentPath
-        value: $(productPath)\Tests
-      - name: setupArguments
-        value: -CoreRootDirectory $(corerootParentPath)\Core_Root -Architecture $(archType)
+        - name: productPath
+          value: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).Release
+        - name: corerootParentPath
+          value: $(productPath)/Tests
+        - name: setupArguments
+          value: --corerootdirectory $(corerootParentPath)/Core_Root --architecture $(archType)
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        - name: productPath
+          value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).Release
+        - name: corerootParentPath
+          value: $(productPath)\Tests
+        - name: setupArguments
+          value: -CoreRootDirectory $(corerootParentPath)\Core_Root -Architecture $(archType)
     steps:
 
     # Download product build from pipeline artifact storage
