@@ -607,6 +607,7 @@ public:
     // lastRecordedFragmentation - total fragmentation in the managed heap recorded in the last GC
     virtual void GetMemoryInfo(uint32_t* highMemLoadThreshold, 
                                uint64_t* totalPhysicalMem, 
+                               uint64_t* hardLimit,
                                uint32_t* lastRecordedMemLoad,
                                size_t* lastRecordedHeapSize,
                                size_t* lastRecordedFragmentation) = 0;

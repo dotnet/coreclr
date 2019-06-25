@@ -17,9 +17,19 @@ namespace System
         public long MemoryLoadBytes { get; }
 
         /// <summary>
-        /// Total available memory for the GC to use when the last GC ocurred. By default this is the physical memory on the machine, but it may be customized by specifying a HardLimit.
+        /// Total available memory for the GC to use when the last GC ocurred.
+        /// This is the physical memory on the machine, or in a container, it is the total size of the container.
+        /// Unlike HardLimitBytes, this is not affected by COMPlus_GCHeapHardLimit or "Server.GC.HeapHardLimit".
         /// </summary>
         public long TotalAvailableMemoryBytes { get; }
+
+        /// <summary>
+        /// Hard limit on heap size.
+        /// This is equal to TotalAvailableMemoryBytes normally.
+        /// In a container, this will be an implementation-defined fraction of the container's size.
+        /// If the environment variable COMPlus_GCHeapHardLimit is set, or "Server.GC.HeapHardLimit" is specified in runtimeconfig.json, this will come from that.
+        /// </summary>
+        public long HardLimitBytes { get; }
 
         /// <summary>
         /// The total heap size when the last GC ocurred
@@ -43,12 +53,14 @@ namespace System
         internal GCMemoryInfo(long highMemoryLoadThresholdBytes,
                               long memoryLoadBytes,
                               long totalAvailableMemoryBytes,
+                              long hardLimitBytes,
                               long heapSizeBytes,
                               long fragmentedBytes)
         {
             HighMemoryLoadThresholdBytes = highMemoryLoadThresholdBytes;
             MemoryLoadBytes = memoryLoadBytes;
             TotalAvailableMemoryBytes = totalAvailableMemoryBytes;
+            HardLimitBytes = hardLimitBytes;
             HeapSizeBytes = heapSizeBytes;
             FragmentedBytes = fragmentedBytes;
         }
