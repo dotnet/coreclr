@@ -38,23 +38,33 @@ jobs:
         - name: corerootParentPath
           value: $(productPath)/Tests
         - name: setupArguments
-          value: --corerootdirectory $(corerootParentPath)/Core_Root --architecture $(archType)
+          value: --corerootdirectory $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)/Core_Root --architecture $(archType)
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         - name: productPath
           value: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).Release
         - name: corerootParentPath
           value: $(productPath)\Tests
         - name: setupArguments
-          value: -CoreRootDirectory $(corerootParentPath)\Core_Root -Architecture $(archType)
+          value: -CoreRootDirectory $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)\Tests\Core_Root -Architecture $(archType)
     steps:
 
     # Download product build from pipeline artifact storage
     - task: DownloadPipelineArtifact@0
       displayName: Download product build pipeline artifact
       inputs:
+        buildType: current
+        downloadType: single
         artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-        targetPath: $(productPath)
+        downloadPath: $(System.ArtifactsDirectory)
 
+    # Populate Product directory
+    - task: CopyFiles@2
+      displayName: Populate Product directory
+      inputs:
+        sourceFolder: $(System.ArtifactsDirectory)/${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        contents: '**'
+        targetFolder: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+    
     # Create Core_Root
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) generatelayoutonly
