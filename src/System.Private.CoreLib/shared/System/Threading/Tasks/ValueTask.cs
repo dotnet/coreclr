@@ -743,26 +743,29 @@ namespace System.Threading.Tasks
         /// <summary>Gets the result.</summary>
         public TResult Result
         {
-            [StackTraceHidden]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
+            get => GetResult();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [StackTraceHidden]
+        internal TResult GetResult()
+        {
+            object? obj = _obj;
+            Debug.Assert(obj == null || obj is Task<TResult> || obj is IValueTaskSource<TResult>);
+
+            if (obj == null)
             {
-                object? obj = _obj;
-                Debug.Assert(obj == null || obj is Task<TResult> || obj is IValueTaskSource<TResult>);
-
-                if (obj == null)
-                {
-                    return _result;
-                }
-
-                if (obj is Task<TResult> t)
-                {
-                    TaskAwaiter.ValidateEnd(t);
-                    return t.ResultOnSuccess;
-                }
-
-                return Unsafe.As<IValueTaskSource<TResult>>(obj).GetResult(_token);
+                return _result;
             }
+
+            if (obj is Task<TResult> t)
+            {
+                TaskAwaiter.ValidateEnd(t);
+                return t.ResultOnSuccess;
+            }
+
+            return Unsafe.As<IValueTaskSource<TResult>>(obj).GetResult(_token);
         }
 
         /// <summary>Gets an awaiter for this <see cref="ValueTask{TResult}"/>.</summary>

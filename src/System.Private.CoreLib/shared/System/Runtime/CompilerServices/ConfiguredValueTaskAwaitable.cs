@@ -158,7 +158,7 @@ namespace System.Runtime.CompilerServices
             /// <summary>Gets the result of the ValueTask.</summary>
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             [StackTraceHidden]
-            public TResult GetResult() => _value.Result;
+            public TResult GetResult() => _value.GetResult();
 
             /// <summary>Schedules the continuation action for the <see cref="ConfiguredValueTaskAwaitable{TResult}"/>.</summary>
             public void OnCompleted(Action continuation)

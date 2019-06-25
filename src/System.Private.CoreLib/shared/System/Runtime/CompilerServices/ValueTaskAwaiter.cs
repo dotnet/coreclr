@@ -128,7 +128,7 @@ namespace System.Runtime.CompilerServices
         /// <summary>Gets the result of the ValueTask.</summary>
         [StackTraceHidden]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public TResult GetResult() => _value.Result;
+        public TResult GetResult() => _value.GetResult();
 
         /// <summary>Schedules the continuation action for this ValueTask.</summary>
         public void OnCompleted(Action continuation)
