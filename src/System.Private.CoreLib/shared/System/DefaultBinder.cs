@@ -4,6 +4,7 @@
 
 using System.Reflection;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System
@@ -1217,6 +1218,7 @@ namespace System
             return CanChangePrimitive(Type.GetTypeCode(source), Type.GetTypeCode(target));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static bool CanChangePrimitive(TypeCode source, TypeCode target)
         {
             Primitives widerCodes = s_primitiveConversions[(int)source];
