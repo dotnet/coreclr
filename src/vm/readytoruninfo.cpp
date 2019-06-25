@@ -903,6 +903,10 @@ MethodDesc *ReadyToRunInfo::GenericMethodIterator::GetMethodDesc_NoRestore()
     PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)m_current.GetBlob();
     SigPointer sig(pBlob);
     DWORD methodFlags = 0;
+    uint id = 0;
+    DWORD i = 0;
+    uint offset = 0;
+    uint val;
     RID rid = 0;
     DWORD numGenericArgs = 0;
     PCCOR_SIGNATURE pSigNew = NULL;
@@ -928,7 +932,7 @@ MethodDesc *ReadyToRunInfo::GenericMethodIterator::GetMethodDesc_NoRestore()
     {
         IfFailGoto(sig.GetData(&numGenericArgs), Done);
     
-        for (DWORD i = 0; i < numGenericArgs; i++)
+        for (i = 0; i < numGenericArgs; i++)
         {
             IfFailGoto(sig.SkipExactlyOne(), Done);
         }
@@ -936,16 +940,14 @@ MethodDesc *ReadyToRunInfo::GenericMethodIterator::GetMethodDesc_NoRestore()
 
     // Now that we have the size of the signature we can grab the offset and decode it
     sig.GetSignature(&pSigNew, &cbSigNew);
-    uint offset = m_current.GetOffset() + (uint)(pSigNew - pBlob);
+    offset = m_current.GetOffset() + (uint)(pSigNew - pBlob);
 
-    uint id;
     offset = m_pInfo->m_nativeReader.DecodeUnsigned(offset, &id);
 
     if (id & 1)
     {
         if (id & 2)
         {
-            uint val;
             m_pInfo->m_nativeReader.DecodeUnsigned(offset, &val);
             offset -= val;
         }

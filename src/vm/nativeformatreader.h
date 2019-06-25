@@ -495,7 +495,7 @@ namespace NativeFormat
 
         public:
             AllEntriesEnumerator() :
-                _table(dac_cast<PTR_NativeHashtable>(NULL)),
+                _table(dac_cast<PTR_NativeHashtable>(nullptr)),
                 _parser(),
                 _currentBucket(0),
                 _endOffset(0)
