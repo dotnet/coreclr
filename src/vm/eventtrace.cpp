@@ -6852,8 +6852,6 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
             MethodDesc *hotDesc = (MethodDesc *)gmi.GetMethodDesc_NoRestore();
             if (hotDesc != NULL)
             {
-                // TODO: remove
-                // DebugBreak();
                 ETW::MethodLog::SendMethodEvent(hotDesc, dwEventOptions, FALSE);
             }
         }

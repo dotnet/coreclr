@@ -900,54 +900,71 @@ MethodDesc *ReadyToRunInfo::GenericMethodIterator::GetMethodDesc_NoRestore()
 {
     _ASSERTE(!m_current.IsNull());
 
-    PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)m_current.GetBlob();
-    SigPointer sig(pBlob);
-    DWORD methodFlags = 0;
-    uint id = 0;
-    DWORD i = 0;
-    uint offset = 0;
-    uint val;
-    RID rid = 0;
-    DWORD numGenericArgs = 0;
-    PCCOR_SIGNATURE pSigNew = NULL;
-    DWORD cbSigNew = 0;
-    PCODE pEntryPoint = NULL;
-    MethodDesc *pMD = NULL;
     HRESULT hr = S_OK;
 
+    PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)m_current.GetBlob();
+    SigPointer sig(pBlob);
+
+    DWORD methodFlags = 0;
     // Skip the signature so we can get to the offset
-    IfFailGoto(sig.GetData(&methodFlags), Done);
+    hr = sig.GetData(&methodFlags);
+    if (FAILED(hr))
+    {
+        return NULL;
+    }
 
     if (methodFlags & ENCODE_METHOD_SIG_OwnerType)
     {
-        IfFailGoto(sig.SkipExactlyOne(), Done);
+        hr = sig.SkipExactlyOne();
+        if (FAILED(hr))
+        {
+            return NULL;
+        }
     }
 
     _ASSERTE((methodFlags & ENCODE_METHOD_SIG_SlotInsteadOfToken) == 0);
     _ASSERTE((methodFlags & ENCODE_METHOD_SIG_MemberRefToken) == 0);
 
-    IfFailGoto(sig.GetData(&rid), Done);
+    RID rid;
+    hr = sig.GetData(&rid);
+    if (FAILED(hr))
+    {
+        return NULL;
+    }
     
     if (methodFlags & ENCODE_METHOD_SIG_MethodInstantiation)
     {
-        IfFailGoto(sig.GetData(&numGenericArgs), Done);
-    
-        for (i = 0; i < numGenericArgs; i++)
+        DWORD numGenericArgs;
+        hr = sig.GetData(&numGenericArgs);
+        if (FAILED(hr))
         {
-            IfFailGoto(sig.SkipExactlyOne(), Done);
+            return NULL;
+        }
+    
+        for (DWORD i = 0; i < numGenericArgs; i++)
+        {
+            hr = sig.SkipExactlyOne();
+            if (FAILED(hr))
+            {
+                return NULL;
+            }
         }
     }
 
     // Now that we have the size of the signature we can grab the offset and decode it
+    PCCOR_SIGNATURE pSigNew;
+    DWORD cbSigNew;
     sig.GetSignature(&pSigNew, &cbSigNew);
-    offset = m_current.GetOffset() + (uint)(pSigNew - pBlob);
-
+    uint offset = m_current.GetOffset() + (uint)(pSigNew - pBlob);
+    
+    uint id;
     offset = m_pInfo->m_nativeReader.DecodeUnsigned(offset, &id);
 
     if (id & 1)
     {
         if (id & 2)
         {
+            uint val;
             m_pInfo->m_nativeReader.DecodeUnsigned(offset, &val);
             offset -= val;
         }
@@ -960,12 +977,9 @@ MethodDesc *ReadyToRunInfo::GenericMethodIterator::GetMethodDesc_NoRestore()
     }
 
     _ASSERTE(id < m_pInfo->m_nRuntimeFunctions);
-    pEntryPoint = dac_cast<TADDR>(m_pInfo->m_pLayout->GetBase()) + m_pInfo->m_pRuntimeFunctions[id].BeginAddress;
+    PCODE pEntryPoint = dac_cast<TADDR>(m_pInfo->m_pLayout->GetBase()) + m_pInfo->m_pRuntimeFunctions[id].BeginAddress;
 
-    pMD = m_pInfo->GetMethodDescForEntryPoint(pEntryPoint);
-
-Done:
-    return pMD;
+    return m_pInfo->GetMethodDescForEntryPoint(pEntryPoint);
 }
 
 DWORD ReadyToRunInfo::GetFieldBaseOffset(MethodTable * pMT)
