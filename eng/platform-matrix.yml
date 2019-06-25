@@ -197,31 +197,31 @@ jobs:
 
 # Windows x64
 
-  - ${{ if eq(platform, 'Windows_NT_x64') }}:
-    - template: ${{ parameters.jobTemplate }}
-      parameters:
-        buildConfig: ${{ parameters.buildConfig }}
-        archType: x64
-        osGroup: Windows_NT
-        osIdentifier: Windows_NT
-        helixQueues:
-        - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-          - ${{ if not(contains(parameters.jobTemplate, 'perf')) }}:
-            - Windows.10.Amd64.Open
-          - ${{ if contains(parameters.jobTemplate, 'perf') }}:
-            - Windows.10.Amd64.ClientRS4.DevEx.15.8.Open
-        - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
-          # TODO: add Windows.10.Nano.Amd64.Open once https://github.com/dotnet/coreclr/issues/21693 has been resolved
-          - Windows.7.Amd64.Open
-          - Windows.81.Amd64.Open
+- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: Windows_NT
+      osIdentifier: Windows_NT
+      helixQueues:
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
+        - ${{ if not(contains(parameters.jobTemplate, 'perf')) }}:
           - Windows.10.Amd64.Open
-        - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-          - Windows.7.Amd64
-          - Windows.81.Amd64
-          - Windows.10.Amd64
-          - Windows.10.Amd64.Core
-          - Windows.10.Nano.Amd64
-        ${{ insert }}: ${{ parameters.jobParameters }}
+        - ${{ if contains(parameters.jobTemplate, 'perf') }}:
+          - Windows.10.Amd64.ClientRS4.DevEx.15.8.Open
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
+        # TODO: add Windows.10.Nano.Amd64.Open once https://github.com/dotnet/coreclr/issues/21693 has been resolved
+        - Windows.7.Amd64.Open
+        - Windows.81.Amd64.Open
+        - Windows.10.Amd64.Open
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - Windows.7.Amd64
+        - Windows.81.Amd64
+        - Windows.10.Amd64
+        - Windows.10.Amd64.Core
+        - Windows.10.Nano.Amd64
+      ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Windows x86
 
