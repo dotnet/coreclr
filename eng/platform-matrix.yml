@@ -33,7 +33,7 @@ jobs:
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
         - ${{ if contains(parameters.jobTemplate, 'perf') }}:
-          - Ubuntu.1604.Amd64.Open
+          - Ubuntu.1804.Amd64.Open
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Windows x64
