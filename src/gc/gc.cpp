@@ -11614,7 +11614,7 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
 
     //this portion can be done after we release the lock
     if (seg == ephemeral_heap_segment ||
-       (seg == nullptr && gen_number == 0 && limit_size >= CLR_SIZE / 2))
+       ((seg == nullptr) && (gen_number == 0) && (limit_size >= CLR_SIZE / 2)))
     {
         if (gen0_must_clear_bricks > 0)
         {
@@ -16152,6 +16152,7 @@ void gc_heap::gc1()
 #ifdef FEATURE_LOH_COMPACTION
             BOOL all_heaps_compacted_p = TRUE;
 #endif //FEATURE_LOH_COMPACTION
+            int max_gen0_must_clear_bricks = 0;
             for (int i = 0; i < gc_heap::n_heaps; i++)
             {
                 gc_heap* hp = gc_heap::g_heaps[i];
@@ -16160,28 +16161,17 @@ void gc_heap::gc1()
 #ifdef FEATURE_LOH_COMPACTION
                 all_heaps_compacted_p &= hp->loh_compacted_p;
 #endif //FEATURE_LOH_COMPACTION
+                // compute max of gen0_must_clear_bricks over all heaps
+                max_gen0_must_clear_bricks = max(max_gen0_must_clear_bricks, hp->gen0_must_clear_bricks);
             }
 
 #ifdef FEATURE_LOH_COMPACTION
             check_loh_compact_mode (all_heaps_compacted_p);
 #endif //FEATURE_LOH_COMPACTION
 
-            fire_pevents();
-            pm_full_gc_init_or_clear();
-
-            // distribute gen0_must_clear_bricks to all heaps -
+            // if max_gen0_must_clear_bricks > 0, distribute to all heaps -
             // if one heap encountered an interior pointer during this GC,
             // the next GC might see one on another heap
-
-            // first, compute max
-            int max_gen0_must_clear_bricks = 0;
-            for (int i = 0; i < gc_heap::n_heaps; i++)
-            {
-                gc_heap* hp = gc_heap::g_heaps[i];
-                if (max_gen0_must_clear_bricks < hp->gen0_must_clear_bricks)
-                    max_gen0_must_clear_bricks = hp->gen0_must_clear_bricks;
-            }
-            // if max > 0, distribute to all heaps
             if (max_gen0_must_clear_bricks > 0)
             {
                 for (int i = 0; i < gc_heap::n_heaps; i++)
@@ -16190,6 +16180,9 @@ void gc_heap::gc1()
                     hp->gen0_must_clear_bricks = max_gen0_must_clear_bricks;
                 }
             }
+
+            fire_pevents();
+            pm_full_gc_init_or_clear();
 
             gc_t_join.restart();
         }
