@@ -2732,18 +2732,6 @@ public:
     virtual
     BOOL IsDelegate(VMPTR_Object vmObject) = 0;
 
-    // Given a pointer to a managed function, obtain the method desc for it.
-    // Equivalent to GetMethodDescPtrFromIp, except if the method isn't jitted
-    // it will look for it in code stubs.
-    // Returns:
-    //   S_OK on success.
-    //   If it's a jitted method, error codes equivalent to GetMethodDescPtrFromIp
-    //   E_INVALIDARG if a non-kitted metod can't be located in the stubs.
-    virtual
-    HRESULT GetMethodDescPtrFromIpEx(
-        CORDB_ADDRESS funcIp,
-        OUT VMPTR_MethodDesc *ppMD) = 0;
-
     // Returns the delegate type
     virtual
     HRESULT GetDelegateType(VMPTR_Object delegateObject, DelegateType *delegateType) = 0;

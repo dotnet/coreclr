@@ -3406,13 +3406,13 @@ BOOL DacDbiInterfaceImpl::IsExceptionObject(MethodTable* pMT)
     return FALSE;
 }
 
-HRESULT DacDbiInterfaceImpl::GetMethodDescPtrFromIpEx(CORDB_ADDRESS funcIp, VMPTR_MethodDesc* ppMD)
+HRESULT DacDbiInterfaceImpl::GetMethodDescPtrFromIpEx(TADDR funcIp, VMPTR_MethodDesc* ppMD)
 {
     DD_ENTER_MAY_THROW;
 
     // The fast path is check if the code is jitted and the code manager has it available.
     CLRDATA_ADDRESS mdAddr;
-    HRESULT hr = g_dacImpl->GetMethodDescPtrFromIP(funcIp, &mdAddr);
+    HRESULT hr = g_dacImpl->GetMethodDescPtrFromIP(TO_CDADDR(funcIp), &mdAddr);
     if (S_OK == hr)
     {
         ppMD->SetDacTargetPtr(CLRDATA_ADDRESS_TO_TADDR(mdAddr));
@@ -3420,7 +3420,7 @@ HRESULT DacDbiInterfaceImpl::GetMethodDescPtrFromIpEx(CORDB_ADDRESS funcIp, VMPT
     }
 
     // Otherwise try to see if a method desc is available for the method that isn't jitted by walking the code stubs.
-    MethodDesc* pMD = MethodTable::GetMethodDescForSlotAddress(funcIp);
+    MethodDesc* pMD = MethodTable::GetMethodDescForSlotAddress(PINSTRToPCODE(funcIp));
 
     if (pMD == NULL)
         return E_INVALIDARG;

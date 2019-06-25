@@ -349,10 +349,6 @@ public:
     // Returns true if the argument is a runtime callable wrapper
     BOOL IsRcw(VMPTR_Object vmObject);
 
-    HRESULT GetMethodDescPtrFromIpEx(
-        CORDB_ADDRESS funcIp,
-        OUT VMPTR_MethodDesc *ppMD);
-
     BOOL IsDelegate(VMPTR_Object vmObject);
 
     HRESULT GetDelegateType(VMPTR_Object delegateObject, DelegateType *delegateType);
@@ -402,6 +398,17 @@ public:
                         OUT DacDbiArrayList<DebuggerIPCE_ExpandedTypeData> * pTypes);
 
 private:
+    // Given a pointer to a managed function, obtain the method desc for it.
+    // Equivalent to GetMethodDescPtrFromIp, except if the method isn't jitted
+    // it will look for it in code stubs.
+    // Returns:
+    //   S_OK on success.
+    //   If it's a jitted method, error codes equivalent to GetMethodDescPtrFromIp
+    //   E_INVALIDARG if a non-jitted metod can't be located in the stubs.
+    HRESULT GetMethodDescPtrFromIpEx(
+        TADDR funcIp,
+        OUT VMPTR_MethodDesc *ppMD);
+
     BOOL IsExceptionObject(MethodTable* pMT);
 
     // Get the approximate and exact type handles for a type
