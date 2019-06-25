@@ -2,6 +2,20 @@ trigger: none
 
 pr: none
 
+schedules:
+- cron: "0 13 * * *"
+  displayName: Mon through Sun at 5:00 AM (UTC-8:00)
+  branches:
+    include:
+    - master
+  always: true
+- cron: "0 1 * * *"
+  displayName: Mon through Sun at 5:00 PM (UTC-8:00)
+  branches:
+    include:
+    - master
+  always: true
+
 jobs:
 #
 # Release builds
