@@ -442,20 +442,11 @@ public:
 
     inline static bool IsProviderEnabled(DOTNET_TRACE_CONTEXT providerCtx)
     {
-        if (!IsInitialized())
-        {
-            return false;
-        }
         return providerCtx.LttngProvider->IsEnabled;
     }
 
     inline static bool IsKeywordEnabled(DOTNET_TRACE_CONTEXT providerCtx, UCHAR level, ULONGLONG keyword)
     {
-        if (!IsInitialized())
-        {
-            return false;
-        }
-
         if (!providerCtx.LttngProvider->IsEnabled)
         {
             return false;
@@ -473,8 +464,6 @@ public:
 
     static void InitializeLogger()
     {
-        initialized = false;
-
         if (!IsEventLoggingEnabled())
         {
             return;
@@ -487,17 +476,6 @@ public:
         configuration.Initialize(xplatEventConfig);
 
         XplatEventLoggerController::Initialize(configuration);
-        if (configuration.IsValid())
-        {
-            initialized = true;
-        }
-    }
-private:
-    static bool initialized;
-
-    static bool IsInitialized()
-    {
-        return initialized;
     }
 };
 
