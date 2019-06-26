@@ -486,10 +486,12 @@ OBJECTREF AllocateSzArray(MethodTable* pArrayMT, INT32 cElements, GC_ALLOC_FLAGS
     }
     else
     {
-        if ((DATA_ALIGNMENT < sizeof(double)) && (elemType == ELEMENT_TYPE_R8))
+#ifdef FEATURE_64BIT_ALIGNMENT
+        MethodTable* pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
+        if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
         {
-            // Creation of an array of doubles, not in the large object heap.
-            // We want to align the doubles to 8 byte boundaries.  Since it's the array payload, not the
+            // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
+            // this guarantee implicitly, e.g. on 32-bit platforms). Since it's the array payload, not the
             // header that requires alignment we need to be careful. However it just so happens that all the
             // cases we care about (single and multi-dim arrays of value types) have an even number of DWORDs
             // in their headers so the alignment requirements for the header and the payload are the same.
@@ -497,24 +499,46 @@ OBJECTREF AllocateSzArray(MethodTable* pArrayMT, INT32 cElements, GC_ALLOC_FLAGS
             orArray = (ArrayBase*)AllocAlign8(totalSize, flags);
         }
         else
+#else
+        if ((DATA_ALIGNMENT < sizeof(double)) && (elemType == ELEMENT_TYPE_R8) &&
+            (totalSize < g_pConfig->GetGCLOHThreshold() + MIN_OBJECT_SIZE))
         {
-#ifdef FEATURE_64BIT_ALIGNMENT
-            MethodTable* pElementMT = pArrayMT->GetApproxArrayElementTypeHandle().GetMethodTable();
-            if (pElementMT->RequiresAlign8() && pElementMT->IsValueType())
+            // Creation of an array of doubles, not in the large object heap.
+            // We want to align the doubles to 8 byte boundaries, but the GC gives us pointers aligned
+            // to 4 bytes only (on 32 bit platforms). To align, we ask for 12 bytes more to fill with a
+            // dummy object.
+            // If the GC gives us a 8 byte aligned address, we use it for the array and place the dummy
+            // object after the array, otherwise we put the dummy object first, shifting the base of
+            // the array to an 8 byte aligned address.
+            //
+            // Note: on 64 bit platforms, the GC always returns 8 byte aligned addresses, and we don't
+            // execute this code because DATA_ALIGNMENT < sizeof(double) is false.
+
+            _ASSERTE(DATA_ALIGNMENT == sizeof(double) / 2);
+            _ASSERTE((MIN_OBJECT_SIZE % sizeof(double)) == DATA_ALIGNMENT);   // used to change alignment
+            _ASSERTE(pArrayMT->GetComponentSize() == sizeof(double));
+            _ASSERTE(g_pObjectClass->GetBaseSize() == MIN_OBJECT_SIZE);
+            _ASSERTE(totalSize < totalSize + MIN_OBJECT_SIZE);
+            orArray = (ArrayBase*)Alloc(totalSize + MIN_OBJECT_SIZE, flags);
+
+            Object* orDummyObject;
+            if ((size_t)orArray % sizeof(double))
             {
-                // This platform requires that certain fields are 8-byte aligned (and the runtime doesn't provide
-                // this guarantee implicitly, e.g. on 32-bit platforms). Since it's the array payload, not the
-                // header that requires alignment we need to be careful. However it just so happens that all the
-                // cases we care about (single and multi-dim arrays of value types) have an even number of DWORDs
-                // in their headers so the alignment requirements for the header and the payload are the same.
-                _ASSERTE(((pArrayMT->GetBaseSize() - SIZEOF_OBJHEADER) & 7) == 0);
-                orArray = (ArrayBase*)AllocAlign8(totalSize, flags);
+                orDummyObject = orArray;
+                orArray = (ArrayBase*)((size_t)orArray + MIN_OBJECT_SIZE);
             }
             else
-#endif
             {
-                orArray = (ArrayBase*)Alloc(totalSize, flags);
+                orDummyObject = (Object*)((size_t)orArray + totalSize);
             }
+            _ASSERTE(((size_t)orArray % sizeof(double)) == 0);
+            orDummyObject->SetMethodTable(g_pObjectClass);
+        }
+        else
+#endif  // FEATURE_64BIT_ALIGNMENT
+
+        {
+            orArray = (ArrayBase*)Alloc(totalSize, flags);
         }
         orArray->SetArrayMethodTable(pArrayMT);
     }
