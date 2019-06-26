@@ -6,7 +6,7 @@ using System;
 
 class Program
 {
-    static void Main()
+    static int Main()
     {
         var matrix = new double[128 * 128];
 
@@ -14,6 +14,7 @@ class Program
         GC.Collect(GC.MaxGeneration);
 
         GC.KeepAlive(matrix);
+        return 100;
     }
 }
 
