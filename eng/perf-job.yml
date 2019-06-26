@@ -85,11 +85,11 @@ jobs:
     
     # Create Core_Root
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) generatelayoutonly
+      - script: ./build-test.sh ${{ parameters.buildConfig }} ${{ parameters.archType }} generatelayoutonly
         displayName: Create Core_Root
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       # TODO: add generatelayoutonly to build-test.cmd.
-      - script: build-test.cmd $(buildConfig) $(archType) skipmanaged skipnative
+      - script: build-test.cmd ${{ parameters.buildConfig }} ${{ parameters.archType }} skipmanaged skipnative
         displayName: Create Core_Root
 
     # TODO: Crossgen the framework
