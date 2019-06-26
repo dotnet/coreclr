@@ -29,7 +29,9 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux
-      containerName: centos7_x64_build_image
+      container:
+        image: centos-7-3e800f1-20190501005343
+        registry: mcr
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(variables['Build.Reason'], 'PullRequest', 'IndividualCI', 'BatchedCI')) }}:
           - Ubuntu.1804.Amd64.Open
