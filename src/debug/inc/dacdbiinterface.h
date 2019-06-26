@@ -2715,7 +2715,6 @@ public:
     {
         kClosedDelegate,
         kOpenDelegate,
-        kOpenInstanceNonVSD,
         kOpenInstanceVSD,
         kClosedStaticWithScpecialSig,
         kTrueMulticastDelegate,

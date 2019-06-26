@@ -3440,6 +3440,11 @@ BOOL DacDbiInterfaceImpl::IsDelegate(VMPTR_Object vmObject)
     return pObj->GetGCSafeMethodTable()->IsDelegate();
 }
 
+
+//-----------------------------------------------------------------------------
+// DacDbi API: GetDelegateType
+// Given a delegate pointer, compute the type of delegate according to the data held in it.
+//-----------------------------------------------------------------------------
 HRESULT DacDbiInterfaceImpl::GetDelegateType(VMPTR_Object delegateObject, DelegateType *delegateType)
 {
     DD_ENTER_MAY_THROW;
@@ -3451,6 +3456,15 @@ HRESULT DacDbiInterfaceImpl::GetDelegateType(VMPTR_Object delegateObject, Delega
     // ensure we have a Delegate object
     IsDelegate(delegateObject);
 #endif
+
+    // Ideally, we would share the implementation of this method with the runtime, or get the same information
+    // we are getting from here from other EE methods. Nonetheless, currently the implementation is sharded across
+    // several pieces of logic so this replicates the logic mostly due to time constraints. The Mainly from:
+    // - System.Private.CoreLib!System.Delegate.GetMethodImpl and System.Private.CoreLib!System.MulticastDelegate.GetMethodImpl
+    // - System.Private.CoreLib!System.Delegate.GetTarget and System.Private.CoreLib!System.MulticastDelegate.GetTarget
+    // - coreclr!COMDelegate::GetMethodDesc and coreclr!COMDelegate::FindMethodHandle
+    // - coreclr!COMDelegate::DelegateConstruct and the delegate type table in 
+    // - DELEGATE KINDS TABLE in comdelegate.cpp
 
     *delegateType = DelegateType::kUnknownDelegateType;
     PTR_DelegateObject pDelObj = dac_cast<PTR_DelegateObject>(delegateObject.GetDacPtr());
