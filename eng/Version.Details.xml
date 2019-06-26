@@ -27,10 +27,6 @@
       <Uri>https://github.com/dotnet/corefx</Uri>
       <Sha>219b67118e3a2d539afc1ff3bb2c10e1bc7b03d2</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.Bcl.AsyncInterfaces" Version="1.0.0-preview7.19326.2">
-      <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>219b67118e3a2d539afc1ff3bb2c10e1bc7b03d2</Sha>
-    </Dependency>
     <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-preview7-27824-03">
       <Uri>https://github.com/dotnet/core-setup</Uri>
       <Sha>e1d780539e85f4d8de263957715f9d08db2ceef4</Sha>
