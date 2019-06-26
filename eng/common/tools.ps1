@@ -147,10 +147,12 @@ function InitializeDotNetCli([bool]$install) {
   # It also ensures that VS msbuild will use the downloaded sdk targets.
   $env:PATH = "$dotnetRoot;$env:PATH"
 
-  # Make Sure that our bootstrapped dotnet cli is avaliable in future steps of the Azure Pipelines build
-  Write-PipelinePrependPath -Path $dotnetRoot
-  Write-PipelineSetVariable -Name 'DOTNET_MULTILEVEL_LOOKUP' -Value '0'
-  Write-PipelineSetVariable -Name 'DOTNET_SKIP_FIRST_TIME_EXPERIENCE' -Value '1'
+  if ($ci) {
+    # Make Sure that our bootstrapped dotnet cli is avaliable in future steps of the Azure Pipelines build
+    Write-Host "##vso[task.prependpath]$dotnetRoot"
+    Write-Host "##vso[task.setvariable variable=DOTNET_MULTILEVEL_LOOKUP]0"
+    Write-Host "##vso[task.setvariable variable=DOTNET_SKIP_FIRST_TIME_EXPERIENCE]1"
+  }
 
   return $global:_DotNetInstallDir = $dotnetRoot
 }
@@ -573,8 +575,11 @@ Create-Directory $ToolsetDir
 Create-Directory $TempDir
 Create-Directory $LogDir
 
-Write-PipelineSetVariable -Name 'Artifacts' -Value $ArtifactsDir
-Write-PipelineSetVariable -Name 'Artifacts.Toolset' -Value $ToolsetDir
-Write-PipelineSetVariable -Name 'Artifacts.Log' -Value $LogDir
-Write-PipelineSetVariable -Name 'TEMP' -Value $TempDir
-Write-PipelineSetVariable -Name 'TMP' -Value $TempDir
+if ($ci) {
+  Write-Host "##vso[task.setvariable variable=Artifacts]$ArtifactsDir"
+  Write-Host "##vso[task.setvariable variable=Artifacts.Toolset]$ToolsetDir"
+  Write-Host "##vso[task.setvariable variable=Artifacts.Log]$LogDir"
+
+  $env:TEMP = $TempDir
+  $env:TMP = $TempDir
+}
