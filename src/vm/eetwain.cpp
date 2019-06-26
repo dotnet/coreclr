@@ -15,6 +15,10 @@
 #include "gcinfodecoder.h"
 #endif
 
+#ifdef HAVE_GCCOVER
+#include "gccover.h"
+#endif // HAVE_GCCOVER
+
 #include "argdestination.h"
 
 #define X86_INSTR_W_TEST_ESP            0x4485  // test [esp+N], eax
@@ -2915,13 +2919,27 @@ void    TRASH_CALLEE_UNSAVED_REGS(PREGDISPLAY pContext)
 
 bool IsMarkerInstr(BYTE val)
 {
-    SUPPORTS_DAC; 
-#ifdef _DEBUG
-    return (val == X86_INSTR_INT3) || // Debugger might stomp with an int3
-           (val == X86_INSTR_HLT && GCStress<cfg_any>::IsEnabled()); // GcCover might stomp with a Hlt
-#else
+    SUPPORTS_DAC;
+
+    if (val == X86_INSTR_INT3)
+    {
+        return true;
+    }
+#ifdef HAVE_GCCOVER
+    else // GcCover might have stomped on the instruction
+    {
+        if (GCStress<cfg_any>::IsEnabled())
+        {
+            if (IsGcCoverageInterruptInstructionVal(val))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+#endif // HAVE_GCCOVER
+
     return false;
-#endif
 }
 
 /* Check if the given instruction opcode is the one we expect.
