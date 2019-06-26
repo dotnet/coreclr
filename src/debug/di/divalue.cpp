@@ -2574,8 +2574,6 @@ HRESULT IsSupportedDelegateHelper(IDacDbiInterface::DelegateType delType)
     case IDacDbiInterface::DelegateType::kClosedDelegate:
     case IDacDbiInterface::DelegateType::kOpenDelegate:
         return S_OK;
-    case IDacDbiInterface::DelegateType::kUnmanagedFunctionDelegate:
-        return CORDBG_E_NATIVE_DELEGATE;
     default:
         return CORDBG_E_UNSUPPORTED_DELEGATE;
     }
