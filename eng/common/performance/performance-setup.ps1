@@ -63,7 +63,9 @@ else {
     $SetupArguments = "--repository https://github.com/$Repository --branch $Branch --get-perf-hash --commit-sha $CommitSha $CommonSetupArguments"
     
     git clone --branch master --depth 1 --quiet https://github.com/dotnet/performance $PerformanceDirectory
-    
+}
+
+if ($UseCoreRun) {
     $NewCoreRoot = (Join-Path $PayloadDirectory "Core_Root")
     Move-Item -Path $CoreRootDirectory -Destination $NewCoreRoot
 }

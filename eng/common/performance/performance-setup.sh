@@ -136,12 +136,14 @@ else
     setup_arguments="--repository https://github.com/$repository --branch $branch --get-perf-hash --commit-sha $commit_sha $common_setup_arguments"
 
     git clone --branch master --depth 1 --quiet https://github.com/dotnet/performance $performance_directory
-
-    new_core_root=$payload_directory/Core_Root
-    mv $core_root_directory $new_core_root
     
     docs_directory=$performance_directory/docs
     mv $docs_directory $workitem_directory
+fi
+
+if [[ "$use_core_run" = true ]]; then
+    new_core_root=$payload_directory/Core_Root
+    mv $core_root_directory $new_core_root
 fi
 
 # Make sure all of our variables are available for future steps
