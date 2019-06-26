@@ -27,9 +27,6 @@ jobs:
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
         name: NetCorePublic-Pool
         queue: BuildPool.Windows.10.Amd64.VS2017.Open
-    archType: ${{ parameters.archType }}
-    osGroup: ${{ parameters.osGroup }}
-    osIdentifier: ${{ parameters.osIdentifier }}
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
@@ -42,11 +39,10 @@ jobs:
       ${{ if ne(parameters.container.registry, 'mcr') }}:
         container: ${{ format('{0}:{1}', parameters.container.registry, parameters.container.image) }}
       
-    #extraSetupArguments:
     ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupArguments: -CoreRootDirectory $(Build.SourcesDirectory)\bin\Product\${{ parameters.osGroup }}.${{ parameters.archType }}.Release\Tests\Core_Root -Architecture ${{ parameters.archType }}
+      extraSetupParameters: -CoreRootDirectory $(Build.SourcesDirectory)\bin\Product\${{ parameters.osGroup }}.${{ parameters.archType }}.Release\Tests\Core_Root -Architecture ${{ parameters.archType }}
     ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupArguments: --corerootdirectory $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.${{ parameters.buildConfigUpper }}/Core_Root --architecture ${{ parameters.archType }}
+      extraSetupParameters: --corerootdirectory $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.${{ parameters.buildConfigUpper }}/Core_Root --architecture ${{ parameters.archType }}
 
     steps:
 
