@@ -191,13 +191,6 @@ namespace System.Runtime.CompilerServices
     /// </remarks>
     public struct AsyncTaskMethodBuilder
     {
-        /// <summary>A cached VoidTaskResult task used for builders that complete synchronously.</summary>
-#if PROJECTN
-        private static readonly Task<VoidTaskResult> s_cachedCompleted = AsyncTaskCache.CreateCacheableTask<VoidTaskResult>(default(VoidTaskResult));
-#else
-        private static readonly Task<VoidTaskResult> s_cachedCompleted = AsyncTaskMethodBuilder<VoidTaskResult>.s_defaultResultTask;
-#endif
-
         /// <summary>The generic builder object to which this non-generic instance delegates.</summary>
         private AsyncTaskMethodBuilder<VoidTaskResult> m_builder; // mutable struct: must not be readonly. Debugger depends on the exact name of this field.
 
@@ -270,7 +263,7 @@ namespace System.Runtime.CompilerServices
         /// </summary>
         /// <exception cref="System.InvalidOperationException">The builder is not initialized.</exception>
         /// <exception cref="System.InvalidOperationException">The task has already completed.</exception>
-        public void SetResult() => m_builder.SetResult(s_cachedCompleted); // Using s_cachedCompleted is faster than using s_defaultResultTask.
+        public void SetResult() => m_builder.SetResult(Task.s_cachedCompleted); // Using s_cachedCompleted is faster than using s_defaultResultTask.
 
         /// <summary>
         /// Completes the <see cref="System.Threading.Tasks.Task"/> in the 
