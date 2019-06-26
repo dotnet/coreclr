@@ -340,10 +340,31 @@ namespace System.Diagnostics
         {
             Debug.Assert(mb != null);
 
-            // Don't show AggressiveInlining or StackTraceHidden items
-            return !(((mb.MethodImplementationFlags & MethodImplAttributes.AggressiveInlining) != 0) ||
-                mb.IsDefined(typeof(StackTraceHiddenAttribute), inherit: false) ||
-                (mb.DeclaringType?.IsDefined(typeof(StackTraceHiddenAttribute), inherit: false) ?? false));
+            if (mb.MethodImplementationFlags.HasFlag(MethodImplAttributes.AggressiveInlining))
+            {
+                // Aggressive Inlines won't normally show in the StackTrace; however for Tier0 Jit and
+                // cross-assembly AoT/R2R these inlines will be blocked until Tier1 Jit re-Jits 
+                // them when they will inline. We don't show them in the StackTrace to bring consitency
+                // between this first-pass asm and fully optimized asm.
+                return false;
+            }
+
+            if (mb.IsDefined(typeof(StackTraceHiddenAttribute), inherit: false))
+            {
+                // Don't show where StackTraceHidden is applied to the method.
+                return false;
+            }
+
+            Type? declaringType = mb.DeclaringType;
+            // Methods don't always have containing types, for example dynamic RefEmit generated methods.
+            if (declaringType != null && 
+                declaringType.IsDefined(typeof(StackTraceHiddenAttribute), inherit: false))
+            {
+                // Don't show where StackTraceHidden is applied to the containing Type of the method.
+                return false;
+            }
+
+            return true;
         }
 
         private static bool TryResolveStateMachineMethod(ref MethodBase method, out Type declaringType)
