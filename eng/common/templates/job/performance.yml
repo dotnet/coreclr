@@ -53,7 +53,7 @@ jobs:
         workspace:
           clean: all
         pool:
-          name: ${{ parameters.pool }}
+          ${{ parameters.pool }}
         container: ${{ parameters.container }}
         steps:
         - checkout: self

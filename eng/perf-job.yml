@@ -42,7 +42,11 @@ jobs:
       ${{ if ne(parameters.container.registry, 'mcr') }}:
         container: ${{ format('{0}:{1}', parameters.container.registry, parameters.container.image) }}
       
-    extraSetupArguments: $(setupArguments)
+    #extraSetupArguments:
+    ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      extraSetupArguments: -CoreRootDirectory $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)\Tests\Core_Root -Architecture $(archType)
+    ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      extraSetupArguments: --corerootdirectory $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)/Core_Root --architecture $(archType)
 
     variables:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
