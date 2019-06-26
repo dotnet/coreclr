@@ -2,6 +2,10 @@
   <!-- Properties for all Interop managed test assets -->
   <PropertyGroup>
     <InteropCommonDir>$(MSBuildThisFileDirectory)common/</InteropCommonDir>
+
+    <!-- There's a bug in VS that causes this to get set to a version that isn't actually installed on the machine. -->
+    <!-- Until that gets resolved, we need this workaround to grab the last "known" good version of ucrtbased.dll -->
+    <UCRTVersion>10.0.17763.0</UCRTVersion>
   </PropertyGroup>
 
   <!-- Add the CoreCLRTestLibrary dependency -->
