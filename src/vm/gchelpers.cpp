@@ -256,6 +256,7 @@ inline Object* Alloc(size_t size, GC_ALLOC_FLAGS flags)
     return retVal;
 }
 
+#ifdef FEATURE_64BIT_ALIGNMENT
 // Helper for allocating 8-byte aligned objects (on platforms where this doesn't happen naturally, e.g. 32-bit
 // platforms).
 inline Object* AllocAlign8(size_t size, GC_ALLOC_FLAGS flags)
@@ -293,6 +294,7 @@ inline Object* AllocAlign8(size_t size, GC_ALLOC_FLAGS flags)
 
     return retVal;
 }
+#endif // FEATURE_64BIT_ALIGNMENT
 
 // This is one of three ways of allocating an object (see code:Alloc for more). This variation is used in the
 // rare circumstance when you want to allocate an object on the large object heap but the object is not big
