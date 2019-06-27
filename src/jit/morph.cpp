@@ -12770,7 +12770,7 @@ DONE_MORPHING_CHILDREN:
             if (op2->gtOper == GT_CNS_INT)
             {
                 bool isOpSigned = (tree->gtFlags & GTF_UNSIGNED) == 0;
-                cns2 = op2;
+                cns2            = op2;
                 /* Check for "expr relop 1" */
                 if (cns2->IsIntegralConst(1))
                 {
