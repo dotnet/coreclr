@@ -71,20 +71,11 @@ namespace BasicEventSourceTests
                     {
                         // Decode the payload
                         IDictionary<string, object> eventPayload = eventData.Payload[i] as IDictionary<string, object>;
-
-                        string name = "";
-                        string increment = "";
-
                         foreach (KeyValuePair<string, object> payload in eventPayload)
                         {
-                            if (payload.Key.Equals("Name"))
+                            if (payload.Key.Equals("Increment"))
                             {
-                                name = payload.Value.ToString();
-                            }
-                            else if (payload.Key.Equals("Increment"))
-                            {
-                                increment = payload.Value.ToString();
-                                incrementSum += Int32.Parse(increment);
+                                incrementSum += Int32.Parse(payload.Value.ToString());
                             }
                             else if (payload.Key.Equals("DisplayName"))
                             {
@@ -117,7 +108,7 @@ namespace BasicEventSourceTests
                     eventSource.IncrementCounter();    
                 }
 
-                Thread.Sleep(4000);
+                Thread.Sleep(3000);
 
                 if (iter != myListener.incrementSum)
                 {
