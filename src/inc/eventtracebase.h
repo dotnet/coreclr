@@ -257,9 +257,22 @@ public:
         _provider = nullptr;
     }
 
-    void Initialize(LPWSTR configString)
+    void Parse(LPWSTR configString)
     {
-        ParseProviderConfig(configString);
+        auto providerComponent = GetNextComponentString(configString);
+        _provider = ParseProviderName(providerComponent);
+        if (_provider == nullptr)
+        {
+            _isValid = false;
+            return;
+        }
+
+        auto keywordsComponent = GetNextComponentString(providerComponent.End + 1);
+        _enabledKeywords = ParseEnabledKeywordsMask(keywordsComponent);
+
+        auto levelComponent = GetNextComponentString(keywordsComponent.End + 1);
+        _level = ParseEnabledKeywordsMask(levelComponent);
+        _isValid = true;
     }
 
     bool IsValid() const
@@ -294,24 +307,6 @@ private:
         LPCWSTR Start;
         LPCWSTR End;
     };
-
-    void ParseProviderConfig(LPWSTR configString)
-    {
-        auto providerComponent = GetNextComponentString(configString);
-        _provider = ParseProviderName(providerComponent);
-        if (_provider == nullptr)
-        {
-            _isValid = false;
-            return;
-        }
-
-        auto keywordsComponent = GetNextComponentString(providerComponent.End + 1);
-        _enabledKeywords = ParseEnabledKeywordsMask(keywordsComponent);
-
-        auto levelComponent = GetNextComponentString(keywordsComponent.End + 1);
-        _level = ParseEnabledKeywordsMask(levelComponent);
-        _isValid = true;
-    }
 
     ComponentSpan GetNextComponentString(LPCWSTR start) const
     {
@@ -369,7 +364,7 @@ class XplatEventLoggerController
 {
 public:
 
-    static void Initialize(XplatEventLoggerConfiguration const &config)
+    static void UpdateProviderContext(XplatEventLoggerConfiguration const &config)
     {
         if (!config.IsValid())
         {
@@ -475,8 +470,8 @@ public:
         {
             static WCHAR comma = W(',');
             auto end = wcschr(configToParse, comma);
-            configuration.Initialize(configToParse);
-            XplatEventLoggerController::Initialize(configuration);
+            configuration.Parse(configToParse);
+            XplatEventLoggerController::UpdateProviderContext(configuration);
             if (end == nullptr)
             {
                 break;
