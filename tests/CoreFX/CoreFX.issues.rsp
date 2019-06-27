@@ -41,9 +41,6 @@
 -nonamespace System.ComponentModel.TypeConverterTests
 -nonamespace Tests.Integration
 
-# https://github.com/dotnet/corefx/issues/37886
--nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
-
 # System.Net.Tests are known for their instability
 -nonamespace System.Net.Http.Functional.Tests
 -nonamespace System.Net.Sockets.Tests
