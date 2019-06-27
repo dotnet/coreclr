@@ -396,6 +396,16 @@ public:
         }
     }
 
+    static void ActivateAllKeywordsOfAllProviders()
+    {
+        for (LTTNG_TRACE_CONTEXT * const provider : ALL_LTTNG_PROVIDERS_CONTEXT)
+        {
+            provider->EnabledKeywordsBitmask = (ULONGLONG)(-1);
+            provider->Level = TRACE_LEVEL_VERBOSE;
+            provider->IsEnabled = true;
+        }
+    }
+
 private:
 
     static LTTNG_TRACE_CONTEXT * const GetProvider(LPCWSTR providerName)
@@ -409,16 +419,6 @@ private:
             }
         }
         return nullptr;
-    }
-
-    static void ActivateAllKeywordsOfAllProviders()
-    {
-        for (LTTNG_TRACE_CONTEXT * const provider : ALL_LTTNG_PROVIDERS_CONTEXT)
-        {
-            provider->EnabledKeywordsBitmask = (ULONGLONG)(-1);
-            provider->Level = TRACE_LEVEL_VERBOSE;
-            provider->IsEnabled = true;
-        }
     }
 };
 
@@ -465,12 +465,16 @@ public:
         CLRConfig::GetConfigValue(CLRConfig::INTERNAL_LTTngConfig, &xplatEventConfig);
         auto configuration = XplatEventLoggerConfiguration();
         auto configToParse = xplatEventConfig;
-        // TODO: Handle case where configToParse == nullptr or "*" or ""
+
+        if (configToParse == nullptr || *configToParse == L'\0')
+        {
+            XplatEventLoggerController::ActivateAllKeywordsOfAllProviders();
+            return;
+        }
         while (configToParse != nullptr)
         {
             static WCHAR comma = W(',');
             auto end = wcschr(configToParse, comma);
-            //ParseProviderConfig(configToParse);
             configuration.Initialize(configToParse);
             XplatEventLoggerController::Initialize(configuration);
             if (end == nullptr)
