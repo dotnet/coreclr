@@ -668,7 +668,7 @@
     <value>Insufficient memory to continue the execution of the program.</value>
   </data>
   <data name="Arg_ParamName_Name" xml:space="preserve">
-    <value>Parameter name: {0}</value>
+    <value>(Parameter '{0}')</value>
   </data>
   <data name="Arg_ParmArraySize" xml:space="preserve">
     <value>Must specify one or more parameters.</value>
@@ -2955,6 +2955,9 @@
   </data>
   <data name="NotSupported_GlobalMethodSerialization" xml:space="preserve">
     <value>Serialization of global methods (including implicit serialization via the use of asynchronous delegates) is not supported.</value>
+  </data>
+    <data name="InvalidOperation_SpanOverlappedOperation" xml:space="preserve">
+    <value>This operation is invalid on overlapping buffers.</value>
   </data>
   <data name="NotSupported_IDispInvokeDefaultMemberWithNamedArgs" xml:space="preserve">
     <value>Invoking default method with named arguments is not supported.</value>

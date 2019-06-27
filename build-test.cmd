@@ -166,6 +166,9 @@ REM ===
 REM =========================================================================================
 
 call "%__ProjectDir%\init-tools.cmd"
+if NOT [%ERRORLEVEL%]==[0] (
+    exit /b %ERRORLEVEL%
+)
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
@@ -177,6 +180,10 @@ REM ===
 REM =========================================================================================
 
 call "%__TestDir%\setup-stress-dependencies.cmd" /arch %__BuildArch% /outputdir %__BinDir%
+if errorlevel 1 (
+    echo %__MsgPrefix%Error: setup-stress-dependencies failed.
+    goto     :Exit_Failure
+)
 @if defined _echo @echo on
 
 REM =========================================================================================

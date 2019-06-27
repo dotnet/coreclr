@@ -136,6 +136,7 @@ catch {
   Write-Host $_
   Write-Host $_.Exception
   Write-Host $_.ScriptStackTrace
+  Write-PipelineTelemetryError -Category "InitializeToolset" -Message $_
   ExitWithExitCode 1
 }
 

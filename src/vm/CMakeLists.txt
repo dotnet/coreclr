@@ -7,6 +7,9 @@ include_directories(${ARCH_SOURCES_DIR})
 add_definitions(-DUNICODE)
 add_definitions(-D_UNICODE)
 
+if(FEATURE_AUTO_TRACE)
+  add_definitions(-DFEATURE_AUTO_TRACE)
+endif(FEATURE_AUTO_TRACE)
 
 if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   foreach (Config DEBUG CHECKED)
@@ -14,7 +17,7 @@ if(CMAKE_CONFIGURATION_TYPES) # multi-configuration generator?
   endforeach (Config)
 else()
   if(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
-    add_definitions(-DWRITE_BARRIER_CHECK=1)
+    add_definitions(-DWRITE_BARRIER_CHECK)
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 endif(CMAKE_CONFIGURATION_TYPES)
 
@@ -308,6 +311,7 @@ set(VM_SOURCES_WKS
     comwaithandle.cpp
     customattribute.cpp
     custommarshalerinfo.cpp
+    autotrace.cpp
     diagnosticserver.cpp
     dllimportcallback.cpp
     eeconfig.cpp
@@ -319,14 +323,17 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeeventpayload.cpp
     eventpipeeventsource.cpp
     eventpipeblock.cpp
+    eventpipecommontypes.cpp
     eventpipefile.cpp
     eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
     eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
+    eventpipethread.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
@@ -422,6 +429,7 @@ set(VM_HEADERS_WKS
     comwaithandle.h
     customattribute.h
     custommarshalerinfo.h
+    autotrace.h
     diagnosticserver.h
     diagnosticsprotocol.h
     dllimportcallback.h
@@ -437,9 +445,11 @@ set(VM_HEADERS_WKS
     eventpipeblock.h
     eventpipebuffer.h
     eventpipebuffermanager.h
+    eventpipecommontypes.h
     eventpipeconfiguration.h
     eventpipeevent.h
     eventpipeeventinstance.h
+    eventpipeeventpayload.h
     eventpipeeventsource.h
     eventpipefile.h
     eventpipeinternal.h
@@ -496,6 +506,7 @@ set(VM_HEADERS_WKS
     sha1.h
     simplerwlock.hpp
     sourceline.h
+    stackcontents.h
     stackingallocator.h
     stringliteralmap.h
     stubcache.h

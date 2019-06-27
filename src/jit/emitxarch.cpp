@@ -7057,7 +7057,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
     if (isJump)
     {
-        assert(callType == EC_FUNC_TOKEN || callType == EC_FUNC_TOKEN_INDIR);
+        assert(callType == EC_FUNC_TOKEN || callType == EC_FUNC_TOKEN_INDIR || callType == EC_INDIR_ARD);
         if (callType == EC_FUNC_TOKEN)
         {
             ins = INS_l_jmp;
@@ -7853,9 +7853,9 @@ void emitter::emitDispAddrMode(instrDesc* id, bool noDetail)
                 printf("reloc ");
             }
             printf("J_M%03u_DS%02u", Compiler::s_compMethodsCount, id->idDebugOnlyInfo()->idMemCookie);
-        }
 
-        disp -= id->idDebugOnlyInfo()->idMemCookie;
+            disp -= id->idDebugOnlyInfo()->idMemCookie;
+        }
     }
 
     bool frameRef = false;
@@ -8250,7 +8250,7 @@ void emitter::emitDispIns(
 
     /* By now the size better be set to something */
 
-    assert(emitInstCodeSz(id) || emitInstHasNoCode(ins));
+    assert(id->idCodeSize() || emitInstHasNoCode(ins));
 
     /* Figure out the operand size */
 
@@ -8351,7 +8351,7 @@ void emitter::emitDispIns(
             emitDispAddrMode(id, isNew);
             emitDispShift(ins);
 
-            if (ins == INS_call)
+            if ((ins == INS_call) || (ins == INS_i_jmp))
             {
                 assert(id->idInsFmt() == IF_ARD);
 
@@ -12307,9 +12307,9 @@ BYTE* emitter::emitOutputLJ(BYTE* dst, instrDesc* i)
 
         assert(jmp);
 
-        if (emitInstCodeSz(id) != JMP_SIZE_SMALL)
+        if (id->idCodeSize() != JMP_SIZE_SMALL)
         {
-            emitOffsAdj += emitInstCodeSz(id) - JMP_SIZE_SMALL;
+            emitOffsAdj += id->idCodeSize() - JMP_SIZE_SMALL;
 
 #ifdef DEBUG
             if (emitComp->verbose)

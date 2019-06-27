@@ -102,7 +102,7 @@ namespace System.Reflection.Emit
 
         internal void CheckTypeNameConflict(string strTypeName, Type? enclosingType)
         {
-            if (_typeBuilderDict.TryGetValue(strTypeName, out Type foundType) &&
+            if (_typeBuilderDict.TryGetValue(strTypeName, out Type? foundType) &&
                 ReferenceEquals(foundType.DeclaringType, enclosingType))
             {
                 // Cannot have two types with the same name
@@ -224,7 +224,7 @@ namespace System.Reflection.Emit
             }
             else
             {
-                if (_typeBuilderDict.TryGetValue(strTypeName, out Type foundType))
+                if (_typeBuilderDict.TryGetValue(strTypeName, out Type? foundType))
                 {
                     return foundType;
                 }
@@ -1232,7 +1232,7 @@ namespace System.Reflection.Emit
                     {
                         sigHelp = SignatureHelper.GetMethodSigHelper(
                         this, method.CallingConvention, method.ReturnType,
-                        method.ReturnParameter!.GetRequiredCustomModifiers(), method.ReturnParameter.GetOptionalCustomModifiers(),
+                        method.ReturnParameter.GetRequiredCustomModifiers(), method.ReturnParameter.GetOptionalCustomModifiers(),
                         parameterTypes, requiredCustomModifiers, optionalCustomModifiers);
                     }
                     catch (NotImplementedException)

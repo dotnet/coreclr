@@ -1097,9 +1097,11 @@ protected:
     void genCodeForStoreInd(GenTreeStoreInd* tree);
     void genCodeForSwap(GenTreeOp* tree);
     void genCodeForCpObj(GenTreeObj* cpObjNode);
-    void genCodeForCpBlk(GenTreeBlk* cpBlkNode);
     void genCodeForCpBlkRepMovs(GenTreeBlk* cpBlkNode);
     void genCodeForCpBlkUnroll(GenTreeBlk* cpBlkNode);
+#ifndef _TARGET_X86_
+    void genCodeForCpBlkHelper(GenTreeBlk* cpBlkNode);
+#endif
     void genCodeForPhysReg(GenTreePhysReg* tree);
     void genCodeForNullCheck(GenTreeOp* tree);
     void genCodeForCmpXchg(GenTreeCmpXchg* tree);
@@ -1173,7 +1175,9 @@ protected:
 #endif // _TARGET_ARM64_
 
     void genCodeForStoreBlk(GenTreeBlk* storeBlkNode);
-    void genCodeForInitBlk(GenTreeBlk* initBlkNode);
+#ifndef _TARGET_X86_
+    void genCodeForInitBlkHelper(GenTreeBlk* initBlkNode);
+#endif
     void genCodeForInitBlkRepStos(GenTreeBlk* initBlkNode);
     void genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode);
     void genJumpTable(GenTree* tree);
@@ -1408,9 +1412,6 @@ public:
     void instGen_Load_Reg_From_Lcl(var_types srcType, regNumber dstReg, int varNum, int offs);
 
     void instGen_Store_Reg_Into_Lcl(var_types dstType, regNumber srcReg, int varNum, int offs);
-
-    void instGen_Store_Imm_Into_Lcl(
-        var_types dstType, emitAttr sizeAttr, ssize_t imm, int varNum, int offs, regNumber regToUse = REG_NA);
 
 #ifdef DEBUG
     void __cdecl instDisp(instruction ins, bool noNL, const char* fmt, ...);

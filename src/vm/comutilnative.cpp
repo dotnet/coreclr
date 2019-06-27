@@ -43,8 +43,6 @@
 
 #include "arraynative.inl"
 
-#define STACK_OVERFLOW_MESSAGE   W("StackOverflowException")
-
 /*===================================IsDigit====================================
 **Returns a bool indicating whether the character passed in represents a   **
 **digit.
@@ -536,14 +534,6 @@ void ExceptionNative::GetExceptionData(OBJECTREF objException, ExceptionData *pE
 
     ZeroMemory(pED, sizeof(ExceptionData));
 
-    if (objException->GetMethodTable() == g_pStackOverflowExceptionClass) {
-        // In a low stack situation, most everything else in here will fail.
-        // <TODO>@TODO: We're not turning the guard page back on here, yet.</TODO>
-        pED->hr = COR_E_STACKOVERFLOW;
-        pED->bstrDescription = SysAllocString(STACK_OVERFLOW_MESSAGE);
-        return;
-    }
-
     GCPROTECT_BEGIN(objException);
     pED->hr = GetExceptionHResult(objException);
     pED->bstrDescription = GetExceptionDescription(objException);
@@ -835,13 +825,6 @@ FCIMPLEND
 void QCALLTYPE Buffer::MemMove(void *dst, void *src, size_t length)
 {
     QCALL_CONTRACT;
-
-#if !defined(FEATURE_CORESYSTEM)
-    // Callers of memcpy do expect and handle access violations in some scenarios.
-    // Access violations in the runtime dll are turned into fail fast by the vector exception handler by default.
-    // We need to supress this behavior for CoreCLR using AVInRuntimeImplOkayHolder because of memcpy is statically linked in.
-    AVInRuntimeImplOkayHolder avOk;
-#endif
 
     memmove(dst, src, length);
 }
@@ -1352,7 +1335,7 @@ FCIMPLEND;
 **Arguments: args-> pointer to section, size of section
 **Exceptions: None
 ==============================================================================*/
-void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, INT32 sizeSection)
+void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, SIZE_T sizeSection)
 {
     QCALL_CONTRACT;
 

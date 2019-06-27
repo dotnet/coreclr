@@ -32,6 +32,12 @@ static bool TryParseCircularBufferSize(uint8_t*& bufferCursor, uint32_t& bufferL
     return CanParse && (circularBufferSizeInMB > 0);
 }
 
+static bool TryParseSerializationFormat(uint8_t*& bufferCursor, uint32_t& bufferLen, EventPipeSerializationFormat& serializationFormat)
+{
+    const bool CanParse = TryParse(bufferCursor, bufferLen, (uint32_t&)serializationFormat);
+    return CanParse && (0 <= (int)serializationFormat) && ((int)serializationFormat < (int)EventPipeSerializationFormat::Count);
+}
+
 const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
 {
     CONTRACTL
@@ -54,7 +60,7 @@ const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPaylo
     uint8_t* pBufferCursor = payload->incomingBuffer;
     uint32_t bufferLen = BufferSize;
     if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, payload->circularBufferSizeInMB) ||
-        !TryParseString(pBufferCursor, bufferLen, payload->outputPath) ||
+        !TryParseSerializationFormat(pBufferCursor, bufferLen, payload->serializationFormat) ||
         !EventPipeProtocolHelper::TryParseProviderConfiguration(pBufferCursor, bufferLen, payload->providerConfigs))
     {
         delete payload;
@@ -193,6 +199,7 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
         payload->providerConfigs.Ptr(),                          // pConfigs
         static_cast<uint32_t>(payload->providerConfigs.Size()),  // numConfigs
         EventPipeSessionType::IpcStream,                // EventPipeSessionType
+        payload->serializationFormat,                   // EventPipeSerializationFormat
         pStream);                                       // IpcStream
 
     if (sessionId == 0)
