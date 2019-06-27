@@ -39,14 +39,14 @@ namespace Tracing.Tests.BufferValidation
         public static int Main(string[] args)
         {
             // This tests the resilience of message sending with
-            // varying buffer sizes [2 ** 0, 2 ** 12] in MB.
+            // smaller buffers, specifically 1MB, 4MB, and 16MB
 
             var providers = new List<Provider>()
             {
                 new Provider("MyEventSource")
             };
 
-            var tests = Enumerable.Range(0,12)
+            var tests = new int[] { 0, 2, 4 }
                 .Select(x => (uint)Math.Pow(2, x))
                 .Select(bufferSize => new SessionConfiguration(circularBufferSizeMB: bufferSize, format: EventPipeSerializationFormat.NetTrace, providers: providers))
                 .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration));

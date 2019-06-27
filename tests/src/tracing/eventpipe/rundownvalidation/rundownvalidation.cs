@@ -49,19 +49,8 @@ namespace Tracing.Tests.RundownValidation
                 new Provider("Microsoft-DotNETCore-SampleProfiler")
             };
 
-            var tests = Enumerable.Range(0,12)
-                .Select(x => (uint)Math.Pow(2, x))
-                .Select(bufferSize => new SessionConfiguration(circularBufferSizeMB: bufferSize, format: EventPipeSerializationFormat.NetTrace,  providers: providers))
-                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 1, configuration, _DoesRundownContainMethodEvents));
-
-            foreach (var test in tests)
-            {
-                var ret = test();
-                if (ret < 0)
-                    return ret;
-            }
-
-            return 100;
+            var config = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
+            return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration, _DoesRundownContainMethodEvents);
         }
     }
 }

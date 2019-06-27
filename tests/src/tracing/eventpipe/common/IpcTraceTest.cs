@@ -27,16 +27,14 @@ namespace Tracing.Tests.Common
         private SessionConfiguration _sessionConfiguration;
         // The acceptable +- on the count of events
         private int _errorRange;
-
-        private string _filename = "tmp.nettrace";
-        private Func<EventPipeEventSource, int>? _optionalTraceValidator;
+        private Func<EventPipeEventSource, int> _optionalTraceValidator;
 
         IpcTraceTest(
             Dictionary<string, int> expectedEventCounts,
             Action eventGeneratingAction,
             int errorRange = 0,
             SessionConfiguration? sessionConfiguration = null,
-            Func<EventPipeEventSource, int>? optionalTraceValidator = null)
+            Func<EventPipeEventSource, int> optionalTraceValidator = null)
         {
             _eventGeneratingAction = eventGeneratingAction;
             _expectedEventCounts = expectedEventCounts;
@@ -89,69 +87,70 @@ namespace Tracing.Tests.Common
                 return -1;
 
             var mre = new ManualResetEvent(false);
-            
-            var eventGeneratorTask = new Task(() =>
+            using (var memoryStream = new MemoryStream())
             {
-                mre.WaitOne();
-                _eventGeneratingAction();
-                EventPipeClient.StopTracing(processId, eventpipeSessionId);
-            });
 
-            var readerTask = new Task(() => 
-            {
-                using (var file = File.Create(_filename))
+                var eventGeneratorTask = new Task(() =>
+                {
+                    mre.WaitOne();
+                    _eventGeneratingAction();
+                    EventPipeClient.StopTracing(processId, eventpipeSessionId);
+                });
+
+                var readerTask = new Task(() =>
                 {
                     int b;
                     mre.Set();
                     while ((b = binaryReader.ReadByte()) != -1)
                     {
-                        file.WriteByte((byte)b);
+                        memoryStream.WriteByte((byte)b);
                     }
-                }
-            });
+                });
 
-            readerTask.Start();
-            eventGeneratorTask.Start();
+                readerTask.Start();
+                eventGeneratorTask.Start();
 
-            Task.WaitAll(readerTask, eventGeneratorTask);
+                Task.WaitAll(readerTask, eventGeneratorTask);
+                memoryStream.Seek(0, SeekOrigin.Begin);
 
-            var source = new EventPipeEventSource(_filename);
-            source.Dynamic.All += (eventData) =>
-            {
-                if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
+                var source = new EventPipeEventSource(memoryStream);
+                source.Dynamic.All += (eventData) =>
                 {
-                    _actualEventCounts[eventData.ProviderName]++;
-                }
-                else
-                {
-                    _actualEventCounts[eventData.ProviderName] = 1;
-                }
-            };
-
-            source.Process();
-
-            foreach (var (provider, expectedCount) in _expectedEventCounts)
-            {
-                if (_actualEventCounts.TryGetValue(provider, out var actualCount))
-                {
-                    if (expectedCount != -1 && Math.Abs(expectedCount - actualCount) > _errorRange)
+                    if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
                     {
-                        return Fail($"Event count mismatch for provider \"{provider}\": expected {expectedCount}, but saw {actualCount}");
+                        _actualEventCounts[eventData.ProviderName]++;
                     }
+                    else
+                    {
+                        _actualEventCounts[eventData.ProviderName] = 1;
+                    }
+                };
+
+                source.Process();
+
+                foreach (var (provider, expectedCount) in _expectedEventCounts)
+                {
+                    if (_actualEventCounts.TryGetValue(provider, out var actualCount))
+                    {
+                        if (expectedCount != -1 && Math.Abs(expectedCount - actualCount) > _errorRange)
+                        {
+                            return Fail($"Event count mismatch for provider \"{provider}\": expected {expectedCount}, but saw {actualCount}");
+                        }
+                    }
+                    else
+                    {
+                        return Fail($"No events for provider \"{provider}\"");
+                    }
+                }
+
+                if (_optionalTraceValidator != null)
+                {
+                    return _optionalTraceValidator(source);
                 }
                 else
                 {
-                    return Fail($"No events for provider \"{provider}\"");
+                    return 100;
                 }
-            }
-
-            if (_optionalTraceValidator != null)
-            {
-                return _optionalTraceValidator(source);
-            }
-            else
-            {
-                return 100;
             }
         }
 
@@ -160,7 +159,7 @@ namespace Tracing.Tests.Common
             Action eventGeneratingAction,
             int errorRange = 0,
             SessionConfiguration? sessionConfiguration = null,
-            Func<EventPipeEventSource, int>? optionalTraceValidator = null)
+            Func<EventPipeEventSource, int> optionalTraceValidator = null)
         {
             Console.WriteLine("TEST STARTING");
             var test = new IpcTraceTest(expectedEventCounts, eventGeneratingAction, errorRange, sessionConfiguration, optionalTraceValidator);
@@ -176,13 +175,6 @@ namespace Tracing.Tests.Common
                 Console.WriteLine("TEST FAILED!");
                 Console.WriteLine(e);
                 return -1;
-            }
-            finally
-            {
-                if (File.Exists(test._filename))
-                {
-                    File.Delete(test._filename);
-                }
             }
         }
     }

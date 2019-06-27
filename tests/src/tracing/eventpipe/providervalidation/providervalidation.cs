@@ -52,10 +52,10 @@ namespace Tracing.Tests.ProviderValidation
                 new Provider("Microsoft-DotNETCore-SampleProfiler")
             };
 
-            var tests = Enumerable.Range(0,12)
+            var tests = new int[] { 4, 10 }
                 .Select(x => (uint)Math.Pow(2, x))
                 .Select(bufferSize => new SessionConfiguration(circularBufferSizeMB: bufferSize, format: EventPipeSerializationFormat.NetTrace,  providers: providers))
-                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 1, configuration));
+                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration));
 
             foreach (var test in tests)
             {
