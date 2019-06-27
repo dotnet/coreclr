@@ -496,7 +496,7 @@ namespace System.Threading
             // We do not need a lot of randomness, I think even _rnd++ would be fairly good here. 
             // Sequences attached to different queues go out of sync quickly and that could be sufficient.
             // However this sequence is a bit more random at a very modest additional cost.
-            // http://www.drdobbs.com/tools/fast-high-quality-parallel-random-number            
+            // http://www.drdobbs.com/tools/fast-high-quality-parallel-random-number/231000484#        
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal int NextRnd()
             {
