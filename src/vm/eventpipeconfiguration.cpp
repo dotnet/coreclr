@@ -24,7 +24,6 @@ void EventPipeConfiguration::Initialize()
         PRECONDITION(m_pProviderList == nullptr);
         PRECONDITION(m_pConfigProvider == nullptr);
         PRECONDITION(m_pMetadataEvent == nullptr);
-        PRECONDITION(m_activeSessions == 0);
     }
     CONTRACTL_END;
 
@@ -51,7 +50,6 @@ void EventPipeConfiguration::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(m_activeSessions == 0);
     }
     CONTRACTL_END;
 
@@ -161,6 +159,10 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
         m_pProviderList->InsertTail(new SListElem<EventPipeProvider *>(&provider));
     }
 
+    INT64 keywordForAllSessions;
+    EventPipeEventLevel levelForAllSessions;
+    ComputeKeywordAndLevel(provider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
     EventPipe::ForEachSession([&](EventPipeSession &session) {
         // Set the provider configuration and enable it if it has been requested by a session.
         EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, &provider);
@@ -168,7 +170,9 @@ bool EventPipeConfiguration::RegisterProvider(EventPipeProvider &provider, Event
             return;
 
         EventPipeProviderCallbackData eventPipeProviderCallbackData = provider.SetConfiguration(
-            session.GetId(),
+            keywordForAllSessions,
+            levelForAllSessions,
+            session.GetMask(),
             pSessionProvider->GetKeywords(),
             pSessionProvider->GetLevel(),
             pSessionProvider->GetFilterData());
@@ -267,7 +271,7 @@ EventPipeProvider *EventPipeConfiguration::GetProviderNoLock(const SString &prov
     return NULL;
 }
 
-EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const EventPipeSession &session, EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const EventPipeSession &session, const EventPipeProvider *pProvider) const
 {
     CONTRACTL
     {
@@ -281,54 +285,61 @@ EventPipeSessionProvider *EventPipeConfiguration::GetSessionProvider(const Event
     return session.GetSessionProvider(pProvider);
 }
 
-EventPipeSession *EventPipeConfiguration::CreateSession(
-    LPCWSTR strOutputPath,
-    IpcStream *const pStream,
-    EventPipeSessionType sessionType,
-    EventPipeSerializationFormat format,
-    unsigned int circularBufferSizeInMB,
-    const EventPipeProviderConfiguration *pProviders,
-    uint32_t numProviders,
-    bool rundownEnabled)
+void EventPipeConfiguration::ComputeKeywordAndLevel(const EventPipeProvider& provider, INT64& keywordForAllSessions, EventPipeEventLevel& levelForAllSessions) const
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(format < EventPipeSerializationFormat::Count);
-        PRECONDITION(circularBufferSizeInMB > 0);
-        PRECONDITION(numProviders > 0 && pProviders != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    const unsigned int index = GenerateSessionIndex();
-    if (index >= EventPipe::MaxNumberOfSessions)
-    {
-        return nullptr;
-    }
-    return new EventPipeSession(index, strOutputPath, pStream, sessionType, format, circularBufferSizeInMB, pProviders, numProviders);
+    keywordForAllSessions = 0;
+    levelForAllSessions = EventPipeEventLevel::LogAlways;
+    EventPipe::ForEachSession([&](EventPipeSession &session) {
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, &provider);
+        if (pSessionProvider != nullptr)
+        {
+            INT64 sessionKeyword = pSessionProvider->GetKeywords();
+            EventPipeEventLevel sessionLevel = pSessionProvider->GetLevel();
+            keywordForAllSessions = keywordForAllSessions | sessionKeyword;
+            levelForAllSessions = (sessionLevel > levelForAllSessions) ? sessionLevel : levelForAllSessions;
+        }
+    });
 }
 
-void EventPipeConfiguration::DeleteSession(EventPipeSession *pSession)
+INT64 EventPipeConfiguration::ComputeEventEnabledMask(const EventPipeProvider& provider, INT64 keywords, EventPipeEventLevel eventLevel) const
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(pSession != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
-
-    if (pSession != nullptr)
-    {
-        // Reset the mask of active sessions.
-        m_activeSessions &= ~pSession->GetId();
-        delete pSession;
-    }
+    INT64 result = 0;
+    EventPipe::ForEachSession([&](EventPipeSession &session) {
+        EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, &provider);
+        if (pSessionProvider != nullptr)
+        {
+            INT64 sessionKeyword = pSessionProvider->GetKeywords();
+            EventPipeEventLevel sessionLevel = pSessionProvider->GetLevel();
+            // The event is enabled if:
+            //  - The provider is enabled.
+            //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
+            //  - The event level is LogAlways or the provider's verbosity level is set to greater than the event's verbosity level in the manifest.
+            bool providerEnabled = provider.Enabled();
+            bool keywordEnabled = (keywords == 0) || ((sessionKeyword & keywords) != 0);
+            bool levelEnabled = ((eventLevel == EventPipeEventLevel::LogAlways) || (sessionLevel >= eventLevel));
+            if (providerEnabled && keywordEnabled && levelEnabled)
+            {
+                result = result | session.GetMask();
+            }
+        }
+    });
+    return result;
 }
 
 void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
@@ -342,10 +353,6 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
     }
     CONTRACTL_END;
 
-    // Add session Id to the "list" of active sessions.
-    m_activeSessions |= session.GetId();
-    _ASSERTE(IsSessionIdValid(session.GetId()));
-
     // The provider list should be non-NULL, but can be NULL on shutdown.
     if (m_pProviderList != NULL)
     {
@@ -358,9 +365,15 @@ void EventPipeConfiguration::Enable(EventPipeSession &session, EventPipeProvider
             EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
             if (pSessionProvider != NULL)
             {
+                INT64 keywordForAllSessions;
+                EventPipeEventLevel levelForAllSessions;
+                ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
                 EventPipeProviderCallbackData eventPipeProviderCallbackData =
                     pProvider->SetConfiguration(
-                        session.GetId(),
+                        keywordForAllSessions,
+                        levelForAllSessions,
+                        session.GetMask(),
                         pSessionProvider->GetKeywords(),
                         pSessionProvider->GetLevel(),
                         pSessionProvider->GetFilterData());
@@ -379,8 +392,6 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION((session.GetId() & m_activeSessions) != 0); // Session is enabled.
-        // Lock must be held by EventPipe::Disable.
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -392,14 +403,19 @@ void EventPipeConfiguration::Disable(const EventPipeSession &session, EventPipeP
         while (pElem != NULL)
         {
             EventPipeProvider *pProvider = pElem->GetValue();
-
-            if (pProvider->IsEnabled(session.GetId()))
+            if (pProvider->IsEnabled(session.GetMask()))
             {
                 EventPipeSessionProvider *pSessionProvider = GetSessionProvider(session, pProvider);
                 if (pSessionProvider != nullptr)
                 {
+                    INT64 keywordForAllSessions;
+                    EventPipeEventLevel levelForAllSessions;
+                    ComputeKeywordAndLevel(*pProvider, /* out */ keywordForAllSessions, /* out */ levelForAllSessions);
+
                     EventPipeProviderCallbackData eventPipeProviderCallbackData = pProvider->UnsetConfiguration(
-                        session.GetId(),
+                        keywordForAllSessions,
+                        levelForAllSessions,
+                        session.GetMask(),
                         pSessionProvider->GetKeywords(),
                         pSessionProvider->GetLevel(),
                         pSessionProvider->GetFilterData());

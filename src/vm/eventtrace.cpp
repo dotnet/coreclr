@@ -4163,6 +4163,10 @@ void InitializeEventTracing()
     // Any classes that need some initialization to happen after we've registered the
     // providers can do so now
     ETW::TypeSystemLog::PostRegistrationInit();
+
+#if defined(FEATURE_PAL) && defined (FEATURE_PERFTRACING)
+    XplatEventLogger::InitializeLogger();
+#endif // FEATURE_PAL && FEATURE_PERFTRACING
 }
 
 // Plumbing to funnel event pipe callbacks and ETW callbacks together into a single common
@@ -6845,6 +6849,17 @@ VOID ETW::MethodLog::SendEventsForNgenMethods(Module *pModule, DWORD dwEventOpti
             }
         }
 
+        ReadyToRunInfo::GenericMethodIterator gmi(pModule->GetReadyToRunInfo());
+        while (gmi.Next())
+        {
+            // Call GetMethodDesc_NoRestore instead of GetMethodDesc to avoid restoring methods at shutdown.
+            MethodDesc *hotDesc = (MethodDesc *)gmi.GetMethodDesc_NoRestore();
+            if (hotDesc != NULL)
+            {
+                ETW::MethodLog::SendMethodEvent(hotDesc, dwEventOptions, FALSE);
+            }
+        }
+
         return;
     }
 #endif // FEATURE_READYTORUN
@@ -7531,7 +7546,7 @@ bool EventPipeHelper::IsEnabled(DOTNET_TRACE_CONTEXT Context, UCHAR Level, ULONG
 
     if (Level <= Context.EventPipeProvider.Level || Context.EventPipeProvider.Level == 0)
     {
-        return (Keyword & Context.EventPipeProvider.EnabledKeywordsBitmask) != 0;
+        return (Keyword == (ULONGLONG)0) || (Keyword & Context.EventPipeProvider.EnabledKeywordsBitmask) != 0;
     }
 
     return false;
