@@ -259,7 +259,7 @@ public:
 
     void Initialize(LPWSTR configString)
     {
-        Parse(configString);
+        ParseProviderConfig(configString);
     }
 
     bool IsValid() const
@@ -295,17 +295,9 @@ private:
         LPCWSTR End;
     };
 
-    void Parse(LPWSTR configString)
+    void ParseProviderConfig(LPWSTR configString)
     {
-        if (configString == nullptr || *configString == L'\0')
-        {
-            _provider = W("*");
-            _enabledKeywords =  (ULONGLONG)(-1);
-            _level  = TRACE_LEVEL_VERBOSE;
-            return;
-        }
-
-        auto providerComponent =  GetNextComponentString(configString);
+        auto providerComponent = GetNextComponentString(configString);
         _provider = ParseProviderName(providerComponent);
         if (_provider == nullptr)
         {
@@ -471,11 +463,22 @@ public:
 
         LPWSTR xplatEventConfig = NULL;
         CLRConfig::GetConfigValue(CLRConfig::INTERNAL_LTTngConfig, &xplatEventConfig);
-
         auto configuration = XplatEventLoggerConfiguration();
-        configuration.Initialize(xplatEventConfig);
-
-        XplatEventLoggerController::Initialize(configuration);
+        auto configToParse = xplatEventConfig;
+        // TODO: Handle case where configToParse == nullptr or "*" or ""
+        while (configToParse != nullptr)
+        {
+            static WCHAR comma = W(',');
+            auto end = wcschr(configToParse, comma);
+            //ParseProviderConfig(configToParse);
+            configuration.Initialize(configToParse);
+            XplatEventLoggerController::Initialize(configuration);
+            if (end == nullptr)
+            {
+                break;
+            }
+            configToParse = end + 1;
+        }
     }
 };
 
