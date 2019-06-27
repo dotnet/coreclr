@@ -608,7 +608,7 @@ void DomainAssembly::VerifyReadyToRunImageDependencies()
     GUID mvid;
     GetFile()->GetMVID(&mvid);
 
-    GetAppDomain()->CheckForMismatchedNativeImages(&spec, &mvid);
+    GetLoaderAllocator()->CheckForMismatchedNativeImages(&spec, &mvid);
     
     if (GetFile()->IsILImageReadyToRun())
     {
@@ -629,7 +629,7 @@ void DomainAssembly::VerifyReadyToRunImageDependencies()
                     pImage->GetNativeMDImport(),
                     GetDomainAssembly());
 
-                GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependency->Mvid);
+                GetLoaderAllocator()->CheckForMismatchedNativeImages(&name, &pDependency->Mvid);
             }
         }
     }
@@ -1603,7 +1603,7 @@ void DomainAssembly::FindNativeImage()
         GUID mvid;
         GetFile()->GetMVID(&mvid);
 
-        GetAppDomain()->CheckForMismatchedNativeImages(&spec, &mvid);
+        GetLoaderAllocator()->CheckForMismatchedNativeImages(&spec, &mvid);
     }
 
     CheckZapRequired();
@@ -2007,13 +2007,13 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
     CORCOMPILE_VERSION_INFO *pVersionInfo = pNativeImage->GetLoadedLayout()->GetNativeVersionInfo();
 
     // Check our own assembly first
-    GetAppDomain()->CheckForMismatchedNativeImages(&spec, &pVersionInfo->sourceAssembly.mvid);
+    GetLoaderAllocator()->CheckForMismatchedNativeImages(&spec, &pVersionInfo->sourceAssembly.mvid);
 
     // Check MVID in metadata against MVID in CORCOMPILE_VERSION_INFO - important when metadata is loaded from IL instead of NI
     ReleaseHolder<IMDInternalImport> pImport(this->GetFile()->GetMDImportWithRef());
     GUID mvid;
     IfFailThrow(pImport->GetScopeProps(NULL, &mvid));
-    GetAppDomain()->CheckForMismatchedNativeImages(&spec, &mvid);
+    GetLoaderAllocator()->CheckForMismatchedNativeImages(&spec, &mvid);
 
     // Now Check dependencies
     COUNT_T cDependencies;
@@ -2037,7 +2037,7 @@ BOOL DomainAssembly::CheckZapDependencyIdentities(PEImage *pNativeImage)
                 name.SetBindingContext(pParentAssemblyBindingContext);
             }
             
-            GetAppDomain()->CheckForMismatchedNativeImages(&name, &pDependencies->signAssemblyDef.mvid);
+            GetLoaderAllocator()->CheckForMismatchedNativeImages(&name, &pDependencies->signAssemblyDef.mvid);
         }
 
         pDependencies++;
