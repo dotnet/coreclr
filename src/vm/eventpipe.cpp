@@ -108,7 +108,7 @@ void EventPipe::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_state != EventPipeState::ShuttingDown)
+        PRECONDITION(s_state != EventPipeState::ShuttingDown);
     }
     CONTRACTL_END;
 
