@@ -12767,80 +12767,95 @@ DONE_MORPHING_CHILDREN:
         case GT_GE:
         case GT_GT:
 
-            if ((tree->gtFlags & GTF_UNSIGNED) == 0)
+            if (op2->gtOper == GT_CNS_INT)
             {
-                if (op2->gtOper == GT_CNS_INT)
+                bool isOpSigned = (tree->gtFlags & GTF_UNSIGNED) == 0;
+                cns2 = op2;
+                /* Check for "expr relop 1" */
+                if (cns2->IsIntegralConst(1))
                 {
-                    cns2 = op2;
-                    /* Check for "expr relop 1" */
-                    if (cns2->IsIntegralConst(1))
+                    /* Check for "expr >= 1" */
+                    if (oper == GT_GE)
                     {
-                        /* Check for "expr >= 1" */
-                        if (oper == GT_GE)
+                        if (isOpSigned)
                         {
                             /* Change to "expr > 0" */
                             oper = GT_GT;
-                            goto SET_OPER;
                         }
-                        /* Check for "expr < 1" */
-                        else if (oper == GT_LT)
+                        else
+                        {
+                            /* Change to "expr != 0" */
+                            oper = GT_NE;
+                        }
+                        goto SET_OPER;
+                    }
+                    /* Check for "expr < 1" */
+                    else if (oper == GT_LT)
+                    {
+                        if (isOpSigned)
                         {
                             /* Change to "expr <= 0" */
                             oper = GT_LE;
-                            goto SET_OPER;
                         }
-                    }
-                    /* Check for "expr relop -1" */
-                    else if (cns2->IsIntegralConst(-1) && ((oper == GT_LE) || (oper == GT_GT)))
-                    {
-                        /* Check for "expr <= -1" */
-                        if (oper == GT_LE)
+                        else
                         {
-                            /* Change to "expr < 0" */
-                            oper = GT_LT;
-                            goto SET_OPER;
+                            /* Change to "expr == 0" */
+                            oper = GT_EQ;
                         }
-                        /* Check for "expr > -1" */
-                        else if (oper == GT_GT)
-                        {
-                            /* Change to "expr >= 0" */
-                            oper = GT_GE;
-
-                        SET_OPER:
-                            // IF we get here we should be changing 'oper'
-                            assert(tree->OperGet() != oper);
-
-                            // Keep the old ValueNumber for 'tree' as the new expr
-                            // will still compute the same value as before
-                            tree->SetOper(oper, GenTree::PRESERVE_VN);
-                            cns2->gtIntCon.gtIconVal = 0;
-
-                            // vnStore is null before the ValueNumber phase has run
-                            if (vnStore != nullptr)
-                            {
-                                // Update the ValueNumber for 'cns2', as we just changed it to 0
-                                fgValueNumberTreeConst(cns2);
-                            }
-
-                            op2 = tree->gtOp.gtOp2 = gtFoldExpr(op2);
-                        }
+                        goto SET_OPER;
                     }
                 }
-            }
-            else // we have an unsigned comparison
-            {
-                if (op2->IsIntegralConst(0))
+                /* Check for "expr relop -1" */
+                if (isOpSigned && cns2->IsIntegralConst(-1) && ((oper == GT_LE) || (oper == GT_GT)))
                 {
-                    if ((oper == GT_GT) || (oper == GT_LE))
+                    /* Check for "expr <= -1" */
+                    if (oper == GT_LE)
                     {
-                        // IL doesn't have a cne instruction so compilers use cgt.un instead. The JIT
-                        // recognizes certain patterns that involve GT_NE (e.g (x & 4) != 0) and fails
-                        // if GT_GT is used instead. Transform (x GT_GT.unsigned 0) into (x GT_NE 0)
-                        // and (x GT_LE.unsigned 0) into (x GT_EQ 0). The later case is rare, it sometimes
-                        // occurs as a result of branch inversion.
-                        oper = (oper == GT_LE) ? GT_EQ : GT_NE;
+                        /* Change to "expr < 0" */
+                        oper = GT_LT;
+                        goto SET_OPER;
+                    }
+                    /* Check for "expr > -1" */
+                    else if (oper == GT_GT)
+                    {
+                        /* Change to "expr >= 0" */
+                        oper = GT_GE;
+
+                    SET_OPER:
+                        // IF we get here we should be changing 'oper'
+                        assert(tree->OperGet() != oper);
+
+                        // Keep the old ValueNumber for 'tree' as the new expr
+                        // will still compute the same value as before
                         tree->SetOper(oper, GenTree::PRESERVE_VN);
-                        tree->gtFlags &= ~GTF_UNSIGNED;
+                        cns2->gtIntCon.gtIconVal = 0;
+
+                        // vnStore is null before the ValueNumber phase has run
+                        if (vnStore != nullptr)
+                        {
+                            // Update the ValueNumber for 'cns2', as we just changed it to 0
+                            fgValueNumberTreeConst(cns2);
+                        }
+
+                        op2 = tree->gtOp.gtOp2 = gtFoldExpr(op2);
+                    }
+                }
+                if (!isOpSigned && op2->IsIntegralConst())
+                {
+                    ssize_t op2cns = op2->AsIntCon()->IconValue();
+                    if (op2cns == 0)
+                    {
+                        if ((oper == GT_GT) || (oper == GT_LE))
+                        {
+                            // IL doesn't have a cne instruction so compilers use cgt.un instead. The JIT
+                            // recognizes certain patterns that involve GT_NE (e.g (x & 4) != 0) and fails
+                            // if GT_GT is used instead. Transform (x GT_GT.unsigned 0) into (x GT_NE 0)
+                            // and (x GT_LE.unsigned 0) into (x GT_EQ 0). The later case is rare, it sometimes
+                            // occurs as a result of branch inversion.
+                            oper = (oper == GT_LE) ? GT_EQ : GT_NE;
+                            tree->SetOper(oper, GenTree::PRESERVE_VN);
+                            tree->gtFlags &= ~GTF_UNSIGNED;
+                        }
                     }
                 }
             }
