@@ -1049,6 +1049,7 @@ void LoaderAllocator::ActivateManagedTracking()
 // This is carefully tuned to sum up to 16 pages to reduce waste.
 #define COLLECTIBLE_LOW_FREQUENCY_HEAP_SIZE        (0 * GetOsPageSize())
 #define COLLECTIBLE_HIGH_FREQUENCY_HEAP_SIZE       (3 * GetOsPageSize())
+#define COLLECTIBLE_METHOD_TABLE_HEAP_SIZE         (0 * GetOsPageSize())
 #define COLLECTIBLE_STUB_HEAP_SIZE                 GetOsPageSize()
 #define COLLECTIBLE_CODEHEAP_SIZE                  (7 * GetOsPageSize())
 #define COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE (5 * GetOsPageSize())
@@ -1075,6 +1076,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 
     DWORD dwLowFrequencyHeapReserveSize;
     DWORD dwHighFrequencyHeapReserveSize;
+    DWORD dwMethodTableHeapReserveSize;
     DWORD dwStubHeapReserveSize;
     DWORD dwExecutableHeapReserveSize;
     DWORD dwCodeHeapReserveSize;
@@ -1086,6 +1088,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     {
         dwLowFrequencyHeapReserveSize  = COLLECTIBLE_LOW_FREQUENCY_HEAP_SIZE;
         dwHighFrequencyHeapReserveSize = COLLECTIBLE_HIGH_FREQUENCY_HEAP_SIZE;
+        dwMethodTableHeapReserveSize   = COLLECTIBLE_METHOD_TABLE_HEAP_SIZE;
         dwStubHeapReserveSize          = COLLECTIBLE_STUB_HEAP_SIZE;
         dwCodeHeapReserveSize          = COLLECTIBLE_CODEHEAP_SIZE;
         dwVSDHeapReserveSize           = COLLECTIBLE_VIRTUALSTUBDISPATCH_HEAP_SPACE;
@@ -1094,6 +1097,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     {
         dwLowFrequencyHeapReserveSize  = LOW_FREQUENCY_HEAP_RESERVE_SIZE;
         dwHighFrequencyHeapReserveSize = HIGH_FREQUENCY_HEAP_RESERVE_SIZE;
+        dwMethodTableHeapReserveSize   = METHOD_TABLE_HEAP_RESERVE_SIZE;
         dwStubHeapReserveSize          = STUB_HEAP_RESERVE_SIZE;
 
         // Non-collectible assemblies do not reserve space for these heaps.
@@ -1121,6 +1125,9 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
     dwTotalReserveMemSize = (DWORD) ALIGN_UP(dwTotalReserveMemSize, VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 
 #if !defined(_WIN64)
+    // Separate heap for method tables is redundant on 32-bit
+    dwMethodTableHeapReserveSize = 0;
+
     // Make sure that we reserve as little as possible on 32-bit to save address space
     _ASSERTE(dwTotalReserveMemSize <= VIRTUAL_ALLOC_RESERVE_GRANULARITY);
 #endif
@@ -1181,6 +1188,24 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 
     if (IsCollectible())
         m_pLowFrequencyHeap = m_pHighFrequencyHeap;
+
+    if (dwMethodTableHeapReserveSize != 0)
+    {
+        _ASSERTE(!IsCollectible());
+
+        m_pMethodTableHeap = new (&m_MethodTableHeapInstance) LoaderHeap(METHOD_TABLE_HEAP_RESERVE_SIZE,
+                                                                         METHOD_TABLE_HEAP_COMMIT_SIZE,
+                                                                         NULL,
+                                                                         0,
+                                                                         LOADERHEAP_PROFILE_COUNTER,
+                                                                         NULL,
+                                                                         FALSE,
+                                                                         TRUE);
+    }
+    else
+    {
+        m_pMethodTableHeap = m_pHighFrequencyHeap;
+    }
 
 #if defined(_DEBUG) && defined(STUBLINKER_GENERATES_UNWIND_INFO)
     m_pHighFrequencyHeap->m_fPermitStubsWithUnwindInfo = TRUE;

@@ -10,6 +10,10 @@
 #include "eventtracebase.h"
 
 #define LHF_EXECUTABLE  0x1
+#define LHF_TRY_32BIT   0x2
+
+#define TRY_32BIT_MIN_ADDR ((const BYTE*)(1ul << 30))
+#define TRY_32BIT_MAX_ADDR ((const BYTE*)(1ul << 31))
 
 #ifndef DACCESS_COMPILE
 
@@ -903,7 +907,8 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
                                        SIZE_T dwReservedRegionSize, 
                                        size_t *pPrivatePerfCounter_LoaderBytes,
                                        RangeList *pRangeList,
-                                       BOOL fMakeExecutable)
+                                       BOOL fMakeExecutable,
+                                       BOOL fTry32Bit)
 {
     CONTRACTL
     {
@@ -945,6 +950,9 @@ UnlockedLoaderHeap::UnlockedLoaderHeap(DWORD dwReserveBlockSize,
     if (fMakeExecutable)
         m_Options                |= LHF_EXECUTABLE;
 #endif // CROSSGEN_COMPILE
+
+    if (fTry32Bit)
+        m_Options                |= LHF_TRY_32BIT;
 
     m_pFirstFreeBlock            = NULL;
 
@@ -1114,7 +1122,20 @@ BOOL UnlockedLoaderHeap::UnlockedReservePages(size_t dwSizeToCommit)
         // Reserve pages
         //
 
-        pData = ClrVirtualAllocExecutable(dwSizeToReserve, MEM_RESERVE, PAGE_NOACCESS);
+        if (m_Options & LHF_TRY_32BIT)
+        {
+            pData = ClrVirtualAllocWithinRange(TRY_32BIT_MIN_ADDR,
+                                               TRY_32BIT_MAX_ADDR,
+                                               dwSizeToReserve,
+                                               MEM_RESERVE,
+                                               PAGE_NOACCESS);
+        }
+
+        if (pData == NULL)
+        {
+            pData = ClrVirtualAllocExecutable(dwSizeToReserve, MEM_RESERVE, PAGE_NOACCESS);
+        }
+
         if (pData == NULL)
         {
             return FALSE;
@@ -1772,6 +1793,11 @@ void *UnlockedLoaderHeap::UnlockedAllocMemForCode_NoThrow(size_t dwHeaderSize, s
 BOOL UnlockedLoaderHeap::IsExecutable()
 {
     return (m_Options & LHF_EXECUTABLE);
+}
+
+BOOL UnlockedLoaderHeap::Tries32Bit()
+{
+    return (m_Options & LHF_TRY_32BIT);
 }
 
 #ifdef DACCESS_COMPILE

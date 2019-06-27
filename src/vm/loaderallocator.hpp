@@ -154,10 +154,12 @@ protected:
     BYTE *              m_InitialReservedMemForLoaderHeaps;
     BYTE                m_LowFreqHeapInstance[sizeof(LoaderHeap)];
     BYTE                m_HighFreqHeapInstance[sizeof(LoaderHeap)];
+    BYTE                m_MethodTableHeapInstance[sizeof(LoaderHeap)];
     BYTE                m_StubHeapInstance[sizeof(LoaderHeap)];
     BYTE                m_PrecodeHeapInstance[sizeof(CodeFragmentHeap)];
     PTR_LoaderHeap      m_pLowFrequencyHeap;
     PTR_LoaderHeap      m_pHighFrequencyHeap;
+    PTR_LoaderHeap      m_pMethodTableHeap;
     PTR_LoaderHeap      m_pStubHeap; // stubs for PInvoke, remoting, etc
     PTR_CodeFragmentHeap m_pPrecodeHeap;
     PTR_LoaderHeap      m_pExecutableHeap;
@@ -418,6 +420,12 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_pHighFrequencyHeap;
+    }
+
+    PTR_LoaderHeap GetMethodTableHeap()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pMethodTableHeap;
     }
 
     PTR_LoaderHeap GetStubHeap()

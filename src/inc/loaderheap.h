@@ -288,7 +288,8 @@ protected:
                        SIZE_T dwReservedRegionSize,
                        size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                        RangeList *pRangeList = NULL,
-                       BOOL fMakeExecutable = FALSE);
+                       BOOL fMakeExecutable = FALSE,
+                       BOOL fTry32Bit = FALSE);
 
     ~UnlockedLoaderHeap();
 #endif
@@ -399,6 +400,7 @@ public:
     }
 
     BOOL IsExecutable();
+    BOOL Tries32Bit();
 
 public:
 #ifdef _DEBUG
@@ -443,14 +445,16 @@ public:
                DWORD dwCommitBlockSize,
                size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                RangeList *pRangeList = NULL,
-               BOOL fMakeExecutable = FALSE
+               BOOL fMakeExecutable = FALSE,
+               BOOL fTry32Bit = FALSE
                )
       : UnlockedLoaderHeap(dwReserveBlockSize,
                            dwCommitBlockSize,
                            NULL, 0,
                            pPrivatePerfCounter_LoaderBytes,
                            pRangeList,
-                           fMakeExecutable)
+                           fMakeExecutable,
+                           fTry32Bit)
     {
         WRAPPER_NO_CONTRACT;
         m_CriticalSection = NULL;
@@ -465,7 +469,8 @@ public:
                SIZE_T dwReservedRegionSize,
                size_t *pPrivatePerfCounter_LoaderBytes = NULL,
                RangeList *pRangeList = NULL,
-               BOOL fMakeExecutable = FALSE
+               BOOL fMakeExecutable = FALSE,
+               BOOL fTry32Bit = FALSE
                )
       : UnlockedLoaderHeap(dwReserveBlockSize,
                            dwCommitBlockSize,
@@ -473,7 +478,8 @@ public:
                            dwReservedRegionSize,
                            pPrivatePerfCounter_LoaderBytes,
                            pRangeList,
-                           fMakeExecutable)
+                           fMakeExecutable,
+                           fTry32Bit)
     {
         WRAPPER_NO_CONTRACT;
         m_CriticalSection = NULL;

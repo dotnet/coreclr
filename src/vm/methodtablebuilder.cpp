@@ -9954,7 +9954,7 @@ MethodTable * MethodTableBuilder::AllocateNewMT(Module *pLoaderModule,
         cbTotalSize += S_SIZE_T(dwNonVirtualSlots) * S_SIZE_T(sizeof(PCODE));
     }
 
-    BYTE *pData = (BYTE *)pamTracker->Track(pAllocator->GetHighFrequencyHeap()->AllocMem(cbTotalSize));
+    BYTE *pData = (BYTE *)pamTracker->Track(pAllocator->GetMethodTableHeap()->AllocMem(cbTotalSize));
 
     _ASSERTE(IS_ALIGNED(pData, TARGET_POINTER_SIZE));
     

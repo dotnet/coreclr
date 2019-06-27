@@ -709,6 +709,9 @@ private:
 #define HIGH_FREQUENCY_HEAP_RESERVE_SIZE       (10 * GetOsPageSize())
 #define HIGH_FREQUENCY_HEAP_COMMIT_SIZE        (1 * GetOsPageSize())
 
+#define METHOD_TABLE_HEAP_RESERVE_SIZE         (3 * GetOsPageSize())
+#define METHOD_TABLE_HEAP_COMMIT_SIZE          (1 * GetOsPageSize())
+
 #define STUB_HEAP_RESERVE_SIZE                 (3 * GetOsPageSize())
 #define STUB_HEAP_COMMIT_SIZE                  (1 * GetOsPageSize())
 
