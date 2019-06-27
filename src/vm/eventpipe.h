@@ -27,6 +27,14 @@ struct EventData;
 
 typedef uint64_t EventPipeSessionID;
 
+enum class EventPipeState : uint32_t
+{
+    NotInitialized,
+    FailedToInitialize,
+    Initialized,
+    ShuttingDown,
+};
+
 class EventPipe
 {
     // Declare friends.
@@ -195,7 +203,7 @@ private:
     }
 
     static CrstStatic s_configCrst;
-    static Volatile<bool> s_tracingInitialized;
+    static Volatile<EventPipeState> s_state;
     static EventPipeConfiguration s_config;
     static VolatilePtr<EventPipeSession> s_pSessions[MaxNumberOfSessions];
     static EventPipeEventSource *s_pEventSource;
