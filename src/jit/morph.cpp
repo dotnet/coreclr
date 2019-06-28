@@ -12769,44 +12769,27 @@ DONE_MORPHING_CHILDREN:
 
             if (op2->gtOper == GT_CNS_INT)
             {
-                bool isOpSigned = (tree->gtFlags & GTF_UNSIGNED) == 0;
-                cns2            = op2;
+                cns2 = op2;
                 /* Check for "expr relop 1" */
                 if (cns2->IsIntegralConst(1))
                 {
                     /* Check for "expr >= 1" */
                     if (oper == GT_GE)
                     {
-                        if (isOpSigned)
-                        {
-                            /* Change to "expr > 0" */
-                            oper = GT_GT;
-                        }
-                        else
-                        {
-                            /* Change to "expr != 0" */
-                            oper = GT_NE;
-                        }
+                        /* Change to "expr != 0" for unsigned and "expr > 0" for signed */
+                        oper = (tree->IsUnsigned()) ? GT_NE : GT_GT;
                         goto SET_OPER;
                     }
                     /* Check for "expr < 1" */
                     else if (oper == GT_LT)
                     {
-                        if (isOpSigned)
-                        {
-                            /* Change to "expr <= 0" */
-                            oper = GT_LE;
-                        }
-                        else
-                        {
-                            /* Change to "expr == 0" */
-                            oper = GT_EQ;
-                        }
+                        /* Change to "expr == 0" for unsigned and "expr <= 0" for signed */
+                        oper = (tree->IsUnsigned()) ? GT_EQ : GT_LE;
                         goto SET_OPER;
                     }
                 }
                 /* Check for "expr relop -1" */
-                if (isOpSigned && cns2->IsIntegralConst(-1) && ((oper == GT_LE) || (oper == GT_GT)))
+                else if (!tree->IsUnsigned() && cns2->IsIntegralConst(-1))
                 {
                     /* Check for "expr <= -1" */
                     if (oper == GT_LE)
@@ -12840,7 +12823,7 @@ DONE_MORPHING_CHILDREN:
                         op2 = tree->gtOp.gtOp2 = gtFoldExpr(op2);
                     }
                 }
-                if (!isOpSigned && op2->IsIntegralConst(0))
+                else if (tree->IsUnsigned() && op2->IsIntegralConst(0))
                 {
                     if ((oper == GT_GT) || (oper == GT_LE))
                     {
