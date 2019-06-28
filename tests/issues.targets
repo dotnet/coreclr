@@ -482,7 +482,7 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Methodical/Coverage/arglist_pos/*">
             <Issue>25428</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/IT/Regression/CLR-x86-JIT/V1-M11-Beta1/b35784/b35784/*">
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/V1-M11-Beta1/b35784/b35784/*">
             <Issue>25428</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/CLR-x86-JIT/V1-M12-Beta2/b31746/b31746/*">
@@ -524,6 +524,7 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/mcc/interop/mcc_i10/*">
             <Issue>25428</Issue>
         </ExcludeList>
+        
     </ItemGroup>
 
     <!-- Windows arm64 specific excludes -->
