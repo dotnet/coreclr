@@ -18,12 +18,14 @@ EventPipeSession::EventPipeSession(
     IpcStream *const pStream,
     EventPipeSessionType sessionType,
     EventPipeSerializationFormat format,
+    EventPipeRundownSwitch rundownSwitch,
     uint32_t circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
     bool rundownEnabled) : m_index(index),
                            m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
                            m_rundownEnabled(rundownEnabled),
+                           m_rundownRequested(rundownSwitch),
                            m_SessionType(sessionType),
                            m_format(format)
 {

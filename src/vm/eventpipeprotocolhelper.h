@@ -38,6 +38,7 @@ struct EventPipeCollectTracingCommandPayload
     // provider_config = ulong keywords, uint logLevel, string provider_name, string filter_data
     uint32_t circularBufferSizeInMB;
     EventPipeSerializationFormat serializationFormat;
+    EventPipeRundownSwitch rundownSwitch;
     CQuickArray<EventPipeProviderConfiguration> providerConfigs;
     static const EventPipeCollectTracingCommandPayload* TryParse(BYTE* lpBuffer, uint16_t& BufferSize);
 };
@@ -58,7 +59,6 @@ public:
     static bool TryParseProviderConfiguration(uint8_t *&bufferCursor, uint32_t &bufferLen, CQuickArray<EventPipeProviderConfiguration> &result);
 
 private:
-    const static uint32_t DefaultCircularBufferMB = 1024; // 1 GB
     const static uint32_t IpcStreamReadBufferSize = 8192;
 };
 
