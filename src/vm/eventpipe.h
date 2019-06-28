@@ -71,7 +71,7 @@ public:
     static bool Enabled()
     {
         LIMITED_METHOD_CONTRACT;
-        return (s_state == EventPipeState::NotInitialized) && (s_numberOfSessions.LoadWithoutBarrier() > 0);
+        return (s_state >= EventPipeState::Initialized) && (s_numberOfSessions.LoadWithoutBarrier() > 0);
     }
 
     // Create a provider.
