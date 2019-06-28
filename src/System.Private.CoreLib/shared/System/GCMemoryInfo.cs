@@ -17,8 +17,8 @@ namespace System
         public long MemoryLoadBytes { get; }
 
         /// <summary>
-        /// If the environment variable COMPLUS_GCHeapHardLimit is set,
-        /// or "Server.GC.HeapHardLimti" is in runtimeconfig.json, this will come from that.
+        /// If the environment variable COMPlus_GCHeapHardLimit is set,
+        /// or "Server.GC.HeapHardLimit" is in runtimeconfig.json, this will come from that.
         /// If the program is run in a container, this will be an implementation-defined fraction of the container's size.
         /// Else, this is the physical memory on the machine that was available for the GC to use when the last GC occurred.
         /// </summary>
