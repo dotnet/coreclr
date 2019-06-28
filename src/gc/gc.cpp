@@ -2168,6 +2168,12 @@ uint8_t* gc_heap::pad_for_alignment_large (uint8_t* newAlloc, int requiredAlignm
 // This is always power of 2.
 const size_t min_segment_size_hard_limit = 1024*1024*16;
 
+inline
+size_t align_on_segment_hard_limit (size_t add)
+{
+    return ((size_t)(add + (min_segment_size_hard_limit - 1)) & ~(min_segment_size_hard_limit - 1));
+}
+
 #ifdef SERVER_GC
 
 #ifdef BIT64
@@ -2919,9 +2925,7 @@ heap_segment* gc_heap::saved_loh_segment_no_gc = 0;
 
 BOOL        gc_heap::gen0_bricks_cleared = FALSE;
 
-#ifdef FFIND_OBJECT
 int         gc_heap::gen0_must_clear_bricks = 0;
-#endif //FFIND_OBJECT
 
 #ifdef FEATURE_PREMORTEM_FINALIZATION
 CFinalize*  gc_heap::finalize_queue = 0;
@@ -9854,7 +9858,7 @@ FILE* CreateLogFile(const GCConfigStringHolder& temp_logfile_name, bool is_confi
 size_t gc_heap::get_segment_size_hard_limit (uint32_t* num_heaps, bool should_adjust_num_heaps)
 {
     assert (heap_hard_limit);
-    size_t aligned_hard_limit = ((heap_hard_limit + min_segment_size_hard_limit - 1) & ~(min_segment_size_hard_limit - 1));
+    size_t aligned_hard_limit =  align_on_segment_hard_limit (heap_hard_limit);
     if (should_adjust_num_heaps)
     {
         uint32_t max_num_heaps = (uint32_t)(aligned_hard_limit / min_segment_size_hard_limit);
@@ -9865,14 +9869,14 @@ size_t gc_heap::get_segment_size_hard_limit (uint32_t* num_heaps, bool should_ad
     }
 
     size_t seg_size = aligned_hard_limit / *num_heaps;
-    size_t aligned_seg_size = round_up_power2 (seg_size);
+    size_t aligned_seg_size = (use_large_pages_p ? align_on_segment_hard_limit (seg_size) : round_up_power2 (seg_size));
 
     assert (g_theGCHeap->IsValidSegmentSize (aligned_seg_size));
 
     size_t seg_size_from_config = (size_t)GCConfig::GetSegmentSize();
     if (seg_size_from_config)
     {
-        size_t aligned_seg_size_config = round_up_power2 (seg_size_from_config);
+        size_t aligned_seg_size_config = (use_large_pages_p ? align_on_segment_hard_limit (seg_size) : round_up_power2 (seg_size_from_config));
 
         aligned_seg_size = max (aligned_seg_size, aligned_seg_size_config);
     }
@@ -11615,9 +11619,9 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
     }
 
     //this portion can be done after we release the lock
-    if (seg == ephemeral_heap_segment)
+    if (seg == ephemeral_heap_segment ||
+       ((seg == nullptr) && (gen_number == 0) && (limit_size >= CLR_SIZE / 2)))
     {
-#ifdef FFIND_OBJECT
         if (gen0_must_clear_bricks > 0)
         {
             //set the brick table to speed up find_object
@@ -11633,7 +11637,6 @@ void gc_heap::adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
                 *x = -1;
         }
         else
-#endif //FFIND_OBJECT
         {
             gen0_bricks_cleared = FALSE;
         }
@@ -16155,6 +16158,7 @@ void gc_heap::gc1()
 #ifdef FEATURE_LOH_COMPACTION
             BOOL all_heaps_compacted_p = TRUE;
 #endif //FEATURE_LOH_COMPACTION
+            int max_gen0_must_clear_bricks = 0;
             for (int i = 0; i < gc_heap::n_heaps; i++)
             {
                 gc_heap* hp = gc_heap::g_heaps[i];
@@ -16163,11 +16167,25 @@ void gc_heap::gc1()
 #ifdef FEATURE_LOH_COMPACTION
                 all_heaps_compacted_p &= hp->loh_compacted_p;
 #endif //FEATURE_LOH_COMPACTION
+                // compute max of gen0_must_clear_bricks over all heaps
+                max_gen0_must_clear_bricks = max(max_gen0_must_clear_bricks, hp->gen0_must_clear_bricks);
             }
 
 #ifdef FEATURE_LOH_COMPACTION
             check_loh_compact_mode (all_heaps_compacted_p);
 #endif //FEATURE_LOH_COMPACTION
+
+            // if max_gen0_must_clear_bricks > 0, distribute to all heaps -
+            // if one heap encountered an interior pointer during this GC,
+            // the next GC might see one on another heap
+            if (max_gen0_must_clear_bricks > 0)
+            {
+                for (int i = 0; i < gc_heap::n_heaps; i++)
+                {
+                    gc_heap* hp = gc_heap::g_heaps[i];
+                    hp->gen0_must_clear_bricks = max_gen0_must_clear_bricks;
+                }
+            }
 
             fire_pevents();
             pm_full_gc_init_or_clear();
@@ -17525,14 +17543,8 @@ uint8_t* gc_heap::find_object (uint8_t* interior, uint8_t* low)
             set_brick (b, -1);
         }
     }
-#ifdef FFIND_OBJECT
     //indicate that in the future this needs to be done during allocation
-#ifdef MULTIPLE_HEAPS
-    gen0_must_clear_bricks = FFIND_DECAY*gc_heap::n_heaps;
-#else
     gen0_must_clear_bricks = FFIND_DECAY;
-#endif //MULTIPLE_HEAPS
-#endif //FFIND_OBJECT
 
     int brick_entry = get_brick_entry(brick_of (interior));
     if (brick_entry == 0)
@@ -19985,10 +19997,8 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
 #endif //RESPECT_LARGE_ALIGNMENT || FEATURE_STRUCTALIGN
     }
 
-#ifdef FFIND_OBJECT
     if (gen0_must_clear_bricks > 0)
         gen0_must_clear_bricks--;
-#endif //FFIND_OBJECT
 
     size_t last_promoted_bytes = 0;
 
@@ -26122,10 +26132,8 @@ void gc_heap::background_mark_phase ()
     start = GetCycleCount32();
 #endif //TIME_GC
 
-#ifdef FFIND_OBJECT
     if (gen0_must_clear_bricks > 0)
         gen0_must_clear_bricks--;
-#endif //FFIND_OBJECT
 
     background_soh_alloc_count = 0;
     background_loh_alloc_count = 0;
@@ -34226,10 +34234,13 @@ HRESULT GCHeap::Initialize()
 
     if (gc_heap::heap_hard_limit)
     {
+        gc_heap::use_large_pages_p = GCConfig::GetGCLargePages();
         seg_size = gc_heap::get_segment_size_hard_limit (&nhp, (nhp_from_config == 0));
         gc_heap::soh_segment_size = seg_size;
-        gc_heap::use_large_pages_p = GCConfig::GetGCLargePages();
         large_seg_size = gc_heap::use_large_pages_p ? seg_size : seg_size * 2;
+        
+        if (gc_heap::use_large_pages_p)
+            gc_heap::min_segment_size = min_segment_size_hard_limit;
     }
     else
     {
@@ -34244,8 +34255,11 @@ HRESULT GCHeap::Initialize()
         (large_seg_size / 1024 / 1024)));
 
     gc_heap::min_loh_segment_size = large_seg_size;
-    gc_heap::min_segment_size = min (seg_size, large_seg_size);
 #ifdef SEG_MAPPING_TABLE
+    if (gc_heap::min_segment_size == 0)
+    {
+        gc_heap::min_segment_size = min (seg_size, large_seg_size);
+    }
     gc_heap::min_segment_size_shr = index_of_highest_set_bit (gc_heap::min_segment_size);
 #endif //SEG_MAPPING_TABLE
 

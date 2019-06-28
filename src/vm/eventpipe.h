@@ -60,7 +60,11 @@ public:
     static EventPipeSession *GetSession(EventPipeSessionID id);
 
     // Specifies whether or not the event pipe is enabled.
-    static bool Enabled();
+    static bool Enabled()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return s_tracingInitialized && (s_numberOfSessions.LoadWithoutBarrier() > 0);
+    }
 
     // Create a provider.
     static EventPipeProvider *CreateProvider(
@@ -114,6 +118,21 @@ public:
             InvokeCallback(eventPipeProviderCallbackData);
     }
 
+    // Returns the a number 0...N representing the processor number this thread is currently
+    // running on. If for any reason we can't tell then return 0xFFFFFFFF.
+    static unsigned int GetCurrentProcessorNumber()
+    {
+#ifndef FEATURE_PAL
+        if (s_pProcGroupOffsets)
+        {
+            PROCESSOR_NUMBER procNum;
+            GetCurrentProcessorNumberEx(&procNum);
+            return s_pProcGroupOffsets[procNum.Group] + procNum.Number;
+        }
+#endif
+        return 0xFFFFFFFF;
+    }
+
 private:
     static void InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData);
 
@@ -139,12 +158,18 @@ private:
     static void DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue);
 
     // Enable the specified EventPipe session.
-    static EventPipeSessionID EnableInternal(
+    static bool EnableInternal(
         EventPipeSession *const pSession,
         EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue);
 
     // Callback function for the stack walker.  For each frame walked, this callback is invoked.
     static StackWalkAction StackWalkCallback(CrawlFrame *pCf, StackContents *pData);
+
+    //! Helper function used to locate a free index in the range 0 - EventPipe::MaxNumberOfSessions
+    //! Returns EventPipe::MaxNumberOfSessions if there are no free indexes
+    static uint32_t GenerateSessionIndex();
+
+    static bool IsSessionIdInCollection(EventPipeSessionID id);
 
     template <typename EventPipeSessionHandlerCallback>
     static void ForEachSession(EventPipeSessionHandlerCallback callback)
@@ -174,6 +199,14 @@ private:
     static EventPipeConfiguration s_config;
     static VolatilePtr<EventPipeSession> s_pSessions[MaxNumberOfSessions];
     static EventPipeEventSource *s_pEventSource;
+
+    //! Bitmask tracking EventPipe active sessions.
+    // in all groups preceding it. For example if there are three groups with sizes:
+    // 1, 7, 6 the table would be 0, 1, 8
+#ifndef FEATURE_PAL
+    static unsigned int * s_pProcGroupOffsets;
+#endif
+    static Volatile<uint32_t> s_numberOfSessions;
 };
 
 static_assert(EventPipe::MaxNumberOfSessions == 64, "Maximum number of EventPipe sessions is not 64.");
