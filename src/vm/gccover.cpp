@@ -76,8 +76,18 @@ bool IsGcCoverageInterruptInstruction(PBYTE instrPtr)
 {
     UINT32 instrVal;
 
-#ifdef _TARGET_ARMARCH_
+#if defined(_TARGET_ARM64_)
     instrVal = *reinterpret_cast<UINT32*>(instrPtr);
+#elif defined(_TARGET_ARM_)
+    size_t instrLen = GetARMInstructionLength(instrPtr);
+    if (instrLen == 2)
+    {
+        instrVal = *reinterpret_cast<UINT16*>(instrPtr);
+    }
+    else
+    {
+        instrVal = *reinterpret_cast<UINT32*>(instrPtr);
+    }
 #else // x64 and x86
     instrVal = *instrPtr;
 #endif

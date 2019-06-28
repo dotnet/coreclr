@@ -107,6 +107,9 @@ public:
 
 #endif // _TARGET_*
 
+// The body of this method is in this header file to allow
+// mscordaccore.dll to link without getting an unsat symbol
+//
 inline bool IsGcCoverageInterruptInstructionVal(UINT32 instrVal)
 {
 #if defined(_TARGET_ARM64_)

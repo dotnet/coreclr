@@ -2917,6 +2917,7 @@ void    TRASH_CALLEE_UNSAVED_REGS(PREGDISPLAY pContext)
 #define SZ_LEA(offset)          SZ_ADD_REG(offset)
 #define SZ_MOV_REG_REG          2
 
+#ifdef _DEBUG
 bool IsMarkerInstr(BYTE val)
 {
     SUPPORTS_DAC;
@@ -2935,7 +2936,6 @@ bool IsMarkerInstr(BYTE val)
                 return true;
             }
         }
-        return false;
     }
 #endif // HAVE_GCCOVER
 
@@ -2976,6 +2976,7 @@ bool CheckInstrWord(WORD val, WORD expectedValue)
 
     return ((val == expectedValue) || IsMarkerInstr(val & 0xFF));
 }
+#endif // _DEBUG
 
 // Use this to check if the instruction at offset "walkOffset" has already
 // been executed
