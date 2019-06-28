@@ -126,11 +126,11 @@ inline bool IsGcCoverageInterruptInstructionVal(UINT32 instrVal)
 
 #elif defined(_TARGET_ARM_)
 
-    size_t instrLen = GetARMInstructionLength(instrVal);
+    UINT16 instrVal16 = static_cast<UINT16>(instrVal);
+    size_t instrLen = GetARMInstructionLength(instrVal16);
 
     if (instrLen == 2)
     {
-        UINT16 instrVal16 = static_cast<UINT16>(instrVal);
         switch (instrVal16)
         {
         case INTERRUPT_INSTR:
