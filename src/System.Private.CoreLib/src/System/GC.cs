@@ -56,7 +56,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
-                                                  out ulong hardLimit,
                                                   out uint lastRecordedMemLoad,
                                                   // The next two are size_t
                                                   out UIntPtr lastRecordedHeapSize,
@@ -66,7 +65,6 @@ namespace System
         {
             GetMemoryInfo(out uint highMemLoadThreshold,
                           out ulong totalPhysicalMem,
-                          out ulong hardLimit,
                           out uint lastRecordedMemLoad,
                           out UIntPtr lastRecordedHeapSize,
                           out UIntPtr lastRecordedFragmentation);
@@ -74,7 +72,6 @@ namespace System
             return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
                                     (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
                                     (long)totalPhysicalMem,
-                                    (long)hardLimit,
                                     (long)(ulong)lastRecordedHeapSize,
                                     (long)(ulong)lastRecordedFragmentation);
         }
@@ -545,7 +542,6 @@ namespace System
         private static float GetMemoryLoad()
         {
             GetMemoryInfo(out uint _,
-                          out ulong _,
                           out ulong _,
                           out uint lastRecordedMemLoad,
                           out UIntPtr _,

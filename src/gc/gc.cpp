@@ -36152,14 +36152,12 @@ unsigned int GCHeap::GetCondemnedGeneration()
 
 void GCHeap::GetMemoryInfo(uint32_t* highMemLoadThreshold, 
                            uint64_t* totalPhysicalMem, 
-                           uint64_t* hardLimit,
                            uint32_t* lastRecordedMemLoad,
                            size_t* lastRecordedHeapSize,
                            size_t* lastRecordedFragmentation)
 {
     *highMemLoadThreshold = gc_heap::high_memory_load_th;
-    *totalPhysicalMem = gc_heap::total_physical_mem;
-    *hardLimit = gc_heap::heap_hard_limit != 0 ? gc_heap::heap_hard_limit : gc_heap::total_physical_mem;
+    *totalPhysicalMem = gc_heap::heap_hard_limit != 0 ? gc_heap::heap_hard_limit : gc_heap::total_physical_mem;
     *lastRecordedMemLoad = gc_heap::last_gc_memory_load;
     *lastRecordedHeapSize = gc_heap::last_gc_heap_size;
     *lastRecordedFragmentation = gc_heap::last_gc_fragmentation;
