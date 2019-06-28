@@ -80,6 +80,7 @@ using namespace CorUnix;
 #endif
 
 #define LIBC_NAME_WITHOUT_EXTENSION "libc"
+#define LIBDL_NAME_WITHOUT_EXTENSION "libdl"
 
 /* static variables ***********************************************************/
 
@@ -556,7 +557,7 @@ done:
     return retval;
 }
 
-LPCSTR FixLibCName(LPCSTR shortAsciiName)
+LPCSTR FixLibName(LPCSTR shortAsciiName)
 {
     // Check whether we have been requested to load 'libc'. If that's the case, then:
     // * For Linux, use the full name of the library that is defined in <gnu/lib-names.h> by the
@@ -579,6 +580,16 @@ LPCSTR FixLibCName(LPCSTR shortAsciiName)
         return "libc.so";
 #endif
     }
+#if defined(LIBDL_SO)
+    // Check whether we have been requested to load 'libdl'. If that's the case, then:
+    // * For Linux, use the full name of the library that is defined in <gnu/lib-names.h> by the
+    //   LIBDL_SO constant. The problem is that "libdl.so" is provided by development packages,
+    //   so it isn't available on production machines.
+    else if (strcmp(shortAsciiName, LIBDL_NAME_WITHOUT_EXTENSION) == 0)
+    {
+        return LIBDL_SO;
+    }
+#endif
 
     return shortAsciiName;
 }
@@ -625,7 +636,7 @@ PAL_LoadLibraryDirect(
     /* do the Dos/Unix conversion on our own copy of the name */
     FILEDosToUnixPathA(lpstr);
     pathstr.CloseBuffer(name_length);
-    lpcstr = FixLibCName(lpstr);
+    lpcstr = FixLibName(lpstr);
 
     dl_handle = LOADLoadLibraryDirect(lpcstr);
 
@@ -1661,7 +1672,7 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
     HMODULE module = nullptr;
     NATIVE_LIBRARY_HANDLE dl_handle = nullptr;
 
-    shortAsciiName = FixLibCName(shortAsciiName);
+    shortAsciiName = FixLibName(shortAsciiName);
 
     LockModuleList();
 
