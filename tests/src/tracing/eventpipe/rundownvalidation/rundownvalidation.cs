@@ -49,7 +49,7 @@ namespace Tracing.Tests.RundownValidation
                 new Provider("Microsoft-DotNETCore-SampleProfiler")
             };
 
-            var config = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
+            var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
             return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration, _DoesRundownContainMethodEvents);
         }
     }
