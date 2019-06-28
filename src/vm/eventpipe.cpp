@@ -519,7 +519,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     CONTRACTL_END;
 
     // We can't proceed if tracing is not initialized.
-    if (s_state == EventPipeState::NotInitialized || s_state == EventPipeState::FailedToInitialize)
+    if (s_state <= EventPipeState::FailedToInitialize)
         return;
 
     // Exit early if the event is not enabled.
