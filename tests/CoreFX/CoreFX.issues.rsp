@@ -4,6 +4,9 @@
 # System.ComponentModel.Composition.Registration.Tests: test failures
 -noclass System.ComponentModel.Composition.Registration.Tests.RegistrationBuilderAttributedOverrideUnitTests
 
+# Timeout on Linux/arm32
+-nonamespace System.Data.SqlClient.Tests
+
 # Missing OOB dependencies (System.Utf8String.Experimental) - Disable UTF8 string tests
 -noclass System.Net.Http.Tests.Utf8StringContentTests
 -noclass System.Tests.Char8Tests
