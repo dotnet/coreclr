@@ -34,7 +34,7 @@ There are two options here:
 1. Build CoreFX against your just-built CoreCLR.
 2. Build CoreFX normally, against the "last known good" version of CoreCLR, and then overwrite the "last known good" CoreCLR.
 
-Option #1 might fail to build if you have made breaking changes in CoreCLR.
+Option #1 might fail to build if CoreCLR has breaking changes that have not propagated to CoreFX yet.
 Option #2 should always succeed the build, since the CoreFX CI has verified this build already.
 Option #2 is generally recommended.
 
@@ -45,7 +45,7 @@ To build CoreFX tests against a current, "live", version of CoreCLR, including w
 
 For example:
 ```
-f:\git\corefx> build.cmd -restore -build -buildtests -test /p:CoreCLROverridePath=f:\git\coreclr\bin\Product\Windows_NT.x64.Checked
+f:\git\corefx> build.cmd -build -buildtests -test /p:CoreCLROverridePath=f:\git\coreclr\bin\Product\Windows_NT.x64.Checked
 ```
 
 ## Replace CoreCLR after building CoreFX normally
