@@ -96,8 +96,8 @@ void EventPipe::Initialize()
 
     {
         CrstHolder _crst(GetLock());
-        s_state = tracingInitialized ?
-            EventPipeState::Initialized : EventPipeState::FailedToInitialize;
+        if (tracingInitialized)
+            s_state = EventPipeState::Initialized;
     }
 }
 
@@ -519,7 +519,7 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
     CONTRACTL_END;
 
     // We can't proceed if tracing is not initialized.
-    if (s_state <= EventPipeState::FailedToInitialize)
+    if (s_state == EventPipeState::NotInitialized)
         return;
 
     // Exit early if the event is not enabled.
@@ -560,7 +560,7 @@ void EventPipe::WriteEventInternal(
     CONTRACTL_END;
 
     // We can't proceed if tracing is not initialized.
-    if (s_state <= EventPipeState::FailedToInitialize)
+    if (s_state == EventPipeState::NotInitialized)
         return;
 
     EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();

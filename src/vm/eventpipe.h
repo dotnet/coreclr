@@ -30,7 +30,6 @@ typedef uint64_t EventPipeSessionID;
 enum class EventPipeState : uint32_t
 {
     NotInitialized,
-    FailedToInitialize,
     Initialized,
     ShuttingDown,
 };
