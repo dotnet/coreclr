@@ -1,6 +1,17 @@
 -notrait category=OuterLoop
 -notrait category=RequiresElevation
 
+# System.ComponentModel.Composition.Registration.Tests: test failures
+-noclass System.ComponentModel.Composition.Registration.Tests.RegistrationBuilderAttributedOverrideUnitTests
+
+# Missing OOB dependencies (System.Utf8String.Experimental) - Disable UTF8 string tests
+-noclass System.Net.Http.Tests.Utf8StringContentTests
+-noclass System.Tests.Char8Tests
+-noclass System.Tests.MemoryTests
+-noclass System.Tests.ReflectionTests
+-noclass System.Tests.Utf8ExtensionsTests
+-noclass System.Tests.Utf8StringTests
+
 # https://github.com/dotnet/corefx/issues/37886
 -nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
 
