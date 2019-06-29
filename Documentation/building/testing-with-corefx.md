@@ -45,8 +45,10 @@ To build CoreFX tests against a current, "live", version of CoreCLR, including w
 
 For example:
 ```
-f:\git\corefx> build.cmd -build -buildtests -test /p:CoreCLROverridePath=f:\git\coreclr\bin\Product\Windows_NT.x64.Checked
+f:\git\corefx> build.cmd -configuration Release -arch x64 -restore -build -buildtests -test /p:CoreCLROverridePath=f:\git\coreclr\bin\Product\Windows_NT.x64.Checked
 ```
+
+Note that this will replace the coreclr used in the build, and because `-test` is passed, will also run the tests.
 
 ## Replace CoreCLR after building CoreFX normally
 
@@ -106,8 +108,8 @@ If using `run-corefx-tests.py`, pass the argument `-no_run_tests`.
 
 After the tests are copied to the remote machine, you want to run them. Use one of the scripts
 [tests\scripts\run-corefx-tests.bat](https://github.com/dotnet/coreclr/blob/master/tests/scripts/run-corefx-tests.bat) or 
-[tests\scripts\run-corefx-tests.sh](https://github.com/dotnet/coreclr/blob/master/tests/scripts/run-corefx-tests.sh) to run all the tests (consult the scripts for proper usage). Or, run a single
-test as described below.
+[tests\scripts\run-corefx-tests.sh](https://github.com/dotnet/coreclr/blob/master/tests/scripts/run-corefx-tests.sh)
+to run all the tests (consult the scripts for proper usage). Or, run a single test as described below.
 
 ## Other corefx build considerations
 
