@@ -29,7 +29,7 @@ static bool genIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
 {
     // TODO - make more categories to the table-driven framework
     const bool tableDrivenCategory = (category != HW_Category_Scalar) && (category != HW_Category_Helper);
-    const bool tableDrivenFlag = true;
+    const bool tableDrivenFlag     = true;
     return tableDrivenCategory && tableDrivenFlag;
 }
 

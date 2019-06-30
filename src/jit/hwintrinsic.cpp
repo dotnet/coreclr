@@ -20,7 +20,7 @@ static const HWIntrinsicInfo hwIntrinsicInfoArray[] = {
 #else
 #error Unsupported platform
 #endif
-// clang-format on
+    // clang-format on
 };
 
 //------------------------------------------------------------------------
@@ -318,7 +318,6 @@ int HWIntrinsicInfo::lookupNumArgs(const GenTreeHWIntrinsic* node)
     return (op2 == nullptr) ? 1 : 2;
 }
 
-
 //------------------------------------------------------------------------
 // lookupLastOp: Gets the last operand for a given HWIntrinsic node
 //
@@ -442,11 +441,11 @@ GenTree* Compiler::addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* last
 #ifdef _TARGET_XARCH_
         && !HWIntrinsicInfo::isAVX2GatherIntrinsic(intrinsic)
 #endif
-        )
+            )
     {
         assert(!lastOp->IsCnsIntOrI());
         GenTree* upperBoundNode = gtNewIconNode(HWIntrinsicInfo::lookupImmUpperBound(intrinsic), TYP_INT);
-        GenTree* index = nullptr;
+        GenTree* index          = nullptr;
         if ((lastOp->gtFlags & GTF_SIDE_EFFECT) != 0)
         {
             index = fgInsertCommaFormTemp(&lastOp);
@@ -485,7 +484,6 @@ bool Compiler::compSupportsHWIntrinsic(InstructionSet isa)
 #endif
                HWIntrinsicInfo::isFullyImplementedIsa(isa));
 }
-
 
 //------------------------------------------------------------------------
 // impIsTableDrivenHWIntrinsic:
@@ -613,7 +611,8 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         var_types               argType = TYP_UNKNOWN;
 
         assert(numArgs >= 0);
-        if ((HWIntrinsicInfo::lookupIns(intrinsic, baseType) == INS_invalid) || ((simdSize != 8) && (simdSize != 16) && (simdSize != 32)))
+        if ((HWIntrinsicInfo::lookupIns(intrinsic, baseType) == INS_invalid) ||
+            ((simdSize != 8) && (simdSize != 16) && (simdSize != 32)))
         {
             assert(!"Unexpected HW Intrinsic");
             return nullptr;

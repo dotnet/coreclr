@@ -2352,103 +2352,103 @@ void Compiler::compSetProcessor()
         opts.setSupportedISA(InstructionSet_Vector128);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS) && JitConfig.EnableArm64Atomics())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ATOMICS) && JitConfig.EnableArm64Atomics())
     {
         opts.setSupportedISA(InstructionSet_Atomics);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_CRC32) && JitConfig.EnableArm64Crc32())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_CRC32) && JitConfig.EnableArm64Crc32())
     {
         opts.setSupportedISA(InstructionSet_Crc32);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP) && JitConfig.EnableArm64Dcpop())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DCPOP) && JitConfig.EnableArm64Dcpop())
     {
         opts.setSupportedISA(InstructionSet_Dcpop);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DP) && JitConfig.EnableArm64Dp())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_DP) && JitConfig.EnableArm64Dp())
     {
         opts.setSupportedISA(InstructionSet_Dp);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FCMA) && JitConfig.EnableArm64Fcma())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FCMA) && JitConfig.EnableArm64Fcma())
     {
         opts.setSupportedISA(InstructionSet_Fcma);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP) && JitConfig.EnableArm64Fp())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP) && JitConfig.EnableArm64Fp())
     {
         opts.setSupportedISA(InstructionSet_Fp);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP16) && JitConfig.EnableArm64Fp16())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_FP16) && JitConfig.EnableArm64Fp16())
     {
         opts.setSupportedISA(InstructionSet_Fp16);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT) && JitConfig.EnableArm64Jscvt())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_JSCVT) && JitConfig.EnableArm64Jscvt())
     {
         opts.setSupportedISA(InstructionSet_Jscvt);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC) && JitConfig.EnableArm64Lrcpc())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_LRCPC) && JitConfig.EnableArm64Lrcpc())
     {
         opts.setSupportedISA(InstructionSet_Lrcpc);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_PMULL) && JitConfig.EnableArm64Pmull())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_PMULL) && JitConfig.EnableArm64Pmull())
     {
         opts.setSupportedISA(InstructionSet_Pmull);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA1) && JitConfig.EnableArm64Sha1())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA1) && JitConfig.EnableArm64Sha1())
     {
         opts.setSupportedISA(InstructionSet_Sha1);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA256) && JitConfig.EnableArm64Sha256())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA256) && JitConfig.EnableArm64Sha256())
     {
         opts.setSupportedISA(InstructionSet_Sha256);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA512) && JitConfig.EnableArm64Sha512())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA512) && JitConfig.EnableArm64Sha512())
     {
         opts.setSupportedISA(InstructionSet_Sha512);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA3) && JitConfig.EnableArm64Sha3())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SHA3) && JitConfig.EnableArm64Sha3())
     {
         opts.setSupportedISA(InstructionSet_Sha3);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD) && JitConfig.EnableArm64AdvSimd())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD) && JitConfig.EnableArm64AdvSimd())
     {
         opts.setSupportedISA(InstructionSet_AdvSimd);
         opts.setSupportedISA(InstructionSet_AdvSimd_Arm64);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81) && JitConfig.EnableArm64AdvSimd_v81())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_V81) && JitConfig.EnableArm64AdvSimd_v81())
     {
         opts.setSupportedISA(InstructionSet_AdvSimd_v81);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16) && JitConfig.EnableArm64AdvSimd_Fp16())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_ADVSIMD_FP16) && JitConfig.EnableArm64AdvSimd_Fp16())
     {
         opts.setSupportedISA(InstructionSet_AdvSimd_Fp16);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM3) && JitConfig.EnableArm64Sm3())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM3) && JitConfig.EnableArm64Sm3())
     {
         opts.setSupportedISA(InstructionSet_Sm3);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM4) && JitConfig.EnableArm64Sm4())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SM4) && JitConfig.EnableArm64Sm4())
     {
         opts.setSupportedISA(InstructionSet_Sm4);
     }
 
-    if(jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SVE) && JitConfig.EnableArm64Sve())
+    if (jitFlags.IsSet(JitFlags::JIT_FLAG_HAS_ARM64_SVE) && JitConfig.EnableArm64Sve())
     {
         opts.setSupportedISA(InstructionSet_Sve);
     }
