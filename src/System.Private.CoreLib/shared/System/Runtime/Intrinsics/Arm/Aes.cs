@@ -3,43 +3,46 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics;
 
-namespace System.Runtime.Intrinsics.Arm.Arm64
+namespace System.Runtime.Intrinsics.Arm
 {
     /// <summary>
-    /// This class provides access to the Arm64 AES Crypto intrinsics
-    ///
-    /// Arm64 CPU indicate support for this feature by setting
-    /// ID_AA64ISAR0_EL1.AES is 1 or better
+    /// This class provides access to the ARM AES hardware instructions via intrinsics
     /// </summary>
     [Intrinsic]
     [CLSCompliant(false)]
-    public static class Aes
+    public abstract class Aes
     {
+        internal Aes() { }
+
         public static bool IsSupported { get => IsSupported; }
+
         /// <summary>
-        /// Performs AES single round decryption
-        /// vaesdq_u8 (uint8x16_t data, uint8x16_t key)
+        /// uint8x16_t vaesdq_u8 (uint8x16_t data, uint8x16_t key)
+        ///   A32: AESD.8 Qd, Qm
+        ///   A64: AESD Vd.16B, Vn.16B
         /// </summary>
         public static Vector128<byte> Decrypt(Vector128<byte> value, Vector128<byte> roundKey) => Decrypt(value, roundKey);
 
         /// <summary>
-        /// Performs AES single round encryption
-        /// vaeseq_u8 (uint8x16_t data, uint8x16_t key)
+        /// uint8x16_t vaeseq_u8 (uint8x16_t data, uint8x16_t key)
+        ///   A32: AESE.8 Qd, Qm
+        ///   A64: AESE Vd.16B, Vn.16B
         /// </summary>
         public static Vector128<byte> Encrypt(Vector128<byte> value, Vector128<byte> roundKey) => Encrypt(value, roundKey);
 
         /// <summary>
-        /// Performs AES  Mix Columns
-        /// vaesmcq_u8 (uint8x16_t data)
-        /// </summary>
-        public static Vector128<byte> MixColumns(Vector128<byte> value) => MixColumns(value);
-
-        /// <summary>
-        /// Performs AES inverse mix columns
-        /// vaesimcq_u8  (uint8x16_t data)
+        /// uint8x16_t vaesimcq_u8 (uint8x16_t data)
+        ///   A32: AESIMC.8 Qd, Qm
+        ///   A64: AESIMC Vd.16B, Vn.16B
         /// </summary>
         public static Vector128<byte> InverseMixColumns(Vector128<byte> value) => InverseMixColumns(value);
+
+        /// <summary>
+        /// uint8x16_t vaesmcq_u8 (uint8x16_t data)
+        ///   A32: AESMC.8 Qd, Qm
+        ///   A64: AESMC V>.16B, Vn.16B
+        /// </summary>
+        public static Vector128<byte> MixColumns(Vector128<byte> value) => MixColumns(value);
     }
 }

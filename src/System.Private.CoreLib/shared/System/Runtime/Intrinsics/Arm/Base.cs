@@ -3,35 +3,58 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Runtime.CompilerServices;
-using System.Runtime.Intrinsics;
 
-namespace System.Runtime.Intrinsics.Arm.Arm64
+namespace System.Runtime.Intrinsics.Arm
 {
     /// <summary>
-    /// This class provides access to the Arm64 Base intrinsics
-    ///
-    /// These intrinsics are supported by all Arm64 CPUs
+    /// This class provides access to the ARM base hardware instructions via intrinsics
     /// </summary>
     [Intrinsic]
     [CLSCompliant(false)]
-    public static class Base
+    public abstract class Base
     {
-        public static bool IsSupported { get { return IsSupported; }}
+        internal Base() { }
+
+        public static bool IsSupported { get => IsSupported; }
+
+        [Intrinsic]
+        public abstract class Arm64
+        {
+            internal Arm64() { }
+
+            public static bool IsSupported { get => IsSupported; }
+
+            /// <summary>
+            ///   A64: CLS Wd, Wn
+            /// </summary>
+            public static int LeadingSignCount(int value) => LeadingSignCount(value);
+
+            /// <summary>
+            ///   A64: CLS Xd, Xn
+            /// </summary>
+            public static int LeadingSignCount(long value) => LeadingSignCount(value);
+
+            /// <summary>
+            ///   A64: CLZ Xd, Xn
+            /// </summary>
+            public static int LeadingZeroCount(long value) => LeadingZeroCount(value);
+
+            /// <summary>
+            ///   A64: CLZ Xd, Xn
+            /// </summary>
+            public static int LeadingZeroCount(ulong value) => LeadingZeroCount(value);
+        }
 
         /// <summary>
-        /// Vector LeadingSignCount
-        /// Corresponds to integer forms of ARM64 CLS
+        ///   A32: CLZ Rd, Rm
+        ///   A64: CLZ Wd, Wn
         /// </summary>
-        public static int LeadingSignCount(int  value) => LeadingSignCount(value);
-        public static int LeadingSignCount(long value) => LeadingSignCount(value);
+        public static int LeadingZeroCount(int value) => LeadingZeroCount(value);
 
         /// <summary>
-        /// Vector LeadingZeroCount
-        /// Corresponds to integer forms of ARM64 CLZ
+        ///   A32: CLZ Rd, Rm
+        ///   A64: CLZ Wd, Wn
         /// </summary>
-        public static int LeadingZeroCount(int   value) => LeadingZeroCount(value);
-        public static int LeadingZeroCount(uint  value) => LeadingZeroCount(value);
-        public static int LeadingZeroCount(long  value) => LeadingZeroCount(value);
-        public static int LeadingZeroCount(ulong value) => LeadingZeroCount(value);
+        public static int LeadingZeroCount(uint value) => LeadingZeroCount(value);
     }
 }

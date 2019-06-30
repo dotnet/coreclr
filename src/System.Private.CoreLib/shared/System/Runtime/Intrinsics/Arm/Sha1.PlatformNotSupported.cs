@@ -5,53 +5,58 @@
 #pragma warning disable IDE0060 // unused parameters
 using System.Runtime.CompilerServices;
 
-namespace System.Runtime.Intrinsics.Arm.Arm64
+namespace System.Runtime.Intrinsics.Arm
 {
     /// <summary>
-    /// This class provides access to the Arm64 SHA1 Crypto intrinsics
-    ///
-    /// Arm64 CPU indicate support for this feature by setting
-    /// ID_AA64ISAR0_EL1.SHA1 is 1 or better
+    /// This class provides access to the ARM SHA1 hardware instructions via intrinsics
     /// </summary>
     [CLSCompliant(false)]
-    public static class Sha1
+    public abstract class Sha1
     {
+        internal Sha1() { }
+
         public static bool IsSupported { [Intrinsic] get => false; }
 
         /// <summary>
-        /// Performs SHA1 hash update choose form.
-        /// vsha1cq_u32 (uint32x4_t hash_abcd, uint32_t hash_e, uint32x4_t wk)
-        /// </summary>
-        public static Vector128<uint> HashChoose(Vector128<uint> hash_abcd, uint hash_e, Vector128<uint> wk) { throw new PlatformNotSupportedException(); }
-
-        /// <summary>
-        /// Performs SHA1 hash update majority form.
-        /// vsha1mq_u32 (uint32x4_t hash_abcd, uint32_t hash_e, uint32x4_t wk)
-        /// </summary>
-        public static Vector128<uint> HashMajority(Vector128<uint> hash_abcd, uint hash_e, Vector128<uint> wk) { throw new PlatformNotSupportedException(); }
-
-        /// <summary>
-        /// Performs SHA1 hash update parity form.
-        /// vsha1pq_u32 (uint32x4_t hash_abcd, uint32_t hash_e, uint32x4_t wk)
-        /// </summary>
-        public static Vector128<uint> HashParity(Vector128<uint> hash_abcd, uint hash_e, Vector128<uint> wk) { throw new PlatformNotSupportedException(); }
-
-        /// <summary>
-        /// Performs SHA1 fixed rotate
-        /// vsha1h_u32 (uint32_t hash_e)
+        /// uint32_t vsha1h_u32 (uint32_t hash_e)
+        ///   A32: SHA1H.32 Qd, Qm
+        ///   A64: SHA1H Sd, Sn
         /// </summary>
         public static uint FixedRotate(uint hash_e) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
-        /// Performs SHA1 schedule update 0
-        /// vsha1su0q_u32 (uint32x4_t w0_3, uint32x4_t w4_7, uint32x4_t w8_11)
+        /// uint32x4_t vsha1cq_u32 (uint32x4_t hash_abcd, uint32_t hash_e, uint32x4_t wk)
+        ///   A32: SHA1C.32 Qd, Qn, Qm
+        ///   A64: SHA1C Qd, Sn, Vm.4S
         /// </summary>
-        public static Vector128<uint> SchedulePart1(Vector128<uint> w0_3, Vector128<uint> w4_7, Vector128<uint> w8_11) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> HashUpdateChoose(Vector128<uint> hash_abcd, uint hash_e, Vector128<uint> wk) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
-        /// Performs SHA1 schedule update 1
-        /// vsha1su1q_u32 (uint32x4_t tw0_3, uint32x4_t w12_15)
+        /// uint32x4_t vsha1mq_u32 (uint32x4_t hash_abcd, uint32_t hash_e, uint32x4_t wk)
+        ///   A32: SHA1M.32 Qd, Qn, Qm
+        ///   A64: SHA1M Qd, Sn, Vm.4S
         /// </summary>
-        public static Vector128<uint> SchedulePart2(Vector128<uint> tw0_3, Vector128<uint> w12_15) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> HashUpdateMajority(Vector128<uint> hash_abcd, uint hash_e, Vector128<uint> wk) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// uint32x4_t vsha1pq_u32 (uint32x4_t hash_abcd, uint32_t hash_e, uint32x4_t wk)
+        ///   A32: SHA1P.32 Qd, Qn, Qm
+        ///   A64: SHA1P Qd, Sn, Vm.4S
+        /// </summary>
+        public static Vector128<uint> HashUpdateParity(Vector128<uint> hash_abcd, uint hash_e, Vector128<uint> wk) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// uint32x4_t vsha1su0q_u32 (uint32x4_t w0_3, uint32x4_t w4_7, uint32x4_t w8_11)
+        ///   A32: SHA1SU0.32 Qd, Qn, Qm
+        ///   A64: SHA1SU0 Vd.4S, Vn.4S, Vm.4S
+        /// </summary>
+        public static Vector128<uint> ScheduleUpdate0(Vector128<uint> w0_3, Vector128<uint> w4_7, Vector128<uint> w8_11) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// uint32x4_t vsha1su1q_u32 (uint32x4_t tw0_3, uint32x4_t w12_15)
+        ///   A32: SHA1SU1.32 Qd, Qm
+        ///   A64: SHA1SU1 Vd.4S, Vn.4S
+        /// </summary>
+        public static Vector128<uint> ScheduleUpdate1(Vector128<uint> tw0_3, Vector128<uint> w12_15) { throw new PlatformNotSupportedException(); }
     }
 }
