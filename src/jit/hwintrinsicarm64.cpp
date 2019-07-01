@@ -240,6 +240,12 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
         baseType = getBaseTypeAndSizeOfSIMDType(sig->retTypeSigClass, &sizeBytes);
         retType  = getSIMDTypeForSize(sizeBytes);
         assert(sizeBytes != 0);
+
+        if (!varTypeIsArithmetic(baseType))
+        {
+            assert((intrinsic == NI_Vector64_AsByte) || (intrinsic == NI_Vector128_As));
+            return nullptr;
+        }
     }
 
     if (HWIntrinsicInfo::BaseTypeFromFirstArg(intrinsic))
@@ -261,8 +267,6 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
 
             baseType = JITtype2varType(corInfoType);
         }
-
-        assert(baseType != TYP_UNKNOWN);
     }
     else if (baseType == TYP_UNKNOWN)
     {
@@ -276,6 +280,11 @@ GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
         {
             baseType = retType;
         }
+    }
+
+    if (!varTypeIsArithmetic(baseType))
+    {
+        return nullptr;
     }
 
     unsigned                simdSize = HWIntrinsicInfo::lookupSimdSize(this, intrinsic, sig);
