@@ -628,6 +628,7 @@ void DomainAssembly::VerifyReadyToRunImageDependencies()
                 name.InitializeSpec(pDependency->AssemblyToken,
                     pImage->GetNativeMDImport(),
                     GetDomainAssembly());
+                name.SetBindingContext(spec.GetBindingContext());
 
                 GetLoaderAllocator()->CheckForMismatchedNativeImages(&name, &pDependency->Mvid);
             }
