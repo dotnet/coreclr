@@ -23,20 +23,6 @@ namespace Tracing.Tests.BufferValidation
 
     public class BufferValidation
     {
-        private static Dictionary<string, int> _expectedEventCounts = new Dictionary<string, int>()
-        {
-            { "MyEventSource", 1000 }
-        };
-
-        private static Action _eventGeneratingAction = () => 
-        {
-            foreach (var _ in Enumerable.Range(0,1000))
-            {
-                MyEventSource.Log.MyEvent();
-                Thread.Sleep(5);
-            }
-        };
-
         public static int Main(string[] args)
         {
             // This tests the resilience of message sending with
@@ -50,7 +36,7 @@ namespace Tracing.Tests.BufferValidation
             var tests = new int[] { 0, 2 }
                 .Select(x => (uint)Math.Pow(2, x))
                 .Select(bufferSize => new SessionConfiguration(circularBufferSizeMB: bufferSize, format: EventPipeSerializationFormat.NetTrace, providers: providers))
-                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration));
+                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration));
 
             foreach (var test in tests)
             {
@@ -61,5 +47,20 @@ namespace Tracing.Tests.BufferValidation
 
             return 100;
         }
+
+        private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
+        {
+            // We're testing small buffer sizes, so we expect some dropped events
+            // especially on the resource strapped CI machines.
+            { "MyEventSource", new ExpectedEventCount(1000, 0.40f) }
+        };
+
+        private static Action _eventGeneratingAction = () => 
+        {
+            foreach (var _ in Enumerable.Range(0,1000))
+            {
+                MyEventSource.Log.MyEvent();
+            }
+        };
     }
 }

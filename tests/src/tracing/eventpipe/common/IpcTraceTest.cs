@@ -14,6 +14,44 @@ using Microsoft.Diagnostics.Tools.RuntimeClient;
 
 namespace Tracing.Tests.Common
 {
+    public class ExpectedEventCount
+    {
+        // The acceptable percent error on the expected value
+        // represented as a floating point value in [0,1].
+        public float Error { get; private set; }
+
+        // The expected count of events. A value of -1 indicates
+        // that count does not matter, and we are simply testing
+        // that the provider exists in the trace.
+        public int Count { get; private set; }
+
+        public ExpectedEventCount(int count, float error = 0.0f)
+        {
+            Count = count;
+            Error = error;
+        }
+
+        public bool Validate(int actualValue)
+        {
+            return Count == -1 || CheckErrorBounds(actualValue);
+        }
+
+        public bool CheckErrorBounds(int actualValue)
+        {
+            return Math.Abs(actualValue - Count) <= (Count * Error);
+        }
+
+        public static implicit operator ExpectedEventCount(int i)
+        {
+            return new ExpectedEventCount(i);
+        }
+
+        public override string ToString()
+        {
+            return $"{Count} +- {Count * Error}";
+        }
+    }
+
     public class IpcTraceTest
     {
         // This Action is executed while the trace is being collected.
@@ -22,23 +60,19 @@ namespace Tracing.Tests.Common
         // A dictionary of event providers to number of events.
         // A count of -1 indicates that you are only testing for the presence of the provider
         // and don't care about the number of events sent
-        private Dictionary<string, int> _expectedEventCounts;
+        private Dictionary<string, ExpectedEventCount> _expectedEventCounts;
         private Dictionary<string, int> _actualEventCounts = new Dictionary<string, int>();
         private SessionConfiguration _sessionConfiguration;
-        // The acceptable +- on the count of events
-        private int _errorRange;
         private Func<EventPipeEventSource, int> _optionalTraceValidator;
 
         IpcTraceTest(
-            Dictionary<string, int> expectedEventCounts,
+            Dictionary<string, ExpectedEventCount> expectedEventCounts,
             Action eventGeneratingAction,
-            int errorRange = 0,
             SessionConfiguration? sessionConfiguration = null,
             Func<EventPipeEventSource, int> optionalTraceValidator = null)
         {
             _eventGeneratingAction = eventGeneratingAction;
             _expectedEventCounts = expectedEventCounts;
-            _errorRange = errorRange;
             _sessionConfiguration = sessionConfiguration ?? new SessionConfiguration(
                 circularBufferSizeMB: 1000,
                 format: EventPipeSerializationFormat.NetTrace,
@@ -132,7 +166,7 @@ namespace Tracing.Tests.Common
                 {
                     if (_actualEventCounts.TryGetValue(provider, out var actualCount))
                     {
-                        if (expectedCount != -1 && Math.Abs(expectedCount - actualCount) > _errorRange)
+                        if (!expectedCount.Validate(actualCount))
                         {
                             return Fail($"Event count mismatch for provider \"{provider}\": expected {expectedCount}, but saw {actualCount}");
                         }
@@ -155,14 +189,13 @@ namespace Tracing.Tests.Common
         }
 
         public static int RunAndValidateEventCounts(
-            Dictionary<string, int> expectedEventCounts,
+            Dictionary<string, ExpectedEventCount> expectedEventCounts,
             Action eventGeneratingAction,
-            int errorRange = 0,
             SessionConfiguration? sessionConfiguration = null,
             Func<EventPipeEventSource, int> optionalTraceValidator = null)
         {
             Console.WriteLine("TEST STARTING");
-            var test = new IpcTraceTest(expectedEventCounts, eventGeneratingAction, errorRange, sessionConfiguration, optionalTraceValidator);
+            var test = new IpcTraceTest(expectedEventCounts, eventGeneratingAction, sessionConfiguration, optionalTraceValidator);
             try
             {
                 var ret = test.Validate();

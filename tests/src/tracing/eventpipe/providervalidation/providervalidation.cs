@@ -24,22 +24,6 @@ namespace Tracing.Tests.ProviderValidation
 
     public class ProviderValidation
     {
-        private static Dictionary<string, int> _expectedEventCounts = new Dictionary<string, int>()
-        {
-            { "MyEventSource", 1000 },
-            { "Microsoft-Windows-DotNETRuntimeRundown", -1 },
-            { "Microsoft-DotNETCore-SampleProfiler", -1 }
-        };
-
-        private static Action _eventGeneratingAction = () => 
-        {
-            Thread.Sleep(500);
-            foreach (var _ in Enumerable.Range(0,1000))
-            {
-                MyEventSource.Log.MyEvent();
-            }
-        };
-
         public static int Main(string[] args)
         {
             // This test validates that the rundown events are present
@@ -55,7 +39,7 @@ namespace Tracing.Tests.ProviderValidation
             var tests = new int[] { 4, 10 }
                 .Select(x => (uint)Math.Pow(2, x))
                 .Select(bufferSize => new SessionConfiguration(circularBufferSizeMB: bufferSize, format: EventPipeSerializationFormat.NetTrace,  providers: providers))
-                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration));
+                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration));
 
             foreach (var test in tests)
             {
@@ -66,5 +50,21 @@ namespace Tracing.Tests.ProviderValidation
 
             return 100;
         }
+
+        private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
+        {
+            { "MyEventSource", new ExpectedEventCount(1000, 0.30f) },
+            { "Microsoft-Windows-DotNETRuntimeRundown", -1 },
+            { "Microsoft-DotNETCore-SampleProfiler", -1 }
+        };
+
+        private static Action _eventGeneratingAction = () => 
+        {
+            Thread.Sleep(500);
+            foreach (var _ in Enumerable.Range(0,1000))
+            {
+                MyEventSource.Log.MyEvent();
+            }
+        };
     }
 }

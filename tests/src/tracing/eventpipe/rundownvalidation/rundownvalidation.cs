@@ -18,26 +18,6 @@ namespace Tracing.Tests.RundownValidation
 
     public class RundownValidation
     {
-        private static Dictionary<string, int> _expectedEventCounts = new Dictionary<string, int>()
-        {
-            { "Microsoft-Windows-DotNETRuntimeRundown", -1 }
-        };
-
-        private static Action _eventGeneratingAction = () => 
-        {
-            Thread.Sleep(500);
-        };
-
-        private static Func<EventPipeEventSource, int> _DoesRundownContainMethodEvents = (source) =>
-        {
-            bool hasMethodDCStopVerbose = false;
-            bool hasMethodILToNativeMap = false;
-            source.Clr.MethodDCStopVerboseV2 += (eventData) => hasMethodDCStopVerbose = true;
-            source.Clr.MethodILToNativeMap += (eventData) => hasMethodILToNativeMap = true;
-            source.Process();
-            return hasMethodDCStopVerbose && hasMethodILToNativeMap ? 100 : -1;
-        };
-
         public static int Main(string[] args)
         {
             // This test validates that the rundown events are present
@@ -50,7 +30,25 @@ namespace Tracing.Tests.RundownValidation
             };
 
             var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
-            return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, 0, configuration, _DoesRundownContainMethodEvents);
+            return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesRundownContainMethodEvents);
         }
+
+        private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
+        {
+            { "Microsoft-Windows-DotNETRuntimeRundown", -1 }
+        };
+
+        // We only care about rundown so skip generating any events.
+        private static Action _eventGeneratingAction = () => { };
+
+        private static Func<EventPipeEventSource, int> _DoesRundownContainMethodEvents = (source) =>
+        {
+            bool hasMethodDCStopVerbose = false;
+            bool hasMethodILToNativeMap = false;
+            source.Clr.MethodDCStopVerboseV2 += (eventData) => hasMethodDCStopVerbose = true;
+            source.Clr.MethodILToNativeMap += (eventData) => hasMethodILToNativeMap = true;
+            source.Process();
+            return hasMethodDCStopVerbose && hasMethodILToNativeMap ? 100 : -1;
+        };
     }
 }
