@@ -3081,7 +3081,7 @@
                            symbol="MethodLoad_V2" message="$(string.RuntimePublisher.MethodLoad_V2EventMessage)"/>
 
                     <event value="159" version="0" level="win:Verbose" template="R2RGetEntryPoint"
-                           keywords ="NGenKeyword" opcode="MethodLoad"
+                           keywords ="CompilationKeyword" opcode="MethodLoad"
                            task="CLRMethod"
                            symbol="R2RGetEntryPoint" message="$(string.RuntimePublisher.R2RGetEntryPointEventMessage)"/>
 
