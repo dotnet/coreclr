@@ -25,9 +25,9 @@ EventPipeSession::EventPipeSession(
     bool rundownEnabled) : m_index(index),
                            m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
                            m_rundownEnabled(rundownEnabled),
-                           m_rundownRequested(rundownSwitch),
                            m_SessionType(sessionType),
-                           m_format(format)
+                           m_format(format),
+                           m_rundownRequested(rundownSwitch)
 {
     CONTRACTL
     {
