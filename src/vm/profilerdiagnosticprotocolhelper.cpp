@@ -103,6 +103,11 @@ void ProfilerDiagnosticProtocolHelper::AttachProfiler(DiagnosticsIpc::IpcMessage
         goto ErrExit;
     }
     
+    if (g_profControlBlock.curProfStatus.Get() != kProfStatusNone)
+    {
+        return CORPROF_E_PROFILER_ALREADY_ACTIVE;
+    }
+
     // Certain actions are only allowable during attach, and this flag is how we track it.
     ClrFlsSetThreadType(ThreadType_ProfAPI_Attach);
 
