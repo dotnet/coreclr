@@ -103,9 +103,12 @@ void ProfilerDiagnosticProtocolHelper::AttachProfiler(DiagnosticsIpc::IpcMessage
         goto ErrExit;
     }
     
+    // The diagnostic server is single threaded, so we do not have to worry about racing
+    // attach requests. If this ever changes synchronization will be necessary here
     if (g_profControlBlock.curProfStatus.Get() != kProfStatusNone)
     {
-        return CORPROF_E_PROFILER_ALREADY_ACTIVE;
+        hr = CORPROF_E_PROFILER_ALREADY_ACTIVE;
+        goto ErrExit;
     }
 
     // Certain actions are only allowable during attach, and this flag is how we track it.
