@@ -51,7 +51,7 @@ public:
         uint32_t numProviders,
         EventPipeSessionType sessionType,
         EventPipeSerializationFormat format,
-        bool rundownRequested,
+        const bool rundownRequested,
         IpcStream *const pStream);
 
     // Disable tracing via the event pipe.
