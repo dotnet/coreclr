@@ -43,16 +43,6 @@ enum class EventPipeSerializationFormat
     Count
 };
 
-enum class EventPipeRundownSwitch
-{
-    // Flag that indicates whether rundown events should be emitted
-    // for this session.
-    Disable,
-    Enable,
-
-    Count
-};
-
 //! Encapsulates an EventPipe session information and memory management.
 class EventPipeSession
 {
@@ -77,7 +67,7 @@ private:
     EventPipeSerializationFormat m_format;
 
     // For determininig if a particular session needs rundown events
-    EventPipeRundownSwitch m_rundownRequested;
+    const bool m_rundownRequested;
 
     // Start date and time in UTC.
     FILETIME m_sessionStartTime;
@@ -112,7 +102,7 @@ public:
         IpcStream *const pStream,
         EventPipeSessionType sessionType,
         EventPipeSerializationFormat format,
-        EventPipeRundownSwitch rundownSwitch,
+        bool rundownRequested,
         uint32_t circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
@@ -146,7 +136,7 @@ public:
     }
 
     // Get whether rundown was requested by the client.
-    EventPipeRundownSwitch RundownRequested() const
+    bool RundownRequested() const
     {
         LIMITED_METHOD_CONTRACT;
         return m_rundownRequested;

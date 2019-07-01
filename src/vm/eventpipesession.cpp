@@ -18,7 +18,7 @@ EventPipeSession::EventPipeSession(
     IpcStream *const pStream,
     EventPipeSessionType sessionType,
     EventPipeSerializationFormat format,
-    EventPipeRundownSwitch rundownSwitch,
+    bool rundownSwitch,
     uint32_t circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,

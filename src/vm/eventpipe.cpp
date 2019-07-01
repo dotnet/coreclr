@@ -168,7 +168,7 @@ EventPipeSessionID EventPipe::Enable(
     uint32_t numProviders,
     EventPipeSessionType sessionType,
     EventPipeSerializationFormat format,
-    EventPipeRundownSwitch rundownSwitch,
+    const bool rundownRequested,
     IpcStream *const pStream)
 {
     CONTRACTL
@@ -177,7 +177,6 @@ EventPipeSessionID EventPipe::Enable(
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(format < EventPipeSerializationFormat::Count);
-        PRECONDITION(rundownSwitch < EventPipeRundownSwitch::Count);
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
@@ -204,7 +203,7 @@ EventPipeSessionID EventPipe::Enable(
             pStream,
             sessionType,
             format,
-            rundownSwitch,
+            rundownRequested,
             circularBufferSizeInMB,
             pProviders,
             numProviders);
@@ -348,7 +347,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
 
     // Do rundown before fully stopping the session unless rundown wasn't requested
-    if (pSession->RundownRequested() == EventPipeRundownSwitch::Enable)
+    if (pSession->RundownRequested())
     {
         pSession->EnableRundown(); // Set Rundown provider.
 

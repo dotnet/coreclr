@@ -38,10 +38,9 @@ static bool TryParseSerializationFormat(uint8_t*& bufferCursor, uint32_t& buffer
     return CanParse && (0 <= (int)serializationFormat) && ((int)serializationFormat < (int)EventPipeSerializationFormat::Count);
 }
 
-static bool TryParseRundownEnabled(uint8_t*& bufferCursor, uint32_t& bufferLen, EventPipeRundownSwitch& rundownSwitch)
+static bool TryParseRundownRequested(uint8_t*& bufferCursor, uint32_t& bufferLen, bool& rundownRequested)
 {
-    const bool CanParse = TryParse(bufferCursor, bufferLen, (uint32_t&)rundownSwitch);
-    return CanParse && (0 <= (int)rundownSwitch) && ((int)rundownSwitch < (int)EventPipeRundownSwitch::Count);
+    return TryParse(bufferCursor, bufferLen, rundownRequested);
 }
 
 const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPayload::TryParse(BYTE* lpBuffer, uint16_t& BufferSize)
@@ -67,7 +66,7 @@ const EventPipeCollectTracingCommandPayload* EventPipeCollectTracingCommandPaylo
     uint32_t bufferLen = BufferSize;
     if (!TryParseCircularBufferSize(pBufferCursor, bufferLen, payload->circularBufferSizeInMB) ||
         !TryParseSerializationFormat(pBufferCursor, bufferLen, payload->serializationFormat) ||
-        !TryParseRundownEnabled(pBufferCursor, bufferLen, payload->rundownSwitch) ||
+        !TryParseRundownRequested(pBufferCursor, bufferLen, payload->rundownRequested) ||
         !EventPipeProtocolHelper::TryParseProviderConfiguration(pBufferCursor, bufferLen, payload->providerConfigs))
     {
         delete payload;
@@ -207,7 +206,7 @@ void EventPipeProtocolHelper::CollectTracing(DiagnosticsIpc::IpcMessage& message
         static_cast<uint32_t>(payload->providerConfigs.Size()),  // numConfigs
         EventPipeSessionType::IpcStream,                // EventPipeSessionType
         payload->serializationFormat,                   // EventPipeSerializationFormat
-        payload->rundownSwitch,                         // EventPipeRundownSwitch
+        payload->rundownRequested,                      // rundownRequested
         pStream);                                       // IpcStream
 
     if (sessionId == 0)
