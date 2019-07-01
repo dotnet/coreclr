@@ -22,7 +22,6 @@ class EventPipeSession;
 class IpcStream;
 enum class EventPipeSessionType;
 enum class EventPipeSerializationFormat;
-enum class EventPipeRundownSwitch;
 class EventPipeEventPayload;
 struct EventData;
 
@@ -52,7 +51,7 @@ public:
         uint32_t numProviders,
         EventPipeSessionType sessionType,
         EventPipeSerializationFormat format,
-        bool rundownSwitch,
+        bool rundownRequested,
         IpcStream *const pStream);
 
     // Disable tracing via the event pipe.
