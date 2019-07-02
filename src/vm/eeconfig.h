@@ -616,8 +616,9 @@ public:
     int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
     size_t  GetGCAffinityMask()             const {LIMITED_METHOD_CONTRACT; return iGCAffinityMask;}
     LPCWSTR GetGCHeapAffinitizeRanges()     const {LIMITED_METHOD_CONTRACT; return lpszGCHeapAffinitizeRanges;}
-    int     GetGCHighMemPercent()           const {LIMITED_METHOD_CONTRACT; return iGCHighMemPercent;}
+    int     GetGCHighMemoryPercent()        const {LIMITED_METHOD_CONTRACT; return iGCHighMemoryPercent;}
     size_t  GetGCHeapHardLimit()            const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimit;}
+    int     GetGCHeapHardLimitPercent()     const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimitPercent;}
     bool    GetGCLargePages()               const {LIMITED_METHOD_CONTRACT; return fGCLargePages;}
     bool    GetGCCpuGroup()                 const {LIMITED_METHOD_CONTRACT; return iGCCpuGroup;}
 
@@ -928,8 +929,9 @@ private: //----------------------------------------------------------------
     bool iGCCpuGroup;
     // this points to a string from GetKnobStringValue and should not be freed.
     LPCWSTR lpszGCHeapAffinitizeRanges;
-    int iGCHighMemPercent;
+    int iGCHighMemoryPercent;
     size_t iGCHeapHardLimit;
+    int iGCHeapHardLimitPercent;
     bool fGCLargePages;
 
 #ifdef GCTRIMCOMMIT

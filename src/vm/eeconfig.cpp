@@ -720,7 +720,7 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     // for mapping a DWORD CLRConfig to a boolean configuration treats -1 as true (just
     // like any other nonzero value), we will explicitly check the DWORD later if this
     // check returns false.
-    gcConcurrentWasForced = Configuration::GetKnobBooleanValueWithDefault(W("System.GC.Concurrent"), false);
+    gcConcurrentWasForced = Configuration::GetKnobBooleanValue(W("System.GC.Concurrent"), false);
 
     int gcConcurrentConfigVal = 0;
     if (!gcConcurrentWasForced)
@@ -832,9 +832,10 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
 #endif //_WIN64
 
-iGCCpuGroup = Configuration::GetKnobBooleanValue(W("System.GC.CpuGroup"), CLRConfig::EXTERNAL_GCCpuGroup);
-    iGCHighMemPercent = Configuration::GetKnobDWORDValueWithDefault(W("System.GC.HighMemPercent"), 0);
+    iGCCpuGroup = Configuration::GetKnobBooleanValue(W("System.GC.CpuGroup"), CLRConfig::EXTERNAL_GCCpuGroup);
+    iGCHighMemoryPercent = Configuration::GetKnobDWORDValue(W("System.GC.HighMemoryPercent"), 0);
     iGCHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
     fGCLargePages = Configuration::GetKnobBooleanValue(W("System.GC.LargePages"), CLRConfig::EXTERNAL_GCLargePages);
     lpszGCHeapAffinitizeRanges = Configuration::GetKnobStringValue(W("System.GC.HeapAffinitizeRanges"), CLRConfig::EXTERNAL_GCHeapAffinitizeRanges);
 
@@ -863,7 +864,7 @@ iGCCpuGroup = Configuration::GetKnobBooleanValue(W("System.GC.CpuGroup"), CLRCon
 #endif // FEATURE_CONSERVATIVE_GC
 
 #ifdef _WIN64
-    iGCAllowVeryLargeObjects = Configuration::GetKnobBooleanValue(W("System.GC.AllowVeryLargeObjects"), CLRConfig::EXTERNAL_gcAllowVeryLargeObjects);
+    iGCAllowVeryLargeObjects = (CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_gcAllowVeryLargeObjects) != 0);
 #endif
 
     fGCBreakOnOOM   =  (GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCBreakOnOOM, fGCBreakOnOOM) != 0);

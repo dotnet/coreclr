@@ -904,11 +904,11 @@ void QCALLTYPE GCInterface::GetGCConfigValue(const LPCWSTR key, QCall::StringHan
 
     BEGIN_QCALL;
 
-    const char* value = GCHeapUtilities::GetGCHeap()->GetGCConfigValue(key);
-    if (value != nullptr)
+    AConstStringHolder value;
+    value = GCHeapUtilities::GetGCHeap()->GetGCConfigValue(key);
+    if (value)
     {
         result.Set(value);
-        delete value;
     }
 
     END_QCALL;

@@ -1137,9 +1137,14 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return true;
     }
 
+    if (strcmp(key, "GCHeapHardLimitPercent") == 0)
+    {
+        *value = g_pConfig->GetGCHeapHardLimitPercent();
+    }
+
     if (strcmp(key, "GCHighMemPercent") == 0)
     {
-        *value = g_pConfig->GetGCHighMemPercent();
+        *value = g_pConfig->GetGCHighMemoryPercent();
         return true;
     }
 

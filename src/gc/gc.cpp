@@ -36207,11 +36207,7 @@ static const char* size_t_to_str(const size_t value)
 
 const char* GCHeap::GetGCConfigValue(const wchar_t* key)
 {
-    if (wcscmp(key, L"AllowVeryLargeObjects") == 0)
-    {
-        return bool_to_str(GCConfig::GetAllowVeryLargeObjects());//g_pConfig->GetGCAllowVeryLargeObjects();
-    }
-    else if (wcscmp(key, L"CpuGroup") == 0)
+    if (wcscmp(key, L"CpuGroup") == 0)
     {
         return bool_to_str(GCConfig::GetGCCpuGroup());
     }
@@ -36237,7 +36233,11 @@ const char* GCHeap::GetGCConfigValue(const wchar_t* key)
     {
         return size_t_to_str(gc_heap::heap_hard_limit);
     }
-    else if (wcscmp(key, L"HighMemPercent") == 0)
+    else if (wcscmp(key, L"HeapHardLimitPercent") == 0)
+    {
+        return size_t_to_str(GCConfig::GetGCHeapHardLimitPercent());
+    }
+    else if (wcscmp(key, L"HighMemoryPercent") == 0)
     {
         return size_t_to_str(gc_heap::high_memory_load_th);
     }

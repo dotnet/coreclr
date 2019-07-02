@@ -29,7 +29,7 @@ public:
     // Returns (in priority order):
     //    - The value of the ConfigurationKnob (searched by name) if it's set (performs a wcstoul)
     //    - The default value passed in
-    static DWORD GetKnobDWORDValueWithDefault(LPCWSTR name, DWORD defaultValue);
+    static DWORD GetKnobDWORDValue(LPCWSTR name, DWORD defaultValue);
 
     // Unfortunately our traditional config system insists on interpreting numbers as 32-bit so intepret the config
     // in the traditional way separately if you need to.
@@ -57,7 +57,7 @@ public:
     // Returns (in priority order):
     //    - The value of the ConfigurationKnob (searched by name) if it's set (performs a wcscmp with "true").
     //    - The default value passed in
-    static bool GetKnobBooleanValueWithDefault(LPCWSTR name, bool defaultValue);
+    static bool GetKnobBooleanValue(LPCWSTR name, bool defaultValue);
 };
 
 #endif // __configuration_h__
