@@ -171,6 +171,12 @@ public:
     // finish or cancel. After that all BufferLists and Buffers can be safely drained and/or deleted.
     void SuspendWriteEvent(uint32_t sessionIndex);
 
+    // Resets m_writeEventSuspending to false.
+    // EXPECTED USAGE: Prior to rundown, the session will use this to re-enable the buffer manager
+    // so that rundown events can be sent through the buffer manager.  The session should then re-disable
+    // the buffer manager so it can be deleted.
+    void ResumeWriteEvent();
+
     // Write the contents of the managed buffers to the specified file.
     // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
     // skip any events that might be partially written due to races when tracing is stopped.

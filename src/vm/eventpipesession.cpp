@@ -498,9 +498,11 @@ void EventPipeSession::ExecuteRundown()
 
     if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeRundown) > 0)
     {
+        m_pBufferManager->ResumeWriteEvent(); // ReEnable the session's buffer manager to consume events
         // Ask the runtime to emit rundown events.
         if (g_fEEStarted && !g_fEEShutDown)
             ETW::EnumerationLog::EndRundown();
+        m_pBufferManager->SuspendWriteEvent(GetIndex()); // re-suspend the buffer manager now that rundown is finished
     }
 }
 
