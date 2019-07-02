@@ -2038,8 +2038,9 @@ namespace System.Diagnostics.Tracing
                                                         m_eventData[eventId].Parameters);
                 Interlocked.CompareExchange(ref m_eventData[eventId].TraceLoggingEventTypes, eventTypes, null);
             }
+            int paramCount = Math.Min(eventTypes.typeInfos.Length, args.Length); // parameter count mismatch get logged in LogEventArgsMismatches
             var eventData = new object?[eventTypes.typeInfos.Length];
-            for (int i = 0; i < eventTypes.typeInfos.Length; i++)
+            for (int i = 0; i < paramCount; i++)
             {
                 eventData[i] = eventTypes.typeInfos[i].GetData(args[i]);
             }
