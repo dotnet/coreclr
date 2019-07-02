@@ -2071,12 +2071,13 @@ namespace System.Diagnostics.Tracing
             while (i < args.Length)
             {
                 Type pType = infos[i].ParameterType;
+                object? arg = args[i];
 
                 // Checking to see if the Parameter types (from the Event method) match the supplied argument types.
                 // Fail if one of two things hold : either the argument type is not equal to the parameter type, or the 
                 // argument is null and the parameter type is non-nullable.
-                if ((args[i] != null && (args[i]!.GetType() != pType)) // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
-                    || (args[i] == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
+                if ((arg != null && (arg.GetType() != pType))
+                    || (arg == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
                     )
                 {
                     System.Diagnostics.Debugger.Log(0, null, SR.Format(SR.EventSource_VarArgsParameterMismatch, eventId, infos[i].Name) + "\r\n");
