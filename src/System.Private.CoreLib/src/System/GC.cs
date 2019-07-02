@@ -56,6 +56,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
                                                   out ulong totalPhysicalMem,
+                                                  out ulong heapHardLimit,
                                                   out uint lastRecordedMemLoad,
                                                   // The next two are size_t
                                                   out UIntPtr lastRecordedHeapSize,
@@ -65,15 +66,16 @@ namespace System
         {
             GetMemoryInfo(out uint highMemLoadThreshold,
                           out ulong totalPhysicalMem,
+                          out ulong heapHardLimit,
                           out uint lastRecordedMemLoad,
                           out UIntPtr lastRecordedHeapSize,
                           out UIntPtr lastRecordedFragmentation);
 
-            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
-                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
-                                    (long)totalPhysicalMem,
-                                    (long)(ulong)lastRecordedHeapSize,
-                                    (long)(ulong)lastRecordedFragmentation);
+            return new GCMemoryInfo(highMemoryLoadThresholdBytes: (long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
+                                    memoryLoadBytes: (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
+                                    totalAvailableMemoryBytes: (long)(heapHardLimit != 0 ? heapHardLimit : totalPhysicalMem),
+                                    heapSizeBytes: (long)(ulong)lastRecordedHeapSize,
+                                    fragmentedBytes: (long)(ulong)lastRecordedFragmentation);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -542,6 +544,7 @@ namespace System
         private static float GetMemoryLoad()
         {
             GetMemoryInfo(out uint _,
+                          out ulong _,
                           out ulong _,
                           out uint lastRecordedMemLoad,
                           out UIntPtr _,
