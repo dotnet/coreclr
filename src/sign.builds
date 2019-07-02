@@ -49,9 +49,21 @@
 
   </Target>
 
+  <Target Name="ModifyDiagnosticCerts"
+          DependsOnTargets="GetFilesToSignItems">
+    <ItemGroup>
+      <FilesToSign Condition="'%(FilesToSign.FileName)' == 'mscordaccore' or '%(FilesToSign.FileName)' == 'mscordbi'">
+        <!-- Sign the DAC and the DBI with a Developer tools Cert to execute in lock-down devices.-->
+        <Authenticode>101240624</Authenticode>
+      </FilesToSign>
+    </ItemGroup>
+
+    <Message Importance="High" Text="Adjusting signing of %(FilesToSign.Identity) with authenticode='%(FilesToSign.Authenticode)' and strongname='%(FilesToSign.StrongName)'" />
+  </Target>
+
   <Target Name="Build"
           Condition="'$(SkipSigning)' != 'true'"
-          DependsOnTargets="GetFilesToSignItems;SignFiles">
+          DependsOnTargets="GetFilesToSignItems;ModifyDiagnosticCerts;SignFiles">
 
     <!-- now that the files have been signed delete the marker files -->
     <Delete Files="@(SignMarkerFile)" />
