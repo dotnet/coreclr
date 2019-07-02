@@ -171,10 +171,10 @@ public:
 
     unsigned GetCondemnedGeneration();
 
-    void GetMemoryInfo(uint32_t* highMemLoadThreshold, 
-                       uint64_t* totalPhysicalMem, 
-                       uint64_t* heapHardLimit,
-                       uint32_t* lastRecordedMemLoad,
+    void GetMemoryInfo(uint64_t* highMemLoadThresholdBytes, 
+                       uint64_t* totalAvailableMemoryBytes, 
+                       uint64_t* lastRecordedMemLoadBytes,
+                       uint32_t* lastRecordedMemLoadPct,
                        size_t* lastRecordedHeapSize,
                        size_t* lastRecordedFragmentation);
 

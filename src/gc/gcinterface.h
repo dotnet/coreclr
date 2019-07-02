@@ -605,10 +605,10 @@ public:
     // lastRecordedMemLoad - physical memory load in percentage recorded in the last GC
     // lastRecordedHeapSize - total managed heap size recorded in the last GC
     // lastRecordedFragmentation - total fragmentation in the managed heap recorded in the last GC
-    virtual void GetMemoryInfo(uint32_t* highMemLoadThreshold, 
-                               uint64_t* totalPhysicalMem, 
-                               uint64_t* heapHardLimit,
-                               uint32_t* lastRecordedMemLoad,
+    virtual void GetMemoryInfo(uint64_t* highMemLoadThresholdBytes,
+                               uint64_t* totalPhysicalMemoryBytes,
+                               uint64_t* lastRecordedMemLoadBytes,
+                               uint32_t* lastRecordedMemLoadPct,
                                size_t* lastRecordedHeapSize,
                                size_t* lastRecordedFragmentation) = 0;
 

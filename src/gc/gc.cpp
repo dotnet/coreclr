@@ -36150,17 +36150,17 @@ unsigned int GCHeap::GetCondemnedGeneration()
     return gc_heap::settings.condemned_generation;
 }
 
-void GCHeap::GetMemoryInfo(uint32_t* highMemLoadThreshold, 
-                           uint64_t* totalPhysicalMem, 
-                           uint64_t* heapHardLimit,
-                           uint32_t* lastRecordedMemLoad,
+void GCHeap::GetMemoryInfo(uint64_t* highMemLoadThresholdBytes, 
+                           uint64_t* totalAvailableMemoryBytes,
+                           uint64_t* lastRecordedMemLoadBytes,
+                           uint32_t* lastRecordedMemLoadPct,
                            size_t* lastRecordedHeapSize,
                            size_t* lastRecordedFragmentation)
 {
-    *highMemLoadThreshold = gc_heap::high_memory_load_th;
-    *totalPhysicalMem = gc_heap::total_physical_mem;
-    *heapHardLimit = gc_heap::heap_hard_limit;
-    *lastRecordedMemLoad = gc_heap::last_gc_memory_load;
+    *highMemLoadThresholdBytes = (uint64_t) (((double)gc_heap::high_memory_load_th) / 100 * gc_heap::total_physical_mem);
+    *totalAvailableMemoryBytes = gc_heap::heap_hard_limit != 0 ? gc_heap::heap_hard_limit : gc_heap::total_physical_mem;
+    *lastRecordedMemLoadBytes = (uint64_t) (((double)gc_heap::last_gc_memory_load) / 100 * gc_heap::total_physical_mem);
+    *lastRecordedMemLoadPct = gc_heap::last_gc_memory_load;
     *lastRecordedHeapSize = gc_heap::last_gc_heap_size;
     *lastRecordedFragmentation = gc_heap::last_gc_fragmentation;
 }
