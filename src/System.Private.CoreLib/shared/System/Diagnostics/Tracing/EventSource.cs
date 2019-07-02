@@ -1528,7 +1528,7 @@ namespace System.Diagnostics.Tracing
             {
                 if (m_constructionException == null)
                     m_constructionException = e;
-                ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message, true);
+                ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message);
             }
 
             // Once m_completelyInited is set, you can have concurrency, so all work is under the lock.  
@@ -2060,7 +2060,7 @@ namespace System.Diagnostics.Tracing
 
             if (args.Length != infos.Length)
             {
-                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, args.Length, infos.Length), false);
+                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, args.Length, infos.Length));
                 return;
             }
 
@@ -2077,7 +2077,7 @@ namespace System.Diagnostics.Tracing
                     || (arg == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
                     )
                 {
-                    ReportOutOfBandMessage(SR.Format(SR.EventSource_VarArgsParameterMismatch, eventId, infos[i].Name), false);
+                    ReportOutOfBandMessage(SR.Format(SR.EventSource_VarArgsParameterMismatch, eventId, infos[i].Name));
                     return;
                 }
 
@@ -2108,7 +2108,7 @@ namespace System.Diagnostics.Tracing
             }
             if (eventDataCount != modifiedParamCount)
             {
-                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, eventDataCount, paramCount), true);
+                ReportOutOfBandMessage(SR.Format(SR.EventSource_EventParametersMismatch, eventId, eventDataCount, paramCount));
                 paramCount = Math.Min(paramCount, eventDataCount);
             }
 
@@ -2164,7 +2164,7 @@ namespace System.Diagnostics.Tracing
                         catch (Exception e)
                         {
                             ReportOutOfBandMessage("ERROR: Exception during EventSource.OnEventWritten: "
-                                 + e.Message, false);
+                                 + e.Message);
                             lastThrownException = e;
                         }
                     }
@@ -2345,29 +2345,29 @@ namespace System.Diagnostics.Tracing
                 switch (EventProvider.GetLastWriteEventError())
                 {
                     case EventProvider.WriteEventErrorCode.EventTooBig:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_EventTooBig, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_EventTooBig);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_EventTooBig, innerEx);
                         break;
                     case EventProvider.WriteEventErrorCode.NoFreeBuffers:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NoFreeBuffers, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NoFreeBuffers);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_NoFreeBuffers, innerEx);
                         break;
                     case EventProvider.WriteEventErrorCode.NullInput:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NullInput, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_NullInput);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_NullInput, innerEx);
                         break;
                     case EventProvider.WriteEventErrorCode.TooManyArgs:
-                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_TooManyArgs, true);
+                        ReportOutOfBandMessage(errorPrefix + ": " + SR.EventSource_TooManyArgs);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(SR.EventSource_TooManyArgs, innerEx);
                         break;
                     default:
                         if (innerEx != null)
                         {
                             innerEx = innerEx.GetBaseException();
-                            ReportOutOfBandMessage(errorPrefix + ": " + innerEx.GetType() + ":" + innerEx.Message, true);
+                            ReportOutOfBandMessage(errorPrefix + ": " + innerEx.GetType() + ":" + innerEx.Message);
                         }
                         else
-                            ReportOutOfBandMessage(errorPrefix, true);
+                            ReportOutOfBandMessage(errorPrefix);
                         if (ThrowOnEventWriteErrors) throw new EventSourceException(innerEx);
                         break;
                 }
@@ -2840,7 +2840,7 @@ namespace System.Diagnostics.Tracing
             {
                 // When the ETW session is created after the EventSource has registered with the ETW system
                 // we can send any error messages here.
-                ReportOutOfBandMessage("ERROR: Exception in Command Processing for EventSource " + Name + ": " + e.Message, true);
+                ReportOutOfBandMessage("ERROR: Exception in Command Processing for EventSource " + Name + ": " + e.Message);
                 // We never throw when doing a command.  
             }
         }
@@ -3851,10 +3851,9 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Sends an error message to the debugger (outputDebugString), as well as the EventListeners 
         /// It will do this even if the EventSource is not enabled.  
-        /// TODO remove flush parameter it is not used.  
         /// </summary>
         [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
-        internal void ReportOutOfBandMessage(string msg, bool flush)
+        internal void ReportOutOfBandMessage(string msg)
         {
             try
             {
