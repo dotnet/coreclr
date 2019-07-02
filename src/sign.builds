@@ -52,13 +52,13 @@
   <Target Name="ModifyDiagnosticCerts"
           DependsOnTargets="GetFilesToSignItems">
     <ItemGroup>
-      <FilesToSign Condition="%(FilesToSign.Identity.Contains('mscordaccore')) or %(FilesToSign.Identity.Contains('mscordbi'))">
+      <FilesToSign Condition="'%(FilesToSign.FileName)' == 'mscordaccore' or '%(FilesToSign.FileName)' == 'mscordbi'">
         <!-- Sign the DAC and the DBI with a Developer tools Cert to execute in lock-down devices.-->
         <Authenticode>101240624</Authenticode>
       </FilesToSign>
     </ItemGroup>
 
-    <Message Importance="High" Text="Adjusting signing %(FilesToSign.FileName) with authenticode='%(FilesToSign.Authenticode)' and strongname='%(FilesToSign.StrongName)'" />
+    <Message Importance="High" Text="Adjusting signing of %(FilesToSign.Identity) with authenticode='%(FilesToSign.Authenticode)' and strongname='%(FilesToSign.StrongName)'" />
   </Target>
 
   <Target Name="Build"
