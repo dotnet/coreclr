@@ -2074,7 +2074,7 @@ namespace System.Diagnostics.Tracing
                 // Fail if one of two things hold : either the argument type is not equal to the parameter type, or the 
                 // argument is null and the parameter type is non-nullable.
                 if ((arg != null && (arg.GetType() != pType))
-                    || (arg == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
+                    || (arg == null && (pType.IsValueType && !(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
                     )
                 {
                     ReportOutOfBandMessage(SR.Format(SR.EventSource_VarArgsParameterMismatch, eventId, infos[i].Name));
