@@ -8,113 +8,62 @@
 //
 
 #include "common.h"
-#include "armsinglestepper.h"
+#include "arm64singlestepper.h"
 
-//
-// ITState methods.
-//
-
-ITState::ITState()
+inline uint64_t SignExtend(uint64_t value, unsigned int signbit)
 {
-#ifdef _DEBUG
-    m_fValid = false;
-#endif
-}
+    _ASSERTE(signbit < 64);
 
-// Must call Get() (or Init()) to initialize this instance from a specific context before calling any other
-// (non-static) method.
-void ITState::Get(T_CONTEXT *pCtx)
-{
-    m_bITState = (BYTE)((BitExtract((WORD)pCtx->Cpsr, 15, 10) << 2) |
-                        BitExtract((WORD)(pCtx->Cpsr >> 16), 10, 9));
-#ifdef _DEBUG
-    m_fValid = true;
-#endif
-}
+    if (signbit == 63)
+      return value;
 
-// Must call Init() (or Get()) to initialize this instance from a raw byte value before calling any other
-// (non-static) method.
-void ITState::Init(BYTE bState)
-{
-    m_bITState = bState;
-#ifdef _DEBUG
-    m_fValid = true;
-#endif
-}
+    uint64_t sign = value & (1ull << signbit);
 
-// Does the current IT state indicate we're executing within an IT block?
-bool ITState::InITBlock()
-{
-    _ASSERTE(m_fValid);
-    return (m_bITState & 0x1f) != 0;
-}
-
-// Only valid within an IT block. Returns the condition code which will be evaluated for the current
-// instruction.
-DWORD ITState::CurrentCondition()
-{
-    _ASSERTE(m_fValid);
-    _ASSERTE(InITBlock());
-    return BitExtract(m_bITState, 7, 4);
-}
-
-// Transition the IT state to that for the next instruction.
-void ITState::Advance()
-{
-    _ASSERTE(m_fValid);
-    if ((m_bITState & 0x7) == 0)
-        m_bITState = 0;
+    if (sign)
+        return value | (~0ull << signbit);
     else
-        m_bITState = (m_bITState & 0xe0) | ((m_bITState << 1) & 0x1f);
+        return value;
 }
 
-// Write the current IT state back into the given context.
-void ITState::Set(T_CONTEXT *pCtx)
+inline uint64_t BitExtract(uint64_t value, unsigned int highbit, unsigned int lowbit, bool signExtend = false)
 {
-    _ASSERTE(m_fValid);
+    _ASSERTE((highbit < 64) && (lowbit < 64) && (highbit >= lowbit));
+    uint64_t extractedValue = (value >> lowbit) & ((1 << ((highbit - lowbit) + 1)) - 1);
 
-    Clear(pCtx);
-    pCtx->Cpsr |= BitExtract(m_bITState, 1, 0) << 25;
-    pCtx->Cpsr |= BitExtract(m_bITState, 7, 2) << 10;
+    return signExtend ? SignExtend(extractedValue, highbit - lowbit) : extractedValue;
 }
 
-// Clear IT state (i.e. force execution to be outside of an IT block) in the given context.
-/* static */ void ITState::Clear(T_CONTEXT *pCtx)
-{
-    pCtx->Cpsr &= 0xf9ff03ff;
-}
 
 //
-// ArmSingleStepper methods.
+// Arm64SingleStepper methods.
 //
-ArmSingleStepper::ArmSingleStepper()
+Arm64SingleStepper::Arm64SingleStepper()
     : m_originalPc(0), m_targetPc(0), m_rgCode(0), m_state(Disabled),
-      m_fEmulatedITInstruction(false), m_fRedirectedPc(false), m_fEmulate(false), m_fBypass(false), m_fSkipIT(false)
+      m_fEmulate(false), m_fBypass(false)
 {
      m_opcodes[0] = 0;
-     m_opcodes[1] = 0;
 }
 
-ArmSingleStepper::~ArmSingleStepper()
+Arm64SingleStepper::~Arm64SingleStepper()
 {
 #if !defined(DACCESS_COMPILE)
 #ifdef FEATURE_PAL
-    SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->BackoutMem(m_rgCode, kMaxCodeBuffer * sizeof(WORD));
+    SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->BackoutMem(m_rgCode, kMaxCodeBuffer * sizeof(uint32_t));
 #else
     DeleteExecutable(m_rgCode);
 #endif
 #endif
 }
 
-void ArmSingleStepper::Init()
+void Arm64SingleStepper::Init()
 {
 #if !defined(DACCESS_COMPILE)
     if (m_rgCode == NULL)
     {
 #ifdef FEATURE_PAL
-        m_rgCode = (WORD *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(kMaxCodeBuffer * sizeof(WORD)));
+        m_rgCode = (uint32_t *)(void *)SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap()->AllocMem(S_SIZE_T(kMaxCodeBuffer * sizeof(uint32_t)));
 #else
-        m_rgCode = new (executable) WORD[kMaxCodeBuffer];
+        m_rgCode = new (executable) uint32_t[kMaxCodeBuffer];
 #endif
     }
 #endif
@@ -124,7 +73,7 @@ void ArmSingleStepper::Init()
 // will execute a single instruction before raising an EXCEPTION_BREAKPOINT. The thread context must be
 // cleaned up via the Fixup method below before any further exception processing can occur (at which point the
 // caller can behave as though EXCEPTION_SINGLE_STEP was raised).
-void ArmSingleStepper::Enable()
+void Arm64SingleStepper::Enable()
 {
     _ASSERTE(m_state != Applied);
 
@@ -135,20 +84,18 @@ void ArmSingleStepper::Enable()
         // no-ops).
         _ASSERTE(!m_fBypass);
         _ASSERTE(m_opcodes[0] == 0);
-        _ASSERTE(m_opcodes[1] == 0);
 
         return;
     }
 
-    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Enable\n"));
+    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Enable\n"));
 
     m_fBypass = false;
     m_opcodes[0] = 0;
-    m_opcodes[1] = 0;
     m_state = Enabled;
 }
 
-void ArmSingleStepper::Bypass(DWORD ip, WORD opcode1, WORD opcode2)
+void Arm64SingleStepper::Bypass(uint64_t ip, uint32_t opcode)
 {
     _ASSERTE(m_state != Applied);
 
@@ -159,24 +106,22 @@ void ArmSingleStepper::Bypass(DWORD ip, WORD opcode1, WORD opcode2)
         // no-ops).
         if (m_fBypass)
         {
-            _ASSERTE(m_opcodes[0] == opcode1);
-            _ASSERTE(m_opcodes[1] == opcode2);
+            _ASSERTE(m_opcodes[0] == opcode);
             _ASSERTE(m_originalPc == ip);
             return;
         }
     }
 
 
-    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Bypass(pc=%x, opcode=%x %x)\n", (DWORD)ip, (DWORD)opcode1, (DWORD)opcode2));
+    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Bypass(pc=%x, opcode=%x)\n", ip, opcode));
 
     m_fBypass = true;
     m_originalPc = ip;
-    m_opcodes[0] = opcode1;
-    m_opcodes[1] = opcode2;
+    m_opcodes[0] = opcode;
     m_state = Enabled;
 }
 
-void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
+void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
 {
     if (m_rgCode == NULL)
     {
@@ -191,24 +136,20 @@ void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
 
     if (!m_fBypass)
     {
-        DWORD pc = ((DWORD)pCtx->Pc) & ~THUMB_CODE;
-        m_opcodes[0] = *(WORD*)pc;
-        if (Is32BitInstruction( m_opcodes[0]))
-            m_opcodes[1] = *(WORD*)(pc+2);
+        uint64_t pc = pCtx->Pc;
+        m_opcodes[0] = *(uint32_t*)pc; // Opcodes are always in little endian, we only support little endian execution mode
     }
 
-    WORD opcode1 = m_opcodes[0];
-    WORD opcode2 = m_opcodes[1];
+    WORD opcode = m_opcodes[0];
 
-    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Apply(pc=%x, opcode=%x %x)\n",
-                                  (DWORD)pCtx->Pc, (DWORD)opcode1, (DWORD)opcode2));
+    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Apply(pc=%x, opcode=%x)\n", (uint64_t)pCtx->Pc, opcode));
 
 #ifdef _DEBUG
     // Make sure that we aren't trying to step through our own buffer.  If this asserts, something is horribly
     // wrong with the debugging layer.  Likely GetManagedStoppedCtx is retrieving a Pc that points to our
     // buffer, even though the single stepper is disabled.
-    DWORD codestart = (DWORD)(DWORD_PTR)m_rgCode;
-    DWORD codeend = codestart + (kMaxCodeBuffer * sizeof(WORD));
+    uint64_t codestart = (uint64_t)m_rgCode;
+    uint64_t codeend = codestart + (kMaxCodeBuffer * sizeof(uint32_t));
     _ASSERTE((pCtx->Pc < codestart) || (pCtx->Pc >= codeend));
 #endif
 
@@ -241,17 +182,8 @@ void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
     // liklihood of this happening (in managed code no less) is judged sufficiently small that it's not worth
     // the alternate solution (where we'd have to set the thread up to raise an exception with exactly the
     // right thread context).
-    //
-    // Matters are complicated by the ARM IT instruction (upto four following instructions are executed
-    // conditionally based on a single condition or its negation). The issues are that the current instruction
-    // may be rendered into a no-op or that a breakpoint immediately following the current instruction may not
-    // be executed. To simplify matters we may modify the IT state to force our instructions to execute. We
-    // cache the real state and re-apply it along with the rest of our fixups when handling the breakpoint
-    // exception. Note that when executing general instructions we can't simply disable any IT state since
-    // many instructions alter their behavior depending on whether they're executing within an IT block
-    // (mostly it's used to determine whether these instructions set condition flags or not).
 
-    // Cache thread's initial PC and IT state since we'll overwrite them as part of the emulation and we need
+    // Cache thread's initial PC since we'll overwrite them as part of the emulation and we need
     // to get back to the correct values at fixup time. We also cache a target PC (set below) since some
     // instructions will set the PC directly or otherwise make it difficult for us to compute the final PC
     // from the original. We still need the original PC however since this is the one we'll use if an
@@ -259,49 +191,27 @@ void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
     _ASSERTE(!m_fBypass || (m_originalPc == pCtx->Pc));
 
     m_originalPc = pCtx->Pc;
-    m_originalITState.Get(pCtx);
 
     // By default assume the next PC is right after the current instruction.
-    m_targetPc = m_originalPc + (Is32BitInstruction(opcode1) ? 4 : 2);
+    m_targetPc = m_originalPc + sizeof(uint32_t);
     m_fEmulate = false;
 
-    // One more special case: if we attempt to single-step over an IT instruction it's easier to emulate this,
-    // set the new IT state in m_originalITState and set a special flag that lets Fixup() know we don't need
-    // to advance the state (this only works because we know IT will never raise an exception so we don't need
-    // m_originalITState to store the real original IT state, though in truth a legal IT instruction cannot be
-    // executed inside an IT block anyway). This flag (and m_originalITState) will be set inside TryEmulate()
-    // as needed.
-    m_fEmulatedITInstruction = false;
-    m_fSkipIT = false;
-
-    // There are three different scenarios we must deal with (listed in priority order). In all cases we will
+    // There are two different scenarios we must deal with (listed in priority order). In all cases we will
     // redirect the thread to execute code from our buffer and end by raising a breakpoint exception:
-    //  1) We're executing in an IT block and the current instruction doesn't meet the condition requirements.
-    //     We leave the state unchanged and in fixup will advance the PC to the next instruction slot.
-    //  2) The current instruction either takes the PC as an input or modifies the PC in a non-trivial manner.
+    //  1) The current instruction either takes the PC as an input or modifies the PC.
     //     We can't easily run these instructions from the redirect buffer so we emulate their effect (i.e.
     //     update the current context in the same way as executing the instruction would). The breakpoint
     //     fixup logic will restore the PC to the real resultant PC we cache in m_targetPc.
-    //  3) For all other cases (including emulation cases where we aborted due to a memory fault) we copy the
+    //  2) For all other cases (including emulation cases where we aborted due to a memory fault) we copy the
     //     single instruction into the redirect buffer for execution followed by a breakpoint (once we regain
     //     control in the breakpoint fixup logic we can then reset the PC to its proper location.
 
-    DWORD idxNextInstruction = 0;
+    int idxNextInstruction = 0;
 
-    if (m_originalITState.InITBlock() && !ConditionHolds(pCtx, m_originalITState.CurrentCondition()))
+    if (TryEmulate(pCtx, opcode, false))
     {
-        LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper: Case 1: ITState::Clear;\n"));
-        // Case 1: The current instruction is a no-op because due to the IT instruction. We've already set the
-        //         target PC to the next instruction slot. Disable the IT block since we want our breakpoint
-        //         to execute. We'll put the correct value back during fixup.
-        ITState::Clear(pCtx);
-        m_fSkipIT = true;
-        m_rgCode[idxNextInstruction++] = kBreakpointOp;
-    }
-    else if (TryEmulate(pCtx, opcode1, opcode2, false))
-    {
-        LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper: Case 2: Emulate\n"));
-        // Case 2: Successfully emulated an instruction that reads or writes the PC. Cache the new target PC
+        LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 1: Emulate\n"));
+        // Case 1: Successfully emulated an instruction that reads or writes the PC. Cache the new target PC
         //         so upon fixup we'll resume execution there rather than the following instruction. No need
         //         to mess with IT state since we know the next instruction is scheduled to execute (we dealt
         //         with the case where it wasn't above) and we're going to execute a breakpoint in that slot.
@@ -314,22 +224,10 @@ void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
     }
     else
     {
-        LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper: Case 3: CopyInstruction. Is32Bit=%d\n", (DWORD)Is32BitInstruction(opcode1)));
-        // Case 3: In all other cases copy the instruction to the buffer and we'll run it directly. If we're
-        //         in an IT block there could be up to three instructions following this one whose execution
-        //         is skipped. We could try to be clever here and either alter IT state to force the next
-        //         instruction to execute or calculate the how many filler instructions we need to insert
-        //         before we're guaranteed our breakpoint will be respected. But it's easier to just insert
-        //         three additional breakpoints here (code below will add the fourth) and that way we'll
-        //         guarantee one of them will be hit (we don't care which one -- the fixup code will update
-        //         the PC and IT state to make it look as though the CPU just executed the current
-        //         instruction).
-        m_rgCode[idxNextInstruction++] = opcode1;
-        if (Is32BitInstruction(opcode1))
-            m_rgCode[idxNextInstruction++] = opcode2;
+        LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 2: CopyInstruction.\n"));
+        // Case 2: In all other cases copy the instruction to the buffer and we'll run it directly.
+        m_rgCode[idxNextInstruction++] = opcode;
 
-        m_rgCode[idxNextInstruction++] = kBreakpointOp;
-        m_rgCode[idxNextInstruction++] = kBreakpointOp;
         m_rgCode[idxNextInstruction++] = kBreakpointOp;
     }
 
@@ -338,7 +236,7 @@ void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
     _ASSERTE(idxNextInstruction <= kMaxCodeBuffer);
 
     // Set the thread up so it will redirect to our buffer when execution resumes.
-    pCtx->Pc = ((DWORD)(DWORD_PTR)m_rgCode) | THUMB_CODE;
+    pCtx->Pc = (uint64_t)m_rgCode;
 
     // Make sure the CPU sees the updated contents of the buffer.
     FlushInstructionCache(GetCurrentProcess(), m_rgCode, sizeof(m_rgCode));
@@ -347,7 +245,7 @@ void ArmSingleStepper::Apply(T_CONTEXT *pCtx)
     m_state = Applied;
 }
 
-void ArmSingleStepper::Disable()
+void Arm64SingleStepper::Disable()
 {
     _ASSERTE(m_state != Applied);
     m_state = Disabled;
@@ -359,11 +257,11 @@ void ArmSingleStepper::Disable()
 // context passed in to complete the emulation of a hardware single step. Note that this routine must be
 // called even if the exception code is not EXCEPTION_BREAKPOINT since the instruction stepped might have
 // raised its own exception (e.g. A/V) and we still need to fix the thread context in this case.
-bool ArmSingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
+bool Arm64SingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
 {
 #ifdef _DEBUG
-    DWORD codestart = (DWORD)(DWORD_PTR)m_rgCode;
-    DWORD codeend = codestart + (kMaxCodeBuffer * sizeof(WORD));
+    uint64_t codestart = (uint64_t)m_rgCode;
+    uint64_t codeend = codestart + (kMaxCodeBuffer * sizeof(uint32_t));
 #endif
 
     // If we reach fixup, we should either be Disabled or Applied.  If we reach here with Enabled it means
@@ -390,85 +288,49 @@ bool ArmSingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
     {
         // The single step went as planned. Set the PC back to its real value (either following the
         // instruction we stepped or the computed destination we cached after emulating an instruction that
-        // modifies the PC). Advance the IT state from the value we cached before the single step (unless we
-        // stepped an IT instruction itself, in which case m_originalITState holds the new state and we should
-        // just set that).
+        // modifies the PC).
         if (!m_fEmulate)
         {
             if (m_rgCode[0] != kBreakpointOp)
             {
-                LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Fixup executed code, ip = %x\n", m_targetPc));
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup executed code, ip = %x\n", m_targetPc));
 
                 pCtx->Pc = m_targetPc;
-                if (!m_fEmulatedITInstruction)
-                    m_originalITState.Advance();
-
-                m_originalITState.Set(pCtx);
             }
             else
             {
-                if (m_fSkipIT)
-                {
-                    // We needed to skip over an instruction due to a false condition in an IT block.
-                    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Fixup skipped instruction due to IT\n"));
-                    pCtx->Pc = m_targetPc;
+                // We've hit a breakpoint in the code stream.  We will return false here (which causes us to NOT
+                // replace the breakpoint code with single step), and place the Pc back to the original Pc.  The
+                // debugger patch skipping code will move past this breakpoint.
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup emulated breakpoint\n"));
+                pCtx->Pc = m_originalPc;
 
-                    _ASSERTE(!m_fEmulatedITInstruction);
-                    m_originalITState.Advance();
-                    m_originalITState.Set(pCtx);
-                }
-                else
-                {
-                    // We've hit a breakpoint in the code stream.  We will return false here (which causes us to NOT
-                    // replace the breakpoint code with single step), and place the Pc back to the original Pc.  The
-                    // debugger patch skipping code will move past this breakpoint.
-                    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Fixup emulated breakpoint\n"));
-                    pCtx->Pc = m_originalPc;
-
-                    _ASSERTE(pCtx->Pc & THUMB_CODE);
-                    return false;
-                }
+                _ASSERTE((pCtx->Pc & 0x3) == 0);
+                return false;
             }
         }
         else
         {
-            bool res = TryEmulate(pCtx, m_opcodes[0], m_opcodes[1], true);
+            bool res = TryEmulate(pCtx, m_opcodes[0], true);
             _ASSERTE(res);  // We should always successfully emulate since we ran it through TryEmulate already.
 
-            if (!m_fRedirectedPc)
-                pCtx->Pc = m_targetPc;
+            pCtx->Pc = m_targetPc;
 
-            LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Fixup emulated, ip = %x\n", pCtx->Pc));
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup emulated, ip = %x\n", pCtx->Pc));
         }
     }
     else
     {
-        // The stepped instruction caused an exception. Reset the PC and IT state to their original values we
-        // cached before stepping. (We should never seen this when stepping an IT instruction which overwrites
-        // m_originalITState).
-        _ASSERTE(!m_fEmulatedITInstruction);
+        // The stepped instruction caused an exception. Reset the PC to its original values we
+        // cached before stepping.
         _ASSERTE(m_fEmulate == false);
         pCtx->Pc = m_originalPc;
-        m_originalITState.Set(pCtx);
 
-        LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::Fixup hit exception pc = %x ex = %x\n", pCtx->Pc, dwExceptionCode));
+        LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup hit exception pc = %x ex = %x\n", pCtx->Pc, dwExceptionCode));
     }
 
-    _ASSERTE(pCtx->Pc & THUMB_CODE);
+    _ASSERTE((pCtx->Pc & 0x3) == 0);
     return true;
-}
-
-// Count the number of bits set in a DWORD.
-DWORD ArmSingleStepper::BitCount(DWORD dwValue)
-{
-    // There are faster implementations but speed isn't critical here.
-    DWORD cBits = 0;
-    while (dwValue)
-    {
-        cBits += dwValue & 1;
-        dwValue >>= 1;
-    }
-    return cBits;
 }
 
 // Return true if the given condition (C, N, Z or V) holds in the current context.
@@ -476,7 +338,7 @@ DWORD ArmSingleStepper::BitCount(DWORD dwValue)
     ((pCtx->Cpsr & (1 << APSR_##_flag)) != 0)
 
 // Returns true if the current context indicates the ARM condition specified holds.
-bool ArmSingleStepper::ConditionHolds(T_CONTEXT *pCtx, DWORD cond)
+bool Arm64SingleStepper::ConditionHolds(T_CONTEXT *pCtx, uint64_t cond)
 {
     switch (cond)
     {
@@ -511,50 +373,48 @@ bool ArmSingleStepper::ConditionHolds(T_CONTEXT *pCtx, DWORD cond)
     case 14:                // AL
         return true;
     case 15:
-        _ASSERTE(!"Unsupported condition code: 15");
         return false;
     default:
-//        UNREACHABLE();
+        UNREACHABLE();
         return false;
     }
 }
 
-// Get the current value of a register. PC (register 15) is always reported as the current instruction PC + 4
-// as per the ARM architecture.
-DWORD ArmSingleStepper::GetReg(T_CONTEXT *pCtx, DWORD reg)
+// Get the current value of a register.
+uint64_t Arm64SingleStepper::GetReg(T_CONTEXT *pCtx, uint64_t reg)
 {
-    _ASSERTE(reg <= 15);
+    _ASSERTE(reg <= 31);
 
-    if (reg == 15)
-        return (m_originalPc + 4) & ~THUMB_CODE;
-
-    return (&pCtx->R0)[reg];
+    return (&pCtx->X0)[reg];
 }
 
-// Set the current value of a register. If the PC (register 15) is set then m_fRedirectedPc is set to true.
-void ArmSingleStepper::SetReg(T_CONTEXT *pCtx, DWORD reg, DWORD value)
+// Set the current value of a register.
+void Arm64SingleStepper::SetReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t value)
 {
-    _ASSERTE(reg <= 15);
+    _ASSERTE(reg <= 31);
 
-    if (reg == 15)
-    {
-        value |= THUMB_CODE;
-        m_fRedirectedPc = true;
-    }
-
-    (&pCtx->R0)[reg] = value;
+    (&pCtx->X0)[reg] = value;
 }
 
-// Attempt to read a 1, 2 or 4 byte value from memory, zero or sign extend it to a 4-byte value and place that
-// value into the buffer pointed at by pdwResult. Returns false if attempting to read the location caused a
-// fault.
-bool ArmSingleStepper::GetMem(DWORD *pdwResult, DWORD_PTR pAddress, DWORD cbSize, bool fSignExtend)
+// Set the current value of a register.
+void Arm64SingleStepper::SetFPReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t valueLo, uint64_t valueHi)
+{
+    _ASSERTE(reg <= 31);
+
+    pCtx->V[reg].Low = valueLo;
+    pCtx->V[reg].High = valueHi;
+}
+
+// Attempt to read a 4, or 8 byte value from memory, zero or sign extend it to a 8-byte value and place
+// that value into the buffer pointed at by pdwResult. Returns false if attempting to read the location
+// caused a fault.
+bool Arm64SingleStepper::GetMem(uint64_t *pdwResult, uint8_t* pAddress, int cbSize, bool fSignExtend)
 {
     struct Param
     {
-        DWORD *pdwResult;
-        DWORD_PTR pAddress;
-        DWORD cbSize;
+        uint64_t *pdwResult;
+        uint8_t *pAddress;
+        int cbSize;
         bool fSignExtend;
         bool bReturnValue;
     } param;
@@ -569,18 +429,13 @@ bool ArmSingleStepper::GetMem(DWORD *pdwResult, DWORD_PTR pAddress, DWORD cbSize
     {
         switch (pParam->cbSize)
         {
-        case 1:
-            *pParam->pdwResult = *(BYTE*)pParam->pAddress;
-            if (pParam->fSignExtend && (*pParam->pdwResult & 0x00000080))
-                *pParam->pdwResult |= 0xffffff00;
-            break;
-        case 2:
-            *pParam->pdwResult = *(WORD*)pParam->pAddress;
-            if (pParam->fSignExtend && (*pParam->pdwResult & 0x00008000))
-                *pParam->pdwResult |= 0xffff0000;
-            break;
         case 4:
-            *pParam->pdwResult = *(DWORD*)pParam->pAddress;
+            *pParam->pdwResult = *(uint32_t*)pParam->pAddress;
+            if (pParam->fSignExtend && (*pParam->pdwResult & 0x80000000))
+                *pParam->pdwResult |= 0xffffffff00000000;
+            break;
+        case 8:
+            *pParam->pdwResult = *(uint64_t*)pParam->pAddress;
             break;
         default:
             UNREACHABLE();
@@ -610,38 +465,16 @@ bool ArmSingleStepper::GetMem(DWORD *pdwResult, DWORD_PTR pAddress, DWORD cbSize
             return false;                                               \
     } while (false)
 
-// Implements the various LDM-style multi-register load instructions (these include POP).
-#define LDM(ctx, _base, _registerlist, _writeback, _ia)     \
-    do {                                                    \
-        DWORD _pAddr = GetReg(ctx, _base);                  \
-        if (!(_ia))                                         \
-            _pAddr -= BitCount(_registerlist) * sizeof(void*); \
-        DWORD _pStartAddr = _pAddr;                         \
-        for (DWORD _i = 0; _i < 16; _i++)                   \
-        {                                                   \
-            if ((_registerlist) & (1 << _i))                \
-            {                                               \
-                DWORD _tmpresult;                           \
-                GET_MEM(&_tmpresult, _pAddr, 4, false);     \
-                SetReg(ctx, _i, _tmpresult);                \
-                _pAddr += sizeof(void*);                    \
-            }                                               \
-        }                                                   \
-        if (_writeback)                                     \
-            SetReg(ctx, _base, (_ia) ? _pAddr : _pStartAddr); \
-    } while (false)
-
-// Parse the instruction whose first word is given in opcode1 (if the instruction is 32-bit TryEmulate will
-// fetch the second word using the value of the PC stored in the current context). If the instruction reads or
-// writes the PC or is the IT instruction then it will be emulated by updating the thread context
-// appropriately and true will be returned. If the instruction is not one of those cases (or it is but we
-// faulted trying to read memory during the emulation) no state is updated and false is returned instead.
-bool ArmSingleStepper::TryEmulate(T_CONTEXT *pCtx, WORD opcode1, WORD opcode2, bool execute)
+// Parse the instruction opcode. If the instruction reads or writes the PC it will be emulated by updating
+// the thread context appropriately and true will be returned. If the instruction is not one of those cases
+// (or it is but we faulted trying to read memory during the emulation) no state is updated and false is
+// returned instead.
+bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execute)
 {
-    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::TryEmulate(opcode=%x %x, execute=%s)\n", (DWORD)opcode1, (DWORD)opcode2, execute ? "true" : "false"));
+    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate(opcode=%x, execute=%s)\n", opcode, execute ? "true" : "false"));
 
     // Track whether instruction emulation wrote a modified PC.
-    m_fRedirectedPc = false;
+    bool fRedirectedPc = false;
 
     // Track whether we successfully emulated an instruction. If we did and we didn't modify the PC (e.g. a
     // ADR instruction or a conditional branch not taken) then we'll need to explicitly set the PC to the next
@@ -649,587 +482,211 @@ bool ArmSingleStepper::TryEmulate(T_CONTEXT *pCtx, WORD opcode1, WORD opcode2, b
     // instruction address).
     bool fEmulated = false;
 
-    if (Is32BitInstruction(opcode1))
+    if ((opcode & 0x1f000000) == 0x10000000) // PC-Rel addressing (ADR & ADRP)
     {
-        if (((opcode1 & 0xfbff) == 0xf2af) &&
-            ((opcode2 & 0x8000) == 0x0000))
+        fEmulated = true;
+        if (execute)
         {
-            // ADR.W : T2
-            if (execute)
+            uint64_t P =     BitExtract(opcode, 31, 31);
+            uint64_t immlo = BitExtract(opcode, 30, 29);
+            uint64_t immhi = BitExtract(opcode, 23, 5, true);
+            uint64_t Rd =    BitExtract(opcode, 4, 0);
+
+            if (P) // ADRP
             {
-                DWORD Rd = BitExtract(opcode2, 11, 8);
-                DWORD i = BitExtract(opcode1, 10, 10);
-                DWORD imm3 = BitExtract(opcode2, 14, 12);
-                DWORD imm8 = BitExtract(opcode2, 7, 0);
-
-                SetReg(pCtx, Rd, (GetReg(pCtx, 15) & ~3) - ((i << 11) | (imm3 << 8) | imm8));
+                uint64_t imm = (immhi << 14) | (immlo << 12);
+                uint64_t value = (m_originalPc & ~0xfffull) + imm;
+                SetReg(pCtx, Rd, value);
             }
+            else // ADR
+            {
+                uint64_t imm = (immhi << 2) | (immlo);
+                uint64_t value = m_originalPc + imm;
+                SetReg(pCtx, Rd, value);
+            }
+        }
+    }
+    else if ((opcode & 0xff000010) == 0x54000000) // Conditional branch immediate (B.cond)
+    {
+        fEmulated = true;
+        if (execute)
+        {
+            uint64_t imm19 = BitExtract(opcode, 23, 5, true);
+            uint64_t cond =  BitExtract(opcode, 3, 0);
 
+            if (ConditionHolds(pCtx, cond))
+            {
+                uint64_t imm = (imm19 << 2);
+
+                fRedirectedPc = true;
+                m_targetPc = m_originalPc + imm;
+            }
+        }
+    }
+    else if ((opcode & 0xf7000000) == 0xd6000000) // Unconditional branch register
+    {
+        if (((opcode & 0xfffffc1f) == 0xd61f0000)  // BR
+          ||((opcode & 0xfffffc1f) == 0xd63f0000)  // BLR
+          ||((opcode & 0xfffffc1f) == 0xd65f0000)) // RET
+        {
             fEmulated = true;
-        }
-        else if (((opcode1 & 0xfbff) == 0xf20f) &&
-                 ((opcode2 & 0x8000) == 0x0000))
-        {
-            // ADR.W : T3
             if (execute)
             {
-                DWORD Rd = BitExtract(opcode2, 11, 8);
-                DWORD i = BitExtract(opcode1, 10, 10);
-                DWORD imm3 = BitExtract(opcode2, 14, 12);
-                DWORD imm8 = BitExtract(opcode2, 7, 0);
+                uint64_t Rn = BitExtract(opcode, 9, 5);
+                uint64_t target = GetReg(pCtx, Rn);
 
-                SetReg(pCtx, Rd, (GetReg(pCtx, 15) & ~3) + ((i << 11) | (imm3 << 8) | imm8));
-            }
+                // arm64 supports tagged addresses (bit 55 is treated as a sign bit and extended when tagged addresses are enabled).
+                // assumes we don't need to emulate tagged addresses
+                _ASSERTE(target == BitExtract(target, 55, 0, true));
 
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xf800) == 0xf000) &&
-                 ((opcode2 & 0xd000) == 0x8000) &&
-                 ((opcode1 & 0x0380) != 0x0380))
-        {
-            // B.W : T3
-            if (execute)
-            {
-                DWORD S = BitExtract(opcode1, 10, 10);
-                DWORD cond = BitExtract(opcode1, 9, 6);
-                DWORD imm6 = BitExtract(opcode1, 5, 0);
-                DWORD J1 = BitExtract(opcode2, 13, 13);
-                DWORD J2 = BitExtract(opcode2, 11, 11);
-                DWORD imm11 = BitExtract(opcode2, 10, 0);
+                fRedirectedPc = true;
+                m_targetPc = target;
 
-                if (ConditionHolds(pCtx, cond) && execute)
-                {
-                    DWORD disp = (S ? 0xfff00000 : 0) | (J2 << 19) | (J1 << 18) | (imm6 << 12) | (imm11 << 1);
-                    SetReg(pCtx, 15, GetReg(pCtx, 15) + disp);
-                }
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xf800) == 0xf000) &&
-                 ((opcode2 & 0xd000) == 0x9000))
-        {
-            // B.W : T4
-            if (execute)
-            {
-                DWORD S = BitExtract(opcode1, 10, 10);
-                DWORD imm10 = BitExtract(opcode1, 9, 0);
-                DWORD J1 = BitExtract(opcode2, 13, 13);
-                DWORD J2 = BitExtract(opcode2, 11, 11);
-                DWORD imm11 = BitExtract(opcode2, 10, 0);
-
-                DWORD I1 = (J1 ^ S) ^ 1;
-                DWORD I2 = (J2 ^ S) ^ 1;
-
-                DWORD disp = (S ? 0xff000000 : 0) | (I1 << 23) | (I2 << 22) | (imm10 << 12) | (imm11 << 1);
-                SetReg(pCtx, 15, GetReg(pCtx, 15) + disp);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xf800) == 0xf000) &&
-                 ((opcode2 & 0xd000) == 0xd000))
-        {
-            // BL (immediate) : T1
-            if (execute)
-            {
-                DWORD S = BitExtract(opcode1, 10, 10);
-                DWORD imm10 = BitExtract(opcode1, 9, 0);
-                DWORD J1 = BitExtract(opcode2, 13, 13);
-                DWORD J2 = BitExtract(opcode2, 11, 11);
-                DWORD imm11 = BitExtract(opcode2, 10, 0);
-
-                DWORD I1 = (J1 ^ S) ^ 1;
-                DWORD I2 = (J2 ^ S) ^ 1;
-
-                SetReg(pCtx, 14, GetReg(pCtx, 15) | 1);
-
-                DWORD disp = (S ? 0xff000000 : 0) | (I1 << 23) | (I2 << 22) | (imm10 << 12) | (imm11 << 1);
-                SetReg(pCtx, 15, GetReg(pCtx, 15) + disp);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xffd0) == 0xe890) &&
-                 ((opcode2 & 0x2000) == 0x0000))
-        {
-            // LDM.W : T2, POP.W : T2
-            if (execute)
-            {
-                DWORD W = BitExtract(opcode1, 5, 5);
-                DWORD Rn = BitExtract(opcode1, 3, 0);
-                DWORD registerList = opcode2;
-
-                LDM(pCtx, Rn, registerList, W, true);
-                fEmulated = true;
-            }
-            else
-            {
-                // We should only emulate this instruction if Pc is set
-                if (opcode2 & (1<<15))
-                    fEmulated = true;
+                if ((opcode & 0xfffffc1f) == 0xd63f0000)  // BLR
+                    SetReg(pCtx, 30, m_originalPc + 4);
             }
         }
-        else if (((opcode1 & 0xffd0) == 0xe410) &&
-                 ((opcode2 & 0x2000) == 0x0000))
+        else
         {
-            // LDMDB : T1
-            if (execute)
-            {
-                DWORD W = BitExtract(opcode1, 5, 5);
-                DWORD Rn = BitExtract(opcode1, 3, 0);
-                DWORD registerList = opcode2;
+            // These are either:
+            // - Unallocated instructions
+            // - Unallocated on armv8 in EL0 (ERET, DRPS)
+            // - Several armv8.3 pointer authentication branch related instructions
+            //   Note: We do not use armv8.3 pointer authentication forms in JIT or generate arm64 native code with v8.3 enabled
+        }
+    }
+    else if ((opcode & 0x7c000000) == 0x14000000) // Unconditional branch immediate (B & BL)
+    {
+        fEmulated = true;
+        if (execute)
+        {
+            uint64_t L =     BitExtract(opcode, 31, 31);
+            uint64_t imm26 = BitExtract(opcode, 25, 0, true);
 
-                LDM(pCtx, Rn, registerList, W, false);
-                fEmulated = true;
-            }
-            else
+            uint64_t imm = (imm26 << 2);
+
+            fRedirectedPc = true;
+            m_targetPc = m_originalPc + imm;
+
+            if (L) // BL
             {
-                // We should only emulate this instruction if Pc is set
-                if (opcode2 & (1<<15))
-                    fEmulated = true;
+                SetReg(pCtx, 30, m_originalPc + 4);
             }
         }
-        else if (((opcode1 & 0xfff0) == 0xf8d0) &&
-                 ((opcode1 & 0x000f) != 0x000f))
+    }
+    else if ((opcode & 0x7e000000) == 0x340000000) // Compare and branch CBZ & CBNZ
+    {
+        fEmulated = true;
+        if (execute)
         {
-            // LDR.W (immediate): T3
-            DWORD Rt = BitExtract(opcode2, 15, 12);
-            DWORD Rn = BitExtract(opcode1, 3, 0);
-            if (execute)
+            uint64_t sf =    BitExtract(opcode, 31, 31);
+            uint64_t NZ =    BitExtract(opcode, 24, 24);
+            uint64_t imm19 = BitExtract(opcode, 23, 5, true);
+            uint64_t Rt =    BitExtract(opcode, 4, 0);
+
+            uint64_t regValue = GetReg(pCtx, Rt);
+
+            if (sf == 0)
             {
-                DWORD imm12 = BitExtract(opcode2, 11, 0);
-
-                DWORD value;
-                GET_MEM(&value, GetReg(pCtx, Rn) + imm12, 4, false);
-
-                SetReg(pCtx, Rt, value);
-                fEmulated = true;
+                // 32-bit instruction form
+                regValue = BitExtract(regValue, 31, 0);
             }
-            else
+
+            if ((regValue == 0) == (NZ == 0))
             {
-                // We should only emulate this instruction if Pc is used
-                if (Rt == 15 || Rn == 15)
-                    fEmulated = true;
+                uint64_t imm = (imm19 << 2);
+
+                fRedirectedPc = true;
+                m_targetPc = m_originalPc + imm;
             }
         }
-        else if (((opcode1 & 0xfff0) == 0xf850) &&
-                 ((opcode2 & 0x0800) == 0x0800) &&
-                 ((opcode1 & 0x000f) != 0x000f))
+    }
+    else if ((opcode & 0x7e000000) == 0x36000000) // Test and branch (TBZ & TBNZ)
+    {
+        fEmulated = true;
+        if (execute)
         {
-            // LDR (immediate) : T4, POP : T3
-            DWORD Rn = BitExtract(opcode1, 3, 0);
-            DWORD Rt = BitExtract(opcode2, 15, 12);
-            if (execute)
+            uint64_t b5 =    BitExtract(opcode, 31, 31);
+            uint64_t NZ =    BitExtract(opcode, 24, 24);
+            uint64_t b40 =   BitExtract(opcode, 23, 19);
+            uint64_t imm14 = BitExtract(opcode, 18, 5, true);
+            uint64_t Rt =    BitExtract(opcode, 4, 0);
+
+            uint64_t regValue = GetReg(pCtx, Rt);
+
+            uint64_t bit = (b5 << 5) | b40;
+            uint64_t bitValue = BitExtract(regValue, bit, bit);
+
+            if (bitValue == NZ)
             {
-                DWORD P = BitExtract(opcode2, 10, 10);
-                DWORD U = BitExtract(opcode2, 9, 9);
-                DWORD W = BitExtract(opcode2, 8, 8);
-                DWORD imm8 = BitExtract(opcode2, 7, 0);
+                uint64_t imm = (imm14 << 2);
 
-                DWORD offset_addr = U ? GetReg(pCtx, Rn) + imm8 : GetReg(pCtx, Rn) - imm8;
-                DWORD addr = P ? offset_addr : GetReg(pCtx, Rn);
-
-                DWORD value;
-                GET_MEM(&value, addr, 4, false);
-
-                if (W)
-                    SetReg(pCtx, Rn, offset_addr);
-
-                SetReg(pCtx, Rt, value);
-                fEmulated = true;
-            }
-            else
-            {
-                // We should only emulate this instruction if Pc is used
-                if (Rt == 15 || Rn == 15)
-                    fEmulated = true;
+                fRedirectedPc = true;
+                m_targetPc = m_originalPc + imm;
             }
         }
-        else if (((opcode1 & 0xff7f) == 0xf85f))
+    }
+    else if ((opcode & 0x3b000000) == 0x18000000) // Load register (literal)
+    {
+        uint64_t opc = BitExtract(opcode, 31, 30);
+
+        fEmulated = (opc != 3);
+        if (execute)
         {
-            // LDR.W (literal) : T2
-            DWORD Rt = BitExtract(opcode2, 15, 12);
-            if (execute)
+            _ASSERTE(FALSE); // Emulation not implemented
+
+            uint64_t V =     BitExtract(opcode, 26, 26);
+            uint64_t imm19 = BitExtract(opcode, 23, 5, true);
+            uint64_t Rt =    BitExtract(opcode, 4, 0);
+
+            uint64_t imm = (imm19 << 2);
+
+            uint8_t* address = (uint8_t*)(m_originalPc + imm);
+
+            uint64_t value = 0;
+            uint64_t valueHi;
+
+            switch (opc)
             {
-                DWORD U = BitExtract(opcode1, 7, 7);
-                DWORD imm12 = BitExtract(opcode2, 11, 0);
+            case 0: // 32-bit
+                GET_MEM(&value, address, 4, false);
 
-                // This instruction always reads relative to R15/PC
-                DWORD addr = GetReg(pCtx, 15) & ~3;
-                addr = U ? addr + imm12 : addr - imm12;
-
-                DWORD value;
-                GET_MEM(&value, addr, 4, false);
-
-                SetReg(pCtx, Rt, value);
-            }
-
-            // We should ALWAYS emulate this instruction, because this instruction
-            // always reads the memory relative to PC
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xfff0) == 0xf850) &&
-                 ((opcode2 & 0x0fc0) == 0x0000) &&
-                 ((opcode1 & 0x000f) != 0x000f))
-        {
-            // LDR.W : T2
-            DWORD Rn = BitExtract(opcode1, 3, 0);
-            DWORD Rt = BitExtract(opcode2, 15, 12);
-            DWORD Rm = BitExtract(opcode2, 3, 0);
-            if (execute)
-            {
-                DWORD imm2 = BitExtract(opcode2, 5, 4);
-                DWORD addr = GetReg(pCtx, Rn) + (GetReg(pCtx, Rm) << imm2);
-
-                DWORD value;
-                GET_MEM(&value, addr, 4, false);
-
-                SetReg(pCtx, Rt, value);
-                fEmulated = true;
-            }
-            else
-            {
-                // We should only emulate this instruction if Pc is used
-                if (Rt == 15 || Rn == 15 || Rm == 15)
-                    fEmulated = true;
-            }
-        }
-        else if (((opcode1 & 0xff7f) == 0xf81f) &&
-                 ((opcode2 & 0xf000) != 0xf000))
-        {
-            // LDRB (literal) : T2
-            if (execute)
-            {
-                DWORD U = BitExtract(opcode1, 7, 7);
-                DWORD Rt = BitExtract(opcode2, 15, 12);
-                DWORD imm12 = BitExtract(opcode2, 11, 0);
-
-                DWORD addr = (GetReg(pCtx, 15) & ~3);
-                addr = U ? addr + imm12 : addr - imm12;
-
-                DWORD value;
-                GET_MEM(&value, addr, 1, false);
-
-                SetReg(pCtx, Rt, value);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xfe5f) == 0xe85f) &&
-                 ((opcode1 & 0x0120) != 0x0000))
-        {
-            // LDRD (literal) : T1
-            if (execute)
-            {
-                DWORD U = BitExtract(opcode1, 7, 7);
-                DWORD Rt = BitExtract(opcode2, 15, 12);
-                DWORD Rt2 = BitExtract(opcode2, 11, 8);
-                DWORD imm8 = BitExtract(opcode2, 7, 0);
-
-                DWORD addr = (GetReg(pCtx, 15) & ~3);
-                addr = U ? addr + (imm8 << 2) : addr - (imm8 << 2);
-
-                DWORD value1;
-                GET_MEM(&value1, addr, 4, false);
-
-                DWORD value2;
-                GET_MEM(&value2, addr + 4, 4, false);
-
-                SetReg(pCtx, Rt, value1);
-                SetReg(pCtx, Rt2, value2);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xff7f) == 0xf83f) &&
-                 ((opcode2 & 0xf000) != 0xf000))
-        {
-            // LDRH (literal) : T1
-            if (execute)
-            {
-                DWORD U = BitExtract(opcode1, 7, 7);
-                DWORD Rt = BitExtract(opcode2, 15, 12);
-                DWORD imm12 = BitExtract(opcode2, 11, 0);
-
-                DWORD addr = (GetReg(pCtx, 15) & ~3);
-                addr = U ? addr + imm12 : addr - imm12;
-
-                DWORD value;
-                GET_MEM(&value, addr, 2, false);
-
-                SetReg(pCtx, Rt, value);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xff7f) == 0xf91f) &&
-                 ((opcode2 & 0xf000) != 0xf000))
-        {
-            // LDRSB (literal) : T1
-            if (execute)
-            {
-                DWORD U = BitExtract(opcode1, 7, 7);
-                DWORD Rt = BitExtract(opcode2, 15, 12);
-                DWORD imm12 = BitExtract(opcode2, 11, 0);
-
-                DWORD addr = (GetReg(pCtx, 15) & ~3);
-                addr = U ? addr + imm12 : addr - imm12;
-
-                DWORD value;
-                GET_MEM(&value, addr, 1, true);
-
-                SetReg(pCtx, Rt, value);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xff7f) == 0xf53f) &&
-                 ((opcode2 & 0xf000) != 0xf000))
-        {
-            // LDRSH (literal) : T1
-            if (execute)
-            {
-                DWORD U = BitExtract(opcode1, 7, 7);
-                DWORD Rt = BitExtract(opcode2, 15, 12);
-                DWORD imm12 = BitExtract(opcode2, 11, 0);
-
-                DWORD addr = (GetReg(pCtx, 15) & ~3);
-                addr = U ? addr + imm12 : addr - imm12;
-
-                DWORD value;
-                GET_MEM(&value, addr, 2, true);
-
-                SetReg(pCtx, Rt, value);
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xfff0) == 0xe8d0) &&
-                 ((opcode2 & 0xffe0) == 0xf000))
-        {
-            // TBB/TBH : T1
-            if (execute)
-            {
-                DWORD Rn = BitExtract(opcode1, 3, 0);
-                DWORD H = BitExtract(opcode2, 4, 4);
-                DWORD Rm = BitExtract(opcode2, 3, 0);
-
-                DWORD addr = GetReg(pCtx, Rn);
-
-                DWORD value;
-                if (H)
-                    GET_MEM(&value, addr + (GetReg(pCtx, Rm) << 1), 2, false);
+                if (V == 0)
+                    SetReg(pCtx, Rt, value);
                 else
-                    GET_MEM(&value, addr + GetReg(pCtx, Rm), 1, false);
+                    SetFPReg(pCtx, Rt, value);
+                break;
+            case 1: // 64-bit GPR
+                GET_MEM(&value, address, 8, false);
 
-                SetReg(pCtx, 15, GetReg(pCtx, 15) + (value << 1));
-            }
-
-            fEmulated = true;
-        }
-
-        // If we emulated an instruction but didn't set the PC explicitly we have to do so now (in such cases
-        // the next PC will always point directly after the instruction we just emulated).
-        if (fEmulated && !m_fRedirectedPc)
-            SetReg(pCtx, 15, GetReg(pCtx, 15));
-    }
-    else
-    {
-        // Handle 16-bit instructions.
-
-        if ((opcode1 & 0xf800) == 0xa000)
-        {
-            // ADR : T1
-            if (execute)
-            {
-                DWORD Rd = BitExtract(opcode1, 10, 8);
-                DWORD imm8 = BitExtract(opcode1, 7, 0);
-
-                SetReg(pCtx, Rd, (GetReg(pCtx, 15) & 3) + (imm8 << 2));
-            }
-
-            fEmulated = true;
-        }
-        else if ((opcode1 & 0xff00) == 0x4400)
-        {
-            // A8.8.6 ADD (register, Thumb) : T2
-            DWORD Rm = BitExtract(opcode1, 6, 3);
-
-            // We should only emulate this instruction if Pc is used
-            if (Rm == 15)
-                fEmulated = true;
-
-            if (execute)
-            {
-                DWORD Rd = BitExtract(opcode1, 2, 0) | BitExtract(opcode1, 7, 7) << 3;
-                SetReg(pCtx, Rd, GetReg(pCtx, Rm) + GetReg(pCtx, Rd));
-            }
-        }
-        else if (((opcode1 & 0xf000) == 0xd000) && ((opcode1 & 0x0f00) != 0x0e00))
-        {
-            // B : T1
-
-            // We only emulate this instruction if we take the conditional
-            // jump.  If not we'll pass right over the jump and set the
-            // target IP as normal.
-            DWORD cond = BitExtract(opcode1, 11, 8);
-            if (execute)
-            {
-                _ASSERTE(ConditionHolds(pCtx, cond));
-
-                DWORD imm8 = BitExtract(opcode1, 7, 0);
-                DWORD disp = (imm8 << 1) | ((imm8 & 0x80) ? 0xffffff00 : 0);
-
-                SetReg(pCtx, 15, GetReg(pCtx, 15) + disp);
-                fEmulated = true;
-            }
-            else
-            {
-                if (ConditionHolds(pCtx, cond))
+                if (V == 0)
+                    SetReg(pCtx, Rt, value);
+                else
+                    SetFPReg(pCtx, Rt, value);
+                break;
+            case 2:
+                if (V == 0)
                 {
-                    fEmulated = true;
+                    // 32-bit GPR Sign extended
+                    GET_MEM(&value, address, 4, true);
+                    SetReg(pCtx, Rt, value);
                 }
-            }
-        }
-        else if ((opcode1 & 0xf800) == 0xe000)
-        {
-            if (execute)
-            {
-                // B : T2
-                DWORD imm11 = BitExtract(opcode1, 10, 0);
-                DWORD disp = (imm11 << 1) | ((imm11 & 0x400) ? 0xfffff000 : 0);
-
-                SetReg(pCtx, 15, GetReg(pCtx, 15) + disp);
-            }
-
-            fEmulated = true;
-        }
-        else if ((opcode1 & 0xff87) == 0x4780)
-        {
-            // BLX (register) : T1
-            if (execute)
-            {
-                DWORD Rm = BitExtract(opcode1, 6, 3);
-                DWORD addr = GetReg(pCtx, Rm);
-
-                SetReg(pCtx, 14, (GetReg(pCtx, 15) - 2) | 1);
-                SetReg(pCtx, 15, addr);
-            }
-
-            fEmulated = true;
-        }
-        else if ((opcode1 & 0xff87) == 0x4700)
-        {
-            // BX : T1
-            if (execute)
-            {
-                DWORD Rm = BitExtract(opcode1, 6, 3);
-                SetReg(pCtx, 15, GetReg(pCtx, Rm));
-            }
-
-            fEmulated = true;
-        }
-        else if ((opcode1 & 0xf500) == 0xb100)
-        {
-            // CBNZ/CBZ : T1
-            if (execute)
-            {
-                DWORD op = BitExtract(opcode1, 11, 11);
-                DWORD i = BitExtract(opcode1, 9, 9);
-                DWORD imm5 = BitExtract(opcode1, 7, 3);
-                DWORD Rn = BitExtract(opcode1, 2, 0);
-
-                if ((op && (GetReg(pCtx, Rn) != 0)) ||
-                    (!op && (GetReg(pCtx, Rn) == 0)))
+                else
                 {
-                    SetReg(pCtx, 15, GetReg(pCtx, 15) + ((i << 6) | (imm5 << 1)));
+                    // 128-bit FP & SIMD
+                    GET_MEM(&value, address, 8, false);
+                    GET_MEM(&valueHi, address + 8, 8, false);
+                    SetFPReg(pCtx, Rt, value, valueHi);
                 }
-            }
-
-            fEmulated = true;
-        }
-        else if (((opcode1 & 0xff00) == 0xbf00) &&
-                 ((opcode1 & 0x000f) != 0x0000))
-        {
-            // IT : T1
-            if (execute)
-            {
-                DWORD firstcond = BitExtract(opcode1, 7, 4);
-                DWORD mask = BitExtract(opcode1, 3, 0);
-
-                // The IT instruction is special. We compute the IT state bits for the CPSR and cache them in
-                // m_originalITState. We then set m_fEmulatedITInstruction so that Fixup() knows not to advance
-                // this state (simply write it as-is back into the CPSR).
-                m_originalITState.Init((BYTE)((firstcond << 4) | mask));
-                m_originalITState.Set(pCtx);
-                m_fEmulatedITInstruction = true;
-            }
-
-            fEmulated = true;
-        }
-        else if ((opcode1 & 0xf800) == 0x4800)
-        {
-            // LDR (literal) : T1
-            if (execute)
-            {
-                DWORD Rt = BitExtract(opcode1, 10, 8);
-                DWORD imm8 = BitExtract(opcode1, 7, 0);
-
-                DWORD addr = (GetReg(pCtx, 15) & ~3) + (imm8 << 2);
-
-                DWORD value = 0;
-                GET_MEM(&value, addr, 4, false);
-
-                SetReg(pCtx, Rt, value);
-            }
-
-            fEmulated = true;
-        }
-        else if ((opcode1 & 0xff00) == 0x4600)
-        {
-            // MOV (register) : T1
-            DWORD D = BitExtract(opcode1, 7, 7);
-            DWORD Rm = BitExtract(opcode1, 6, 3);
-            DWORD Rd = (D << 3) | BitExtract(opcode1, 2, 0);
-
-            if (execute)
-            {
-                SetReg(pCtx, Rd, GetReg(pCtx, Rm));
-                fEmulated = true;
-            }
-            else
-            {
-                // Only emulate if we change Pc
-                if (Rm == 15 || Rd == 15)
-                    fEmulated = true;
+                break;
+            default:
+                _ASSERTE(FALSE);
             }
         }
-        else if ((opcode1 & 0xfe00) == 0xbc00)
-        {
-            // POP : T1
-            DWORD P = BitExtract(opcode1, 8, 8);
-            DWORD registerList = (P << 15) | BitExtract(opcode1, 7, 0);
-            if (execute)
-            {
-                LDM(pCtx, 13, registerList, true, true);
-                fEmulated = true;
-            }
-            else
-            {
-                // Only emulate if Pc is in the register list
-                if (registerList & (1<<15))
-                    fEmulated = true;
-            }
-        }
-
-        // If we emulated an instruction but didn't set the PC explicitly we have to do so now (in such cases
-        // the next PC will always point directly after the instruction we just emulated).
-        if (execute && fEmulated && !m_fRedirectedPc)
-            SetReg(pCtx, 15, GetReg(pCtx, 15) - 2);
     }
 
-    LOG((LF_CORDB, LL_INFO100000, "ArmSingleStepper::TryEmulate(opcode=%x %x) emulated=%s redirectedPc=%s\n",
-        (DWORD)opcode1, (DWORD)opcode2, fEmulated ? "true" : "false", m_fRedirectedPc ? "true" : "false"));
+    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate(opcode=%x) emulated=%s redirectedPc=%s\n",
+        opcode, fEmulated ? "true" : "false", fRedirectedPc ? "true" : "false"));
+
     return fEmulated;
 }
