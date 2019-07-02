@@ -322,9 +322,31 @@ void CodeGen::genCodeForBBlist()
         }
 #endif
 
+        /* Tell everyone which basic block we're working on */
+
+        compiler->compCurBB = block;
+
         block->bbEmitCookie = nullptr;
 
-        if (block->bbFlags & (BBF_JMP_TARGET | BBF_HAS_LABEL))
+        // If this block is a jump target or it requires a label then set 'needLabel' to true,
+        //
+        bool needLabel = (block->bbFlags & (BBF_JMP_TARGET | BBF_HAS_LABEL)) != 0;
+
+#if defined(DEBUG) || defined(LATE_DISASM)
+        // We also want to start a new Instruction group by calling emitAddLabel below,
+        // when we need accurate bbWeights for thsi block in the emitter.  We force this 
+        // whenever our previous block was a BBJ_COND and it has a different weight than us.
+        //
+        // Note: We need to have set compCurBB before calling emitAddLabel
+        //
+        if ((block->bbPrev != nullptr) && (block->bbPrev->bbJumpKind == BBJ_COND) &&
+            (block->bbWeight != block->bbPrev->bbWeight))
+        {
+            needLabel = true;
+        }
+#endif // DEBUG || LATE_DISASM
+
+        if (needLabel)
         {
             /* Mark a label and update the current set of live GC refs */
 
@@ -353,10 +375,6 @@ void CodeGen::genCodeForBBlist()
         SetStackLevel(0);
         genAdjustStackLevel(block);
         savedStkLvl = genStackLevel;
-
-        /* Tell everyone which basic block we're working on */
-
-        compiler->compCurBB = block;
 
         // Needed when jitting debug code
         siBeginBlock(block);
