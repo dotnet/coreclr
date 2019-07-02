@@ -36177,33 +36177,99 @@ void GCHeap::GetMemoryInfo(uint32_t* highMemLoadThreshold,
     *lastRecordedFragmentation = gc_heap::last_gc_fragmentation;
 }
 
-void GCHeap::GetConfigInfo(bool* allowVeryLargeObjects,
-                           bool* cpuGroup,
-                           uint32_t* heapCount,
-                           bool* noAffinitize,
-                           uint64_t* heapAffinitizeMask,
-                           const char** heapAffinitizeRanges,
-                           uint32_t* highMemPercent,
-                           uint64_t* heapHardLimit,
-                           bool* largePages,
-                           uint64_t* lohThreshold)
+static const char* bool_to_str(const bool value)
 {
-    *allowVeryLargeObjects = GCConfig::GetAllowVeryLargeObjects();//g_pConfig->GetGCAllowVeryLargeObjects();
-    *cpuGroup = GCConfig::GetGCCpuGroup();
+    const char* content = value ? "true" : "false";
+    const size_t len = strlen(content);
+    // + 1 for the '\0'
+    char* out = new (nothrow) char[len + 1];
+    if (out != nullptr)
+    {
+        strncpy(out, content, len + 1);
+        assert(out[len] == '\0' && strcmp(out, content) == 0);
+    }
+    return out;
+}
+
+static const char* size_t_to_str(const size_t value)
+{
+    // 2**64 in base ten has 20 characters at most, + 1 for the '\0'
+    const size_t max_size = 21;
+    char* out = new (nothrow) char[max_size];
+    if (out != nullptr)
+    {
+        int n = snprintf(out, max_size, "%zu", value);
+        // -1 because n does not include the '\0'
+        assert(n <= max_size - 1);
+    }
+    return out;
+}
+
+const char* GCHeap::GetGCConfigValue(const wchar_t* key)
+{
+    if (wcscmp(key, L"AllowVeryLargeObjects") == 0)
+    {
+        return bool_to_str(GCConfig::GetAllowVeryLargeObjects());//g_pConfig->GetGCAllowVeryLargeObjects();
+    }
+    else if (wcscmp(key, L"CpuGroup") == 0)
+    {
+        return bool_to_str(GCConfig::GetGCCpuGroup());
+    }
+    else if (wcscmp(key, L"HeapAffinitizeMask") == 0)
+    {
+        return size_t_to_str(GCConfig::GetGCHeapAffinitizeMask());
+    }
+    else if (wcscmp(key, L"HeapAffinitizeRanges") == 0)
+    {
+        // GetGCHeapAffinitizeRanges returns a GCConfigStringHolder which will delete the string, but not if we Extract() it.
+        return GCConfig::GetGCHeapAffinitizeRanges().Extract();
+    }
+    else if (wcscmp(key, L"HeapCount") == 0)
+    {
 #ifdef MULTIPLE_HEAPS
-    *heapCount = gc_heap::n_heaps;
-    *noAffinitize = gc_heap::gc_thread_no_affinitize_p;
+        const size_t heapCount = gc_heap::n_heaps;
 #else
-    *heapCount = 1;
-    *noAffinitize = false;
+        const size_t heapCount = 1;
 #endif
-    *heapAffinitizeMask = GCConfig::GetGCHeapAffinitizeMask();
-    // GetGCHeapAffinitizeRanges returns a GCConfigStringHolder which will delete the string, but not if we Extract() it.
-    *heapAffinitizeRanges = GCConfig::GetGCHeapAffinitizeRanges().Extract();
-    *highMemPercent = gc_heap::high_memory_load_th;
-    *heapHardLimit = gc_heap::heap_hard_limit;
-    *largePages = gc_heap::use_large_pages_p;
-    *lohThreshold = loh_size_threshold;
+        return size_t_to_str(heapCount);
+    }
+    else if (wcscmp(key, L"HeapHardLimit") == 0)
+    {
+        return size_t_to_str(gc_heap::heap_hard_limit);
+    }
+    else if (wcscmp(key, L"HighMemPercent") == 0)
+    {
+        return size_t_to_str(gc_heap::high_memory_load_th);
+    }
+    else if (wcscmp(key, L"NoAffinitize") == 0)
+    {
+#ifdef MULTIPLE_HEAPS
+        const bool noAffinitize = gc_heap::gc_thread_no_affinitize_p;
+#else
+        const bool noAffinitize = false;
+#endif
+        return bool_to_str(noAffinitize);
+    }
+    else if (wcscmp(key, L"LargePages") == 0)
+    {
+        return size_t_to_str(gc_heap::use_large_pages_p);
+    }
+    else if (wcscmp(key, L"LOHThreshold") == 0)
+    {
+        return size_t_to_str(loh_size_threshold);
+    }
+    else if (wcscmp(key, L"Server") == 0)
+    {
+#ifdef MULTIPLE_HEAPS
+        return bool_to_str(true);
+#else
+        return bool_to_str(false);
+#endif
+    }
+    else
+    {
+        return nullptr;
+    }
 }
 
 int GCHeap::GetGcLatencyMode()

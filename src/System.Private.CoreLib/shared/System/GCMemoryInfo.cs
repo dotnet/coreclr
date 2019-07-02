@@ -53,42 +53,4 @@ namespace System
             FragmentedBytes = fragmentedBytes;
         }
     }
-
-    // TODO: own file
-    public readonly struct GCConfigInfo
-    {
-        public bool AllowVeryLargeObjects { get; }
-        public bool CpuGroup { get; }
-        public long HeapCount { get; }
-        public bool NoAffinitize { get; }
-        public long HeapAffinitizeMask { get; }
-        public long HighMemPercent { get; }
-        public long HeapHardLimit { get; }
-        public string HeapAffinitizeRanges { get; }
-        public bool LargePages { get; }
-        public long LOHThreshold { get; }
-
-        internal GCConfigInfo(bool allowVeryLargeObjects,
-                              bool cpuGroup,
-                              long heapCount,
-                              bool noAffinitize,
-                              long heapAffinitizeMask,
-                              string heapAffinitizeRanges,
-                              long highMemPercent,
-                              long heapHardLimit,
-                              bool largePages,
-                              long lohThreshold)
-        {
-            AllowVeryLargeObjects = allowVeryLargeObjects;
-            CpuGroup = cpuGroup;
-            HeapCount = heapCount;
-            NoAffinitize = noAffinitize;
-            HeapAffinitizeMask = heapAffinitizeMask;
-            HeapAffinitizeRanges = heapAffinitizeRanges;
-            HighMemPercent = highMemPercent;
-            HeapHardLimit = heapHardLimit;
-            LargePages = largePages;
-            LOHThreshold = lohThreshold;
-        }
-    }
 }

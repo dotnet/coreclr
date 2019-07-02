@@ -309,12 +309,10 @@ RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCCpuGroup, W("GCCpuGroup"), 0, "Specifies if 
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHeapCount, W("GCHeapCount"), 0, "")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCNoAffinitize, W("GCNoAffinitize"), 0, "")
 // this config is only in effect if the process is not running in multiple CPU groups.
-//TODO: should not be _DIRECT_ACCESS?
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapAffinitizeMask, W("GCHeapAffinitizeMask"), "Specifies processor mask for Server GC threads")
 RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_GCProvModeStress, W("GCProvModeStress"), 0, "Stress the provisional modes")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_GCHighMemPercent, W("GCHighMemPercent"), 0, "Specifies the percent for GC to consider as high memory")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCName, W("GCName"), "")
-//TODO: should not be _DIRECT_ACCESS?
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimit, W("GCHeapHardLimit"), "Specifies the maximum commit size for the GC heap")
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(EXTERNAL_GCHeapHardLimitPercent, W("GCHeapHardLimitPercent"), "Specifies the GC heap usage as a percentage of the total memory")
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_GCHeapAffinitizeRanges, W("GCHeapAffinitizeRanges"), "Specifies list of processors for Server GC threads. The format is a comma separated list of processor numbers or ranges of processor numbers. Example: 1,3,5,7-9,12")

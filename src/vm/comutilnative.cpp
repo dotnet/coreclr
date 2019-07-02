@@ -898,36 +898,18 @@ FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* 
 }
 FCIMPLEND
 
-void QCALLTYPE GCInterface::GetConfigInfo(
-         bool* allowVeryLargeObjects,
-         bool* cpuGroup,
-         UINT32* heapCount,
-         bool* noAffinitize,
-         UINT64* heapAffinitizeMask,
-         QCall::StringHandleOnStack heapAffinitizeRanges,
-         UINT32* highMemPercent,
-         UINT64* heapHardLimit,
-         bool* largePages,
-         UINT64* lohThreshold)
+void QCALLTYPE GCInterface::GetGCConfigValue(const LPCWSTR key, QCall::StringHandleOnStack result)
 {
     QCALL_CONTRACT;
 
     BEGIN_QCALL;
 
-    const char* heapAffinitizeRangesAsCStr;
-
-    GCHeapUtilities::GetGCHeap()->GetConfigInfo(allowVeryLargeObjects,
-                                                cpuGroup,
-                                                heapCount,
-                                                noAffinitize,
-                                                heapAffinitizeMask,
-                                                &heapAffinitizeRangesAsCStr,
-                                                highMemPercent,
-                                                heapHardLimit,
-                                                largePages,
-                                                lohThreshold);
-
-    heapAffinitizeRanges.Set(heapAffinitizeRangesAsCStr);
+    const char* value = GCHeapUtilities::GetGCHeap()->GetGCConfigValue(key);
+    if (value != nullptr)
+    {
+        result.Set(value);
+        delete value;
+    }
 
     END_QCALL;
 }

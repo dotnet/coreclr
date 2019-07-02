@@ -177,16 +177,7 @@ public:
                        size_t* lastRecordedHeapSize,
                        size_t* lastRecordedFragmentation);
 
-    void GetConfigInfo(bool* allowVeryLargeObjects,
-                       bool* cpuGroup,
-                       uint32_t* heapCount,
-                       bool* noAffinitize,
-                       uint64_t* heapAffinitizeMask,
-                       const char** heapAffinitizeRanges,
-                       uint32_t* highMemPercent,
-                       uint64_t* heapHardLimit,
-                       bool* largePages,
-                       uint64_t* lohThreshold);
+    const char* GetGCConfigValue(const wchar_t* key);
 
     int GetGcLatencyMode();
     int SetGcLatencyMode(int newLatencyMode);

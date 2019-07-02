@@ -77,44 +77,13 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void GetConfigInfo(out bool allowVeryLargeObjects,
-                                                  out bool cpuGroup,
-                                                  out uint heapCount,
-                                                  out bool noAffinitize,
-                                                  out ulong heapAffinitizeMask,
-                                                  StringHandleOnStack heapAffinitizeRanges,
-                                                  out uint highMemPercent,
-                                                  out ulong heapHardLimit,
-                                                  out bool largePages,
-                                                  out ulong lohThreshold);
+        internal static extern void GetGCConfigValue(string name, StringHandleOnStack retString);
 
-        public static GCConfigInfo GetGCConfigInfo()
+        internal static string GetConfigValue(string name)
         {
-            string heapAffinitizeRanges = "";
-
-            GetConfigInfo(
-                out bool allowVeryLargeObjects,
-                out bool cpuGroup,
-                out uint heapCount,
-                out bool noAffinitize,
-                out ulong heapAffinitizeMask,
-                JitHelpers.GetStringHandleOnStack(ref heapAffinitizeRanges),
-                out uint highMemPercent,
-                out ulong heapHardLimit,
-                out bool largePages,
-                out ulong lohThreshold);
-
-            return new GCConfigInfo(
-                allowVeryLargeObjects: allowVeryLargeObjects,
-                cpuGroup: cpuGroup,
-                heapCount: (long)heapCount,
-                noAffinitize: noAffinitize,
-                heapAffinitizeMask: (long)heapAffinitizeMask,
-                heapAffinitizeRanges: heapAffinitizeRanges,
-                highMemPercent: (long)highMemPercent,
-                heapHardLimit: (long)heapHardLimit,
-                largePages: largePages,
-                lohThreshold: (long)lohThreshold);
+            string result = "";
+            GetGCConfigValue(name, JitHelpers.GetStringHandleOnStack(ref result));
+            return result;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

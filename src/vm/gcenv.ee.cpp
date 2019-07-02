@@ -1076,15 +1076,15 @@ bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
         return true;
     }
 
-    if (strcmp(key, "GCNoAffinitize") == 0)
-    {
-        *value = g_pConfig->GetGCNoAffinitize();
-        return true;
-    }
-
     if (strcmp(key, "GCLargePages") == 0)
     {
         *value = g_pConfig->GetGCLargePages();
+        return true;
+    }
+
+    if (strcmp(key, "GCNoAffinitize") == 0)
+    {
+        *value = g_pConfig->GetGCNoAffinitize();
         return true;
     }
 
@@ -1113,27 +1113,9 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
       GC_NOTRIGGER;
     } CONTRACTL_END;
 
-    if (strcmp(key, "GCSegmentSize") == 0)
-    {
-        *value = g_pConfig->GetSegmentSize();
-        return true;
-    }
-
     if (strcmp(key, "GCgen0size") == 0)
     {
         *value = g_pConfig->GetGCgen0size();
-        return true;
-    }
-
-    if (strcmp(key, "GCLOHThreshold") == 0)
-    {
-        *value = g_pConfig->GetGCLOHThreshold();
-        return true;
-    }
-
-    if (strcmp(key, "GCHeapCount") == 0)
-    {
-        *value = g_pConfig->GetGCHeapCount();
         return true;
     }
 
@@ -1143,15 +1125,33 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
         return true;
     }
 
-    if (strcmp(key, "GCHighMemPercent") == 0)
+    if (strcmp(key, "GCHeapCount") == 0)
     {
-        *value = g_pConfig->GetGCHighMemPercent();
+        *value = g_pConfig->GetGCHeapCount();
         return true;
     }
 
     if (strcmp(key, "GCHeapHardLimit") == 0)
     {
         *value = g_pConfig->GetGCHeapHardLimit();
+        return true;
+    }
+
+    if (strcmp(key, "GCHighMemPercent") == 0)
+    {
+        *value = g_pConfig->GetGCHighMemPercent();
+        return true;
+    }
+
+    if (strcmp(key, "GCLOHThreshold") == 0)
+    {
+        *value = g_pConfig->GetGCLOHThreshold();
+        return true;
+    }
+    
+    if (strcmp(key, "GCSegmentSize") == 0)
+    {
+        *value = g_pConfig->GetSegmentSize();
         return true;
     }
 
@@ -1245,11 +1245,7 @@ bool GCToEEInterface::GetStringConfigValue(const char* key, const char** value)
     {
         // Do not free, the one we get from eeconfig is just a reference to its own string and not a copy
         LPCWSTR out = g_pConfig->GetGCHeapAffinitizeRanges();
-        if (!out)
-        {
-            return false;
-        }
-        return GetStringConfigValueHelper(out, value);
+        return out != nullptr && GetStringConfigValueHelper(out, value);
     }
     else
     {
