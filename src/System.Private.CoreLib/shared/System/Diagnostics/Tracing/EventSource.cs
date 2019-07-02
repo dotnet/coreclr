@@ -1924,7 +1924,7 @@ namespace System.Diagnostics.Tracing
                         }
                     }
 
-                    LogEventArgsMismatches(m_eventData[eventId].Parameters, args);
+                    LogEventArgsMismatches(eventId, args);
 
                     Guid* pActivityId = null;
                     Guid activityId = Guid.Empty;
@@ -2050,17 +2050,24 @@ namespace System.Diagnostics.Tracing
         /// We expect that the arguments to the Event method and the arguments to WriteEvent match. This function 
         /// checks that they in fact match and logs a warning to the debugger if they don't.
         /// </summary>
-        /// <param name="infos"></param>
+        /// <param name="eventId"></param>
         /// <param name="args"></param>
-        private void LogEventArgsMismatches(ParameterInfo[] infos, object?[] args)
+        private void LogEventArgsMismatches(int eventId, object?[] args)
         {
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
             // It would be nice to have this on PCL builds, but it would be pointless since there isn't support for 
             // writing to the debugger log on PCL.
-            bool typesMatch = args.Length == infos.Length;
+            Debug.Assert(m_eventData != null);
+            ParameterInfo[] infos = m_eventData[eventId].Parameters;
+
+            if (args.Length != infos.Length)
+            {
+                System.Diagnostics.Debugger.Log(0, null, SR.Format(SR.EventSource_EventParametersMismatch, eventId, args.Length, infos.Length) + "\r\n");
+                return;
+            }
 
             int i = 0;
-            while (typesMatch && i < args.Length)
+            while (i < args.Length)
             {
                 Type pType = infos[i].ParameterType;
 
@@ -2071,16 +2078,11 @@ namespace System.Diagnostics.Tracing
                     || (args[i] == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
                     )
                 {
-                    typesMatch = false;
-                    break;
+                    System.Diagnostics.Debugger.Log(0, null, SR.Format(SR.EventSource_VarArgsParameterMismatch, eventId, infos[i].Name) + "\r\n");
+                    return;
                 }
 
                 ++i;
-            }
-
-            if (!typesMatch)
-            {
-                System.Diagnostics.Debugger.Log(0, null, SR.EventSource_VarArgsParameterMismatch + "\r\n");
             }
 #endif //!ES_BUILD_PCL
         }
