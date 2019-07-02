@@ -14082,12 +14082,23 @@ int emitter::getInsThroughput(instrDesc* id)
     {
         // Model a read from stack location, possible def to use latency from L0 cache
         case IF_SRD:
+        case IF_SRW:
             result = max(result, PERFSCORE_COST_MEM_READ_STACK);
+            break;
+
+            // Model a read from a constant location, possible def to use latency from L0 cache
+        case IF_MRD:
+        case IF_MRW:
+            result = max(result, PERFSCORE_COST_MEM_READ_CONST);
             break;
 
         // Model a read from memory location, possible def to use latency from L0 or L1 cache
         case IF_ARD:
+        case IF_ARW:
             result = max(result, PERFSCORE_COST_MEM_READ_GENERAL);
+            break;
+
+        default:
             break;
     }
 
