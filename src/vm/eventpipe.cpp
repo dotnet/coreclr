@@ -353,10 +353,6 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     // Do rundown before fully stopping the session unless rundown wasn't requested
     if (pSession->RundownRequested())
     {
-        // Flush the buffers to the stream/file
-        // This is not a guarantee that all events will be written,
-        // but should clear some room for rundown events
-        pSession->WriteAllBuffersToFile();
         pSession->EnableRundown(); // Set Rundown provider.
 
         EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
@@ -378,6 +374,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         }
     }
 
+    pSession->SuspendWriteEvent();
     pSession->WriteAllBuffersToFile(); // Flush the buffers to the stream/file
 
     --s_numberOfSessions;

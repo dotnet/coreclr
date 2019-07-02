@@ -1044,24 +1044,6 @@ void EventPipeBufferManager::SuspendWriteEvent(uint32_t sessionIndex)
     }
 }
 
-void EventPipeBufferManager::ResumeWriteEvent()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        // All calls to this method must be synchronized by our caller
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
-    }
-    CONTRACTL_END;
-
-    SpinLockHolder _slh(&m_lock);
-    _ASSERTE(EnsureConsistency());
-
-    m_writeEventSuspending.Store(FALSE);
-}
-
 void EventPipeBufferManager::DeAllocateBuffers()
 {
     CONTRACTL
