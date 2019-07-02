@@ -334,7 +334,7 @@ void CodeGen::genCodeForBBlist()
 
 #if defined(DEBUG) || defined(LATE_DISASM)
         // We also want to start a new Instruction group by calling emitAddLabel below,
-        // when we need accurate bbWeights for thsi block in the emitter.  We force this 
+        // when we need accurate bbWeights for thsi block in the emitter.  We force this
         // whenever our previous block was a BBJ_COND and it has a different weight than us.
         //
         // Note: We need to have set compCurBB before calling emitAddLabel

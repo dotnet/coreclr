@@ -13781,7 +13781,7 @@ emitter::insFormat emitter::getMemoryOperation(insFormat insFmt)
             result = IF_SWR;
             break;
 
-    default:
+        default:
             result = IF_NONE;
             break;
     }
@@ -13855,13 +13855,13 @@ int emitter::getInsThroughput(instrDesc* id)
         case INS_lea:
             // an INS_lea instruction doesn't actually read memory
             memFmt = IF_NONE;
-                
+
             switch (insFmt)
             {
                 case IF_RWR_LABEL:
-                    // lea   reg,[pc-rel]
+                // lea   reg,[pc-rel]
                 case IF_RWR_SRD:
-                    // lea   reg,[stack]
+                // lea   reg,[stack]
                 case IF_RWR_MRD:
                     // lea   reg,[cns]
                     result = PERFSCORE_INS_THROUGHPUT_2X;
@@ -13869,7 +13869,8 @@ int emitter::getInsThroughput(instrDesc* id)
 
                 case IF_RWR_ARD:
                     // lea   reg,[mem]  ; with 1 or 2 compoents in address
-                    if ((id->idAddr()->iiaAddrMode.amIndxReg == REG_NA) || (id->idAddr()->iiaAddrMode.amBaseReg == REG_NA))
+                    if ((id->idAddr()->iiaAddrMode.amIndxReg == REG_NA) ||
+                        (id->idAddr()->iiaAddrMode.amBaseReg == REG_NA))
                     {
                         result = PERFSCORE_INS_THROUGHPUT_2X;
                     }
@@ -13886,7 +13887,6 @@ int emitter::getInsThroughput(instrDesc* id)
                     assert(!"Unhandled insFmt for INS_lea");
                     result = PERFSCORE_INS_THROUGHPUT_DEFAULT;
                     break;
-
             }
             break;
 
@@ -13897,7 +13897,7 @@ int emitter::getInsThroughput(instrDesc* id)
             {
                 result = 32 * PERFSCORE_INS_THROUGHPUT_DEFAULT;
             }
-            else  
+            else
             {
                 assert(id->idOpSize() == EA_4BYTE);
                 result = 6 * PERFSCORE_INS_THROUGHPUT_DEFAULT;
@@ -14027,7 +14027,6 @@ int emitter::getInsThroughput(instrDesc* id)
                     assert(!"Unhandled insFmt for INS_call");
                     result = PERFSCORE_INS_THROUGHPUT_DEFAULT;
                     break;
-
             }
             break;
 

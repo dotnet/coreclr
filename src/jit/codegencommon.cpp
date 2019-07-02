@@ -2255,8 +2255,9 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 #ifdef DEBUG
     if (compiler->opts.disAsm)
     {
-        printf("; Total bytes of code %d, prolog size %d, perf score %I64d for method %s, (MethodHash=%08x)\n", 
-               codeSize, prologSize, compiler->info.compPerfScore, compiler->info.compFullName, compiler->info.compMethodHash());
+        printf("; Total bytes of code %d, prolog size %d, perf score %I64d for method %s, (MethodHash=%08x)\n",
+               codeSize, prologSize, compiler->info.compPerfScore, compiler->info.compFullName,
+               compiler->info.compMethodHash());
         printf("; ============================================================\n");
         printf(""); // in our logic this causes a flush
     }
