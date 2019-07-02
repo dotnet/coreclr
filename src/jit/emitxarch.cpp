@@ -13882,8 +13882,6 @@ int emitter::getInsThroughput(instrDesc* id)
                     break;
 
                 default:
-                    printf("INFO:  IF_RWR_ARD is %d\n", IF_RWR_ARD);
-                    printf("ERROR: insFmt is %d\n", insFmt);
                     assert(!"Unhandled insFmt for INS_lea");
                     result = PERFSCORE_INS_THROUGHPUT_DEFAULT;
                     break;
@@ -14022,8 +14020,6 @@ int emitter::getInsThroughput(instrDesc* id)
                     break;
 
                 default:
-                    printf("INFO:  IF_METHOD is %d\n", IF_METHOD);
-                    printf("ERROR: insFmt is %d\n", insFmt);
                     assert(!"Unhandled insFmt for INS_call");
                     result = PERFSCORE_INS_THROUGHPUT_DEFAULT;
                     break;
