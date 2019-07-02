@@ -59,8 +59,8 @@ namespace System
                                                   out ulong lastRecordedMemLoadBytes,
                                                   out uint lastRecordedMemLoadPct,
                                                   // The next two are size_t
-                                                  out UIntPtr lastRecordedHeapSize,
-                                                  out UIntPtr lastRecordedFragmentation);
+                                                  out UIntPtr lastRecordedHeapSizeBytes,
+                                                  out UIntPtr lastRecordedFragmentationBytes);
 
         public static GCMemoryInfo GetGCMemoryInfo()
         {
@@ -68,14 +68,14 @@ namespace System
                           out ulong totalAvailableMemoryBytes,
                           out ulong lastRecordedMemLoadBytes,
                           out uint _,
-                          out UIntPtr lastRecordedHeapSize,
-                          out UIntPtr lastRecordedFragmentation);
+                          out UIntPtr lastRecordedHeapSizeBytes,
+                          out UIntPtr lastRecordedFragmentationBytes);
 
             return new GCMemoryInfo(highMemoryLoadThresholdBytes: (long)highMemLoadThresholdBytes,
                                     memoryLoadBytes: (long)lastRecordedMemLoadBytes,
                                     totalAvailableMemoryBytes: (long)totalAvailableMemoryBytes,
-                                    heapSizeBytes: (long)(ulong)lastRecordedHeapSize,
-                                    fragmentedBytes: (long)(ulong)lastRecordedFragmentation);
+                                    heapSizeBytes: (long)(ulong)lastRecordedHeapSizeBytes,
+                                    fragmentedBytes: (long)(ulong)lastRecordedFragmentationBytes);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]

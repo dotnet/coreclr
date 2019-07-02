@@ -175,8 +175,8 @@ public:
                        uint64_t* totalAvailableMemoryBytes, 
                        uint64_t* lastRecordedMemLoadBytes,
                        uint32_t* lastRecordedMemLoadPct,
-                       size_t* lastRecordedHeapSize,
-                       size_t* lastRecordedFragmentation);
+                       size_t* lastRecordedHeapSizeBytes,
+                       size_t* lastRecordedFragmentationBytes);
 
     int GetGcLatencyMode();
     int SetGcLatencyMode(int newLatencyMode);

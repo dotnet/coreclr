@@ -36154,15 +36154,15 @@ void GCHeap::GetMemoryInfo(uint64_t* highMemLoadThresholdBytes,
                            uint64_t* totalAvailableMemoryBytes,
                            uint64_t* lastRecordedMemLoadBytes,
                            uint32_t* lastRecordedMemLoadPct,
-                           size_t* lastRecordedHeapSize,
-                           size_t* lastRecordedFragmentation)
+                           size_t* lastRecordedHeapSizeBytes,
+                           size_t* lastRecordedFragmentationBytes)
 {
     *highMemLoadThresholdBytes = (uint64_t) (((double)gc_heap::high_memory_load_th) / 100 * gc_heap::total_physical_mem);
     *totalAvailableMemoryBytes = gc_heap::heap_hard_limit != 0 ? gc_heap::heap_hard_limit : gc_heap::total_physical_mem;
     *lastRecordedMemLoadBytes = (uint64_t) (((double)gc_heap::last_gc_memory_load) / 100 * gc_heap::total_physical_mem);
     *lastRecordedMemLoadPct = gc_heap::last_gc_memory_load;
-    *lastRecordedHeapSize = gc_heap::last_gc_heap_size;
-    *lastRecordedFragmentation = gc_heap::last_gc_fragmentation;
+    *lastRecordedHeapSizeBytes = gc_heap::last_gc_heap_size;
+    *lastRecordedFragmentationBytes = gc_heap::last_gc_fragmentation;
 }
 
 int GCHeap::GetGcLatencyMode()

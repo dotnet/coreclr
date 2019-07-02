@@ -609,8 +609,8 @@ public:
                                uint64_t* totalPhysicalMemoryBytes,
                                uint64_t* lastRecordedMemLoadBytes,
                                uint32_t* lastRecordedMemLoadPct,
-                               size_t* lastRecordedHeapSize,
-                               size_t* lastRecordedFragmentation) = 0;
+                               size_t* lastRecordedHeapSizeBytes,
+                               size_t* lastRecordedFragmentationBytes) = 0;
 
     // Gets the current GC latency mode.
     virtual int GetGcLatencyMode() = 0;
