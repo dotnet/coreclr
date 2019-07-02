@@ -496,6 +496,9 @@ typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 #ifdef _TARGET_ARM_
 #include "armsinglestepper.h"
 #endif
+#if (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#include "arm64singlestepper.h"
+#endif
 
 #if !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
 // DISABLE_THREADSUSPEND controls whether Thread::SuspendThread will be used at all.  
@@ -2909,11 +2912,16 @@ public:
             ResetThreadStateNC(Thread::TSNC_DebuggerIsStepping);
     }
 
-#ifdef _TARGET_ARM_
-    // ARM doesn't currently support any reliable hardware mechanism for single-stepping. Instead we emulate
-    // this in software. This support is used only by the debugger.
+#if defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+    // ARM doesn't currently support any reliable hardware mechanism for single-stepping.
+    // ARM64 unix doesn't currently support any reliable hardware mechanism for single-stepping.
+    // For each we emulate single step in software. This support is used only by the debugger.
 private:
+#if defined(_TARGET_ARM_)
     ArmSingleStepper m_singleStepper;
+#else
+    Arm64SingleStepper m_singleStepper;
+#endif
 public:
 #ifndef DACCESS_COMPILE
     // Given the context with which this thread shall be resumed and the first WORD of the instruction that
@@ -2926,9 +2934,9 @@ public:
         m_singleStepper.Enable();
     }
 
-    void BypassWithSingleStep(DWORD ip, WORD opcode1, WORD opcode2)
+    void BypassWithSingleStep(DWORD ip ARM_ARG(WORD opcode1) ARM_ARG(WORD opcode2) ARM64_ARG(uint32_t opcode))
     {
-        m_singleStepper.Bypass(ip, opcode1, opcode2);
+        m_singleStepper.Bypass(ip ARM_ARG(opcode1) ARM_ARG(opcode2) ARM64_ARG(opcode));
     }
 
     void DisableSingleStep()
@@ -2954,7 +2962,7 @@ public:
         return m_singleStepper.Fixup(pCtx, dwExceptionCode);
     }
 #endif // !DACCESS_COMPILE
-#endif // _TARGET_ARM_
+#endif // defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
 
     private:
 
