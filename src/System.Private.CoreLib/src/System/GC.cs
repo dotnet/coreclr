@@ -79,6 +79,7 @@ namespace System
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void GetGCConfigValue(string name, StringHandleOnStack retString);
 
+        // internal for now, for testing that configuration works
         internal static string GetConfigValue(string name)
         {
             string result = "";
