@@ -14,7 +14,7 @@ void CopyREGDISPLAY(REGDISPLAY* pDst, REGDISPLAY* pSrc)
     CopyRegDisplay(pSrc, pDst, &tmp);
 }
 
-#if defined(PLATFORM_UNIX)
+#ifdef FEATURE_EMULATE_SINGLESTEP
 void SetSSFlag(DT_CONTEXT *, Thread *pThread)
 {
     _ASSERTE(pThread != NULL);
@@ -36,7 +36,7 @@ bool IsSSFlagEnabled(DT_CONTEXT *, Thread *pThread)
 
     return pThread->IsSingleStepEnabled();
 }
-#else // defined(PLATFORM_UNIX)
+#else // FEATURE_EMULATE_SINGLESTEP
 void SetSSFlag(DT_CONTEXT *pContext, Thread *)
 {
     SetSSFlag(pContext);
@@ -52,4 +52,4 @@ bool IsSSFlagEnabled(DT_CONTEXT *pContext, Thread *)
 {
     return UnsetSSFlag(pContext);
 }
-#endif // defined(PLATFORM_UNIX)
+#endif // FEATURE_EMULATE_SINGLESTEP

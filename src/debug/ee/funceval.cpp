@@ -3759,7 +3759,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 
     // On ARM/ARM64 the single step flag is per-thread and not per context.  We need to make sure that the SS flag is cleared
     // for the funceval, and that the state is back to what it should be after the funceval completes.
-#if defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#ifdef FEATURE_EMULATE_SINGLESTEP
     bool ssEnabled = pDE->m_thread->IsSingleStepEnabled();
     if (ssEnabled)
         pDE->m_thread->DisableSingleStep();
@@ -3767,7 +3767,7 @@ void * STDCALL FuncEvalHijackWorker(DebuggerEval *pDE)
 
     FuncEvalHijackRealWorker(pDE, pThread, &FEFrame);
 
-#if defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#ifdef FEATURE_EMULATE_SINGLESTEP
     if (ssEnabled)
         pDE->m_thread->EnableSingleStep();
 #endif

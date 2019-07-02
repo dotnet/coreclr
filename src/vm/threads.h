@@ -493,10 +493,10 @@ typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 
 #else // CROSSGEN_COMPILE
 
-#ifdef _TARGET_ARM_
+#if (defined(_TARGET_ARM_) && defined(FEATURE_EMULATE_SINGLESTEP))
 #include "armsinglestepper.h"
 #endif
-#if (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#if (defined(_TARGET_ARM64_) && defined(FEATURE_EMULATE_SINGLESTEP))
 #include "arm64singlestepper.h"
 #endif
 
@@ -2912,7 +2912,7 @@ public:
             ResetThreadStateNC(Thread::TSNC_DebuggerIsStepping);
     }
 
-#if defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#ifdef FEATURE_EMULATE_SINGLESTEP
     // ARM doesn't currently support any reliable hardware mechanism for single-stepping.
     // ARM64 unix doesn't currently support any reliable hardware mechanism for single-stepping.
     // For each we emulate single step in software. This support is used only by the debugger.
@@ -2962,7 +2962,7 @@ public:
         return m_singleStepper.Fixup(pCtx, dwExceptionCode);
     }
 #endif // !DACCESS_COMPILE
-#endif // defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     private:
 

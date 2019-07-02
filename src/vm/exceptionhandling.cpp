@@ -5190,7 +5190,7 @@ BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD e
         IsIPInMarkedJitHelper(controlPc));
 }
 
-#if defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#ifdef FEATURE_EMULATE_SINGLESTEP
 static inline BOOL HandleSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord, Thread *pThread)
 {
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
@@ -5211,7 +5211,7 @@ static inline BOOL HandleSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExcept
     }
     return FALSE;
 }
-#endif // defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#endif // FEATURE_EMULATE_SINGLESTEP
 
 BOOL HandleHardwareException(PAL_SEHException* ex)
 {
@@ -5288,7 +5288,7 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
             }
 #endif
 
-#if defined(_TARGET_ARM_) || (defined(_TARGET_ARM64_) && defined(PLATFORM_UNIX))
+#ifdef FEATURE_EMULATE_SINGLESTEP
             HandleSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), pThread);
 #endif
             if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
