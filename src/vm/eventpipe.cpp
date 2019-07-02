@@ -389,7 +389,7 @@ EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
     {
         CrstHolder _crst(GetLock());
 
-        if (s_state < EventPipeState::Initialized)
+        if (s_state == EventPipeState::NotInitialized)
         {
             _ASSERTE(!"EventPipe::GetSession invoked before EventPipe was initialized.");
             return nullptr;
