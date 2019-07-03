@@ -271,7 +271,6 @@ bool Arm64SingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
 
     // We should always have a PC somewhere in our redirect buffer.
 #ifdef _DEBUG
-    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup(pc=%x, code=%x-%x)\n", pCtx->Pc, codestart, codeend));
     _ASSERTE((pCtx->Pc >= codestart) && (pCtx->Pc <= codeend));
 #endif
 
