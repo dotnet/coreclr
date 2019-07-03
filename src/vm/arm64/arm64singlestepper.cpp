@@ -633,8 +633,6 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
         fEmulated = (opc != 3);
         if (execute)
         {
-            _ASSERTE(FALSE); // Emulation not implemented
-
             uint64_t V =     BitExtract(opcode, 26, 26);
             uint64_t imm19 = BitExtract(opcode, 23, 5, true);
             uint64_t Rt =    BitExtract(opcode, 4, 0);
