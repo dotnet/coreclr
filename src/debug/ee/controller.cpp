@@ -4479,7 +4479,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
         }
 #endif // _TARGET_ARM_
 
-        thread->BypassWithSingleStep((DWORD)patch->address, patch->opcode ARM_ARG(opcode2));
+        thread->BypassWithSingleStep(patch->address, patch->opcode ARM_ARG(opcode2));
         m_singleStep = true;
     }
 

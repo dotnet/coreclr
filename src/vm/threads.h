@@ -2934,9 +2934,13 @@ public:
         m_singleStepper.Enable();
     }
 
-    void BypassWithSingleStep(DWORD ip ARM_ARG(WORD opcode1) ARM_ARG(WORD opcode2) ARM64_ARG(uint32_t opcode))
+    void BypassWithSingleStep(const void* ip ARM_ARG(WORD opcode1) ARM_ARG(WORD opcode2) ARM64_ARG(uint32_t opcode))
     {
-        m_singleStepper.Bypass(ip ARM_ARG(opcode1) ARM_ARG(opcode2) ARM64_ARG(opcode));
+#if defined(_TARGET_ARM_)
+        m_singleStepper.Bypass((DWORD)ip, opcode1, opcode2);
+#else
+        m_singleStepper.Bypass((uint64_t)ip, opcode);
+#endif
     }
 
     void DisableSingleStep()
