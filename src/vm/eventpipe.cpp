@@ -346,9 +346,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     // Disable pSession tracing.
     s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
 
-    s_allowWrite &= ~(pSession->GetMask()); 
-
-    pSession->Disable(); // Suspend EventPipeBufferManager, and remove providers.
+    pSession->Disable(); // WriteAllBuffersToFile, and remove providers.
 
     // Do rundown before fully stopping the session unless rundown wasn't requested
     if (pSession->RundownRequested())
@@ -374,6 +372,7 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
         }
     }
 
+    s_allowWrite &= ~(pSession->GetMask()); 
     pSession->SuspendWriteEvent();
     pSession->WriteAllBuffersToFile(); // Flush the buffers to the stream/file
 
