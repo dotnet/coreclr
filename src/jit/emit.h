@@ -1242,11 +1242,11 @@ protected:
 #define PERFSCORE_INS_BRANCH_COND 24     // includes cost of a possible misprediction
 #define PERFSCORE_INS_BRANCH_INDIRECT 24 // includes cosr of a possible misprediction
 
-    // a read from stack location, possible def to use latency from L0 cache
+// a read from stack location, possible def to use latency from L0 cache
 #define PERFSCORE_COST_MEM_READ_STACK 12
-    // a read from constant location, possible def to use latency from L0 cache
+// a read from constant location, possible def to use latency from L0 cache
 #define PERFSCORE_COST_MEM_READ_CONST 12
-    // a read from memory location, possible def to use latency from L0 or L1 cache
+// a read from memory location, possible def to use latency from L0 or L1 cache
 #define PERFSCORE_COST_MEM_READ_GENERAL 24
 
 #define PERFSCORE_COST_CODESIZE_HOT 10
