@@ -211,10 +211,7 @@ void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
     if (TryEmulate(pCtx, opcode, false))
     {
         LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 1: Emulate\n"));
-        // Case 1: Successfully emulated an instruction that reads or writes the PC. Cache the new target PC
-        //         so upon fixup we'll resume execution there rather than the following instruction. No need
-        //         to mess with IT state since we know the next instruction is scheduled to execute (we dealt
-        //         with the case where it wasn't above) and we're going to execute a breakpoint in that slot.
+        // Case 1: Emulate an instruction that reads or writes the PC.
         m_fEmulate = true;
     }
     else

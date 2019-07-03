@@ -97,7 +97,7 @@ private:
     // Set the current value of a FP register.
     void SetFPReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t valueLo, uint64_t valueHi = 0);
 
-    // Attempt to read a 1, 2, 4, or 8 byte value from memory, zero or sign extend it to a 8-byte value and place
+    // Attempt to read a 4, or 8 byte value from memory, zero or sign extend it to a 8-byte value and place
     // that value into the buffer pointed at by pdwResult. Returns false if attempting to read the location
     // caused a fault.
     bool GetMem(uint64_t *pdwResult, uint8_t* pAddress, int cbSize, bool fSignExtend);
