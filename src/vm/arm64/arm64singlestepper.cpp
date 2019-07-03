@@ -188,7 +188,7 @@ void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
     // instructions will set the PC directly or otherwise make it difficult for us to compute the final PC
     // from the original. We still need the original PC however since this is the one we'll use if an
     // exception (other than a breakpoint) occurs.
-    _ASSERTE(!m_fBypass || (m_originalPc == pCtx->Pc));
+    _ASSERTE((!m_fBypass || (m_originalPc == pCtx->Pc)));
 
     m_originalPc = pCtx->Pc;
 
