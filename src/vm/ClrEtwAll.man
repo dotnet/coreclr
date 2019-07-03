@@ -79,8 +79,8 @@
                              message="$(string.RuntimePublisher.EventSourceKeywordMessage)" symbol="CLR_EVENTSOURCE_KEYWORD" />
                     <keyword name="CompilationKeyword" mask="0x1000000000"
                              message="$(string.RuntimePublisher.CompilationKeywordMessage)" symbol="CLR_COMPILATION_KEYWORD" />
-                    <keyword name="CompilationVerboseKeyword" mask="0x2000000000"
-                             message="$(string.RuntimePublisher.CompilationVerboseKeywordMessage)" symbol="CLR_COMPILATIONVERBOSE_KEYWORD" />
+                    <keyword name="CompilationDiagnosticKeyword" mask="0x2000000000"
+                             message="$(string.RuntimePublisher.CompilationDiagnosticKeywordMessage)" symbol="CLR_COMPILATIONDIAGNOSTIC_KEYWORD" />
                 </keywords>
                 <!--Tasks-->
                 <tasks>
