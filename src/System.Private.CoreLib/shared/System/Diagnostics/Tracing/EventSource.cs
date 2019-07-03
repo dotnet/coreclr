@@ -3836,18 +3836,6 @@ namespace System.Diagnostics.Tracing
             return -1;
         }
 
-#if false // This routine is not needed at all, it was used for unit test debugging. 
-        [Conditional("DEBUG")]
-        private static void OutputDebugString(string msg)
-        {
-#if !ES_BUILD_PCL
-            msg = msg.TrimEnd('\r', '\n') +
-                    string.Format(CultureInfo.InvariantCulture, ", Thrd({0})" + Environment.NewLine, Environment.CurrentManagedThreadId);
-            System.Diagnostics.Debugger.Log(0, null, msg);
-#endif
-        }
-#endif
-
         /// <summary>
         /// Sends an error message to the debugger (outputDebugString), as well as the EventListeners 
         /// It will do this even if the EventSource is not enabled.  
@@ -3898,13 +3886,6 @@ namespace System.Diagnostics.Tracing
         private bool ThrowOnEventWriteErrors
         {
             get { return (m_config & EventSourceSettings.ThrowOnEventWriteErrors) != 0; }
-#if false
-            set
-            {
-                if (value) m_config |= EventSourceSettings.ThrowOnEventWriteErrors;
-                else m_config &= ~EventSourceSettings.ThrowOnEventWriteErrors;
-            }
-#endif
         }
 
         private bool SelfDescribingEvents
@@ -3915,21 +3896,6 @@ namespace System.Diagnostics.Tracing
                                 ((m_config & EventSourceSettings.EtwSelfDescribingEventFormat) != 0));
                 return (m_config & EventSourceSettings.EtwSelfDescribingEventFormat) != 0;
             }
-#if false
-            set
-            {
-                if (!value)
-                {
-                    m_config |= EventSourceSettings.EtwManifestEventFormat;
-                    m_config &= ~EventSourceSettings.EtwSelfDescribingEventFormat;
-                }
-                else
-                {
-                    m_config |= EventSourceSettings.EtwSelfDescribingEventFormat;
-                    m_config &= ~EventSourceSettings.EtwManifestEventFormat;
-                }
-            }
-#endif
         }
 
         // private instance state 

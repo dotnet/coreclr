@@ -262,7 +262,7 @@ namespace System.Reflection.Emit
                                                               ref StackCrawlMark stackMark,
                                                               AssemblyBuilderAccess access);
 
-        private static object s_assemblyBuilderLock = new object();
+        private static readonly object s_assemblyBuilderLock = new object();
 
         internal static AssemblyBuilder InternalDefineDynamicAssembly(
             AssemblyName name,
