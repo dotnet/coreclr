@@ -7040,10 +7040,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 #endif // DEBUG
     };
 
-    // Test Core dumps.
-    int* junk = nullptr;
-    *junk = 1;
-
     // Note on vararg methods:
     // If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
     // But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
