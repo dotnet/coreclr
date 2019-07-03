@@ -3083,7 +3083,7 @@
                            symbol="MethodLoad_V2" message="$(string.RuntimePublisher.MethodLoad_V2EventMessage)"/>
 
                     <event value="159" version="0" level="win:Verbose" template="R2RGetEntryPoint"
-                           keywords ="CompilationVerboseKeyword" opcode="MethodLoad"
+                           keywords ="CompilationDiagnosticKeyword" opcode="MethodLoad"
                            task="CLRMethod"
                            symbol="R2RGetEntryPoint" message="$(string.RuntimePublisher.R2RGetEntryPointEventMessage)"/>
 
@@ -7087,7 +7087,7 @@
                 <string id="RuntimePublisher.CodeSymbolsKeywordMessage" value="CodeSymbols" />
                 <string id="RuntimePublisher.EventSourceKeywordMessage" value="EventSource" />
                 <string id="RuntimePublisher.CompilationKeywordMessage" value="Compilation" />
-                <string id="RuntimePublisher.CompilationVerboseKeywordMessage" value="CompilationVerbose" />
+                <string id="RuntimePublisher.CompilationDiagnosticKeywordMessage" value="CompilationDiagnostic" />
               
                 <string id="RundownPublisher.LoaderKeywordMessage" value="Loader" />
                 <string id="RundownPublisher.JitKeywordMessage" value="Jit" />
