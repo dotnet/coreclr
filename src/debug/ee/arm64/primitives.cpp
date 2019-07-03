@@ -50,6 +50,6 @@ void UnsetSSFlag(DT_CONTEXT *pContext, Thread *)
 // Check if single stepping is enabled.
 bool IsSSFlagEnabled(DT_CONTEXT *pContext, Thread *)
 {
-    return UnsetSSFlag(pContext);
+    return IsSSFlagEnabled(pContext);
 }
 #endif // FEATURE_EMULATE_SINGLESTEP

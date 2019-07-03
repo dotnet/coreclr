@@ -48,8 +48,9 @@ public:
 private:
     enum
     {
-        kMaxCodeBuffer = 2, // slots in our redirect buffer (1 for current instruction, and one
-                            // for the final breakpoint)
+        kMaxCodeBuffer = 2, // max slots in our redirect buffer
+                            // 1 for current instruction
+                            // 1 for final breakpoint
 #ifdef __linux__
         kBreakpointOp = 0xD4200000 + (0x11E1 << 5), // Opcode for the breakpoint instruction used on ARM64 Linux
 #else

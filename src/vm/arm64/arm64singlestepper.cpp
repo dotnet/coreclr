@@ -28,7 +28,7 @@ inline uint64_t SignExtend(uint64_t value, unsigned int signbit)
 inline uint64_t BitExtract(uint64_t value, unsigned int highbit, unsigned int lowbit, bool signExtend = false)
 {
     _ASSERTE((highbit < 64) && (lowbit < 64) && (highbit >= lowbit));
-    uint64_t extractedValue = (value >> lowbit) & ((1 << ((highbit - lowbit) + 1)) - 1);
+    uint64_t extractedValue = (value >> lowbit) & ((1ull << ((highbit - lowbit) + 1)) - 1);
 
     return signExtend ? SignExtend(extractedValue, highbit - lowbit) : extractedValue;
 }
@@ -140,7 +140,7 @@ void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
         m_opcodes[0] = *(uint32_t*)pc; // Opcodes are always in little endian, we only support little endian execution mode
     }
 
-    WORD opcode = m_opcodes[0];
+    uint32_t opcode = m_opcodes[0];
 
     LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Apply(pc=%x, opcode=%x)\n", (uint64_t)pCtx->Pc, opcode));
 
@@ -215,20 +215,13 @@ void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
         //         so upon fixup we'll resume execution there rather than the following instruction. No need
         //         to mess with IT state since we know the next instruction is scheduled to execute (we dealt
         //         with the case where it wasn't above) and we're going to execute a breakpoint in that slot.
-        m_targetPc = pCtx->Pc;
         m_fEmulate = true;
-
-        // Set breakpoints to stop the execution.  This will get us right back here.
-        m_rgCode[idxNextInstruction++] = kBreakpointOp;
-        m_rgCode[idxNextInstruction++] = kBreakpointOp;
     }
     else
     {
         LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 2: CopyInstruction.\n"));
         // Case 2: In all other cases copy the instruction to the buffer and we'll run it directly.
         m_rgCode[idxNextInstruction++] = opcode;
-
-        m_rgCode[idxNextInstruction++] = kBreakpointOp;
     }
 
     // Always terminate the redirection buffer with a breakpoint.
@@ -272,7 +265,7 @@ bool Arm64SingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
     if (m_state == Disabled)
     {
         // We better not be inside our internal code buffer though.
-        _ASSERTE((pCtx->Pc < codestart) || (pCtx->Pc >= codeend));
+        _ASSERTE((pCtx->Pc < codestart) || (pCtx->Pc > codeend));
         return false;
     }
 
@@ -282,7 +275,7 @@ bool Arm64SingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
     // We should always have a PC somewhere in our redirect buffer.
 #ifdef _DEBUG
     LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup(pc=%x, code=%x-%x)\n", pCtx->Pc, codestart, codeend));
-    _ASSERTE((pCtx->Pc >= codestart) && (pCtx->Pc < codeend));
+    _ASSERTE((pCtx->Pc >= codestart) && (pCtx->Pc <= codeend));
 #endif
 
     if (dwExceptionCode == EXCEPTION_BREAKPOINT)
@@ -585,7 +578,7 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
             }
         }
     }
-    else if ((opcode & 0x7e000000) == 0x340000000) // Compare and branch CBZ & CBNZ
+    else if ((opcode & 0x7e000000) == 0x34000000) // Compare and branch CBZ & CBNZ
     {
         fEmulated = true;
         if (execute)
