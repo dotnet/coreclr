@@ -281,6 +281,7 @@ bool Arm64SingleStepper::Fixup(T_CONTEXT *pCtx, DWORD dwExceptionCode)
 
     // We should always have a PC somewhere in our redirect buffer.
 #ifdef _DEBUG
+    LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::Fixup(pc=%x, code=%x-%x)\n", pCtx->Pc, codestart, codeend));
     _ASSERTE((pCtx->Pc >= codestart) && (pCtx->Pc < codeend));
 #endif
 
@@ -494,12 +495,14 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
 
             if (P) // ADRP
             {
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate ADRP\n"));
                 uint64_t imm = (immhi << 14) | (immlo << 12);
                 uint64_t value = (m_originalPc & ~0xfffull) + imm;
                 SetReg(pCtx, Rd, value);
             }
             else // ADR
             {
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate ADR\n"));
                 uint64_t imm = (immhi << 2) | (immlo);
                 uint64_t value = m_originalPc + imm;
                 SetReg(pCtx, Rd, value);
@@ -511,6 +514,7 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
         fEmulated = true;
         if (execute)
         {
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate B.cond\n"));
             uint64_t imm19 = BitExtract(opcode, 23, 5, true);
             uint64_t cond =  BitExtract(opcode, 3, 0);
 
@@ -532,6 +536,7 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
             fEmulated = true;
             if (execute)
             {
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate Unconditional branch register\n"));
                 uint64_t Rn = BitExtract(opcode, 9, 5);
                 uint64_t target = GetReg(pCtx, Rn);
 
@@ -548,6 +553,7 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
         }
         else
         {
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate unexpected\n"));
             // These are either:
             // - Unallocated instructions
             // - Unallocated on armv8 in EL0 (ERET, DRPS)
@@ -570,7 +576,12 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
 
             if (L) // BL
             {
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate BL\n"));
                 SetReg(pCtx, 30, m_originalPc + 4);
+            }
+            else
+            {
+                LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate B\n"));
             }
         }
     }
@@ -579,6 +590,8 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
         fEmulated = true;
         if (execute)
         {
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate CBZ/CBNZ\n"));
+
             uint64_t sf =    BitExtract(opcode, 31, 31);
             uint64_t NZ =    BitExtract(opcode, 24, 24);
             uint64_t imm19 = BitExtract(opcode, 23, 5, true);
@@ -606,6 +619,8 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
         fEmulated = true;
         if (execute)
         {
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate TBZ/TBNZ\n"));
+
             uint64_t b5 =    BitExtract(opcode, 31, 31);
             uint64_t NZ =    BitExtract(opcode, 24, 24);
             uint64_t b40 =   BitExtract(opcode, 23, 19);
@@ -633,6 +648,8 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
         fEmulated = (opc != 3);
         if (execute)
         {
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate Load register (literal)\n"));
+
             uint64_t V =     BitExtract(opcode, 26, 26);
             uint64_t imm19 = BitExtract(opcode, 23, 5, true);
             uint64_t Rt =    BitExtract(opcode, 4, 0);
