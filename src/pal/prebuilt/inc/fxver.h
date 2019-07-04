@@ -126,8 +126,6 @@
 #define VER_COMMENTS_STR        "Flavor=" QUOTE_MACRO(URTBLDENV_FRIENDLY)
 #endif
 
-#define VER_PRIVATEBUILD_STR    QUOTE_MACRO(FX_VER_PRIVATEBUILD_STR)
-
 #if defined(__BUILDMACHINE__)
 #if defined(__BUILDDATE__)
 #define B2(x,y) " (" #x "." #y ")"
