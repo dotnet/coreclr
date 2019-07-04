@@ -96,11 +96,13 @@
 
 #define EXPORT_TAG 
 
-#if OFFICIAL_BUILD
+// Not setting the private build flag until
+// official builds can be detected from native projects
+//#if OFFICIAL_BUILD
 #define VER_PRIVATE                 0
-#else
-#define VER_PRIVATE                 VS_FF_PRIVATEBUILD
-#endif
+//#else
+//#define VER_PRIVATE                 VS_FF_PRIVATEBUILD
+//#endif
 
 #define VER_SPECIALBUILD            0
 
