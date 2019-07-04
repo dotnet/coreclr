@@ -1848,14 +1848,14 @@ void StubLinkerCPU::ThumbEmitCallWithGenericInstantiationParameter(MethodDesc *p
             DWORD cSwaps = (idxLastRegDesc + 1) / 2;
 
             // Finally we can swap the descriptors.
-            DWORD idxFirstRegDesc = 0;
+            int idxFirstRegDesc = 0;
             while (cSwaps)
             {
                 ArgDesc sTempDesc = rgArgDescs[idxLastRegDesc];
                 rgArgDescs[idxLastRegDesc] = rgArgDescs[idxFirstRegDesc];
                 rgArgDescs[idxFirstRegDesc] = sTempDesc;
 
-                _ASSERTE(idxFirstRegDesc < ((DWORD)idxLastRegDesc));
+                _ASSERTE(idxFirstRegDesc < idxLastRegDesc);
                 idxFirstRegDesc++;
                 idxLastRegDesc--;
                 cSwaps--;
