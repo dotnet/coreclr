@@ -342,6 +342,11 @@ class exclusive_sync;
 class recursive_gc_sync;
 #endif //BACKGROUND_GC
 
+#define FEATURE_CARD_MARKING_STEALING
+#ifdef FEATURE_CARD_MARKING_STEALING
+class card_marking_enumerator;
+#endif FEATURE_CARD_MARKING_STEALING
+
 // The following 2 modes are of the same format as in clr\src\bcl\system\runtime\gcsettings.cs
 // make sure you change that one if you change this one!
 enum gc_pause_mode
@@ -2400,7 +2405,7 @@ protected:
                                BOOL& foundp, uint8_t*& start_address,
                                uint8_t*& limit, size_t& n_cards_cleared);
     PER_HEAP
-    void mark_through_cards_for_segments (card_fn fn, BOOL relocating);
+    void mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_heap* hpt);
 
     PER_HEAP
     void repair_allocation_in_expanded_heap (generation* gen);
@@ -2575,7 +2580,7 @@ protected:
     PER_HEAP
     void relocate_in_large_objects ();
     PER_HEAP
-    void mark_through_cards_for_large_objects (card_fn fn, BOOL relocating);
+    void mark_through_cards_for_large_objects (card_fn fn, BOOL relocating, gc_heap* hpt);
     PER_HEAP
     void descr_segment (heap_segment* seg);
     PER_HEAP
@@ -3785,6 +3790,36 @@ public:
     static
     BOOL      g_low_memory_status;
 
+#ifdef FEATURE_CARD_MARKING_STEALING
+    PER_HEAP
+    VOLATILE(uint32_t)    card_mark_ticket_soh;
+
+    PER_HEAP
+    VOLATILE(bool)        card_mark_done_soh;
+
+    PER_HEAP
+    VOLATILE(uint32_t)    card_mark_ticket_loh;
+
+    PER_HEAP
+    VOLATILE(bool)        card_mark_done_loh;
+
+    PER_HEAP
+    void reset_card_marking_enumerators()
+    {
+        // set ticket counter to all 1 bits so that incrementing it yields 0 as the first ticket
+        card_mark_ticket_soh = ~0;
+        card_mark_done_soh = false;
+
+        card_mark_ticket_loh = ~0;
+        card_mark_done_loh = false;
+    }
+
+    PER_HEAP
+    bool find_next_chunk(card_marking_enumerator& card_mark_enumerator, heap_segment* seg,
+                         size_t& n_card_set, uint8_t*& start_address, uint8_t*& limit,
+                         size_t& card, size_t& end_card, size_t& card_word_end);
+#endif //FEATURE_CARD_MARKING_STEALING
+
 protected:
     PER_HEAP
     void update_collection_counts ();
@@ -4458,3 +4493,39 @@ void YieldProcessorScalingFactor()
         YieldProcessor();
     } while (--n != 0);
 }
+
+#ifdef FEATURE_CARD_MARKING_STEALING
+#define CARD_MARKING_STEALING_GRANULARITY (8*1024*1024)
+
+#ifdef MULTIPLE_HEAPS
+#define THIS_ARG    , this
+#else
+#define THIS_ARG    , nullptr
+#endif
+
+class card_marking_enumerator
+{
+private:
+    heap_segment*       segment;
+    uint8_t*            gc_low;
+    uint32_t            segment_start_ticket;
+    VOLATILE(uint32_t)* ticket_counter;
+    uint8_t*            chunk_high;
+    uint32_t            old_ticket;
+    static const uint32_t INVALID_TICKET = ~0u;
+
+public:
+    card_marking_enumerator(heap_segment* seg, uint8_t* low, VOLATILE(uint32_t)* counter) :
+        segment(seg), gc_low(low), segment_start_ticket(0), ticket_counter(counter), chunk_high(nullptr), old_ticket(INVALID_TICKET)
+    {
+    }
+
+    // move to the next chunk in this segment - return false if no more chunks in this segment
+    bool move_next(heap_segment* seg, uint8_t*& low, uint8_t*& high);
+
+    uint8_t* get_chunk_high()
+    {
+        return chunk_high;
+    }
+};
+#endif // FEATURE_CARD_MARKING_STEALING
