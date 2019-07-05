@@ -18,11 +18,12 @@
 ################################################################################
 
 import argparse
+import asyncio
 import datetime
 import json
 import math
-import multiprocessing
 import os
+import multiprocessing
 import platform
 import shutil
 import subprocess
@@ -31,20 +32,13 @@ import tempfile
 import time
 import re
 import string
+import urllib
 import zipfile
 
 import xml.etree.ElementTree
 
 from collections import defaultdict
-from multiprocessing import Process, Queue, Pipe, Lock
 from sys import platform as _platform
-
-# Version specific imports
-
-if sys.version_info.major < 3:
-    import urllib
-else:
-    import urllib.request
 
 from coreclr_arguments import *
 
@@ -153,7 +147,7 @@ asm_diff_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_locati
 asm_diff_parser.add_argument("-test_env", dest="test_env", default=None)
 asm_diff_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
 asm_diff_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
-asm_diff_parser.add_argument("-previous_temp_location", dest="previous_temp_location", default=None)
+asm_diff_parser.add_argument("-previous_temp_location", dest="previous_temp_location", default=None, help="Reuse the existing temp dir location. This is useful if the previous run failed or was canceled.")
 
 asm_diff_parser.add_argument("--skip_collect_mc_files", dest="skip_collect_mc_files", default=False, action="store_true")
 asm_diff_parser.add_argument("--skip_cleanup", dest="skip_cleanup", default=False, action="store_true")
@@ -964,22 +958,16 @@ class SuperPMIReplayAsmDiffs:
                         assert(len(os.listdir(base_dump_location)) == 0)
                         assert(len(os.listdir(diff_dump_location)) == 0)
 
-                text_differences = Queue()
-                jit_dump_differences = Queue()
+                text_differences = asyncio.Queue()
+                jit_dump_differences = asyncio.Queue()
 
                 if not self.coreclr_args.diff_with_code_only:
-                    thread_count = multiprocessing.cpu_count()
-
-                    procs = []
-                    proc_index = 0
-
-                    queue = Queue()
-                    lock = Lock()
+                    diff_queue = asyncio.Queue()
 
                     for item in self.diff_mcl_contents:
-                        queue.put(item)
+                        diff_queue.put(item)
 
-                    def create_asm(thread_id, item, coreclr_args, superpmi_path, base_jit_path, diff_jit_path, mch_file, base_asm_location, diff_asm_location):
+                    async def create_asm(subproc_count_queue, thread_id, item):
                         """ Run superpmi over an mc to create dasm for the method.
                         """
                         # Setup to call SuperPMI for both the diff jit and the base
@@ -988,6 +976,11 @@ class SuperPMIReplayAsmDiffs:
                         # TODO: add aljit support
                         #
                         # Set: -jitoption force AltJit=* -jitoption force AltJitNgen=*
+
+                        # Wait for the queue to become free. Then start
+                        # running the process.
+                        thread_id = await subproc_count_queue.get()
+
                         force_altjit_options = [
                             "-jitoption",
                             "force",
@@ -1005,6 +998,8 @@ class SuperPMIReplayAsmDiffs:
                         ]
 
                         flags += force_altjit_options
+
+                        reset_env = os.environ.copy()
                         
                         asm_env = os.environ.copy()
                         asm_env["COMPlus_JitDisasm"] = "*"
@@ -1036,26 +1031,30 @@ class SuperPMIReplayAsmDiffs:
                             diff_txt = None
 
                             with open(os.path.join(base_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
+                                os.environ.update(asm_env)
+
                                 print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                proc = subprocess.Popen(command, env=asm_env, stdout=file_handle)
-                                proc.communicate()
+                                proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                                
+                                base_txt, stderr = await proc.communicate()
+                                file_handle.write(base_txt)
 
                             command = [superpmi_path] + flags + [diff_jit_path, mch_file]
 
                             with open(os.path.join(diff_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
+                                os.environ.update(asm_env)
+
                                 print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                proc = subprocess.Popen(command, env=asm_env, stdout=file_handle)
-                                proc.communicate()
-
-                            with open(os.path.join(base_asm_location, "{}.dasm".format(item))) as file_handle:
-                                base_txt = file_handle.read()
-
-                            with open(os.path.join(diff_asm_location, "{}.dasm".format(item))) as file_handle:
-                                diff_txt = file_handle.read()
+                                proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                                
+                                diff_txt, stderr = await proc.communicate()
+                                file_handle.write(diff_txt)
 
                             if base_txt != diff_txt:
-                                text_differences.put(item)
+                                text_differences.put_nowait(item)
                             
+                            os.environ.update(reset_env)
+
                             if self.coreclr_args.diff_jit_dump:
                                 # Generate jit dumps
                                 base_txt = None
@@ -1064,64 +1063,73 @@ class SuperPMIReplayAsmDiffs:
                                 command = [superpmi_path] + flags + [base_jit_path, mch_file]
 
                                 with open(os.path.join(base_dump_location, "{}.txt".format(item)), 'w') as file_handle:
+                                    os.environ.update(jit_dump_env)
+
                                     print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                    proc = subprocess.Popen(command, env=jit_dump_env, stdout=file_handle)
-                                    proc.communicate()
+                                    proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                                    
+                                    base_txt, stderr = await proc.communicate()
+                                    file_handle.write(base_txt)
 
                                 command = [superpmi_path] + flags + [diff_jit_path, mch_file]
 
                                 with open(os.path.join(diff_dump_location, "{}.txt".format(item)), 'w') as file_handle:
+                                    os.environ.update(jit_dump_env)
+
                                     print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                    proc = subprocess.Popen(command, env=jit_dump_env, stdout=file_handle)
-                                    proc.communicate()
-
-                                with open(os.path.join(base_dump_location, "{}.txt".format(item))) as file_handle:
-                                    base_txt = file_handle.read()
-
-                                with open(os.path.join(diff_dump_location, "{}.txt".format(item))) as file_handle:
-                                    diff_txt = file_handle.read()
+                                    proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+                                    
+                                    diff_txt, stderr = await proc.communicate()
+                                    file_handle.write(diff_txt)
 
                                 if base_txt != diff_txt:
-                                    jit_dump_differences.put(item)
+                                    jit_dump_differences.put_nowait(item)
 
-                    def deuque_and_create_asm(thread_id, queue, coreclr_args, superpmi_path, base_jit_path, diff_jit_path, mch_file, base_asm_location, diff_asm_location):
-                        """ Dequeue and create asm
+                        os.environ.update(reset_env)
 
-                        Notes:
-                            Acts as a wrapper to abstract multiprocessing queue
-                            logic.
-                        """
-
-                        item = None
-
-                        try:
-                            item = queue.get(True, 1)
-                        except:
-                            item = None
-
-                        while item is not None:
-                            create_asm(thread_id, item, coreclr_args, superpmi_path, base_jit_path, diff_jit_path, mch_file, base_asm_location, diff_asm_location)
-
-                            try:
-                                item = queue.get(True, 1)
-                            except:
-                                item = None
-
+                        # Add back to the queue, incase another process wants to run.
+                        subproc_count_queue.put_nowait(1)
                         print("[TID: {}]: Finished. ------------------------------------------------------------------".format(thread_id))
 
-                    testing = False
-                    if testing is True:
-                        deuque_and_create_asm(0, queue, self.coreclr_args, self.superpmi_path, self.base_jit_path, self.diff_jit_path, self.mch_file, base_asm_location, diff_asm_location)
-                    else:
-                        for index in range(thread_count):
-                            proc_index += 1
-                            procs.append((queue, Process(target=deuque_and_create_asm, args=(index, queue, self.coreclr_args, self.superpmi_path, self.base_jit_path, self.diff_jit_path, self.mch_file, base_asm_location, diff_asm_location))))
+                    async def create_asm_handler(diff_queue):
+                        """ Setup for async calls to create_asm
 
-                        for proc in procs:
-                            proc[1].start()
+                        Notes:
+                            Acts as a wrapper to abstract the async calls to
+                            create_asm. Note that this will allow cpu_count 
+                            amount of running subprocesses. Each time the queue
+                            is emptied, another process will start. Note that
+                            the python code is single threaded, it will just
+                            rely on async/await to start subprocesses at
+                            subprocess_count
+                        """
+                        thread_count = multiprocessing.cpu_count()
 
-                        for index, proc in enumerate(procs):
-                            proc[1].join()
+                        procs = []
+                        proc_index = 0
+
+                        chunk_size = thread_count
+
+                        # Create a queue with a chunk size of the cpu count
+                        #
+                        # Each run_pmi invocation will remove an item from the
+                        # queue before running a potentially long running pmi run.
+                        #
+                        # When the queue is drained, we will wait queue.get which
+                        # will wait for when a run_pmi instance has added back to the
+                        subproc_count_queue = asyncio.Queue(chunk_size)
+                        diff_queue = asyncio.Queue()
+
+                        for item in range(chunk_size):
+                            subproc_count_queue.put_nowait(item)
+
+                        item = diff_queue.get_nowait() if not diff_queue.empty() else None
+                        while item is not None:
+                            create_asm(subproc_count_queue, item)
+
+                            item = diff_queue.get_nowait() if not diff_queue.empty() else None
+
+                    create_asm_handler(diff_queue)
 
                 else:
                     # We have already generated asm under <coreclr_bin_path>/asm/base and <coreclr_bin_path>/asm/diff
@@ -1283,8 +1291,7 @@ def determine_coredis_tools(coreclr_args):
 
     coredistools_location = os.path.join(coreclr_args.core_root, coredistools_dll_name)
     if not os.path.isfile(coredistools_location):
-        urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
-        urlretrieve(coredistools_uri, coredistools_location)
+        urllib.request.urlretrieve(coredistools_uri, coredistools_location)
 
     assert os.path.isfile(coredistools_location)
     return coredistools_location
@@ -1362,9 +1369,8 @@ def setup_args(args):
             uri_mch_location = "https://clrjit.blob.core.windows.net/superpmi/{}/{}/{}/{}.{}.{}.mch.zip".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type, coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type)
 
             with TempDir() as temp_location:
-                urlretrieve = urllib.urlretrieve if sys.version_info.major < 3 else urllib.request.urlretrieve
                 zipfilename = os.path.join(temp_location, "temp.zip")
-                urlretrieve(uri_mch_location, zipfilename)
+                urllib.request.urlretrieve(uri_mch_location, zipfilename)
 
                 default_mch_dir = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
 
@@ -1649,6 +1655,13 @@ def setup_args(args):
 def main(args):
     """ Main method
     """
+
+    # await/async requires python >= 3.5
+    if sys.version_info.major < 3 and sys.version_info.minor < 5:
+        print("Error, language features require the latest python version.")
+        print("Please install python 3.7 or greater")
+
+        return 1
 
     # Force tieried compilation off. It will effect both collection and replay
     os.environ["COMPlus_TieredCompilation"] = "0"
