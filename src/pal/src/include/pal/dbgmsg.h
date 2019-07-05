@@ -363,14 +363,17 @@ inline void ANALYZER_NORETURN AssertBreak()
     }
 }
 
-#define ASSERT(...)                                                     \
-{                                                                       \
-    __ASSERT_ENTER();                                                   \
-    if (output_file && dbg_master_switch)                               \
-    {                                                                   \
-        DBG_printf(defdbgchan,DLI_ASSERT,TRUE,__FUNCTION__,__FILE__,__LINE__,__VA_ARGS__); \
-    }                                                                   \
-    AssertBreak();                                                     \
+#define ASSERT(...)                                                         \
+{                                                                           \
+    if (PALIsInitialized())                                                 \
+    {                                                                       \
+        __ASSERT_ENTER();                                                   \
+        if (output_file && dbg_master_switch)                               \
+        {                                                                   \
+            DBG_printf(defdbgchan,DLI_ASSERT,TRUE,__FUNCTION__,__FILE__,__LINE__,__VA_ARGS__); \
+        }                                                                   \
+        AssertBreak();                                                      \
+    }                                                                       \
 }
     
 #define _ASSERT(expr) do { if (!(expr)) { ASSERT(""); } } while(0)

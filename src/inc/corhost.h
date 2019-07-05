@@ -218,6 +218,11 @@ public:
         LPCWSTR* argv,
         DWORD* pReturnValue);
 
+    static HRESULT PreloadAssembly(
+        LPCSTR szPath);
+
+    static HRESULT UnloadPreloadedAssemblies();
+
     static STARTUP_FLAGS GetStartupFlags();
 
     static BOOL HasStarted()

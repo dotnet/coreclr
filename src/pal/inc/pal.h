@@ -2688,6 +2688,8 @@ Abstract
 
 Parameters:
     IN hFile    - The file to load
+    IN wszPath  - File path
+    OUT isPreloaded - Flag whether pefile was preloaded
 
 Return value:
     A valid base address if successful.
@@ -2696,7 +2698,7 @@ Return value:
 PALIMPORT
 PVOID
 PALAPI
-PAL_LOADLoadPEFile(HANDLE hFile);
+PAL_LOADLoadPEFile(HANDLE hFile, LPCWSTR wszPath, BOOL *isPreloaded);
 
 /*++
     PAL_LOADUnloadPEFile
@@ -2714,6 +2716,36 @@ PALIMPORT
 BOOL
 PALAPI
 PAL_LOADUnloadPEFile(PVOID ptr);
+
+/*++
+Function:
+  PAL_LOADPreloadPEFile
+
+Abstract
+  Preloads a PE file into memory.  Properly maps all of the sections in the PE file.  Returns a pointer to the
+  loaded base.
+
+Parameters:
+    IN szPath    - path of file to load
+
+Return value:
+    A valid base address if successful.
+    0 if failure
+--*/
+void *
+PAL_LOADPreloadPEFile(LPCSTR szPath);
+
+/*++
+    PAL_LOADUnloadPreloadedPEFiles
+
+    Unload all PE files that were loaded by PAL_LOADPreloadPEFile().
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+BOOL
+PAL_LOADUnloadPreloadedPEFiles();
 
 #ifdef UNICODE
 #define LoadLibrary LoadLibraryW

@@ -22,6 +22,9 @@
     extern "C" int CORECLR_CALLING_CONVENTION function(__VA_ARGS__); \
     typedef int (CORECLR_CALLING_CONVENTION *function##_ptr)(__VA_ARGS__)
     
+CORECLR_HOSTING_API(coreclr_preload_assembly,
+            const char* assemblyPath);
+
 //
 // Initialize the CoreCLR. Creates and starts CoreCLR host and creates an app domain
 //

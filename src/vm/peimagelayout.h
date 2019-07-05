@@ -68,7 +68,7 @@ public:
     ULONG Release();
     const SString& GetPath();
 
-    void ApplyBaseRelocations();
+    void ApplyBaseRelocations(BOOL isRelocated);
 
 public:
 #ifdef DACCESS_COMPILE

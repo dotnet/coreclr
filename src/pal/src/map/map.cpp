@@ -2139,6 +2139,25 @@ MAPRecordMapping(
     return palError;
 }
 
+// calculate offset adjustment
+static off_t MAPcalcAdj(off_t offset)
+{
+    return offset & (GetVirtualPageSize() - 1);
+}
+
+static PAL_ERROR
+MAPRecordMapping(
+    IPalObject *pMappingObject,
+    void *pPEBaseAddress,
+    void *addr,
+    size_t len,
+    int prot,
+    off_t offset
+    )
+{
+    return MAPRecordMapping(pMappingObject, pPEBaseAddress, static_cast<char *>(addr) - MAPcalcAdj(offset), len, prot);
+}
+
 // Do the actual mmap() call, and record the mapping in the MappedViewList list.
 // This call assumes the mapping_critsec has already been taken.
 static PAL_ERROR
@@ -2206,27 +2225,374 @@ MAPmmapAndRecord(
 }
 
 /*++
+    MAPUnmapPreloadedPEFile -
+
+    Unmap a PE file
+
+Parameters:
+    IN addr - address of mapped file
+    IN size - virtual size
+
+Return value:
+    returns TRUE if successful, FALSE otherwise
+--*/
+
+BOOL MAPUnmapPreloadedPEFile(void *addr, size_t size)
+{
+    if (munmap(addr, size) == -1)
+    {
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+// Do the actual mprotect call with aligned lpAddress
+static bool MAPProtect(LPVOID lpAddress, SIZE_T dwSize, DWORD flNewProtect, SIZE_T dwPageSize)
+{
+    UINT_PTR StartBoundary = (UINT_PTR)ALIGN_DOWN(lpAddress, dwPageSize);
+    SIZE_T MemSize = ALIGN_UP((UINT_PTR)lpAddress + dwSize, dwPageSize) - StartBoundary;
+    INT nProtect = W32toUnixAccessControl(flNewProtect);
+    if (nProtect == 0)
+    {
+        return false;
+    }
+
+    return mprotect((void *)StartBoundary, MemSize, nProtect) == 0;
+}
+
+static IMAGE_SECTION_HEADER *RvaToSection(void *base, DWORD rva)
+{
+    IMAGE_SECTION_HEADER *pSection = NULL;
+    IMAGE_NT_HEADERS *imageNTHeaders = (IMAGE_NT_HEADERS *) ((uintptr_t)base + VAL32(((IMAGE_DOS_HEADER *) base)->e_lfanew));
+    IMAGE_SECTION_HEADER *firstSection = (IMAGE_SECTION_HEADER *)
+        ((uintptr_t)(imageNTHeaders) +
+        offsetof(IMAGE_NT_HEADERS, OptionalHeader) +
+        VAL16(imageNTHeaders->FileHeader.SizeOfOptionalHeader));
+
+    IMAGE_SECTION_HEADER *section = firstSection;
+    IMAGE_SECTION_HEADER *sectionEnd = section + VAL16(imageNTHeaders->FileHeader.NumberOfSections);
+
+    while (section < sectionEnd)
+    {
+        UINT value = (UINT)VAL32(section->Misc.VirtualSize);
+        UINT alignment = (UINT)VAL32(imageNTHeaders->OptionalHeader.SectionAlignment);
+        if (rva < (VAL32(section->VirtualAddress) + ALIGN_UP(value, alignment)))
+        {
+            if (rva < VAL32(section->VirtualAddress))
+            {
+                break;
+            }
+            else
+            {
+                pSection = section;
+                break;
+            }
+        }
+
+        section++;
+    }
+
+    return pSection;
+}
+
+static DWORD SectionCharacteristicsToPageProtection(UINT characteristics)
+{
+    DWORD pageProtection;
+
+    if ((characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) != 0)
+    {
+        if ((characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0)
+        {
+            pageProtection = PAGE_EXECUTE_READWRITE;
+        }
+        else
+        {
+            pageProtection = PAGE_READWRITE;
+        }
+    }
+    else
+    {
+        if ((characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0)
+        {
+            pageProtection = PAGE_EXECUTE_READ;
+        }
+        else
+        {
+            pageProtection = PAGE_READONLY;
+        }
+    }
+
+    return pageProtection;
+}
+
+/*++
+    MAPApplyBaseRelocationsPreloadedPEFile -
+
+    Apply base relocations to preloaded image
+
+Parameters:
+    IN mappedImage - base address of preloaded image
+    IN virtualSize - virtual size of preloaded image
+
+Return value:
+    true - if relocations were applied successfully
+    false - otherwise
+--*/
+
+bool
+MAPApplyBaseRelocationsPreloadedPEFile(void *mappedImage, size_t virtualSize)
+{
+    void *base = mappedImage;
+    void *preferredBase;
+    IMAGE_NT_HEADERS *imageNTHeaders = (IMAGE_NT_HEADERS *) ((uintptr_t)base + VAL32(((IMAGE_DOS_HEADER *) base)->e_lfanew));
+    bool has32BitNTHeaders = imageNTHeaders->OptionalHeader.Magic == VAL16(IMAGE_NT_OPTIONAL_HDR32_MAGIC);
+    if (has32BitNTHeaders)
+    {
+        preferredBase = (void *) (SIZE_T) VAL32(((IMAGE_NT_HEADERS32 *)imageNTHeaders)->OptionalHeader.ImageBase);
+    }
+    else
+    {
+        preferredBase = (void *) (SIZE_T) VAL64(((IMAGE_NT_HEADERS64 *)imageNTHeaders)->OptionalHeader.ImageBase);
+    }
+
+    SSIZE_T delta = (SIZE_T) base - (SIZE_T) preferredBase;
+
+    // Nothing to do - image is loaded at preferred base
+    if (delta == 0)
+        return true;
+
+    IMAGE_DATA_DIRECTORY *pDir;
+    if (has32BitNTHeaders)
+    {
+        pDir = (IMAGE_DATA_DIRECTORY *) ((uintptr_t)((IMAGE_NT_HEADERS32 *)imageNTHeaders) +
+            offsetof(IMAGE_NT_HEADERS32, OptionalHeader.DataDirectory) +
+            IMAGE_DIRECTORY_ENTRY_BASERELOC * sizeof(IMAGE_DATA_DIRECTORY));
+    }
+    else
+    {
+        pDir = (IMAGE_DATA_DIRECTORY *) ((uintptr_t)((IMAGE_NT_HEADERS64 *)imageNTHeaders) +
+            offsetof(IMAGE_NT_HEADERS64, OptionalHeader.DataDirectory) +
+            IMAGE_DIRECTORY_ENTRY_BASERELOC * sizeof(IMAGE_DATA_DIRECTORY));
+    }
+
+    UINT32 dirSize = VAL32(pDir->Size);
+    DWORD rva = VAL32(pDir->VirtualAddress);
+    uintptr_t dir = (uintptr_t) (rva == 0 ? NULL : (uintptr_t)base + rva);
+
+    // Minimize number of calls to VirtualProtect by keeping a whole section unprotected at a time.
+    BYTE * pWriteableRegion = NULL;
+    SIZE_T cbWriteableRegion = 0;
+    DWORD dwOldProtection = 0;
+
+    const SIZE_T cbPageSize = 4096;
+
+    UINT32 dirPos = 0;
+
+    while (dirPos < dirSize)
+    {
+        IMAGE_BASE_RELOCATION *r = (IMAGE_BASE_RELOCATION *)(dir + dirPos);
+
+        UINT32 fixupsSize = VAL32(r->SizeOfBlock);
+
+        USHORT *fixups = (USHORT *) (r + 1);
+
+        if (fixupsSize <= sizeof(IMAGE_BASE_RELOCATION)
+            || (fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) % 2 != 0)
+        {
+            return false;
+        }
+
+        UINT32 fixupsCount = (fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) / 2;
+
+        if ((BYTE *)(fixups + fixupsCount) > (BYTE *)(dir + dirSize))
+        {
+            return false;
+        }
+
+        DWORD rva = VAL32(r->VirtualAddress);
+
+        BYTE * pageAddress = (BYTE *) base + rva;
+
+        // Check whether the page is outside the unprotected region
+        if ((SIZE_T)(pageAddress - pWriteableRegion) >= cbWriteableRegion)
+        {
+            // Restore the protection
+            if (dwOldProtection != 0)
+            {
+                BOOL bExecRegion = (dwOldProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+                    PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
+
+                if (!MAPProtect(pWriteableRegion, cbWriteableRegion, dwOldProtection, cbPageSize))
+                {
+                    return false;
+                }
+
+                dwOldProtection = 0;
+            }
+
+            USHORT fixup = VAL16(fixups[0]);
+
+            IMAGE_SECTION_HEADER *pSection = RvaToSection(base, rva + (fixup & 0xfff));
+            if (pSection == NULL)
+            {
+                return false;
+            }
+
+            DWORD rvaSect = VAL32(pSection->VirtualAddress);
+            pWriteableRegion = (BYTE*) (rvaSect == 0 ? NULL : (uintptr_t)base + rvaSect);
+            cbWriteableRegion = VAL32(pSection->SizeOfRawData);
+
+            // Unprotect the section if it is not writable
+            if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) == 0))
+            {
+                DWORD dwNewProtection = PAGE_READWRITE;
+                if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0))
+                {
+                    // On SELinux, we cannot change protection that doesn't have execute access rights
+                    // to one that has it, so we need to set the protection to RWX instead of RW
+                    dwNewProtection = PAGE_EXECUTE_READWRITE;
+                }
+
+                if (!MAPProtect(pWriteableRegion, cbWriteableRegion, dwNewProtection, cbPageSize))
+                {
+                    return false;
+                }
+
+                DWORD pageProtection;
+                if ((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_READ)) == 0)
+                {
+                    return false;
+                }
+
+                dwOldProtection = SectionCharacteristicsToPageProtection(pSection->Characteristics);
+            }
+        }
+
+        for (UINT32 fixupIndex = 0; fixupIndex < fixupsCount; fixupIndex++)
+        {
+            USHORT fixup = VAL16(fixups[fixupIndex]);
+
+            BYTE * address = pageAddress + (fixup & 0xfff);
+
+#ifdef BIT64
+#define IMAGE_REL_BASED_PTR IMAGE_REL_BASED_DIR64
+#else
+#define IMAGE_REL_BASED_PTR IMAGE_REL_BASED_HIGHLOW
+#endif
+            switch (fixup>>12)
+            {
+                case IMAGE_REL_BASED_PTR:
+                {
+                    *(uintptr_t *)address += delta;
+                    break;
+                }
+                case IMAGE_REL_BASED_THUMB_MOV32:
+                {
+                    // Make sure we are decoding movw/movt sequence
+                    UINT16 *p = (UINT16 *)address;
+                    if ((*(p+0) & 0xFBF0) != 0xF240 || (*(p+2) & 0xFBF0) != 0xF2C0)
+                    {
+                        return false;
+                    }
+
+#define GET_THUMB2_IMM16(p) ((((p)[0] << 12) & 0xf000) | \
+                           (((p)[0] <<  1) & 0x0800) | \
+                           (((p)[1] >>  4) & 0x0700) | \
+                           (((p)[1] >>  0) & 0x00ff))
+#define PUT_THUMB2_IMM16(p,imm16) \
+    { \
+        USHORT Opcode0 = (p)[0]; \
+        USHORT Opcode1 = (p)[1]; \
+        Opcode0 &= ~((0xf000 >> 12) | (0x0800 >> 1)); \
+        Opcode1 &= ~((0x0700 <<  4) | (0x00ff << 0)); \
+        Opcode0 |= ((imm16) & 0xf000) >> 12; \
+        Opcode0 |= ((imm16) & 0x0800) >>  1; \
+        Opcode1 |= ((imm16) & 0x0700) <<  4; \
+        Opcode1 |= ((imm16) & 0x00ff) <<  0; \
+        (p)[0] = Opcode0; \
+        (p)[1] = Opcode1; \
+    }
+
+                    UINT32 imm32 = (UINT32)GET_THUMB2_IMM16(p) + ((UINT32)GET_THUMB2_IMM16(p + 2) << 16) + delta;
+
+                    PUT_THUMB2_IMM16(p, (UINT16)imm32);
+                    PUT_THUMB2_IMM16(p + 2, (UINT16)(imm32 >> 16));
+
+#undef GET_THUMB2_IMM16
+#undef PUT_THUMB2_IMM16
+
+                    break;
+                }
+                case IMAGE_REL_BASED_ABSOLUTE:
+                {
+                    //no adjustment
+                    break;
+                }
+
+                default:
+                {
+                    return false;
+                }
+            }
+#undef IMAGE_REL_BASED_PTR
+        }
+
+        dirPos += fixupsSize;
+    }
+    if (dirSize != dirPos)
+    {
+        return false;
+    }
+
+    if (dwOldProtection != 0)
+    {
+        if (!MAPProtect(pWriteableRegion, cbWriteableRegion, dwOldProtection, cbPageSize))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*++
     MAPMapPEFile -
 
     Map a PE format file into memory like Windows LoadLibrary() would do.
     Doesn't apply base relocations if the function is relocated.
 
+    There are two scenarios:
+
+    - image could be preloaded and then MAPMapPEFile is called for it
+    - image is loaded with MAPMapPEFile
+
+    In the first scenario, hFile and lpPreloadedBase are supposed to be NULL, and szPath and size - non-NULL.
+    In the second scenario, hFile and lpPreloadedBase are supposed to be non-NULL, and szPath and size - NULL.
+
+    See coreclr_preload_assembly for further details.
+
 Parameters:
     IN hFile - file to map
+    IN szPath - path to mapped file
+    OUT size - mapped virtual size
+    IN lpPreloadedBase - previously loaded base
 
 Return value:
     non-NULL - the base address of the mapped image
     NULL - error, with last error set.
 --*/
 
-void * MAPMapPEFile(HANDLE hFile)
+void * MAPMapPEFile(HANDLE hFile, LPCSTR szPath, SIZE_T *size, LPVOID lpPreloadedBase)
 {
     PAL_ERROR palError = 0;
     IPalObject *pFileObject = NULL;
     IDataLock *pLocalDataLock = NULL;
     CFileProcessLocalData *pLocalData = NULL;
-    CPalThread *pThread = InternalGetCurrentThread();
-    void * loadedBase = NULL;
+    CPalThread *pThread;
+
+    bool doPreload = hFile == NULL;
+
     IMAGE_DOS_HEADER * loadedHeader = NULL;
     void * retval;
 #if _DEBUG
@@ -2234,43 +2600,73 @@ void * MAPMapPEFile(HANDLE hFile)
     char* envVar;
 #endif
 
-    ENTRY("MAPMapPEFile (hFile=%p)\n", hFile);
+    size_t headerSize;
 
-    //Step 0: Verify values, find internal pal data structures.
-    if (INVALID_HANDLE_VALUE == hFile)
+    void * loadedBase = lpPreloadedBase;
+    bool isPreloaded = loadedBase != NULL;
+    bool arePreloadParametersCorrect = lpPreloadedBase == NULL && hFile == NULL && szPath != NULL && size != NULL;
+    bool areNonPreloadParametersCorrect = hFile != NULL && szPath == NULL && size == NULL;
+    bool areParametersCorrect = (doPreload && arePreloadParametersCorrect)
+                                || (!doPreload && areNonPreloadParametersCorrect);
+    if (!areParametersCorrect)
     {
-        ERROR_(LOADER)( "Invalid file handle\n" );
-        palError = ERROR_INVALID_HANDLE;
-        goto done;
-    }
-
-    palError = g_pObjectManager->ReferenceObjectByHandle(
-            pThread,
-            hFile,
-            &aotFile,
-            GENERIC_READ,
-            &pFileObject
-            );
-    if (NO_ERROR != palError)
-    {
-        ERROR_(LOADER)( "ReferenceObjectByHandle failed\n" );
-        goto done;
-    }
-
-    palError = pFileObject->GetProcessLocalData(
-            pThread,
-            ReadLock,
-            &pLocalDataLock,
-            reinterpret_cast<void**>(&pLocalData)
-            );
-    if (NO_ERROR != palError)
-    {
-        ERROR_(LOADER)( "GetProcessLocalData failed\n" );
+        palError = ERROR_INVALID_PARAMETER;
         goto done;
     }
 
     int fd;
-    fd = pLocalData->unix_fd;
+
+    if (doPreload)
+    {
+        fd = InternalOpen(szPath, O_RDONLY);
+
+        if (fd == -1)
+        {
+            palError = ERROR_INVALID_NAME;
+            goto done;
+        }
+    }
+    else
+    {
+        pThread = InternalGetCurrentThread();
+
+        ENTRY("MAPMapPEFile (hFile=%p)\n", hFile);
+        //Step 0: Verify values, find internal pal data structures.
+        if (INVALID_HANDLE_VALUE == hFile)
+        {
+            ERROR_(LOADER)( "Invalid file handle\n" );
+            palError = ERROR_INVALID_HANDLE;
+            goto done;
+        }
+
+        palError = g_pObjectManager->ReferenceObjectByHandle(
+                pThread,
+                hFile,
+                &aotFile,
+                GENERIC_READ,
+                &pFileObject
+                );
+        if (NO_ERROR != palError)
+        {
+            ERROR_(LOADER)( "ReferenceObjectByHandle failed\n" );
+            goto done;
+        }
+
+        palError = pFileObject->GetProcessLocalData(
+                pThread,
+                ReadLock,
+                &pLocalDataLock,
+                reinterpret_cast<void**>(&pLocalData)
+                );
+        if (NO_ERROR != palError)
+        {
+            ERROR_(LOADER)( "GetProcessLocalData failed\n" );
+            goto done;
+        }
+
+        fd = pLocalData->unix_fd;
+    }
+
     //Step 1: Read the PE headers and reserve enough space for the whole image somewhere.
     IMAGE_DOS_HEADER dosHeader;
     IMAGE_NT_HEADERS ntHeader;
@@ -2317,21 +2713,24 @@ void * MAPMapPEFile(HANDLE hFile)
     }
 
 #if _DEBUG
-    envVar = EnvironGetenv("PAL_ForceRelocs");
-    if (envVar)
+    if (!doPreload && !isPreloaded)
     {
-        if (strlen(envVar) > 0)
+        envVar = EnvironGetenv("PAL_ForceRelocs");
+        if (envVar)
         {
-            forceRelocs = true;
-            TRACE_(LOADER)("Forcing rebase of image\n");
-        }
+            if (strlen(envVar) > 0)
+            {
+                forceRelocs = true;
+                TRACE_(LOADER)("Forcing rebase of image\n");
+            }
 
-        free(envVar);
+            free(envVar);
+        }
     }
 
     void * pForceRelocBase;
     pForceRelocBase = NULL;
-    if (forceRelocs)
+    if (!doPreload && !isPreloaded && forceRelocs)
     {
         //if we're forcing relocs, create an anonymous mapping at the preferred base.  Only create the
         //mapping if we can create it at the specified address.
@@ -2356,7 +2755,10 @@ void * MAPMapPEFile(HANDLE hFile)
     // and each of the sections, as well as all the space between them that we give PROT_NONE protections.
 
     // We're going to start adding mappings to the mapping list, so take the critical section
-    InternalEnterCriticalSection(pThread, &mapping_critsec);
+    if (!doPreload)
+    {
+        InternalEnterCriticalSection(pThread, &mapping_critsec);
+    }
 
 #ifdef BIT64
     // First try to reserve virtual memory using ExecutableAllocator. This allows all PE images to be
@@ -2364,10 +2766,13 @@ void * MAPMapPEFile(HANDLE hFile)
     // more efficient code (by avoiding usage of jump stubs). Alignment to a 64 KB granularity should
     // not be necessary (alignment to page size should be sufficient), but see
     // ExecutableMemoryAllocator::AllocateMemory() for the reason why it is done.
-    loadedBase = ReserveMemoryFromExecutableAllocator(pThread, ALIGN_UP(virtualSize, VIRTUAL_64KB));
+    if (!doPreload && loadedBase == NULL)
+    {
+        loadedBase = ReserveMemoryFromExecutableAllocator(pThread, ALIGN_UP(virtualSize, VIRTUAL_64KB));
+    }
 #endif // BIT64
 
-    if (loadedBase == NULL)
+    if (doPreload || loadedBase == NULL)
     {
         void *usedBaseAddr = NULL;
 #ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
@@ -2399,39 +2804,77 @@ void * MAPMapPEFile(HANDLE hFile)
     // All subsequent mappings of the PE file will be in the range [loadedBase, loadedBase + virtualSize)
 
 #if _DEBUG
-    if (forceRelocs)
+    if (!doPreload && !isPreloaded)
     {
-        _ASSERTE(((SIZE_T)loadedBase) != preferredBase);
-        munmap(pForceRelocBase, GetVirtualPageSize()); // now that we've forced relocation, let the original address mapping go
-    }
-    if (((SIZE_T)loadedBase) != preferredBase)
-    {
-        TRACE_(LOADER)("Image rebased from preferredBase of %p to loadedBase of %p\n", preferredBase, loadedBase);
-    }
-    else
-    {
-        TRACE_(LOADER)("Image loaded at preferred base %p\n", loadedBase);
+        if (forceRelocs)
+        {
+            _ASSERTE(((SIZE_T)loadedBase) != preferredBase);
+            munmap(pForceRelocBase, GetVirtualPageSize()); // now that we've forced relocation, let the original address mapping go
+        }
+        if (((SIZE_T)loadedBase) != preferredBase)
+        {
+            TRACE_(LOADER)("Image rebased from preferredBase of %p to loadedBase of %p\n", preferredBase, loadedBase);
+        }
+        else
+        {
+            TRACE_(LOADER)("Image loaded at preferred base %p\n", loadedBase);
+        }
     }
 #endif // _DEBUG
 
     //we have now reserved memory (potentially we got rebased).  Walk the PE sections and map each part
     //separately.
 
-    size_t headerSize;
-    headerSize = GetVirtualPageSize(); // if there are lots of sections, this could be wrong
+    // use here getpagesize because GetVirtualPageSize needs PAL
+    headerSize = getpagesize(); // if there are lots of sections, this could be wrong
+    _ASSERTE(GetVirtualPageSize() == getpagesize());
 
     //first, map the PE header to the first page in the image.  Get pointers to the section headers
-    palError = MAPmmapAndRecord(pFileObject, loadedBase,
-                    loadedBase, headerSize, PROT_READ, MAP_FILE|MAP_PRIVATE|MAP_FIXED, fd, 0,
-                    (void**)&loadedHeader);
-    if (NO_ERROR != palError)
+    if (!doPreload)
     {
-        ERROR_(LOADER)( "mmap of PE header failed\n" );
-        goto doneReleaseMappingCriticalSection;
+        if (!isPreloaded)
+        {
+            palError = MAPmmapAndRecord(pFileObject, loadedBase,
+                            loadedBase, headerSize, PROT_READ, MAP_FILE|MAP_PRIVATE|MAP_FIXED, fd, 0,
+                            (void**)&loadedHeader);
+        }
+        else
+        {
+            palError = MAPRecordMapping(pFileObject,
+                            loadedBase,
+                            loadedBase,
+                            headerSize,
+                            PROT_READ,
+                            0);
+            loadedHeader = (IMAGE_DOS_HEADER *)(((char *)loadedBase) - MAPcalcAdj(0));
+        }
+
+        if (NO_ERROR != palError)
+        {
+            ERROR_(LOADER)( "mmap of PE header failed\n" );
+            goto doneReleaseMappingCriticalSection;
+        }
+
+        TRACE_(LOADER)("PE header loaded @ %p\n", loadedHeader);
+        _ASSERTE(loadedHeader == loadedBase); // we already preallocated the space, and we used MAP_FIXED, so we should have gotten this address
+    }
+    else
+    {
+        loadedHeader = (IMAGE_DOS_HEADER*)mmap(loadedBase, headerSize, PROT_READ, MAP_FILE|MAP_PRIVATE|MAP_FIXED, fd, 0);
+
+        if (loadedHeader == MAP_FAILED)
+        {
+            palError = ERROR_INVALID_PARAMETER;
+            goto doneReleaseMappingCriticalSection;
+        }
+        if (loadedHeader != loadedBase)
+        {
+            munmap(loadedHeader, headerSize);
+            palError = ERROR_INVALID_PARAMETER;
+            goto doneReleaseMappingCriticalSection;
+        }
     }
 
-    TRACE_(LOADER)("PE header loaded @ %p\n", loadedHeader);
-    _ASSERTE(loadedHeader == loadedBase); // we already preallocated the space, and we used MAP_FIXED, so we should have gotten this address
     IMAGE_SECTION_HEADER * firstSection;
     firstSection = (IMAGE_SECTION_HEADER*)(((char *)loadedHeader)
                                            + loadedHeader->e_lfanew
@@ -2464,7 +2907,9 @@ void * MAPMapPEFile(HANDLE hFile)
         IMAGE_SECTION_HEADER &currentHeader = firstSection[i];
 
         void* sectionBase = (char*)loadedBase + currentHeader.VirtualAddress;
-        void* sectionBaseAligned = ALIGN_DOWN(sectionBase, GetVirtualPageSize());
+        void* sectionBaseAligned;
+
+        sectionBaseAligned = (void*) ALIGN_DOWN((size_t)sectionBase, getpagesize());
 
         // Validate the section header
         if (   (sectionBase < loadedBase)                                                           // Did computing the section base overflow?
@@ -2484,18 +2929,21 @@ void * MAPMapPEFile(HANDLE hFile)
             goto doneReleaseMappingCriticalSection;
         }
 
-        // Is there space between the previous section and this one? If so, add a PROT_NONE mapping to cover it.
-        if (prevSectionEnd < sectionBaseAligned)
+        if (!doPreload)
         {
-            palError = MAPRecordMapping(pFileObject,
-                            loadedBase,
-                            prevSectionEnd,
-                            (char*)sectionBaseAligned - (char*)prevSectionEnd,
-                            PROT_NONE);
-            if (NO_ERROR != palError)
+            // Is there space between the previous section and this one? If so, add a PROT_NONE mapping to cover it.
+            if (prevSectionEnd < sectionBaseAligned)
             {
-                ERROR_(LOADER)( "recording gap section before section %d failed\n", i );
-                goto doneReleaseMappingCriticalSection;
+                palError = MAPRecordMapping(pFileObject,
+                                loadedBase,
+                                prevSectionEnd,
+                                (char*)sectionBaseAligned - (char*)prevSectionEnd,
+                                PROT_NONE);
+                if (NO_ERROR != palError)
+                {
+                    ERROR_(LOADER)( "recording gap section before section %d failed\n", i );
+                    goto doneReleaseMappingCriticalSection;
+                }
             }
         }
 
@@ -2509,21 +2957,55 @@ void * MAPMapPEFile(HANDLE hFile)
         if (currentHeader.Characteristics & IMAGE_SCN_MEM_WRITE)
             prot |= PROT_WRITE;
 
-        palError = MAPmmapAndRecord(pFileObject, loadedBase,
-                        sectionBase,
-                        currentHeader.SizeOfRawData,
-                        prot,
-                        MAP_FILE|MAP_PRIVATE|MAP_FIXED,
-                        fd,
-                        currentHeader.PointerToRawData,
-                        &sectionData);
-        if (NO_ERROR != palError)
+        if (!doPreload)
         {
-            ERROR_(LOADER)( "mmap of section %d failed\n", i );
-            goto doneReleaseMappingCriticalSection;
+            if (!isPreloaded)
+            {
+                palError = MAPmmapAndRecord(pFileObject, loadedBase,
+                                sectionBase,
+                                currentHeader.SizeOfRawData,
+                                prot,
+                                MAP_FILE|MAP_PRIVATE|MAP_FIXED,
+                                fd,
+                                currentHeader.PointerToRawData,
+                                &sectionData);
+            }
+            else
+            {
+                palError = MAPRecordMapping(pFileObject,
+                                loadedBase,
+                                sectionBase,
+                                currentHeader.SizeOfRawData,
+                                prot,
+                                currentHeader.PointerToRawData);
+                sectionData = static_cast<char *>(sectionBase) - MAPcalcAdj(currentHeader.PointerToRawData);
+            }
+            if (NO_ERROR != palError)
+            {
+                ERROR_(LOADER)( "mmap of section %d failed\n", i );
+                goto doneReleaseMappingCriticalSection;
+            }
+        }
+        else
+        {
+            off_t adjust = currentHeader.PointerToRawData & (getpagesize() - 1);
+            sectionData = mmap(static_cast<char *>(sectionBase) - adjust, currentHeader.SizeOfRawData + adjust,
+                               prot, MAP_FILE|MAP_PRIVATE|MAP_FIXED, fd, currentHeader.PointerToRawData - adjust);
+            if (sectionData == MAP_FAILED)
+            {
+                palError = ERROR_INVALID_PARAMETER;
+                goto doneReleaseMappingCriticalSection;
+            }
+            if (sectionData != (static_cast<char *>(sectionBase) - adjust))
+            {
+                munmap(sectionData, currentHeader.SizeOfRawData + adjust);
+                palError = ERROR_INVALID_PARAMETER;
+                goto doneReleaseMappingCriticalSection;
+            }
         }
 
 #if _DEBUG
+        if (!doPreload)
         {
             // Ensure null termination of section name (which is allowed to not be null terminated if exactly 8 characters long)
             char sectionName[9];
@@ -2534,31 +3016,41 @@ void * MAPMapPEFile(HANDLE hFile)
         }
 #endif // _DEBUG
 
-        prevSectionEnd = ALIGN_UP((char*)sectionBase + currentHeader.SizeOfRawData, GetVirtualPageSize()); // round up to page boundary
+        prevSectionEnd = (void*) ALIGN_UP((size_t)((char*)sectionBase + currentHeader.SizeOfRawData), getpagesize()); // round up to page boundary
     }
 
-    // Is there space after the last section and before the end of the mapped image? If so, add a PROT_NONE mapping to cover it.
-    char* imageEnd;
-    imageEnd = (char*)loadedBase + virtualSize; // actually, points just after the mapped end
-    if (prevSectionEnd < imageEnd)
+    if (!doPreload)
     {
-        palError = MAPRecordMapping(pFileObject,
-                        loadedBase,
-                        prevSectionEnd,
-                        (char*)imageEnd - (char*)prevSectionEnd,
-                        PROT_NONE);
-        if (NO_ERROR != palError)
+        // Is there space after the last section and before the end of the mapped image? If so, add a PROT_NONE mapping to cover it.
+        char* imageEnd;
+        imageEnd = (char*)loadedBase + virtualSize; // actually, points just after the mapped end
+        if (prevSectionEnd < imageEnd)
         {
-            ERROR_(LOADER)( "recording end of image gap section failed\n" );
-            goto doneReleaseMappingCriticalSection;
+            palError = MAPRecordMapping(pFileObject,
+                            loadedBase,
+                            prevSectionEnd,
+                            (char*)imageEnd - (char*)prevSectionEnd,
+                            PROT_NONE);
+            if (NO_ERROR != palError)
+            {
+                ERROR_(LOADER)( "recording end of image gap section failed\n" );
+                goto doneReleaseMappingCriticalSection;
+            }
         }
+    }
+    else
+    {
+        *size = virtualSize;
     }
 
     palError = ERROR_SUCCESS;
 
 doneReleaseMappingCriticalSection:
 
-    InternalLeaveCriticalSection(pThread, &mapping_critsec);
+    if (!doPreload)
+    {
+        InternalLeaveCriticalSection(pThread, &mapping_critsec);
+    }
 
 done:
 
@@ -2583,9 +3075,13 @@ done:
         LOGEXIT("MAPMapPEFile error: %d\n", palError);
 
         // If we had an error, and had mapped anything, we need to unmap it
-        if (loadedBase != NULL)
+        if (!doPreload && loadedBase != NULL && !isPreloaded)
         {
             MAPUnmapPEFile(loadedBase);
+        }
+        else if (doPreload && loadedBase != NULL)
+        {
+            munmap(loadedBase, virtualSize);
         }
     }
     return retval;

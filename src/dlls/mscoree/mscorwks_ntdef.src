@@ -20,6 +20,7 @@ EXPORTS
         CLRJitAttachState                                   @3 data
         
         ; Unix hosting API
+        coreclr_preload_assembly
         coreclr_create_delegate
         coreclr_execute_assembly
         coreclr_initialize

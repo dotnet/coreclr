@@ -124,7 +124,9 @@ DWORD SectionCharacteristicsToPageProtection(UINT characteristics)
 
 //To force base relocation on Vista (which uses ASLR), unmask IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
 //(0x40) for OptionalHeader.DllCharacteristics
-void PEImageLayout::ApplyBaseRelocations()
+//
+//NOTE: MAPApplyBaseRelocationsPreloadedPEFile should match this function exactly!
+void PEImageLayout::ApplyBaseRelocations(BOOL isRelocated)
 {
     STANDARD_VM_CONTRACT;
 
@@ -177,48 +179,51 @@ void PEImageLayout::ApplyBaseRelocations()
 
         BYTE * pageAddress = (BYTE *)GetBase() + rva;
 
-        // Check whether the page is outside the unprotected region
-        if ((SIZE_T)(pageAddress - pWriteableRegion) >= cbWriteableRegion)
+        if (!isRelocated)
         {
-            // Restore the protection
-            if (dwOldProtection != 0)
+            // Check whether the page is outside the unprotected region
+            if ((SIZE_T)(pageAddress - pWriteableRegion) >= cbWriteableRegion)
             {
-                BOOL bExecRegion = (dwOldProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
-                    PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
-
-                if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
-                                       dwOldProtection, &dwOldProtection))
-                    ThrowLastError();
-
-                dwOldProtection = 0;
-            }
-
-            USHORT fixup = VAL16(fixups[0]);
-
-            IMAGE_SECTION_HEADER *pSection = RvaToSection(rva + (fixup & 0xfff));
-            PREFIX_ASSUME(pSection != NULL);
-
-            pWriteableRegion = (BYTE*)GetRvaData(VAL32(pSection->VirtualAddress));
-            cbWriteableRegion = VAL32(pSection->SizeOfRawData);
-
-            // Unprotect the section if it is not writable
-            if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) == 0))
-            {
-                DWORD dwNewProtection = PAGE_READWRITE;
-#if defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
-                if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0))
+                // Restore the protection
+                if (dwOldProtection != 0)
                 {
-                    // On SELinux, we cannot change protection that doesn't have execute access rights
-                    // to one that has it, so we need to set the protection to RWX instead of RW
-                    dwNewProtection = PAGE_EXECUTE_READWRITE;
+                    BOOL bExecRegion = (dwOldProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
+                        PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
+
+                    if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
+                                           dwOldProtection, &dwOldProtection))
+                        ThrowLastError();
+
+                    dwOldProtection = 0;
                 }
+
+                USHORT fixup = VAL16(fixups[0]);
+
+                IMAGE_SECTION_HEADER *pSection = RvaToSection(rva + (fixup & 0xfff));
+                PREFIX_ASSUME(pSection != NULL);
+
+                pWriteableRegion = (BYTE*)GetRvaData(VAL32(pSection->VirtualAddress));
+                cbWriteableRegion = VAL32(pSection->SizeOfRawData);
+
+                // Unprotect the section if it is not writable
+                if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_WRITE)) == 0))
+                {
+                    DWORD dwNewProtection = PAGE_READWRITE;
+#if defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
+                    if (((pSection->Characteristics & VAL32(IMAGE_SCN_MEM_EXECUTE)) != 0))
+                    {
+                        // On SELinux, we cannot change protection that doesn't have execute access rights
+                        // to one that has it, so we need to set the protection to RWX instead of RW
+                        dwNewProtection = PAGE_EXECUTE_READWRITE;
+                    }
 #endif // FEATURE_PAL && !CROSSGEN_COMPILE
-                if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
-                                       dwNewProtection, &dwOldProtection))
-                    ThrowLastError();
+                    if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
+                                           dwNewProtection, &dwOldProtection))
+                        ThrowLastError();
 #ifdef FEATURE_PAL
-                dwOldProtection = SectionCharacteristicsToPageProtection(pSection->Characteristics);
+                    dwOldProtection = SectionCharacteristicsToPageProtection(pSection->Characteristics);
 #endif // FEATURE_PAL
+                }
             }
         }
 
@@ -232,13 +237,19 @@ void PEImageLayout::ApplyBaseRelocations()
             switch (fixup>>12)
             {
             case IMAGE_REL_BASED_PTR:
-                *(TADDR *)address += delta;
+                if (!isRelocated)
+                {
+                    *(TADDR *)address += delta;
+                }
                 pEndAddressToFlush = max(pEndAddressToFlush, address + sizeof(TADDR));
                 break;
 
 #ifdef _TARGET_ARM_
             case IMAGE_REL_BASED_THUMB_MOV32:
-                PutThumb2Mov32((UINT16 *)address, GetThumb2Mov32((UINT16 *)address) + (INT32)delta);
+                if (!isRelocated)
+                {
+                    PutThumb2Mov32((UINT16 *)address, GetThumb2Mov32((UINT16 *)address) + (INT32)delta);
+                }
                 pEndAddressToFlush = max(pEndAddressToFlush, address + 8);
                 break;
 #endif
@@ -275,15 +286,15 @@ void PEImageLayout::ApplyBaseRelocations()
     _ASSERTE(dirSize == dirPos);
 
 #ifndef CROSSGEN_COMPILE
-    if (dwOldProtection != 0)
+    if (!isRelocated)
     {
-        BOOL bExecRegion = (dwOldProtection & (PAGE_EXECUTE | PAGE_EXECUTE_READ |
-            PAGE_EXECUTE_READWRITE | PAGE_EXECUTE_WRITECOPY)) != 0;
-
-        // Restore the protection
-        if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
-                               dwOldProtection, &dwOldProtection))
-            ThrowLastError();
+        if (dwOldProtection != 0)
+        {
+            // Restore the protection
+            if (!ClrVirtualProtect(pWriteableRegion, cbWriteableRegion,
+                                   dwOldProtection, &dwOldProtection))
+                ThrowLastError();
+        }
     }
 #endif // CROSSGEN_COMPILE
 
@@ -403,7 +414,7 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
 
 #ifdef CROSSGEN_COMPILE
     if (HasNativeHeader())
-        ApplyBaseRelocations();
+        ApplyBaseRelocations(FALSE);
 #endif
 }
 
@@ -487,7 +498,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
             if (!IsNativeMachineFormat())
                 ThrowHR(COR_E_BADIMAGEFORMAT);
 
-            ApplyBaseRelocations();
+            ApplyBaseRelocations(FALSE);
         }
     }
     else
@@ -518,7 +529,8 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
 #else //!FEATURE_PAL
 
 #ifndef CROSSGEN_COMPILE
-    m_LoadedFile = PAL_LOADLoadPEFile(hFile);
+    BOOL isPreloaded;
+    m_LoadedFile = PAL_LOADLoadPEFile(hFile, (LPCWSTR) GetPath(), &isPreloaded);
 
     if (m_LoadedFile == NULL)
     {
@@ -543,7 +555,7 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
         if (!IsNativeMachineFormat())
             ThrowHR(COR_E_BADIMAGEFORMAT);
 
-        ApplyBaseRelocations();
+        ApplyBaseRelocations(isPreloaded);
         SetRelocated();
     }
 
