@@ -37,6 +37,7 @@ EventPipeBufferManager::EventPipeBufferManager(EventPipeSession* pSession, size_
     m_sizeOfAllBuffers = 0;
     m_lock.Init(LOCK_TYPE_DEFAULT);
     m_writeEventSuspending = FALSE;
+    m_waitHandle = NULL;
 
 #ifdef _DEBUG
     m_numBuffersAllocated = 0;
@@ -80,6 +81,7 @@ EventPipeBufferManager::~EventPipeBufferManager()
     // setting this true should have no practical effect other than satisfying asserts at this point.
     m_writeEventSuspending = TRUE;
     DeAllocateBuffers();
+    CloseHandle(m_waitHandle);
 }
 
 #ifdef DEBUG
@@ -476,6 +478,12 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
     }
 
+    if (allocNewBuffer && m_waitHandle != NULL)
+    {
+        // Indicate that there is new data to be read
+        SetEvent(m_waitHandle);
+    }
+
 #ifdef _DEBUG
     if (!allocNewBuffer)
     {
@@ -551,7 +559,7 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
     // In V3 of the format this code does a full timestamp order sort on the events which made the file easier to consume,
     // but the perf implications for emitting the file are less desirable. Imagine an application with 500 threads emitting
     // 10 events per sec per thread (granted this is a questionable number of threads to use in an app, but that isn't
-    // under our control). A nieve sort of 500 ordered lists is going to pull the oldest event from each of 500 lists,
+    // under our control). A naive sort of 500 ordered lists is going to pull the oldest event from each of 500 lists,
     // compare all the timestamps, then emit the oldest one. This could easily add a thousand CPU cycles per-event. A
     // better implementation could maintain a min-heap so that we scale O(log(N)) instead of O(N)but fundamentally sorting
     // has a cost and we didn't want a file format that forces the runtime to pay it on every event.
@@ -579,7 +587,7 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
     // beforehand. I'm betting on these extreme cases being very rare and even something like 1GB isn't an unreasonable
     // amount of virtual memory to use on to parse an extreme trace. However if I am wrong we can control
     // both the allocation policy and the triggering instrumentation. Nothing requires us to give out 1MB buffers to
-    // 1000 threads simulatneously, nor are we prevented from observing buffer usage at finer granularity than we
+    // 1000 threads simultaneously, nor are we prevented from observing buffer usage at finer granularity than we
     // allocated.
     //
     // 2) We mark which events are the oldest ones in the stream at the time we emit them and we do this at regular
@@ -718,6 +726,20 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
     QueryPerformanceCounter(&stopTimeStamp);
     MoveNextEventAnyThread(stopTimeStamp);
     return GetCurrentEvent();
+}
+
+BOOL EventPipeBufferManager::HasNextEvent()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return GetCurrentEvent() != nullptr;
+}
+
+HANDLE EventPipeBufferManager::GetWaitHandle()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_waitHandle;
 }
 
 EventPipeEventInstance* EventPipeBufferManager::GetCurrentEvent()

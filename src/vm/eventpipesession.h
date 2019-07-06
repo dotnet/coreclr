@@ -205,6 +205,10 @@ public:
 
     EventPipeEventInstance *GetNextEvent();
 
+    BOOL HasNextEvent();
+
+    HANDLE GetWaitHandle();
+
     // Enable a session in the event pipe.
     void Enable();
 

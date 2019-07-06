@@ -786,6 +786,22 @@ EventPipeEventInstance *EventPipe::GetNextEvent(EventPipeSessionID sessionID)
     return pSession ? pSession->GetNextEvent() : nullptr;
 }
 
+BOOL EventPipe::HasNextEvent(EventPipeSessionID sessionID)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EventPipeSession *const pSession = GetSession(sessionID);
+    return pSession ? pSession->HasNextEvent() : FALSE;
+}
+
+HANDLE EventPipe::GetWaitHandle(EventPipeSessionID sessionID)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EventPipeSession *const pSession = GetSession(sessionID);
+    return pSession ? pSession->GetWaitHandle() : 0;
+}
+
 void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
 {
     EventPipeProvider::InvokeCallback(eventPipeProviderCallbackData);

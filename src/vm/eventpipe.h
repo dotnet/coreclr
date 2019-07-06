@@ -108,6 +108,12 @@ public:
     // Get next event.
     static EventPipeEventInstance *GetNextEvent(EventPipeSessionID sessionID);
 
+    // Is there an event waiting?
+    static BOOL HasNextEvent(EventPipeSessionID sessionID);
+
+    // Get the event handle that signals when new events are available.
+    static HANDLE GetWaitHandle(EventPipeSessionID sessionID);
+
 #ifdef DEBUG
     static bool IsLockOwnedByCurrentThread();
 #endif

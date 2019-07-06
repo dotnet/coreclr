@@ -63,6 +63,9 @@ private:
     SpinLock m_lock;
     Volatile<BOOL> m_writeEventSuspending;
 
+    // Event for synchronizing real time reading
+    HANDLE m_waitHandle;
+
     // Iterator state for reader thread
     // These are not protected by m_lock and expected to only be used on the reader thread
     EventPipeEventInstance* m_pCurrentEvent;
@@ -185,6 +188,11 @@ public:
 
     // Get next event.  This is used to dispatch events to EventListener.
     EventPipeEventInstance* GetNextEvent();
+    
+    // Is there an event waiting?
+    BOOL HasNextEvent();
+
+    HANDLE GetWaitHandle();
 
 #ifdef _DEBUG
     bool EnsureConsistency();

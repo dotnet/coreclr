@@ -277,4 +277,29 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(UINT64 sessionID, EventPipeEventI
     return pNextInstance != NULL;
 }
 
+HANDLE QCALLTYPE EventPipeInternal::GetWaitHandle(UINT64 sessionID)
+{
+    QCALL_CONTRACT;
+
+    HANDLE waitHandle;
+    BEGIN_QCALL;
+
+    waitHandle = EventPipe::GetWaitHandle(sessionID);
+
+    END_QCALL;
+    return waitHandle;
+}
+
+BOOL QCALLTYPE EventPipeInternal::HasNextEvent(UINT64 sessionID)
+{
+    QCALL_CONTRACT;
+
+    BOOL hasNext;
+    BEGIN_QCALL;
+
+    hasNext = EventPipe::HasNextEvent(sessionID);
+
+    END_QCALL;
+    return hasNext;
+}
 #endif // FEATURE_PERFTRACING

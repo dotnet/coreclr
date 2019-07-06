@@ -4,6 +4,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Win32.SafeHandles;
 
 namespace System.Diagnostics.Tracing
 {
@@ -161,6 +162,10 @@ namespace System.Diagnostics.Tracing
             // Struct to fill with the call to GetNextEvent.
             EventPipeEventInstanceData instanceData;
 
+            // Create a WaitHandle with a SafeWaitHandle that won't release the handle when done
+            EventPipeWaitHandle waitHandle = new EventPipeWaitHandle();
+            waitHandle.SafeWaitHandle = new SafeWaitHandle(EventPipeInternal.GetWaitHandle(m_sessionID), false);
+
             while (!m_stopDispatchTask)
             {
                 // Get the next event.
@@ -180,6 +185,11 @@ namespace System.Diagnostics.Tracing
                 if (!m_stopDispatchTask)
                 {
                     Thread.Sleep(10);
+
+                    if (!EventPipeInternal.HasNextEvent(m_sessionID))
+                    {
+                        waitHandle.WaitOne();
+                    }
                 }
             }
         }

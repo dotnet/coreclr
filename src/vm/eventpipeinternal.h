@@ -98,6 +98,12 @@ public:
     static bool QCALLTYPE GetNextEvent(
         UINT64 sessionID,
         EventPipeEventInstanceData *pInstance);
+
+    static HANDLE QCALLTYPE GetWaitHandle(
+        UINT64 sessionID);
+
+    static BOOL QCALLTYPE  HasNextEvent(
+        UINT64 sessionID);
 };
 
 #endif // FEATURE_PERFTRACING

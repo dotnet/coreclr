@@ -350,6 +350,20 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     return m_pBufferManager->GetNextEvent();
 }
 
+BOOL EventPipeSession::HasNextEvent()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pBufferManager->HasNextEvent();
+}
+
+HANDLE EventPipeSession::GetWaitHandle()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pBufferManager->GetWaitHandle();
+}
+
 void EventPipeSession::Enable()
 {
     CONTRACTL
