@@ -37,7 +37,7 @@ EventPipeBufferManager::EventPipeBufferManager(EventPipeSession* pSession, size_
     m_sizeOfAllBuffers = 0;
     m_lock.Init(LOCK_TYPE_DEFAULT);
     m_writeEventSuspending = FALSE;
-    m_waitHandle = NULL;
+    m_waitEvent.CreateAutoEvent(FALSE);
 
 #ifdef _DEBUG
     m_numBuffersAllocated = 0;
@@ -81,7 +81,6 @@ EventPipeBufferManager::~EventPipeBufferManager()
     // setting this true should have no practical effect other than satisfying asserts at this point.
     m_writeEventSuspending = TRUE;
     DeAllocateBuffers();
-    CloseHandle(m_waitHandle);
 }
 
 #ifdef DEBUG
@@ -478,10 +477,12 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
     }
 
-    if (allocNewBuffer && m_waitHandle != NULL)
+    if (allocNewBuffer)
     {
+        _ASSERTE(m_waitEvent.IsValid());
+
         // Indicate that there is new data to be read
-        SetEvent(m_waitHandle);
+        m_waitEvent.Set();
     }
 
 #ifdef _DEBUG
@@ -735,11 +736,12 @@ BOOL EventPipeBufferManager::HasNextEvent()
     return GetCurrentEvent() != nullptr;
 }
 
-HANDLE EventPipeBufferManager::GetWaitHandle()
+CLREvent *EventPipeBufferManager::GetWaitEvent()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_waitHandle;
+    _ASSERTE(m_waitEvent.IsValid());
+    return &m_waitEvent;
 }
 
 EventPipeEventInstance* EventPipeBufferManager::GetCurrentEvent()

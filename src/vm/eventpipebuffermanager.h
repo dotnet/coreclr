@@ -64,7 +64,7 @@ private:
     Volatile<BOOL> m_writeEventSuspending;
 
     // Event for synchronizing real time reading
-    HANDLE m_waitHandle;
+    CLREvent m_waitEvent;
 
     // Iterator state for reader thread
     // These are not protected by m_lock and expected to only be used on the reader thread
@@ -192,7 +192,7 @@ public:
     // Is there an event waiting?
     BOOL HasNextEvent();
 
-    HANDLE GetWaitHandle();
+    CLREvent *GetWaitEvent();
 
 #ifdef _DEBUG
     bool EnsureConsistency();

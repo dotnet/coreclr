@@ -799,7 +799,7 @@ HANDLE EventPipe::GetWaitHandle(EventPipeSessionID sessionID)
     LIMITED_METHOD_CONTRACT;
 
     EventPipeSession *const pSession = GetSession(sessionID);
-    return pSession ? pSession->GetWaitHandle() : 0;
+    return pSession ? pSession->GetWaitEvent()->GetHandleUNHOSTED() : 0;
 }
 
 void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)

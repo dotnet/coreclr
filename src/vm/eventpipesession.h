@@ -207,7 +207,7 @@ public:
 
     BOOL HasNextEvent();
 
-    HANDLE GetWaitHandle();
+    CLREvent *GetWaitEvent();
 
     // Enable a session in the event pipe.
     void Enable();

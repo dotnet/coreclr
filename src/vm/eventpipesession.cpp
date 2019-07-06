@@ -164,6 +164,7 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 
     Thread *const pThisThread = pEventPipeSession->GetIpcStreamingThread();
     bool fSuccess = true;
+    CLREvent *waitEvent = pEventPipeSession->GetWaitEvent();
 
     {
         GCX_PREEMP();
@@ -179,6 +180,11 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 
                 // Wait until it's time to sample again.
                 PlatformSleep();
+
+                if (!pEventPipeSession->HasNextEvent())
+                {
+
+                }
             }
 
             pEventPipeSession->SetThreadShutdownEvent();
@@ -357,11 +363,11 @@ BOOL EventPipeSession::HasNextEvent()
     return m_pBufferManager->HasNextEvent();
 }
 
-HANDLE EventPipeSession::GetWaitHandle()
+CLREvent *EventPipeSession::GetWaitEvent()
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_pBufferManager->GetWaitHandle();
+    return m_pBufferManager->GetWaitEvent();
 }
 
 void EventPipeSession::Enable()
