@@ -5,8 +5,8 @@
 #include <unixasmmacros.inc>
 
 // Arguments
-//     input: (in R0) the adress of the ULONGLONG to be converted to a double
-//     output: the double corresponding to the ULONGLONG input value
+//     input: (in X0) the _NEON128 value to be converted to a double
+//     output: the double corresponding to the _NEON128 input value
 
 LEAF_ENTRY FPFillR8, .TEXT
         LDR     Q0, [X0]
