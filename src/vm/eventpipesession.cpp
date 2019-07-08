@@ -183,7 +183,7 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 
                 if (!pEventPipeSession->HasNextEvent())
                 {
-
+                    waitEvent->Wait(INFINITE, FALSE);
                 }
             }
 
@@ -449,6 +449,9 @@ void EventPipeSession::DisableIpcStreamingThread()
     // The IPC streaming thread will watch this value and exit
     // when profiling is disabled.
     m_ipcStreamingEnabled = false;
+
+    // Thread could be waiting on the event that there is new data to read.
+    m_pBufferManager->GetWaitEvent()->Set();
 
     // Wait for the sampling thread to clean itself up.
     m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
