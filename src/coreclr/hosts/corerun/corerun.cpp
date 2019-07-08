@@ -264,8 +264,10 @@ public:
             wcscpy_s(appAssemblyWithoutExtension, MAX_PATH_FNAME, appAssembly);
 
             RemoveExtensionAndNi(appAssemblyWithoutExtension);
+            StackSString appAssemblyPathPrefix(appPath);
+            appAssemblyPathPrefix.Append(appAssemblyWithoutExtension);
 
-            AddFilesFromDirectoryToTPAList(appAssemblyWithoutExtension, rgTPAExtensions, _countof(rgTPAExtensions));
+            AddFilesFromDirectoryToTPAList(appAssemblyPathPrefix.GetUnicode(), rgTPAExtensions, _countof(rgTPAExtensions));
 
             // Add files from %CORE_LIBRARIES% if specified
             StackSString coreLibraries;
