@@ -2134,6 +2134,15 @@ inline ULONG CorSigUncompressData(      // return number of bytes of that compre
 #endif
 #endif
 
+#if !defined(SELECTANY_NOEXTERN)
+#if defined(__GNUC__)
+    #define SELECTANY_NOEXTERN __attribute__((weak))
+#else
+    #define SELECTANY_NOEXTERN __declspec(selectany)
+#endif
+#endif
+
+
 SELECTANY const mdToken g_tkCorEncodeToken[4] ={mdtTypeDef, mdtTypeRef, mdtTypeSpec, mdtBaseType};
 
 // uncompress a token
