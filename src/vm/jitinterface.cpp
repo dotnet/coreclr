@@ -478,14 +478,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
-#ifdef PLATFORM_UNIX
+#if defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
-#endif // PLATFORM_UNIX
+#endif // defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -14261,6 +14261,30 @@ TADDR EECodeInfo::GetStartAddress()
     } CONTRACTL_END;
 
     return m_pJM->JitTokenToStartAddress(m_methodToken);
+}
+
+NativeCodeVersion EECodeInfo::GetNativeCodeVersion()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    PTR_MethodDesc pMD = PTR_MethodDesc(GetMethodDesc());
+    if (pMD == NULL)
+    {
+        return NativeCodeVersion();
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+    return pCodeVersionManager->GetNativeCodeVersion(pMD, PINSTRToPCODE(GetStartAddress()));
+#else
+    return NativeCodeVersion(pMD);
+#endif
 }
 
 #if defined(WIN64EXCEPTIONS)

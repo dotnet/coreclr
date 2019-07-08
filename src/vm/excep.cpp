@@ -52,6 +52,9 @@
 // Support for extracting MethodDesc of a delegate.
 #include "comdelegate.h"
 
+#ifdef HAVE_GCCOVER
+#include "gccover.h"
+#endif // HAVE_GCCOVER
 
 #ifndef FEATURE_PAL
 // Windows uses 64kB as the null-reference area
@@ -6549,6 +6552,8 @@ DWORD GetGcMarkerExceptionCode(LPVOID ip)
 #if defined(HAVE_GCCOVER)
     WRAPPER_NO_CONTRACT;
 
+    // IsGcCoverageInterrupt(ip) requires "gccover.h"
+    //
     if (GCStress<cfg_any>::IsEnabled() && IsGcCoverageInterrupt(ip))
     {
         return STATUS_CLR_GCCOVER_CODE;
@@ -6648,7 +6653,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
 
 #ifdef DEBUGGING_SUPPORTED
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
     // The implementation will end up throwing an EXCEPTION_BREAKPOINT rather than an EXCEPTION_SINGLE_STEP
     // and leaves other aspects of the thread context in an invalid state. Therefore we use this opportunity
@@ -6666,7 +6671,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
         pExceptionRecord->ExceptionCode = EXCEPTION_SINGLE_STEP;
         pExceptionRecord->ExceptionAddress = (PVOID)pContext->Pc;
     }
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     // Is this exception really meant for the COM+ Debugger? Note: we will let the debugger have a chance if there
     // is a debugger attached to any part of the process. It is incorrect to consider whether or not the debugger

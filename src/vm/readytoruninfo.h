@@ -117,10 +117,31 @@ public:
         ReadyToRunInfo * m_pInfo;
         int m_methodDefIndex;
 
+        NativeFormat::NativeHashtable::AllEntriesEnumerator m_genericEnum;
+        NativeFormat::NativeParser m_genericParser;
+        uint m_genericCurrentOffset;
+        RID m_genericCurrentRid;
+        PCCOR_SIGNATURE m_genericCurrentSig;
+
+        void ParseGenericMethodSignatureAndRid(uint *offset, RID *rid);
+
     public:
-        MethodIterator(ReadyToRunInfo * pInfo)
-            : m_pInfo(pInfo), m_methodDefIndex(-1)
+        MethodIterator(ReadyToRunInfo * pInfo) : 
+            m_pInfo(pInfo), 
+            m_methodDefIndex(-1),
+            m_genericEnum(),
+            m_genericParser(),
+            m_genericCurrentOffset(-1),
+            m_genericCurrentRid(-1),
+            m_genericCurrentSig(NULL)
         {
+            NativeFormat::PTR_NativeHashtable pHash = NULL;
+            if (!pInfo->m_instMethodEntryPoints.IsNull())
+            {
+                pHash = NativeFormat::PTR_NativeHashtable(&pInfo->m_instMethodEntryPoints);
+            }
+
+            m_genericEnum = NativeFormat::NativeHashtable::AllEntriesEnumerator(pHash);
         }
 
         BOOL Next();
