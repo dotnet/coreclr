@@ -67,9 +67,5 @@
     <!-- Workaround for https://github.com/mono/linker/issues/378 -->
     <type fullname="System.Runtime.InteropServices.IDispatch" />
     <type fullname="Internal.Runtime.InteropServices.IClassFactory2" />
-    <type fullname="System.GC">
-      <!-- Internal API that we are iterating on: https://github.com/dotnet/coreclr/pull/24202 -->
-      <method name="RegisterMemoryLoadChangeNotification" />
-    </type>
   </assembly>
 </linker>
