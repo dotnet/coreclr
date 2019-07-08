@@ -248,22 +248,31 @@ public:
 
     // Returns the semicolon-separated list of paths to runtime dlls that are considered trusted.
     // On first call, scans the coreclr directory for dlls and adds them all to the list.
-    const wchar_t * GetTpaList() {
+    const wchar_t * GetTpaList(_In_z_ const wchar_t* appPath, _In_z_ const wchar_t* appAssembly) {
         if (m_tpaList.IsEmpty()) {
             const wchar_t *rgTPAExtensions[] = {
-                        W("*.ni.dll"),		// Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
-                        W("*.dll"),
-                        W("*.ni.exe"),
-                        W("*.exe"),
-                        W("*.ni.winmd"),
-                        W("*.winmd")
+                        W(".ni.dll"),		// Probe for .ni.dll first so that it's preferred if ni and il coexist in the same dir
+                        W(".dll"),
+                        W(".ni.exe"),
+                        W(".exe"),
+                        W(".ni.winmd"),
+                        W(".winmd")
                         };
+
+            // First, add the user assembly, along with any possible ni files.
+            wchar_t appAssemblyWithoutExtension[MAX_PATH_FNAME];
+            wcscpy_s(appAssemblyWithoutExtension, MAX_PATH_FNAME, appAssembly);
+
+            RemoveExtensionAndNi(appAssemblyWithoutExtension);
+
+            AddFilesFromDirectoryToTPAList(appAssemblyWithoutExtension, rgTPAExtensions, _countof(rgTPAExtensions));
 
             // Add files from %CORE_LIBRARIES% if specified
             StackSString coreLibraries;
             if (WszGetEnvironmentVariable(W("CORE_LIBRARIES"), coreLibraries) > 0 && coreLibraries.GetCount() > 0)
             {
                 coreLibraries.Append(W('\\'));
+                coreLibraries.Append(W('*'));
                 AddFilesFromDirectoryToTPAList(coreLibraries, rgTPAExtensions, _countof(rgTPAExtensions));
             }
             else
@@ -273,7 +282,9 @@ public:
                 *m_log << W("path containing additional platform assemblies,") << Logger::endl;
             }
 
-            AddFilesFromDirectoryToTPAList(m_coreCLRDirectoryPath, rgTPAExtensions, _countof(rgTPAExtensions));
+            StackSString coreClrDirectory(m_coreCLRDirectoryPath);
+            coreClrDirectory.Append(W('*'));
+            AddFilesFromDirectoryToTPAList(coreClrDirectory, rgTPAExtensions, _countof(rgTPAExtensions));
         }
 
         return m_tpaList;
@@ -489,6 +500,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     StackSString appPath;
     StackSString appNiPath;
     StackSString managedAssemblyFullName;
+    StackSString managedAssemblyFileName;
     StackSString appLocalWinmetadata;
     
     wchar_t* filePart = NULL;
@@ -509,6 +521,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         return false;
     } 
 
+    managedAssemblyFileName.Set(filePart);
     managedAssemblyFullName.Set(appPathPtr);
 
     *(filePart) = W('\0');
@@ -582,18 +595,6 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
         return false;
     }
 
-    StackSString tpaList;
-    if (!managedAssemblyFullName.IsEmpty())
-    {
-        // Target assembly should be added to the tpa list. Otherwise corerun.exe
-        // may find wrong assembly to execute.
-        // Details can be found at https://github.com/dotnet/coreclr/issues/5631
-        tpaList = managedAssemblyFullName;
-        tpaList.Append(W(';'));
-    }
-
-    tpaList.Append(hostEnvironment.GetTpaList());
-
     //-------------------------------------------------------------
 
     // Create an AppDomain
@@ -623,7 +624,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
     };
     const wchar_t *property_values[] = { 
         // TRUSTED_PLATFORM_ASSEMBLIES
-        tpaList,
+        hostEnvironment.GetTpaList(appPath, managedAssemblyFileName),
         // APP_PATHS
         appPath,
         // APP_NI_PATHS
