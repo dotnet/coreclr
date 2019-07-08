@@ -177,9 +177,9 @@ public:
     // Write the contents of the managed buffers to the specified file.
     // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
     // skip any events that might be partially written due to races when tracing is stopped.
-    void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
-    void WriteAllBuffersToFileV3(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
-    void WriteAllBuffersToFileV4(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
+    void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten);
+    void WriteAllBuffersToFileV3(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten);
+    void WriteAllBuffersToFileV4(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten);
 
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
     // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity
@@ -189,9 +189,6 @@ public:
     // Get next event.  This is used to dispatch events to EventListener.
     EventPipeEventInstance* GetNextEvent();
     
-    // Is there an event waiting?
-    BOOL HasNextEvent();
-
     CLREvent *GetWaitEvent();
 
 #ifdef _DEBUG

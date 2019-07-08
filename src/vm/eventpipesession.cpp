@@ -172,19 +172,21 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
         {
             while (pEventPipeSession->IsIpcStreamingEnabled())
             {
-                if (!pEventPipeSession->WriteAllBuffersToFile())
+                bool eventsWritten = false;
+                if (!pEventPipeSession->WriteAllBuffersToFile(&eventsWritten))
                 {
                     fSuccess = false;
                     break;
                 }
 
-                // Wait until it's time to sample again.
-                PlatformSleep();
-
-                if (!pEventPipeSession->HasNextEvent())
+                if (!eventsWritten)
                 {
+                    // No events were available, sleep until more are available
                     waitEvent->Wait(INFINITE, FALSE);
                 }
+
+                // Wait until it's time to sample again.
+                PlatformSleep();
             }
 
             pEventPipeSession->SetThreadShutdownEvent();
@@ -280,7 +282,7 @@ EventPipeSessionProvider *EventPipeSession::GetSessionProvider(const EventPipePr
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
-bool EventPipeSession::WriteAllBuffersToFile()
+bool EventPipeSession::WriteAllBuffersToFile(bool *pEventsWritten)
 {
     CONTRACTL
     {
@@ -298,7 +300,7 @@ bool EventPipeSession::WriteAllBuffersToFile()
     // the current timestamp are written into the file.
     LARGE_INTEGER stopTimeStamp;
     QueryPerformanceCounter(&stopTimeStamp);
-    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp);
+    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp, pEventsWritten);
     return !m_pFile->HasErrors();
 }
 
@@ -354,13 +356,6 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     CONTRACTL_END;
 
     return m_pBufferManager->GetNextEvent();
-}
-
-BOOL EventPipeSession::HasNextEvent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return m_pBufferManager->HasNextEvent();
 }
 
 CLREvent *EventPipeSession::GetWaitEvent()

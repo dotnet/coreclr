@@ -168,9 +168,12 @@ namespace System.Diagnostics.Tracing
 
             while (!m_stopDispatchTask)
             {
+                bool eventsReceived = false;
                 // Get the next event.
                 while (!m_stopDispatchTask && EventPipeInternal.GetNextEvent(m_sessionID, &instanceData))
                 {
+                    eventsReceived = true;
+
                     // Filter based on provider.
                     if (instanceData.ProviderID == m_RuntimeProviderID)
                     {
@@ -184,12 +187,12 @@ namespace System.Diagnostics.Tracing
                 // Wait for more events.
                 if (!m_stopDispatchTask)
                 {
-                    Thread.Sleep(10);
-
-                    if (!EventPipeInternal.HasNextEvent(m_sessionID))
+                    if (!eventsReceived)
                     {
                         waitHandle.WaitOne();
                     }
+
+                    Thread.Sleep(10);
                 }
             }
         }

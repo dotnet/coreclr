@@ -260,9 +260,6 @@ namespace System.Diagnostics.Tracing
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe IntPtr GetWaitHandle(UInt64 sessionID);
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool HasNextEvent(UInt64 sessionID);
     }
 }
 

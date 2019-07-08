@@ -102,8 +102,6 @@ public:
     static HANDLE QCALLTYPE GetWaitHandle(
         UINT64 sessionID);
 
-    static BOOL QCALLTYPE  HasNextEvent(
-        UINT64 sessionID);
 };
 
 #endif // FEATURE_PERFTRACING

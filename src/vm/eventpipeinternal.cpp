@@ -290,16 +290,4 @@ HANDLE QCALLTYPE EventPipeInternal::GetWaitHandle(UINT64 sessionID)
     return waitHandle;
 }
 
-BOOL QCALLTYPE EventPipeInternal::HasNextEvent(UINT64 sessionID)
-{
-    QCALL_CONTRACT;
-
-    BOOL hasNext;
-    BEGIN_QCALL;
-
-    hasNext = EventPipe::HasNextEvent(sessionID);
-
-    END_QCALL;
-    return hasNext;
-}
 #endif // FEATURE_PERFTRACING

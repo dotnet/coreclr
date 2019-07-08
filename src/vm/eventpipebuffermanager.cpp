@@ -498,7 +498,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
     return !allocNewBuffer;
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp, bool *eventsWritten)
 {
     CONTRACTL
     {
@@ -514,15 +514,15 @@ void EventPipeBufferManager::WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_I
     // See the comments in WriteAllBufferToFileV4 for more details
     if (pFile->GetSerializationFormat() >= EventPipeSerializationFormat::NetTraceV4)
     {
-        WriteAllBuffersToFileV4(pFile, stopTimeStamp);
+        WriteAllBuffersToFileV4(pFile, stopTimeStamp, eventsWritten);
     }
     else
     {
-        WriteAllBuffersToFileV3(pFile, stopTimeStamp);
+        WriteAllBuffersToFileV3(pFile, stopTimeStamp, eventsWritten);
     }
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFileV3(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFileV3(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten)
 {
     CONTRACTL
     {
@@ -531,20 +531,24 @@ void EventPipeBufferManager::WriteAllBuffersToFileV3(EventPipeFile *pFile, LARGE
         MODE_PREEMPTIVE;
         PRECONDITION(pFile != nullptr);
         PRECONDITION(GetCurrentEvent() == nullptr);
+        PRECONDITION(pEventsWritten != nullptr);
     }
     CONTRACTL_END;
+
+    *pEventsWritten = false;
 
     // Naively walk the circular buffer, writing the event stream in timestamp order.
     MoveNextEventAnyThread(stopTimeStamp);
     while (GetCurrentEvent() != nullptr)
     {
+        *pEventsWritten = true;
         pFile->WriteEvent(*GetCurrentEvent(), /*CaptureThreadId=*/0, /*sequenceNumber=*/0, /*IsSorted=*/TRUE);
         MoveNextEventAnyThread(stopTimeStamp);
     }
     pFile->Flush();
 }
 
-void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp)
+void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten)
 {
     CONTRACTL
     {
@@ -553,6 +557,7 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
         MODE_PREEMPTIVE;
         PRECONDITION(pFile != nullptr);
         PRECONDITION(GetCurrentEvent() == nullptr);
+        PRECONDITION(pEventsWritten != nullptr);
     }
     CONTRACTL_END;
 
@@ -605,6 +610,8 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
     // of each of them and needs to know when each buffer can be released. The explicit sequence point makes that
     // very easy - every sequence point all buffers can be released and no further bookkeeping is required.
 
+    *pEventsWritten = false;
+
     EventPipeSequencePoint* pSequencePoint;
     LARGE_INTEGER curTimestampBoundary;
     curTimestampBoundary.QuadPart = stopTimeStamp.QuadPart;
@@ -644,6 +651,7 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
                 MoveNextEventSameThread(curTimestampBoundary);
             }
             pBufferList->SetLastReadSequenceNumber(sequenceNumber);
+            *pEventsWritten = eventsWritten;
         }
 
         // This finishes any current partially filled EventPipeBlock, and flushes it to the stream
@@ -727,13 +735,6 @@ EventPipeEventInstance* EventPipeBufferManager::GetNextEvent()
     QueryPerformanceCounter(&stopTimeStamp);
     MoveNextEventAnyThread(stopTimeStamp);
     return GetCurrentEvent();
-}
-
-BOOL EventPipeBufferManager::HasNextEvent()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    return GetCurrentEvent() != nullptr;
 }
 
 CLREvent *EventPipeBufferManager::GetWaitEvent()
