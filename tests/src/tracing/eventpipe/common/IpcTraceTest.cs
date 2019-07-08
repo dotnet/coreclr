@@ -140,7 +140,6 @@ namespace Tracing.Tests.Common
             });
 
             readerTask.Start();
-            Thread.Sleep(1);
             _eventGeneratingAction();
             EventPipeClient.StopTracing(processId, eventpipeSessionId);
 
@@ -169,74 +168,6 @@ namespace Tracing.Tests.Common
             {
                 return 100;
             }
-
-            // var mre = new ManualResetEvent(false);
-            // using (var memoryStream = new MemoryStream())
-            // {
-
-            //     var eventGeneratorTask = new Task(() =>
-            //     {
-            //         // mre.WaitOne();
-            //         // Thread.Sleep(1);
-            //         _eventGeneratingAction();
-            //         EventPipeClient.StopTracing(processId, eventpipeSessionId);
-            //     });
-
-            //     var readerTask = new Task(() =>
-            //     {
-            //         int b;
-            //         // mre.Set();
-            //         while ((b = binaryReader.ReadByte()) != -1)
-            //         {
-            //             memoryStream.WriteByte((byte)b);
-            //         }
-            //     });
-
-            //     readerTask.Start();
-            //     eventGeneratorTask.Start();
-
-            //     Task.WaitAll(readerTask, eventGeneratorTask);
-            //     memoryStream.Seek(0, SeekOrigin.Begin);
-
-            //     var source = new EventPipeEventSource(memoryStream);
-            //     source.Dynamic.All += (eventData) =>
-            //     {
-            //         if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
-            //         {
-            //             _actualEventCounts[eventData.ProviderName]++;
-            //         }
-            //         else
-            //         {
-            //             _actualEventCounts[eventData.ProviderName] = 1;
-            //         }
-            //     };
-
-            //     source.Process();
-
-            //     foreach (var (provider, expectedCount) in _expectedEventCounts)
-            //     {
-            //         if (_actualEventCounts.TryGetValue(provider, out var actualCount))
-            //         {
-            //             if (!expectedCount.Validate(actualCount))
-            //             {
-            //                 return Fail($"Event count mismatch for provider \"{provider}\": expected {expectedCount}, but saw {actualCount}");
-            //             }
-            //         }
-            //         else
-            //         {
-            //             return Fail($"No events for provider \"{provider}\"");
-            //         }
-            //     }
-
-            //     if (_optionalTraceValidator != null)
-            //     {
-            //         return _optionalTraceValidator(source);
-            //     }
-            //     else
-            //     {
-            //         return 100;
-            //     }
-            // }
         }
 
         public static int RunAndValidateEventCounts(

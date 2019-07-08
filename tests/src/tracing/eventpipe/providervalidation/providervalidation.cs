@@ -60,7 +60,6 @@ namespace Tracing.Tests.ProviderValidation
 
         private static Action _eventGeneratingAction = () => 
         {
-            Thread.Sleep(500);
             foreach (var _ in Enumerable.Range(0,1000))
             {
                 MyEventSource.Log.MyEvent();
