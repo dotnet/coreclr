@@ -442,8 +442,8 @@
 
   <!-- Setup ILLink.targets -->
   <ItemGroup>
-    <PackageReference Include="$(ILLinkTasksPackage)" GeneratePackagePath="True">
-      <Version>$(ILLinkTasksPackageVersion)</Version>
+    <PackageReference Include="$ILLink.Tasks" GeneratePackagePath="True">
+      <Version>$(ILLinkTasksVersion)</Version>
     </PackageReference>
   </ItemGroup>
 
