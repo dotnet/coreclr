@@ -371,7 +371,8 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
 
     s_allowWrite &= ~(pSession->GetMask()); 
     pSession->SuspendWriteEvent();
-    pSession->WriteAllBuffersToFile(); // Flush the buffers to the stream/file
+    bool ignored;
+    pSession->WriteAllBuffersToFile(&ignored); // Flush the buffers to the stream/file
 
     --s_numberOfSessions;
 

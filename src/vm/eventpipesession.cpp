@@ -466,7 +466,8 @@ void EventPipeSession::Disable()
     if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
         DisableIpcStreamingThread();
 
-    WriteAllBuffersToFile();
+    bool ignored;
+    WriteAllBuffersToFile(&ignored);
     m_pProviderList->Clear();
 }
 
