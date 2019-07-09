@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using Microsoft.Diagnostics.Tools.RuntimeClient;
 using Microsoft.Diagnostics.Tracing;
 using Tracing.Tests.Common;
+using Microsoft.Diagnostics.Tracing.Parsers.Clr;
 
 namespace Tracing.Tests.RundownValidation
 {
@@ -41,14 +42,14 @@ namespace Tracing.Tests.RundownValidation
         // We only care about rundown so skip generating any events.
         private static Action _eventGeneratingAction = () => { };
 
-        private static Func<EventPipeEventSource, int> _DoesRundownContainMethodEvents = (source) =>
+        private static Func<EventPipeEventSource, Func<int>> _DoesRundownContainMethodEvents = (source) =>
         {
             bool hasMethodDCStopVerbose = false;
             bool hasMethodILToNativeMap = false;
-            source.Clr.MethodDCStopVerboseV2 += (eventData) => hasMethodDCStopVerbose = true;
-            source.Clr.MethodILToNativeMap += (eventData) => hasMethodILToNativeMap = true;
-            source.Process();
-            return hasMethodDCStopVerbose && hasMethodILToNativeMap ? 100 : -1;
+            ClrRundownTraceEventParser rundownParser = new ClrRundownTraceEventParser(source);
+            rundownParser.MethodDCStopVerbose += (eventData) => hasMethodDCStopVerbose = true;
+            rundownParser.MethodILToNativeMapDCStop += (eventData) => hasMethodILToNativeMap = true;
+            return () => hasMethodDCStopVerbose && hasMethodILToNativeMap ? 100 : -1;
         };
     }
 }

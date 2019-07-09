@@ -52,6 +52,33 @@ namespace Tracing.Tests.Common
         }
     }
 
+    // This event source is used by the test infra to
+    // to insure that providers have finished being enabled
+    // for the session being observed. Since the client API
+    // returns the pipe for reading _before_ it finishes
+    // enabling the providers to write to that session,
+    // we need to guarantee that our providers are on before
+    // sending events. This is a _unique_ problem I imagine
+    // should _only_ affect scenarios like these tests
+    // where the reading and sending of events are required
+    // to synchronize.
+    public sealed class SentinelEventSource : EventSource
+    {
+        private SentinelEventSource() {}
+        public static SentinelEventSource Log = new SentinelEventSource();
+        public void SentinelEvent() { WriteEvent(1, "SentinelEvent"); }
+    }
+
+    public static class SessionConfigurationExtensions
+    {
+        public static SessionConfiguration InjectSentinel(this SessionConfiguration sessionConfiguration)
+        {
+            var newProviderList = new List<Provider>(sessionConfiguration.Providers);
+            newProviderList.Add(new Provider("SentinelEventSource"));
+            return new SessionConfiguration(sessionConfiguration.CircularBufferSizeInMB, sessionConfiguration.Format, newProviderList.AsReadOnly());
+        }
+    }
+
     public class IpcTraceTest
     {
         // This Action is executed while the trace is being collected.
@@ -63,21 +90,26 @@ namespace Tracing.Tests.Common
         private Dictionary<string, ExpectedEventCount> _expectedEventCounts;
         private Dictionary<string, int> _actualEventCounts = new Dictionary<string, int>();
         private SessionConfiguration _sessionConfiguration;
-        private Func<EventPipeEventSource, int> _optionalTraceValidator;
+
+        // A function to be called with the EventPipeEventSource _before_
+        // the call to `source.Process()`.  The function should return another
+        // function that will be called to check whether the optional test was validated.
+        // Example in situ: providervalidation.cs
+        private Func<EventPipeEventSource, Func<int>> _optionalTraceValidator;
 
         IpcTraceTest(
             Dictionary<string, ExpectedEventCount> expectedEventCounts,
             Action eventGeneratingAction,
             SessionConfiguration? sessionConfiguration = null,
-            Func<EventPipeEventSource, int> optionalTraceValidator = null)
+            Func<EventPipeEventSource, Func<int>> optionalTraceValidator = null)
         {
             _eventGeneratingAction = eventGeneratingAction;
             _expectedEventCounts = expectedEventCounts;
-            _sessionConfiguration = sessionConfiguration ?? new SessionConfiguration(
+            _sessionConfiguration = sessionConfiguration?.InjectSentinel() ?? new SessionConfiguration(
                 circularBufferSizeMB: 1000,
                 format: EventPipeSerializationFormat.NetTrace,
                 providers: new List<Provider> { new Provider("Microsoft-Windows-DotNETRuntime") });
-            _optionalTraceValidator = _optionalTraceValidator;
+            _optionalTraceValidator = optionalTraceValidator;
         }
 
         private int Fail(string message = "")
@@ -119,14 +151,32 @@ namespace Tracing.Tests.Common
             var binaryReader = EventPipeClient.CollectTracing(processId, _sessionConfiguration, out var eventpipeSessionId);
             if (eventpipeSessionId == 0)
                 return -1;
+            
+            // CollectTracing returns before EventPipe::Enable has returned, so the
+            // the sources we want to listen for may not have been enabled yet.
+            // We'll use this sentinel EventSource to check if Enable has finished
+            ManualResetEvent sentinelEventReceived = new ManualResetEvent(false);
+            var sentinelTask = new Task(() =>
+            {
+                while (!sentinelEventReceived.WaitOne(50))
+                {
+                    SentinelEventSource.Log.SentinelEvent();
+                }
+            });
+            sentinelTask.Start();
 
             EventPipeEventSource source = null;
+            Func<int> optionalTraceValidationCallback = null;
             var readerTask = new Task(() =>
             {
                 source = new EventPipeEventSource(binaryReader);
                 source.Dynamic.All += (eventData) =>
                 {
-                    if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
+                    if (eventData.ProviderName == "SentinelEventSource")
+                    {
+                        sentinelEventReceived.Set();
+                    }
+                    else if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
                     {
                         _actualEventCounts[eventData.ProviderName]++;
                     }
@@ -136,10 +186,16 @@ namespace Tracing.Tests.Common
                     }
                 };
 
+                if (_optionalTraceValidator != null)
+                {
+                    optionalTraceValidationCallback = _optionalTraceValidator(source);
+                }
+
                 source.Process();
             });
 
             readerTask.Start();
+            sentinelEventReceived.WaitOne();
             _eventGeneratingAction();
             EventPipeClient.StopTracing(processId, eventpipeSessionId);
 
@@ -160,9 +216,9 @@ namespace Tracing.Tests.Common
                 }
             }
 
-            if (_optionalTraceValidator != null)
+            if (optionalTraceValidationCallback != null)
             {
-                return _optionalTraceValidator(source);
+                return optionalTraceValidationCallback();
             }
             else
             {
@@ -174,7 +230,7 @@ namespace Tracing.Tests.Common
             Dictionary<string, ExpectedEventCount> expectedEventCounts,
             Action eventGeneratingAction,
             SessionConfiguration? sessionConfiguration = null,
-            Func<EventPipeEventSource, int> optionalTraceValidator = null)
+            Func<EventPipeEventSource, Func<int>> optionalTraceValidator = null)
         {
             Console.WriteLine("TEST STARTING");
             var test = new IpcTraceTest(expectedEventCounts, eventGeneratingAction, sessionConfiguration, optionalTraceValidator);
