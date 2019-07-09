@@ -215,9 +215,9 @@ bool DiagnosticServer::Shutdown()
                 {
                     _ASSERTE(!"Failed to mark pending synchronous I/O operations issued by Diagnostics Server Thread as canceled.");
                 }
+                ::WaitForSingleObject(s_hServerThread, INFINITE);
 #endif // FEATURE_PAL
 
-                ::WaitForSingleObject(s_hServerThread, INFINITE);
                 ::CloseHandle(s_hServerThread);
             }
 
