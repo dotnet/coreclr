@@ -166,7 +166,6 @@ bool DiagnosticServer::Initialize()
 #ifdef FEATURE_AUTO_TRACE
                 auto_trace_wait();
 #endif
-                // TODO: Add error handling?
                 fSuccess = true;
             }
         }
@@ -202,7 +201,7 @@ bool DiagnosticServer::Shutdown()
                 STRESS_LOG2(
                     LF_DIAGNOSTICS_PORT,                                  // facility
                     LL_ERROR,                                             // level
-                    "Failed to unlink diagnostic IPC: error (%d): %s.\n", // msg
+                    "Failed to close diagnostic IPC: error (%d): %s.\n",  // msg
                     code,                                                 // data1
                     szMessage);                                           // data2
             };

@@ -42,7 +42,7 @@ public:
 #ifdef FEATURE_PAL
         const int _serverSocket;
         sockaddr_un *const _pServerAddress;
-        bool _isClosed = false;
+        bool _isClosed;
 
         DiagnosticsIpc(const int serverSocket, sockaddr_un *const pServerAddress);
 
