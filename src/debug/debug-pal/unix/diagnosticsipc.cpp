@@ -141,7 +141,7 @@ void IpcStream::DiagnosticsIpc::Close(ErrorCallback callback)
         {
             if (callback != nullptr)
                 callback(strerror(errno), errno);
-            _ASSERTE(!"Failed to close unix domain socket."); // TODO: Add error handling?
+            _ASSERTE(!"Failed to close unix domain socket.");
         }
 
         Unlink(callback);
