@@ -24,7 +24,16 @@ public class Program
     public static int RunTest()
     {
         string ilfilename = typeof(Program).Assembly.Location;
-        string nifilename = ilfilename.Replace(".exe", ".ni.exe");
+        string nifilename;
+        if (ilfilename.EndsWith(".ni.exe"))
+        {
+            nifilename = ilfilename;
+            ilfilename = ilfilename.Replace(".ni.exe", ".exe");
+        }
+        else
+        {
+            nifilename = ilfilename.Replace(".exe", ".ni.exe");
+        }
 
         bool success = true;
 
