@@ -191,6 +191,8 @@ public:
     
     CLREvent *GetWaitEvent();
 
+    bool HasWriteBuffer();
+
 #ifdef _DEBUG
     bool EnsureConsistency();
     bool IsLockOwnedByCurrentThread();

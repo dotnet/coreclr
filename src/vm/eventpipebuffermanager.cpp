@@ -37,7 +37,7 @@ EventPipeBufferManager::EventPipeBufferManager(EventPipeSession* pSession, size_
     m_sizeOfAllBuffers = 0;
     m_lock.Init(LOCK_TYPE_DEFAULT);
     m_writeEventSuspending = FALSE;
-    m_waitEvent.CreateAutoEvent(FALSE);
+    m_waitEvent.CreateAutoEvent(TRUE);
 
 #ifdef _DEBUG
     m_numBuffersAllocated = 0;
@@ -479,8 +479,6 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
 
     if (allocNewBuffer)
     {
-        _ASSERTE(m_waitEvent.IsValid());
-
         // Indicate that there is new data to be read
         m_waitEvent.Set();
     }
@@ -651,7 +649,8 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
                 MoveNextEventSameThread(curTimestampBoundary);
             }
             pBufferList->SetLastReadSequenceNumber(sequenceNumber);
-            *pEventsWritten = eventsWritten;
+            // Have we written events in any sequence point?
+            *pEventsWritten = eventsWritten || *pEventsWritten;
         }
 
         // This finishes any current partially filled EventPipeBlock, and flushes it to the stream
@@ -743,6 +742,26 @@ CLREvent *EventPipeBufferManager::GetWaitEvent()
 
     _ASSERTE(m_waitEvent.IsValid());
     return &m_waitEvent;
+}
+
+bool EventPipeBufferManager::HasWriteBuffer()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EventPipeThread *pEventPipeThread = EventPipeThread::Get();
+    if (pEventPipeThread == NULL)
+    {
+        return true;
+    }
+
+    EventPipeThreadSessionState *const pSessionState = pEventPipeThread->GetOrCreateSessionState(m_pSession);
+    if (pSessionState == NULL)
+    {
+        return true;
+    }
+
+    EventPipeBuffer *pBuffer = pSessionState->GetWriteBuffer();
+    return pBuffer != nullptr;
 }
 
 EventPipeEventInstance* EventPipeBufferManager::GetCurrentEvent()

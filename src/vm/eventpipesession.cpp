@@ -179,8 +179,10 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
                     break;
                 }
 
-                if (!eventsWritten)
+                if (/*!eventsWritten &&*/ !pEventPipeSession->m_pBufferManager->HasWriteBuffer())
                 {
+                    // TODO: remove
+                    DebugBreak();
                     // No events were available, sleep until more are available
                     waitEvent->Wait(INFINITE, FALSE);
                 }
