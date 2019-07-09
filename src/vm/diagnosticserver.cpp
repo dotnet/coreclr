@@ -212,7 +212,9 @@ bool DiagnosticServer::Shutdown()
             {
 #ifndef FEATURE_PAL
                 if (::CancelSynchronousIo(s_hServerThread) == 0)
+                {
                     _ASSERTE(!"Failed to mark pending synchronous I/O operations issued by Diagnostics Server Thread as canceled.");
+                }
 #endif // FEATURE_PAL
 
                 ::WaitForSingleObject(s_hServerThread, INFINITE);
