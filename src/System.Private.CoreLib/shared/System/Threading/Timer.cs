@@ -61,7 +61,7 @@ namespace System.Threading
         private bool EnsureTimerFiresBy(uint requestedDuration)
         {
             // The VM's timer implementation does not work well for very long-duration timers.
-            // See kb 950807. So we limit our native timer duration to a "small" value.
+            // So we limit our native timer duration to a "small" value.
             // This may cause us to attempt to fire timers early, but that's ok - 
             // we'll just see that none of our timers has actually reached its due time,
             // and schedule the native timer again.
