@@ -419,6 +419,10 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
     }
 
+    // allocNewBuffer is reused below to detect if overflow happened, so cache it here to see if we should 
+    // signal the reader thread
+    bool shouldSignalReaderThread = allocNewBuffer;
+    
     // Check to see if we need to allocate a new buffer, and if so, do it here.
     if (allocNewBuffer)
     {
@@ -477,7 +481,7 @@ bool EventPipeBufferManager::WriteEvent(Thread *pThread, EventPipeSession &sessi
         }
     }
 
-    if (allocNewBuffer)
+    if (shouldSignalReaderThread)
     {
         // Indicate that there is new data to be read
         m_waitEvent.Set();
@@ -742,26 +746,6 @@ CLREvent *EventPipeBufferManager::GetWaitEvent()
 
     _ASSERTE(m_waitEvent.IsValid());
     return &m_waitEvent;
-}
-
-bool EventPipeBufferManager::HasWriteBuffer()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    EventPipeThread *pEventPipeThread = EventPipeThread::Get();
-    if (pEventPipeThread == NULL)
-    {
-        return true;
-    }
-
-    EventPipeThreadSessionState *const pSessionState = pEventPipeThread->GetOrCreateSessionState(m_pSession);
-    if (pSessionState == NULL)
-    {
-        return true;
-    }
-
-    EventPipeBuffer *pBuffer = pSessionState->GetWriteBuffer();
-    return pBuffer != nullptr;
 }
 
 EventPipeEventInstance* EventPipeBufferManager::GetCurrentEvent()
