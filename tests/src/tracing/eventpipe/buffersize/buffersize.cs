@@ -50,9 +50,11 @@ namespace Tracing.Tests.BufferValidation
 
         private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
         {
-            // We're testing small buffer sizes, so we expect some dropped events
-            // especially on the resource strapped CI machines.
-            { "MyEventSource", new ExpectedEventCount(1000, 0.40f) }
+            // We're testing small buffer sizes, so we expect some [read: many] dropped events
+            // especially on the resource strapped CI machines.  Since the number of dropped events
+            // can be quite large depending on the OS x Arch configuration, we'll only check
+            // for presence and leave counting events to the providervalidation test.
+            { "MyEventSource", -1 }
         };
 
         private static Action _eventGeneratingAction = () => 
