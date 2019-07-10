@@ -3336,7 +3336,7 @@ GenTree* Lowering::CreateFrameLinkUpdate(FrameLinkAction action)
 //                                                                              localloc and PInvoke in same function)
 //  +30h    +14h    m_pCallerReturnAddress            offsetOfReturnAddress   call site
 //  +38h    +18h    m_pCalleeSavedFP                  offsetOfCalleeSavedFP   not set by JIT
-//          +1Ch    m_pThread                                                 
+//          +1Ch    m_pThread
 //          +20h    m_pSPAfterProlog                  offsetOfSPAfterProlog   arm only
 //          +20/24h JIT retval spill area (int)                               before call_gc    ???
 //          +24/28h JIT retval spill area (long)                              before call_gc    ???
