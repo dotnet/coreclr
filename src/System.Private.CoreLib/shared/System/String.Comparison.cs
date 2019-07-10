@@ -31,7 +31,9 @@ namespace System
             Debug.Assert(strB != null);
             Debug.Assert(strA.Length == strB.Length);
 
-            return SpanHelpers.SequenceEqual(
+            return (strA._firstChar != strB._firstChar) ? 
+                false :
+                SpanHelpers.SequenceEqual(
                     ref Unsafe.As<char, byte>(ref strA.GetRawStringData()),
                     ref Unsafe.As<char, byte>(ref strB.GetRawStringData()),
                     ((nuint)strA.Length) * 2);
