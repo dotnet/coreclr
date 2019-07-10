@@ -4325,32 +4325,50 @@ DWORD WINAPI ThreadpoolMgr::GateThreadStart(LPVOID lpArgs)
         {
             if (PerAppDomainTPCountList::AreRequestsPendingInAnyAppDomains() && SufficientDelaySinceLastDequeue())
             {
-                DangerousNonHostedSpinLockHolder tal(&ThreadAdjustmentLock);
-
                 ThreadCounter::Counts counts = WorkerCounter.GetCleanCounts();
-                while (counts.NumActive < MaxLimitTotalWorkerThreads && //don't add a thread if we're at the max
-                       counts.NumActive >= counts.MaxWorking)            //don't add a thread if we're already in the process of adding threads
+
+                for (;;)
                 {
-                    bool breakIntoDebugger = (0 != CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_DebugBreakOnWorkerStarvation));
-                    if (breakIntoDebugger)
+                    if (counts.NumActive < counts.MaxWorking)
                     {
-                        OutputDebugStringW(W("The CLR ThreadPool detected work queue starvation!"));
-                        DebugBreak();
-                    }
-
-                    ThreadCounter::Counts newCounts = counts;
-                    newCounts.MaxWorking = newCounts.NumActive + 1;
-
-                    ThreadCounter::Counts oldCounts = WorkerCounter.CompareExchangeCounts(newCounts, counts);
-                    if (oldCounts == counts)
-                    {
-                        HillClimbingInstance.ForceChange(newCounts.MaxWorking, Starvation);
                         MaybeAddWorkingWorker();
                         break;
                     }
-                    else
+                    else 
                     {
-                        counts = oldCounts;
+                        bool breakIntoDebugger = (0 != CLRConfig::GetConfigValue(CLRConfig::INTERNAL_ThreadPool_DebugBreakOnWorkerStarvation));
+                        if (breakIntoDebugger)
+                        {
+                            OutputDebugStringW(W("The CLR ThreadPool detected work queue starvation!"));
+                            DebugBreak();
+                        }
+
+                        if (counts.NumActive < MaxLimitTotalWorkerThreads)  
+                        {
+                            DangerousNonHostedSpinLockHolder tal(&ThreadAdjustmentLock);
+
+                            ThreadCounter::Counts newCounts = counts;
+                            newCounts.MaxWorking = newCounts.NumActive + 1;
+
+                            ThreadCounter::Counts oldCounts = WorkerCounter.CompareExchangeCounts(newCounts, counts);
+                            if (oldCounts == counts)
+                            {
+                                HillClimbingInstance.ForceChange(newCounts.MaxWorking, Starvation);
+                                MaybeAddWorkingWorker();
+                                break;
+                            }
+                            else
+                            {
+                                // try again with new counts
+                                counts = oldCounts;
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            //don't add a thread if we're at the max
+                            break;
+                        }
                     }
                 }
             }
