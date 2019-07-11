@@ -23839,6 +23839,8 @@ void gc_heap::relocate_address (uint8_t** pold_address THREAD_NUMBER_DCL)
             }
         }
 
+//        STRESS_LOG3(LF_GC, LL_INFO1000000, "reloc: %Ix old: %Ix new: %Ix", pold_address, old_address, new_address);
+
         *pold_address = new_address;
         return;
     }
@@ -28022,13 +28024,18 @@ inline void
 gc_heap::mark_through_cards_helper (uint8_t** poo, size_t& n_gen,
                                     size_t& cg_pointers_found,
                                     card_fn fn, uint8_t* nhigh,
-                                    uint8_t* next_boundary)
+                                    uint8_t* next_boundary,
+                                    gc_heap* hpt)
 {
+#if defined(FEATURE_CARD_MARKING_STEALING) && defined(MULTIPLE_HEAPS)
+    int thread = hpt->heap_number;
+#else
     THREAD_FROM_HEAP;
+#endif
     if ((gc_low <= *poo) && (gc_high > *poo))
     {
         n_gen++;
-        call_fn(fn) (poo THREAD_NUMBER_ARG);
+        call_fn(hpt,fn) (poo THREAD_NUMBER_ARG);
     }
 #ifdef MULTIPLE_HEAPS
     else if (*poo)
@@ -28040,7 +28047,7 @@ gc_heap::mark_through_cards_helper (uint8_t** poo, size_t& n_gen,
                 (hp->gc_high > *poo))
             {
                 n_gen++;
-                call_fn(fn) (poo THREAD_NUMBER_ARG);
+                call_fn(hpt,fn) (poo THREAD_NUMBER_ARG);
             }
             if ((fn == &gc_heap::relocate_address) ||
                 ((hp->ephemeral_low <= *poo) &&
@@ -28410,9 +28417,9 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                         else
                         {
                             uint8_t* class_obj = get_class_object (o);
-                            hpt->mark_through_cards_helper (&class_obj, n_gen,
-                                                             cg_pointers_found, fn,
-                                                             nhigh, next_boundary);
+                            mark_through_cards_helper (&class_obj, n_gen,
+                                                       cg_pointers_found, fn,
+                                                       nhigh, next_boundary, hpt);
                         }
                     }
 
@@ -28491,9 +28498,9 @@ go_through_refs:
                                      }
                                  }
 
-                                 hpt->mark_through_cards_helper (poo, n_gen,
-                                                                 cg_pointers_found, fn,
-                                                                 nhigh, next_boundary);
+                                 mark_through_cards_helper (poo, n_gen,
+                                                            cg_pointers_found, fn,
+                                                            nhigh, next_boundary, hpt);
                              }
                             );
                     }
@@ -32491,9 +32498,9 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                         else
                         {
                             uint8_t* class_obj = get_class_object (o);
-                            hpt->mark_through_cards_helper (&class_obj, n_gen,
-                                                            cg_pointers_found, fn,
-                                                            nhigh, next_boundary);
+                            mark_through_cards_helper (&class_obj, n_gen,
+                                                       cg_pointers_found, fn,
+                                                       nhigh, next_boundary, hpt);
                         }
                     }
 
@@ -32562,9 +32569,9 @@ go_through_refs:
                                 }
                             }
 
-                           hpt->mark_through_cards_helper (poo, n_gen,
-                                                           cg_pointers_found, fn,
-                                                           nhigh, next_boundary);
+                           mark_through_cards_helper (poo, n_gen,
+                                                      cg_pointers_found, fn,
+                                                      nhigh, next_boundary, hpt);
                        }
                         );
                 }

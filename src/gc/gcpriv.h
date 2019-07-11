@@ -1098,11 +1098,11 @@ class gc_heap
 
 #ifdef MULTIPLE_HEAPS
     typedef void (gc_heap::* card_fn) (uint8_t**, int);
-#define call_fn(fn) (this->*fn)
+#define call_fn(this_arg,fn) (this_arg->*fn)
 #define __this this
 #else
     typedef void (* card_fn) (uint8_t**);
-#define call_fn(fn) (*fn)
+#define call_fn(this_arg,fn) (*fn)
 #define __this (gc_heap*)0
 #endif
 
@@ -2395,7 +2395,8 @@ protected:
     void mark_through_cards_helper (uint8_t** poo, size_t& ngen,
                                     size_t& cg_pointers_found,
                                     card_fn fn, uint8_t* nhigh,
-                                    uint8_t* next_boundary);
+                                    uint8_t* next_boundary,
+                                    gc_heap* hpt);
 
     PER_HEAP
     BOOL card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
@@ -4497,12 +4498,7 @@ void YieldProcessorScalingFactor()
 #ifdef FEATURE_CARD_MARKING_STEALING
 #define CARD_MARKING_STEALING_GRANULARITY (8*1024*1024)
 
-#ifdef MULTIPLE_HEAPS
-#define THIS_ARG    , this
-#else
-#define THIS_ARG    , nullptr
-#endif
-
+#define THIS_ARG    , __this
 class card_marking_enumerator
 {
 private:
@@ -4528,4 +4524,6 @@ public:
         return chunk_high;
     }
 };
+#else
+#define THIS_ARG
 #endif // FEATURE_CARD_MARKING_STEALING
