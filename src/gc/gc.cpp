@@ -12377,13 +12377,13 @@ void gc_heap::send_full_gc_notification (int gen_num, BOOL due_to_alloc_p)
 
 wait_full_gc_status gc_heap::full_gc_wait (GCEvent *event, int time_out_ms)
 {
-    uint32_t maxgen_percent = 0;
 #ifdef MULTIPLE_HEAPS
-    maxgen_percent = g_heaps[0]->fgn_maxgen_percent;
+    gc_heap* hp = gc_heap::g_heaps[0];
 #else
-    maxgen_percent = fgn_maxgen_percent;
+    gc_heap* hp = pGenGCHeap;
 #endif //MULTIPLE_HEAPS
-    if (maxgen_percent == 0)
+
+    if (hp->fgn_maxgen_percent == 0)
     {
         return wait_full_gc_na;
     }
@@ -12392,12 +12392,7 @@ wait_full_gc_status gc_heap::full_gc_wait (GCEvent *event, int time_out_ms)
 
     if ((wait_result == WAIT_OBJECT_0) || (wait_result == WAIT_TIMEOUT))
     {
-#ifdef MULTIPLE_HEAPS
-        maxgen_percent = g_heaps[0]->fgn_maxgen_percent;
-#else
-        maxgen_percent = fgn_maxgen_percent;
-#endif //MULTIPLE_HEAPS
-        if (maxgen_percent == 0)
+        if (hp->fgn_maxgen_percent == 0)
         {
             return wait_full_gc_cancelled;
         }
