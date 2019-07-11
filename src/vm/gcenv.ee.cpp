@@ -1053,6 +1053,12 @@ bool GCToEEInterface::GetBooleanConfigValue(const char* key, bool* value)
         *value = !!g_pConfig->GetGCconcurrent();
         return true;
     }
+    
+    if (strcmp(key, "GCNoAffinitize") == 0)
+    {
+        *value = g_pConfig->GetGCNoAffinitize();
+        return true;
+    }
 
     if (strcmp(key, "GCRetainVM") == 0)
     {
@@ -1094,6 +1100,18 @@ bool GCToEEInterface::GetIntConfigValue(const char* key, int64_t* value)
     if (strcmp(key, "GCgen0size") == 0)
     {
         *value = g_pConfig->GetGCgen0size();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapAffinitizeMask") == 0)
+    {
+        *value = g_pConfig->GetGCAffinityMask();
+        return true;
+    }
+
+    if (strcmp(key, "GCHeapCount") == 0)
+    {
+        *value = g_pConfig->GetGCHeapCount();
         return true;
     }
 
