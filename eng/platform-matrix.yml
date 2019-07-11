@@ -22,7 +22,7 @@ jobs:
 
 # Linux arm
 
-- ${{ if or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+- ${{ if or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'XXstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       buildConfig: ${{ parameters.buildConfig }}
@@ -47,7 +47,7 @@ jobs:
 
 # Linux arm64
 
-- ${{ if or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+- ${{ if or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'XXstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       buildConfig: ${{ parameters.buildConfig }}
@@ -222,7 +222,7 @@ jobs:
 
 # Windows x86
 
-- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+- ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'XXstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       buildConfig: ${{ parameters.buildConfig }}
