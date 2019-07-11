@@ -455,6 +455,9 @@ def main(args):
     # Set up environment for running tests
     if optLevel == 'min_opts':
         myEnv['COMPlus_JITMinOpts'] = '1'
+        myEnv['COMPlus_TieredCompilation'] = '0'
+    elif optLevel == 'full_opt':
+        myEnv['COMPlus_TieredCompilation'] = '0'
     elif optLevel == 'tiered':
         myEnv['COMPLUS_TieredCompilation'] = '1'
 
