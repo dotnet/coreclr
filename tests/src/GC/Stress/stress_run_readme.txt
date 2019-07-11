@@ -22,7 +22,8 @@ The config is at <REPO_ROOT>\tests\src\GC\Stress\testmix_gc.config, this will be
 
 The easiest way to build the Framework+Tests is by building all tests - "<REPO_ROOT>\build_test[.bat|.sh]"
 
-It is possible to build tests by going directly into the Framework directory and building manually- Ex: "dotnet build -c:debug".
+Sometimes there is a need (after initial build) to rebuild Framework+Tests. For example when modifying the Framework to add a new scenario or when investigating a failure.
+In such case it is possible to go directly into the the Framework directory and build manually- Ex: "dotnet build -c:debug".
 
 3. Running stress
 
