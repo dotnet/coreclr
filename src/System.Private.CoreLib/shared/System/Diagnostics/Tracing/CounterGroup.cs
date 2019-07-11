@@ -26,6 +26,7 @@ namespace System.Diagnostics.Tracing
         {
             _eventSource = eventSource;
             _counters = new List<DiagnosticCounter>();
+            _pollingEnabledEvent = new ManualResetEvent(false);
             RegisterCommandCallback();
         }
 
@@ -58,6 +59,7 @@ namespace System.Diagnostics.Tracing
                 {
                     lock (this)      // Lock the CounterGroup
                     {
+                        _isPollingEnabled = true;
                         EnableTimer(value);
                     }
                 }
@@ -66,6 +68,7 @@ namespace System.Diagnostics.Tracing
             {
                 lock (this)
                 {
+                    _isPollingEnabled = false;
                     _pollingIntervalInMilliseconds = 0;
                 }
             }
@@ -121,6 +124,9 @@ namespace System.Diagnostics.Tracing
         private DateTime _timeStampSinceCollectionStarted;
         private int _pollingIntervalInMilliseconds;
         private Timer? _pollingTimer;
+        private Thread? _pollingThread;
+        private ManualResetEvent _pollingEnabledEvent;
+        private bool _isPollingEnabled;
 
         private void DisposeTimer()
         {
@@ -156,7 +162,15 @@ namespace System.Diagnostics.Tracing
                         restoreFlow = true;
                     }
 
-                    _pollingTimer = new Timer(s => ((CounterGroup)s!).OnTimer(null), this, _pollingIntervalInMilliseconds, _pollingIntervalInMilliseconds);
+                    if (_pollingThread == null)
+                    {
+                        _pollingThread = new Thread(() => PollForValues());
+                        _pollingThread.Start();    
+                    }
+                    else
+                    {
+                        _pollingEnabledEvent.Set();
+                    }
                 }
                 finally
                 {
@@ -167,6 +181,40 @@ namespace System.Diagnostics.Tracing
             }
             // Always fire the timer event (so you see everything up to this time).  
             OnTimer(null);
+        }
+
+        private void PollForValues()
+        {
+            while(true)
+            {
+                while(_isPollingEnabled)
+                {
+                    Debug.WriteLine("Thread fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
+                    lock (this) // Lock the CounterGroup
+                    {
+                        if (_eventSource.IsEnabled())
+                        {
+                            DateTime now = DateTime.UtcNow;
+                            TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
+
+                            foreach (var counter in _counters)
+                            {
+                                counter.WritePayload((float)elapsed.TotalSeconds, _pollingIntervalInMilliseconds);
+                            }
+                            _timeStampSinceCollectionStarted = now;
+                        }
+                        else
+                        {
+                            break; // Stop polling if counter's EventSource is disabled.
+                        }
+                    }
+
+                    Thread.Sleep(_pollingIntervalInMilliseconds);
+                }
+
+                _pollingEnabledEvent.WaitOne(); // Block until polling is enabled again
+                _pollingEnabledEvent.Reset(); // Reset this.
+            }
         }
 
         private void OnTimer(object? state)
