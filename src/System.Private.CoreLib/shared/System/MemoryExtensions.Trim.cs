@@ -779,10 +779,9 @@ namespace System
                 }
 
                 return span.Slice(start);
-
             }
-            return span.Slice(start);
 
+            return span.Slice(start);
 
         }
 
@@ -808,16 +807,11 @@ namespace System
                 if (span[end] == trimChars[i])
                 {
                     i = 0;
-
+                    continue;
                 }
-                else
-                {
-                    i++;
-                }
+                i++;
 
             }
-
-
 
             return span.Slice(0, end + 1);
         }
