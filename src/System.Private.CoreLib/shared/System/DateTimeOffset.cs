@@ -176,7 +176,8 @@ namespace System
         {
             get
             {
-                return new DateTimeOffset(DateTime.Now);
+                DateTime utcNow = DateTime.UtcNow;
+                return new DateTimeOffset(utcNow.Ticks, TimeZoneInfo.GetLocalUtcOffset(utcNow, TimeZoneInfoOptions.NoThrowOnInvalidTime));
             }
         }
 
@@ -559,7 +560,8 @@ namespace System
         //
         public static DateTimeOffset FromFileTime(long fileTime)
         {
-            return new DateTimeOffset(DateTime.FromFileTime(fileTime));
+            DateTime utcDateTime = DateTime.FromFileTimeUtc(fileTime);
+            return new DateTimeOffset(utcDateTime.Ticks, TimeZoneInfo.GetLocalUtcOffset(utcDateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime));
         }
 
         public static DateTimeOffset FromUnixTimeSeconds(long seconds)
@@ -792,7 +794,21 @@ namespace System
 
         internal DateTimeOffset ToLocalTime(bool throwOnOverflow)
         {
-            return new DateTimeOffset(UtcDateTime.ToLocalTime(throwOnOverflow));
+            DateTime utcDateTime = UtcDateTime;
+            TimeSpan offset = TimeZoneInfo.GetLocalUtcOffset(utcDateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
+            const long utcDateTimeTicks = utcDateTime.Ticks;
+            long localTicks = utcDateTimeTicks + offset.Ticks;
+            if (localTicks < DateTime.MinTicks)
+                localTicks = DateTime.MinTicks;
+            else if (localTicks > DateTime.MaxTicks)
+                localTicks = DateTime.MaxTicks;
+            else
+                return new DateTimeOffset(utcDateTimeTicks, offset);
+
+            if (throwOnOverflow)
+                throw new ArgumentException(SR.Arg_ArgumentOutOfRangeException);
+
+            return new DateTimeOffset(localTicks, TimeSpan.Zero);
         }
 
         public override string ToString()
@@ -827,7 +843,7 @@ namespace System
         {
             TimeSpan offset;
             DateTime dateResult;
-            bool parsed = DateTimeParse.TryParse(input,
+            const bool parsed = DateTimeParse.TryParse(input,
                                                     DateTimeFormatInfo.CurrentInfo,
                                                     DateTimeStyles.None,
                                                     out dateResult,
@@ -838,7 +854,7 @@ namespace System
 
         public static bool TryParse(ReadOnlySpan<char> input, out DateTimeOffset result)
         {
-            bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None, out DateTime dateResult, out TimeSpan offset);
+            const bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -854,7 +870,7 @@ namespace System
 
             TimeSpan offset;
             DateTime dateResult;
-            bool parsed = DateTimeParse.TryParse(input,
+            const bool parsed = DateTimeParse.TryParse(input,
                                                     DateTimeFormatInfo.GetInstance(formatProvider),
                                                     styles,
                                                     out dateResult,
@@ -866,7 +882,7 @@ namespace System
         public static bool TryParse(ReadOnlySpan<char> input, IFormatProvider? formatProvider, DateTimeStyles styles, out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
+            const bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -883,7 +899,7 @@ namespace System
 
             TimeSpan offset;
             DateTime dateResult;
-            bool parsed = DateTimeParse.TryParseExact(input,
+            const bool parsed = DateTimeParse.TryParseExact(input,
                                                          format,
                                                          DateTimeFormatInfo.GetInstance(formatProvider),
                                                          styles,
@@ -914,7 +930,7 @@ namespace System
 
             TimeSpan offset;
             DateTime dateResult;
-            bool parsed = DateTimeParse.TryParseExactMultiple(input,
+            const bool parsed = DateTimeParse.TryParseExactMultiple(input,
                                                                  formats,
                                                                  DateTimeFormatInfo.GetInstance(formatProvider),
                                                                  styles,
@@ -928,7 +944,7 @@ namespace System
             ReadOnlySpan<char> input, string?[]? formats, IFormatProvider? formatProvider, DateTimeStyles styles, out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            bool parsed = DateTimeParse.TryParseExactMultiple(input, formats, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
+            const bool parsed = DateTimeParse.TryParseExactMultiple(input, formats, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -936,7 +952,7 @@ namespace System
         // Ensures the TimeSpan is valid to go in a DateTimeOffset.
         private static short ValidateOffset(TimeSpan offset)
         {
-            long ticks = offset.Ticks;
+            const long ticks = offset.Ticks;
             if (ticks % TimeSpan.TicksPerMinute != 0)
             {
                 throw new ArgumentException(SR.Argument_OffsetPrecision, nameof(offset));

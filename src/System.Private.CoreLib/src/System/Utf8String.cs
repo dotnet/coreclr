@@ -152,9 +152,9 @@ namespace System
 
             // Otherwise, perform a simple bitwise equality check.
 
-            return !(left is null)
-                && !(right is null)
-                && left.Length == right.Length
+            return !((left is null)
+                || (right is null))
+                && (left.Length == right.Length)
                 && SpanHelpers.SequenceEqual(ref left.DangerousGetMutableReference(), ref right.DangerousGetMutableReference(), (uint)left.Length);
         }
 

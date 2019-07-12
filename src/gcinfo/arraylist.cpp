@@ -18,7 +18,7 @@ inline size_t roundUp(size_t size, size_t alignment)
     return (size + (alignment - 1)) & ~(alignment - 1);
 }
 
-GcInfoArrayListBase::GcInfoArrayListBase(IAllocator* allocator)
+GcInfoArrayListBase::GcInfoArrayListBase(IAllocator *allocator)
     : m_allocator(allocator),
       m_firstChunk(nullptr),
       m_lastChunk(nullptr),
@@ -31,7 +31,7 @@ GcInfoArrayListBase::GcInfoArrayListBase(IAllocator* allocator)
 
 GcInfoArrayListBase::~GcInfoArrayListBase()
 {
-    for (ChunkBase* list = m_firstChunk, *chunk; list != nullptr; list = chunk)
+    for (ChunkBase *list = m_firstChunk, *chunk; list != nullptr; list = chunk)
     {
         chunk = list->m_next;
         m_allocator->Free(list);
@@ -45,7 +45,7 @@ void GcInfoArrayListBase::AppendNewChunk(size_t firstChunkCapacity, size_t eleme
     S_SIZE_T chunkSize = S_SIZE_T(roundUp(sizeof(ChunkBase), chunkAlignment)) + (S_SIZE_T(elementSize) * S_SIZE_T(chunkCapacity));
     assert(!chunkSize.IsOverflow());
 
-    ChunkBase* chunk = reinterpret_cast<ChunkBase*>(m_allocator->Alloc(chunkSize.Value()));
+    ChunkBase *chunk = reinterpret_cast<ChunkBase *>(m_allocator->Alloc(chunkSize.Value()));
     chunk->m_next = nullptr;
 
     if (m_lastChunk != nullptr)
@@ -64,7 +64,7 @@ void GcInfoArrayListBase::AppendNewChunk(size_t firstChunkCapacity, size_t eleme
     m_lastChunkCapacity = chunkCapacity;
 }
 
-GcInfoArrayListBase::IteratorBase::IteratorBase(GcInfoArrayListBase* list, size_t firstChunkCapacity)
+GcInfoArrayListBase::IteratorBase::IteratorBase(GcInfoArrayListBase *list, size_t firstChunkCapacity)
     : m_list(list)
 {
     assert(m_list != nullptr);
@@ -75,7 +75,7 @@ GcInfoArrayListBase::IteratorBase::IteratorBase(GcInfoArrayListBase* list, size_
     m_currentChunkCount = (m_currentChunk == m_list->m_lastChunk) ? m_list->m_lastChunkCount : firstChunkCapacity;
 }
 
-GcInfoArrayListBase::ChunkBase* GcInfoArrayListBase::IteratorBase::GetNextChunk(size_t& elementCount)
+GcInfoArrayListBase::ChunkBase *GcInfoArrayListBase::IteratorBase::GetNextChunk(size_t &elementCount)
 {
     if (m_currentChunk == nullptr)
     {
@@ -83,7 +83,7 @@ GcInfoArrayListBase::ChunkBase* GcInfoArrayListBase::IteratorBase::GetNextChunk(
         return nullptr;
     }
 
-    ChunkBase* chunk = m_currentChunk;
+    ChunkBase *chunk = m_currentChunk;
     elementCount = m_currentChunkCount;
 
     m_currentChunk = m_currentChunk->m_next;

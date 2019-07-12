@@ -470,25 +470,15 @@ namespace System
                     //
                     prod1 = bufDen.Low64;
 
-                    for (;;)
+                    do
                     {
                         quo--;
                         num += prod1;
                         remainder += den;
 
-                        if (num < prod1)
-                        {
-                            // Detected carry. Check for carry out of top
-                            // before adding it in.
-                            //
-                            if (remainder++ < den)
-                                break;
-                        }
-                        if (remainder < den)
-                            break; // detected carry
-                    }
+                    } while (((num < prod1) && (remainder++ < den)) || (remainder < den)); //Detected carry. Check for carry out of top before adding it in.
                 }
-PosRem:
+            PosRem:
 
                 bufNum.Low64 = num;
                 bufNum.U2 = remainder;
@@ -586,7 +576,7 @@ PosRem:
                     uint sticky = 0;
                     uint quotient, remainder = 0;
 
-                    for (;;)
+                    for (; ; )
                     {
                         sticky |= remainder; // record remainder as sticky bit
 
@@ -687,7 +677,7 @@ PosRem:
                 }
                 return scale;
 
-ThrowOverflow:
+            ThrowOverflow:
                 Number.ThrowOverflowException(TypeCode.Decimal);
                 return 0;
             }
@@ -855,12 +845,7 @@ ThrowOverflow:
             /// <returns>Returns false if there is an overflow</returns>
             private static bool Add32To96(ref Buf12 bufNum, uint value)
             {
-                if ((bufNum.Low64 += value) < value)
-                {
-                    if (++bufNum.U2 == 0)
-                        return false;
-                }
-                return true;
+                return (((bufNum.Low64 += value) >= value) || (++bufNum.U2 != 0));
             }
 
             /// <summary>
@@ -1084,7 +1069,7 @@ ThrowOverflow:
                             }
                         }
                     }
-NoCarry:
+                NoCarry:
 
                     bufNum.Low64 = low64;
                     bufNum.U2 = high;
@@ -1095,7 +1080,7 @@ NoCarry:
                     goto ReturnResult;
                 }
 
-SignFlip:
+            SignFlip:
                 {
                     // Got negative result.  Flip its sign.
                     flags ^= SignMask;
@@ -1106,7 +1091,7 @@ SignFlip:
                     goto ReturnResult;
                 }
 
-AlignedScale:
+            AlignedScale:
                 {
                     // The addition carried above 96 bits.
                     // Divide the value by 10, dropping the scale factor.
@@ -1137,7 +1122,7 @@ AlignedScale:
                     goto ReturnResult;
                 }
 
-AlignedAdd:
+            AlignedAdd:
                 {
                     ulong d1Low64 = low64;
                     uint d1High = high;
@@ -1180,14 +1165,14 @@ AlignedAdd:
                     goto ReturnResult;
                 }
 
-ReturnResult:
+            ReturnResult:
                 d1.uflags = flags;
                 d1.High = high;
                 d1.Low64 = low64;
                 return;
             }
 
-#endregion
+            #endregion
 
             /// <summary>
             /// Convert Decimal to Currency (similar to OleAut32 api.)
@@ -1230,7 +1215,7 @@ ReturnResult:
 
                 return value;
 
-ThrowOverflow:
+            ThrowOverflow:
                 throw new OverflowException(SR.Overflow_Currency);
             }
 
@@ -1520,7 +1505,7 @@ ThrowOverflow:
                     hiProd--;
                 }
 
-SkipScan:
+            SkipScan:
                 if (hiProd > 2 || scale > DEC_SCALE_MAX)
                 {
                     scale = ScaleResult(&bufProd, hiProd, scale);
@@ -1531,7 +1516,7 @@ SkipScan:
                 d1.uflags = ((d2.uflags ^ d1.uflags) & SignMask) | ((uint)scale << ScaleShift);
                 return;
 
-ReturnZero:
+            ReturnZero:
                 d1 = default;
             }
 
@@ -1945,7 +1930,7 @@ ReturnZero:
                     bufQuo.U2 = d1.High;
                     uint remainder = Div96By32(ref bufQuo, den);
 
-                    for (;;)
+                    for (; ; )
                     {
                         if (remainder == 0)
                         {
@@ -1988,7 +1973,7 @@ ReturnZero:
                             break;
                         }
 
-                        HaveScale:
+                    HaveScale:
                         power = s_powers10[curScale];
                         scale += curScale;
 
@@ -2040,7 +2025,7 @@ ReturnZero:
                         bufQuo.U1 = Div96By64(ref *(Buf12*)&bufRem.U1, divisor);
                         bufQuo.U0 = Div96By64(ref *(Buf12*)&bufRem, divisor);
 
-                        for (;;)
+                        for (; ; )
                         {
                             if (bufRem.Low64 == 0)
                             {
@@ -2070,7 +2055,7 @@ ReturnZero:
                                 break;
                             }
 
-                            HaveScale64:
+                        HaveScale64:
                             power = s_powers10[curScale];
                             scale += curScale;
 
@@ -2101,7 +2086,7 @@ ReturnZero:
                         //
                         bufQuo.Low64 = Div128By96(ref bufRem, ref bufDivisor);
 
-                        for (;;)
+                        for (; ; )
                         {
                             if ((bufRem.Low64 | bufRem.U2) == 0)
                             {
@@ -2140,7 +2125,7 @@ ReturnZero:
                                 break;
                             }
 
-                            HaveScale96:
+                        HaveScale96:
                             power = s_powers10[curScale];
                             scale += curScale;
 
@@ -2158,7 +2143,7 @@ ReturnZero:
                     }
                 }
 
-Unscale:
+            Unscale:
                 if (unscale)
                 {
                     uint low = bufQuo.U0;
@@ -2177,7 +2162,7 @@ Unscale:
                 d1.uflags = ((d1.uflags ^ d2.uflags) & SignMask) | ((uint)scale << ScaleShift);
                 return;
 
-RoundUp:
+            RoundUp:
                 {
                     if (++bufQuo.Low64 == 0 && ++bufQuo.U2 == 0)
                     {
@@ -2186,7 +2171,7 @@ RoundUp:
                     goto Unscale;
                 }
 
-ThrowOverflow:
+            ThrowOverflow:
                 Number.ThrowOverflowException(TypeCode.Decimal);
             }
 
@@ -2464,7 +2449,7 @@ ThrowOverflow:
                     }
                 }
 
-checkRemainder:
+            checkRemainder:
                 if (mode == MidpointRounding.ToZero)
                     goto done;
                 else if (mode == MidpointRounding.ToEven)
@@ -2498,7 +2483,7 @@ checkRemainder:
                 }
                 if (++d.Low64 == 0)
                     d.uhi++;
-done:
+                done:
                 return;
             }
 

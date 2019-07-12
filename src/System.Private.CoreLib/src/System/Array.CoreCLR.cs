@@ -308,7 +308,7 @@ namespace System
 
             if (comparer == Comparer.Default)
             {
-                bool r = TrySZSort(keys, items, index, index + length - 1);
+                const bool r = TrySZSort(keys, items, index, index + length - 1);
                 if (r)
                     return;
             }
