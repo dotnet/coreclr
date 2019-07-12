@@ -316,7 +316,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
                     testOutput.Add("> set CORE_ROOT=" + _Global.coreRoot)%3B
                     testOutput.Add("> " + testExecutable)%3B
 
-                    var unicodeControlCharsRegex = new Regex("\\p{C}+")%3B
+                    var unicodeControlCharsRegex = new Regex("%5C%5Cp{C}+")%3B
 
                     // Remove all characters that have no visual or spatial representation.
                     for (int i = 0%3B i < testOutput.Count%3B i++)
