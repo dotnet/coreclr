@@ -143,12 +143,12 @@ namespace System.Globalization
 
         // LOCALE constants of interest to us internally and privately for LCID functions
         // (ie: avoid using these and use names if possible)
-        internal const int LOCALE_NEUTRAL        = 0x0000;
-        private  const int LOCALE_USER_DEFAULT   = 0x0400;
-        private  const int LOCALE_SYSTEM_DEFAULT = 0x0800;
+        internal const int LOCALE_NEUTRAL = 0x0000;
+        private const int LOCALE_USER_DEFAULT = 0x0400;
+        private const int LOCALE_SYSTEM_DEFAULT = 0x0800;
         internal const int LOCALE_CUSTOM_UNSPECIFIED = 0x1000;
-        internal const int LOCALE_CUSTOM_DEFAULT  = 0x0c00;
-        internal const int LOCALE_INVARIANT       = 0x007F;
+        internal const int LOCALE_CUSTOM_DEFAULT = 0x0c00;
+        internal const int LOCALE_INVARIANT = 0x007F;
 
         private static CultureInfo InitializeUserDefaultCulture()
         {
@@ -371,7 +371,7 @@ namespace System.Globalization
             // name and we know that all names are valid in files.
             if (culture._isInherited)
             {
-                VerifyCultureName(culture.Name, throwException);
+                return VerifyCultureName(culture.Name, throwException);
             }
 
             return true;

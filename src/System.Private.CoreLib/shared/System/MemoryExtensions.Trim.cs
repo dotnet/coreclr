@@ -774,7 +774,7 @@ namespace System
                     if (span[start] == trimChars[i])
                     {
                         start++;
-                        continue;
+                        i = 0;
                     }
                 }
 
@@ -801,7 +801,6 @@ namespace System
 
             int end = span.Length - 1;
 
-
             for (int i = 0; end >= 0 && i < trimChars.Length; end--)
             {
                 if (span[end] == trimChars[i])
@@ -809,9 +808,8 @@ namespace System
                     i = 0;
                     continue;
                 }
-            
-                i++;
 
+                i++;
             }
 
             return span.Slice(0, end + 1);

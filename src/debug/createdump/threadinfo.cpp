@@ -106,7 +106,7 @@ ReadMemoryAdapter(PVOID address, PVOID buffer, SIZE_T size)
 void ThreadInfo::UnwindNativeFrames(CrashInfo &crashInfo, CONTEXT *pContext)
 {
     // For each native frame
-    for(;;)
+    for (;;)
     {
         uint64_t ip = 0, sp = 0;
         GetFrameLocation(pContext, &ip, &sp);

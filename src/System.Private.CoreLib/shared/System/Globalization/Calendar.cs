@@ -592,8 +592,6 @@ namespace System.Globalization
             if (IsLeapYear(year, era))
             {
 
-
-
                 int monthsCount = GetMonthsInYear(year, era);
                 for (int month = 1; month <= monthsCount; month++)
                 {
