@@ -106,7 +106,9 @@ class ThreadpoolMgr
     friend struct _DacGlobals;
 
 public:
-    struct ThreadCounter
+
+    // ThreadCounter is always cacheline aligned
+    struct ALIGNED(MAX_CACHE_LINE_SIZE) ThreadCounter
     {
         static const int MaxPossibleCount = 0x7fff;
 
@@ -299,7 +301,7 @@ public:
     static inline void UpdateLastDequeueTime()
     {
         LIMITED_METHOD_CONTRACT;
-        VolatileStore(&LastDequeueTime, (unsigned int)GetTickCount());
+        LastDequeueTime = (unsigned int)GetTickCount();
     }
 
     static BOOL CreateTimerQueueTimer(PHANDLE phNewTimer,
@@ -890,8 +892,8 @@ public:
         // make sure that PriorCompletedWorkRequestsTime is read before NextCompletedWorkRequestsTime
         // to make sure that NextCompletedWorkRequestsTime is not older than PriorCompletedWorkRequestsTime
         // NB: we write them in reverse order while holding a lock.
-        DWORD priorTime = VolatileLoad(&PriorCompletedWorkRequestsTime);
-        DWORD requiredInterval = NextCompletedWorkRequestsTime - priorTime;
+        DWORD priorTime = VolatileLoad(&WorkRequestData.PriorCompletedWorkRequestsTime);
+        DWORD requiredInterval = WorkRequestData.NextCompletedWorkRequestsTime - priorTime;
         DWORD elapsedInterval = GetTickCount() - priorTime;
         if (elapsedInterval >= requiredInterval)
         {
@@ -1054,13 +1056,21 @@ private:
     
     static HillClimbing HillClimbingInstance;
 
-    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) static LONG PriorCompletedWorkRequests;
-    static DWORD PriorCompletedWorkRequestsTime;
-    static DWORD NextCompletedWorkRequestsTime;
+    // the following 3 hot variables are nearly always used together. 
+    // put on a separate cache line.
+    struct ALIGNED(MAX_CACHE_LINE_SIZE) WorkRequestDataT
+    {
+    public:
+        LONG PriorCompletedWorkRequests;
+        DWORD PriorCompletedWorkRequestsTime;
+        DWORD NextCompletedWorkRequestsTime;
+    };
+
+    static WorkRequestDataT WorkRequestData;
+
     static LARGE_INTEGER CurrentSampleStartTime;
 
-    // Move out of from preceeding variables' cache line
-    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) static unsigned int WorkerThreadSpinLimit;
+    static unsigned int ThreadpoolMgr::WorkerThreadSpinLimit;
     static bool IsHillClimbingDisabled;
     static int ThreadAdjustmentInterval;
 
@@ -1082,7 +1092,7 @@ private:
     static const DWORD WorkerTimeout = 20 * 1000;
     static const DWORD WorkerTimeoutAppX = 5 * 1000;    // shorter timeout to allow threads to exit prior to app suspension
 
-    DECLSPEC_ALIGN(MAX_CACHE_LINE_SIZE) SVAL_DECL(ThreadCounter,WorkerCounter);
+    SVAL_DECL(ThreadCounter, WorkerCounter);
 
     // 
     // WorkerSemaphore is an UnfairSemaphore because:

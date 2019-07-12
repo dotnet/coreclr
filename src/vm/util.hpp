@@ -48,6 +48,12 @@
 #define MAX_CACHE_LINE_SIZE 64
 #endif
 
+#ifdef _MSC_VER
+#define ALIGNED(x)   __declspec(align(x))
+#else
+#define ALIGNED(x)   __attribute__((aligned(x)))
+#endif
+
 //========================================================================
 // More convenient names for integer types of a guaranteed size.
 //========================================================================
