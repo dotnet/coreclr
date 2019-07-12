@@ -354,7 +354,7 @@ VOID MethodDesc::GetFullMethodInfo(SString& fullMethodSigName)
     SString methodFullName;
     StackScratchBuffer namespaceNameBuffer, methodNameBuffer;
     methodFullName.AppendPrintf(
-        (LPCUTF8)"[%s] %s::%s", 
+        (LPCUTF8)"[%s]%s.%s", 
         GetModule()->GetAssembly()->GetSimpleName(), 
         namespaceOrClassName.GetUTF8(namespaceNameBuffer), 
         methodName.GetUTF8(methodNameBuffer));

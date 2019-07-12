@@ -522,10 +522,10 @@ PCCOR_SIGNATURE PrettyPrintType(
                 break;  
 
             case ELEMENT_TYPE_VALUETYPE    :   
-                str = "valuetype ";   
+                str = "";   
                 goto DO_CLASS;  
             case ELEMENT_TYPE_CLASS         :   
-                str = "class "; 
+                str = ""; 
                 goto DO_CLASS;  
 
             DO_CLASS:
@@ -872,18 +872,6 @@ const char* PrettyPrintClass(
                         szName = NULL;
                     }
                 }
-                if ((szName != NULL) && ((*szName) != 0 ))
-                {
-                    appendChar(out, '[');
-                    appendStr(out,JUMPPT(ProperName(szName),tk));
-                    if(g_fDumpTokens)
-                    {
-                        char tmp[16];
-                        sprintf_s(tmp,COUNTOF(tmp),"/*%08X*/",tk);
-                        appendStr(out,COMMENT(tmp));
-                    }
-                    appendChar(out, ']');    
-                }
             }
             break;
         case mdtAssembly:
@@ -893,18 +881,6 @@ const char* PrettyPrintClass(
                 {
                     szName = NULL;
                 }
-                if ((szName != NULL) && ((*szName) != 0))
-                {
-                    appendChar(out, '[');    
-                    appendStr(out,JUMPPT(ProperName(szName),tk));
-                    if(g_fDumpTokens)
-                    {
-                        char tmp[16];
-                        sprintf_s(tmp,COUNTOF(tmp),"/* %08X */",tk);
-                        appendStr(out,COMMENT(tmp));
-                    }
-                    appendChar(out, ']');    
-                }
             }
             break;
         case mdtModuleRef:
@@ -913,19 +889,6 @@ const char* PrettyPrintClass(
                 if (FAILED(pIMDI->GetModuleRefProps(tk, &szName)))
                 {
                     szName = NULL;
-                }
-                if ((szName != NULL) && ((*szName) != 0))
-                {
-                    appendChar(out, '[');    
-                    appendStr(out,KEYWORD(".module "));
-                    appendStr(out,JUMPPT(ProperName(szName),tk));
-                    if(g_fDumpTokens)
-                    {
-                        char tmp[16];
-                        sprintf_s(tmp,COUNTOF(tmp),"/*%08X*/",tk);
-                        appendStr(out,COMMENT(tmp));
-                    }
-                    appendChar(out, ']');    
                 }
             }
             break;

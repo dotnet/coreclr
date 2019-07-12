@@ -1166,6 +1166,8 @@ void CEEInfo::resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken
             if (tokenType == CORINFO_TOKENKIND_Box || tokenType == CORINFO_TOKENKIND_Constrained || tokenType == CORINFO_TOKENKIND_Ldtoken)
                 ScanToken(pModule, pResolvedToken, th);
         }
+
+        th.LogManagedSequentialResult();
     }
 
     //
@@ -5052,6 +5054,7 @@ void * CEEInfo::getArrayInitializationData(
     else
     {
         result = pField->GetStaticAddressHandle(NULL);
+        pField->GetApproxFieldTypeHandleThrowing().LogManagedSequentialResult();
     }
 
     EE_TO_JIT_TRANSITION();
@@ -5192,6 +5195,13 @@ void CEEInfo::getCallInfo(
     if (pMD->IsStatic() && (flags & CORINFO_CALLINFO_CALLVIRT))
     {
         EX_THROW(EEMessageException, (kMissingMethodException, IDS_EE_MISSING_METHOD, W("?")));
+    }
+
+    if (pMD->IsNDirect())
+    {
+        NDirectMethodDesc *pNDMD = (NDirectMethodDesc *)pMD;
+        bool marshalingRequired = !!pNDMD->MarshalingRequired();
+        LogMarshalingRequiredResult(pNDMD, marshalingRequired);
     }
 
     TypeHandle exactType = TypeHandle(pResolvedToken->hClass);
@@ -10038,6 +10048,7 @@ BOOL CEEInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SI
             // This is a no-marshal non-vararg signature.
             result = FALSE;
         }
+        LogMarshalingRequiredResult(pMD, !!result);
 #else
         // Marshalling is required to lazy initialize the indirection cell 
         // without NDirectImportPrecode.

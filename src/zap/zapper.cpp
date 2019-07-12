@@ -994,6 +994,7 @@ void Zapper::ComputeDependencies(LPCWSTR pAssemblyName, CORCOMPILE_NGEN_SIGNATUR
 {
 }
 
+void FlushResultMap();
 
 //
 // Compile a module by name
@@ -1025,6 +1026,7 @@ HRESULT Zapper::Compile(LPCWSTR string, CORCOMPILE_NGEN_SIGNATURE * pNativeImage
     EX_TRY
     {
         CompileInCurrentDomain(string, pNativeImageSig);
+        FlushResultMap();
     }
     EX_CATCH
     {

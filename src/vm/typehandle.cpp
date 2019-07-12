@@ -756,7 +756,26 @@ void TypeHandle::GetName(SString &result) const
         return;
     }
 
-    AsMethodTable()->_GetFullyQualifiedNameForClass(result);
+    MethodTable *pMT = AsMethodTable();
+#ifndef DACCESS_COMPILE
+    MethodTable *pMTEnclosing = pMT->LoadEnclosingMethodTable(CLASS_LOAD_UNRESTOREDTYPEKEY);
+    if (pMTEnclosing != nullptr)
+    {
+        TypeHandle(pMTEnclosing).GetName(result);
+        result.Append('+');
+    }
+    else
+#endif
+    {
+        PTR_Module pModule = pMT->GetModule();
+        LPCUTF8 module = (pModule != nullptr ? pModule->GetSimpleName() : "<null>");
+        result.Append('[');
+        result.AppendUTF8(module);
+        result.Append(']');
+    }
+    SString typeName;
+    pMT->_GetFullyQualifiedNameForClass(typeName);
+    result.Append(typeName);
 
     // Tack the instantiation on the end
     Instantiation inst = GetInstantiation();
@@ -1826,5 +1845,202 @@ CHECK TypeHandle::CheckFullyLoaded()
 }
 
 #endif //DEBUG
+
+
+#ifndef DACCESS_COMPILE
+static void EmitTypeName(TypeHandle typeHandle)
+{
+    if (typeHandle.IsNull())
+    {
+        wprintf(L"(null)");
+        return;
+    }
+
+    SString name;
+    typeHandle.GetName(name);
+    wprintf(L"%s", name.GetUnicode());
+}
+
+struct ResultMapEntry
+{
+    TypeHandle   typeHandle;
+    byte         result;
+    
+    ResultMapEntry() : result(0) {}
+    ResultMapEntry(TypeHandle typeHandle, byte result) : typeHandle(typeHandle), result(result) {}
+};
+
+class ResultMapEntrySHashTraits : public DefaultSHashTraits<ResultMapEntry>
+{
+public:
+    typedef TypeHandle key_t;
+    
+    static const bool s_supports_remove = false;
+
+    static TypeHandle GetKey(const ResultMapEntry& entry) { return entry.typeHandle; }
+    static count_t Hash(TypeHandle entry) { return (count_t) entry.AsPtr(); }
+    static bool Equals(TypeHandle entry1, TypeHandle entry2) { return entry1 == entry2; }
+
+    static ResultMapEntry Null() { return ResultMapEntry(TypeHandle(), false); }
+    static ResultMapEntry Deleted() { return ResultMapEntry(TypeHandle(), true); }
+    static bool IsNull(const ResultMapEntry &entry) { return entry.typeHandle.IsNull() && entry.result == 0; }
+    static bool IsDeleted(const ResultMapEntry& entry) { return entry.typeHandle.IsNull() && entry.result != 0; }
+};
+
+SHash<ResultMapEntrySHashTraits>& GetManagedSequentialResultMap()
+{
+    static SHash<ResultMapEntrySHashTraits> resultMap;
+    return resultMap;
+}
+#endif
+
+void FlushManagedSequentialResultMap()
+{
+#ifndef DACCESS_COMPILE
+    SHash<ResultMapEntrySHashTraits>& map = GetManagedSequentialResultMap();
+    for (SHash<ResultMapEntrySHashTraits>::Iterator iter = map.Begin(); iter != map.End(); ++iter)
+    {
+        wprintf(L"[[[IsManagedSequential{");
+        
+        ::EmitTypeName((*iter).typeHandle);
+        
+        LPCUTF8 resultText;
+        switch ((*iter).result)
+        {
+            case 0:
+                resultText = "False";
+                break;
+
+            case 1:
+                resultText = "True";
+                break;
+
+            default:
+                resultText = "Multi";
+                break;
+        }
+        
+        wprintf(L"}=%S]]]\n", resultText);
+    }
+#endif
+}
+
+void TypeHandle::LogManagedSequentialResult() const
+{
+#ifndef DACCESS_COMPILE
+    MethodTable *pMT = GetMethodTable();
+    if (pMT == nullptr)
+    {
+        return;
+    }
+    byte result = pMT->IsManagedSequential() ? 1 : 0;
+    SHash<ResultMapEntrySHashTraits>& resultMap = GetManagedSequentialResultMap();
+    const ResultMapEntry *lookup = resultMap.LookupPtr(*this);
+    if (lookup == nullptr)
+    {
+        resultMap.AddOrReplace(ResultMapEntry(*this, result));
+    }
+    else if (lookup->result != result)
+    {
+        resultMap.AddOrReplace(ResultMapEntry(*this, 2));
+    }
+#endif
+}
+
+#ifndef DACCESS_COMPILE
+struct MarshalingMapEntry
+{
+    NDirectMethodDesc *method;
+    byte               result;
+    
+    MarshalingMapEntry() : result(0) {}
+    MarshalingMapEntry(NDirectMethodDesc *method, byte result) : method(method), result(result) {}
+};
+
+class MarshalingMapEntrySHashTraits : public DefaultSHashTraits<MarshalingMapEntry>
+{
+public:
+    typedef NDirectMethodDesc *key_t;
+    
+    static const bool s_supports_remove = false;
+
+    static NDirectMethodDesc *GetKey(const MarshalingMapEntry& entry) { return entry.method; }
+    static count_t Hash(const NDirectMethodDesc *method) { return (count_t) method; }
+    static bool Equals(const NDirectMethodDesc *method1, const NDirectMethodDesc *method2) { return method1 == method2; }
+
+    static MarshalingMapEntry Null() { return MarshalingMapEntry(nullptr, false); }
+    static MarshalingMapEntry Deleted() { return MarshalingMapEntry(nullptr, true); }
+    static bool IsNull(const MarshalingMapEntry &entry) { return entry.method == nullptr && entry.result == 0; }
+    static bool IsDeleted(const MarshalingMapEntry& entry) { return entry.method == nullptr && entry.result != 0; }
+};
+
+SHash<MarshalingMapEntrySHashTraits>& GetMarshalingRequiredResultMap()
+{
+    static SHash<MarshalingMapEntrySHashTraits> resultMap;
+    return resultMap;
+}
+
+void EmitMethodName(NDirectMethodDesc *method)
+{
+    SString name;
+    method->GetFullMethodInfo(name);
+    wprintf(L"%s", name.GetUnicode());
+}
+
+#endif
+
+void FlushMarshalingRequiredResultMap()
+{
+#ifndef DACCESS_COMPILE
+    SHash<MarshalingMapEntrySHashTraits>& map = GetMarshalingRequiredResultMap();
+    for (SHash<MarshalingMapEntrySHashTraits>::Iterator iter = map.Begin(); iter != map.End(); ++iter)
+    {
+        wprintf(L"[[[MethodRequiresMarshaling{");
+        
+        ::EmitMethodName((*iter).method);
+        
+        LPCUTF8 resultText;
+        switch ((*iter).result)
+        {
+            case 0:
+                resultText = "False";
+                break;
+
+            case 1:
+                resultText = "True";
+                break;
+
+            default:
+                resultText = "Multi";
+                break;
+        }
+        
+        wprintf(L"}=%S]]]\n", resultText);
+    }
+#endif
+}
+
+void LogMarshalingRequiredResult(NDirectMethodDesc *method, bool result)
+{
+#ifndef DACCESS_COMPILE
+    SHash<MarshalingMapEntrySHashTraits>& resultMap = GetMarshalingRequiredResultMap();
+    const MarshalingMapEntry *lookup = resultMap.LookupPtr(method);
+    byte byteResult = (result ? 1 : 0);
+    if (lookup == nullptr)
+    {
+        resultMap.AddOrReplace(MarshalingMapEntry(method, byteResult));
+    }
+    else if (lookup->result != byteResult)
+    {
+        resultMap.AddOrReplace(MarshalingMapEntry(method, 2));
+    }
+#endif
+}
+
+void FlushResultMap()
+{
+    FlushManagedSequentialResultMap();
+    FlushMarshalingRequiredResultMap();
+}
 
 #endif //DACCESS_COMPILE

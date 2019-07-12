@@ -222,6 +222,8 @@ public:
 
     inline PTR_TypeDesc AsTypeDesc() const;
 
+    void LogManagedSequentialResult() const;
+
     // To the extent possible, you should try to use methods like the ones
     // below that treat all types uniformly.
 
@@ -719,6 +721,8 @@ inline TypeHandle dac_cast(TADDR src)
     SUPPORTS_DAC;
     return TypeHandle::FromTAddr(src);
 }
+
+void LogMarshalingRequiredResult(NDirectMethodDesc *method, bool result);
 
 /*************************************************************************/
 // Instantiation is representation of generic instantiation. 

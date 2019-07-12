@@ -10189,5 +10189,4 @@ BOOL MethodTable::IsInheritanceChainFixedInCurrentVersionBubble()
 
     return TRUE;
 }
-
 #endif // FEATURE_READYTORUN_COMPILER
