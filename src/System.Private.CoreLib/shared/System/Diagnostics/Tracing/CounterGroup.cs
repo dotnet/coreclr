@@ -139,7 +139,6 @@ namespace System.Diagnostics.Tracing
             {
                 Debug.WriteLine("Polling interval changed at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
                 _pollingIntervalInMilliseconds = (int)(pollingIntervalInSeconds * 1000);
-                DisposeTimer();
                 _timeStampSinceCollectionStarted = DateTime.UtcNow;
                 // Don't capture the current ExecutionContext and its AsyncLocals onto the timer causing them to live forever
                 bool restoreFlow = false;
