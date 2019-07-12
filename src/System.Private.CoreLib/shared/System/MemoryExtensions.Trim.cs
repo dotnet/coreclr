@@ -172,22 +172,20 @@ namespace System
 
             if (trimElement != null)
             {
-                for (; start < span.Length; start++)
+                while (start < span.Length && trimElement.Equals(span[start]))
                 {
-                    if (!trimElement.Equals(span[start]))
-                    {
-                        break;
-                    }
+                    start++;
                 }
             }
             else
             {
-                for (; start < span.Length; start++)
+                while (start < span.Length)
                 {
                     if (span[start] != null)
                     {
                         break;
                     }
+                    start++;
                 }
             }
 
@@ -212,22 +210,20 @@ namespace System
 
             if (trimElement != null)
             {
-                for (; end >= start; end--)
+                while (end >= start && trimElement.Equals(span[end]))
                 {
-                    if (!trimElement.Equals(span[end]))
-                    {
-                        break;
-                    }
+                    end--;
                 }
             }
             else
             {
-                for (; end >= start; end--)
+                while (end >= start)
                 {
                     if (span[end] != null)
                     {
                         break;
                     }
+                    end--;
                 }
             }
 
@@ -557,12 +553,9 @@ namespace System
 #nullable restore
         {
             int start = 0;
-            for (; start < span.Length; start++)
+            while (start < span.Length && trimElements.Contains(span[start]))
             {
-                if (!trimElements.Contains(span[start]))
-                {
-                    break;
-                }
+                start++;
             }
 
             return start;
@@ -584,12 +577,9 @@ namespace System
             Debug.Assert((uint)start <= span.Length);
 
             int end = span.Length - 1;
-            for (; end >= start; end--)
+            while (end >= start && trimElements.Contains(span[end]))
             {
-                if (!trimElements.Contains(span[end]))
-                {
-                    break;
-                }
+                end--;
             }
 
             return end - start + 1;
@@ -654,21 +644,15 @@ namespace System
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span)
         {
             int start = 0;
-            for (; start < span.Length; start++)
+            while (start < span.Length && char.IsWhiteSpace(span[start]))
             {
-                if (!char.IsWhiteSpace(span[start]))
-                {
-                    break;
-                }
+                start++;
             }
 
             int end = span.Length - 1;
-            for (; end > start; end--)
+            while (end > start && char.IsWhiteSpace(span[end]))
             {
-                if (!char.IsWhiteSpace(span[end]))
-                {
-                    break;
-                }
+                end--;
             }
 
             return span.Slice(start, end - start + 1);
@@ -681,12 +665,9 @@ namespace System
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span)
         {
             int start = 0;
-            for (; start < span.Length; start++)
+            while (start < span.Length && char.IsWhiteSpace(span[start]))
             {
-                if (!char.IsWhiteSpace(span[start]))
-                {
-                    break;
-                }
+                start++;
             }
 
             return span.Slice(start);
@@ -699,12 +680,9 @@ namespace System
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span)
         {
             int end = span.Length - 1;
-            for (; end >= 0; end--)
+            while (end >= 0 && char.IsWhiteSpace(span[end]))
             {
-                if (!char.IsWhiteSpace(span[end]))
-                {
-                    break;
-                }
+                end--;
             }
 
             return span.Slice(0, end + 1);
@@ -718,21 +696,15 @@ namespace System
         public static ReadOnlySpan<char> Trim(this ReadOnlySpan<char> span, char trimChar)
         {
             int start = 0;
-            for (; start < span.Length; start++)
+            while (start < span.Length && span[start] == trimChar)
             {
-                if (span[start] != trimChar)
-                {
-                    break;
-                }
+                start++;
             }
 
             int end = span.Length - 1;
-            for (; end > start; end--)
+            while (end > start && span[end] == trimChar)
             {
-                if (span[end] != trimChar)
-                {
-                    break;
-                }
+                end--;
             }
 
             return span.Slice(start, end - start + 1);
@@ -746,12 +718,9 @@ namespace System
         public static ReadOnlySpan<char> TrimStart(this ReadOnlySpan<char> span, char trimChar)
         {
             int start = 0;
-            for (; start < span.Length; start++)
+            while (start < span.Length && span[start] == trimChar)
             {
-                if (span[start] != trimChar)
-                {
-                    break;
-                }
+                start++;
             }
 
             return span.Slice(start);
@@ -765,12 +734,9 @@ namespace System
         public static ReadOnlySpan<char> TrimEnd(this ReadOnlySpan<char> span, char trimChar)
         {
             int end = span.Length - 1;
-            for (; end >= 0; end--)
+            while (end >= 0 && span[end] == trimChar)
             {
-                if (span[end] != trimChar)
-                {
-                    break;
-                }
+                end--;
             }
 
             return span.Slice(0, end + 1);
@@ -800,23 +766,22 @@ namespace System
                 return span.TrimStart();
             }
 
-            int start = 0;
-            for (; start < span.Length; start++)
+
+            for (int start = 0; start < span.Length; start++)
             {
                 for (int i = 0; i < trimChars.Length; i++)
                 {
                     if (span[start] == trimChars[i])
                     {
-                        goto Next;
+                        continue;
                     }
                 }
 
-                break;
-            Next:
-                ;
+                return span.Slice(start);
+
             }
 
-            return span.Slice(start);
+
         }
 
         /// <summary>
@@ -834,20 +799,23 @@ namespace System
             }
 
             int end = span.Length - 1;
-            for (; end >= 0; end--)
+
+
+            for (int i = 0; end >= 0 && i < trimChars.Length; end--)
             {
-                for (int i = 0; i < trimChars.Length; i++)
+                if (span[end] == trimChars[i])
                 {
-                    if (span[end] == trimChars[i])
-                    {
-                        goto Next;
-                    }
+                    i = 0;
+
+                }
+                else
+                {
+                    i++;
                 }
 
-                break;
-            Next:
-                ;
             }
+
+
 
             return span.Slice(0, end + 1);
         }
@@ -885,12 +853,9 @@ namespace System
         {
             int start = 0;
 
-            for (; start < span.Length; start++)
+            while (start < span.Length && char.IsWhiteSpace(span[start]))
             {
-                if (!char.IsWhiteSpace(span[start]))
-                {
-                    break;
-                }
+                start++;
             }
 
             return start;
@@ -908,12 +873,9 @@ namespace System
 
             int end = span.Length - 1;
 
-            for (; end >= start; end--)
+            while (end >= start && char.IsWhiteSpace(span[end]))
             {
-                if (!char.IsWhiteSpace(span[end]))
-                {
-                    break;
-                }
+                end--;
             }
 
             return end - start + 1;

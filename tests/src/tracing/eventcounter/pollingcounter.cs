@@ -33,7 +33,7 @@ namespace BasicEventSourceTests
             private readonly string _targetSourceName;
             private readonly EventLevel _level;
             private Dictionary<string, string> args;
-            
+
             public int FailureEventCount { get; private set; } = 0;
             public int SuccessEventCount { get; private set; } = 0;
             public bool Failed = false;
@@ -46,7 +46,7 @@ namespace BasicEventSourceTests
                 args = new Dictionary<string, string>();
                 args.Add("EventCounterIntervalSec", "1");
             }
-            
+
             protected override void OnEventSourceCreated(EventSource source)
             {
                 if (source.Name.Equals(_targetSourceName))
@@ -103,7 +103,7 @@ namespace BasicEventSourceTests
                         // Check if the mean is what we expect it to be
                         if (name.Equals("failureCount"))
                         {
-                            if (Int32.Parse(mean) != successCountCalled)  
+                            if (Int32.Parse(mean) != successCountCalled)
                             {
                                 Console.WriteLine($"Mean is not what we expected: {mean} vs {successCountCalled}");
                                 Failed = true;
@@ -118,7 +118,7 @@ namespace BasicEventSourceTests
                         }
 
                         // In PollingCounter, min/max/mean should have the same value since we aggregate value only once per counter
-                        if (!min.Equals(mean) || !min.Equals(max))
+                        if (!(min.Equals(mean) && min.Equals(max)))
                         {
                             Console.WriteLine("mean/min/max are not equal");
                             Failed = true;
@@ -164,7 +164,7 @@ namespace BasicEventSourceTests
                 if (myListener.FailureEventCount > 0 && myListener.SuccessEventCount > 0 && !myListener.Failed && (mockedCountCalled > 0 && successCountCalled > 0))
                 {
                     Console.WriteLine("Test Passed");
-                    return 100;    
+                    return 100;
                 }
                 else
                 {

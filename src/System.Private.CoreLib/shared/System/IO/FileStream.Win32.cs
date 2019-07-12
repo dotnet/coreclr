@@ -71,13 +71,13 @@ namespace System.IO
                     // We were successful
                     break;
                 case Interop.NtDll.STATUS_INVALID_HANDLE:
-                    if (!ignoreInvalid)
+                    if (ignoreInvalid)
                     {
-                        throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_INVALID_HANDLE);
+                        return null;
                     }
                     else
                     {
-                        return null;
+                        throw Win32Marshal.GetExceptionForWin32Error(Interop.Errors.ERROR_INVALID_HANDLE);
                     }
                 default:
                     // Something else is preventing access
@@ -95,12 +95,14 @@ namespace System.IO
             // any particular file handle type.
 
             // If the handle was passed in without an explicit async setting, we already looked it up in GetDefaultIsAsync
-            if (!handle.IsAsync.HasValue)
-                return;
+            if (handle.IsAsync.HasValue)
+            {
 
-            // If we can't check the handle, just assume it is ok.
-            if (!(IsHandleSynchronous(handle, ignoreInvalid: false) ?? true))
-                throw new ArgumentException(SR.Arg_HandleNotSync, nameof(handle));
+
+                // If we can't check the handle, just assume it is ok.
+                if (!(IsHandleSynchronous(handle, ignoreInvalid: false) ?? true))
+                    throw new ArgumentException(SR.Arg_HandleNotSync, nameof(handle));
+            }
         }
     }
 }

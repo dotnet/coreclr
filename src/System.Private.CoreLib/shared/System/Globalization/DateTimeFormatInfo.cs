@@ -2449,14 +2449,15 @@ namespace System.Globalization
                 string str = GetMonthName(i);
                 if (str.Length > 0)
                 {
-                    if (!monthPostfix.IsEmpty)
+                    if (monthPostfix.IsEmpty)
                     {
-                        // Insert the month name with the postfix first, so it can be matched first.
-                        InsertHash(temp, string.Concat(str, monthPostfix), TokenType.MonthToken, i);
+                        InsertHash(temp, str, TokenType.MonthToken, i);
                     }
                     else
                     {
-                        InsertHash(temp, str, TokenType.MonthToken, i);
+                        // Insert the month name with the postfix first, so it can be matched first.
+                        InsertHash(temp, string.Concat(str, monthPostfix), TokenType.MonthToken, i);
+                        
                     }
                 }
                 str = GetAbbreviatedMonthName(i);

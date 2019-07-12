@@ -615,7 +615,7 @@ namespace System
                 Index startIndex = range.Start;
                 Index endIndex = range.End;
 
-                if (!startIndex.Equals(Index.Start) || !endIndex.Equals(Index.Start))
+                if (!(startIndex.Equals(Index.Start) && endIndex.Equals(Index.Start)))
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
 
                 return default;

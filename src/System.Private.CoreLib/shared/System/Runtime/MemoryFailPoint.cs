@@ -218,7 +218,7 @@ namespace System.Runtime
                     $"Space reserved via process's MemoryFailPoints: {reserved} MB");
 #endif
 
-                if (!needPageFile && !needAddressSpace && !needContiguousVASpace)
+                if (!(needPageFile || needAddressSpace || needContiguousVASpace))
                     break;
 
                 switch (stage)

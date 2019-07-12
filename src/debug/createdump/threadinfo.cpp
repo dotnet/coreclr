@@ -7,11 +7,11 @@
 
 #if defined(__aarch64__)
 // See src/pal/src/include/pal/context.h
-#define MCREG_Fp(mc)      ((mc).regs[29])
-#define MCREG_Lr(mc)      ((mc).regs[30])
-#define MCREG_Sp(mc)      ((mc).sp)
-#define MCREG_Pc(mc)      ((mc).pc)
-#define MCREG_Cpsr(mc)    ((mc).pstate)
+#define MCREG_Fp(mc) ((mc).regs[29])
+#define MCREG_Lr(mc) ((mc).regs[30])
+#define MCREG_Sp(mc) ((mc).sp)
+#define MCREG_Pc(mc) ((mc).pc)
+#define MCREG_Cpsr(mc) ((mc).pstate)
 #endif
 
 #ifndef THUMB_CODE
@@ -22,15 +22,14 @@
 typedef int __ptrace_request;
 #endif
 
-#define FPREG_ErrorOffset(fpregs) *(DWORD*)&((fpregs).rip)
-#define FPREG_ErrorSelector(fpregs) *(((WORD*)&((fpregs).rip)) + 2)
-#define FPREG_DataOffset(fpregs) *(DWORD*)&((fpregs).rdp)
-#define FPREG_DataSelector(fpregs) *(((WORD*)&((fpregs).rdp)) + 2)
+#define FPREG_ErrorOffset(fpregs) *(DWORD *)&((fpregs).rip)
+#define FPREG_ErrorSelector(fpregs) *(((WORD *)&((fpregs).rip)) + 2)
+#define FPREG_DataOffset(fpregs) *(DWORD *)&((fpregs).rdp)
+#define FPREG_DataSelector(fpregs) *(((WORD *)&((fpregs).rdp)) + 2)
 
-extern CrashInfo* g_crashInfo;
+extern CrashInfo *g_crashInfo;
 
-ThreadInfo::ThreadInfo(pid_t tid) :
-    m_tid(tid)
+ThreadInfo::ThreadInfo(pid_t tid) : m_tid(tid)
 {
 }
 
@@ -38,10 +37,9 @@ ThreadInfo::~ThreadInfo()
 {
 }
 
-bool
-ThreadInfo::Initialize(ICLRDataTarget* pDataTarget)
+bool ThreadInfo::Initialize(ICLRDataTarget *pDataTarget)
 {
-    if (!CrashInfo::GetStatus(m_tid, &m_ppid, &m_tgid, nullptr)) 
+    if (!CrashInfo::GetStatus(m_tid, &m_ppid, &m_tgid, nullptr))
     {
         return false;
     }
@@ -52,11 +50,10 @@ ThreadInfo::Initialize(ICLRDataTarget* pDataTarget)
             return false;
         }
     }
-    else {
-        if (!GetRegistersWithPTrace())
-        {
-            return false;
-        }
+    else if (!GetRegistersWithPTrace())
+    {
+
+        return false;
     }
 
 #if defined(__aarch64__)
@@ -71,8 +68,7 @@ ThreadInfo::Initialize(ICLRDataTarget* pDataTarget)
     return true;
 }
 
-void
-ThreadInfo::ResumeThread()
+void ThreadInfo::ResumeThread()
 {
     if (ptrace(PTRACE_DETACH, m_tid, nullptr, nullptr) != -1)
     {
@@ -83,7 +79,7 @@ ThreadInfo::ResumeThread()
 
 // Helper for UnwindNativeFrames
 static void
-GetFrameLocation(CONTEXT* pContext, uint64_t* ip, uint64_t* sp)
+GetFrameLocation(CONTEXT *pContext, uint64_t *ip, uint64_t *sp)
 {
 #if defined(__x86_64__)
     *ip = pContext->Rip;
@@ -101,23 +97,23 @@ GetFrameLocation(CONTEXT* pContext, uint64_t* ip, uint64_t* sp)
 }
 
 // Helper for UnwindNativeFrames
-static BOOL 
+static BOOL
 ReadMemoryAdapter(PVOID address, PVOID buffer, SIZE_T size)
 {
     return g_crashInfo->ReadMemory(address, buffer, size);
 }
 
-void
-ThreadInfo::UnwindNativeFrames(CrashInfo& crashInfo, CONTEXT* pContext)
+void ThreadInfo::UnwindNativeFrames(CrashInfo &crashInfo, CONTEXT *pContext)
 {
     // For each native frame
-    while (true)
+    for(;;)
     {
         uint64_t ip = 0, sp = 0;
         GetFrameLocation(pContext, &ip, &sp);
 
         TRACE("Unwind: sp %" PRIA PRIx64 " ip %" PRIA PRIx64 "\n", sp, ip);
-        if (ip == 0) {
+        if (ip == 0)
+        {
             break;
         }
         // Add two pages around the instruction pointer to the core dump
@@ -125,22 +121,23 @@ ThreadInfo::UnwindNativeFrames(CrashInfo& crashInfo, CONTEXT* pContext)
 
         // Look up the ip address to get the module base address
         uint64_t baseAddress = crashInfo.GetBaseAddress(ip);
-        if (baseAddress == 0) {
+        if (baseAddress == 0)
+        {
             TRACE("Unwind: module base not found ip %" PRIA PRIx64 "\n", ip);
             break;
         }
 
-        // Unwind the native frame adding all the memory accessed to the 
+        // Unwind the native frame adding all the memory accessed to the
         // core dump via the read memory adapter.
-        if (!PAL_VirtualUnwindOutOfProc(pContext, nullptr, baseAddress, ReadMemoryAdapter)) {
+        if (!PAL_VirtualUnwindOutOfProc(pContext, nullptr, baseAddress, ReadMemoryAdapter))
+        {
             TRACE("Unwind: PAL_VirtualUnwindOutOfProc returned false\n");
             break;
         }
     }
 }
 
-bool
-ThreadInfo::UnwindThread(CrashInfo& crashInfo, IXCLRDataProcess* pClrDataProcess)
+bool ThreadInfo::UnwindThread(CrashInfo &crashInfo, IXCLRDataProcess *pClrDataProcess)
 {
     TRACE("Unwind: thread %04x\n", Tid());
 
@@ -161,9 +158,9 @@ ThreadInfo::UnwindThread(CrashInfo& crashInfo, IXCLRDataProcess* pClrDataProcess
         {
             pTask->CreateStackWalk(
                 CLRDATA_SIMPFRAME_UNRECOGNIZED |
-                CLRDATA_SIMPFRAME_MANAGED_METHOD |
-                CLRDATA_SIMPFRAME_RUNTIME_MANAGED_CODE |
-                CLRDATA_SIMPFRAME_RUNTIME_UNMANAGED_CODE,
+                    CLRDATA_SIMPFRAME_MANAGED_METHOD |
+                    CLRDATA_SIMPFRAME_RUNTIME_MANAGED_CODE |
+                    CLRDATA_SIMPFRAME_RUNTIME_UNMANAGED_CODE,
                 &pStackwalk);
         }
 
@@ -174,7 +171,8 @@ ThreadInfo::UnwindThread(CrashInfo& crashInfo, IXCLRDataProcess* pClrDataProcess
             do
             {
                 // Get the managed stack frame context
-                if (pStackwalk->GetContext(CONTEXT_ALL, sizeof(context), nullptr, (BYTE *)&context) != S_OK) {
+                if (pStackwalk->GetContext(CONTEXT_ALL, sizeof(context), nullptr, (BYTE *)&context) != S_OK)
+                {
                     TRACE("Unwind: stack walker GetContext FAILED\n");
                     break;
                 }
@@ -189,11 +187,10 @@ ThreadInfo::UnwindThread(CrashInfo& crashInfo, IXCLRDataProcess* pClrDataProcess
     return true;
 }
 
-bool 
-ThreadInfo::GetRegistersWithPTrace()
+bool ThreadInfo::GetRegistersWithPTrace()
 {
 #if defined(__aarch64__)
-    struct iovec gpRegsVec = { &m_gpRegisters, sizeof(m_gpRegisters) };
+    struct iovec gpRegsVec = {&m_gpRegisters, sizeof(m_gpRegisters)};
     if (ptrace((__ptrace_request)PTRACE_GETREGSET, m_tid, NT_PRSTATUS, &gpRegsVec) == -1)
     {
         fprintf(stderr, "ptrace(PTRACE_GETREGSET, %d, NT_PRSTATUS) FAILED %d (%s)\n", m_tid, errno, strerror(errno));
@@ -201,7 +198,7 @@ ThreadInfo::GetRegistersWithPTrace()
     }
     assert(sizeof(m_gpRegisters) == gpRegsVec.iov_len);
 
-    struct iovec fpRegsVec = { &m_fpRegisters, sizeof(m_fpRegisters) };
+    struct iovec fpRegsVec = {&m_fpRegisters, sizeof(m_fpRegisters)};
     if (ptrace((__ptrace_request)PTRACE_GETREGSET, m_tid, NT_FPREGSET, &fpRegsVec) == -1)
     {
         fprintf(stderr, "ptrace(PTRACE_GETREGSET, %d, NT_FPREGSET) FAILED %d (%s)\n", m_tid, errno, strerror(errno));
@@ -241,8 +238,7 @@ ThreadInfo::GetRegistersWithPTrace()
     return true;
 }
 
-bool 
-ThreadInfo::GetRegistersWithDataTarget(ICLRDataTarget* pDataTarget)
+bool ThreadInfo::GetRegistersWithDataTarget(ICLRDataTarget *pDataTarget)
 {
     CONTEXT context;
     context.ContextFlags = CONTEXT_ALL;
@@ -340,14 +336,13 @@ ThreadInfo::GetRegistersWithDataTarget(ICLRDataTarget* pDataTarget)
     assert(sizeof(context.D) == sizeof(m_vfpRegisters.fpregs));
     memcpy(m_vfpRegisters.fpregs, context.D, sizeof(context.D));
 #endif
-#else 
+#else
 #error Platform not supported
 #endif
     return true;
 }
 
-void
-ThreadInfo::GetThreadStack(CrashInfo& crashInfo)
+void ThreadInfo::GetThreadStack(CrashInfo &crashInfo)
 {
     uint64_t startAddress;
     size_t size;
@@ -362,8 +357,9 @@ ThreadInfo::GetThreadStack(CrashInfo& crashInfo)
     size = 4 * PAGE_SIZE;
 
     MemoryRegion search(0, startAddress, startAddress + PAGE_SIZE);
-    const MemoryRegion* region = CrashInfo::SearchMemoryRegions(crashInfo.OtherMappings(), search);
-    if (region != nullptr) {
+    const MemoryRegion *region = CrashInfo::SearchMemoryRegions(crashInfo.OtherMappings(), search);
+    if (region != nullptr)
+    {
 
         // Use the mapping found for the size of the thread's stack
         size = region->EndAddress() - startAddress;
@@ -377,8 +373,7 @@ ThreadInfo::GetThreadStack(CrashInfo& crashInfo)
     crashInfo.InsertMemoryRegion(startAddress, size);
 }
 
-void 
-ThreadInfo::GetThreadContext(uint32_t flags, CONTEXT* context) const
+void ThreadInfo::GetThreadContext(uint32_t flags, CONTEXT *context) const
 {
     context->ContextFlags = flags;
 #if defined(__x86_64__)

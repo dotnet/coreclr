@@ -160,9 +160,9 @@ namespace System.Globalization
             int day;
 
             ReadOnlySpan<char> valueSpan = value.AsSpan();
-            if (!int.TryParse(valueSpan.Slice(0, 4), NumberStyles.None, NumberFormatInfo.InvariantInfo, out year) ||
-                !int.TryParse(valueSpan.Slice(5, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out month) ||
-                !int.TryParse(valueSpan.Slice(8, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out day))
+            if (!(int.TryParse(valueSpan.Slice(0, 4), NumberStyles.None, NumberFormatInfo.InvariantInfo, out year) &&
+                int.TryParse(valueSpan.Slice(5, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out month) &&
+                int.TryParse(valueSpan.Slice(8, 2), NumberStyles.None, NumberFormatInfo.InvariantInfo, out day)))
             {
                 // Couldn't convert integer, fail
                 return null;

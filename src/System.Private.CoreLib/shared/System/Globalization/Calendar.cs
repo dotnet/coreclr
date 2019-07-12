@@ -532,7 +532,8 @@ namespace System.Globalization
                     throw new ArgumentOutOfRangeException(
                         nameof(rule),
                         rule,
-                        SR.Format(SR.ArgumentOutOfRange_Range, CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));            }
+                        SR.Format(SR.ArgumentOutOfRange_Range, CalendarWeekRule.FirstDay, CalendarWeekRule.FirstFourDayWeek));
+            }
         }
 
         /// <summary>
@@ -588,17 +589,18 @@ namespace System.Globalization
         /// </summary>
         public virtual int GetLeapMonth(int year, int era)
         {
-            if (!IsLeapYear(year, era))
+            if (IsLeapYear(year, era))
             {
-                return 0;
-            }
 
-            int monthsCount = GetMonthsInYear(year, era);
-            for (int month = 1; month <= monthsCount; month++)
-            {
-                if (IsLeapMonth(year, month, era))
+
+
+                int monthsCount = GetMonthsInYear(year, era);
+                for (int month = 1; month <= monthsCount; month++)
                 {
-                    return month;
+                    if (IsLeapMonth(year, month, era))
+                    {
+                        return month;
+                    }
                 }
             }
 

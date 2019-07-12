@@ -369,12 +369,12 @@ namespace System.Globalization
         {
             // If we have an instance of one of our CultureInfos, the user can't have changed the
             // name and we know that all names are valid in files.
-            if (!culture._isInherited)
+            if (culture._isInherited)
             {
-                return true;
+                VerifyCultureName(culture.Name, throwException);
             }
 
-            return VerifyCultureName(culture.Name, throwException);
+            return true;
         }
 
         /// <summary>
