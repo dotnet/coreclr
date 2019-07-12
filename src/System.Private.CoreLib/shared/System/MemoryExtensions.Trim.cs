@@ -809,6 +809,7 @@ namespace System
                     i = 0;
                     continue;
                 }
+            
                 i++;
 
             }
