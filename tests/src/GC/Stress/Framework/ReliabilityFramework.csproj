@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <CLRTestKind>BuildOnly</CLRTestKind>
+    <CLRTestKind>BuildAndRun</CLRTestKind>
+    <CLRTestExecutionArguments>-unittest</CLRTestExecutionArguments>
     <GenerateRunScript>false</GenerateRunScript>
+    <IsLongRunningGCTest>true</IsLongRunningGCTest>
     <CLRTestPriority>0</CLRTestPriority>
     <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
   </PropertyGroup>
