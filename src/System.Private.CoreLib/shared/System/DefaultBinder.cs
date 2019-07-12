@@ -256,10 +256,10 @@ namespace System
 
                             if (!paramArrayType.IsAssignableFrom(argTypes[j]))
                             {
-                                if (argTypes[j].IsCOMObject)
+                                if (argTypes[j].IsCOMObject && paramArrayType.IsInstanceOfType(args[j]))
                                 {
-                                    if (paramArrayType.IsInstanceOfType(args[j]))
-                                        continue;
+
+                                    continue;
                                 }
 
                                 break;
