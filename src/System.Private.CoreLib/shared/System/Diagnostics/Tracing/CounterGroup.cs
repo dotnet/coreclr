@@ -60,7 +60,7 @@ namespace System.Diagnostics.Tracing
                     lock (this)      // Lock the CounterGroup
                     {
                         _isPollingEnabled = true;
-                        EnableTimer(value);
+                        EnablePollingThread(value);
                     }
                 }
             }
@@ -123,28 +123,17 @@ namespace System.Diagnostics.Tracing
 
         private DateTime _timeStampSinceCollectionStarted;
         private int _pollingIntervalInMilliseconds;
-        private Timer? _pollingTimer;
         private Thread? _pollingThread;
         private ManualResetEvent _pollingEnabledEvent;
         private bool _isPollingEnabled;
 
-        private void DisposeTimer()
-        {
-            Debug.Assert(Monitor.IsEntered(this));
-            if (_pollingTimer != null)
-            {
-                _pollingTimer.Dispose();
-                _pollingTimer = null;
-            }
-        }
-
-        private void EnableTimer(float pollingIntervalInSeconds)
+        private void EnablePollingThread(float pollingIntervalInSeconds)
         {
             Debug.Assert(Monitor.IsEntered(this));
             if (pollingIntervalInSeconds <= 0)
             {
-                DisposeTimer();
                 _pollingIntervalInMilliseconds = 0;
+                _isPollingEnabled = false;
             }
             else if (_pollingIntervalInMilliseconds == 0 || pollingIntervalInSeconds * 1000 < _pollingIntervalInMilliseconds)
             {
@@ -180,7 +169,7 @@ namespace System.Diagnostics.Tracing
                 }
             }
             // Always fire the timer event (so you see everything up to this time).  
-            OnTimer(null);
+            OnTimer();
         }
 
         private void PollForValues()
@@ -189,26 +178,10 @@ namespace System.Diagnostics.Tracing
             {
                 while(_isPollingEnabled)
                 {
-                    Debug.WriteLine("Thread fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
-                    lock (this) // Lock the CounterGroup
+                    if (!OnTimer())
                     {
-                        if (_eventSource.IsEnabled())
-                        {
-                            DateTime now = DateTime.UtcNow;
-                            TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
-
-                            foreach (var counter in _counters)
-                            {
-                                counter.WritePayload((float)elapsed.TotalSeconds, _pollingIntervalInMilliseconds);
-                            }
-                            _timeStampSinceCollectionStarted = now;
-                        }
-                        else
-                        {
-                            break; // Stop polling if counter's EventSource is disabled.
-                        }
+                        break;
                     }
-
                     Thread.Sleep(_pollingIntervalInMilliseconds);
                 }
 
@@ -217,9 +190,9 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private void OnTimer(object? state)
+        private bool OnTimer()
         {
-            Debug.WriteLine("Timer fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
+            Debug.WriteLine("Polling thread fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
             lock (this) // Lock the CounterGroup
             {
                 if (_eventSource.IsEnabled())
@@ -235,45 +208,11 @@ namespace System.Diagnostics.Tracing
                 }
                 else
                 {
-                    DisposeTimer();
+                    return false; // Stop polling if counter's EventSource is disabled.
                 }
             }
+            return true;
         }
-
-        #region PCL timer hack
-
-#if ES_BUILD_PCL
-        internal delegate void TimerCallback(object state);
-
-        internal sealed class Timer : CancellationTokenSource, IDisposable
-        {
-            private int _period;
-            private TimerCallback _callback;
-            private object _state;
-
-            internal Timer(TimerCallback callback, object state, int dueTime, int period)
-            {
-                _callback = callback;
-                _state = state;
-                _period = period;
-                Schedule(dueTime);
-            }
-
-            private void Schedule(int dueTime)
-            {
-                Task.Delay(dueTime, Token).ContinueWith(OnTimer, null, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-            }
-
-            private void OnTimer(Task t, object s)
-            {
-                Schedule(_period);
-                _callback(_state);
-            }
-
-            public new void Dispose() { base.Cancel(); }
-        }
-#endif
-        #endregion // PCL timer hack
 
         #endregion // Timer Processing
 
