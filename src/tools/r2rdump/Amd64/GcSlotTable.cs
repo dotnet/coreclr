@@ -96,11 +96,11 @@ namespace R2RDump.Amd64
             {
                 DecodeRegisters(image, gcInfoTypes, ref bitOffset);
             }
-            if ((NumStackSlots > 0) && (GcSlots.Count < gcInfoTypes.MAX_PREDECODED_SLOTS))
+            if (NumStackSlots > 0)
             {
                 DecodeStackSlots(image, machine, gcInfoTypes, NumStackSlots, false, ref bitOffset);
             }
-            if ((NumUntracked > 0) && (GcSlots.Count < gcInfoTypes.MAX_PREDECODED_SLOTS))
+            if (NumUntracked > 0)
             {
                 DecodeStackSlots(image, machine, gcInfoTypes, NumUntracked, true, ref bitOffset);
             }
