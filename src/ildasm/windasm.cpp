@@ -20,80 +20,80 @@
 
 #include "new.hpp"
 
-#define MODE_DUMP_ALL               0
-#define MODE_DUMP_CLASS             1
-#define MODE_DUMP_CLASS_METHOD      2
-#define MODE_DUMP_CLASS_METHOD_SIG  3
+#define MODE_DUMP_ALL 0
+#define MODE_DUMP_CLASS 1
+#define MODE_DUMP_CLASS_METHOD 2
+#define MODE_DUMP_CLASS_METHOD_SIG 3
 
 // All externs are defined in DASM.CPP
-extern BOOL                    g_fDumpIL;
-extern BOOL                    g_fDumpHeader;
-extern BOOL                    g_fDumpAsmCode;
-extern BOOL                    g_fDumpTokens;
-extern BOOL                    g_fDumpStats;
-extern BOOL                    g_fDumpClassList;
-extern BOOL                    g_fDumpTypeList;
-extern BOOL                    g_fDumpSummary;
-extern BOOL                    g_fDecompile; // still in progress
-extern BOOL                    g_fShowRefs;
+extern BOOL g_fDumpIL;
+extern BOOL g_fDumpHeader;
+extern BOOL g_fDumpAsmCode;
+extern BOOL g_fDumpTokens;
+extern BOOL g_fDumpStats;
+extern BOOL g_fDumpClassList;
+extern BOOL g_fDumpTypeList;
+extern BOOL g_fDumpSummary;
+extern BOOL g_fDecompile; // still in progress
+extern BOOL g_fShowRefs;
 
-extern BOOL                    g_fDumpToPerfWriter;
+extern BOOL g_fDumpToPerfWriter;
 
-extern BOOL                    g_fShowBytes;
-extern BOOL                    g_fShowSource;
-extern BOOL                    g_fInsertSourceLines;
-extern BOOL                    g_fTryInCode;
-extern BOOL                    g_fQuoteAllNames;
-extern BOOL                    g_fTDC;
-extern BOOL                    g_fShowCA;
-extern BOOL                    g_fCAVerbal;
+extern BOOL g_fShowBytes;
+extern BOOL g_fShowSource;
+extern BOOL g_fInsertSourceLines;
+extern BOOL g_fTryInCode;
+extern BOOL g_fQuoteAllNames;
+extern BOOL g_fTDC;
+extern BOOL g_fShowCA;
+extern BOOL g_fCAVerbal;
 
-extern char                    g_pszClassToDump[];
-extern char                    g_pszMethodToDump[];
-extern char                    g_pszSigToDump[];
+extern char g_pszClassToDump[];
+extern char g_pszMethodToDump[];
+extern char g_pszSigToDump[];
 
-extern char                    g_szAsmCodeIndent[];
+extern char g_szAsmCodeIndent[];
 
-extern DWORD                   g_Mode;
+extern DWORD g_Mode;
 
-extern char*                    g_pszExeFile;
-extern char                     g_szInputFile[]; // in UTF-8
-extern WCHAR                    g_wszFullInputFile[]; // in UTF-16
-extern char                     g_szOutputFile[]; // in UTF-8
-extern char*                    g_pszObjFileName;
-extern FILE*                    g_pFile;
+extern char *g_pszExeFile;
+extern char g_szInputFile[];       // in UTF-8
+extern WCHAR g_wszFullInputFile[]; // in UTF-16
+extern char g_szOutputFile[];      // in UTF-8
+extern char *g_pszObjFileName;
+extern FILE *g_pFile;
 
-extern BOOL                 g_fLimitedVisibility;
+extern BOOL g_fLimitedVisibility;
 #if defined(_DEBUG) && defined(FEATURE_PREJIT)
-extern BOOL                 g_fNGenNativeMetadata;
+extern BOOL g_fNGenNativeMetadata;
 #endif
-extern BOOL                 g_fHidePub;
-extern BOOL                 g_fHidePriv;
-extern BOOL                 g_fHideFam;
-extern BOOL                 g_fHideAsm;
-extern BOOL                 g_fHideFAA;
-extern BOOL                 g_fHideFOA;
-extern BOOL                 g_fHidePrivScope;
-extern BOOL                 g_fProject;
+extern BOOL g_fHidePub;
+extern BOOL g_fHidePriv;
+extern BOOL g_fHideFam;
+extern BOOL g_fHideAsm;
+extern BOOL g_fHideFAA;
+extern BOOL g_fHideFOA;
+extern BOOL g_fHidePrivScope;
+extern BOOL g_fProject;
 
-extern unsigned             g_uCodePage;
-extern unsigned             g_uConsoleCP;
-extern BOOL                 g_fForwardDecl;
-extern BOOL                 g_fUseProperName;
+extern unsigned g_uCodePage;
+extern unsigned g_uConsoleCP;
+extern BOOL g_fForwardDecl;
+extern BOOL g_fUseProperName;
 
 #include "../tools/metainfo/mdinfo.h"
-extern BOOL                 g_fDumpMetaInfo;
-extern ULONG                g_ulMetaInfoFilter;
-HINSTANCE                   g_hInstance;
-HINSTANCE                   g_hResources;
-HANDLE                      hConsoleOut=NULL;
-HANDLE                      hConsoleErr=NULL;
+extern BOOL g_fDumpMetaInfo;
+extern ULONG g_ulMetaInfoFilter;
+HINSTANCE g_hInstance;
+HINSTANCE g_hResources;
+HANDLE hConsoleOut = NULL;
+HANDLE hConsoleErr = NULL;
 // These are implemented in DASM.CPP:
 BOOL Init();
 void Uninit();
 void Cleanup();
-void DumpMetaInfo(__in __nullterminated const WCHAR* pszFileName, __in __nullterminated const char* pszObjFileName, void* GUICookie);
-FILE* OpenOutput(__in __nullterminated const char* szFileName);
+void DumpMetaInfo(__in __nullterminated const WCHAR *pszFileName, __in __nullterminated const char *pszObjFileName, void *GUICookie);
+FILE *OpenOutput(__in __nullterminated const char *szFileName);
 
 void PrintLogo()
 {
@@ -105,37 +105,45 @@ void SyntaxCon()
 {
     DWORD l;
 
-    for(l=IDS_USAGE_01; l<= IDS_USAGE_23; l++) printf(RstrANSI(l));
-    if(g_fTDC)
+    for (l = IDS_USAGE_01; l <= IDS_USAGE_23; l++)
+        printf(RstrANSI(l));
+    if (g_fTDC)
     {
-        for(l=IDS_USAGE_24; l<= IDS_USAGE_32; l++) printf(RstrANSI(l));
-        for(l=IDS_USAGE_34; l<= IDS_USAGE_36; l++) printf(RstrANSI(l));
-        for(l=IDS_USAGE_37; l<= IDS_USAGE_39; l++) printf(RstrANSI(l));
+        for (l = IDS_USAGE_24; l <= IDS_USAGE_32; l++)
+            printf(RstrANSI(l));
+        for (l = IDS_USAGE_34; l <= IDS_USAGE_36; l++)
+            printf(RstrANSI(l));
+        for (l = IDS_USAGE_37; l <= IDS_USAGE_39; l++)
+            printf(RstrANSI(l));
     }
-    else printf(RstrANSI(IDS_USAGE_40));
-    for(l=IDS_USAGE_41; l<= IDS_USAGE_42; l++) printf(RstrANSI(l));
-
+    else
+        printf(RstrANSI(IDS_USAGE_40));
+    for (l = IDS_USAGE_41; l <= IDS_USAGE_42; l++)
+        printf(RstrANSI(l));
 }
 
-char* CheckForDQuotes(__inout __nullterminated char* sz)
+char *CheckForDQuotes(__inout __nullterminated char *sz)
 {
-    char* ret = sz;
-    if(*sz == '"')
+    char *ret = sz;
+    if (*sz == '"')
     {
         ret++;
-        sz[strlen(sz)-1] = 0;
+        sz[strlen(sz) - 1] = 0;
     }
     return ret;
 }
 
-char* EqualOrColon(__in __nullterminated char* szArg)
+char *EqualOrColon(__in __nullterminated char *szArg)
 {
-    char* pchE = strchr(szArg,'=');
-    char* pchC = strchr(szArg,':');
-    char* ret;
-    if(pchE == NULL) ret = pchC;
-    else if(pchC == NULL) ret = pchE;
-    else ret = (pchE < pchC)? pchE : pchC;
+    char *pchE = strchr(szArg, '=');
+    char *pchC = strchr(szArg, ':');
+    char *ret;
+    if (pchE == NULL)
+        ret = pchC;
+    else if (pchC == NULL)
+        ret = pchE;
+    else
+        ret = (pchE < pchC) ? pchE : pchC;
     return ret;
 }
 
@@ -144,29 +152,31 @@ void GetInputFileFullPath()
     // We need the input file's full path to make uses of it later, despite changing CurrentDirectory
 
     // First, convert back up to UTF16
-    DWORD len = (DWORD) strlen(g_szInputFile) + 16;
-    WCHAR* wzArg = new WCHAR[len];
+    DWORD len = (DWORD)strlen(g_szInputFile) + 16;
+    WCHAR *wzArg = new WCHAR[len];
     memset(wzArg, 0, len * sizeof(WCHAR));
     WszMultiByteToWideChar(g_uConsoleCP, 0, g_szInputFile, -1, wzArg, len);
-            
+
     // Get the full path
     len = WszGetFullPathName(wzArg, MAX_PATH, g_wszFullInputFile, NULL);
     VDELETE(wzArg);
 }
 
-int ProcessOneArg(__in __nullterminated char* szArg, __out char** ppszObjFileName)
+int ProcessOneArg(__in __nullterminated char *szArg, __out char **ppszObjFileName)
 {
-    char        szOpt[128];
-    if(strlen(szArg) == 0) return 0;
-    if ((strcmp(szArg, "/?") == 0) || (strcmp(szArg, "-?") == 0)) return 1;
+    char szOpt[128];
+    if (strlen(szArg) == 0)
+        return 0;
+    if ((strcmp(szArg, "/?") == 0) || (strcmp(szArg, "-?") == 0))
+        return 1;
 
 #ifdef FEATURE_PAL
-    if(szArg[0] == '-')
+    if (szArg[0] == '-')
 #else
-    if((szArg[0] == '/') || (szArg[0] == '-'))
-#endif	
+    if ((szArg[0] == '/') || (szArg[0] == '-'))
+#endif
     {
-        strncpy_s(szOpt,128, &szArg[1],10);
+        strncpy_s(szOpt, 128, &szArg[1], 10);
         szOpt[3] = 0;
         if (_stricmp(szOpt, "dec") == 0)
         {
@@ -216,11 +226,11 @@ int ProcessOneArg(__in __nullterminated char* szArg, __out char** ppszObjFileNam
         {
             g_fInsertSourceLines = TRUE;
         }
-        else if ((_stricmp(szOpt, "sta") == 0)&&g_fTDC)
+        else if ((_stricmp(szOpt, "sta") == 0) && g_fTDC)
         {
             g_fDumpStats = g_fTDC;
         }
-        else if ((_stricmp(szOpt, "cla") == 0)&&g_fTDC)
+        else if ((_stricmp(szOpt, "cla") == 0) && g_fTDC)
         {
             g_fDumpClassList = g_fTDC;
         }
@@ -267,25 +277,35 @@ int ProcessOneArg(__in __nullterminated char* szArg, __out char** ppszObjFileNam
         {
             char *pc = EqualOrColon(szArg);
             char *pStr;
-            if(pc == NULL) return -1;
-            do {
-                pStr = pc+1;
+            if (pc == NULL)
+                return -1;
+            do
+            {
+                pStr = pc + 1;
                 pStr = CheckForDQuotes(pStr);
-                if((pc = strchr(pStr,'+'))) *pc=0;
-                if     (!_stricmp(pStr,"pub")) g_fHidePub = FALSE;
-                else if(!_stricmp(pStr,"pri")) g_fHidePriv = FALSE;
-                else if(!_stricmp(pStr,"fam")) g_fHideFam = FALSE;
-                else if(!_stricmp(pStr,"asm")) g_fHideAsm = FALSE;
-                else if(!_stricmp(pStr,"faa")) g_fHideFAA = FALSE;
-                else if(!_stricmp(pStr,"foa")) g_fHideFOA = FALSE;
-                else if(!_stricmp(pStr,"psc")) g_fHidePrivScope = FALSE;
-            } while(pc);
-            g_fLimitedVisibility = g_fHidePub  ||
+                if ((pc = strchr(pStr, '+')))
+                    *pc = 0;
+                if (!_stricmp(pStr, "pub"))
+                    g_fHidePub = FALSE;
+                else if (!_stricmp(pStr, "pri"))
+                    g_fHidePriv = FALSE;
+                else if (!_stricmp(pStr, "fam"))
+                    g_fHideFam = FALSE;
+                else if (!_stricmp(pStr, "asm"))
+                    g_fHideAsm = FALSE;
+                else if (!_stricmp(pStr, "faa"))
+                    g_fHideFAA = FALSE;
+                else if (!_stricmp(pStr, "foa"))
+                    g_fHideFOA = FALSE;
+                else if (!_stricmp(pStr, "psc"))
+                    g_fHidePrivScope = FALSE;
+            } while (pc);
+            g_fLimitedVisibility = g_fHidePub ||
                                    g_fHidePriv ||
-                                   g_fHideFam  ||
-                                   g_fHideAsm  ||
-                                   g_fHideFAA  ||
-                                   g_fHideFOA  ||
+                                   g_fHideFam ||
+                                   g_fHideAsm ||
+                                   g_fHideFAA ||
+                                   g_fHideFOA ||
                                    g_fHidePrivScope;
         }
         else if (_stricmp(szOpt, "quo") == 0)
@@ -322,7 +342,8 @@ int ProcessOneArg(__in __nullterminated char* szArg, __out char** ppszObjFileNam
         {
             char *pStr = EqualOrColon(szArg);
             char *p, *q;
-            if(pStr == NULL) return -1;
+            if (pStr == NULL)
+                return -1;
             pStr++;
             pStr = CheckForDQuotes(pStr);
             // treat it as meaning "dump only class X" or "class X method Y"
@@ -337,7 +358,8 @@ int ProcessOneArg(__in __nullterminated char* szArg, __out char** ppszObjFileNam
             else
             {
                 *p++ = '\0';
-                if (*p != ':') return -1;
+                if (*p != ':')
+                    return -1;
 
                 strcpy_s(g_pszClassToDump, MAX_CLASSNAME_LENGTH, pStr);
 
@@ -362,136 +384,151 @@ int ProcessOneArg(__in __nullterminated char* szArg, __out char** ppszObjFileNam
                 }
             }
         }
-        else if ((_stricmp(szOpt, "met") == 0)&&g_fTDC)
+        else if ((_stricmp(szOpt, "met") == 0) && g_fTDC)
         {
             printf("Warning: 'METADATA' option is ignored for ildasm on CoreCLR.\n");
         }
         else if (_stricmp(szOpt, "obj") == 0)
         {
             char *pStr = EqualOrColon(szArg);
-            if(pStr == NULL) return -1;
+            if (pStr == NULL)
+                return -1;
             pStr++;
             pStr = CheckForDQuotes(pStr);
-            *ppszObjFileName = new char[strlen(pStr)+1];
-            strcpy_s(*ppszObjFileName,strlen(pStr)+1,pStr);
+            *ppszObjFileName = new char[strlen(pStr) + 1];
+            strcpy_s(*ppszObjFileName, strlen(pStr) + 1, pStr);
         }
         else if (_stricmp(szOpt, "out") == 0)
         {
             char *pStr = EqualOrColon(szArg);
-            if(pStr == NULL) return -1;
+            if (pStr == NULL)
+                return -1;
             pStr++;
             pStr = CheckForDQuotes(pStr);
-            if(*pStr == 0) return -1;
-            if(_stricmp(pStr,"con"))
+            if (*pStr == 0)
+                return -1;
+            if (_stricmp(pStr, "con"))
             {
-                strncpy_s(g_szOutputFile, MAX_FILENAME_LENGTH, pStr,MAX_FILENAME_LENGTH-1);
-                g_szOutputFile[MAX_FILENAME_LENGTH-1] = 0;
+                strncpy_s(g_szOutputFile, MAX_FILENAME_LENGTH, pStr, MAX_FILENAME_LENGTH - 1);
+                g_szOutputFile[MAX_FILENAME_LENGTH - 1] = 0;
             }
         }
         else
         {
             PrintLogo();
-            printf(RstrANSI(IDS_E_INVALIDOPTION),szArg); //"INVALID COMMAND LINE OPTION: %s\n\n",szArg);
+            printf(RstrANSI(IDS_E_INVALIDOPTION), szArg); //"INVALID COMMAND LINE OPTION: %s\n\n",szArg);
             return -1;
         }
     }
     else
     {
-        if(g_szInputFile[0])
+        if (g_szInputFile[0])
         {
             PrintLogo();
             printf(RstrANSI(IDS_E_MULTIPLEINPUT)); //"MULTIPLE INPUT FILES SPECIFIED\n\n");
-            return -1; // check if it was already specified
+            return -1;                             // check if it was already specified
         }
         szArg = CheckForDQuotes(szArg);
-        strncpy_s(g_szInputFile, MAX_FILENAME_LENGTH,szArg,MAX_FILENAME_LENGTH-1);
-        g_szInputFile[MAX_FILENAME_LENGTH-1] = 0;
-        GetInputFileFullPath();        
+        strncpy_s(g_szInputFile, MAX_FILENAME_LENGTH, szArg, MAX_FILENAME_LENGTH - 1);
+        g_szInputFile[MAX_FILENAME_LENGTH - 1] = 0;
+        GetInputFileFullPath();
     }
     return 0;
 }
 
-char* UTF8toANSI(__in __nullterminated char* szUTF)
+char *UTF8toANSI(__in __nullterminated char *szUTF)
 {
-    ULONG32 L = (ULONG32) strlen(szUTF)+16;
-    WCHAR* wzUnicode = new WCHAR[L];
-    memset(wzUnicode,0,L*sizeof(WCHAR));
-    WszMultiByteToWideChar(CP_UTF8,0,szUTF,-1,wzUnicode,L);
+    ULONG32 L = (ULONG32)strlen(szUTF) + 16;
+    WCHAR *wzUnicode = new WCHAR[L];
+    memset(wzUnicode, 0, L * sizeof(WCHAR));
+    WszMultiByteToWideChar(CP_UTF8, 0, szUTF, -1, wzUnicode, L);
     L <<= 2;
-    char* szANSI = new char[L];
-    memset(szANSI,0,L);
-    WszWideCharToMultiByte(g_uConsoleCP,0,wzUnicode,-1,szANSI,L,NULL,NULL);
+    char *szANSI = new char[L];
+    memset(szANSI, 0, L);
+    WszWideCharToMultiByte(g_uConsoleCP, 0, wzUnicode, -1, szANSI, L, NULL, NULL);
     VDELETE(wzUnicode);
     return szANSI;
 }
-char* ANSItoUTF8(__in __nullterminated char* szANSI)
+char *ANSItoUTF8(__in __nullterminated char *szANSI)
 {
-    ULONG32 L = (ULONG32) strlen(szANSI)+16;
-    WCHAR* wzUnicode = new WCHAR[L];
-    memset(wzUnicode,0,L*sizeof(WCHAR));
-    WszMultiByteToWideChar(g_uConsoleCP,0,szANSI,-1,wzUnicode,L);
+    ULONG32 L = (ULONG32)strlen(szANSI) + 16;
+    WCHAR *wzUnicode = new WCHAR[L];
+    memset(wzUnicode, 0, L * sizeof(WCHAR));
+    WszMultiByteToWideChar(g_uConsoleCP, 0, szANSI, -1, wzUnicode, L);
     L *= 3;
-    char* szUTF = new char[L];
-    memset(szUTF,0,L);
-    WszWideCharToMultiByte(CP_UTF8,0,wzUnicode,-1,szUTF,L,NULL,NULL);
+    char *szUTF = new char[L];
+    memset(szUTF, 0, L);
+    WszWideCharToMultiByte(CP_UTF8, 0, wzUnicode, -1, szUTF, L, NULL, NULL);
     VDELETE(wzUnicode);
     return szUTF;
 }
 
-int ParseCmdLineW(__in __nullterminated WCHAR* wzCmdLine, __out char** ppszObjFileName)
+int ParseCmdLineW(__in __nullterminated WCHAR *wzCmdLine, __out char **ppszObjFileName)
 {
-    int     argc,ret=0;
-    LPWSTR* argv= SegmentCommandLine(wzCmdLine, (DWORD*)&argc);
-    char*   szArg = new char[2048];
-    for(int i=1; i < argc; i++)
+    int argc, ret = 0;
+    LPWSTR *argv = SegmentCommandLine(wzCmdLine, (DWORD *)&argc);
+    char *szArg = new char[2048];
+    for (int i = 1; i < argc; i++)
     {
-        memset(szArg,0,2048);
-        WszWideCharToMultiByte(CP_UTF8,0,argv[i],-1,szArg,2048,NULL,NULL);
-        if((ret = ProcessOneArg(szArg,ppszObjFileName)) != 0) break;
+        memset(szArg, 0, 2048);
+        WszWideCharToMultiByte(CP_UTF8, 0, argv[i], -1, szArg, 2048, NULL, NULL);
+        if ((ret = ProcessOneArg(szArg, ppszObjFileName)) != 0)
+            break;
     }
     VDELETE(szArg);
     return ret;
 }
 
-int ParseCmdLineA(__in __nullterminated char* szCmdLine, __out char** ppszObjFileName)
+int ParseCmdLineA(__in __nullterminated char *szCmdLine, __out char **ppszObjFileName)
 {
-    if((szCmdLine == NULL)||(*szCmdLine == 0)) return 0;
+    if ((szCmdLine == NULL) || (*szCmdLine == 0))
+        return 0;
 
     // ANSI to UTF-8
-    char*       szCmdLineUTF = ANSItoUTF8(szCmdLine);
+    char *szCmdLineUTF = ANSItoUTF8(szCmdLine);
 
     // Split into argv[]
-    int argc=0, ret = 0;
-    DynamicArray<char*> argv;
-    char*       pch;
-    char*       pchend;
-    bool        bUnquoted = true;
+    int argc = 0, ret = 0;
+    DynamicArray<char *> argv;
+    char *pch;
+    char *pchend;
+    bool bUnquoted = true;
 
     pch = szCmdLineUTF;
-    pchend = pch+strlen(szCmdLineUTF);
-    while(pch)
+    pchend = pch + strlen(szCmdLineUTF);
+    while (pch)
     {
-        for(; *pch == ' '; pch++); // skip the blanks
-        argv[argc++] = pch;
-        for(; pch < pchend; pch++)
+        while (*pch == ' ')
         {
-            if(*pch == '"') bUnquoted = !bUnquoted;
-            else if((*pch == ' ')&&bUnquoted) break;
+            pch++;
+        } // skip the blanks
+        argv[argc++] = pch;
+        while (pch < pchend)
+        {
+            if (*pch == '"')
+                bUnquoted = !bUnquoted;
+            else if ((*pch == ' ') && bUnquoted)
+                break;
+
+            pch++;
         }
 
-        if(pch < pchend) *pch++ = 0;
-        else break;
+        if (pch < pchend)
+            *pch++ = 0;
+        else
+            break;
     }
 
-    for(int i=1; i < argc; i++)
+    for (int i = 1; i < argc; i++)
     {
-        if((ret = ProcessOneArg(argv[i],ppszObjFileName)) != 0) break;
+        if ((ret = ProcessOneArg(argv[i], ppszObjFileName)) != 0)
+            break;
     }
     VDELETE(szCmdLineUTF);
     return ret;
 }
 
-int __cdecl main(int nCmdShow, char* lpCmdLine[])
+int __cdecl main(int nCmdShow, char *lpCmdLine[])
 {
 #if defined(FEATURE_PAL)
     if (0 != PAL_Initialize(nCmdShow, lpCmdLine))
@@ -509,17 +546,17 @@ int __cdecl main(int nCmdShow, char* lpCmdLine[])
     DisableThrowCheck();
 #endif
 
-    int     iCommandLineParsed = 0;
-    WCHAR*  wzCommandLine = NULL;
-    char*   szCommandLine = NULL;
+    int iCommandLineParsed = 0;
+    WCHAR *wzCommandLine = NULL;
+    char *szCommandLine = NULL;
 
     g_fUseProperName = TRUE;
 
-    g_pszClassToDump[0]=0;
-    g_pszMethodToDump[0]=0;
-    g_pszSigToDump[0]=0;
-    memset(g_szInputFile,0,MAX_FILENAME_LENGTH);
-    memset(g_szOutputFile,0,MAX_FILENAME_LENGTH);
+    g_pszClassToDump[0] = 0;
+    g_pszMethodToDump[0] = 0;
+    g_pszSigToDump[0] = 0;
+    memset(g_szInputFile, 0, MAX_FILENAME_LENGTH);
+    memset(g_szOutputFile, 0, MAX_FILENAME_LENGTH);
 #if defined(_DEBUG)
     g_fTDC = TRUE;
 #endif
@@ -537,9 +574,9 @@ int __cdecl main(int nCmdShow, char* lpCmdLine[])
     g_hResources = LoadLocalizedResourceDLLForSDK(L"ildasmrc.dll");
 #endif
 
-    iCommandLineParsed = ParseCmdLineW((wzCommandLine = GetCommandLineW()),&g_pszObjFileName);
+    iCommandLineParsed = ParseCmdLineW((wzCommandLine = GetCommandLineW()), &g_pszObjFileName);
 
-    if(!g_fLimitedVisibility)
+    if (!g_fLimitedVisibility)
     {
         g_fHidePub = FALSE;
         g_fHidePriv = FALSE;
@@ -549,34 +586,35 @@ int __cdecl main(int nCmdShow, char* lpCmdLine[])
         g_fHideFOA = FALSE;
         g_fHidePrivScope = FALSE;
     }
-    if(hConsoleOut != INVALID_HANDLE_VALUE) //First pass: console
+    if (hConsoleOut != INVALID_HANDLE_VALUE) //First pass: console
     {
         g_uConsoleCP = GetConsoleOutputCP();
 
-        if(iCommandLineParsed)
+        if (iCommandLineParsed)
         {
-            if(iCommandLineParsed > 0) PrintLogo();
+            if (iCommandLineParsed > 0)
+                PrintLogo();
             SyntaxCon();
             exit((iCommandLineParsed == 1) ? 0 : 1);
         }
 
         {
-            DWORD   exitCode = 1;
-            if(g_szInputFile[0] == 0)
+            DWORD exitCode = 1;
+            if (g_szInputFile[0] == 0)
             {
                 SyntaxCon();
                 exit(1);
             }
             g_pFile = NULL;
-            if(g_szOutputFile[0])
+            if (g_szOutputFile[0])
             {
                 g_pFile = OpenOutput(g_szOutputFile);
-                if(g_pFile == NULL)
+                if (g_pFile == NULL)
                 {
                     char sz[4096];
-                    sprintf_s(sz,4096,RstrUTF(IDS_E_CANTOPENOUT)/*"Unable to open '%s' for output."*/,   g_szOutputFile);
+                    sprintf_s(sz, 4096, RstrUTF(IDS_E_CANTOPENOUT) /*"Unable to open '%s' for output."*/, g_szOutputFile);
                     g_uCodePage = CP_ACP;
-                    printError(NULL,sz);
+                    printError(NULL, sz);
                     exit(1);
                 }
             }
@@ -597,4 +635,3 @@ int __cdecl main(int nCmdShow, char* lpCmdLine[])
     }
     return 0;
 }
-
