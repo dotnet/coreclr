@@ -29,7 +29,7 @@ namespace System.Runtime.InteropServices {
         // implementations of get_InnerException to be provided by the base class. It works only if Exception.get_InnerException
         // is virtual.
         //
-        Exception InnerException {
+        Exception? InnerException {
             get;
         }
    }

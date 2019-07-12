@@ -47,6 +47,10 @@ namespace System.Buffers.Text
                         Number.NumberBuffer number = new Number.NumberBuffer(Number.NumberBufferKind.Decimal, pDigits, Number.DecimalNumberBufferLength);
 
                         Number.DecimalToNumber(ref value, ref number);
+                        if (number.Digits[0] == 0)	
+                        {	
+                            number.IsNegative = false; // For Decimals, -0 must print as normal 0.	
+                        }
                         bool success = TryFormatDecimalG(ref number, destination, out bytesWritten);
 #if DEBUG
                         // This DEBUG segment exists to close a code coverage hole inside TryFormatDecimalG(). Because we don't call RoundNumber() on this path, we have no way to feed
@@ -90,7 +94,8 @@ namespace System.Buffers.Text
 
                         Number.DecimalToNumber(ref value, ref number);
                         byte precision = (format.Precision == StandardFormat.NoPrecision) ? (byte)2 : format.Precision;
-                        Number.RoundNumber(ref number, number.Scale + precision);
+                        Number.RoundNumber(ref number, number.Scale + precision, isCorrectlyRounded: false);
+                        Debug.Assert((number.Digits[0] != 0) || !number.IsNegative);   // For Decimals, -0 must print as normal 0. As it happens, Number.RoundNumber already ensures this invariant.
                         return TryFormatDecimalF(ref number, destination, out bytesWritten, precision);
                     }
 
@@ -102,7 +107,8 @@ namespace System.Buffers.Text
 
                         Number.DecimalToNumber(ref value, ref number);
                         byte precision = (format.Precision == StandardFormat.NoPrecision) ? (byte)6 : format.Precision;
-                        Number.RoundNumber(ref number, precision + 1);
+                        Number.RoundNumber(ref number, precision + 1, isCorrectlyRounded: false);
+                        Debug.Assert((number.Digits[0] != 0) || !number.IsNegative);   // For Decimals, -0 must print as normal 0. As it happens, Number.RoundNumber already ensures this invariant.
                         return TryFormatDecimalE(ref number, destination, out bytesWritten, precision, exponentSymbol: (byte)format.Symbol);
                     }
 

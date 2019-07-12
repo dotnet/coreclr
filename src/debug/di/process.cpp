@@ -61,7 +61,7 @@ extern RSDebuggingInfo * g_pRSDebuggingInfo;
 //    @dbgtodo attach-bit: need to determine fate of attach bit.
 //
 //---------------------------------------------------------------------------------------
-STDAPI OpenVirtualProcessImpl(
+STDAPI DLLEXPORT OpenVirtualProcessImpl(
     ULONG64 clrInstanceId,
     IUnknown * pDataTarget,
     HMODULE hDacModule,
@@ -106,7 +106,7 @@ STDAPI OpenVirtualProcessImpl(
             pDataTarget,  // takes a reference
             hDacModule,
             NULL, // Cordb
-            &pd, // 0 for V3 cases (pShim == NULL). 
+            &pd, // 0 for V3 cases (pShim == NULL).
             NULL, // no Shim in V3 cases
             &pProcess));
 
@@ -172,7 +172,7 @@ STDAPI OpenVirtualProcessImpl(
 // Return Value:
 //    S_OK on success. Else failure
 //---------------------------------------------------------------------------------------
-STDAPI OpenVirtualProcessImpl2(
+STDAPI DLLEXPORT OpenVirtualProcessImpl2(
     ULONG64 clrInstanceId,
     IUnknown * pDataTarget,
     LPCWSTR pDacModulePath,
@@ -195,7 +195,7 @@ STDAPI OpenVirtualProcessImpl2(
 // We'd like a beta1 shim/VS to still be able to open dumps using a CLR v4 Beta2+ mscordbi.dll,
 // so we'll leave this in place (at least until after Beta2 is in wide use).
 //---------------------------------------------------------------------------------------
-STDAPI OpenVirtualProcess2(
+STDAPI DLLEXPORT OpenVirtualProcess2(
     ULONG64 clrInstanceId,
     IUnknown * pDataTarget,
     HMODULE hDacModule,
@@ -213,7 +213,7 @@ STDAPI OpenVirtualProcess2(
 // Public OpenVirtualProcess method to get an ICorDebugProcess4 instance
 // Used directly in CLR v4 pre Beta1 - can probably be safely removed now
 //---------------------------------------------------------------------------------------
-STDAPI OpenVirtualProcess(
+STDAPI DLLEXPORT OpenVirtualProcess(
     ULONG64 clrInstanceId,
     IUnknown * pDataTarget,
     REFIID riid,
@@ -2181,12 +2181,6 @@ HRESULT CordbProcess::QueryInterface(REFIID id, void **pInterface)
     {
         *pInterface = static_cast<ICorDebugProcess10*>(this);
     }
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-    else if (id == IID_ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly)
-    {
-        *pInterface = static_cast<ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly*>(this);
-    }
-#endif
     else if (id == IID_IUnknown)
     {
         *pInterface = static_cast<IUnknown*>(static_cast<ICorDebugProcess*>(this));
@@ -2544,20 +2538,6 @@ COM_METHOD CordbProcess::EnableGCNotificationEvents(BOOL fEnable)
     PUBLIC_API_END(hr);
     return hr;
 }
-
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-
-COM_METHOD CordbProcess::InvokePauseCallback()
-{
-    return S_OK;
-}
-
-COM_METHOD CordbProcess::InvokeResumeCallback()
-{
-    return S_OK;
-}
-
-#endif
 
 HRESULT CordbProcess::GetTypeForObject(CORDB_ADDRESS addr, CordbAppDomain* pAppDomainOverride, CordbType **ppType, CordbAppDomain **pAppDomain)
 {
@@ -4921,7 +4901,7 @@ void CordbProcess::RawDispatchEvent(
     case DB_IPCE_DATA_BREAKPOINT:
         {
             _ASSERTE(pThread != NULL);
-        
+
             {
                 PUBLIC_CALLBACK_IN_THIS_SCOPE(this, pLockHolder, pEvent);
                 pCallback4->DataBreakpoint(static_cast<ICorDebugProcess*>(this), pThread, reinterpret_cast<BYTE*>(&(pEvent->DataBreakpointData.context)), sizeof(CONTEXT));
@@ -5642,24 +5622,6 @@ void CordbProcess::RawDispatchEvent(
                 PUBLIC_CALLBACK_IN_THIS_SCOPE(this, pLockHolder, pEvent);
                 hr = pCallback1->ControlCTrap((ICorDebugProcess*) this);
             }
-
-            {
-                RSLockHolder ch(this->GetStopGoLock());
-
-                DebuggerIPCEvent eventControlCResult;
-
-                InitIPCEvent(&eventControlCResult,
-                             DB_IPCE_CONTROL_C_EVENT_RESULT,
-                             false,
-                             VMPTR_AppDomain::NullPtr());
-
-                // Indicate whether the debugger has handled the event.
-                eventControlCResult.hr = hr;
-
-                // Send the reply to the LS.
-                SendIPCEvent(&eventControlCResult, sizeof(eventControlCResult));
-            } // release SG lock
-
         }
         break;
 
@@ -6497,7 +6459,7 @@ HRESULT CordbProcess::GetThreadContext(DWORD threadID, ULONG32 contextSize, BYTE
                 hr = E_INVALIDARG;
             }
             else
-            {                
+            {
                 DT_CONTEXT* managedContext;
                 hr = thread->GetManagedContext(&managedContext);
                 *pContext = *managedContext;
@@ -6576,7 +6538,7 @@ HRESULT CordbProcess::SetThreadContext(DWORD threadID, ULONG32 contextSize, BYTE
     {
         RSLockHolder ch(GetProcess()->GetStopGoLock());
         RSLockHolder lockHolder(GetProcessLock());
-        
+
         EX_TRY
         {
             CordbThread* thread = this->TryLookupThreadByVolatileOSId(threadID);
@@ -6595,7 +6557,7 @@ HRESULT CordbProcess::SetThreadContext(DWORD threadID, ULONG32 contextSize, BYTE
         }
         EX_END_CATCH(SwallowAllExceptions)
 
-        
+
     }
     return hr;
 }
@@ -7318,7 +7280,7 @@ HRESULT CordbProcess::WriteMemory(CORDB_ADDRESS address, DWORD size,
         if (bufferCopy != NULL)
         {
             memmove(buffer, bufferCopy, size);
-            delete bufferCopy;
+            delete [] bufferCopy;
         }
     }
 
@@ -9596,7 +9558,7 @@ void Ls_Rs_BaseBuffer::CopyLSDataToRSWorker(ICorDebugDataTarget * pTarget)
         ThrowHR(E_INVALIDARG);
     }
 
-    NewHolder<BYTE> pData(new BYTE[cbCacheSize]);
+    NewArrayHolder<BYTE> pData(new BYTE[cbCacheSize]);
 
     ULONG32 cbRead;
     HRESULT hrRead = pTarget->ReadVirtual(PTR_TO_CORDB_ADDRESS(m_pbLS), pData, cbCacheSize , &cbRead);
@@ -12243,7 +12205,7 @@ Reaction CordbProcess::TriageExcep1stChanceAndInit(CordbUnmanagedThread * pUnman
     LOG((LF_CORDB, LL_INFO1000, "CP::TE1stCAI: Enter\n"));
 
 #ifdef _DEBUG
-    // Some Interop bugs involve threads that land at a crazy IP. Since we're interop-debugging, we can't
+    // Some Interop bugs involve threads that land at a bad IP. Since we're interop-debugging, we can't
     // attach a debugger to the LS. So we have some debug mode where we enable the SS flag and thus
     // produce a trace of where a thread is going.
     if (pUnmanagedThread->IsDEBUGTrace() && (dwExCode == STATUS_SINGLE_STEP))
@@ -12802,7 +12764,7 @@ void CordbProcess::HandleDebugEventForInteropDebugging(const DEBUG_EVENT * pEven
         STRESS_LOG1(LF_CORDB, LL_INFO1000, "W32ET::W32EL: Thread 0x%x is suspended\n", pEvent->dwThreadId);
     }
 
-    // For debugging crazy races in retail, we'll keep a rolling queue of win32 debug events.
+    // For debugging races in retail, we'll keep a rolling queue of win32 debug events.
     this->DebugRecordWin32Event(pEvent, pUnmanagedThread);
 
 
@@ -13408,7 +13370,7 @@ DWORD GetDbgContinueFlag()
 }
 
 
-// Some Interop bugs involve threads that land at a crazy IP. Since we're interop-debugging, we can't
+// Some Interop bugs involve threads that land at a bad IP. Since we're interop-debugging, we can't
 // attach a debugger to the LS. So we have some debug mode where we enable the SS flag and thus
 // produce a trace of where a thread is going.
 #ifdef _DEBUG
@@ -15244,4 +15206,22 @@ bool CordbProcess::IsThreadSuspendedOrHijacked(ICorDebugThread * pICorDebugThrea
 
     CordbThread * pCordbThread = static_cast<CordbThread *> (pICorDebugThread);
     return GetDAC()->IsThreadSuspendedOrHijacked(pCordbThread->m_vmThreadToken);
+}
+
+void CordbProcess::HandleControlCTrapResult(HRESULT result)
+{
+    RSLockHolder ch(GetStopGoLock());
+
+    DebuggerIPCEvent eventControlCResult;
+
+    InitIPCEvent(&eventControlCResult,
+        DB_IPCE_CONTROL_C_EVENT_RESULT,
+        false,
+        VMPTR_AppDomain::NullPtr());
+
+    // Indicate whether the debugger has handled the event.
+    eventControlCResult.hr = result;
+
+    // Send the reply to the LS.
+    SendIPCEvent(&eventControlCResult, sizeof(eventControlCResult));
 }

@@ -543,7 +543,6 @@ public:
     static bool HasValidVTablePtr(Frame * pFrame);
     static PTR_GSCookie SafeGetGSCookiePtr(Frame * pFrame);
     static void Init();
-    static void Term();
 
     // Callers, note that the REGDISPLAY parameter is actually in/out. While
     // UpdateRegDisplay is generally used to fill out the REGDISPLAY parameter, some
@@ -1678,7 +1677,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             MODE_COOPERATIVE; // Frame MethodDesc should be always updated in cooperative mode to avoid racing with GC stackwalk
-            SO_TOLERANT;
         }
         CONTRACTL_END;
 
@@ -3003,7 +3001,6 @@ public:
     PTR_VOID                m_StubSecretArg;
 #endif // _WIN64
 
-protected:
     // X86: ESP after pushing the outgoing arguments, and just before calling
     // out to unmanaged code.
     // Other platforms: the field stays set throughout the declaring method.
@@ -3021,6 +3018,11 @@ protected:
     // To prevent GC-holes, we do not keep any GC references in callee-saved
     // registers across an NDirect call.
     TADDR                m_pCalleeSavedFP;
+
+    // This field is used to cache the current thread object where this frame is
+    // executing. This is especially helpful on Unix platforms for the PInvoke assembly
+    // stubs, since there is no easy way to inline an implementation of GetThread.
+    PTR_VOID             m_pThread;
 
 public:
     //---------------------------------------------------------------
@@ -3613,9 +3615,12 @@ public:
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
 
 #define GCPROTECT_BEGININTERIOR(ObjRefStruct)           do {            \
+                /* work around Wsizeof-pointer-div warning as we */     \
+                /* mean to capture pointer or object size */            \
+                UINT subjectSize = sizeof(ObjRefStruct);                \
                 FrameWithCookie<GCFrame> __gcframe(                     \
                         (OBJECTREF*)&(ObjRefStruct),                    \
-                        sizeof(ObjRefStruct)/sizeof(OBJECTREF),         \
+                        subjectSize/sizeof(OBJECTREF),                  \
                         TRUE);                                          \
                 /* work around unreachable code warning */              \
                 if (true) { DEBUG_ASSURE_NO_RETURN_BEGIN(GCPROTECT)
@@ -3674,5 +3679,7 @@ public:
 #undef FRAMES_TURNED_FPO_ON
 #undef FPO_ON
 #endif
+
+#include "crossloaderallocatorhash.inl"
 
 #endif  //__frames_h__

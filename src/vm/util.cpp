@@ -314,7 +314,6 @@ LPVOID CQuickHeap::Alloc(UINT sz)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;    // So long as we cleanup the heap when we're done, all the memory goes with it
         INJECT_FAULT(COMPlusThrowOM(););
     } CONTRACTL_END;
 
@@ -545,70 +544,6 @@ void NPrintToStdErrW(const WCHAR *pwzString, size_t nchars)
     NPrintToStdErrA(pStr, nbytes);
 }
 //----------------------------------------------------------------------------
-
-
-
-
-
-//+--------------------------------------------------------------------------
-//
-//  Function:   VMDebugOutputA( . . . . )
-//              VMDebugOutputW( . . . . )
-//  
-//  Synopsis:   Output a message formatted in printf fashion to the debugger.
-//              ANSI and wide character versions are both provided.  Only 
-//              present in debug builds (i.e. when _DEBUG is defined).
-//
-//  Arguments:  [format]     ---   ANSI or Wide character format string
-//                                 in printf/OutputDebugString-style format.
-// 
-//              [ ... ]      ---   Variable length argument list compatible
-//                                 with the format string.
-//
-//  Returns:    Nothing.
-// 
-//  Notes:      Has internal static sized character buffer of 
-//              width specified by the preprocessor constant DEBUGOUT_BUFSIZE.
-//
-//---------------------------------------------------------------------------
-#ifdef _DEBUG
-
-#define DEBUGOUT_BUFSIZE 1024
-
-void __cdecl VMDebugOutputA(__in LPSTR format, ...)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-
-    va_list     argPtr;
-    va_start(argPtr, format);
-
-    char szBuffer[DEBUGOUT_BUFSIZE];
-
-    if(vsprintf_s(szBuffer, DEBUGOUT_BUFSIZE-1, format, argPtr) > 0)
-        OutputDebugStringA(szBuffer);
-    va_end(argPtr);
-}
-
-void __cdecl VMDebugOutputW(__in LPWSTR format, ...)
-{
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_DEBUG_ONLY;
-
-    va_list     argPtr;
-    va_start(argPtr, format);
-    
-    WCHAR wszBuffer[DEBUGOUT_BUFSIZE];
-
-    if(vswprintf_s(wszBuffer, DEBUGOUT_BUFSIZE-2, format, argPtr) > 0)
-        WszOutputDebugString(wszBuffer);
-    va_end(argPtr);
-}
-
-#endif   // #ifdef DACCESS_COMPILE
 
 //*****************************************************************************
 // Compare VarLoc's
@@ -1255,152 +1190,9 @@ HRESULT VMPostError(                    // Returned error.
 }
 
 #ifndef CROSSGEN_COMPILE
-void VMDumpCOMErrors(HRESULT hrErr)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        PRECONDITION(FAILED(hrErr));
-    }
-    CONTRACTL_END;
-
-    SafeComHolderPreemp<IErrorInfo> pIErr(NULL);// Error interface.
-    BSTRHolder bstrDesc(NULL);                  // Description text.
-
-    // Try to get an error info object and display the message.
-    if (SafeGetErrorInfo(&pIErr) == S_OK && pIErr->GetDescription(&bstrDesc) == S_OK)
-    {
-        EEMessageBoxCatastrophic(IDS_EE_GENERIC, IDS_FATAL_ERROR, (BSTR)bstrDesc);
-    }
-    else
-    {
-        // Just give out the failed hr return code.
-        EEMessageBoxCatastrophic(IDS_COMPLUS_ERROR, IDS_FATAL_ERROR, hrErr);
-    }
-}
 
 //-----------------------------------------------------------------------------
 #ifndef FEATURE_PAL
-
-// Wrap registry functions to use CQuickWSTR to allocate space. This does it
-// in a stack friendly manner.
-//-----------------------------------------------------------------------------
-LONG UtilRegEnumKey(HKEY hKey,            // handle to key to query
-                    DWORD dwIndex,        // index of subkey to query
-                    CQuickWSTR* lpName) // buffer for subkey name
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        INJECT_FAULT(return ERROR_NOT_ENOUGH_MEMORY;);
-    }
-    CONTRACTL_END;
-
-    DWORD size = (DWORD)lpName->MaxSize();
-    LONG result = WszRegEnumKeyEx(hKey,
-                                  dwIndex,
-                                  lpName->Ptr(),
-                                  &size,
-                                  NULL,
-                                  NULL,
-                                  NULL,
-                                  NULL);
-
-    if (result == ERROR_SUCCESS || result == ERROR_MORE_DATA) {
-
-        // Grow or shrink buffer to correct size
-        if (lpName->ReSizeNoThrow(size+1) != NOERROR)
-            result = ERROR_NOT_ENOUGH_MEMORY;
-
-        if (result == ERROR_MORE_DATA) {
-            size = (DWORD)lpName->MaxSize();
-            result = WszRegEnumKeyEx(hKey,
-                                     dwIndex,
-                                     lpName->Ptr(),
-                                     &size,
-                                     NULL,
-                                     NULL,
-                                     NULL,
-                                     NULL);
-        }
-    }
-
-    return result;
-}
-
-LONG UtilRegQueryStringValueEx(HKEY hKey,           // handle to key to query
-                               LPCWSTR lpValueName, // address of name of value to query
-                               LPDWORD lpReserved,  // reserved
-                               LPDWORD lpType,      // address of buffer for value type
-                               CQuickWSTR* lpData)// data buffer
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        INJECT_FAULT(return ERROR_NOT_ENOUGH_MEMORY;);
-    }
-    CONTRACTL_END;
-
-    DWORD size = (DWORD)lpData->MaxSize();
-    LONG result = WszRegQueryValueEx(hKey,
-                                     lpValueName,
-                                     lpReserved,
-                                     lpType,
-                                     (LPBYTE) lpData->Ptr(),
-                                     &size);
-
-    if (result == ERROR_SUCCESS || result == ERROR_MORE_DATA) {
-
-        // Grow or shrink buffer to correct size
-        if (lpData->ReSizeNoThrow(size+1) != NOERROR)
-            result = ERROR_NOT_ENOUGH_MEMORY;
-
-        if (result == ERROR_MORE_DATA) {
-            size = (DWORD)lpData->MaxSize();
-            result = WszRegQueryValueEx(hKey,
-                                        lpValueName,
-                                        lpReserved,
-                                        lpType,
-                                        (LPBYTE) lpData->Ptr(),
-                                        &size);
-        }
-    }
-    
-    return result;
-}
-
-BOOL ReportEventCLR(
-     WORD       wType,
-     WORD       wCategory,
-     DWORD      dwEventID,
-     PSID       lpUserSid,
-     SString  * message)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-    } CONTRACTL_END;
-
-    GCX_PREEMP();
-
-    SString buff;
-    buff.Printf(W(".NET Runtime version %s - %s"), VER_FILEVERSION_STR_L, message->GetUnicode());
-
-    DWORD dwRetVal = ClrReportEvent(W(".NET Runtime"),
-                        wType,          // event type 
-                        wCategory,      // category
-                        dwEventID,      // event identifier 
-                        lpUserSid,      // user security identifier
-                        buff.GetUnicode()); // one substitution string 
-
-    // Return BOOLEAN based upon return code
-    return (dwRetVal == ERROR_SUCCESS)?TRUE:FALSE;
-}
 
 // This function checks to see if GetLogicalProcessorInformation API is supported. 
 // On success, this function allocates a SLPI array, sets nEntries to number 
@@ -1853,36 +1645,23 @@ fDone:
 
 #endif // _TARGET_X86_ || _TARGET_AMD64_
 
-// fix this if/when AMD does multicore or SMT
-size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
+#if defined (_TARGET_X86_) || defined (_TARGET_AMD64_)
+static size_t GetCacheSizeFromCpuId()
 {
-    // No CONTRACT possible because GetCacheSizePerLogicalCpu uses SEH
-
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-    static size_t maxSize;
-    static size_t maxTrueSize;
-
-    if (maxSize)
-    {
-        // maxSize and maxTrueSize cached
-        if (bTrueSize)
-        {
-            return maxTrueSize;
-        }
-        else
-        {
-            return maxSize;
-        }
-    }
-
-#if defined(_TARGET_AMD64_) || defined (_TARGET_X86_)
-    DefaultCatchFilterParam param;
+    // Can't return from a PAL_TRY. Instead, have it write to its parameter.
+    struct Param : DefaultCatchFilterParam {
+        size_t maxSize;
+    } param;
     param.pv = COMPLUS_EXCEPTION_EXECUTE_HANDLER;
+    param.maxSize = 0;
 
-    PAL_TRY(DefaultCatchFilterParam *, pParam, &param)
+    PAL_TRY(Param *, pParam, &param)
     {
+        size_t& maxSize = pParam->maxSize;
+
         unsigned char buffer[16];
         DWORD* dwBuffer = (DWORD*)buffer;
 
@@ -1899,15 +1678,15 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
                     //Once the OS API (LH and above) is updated with this information, we should start using the OS API to get the cache enumeration by
                     //uncommenting the lines below.
 
-                    tempSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
+                    maxSize = GetLogicalProcessorCacheSizeFromOS(); //use OS API for cache enumeration on LH and above
                     */
-                    size_t tempSize = 0;
+                    maxSize = 0;
                     if (maxCpuId >= 2)         // cpuid support for cache size determination is available
                     {
-                        tempSize = GetIntelDeterministicCacheEnum();          // try to use use deterministic cache size enumeration
-                        if (!tempSize)
+                        maxSize = GetIntelDeterministicCacheEnum();          // try to use use deterministic cache size enumeration
+                        if (!maxSize)
                         {                    // deterministic enumeration failed, fallback to legacy enumeration using descriptor values            
-                            tempSize = GetIntelDescriptorValuesCache();   
+                            maxSize = GetIntelDescriptorValuesCache();   
                         }   
                     }
 
@@ -1932,32 +1711,14 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
 
                         if (logicalProcessorCount)
                         {
-                            tempSize = tempSize / logicalProcessorCount;
+                            maxSize = maxSize / logicalProcessorCount;
                         }
-                    }
-
-                    // update maxSize once with final value
-                    maxTrueSize = tempSize;
-
-#ifdef _WIN64
-                    if (maxCpuId >= 2)
-                    {
-                        // If we're running on a Prescott or greater core, EM64T tests
-                        // show that starting with a gen0 larger than LLC improves performance.
-                        // Thus, start with a gen0 size that is larger than the cache.  The value of
-                        // 3 is a reasonable tradeoff between workingset and performance.
-                        maxSize = maxTrueSize * 3;
-                    }
-                    else
-#endif
-                    {
-                        maxSize = maxTrueSize;
                     }
                 }
             }
         }
 
-        if (dwBuffer[1] == 'htuA') {
+        else if (dwBuffer[1] == 'htuA') {
             if (dwBuffer[3] == 'itne') {
                 if (dwBuffer[2] == 'DMAc') {
 
@@ -1968,8 +1729,8 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
                         DWORD dwL2CacheBits = dwBuffer[2];
                         DWORD dwL3CacheBits = dwBuffer[3];
 
-                        maxTrueSize = (size_t)((dwL2CacheBits >> 16) * 1024);    // L2 cache size in ECX bits 31-16
-								
+                        maxSize = (size_t)((dwL2CacheBits >> 16) * 1024);    // L2 cache size in ECX bits 31-16
+                                
                         getcpuid(0x1, buffer);
                         DWORD dwBaseFamily = (dwBuffer[0] & (0xF << 8)) >> 8;
                         DWORD dwExtFamily  = (dwBuffer[0] & (0xFF << 20)) >> 20;
@@ -2004,18 +1765,15 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
                                 // 45nm Greyhound parts (and future parts based on newer northbridge) benefit
                                 // from increased gen0 size, taking L3 into account
                                 getcpuid(0x80000008, buffer);
-                                DWORD dwNumberOfCores = (dwBuffer[2] & (0xFF)) + 1;	    // NC is in ECX bits 7-0
+                                DWORD dwNumberOfCores = (dwBuffer[2] & (0xFF)) + 1;     // NC is in ECX bits 7-0
 
                                 DWORD dwL3CacheSize = (size_t)((dwL3CacheBits >> 18) * 512 * 1024);  // L3 size in EDX bits 31-18 * 512KB
                                 // L3 is shared between cores
                                 dwL3CacheSize = dwL3CacheSize / dwNumberOfCores;
-                                maxTrueSize += dwL3CacheSize;       // due to exclusive caches, add L3 size (possibly zero) to L2
+                                maxSize += dwL3CacheSize;       // due to exclusive caches, add L3 size (possibly zero) to L2
                                                                     // L1 is too small to worry about, so ignore it
                             }
                         }
-
-
-                        maxSize = maxTrueSize;
                     }
                 }
             }
@@ -2025,11 +1783,46 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
     {
     }
     PAL_ENDTRY
-#else
+
+    return param.maxSize;
+}
+#endif // _TARGET_X86_
+
+// fix this if/when AMD does multicore or SMT
+size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
+{
+    // No CONTRACT possible because GetCacheSizePerLogicalCpu uses SEH
+
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+
+    static size_t maxSize;
+    static size_t maxTrueSize;
+
+    if (maxSize)
+    {
+        // maxSize and maxTrueSize cached
+        if (bTrueSize)
+        {
+            return maxTrueSize;
+        }
+        else
+        {
+            return maxSize;
+        }
+    }
+
+    // For x86, always get from cpuid.
+#if !defined (_TARGET_X86_)
     maxSize = maxTrueSize = GetLogicalProcessorCacheSizeFromOS() ; // Returns the size of the highest level processor cache
 #endif
 
-#if defined(_TARGET_ARM64_)
+#if defined (_TARGET_X86) || defined(_TARGET_AMD64_)
+    if (maxSize == 0)
+    {
+        maxSize = maxTrueSize = GetCacheSizeFromCpuId();
+    }
+#elif defined(_TARGET_ARM64_)
     // Bigger gen0 size helps arm64 targets
     maxSize = maxTrueSize * 3;
 #endif
@@ -2040,85 +1833,10 @@ size_t GetCacheSizePerLogicalCpu(BOOL bTrueSize)
     else
         return maxSize;
 }
-
-//---------------------------------------------------------------------
-
-#ifndef FEATURE_PAL
-ThreadLocaleHolder::~ThreadLocaleHolder()
-{
-    SetThreadLocale(m_locale);
-}
-
-HMODULE CLRGetModuleHandle(LPCWSTR lpModuleFileName)
-{
-    // Don't use dynamic contract: will override GetLastError value
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    HMODULE hMod = WszGetModuleHandle(lpModuleFileName);
-    return hMod;
-}
-
-
-HMODULE CLRGetCurrentModuleHandle()
-{
-    // Don't use dynamic contract: will override GetLastError value
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    HMODULE hMod = WszGetModuleHandle(NULL);
-    return hMod;
-}
-
-
-#endif // !FEATURE_PAL
-
-LPVOID EEHeapAllocInProcessHeap(DWORD dwFlags, SIZE_T dwBytes);
-BOOL EEHeapFreeInProcessHeap(DWORD dwFlags, LPVOID lpMem);
-void ShutdownRuntimeWithoutExiting(int exitCode);
-BOOL IsRuntimeStarted(DWORD *pdwStartupFlags);
-
-void *GetCLRFunction(LPCSTR FunctionName)
-{
-
-    void* func = NULL;
-    BEGIN_ENTRYPOINT_VOIDRET;
-
-    LIMITED_METHOD_CONTRACT;
-
-    if (strcmp(FunctionName, "EEHeapAllocInProcessHeap") == 0)
-    {
-        func = (void*)EEHeapAllocInProcessHeap;
-    }
-    else if (strcmp(FunctionName, "EEHeapFreeInProcessHeap") == 0)
-    {
-        func = (void*)EEHeapFreeInProcessHeap;
-    }
-    else if (strcmp(FunctionName, "ShutdownRuntimeWithoutExiting") == 0)
-    {
-        func = (void*)ShutdownRuntimeWithoutExiting;
-    }
-    else if (strcmp(FunctionName, "IsRuntimeStarted") == 0)
-    {
-        func = (void*)IsRuntimeStarted;
-    }
-    else {
-        _ASSERTE ("Unknown function name");
-        func = NULL;
-    }
-    END_ENTRYPOINT_VOIDRET;
-
-    return func;
-}
-
 #endif // CROSSGEN_COMPILE
 
 LPVOID
-CLRMapViewOfFileEx(
+CLRMapViewOfFile(
     IN HANDLE hFileMappingObject,
     IN DWORD dwDesiredAccess,
     IN DWORD dwFileOffsetHigh,
@@ -2178,20 +1896,6 @@ CLRMapViewOfFileEx(
     return pv;
 }
 
-LPVOID
-CLRMapViewOfFile(
-    IN HANDLE hFileMappingObject,
-    IN DWORD dwDesiredAccess,
-    IN DWORD dwFileOffsetHigh,
-    IN DWORD dwFileOffsetLow,
-    IN SIZE_T dwNumberOfBytesToMap
-    )
-{
-    WRAPPER_NO_CONTRACT;
-    return CLRMapViewOfFileEx(hFileMappingObject,dwDesiredAccess,dwFileOffsetHigh,dwFileOffsetLow,dwNumberOfBytesToMap,NULL);
-}
-
-
 BOOL
 CLRUnmapViewOfFile(
     IN LPVOID lpBaseAddress
@@ -2226,7 +1930,6 @@ static HMODULE CLRLoadLibraryWorker(LPCWSTR lpLibFileName, DWORD *pLastError)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     HMODULE hMod;
     UINT last = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
@@ -2249,12 +1952,7 @@ HMODULE CLRLoadLibrary(LPCWSTR lpLibFileName)
     DWORD dwLastError = 0;
     HMODULE hmod = 0;
 
-    // This method should be marked "throws" due to the probe here.
-    STATIC_CONTRACT_VIOLATION(ThrowsViolation);
-
-    BEGIN_SO_TOLERANT_CODE(GetThread());
     hmod = CLRLoadLibraryWorker(lpLibFileName, &dwLastError);
-    END_SO_TOLERANT_CODE;
 
     SetLastError(dwLastError);
     return hmod;
@@ -2269,7 +1967,6 @@ static HMODULE CLRLoadLibraryExWorker(LPCWSTR lpLibFileName, HANDLE hFile, DWORD
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     HMODULE hMod;
     UINT last = SetErrorMode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
@@ -2294,10 +1991,8 @@ HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags)
     DWORD lastError = ERROR_SUCCESS;
     HMODULE hmod = NULL;
 
-    BEGIN_SO_TOLERANT_CODE(GetThread());
     hmod = CLRLoadLibraryExWorker(lpLibFileName, hFile, dwFlags, &lastError);
-    END_SO_TOLERANT_CODE;
-   
+
     SetLastError(lastError);
     return hmod;
 }
@@ -2310,21 +2005,8 @@ BOOL CLRFreeLibrary(HMODULE hModule)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return FreeLibrary(hModule);
-}
-
-VOID CLRFreeLibraryAndExitThread(HMODULE hModule,DWORD dwExitCode)
-{
-    // Don't use dynamic contract: will override GetLastError value
-    STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
-
-    // This is no-return
-    FreeLibraryAndExitThread(hModule,dwExitCode);
 }
 
 #endif // CROSSGEN_COMPILE
@@ -2791,7 +2473,6 @@ void DACRaiseException(TADDR *args, UINT argCount)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_ANY;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     struct Param
     {
@@ -2817,7 +2498,6 @@ void DACNotifyExceptionHelper(TADDR *args, UINT argCount)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2876,7 +2556,6 @@ void DACNotify::DoJITNotification(MethodDesc *MethodDescPtr, TADDR NativeCodeLoc
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -2891,7 +2570,6 @@ void DACNotify::DoJITPitchingNotification(MethodDesc *MethodDescPtr)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -2909,7 +2587,6 @@ void DACNotify::DoModuleLoadNotification(Module *ModulePtr)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -2927,7 +2604,6 @@ void DACNotify::DoModuleUnloadNotification(Module *ModulePtr)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -2945,7 +2621,6 @@ void DACNotify::DoExceptionNotification(Thread* ThreadPtr)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
@@ -2963,14 +2638,13 @@ void DACNotify::DoGCNotification(const GcEvtArgs& args)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
 
     if (args.typ == GC_MARK_END)
     {
-        TADDR Args[3] = { GC_NOTIFICATION, (TADDR) args.typ, args.condemnedGeneration };
+        TADDR Args[3] = { GC_NOTIFICATION, (TADDR) args.typ, (TADDR) args.condemnedGeneration };
         DACNotifyExceptionHelper(Args, 3);
     }
 }
@@ -2981,7 +2655,6 @@ void DACNotify::DoExceptionCatcherEnterNotification(MethodDesc *MethodDescPtr, D
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -3116,134 +2789,6 @@ BOOL DACNotify::ParseExceptionCatcherEnterNotification(TADDR Args[], TADDR& Meth
     return TRUE;
 }
 
-
-#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
-
-
-#if defined(_DEBUG) && !defined(FEATURE_PAL)
-
-typedef USHORT
-(__stdcall *PFNRtlCaptureStackBackTrace)(
-    IN ULONG FramesToSkip,
-    IN ULONG FramesToCapture,
-    OUT PVOID * BackTrace,
-    OUT PULONG BackTraceHash);
-
-static PFNRtlCaptureStackBackTrace s_RtlCaptureStackBackTrace = NULL;
-
-WORD UtilCaptureStackBackTrace(
-    ULONG FramesToSkip,
-    ULONG FramesToCapture,
-    PVOID * BackTrace,
-    OUT PULONG BackTraceHash)
-{
-    WRAPPER_NO_CONTRACT;
-
-#ifdef _DEBUG
-    Thread* t = GetThread();
-    if (t != NULL) {
-        // the thread should not have a hijack set up or we can't walk the stack. 
-        _ASSERTE(!(t->m_State & Thread::TS_Hijacked));    
-    }
-#endif
-
-    if(!s_RtlCaptureStackBackTrace)
-    {
-        // Don't need to worry about race conditions here since it will be the same value
-        HMODULE hModNtdll = GetModuleHandleA("ntdll.dll");
-        s_RtlCaptureStackBackTrace = reinterpret_cast<PFNRtlCaptureStackBackTrace>(
-            GetProcAddress(hModNtdll, "RtlCaptureStackBackTrace"));
-    }
-    if (!s_RtlCaptureStackBackTrace) {
-        return 0;
-    }
-    ULONG hash;
-    if (BackTraceHash == NULL) {
-        BackTraceHash = &hash;
-    }
-    return s_RtlCaptureStackBackTrace(FramesToSkip, FramesToCapture, BackTrace, BackTraceHash);
-}
-
-#endif // #if _DEBUG && !FEATURE_PAL
-
-
-#ifdef _DEBUG
-DisableDelayLoadCheckForOleaut32::DisableDelayLoadCheckForOleaut32()
-{
-    GetThread()->SetThreadStateNC(Thread::TSNC_DisableOleaut32Check);
-}
-
-DisableDelayLoadCheckForOleaut32::~DisableDelayLoadCheckForOleaut32()
-{
-    GetThread()->ResetThreadStateNC(Thread::TSNC_DisableOleaut32Check);
-}
-
-BOOL DelayLoadOleaut32CheckDisabled()
-{
-    Thread *pThread = GetThread();
-    if (pThread && pThread->HasThreadStateNC(Thread::TSNC_DisableOleaut32Check))
-    {
-        return TRUE;
-    }
-
-    return FALSE;
-}
-#endif
-
-BOOL EnableARM()
-{
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    CONTRACTL
-    {
-        NOTHROW;
-        // TODO: this should really be GC_TRIGGERS so we wouldn't need the 
-        // CONTRACT_VIOLATION below but the hosting API that calls this
-        // can be called on a COOP thread and it has a GC_NOTRIGGER contract. 
-        // We should use the AD unload thread to call this function on.
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    BOOL fARMEnabled = g_fEnableARM;
-
-    if (!fARMEnabled)
-    {
-        if (ThreadStore::s_pThreadStore)
-        {
-            // We need to establish the baselines for the CPU usage counting.
-            Thread *pThread = NULL;
-            CONTRACT_VIOLATION(GCViolation);
-
-            // I am returning TRUE here so the caller will NOT enable
-            // ARM - if we can't take the thread store lock, something
-            // is already kind of messed up so no need to proceed with
-            // enabling ARM.
-            BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), return TRUE);
-            // Take the thread store lock while we enumerate threads.
-            ThreadStoreLockHolder tsl ;
-
-            while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
-            {
-                if (pThread->IsUnstarted() || pThread->IsDead())
-                    continue;
-                pThread->QueryThreadProcessorUsage();
-            }
-
-            END_SO_INTOLERANT_CODE;
-        }
-        g_fEnableARM = TRUE;
-    }
-
-    return fARMEnabled;
-#else // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    return FALSE;
-#endif // FEATURE_APPDOMAIN_RESOURCE_MONITORING
-}
-
-#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
-
-
 static BOOL TrustMeIAmSafe(void *pLock) 
 {
     LIMITED_METHOD_CONTRACT;
@@ -3252,10 +2797,8 @@ static BOOL TrustMeIAmSafe(void *pLock)
 
 LockOwner g_lockTrustMeIAmThreadSafe = { NULL, TrustMeIAmSafe };
 
-
-DangerousNonHostedSpinLock g_randomLock;
-CLRRandom g_random;
-
+static DangerousNonHostedSpinLock g_randomLock;
+static CLRRandom g_random;
 
 int GetRandomInt(int maxVal)
 {
@@ -3300,179 +2843,6 @@ int __cdecl stricmpUTF8(const char* szStr1, const char* szStr2)
 }
 
 #ifndef DACCESS_COMPILE
-//
-// Casing Table Helpers for use in the EE.
-//
-
-// // Convert szIn to lower case in the Invariant locale.
-INT32 InternalCasingHelper::InvariantToLower(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn)
-{
-    CONTRACTL {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-    } CONTRACTL_END
-
-    return InvariantToLowerHelper(szOut, cMaxBytes, szIn, TRUE /*fAllowThrow*/);
-}
-
-// Convert szIn to lower case in the Invariant locale.
-INT32 InternalCasingHelper::InvariantToLowerNoThrow(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        INJECT_FAULT(return 0;);
-    } CONTRACTL_END
-
-
-    return InvariantToLowerHelper(szOut, cMaxBytes, szIn, FALSE /*fAllowThrow*/);
-}
-
-// Convert szIn to lower case in the Invariant locale.
-INT32 InternalCasingHelper::InvariantToLowerHelper(__out_bcount_opt(cMaxBytes) LPUTF8 szOut, int cMaxBytes, __in_z LPCUTF8 szIn, BOOL fAllowThrow)
-{
-
-    CONTRACTL {
-        // This fcn can trigger a lazy load of the TextInfo class.
-        if (fAllowThrow) THROWS; else NOTHROW;
-        if (fAllowThrow) GC_TRIGGERS; else GC_NOTRIGGER;
-        if (fAllowThrow) {INJECT_FAULT(COMPlusThrowOM());} else {INJECT_FAULT(return 0);}
-        MODE_ANY;
-
-        PRECONDITION((cMaxBytes == 0) || CheckPointer(szOut));
-        PRECONDITION(CheckPointer(szIn));
-    } CONTRACTL_END
-
-    int inLength = (int)(strlen(szIn)+1);
-    INT32 result = 0;
-
-    LPCUTF8 szInSave = szIn;
-    LPUTF8 szOutSave = szOut;
-    BOOL bFoundHighChars=FALSE;
-    //Compute our end point.
-    LPCUTF8 szEnd;
-    INT32 wideCopyLen;
-
-    CQuickBytes qbOut;
-    LPWSTR szWideOut;
-
-    if (cMaxBytes != 0 && szOut == NULL) {
-        if (fAllowThrow) {
-            COMPlusThrowHR(ERROR_INVALID_PARAMETER);
-        }
-        SetLastError(ERROR_INVALID_PARAMETER);
-        result = 0;
-        goto Exit;
-    }
-
-    if (cMaxBytes) {
-        szEnd = szOut + min(inLength, cMaxBytes);
-        //Walk the string copying the characters.  Change the case on
-        //any character between A-Z.
-        for (; szOut<szEnd; szOut++, szIn++) {
-            if (*szIn>='A' && *szIn<='Z') {
-                *szOut = *szIn | 0x20;
-            }
-            else {
-                if (((UINT32)(*szIn))>((UINT32)0x80)) {
-                    bFoundHighChars = TRUE;
-                    break;
-                }
-                *szOut = *szIn;
-            }
-        }
-
-        if (!bFoundHighChars) {
-            //If we copied everything, tell them how many bytes we copied,
-            //and arrange it so that the original position of the string + the returned
-            //length gives us the position of the null (useful if we're appending).
-            if (--inLength > cMaxBytes) {
-                if (fAllowThrow) {
-                    COMPlusThrowHR(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER));
-                }
-                SetLastError(ERROR_INSUFFICIENT_BUFFER);
-                result = 0;
-                goto Exit;
-            }
-
-            result = inLength;
-            goto Exit;
-        }
-    }
-    else {
-        szEnd = szIn + inLength;
-        for (; szIn<szEnd; szIn++) {
-            if (((UINT32)(*szIn))>((UINT32)0x80)) {
-                bFoundHighChars = TRUE;
-                break;
-            }
-        }
-
-        if (!bFoundHighChars) {
-            result = inLength;
-            goto Exit;
-        }
-    }
-
-    szOut = szOutSave;
-
-#ifndef FEATURE_PAL
-   
-    //convert the UTF8 to Unicode
-    //MAKE_WIDEPTR_FROMUTF8(szInWide, szInSave);
-
-    int __lszInWide;
-    LPWSTR szInWide;
-    __lszInWide = WszMultiByteToWideChar(CP_UTF8, 0, szInSave, -1, 0, 0);
-    if (__lszInWide > MAKE_MAX_LENGTH)
-         RaiseException(EXCEPTION_INT_OVERFLOW, EXCEPTION_NONCONTINUABLE, 0, 0);
-    szInWide = (LPWSTR) alloca(__lszInWide*sizeof(WCHAR));
-    if (szInWide == NULL) {
-        if (fAllowThrow) {
-            COMPlusThrowOM();
-        } else {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            result = 0;
-            goto Exit;
-        }
-    }
-    if (0==WszMultiByteToWideChar(CP_UTF8, 0, szInSave, -1, szInWide, __lszInWide)) {
-        RaiseException(ERROR_NO_UNICODE_TRANSLATION, EXCEPTION_NONCONTINUABLE, 0, 0);
-    }
-
-
-    wideCopyLen = (INT32)wcslen(szInWide)+1;
-    if (fAllowThrow) {
-        szWideOut = (LPWSTR)qbOut.AllocThrows(wideCopyLen * sizeof(WCHAR));
-    }
-    else {
-        szWideOut = (LPWSTR)qbOut.AllocNoThrow(wideCopyLen * sizeof(WCHAR));
-        if (!szWideOut) {
-            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-            result = 0;
-            goto Exit;
-        }
-    }
-
-    //Do the casing operation
-    ::LCMapStringEx(W(""), LCMAP_LOWERCASE, szInWide, wideCopyLen, szWideOut, wideCopyLen, NULL, NULL, 0);
-
-    //Convert the Unicode back to UTF8
-    result = WszWideCharToMultiByte(CP_UTF8, 0, szWideOut, wideCopyLen, szOut, cMaxBytes, NULL, NULL);
-
-    if ((result == 0) && fAllowThrow) {
-        COMPlusThrowWin32();
-    }
-
-#endif // !FEATURE_PAL
-    
-Exit:
-    return result;
-}
-
 //
 //
 // COMCharacter and Helper functions

@@ -2,15 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
-using System;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using System.Security;
-using System.Collections.Generic;
-
 
 namespace System.Reflection
 {
@@ -41,19 +34,12 @@ namespace System.Reflection
             if (m_nativeLoaderAllocator == IntPtr.Zero)
                 return;
 
-            // Assemblies and LoaderAllocators will be cleaned up during AppDomain shutdown in
-            // unmanaged code
-            // So it is ok to skip reregistration and cleanup for finalization during shutdown.
-            // We also avoid early finalization of LoaderAllocatorScout due to AD unload when the object was inside DelayedFinalizationList.
-            if (!Environment.HasShutdownStarted)
+            // Destroy returns false if the managed LoaderAllocator is still alive.
+            if (!Destroy(m_nativeLoaderAllocator))
             {
-                // Destroy returns false if the managed LoaderAllocator is still alive.
-                if (!Destroy(m_nativeLoaderAllocator))
-                {
-                    // Somebody might have been holding a reference on us via weak handle.
-                    // We will keep trying. It will be hopefully released eventually.
-                    GC.ReRegisterForFinalize(this);
-                }
+                // Somebody might have been holding a reference on us via weak handle.
+                // We will keep trying. It will be hopefully released eventually.
+                GC.ReRegisterForFinalize(this);
             }
         }
     }

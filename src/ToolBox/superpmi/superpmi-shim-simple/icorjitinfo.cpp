@@ -692,6 +692,12 @@ CORINFO_CLASS_HANDLE interceptor_ICJI::mergeClasses(CORINFO_CLASS_HANDLE cls1, C
     return original_ICorJitInfo->mergeClasses(cls1, cls2);
 }
 
+// Returns true if cls2 is known to be a more specific type than cls1.
+BOOL interceptor_ICJI::isMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    return original_ICorJitInfo->isMoreSpecificType(cls1, cls2);
+}
+
 // Given a class handle, returns the Parent type.
 // For COMObjectType, it returns Class Handle of System.Object.
 // Returns 0 if System.Object is passed in.
@@ -1491,20 +1497,20 @@ void interceptor_ICJI::reportFatalError(CorJitResult result)
 
 // allocate a basic block profile buffer where execution counts will be stored
 // for jitted basic blocks.
-HRESULT interceptor_ICJI::allocBBProfileBuffer(ULONG           count, // The number of basic blocks that we have
-                                               ProfileBuffer** profileBuffer)
+HRESULT interceptor_ICJI::allocMethodBlockCounts(UINT32          count, // The number of basic blocks that we have
+                                                 BlockCounts**   pBlockCounts)
 {
-    return original_ICorJitInfo->allocBBProfileBuffer(count, profileBuffer);
+    return original_ICorJitInfo->allocMethodBlockCounts(count, pBlockCounts);
 }
 
 // get profile information to be used for optimizing the current method.  The format
-// of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-HRESULT interceptor_ICJI::getBBProfileData(CORINFO_METHOD_HANDLE ftnHnd,
-                                           ULONG*                count, // The number of basic blocks that we have
-                                           ProfileBuffer**       profileBuffer,
-                                           ULONG*                numRuns)
+// of the buffer is the same as the format the JIT passes to allocMethodBlockCounts.
+HRESULT interceptor_ICJI::getMethodBlockCounts(CORINFO_METHOD_HANDLE ftnHnd,
+                                               UINT32 *              pCount, // The number of basic blocks that we have
+                                               BlockCounts**         pBlockCounts,
+                                               UINT32 *              pNumRuns)
 {
-    return original_ICorJitInfo->getBBProfileData(ftnHnd, count, profileBuffer, numRuns);
+    return original_ICorJitInfo->getMethodBlockCounts(ftnHnd, pCount, pBlockCounts, pNumRuns);
 }
 
 // Associates a native call site, identified by its offset in the native code stream, with

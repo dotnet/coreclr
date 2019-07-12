@@ -76,6 +76,8 @@ public:
     // Gets the amount of bytes objects currently occupy on the GC heap.
     size_t  GetCurrentObjSize();
 
+    uint64_t GetTotalAllocatedBytes();
+
     size_t  GetLastGCStartTime(int generation);
     size_t  GetLastGCDuration(int generation);
     size_t  GetNow();
@@ -199,8 +201,6 @@ public:
 
     size_t GetValidSegmentSize(bool large_seg = false);
 
-    static size_t GetValidGen0MaxSize(size_t seg_size);
-
     void SetReservedVMLimit (size_t vmlimit);
 
     PER_HEAP_ISOLATED Object* GetNextFinalizableObject();
@@ -208,10 +208,10 @@ public:
     PER_HEAP_ISOLATED size_t GetFinalizablePromotedCount();
 
     void SetFinalizeQueueForShutdown(bool fHasLock);
-    bool FinalizeAppDomain(void *pDomain, bool fRunFinalizers);
     bool ShouldRestartFinalizerWatchDog();
 
     void DiagWalkObject (Object* obj, walk_fn fn, void* context);
+    void DiagWalkObject2 (Object* obj, walk_fn2 fn, void* context);
     void SetFinalizeRunOnShutdown(bool value);
 
 public:	// FIX 
@@ -238,6 +238,7 @@ public:	// FIX
     // frozen segment management functions
     virtual segment_handle RegisterFrozenSegment(segment_info *pseginfo);
     virtual void UnregisterFrozenSegment(segment_handle seg);
+    virtual bool IsInFrozenSegment(Object *object);
 
     // Event control functions
     void ControlEvents(GCEventKeyword keyword, GCEventLevel level);
@@ -305,9 +306,10 @@ protected:
 
 public:
     Object * NextObj (Object * object);
-#if defined (FEATURE_BASICFREEZE) && defined (VERIFY_HEAP)
-    BOOL IsInFrozenSegment (Object * object);
-#endif // defined (FEATURE_BASICFREEZE) && defined (VERIFY_HEAP)
+
+    int GetLastGCPercentTimeInGC();
+
+    size_t GetLastGCGenerationSize(int gen);
 };
 
 #endif  // GCIMPL_H_

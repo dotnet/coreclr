@@ -194,6 +194,15 @@ function_name() to call the system's implementation
 #define isupper DUMMY_isupper
 #define isprint DUMMY_isprint
 #define isdigit DUMMY_isdigit
+#define iswalpha DUMMY_iswalpha
+#define iswdigit DUMMY_iswdigit
+#define iswupper DUMMY_iswupper
+#define towupper DUMMY_towupper
+#define towlower DUMMY_towlower
+#define iswprint DUMMY_iswprint
+#define iswspace DUMMY_iswspace
+#define iswxdigit DUMMY_iswxdigit
+#define wint_t DUMMY_wint_t
 #define srand DUMMY_srand
 #define atoi DUMMY_atoi
 #define atof DUMMY_atof
@@ -396,6 +405,12 @@ function_name() to call the system's implementation
 #undef isxdigit
 #undef isalpha
 #undef isalnum
+#undef iswalpha
+#undef iswdigit
+#undef iswupper
+#undef towupper
+#undef towlower
+#undef wint_t
 #undef atoi
 #undef atol
 #undef atof
@@ -745,7 +760,7 @@ inline T* InterlockedCompareExchangePointerT(
 
 #include "volatile.h"
 
-const char StackOverflowMessage[] = "Process is terminating due to StackOverflowException.\n";
+const char StackOverflowMessage[] = "Stack overflow.\n";
 
 #endif // __cplusplus
 

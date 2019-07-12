@@ -281,11 +281,6 @@ void ZapImage::OutputCode(CodeType codeType)
                     if (!pTarget->IsPlaced())
                         m_pImportTable->PlaceIndirectHelperThunk(pTarget);
                     break;
-
-                case ZapNodeType_RVAFieldData:
-                    if (!pTarget->IsPlaced())
-                        m_pReadOnlyDataSection->Place(pTarget);
-                    break;
 #endif
 
                 case ZapNodeType_GenericSignature:
@@ -1788,7 +1783,7 @@ DWORD ZapLazyHelperThunk::SaveWorker(ZapWriter * pZapWriter)
     PORTABILITY_ASSERT("ZapLazyHelperThunk::Save");
 #endif
 
-    _ASSERTE(p - buffer <= sizeof(buffer));
+    _ASSERTE((DWORD)(p - buffer) <= sizeof(buffer));
 
     if (pZapWriter != NULL)
         pZapWriter->Write(&buffer, (int)(p - buffer));

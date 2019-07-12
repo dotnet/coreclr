@@ -189,30 +189,34 @@ GetExceptionMask()
     }
 
     exception_mask_t machExceptionMask = 0;
-    if (!(exMode & MachException_SuppressIllegal))
+
+    if (s_PalInitializeFlags & PAL_INITIALIZE_REGISTER_SIGNALS)
     {
-        machExceptionMask |= PAL_EXC_ILLEGAL_MASK;
-    }
-    if (!(exMode & MachException_SuppressDebugging) && (s_PalInitializeFlags & PAL_INITIALIZE_DEBUGGER_EXCEPTIONS))
-    {
-#ifdef FEATURE_PAL_SXS
-        // Always hook exception ports for breakpoint exceptions.
-        // The reason is that we don't know when a managed debugger
-        // will attach, so we have to be prepared.  We don't want
-        // to later go through the thread list and hook exception
-        // ports for exactly those threads that currently are in
-        // this PAL.
-        machExceptionMask |= PAL_EXC_DEBUGGING_MASK;
-#else // FEATURE_PAL_SXS
-        if (s_DebugInitialized)
+        if (!(exMode & MachException_SuppressIllegal))
         {
-            machExceptionMask |= PAL_EXC_DEBUGGING_MASK;
+            machExceptionMask |= PAL_EXC_ILLEGAL_MASK;
         }
+        if (!(exMode & MachException_SuppressDebugging) && (s_PalInitializeFlags & PAL_INITIALIZE_DEBUGGER_EXCEPTIONS))
+        {
+#ifdef FEATURE_PAL_SXS
+            // Always hook exception ports for breakpoint exceptions.
+            // The reason is that we don't know when a managed debugger
+            // will attach, so we have to be prepared.  We don't want
+            // to later go through the thread list and hook exception
+            // ports for exactly those threads that currently are in
+            // this PAL.
+            machExceptionMask |= PAL_EXC_DEBUGGING_MASK;
+#else // FEATURE_PAL_SXS
+            if (s_DebugInitialized)
+            {
+                machExceptionMask |= PAL_EXC_DEBUGGING_MASK;
+            }
 #endif // FEATURE_PAL_SXS
-    }
-    if (!(exMode & MachException_SuppressManaged))
-    {
-        machExceptionMask |= PAL_EXC_MANAGED_MASK;
+        }
+        if (!(exMode & MachException_SuppressManaged))
+        {
+            machExceptionMask |= PAL_EXC_MANAGED_MASK;
+        }
     }
 
     return machExceptionMask;
@@ -1013,10 +1017,10 @@ Parameters:
     thread - mach thread port
 
 Return value :
-    None
+    KERN_SUCCESS if the suspend succeeded, other code in case of failure
 --*/
 static
-void
+kern_return_t
 SuspendMachThread(thread_act_t thread)
 {
     kern_return_t machret;
@@ -1024,7 +1028,10 @@ SuspendMachThread(thread_act_t thread)
     while (true)
     {
         machret = thread_suspend(thread);
-        CHECK_MACH("thread_suspend", machret);
+        if (machret != KERN_SUCCESS)
+        {
+            break;
+        }
 
         // Ensure that if the thread was running in the kernel, the kernel operation
         // is safely aborted so that it can be restarted later.
@@ -1037,8 +1044,13 @@ SuspendMachThread(thread_act_t thread)
         // The thread was running in the kernel executing a non-atomic operation
         // that cannot be restarted, so we need to resume the thread and retry
         machret = thread_resume(thread);
-        CHECK_MACH("thread_resume", machret);
+        if (machret != KERN_SUCCESS)
+        {
+            break;
+        }
     }
+
+    return machret;
 }
 
 /*++
@@ -1099,7 +1111,8 @@ SEHExceptionThread(void *args)
             thread = sMessage.GetThreadContext(&sContext);
 
             // Suspend the target thread
-            SuspendMachThread(thread);
+            machret = SuspendMachThread(thread);
+            CHECK_MACH("SuspendMachThread", machret);
             
             machret = CONTEXT_SetThreadContextOnPort(thread, &sContext);
             CHECK_MACH("CONTEXT_SetThreadContextOnPort", machret);
@@ -1216,7 +1229,8 @@ SEHExceptionThread(void *args)
             NONPAL_TRACE("ForwardExceptionRequest for thread %08x\n", thread);
 
             // Suspend the faulting thread. 
-            SuspendMachThread(thread);
+            machret = SuspendMachThread(thread);
+            CHECK_MACH("SuspendMachThread", machret);
 
             // Set the context back to the original faulting state.
             MachExceptionInfo *pExceptionInfo = sMessage.GetExceptionInfo();
@@ -1373,70 +1387,73 @@ SEHInitializeMachExceptions(DWORD flags)
 
     s_PalInitializeFlags = flags;
 
-    // Allocate a mach port that will listen in on exceptions
-    machret = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &s_ExceptionPort);
-    if (machret != KERN_SUCCESS)
+    if (flags & PAL_INITIALIZE_REGISTER_SIGNALS)
     {
-        ASSERT("mach_port_allocate failed: %d\n", machret);
-        UTIL_SetLastErrorFromMach(machret);
-        return FALSE;
-    }
+        // Allocate a mach port that will listen in on exceptions
+        machret = mach_port_allocate(mach_task_self(), MACH_PORT_RIGHT_RECEIVE, &s_ExceptionPort);
+        if (machret != KERN_SUCCESS)
+        {
+            ASSERT("mach_port_allocate failed: %d\n", machret);
+            UTIL_SetLastErrorFromMach(machret);
+            return FALSE;
+        }
 
-    // Insert the send right into the task
-    machret = mach_port_insert_right(mach_task_self(), s_ExceptionPort, s_ExceptionPort, MACH_MSG_TYPE_MAKE_SEND);
-    if (machret != KERN_SUCCESS)
-    {
-        ASSERT("mach_port_insert_right failed: %d\n", machret);
-        UTIL_SetLastErrorFromMach(machret);
-        return FALSE;
-    }
+        // Insert the send right into the task
+        machret = mach_port_insert_right(mach_task_self(), s_ExceptionPort, s_ExceptionPort, MACH_MSG_TYPE_MAKE_SEND);
+        if (machret != KERN_SUCCESS)
+        {
+            ASSERT("mach_port_insert_right failed: %d\n", machret);
+            UTIL_SetLastErrorFromMach(machret);
+            return FALSE;
+        }
 
-    // Create the thread that will listen to the exception for all threads
-    int createret = pthread_create(&exception_thread, NULL, SEHExceptionThread, NULL);
-    if (createret != 0)
-    {
-        ERROR("pthread_create failed, error is %d (%s)\n", createret, strerror(createret));
-        SetLastError(ERROR_NOT_ENOUGH_MEMORY);
-        return FALSE;
-    }
+        // Create the thread that will listen to the exception for all threads
+        int createret = pthread_create(&exception_thread, NULL, SEHExceptionThread, NULL);
+        if (createret != 0)
+        {
+            ERROR("pthread_create failed, error is %d (%s)\n", createret, strerror(createret));
+            SetLastError(ERROR_NOT_ENOUGH_MEMORY);
+            return FALSE;
+        }
 
 #ifdef _DEBUG
-    if (NONPAL_TRACE_ENABLED)
-    {
-        CThreadMachExceptionHandlers taskHandlers;
-        machret = task_get_exception_ports(mach_task_self(),
-            PAL_EXC_ALL_MASK,
-            taskHandlers.m_masks,
-            &taskHandlers.m_nPorts,
-            taskHandlers.m_handlers,
-            taskHandlers.m_behaviors,
-            taskHandlers.m_flavors);
-
-        if (machret == KERN_SUCCESS)
+        if (NONPAL_TRACE_ENABLED)
         {
-            NONPAL_TRACE("SEHInitializeMachExceptions: TASK PORT count %d\n", taskHandlers.m_nPorts);
-            for (mach_msg_type_number_t i = 0; i < taskHandlers.m_nPorts; i++)
+            CThreadMachExceptionHandlers taskHandlers;
+            machret = task_get_exception_ports(mach_task_self(),
+                PAL_EXC_ALL_MASK,
+                taskHandlers.m_masks,
+                &taskHandlers.m_nPorts,
+                taskHandlers.m_handlers,
+                taskHandlers.m_behaviors,
+                taskHandlers.m_flavors);
+
+            if (machret == KERN_SUCCESS)
             {
-                NONPAL_TRACE("SEHInitializeMachExceptions: TASK PORT mask %08x handler: %08x behavior %08x flavor %u\n",
-                    taskHandlers.m_masks[i],
-                    taskHandlers.m_handlers[i],
-                    taskHandlers.m_behaviors[i],
-                    taskHandlers.m_flavors[i]);
+                NONPAL_TRACE("SEHInitializeMachExceptions: TASK PORT count %d\n", taskHandlers.m_nPorts);
+                for (mach_msg_type_number_t i = 0; i < taskHandlers.m_nPorts; i++)
+                {
+                    NONPAL_TRACE("SEHInitializeMachExceptions: TASK PORT mask %08x handler: %08x behavior %08x flavor %u\n",
+                        taskHandlers.m_masks[i],
+                        taskHandlers.m_handlers[i],
+                        taskHandlers.m_behaviors[i],
+                        taskHandlers.m_flavors[i]);
+                }
+            }
+            else
+            {
+                NONPAL_TRACE("SEHInitializeMachExceptions: task_get_exception_ports FAILED %d %s\n", machret, mach_error_string(machret));
             }
         }
-        else
-        {
-            NONPAL_TRACE("SEHInitializeMachExceptions: task_get_exception_ports FAILED %d %s\n", machret, mach_error_string(machret));
-        }
-    }
 #endif // _DEBUG
 
 #ifndef FEATURE_PAL_SXS
-    if (!SEHEnableMachExceptions())
-    {
-        return FALSE;
-    }
+        if (!SEHEnableMachExceptions())
+        {
+            return FALSE;
+        }
 #endif // !FEATURE_PAL_SXS
+    }
 
     // Tell the system to ignore SIGPIPE signals rather than use the default
     // behavior of terminating the process. Ignoring SIGPIPE will cause
@@ -1538,7 +1555,8 @@ InjectActivationInternal(CPalThread* pThread)
     PAL_ERROR palError;
 
     mach_port_t threadPort = pThread->GetMachPortSelf();
-    kern_return_t MachRet = thread_suspend(threadPort);
+
+    kern_return_t MachRet = SuspendMachThread(threadPort);
     palError = (MachRet == KERN_SUCCESS) ? NO_ERROR : ERROR_GEN_FAILURE;
 
     if (palError == NO_ERROR)

@@ -95,7 +95,7 @@ inline void ErectWriteBarrier(Object ** dst, Object * ref)
         return;
         
     // volatile is used here to prevent fetch of g_card_table from being reordered 
-    // with g_lowest/highest_address check above. See comment in code:gc_heap::grow_brick_card_tables.
+    // with g_lowest/highest_address check above. See comments in StompWriteBarrier
     uint8_t* pCardByte = (uint8_t *)*(volatile uint8_t **)(&g_gc_card_table) + card_byte((uint8_t *)dst);
     if(*pCardByte != 0xFF)
         *pCardByte = 0xFF;
@@ -118,14 +118,6 @@ int __cdecl main(int argc, char* argv[])
     {
         return -1;
     }
-
-    // 
-    // Initialize free object methodtable. The GC uses a special array-like methodtable as placeholder
-    // for collected free space.
-    //
-    static MethodTable freeObjectMT;
-    freeObjectMT.InitializeFreeObject();
-    g_gc_pFreeObjectMethodTable = &freeObjectMT;
 
     //
     // Initialize GC heap

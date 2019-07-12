@@ -1658,7 +1658,7 @@ void Interpreter::JitMethodIfAppropriate(InterpreterMethodInfo* interpMethInfo, 
                                                     &status);
             }
             // This used to be a synchronous jit and could be made so again if desired,
-            // but using ASP.Net MusicStore as an example scenario the performance is
+            // but using ASP .NET MusicStore as an example scenario the performance is
             // better doing the JIT asynchronously. Given the not-on-by-default nature of the
             // interpreter I didn't wring my hands too much trying to determine the ideal
             // policy.
@@ -1774,8 +1774,6 @@ static void MonitorExit(Object* obj, BYTE* pbLockTaken)
         COMPlusThrow(kSynchronizationLockException);
 
     if (pbLockTaken != 0) *pbLockTaken = 0;
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -1794,7 +1792,6 @@ static void MonitorExitStatic(AwareLock *lock, BYTE* pbLockTaken)
     if (!lock->Leave())
         COMPlusThrow(kSynchronizationLockException);
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(GET_THREAD()->GetDomain()->GetId().m_dwId,FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -3286,7 +3283,6 @@ void Interpreter::EndFilter()
 bool Interpreter::MethodHandlesException(OBJECTREF orThrowable)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -3538,7 +3534,6 @@ void Interpreter::BackwardsBranchActions(int offset)
 bool Interpreter::SearchForCoveringFinally()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
@@ -4055,7 +4050,6 @@ bool CorInfoTypeIsPointer(CorInfoType cit)
 void Interpreter::LdArg(int argNum)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -4067,7 +4061,6 @@ void Interpreter::LdArg(int argNum)
 void Interpreter::LdArgA(int argNum)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4081,7 +4074,6 @@ void Interpreter::LdArgA(int argNum)
 void Interpreter::StArg(int argNum)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -4094,7 +4086,6 @@ void Interpreter::StArg(int argNum)
 void Interpreter::LdLocA(int locNum)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4121,7 +4112,6 @@ void Interpreter::LdLocA(int locNum)
 void Interpreter::LdIcon(INT32 c)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4135,7 +4125,6 @@ void Interpreter::LdIcon(INT32 c)
 void Interpreter::LdR4con(INT32 c)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4149,7 +4138,6 @@ void Interpreter::LdR4con(INT32 c)
 void Interpreter::LdLcon(INT64 c)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4163,7 +4151,6 @@ void Interpreter::LdLcon(INT64 c)
 void Interpreter::LdR8con(INT64 c)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4177,7 +4164,6 @@ void Interpreter::LdR8con(INT64 c)
 void Interpreter::LdNull()
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -4255,7 +4241,7 @@ void Interpreter::StInd_Ref()
     OBJECTREF val = ObjectToOBJECTREF(OpStackGet<Object*>(stackInd1));
     OBJECTREF* ptr = OpStackGet<OBJECTREF*>(stackInd0);
     ThrowOnInvalidPointer(ptr);
-    SetObjectReferenceUnchecked(ptr, val);
+    SetObjectReference(ptr, val);
     m_curStackHt -= 2;
 
 #if INTERP_TRACING
@@ -4272,7 +4258,6 @@ template<int op>
 void Interpreter::BinaryArithOp()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -4531,7 +4516,6 @@ template<int op, bool asUnsigned>
 void Interpreter::BinaryArithOvfOp()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -4746,7 +4730,6 @@ template<int op, typename T, CorInfoType cit, bool TypeIsUnchanged>
 void Interpreter::BinaryArithOvfOpWork(T val1, T val2)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -4789,7 +4772,6 @@ template<int op>
 void Interpreter::BinaryIntOp()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -4939,7 +4921,6 @@ template<int op>
 void Interpreter::ShiftOp()
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -5032,7 +5013,6 @@ void Interpreter::ShiftOpWork(unsigned op1idx, CorInfoType cit2)
 void Interpreter::Neg()
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -5075,7 +5055,6 @@ void Interpreter::Neg()
 void Interpreter::Not()
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -5111,7 +5090,6 @@ template<typename T, bool TIsUnsigned, bool TCanHoldPtr, bool TIsShort, CorInfoT
 void Interpreter::Conv()
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -5199,7 +5177,6 @@ void Interpreter::Conv()
 void Interpreter::ConvRUn()
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -5240,7 +5217,6 @@ template<typename T, INT64 TMin, UINT64 TMax, bool TCanHoldPtr, CorInfoType cit>
 void Interpreter::ConvOvf()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5337,7 +5313,6 @@ template<typename T, INT64 TMin, UINT64 TMax, bool TCanHoldPtr, CorInfoType cit>
 void Interpreter::ConvOvfUn()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5433,7 +5408,6 @@ void Interpreter::ConvOvfUn()
 void Interpreter::LdObj()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5479,7 +5453,6 @@ void Interpreter::LdObj()
 void Interpreter::LdObjValueClassWork(CORINFO_CLASS_HANDLE valueClsHnd, unsigned ind, void* src)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5510,7 +5483,6 @@ void Interpreter::LdObjValueClassWork(CORINFO_CLASS_HANDLE valueClsHnd, unsigned
 CORINFO_CLASS_HANDLE Interpreter::GetTypeFromToken(BYTE* codePtr, CorInfoTokenKind tokKind  InterpTracingArg(ResolveTokenKind rtk))
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5535,7 +5507,6 @@ bool Interpreter::IsValidPointerType(CorInfoType cit)
 void Interpreter::CpObj()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5581,7 +5552,7 @@ void Interpreter::CpObj()
     else
     {
         OBJECTREF val = *reinterpret_cast<OBJECTREF*>(src);
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dest), val);
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dest), val);
     }
     m_curStackHt -= 2;
     m_ILCodePtr += 5;
@@ -5590,7 +5561,6 @@ void Interpreter::CpObj()
 void Interpreter::StObj()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5702,7 +5672,7 @@ void Interpreter::StObj()
         GCX_FORBID();
 
         OBJECTREF val = ObjectToOBJECTREF(OpStackGet<Object*>(valInd));
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dest), val);
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dest), val);
     }
 
     m_curStackHt -= 2;
@@ -5714,7 +5684,6 @@ void Interpreter::StObj()
 void Interpreter::InitObj()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5758,7 +5727,7 @@ void Interpreter::InitObj()
     else
     {
         // The ostack entry is an object reference.
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dest), NULL);
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dest), NULL);
     }
     m_curStackHt -= 1;
     m_ILCodePtr += 6;
@@ -5767,7 +5736,6 @@ void Interpreter::InitObj()
 void Interpreter::LdStr()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -5787,14 +5755,12 @@ void Interpreter::NewObj()
 {
 #if INTERP_DYNAMIC_CONTRACTS
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 #else
     // Dynamic contract occupies too much stack.
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
@@ -5968,7 +5934,6 @@ void Interpreter::NewObj()
 void Interpreter::NewArr()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6027,7 +5992,7 @@ void Interpreter::NewArr()
         pArrayMT->CheckRunClassInitThrowing();
 
         INT32 size32 = (INT32)sz;
-        Object* newarray = OBJECTREFToObject(AllocateArrayEx(pArrayMT, &size32, 1));
+        Object* newarray = OBJECTREFToObject(AllocateSzArray(pArrayMT, size32));
 
         GCX_FORBID();
         OpStackTypeSet(stkInd, InterpreterType(CORINFO_TYPE_CLASS));
@@ -6040,7 +6005,6 @@ void Interpreter::NewArr()
 void Interpreter::IsInst()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6074,7 +6038,6 @@ void Interpreter::IsInst()
 void Interpreter::CastClass()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6111,7 +6074,6 @@ void Interpreter::CastClass()
 void Interpreter::LocAlloc()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6153,7 +6115,6 @@ void Interpreter::LocAlloc()
 void Interpreter::MkRefany()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6198,7 +6159,6 @@ void Interpreter::MkRefany()
 void Interpreter::RefanyType()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6248,7 +6208,6 @@ OBJECTREF Interpreter::TypeHandleToTypeRef(TypeHandle* pth)
 CorInfoType Interpreter::GetTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6262,7 +6221,6 @@ CorInfoType Interpreter::GetTypeForPrimitiveValueClass(CORINFO_CLASS_HANDLE clsH
 void Interpreter::RefanyVal()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6294,7 +6252,6 @@ void Interpreter::RefanyVal()
 void Interpreter::CkFinite()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6326,7 +6283,6 @@ void Interpreter::CkFinite()
 void Interpreter::LdToken()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6378,7 +6334,6 @@ void Interpreter::LdToken()
 void Interpreter::LdFtn()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6424,7 +6379,6 @@ void Interpreter::LdFtn()
 void Interpreter::LdVirtFtn()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6483,7 +6437,6 @@ void Interpreter::LdVirtFtn()
 void Interpreter::Sizeof()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6648,7 +6601,6 @@ template<int op>
 void Interpreter::CompareOp()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -6666,7 +6618,6 @@ template<int op>
 INT32 Interpreter::CompareOpRes(unsigned op1idx)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7154,7 +7105,6 @@ template<int compOp, bool reverse, int targetLen>
 void Interpreter::BrOnComparison()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7200,7 +7150,6 @@ void Interpreter::BrOnComparison()
 void Interpreter::LdFld(FieldDesc* fldIn)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7279,7 +7228,7 @@ void Interpreter::LdFld(FieldDesc* fldIn)
                 // Large struct case: allocate space on the large struct operand stack.
                 void* destPtr = LargeStructOperandStackPush(sz);
                 OpStackSet<void*>(stackInd, destPtr);
-                CopyValueClass(destPtr, srcPtr, valClsMT, obj->GetAppDomain());
+                CopyValueClass(destPtr, srcPtr, valClsMT);
             }
             else
             {
@@ -7432,7 +7381,6 @@ void Interpreter::LdFld(FieldDesc* fldIn)
 void Interpreter::LdFldA()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7485,7 +7433,6 @@ void Interpreter::LdFldA()
 void Interpreter::StFld()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7615,7 +7562,7 @@ void Interpreter::StFld()
         else if (valCit == CORINFO_TYPE_CLASS)
         {
             OBJECTREF val = ObjectToOBJECTREF(OpStackGet<Object*>(valInd));
-            SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(destPtr), val);
+            SetObjectReference(reinterpret_cast<OBJECTREF*>(destPtr), val);
         }
         else
         {
@@ -7642,7 +7589,6 @@ void Interpreter::StFld()
 bool Interpreter::StaticFldAddrWork(CORINFO_ACCESS_FLAGS accessFlgs, /*out (byref)*/void** pStaticFieldAddr, /*out*/InterpreterType* pit, /*out*/UINT* pFldSize, /*out*/bool* pManagedMem)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7713,7 +7659,6 @@ bool Interpreter::StaticFldAddrWork(CORINFO_ACCESS_FLAGS accessFlgs, /*out (byre
 void Interpreter::LdSFld()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7817,7 +7762,6 @@ void Interpreter::EnsureClassInit(MethodTable* pMT)
 void Interpreter::LdSFldA()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7850,7 +7794,6 @@ void Interpreter::LdSFldA()
 void Interpreter::StSFld()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7885,7 +7828,7 @@ void Interpreter::StSFld()
     }
     else if (valCit == CORINFO_TYPE_CLASS)
     {
-        SetObjectReferenceUnchecked(reinterpret_cast<OBJECTREF*>(dstPtr), ObjectToOBJECTREF(OpStackGet<Object*>(m_curStackHt)));
+        SetObjectReference(reinterpret_cast<OBJECTREF*>(dstPtr), ObjectToOBJECTREF(OpStackGet<Object*>(m_curStackHt)));
     }
     else
     {
@@ -7917,7 +7860,6 @@ template<typename T, bool IsObjType, CorInfoType cit>
 void Interpreter::LdElemWithType()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -7989,7 +7931,6 @@ template<typename T, bool IsObjType>
 void Interpreter::StElemWithType()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8069,7 +8010,6 @@ template<bool takeAddress>
 void Interpreter::LdElem()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8195,7 +8135,6 @@ void Interpreter::LdElem()
 void Interpreter::StElem()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8337,7 +8276,6 @@ void Interpreter::StElem()
 void Interpreter::InitBlk()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8388,7 +8326,6 @@ void Interpreter::InitBlk()
 void Interpreter::CpBlk()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8446,7 +8383,6 @@ void Interpreter::CpBlk()
 void Interpreter::Box()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8514,7 +8450,6 @@ void Interpreter::Box()
 void Interpreter::BoxStructRefAt(unsigned ind, CORINFO_CLASS_HANDLE valCls)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8551,7 +8486,6 @@ void Interpreter::BoxStructRefAt(unsigned ind, CORINFO_CLASS_HANDLE valCls)
 void Interpreter::Unbox()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8646,7 +8580,6 @@ void Interpreter::Unbox()
 void Interpreter::Throw()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8683,7 +8616,6 @@ void Interpreter::Throw()
 void Interpreter::Rethrow()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8696,7 +8628,6 @@ void Interpreter::Rethrow()
 void Interpreter::UnboxAny()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8823,7 +8754,6 @@ void Interpreter::UnboxAny()
 void Interpreter::LdLen()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -8852,14 +8782,12 @@ void Interpreter::DoCall(bool virtualCall)
 {
 #if INTERP_DYNAMIC_CONTRACTS
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 #else
     // Dynamic contract occupies too much stack.
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
@@ -8915,14 +8843,12 @@ void Interpreter::DoCallWork(bool virtualCall, void* thisArg, CORINFO_RESOLVED_T
 {
 #if INTERP_DYNAMIC_CONTRACTS
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 #else
     // Dynamic contract occupies too much stack.
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
@@ -10020,14 +9946,12 @@ void Interpreter::CallI()
 {
 #if INTERP_DYNAMIC_CONTRACTS
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
     } CONTRACTL_END;
 #else
     // Dynamic contract occupies too much stack.
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_COOPERATIVE;
@@ -10418,7 +10342,6 @@ void Interpreter::CallI()
 bool Interpreter::IsDeadSimpleGetter(CEEInfo* info, MethodDesc* pMD, size_t* offsetOfLd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
@@ -10492,7 +10415,6 @@ bool Interpreter::IsDeadSimpleGetter(CEEInfo* info, MethodDesc* pMD, size_t* off
 void Interpreter::DoStringLength()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10532,7 +10454,6 @@ void Interpreter::DoStringLength()
 void Interpreter::DoStringGetChar()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10593,7 +10514,6 @@ void Interpreter::DoStringGetChar()
 void Interpreter::DoGetTypeFromHandle()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10621,7 +10541,6 @@ void Interpreter::DoGetTypeFromHandle()
 void Interpreter::DoByReferenceCtor()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10657,7 +10576,6 @@ void Interpreter::DoByReferenceCtor()
 void Interpreter::DoByReferenceValue()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10691,7 +10609,6 @@ void Interpreter::DoByReferenceValue()
 void Interpreter::DoSIMDHwAccelerated()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10710,7 +10627,6 @@ void Interpreter::DoSIMDHwAccelerated()
 void Interpreter::RecordConstrainedCall()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10795,7 +10711,6 @@ void Interpreter::VerificationError(const char* msg)
 void Interpreter::ThrowDivideByZero()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10807,7 +10722,6 @@ void Interpreter::ThrowDivideByZero()
 void Interpreter::ThrowSysArithException()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10821,7 +10735,6 @@ void Interpreter::ThrowSysArithException()
 void Interpreter::ThrowNullPointerException()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10833,7 +10746,6 @@ void Interpreter::ThrowNullPointerException()
 void Interpreter::ThrowOverflowException()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10845,7 +10757,6 @@ void Interpreter::ThrowOverflowException()
 void Interpreter::ThrowArrayBoundsException()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10857,7 +10768,6 @@ void Interpreter::ThrowArrayBoundsException()
 void Interpreter::ThrowInvalidCastException()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10869,7 +10779,6 @@ void Interpreter::ThrowInvalidCastException()
 void Interpreter::ThrowStackOverflow()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
@@ -10899,7 +10808,6 @@ Interpreter::AddrToMDMap* Interpreter::GetAddrToMdMap()
 {
 #if 0
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -10916,7 +10824,6 @@ void Interpreter::RecordInterpreterStubForMethodDesc(CORINFO_METHOD_HANDLE md, v
 {
 #if 0
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -10935,7 +10842,6 @@ void Interpreter::RecordInterpreterStubForMethodDesc(CORINFO_METHOD_HANDLE md, v
 MethodDesc* Interpreter::InterpretationStubToMethodInfo(PCODE addr)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -10961,7 +10867,6 @@ Interpreter::MethodHandleToInterpMethInfoPtrMap* Interpreter::GetMethodHandleToI
 {
 #if 0
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -10978,7 +10883,6 @@ InterpreterMethodInfo* Interpreter::RecordInterpreterMethodInfoForMethodHandle(C
 {
 #if 0
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -11013,7 +10917,6 @@ InterpreterMethodInfo* Interpreter::RecordInterpreterMethodInfoForMethodHandle(C
 InterpreterMethodInfo* Interpreter::MethodHandleToInterpreterMethInfoPtr(CORINFO_METHOD_HANDLE md)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_TRIGGERS;
     } CONTRACTL_END;
@@ -11545,7 +11448,6 @@ static const char* CorInfoTypeNames[] = {
 const char* eeGetMethodFullName(CEEInfo* info, CORINFO_METHOD_HANDLE hnd, const char** clsName)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;

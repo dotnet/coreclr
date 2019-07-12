@@ -32,7 +32,6 @@
 #include "dllimport.h"
 #include "mlinfo.h"
 #include "dbginterface.h"
-#include "mdaassistants.h"
 #include "sigbuilder.h"
 #include "notifyexternals.h"
 #include "comdelegate.h"
@@ -101,7 +100,6 @@ void ProfilerTransitionCallbackHelper(MethodDesc* pMD, Thread* pThread, COR_PRF_
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pMD));
         PRECONDITION(CheckPointer(pThread));
         PRECONDITION(CORProfilerTrackTransitions());
@@ -132,45 +130,28 @@ extern "C" HRESULT STDCALL StubRareDisableHRWorker(Thread *pThread)
     // Do not add a CONTRACT here.  We haven't set up SEH.  We rely
     // on HandleThreadAbort dealing with this situation properly.
 
-    // @todo -  We need to probe here, but can't introduce destructors etc.
-    BEGIN_CONTRACT_VIOLATION(SOToleranceViolation);
-
-
     // WARNING!!!!
     // when we start executing here, we are actually in cooperative mode.  But we
     // haven't synchronized with the barrier to reentry yet.  So we are in a highly
     // dangerous mode.  If we call managed code, we will potentially be active in
     // the GC heap, even as GC's are occuring!
 
-    // Check for ShutDown scenario.  This happens only when we have initiated shutdown 
-    // and someone is trying to call in after the CLR is suspended.  In that case, we
-    // must either raise an unmanaged exception or return an HRESULT, depending on the
-    // expectations of our caller.
-    if (!CanRunManagedCode())
+    // We must do the following in this order, because otherwise we would be constructing
+    // the exception for the abort without synchronizing with the GC.  Also, we have no
+    // CLR SEH set up, despite the fact that we may throw a ThreadAbortException.
+    pThread->RareDisablePreemptiveGC();
+    EX_TRY
     {
-        hr = E_PROCESS_SHUTDOWN_REENTRY;
+        pThread->HandleThreadAbort();
     }
-    else
+    EX_CATCH
     {
-        // We must do the following in this order, because otherwise we would be constructing
-        // the exception for the abort without synchronizing with the GC.  Also, we have no
-        // CLR SEH set up, despite the fact that we may throw a ThreadAbortException.
-        pThread->RareDisablePreemptiveGC();
-        EX_TRY
-        {
-            pThread->HandleThreadAbort();
-        }
-        EX_CATCH
-        {
-            hr = GET_EXCEPTION()->GetHR();
-        }
-        EX_END_CATCH(SwallowAllExceptions);
+        hr = GET_EXCEPTION()->GetHR();
     }
+    EX_END_CATCH(SwallowAllExceptions);
 
     // should always be in coop mode here
     _ASSERTE(pThread->PreemptiveGCDisabled());
-
-    END_CONTRACT_VIOLATION;
 
     // Note that this code does not handle rare signatures that do not return HRESULT properly
 
@@ -209,8 +190,8 @@ inline static void InvokeStub(ComCallMethodDesc *pCMD, PCODE pManagedTarget, OBJ
     PERMANENT_CONTRACT_VIOLATION(ThrowsViolation, ReasonILStubWillNotThrow);
 
     //
-    // NOTE! We do not use BEGIN_CALL_TO_MANAGEDEX around this call because we stayed in the SO_TOLERANT
-    // mode and COMToCLRDispatchHelper is responsible for pushing/popping the CPFH into the FS:0 chain.
+    // NOTE! We do not use BEGIN_CALL_TO_MANAGEDEX around this call because COMToCLRDispatchHelper is
+    // responsible for pushing/popping the CPFH into the FS:0 chain.
     //
 
     *pRetValOut = COMToCLRDispatchHelper(
@@ -279,7 +260,6 @@ OBJECTREF COMToCLRGetObjectAndTarget_Delegate(ComCallWrapper * pWrap, PCODE * pp
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -302,7 +282,6 @@ bool COMToCLRGetObjectAndTarget_WinRTCtor(Thread * pThread, MethodDesc * pRealMD
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -322,8 +301,6 @@ bool COMToCLRGetObjectAndTarget_WinRTCtor(Thread * pThread, MethodDesc * pRealMD
 
     bool fSuccess = true;
 
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pThread, { *pRetValOut = COR_E_STACKOVERFLOW; return false; } );
-
     EX_TRY
     {
         *pObjectOut = AllocateObject(pMT);
@@ -334,8 +311,6 @@ bool COMToCLRGetObjectAndTarget_WinRTCtor(Thread * pThread, MethodDesc * pRealMD
         *pRetValOut = SetupErrorInfo(GET_THROWABLE());
     }
     EX_END_CATCH(SwallowAllExceptions);
-
-    END_SO_INTOLERANT_CODE;
 
     return fSuccess;
 }
@@ -348,7 +323,6 @@ OBJECTREF COMToCLRGetObjectAndTarget_Virtual(ComCallWrapper * pWrap, MethodDesc 
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -390,7 +364,6 @@ OBJECTREF COMToCLRGetObjectAndTarget_NonVirtual(ComCallWrapper * pWrap, MethodDe
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -409,7 +382,6 @@ void COMToCLRInvokeTarget(PCODE pManagedTarget, OBJECTREF pObject, ComCallMethod
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -433,7 +405,6 @@ void COMToCLRWorkerBody_Rare(Thread * pThread, ComMethodFrame * pFrame, ComCallW
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -494,7 +465,6 @@ void COMToCLRWorkerBody(
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT; 
     }
     CONTRACTL_END;
 
@@ -565,20 +535,6 @@ void COMToCLRWorkerBody(
     return;
 }
 
-void COMToCLRWorkerBody_SOIntolerant(Thread * pThread, ComMethodFrame * pFrame, ComCallWrapper * pWrap, UINT64 * pRetValOut)
-{
-    STATIC_CONTRACT_THROWS;             // THROWS due to END_SO_TOLERANT_CODE
-    STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT; 
-
-    BEGIN_SO_TOLERANT_CODE(pThread);
-
-    COMToCLRWorkerBody(pThread, pFrame, pWrap, pRetValOut);
-
-    END_SO_TOLERANT_CODE;
-}
-
 //------------------------------------------------------------------
 // UINT64 __stdcall COMToCLRWorker(Thread *pThread, 
 //                                  ComMethodFrame* pFrame)
@@ -598,7 +554,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         // to leave the MODE_ contract enabled on x86.
         DISABLED(MODE_PREEMPTIVE);
 #endif
-        SO_TOLERANT; 
         PRECONDITION(CheckPointer(pFrame));
         PRECONDITION(CheckPointer(pThread, NULL_OK));
     }
@@ -630,10 +585,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         }
     }
 
-    // Check for an illegal coop->coop transition.  We may fire the Reentrancy MDA as a result.
-    if (pThread->PreemptiveGCDisabled())
-        HasIllegalReentrancy();
-
     // Attempt to switch GC modes.  Note that this is performed manually just like in the x86 stub because
     // we have additional checks for shutdown races, MDAs, and thread abort that are performed only when 
     // g_TrapReturningThreads is set.
@@ -644,18 +595,6 @@ extern "C" UINT64 __stdcall COMToCLRWorker(Thread *pThread, ComMethodFrame* pFra
         if (S_OK != hr)
             goto ErrorExit;
     }
-
-#ifdef MDA_SUPPORTED
-    // Check for and trigger the LoaderLock MDA
-    if (ShouldCheckLoaderLock())
-    {
-        BOOL IsHeld;
-        if (AuxUlibIsDLLSynchronizationHeld(&IsHeld) && IsHeld)
-        {
-            MDA_TRIGGER_ASSISTANT(LoaderLock, ReportViolation(0));
-        }
-    }
-#endif // MDA_SUPPORTED
 
     // Initialize the frame's VPTR and GS cookie.
     *((TADDR*)pFrame) = ComMethodFrame::GetMethodFrameVPtr();
@@ -760,18 +699,10 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
     }
     CONTRACTL_END;
 
-
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(GcUnmanagedToManaged, TriggerGC());
-#endif
-
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker enter\n"));
     
     HRESULT hrRetVal = S_OK;
 
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(pThread, return COR_E_STACKOVERFLOW);
-    // BEGIN_ENTRYPOINT_NOTHROW_WITH_THREAD(pThread);
-   
     IUnknown** pip = (IUnknown **)pFrame->GetPointerToArguments();
     IUnknown* pUnk = (IUnknown *)*pip; 
     _ASSERTE(pUnk != NULL);
@@ -803,15 +734,8 @@ static UINT64 __stdcall FieldCallWorker(Thread *pThread, ComMethodFrame* pFrame)
 
     GCPROTECT_END();
 
-#ifdef MDA_SUPPORTED
-    MDA_TRIGGER_ASSISTANT(GcManagedToUnmanaged, TriggerGC());
-#endif
-
     LOG((LF_STUBS, LL_INFO1000000, "FieldCallWorker leave\n"));
 
-    END_SO_INTOLERANT_CODE;
-    //END_ENTRYPOINT_NOTHROW_WITH_THREAD;
-    
     return hrRetVal;
 }
 
@@ -1184,11 +1108,11 @@ void ComCallMethodDesc::InitNativeInfo()
             // Look up the best fit mapping info via Assembly & Interface level attributes
             BOOL BestFit = TRUE;
             BOOL ThrowOnUnmappableChar = FALSE;
-            ReadBestFitCustomAttribute(fsig.GetModule()->GetMDImport(), pFD->GetEnclosingMethodTable()->GetCl(), &BestFit, &ThrowOnUnmappableChar);
+            ReadBestFitCustomAttribute(fsig.GetModule(), pFD->GetEnclosingMethodTable()->GetCl(), &BestFit, &ThrowOnUnmappableChar);
 
             MarshalInfo info(fsig.GetModule(), fsig.GetArgProps(), fsig.GetSigTypeContext(), pFD->GetMemberDef(), MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                              (CorNativeLinkType)0, (CorNativeLinkFlags)0, 
-                             FALSE, 0, fsig.NumFixedArgs(), BestFit, ThrowOnUnmappableChar, FALSE, NULL, FALSE
+                             FALSE, 0, fsig.NumFixedArgs(), BestFit, ThrowOnUnmappableChar, FALSE, TRUE, NULL, FALSE
 #ifdef _DEBUG
                              , szDebugName, szDebugClassName, 0
 #endif
@@ -1294,7 +1218,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetArgProps(), msig.GetSigTypeContext(), params[iArg],
                                  WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                  (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, FALSE
+                                 TRUE, iArg, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                  , szDebugName, szDebugClassName, iArg
 #endif
@@ -1356,7 +1280,7 @@ void ComCallMethodDesc::InitNativeInfo()
                 MarshalInfo info(msig.GetModule(), msig.GetReturnProps(), msig.GetSigTypeContext(), params[0],
                                     WinRTType ? MarshalInfo::MARSHAL_SCENARIO_WINRT : MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                                     (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, FALSE
+                                    FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, FALSE
 #ifdef _DEBUG
                                 ,szDebugName, szDebugClassName, 0
 #endif
@@ -1488,7 +1412,7 @@ void ComCall::PopulateComCallMethodDesc(ComCallMethodDesc *pCMD, DWORD *pdwStubF
         _ASSERTE(IsMemberVisibleFromCom(pFD->GetApproxEnclosingMethodTable(), pFD->GetMemberDef(), mdTokenNil) && "Calls are not permitted on this member since it isn't visible from COM. The only way you can have reached this code path is if your native interface doesn't match the managed interface.");
 
         MethodTable *pMT = pFD->GetEnclosingMethodTable();
-        ReadBestFitCustomAttribute(pMT->GetMDImport(), pMT->GetCl(), &BestFit, &ThrowOnUnmappableChar);
+        ReadBestFitCustomAttribute(pMT->GetModule(), pMT->GetCl(), &BestFit, &ThrowOnUnmappableChar);
     }
     else
     {

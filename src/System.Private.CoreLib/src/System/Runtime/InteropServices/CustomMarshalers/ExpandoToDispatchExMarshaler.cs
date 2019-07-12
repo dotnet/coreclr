@@ -2,19 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Runtime.InteropServices.ComTypes;
-using System.Text;
-
 namespace System.Runtime.InteropServices.CustomMarshalers
 {
     internal class ExpandoToDispatchExMarshaler : ICustomMarshaler
     {
         private static readonly ExpandoToDispatchExMarshaler s_ExpandoToDispatchExMarshaler = new ExpandoToDispatchExMarshaler();
 
-        public static ICustomMarshaler GetInstance(string cookie) => s_ExpandoToDispatchExMarshaler;
+        public static ICustomMarshaler GetInstance(string? cookie) => s_ExpandoToDispatchExMarshaler;
 
         private ExpandoToDispatchExMarshaler()
         {

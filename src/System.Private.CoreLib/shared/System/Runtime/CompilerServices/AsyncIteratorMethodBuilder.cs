@@ -4,7 +4,6 @@
 
 using System.Runtime.InteropServices;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace System.Runtime.CompilerServices
 {
@@ -27,12 +26,14 @@ namespace System.Runtime.CompilerServices
         /// <summary>Creates an instance of the <see cref="AsyncIteratorMethodBuilder"/> struct.</summary>
         /// <returns>The initialized instance.</returns>
         public static AsyncIteratorMethodBuilder Create() =>
-#if CORERT
-            // corert's AsyncTaskMethodBuilder.Create() currently does additional debugger-related
+#if PROJECTN
+            // ProjectN's AsyncTaskMethodBuilder.Create() currently does additional debugger-related
             // work, so we need to delegate to it.
             new AsyncIteratorMethodBuilder() { _methodBuilder = AsyncTaskMethodBuilder.Create() };
 #else
-            default; // coreclr's AsyncTaskMethodBuilder.Create just returns default as well
+            // _methodBuilder should be initialized to AsyncTaskMethodBuilder.Create(), but on coreclr
+            // that Create() is a nop, so we can just return the default here.
+            default; 
 #endif
 
         /// <summary>Invokes <see cref="IAsyncStateMachine.MoveNext"/> on the state machine while guarding the <see cref="ExecutionContext"/>.</summary>
@@ -40,11 +41,7 @@ namespace System.Runtime.CompilerServices
         /// <param name="stateMachine">The state machine instance, passed by reference.</param>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MoveNext<TStateMachine>(ref TStateMachine stateMachine) where TStateMachine : IAsyncStateMachine =>
-#if CORERT
-            _methodBuilder.Start(ref stateMachine);
-#else
             AsyncMethodBuilderCore.Start(ref stateMachine);
-#endif
 
         /// <summary>Schedules the state machine to proceed to the next action when the specified awaiter completes.</summary>
         /// <typeparam name="TAwaiter">The type of the awaiter.</typeparam>

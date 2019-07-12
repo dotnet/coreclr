@@ -29,7 +29,6 @@ inline ULONG PEImage::AddRef()
 inline const SString &PEImage::GetPath()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     return m_path;
 }
@@ -37,7 +36,6 @@ inline const SString &PEImage::GetPath()
 inline void PEImage::SetModuleFileNameHintForDAC()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     // Grab module name only for triage dumps where full paths are excluded
     // because may contain PII data.
@@ -390,7 +388,6 @@ inline BOOL PEImage::IsIbcOptimized()
 #endif
 }
 
-#ifdef FEATURE_PREJIT 
 inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize) 
 {
     WRAPPER_NO_CONTRACT;
@@ -402,7 +399,6 @@ inline PTR_CVOID PEImage::GetNativeManifestMetadata(COUNT_T *pSize)
         return pLayout->GetNativeManifestMetadata(pSize);
     }
 }
-#endif
 
 inline PTR_CVOID PEImage::GetMetadata(COUNT_T *pSize) 
 {
@@ -489,17 +485,18 @@ inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION(CheckPointer(pPath));
         PRECONDITION(s_hashLock.OwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    int CaseHashHelper(const WCHAR *buffer, COUNT_T count, LocaleID lcid);
+    int CaseHashHelper(const WCHAR *buffer, COUNT_T count);
 
     PEImageLocator locator(pPath);
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     DWORD dwHash=path.Hash();
 #else
-    DWORD dwHash = CaseHashHelper(pPath, (COUNT_T) wcslen(pPath), PEImage::GetFileSystemLocale());
+    DWORD dwHash = CaseHashHelper(pPath, (COUNT_T) wcslen(pPath));
 #endif
    return (PEImage *) s_Images->LookupValue(dwHash, &locator);
     
@@ -534,8 +531,6 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
 #ifdef FEATURE_PREJIT        
         if (flags &  MDInternalImport_TrustedNativeImage)
             pImage->SetIsTrustedNativeImage();
-        if (flags &  MDInternalImport_NativeImageInstall)
-            pImage->SetIsNativeImageInstall();
 #endif        
         pImage->Init(pPath);
 
@@ -613,7 +608,7 @@ inline ULONG PEImage::GetIDHash()
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     RETURN m_path.Hash();
 #else
-    RETURN m_path.HashCaseInsensitive(PEImage::GetFileSystemLocale());
+    RETURN m_path.HashCaseInsensitive();
 #endif
 }
 

@@ -16,19 +16,15 @@
 
 namespace Internal
 {
-    template<typename C, typename I>
+    template<typename I>
     HRESULT __QueryInterfaceImpl(
-        /* [in] */ C *obj,
         /* [in] */ REFIID riid,
-        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject,
+        /* [in] */ I obj)
     {
         if (riid == __uuidof(I))
         {
-            *ppvObject = static_cast<I*>(obj);
-        }
-        else if (riid == __uuidof(IUnknown))
-        {
-            *ppvObject = static_cast<IUnknown*>(obj);
+            *ppvObject = static_cast<I>(obj);
         }
         else
         {
@@ -39,19 +35,20 @@ namespace Internal
         return S_OK;
     }
 
-    template<typename C, typename I1, typename I2, typename ...R>
+    template<typename I1, typename ...IR>
     HRESULT __QueryInterfaceImpl(
-        /* [in] */ C *obj,
         /* [in] */ REFIID riid,
-        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject,
+        /* [in] */ I1 i1,
+        /* [in] */ IR... remain)
     {
         if (riid == __uuidof(I1))
         {
-            *ppvObject = static_cast<I1*>(obj);
+            *ppvObject = static_cast<I1>(i1);
             return S_OK;
         }
 
-        return __QueryInterfaceImpl<C, I2, R...>(obj, riid, ppvObject);
+        return __QueryInterfaceImpl(riid, ppvObject, remain...);
     }
 }
 
@@ -68,21 +65,29 @@ public:
     UnknownImpl(UnknownImpl&&) = default;
     UnknownImpl& operator=(UnknownImpl&&) = default;
 
-    template<typename C, typename ...I>
+    template<typename I1, typename ...IR>
     HRESULT DoQueryInterface(
-        /* [in] */ C *derived,
         /* [in] */ REFIID riid,
-        /* [iid_is][out] */ _COM_Outptr_ void **ppvObject)
+        /* [iid_is][out] */ _COM_Outptr_ void **ppvObject,
+        /* [in] */ I1 i1,
+        /* [in] */ IR... remain)
     {
-        assert(derived != nullptr);
         if (ppvObject == nullptr)
             return E_POINTER;
 
-        HRESULT hr = Internal::__QueryInterfaceImpl<C, I...>(derived, riid, ppvObject);
-        if (hr == S_OK)
-            DoAddRef();
+        if (riid == __uuidof(IUnknown))
+        {
+            *ppvObject = static_cast<IUnknown *>(i1);
+        }
+        else
+        {
+            HRESULT hr = Internal::__QueryInterfaceImpl(riid, ppvObject, i1, remain...);
+            if (hr != S_OK)
+                return hr;
+        }
 
-        return hr;
+        DoAddRef();
+        return S_OK;
     }
 
     ULONG DoAddRef()
@@ -162,7 +167,7 @@ public: // IUnknown
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface<ClassFactoryBasic, IClassFactory>(this, riid, ppvObject);
+        return DoQueryInterface(riid, ppvObject, static_cast<IClassFactory *>(this));
     }
 
     DEFINE_REF_COUNTING();
@@ -221,7 +226,107 @@ public: // IUnknown
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface<ClassFactoryAggregate, IClassFactory>(this, riid, ppvObject);
+        return DoQueryInterface(riid, ppvObject, static_cast<IClassFactory *>(this));
+    }
+
+    DEFINE_REF_COUNTING();
+};
+
+// Templated class factory
+// Supplied type must have the following properties to use this template:
+//  1) Have a static method with the following signature:
+//    - HRESULT RequestLicKey(BSTR *key);
+//  2) Have a constructor that takes an optional BSTR value as the key
+template<typename T>
+class ClassFactoryLicense : public UnknownImpl, public IClassFactory2
+{
+public: // static
+    static HRESULT Create(_In_ REFIID riid, _Outptr_ LPVOID FAR* ppv)
+    {
+        try
+        {
+            auto cf = new ClassFactoryLicense();
+            HRESULT hr = cf->QueryInterface(riid, ppv);
+            cf->Release();
+            return hr;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+    }
+
+public: // IClassFactory
+    STDMETHOD(CreateInstance)(
+        _In_opt_  IUnknown *pUnkOuter,
+        _In_  REFIID riid,
+        _COM_Outptr_  void **ppvObject)
+    {
+        return CreateInstanceLic(pUnkOuter, nullptr, riid, nullptr, ppvObject);
+    }
+
+    STDMETHOD(LockServer)(/* [in] */ BOOL fLock)
+    {
+        assert(false && "Not impl");
+        return E_NOTIMPL;
+    }
+
+public: // IClassFactory2
+    STDMETHOD(GetLicInfo)(
+        /* [out][in] */ __RPC__inout LICINFO *pLicInfo)
+    {
+        // The CLR does not call this function and as such,
+        // returns an error. Note that this is explicitly illegal
+        // in a proper implementation of IClassFactory2.
+        return E_UNEXPECTED;
+    }
+
+    STDMETHOD(RequestLicKey)(
+        /* [in] */ DWORD dwReserved,
+        /* [out] */ __RPC__deref_out_opt BSTR *pBstrKey)
+    {
+        if (dwReserved != 0)
+            return E_UNEXPECTED;
+
+        return T::RequestLicKey(pBstrKey);
+    }
+
+    STDMETHOD(CreateInstanceLic)(
+        /* [annotation][in] */ _In_opt_  IUnknown *pUnkOuter,
+        /* [annotation][in] */ _Reserved_  IUnknown *pUnkReserved,
+        /* [annotation][in] */ __RPC__in  REFIID riid,
+        /* [annotation][in] */ __RPC__in  BSTR bstrKey,
+        /* [annotation][iid_is][out] */ __RPC__deref_out_opt  PVOID *ppvObj)
+    {
+        if (pUnkOuter != nullptr)
+            return CLASS_E_NOAGGREGATION;
+
+        if (pUnkReserved != nullptr)
+            return E_UNEXPECTED;
+
+        try
+        {
+            auto ti = new T(bstrKey);
+            HRESULT hr = ti->QueryInterface(riid, ppvObj);
+            ti->Release();
+            return hr;
+        }
+        catch (HRESULT hr)
+        {
+            return hr;
+        }
+        catch (const std::bad_alloc&)
+        {
+            return E_OUTOFMEMORY;
+        }
+    }
+
+public: // IUnknown
+    STDMETHOD(QueryInterface)(
+        /* [in] */ REFIID riid,
+        /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
+    {
+        return DoQueryInterface(riid, ppvObject, static_cast<IClassFactory *>(this), static_cast<IClassFactory2 *>(this));
     }
 
     DEFINE_REF_COUNTING();

@@ -19,7 +19,6 @@
 #include "dllimportcallback.h"
 #include "dllimport.h"
 #include "eeconfig.h"
-#include "mdaassistants.h"
 #include "cgensys.h"
 #include "asmconstants.h"
 #include "virtualcallstub.h"
@@ -479,7 +478,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
         {
             filledSlots[i] = false;
         }
-        for (int i = 0; i < pShuffleEntryArray->GetCount(); i++)
+        for (unsigned int i = 0; i < pShuffleEntryArray->GetCount(); i++)
         {
             entry = (*pShuffleEntryArray)[i];
 
@@ -487,7 +486,7 @@ VOID GenerateShuffleArray(MethodDesc* pInvoke, MethodDesc *pTargetMeth, SArray<S
             // of the entry that filled it in.
             if (filledSlots[GetNormalizedArgumentSlotIndex(entry.srcofs)])
             {
-                int j;
+                unsigned int j;
                 for (j = i; (*pShuffleEntryArray)[j].dstofs != entry.srcofs; j--)
                     (*pShuffleEntryArray)[j] = (*pShuffleEntryArray)[j - 1];
 
@@ -1018,7 +1017,7 @@ void COMDelegate::BindToMethod(DELEGATEREF   *pRefThis,
         else
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         if (pTargetMethod->IsStatic() && pTargetMethod->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
-            pTargetCode = pTargetMethod->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
+            pTargetCode = pTargetMethod->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pTargetMethod, PRECODE_THISPTR_RETBUF);
         else
 #endif // HAS_THISPTR_RETBUF_PRECODE
             pTargetCode = pTargetMethod->GetMultiCallableAddrOfCode();
@@ -1072,7 +1071,7 @@ PCODE COMDelegate::ConvertToCallback(MethodDesc* pMD)
     LONG cData = 0;
     CorPinvokeMap callConv = (CorPinvokeMap)0;
 
-    HRESULT hr = pMD->GetMDImport()->GetCustomAttributeByName(pMD->GetMemberDef(), g_NativeCallableAttribute, (const VOID **)(&pData), (ULONG *)&cData);
+    HRESULT hr = pMD->GetCustomAttribute(WellKnownAttribute::NativeCallable, (const VOID **)(&pData), (ULONG *)&cData);
     IfFailThrow(hr);
 
     if (cData > 0)
@@ -1188,21 +1187,7 @@ LPVOID COMDelegate::ConvertToCallback(OBJECTREF pDelegateObj)
             pUMEntryThunk->LoadTimeInit(
                 pManagedTargetForDiagnostics,
                 objhnd,
-                pUMThunkMarshInfo, pInvokeMeth,
-                GetAppDomain()->GetId());
-
-#ifdef FEATURE_WINDOWSPHONE
-            // Perform the runtime initialization lazily for better startup time. Lazy initialization
-            // has worse diagnostic experience (the invalid marshaling directive exception is thrown 
-            // lazily on the first call instead of during delegate creation), but it should be ok 
-            // for CoreCLR on phone because of reverse p-invoke is for internal use only.
-#else
-            {
-                GCX_PREEMP();
-
-                pUMEntryThunk->RunTimeInit();
-            }
-#endif
+                pUMThunkMarshInfo, pInvokeMeth);
 
             if (!pInteropInfo->SetUMEntryThunk(pUMEntryThunk)) 
             {
@@ -1255,27 +1240,7 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
     // Check if this callback was originally a managed method passed out to unmanaged code.
     //
 
-    UMEntryThunk* pUMEntryThunk = NULL;
-
-#ifdef MDA_SUPPORTED    
-    if (MDA_GET_ASSISTANT(InvalidFunctionPointerInDelegate))
-    {
-        EX_TRY
-        {
-            AVInRuntimeImplOkayHolder AVOkay;
-            pUMEntryThunk = UMEntryThunk::Decode(pCallback);
-        }
-        EX_CATCH
-        {
-            MDA_TRIGGER_ASSISTANT(InvalidFunctionPointerInDelegate, ReportViolation(pCallback));
-        }
-        EX_END_CATCH(SwallowAllExceptions)
-    }
-    else
-#endif // MDA_SUPPORTED
-    {
-        pUMEntryThunk = UMEntryThunk::Decode(pCallback);
-    }
+    UMEntryThunk* pUMEntryThunk = UMEntryThunk::Decode(pCallback);
 
     // Lookup the callsite in the hash, if found, we can map this call back to its managed function.
     // Otherwise, we'll treat this as an unmanaged callsite.
@@ -1301,9 +1266,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         
         pUMEntryThunk = (UMEntryThunk*)pInteropInfo->GetUMEntryThunk();
         _ASSERTE(pUMEntryThunk);
-
-        if (pUMEntryThunk->GetDomainId() != GetAppDomain()->GetId())
-            COMPlusThrow(kNotSupportedException, W("NotSupported_DelegateMarshalToWrongDomain"));
 
         GCPROTECT_END();
         return pDelegate;
@@ -1381,12 +1343,6 @@ OBJECTREF COMDelegate::ConvertToDelegate(LPVOID pCallback, MethodTable* pMT)
         MethodDesc *pStubMD = pClass->m_pForwardStubMD;
         _ASSERTE(pStubMD != NULL && pStubMD->IsILStub());
 
-#if defined(MDA_SUPPORTED)
-        if (MDA_GET_ASSISTANT(PInvokeStackImbalance))
-        {
-            pInterceptStub = GenerateStubForMDA(pMD, pStubMD, pCallback, pInterceptStub);
-        }
-#endif // MDA_SUPPORTED
     }
 
     if (pInterceptStub != NULL)
@@ -1626,38 +1582,12 @@ FCIMPL3(PCODE, COMDelegate::AdjustTarget, Object* refThisUNSAFE, Object* targetU
     // close delegates
     MethodTable* pMTTarg = target->GetMethodTable();
     MethodTable* pMTMeth = pMeth->GetMethodTable();
-
-    BOOL isComObject = false;
-
-#ifdef FEATURE_COMINTEROP
-    isComObject = pMTTarg->IsComObjectType();
-#endif // FEATURE_COMINTEROP
     
     MethodDesc *pCorrectedMethod = pMeth;
 
-    if (pMTMeth != pMTTarg)
-    {
-        //They cast to an interface before creating the delegate, so we now need 
-        //to figure out where this actually lives before we continue.
-        //<TODO>@perf:  Grovelling with a signature is really slow.  Speed this up.</TODO>
-        if (pCorrectedMethod->IsInterface())
-        {
-            // No need to resolve the interface based method desc to a class based
-            // one for COM objects because we invoke directly thru the interface MT.
-            if (!isComObject)
-            {
-                // <TODO>it looks like we need to pass an ownerType in here.
-                //  Why can we take a delegate to an interface method anyway?  </TODO>
-                // 
-                pCorrectedMethod = pMTTarg->FindDispatchSlotForInterfaceMD(pCorrectedMethod, TRUE /* throwOnConflict */).GetMethodDesc();
-                _ASSERTE(pCorrectedMethod != NULL);
-            }
-        }
-    }
-
     // Use the Unboxing stub for value class methods, since the value
     // class is constructed using the boxed instance.
-    if (pMTTarg->IsValueType() && !pCorrectedMethod->IsUnboxingStub())
+    if (pCorrectedMethod->GetMethodTable()->IsValueType() && !pCorrectedMethod->IsUnboxingStub())
     {
         // those should have been ruled out at jit time (code:COMDelegate::GetDelegateCtor)
         _ASSERTE((pMTMeth != g_pValueTypeClass) && (pMTMeth != g_pObjectClass));
@@ -1687,6 +1617,9 @@ extern "C" void * _ReturnAddress(void);
 FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* targetUNSAFE, PCODE method)
 {
     FCALL_CONTRACT;
+    // If you modify this logic, please update DacDbiInterfaceImpl::GetDelegateType, DacDbiInterfaceImpl::GetDelegateType,
+    // DacDbiInterfaceImpl::GetDelegateFunctionData, and DacDbiInterfaceImpl::GetDelegateTargetObject.
+
 
     struct _gc
     {
@@ -1798,53 +1731,6 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
         {
             if (pMTTarg)
             {
-                // We can skip the demand if SuppressUnmanagedCodePermission is present on the class,
-                //  or in the case where we are setting up a delegate for a COM event sink
-                //   we can skip the check if the source interface is defined in fully trusted code
-                //   we can skip the check if the source interface is a disp-only interface
-                BOOL isComObject = false;
-#ifdef FEATURE_COMINTEROP
-                isComObject = pMTTarg->IsComObjectType();
-#endif // FEATURE_COMINTEROP
-
-                if (pMTMeth != pMTTarg)
-                {
-                    // They cast to an interface before creating the delegate, so we now need 
-                    // to figure out where this actually lives before we continue.
-                    // <TODO>@perf:  We whould never be using this path to invoke on an interface - 
-                    // that should always be resolved when we are creating the delegate </TODO>
-                    if (pMeth->IsInterface())
-                    {
-                        // No need to resolve the interface based method desc to a class based
-                        // one for COM objects because we invoke directly thru the interface MT.
-                        if (!isComObject)
-                        {
-                            // <TODO>it looks like we need to pass an ownerType in here.
-                            //  Why can we take a delegate to an interface method anyway?  </TODO>
-                            // 
-                            MethodDesc * pDispatchSlotMD = pMTTarg->FindDispatchSlotForInterfaceMD(pMeth, TRUE /* throwOnConflict */).GetMethodDesc();
-                            if (pDispatchSlotMD == NULL)
-                            {
-                                COMPlusThrow(kArgumentException, W("Arg_DlgtTargMeth"));
-                            }
-
-                            if (pMeth->HasMethodInstantiation())
-                            {
-                                pMeth = MethodDesc::FindOrCreateAssociatedMethodDesc(
-                                    pDispatchSlotMD,
-                                    pMTTarg,
-                                    (!pDispatchSlotMD->IsStatic() && pMTTarg->IsValueType()),
-                                    pMeth->GetMethodInstantiation(),
-                                    FALSE /* allowInstParam */);
-                            }
-                            else
-                            {
-                                pMeth = pDispatchSlotMD;
-                            }
-                        }
-                    }
-                }
-
                 g_IBCLogger.LogMethodTableAccess(pMTTarg);
 
                 // Use the Unboxing stub for value class methods, since the value
@@ -1882,7 +1768,7 @@ FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* tar
         }
 #ifdef HAS_THISPTR_RETBUF_PRECODE
         else if (pMeth->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
-            method = pMeth->GetLoaderAllocatorForCode()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
+            method = pMeth->GetLoaderAllocator()->GetFuncPtrStubs()->GetFuncPtrStub(pMeth, PRECODE_THISPTR_RETBUF);
 #endif // HAS_THISPTR_RETBUF_PRECODE
 
         gc.refThis->SetTarget(gc.target);
@@ -1901,6 +1787,9 @@ MethodDesc *COMDelegate::GetMethodDesc(OBJECTREF orDelegate)
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
+
+    // If you modify this logic, please update DacDbiInterfaceImpl::GetDelegateType, DacDbiInterfaceImpl::GetDelegateType,
+    // DacDbiInterfaceImpl::GetDelegateFunctionData, and DacDbiInterfaceImpl::GetDelegateTargetObject.
 
     MethodDesc *pMethodHandle = NULL;
 
@@ -3177,6 +3066,10 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
     //
     // Another is to pass a gchandle to the delegate ctor. This is fastest, but only works if we can predict the gc handle at this time. 
     //  We will use this for the non secure variants
+    //
+    // If you modify this logic, please update DacDbiInterfaceImpl::GetDelegateType, DacDbiInterfaceImpl::GetDelegateType,
+    // DacDbiInterfaceImpl::GetDelegateFunctionData, and DacDbiInterfaceImpl::GetDelegateTargetObject.
+
 
     if (invokeArgCount == methodArgCount) 
     {
@@ -3230,10 +3123,9 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
 #endif
 
         // under the conditions below the delegate ctor needs to perform some heavy operation
-        // to either resolve the interface call to the real target or to get the unboxing stub (or both)
+        // to get the unboxing stub
         BOOL needsRuntimeInfo = !pTargetMethod->IsStatic() && 
-                    (pTargetMethod->IsInterface() ||
-                    (pTargetMethod->GetMethodTable()->IsValueType() && !pTargetMethod->IsUnboxingStub()));
+                    pTargetMethod->GetMethodTable()->IsValueType() && !pTargetMethod->IsUnboxingStub();
 
         if (needsRuntimeInfo)
             pRealCtor = MscorlibBinder::GetMethod(METHOD__MULTICAST_DELEGATE__CTOR_RT_CLOSED);
@@ -3322,109 +3214,6 @@ BOOL COMDelegate::ValidateCtor(TypeHandle instHnd,
     return IsMethodDescCompatible(instHnd, ftnParentHnd, pFtn, dlgtHnd, pDlgtInvoke, DBF_RelaxedSignature, pfIsOpenDelegate);
 }
 
-BOOL COMDelegate::ValidateBeginInvoke(DelegateEEClass* pClass)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-
-        PRECONDITION(CheckPointer(pClass));
-        PRECONDITION(CheckPointer(pClass->GetBeginInvokeMethod()));
-
-        // insert fault. Can the binder throw an OOM?
-    }
-    CONTRACTL_END;
-
-    if (pClass->GetInvokeMethod() == NULL)
-        return FALSE;
-
-    // We check the signatures under the typical instantiation of the possibly generic class 
-    MetaSig beginInvokeSig(pClass->GetBeginInvokeMethod()->LoadTypicalMethodDefinition());
-    MetaSig invokeSig(pClass->GetInvokeMethod()->LoadTypicalMethodDefinition());
-
-    if (beginInvokeSig.GetCallingConventionInfo() != (IMAGE_CEE_CS_CALLCONV_HASTHIS | IMAGE_CEE_CS_CALLCONV_DEFAULT))
-        return FALSE;
-
-    if (beginInvokeSig.NumFixedArgs() != invokeSig.NumFixedArgs() + 2)
-        return FALSE;
-
-    if (beginInvokeSig.GetRetTypeHandleThrowing() != TypeHandle(MscorlibBinder::GetClass(CLASS__IASYNCRESULT)))
-        return FALSE;
-
-    while(invokeSig.NextArg() != ELEMENT_TYPE_END)
-    {
-        beginInvokeSig.NextArg();
-        if (beginInvokeSig.GetLastTypeHandleThrowing() != invokeSig.GetLastTypeHandleThrowing())
-            return FALSE;
-    }
-
-    beginInvokeSig.NextArg();
-    if (beginInvokeSig.GetLastTypeHandleThrowing()!= TypeHandle(MscorlibBinder::GetClass(CLASS__ASYNCCALLBACK)))
-        return FALSE;
-
-    beginInvokeSig.NextArg();
-    if (beginInvokeSig.GetLastTypeHandleThrowing()!= TypeHandle(g_pObjectClass))
-        return FALSE;
-
-    if (beginInvokeSig.NextArg() != ELEMENT_TYPE_END)
-        return FALSE;
-
-    return TRUE;
-}
-
-BOOL COMDelegate::ValidateEndInvoke(DelegateEEClass* pClass)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-
-        PRECONDITION(CheckPointer(pClass));
-        PRECONDITION(CheckPointer(pClass->GetEndInvokeMethod()));
-
-        // insert fault. Can the binder throw an OOM?
-    }
-    CONTRACTL_END;
-
-    if (pClass->GetInvokeMethod() == NULL)
-        return FALSE;
-
-    // We check the signatures under the typical instantiation of the possibly generic class 
-    MetaSig endInvokeSig(pClass->GetEndInvokeMethod()->LoadTypicalMethodDefinition());
-    MetaSig invokeSig(pClass->GetInvokeMethod()->LoadTypicalMethodDefinition());
-
-    if (endInvokeSig.GetCallingConventionInfo() != (IMAGE_CEE_CS_CALLCONV_HASTHIS | IMAGE_CEE_CS_CALLCONV_DEFAULT))
-        return FALSE;
-
-    if (endInvokeSig.GetRetTypeHandleThrowing() != invokeSig.GetRetTypeHandleThrowing())
-        return FALSE;
-
-    CorElementType type;
-    while((type = invokeSig.NextArg()) != ELEMENT_TYPE_END)
-    {
-        if (type == ELEMENT_TYPE_BYREF)
-        {
-            endInvokeSig.NextArg();
-            if (endInvokeSig.GetLastTypeHandleThrowing() != invokeSig.GetLastTypeHandleThrowing())
-                return FALSE;
-        }
-    }
-
-    if (endInvokeSig.NextArg() == ELEMENT_TYPE_END)
-        return FALSE;
-
-    if (endInvokeSig.GetLastTypeHandleThrowing() != TypeHandle(MscorlibBinder::GetClass(CLASS__IASYNCRESULT)))
-        return FALSE;
-
-    if (endInvokeSig.NextArg() != ELEMENT_TYPE_END)
-        return FALSE;
-
-    return TRUE;
-}
-
 BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)
 {
     CONTRACTL
@@ -3432,7 +3221,6 @@ BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)
         MODE_ANY;
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     DELEGATEREF innerDel = NULL;
@@ -3507,8 +3295,7 @@ static void TryConstructUnhandledExceptionArgs(OBJECTREF *pThrowable,
     {
         *pOutEventArgs = NULL;      // arguably better than half-constructed object
 
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
+        // It's not even worth asserting, because these aren't our bugs.
     }
     EX_END_CATCH(SwallowAllExceptions)
 }
@@ -3575,8 +3362,7 @@ static void InvokeUnhandledSwallowing(OBJECTREF *pDelegate,
     }
     EX_CATCH
     {
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
+        // It's not even worth asserting, because these aren't our bugs.
     }
     EX_END_CATCH(SwallowAllExceptions)
 }
@@ -3642,8 +3428,7 @@ void DistributeUnhandledExceptionReliably(OBJECTREF *pDelegate,
     }
     EX_CATCH
     {
-        // It's not even worth asserting, because these aren't our bugs.  At
-        // some point, a MDA may be warranted.
+        // It's not even worth asserting, because these aren't our bugs.
     }
     EX_END_CATCH(SwallowAllExceptions)
 }

@@ -104,6 +104,9 @@ static pthread_mutex_t init_critsec_mutex = PTHREAD_MUTEX_INITIALIZER;
 // The default minimum stack size
 SIZE_T g_defaultStackSize = 0;
 
+// The default value of parameter, whether to mmap images at default base address or not
+BOOL g_useDefaultBaseAddr = FALSE;
+
 /* critical section to protect access to init_count. This is allocated on the
    very first PAL_Initialize call, and is freed afterward. */
 static PCRITICAL_SECTION init_critsec = NULL;
@@ -153,7 +156,7 @@ int
 PALAPI
 PAL_Initialize(
     int argc,
-    const char *const argv[])
+    char *const argv[])
 {
     return Initialize(argc, argv, PAL_INITIALIZE);
 }
@@ -239,7 +242,7 @@ Abstract:
   real life scenarios work.
 
 --*/
-__attribute__((noinline,optnone))
+__attribute__((noinline,NOOPT_ATTRIBUTE))
 void
 EnsureStackSize(SIZE_T stackSize)
 {
@@ -381,6 +384,22 @@ Initialize(
             EnsureStackSize(g_defaultStackSize);
         }
 #endif // ENSURE_PRIMARY_STACK_SIZE
+
+#ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+        char* useDefaultBaseAddr = getenv("COMPlus_UseDefaultBaseAddr");
+        if (useDefaultBaseAddr != NULL)
+        {
+            errno = 0;
+            // Like all numeric values specific by the COMPlus_xxx variables, it is a
+            // hexadecimal string without any prefix.
+            long int flag = strtol(useDefaultBaseAddr, NULL, 16);
+
+            if (errno == 0)
+            {
+                g_useDefaultBaseAddr = (BOOL) flag;
+            }
+        }
+#endif // FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
 
         // Initialize the TLS lookaside cache
         if (FALSE == TLSInitialize())
@@ -1042,9 +1061,6 @@ PALCommonCleanup()
         PROCDumpThreadList();
 #endif
     }
-
-    // Mark that the PAL is uninitialized
-    init_count = 0;
 }
 
 BOOL PALIsShuttingDown()

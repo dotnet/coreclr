@@ -71,37 +71,8 @@ void QCall::ObjectHandleOnStack::SetGuidArray(const GUID * p, COUNT_T length)
 
     GCX_COOP();
 
-    TypeHandle typeHandle = MscorlibBinder::GetClass(CLASS__GUID);
-    BASEARRAYREF arr = (BASEARRAYREF) AllocateValueSzArray(typeHandle, length);
+    ::TypeHandle typeHandle = MscorlibBinder::GetClass(CLASS__GUID);
+    BASEARRAYREF arr = (BASEARRAYREF) AllocateSzArray(typeHandle.MakeSZArray(), length);
     memcpyNoGCRefs(arr->GetDataPtr(), p, length * sizeof(GUID));
     Set(arr);
 }
-
-//
-// Helpers for passing an AppDomain to a QCall
-//
-
-#ifdef _DEBUG
-
-//---------------------------------------------------------------------------------------
-//
-// Verify that the AppDomain being passed from the BCL is valid for use in a QCall. Note: some additional
-// checks are in System.AppDomain.GetNativeHandle()
-//
-
-void QCall::AppDomainHandle::VerifyDomainHandle() const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // System.AppDomain.GetNativeHandle() should ensure that we're not calling through with a null AppDomain pointer.
-    _ASSERTE(m_pAppDomain);
-
-    // QCalls should only be made with pointers to the current domain
-    _ASSERTE(GetAppDomain() == m_pAppDomain);
-
-    // We should not have a QCall made on an invalid AppDomain. Once unload a domain, we won't let anyone else
-    // in and any threads that are already in will be unwound.
-    _ASSERTE(SystemDomain::GetAppDomainAtIndex(m_pAppDomain->GetIndex()) != NULL);
-}
-
-#endif // _DEBUG

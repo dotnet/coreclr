@@ -12,11 +12,8 @@
 ** 
 ===========================================================*/
 
-using System;
-using System.Text;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace System.Diagnostics.SymbolStore
 {
@@ -26,7 +23,7 @@ namespace System.Diagnostics.SymbolStore
         // Define a source document. Guid's will be provided for the
         // languages, vendors, and document types that we currently know
         // about.
-        ISymbolDocumentWriter DefineDocument(string url,
+        ISymbolDocumentWriter? DefineDocument(string url,
                                           Guid language,
                                           Guid languageVendor,
                                           Guid documentType);

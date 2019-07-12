@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Globalization;
-
 namespace System.Reflection
 {
     public abstract partial class FieldInfo : MemberInfo
@@ -15,10 +13,10 @@ namespace System.Reflection
 
             FieldInfo f = RuntimeType.GetFieldInfo(handle.GetRuntimeFieldInfo());
 
-            Type declaringType = f.DeclaringType;
+            Type? declaringType = f.DeclaringType;
             if (declaringType != null && declaringType.IsGenericType)
-                throw new ArgumentException(string.Format(
-                    CultureInfo.CurrentCulture, SR.Argument_FieldDeclaringTypeGeneric,
+                throw new ArgumentException(SR.Format(
+                    SR.Argument_FieldDeclaringTypeGeneric,
                     f.Name, declaringType.GetGenericTypeDefinition()));
 
             return f;

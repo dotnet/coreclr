@@ -144,7 +144,6 @@
 #include "cordbpriv.h"
 #include "comdelegate.h"
 #include "appdomain.hpp"
-#include "perfcounters.h"
 #include "eventtrace.h"
 #include "corhost.h"
 #include "binder.h"
@@ -156,14 +155,12 @@
 #include "util.hpp"
 #include "shimload.h"
 #include "comthreadpool.h"
-#include "stackprobe.h"
 #include "posterror.h"
 #include "virtualcallstub.h"
 #include "strongnameinternal.h"
 #include "syncclean.hpp"
 #include "typeparse.h"
 #include "debuginfostore.h"
-#include "mdaassistants.h"
 #include "eemessagebox.h"
 #include "finalizerthread.h"
 #include "threadsuspend.h"
@@ -217,6 +214,7 @@
 #include "perfmap.h"
 #endif
 
+#include "diagnosticserver.h"
 #include "eventpipe.h"
 
 #ifndef FEATURE_PAL
@@ -257,12 +255,6 @@ HRESULT g_EEStartupStatus = S_OK;
 // the EE is fully able to execute arbitrary managed code.  To ensure the EE is fully started, call EnsureEEStarted rather than just
 // checking this flag.
 Volatile<BOOL> g_fEEStarted = FALSE;
-
-// Flag indicating if the EE should be suspended on shutdown.
-BOOL    g_fSuspendOnShutdown = FALSE;
-
-// Flag indicating if the finalizer thread should be suspended on shutdown.
-BOOL    g_fSuspendFinalizerOnShutdown = FALSE;
 
 // Flag indicating if the EE was started up by COM.
 extern BOOL g_fEEComActivatedStartup;
@@ -363,10 +355,6 @@ HRESULT EnsureEEStarted(COINITIEE flags)
             }
         }
 
-#ifdef FEATURE_TESTHOOKS        
-        if(bStarted)
-            TESTHOOKCALL(RuntimeStarted(RTS_INITIALIZED));
-#endif        
         END_ENTRYPOINT_NOTHROW;
     }
     else
@@ -416,7 +404,6 @@ HRESULT EnsureEEStarted(COINITIEE flags)
 static BOOL WINAPI DbgCtrlCHandler(DWORD dwCtrlType)
 {
     WRAPPER_NO_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
 
 #if defined(DEBUGGING_SUPPORTED)
     // Note that if a managed-debugger is attached, it's actually attached with the native
@@ -466,13 +453,12 @@ void InitializeStartupFlags()
         g_IGCconcurrent = 0;
 
 
-    g_heap_type = (flags & STARTUP_SERVER_GC) == 0 ? GC_HEAP_WKS : GC_HEAP_SVR;
+    g_heap_type = ((flags & STARTUP_SERVER_GC) && GetCurrentProcessCpuCount() > 1) ? GC_HEAP_SVR : GC_HEAP_WKS;
     g_IGCHoardVM = (flags & STARTUP_HOARD_GC_VM) == 0 ? 0 : 1;
 }
 #endif // CROSSGEN_COMPILE
 
 
-#ifdef FEATURE_PREJIT
 // BBSweepStartFunction is the first function to execute in the BBT sweeper thread.
 // It calls WatchForSweepEvent where we wait until a sweep occurs.
 DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
@@ -508,7 +494,6 @@ DWORD __stdcall BBSweepStartFunction(LPVOID lpArgs)
 
     return 0;
 }
-#endif // FEATURE_PREJIT
 
 
 //-----------------------------------------------------------------------------
@@ -519,7 +504,6 @@ void InitGSCookie()
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -636,10 +620,6 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-#ifdef _DEBUG
-        DisableGlobalAllocStore();
-#endif //_DEBUG
-
 #ifndef FEATURE_PAL
         ::SetConsoleCtrlHandler(DbgCtrlCHandler, TRUE/*add*/);
 #endif
@@ -661,12 +641,15 @@ void EEStartupHelper(COINITIEE fFlags)
         // Need to do this as early as possible. Used by creating object handle
         // table inside Ref_Initialization() before GC is initialized.
         NumaNodeInfo::InitNumaNodeInfo();
+#ifndef FEATURE_PAL
         CPUGroupInfo::EnsureInitialized();
-
+#endif // !FEATURE_PAL
 
         // Initialize global configuration settings based on startup flags
         // This needs to be done before the EE has started
         InitializeStartupFlags();
+
+        MethodDescBackpatchInfoTracker::StaticInitialize();
 
         InitThreadManager();
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "Returned successfully from InitThreadManager");
@@ -692,10 +675,6 @@ void EEStartupHelper(COINITIEE fFlags)
         InitGSCookie();
 
         Frame::Init();
-
-#ifdef FEATURE_TESTHOOKS
-        IfFailGo(CLRTestHookManager::CheckConfig());
-#endif
 
 #endif // CROSSGEN_COMPILE
 
@@ -779,8 +758,9 @@ void EEStartupHelper(COINITIEE fFlags)
 
 #ifndef CROSSGEN_COMPILE
 
-
-#ifdef FEATURE_PREJIT
+        // Cross-process named objects are not supported in PAL
+        // (see CorUnix::InternalCreateEvent - src/pal/src/synchobj/event.cpp.272)
+#if !defined(FEATURE_PAL)
         // Initialize the sweeper thread.
         if (g_pConfig->GetZapBBInstr() != NULL)
         {
@@ -794,13 +774,7 @@ void EEStartupHelper(COINITIEE fFlags)
             _ASSERTE(hBBSweepThread);
             g_BBSweep.SetBBSweepThreadHandle(hBBSweepThread);
         }
-#endif // FEATURE_PREJIT
-
-#ifdef ENABLE_PERF_COUNTERS
-        hr = PerfCounters::Init();
-        _ASSERTE(SUCCEEDED(hr));
-        IfFailGo(hr);
-#endif
+#endif // FEATURE_PAL
 
 #ifdef FEATURE_INTERPRETER
         Interpreter::Initialize();
@@ -887,10 +861,6 @@ void EEStartupHelper(COINITIEE fFlags)
         }
 #endif // DEBUGGING_SUPPORTED
 
-#ifdef MDA_SUPPORTED
-        ManagedDebuggingAssistants::EEStartupActivation();
-#endif
-
 #ifdef PROFILING_SUPPORTED
         // Initialize the profiling services.
         hr = ProfilingAPIUtility::InitializeProfiling();
@@ -927,7 +897,6 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // FEATURE_COMINTEROP
 
         StubHelpers::Init();
-        NDirect::Init();
 
         // Before setting up the execution manager initialize the first part
         // of the JIT helpers.
@@ -940,14 +909,6 @@ void EEStartupHelper(COINITIEE fFlags)
         SyncBlockCache::Start();
 
         StackwalkCache::Init();
-
-        // In coreclr, clrjit is compiled into it, but SO work in clrjit has not been done.
-#ifdef FEATURE_STACK_PROBE
-        if (CLRHosted() && GetEEPolicy()->GetActionOnFailure(FAIL_StackOverflow) == eRudeUnloadAppDomain)
-        {
-            InitStackProbes();
-        }
-#endif
 
         // This isn't done as part of InitializeGarbageCollector() above because it
         // requires write barriers to have been set up on x86, which happens as part
@@ -1021,6 +982,11 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // CROSSGEN_COMPILE
 
         g_fEEStarted = TRUE;
+#ifndef CROSSGEN_COMPILE
+#ifdef FEATURE_PERFTRACING
+        DiagnosticServer::Initialize();
+#endif
+#endif
         g_EEStartupStatus = S_OK;
         hr = S_OK;
         STRESS_LOG0(LF_STARTUP, LL_ALWAYS, "===================EEStartup Completed===================");
@@ -1120,7 +1086,7 @@ LONG FilterStartupException(PEXCEPTION_POINTERS p, PVOID pv)
     return EXCEPTION_CONTINUE_SEARCH;
 }
 
-// EEStartup is responcible for all the one time intialization of the runtime.  Some of the highlights of
+// EEStartup is responsible for all the one time intialization of the runtime.  Some of the highlights of
 // what it does include
 //     * Creates the default and shared, appdomains. 
 //     * Loads mscorlib.dll and loads up the fundamental types (System.Object ...)
@@ -1187,53 +1153,10 @@ void InnerCoEEShutDownCOM()
     // Release all of the RCWs in all contexts in all caches.
     ReleaseRCWsInCaches(NULL);
 
-    // Release all marshaling data in all AppDomains
-    AppDomainIterator i(TRUE);
-    while (i.Next())
-        i.GetDomain()->DeleteMarshalingData();
-
 #ifdef FEATURE_APPX    
     // Cleanup cached factory pointer in SynchronizationContextNative
     SynchronizationContextNative::Cleanup();
 #endif    
-}
-
-// ---------------------------------------------------------------------------
-// %%Function: CoEEShutdownCOM()
-//
-// Parameters:
-//  none
-//
-// Returns:
-//  Nothing
-//
-// Description:
-//  COM Objects shutdown stuff should be done here
-// ---------------------------------------------------------------------------
-void STDMETHODCALLTYPE CoEEShutDownCOM()
-{
-
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        ENTRY_POINT;
-    } CONTRACTL_END;
-
-    if (g_fEEStarted != TRUE)
-        return;
-
-    HRESULT hr;
-    BEGIN_EXTERNAL_ENTRYPOINT(&hr)
-
-    InnerCoEEShutDownCOM();
-
-    END_EXTERNAL_ENTRYPOINT;
-
-    // API doesn't allow us to communicate a failure HRESULT.  MDAs can
-    // be enabled to catch failure inside CanRunManagedCode.
-    // _ASSERTE(SUCCEEDED(hr));
 }
 
 #endif // FEATURE_COMINTEROP
@@ -1253,125 +1176,6 @@ void ForceEEShutdown(ShutdownCompleteAction sca)
 
     STRESS_LOG0(LF_STARTUP, INFO3, "EEShutdown invoked from ForceEEShutdown");
     EEPolicy::HandleExitProcess(sca);
-}
-
-//---------------------------------------------------------------------------
-// %%Function: ExternalShutdownHelper
-//
-// Parameters:
-//  int exitCode :: process exit code
-//  ShutdownCompleteAction sca :: indicates whether ::ExitProcess() is
-//                                called or if the function returns.
-//
-// Returns:
-//  Nothing
-//
-// Description:
-// This is a helper shared by CorExitProcess and ShutdownRuntimeWithoutExiting 
-// which causes the runtime to shutdown after the appropriate checks. 
-// ---------------------------------------------------------------------------
-static void ExternalShutdownHelper(int exitCode, ShutdownCompleteAction sca)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-        ENTRY_POINT;
-    } CONTRACTL_END;
-
-    CONTRACT_VIOLATION(GCViolation | ModeViolation | SOToleranceViolation);
-
-    if (g_fEEShutDown || !g_fEEStarted)
-        return;
-
-    if (HasIllegalReentrancy())
-    {
-        return;
-    }
-    else
-    if (!CanRunManagedCode())
-    {
-        return;
-    }
-
-    // The exit code for the process is communicated in one of two ways.  If the
-    // entrypoint returns an 'int' we take that.  Otherwise we take a latched
-    // process exit code.  This can be modified by the app via System.SetExitCode().
-    SetLatchedExitCode(exitCode);
-
-
-    ForceEEShutdown(sca);
-
-    // @TODO: If we cannot run ManagedCode, BEGIN_EXTERNAL_ENTRYPOINT will skip
-    // the shutdown.  We could call ::ExitProcess in that failure case, but that
-    // would violate our hosting agreement.  We are supposed to go through EEPolicy::
-    // HandleExitProcess().  Is this legal if !CanRunManagedCode()?
-
-}
-
-//---------------------------------------------------------------------------
-// %%Function: void STDMETHODCALLTYPE CorExitProcess(int exitCode)
-//
-// Parameters:
-//  int exitCode :: process exit code
-//
-// Returns:
-//  Nothing
-//
-// Description:
-//  COM Objects shutdown stuff should be done here
-// ---------------------------------------------------------------------------
-extern "C" void STDMETHODCALLTYPE CorExitProcess(int exitCode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    ExternalShutdownHelper(exitCode, SCA_ExitProcessWhenShutdownComplete);
-}
-
-//---------------------------------------------------------------------------
-// %%Function: ShutdownRuntimeWithoutExiting
-//
-// Parameters:
-//  int exitCode :: process exit code
-//
-// Returns:
-//  Nothing
-//
-// Description:
-// This is a helper used only by the v4+ Shim to shutdown this runtime and
-// and return when the work has completed. It is exposed to the Shim via
-// GetCLRFunction.
-// ---------------------------------------------------------------------------
-void ShutdownRuntimeWithoutExiting(int exitCode)
-{
-    WRAPPER_NO_CONTRACT;
-
-    ExternalShutdownHelper(exitCode, SCA_ReturnWhenShutdownComplete);
-}
-
-//---------------------------------------------------------------------------
-// %%Function: IsRuntimeStarted
-//
-// Parameters:
-//  pdwStartupFlags: out parameter that is set to the startup flags if the
-//                   runtime is started.
-//
-// Returns:
-//  TRUE if the runtime has been started, FALSE otherwise.
-//
-// Description:
-// This is a helper used only by the v4+ Shim to determine if this runtime
-// has ever been started. It is exposed ot the Shim via GetCLRFunction.
-// ---------------------------------------------------------------------------
-BOOL IsRuntimeStarted(DWORD *pdwStartupFlags)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    if (pdwStartupFlags != NULL) // this parameter is optional
-    {
-        *pdwStartupFlags = 0;
-    }
-    return g_fEEStarted;
 }
 
 static bool WaitForEndOfShutdown_OneIteration()
@@ -1479,14 +1283,17 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     // Used later for a callback.
     CEEInfo ceeInf;
 
-    if(fIsDllUnloading)
+    if (fIsDllUnloading)
     {
         ETW::EnumerationLog::ProcessShutdown();
     }
 
 #ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
+    if (!fIsDllUnloading)
+    {
+        EventPipe::Shutdown();
+        DiagnosticServer::Shutdown();
+    }
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)
@@ -1534,17 +1341,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         g_pDebugInterface->EarlyHelperThreadDeath();
 #endif // DEBUGGING_SUPPORTED
 
-    BOOL fFinalizeOK = FALSE;
-
     EX_TRY
     {
         ClrFlsSetThreadType(ThreadType_Shutdown);
 
-        if (!fIsDllUnloading)
-        {
-            ProcessEventForHost(Event_ClrDisabled, NULL);
-        }
-        else if (g_fEEShutDown)
+        if (fIsDllUnloading && g_fEEShutDown)
         {
             // I'm in the final shutdown and the first part has already been run.
             goto part2;
@@ -1553,20 +1354,17 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         // Indicate the EE is the shut down phase.
         g_fEEShutDown |= ShutDown_Start;
 
-        fFinalizeOK = TRUE;
-
         // Terminate the BBSweep thread
         g_BBSweep.ShutdownBBSweepThread();
 
-        // We perform the final GC only if the user has requested it through the GC class.
-        // We should never do the final GC for a process detach
         if (!g_fProcessDetach && !g_fFastExitProcess)
         {
             g_fEEShutDown |= ShutDown_Finalize1;
-            FinalizerThread::EnableFinalization();
-            fFinalizeOK = FinalizerThread::FinalizerThreadWatchDog();
-        }
 
+            // Wait for the finalizer thread to deliver process exit event
+            GCX_PREEMP();
+            FinalizerThread::RaiseShutdownEvents();
+        }
 
         // Ok.  Let's stop the EE.
         if (!g_fProcessDetach)
@@ -1591,21 +1389,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 
             // This call will convert the ThreadStoreLock into "shutdown" mode, just like the debugger lock above.
             g_fEEShutDown |= ShutDown_Finalize2;
-            if (fFinalizeOK)
-            {
-                fFinalizeOK = FinalizerThread::FinalizerThreadWatchDog();
-            }
-
-            if (!fFinalizeOK)
-            {
-                // One of the calls to FinalizerThreadWatchDog failed due to timeout, so we need to prevent
-                // any thread from running managed code, including the finalizer.
-                ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_SHUTDOWN);
-                g_fSuspendOnShutdown = TRUE;
-                g_fSuspendFinalizerOnShutdown = TRUE;
-                ThreadStore::TrapReturningThreads(TRUE);
-                ThreadSuspend::RestartEE(FALSE, TRUE);
-            }
         }
 
 #ifdef FEATURE_EVENT_TRACE
@@ -1621,10 +1404,8 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         PerfMap::Destroy();
 #endif
 
-#ifdef FEATURE_PREJIT
         {
             // If we're doing basic block profiling, we need to write the log files to disk.
-
             static BOOL fIBCLoggingDone = FALSE;
             if (!fIBCLoggingDone)
             {
@@ -1647,8 +1428,6 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
             }
         }
 
-#endif // FEATURE_PREJIT
-
         ceeInf.JitProcessShutdownWork();  // Do anything JIT-related that needs to happen at shutdown.
 
 #ifdef FEATURE_INTERPRETER
@@ -1656,23 +1435,20 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
         Interpreter::PrintPostMortemData();
 #endif // FEATURE_INTERPRETER
         
-        FastInterlockExchange((LONG*)&g_fForbidEnterEE, TRUE);
-
-        if (g_fProcessDetach)
-        {
-            ThreadStore::TrapReturningThreads(TRUE);
-        }
-
-        if (!g_fProcessDetach && !fFinalizeOK)
-        {
-            goto lDone;
-        }
-
 #ifdef PROFILING_SUPPORTED
         // If profiling is enabled, then notify of shutdown first so that the
         // profiler can make any last calls it needs to.  Do this only if we
         // are not detaching
 
+        // NOTE: We haven't stopped other threads at this point and nothing is stopping
+        // callbacks from coming into the profiler even after Shutdown() has been called.
+        // See https://github.com/dotnet/coreclr/issues/22176 for an example of how that
+        // happens.
+        // Callbacks will be prevented when ProfilingAPIUtility::Terminate() changes the state
+        // to detached, which occurs shortly afterwards. It might be kinder to make the detaching
+        // transition before calling Shutdown(), but if we do we'd have to be very careful not
+        // to break profilers that were relying on being able to call various APIs during
+        // Shutdown(). I suspect this isn't something we'll ever do unless we get complaints.
         if (CORProfilerPresent())
         {
             // If EEShutdown is not being called due to a ProcessDetach event, so
@@ -1786,33 +1562,12 @@ part2:
                 Interpreter::Terminate();
 #endif // FEATURE_INTERPRETER
 
-#ifdef SHOULD_WE_CLEANUP
-                if (!g_fFastExitProcess)
-                {
-                    GCHandleUtilities::GetGCHandleManager()->Shutdown();
-                }
-#endif /* SHOULD_WE_CLEANUP */
-
-#ifdef ENABLE_PERF_COUNTERS
-                // Terminate Perf Counters as late as we can (to get the most data)
-                PerfCounters::Terminate();
-#endif // ENABLE_PERF_COUNTERS
-
                 //@TODO: find the right place for this
                 VirtualCallStubManager::UninitStatic();
 
 #ifdef ENABLE_PERF_LOG
                 PerfLog::PerfLogDone();
 #endif //ENABLE_PERF_LOG
-
-                Frame::Term();
-
-                if (!g_fFastExitProcess)
-                {
-                    SystemDomain::DetachEnd();
-                }
-
-                TerminateStackProbes();
 
                 // Unregister our vectored exception and continue handlers from the OS.
                 // This will ensure that if any other DLL unload (after ours) has an exception,
@@ -1853,9 +1608,6 @@ part2:
                 if (!g_fFastExitProcess)
                     StressLog::Terminate(TRUE);
 #endif
-
-                if (g_pConfig != NULL)
-                    g_pConfig->Cleanup();
 
 #ifdef LOGGING
                 ShutdownLogging();
@@ -1942,49 +1694,6 @@ BOOL IsThreadInSTA()
 }
 #endif
 
-static LONG s_ActiveShutdownThreadCount = 0;
-
-// ---------------------------------------------------------------------------
-// Function: EEShutDownProcForSTAThread(LPVOID lpParameter)
-//
-// Parameters:
-//    LPVOID lpParameter: unused
-//
-// Description:
-//    When EEShutDown decides that the shut down logic must occur on another thread,
-//    EEShutDown creates a new thread, and this function acts as the thread proc. See
-//    code:#STAShutDown for details.
-// 
-DWORD WINAPI EEShutDownProcForSTAThread(LPVOID lpParameter)
-{
-    STATIC_CONTRACT_SO_INTOLERANT;;
-
-
-    ClrFlsSetThreadType(ThreadType_ShutdownHelper);
-
-    EEShutDownHelper(FALSE);
-    for (int i = 0; i < 10; i ++)
-    {
-        if (s_ActiveShutdownThreadCount)
-        {
-            return 0;
-        }
-        __SwitchToThread(20, CALLER_LIMITS_SPINNING);
-    }
-
-    EPolicyAction action = GetEEPolicy()->GetDefaultAction(OPR_ProcessExit, NULL);
-    if (action < eRudeExitProcess)
-    {
-        action = eRudeExitProcess;
-    }
-
-    UINT exitCode = GetLatchedExitCode();
-    EEPolicy::HandleExitProcessFromEscalation(action, exitCode);
-
-    return 0;
-}
-
-// ---------------------------------------------------------------------------
 // #EEShutDown
 // 
 // Function: EEShutDown(BOOL fIsDllUnloading)
@@ -2027,7 +1736,6 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT; // we don't need to cleanup 'cus we're shutting down
         PRECONDITION(g_fEEStarted);
     } CONTRACTL_END;
 
@@ -2036,14 +1744,6 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
     {
         return;
     }
-
-    // Stop stack probing and asserts right away.  Once we're shutting down, we can do no more.
-    // And we don't want to SO-protect anything at this point anyway. This really only has impact
-    // on a debug build.
-    TerminateStackProbes();
-
-    // The process is shutting down.  No need to check SO contract.
-    SO_NOT_MAINLINE_FUNCTION;
 
     // We only do the first part of the shutdown once.
     static LONG OnlyOne = -1;
@@ -2071,60 +1771,14 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
 #endif
     }
 
-#ifdef FEATURE_COMINTEROP
-    if (!fIsDllUnloading && CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_FinalizeOnShutdown) && IsThreadInSTA())
-    {
-        // #STAShutDown
-        // 
-        // During shutdown, we may need to release STA interface on the shutdown thread.
-        // It is possible that the shutdown thread may deadlock. During shutdown, all
-        // threads are blocked, except the shutdown thread and finalizer thread. If a
-        // lock is held by one of these suspended threads, it can deadlock the process if
-        // the shutdown thread tries to enter the lock. To mitigate this risk, create
-        // another thread (B) to do shutdown activities (i.e., EEShutDownHelper), while
-        // this thread (A) waits. If B deadlocks, A will time out and immediately return
-        // from EEShutDown. A will then eventually call the OS's ExitProcess, which will
-        // kill the deadlocked thread (and all other threads).
-        // 
-        // Many Windows Forms-based apps will also execute the code below to shift shut
-        // down logic to a separate thread, even if they don't use COM objects. Reason
-        // being that they will typically use a main UI thread to pump all Windows
-        // messages (including messages that facilitate cross-thread COM calls to STA COM
-        // objects), and will set that thread up as an STA thread just in case there are
-        // such cross-thread COM calls to contend with. In fact, when you use VS's
-        // File.New.Project to make a new Windows Forms project, VS will mark Main() with
-        // [STAThread]
-        DWORD thread_id = 0;
-        if (CreateThread(NULL,0,EEShutDownProcForSTAThread,NULL,0,&thread_id))
-        {
-            GCX_PREEMP_NO_DTOR();
-
-            ClrFlsSetThreadType(ThreadType_Shutdown);
-            WaitForEndOfShutdown();
-            FastInterlockIncrement(&s_ActiveShutdownThreadCount);
-            ClrFlsClearThreadType(ThreadType_Shutdown);
-        }
-    }
-    else
-        // Otherwise, this thread calls EEShutDownHelper directly.  First switch to
-        // cooperative mode if this is a managed thread
-#endif
     if (GetThread())
     {
         GCX_COOP();
         EEShutDownHelper(fIsDllUnloading);
-        if (!fIsDllUnloading)
-        {
-            FastInterlockIncrement(&s_ActiveShutdownThreadCount);
-        }
     }
     else
     {
         EEShutDownHelper(fIsDllUnloading);
-        if (!fIsDllUnloading)
-        {
-            FastInterlockIncrement(&s_ActiveShutdownThreadCount);
-        }
     }
 }
 
@@ -2139,183 +1793,11 @@ void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading)
 //
 // Description: Indicates if the runtime is active or not. "Active" implies
 //              that the runtime has started and is in a position to run
-//              managed code. If either of these conditions are false, the
-//              function return FALSE.
-//          
-//              Why couldnt we add !g_fEEStarted check in CanRunManagedCode?
-//
-// 
-//              ExecuteDLL in ceemain.cpp could start the runtime 
-//             (due to DLL_PROCESS_ATTACH) after invoking CanRunManagedCode. 
-//              If the function were to be modified, then this scenario could fail. 
-//              Hence, I have built over CanRunManagedCode in IsRuntimeActive.
-
+//              managed code.
 // ---------------------------------------------------------------------------
 BOOL IsRuntimeActive()
 {
-    // If the runtime has started AND we can run managed code,
-    // then runtime is considered "active".
-    BOOL fCanRunManagedCode = CanRunManagedCode();
-    return (g_fEEStarted && fCanRunManagedCode);
-}
-
-// ---------------------------------------------------------------------------
-// %%Function: CanRunManagedCode()
-//
-// Parameters:
-//  none
-//
-// Returns:
-//  true or false
-//
-// Description: Indicates if one is currently allowed to run managed code.
-// ---------------------------------------------------------------------------
-NOINLINE BOOL CanRunManagedCodeRare(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
-{
-    CONTRACTL {
-        NOTHROW;
-        if (checkKind == LoaderLockCheck::ForMDA) { GC_TRIGGERS; } else { GC_NOTRIGGER; }; // because of the CustomerDebugProbe
-        MODE_ANY;
-        SO_TOLERANT;
-    } CONTRACTL_END;
-
-    // If we are shutting down the runtime, then we cannot run code.
-    if (g_fForbidEnterEE)
-        return FALSE;
-
-    // If pre-loaded objects are not present, then no way.
-    if (g_pPreallocatedOutOfMemoryException == NULL)
-        return FALSE;
-
-    // If we are finaling live objects or processing ExitProcess event,
-    // we can not allow managed method to run unless the current thread
-    // is the finalizer thread
-    if ((g_fEEShutDown & ShutDown_Finalize2) && !FinalizerThread::IsCurrentThreadFinalizer())
-        return FALSE;
-
-#if defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-    if ((checkKind == LoaderLockCheck::ForMDA) && (NULL == MDA_GET_ASSISTANT(LoaderLock))) 
-        return TRUE;
-
-    if (checkKind == LoaderLockCheck::None)
-        return TRUE;
-
-    // If we are checking whether the OS loader lock is held by the current thread, then
-    // it better not be.  Note that ShouldCheckLoaderLock is a cached test for whether
-    // we are checking this probe.  So we can call AuxUlibIsDLLSynchronizationHeld before
-    // verifying that the probe is still enabled.
-    //
-    // What's the difference between ignoreLoaderLock & ShouldCheckLoaderLock?
-    // ShouldCheckLoaderLock is a process-wide flag.  In a few places where we
-    // *know* we are in the loader lock but haven't quite reached the dangerous
-    // point, we call CanRunManagedCode suppressing/deferring this check.
-    BOOL IsHeld;
-
-    if (ShouldCheckLoaderLock(FALSE) &&
-        AuxUlibIsDLLSynchronizationHeld(&IsHeld) &&
-        IsHeld)
-    {
-        if (checkKind == LoaderLockCheck::ForMDA)
-        {
-            MDA_TRIGGER_ASSISTANT(LoaderLock, ReportViolation(hInst));
-        }
-        else
-        {
-            return FALSE;
-        }
-    }
-#endif // defined(FEATURE_COMINTEROP) && defined(MDA_SUPPORTED)
-
-    return TRUE;
-}
-
-#include <optsmallperfcritical.h>
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst /*= 0*/)
-{
-    CONTRACTL {
-        NOTHROW;
-        if (checkKind == LoaderLockCheck::ForMDA) { GC_TRIGGERS; } else { GC_NOTRIGGER; }; // because of the CustomerDebugProbe
-        MODE_ANY;
-        SO_TOLERANT;
-    } CONTRACTL_END;
-
-    // Special-case the common success cases
-    //  (Try not to make any calls here so that we don't have to spill our incoming arg regs)
-    if (!g_fForbidEnterEE 
-        && (g_pPreallocatedOutOfMemoryException != NULL)
-        && !(g_fEEShutDown & ShutDown_Finalize2)
-        && (((checkKind == LoaderLockCheck::ForMDA) 
-#ifdef MDA_SUPPORTED
-             && (NULL == MDA_GET_ASSISTANT(LoaderLock))
-#endif // MDA_SUPPORTED
-            ) || (checkKind == LoaderLockCheck::None)))
-    {
-        return TRUE;
-    }
-
-    // Then call a helper for everything else.
-    return CanRunManagedCodeRare(checkKind, hInst);
-}
-#include <optdefault.h>
-
-
-// ---------------------------------------------------------------------------
-// %%Function: CoInitializeEE(DWORD fFlags)
-//
-// Parameters:
-//  fFlags                  - Initialization flags for the engine.  See the
-//                              COINITIEE enumerator for valid values.
-//
-// Returns:
-//  Nothing
-//
-// Description:
-//  Initializes the EE if it hasn't already been initialized. This function
-//  no longer maintains a ref count since the EE doesn't support being
-//  unloaded and re-loaded. It simply ensures the EE has been started.
-// ---------------------------------------------------------------------------
-HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BEGIN_ENTRYPOINT_NOTHROW;
-    hr = InitializeEE((COINITIEE)fFlags);
-    END_ENTRYPOINT_NOTHROW;
-
-    return hr;
-}
-
-// ---------------------------------------------------------------------------
-// %%Function: CoUninitializeEE
-//
-// Parameters:
-//  BOOL fIsDllUnloading :: is it safe point for full cleanup
-//
-// Returns:
-//  Nothing
-//
-// Description:
-//  Must be called by client on shut down in order to free up the system.
-// ---------------------------------------------------------------------------
-void STDAPICALLTYPE CoUninitializeEE(BOOL fIsDllUnloading)
-{
-    LIMITED_METHOD_CONTRACT;
-    //BEGIN_ENTRYPOINT_VOIDRET;
-
-    // This API is unfortunately publicly exported so we cannot get rid
-    // of it. However since the EE doesn't currently support being unloaded
-    // and re-loaded, it is useless to do any ref counting here or to pretend
-    // to unload it. The proper way to shutdown the EE is to call CorExitProcess.
-    //END_ENTRYPOINT_VOIDRET;
-
+    return (g_fEEStarted);
 }
 
 //*****************************************************************************
@@ -2325,7 +1807,6 @@ BOOL ExecuteDLL_ReturnOrThrow(HRESULT hr, BOOL fFromThunk)
         if (fFromThunk) THROWS; else NOTHROW;
         WRAPPER(GC_TRIGGERS);
         MODE_ANY;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     // If we have a failure result, and we're called from a thunk,
@@ -2399,10 +1880,6 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
 
-    // this runs at the top of a thread, SO is not a concern here...
-    STATIC_CONTRACT_SO_NOT_MAINLINE;
-
-
     // HRESULT hr;
     // BEGIN_EXTERNAL_ENTRYPOINT(&hr);
     // EE isn't spun up enough to use this macro
@@ -2456,19 +1933,9 @@ BOOL STDMETHODCALLTYPE EEDllMain( // TRUE on success, FALSE on error.
                 _ASSERTE(pParam->lpReserved || !g_fEEStarted);
                 g_fProcessDetach = TRUE;
 
-#if defined(ENABLE_CONTRACTS_IMPL) && defined(FEATURE_STACK_PROBE)
-                // We are shutting down process.  No need to check SO contract.
-                // And it is impossible to enforce SO contract in global dtor, like ModIntPairList.
-                g_EnableDefaultRWValidation = FALSE;
-#endif
-
                 if (g_fEEStarted)
                 {
-                    // GetThread() may be set to NULL for Win9x during shutdown.
-                    Thread *pThread = GetThread();
-                    if (GCHeapUtilities::IsGCInProgress() &&
-                        ( (pThread && (pThread != ThreadSuspend::GetSuspensionThread() ))
-                            || !g_fSuspendOnShutdown))
+                    if (GCHeapUtilities::IsGCInProgress())
                     {
                         g_fEEShutDown |= ShutDown_Phase2;
                         break;
@@ -2674,7 +2141,6 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(CheckPointer(pCultureNames));
-        SO_INTOLERANT;
     } 
     CONTRACTL_END;
 
@@ -2745,16 +2211,7 @@ static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames)
             int tmp; tmp = GetThreadUICultureId(&id);   // TODO: We should use the name instead
             _ASSERTE(tmp!=0 && id != UICULTUREID_DONTCARE);
             SIZE_T cchParentCultureName=LOCALE_NAME_MAX_LENGTH;
-#ifdef FEATURE_USE_LCID 
-            SIZE_T cchCultureName=LOCALE_NAME_MAX_LENGTH;
-            if (!::LCIDToLocaleName(id, sCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchCultureName)), static_cast<int>(cchCultureName), 0))
-            {
-                hr = HRESULT_FROM_GetLastError();
-            }
-            sCulture.CloseBuffer();
-#else
             sCulture.Set(id);
-#endif
 
 #ifndef FEATURE_PAL
             if (!::GetLocaleInfoEx((LPCWSTR)sCulture, LOCALE_SPARENT, sParentCulture.OpenUnicodeBuffer(static_cast<COUNT_T>(cchParentCultureName)),static_cast<int>(cchParentCultureName)))
@@ -2794,7 +2251,6 @@ void SetLatchedExitCode (INT32 code)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -2809,93 +2265,16 @@ INT32 GetLatchedExitCode (void)
     return LatchedExitCode;
 }
 
-    
 // ---------------------------------------------------------------------------
 // Impl for UtilLoadStringRC Callback: In VM, we let the thread decide culture
 // Return an int uniquely describing which language this thread is using for ui.
 // ---------------------------------------------------------------------------
-// TODO: Callers should use names, not LCIDs
-#ifdef FEATURE_USE_LCID
 static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
 {
     CONTRACTL{
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;;
-    } CONTRACTL_END;
-
-
-
-    int Result = UICULTUREID_DONTCARE;
-
-    Thread * pThread = GetThread();
-
-#if 0 // Enable and test if/once the unmanaged runtime is localized
-    // When fatal errors have occured our invariants around GC modes may be broken and attempting to transition to co-op may hang
-    // indefinately. We want to ensure a clean exit so rather than take the risk of hang we take a risk of the error resource not
-    // getting localized with a non-default thread-specific culture.
-    // A canonical stack trace that gets here is a fatal error in the GC that comes through:
-    // coreclr.dll!GetThreadUICultureNames
-    // coreclr.dll!CCompRC::LoadLibraryHelper
-    // coreclr.dll!CCompRC::LoadLibrary
-    // coreclr.dll!CCompRC::GetLibrary
-    // coreclr.dll!CCompRC::LoadString
-    // coreclr.dll!CCompRC::LoadString
-    // coreclr.dll!SString::LoadResourceAndReturnHR
-    // coreclr.dll!SString::LoadResourceAndReturnHR
-    // coreclr.dll!SString::LoadResource
-    // coreclr.dll!EventReporter::EventReporter
-    // coreclr.dll!EEPolicy::LogFatalError
-    // coreclr.dll!EEPolicy::HandleFatalError
-    if (pThread != NULL && !g_fFatalErrorOccuredOnGCThread)
-    {
-        // Switch to cooperative mode, since we'll be looking at managed objects
-        // and we don't want them moving on us.
-        GCX_COOP();
-
-        CULTUREINFOBASEREF pCurrentCulture = (CULTUREINFOBASEREF)Thread::GetCulture(TRUE);
-
-        if (pCurrentCulture != NULL)
-        {
-            STRINGREF cultureName = pCurrentCulture->GetName();
-            _ASSERT(cultureName != NULL);
-
-            if ((Result = ::LocaleNameToLCID(cultureName->GetBuffer(), 0)) == 0)
-                Result = (int)UICULTUREID_DONTCARE;
-        }
-    }
-#endif
-
-    if (Result == (int)UICULTUREID_DONTCARE)
-    {
-        // This thread isn't set up to use a non-default culture. Let's grab the default
-        // one and return that.
-
-        Result = COMNlsInfo::CallGetUserDefaultUILanguage();
-
-        if (Result == 0 || Result == (int)UICULTUREID_DONTCARE)
-            Result = GetUserDefaultLangID();
-
-        _ASSERTE(Result != 0);
-        if (Result == 0)
-        {
-            Result = (int)UICULTUREID_DONTCARE;
-        }
-
-    }
-    *pLocale=Result;
-    return Result;
-}
-#else
-// TODO: Callers should use names, not LCIDs
-static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
-{
-    CONTRACTL{
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        SO_INTOLERANT;;
     } CONTRACTL_END;
 
     _ASSERTE(sizeof(LocaleIDValue)/sizeof(WCHAR) >= LOCALE_NAME_MAX_LENGTH);
@@ -2965,9 +2344,6 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale)
     return Result;
 }
 
-#endif // FEATURE_USE_LCID
-
-
 #ifdef ENABLE_CONTRACTS_IMPL
 
 // Returns TRUE if any contract violation suppressions are in effect.
@@ -2977,7 +2353,6 @@ BOOL AreAnyViolationBitsOn()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;

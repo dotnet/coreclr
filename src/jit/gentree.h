@@ -798,6 +798,7 @@ public:
 #define GTF_INX_REFARR_LAYOUT       0x20000000 // GT_INDEX
 #define GTF_INX_STRING_LAYOUT       0x40000000 // GT_INDEX -- this uses the special string array layout
 
+#define GTF_IND_TGT_NOT_HEAP        0x80000000 // GT_IND   -- the target is not on the heap
 #define GTF_IND_VOLATILE            0x40000000 // GT_IND   -- the load or store must use volatile sematics (this is a nop on X86)
 #define GTF_IND_NONFAULTING         0x20000000 // Operations for which OperIsIndir() is true  -- An indir that cannot fault.
                                                // Same as GTF_ARRLEN_NONFAULTING.
@@ -818,14 +819,12 @@ public:
 
 #define GTF_IND_FLAGS \
     (GTF_IND_VOLATILE | GTF_IND_TGTANYWHERE | GTF_IND_NONFAULTING | GTF_IND_TLS_REF |          \
-     GTF_IND_UNALIGNED | GTF_IND_INVARIANT | GTF_IND_ARR_INDEX)
+     GTF_IND_UNALIGNED | GTF_IND_INVARIANT | GTF_IND_ARR_INDEX | GTF_IND_TGT_NOT_HEAP)
 
 #define GTF_CLS_VAR_VOLATILE        0x40000000 // GT_FIELD/GT_CLS_VAR -- same as GTF_IND_VOLATILE
 #define GTF_CLS_VAR_INITCLASS       0x20000000 // GT_FIELD/GT_CLS_VAR -- same as GTF_FLD_INITCLASS
 #define GTF_CLS_VAR_ASG_LHS         0x04000000 // GT_CLS_VAR   -- this GT_CLS_VAR node is (the effective val) of the LHS
                                                //                 of an assignment; don't evaluate it independently.
-
-#define GTF_ADDR_ONSTACK            0x80000000 // GT_ADDR    -- this expression is guaranteed to be on the stack
 
 #define GTF_ADDRMODE_NO_CSE         0x80000000 // GT_ADD/GT_MUL/GT_LSH -- Do not CSE this node only, forms complex
                                                //                         addressing mode
@@ -1807,8 +1806,11 @@ public:
         while (node->gtOper == GT_COMMA)
         {
             node = node->gtGetOp2();
-            assert(node->gtType == oldType);
-            node->gtType = newType;
+            if (node->gtType != newType)
+            {
+                assert(node->gtType == oldType);
+                node->gtType = newType;
+            }
         }
     }
 
@@ -2027,7 +2029,6 @@ public:
     }
     inline bool IsHelperCall();
 
-    bool IsVarAddr() const;
     bool gtOverflow() const;
     bool gtOverflowEx() const;
     bool gtSetFlags() const;
@@ -2641,8 +2642,9 @@ struct GenTreeDblCon : public GenTree
         return (bits == otherBits);
     }
 
-    GenTreeDblCon(double val) : GenTree(GT_CNS_DBL, TYP_DOUBLE), gtDconVal(val)
+    GenTreeDblCon(double val, var_types type = TYP_DOUBLE) : GenTree(GT_CNS_DBL, type), gtDconVal(val)
     {
+        assert(varTypeIsFloating(type));
     }
 #if DEBUGGABLE_GENTREE
     GenTreeDblCon() : GenTree()
@@ -2810,14 +2812,14 @@ struct GenTreeBox : public GenTreeUnOp
     }
     // This is the statement that contains the assignment tree when the node is an inlined GT_BOX on a value
     // type
-    GenTree* gtAsgStmtWhenInlinedBoxValue;
+    GenTreeStmt* gtAsgStmtWhenInlinedBoxValue;
     // And this is the statement that copies from the value being boxed to the box payload
-    GenTree* gtCopyStmtWhenInlinedBoxValue;
+    GenTreeStmt* gtCopyStmtWhenInlinedBoxValue;
 
-    GenTreeBox(var_types type,
-               GenTree*  boxOp,
-               GenTree*  asgStmtWhenInlinedBoxValue,
-               GenTree*  copyStmtWhenInlinedBoxValue)
+    GenTreeBox(var_types    type,
+               GenTree*     boxOp,
+               GenTreeStmt* asgStmtWhenInlinedBoxValue,
+               GenTreeStmt* copyStmtWhenInlinedBoxValue)
         : GenTreeUnOp(GT_BOX, type, boxOp)
         , gtAsgStmtWhenInlinedBoxValue(asgStmtWhenInlinedBoxValue)
         , gtCopyStmtWhenInlinedBoxValue(copyStmtWhenInlinedBoxValue)
@@ -3530,6 +3532,9 @@ struct GenTreeCall final : public GenTree
         return varTypeIsLong(gtType);
 #elif FEATURE_MULTIREG_RET && defined(_TARGET_ARM_)
         return varTypeIsLong(gtType) || (varTypeIsStruct(gtType) && !HasRetBufArg());
+#elif defined(FEATURE_HFA) && defined(_TARGET_ARM64_)
+        // SIMD types are returned in vector regs on ARM64.
+        return (gtType == TYP_STRUCT) && !HasRetBufArg();
 #elif FEATURE_MULTIREG_RET
         return varTypeIsStruct(gtType) && !HasRetBufArg();
 #else
@@ -4710,22 +4715,28 @@ struct GenTreeObj : public GenTreeBlk
         }
     }
 
+    void Init()
+    {
+        // By default, an OBJ is assumed to be a global reference, unless it is local.
+        GenTreeLclVarCommon* lcl = Addr()->IsLocalAddrExpr();
+        if ((lcl == nullptr) || ((lcl->gtFlags & GTF_GLOB_EFFECT) != 0))
+        {
+            gtFlags |= GTF_GLOB_REF;
+        }
+        noway_assert(gtClass != NO_CLASS_HANDLE);
+        _gtGcPtrCount = UINT32_MAX;
+    }
+
     GenTreeObj(var_types type, GenTree* addr, CORINFO_CLASS_HANDLE cls, unsigned size)
         : GenTreeBlk(GT_OBJ, type, addr, size), gtClass(cls)
     {
-        // By default, an OBJ is assumed to be a global reference.
-        gtFlags |= GTF_GLOB_REF;
-        noway_assert(cls != NO_CLASS_HANDLE);
-        _gtGcPtrCount = UINT32_MAX;
+        Init();
     }
 
     GenTreeObj(var_types type, GenTree* addr, GenTree* data, CORINFO_CLASS_HANDLE cls, unsigned size)
         : GenTreeBlk(GT_STORE_OBJ, type, addr, data, size), gtClass(cls)
     {
-        // By default, an OBJ is assumed to be a global reference.
-        gtFlags |= GTF_GLOB_REF;
-        noway_assert(cls != NO_CLASS_HANDLE);
-        _gtGcPtrCount = UINT32_MAX;
+        Init();
     }
 
 #if DEBUGGABLE_GENTREE
@@ -4957,6 +4968,14 @@ struct GenTreeClsVar : public GenTree
     {
         gtFlags |= GTF_GLOB_REF;
     }
+
+    GenTreeClsVar(genTreeOps oper, var_types type, CORINFO_FIELD_HANDLE clsVarHnd, FieldSeqNode* fldSeq)
+        : GenTree(oper, type), gtClsVarHnd(clsVarHnd), gtFieldSeq(fldSeq)
+    {
+        assert((oper == GT_CLS_VAR) || (oper == GT_CLS_VAR_ADDR));
+        gtFlags |= GTF_GLOB_REF;
+    }
+
 #if DEBUGGABLE_GENTREE
     GenTreeClsVar() : GenTree()
     {
@@ -4985,10 +5004,10 @@ struct GenTreePhiArg : public GenTreeLclVarCommon
 {
     BasicBlock* gtPredBB;
 
-    GenTreePhiArg(var_types type, unsigned lclNum, unsigned snum, BasicBlock* block)
+    GenTreePhiArg(var_types type, unsigned lclNum, unsigned ssaNum, BasicBlock* block)
         : GenTreeLclVarCommon(GT_PHI_ARG, type, lclNum), gtPredBB(block)
     {
-        SetSsaNum(snum);
+        SetSsaNum(ssaNum);
     }
 
 #if DEBUGGABLE_GENTREE
@@ -6500,8 +6519,7 @@ inline bool GenTree::isUsedFromSpillTemp() const
 
 /*****************************************************************************/
 
-// In debug, on some platforms (e.g., when LATE_DISASM is defined), GenTreeIntCon is bigger than GenTreeLclFld.
-const size_t TREE_NODE_SZ_SMALL = max(sizeof(GenTreeIntCon), sizeof(GenTreeLclFld));
+const size_t TREE_NODE_SZ_SMALL = sizeof(GenTreeLclFld);
 const size_t TREE_NODE_SZ_LARGE = sizeof(GenTreeCall);
 
 enum varRefKinds

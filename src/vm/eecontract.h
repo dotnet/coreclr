@@ -16,7 +16,6 @@
 #define EECONTRACT_H_
 
 #include "contract.h"
-#include "stackprobe.h"
 
 // --------------------------------------------------------------------------------
 // EECONTRACT is an extension of the lower level CONTRACT macros to include some
@@ -36,7 +35,7 @@ class EEContract : public BaseContract
     virtual void DestructorDefinedThatCallsRestore(){}
 
   public:
-    __declspec(nothrow) ~EEContract()
+    NOTHROW_DECL ~EEContract()
     {
         Restore();
     }
@@ -109,7 +108,6 @@ class EEContract : public BaseContract
     THROWS;                     \
     GC_TRIGGERS;                \
     MODE_PREEMPTIVE;            \
-    SO_INTOLERANT;              \
     INJECT_FAULT(COMPlusThrowOM();); \
 
 #endif  // EECONTRACT_H_

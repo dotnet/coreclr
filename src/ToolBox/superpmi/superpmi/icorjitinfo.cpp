@@ -826,11 +826,18 @@ TypeCompareState MyICJI::compareTypesForEquality(CORINFO_CLASS_HANDLE cls1, CORI
     return jitInstance->mc->repCompareTypesForEquality(cls1, cls2);
 }
 
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE MyICJI::mergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
 {
     jitInstance->mc->cr->AddCall("mergeClasses");
     return jitInstance->mc->repMergeClasses(cls1, cls2);
+}
+
+// Returns true if cls2 is known to be a more specific type than cls1
+BOOL MyICJI::isMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2)
+{
+    jitInstance->mc->cr->AddCall("isMoreSpecificType");
+    return jitInstance->mc->repIsMoreSpecificType(cls1, cls2);
 }
 
 // Given a class handle, returns the Parent type.
@@ -1803,22 +1810,22 @@ void MyICJI::reportFatalError(CorJitResult result)
 
 // allocate a basic block profile buffer where execution counts will be stored
 // for jitted basic blocks.
-HRESULT MyICJI::allocBBProfileBuffer(ULONG           count, // The number of basic blocks that we have
-                                     ProfileBuffer** profileBuffer)
+HRESULT MyICJI::allocMethodBlockCounts(UINT32          count, // The number of basic blocks that we have
+                                       BlockCounts**   pBlockCounts)
 {
-    jitInstance->mc->cr->AddCall("allocBBProfileBuffer");
-    return jitInstance->mc->cr->repAllocBBProfileBuffer(count, profileBuffer);
+    jitInstance->mc->cr->AddCall("allocMethodBlockCounts");
+    return jitInstance->mc->cr->repAllocMethodBlockCounts(count, pBlockCounts);
 }
 
 // get profile information to be used for optimizing the current method.  The format
-// of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-HRESULT MyICJI::getBBProfileData(CORINFO_METHOD_HANDLE ftnHnd,
-                                 ULONG*                count, // The number of basic blocks that we have
-                                 ProfileBuffer**       profileBuffer,
-                                 ULONG*                numRuns)
+// of the buffer is the same as the format the JIT passes to allocMethodBlockCounts.
+HRESULT MyICJI::getMethodBlockCounts(CORINFO_METHOD_HANDLE ftnHnd,
+                                     UINT32 *              pCount, // The number of basic blocks that we have
+                                     BlockCounts**         pBlockCounts,
+                                     UINT32 *              pNumRuns)
 {
-    jitInstance->mc->cr->AddCall("getBBProfileData");
-    return jitInstance->mc->repGetBBProfileData(ftnHnd, count, profileBuffer, numRuns);
+    jitInstance->mc->cr->AddCall("getMethodBlockCounts");
+    return jitInstance->mc->repGetMethodBlockCounts(ftnHnd, pCount, pBlockCounts, pNumRuns);
 }
 
 // Associates a native call site, identified by its offset in the native code stream, with

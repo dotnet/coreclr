@@ -15,6 +15,7 @@ set(VM_CROSSGEN_SOURCES
   ../clrprivbinderutil.cpp
   ../clsload.cpp
   ../codeman.cpp
+  ../codeversion.cpp
   ../comdelegate.cpp
   ../compile.cpp
   ../contractimpl.cpp
@@ -107,6 +108,7 @@ set(VM_CROSSGEN_HEADERS
   ../clsload.hpp
   ../clsload.inl
   ../codeman.h
+  ../codeversion.h
   ../comdelegate.h
   ../compile.h
   ../contractimpl.h
@@ -265,3 +267,4 @@ if (CLR_CMAKE_PLATFORM_LINUX)
 endif (CLR_CMAKE_PLATFORM_LINUX)
 
 add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})
+add_dependencies(cee_crossgen eventing_headers)

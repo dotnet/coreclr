@@ -15,10 +15,13 @@
 
 #define READYTORUN_SIGNATURE 0x00525452 // 'RTR'
 
-#define READYTORUN_MAJOR_VERSION 0x0002
-#define READYTORUN_MINOR_VERSION 0x0002
+#define READYTORUN_MAJOR_VERSION 0x0003
+#define READYTORUN_MINOR_VERSION 0x0001
+#define MINIMUM_READYTORUN_MAJOR_VERSION 0x003
 // R2R Version 2.1 adds the READYTORUN_SECTION_INLINING_INFO section
 // R2R Version 2.2 adds the READYTORUN_SECTION_PROFILEDATA_INFO section
+// R2R Version 3.0 changes calling conventions to correctly handle explicit structures to spec.
+//     R2R 3.0 is not backward compatible with 2.x.
 
 struct READYTORUN_HEADER
 {
@@ -45,6 +48,8 @@ enum ReadyToRunFlag
     // Set if the original IL assembly was platform-neutral
     READYTORUN_FLAG_PLATFORM_NEUTRAL_SOURCE         = 0x00000001,
     READYTORUN_FLAG_SKIP_TYPE_VALIDATION            = 0x00000002,
+    // Set of methods with native code was determined using profile data
+    READYTORUN_FLAG_PARTIAL                         = 0x00000004,
 };
 
 enum ReadyToRunSectionType
@@ -60,7 +65,9 @@ enum ReadyToRunSectionType
     READYTORUN_SECTION_AVAILABLE_TYPES              = 108,
     READYTORUN_SECTION_INSTANCE_METHOD_ENTRYPOINTS  = 109,
     READYTORUN_SECTION_INLINING_INFO                = 110, // Added in V2.1
-    READYTORUN_SECTION_PROFILEDATA_INFO             = 111  // Added in V2.2
+    READYTORUN_SECTION_PROFILEDATA_INFO             = 111, // Added in V2.2
+    READYTORUN_SECTION_MANIFEST_METADATA            = 112, // Added in V2.3
+    READYTORUN_SECTION_ATTRIBUTEPRESENCE            = 113, // Added in V3.1
 
 	// If you add a new section consider whether it is a breaking or non-breaking change.
 	// Usually it is non-breaking, but if it is preferable to have older runtimes fail
@@ -177,6 +184,8 @@ enum ReadyToRunFixupKind
 
     READYTORUN_FIXUP_DelegateCtor               = 0x2C, /* optimized delegate ctor */
     READYTORUN_FIXUP_DeclaringTypeHandle        = 0x2D,
+
+    READYTORUN_FIXUP_IndirectPInvokeTarget      = 0x2E, /* Target of an inlined pinvoke */
 };
 
 //
@@ -226,6 +235,10 @@ enum ReadyToRunHelper
 
     READYTORUN_HELPER_MemSet                    = 0x40,
     READYTORUN_HELPER_MemCpy                    = 0x41,
+
+    // PInvoke helpers
+    READYTORUN_HELPER_PInvokeBegin              = 0x42,
+    READYTORUN_HELPER_PInvokeEnd                = 0x43,
 
     // Get string handle lazily
     READYTORUN_HELPER_GetString                 = 0x50,
@@ -297,6 +310,10 @@ enum ReadyToRunHelper
     READYTORUN_HELPER_PersonalityRoutine        = 0xF0,
     READYTORUN_HELPER_PersonalityRoutineFilterFunclet = 0xF1,
 #endif
+
+    // Synchronized methods
+    READYTORUN_HELPER_MonitorEnter              = 0xF8,
+    READYTORUN_HELPER_MonitorExit               = 0xF9,
 
     //
     // Deprecated/legacy

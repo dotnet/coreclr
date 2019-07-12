@@ -17,9 +17,8 @@ void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial stat
     {
         THROWS;           
         GC_NOTRIGGER;
-        SO_TOLERANT;
         // disallow creation of Crst before EE starts
-        // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+        // Can not assert here. ASP.NET uses our Threadpool before EE is started.
         PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
         PRECONDITION((!IsOSEvent()));
     }
@@ -28,7 +27,7 @@ void CLREventBase::CreateAutoEvent (BOOL bInitialState  // If TRUE, initial stat
     SetAutoEvent();
 
     {
-        HANDLE h = UnsafeCreateEvent(NULL,FALSE,bInitialState,NULL);
+        HANDLE h = WszCreateEvent(NULL,FALSE,bInitialState,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -44,9 +43,8 @@ BOOL CLREventBase::CreateAutoEventNoThrow (BOOL bInitialState  // If TRUE, initi
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         // disallow creation of Crst before EE starts
-        // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+        // Can not assert here. ASP.NET uses our Threadpool before EE is started.
         PRECONDITION((m_handle == INVALID_HANDLE_VALUE)); 
         PRECONDITION((!IsOSEvent()));
     }
@@ -71,16 +69,15 @@ void CLREventBase::CreateManualEvent (BOOL bInitialState  // If TRUE, initial st
     {
         THROWS;           
         GC_NOTRIGGER;
-        SO_TOLERANT;
         // disallow creation of Crst before EE starts
-        // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+        // Can not assert here. ASP.NET uses our Threadpool before EE is started.
         PRECONDITION((m_handle == INVALID_HANDLE_VALUE));        
         PRECONDITION((!IsOSEvent()));
     }
     CONTRACTL_END;
 
     {
-        HANDLE h = UnsafeCreateEvent(NULL,TRUE,bInitialState,NULL);
+        HANDLE h = WszCreateEvent(NULL,TRUE,bInitialState,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -95,9 +92,8 @@ BOOL CLREventBase::CreateManualEventNoThrow (BOOL bInitialState  // If TRUE, ini
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         // disallow creation of Crst before EE starts
-        // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+        // Can not assert here. ASP.NET uses our Threadpool before EE is started.
         PRECONDITION((m_handle == INVALID_HANDLE_VALUE));
         PRECONDITION((!IsOSEvent()));
     }
@@ -132,7 +128,7 @@ void CLREventBase::CreateMonitorEvent(SIZE_T Cookie)
     FastInterlockOr(&m_dwFlags, CLREVENT_FLAGS_AUTO_EVENT);
 
     {
-        HANDLE h = UnsafeCreateEvent(NULL,FALSE,FALSE,NULL);
+        HANDLE h = WszCreateEvent(NULL,FALSE,FALSE,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -224,13 +220,13 @@ void CLREventBase::CreateOSAutoEvent (BOOL bInitialState  // If TRUE, initial st
     }
     CONTRACTL_END;
 
-    // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+    // Can not assert here. ASP.NET uses our Threadpool before EE is started.
     //_ASSERTE (g_fEEStarted);
 
     SetOSEvent();
     SetAutoEvent();
 
-    HANDLE h = UnsafeCreateEvent(NULL,FALSE,bInitialState,NULL);
+    HANDLE h = WszCreateEvent(NULL,FALSE,bInitialState,NULL);
     if (h == NULL) {
         ThrowOutOfMemory();
     }
@@ -273,12 +269,12 @@ void CLREventBase::CreateOSManualEvent (BOOL bInitialState  // If TRUE, initial 
     }
     CONTRACTL_END;
 
-    // Can not assert here. ASP.Net uses our Threadpool before EE is started.
+    // Can not assert here. ASP.NET uses our Threadpool before EE is started.
     //_ASSERTE (g_fEEStarted);
 
     SetOSEvent();
 
-    HANDLE h = UnsafeCreateEvent(NULL,TRUE,bInitialState,NULL);
+    HANDLE h = WszCreateEvent(NULL,TRUE,bInitialState,NULL);
     if (h == NULL) {
         ThrowOutOfMemory();
     }
@@ -315,7 +311,6 @@ void CLREventBase::CloseEvent()
     {
       NOTHROW;
       if (IsInDeadlockDetection()) {GC_TRIGGERS;} else {GC_NOTRIGGER;}
-      SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -340,7 +335,6 @@ BOOL CLREventBase::Set()
     {
       NOTHROW;
       GC_NOTRIGGER;
-      SO_TOLERANT;
       PRECONDITION((m_handle != INVALID_HANDLE_VALUE));
     }
     CONTRACTL_END;
@@ -348,7 +342,7 @@ BOOL CLREventBase::Set()
     _ASSERTE(Thread::Debug_AllowCallout());
 
     {    
-        return UnsafeSetEvent(m_handle);
+        return SetEvent(m_handle);
     }
 
 }
@@ -360,7 +354,6 @@ BOOL CLREventBase::Reset()
     {
       NOTHROW;
       GC_NOTRIGGER;
-      SO_TOLERANT;
       PRECONDITION((m_handle != INVALID_HANDLE_VALUE));
     }
     CONTRACTL_END;
@@ -372,7 +365,7 @@ BOOL CLREventBase::Reset()
               !"Can not call Reset on AutoEvent");
 
     {
-        return UnsafeResetEvent(m_handle);
+        return ResetEvent(m_handle);
     }
 }
 
@@ -380,16 +373,14 @@ BOOL CLREventBase::Reset()
 static DWORD CLREventWaitHelper2(HANDLE handle, DWORD dwMilliseconds, BOOL alertable)
 {
     STATIC_CONTRACT_THROWS;
-    STATIC_CONTRACT_SO_TOLERANT;
-    
+
     return WaitForSingleObjectEx(handle,dwMilliseconds,alertable);
 }
 
 static DWORD CLREventWaitHelper(HANDLE handle, DWORD dwMilliseconds, BOOL alertable)
 {
     STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_SO_TOLERANT;
-    
+
     struct Param
     {
         HANDLE handle;
@@ -451,7 +442,6 @@ DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syn
         {
             DISABLED(GC_TRIGGERS);        
         }
-        SO_TOLERANT;
         PRECONDITION(m_handle != INVALID_HANDLE_VALUE); // Handle has to be valid
     }
     CONTRACTL_END;
@@ -471,11 +461,9 @@ DWORD CLREventBase::WaitEx(DWORD dwMilliseconds, WaitMode mode, PendingSync *syn
     {
         if (pThread && alertable) {
             DWORD dwRet = WAIT_FAILED;
-            BEGIN_SO_INTOLERANT_CODE_NOTHROW (pThread, return WAIT_FAILED;);
             dwRet = pThread->DoAppropriateWait(1, &m_handle, FALSE, dwMilliseconds, 
                                               mode, 
                                               syncState);
-            END_SO_INTOLERANT_CODE;
             return dwRet;
         }
         else {
@@ -491,13 +479,12 @@ void CLRSemaphore::Create (DWORD dwInitial, DWORD dwMax)
     {
       THROWS;
       GC_NOTRIGGER;
-      SO_TOLERANT;
       PRECONDITION(m_handle == INVALID_HANDLE_VALUE);
     }
     CONTRACTL_END;
 
     {
-        HANDLE h = UnsafeCreateSemaphore(NULL,dwInitial,dwMax,NULL);
+        HANDLE h = WszCreateSemaphore(NULL,dwInitial,dwMax,NULL);
         if (h == NULL) {
             ThrowOutOfMemory();
         }
@@ -522,13 +509,12 @@ BOOL CLRSemaphore::Release(LONG lReleaseCount, LONG *lpPreviousCount)
     {
       NOTHROW;
       GC_NOTRIGGER;
-      SO_TOLERANT;
       PRECONDITION(m_handle != INVALID_HANDLE_VALUE);
     }
     CONTRACTL_END;
 
     {
-        return ::UnsafeReleaseSemaphore(m_handle, lReleaseCount, lpPreviousCount);
+        return ::ReleaseSemaphore(m_handle, lReleaseCount, lpPreviousCount);
     }
 }
 
@@ -556,7 +542,6 @@ DWORD CLRSemaphore::Wait(DWORD dwMilliseconds, BOOL alertable)
         {
             DISABLED(GC_TRIGGERS);        
         }
-        SO_TOLERANT;
         PRECONDITION(m_handle != INVALID_HANDLE_VALUE); // Invalid to have invalid handle
     }
     CONTRACTL_END;
@@ -596,7 +581,6 @@ void CLRLifoSemaphore::Create(INT32 initialSignalCount, INT32 maximumSignalCount
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -605,7 +589,7 @@ void CLRLifoSemaphore::Create(INT32 initialSignalCount, INT32 maximumSignalCount
     _ASSERTE(m_handle == nullptr);
 
 #ifdef FEATURE_PAL
-    HANDLE h = UnsafeCreateSemaphore(nullptr, initialSignalCount, maximumSignalCount, nullptr);
+    HANDLE h = WszCreateSemaphore(nullptr, 0, maximumSignalCount, nullptr);
 #else // !FEATURE_PAL
     HANDLE h = CreateIoCompletionPort(INVALID_HANDLE_VALUE, nullptr, 0, maximumSignalCount);
 #endif // FEATURE_PAL
@@ -638,7 +622,6 @@ bool CLRLifoSemaphore::WaitForSignal(DWORD timeoutMs)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -750,7 +733,6 @@ bool CLRLifoSemaphore::Wait(DWORD timeoutMs, UINT32 spinCount, UINT32 processorC
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -925,7 +907,6 @@ void CLRLifoSemaphore::Release(INT32 releaseCount)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -985,7 +966,7 @@ void CLRLifoSemaphore::Release(INT32 releaseCount)
 
     // Wake waiters
 #ifdef FEATURE_PAL
-    BOOL released = UnsafeReleaseSemaphore(m_handle, countOfWaitersToWake, nullptr);
+    BOOL released = ReleaseSemaphore(m_handle, countOfWaitersToWake, nullptr);
     _ASSERTE(released);
 #else // !FEATURE_PAL
     while (--countOfWaitersToWake >= 0)
@@ -1005,7 +986,6 @@ void CLRMutex::Create(LPSECURITY_ATTRIBUTES lpMutexAttributes, BOOL bInitialOwne
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(m_handle == INVALID_HANDLE_VALUE && m_handle != NULL);
     }
     CONTRACTL_END;
@@ -1034,7 +1014,6 @@ BOOL CLRMutex::Release()
     {
       NOTHROW;
       GC_NOTRIGGER;
-      SO_TOLERANT;
       PRECONDITION(m_handle != INVALID_HANDLE_VALUE && m_handle != NULL);
     }
     CONTRACTL_END;

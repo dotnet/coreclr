@@ -11,16 +11,17 @@
 #include <intrin.h>
 #endif // _MSC_VER
 
-#define REDHAWK_PALIMPORT extern "C"
-#define REDHAWK_PALAPI __stdcall
+#if !defined(_MSC_VER)
+#define _alloca alloca
+#endif //_MSC_VER
 
 #ifndef _MSC_VER
 #define __stdcall
-#ifdef __clang__
+#ifdef __GNUC__
 #define __forceinline __attribute__((always_inline)) inline
-#else // __clang__
+#else // __GNUC__
 #define __forceinline inline
-#endif // __clang__
+#endif // __GNUC__
 // [LOCALGC TODO] is there a better place for this?
 #define NOINLINE __attribute__((noinline))
 #else // !_MSC_VER
@@ -67,6 +68,8 @@ inline HRESULT HRESULT_FROM_WIN32(unsigned long x)
 #define E_FAIL                  0x80004005
 #define E_OUTOFMEMORY           0x8007000E
 #define COR_E_EXECUTIONENGINE   0x80131506
+#define CLR_E_GC_BAD_AFFINITY_CONFIG 0x8013200A
+#define CLR_E_GC_BAD_AFFINITY_CONFIG_FORMAT 0x8013200B
 
 #define NOERROR                 0x0
 #define ERROR_TIMEOUT           1460
@@ -178,18 +181,26 @@ typedef DWORD (WINAPI *PTHREAD_START_ROUTINE)(void* lpThreadParameter);
  #endif
 #else // _MSC_VER
 
+#ifdef __llvm__
+#define HAS_IA32_PAUSE __has_builtin(__builtin_ia32_pause)
+#define HAS_IA32_MFENCE __has_builtin(__builtin_ia32_mfence)
+#else
+#define HAS_IA32_PAUSE 0
+#define HAS_IA32_MFENCE 0
+#endif
+
 // Only clang defines __has_builtin, so we first test for a GCC define
 // before using __has_builtin.
 
 #if defined(__i386__) || defined(__x86_64__)
 
-#if (__GNUC__ > 4 && __GNUC_MINOR > 7) || __has_builtin(__builtin_ia32_pause)
+#if (__GNUC__ > 4 && __GNUC_MINOR > 7) || HAS_IA32_PAUSE
  // clang added this intrinsic in 3.8
  // gcc added this intrinsic by 4.7.1
  #define YieldProcessor __builtin_ia32_pause
 #endif // __has_builtin(__builtin_ia32_pause)
 
-#if defined(__GNUC__) || __has_builtin(__builtin_ia32_mfence)
+#if defined(__GNUC__) || HAS_IA32_MFENCE
  // clang has had this intrinsic since at least 3.0
  // gcc has had this intrinsic since forever
  #define MemoryBarrier __builtin_ia32_mfence
@@ -406,7 +417,6 @@ typedef struct _PROCESSOR_NUMBER {
 #define STATIC_CONTRACT_DEBUG_ONLY
 #define STATIC_CONTRACT_NOTHROW
 #define STATIC_CONTRACT_CAN_TAKE_LOCK
-#define STATIC_CONTRACT_SO_TOLERANT
 #define STATIC_CONTRACT_GC_NOTRIGGER
 #define STATIC_CONTRACT_MODE_COOPERATIVE
 #define CONTRACTL
@@ -417,8 +427,6 @@ typedef struct _PROCESSOR_NUMBER {
 #define INSTANCE_CHECK
 #define MODE_COOPERATIVE
 #define MODE_ANY
-#define SO_INTOLERANT
-#define SO_TOLERANT
 #define GC_TRIGGERS
 #define GC_NOTRIGGER
 #define CAN_TAKE_LOCK
@@ -458,7 +466,13 @@ typedef DPTR(uint8_t)   PTR_uint8_t;
 
 #define DATA_ALIGNMENT sizeof(uintptr_t)
 #define RAW_KEYWORD(x) x
+
+#ifdef _MSC_VER
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
+#else
+#define DECLSPEC_ALIGN(x)   __attribute__((aligned(x)))
+#endif
+
 #ifndef _ASSERTE
 #define _ASSERTE(_expr) ASSERT(_expr)
 #endif
@@ -501,8 +515,6 @@ inline bool dbgOnly_IsSpecialEEThread()
 // Performance logging
 //
 
-#define COUNTER_ONLY(x)
-
 //#include "etmdummy.h"
 //#define ETW_EVENT_ENABLED(e,f) false
 
@@ -522,23 +534,5 @@ inline bool FitsInU1(uint64_t val)
 {
     return val == (uint64_t)(uint8_t)val;
 }
-
-// -----------------------------------------------------------------------------------------------------------
-//
-// AppDomain emulation. The we don't have these in Redhawk so instead we emulate the bare minimum of the API
-// touched by the GC/HandleTable and pretend we have precisely one (default) appdomain.
-//
-
-#define RH_DEFAULT_DOMAIN_ID 1
-
-struct ADIndex
-{
-    DWORD m_dwIndex;
-
-    ADIndex () : m_dwIndex(RH_DEFAULT_DOMAIN_ID) {}
-    explicit ADIndex (DWORD id) : m_dwIndex(id) {}
-    BOOL operator==(const ADIndex& ad) const { return m_dwIndex == ad.m_dwIndex; }
-    BOOL operator!=(const ADIndex& ad) const { return m_dwIndex != ad.m_dwIndex; }
-};
 
 #endif // __GCENV_BASE_INCLUDED__

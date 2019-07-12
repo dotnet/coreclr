@@ -20,6 +20,7 @@
 #include "nativeoverlapped.h"
 #include "clrvarargs.h"
 #include "sigbuilder.h"
+#include "olevariant.h"
 
 #ifdef FEATURE_PREJIT
 #include "compile.h"
@@ -475,7 +476,6 @@ void MscorlibBinder::TriggerGCUnderStress()
     {
         THROWS;
         GC_TRIGGERS;
-        SO_TOLERANT;
         INJECT_FAULT(ThrowOutOfMemory());
     }
     CONTRACTL_END;

@@ -17,7 +17,6 @@
 #include "olevariant.h"
 #include "comdatetime.h"
 #include "fieldmarshaler.h"
-#include "mdaassistants.h"
 
 /* ------------------------------------------------------------------------- *
  * Local constants
@@ -1112,12 +1111,9 @@ void VariantData::NewVariant(VariantData * const& dest, const CVTypes type, INT6
 
 void SafeVariantClearHelper(_Inout_ VARIANT* pVar)
 {
-    STATIC_CONTRACT_SO_INTOLERANT;
     WRAPPER_NO_CONTRACT;
 
-    BEGIN_SO_TOLERANT_CODE(GetThread());
     VariantClear(pVar);
-    END_SO_TOLERANT_CODE;
 }
 
 class OutOfMemoryException;
@@ -1765,7 +1761,7 @@ void OleVariant::MarshalInterfaceArrayOleToCom(void *oleArray, BASEARRAYREF *pCo
                 pCom = (OBJECTREF *) (unprotectedArray->GetAddress() + currentOffset);
             }
 
-            SetObjectReference(pCom++, obj, pDomain);
+            SetObjectReference(pCom++, obj);
         }
     }
     GCPROTECT_END();
@@ -1907,7 +1903,7 @@ void OleVariant::MarshalBSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComArra
             pCom = (STRINGREF *) (unprotectedArray->GetAddress() + currentOffset);
         }
 
-            SetObjectReference((OBJECTREF*) pCom++, (OBJECTREF) stringObj, pDomain);
+            SetObjectReference((OBJECTREF*) pCom++, (OBJECTREF) stringObj);
         }
     }
     GCPROTECT_END();
@@ -2125,7 +2121,7 @@ void OleVariant::MarshalLPWSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComAr
             pCom = (STRINGREF *) (unprotectedArray->GetAddress() + currentOffset);
         }
 
-        SetObjectReference((OBJECTREF*) pCom++, (OBJECTREF) string, pDomain);
+        SetObjectReference((OBJECTREF*) pCom++, (OBJECTREF) string);
     }
 }
 
@@ -2261,7 +2257,7 @@ void OleVariant::MarshalLPSTRArrayOleToCom(void *oleArray, BASEARRAYREF *pComArr
             pCom = (STRINGREF *) (unprotectedArray->GetAddress() + currentOffset);
         }
 
-        SetObjectReference((OBJECTREF*) pCom++, (OBJECTREF) string, pDomain);
+        SetObjectReference((OBJECTREF*) pCom++, (OBJECTREF) string);
     }
 }
 
@@ -3053,12 +3049,6 @@ void OleVariant::MarshalObjectForOleVariant(const VARIANT * pOle, OBJECTREF * co
         COMPlusThrow(kPlatformNotSupportedException, IDS_EE_BADMARSHAL_TYPE_VARIANTASOBJECT);
     }
 
-#ifdef MDA_SUPPORTED
-    MdaInvalidVariant* pProbe = MDA_GET_ASSISTANT(InvalidVariant);
-    if (pProbe && !CheckVariant((VARIANT*)pOle))
-        pProbe->ReportViolation();
-#endif
-
     // if V_ISBYREF(pOle) and V_BYREF(pOle) is null then we have a problem,
     // unless we're dealing with VT_EMPTY or VT_NULL in which case that is ok??
     VARTYPE vt = V_VT(pOle) & ~VT_BYREF;
@@ -3069,137 +3059,118 @@ void OleVariant::MarshalObjectForOleVariant(const VARIANT * pOle, OBJECTREF * co
     {
         case VT_EMPTY:
             SetObjectReference( pObj,
-                                NULL,
-                                GetAppDomain() );
+                                NULL );
             break;
 
         case VT_I4:
         case VT_INT:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)) );
             *(LONG*)((*pObj)->GetData()) = V_I4(pOle);
             break;
 
         case VT_BYREF|VT_I4:
         case VT_BYREF|VT_INT:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I4)) );
             *(LONG*)((*pObj)->GetData()) = *(V_I4REF(pOle));
             break;
 
         case VT_UI4:
         case VT_UINT:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U4)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U4)) );
             *(ULONG*)((*pObj)->GetData()) = V_UI4(pOle);
             break;
 
         case VT_BYREF|VT_UI4:
         case VT_BYREF|VT_UINT:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U4)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U4)) );
             *(ULONG*)((*pObj)->GetData()) = *(V_UI4REF(pOle));
             break;
 
         case VT_I2:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I2)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I2)) );
             (*(SHORT*)((*pObj)->GetData())) = V_I2(pOle);
             break;
 
         case VT_BYREF|VT_I2:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I2)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I2)) );
             *(SHORT*)((*pObj)->GetData()) = *(V_I2REF(pOle));
             break;
 
         case VT_UI2:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U2)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U2)) );
             *(USHORT*)((*pObj)->GetData()) = V_UI2(pOle);
             break;
 
         case VT_BYREF|VT_UI2:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U2)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U2)) );
             *(USHORT*)((*pObj)->GetData()) = *(V_UI2REF(pOle));
             break;
 
         case VT_I1:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I1)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I1)) );
             *(CHAR*)((*pObj)->GetData()) = V_I1(pOle);
             break;
 
         case VT_BYREF|VT_I1:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I1)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_I1)) );
             *(CHAR*)((*pObj)->GetData()) = *(V_I1REF(pOle));
             break;
 
         case VT_UI1:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1)) );
             *(BYTE*)((*pObj)->GetData()) = V_UI1(pOle);
             break;
 
         case VT_BYREF|VT_UI1:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1)) );
             *(BYTE*)((*pObj)->GetData()) = *(V_UI1REF(pOle));
             break;
 
         case VT_R4:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R4)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R4)) );
             *(FLOAT*)((*pObj)->GetData()) = V_R4(pOle);
             break;
 
         case VT_BYREF|VT_R4:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R4)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R4)) );
             *(FLOAT*)((*pObj)->GetData()) = *(V_R4REF(pOle));
             break;
 
         case VT_R8:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R8)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R8)) );
             *(DOUBLE*)((*pObj)->GetData()) = V_R8(pOle);
             break;
 
         case VT_BYREF|VT_R8:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R8)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_R8)) );
             *(DOUBLE*)((*pObj)->GetData()) = *(V_R8REF(pOle));
             break;
 
         case VT_BOOL:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_BOOLEAN)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_BOOLEAN)) );
             *(VARIANT_BOOL*)((*pObj)->GetData()) = V_BOOL(pOle) ? 1 : 0;
             break;
 
         case VT_BYREF|VT_BOOL:
             SetObjectReference( pObj,
-                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_BOOLEAN)),
-                                GetAppDomain() );
+                                AllocateObject(MscorlibBinder::GetElementType(ELEMENT_TYPE_BOOLEAN)) );
             *(VARIANT_BOOL*)((*pObj)->GetData()) = *(V_BOOLREF(pOle)) ? 1 : 0;
             break;
 
@@ -3222,8 +3193,7 @@ void OleVariant::MarshalObjectForOleVariant(const VARIANT * pOle, OBJECTREF * co
                     OleVariant::MarshalComVariantForOleVariant((VARIANT*)pOle, &managedVariant);    
                     ARG_SLOT args[] = { PtrToArgSlot(&managedVariant) };
                     SetObjectReference( pObj, 
-                                        convertVariantToObject.Call_RetOBJECTREF(args),
-                                        GetAppDomain() );
+                                        convertVariantToObject.Call_RetOBJECTREF(args) );
                 }
                 GCPROTECT_END_VARIANTDATA();
             }
@@ -3913,8 +3883,6 @@ void OleVariant::MarshalVariantArrayOleToCom(void *oleArray, BASEARRAYREF *pComA
     BASEARRAYREF unprotectedArray = *pComArray;
     OBJECTREF *pCom = (OBJECTREF *) unprotectedArray->GetDataPtr();
 
-    AppDomain *pDomain = unprotectedArray->GetAppDomain();
-
     OBJECTREF TmpObj = NULL;
     GCPROTECT_BEGIN(TmpObj)
     {
@@ -3932,7 +3900,7 @@ void OleVariant::MarshalVariantArrayOleToCom(void *oleArray, BASEARRAYREF *pComA
                 unprotectedArray = *pComArray;
                 pCom = (OBJECTREF *) (unprotectedArray->GetAddress() + currentOffset);
             }
-            SetObjectReference(pCom++, TmpObj, pDomain);
+            SetObjectReference(pCom++, TmpObj);
         }
     }
     GCPROTECT_END();
@@ -4898,7 +4866,6 @@ BASEARRAYREF OleVariant::ExtractWrappedObjectsFromArray(BASEARRAYREF *pArray)
     GCPROTECT_BEGIN(DestArray)
     {
         SIZE_T NumComponents = (*pArray)->GetNumComponents();
-        AppDomain *pDomain = DestArray->GetAppDomain();
 
         if (hndWrapperType == TypeHandle(MscorlibBinder::GetClass(CLASS__DISPATCH_WRAPPER)))
         {
@@ -4906,7 +4873,7 @@ BASEARRAYREF OleVariant::ExtractWrappedObjectsFromArray(BASEARRAYREF *pArray)
             DISPATCHWRAPPEROBJECTREF *pSrcEnd = pSrc + NumComponents;
             OBJECTREF *pDest = (OBJECTREF *)DestArray->GetDataPtr();
             for (; pSrc < pSrcEnd; pSrc++, pDest++)
-                SetObjectReference(pDest, (*pSrc) != NULL ? (*pSrc)->GetWrappedObject() : NULL, pDomain);
+                SetObjectReference(pDest, (*pSrc) != NULL ? (*pSrc)->GetWrappedObject() : NULL);
         }
         else if (hndWrapperType == TypeHandle(MscorlibBinder::GetClass(CLASS__UNKNOWN_WRAPPER)))
         {
@@ -4914,7 +4881,7 @@ BASEARRAYREF OleVariant::ExtractWrappedObjectsFromArray(BASEARRAYREF *pArray)
             UNKNOWNWRAPPEROBJECTREF *pSrcEnd = pSrc + NumComponents;
             OBJECTREF *pDest = (OBJECTREF *)DestArray->GetDataPtr();
             for (; pSrc < pSrcEnd; pSrc++, pDest++)
-                SetObjectReference(pDest, (*pSrc) != NULL ? (*pSrc)->GetWrappedObject() : NULL, pDomain);
+                SetObjectReference(pDest, (*pSrc) != NULL ? (*pSrc)->GetWrappedObject() : NULL);
         }
         else if (hndWrapperType == TypeHandle(MscorlibBinder::GetClass(CLASS__ERROR_WRAPPER)))
         {
@@ -4943,7 +4910,7 @@ BASEARRAYREF OleVariant::ExtractWrappedObjectsFromArray(BASEARRAYREF *pArray)
             BSTRWRAPPEROBJECTREF *pSrcEnd = pSrc + NumComponents;
             OBJECTREF *pDest = (OBJECTREF *)DestArray->GetDataPtr();
             for (; pSrc < pSrcEnd; pSrc++, pDest++)
-                SetObjectReference(pDest, (*pSrc) != NULL ? (*pSrc)->GetWrappedObject() : NULL, pDomain);
+                SetObjectReference(pDest, (*pSrc) != NULL ? (*pSrc)->GetWrappedObject() : NULL);
         }
         else
         {
@@ -5074,7 +5041,7 @@ void OleVariant::AllocateEmptyStringForBSTR(BSTR bstr, STRINGREF *pStringObj)
     // Check to see if the BSTR has trailing odd byte.
     BOOL bHasTrailByte = ((length%sizeof(WCHAR)) != 0);
     length = length / sizeof(WCHAR);
-    SetObjectReference((OBJECTREF*)pStringObj, (OBJECTREF)StringObject::NewString(length, bHasTrailByte), GetAppDomain());
+    SetObjectReference((OBJECTREF*)pStringObj, (OBJECTREF)StringObject::NewString(length, bHasTrailByte));
 }
 
 void OleVariant::ConvertContentsBSTRToString(BSTR bstr, STRINGREF *pStringObj)

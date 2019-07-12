@@ -637,17 +637,12 @@ HRESULT GetManagedBucketParametersForIp(
     }
 
     WatsonBucketType bucketType = GetWatsonBucketType();
+
     {
-#ifdef FEATURE_WINDOWSPHONE
-        _ASSERTE(bucketType == WinPhoneCrash);
-        WinPhoneBucketParamsManager winphoneManager(pGenericModeBlock, tore, currentPC, pThread, pThrowable);
-        winphoneManager.PopulateBucketParameters();
-#else
         // if we default to CLR20r3 then let's assert that the bucketType is correct
         _ASSERTE(bucketType == CLR20r3);
         CLR20r3BucketParamsManager clr20r3Manager(pGenericModeBlock, tore, currentPC, pThread, pThrowable);
         clr20r3Manager.PopulateBucketParameters();
-#endif // FEATURE_WINDOWSPHONE
     }
 
     // At this point we have a valid managed exception, so the GMB should get
@@ -766,7 +761,6 @@ HRESULT RetrieveManagedBucketParameters(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -856,7 +850,6 @@ HRESULT GetBucketParametersForCurrentException(
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_NOT_MAINLINE;
     }
     CONTRACTL_END;
 

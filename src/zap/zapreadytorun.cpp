@@ -20,6 +20,9 @@
 
 #include "nibblestream.h"
 
+#include "../vm/typehashingalgorithms.h"
+#include "../vm/nativeformatreader.h"
+
 using namespace NativeFormat;
 
 void ZapReadyToRunHeader::Save(ZapWriter * pZapWriter)
@@ -40,6 +43,9 @@ void ZapReadyToRunHeader::Save(ZapWriter * pZapWriter)
     // If all types loaded succesfully, set a flag to skip type loading sanity checks at runtime
     if (pImage->GetCompileInfo()->AreAllClassesFullyLoaded(pImage->GetModuleHandle()))
         readyToRunHeader.Flags |= READYTORUN_FLAG_SKIP_TYPE_VALIDATION;
+
+    if (pImage->GetZapperOptions()->m_fPartialNGen)
+        readyToRunHeader.Flags |= READYTORUN_FLAG_PARTIAL;
 
     readyToRunHeader.NumberOfSections = m_Sections.GetCount();
 
@@ -216,12 +222,6 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
     {
         ZapMethodHeader * pMethod = m_MethodCompilationOrder[i];
 
-        mdMethodDef token = GetJitInfo()->getMethodDefFromMethod(pMethod->GetHandle());
-        CORINFO_SIG_INFO sig;
-        GetJitInfo()->getMethodSig(pMethod->GetHandle(), &sig);
-
-        int rid = RidFromToken(token);
-        _ASSERTE(rid != 0);
 
         BlobVertex * pFixupBlob = NULL;
 
@@ -244,8 +244,16 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
             }
         }
 
+        CORINFO_SIG_INFO sig;
+        GetJitInfo()->getMethodSig(pMethod->GetHandle(), &sig);
+
+        mdMethodDef token = GetJitInfo()->getMethodDefFromMethod(pMethod->GetHandle());
+        int rid = RidFromToken(token);
+
         if (sig.sigInst.classInstCount > 0 || sig.sigInst.methInstCount > 0)
         {
+            _ASSERTE(rid != 0);
+            
             CORINFO_MODULE_HANDLE module = GetJitInfo()->getClassModule(pMethod->GetClassHandle());
             _ASSERTE(GetCompileInfo()->IsInCurrentVersionBubble(module));
             SigBuilder sigBuilder;
@@ -254,7 +262,7 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
             resolvedToken.token = token;
             resolvedToken.hClass = pMethod->GetClassHandle();
             resolvedToken.hMethod = pMethod->GetHandle();
-            GetCompileInfo()->EncodeMethod(module, pMethod->GetHandle(), &sigBuilder, NULL, NULL, &resolvedToken);
+            GetCompileInfo()->EncodeMethod(module, pMethod->GetHandle(), &sigBuilder, m_pImportTable, EncodeModuleHelper, &resolvedToken);
 
             DWORD cbBlob;
             PVOID pBlob = sigBuilder.GetSignature(&cbBlob);
@@ -267,7 +275,29 @@ void ZapImage::OutputEntrypointsTableForReadyToRun()
         }
         else
         {
-            vertexArray.Set(rid - 1, new (GetHeap()) EntryPointVertex(pMethod->GetMethodIndex(), pFixupBlob));
+            int rid = RidFromToken(token);
+            if (rid != 0)
+            {
+                vertexArray.Set(rid - 1, new (GetHeap()) EntryPointVertex(pMethod->GetMethodIndex(), pFixupBlob));
+            }
+            else
+            {
+                // This is a p/invoke stub, get the list of methods associated with the stub, and put this code in that set of rids
+                void *targetMethodEnum;
+                BOOL isStubWithTargetMethods = GetCompileInfo()->EnumMethodsForStub(pMethod->GetHandle(), &targetMethodEnum);
+                _ASSERTE(isStubWithTargetMethods);
+
+                CORINFO_METHOD_HANDLE hTargetMethod;
+                while (GetCompileInfo()->EnumNextMethodForStub(targetMethodEnum, &hTargetMethod))
+                {
+                    mdMethodDef token = GetJitInfo()->getMethodDefFromMethod(hTargetMethod);
+                    int rid = RidFromToken(token);
+                    _ASSERTE(rid != 0);
+                    vertexArray.Set(rid - 1, new (GetHeap()) EntryPointVertex(pMethod->GetMethodIndex(), pFixupBlob));
+                }
+
+                GetCompileInfo()->EnumCloseForStubEnumerator(targetMethodEnum);
+            }
         }
 
         fEmpty = false;
@@ -326,6 +356,16 @@ public:
         }
     }
 };
+// At ngen time Zapper::CompileModule PlaceFixups called from
+//     code:ZapSig.GetSignatureForTypeHandle
+//
+/*static*/ DWORD ZapImage::EncodeModuleHelper(LPVOID compileContext,
+    CORINFO_MODULE_HANDLE referencedModule)
+{
+    _ASSERTE(!IsReadyToRunCompilation() || IsLargeVersionBubbleEnabled());
+    ZapImportTable * pTable = (ZapImportTable *)compileContext;
+    return pTable->GetIndexOfModule(referencedModule);
+}
 
 void ZapImage::OutputDebugInfoForReadyToRun()
 {
@@ -397,6 +437,14 @@ void ZapImage::OutputProfileDataForReadyToRun()
     }
 }
 
+void ZapImage::OutputManifestMetadataForReadyToRun()
+{
+    if (m_pMetaDataSection != nullptr)
+    {
+        GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_MANIFEST_METADATA, m_pMetaDataSection);
+    }
+}
+
 void ZapImage::OutputTypesTableForReadyToRun(IMDInternalImport * pMDImport)
 {
     NativeWriter writer;
@@ -446,6 +494,269 @@ void ZapImage::OutputTypesTableForReadyToRun(IMDInternalImport * pMDImport)
     GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_AVAILABLE_TYPES, pBlob);
 }
 
+template<class Tlambda>
+HRESULT EnumerateAllCustomAttributes(IMDInternalImport *pMDImport, Tlambda lambda)
+{
+    HENUMInternalHolder hEnum(pMDImport);
+    hEnum.EnumAllInit(mdtCustomAttribute);
+
+    HRESULT hr = S_OK;
+
+    mdCustomAttribute tkCustomAttribute;
+    while (pMDImport->EnumNext(&hEnum, &tkCustomAttribute))
+    {
+        LPCUTF8 szNamespace;
+        LPCUTF8 szName;
+
+        hr = pMDImport->GetNameOfCustomAttribute(tkCustomAttribute, &szNamespace, &szName);
+        if (FAILED(hr))
+            return hr;
+        
+        if (szNamespace == NULL)
+            continue;
+
+        if (szName == NULL)
+            continue;
+
+        // System.Runtime.CompilerServices.NullableAttribute is NEVER added to the table (There are *many* of these, and they provide no useful value to the runtime)
+        if ((strcmp(szNamespace, "System.Runtime.CompilerServices") == 0) && (strcmp(szName, "NullableAttribute") == 0))
+            continue;
+
+        bool addToTable = false;
+        // Other than Nullable attribute, all attributes under System.Runtime are added to the table
+        if (strncmp(szNamespace, "System.Runtime.", strlen("System.Runtime.")) == 0)
+        {
+            addToTable = true;
+        }
+        else if (strcmp(szNamespace, "Windows.Foundation.Metadata") == 0)
+        {
+            // Windows.Foundation.Metadata attributes are a similar construct to compilerservices attributes. Add them to the table
+            addToTable = true;
+        }
+        else if (strcmp(szNamespace, "System") == 0)
+        {
+            // Some historical well known attributes were placed in the System namespace. Special case them
+            if (strcmp(szName, "ParamArrayAttribute") == 0)
+                addToTable = true;
+            else if (strcmp(szName, "ThreadStaticAttribute") == 0)
+                addToTable = true;
+        }
+        else if (strcmp(szNamespace, "System.Reflection") == 0)
+        {
+            // Historical attribute in the System.Reflection namespace
+            if (strcmp(szName, "DefaultMemberAttribute") == 0)
+                addToTable = true;
+        }
+
+        if (!addToTable)
+            continue;
+
+        mdToken tkParent;
+        hr = pMDImport->GetParentToken(tkCustomAttribute, &tkParent);
+        if (FAILED(hr))
+            return hr;
+        
+        hr = lambda(szNamespace, szName, tkParent);
+        if (FAILED(hr))
+            return hr;
+    }
+
+    return hr;
+}
+
+uint32_t xorshift128(uint32_t state[4])
+{
+    /* Algorithm "xor128" from p. 5 of Marsaglia, "Xorshift RNGs" */
+    uint32_t s, t = state[3];
+    state[3] = state[2];
+    state[2] = state[1];
+    state[1] = s = state[0];
+    t ^= t << 11;
+    t ^= t >> 8;
+    return state[0] = t ^ s ^ (s >> 19);
+}
+
+HRESULT ZapImage::ComputeAttributePresenceTable(IMDInternalImport * pMDImport, SArray<UINT16> *table)
+{
+    int countOfEntries = 0;
+    HRESULT hr = EnumerateAllCustomAttributes(pMDImport, [&countOfEntries](LPCUTF8 szNamespace, LPCUTF8 szName, mdToken tkParent)
+        {
+            countOfEntries++;
+            return S_OK;
+        });
+    if (FAILED(hr))
+        return hr;
+
+    if (countOfEntries == 0)
+    {
+        table->Clear();
+        _ASSERTE(table->IsEmpty());
+        return S_OK;
+    }
+
+    // Buckets have 8 entries
+    UINT minTableBucketCount = (countOfEntries / 8) + 1;
+    UINT bucketCount = 1;
+
+    // Bucket count must be power of two
+    while (bucketCount < minTableBucketCount)
+        bucketCount *= 2;
+
+    // Resize the array.
+    bool tryAgainWithBiggerTable = false;
+    int countOfRetries = 0;
+    do
+    {
+        tryAgainWithBiggerTable = false;
+        UINT actualSizeOfTable = bucketCount * 8; // Buckets have 8 entries in them
+        UINT16* pTable = table->OpenRawBuffer(actualSizeOfTable);
+        memset(pTable, 0, sizeof(UINT16) * actualSizeOfTable);
+        table->CloseRawBuffer();
+
+        uint32_t state[4] = {729055690, 833774698, 218408041, 493449127}; // 4 randomly generated numbers to initialize random number state
+
+        // Attempt to fill  table
+
+        hr = EnumerateAllCustomAttributes(pMDImport, [&](LPCUTF8 szNamespace, LPCUTF8 szName, mdToken tkParent)
+        {
+            StackSString name(SString::Utf8);
+            name.AppendUTF8(szNamespace);
+            name.AppendUTF8(NAMESPACE_SEPARATOR_STR);
+            name.AppendUTF8(szName);
+
+            StackScratchBuffer buff;
+            const char* pDebugNameUTF8 = name.GetUTF8(buff);
+            size_t len = strlen(pDebugNameUTF8);
+
+            // This hashing algorithm MUST match exactly the logic in NativeCuckooFilter
+            DWORD hashOfAttribute = ComputeNameHashCode(pDebugNameUTF8);
+            UINT32 hash = CombineTwoValuesIntoHash(hashOfAttribute, tkParent);
+            UINT16 fingerprint = (UINT16)(hash >> 16);
+            if (fingerprint == 0)
+                fingerprint = 1;
+
+            UINT bucketAIndex = hash % bucketCount;
+            UINT bucketBIndex = (bucketAIndex ^ (NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint)  % bucketCount));
+
+            _ASSERTE(bucketAIndex == (bucketBIndex ^ (NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint) % bucketCount)));
+
+            if (xorshift128(state) & 1) // Randomly choose which bucket to attempt to fill first
+            {
+                UINT temp = bucketAIndex;
+                bucketAIndex = bucketBIndex;
+                bucketBIndex = temp;
+            }
+
+            auto hasEntryInBucket = [&table](UINT bucketIndex, UINT16 fprint)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    if ((*table)[(bucketIndex * 8) + i] == fprint)
+                        return true;
+                }
+                return false;
+            };
+
+            auto isEmptyEntryInBucket = [&table](UINT bucketIndex)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    if ((*table)[(bucketIndex * 8) + i] == 0)
+                        return true;
+                }
+                return false;
+            };
+
+            auto fillEmptyEntryInBucket = [&table](UINT bucketIndex, UINT16 fprint)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    if ((*table)[(bucketIndex * 8) + i] == 0)
+                    {
+                        (*table)[(bucketIndex * 8) + i] = fprint;
+                        return;
+                    }
+                }
+                _ASSERTE(!"Not possible to reach here");
+                return;
+            };
+
+            // Scan for pre-existing fingerprint entry in buckets
+            if (hasEntryInBucket(bucketAIndex, fingerprint) || hasEntryInBucket(bucketBIndex, fingerprint))
+                return S_OK;
+
+            // Determine if there is space in a bucket to add a new entry
+            if (isEmptyEntryInBucket(bucketAIndex))
+            {
+                fillEmptyEntryInBucket(bucketAIndex, fingerprint);
+                return S_OK;
+            }
+            if (isEmptyEntryInBucket(bucketBIndex))
+            {
+                fillEmptyEntryInBucket(bucketBIndex, fingerprint);
+                return S_OK;
+            }
+
+            int MaxNumKicks = 256;
+            // Note, that bucketAIndex itself was chosen randomly above.
+            for (int n = 0; n < MaxNumKicks; n++)
+            {
+                // Randomly swap an entry in bucket bucketAIndex with fingerprint
+                UINT entryIndexInBucket = xorshift128(state) & 0x7;
+                UINT16 temp = fingerprint;
+                fingerprint = (*table)[(bucketAIndex * 8) + entryIndexInBucket];
+                (*table)[(bucketAIndex * 8) + entryIndexInBucket] = temp;
+
+                // Find other bucket
+                bucketAIndex = bucketAIndex ^ (NativeFormat::NativeCuckooFilter::ComputeFingerprintHash(fingerprint) % bucketCount);
+                if (isEmptyEntryInBucket(bucketAIndex))
+                {
+                    fillEmptyEntryInBucket(bucketAIndex, fingerprint);
+                    return S_OK;
+                }
+            }
+
+            tryAgainWithBiggerTable = true;
+            return E_FAIL;
+        });
+
+        if (tryAgainWithBiggerTable)
+        {
+            // bucket entry kicking path requires bucket counts to be power of two in size due to use of xor to retrieve second hash
+            bucketCount *= 2;
+        }
+    } while(tryAgainWithBiggerTable && ((countOfRetries++) < 2));
+
+    if (tryAgainWithBiggerTable)
+    {
+        return E_FAIL;
+    }
+
+    return S_OK;
+}
+
+void ZapImage::OutputAttributePresenceFilter(IMDInternalImport * pMDImport)
+{
+    // Core library attributes are checked FAR more often than other dlls
+    // attributes, so produce a highly efficient table for determining if they are
+    // present. Other assemblies *MAY* benefit from this feature, but it doesn't show
+    // as useful at this time.
+
+    if (m_hModule != m_zapper->m_pEECompileInfo->GetLoaderModuleForMscorlib())
+        return;
+
+    SArray<UINT16> table;
+    if (SUCCEEDED(ComputeAttributePresenceTable(pMDImport, &table)))
+    {
+        UINT16* pRawTable = table.OpenRawBuffer(table.GetCount());
+        ZapNode * pBlob = ZapBlob::NewBlob(this, pRawTable, table.GetCount() * sizeof(UINT16));
+        table.CloseRawBuffer();
+
+        _ASSERTE(m_pAttributePresenceSection);
+        m_pAttributePresenceSection->Place(pBlob);
+        GetReadyToRunHeader()->RegisterSection(READYTORUN_SECTION_ATTRIBUTEPRESENCE, pBlob);
+    }
+}
 
 //
 // Verify that data structures and flags shared between NGen and ReadyToRun are in sync
@@ -527,6 +838,8 @@ static_assert_no_msg((int)READYTORUN_FIXUP_Check_FieldOffset         == (int)ENC
 static_assert_no_msg((int)READYTORUN_FIXUP_DelegateCtor              == (int)ENCODE_DELEGATE_CTOR);
 
 static_assert_no_msg((int)READYTORUN_FIXUP_DeclaringTypeHandle       == (int)ENCODE_DECLARINGTYPE_HANDLE);
+
+static_assert_no_msg((int)READYTORUN_FIXUP_IndirectPInvokeTarget     == (int)ENCODE_INDIRECT_PINVOKE_TARGET);
 
 //
 // READYTORUN_EXCEPTION

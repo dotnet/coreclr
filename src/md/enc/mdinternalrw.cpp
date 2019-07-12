@@ -1482,6 +1482,10 @@ HRESULT MDInternalRW::EnumAllInit(      // return S_FALSE if record not found
         phEnum->m_ulCount = m_pStgdb->m_MiniMd.getCountFiles();
         break;
 
+    case mdtCustomAttribute:
+        phEnum->m_ulCount = m_pStgdb->m_MiniMd.getCountCustomAttributes();
+        break;
+
     default:
         _ASSERTE(!"Bad token kind!");
         break;
@@ -2425,8 +2429,6 @@ MDInternalRW::GetNestedClassProps(
     HRESULT hr = NOERROR;
     RID     rid;
     
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    
     LOCKREAD();
     
     if (!m_pStgdb->m_MiniMd.IsSorted(TBL_NestedClass) && !m_pStgdb->m_MiniMd.IsTableVirtualSorted(TBL_NestedClass))
@@ -2454,7 +2456,6 @@ MDInternalRW::GetNestedClassProps(
     }
     
 ErrExit:
-    END_SO_INTOLERANT_CODE;
     return hr;
 } // MDInternalRW::GetNestedClassProps
 
@@ -4334,9 +4335,6 @@ HRESULT MDInternalRW::ApplyEditAndContinue(
     _ASSERTE(pDeltaMD);
     _ASSERTE(ppv);
 
-    // debugging-specific usages don't need SO hardening
-    SO_NOT_MAINLINE_FUNCTION;
-    
     HRESULT hr = E_FAIL;
     IMDInternalImportENC *pDeltaMDImport = NULL;
     

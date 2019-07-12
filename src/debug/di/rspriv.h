@@ -101,6 +101,7 @@ class CordbRCEventThread;
 class CordbRegisterSet;
 class CordbNativeFrame;
 class CordbObjectValue;
+class CordbReferenceValue;
 class CordbEnCErrorInfo;
 class CordbEnCErrorInfoEnum;
 class Instantiation;
@@ -2934,9 +2935,6 @@ class CordbProcess :
     public IDacDbiInterface::IAllocator,
     public IDacDbiInterface::IMetaDataLookup,
     public IProcessShimHooks
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-    , public ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly
-#endif
 {
     // Ctor is private. Use OpenVirtualProcess instead. 
     CordbProcess(ULONG64 clrInstanceId, IUnknown * pDataTarget, HMODULE hDacModule,  Cordb * pCordb, const ProcessDescriptor * pProcessDescriptor, ShimProcess * pShim);
@@ -3147,16 +3145,6 @@ public:
     //-----------------------------------------------------------
     COM_METHOD EnableGCNotificationEvents(BOOL fEnable);
 
-#ifdef FEATURE_LEGACYNETCF_DBG_HOST_CONTROL
-    // ---------------------------------------------------------------
-    // ICorDebugLegacyNetCFHostCallbackInvoker_PrivateWindowsPhoneOnly
-    // ---------------------------------------------------------------
-
-    COM_METHOD InvokePauseCallback();
-    COM_METHOD InvokeResumeCallback();
-
-#endif
-
     //-----------------------------------------------------------
     // Methods not exposed via a COM interface.
     //-----------------------------------------------------------
@@ -3272,6 +3260,9 @@ public:
 #endif // FEATURE_INTEROP_DEBUGGING
 
     bool IsThreadSuspendedOrHijacked(ICorDebugThread * pICorDebugThread);
+
+    // Handle the result of the ctrlC trap.
+    void HandleControlCTrapResult(HRESULT result);
 
     // Helper to get ProcessDescriptor internally.
     const ProcessDescriptor* GetProcessDescriptor();
@@ -8765,6 +8756,9 @@ public:
     static ICorDebugValue* CreateHeapValue(CordbAppDomain* pAppDomain,
                                            VMPTR_Object vmObj);
 
+    // Creates a proper CordbReferenceValue instance based on the given remote heap object
+    static CordbReferenceValue* CreateHeapReferenceValue(CordbAppDomain* pAppDomain,
+                                                         VMPTR_Object vmObj);
 
     // Returns a pointer to the ValueHome field of this instance of CordbValue if one exists or NULL
     // otherwise. Therefore, this also tells us indirectly whether this instance of CordbValue is also an
@@ -9169,7 +9163,8 @@ class CordbObjectValue : public CordbValue,
                          public ICorDebugHeapValue2,
                          public ICorDebugHeapValue3,
                          public ICorDebugExceptionObjectValue,
-                         public ICorDebugComObjectValue
+                         public ICorDebugComObjectValue,
+                         public ICorDebugDelegateObjectValue
 {
 public:
     
@@ -9297,6 +9292,12 @@ public:
                         CORDB_ADDRESS * ptrs);
 
     //-----------------------------------------------------------
+    // ICorDebugComObjectValue
+    //-----------------------------------------------------------
+    COM_METHOD GetTarget(ICorDebugReferenceValue** ppObject);
+    COM_METHOD GetFunction(ICorDebugFunction** ppFunction);
+
+    //-----------------------------------------------------------
     // Non-COM methods
     //-----------------------------------------------------------
 
@@ -9334,6 +9335,12 @@ private:
     HRESULT IsRcw();
 
     BOOL                     m_fIsRcw;
+
+    HRESULT IsDelegate();
+    HRESULT GetFunctionHelper(ICorDebugFunction **ppFunction);
+    HRESULT GetTargetHelper(ICorDebugReferenceValue **ppTarget);
+
+    BOOL                     m_fIsDelegate;
 };
 
 /* ------------------------------------------------------------------------- *

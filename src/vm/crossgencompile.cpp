@@ -113,10 +113,6 @@ GVAL_IMPL_INIT(DWORD, g_fHostConfig, 0);
 
 GVAL_IMPL_INIT(GCHeapType, g_heap_type, GC_HEAP_WKS);
 
-void UpdateGCSettingFromHost()
-{
-}
-
 HRESULT GetExceptionHResult(OBJECTREF throwable)
 {
     return E_FAIL;
@@ -367,10 +363,14 @@ extern "C" UINT_PTR STDCALL GetCurrentIP()
     return 0;
 }
 
-void EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
+// This method must return a value to avoid getting non-actionable dumps on x86.
+// If this method were a DECLSPEC_NORETURN then dumps would not provide the necessary
+// context at the point of the failure
+int NOINLINE EEPolicy::HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pszMessage, PEXCEPTION_POINTERS pExceptionInfo, LPCWSTR errorSource, LPCWSTR argExceptionString)
 { 
     fprintf(stderr, "Fatal error: %08x\n", exitCode);
     ExitProcess(exitCode);
+    return -1;
 }
 
 //---------------------------------------------------------------------------------------

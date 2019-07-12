@@ -449,7 +449,7 @@ function create_testhost
 
     # Initialize test variables
     local buildToolsDir=$coreClrSrc/Tools
-    local dotnetExe=$buildToolsDir/dotnetcli/dotnet
+    local dotnetExe=$coreClrSrc/dotnet.sh
     local coreClrSrcTestDir=$coreClrSrc/tests
     
     if [ -z $coreClrBinDir ]; then
@@ -1451,14 +1451,8 @@ else
     load_failing_tests
 fi
 
-# Other architectures are not supported yet.
-if [ "$ARCH" == "x64" ]
-then
-    scriptPath=$(dirname $0)
-    ${scriptPath}/setup-stress-dependencies.sh --outputDir=$coreOverlayDir
-elif [ "$ARCH" != "arm64" ] && [ "$ARCH" != "arm" ]; then
-    echo "Skip preparing for GC stress test. Dependent package is not supported on this architecture."
-fi
+scriptPath=$(dirname $0)
+${scriptPath}/setup-stress-dependencies.sh --arch=$ARCH --outputDir=$coreOverlayDir
 
 export __TestEnv=$testEnv
 

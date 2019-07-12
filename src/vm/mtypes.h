@@ -88,7 +88,7 @@ DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_VALUECLASS,                      ValueClassMa
 
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_REFERENCECUSTOMMARSHALER,        ReferenceCustomMarshaler,      false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_ARGITERATOR,                     ArgIteratorMarshaler,          false)
-
+DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR, BlittableValueClassWithCopyCtorMarshaler, false)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_OBJECT,                          ObjectMarshaler,               false)
@@ -105,9 +105,6 @@ DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_OLECOLOR,                        OleColorMars
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_RUNTIMETYPEHANDLE,               RuntimeTypeHandleMarshaler,    false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_RUNTIMEMETHODHANDLE,             RuntimeMethodHandleMarshaler,  false)
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_RUNTIMEFIELDHANDLE,              RuntimeFieldHandleMarshaler,   false)
-DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_RUNTIMEMETHODINFO,               IRuntimeMethodInfoMarshaler,   false)
-DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_RUNTIMEMODULE,                   RuntimeModuleMarshaler,        false)
-DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_RUNTIMEASSEMBLY,                 RuntimeAssemblyMarshaler,      false)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_MARSHALER_TYPE(MARSHAL_TYPE_NULLABLE,                        NullableMarshaler,             true)

@@ -38,7 +38,6 @@ FORCEINLINE SetCallbackStateFlagsHolder::~SetCallbackStateFlagsHolder()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -112,7 +111,6 @@ inline void ProfilingAPIUtility::LogNoInterfaceError(REFIID iidRequested, LPCWST
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -214,63 +212,5 @@ inline /* static */ CRITSEC_COOKIE ProfilingAPIUtility::GetStatusCrst()
     LIMITED_METHOD_CONTRACT;
     return s_csStatus;
 }
-
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
-
-// ----------------------------------------------------------------------------
-// ProfilingAPIUtility::IncEvacuationCounter
-//
-// Description: 
-//    Simple helper to increase the evacuation counter inside an EE thread by one
-//
-// Arguments:
-//    * pThread - pointer to an EE Thread
-//
-// static
-FORCEINLINE void ProfilingAPIUtility::IncEvacuationCounter(Thread * pThread) 
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        FORBID_FAULT;
-        MODE_ANY;
-        CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
-    } 
-    CONTRACTL_END;
-
-    if (pThread) 
-        pThread->IncProfilerEvacuationCounter();
-}
-
-// ----------------------------------------------------------------------------
-// ProfilingAPIUtility::DecEvacuationCounter
-//
-// Description: 
-//    Simple helper to decrease the evacuation counter inside an EE thread by one
-//    
-// Arguments:
-//    * pThread - pointer to an EE Thread
-//
-// static
-FORCEINLINE void ProfilingAPIUtility::DecEvacuationCounter(Thread * pThread) 
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        FORBID_FAULT;
-        MODE_ANY;
-        CANNOT_TAKE_LOCK;
-        SO_NOT_MAINLINE;
-    } 
-    CONTRACTL_END;
-
-    if (pThread) 
-        pThread->DecProfilerEvacuationCounter();
-}
-
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
 #endif //__PROFILING_HELPER_INL__

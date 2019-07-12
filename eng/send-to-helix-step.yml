@@ -4,7 +4,6 @@ parameters:
   archType: ''
   osGroup: ''
   buildConfig: ''
-  isExternal: ''
   creator: ''
   publishTestResults: ''
   helixAccessToken: ''
@@ -13,33 +12,21 @@ parameters:
   helixQueues: ''
   helixType: ''
   scenarios: ''
-  timeoutInMinutes: ''
+  timeoutPerTestCollectionInMinutes: ''
+  timeoutPerTestInMinutes: ''
+  runCrossGen: ''
+  helixProjectArguments: ''
+  runInUnloadableContext: ''
 
 steps:
 - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-  - powershell: eng\common\msbuild.ps1 -ci tests\helixpublishwitharcade.proj /maxcpucount
-    displayName: ${{ parameters.displayName }}
+  # TODO: Remove and consolidate this when we move to arcade via init-tools.cmd.
+  - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)\eng\empty.csproj
+    displayName: Restore blob feed tasks
     ${{ if ne(parameters.condition, '') }}:
       condition: ${{ parameters.condition }}
-    env:
-      __BuildArch: ${{ parameters.archType }}
-      __BuildOS: ${{ parameters.osGroup }}
-      __BuildType: ${{ parameters.buildConfig }}
-      _IsExternal: ${{ parameters.isExternal }}
-      _Creator: ${{ parameters.creator }}
-      _PublishTestResults: ${{ parameters.publishTestResults }}
-      _HelixAccessToken: ${{ parameters.helixAccessToken }}
-      _HelixBuild: ${{ parameters.helixBuild }}
-      _HelixSource: ${{ parameters.helixSource }}
-      _HelixTargetQueues: ${{ parameters.helixQueues }}
-      _HelixType: ${{ parameters.helixType }}
-      _Scenarios: ${{ parameters.scenarios }}
-      _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
-      ${{ if eq(parameters.publishTestResults, 'true') }}:
-        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
 
-- ${{ if or(eq(parameters.osGroup, 'Linux'), eq(parameters.osGroup, 'OSX')) }}:
-  - script: ./eng/common/msbuild.sh --ci tests/helixpublishwitharcade.proj /maxcpucount
+  - powershell: eng\common\msbuild.ps1 -ci ${{ parameters.helixProjectArguments }} /maxcpucount /bl:$(Build.SourcesDirectory)/bin/Logs/SendToHelix.binlog
     displayName: ${{ parameters.displayName }}
     ${{ if ne(parameters.condition, '') }}:
       condition: ${{ parameters.condition }}
@@ -47,15 +34,55 @@ steps:
       __BuildArch: ${{ parameters.archType }}
       __BuildOS: ${{ parameters.osGroup }}
       __BuildType: ${{ parameters.buildConfig }}
-      _IsExternal: ${{ parameters.isExternal }}
       _Creator: ${{ parameters.creator }}
       _PublishTestResults: ${{ parameters.publishTestResults }}
       _HelixAccessToken: ${{ parameters.helixAccessToken }}
       _HelixBuild: ${{ parameters.helixBuild }}
       _HelixSource: ${{ parameters.helixSource }}
-      _HelixTargetQueues: ${{ parameters.helixQueues }}
+      _HelixTargetQueues: ${{ join(',', parameters.helixQueues) }}
       _HelixType: ${{ parameters.helixType }}
-      _Scenarios: ${{ parameters.scenarios }}
-      _TimeoutInMinutes: ${{ parameters.timeoutInMinutes }}
+      _RunCrossGen: ${{ parameters.runCrossGen }}
+      _RunInUnloadableContext: ${{ parameters.runInUnloadableContext }}
+      _Scenarios: ${{ join(',', parameters.scenarios) }}
+      _TimeoutPerTestCollectionInMinutes: ${{ parameters.timeoutPerTestCollectionInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
       ${{ if eq(parameters.publishTestResults, 'true') }}:
         SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+      NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages 
+
+- ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+  # TODO: Remove and consolidate this when we move to arcade via init-tools.sh.
+  - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.csproj
+    displayName: Restore blob feed tasks
+    ${{ if ne(parameters.condition, '') }}:
+      condition: ${{ parameters.condition }}
+    ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+      env:
+        # Arcade uses this SDK instead of trying to restore one.
+        DotNetCoreSdkDir: /usr/local/dotnet
+
+  - script: ./eng/common/msbuild.sh --ci ${{ parameters.helixProjectArguments }} /maxcpucount /bl:$(Build.SourcesDirectory)/bin/Logs/SendToHelix.binlog
+    displayName: ${{ parameters.displayName }}
+    ${{ if ne(parameters.condition, '') }}:
+      condition: ${{ parameters.condition }}
+    env:
+      __BuildArch: ${{ parameters.archType }}
+      __BuildOS: ${{ parameters.osGroup }}
+      __BuildType: ${{ parameters.buildConfig }}
+      _Creator: ${{ parameters.creator }}
+      _PublishTestResults: ${{ parameters.publishTestResults }}
+      _HelixAccessToken: ${{ parameters.helixAccessToken }}
+      _HelixBuild: ${{ parameters.helixBuild }}
+      _HelixSource: ${{ parameters.helixSource }}
+      _HelixTargetQueues: ${{ join(',', parameters.helixQueues) }}
+      _HelixType: ${{ parameters.helixType }}
+      _RunCrossGen: ${{ parameters.runCrossGen }}
+      _RunInUnloadableContext: ${{ parameters.runInUnloadableContext }}
+      _Scenarios: ${{ join(',', parameters.scenarios) }}
+      _TimeoutPerTestCollectionInMinutes: ${{ parameters.timeoutPerTestCollectionInMinutes }}
+      _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
+      ${{ if eq(parameters.publishTestResults, 'true') }}:
+        SYSTEM_ACCESSTOKEN: $(System.AccessToken)
+      # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+      NUGET_PACKAGES: $(Build.SourcesDirectory)/.packages

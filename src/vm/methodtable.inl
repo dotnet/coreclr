@@ -598,7 +598,6 @@ inline MethodDesc* MethodTable::GetMethodDescForSlot(DWORD slot)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -616,6 +615,17 @@ inline MethodDesc* MethodTable::GetMethodDescForSlot(DWORD slot)
 }
 
 #ifndef DACCESS_COMPILE 
+
+//==========================================================================================
+inline void MethodTable::CopySlotFrom(UINT32 slotNumber, MethodDataWrapper &hSourceMTData, MethodTable *pSourceMT)
+{
+    WRAPPER_NO_CONTRACT;
+
+    MethodDesc *pMD = hSourceMTData->GetImplMethodDesc(slotNumber);
+    _ASSERTE(CheckPointer(pMD));
+    _ASSERTE(pMD == pSourceMT->GetMethodDescForSlot(slotNumber));
+    SetSlot(slotNumber, pMD->GetInitialEntryPointForCopiedSlot());
+}
 
 //==========================================================================================
 inline INT32 MethodTable::MethodIterator::GetNumMethods() const
@@ -1184,6 +1194,15 @@ inline IMDInternalImport* MethodTable::GetMDImport()
 }
 
 //==========================================================================================
+inline HRESULT MethodTable::GetCustomAttribute(
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+{
+    return GetModule()->GetCustomAttribute(GetCl(), attribute, ppData, pcbData);
+}
+
+//==========================================================================================
 inline BOOL MethodTable::IsSealed()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1480,20 +1499,11 @@ inline PTR_BYTE MethodTable::GetGCThreadStaticsBasePointer(PTR_Thread pThread)
 }
 
 //==========================================================================================
-inline PTR_DomainLocalModule MethodTable::GetDomainLocalModule(AppDomain * pAppDomain)
-{
-    WRAPPER_NO_CONTRACT;
-    return GetModuleForStatics()->GetDomainLocalModule(pAppDomain);
-}
-
-#ifndef DACCESS_COMPILE
-//==========================================================================================
 inline PTR_DomainLocalModule MethodTable::GetDomainLocalModule()
 {
     WRAPPER_NO_CONTRACT;
     return GetModuleForStatics()->GetDomainLocalModule();
 }
-#endif //!DACCESS_COMPILE
 
 //==========================================================================================
 inline OBJECTREF MethodTable::AllocateNoChecks()
@@ -1534,7 +1544,6 @@ inline BOOL MethodTable::UnBoxInto(void *dest, OBJECTREF src)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -1546,7 +1555,7 @@ inline BOOL MethodTable::UnBoxInto(void *dest, OBJECTREF src)
         if (src == NULL || src->GetMethodTable() != this)
             return FALSE;
 
-        CopyValueClass(dest, src->UnBox(), this, src->GetAppDomain());
+        CopyValueClass(dest, src->UnBox(), this);
     }
     return TRUE;
 }
@@ -1560,7 +1569,6 @@ inline BOOL MethodTable::UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -1572,7 +1580,7 @@ inline BOOL MethodTable::UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src)
         if (src == NULL || src->GetMethodTable() != this)
             return FALSE;
 
-        CopyValueClassArg(argDest, src->UnBox(), this, src->GetAppDomain(), 0);
+        CopyValueClassArg(argDest, src->UnBox(), this, 0);
     }
     return TRUE;
 }
@@ -1586,7 +1594,6 @@ inline void MethodTable::UnBoxIntoUnchecked(void *dest, OBJECTREF src)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
@@ -1600,7 +1607,7 @@ inline void MethodTable::UnBoxIntoUnchecked(void *dest, OBJECTREF src)
     {
         _ASSERTE(src->GetMethodTable()->GetNumInstanceFieldBytes() == GetNumInstanceFieldBytes());
 
-        CopyValueClass(dest, src->UnBox(), this, src->GetAppDomain());
+        CopyValueClass(dest, src->UnBox(), this);
     }
 }
 #endif
@@ -1613,7 +1620,6 @@ __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(
         GC_NOTRIGGER;
         MODE_ANY;
         INSTANCE_CHECK;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(!pTargetMT->IsArray());
     }
@@ -1654,7 +1660,6 @@ FORCEINLINE PTR_Module MethodTable::GetGenericsStaticsModuleAndID(DWORD * pID)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1730,7 +1735,6 @@ FORCEINLINE BOOL MethodTable::ImplementsInterfaceInline(MethodTable *pInterface)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         PRECONDITION(pInterface->IsInterface()); // class we are looking up should be an interface
     }
     CONTRACTL_END;

@@ -34,32 +34,6 @@
 
 #include <corjitflags.h>
 
-#define CORINFO_STACKPROBE_DEPTH        256*sizeof(UINT_PTR)          // Guaranteed stack until an fcall/unmanaged
-                                                    // code can set up a frame. Please make sure
-                                                    // this is less than a page. This is due to
-                                                    // 2 reasons:
-                                                    //
-                                                    // If we need to probe more than a page
-                                                    // size, we need one instruction per page
-                                                    // (7 bytes per instruction)
-                                                    //
-                                                    // The JIT wants some safe space so it doesn't
-                                                    // have to put a probe on every call site. It achieves
-                                                    // this by probing n bytes more than CORINFO_STACKPROBE_DEPTH
-                                                    // If it hasn't used more than n for its own stuff, it
-                                                    // can do a call without doing any other probe
-                                                    //
-                                                    // In any case, we do really expect this define to be
-                                                    // small, as setting up a frame should be only pushing
-                                                    // a couple of bytes on the stack
-                                                    //
-                                                    // There is a compile time assert
-                                                    // in the x86 jit to protect you from this
-                                                    //
-
-
-
-
 /*****************************************************************************/
     // These are error codes returned by CompileMethod
 enum CorJitResult
@@ -318,7 +292,7 @@ public:
 class ICorJitInfo : public ICorDynamicInfo
 {
 public:
-    // return memory manager that the JIT can use to allocate a regular memory
+    // OBSOLETE: return memory manager that the JIT can use to allocate a regular memory
     virtual IEEMemoryManager* getMemoryManager() = 0;
 
     // get a block of memory for the code, readonly data, and read-write data
@@ -415,26 +389,26 @@ public:
     
     virtual void reportFatalError(CorJitResult result) = 0;
 
-    struct ProfileBuffer  // Also defined here: code:CORBBTPROF_BLOCK_DATA
+    struct BlockCounts  // Also defined by:  CORBBTPROF_BLOCK_DATA
     {
-        ULONG ILOffset;
-        ULONG ExecutionCount;
+        UINT32 ILOffset;
+        UINT32 ExecutionCount;
     };
 
     // allocate a basic block profile buffer where execution counts will be stored
     // for jitted basic blocks.
-    virtual HRESULT allocBBProfileBuffer (
-            ULONG                 count,           // The number of basic blocks that we have
-            ProfileBuffer **      profileBuffer
+    virtual HRESULT allocMethodBlockCounts (
+            UINT32                count,           // The number of basic blocks that we have
+            BlockCounts **        pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
             ) = 0;
 
     // get profile information to be used for optimizing the current method.  The format
     // of the buffer is the same as the format the JIT passes to allocBBProfileBuffer.
-    virtual HRESULT getBBProfileData(
+    virtual HRESULT getMethodBlockCounts(
             CORINFO_METHOD_HANDLE ftnHnd,
-            ULONG *               count,           // The number of basic blocks that we have
-            ProfileBuffer **      profileBuffer,
-            ULONG *               numRuns
+            UINT32 *              pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+            BlockCounts **        pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+            UINT32 *              pNumRuns         // pointer to the total number of profile scenarios run
             ) = 0;
 
     // Associates a native call site, identified by its offset in the native code stream, with

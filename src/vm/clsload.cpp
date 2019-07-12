@@ -30,13 +30,11 @@
 #include "jitinterface.h"
 #include "vars.hpp"
 #include "assembly.hpp"
-#include "perfcounters.h"
 #include "eeprofinterfaces.h"
 #include "eehash.h"
 #include "typehash.h"
 #include "comdelegate.h"
 #include "array.h"
-#include "stackprobe.h"
 #include "posterror.h"
 #include "wrappers.h"
 #include "generics.h"
@@ -47,7 +45,6 @@
 #include "typekey.h"
 #include "pendingload.h"
 #include "proftoeeinterfaceimpl.h"
-#include "mdaassistants.h"
 #include "virtualcallstub.h"
 #include "stringarraylist.h"
 
@@ -86,7 +83,6 @@ PTR_Module ClassLoader::ComputeLoaderModuleWorker(
         MODE_ANY;
         PRECONDITION(CheckPointer(pDefinitionModule, NULL_OK));
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_INTOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACT_END
@@ -209,7 +205,6 @@ PTR_Module ClassLoader::ComputeLoaderModuleForCompilation(
         MODE_ANY;
         PRECONDITION(CheckPointer(pDefinitionModule, NULL_OK));
         POSTCONDITION(CheckPointer(RETVAL));
-        SO_INTOLERANT;
     }
     CONTRACT_END
 
@@ -526,8 +521,6 @@ TypeHandle ClassLoader::LoadTypeHandleThrowIfFailed(NameHandle* pName, ClassLoad
 #endif
 
 #ifndef DACCESS_COMPILE
-            COUNTER_ONLY(GetPerfCounters().m_Loading.cLoadFailures++);
-
             m_pAssembly->ThrowTypeLoadException(pName, IDS_CLASSLOAD_GENERAL);
 #else
             DacNotImpl();
@@ -764,7 +757,7 @@ BOOL ClassLoader::IsNested(Module *pModule, mdToken token, mdToken *mdEncloser)
     }
 }
 
-BOOL ClassLoader::IsNested(NameHandle* pName, mdToken *mdEncloser)
+BOOL ClassLoader::IsNested(const NameHandle* pName, mdToken *mdEncloser)
 {
     CONTRACTL
     {
@@ -792,7 +785,7 @@ BOOL ClassLoader::IsNested(NameHandle* pName, mdToken *mdEncloser)
 }
 
 void ClassLoader::GetClassValue(NameHandleTable nhTable,
-                                    NameHandle *pName,
+                                    const NameHandle *pName,
                                     HashDatum *pData,
                                     EEClassHashTable **ppTable,
                                     Module* pLookInThisModuleOnly,
@@ -846,7 +839,8 @@ void ClassLoader::GetClassValue(NameHandleTable nhTable,
             continue;
 
 #ifdef FEATURE_READYTORUN
-        if (nhTable == nhCaseSensitive && pCurrentClsModule->IsReadyToRun() && pCurrentClsModule->GetReadyToRunInfo()->HasHashtableOfTypes())
+        if (nhTable == nhCaseSensitive && pCurrentClsModule->IsReadyToRun() && pCurrentClsModule->GetReadyToRunInfo()->HasHashtableOfTypes() &&
+            pCurrentClsModule->GetAvailableClassHash() == NULL)
         {
             // For R2R modules, we only search the hashtable of token types stored in the module's image, and don't fallback
             // to searching m_pAvailableClasses or m_pAvailableClassesCaseIns (in fact, we don't even allocate them for R2R modules).
@@ -1022,6 +1016,23 @@ VOID ClassLoader::PopulateAvailableClassHashTable(Module* pModule,
 }
 
 
+void ClassLoader::LazyPopulateCaseSensitiveHashTablesDontHaveLock()
+{
+    CONTRACTL
+    {
+        INSTANCE_CHECK;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+    }
+    CONTRACTL_END;
+
+
+    CrstHolder ch(&m_AvailableClassLock);
+    LazyPopulateCaseSensitiveHashTables();
+}
+
 void ClassLoader::LazyPopulateCaseSensitiveHashTables()
 {
     CONTRACTL
@@ -1042,7 +1053,7 @@ void ClassLoader::LazyPopulateCaseSensitiveHashTables()
     {
         Module *pModule = i.GetModule();
         PREFIX_ASSUME(pModule != NULL);
-        if (pModule->IsResource())
+        if (pModule->IsResource() || pModule->GetAvailableClassHash() != NULL)
             continue;
 
         // Lazy construction of the case-sensitive hashtable of types is *only* a scenario for ReadyToRun images
@@ -1147,7 +1158,6 @@ TypeHandle ClassLoader::LoadConstructedTypeThrowing(TypeKey *pKey,
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
         if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         if (FORBIDGC_LOADER_USE_ENABLED() || fLoadTypes != LoadTypes) { LOADS_TYPE(CLASS_LOAD_BEGIN); } else { LOADS_TYPE(level); }
-        if (fLoadTypes == DontLoadTypes) SO_TOLERANT; else SO_INTOLERANT;
         PRECONDITION(CheckPointer(pKey));
         PRECONDITION(level > CLASS_LOAD_BEGIN && level <= CLASS_LOADED);
         PRECONDITION(CheckPointer(pInstContext, NULL_OK));
@@ -1235,8 +1245,6 @@ void ClassLoader::EnsureLoaded(TypeHandle typeHnd, ClassLoadLevel level)
 
     if (typeHnd.GetLoadLevel() < level)
     {
-        INTERIOR_STACK_PROBE_CHECK_THREAD;
-
 #ifdef FEATURE_PREJIT
         if (typeHnd.GetLoadLevel() == CLASS_LOAD_UNRESTOREDTYPEKEY)
         {
@@ -1250,8 +1258,6 @@ void ClassLoader::EnsureLoaded(TypeHandle typeHnd, ClassLoadLevel level)
             Module *pLoaderModule = ComputeLoaderModule(&typeKey);
             pLoaderModule->GetClassLoader()->LoadTypeHandleForTypeKey(&typeKey, typeHnd, level);
         }
-
-        END_INTERIOR_STACK_PROBE;
     }
 
 #endif // DACCESS_COMPILE
@@ -1486,7 +1492,7 @@ TypeHandle ClassLoader::LookupTypeHandleForTypeKeyInner(TypeKey *pKey, BOOL fChe
 //
 //
 BOOL ClassLoader::FindClassModuleThrowing(
-    const NameHandle *    pOriginalName, 
+    const NameHandle *    pName, 
     TypeHandle *          pType, 
     mdToken *             pmdClassToken, 
     Module **             ppModule, 
@@ -1501,91 +1507,16 @@ BOOL ClassLoader::FindClassModuleThrowing(
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
         if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
-        PRECONDITION(CheckPointer(pOriginalName));
+        PRECONDITION(CheckPointer(pName));
         PRECONDITION(CheckPointer(ppModule));
         MODE_ANY;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
 
-    NameHandleTable nhTable = nhCaseSensitive; // just to initialize this ...
-    
-    // Make a copy of the original name which we can modify (to lowercase)
-    NameHandle   localName = *pOriginalName;
-    NameHandle * pName = &localName;
+    // Note that the type name is expected to be lower-cased by the caller for case-insensitive lookups
 
-    switch (pName->GetTable()) 
-    {
-      case nhCaseInsensitive:
-      {
-#ifndef DACCESS_COMPILE
-        // GC-type users should only be loading types through tokens.
-#ifdef _DEBUG_IMPL
-        _ASSERTE(!FORBIDGC_LOADER_USE_ENABLED());
-#endif
-
-        // Use the case insensitive table
-        nhTable = nhCaseInsensitive;
-
-        // Create a low case version of the namespace and name
-        LPUTF8 pszLowerNameSpace = NULL;
-        LPUTF8 pszLowerClassName = NULL;
-        int allocLen;
-
-        if (pName->GetNameSpace())
-        {
-            allocLen = InternalCasingHelper::InvariantToLower(
-                NULL, 
-                0, 
-                pName->GetNameSpace());
-            if (allocLen == 0)
-            {
-                return FALSE;
-            }
-
-            pszLowerNameSpace = (LPUTF8)_alloca(allocLen);
-            if (allocLen == 1)
-            {
-                *pszLowerNameSpace = '\0';
-            }
-            else if (!InternalCasingHelper::InvariantToLower(
-                        pszLowerNameSpace, 
-                        allocLen, 
-                        pName->GetNameSpace()))
-            {
-                return FALSE;
-            }
-        }
-
-        _ASSERTE(pName->GetName() != NULL);
-        allocLen = InternalCasingHelper::InvariantToLower(NULL, 0, pName->GetName());
-        if (allocLen == 0)
-        {
-            return FALSE;
-        }
-
-        pszLowerClassName = (LPUTF8)_alloca(allocLen);
-        if (!InternalCasingHelper::InvariantToLower(
-                pszLowerClassName, 
-                allocLen, 
-                pName->GetName()))
-        {
-            return FALSE;
-        }
-
-        // Substitute the lower case version of the name.
-        // The field are will be released when we leave this scope
-        pName->SetName(pszLowerNameSpace, pszLowerClassName);
-        break;
-#else
-        DacNotImpl();
-        break;
-#endif // #ifndef DACCESS_COMPILE
-      }
-      case nhCaseSensitive:
-        nhTable = nhCaseSensitive;
-        break;
-    }
+    NameHandleTable nhTable = pName->GetTable();
 
     // Remember if there are any unhashed modules.  We must do this before
     // the actual look to avoid a race condition with other threads doing lookups.
@@ -1629,7 +1560,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
 
     EEClassHashEntry_t * pBucket = foundEntry.GetClassHashBasedEntryValue();
 
-    if (pBucket == NULL && needsToBuildHashtable)
+    if (pBucket == NULL)
     {
         AvailableClasses_LockHolder lh(this);
 
@@ -1639,7 +1570,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
         pBucket = foundEntry.GetClassHashBasedEntryValue();
 
 #ifndef DACCESS_COMPILE
-        if ((pBucket == NULL) && (m_cUnhashedModules > 0))
+        if (needsToBuildHashtable && (pBucket == NULL) && (m_cUnhashedModules > 0))
         {
             _ASSERT(needsToBuildHashtable);
 
@@ -1661,6 +1592,7 @@ BOOL ClassLoader::FindClassModuleThrowing(
 #endif
     }
 
+    // Same check as above, but this time we've checked with the lock so the table will be populated
     if (pBucket == NULL)
     {
 #if defined(_DEBUG_IMPL) && !defined(DACCESS_COMPILE)
@@ -1762,7 +1694,7 @@ static const UINT32 const_cMaxTypeForwardingChainSize = 1024;
 // 
 TypeHandle 
 ClassLoader::LoadTypeHandleThrowing(
-    NameHandle *   pName, 
+    NameHandle * pName, 
     ClassLoadLevel level, 
     Module *       pLookInThisModuleOnly /*=NULL*/)
 {
@@ -1780,8 +1712,6 @@ ClassLoader::LoadTypeHandleThrowing(
     } CONTRACT_END
 
     TypeHandle typeHnd;
-    INTERIOR_STACK_PROBE_NOTHROW_CHECK_THREAD(RETURN_FROM_INTERIOR_PROBE(TypeHandle()));
-
     Module * pFoundModule = NULL;
     mdToken FoundCl;
     HashedTypeEntry foundEntry;
@@ -1912,7 +1842,7 @@ ClassLoader::LoadTypeHandleThrowing(
         else
         {   //#LoadTypeHandle_TypeForwarded
             // pName is a host instance so it's okay to set fields in it in a DAC build
-            HashedTypeEntry& bucket = pName->GetBucket();
+            const HashedTypeEntry& bucket = pName->GetBucket();
 
             // Reset pName's bucket entry
             if (bucket.GetEntryType() == HashedTypeEntry::IsHashedClassEntry && bucket.GetClassHashBasedEntryValue()->GetEncloser())
@@ -1944,7 +1874,6 @@ ClassLoader::LoadTypeHandleThrowing(
 #endif // !DACCESS_COMPILE
     }
 
-    END_INTERIOR_STACK_PROBE;
     RETURN typeHnd;
 } // ClassLoader::LoadTypeHandleThrowing
 
@@ -2155,54 +2084,32 @@ VOID ClassLoader::CreateCanonicallyCasedKey(LPCUTF8 pszNameSpace, LPCUTF8 pszNam
     }
     CONTRACTL_END
 
-    // We can use the NoThrow versions here because we only call this routine if we're maintaining
-    // a case-insensitive hash table, and the creation of that table initialized the
-    // CasingHelper system.
-    INT32 iNSLength = InternalCasingHelper::InvariantToLowerNoThrow(NULL, 0, pszNameSpace);
-    if (!iNSLength)
-    {
-        COMPlusThrowOM();
-    }
+    StackSString nameSpace(SString::Utf8, pszNameSpace);
+    nameSpace.LowerCase();
 
-    INT32 iNameLength = InternalCasingHelper::InvariantToLowerNoThrow(NULL, 0, pszName);
-    if (!iNameLength)
-    {
-        COMPlusThrowOM();
-    }
+    StackScratchBuffer nameSpaceBuffer;
+    pszNameSpace = nameSpace.GetUTF8(nameSpaceBuffer);
 
-    {
-        //Calc & allocate path length
-        //Includes terminating null
-        S_SIZE_T allocSize = S_SIZE_T(iNSLength) + S_SIZE_T(iNameLength);
-        if (allocSize.IsOverflow())
-        {
-            ThrowHR(COR_E_OVERFLOW);
-        }
 
-        AllocMemHolder<char> pszOutNameSpace (GetAssembly()->GetHighFrequencyHeap()->AllocMem(allocSize));
-        *ppszOutNameSpace = pszOutNameSpace;
+    StackSString name(SString::Utf8, pszName);
+    name.LowerCase();
+
+    StackScratchBuffer nameBuffer;
+    pszName = name.GetUTF8(nameBuffer);
+
+
+   size_t iNSLength = strlen(pszNameSpace);
+   size_t iNameLength = strlen(pszName);
+
+    //Calc & allocate path length
+    //Includes terminating null
+    S_SIZE_T allocSize = S_SIZE_T(iNSLength) + S_SIZE_T(iNameLength) + S_SIZE_T(2);
+    AllocMemHolder<char> alloc(GetAssembly()->GetHighFrequencyHeap()->AllocMem(allocSize));
+
+    memcpy(*ppszOutNameSpace = (char*)alloc, pszNameSpace, iNSLength + 1);
+    memcpy(*ppszOutName = (char*)alloc + iNSLength + 1, pszName, iNameLength + 1);
     
-        if (iNSLength == 1)
-        {
-            **ppszOutNameSpace = '\0';
-        }
-        else
-        {
-            if (!InternalCasingHelper::InvariantToLowerNoThrow(*ppszOutNameSpace, iNSLength, pszNameSpace))
-            {
-                COMPlusThrowOM();
-            }
-        }
-
-        *ppszOutName = *ppszOutNameSpace + iNSLength;
-    
-        if (!InternalCasingHelper::InvariantToLowerNoThrow(*ppszOutName, iNameLength, pszName))
-        {
-            COMPlusThrowOM();
-        }
-
-        pszOutNameSpace.SuppressRelease();
-    }
+    alloc.SuppressRelease();
 }
 
 #endif // #ifndef DACCESS_COMPILE
@@ -2248,10 +2155,10 @@ TypeHandle ClassLoader::LookupTypeDefOrRefInModule(Module *pModule, mdToken cl, 
     RETURN(typeHandle);
 }
 
-DomainAssembly *ClassLoader::GetDomainAssembly(AppDomain *pDomain/*=NULL*/)
+DomainAssembly *ClassLoader::GetDomainAssembly()
 {
     WRAPPER_NO_CONTRACT;
-    return GetAssembly()->GetDomainAssembly(pDomain);
+    return GetAssembly()->GetDomainAssembly();
 }
 
 #ifndef DACCESS_COMPILE
@@ -2539,10 +2446,6 @@ TypeHandle ClassLoader::LoadTypeDefThrowing(Module *pModule,
             RETURN(typeHnd);
     }
 
-    // We don't want to probe on any threads except for those with a managed thread.  This function
-    // can be called from the GC thread etc. so need to control how we probe.
-    INTERIOR_STACK_PROBE_NOTHROW_CHECK_THREAD(goto Exit;);
-
     IMDInternalImport *pInternalImport = pModule->GetMDImport();
 
 #ifndef DACCESS_COMPILE
@@ -2667,11 +2570,6 @@ TypeHandle ClassLoader::LoadTypeDefThrowing(Module *pModule,
 #endif // !DACCESS_COMPILE
     }
 
-// If stack guards are disabled, then this label is unreferenced and produces a compile error.
-#if defined(FEATURE_STACK_PROBE) && !defined(DACCESS_COMPILE)
-Exit:
-#endif
-
 #ifndef DACCESS_COMPILE
     if ((fUninstantiated == FailIfUninstDefOrRef) && !typeHnd.IsNull() && typeHnd.IsGenericTypeDefinition())
     {
@@ -2686,7 +2584,6 @@ Exit:
     }
 #endif
     ;
-    END_INTERIOR_STACK_PROBE;
     
     RETURN(typeHnd);
 }
@@ -2959,7 +2856,7 @@ ClassLoader::ResolveTokenToTypeDefThrowing(
 BOOL
 ClassLoader::ResolveNameToTypeDefThrowing(
     Module *         pModule,
-    NameHandle *     pName,
+    const NameHandle * pName,
     Module **        ppTypeDefModule,
     mdTypeDef *      pTypeDefToken,
     Loader::LoadFlag loadFlag,
@@ -3676,10 +3573,6 @@ void ClassLoader::Notify(TypeHandle typeHnd)
             typeHnd.NotifyDebuggerLoad(NULL, FALSE);
         }
 #endif // DEBUGGING_SUPPORTED
-
-#if defined(ENABLE_PERF_COUNTERS)
-        GetPerfCounters().m_Loading.cClassesLoaded ++;
-#endif
     }
 }
 
@@ -3757,15 +3650,6 @@ TypeHandle ClassLoader::LoadTypeHandleForTypeKey(TypeKey *pTypeKey,
 
     GCX_PREEMP();
 
-    // Type loading can be recursive.  Probe for sufficient stack.
-    //
-    // Execution of the FINALLY in LoadTypeHandleForTypeKey_Body can eat 
-    // a lot of stack because LoadTypeHandleForTypeKey_Inner can rethrow 
-    // any non-SO exceptions that it takes, ensure that we have plenty 
-    // of stack before getting into it (>24 pages on AMD64, remember 
-    // that num pages probed is 2*N on AMD64).
-    INTERIOR_STACK_PROBE_FOR(GetThread(),20);
-
 #ifdef _DEBUG
     if (LoggingOn(LF_CLASSLOADER, LL_INFO1000))
     {
@@ -3799,8 +3683,6 @@ TypeHandle ClassLoader::LoadTypeHandleForTypeKey(TypeKey *pTypeKey,
 
     PushFinalLevels(typeHnd, targetLevel, pInstContext);
 
-    END_INTERIOR_STACK_PROBE;
-
     return typeHnd;
 }
 
@@ -3826,9 +3708,6 @@ TypeHandle ClassLoader::LoadTypeHandleForTypeKeyNoLock(TypeKey *pTypeKey,
 
     TypeHandle typeHnd = TypeHandle();
 
-    // Type loading can be recursive.  Probe for sufficient stack.
-    INTERIOR_STACK_PROBE_FOR(GetThread(),8);
-
     ClassLoadLevel currentLevel = CLASS_LOAD_BEGIN;
     ClassLoadLevel targetLevelUnderLock = targetLevel < CLASS_DEPENDENCIES_LOADED ? targetLevel : (ClassLoadLevel) (CLASS_DEPENDENCIES_LOADED-1);
     while (currentLevel < targetLevelUnderLock)
@@ -3839,8 +3718,6 @@ TypeHandle ClassLoader::LoadTypeHandleForTypeKeyNoLock(TypeKey *pTypeKey,
     }
 
     PushFinalLevels(typeHnd, targetLevel, pInstContext);
-
-    END_INTERIOR_STACK_PROBE;
 
     return typeHnd;
 }
@@ -4145,7 +4022,6 @@ ClassLoader::LoadArrayTypeThrowing(
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
         if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         if (FORBIDGC_LOADER_USE_ENABLED() || fLoadTypes != LoadTypes) { LOADS_TYPE(CLASS_LOAD_BEGIN); } else { LOADS_TYPE(level); }
-        if (fLoadTypes == DontLoadTypes) SO_TOLERANT; else SO_INTOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
         POSTCONDITION(CheckPointer(RETVAL, ((fLoadTypes == LoadTypes) ? NULL_NOT_OK : NULL_OK)));
@@ -4229,6 +4105,7 @@ VOID ClassLoader::AddAvailableClassDontHaveLock(Module *pModule,
 #endif
 
     CrstHolder ch(&m_AvailableClassLock);
+
     AddAvailableClassHaveLock(
         pModule, 
         classdef, 
@@ -4425,6 +4302,7 @@ VOID ClassLoader::AddExportedTypeDontHaveLock(Module *pManifestModule,
     CONTRACTL_END
 
     CrstHolder ch(&m_AvailableClassLock);
+
     AddExportedTypeHaveLock(
         pManifestModule,
         cl,
@@ -5258,9 +5136,6 @@ BOOL ClassLoader::CanAccess(                            // TRUE if access is all
         MODE_ANY;
     }
     CONTRACT_END;
-    
-    // Recursive: CanAccess->CheckAccessMember->CanAccessClass->CanAccess
-    INTERIOR_STACK_PROBE(GetThread());
 
     AccessCheckOptions accessCheckOptionsNoThrow(accessCheckOptions, FALSE);
 
@@ -5312,13 +5187,11 @@ BOOL ClassLoader::CanAccess(                            // TRUE if access is all
         if (!canAccess)
         {
             BOOL fail = accessCheckOptions.FailOrThrow(pContext);
-            RETURN_FROM_INTERIOR_PROBE(fail);
+            RETURN(fail);
         }
     }
 
-    RETURN_FROM_INTERIOR_PROBE(TRUE);
-
-    END_INTERIOR_STACK_PROBE;
+    RETURN(TRUE);
 } // BOOL ClassLoader::CanAccess()
 
 //******************************************************************************

@@ -5,7 +5,7 @@
 #ifndef _METADATATRACKER_H_
 #define _METADATATRACKER_H_
 
-#if defined(FEATURE_PREJIT) && defined(FEATURE_WINDOWSPHONE)
+#ifdef FEATURE_PREJIT
 
 #define METADATATRACKER_DATA 1
 #if !defined(DACCESS_COMPILE)
@@ -66,14 +66,12 @@ public:
             THROWS;
             GC_NOTRIGGER;
             INJECT_FAULT(ThrowOutOfMemory());
-            SO_INTOLERANT;
         }
         CONTRACTL_END;
 
         m_ModuleName = NULL;
 
-        DWORD len = (DWORD)wcslen(modName);
-        _ASSERTE(len + 1 != 0);      // Prevent Overflow
+        size_t len = wcslen(modName);
         m_ModuleName = new wchar_t[len + 1];
         NewArrayHolder<wchar_t> moduleNameHolder(m_ModuleName);
         wcscpy_s((wchar_t *)m_ModuleName, len + 1, (wchar_t *)modName);
@@ -98,7 +96,6 @@ public:
             NOTHROW;
             GC_NOTRIGGER;
             FORBID_FAULT;
-            SO_INTOLERANT;
         }
         CONTRACTL_END;
 
@@ -158,7 +155,6 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (!Enabled())
             return;
@@ -185,11 +181,10 @@ public:
         return NoteAccessWorker(address);
     }
 
-    __declspec(noinline) static void* NoteAccessWorker(void *address)
+    NOINLINE static void* NoteAccessWorker(void *address)
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (s_IBCLogMetaDataAccess != NULL)
             s_IBCLogMetaDataAccess(address);
@@ -208,11 +203,10 @@ public:
         NoteSearchWorker(result);
     }
 
-    __declspec(noinline) static void NoteSearchWorker(void *result)
+    NOINLINE static void NoteSearchWorker(void *result)
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
-        STATIC_CONTRACT_SO_NOT_MAINLINE;
 
         if (s_IBCLogMetaDataSearch != NULL && result != NULL)
             s_IBCLogMetaDataSearch(result);
@@ -266,7 +260,6 @@ public:
             GC_NOTRIGGER;
             INJECT_FAULT(ThrowOutOfMemory());
             POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
-            SO_INTOLERANT;
         }
         CONTRACT_END;
 

@@ -123,7 +123,8 @@ public:
     static void GatherGenericsInfo(Module *pModule,
                                    mdTypeDef cl,
                                    Instantiation inst,
-                                   bmtGenericsInfo *bmtGenericsInfo);
+                                   bmtGenericsInfo *bmtGenericsInfo,
+                                   StackingAllocator *pStackingAllocator);
 
     MethodTable *
     BuildMethodTableThrowing(
@@ -183,6 +184,18 @@ private:
     // <NICE> Get rid of this.</NICE>
     PTR_EEClass GetHalfBakedClass() { LIMITED_METHOD_CONTRACT; return m_pHalfBakedClass; }
     PTR_MethodTable GetHalfBakedMethodTable() { LIMITED_METHOD_CONTRACT; return m_pHalfBakedMT; } 
+
+    HRESULT GetCustomAttribute(mdToken parentToken, WellKnownAttribute attribute, const void  **ppData, ULONG *pcbData)
+    {
+        WRAPPER_NO_CONTRACT;
+        if (GetModule()->IsReadyToRun())
+        {
+            if (!GetModule()->GetReadyToRunInfo()->MayHaveCustomAttribute(attribute, parentToken))
+                return S_FALSE;
+        }
+
+        return GetMDImport()->GetCustomAttributeByName(parentToken, GetWellKnownAttributeName(attribute), ppData, pcbData);
+    }
 
     // <NOTE> The following functions are used during MethodTable construction to access/set information about the type being constructed.
     // Beware that some of the fields of the underlying EEClass/MethodTable being constructed may not
@@ -2426,7 +2439,8 @@ private:
         bmtExactInterfaceInfo *     bmtInfo, 
         MethodTable *               pIntf, 
         const Substitution *        pSubstForTypeLoad_OnStack,  // Allocated on stack!
-        const Substitution *        pSubstForComparing_OnStack  // Allocated on stack!
+        const Substitution *        pSubstForComparing_OnStack, // Allocated on stack!
+        StackingAllocator *         pStackingAllocator
         COMMA_INDEBUG(MethodTable * dbg_pClassMT));
     
 public:
@@ -2436,7 +2450,8 @@ public:
         Module *                    pModule, 
         mdToken                     typeDef, 
         const Substitution *        pSubstForTypeLoad, 
-        Substitution *              pSubstForComparing 
+        Substitution *              pSubstForComparing,
+        StackingAllocator *     pStackingAllocator
         COMMA_INDEBUG(MethodTable * dbg_pClassMT));
     
     static void
@@ -2444,7 +2459,8 @@ public:
         bmtExactInterfaceInfo * bmtInfo, 
         MethodTable *           pParentMT, 
         const Substitution *    pSubstForTypeLoad, 
-        Substitution *          pSubstForComparing);
+        Substitution *          pSubstForComparing,
+        StackingAllocator *     pStackingAllocator);
 
 public: 
     // --------------------------------------------------------------------------------------------
@@ -2469,14 +2485,16 @@ public:
         bmtInterfaceAmbiguityCheckInfo *,
         Module *pModule, 
         mdToken typeDef,  
-        const Substitution *pSubstChain);
+        const Substitution *pSubstChain,
+        StackingAllocator *pStackingAllocator);
 
 private:
     static void
     InterfaceAmbiguityCheck(
         bmtInterfaceAmbiguityCheckInfo *,
         const Substitution *pSubstChain, 
-        MethodTable *pIntfMT);
+        MethodTable *pIntfMT,
+        StackingAllocator *pStackingAllocator);
 
 public:
     static void

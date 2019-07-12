@@ -25,12 +25,6 @@
 
 void AssertMulticoreJitAllowedModule(PCODE pTarget)
 {
-    CONTRACTL
-    {
-        SO_NOT_MAINLINE;
-    }
-    CONTRACTL_END;
-
     MethodDesc* pMethod = Entry2MethodDesc(pTarget, NULL); 
 
     Module * pModule = pMethod->GetModule_NoLogging();
@@ -60,8 +54,6 @@ void CallDescrWorkerWithHandler(
                 CallDescrData *   pCallDescrData,
                 BOOL              fCriticalCall)
 {
-    STATIC_CONTRACT_SO_INTOLERANT;
-
 #if defined(FEATURE_MULTICOREJIT) && defined(_DEBUG)
 
     // For multicore JITting, background thread should not call managed code, except when calling system code (e.g. throwing managed exception)
@@ -103,7 +95,6 @@ void CallDescrWorker(CallDescrData * pCallDescrData)
 #endif // 0
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     _ASSERTE(!NingenEnabled() && "You cannot invoke managed code inside the ngen compilation process.");
 
@@ -417,7 +408,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
                 TypeHandle thReturnValueType;
                 if (m_methodSig.GetReturnTypeNormalized(&thReturnValueType) == ELEMENT_TYPE_VALUETYPE)
                 {
-                    _ASSERTE(cbReturnValue >= thReturnValueType.GetSize());
+                    _ASSERTE((DWORD)cbReturnValue >= thReturnValueType.GetSize());
                 }
             }
 #endif // UNIX_AMD64_ABI
@@ -620,7 +611,7 @@ void MethodDescCallSite::CallTargetWorker(const ARG_SLOT *pArguments, ARG_SLOT *
 
     if (pReturnValue != NULL)
     {
-        _ASSERTE(cbReturnValue <= sizeof(callDescrData.returnValue));
+        _ASSERTE((DWORD)cbReturnValue <= sizeof(callDescrData.returnValue));
         memcpyNoGCRefs(pReturnValue, &callDescrData.returnValue, cbReturnValue);
 
 #if !defined(_WIN64) && BIGENDIAN

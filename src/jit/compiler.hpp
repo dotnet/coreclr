@@ -991,14 +991,6 @@ inline GenTree* Compiler::gtNewOperNode(genTreeOps oper, var_types type, GenTree
 
     GenTree* node = new (this, oper) GenTreeOp(oper, type, op1, nullptr);
 
-    //
-    // the GT_ADDR of a Local Variable implies GTF_ADDR_ONSTACK
-    //
-    if ((oper == GT_ADDR) && (op1->OperGet() == GT_LCL_VAR))
-    {
-        node->gtFlags |= GTF_ADDR_ONSTACK;
-    }
-
     return node;
 }
 
@@ -1186,6 +1178,12 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
     /* 'GT_FIELD' nodes may later get transformed into 'GT_IND' */
     assert(GenTree::s_gtNodeSizes[GT_IND] <= GenTree::s_gtNodeSizes[GT_FIELD]);
 
+    if (typ == TYP_STRUCT)
+    {
+        CORINFO_CLASS_HANDLE fieldClass;
+        (void)info.compCompHnd->getFieldType(fldHnd, &fieldClass);
+        typ = impNormStructType(fieldClass);
+    }
     GenTree* tree = new (this, GT_FIELD) GenTreeField(typ, obj, fldHnd, offset);
 
     // If "obj" is the address of a local, note that a field of that struct local has been accessed.
@@ -1316,10 +1314,9 @@ inline GenTree* Compiler::gtUnusedValNode(GenTree* expr)
  * operands
  */
 
-inline void Compiler::gtSetStmtInfo(GenTree* stmt)
+inline void Compiler::gtSetStmtInfo(GenTreeStmt* stmt)
 {
-    assert(stmt->gtOper == GT_STMT);
-    GenTree* expr = stmt->gtStmt.gtStmtExpr;
+    GenTree* expr = stmt->gtStmtExpr;
 
     /* Recursively process the expression */
 
@@ -1446,7 +1443,7 @@ inline void GenTree::ChangeOperConst(genTreeOps oper)
 
 inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
 {
-    assert(!OperIsConst(oper)); // use ChangeOperLeaf() instead
+    assert(!OperIsConst(oper)); // use ChangeOperConst() instead
 
     unsigned mask = GTF_COMMON_MASK;
     if (this->OperIsIndirOrArrLength() && OperIsIndirOrArrLength(oper))
@@ -1460,9 +1457,24 @@ inline void GenTree::ChangeOper(genTreeOps oper, ValueNumberUpdate vnUpdate)
     switch (oper)
     {
         case GT_LCL_FLD:
+        {
+            // The original GT_LCL_VAR might be annotated with a zeroOffset field.
+            FieldSeqNode* zeroFieldSeq = nullptr;
+            Compiler*     compiler     = JitTls::GetCompiler();
+            bool          isZeroOffset = compiler->GetZeroOffsetFieldMap()->Lookup(this, &zeroFieldSeq);
+
             gtLclFld.gtLclOffs  = 0;
             gtLclFld.gtFieldSeq = FieldSeqStore::NotAField();
+
+            if (zeroFieldSeq != nullptr)
+            {
+                // Set the zeroFieldSeq in the GT_LCL_FLD node
+                gtLclFld.gtFieldSeq = zeroFieldSeq;
+                // and remove the annotation from the ZeroOffsetFieldMap
+                compiler->GetZeroOffsetFieldMap()->Remove(this);
+            }
             break;
+        }
         default:
             break;
     }
@@ -1477,23 +1489,6 @@ inline void GenTree::ChangeOperUnchecked(genTreeOps oper)
     }
     SetOperRaw(oper); // Trust the caller and don't use SetOper()
     gtFlags &= mask;
-}
-
-/*****************************************************************************
- * Returns true if the node is &var (created by ldarga and ldloca)
- */
-
-inline bool GenTree::IsVarAddr() const
-{
-    if (gtOper == GT_ADDR)
-    {
-        if (gtFlags & GTF_ADDR_ONSTACK)
-        {
-            assert((gtType == TYP_BYREF) || (gtType == TYP_I_IMPL));
-            return true;
-        }
-    }
-    return false;
 }
 
 /*****************************************************************************
@@ -1782,8 +1777,15 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, R
         if (weight != 0)
         {
             // We double the weight of internal temps
-            //
-            if (lvIsTemp && (weight * 2 > weight))
+
+            bool doubleWeight = lvIsTemp;
+
+#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+            // and, for the time being, implict byref params
+            doubleWeight |= lvIsImplicitByRef;
+#endif // defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
+
+            if (doubleWeight && (weight * 2 > weight))
             {
                 weight *= 2;
             }
@@ -1842,17 +1844,15 @@ inline void LclVarDsc::incRefCnts(BasicBlock::weight_t weight, Compiler* comp, R
  *  referenced in a statement.
  */
 
-inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(GenTree* stmt)
+inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(GenTreeStmt* stmt)
 {
-    GenTree*   tree;
     unsigned   varNum;
     LclVarDsc* varDsc;
     VARSET_TP  lclMask(VarSetOps::MakeEmpty(this));
 
-    assert(stmt->gtOper == GT_STMT);
     assert(fgStmtListThreaded);
 
-    for (tree = stmt->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+    for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
     {
         if (tree->gtOper != GT_LCL_VAR)
         {
@@ -2693,7 +2693,7 @@ inline bool Compiler::fgIsThrowHlpBlk(BasicBlock* block)
     }
 
     // We can get to this point for blocks that we didn't create as throw helper blocks
-    // under stress, with crazy flow graph optimizations. So, walk the fgAddCodeList
+    // under stress, with implausible flow graph optimizations. So, walk the fgAddCodeList
     // for the final determination.
 
     for (AddCodeDsc* add = fgAddCodeList; add; add = add->acdNext)
@@ -2947,7 +2947,7 @@ inline regNumber genMapFloatRegArgNumToRegNum(unsigned argNum)
 
 __forceinline regNumber genMapRegArgNumToRegNum(unsigned argNum, var_types type)
 {
-    if (varTypeIsFloating(type))
+    if (varTypeUsesFloatArgReg(type))
     {
         return genMapFloatRegArgNumToRegNum(argNum);
     }
@@ -2985,7 +2985,7 @@ inline regMaskTP genMapFloatRegArgNumToRegMask(unsigned argNum)
 __forceinline regMaskTP genMapArgNumToRegMask(unsigned argNum, var_types type)
 {
     regMaskTP result;
-    if (varTypeIsFloating(type))
+    if (varTypeUsesFloatArgReg(type))
     {
         result = genMapFloatRegArgNumToRegMask(argNum);
 #ifdef _TARGET_ARM_
@@ -3104,7 +3104,7 @@ inline unsigned genMapFloatRegNumToRegArgNum(regNumber regNum)
 
 inline unsigned genMapRegNumToRegArgNum(regNumber regNum, var_types type)
 {
-    if (varTypeIsFloating(type))
+    if (varTypeUsesFloatArgReg(type))
     {
         return genMapFloatRegNumToRegArgNum(regNum);
     }
@@ -3316,7 +3316,7 @@ inline void Compiler::LoopDsc::AddModifiedField(Compiler* comp, CORINFO_FIELD_HA
         lpFieldsModified =
             new (comp->getAllocatorLoopHoist()) Compiler::LoopDsc::FieldHandleSet(comp->getAllocatorLoopHoist());
     }
-    lpFieldsModified->Set(fldHnd, true);
+    lpFieldsModified->Set(fldHnd, true, FieldHandleSet::Overwrite);
 }
 
 inline void Compiler::LoopDsc::AddModifiedElemType(Compiler* comp, CORINFO_CLASS_HANDLE structHnd)
@@ -3326,7 +3326,7 @@ inline void Compiler::LoopDsc::AddModifiedElemType(Compiler* comp, CORINFO_CLASS
         lpArrayElemTypesModified =
             new (comp->getAllocatorLoopHoist()) Compiler::LoopDsc::ClassHandleSet(comp->getAllocatorLoopHoist());
     }
-    lpArrayElemTypesModified->Set(structHnd, true);
+    lpArrayElemTypesModified->Set(structHnd, true, ClassHandleSet::Overwrite);
 }
 
 inline void Compiler::LoopDsc::VERIFY_lpIterTree()
@@ -3884,7 +3884,7 @@ inline bool Compiler::compIsForImportOnly()
  *  Returns true if the compiler instance is created for inlining.
  */
 
-inline bool Compiler::compIsForInlining()
+inline bool Compiler::compIsForInlining() const
 {
     return (impInlineInfo != nullptr);
 }
@@ -4221,6 +4221,7 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_SETCC:
         case GT_NO_OP:
         case GT_START_NONGC:
+        case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
 #if !FEATURE_EH_FUNCLETS
         case GT_END_LFIN:

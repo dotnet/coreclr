@@ -157,7 +157,7 @@ BOOL NDirectMethodDesc::HasDefaultDllImportSearchPathsAttribute()
 
     _ASSERTE(!IsZapped());
 
-    BOOL attributeIsFound = GetDefaultDllImportSearchPathsAttributeValue(GetMDImport(),GetMemberDef(),&ndirect.m_DefaultDllImportSearchPathsAttributeValue);
+    BOOL attributeIsFound = GetDefaultDllImportSearchPathsAttributeValue(GetModule(),GetMemberDef(),&ndirect.m_DefaultDllImportSearchPathsAttributeValue);
 
     if(attributeIsFound )
     {
@@ -214,7 +214,6 @@ BaseDomain *MethodDesc::GetDomain()
         GC_NOTRIGGER;
         FORBID_FAULT;
         SUPPORTS_DAC;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -222,13 +221,6 @@ BaseDomain *MethodDesc::GetDomain()
 }
 
 #ifndef DACCESS_COMPILE
-
-//*******************************************************************************
-LoaderAllocator * MethodDesc::GetLoaderAllocatorForCode()
-{
-    return GetLoaderAllocator();
-}
-
 
 //*******************************************************************************
 LoaderAllocator * MethodDesc::GetDomainSpecificLoaderAllocator()
@@ -264,7 +256,6 @@ LPCUTF8 MethodDesc::GetName()
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS; // MethodImpl::FindMethodDesc can throw.
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }CONTRACTL_END;
 
@@ -284,17 +275,12 @@ LPCUTF8 MethodDesc::GetName()
     {
         // Get the metadata string name for this method
         LPCUTF8 result = NULL;
-        
-        // This probes only if we have a thread, in which case it is OK to throw the SO.
-        BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
-        
+
         if (FAILED(GetMDImport()->GetNameOfMethodDef(GetMemberDef(), &result)))
         {
             result = NULL;
         }
-        
-        END_SO_INTOLERANT_CODE;
-        
+
         return(result);
     }
 }
@@ -442,7 +428,6 @@ void MethodDesc::GetSig(PCCOR_SIGNATURE *ppSig, DWORD *pcSig)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -486,7 +471,6 @@ void MethodDesc::GetSigFromMetadata(IMDInternalImport * importer,
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -537,10 +521,12 @@ PCODE MethodDesc::GetMethodEntryPoint()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
+
+    // Similarly to SetMethodEntryPoint(), it is up to the caller to ensure that calls to this function are appropriately
+    // synchronized
 
     // Keep implementations of MethodDesc::GetMethodEntryPoint and MethodDesc::GetAddrOfSlot in sync!
 
@@ -566,7 +552,6 @@ TADDR MethodDesc::GetAddrOfSlot()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -728,7 +713,6 @@ DWORD MethodDesc::GetNumGenericMethodArgs()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         CANNOT_TAKE_LOCK;
         SUPPORTS_DAC;
     }
@@ -751,7 +735,6 @@ MethodTable * MethodDesc::GetExactDeclaringType(MethodTable * ownerOrSubType)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -1133,7 +1116,6 @@ ULONG MethodDesc::GetRVA()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1231,19 +1213,13 @@ COR_ILMETHOD* MethodDesc::GetILHeader(BOOL fAllowOverrides /*=FALSE*/)
 }
 
 //*******************************************************************************
-MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
-#ifdef _DEBUG
-    bool supportStringConstructors,
-#endif
-    MethodTable** pMT
-    )
+ReturnKind MethodDesc::ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors))
 {
     CONTRACTL
     {
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -1262,7 +1238,7 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_OBJECT:
         case ELEMENT_TYPE_VAR:
-            return(MetaSig::RETOBJ);
+            return RT_Object;
 
 #ifdef ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
         case ELEMENT_TYPE_VALUETYPE:
@@ -1277,22 +1253,48 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
                     if (!thValueType.IsTypeDesc())
                     {
                         MethodTable * pReturnTypeMT = thValueType.AsMethodTable();
-                        if (pMT != NULL)
-                        {
-                            *pMT = pReturnTypeMT;
-                        }
-
 #ifdef UNIX_AMD64_ABI
                         if (pReturnTypeMT->IsRegPassedStruct())
                         {
-                            return MetaSig::RETVALUETYPE;
+                            // The Multi-reg return case using the classhandle is only implemented for AMD64 SystemV ABI.
+                            // On other platforms, multi-reg return is not supported with GcInfo v1.
+                            // So, the relevant information must be obtained from the GcInfo tables (which requires version2).
+                            EEClass* eeClass = pReturnTypeMT->GetClass();
+                            ReturnKind regKinds[2] = { RT_Unset, RT_Unset };
+                            int orefCount = 0;
+                            for (int i = 0; i < 2; i++)
+                            {
+                                if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
+                                {
+                                    regKinds[i] = RT_Object;
+                                }
+                                else if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef)
+                                {
+                                    regKinds[i] = RT_ByRef;
+                                }
+                                else
+                                {
+                                    regKinds[i] = RT_Scalar;
+                                }
+                            }
+                            ReturnKind structReturnKind = GetStructReturnKind(regKinds[0], regKinds[1]);
+                            return structReturnKind;
                         }
-#endif // !UNIX_AMD64_ABI
+#endif // UNIX_AMD64_ABI
 
-                        if (pReturnTypeMT->ContainsPointers())
+                        if (pReturnTypeMT->ContainsPointers() || pReturnTypeMT->IsByRefLike())
                         {
-                            _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
-                            return MetaSig::RETOBJ;
+                            if (pReturnTypeMT->GetNumInstanceFields() == 1)
+                            {
+                                _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
+                                // Note: we can't distinguish RT_Object from RT_ByRef, the caller has to tolerate that. 
+                                return RT_Object;
+                            }
+                            else
+                            {
+                                // Multi reg return case with pointers, can't restore the actual kind.
+                                return RT_Illegal;
+                            }
                         }
                     }
                 }
@@ -1309,19 +1311,47 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
             if (IsCtor() && GetMethodTable()->HasComponentSize())
             {
                 _ASSERTE(supportStringConstructors);
-                return MetaSig::RETOBJ;
+                return RT_Object;
             }
             break;
 #endif // _DEBUG
 
         case ELEMENT_TYPE_BYREF:
-            return(MetaSig::RETBYREF);
+            return RT_ByRef;
 
         default:
             break;
     }
 
-    return(MetaSig::RETNONOBJ);
+    return RT_Scalar;
+}
+
+ReturnKind MethodDesc::GetReturnKind(INDEBUG(bool supportStringConstructors))
+{
+#ifdef _WIN64
+    // For simplicity, we don't hijack in funclets, but if you ever change that, 
+    // be sure to choose the OnHijack... callback type to match that of the FUNCLET
+    // not the main method (it would probably be Scalar).
+#endif // _WIN64
+
+    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+    // Mark that we are performing a stackwalker like operation on the current thread.
+    // This is necessary to allow the signature parsing functions to work without triggering any loads
+    ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, GetThread());
+
+#ifdef _TARGET_X86_
+    MetaSig msig(this);
+    if (msig.HasFPReturn())
+    {
+        // Figuring out whether the function returns FP or not is hard to do
+        // on-the-fly, so we use a different callback helper on x86 where this
+        // piece of information is needed in order to perform the right save &
+        // restore of the return value around the call to OnHijackScalarWorker.
+        return RT_Float;
+    }
+#endif // _TARGET_X86_
+    
+    return ParseReturnKindFromSig(INDEBUG(supportStringConstructors));
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -1393,7 +1423,6 @@ DWORD MethodDesc::GetAttrs() const
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END
     
@@ -1441,7 +1470,6 @@ Module* MethodDesc::GetZapModule()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END
@@ -1500,7 +1528,6 @@ Module *MethodDesc::GetModule() const
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
     g_IBCLogger.LogMethodDescAccess(this);
@@ -1515,7 +1542,6 @@ Module *MethodDesc::GetModule_NoLogging() const
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
-    STATIC_CONTRACT_SO_TOLERANT;
     SUPPORTS_DAC;
 
     MethodTable* pMT = GetMethodDescChunk()->GetMethodTable();
@@ -1796,7 +1822,6 @@ MethodDesc* MethodDesc::StripMethodInstantiation()
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         POSTCONDITION(CheckPointer(RETVAL));
     }
     CONTRACT_END
@@ -2181,6 +2206,12 @@ PCODE MethodDesc::TryGetMultiCallableAddrOfCode(CORINFO_ACCESS_FLAGS accessFlags
     if (HasStableEntryPoint())
         return GetStableEntryPoint();
 
+    if (IsVersionableWithVtableSlotBackpatch())
+    {
+        // Caller has to call via slot or allocate funcptr stub
+        return NULL;
+    }
+
     // Force the creation of the precode if we would eventually got one anyway
     if (MayHavePrecode())
         return GetOrCreatePrecode()->GetEntryPoint();
@@ -2293,13 +2324,18 @@ BOOL MethodDesc::IsPointingToPrestub()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
 
     if (!HasStableEntryPoint())
+    {
+        if (IsVersionableWithVtableSlotBackpatch())
+        {
+            return !IsRestored() || GetMethodEntryPoint() == GetTemporaryEntryPoint();
+        }
         return TRUE;
+    }
 
     if (!HasPrecode())
         return FALSE;
@@ -3182,6 +3218,10 @@ void DynamicMethodDesc::Restore()
         RestoreSignatureContainingInternalTypes(pSig, cSigLen);
     }
 }
+#else // FEATURE_PREJIT
+void DynamicMethodDesc::Restore()
+{
+}
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
@@ -3925,7 +3965,6 @@ void ComPlusCallInfo::Fixup(DataImage *image)
 
 #endif // !DACCESS_COMPILE
 
-#ifdef FEATURE_PREJIT
 //*******************************************************************************
 void MethodDesc::CheckRestore(ClassLoadLevel level)
 {
@@ -3945,11 +3984,11 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
 
             // First restore method table pointer in singleton chunk;
             // it might be out-of-module
+#ifdef FEATURE_PREJIT
             GetMethodDescChunk()->RestoreMTPointer(level);
 #ifdef _DEBUG
             Module::RestoreMethodTablePointer(&m_pDebugMethodTable, NULL, level);
 #endif
-
             // Now restore wrapped method desc if present; we need this for the dictionary layout too
             if (pIMD->IMD_IsWrapperStubWithInstantiations())
                 Module::RestoreMethodDescPointer(&pIMD->m_pWrappedMethodDesc);
@@ -3959,6 +3998,9 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
             {
                 GetMethodDictionary()->Restore(GetNumGenericMethodArgs(), level);
             }
+#else
+            ClassLoader::EnsureLoaded(TypeHandle(GetMethodTable()), level);
+#endif
 
             g_IBCLogger.LogMethodDescWriteAccess(this);
 
@@ -4005,13 +4047,6 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
         }
     }
 }
-#else // FEATURE_PREJIT
-//*******************************************************************************
-void MethodDesc::CheckRestore(ClassLoadLevel level)
-{
-    LIMITED_METHOD_CONTRACT;
-}
-#endif // !FEATURE_PREJIT
 
 // static
 MethodDesc* MethodDesc::GetMethodDescFromStubAddr(PCODE addr, BOOL fSpeculative /*=FALSE*/)
@@ -4020,7 +4055,6 @@ MethodDesc* MethodDesc::GetMethodDescFromStubAddr(PCODE addr, BOOL fSpeculative 
     {
         GC_NOTRIGGER;
         NOTHROW;
-        SO_TOLERANT;
     }
     CONTRACT_END;
 
@@ -4066,7 +4100,6 @@ TADDR MethodDesc::GetFixupList()
 //*******************************************************************************
 BOOL MethodDesc::IsRestored_NoLogging()
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -4097,7 +4130,6 @@ BOOL MethodDesc::IsRestored_NoLogging()
 
 BOOL MethodDesc::IsRestored()
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_FORBID_FAULT;
@@ -4613,7 +4645,6 @@ PCODE MethodDesc::GetTemporaryEntryPoint()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -4729,6 +4760,7 @@ void MethodDesc::InterlockedUpdateFlags2(BYTE bMask, BOOL fSet)
 Precode* MethodDesc::GetOrCreatePrecode()
 {
     WRAPPER_NO_CONTRACT;
+    _ASSERTE(!IsVersionableWithVtableSlotBackpatch());
 
     if (HasPrecode())
     {
@@ -4791,6 +4823,212 @@ Precode* MethodDesc::GetOrCreatePrecode()
     return Precode::GetPrecodeFromEntryPoint(addr);
 }
 
+bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
+{
+    WRAPPER_NO_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+#ifndef FEATURE_CODE_VERSIONING
+    #error Tiered compilation requires code versioning
+#endif
+
+    // Keep in-sync with MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
+    // to ensure native slots are available where needed.
+    if (
+        // Policy
+        g_pConfig->TieredCompilation() &&
+
+        // Functional requirement - NGEN images embed direct calls that we would be unable to detect and redirect
+        !IsZapped() &&
+
+        // Functional requirement - The NativeCodeSlot is required to hold the code pointer for the default code version because
+        // the method's entry point slot will point to a precode or to the current code entry point
+        HasNativeCodeSlot() &&
+
+        // Functional requirement - These methods have no IL that could be optimized
+        !IsWrapperStub() &&
+
+        // Functional requirement
+        CodeVersionManager::IsMethodSupported(this) &&
+
+        // Policy - If QuickJit is disabled and the module does not have any pregenerated code, the method would effectively not
+        // be tiered currently, so make the method ineligible for tiering to avoid some unnecessary overhead
+        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
+
+        // Policy - Generating optimized code is not disabled
+        !IsJitOptimizationDisabled() &&
+
+        // Policy - Tiered compilation is not disabled by the profiler
+        !CORProfilerDisableTieredCompilation())
+    {
+        m_bFlags2 |= enum_flag2_IsEligibleForTieredCompilation;
+        _ASSERTE(IsVersionableWithoutJumpStamp());
+        return true;
+    }
+#endif
+
+    return false;
+}
+
+#endif // !DACCESS_COMPILE
+
+#ifndef CROSSGEN_COMPILE
+bool MethodDesc::IsJitOptimizationDisabled()
+{
+    WRAPPER_NO_CONTRACT;
+
+    return
+        g_pConfig->JitMinOpts() ||
+#ifdef _DEBUG
+        g_pConfig->GenDebuggableCode() ||
+#endif
+        CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) ||
+        (!IsNoMetadata() && IsMiNoOptimization(GetImplAttrs()));
+}
+#endif
+
+#ifndef DACCESS_COMPILE
+#ifndef CROSSGEN_COMPILE
+
+void MethodDesc::RecordAndBackpatchEntryPointSlot(
+    LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated
+    TADDR slot,
+    EntryPointSlots::SlotType slotType)
+{
+    WRAPPER_NO_CONTRACT;
+
+    LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder;
+
+    RecordAndBackpatchEntryPointSlot_Locked(
+        mdLoaderAllocator,
+        slotLoaderAllocator,
+        slot,
+        slotType,
+        GetEntryPointToBackpatch_Locked());
+}
+
+// This function tries to record a slot that would contain an entry point for the method, and backpatches the slot to contain
+// method's current entry point. Once recorded, changes to the entry point due to tiering will cause the slot to be backpatched
+// as necessary.
+void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
+    LoaderAllocator *mdLoaderAllocator,
+    LoaderAllocator *slotLoaderAllocator, // the loader allocator from which the slot's memory is allocated
+    TADDR slot,
+    EntryPointSlots::SlotType slotType,
+    PCODE currentEntryPoint)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+    _ASSERTE(mdLoaderAllocator != nullptr);
+    _ASSERTE(mdLoaderAllocator == GetLoaderAllocator());
+    _ASSERTE(slotLoaderAllocator != nullptr);
+    _ASSERTE(slot != NULL);
+    _ASSERTE(slotType < EntryPointSlots::SlotType_Count);
+    _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+
+    // The specified current entry point must actually be *current* in the sense that it must have been retrieved inside the
+    // lock, such that a recorded slot is guaranteed to point to the entry point at the time at which it was recorded, in order
+    // to synchronize with backpatching in MethodDesc::BackpatchEntryPointSlots(). If a slot pointing to an older entry point
+    // were to be recorded due to concurrency issues, it would not get backpatched to point to the more recent, actually
+    // current, entry point until another entry point change, which may never happen.
+    _ASSERTE(currentEntryPoint == GetEntryPointToBackpatch_Locked());
+
+    MethodDescBackpatchInfoTracker *backpatchTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
+    backpatchTracker->AddSlotAndPatch_Locked(this, slotLoaderAllocator, slot, slotType, currentEntryPoint);
+}
+
+void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(entryPoint != NULL);
+    _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+    _ASSERTE(isPrestubEntryPoint == (entryPoint == GetPrestubEntryPointToBackpatch()));
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+
+    LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
+    MethodDescBackpatchInfoTracker *backpatchInfoTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
+
+    // Get the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch()
+    if (GetEntryPointToBackpatch_Locked() == entryPoint)
+    {
+        return;
+    }
+
+    if (IsVersionableWithVtableSlotBackpatch())
+    {
+        // Backpatch the func ptr stub if it was created
+        FuncPtrStubs *funcPtrStubs = mdLoaderAllocator->GetFuncPtrStubsNoCreate();
+        if (funcPtrStubs != nullptr)
+        {
+            Precode *funcPtrPrecode = funcPtrStubs->Lookup(this);
+            if (funcPtrPrecode != nullptr)
+            {
+                if (isPrestubEntryPoint)
+                {
+                    funcPtrPrecode->ResetTargetInterlocked();
+                }
+                else
+                {
+                    funcPtrPrecode->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
+                }
+            }
+        }
+    }
+
+    backpatchInfoTracker->Backpatch_Locked(this, entryPoint);
+
+    // Set the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch(), and set
+    // it last in case there are exceptions above, as setting the entry point indicates that all recorded slots have been
+    // backpatched
+    SetEntryPointToBackpatch_Locked(entryPoint);
+}
+
+void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(entryPoint != NULL);
+
+    if (MayHaveEntryPointSlotsToBackpatch())
+    {
+        BackpatchEntryPointSlots(entryPoint);
+    }
+    else if (IsVersionableWithoutJumpStamp())
+    {
+        _ASSERTE(IsVersionableWithPrecode());
+        GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, FALSE /* fOnlyRedirectFromPrestub */);
+
+        // SetTargetInterlocked() would return false if it lost the race with another thread. That is fine, this thread
+        // can continue assuming it was successful, similarly to it successfully updating the target and another thread
+        // updating the target again shortly afterwards.
+    }
+    else if (HasPrecode())
+    {
+        GetPrecode()->SetTargetInterlocked(entryPoint);
+    }
+    else if (!HasStableEntryPoint())
+    {
+        SetStableEntryPointInterlocked(entryPoint);
+    }
+}
+
+void MethodDesc::ResetCodeEntryPoint()
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(IsVersionableWithoutJumpStamp());
+
+    if (MayHaveEntryPointSlotsToBackpatch())
+    {
+        BackpatchToResetEntryPointSlots();
+        return;
+    }
+
+    _ASSERTE(IsVersionableWithPrecode());
+    GetPrecode()->ResetTargetInterlocked();
+}
+
+#endif // !CROSSGEN_COMPILE
+
 //*******************************************************************************
 BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
 {
@@ -4831,6 +5069,39 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
     return SetStableEntryPointInterlocked(addr);
 }
 
+#ifndef CROSSGEN_COMPILE
+
+//*******************************************************************************
+void MethodDesc::SetMethodEntryPoint(PCODE addr)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(addr != NULL);
+
+    // Similarly to GetMethodEntryPoint(), it is up to the caller to ensure that calls to this function are appropriately
+    // synchronized. Currently, the only caller synchronizes with the following lock.
+    _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
+
+    TADDR pSlot = GetAddrOfSlot();
+
+    TADDR *slotAddr;
+    PCODE newVal;
+
+    if (IsVtableSlot())
+    {
+        newVal = MethodTable::VTableIndir2_t::GetRelative(pSlot, addr);
+        slotAddr = (TADDR *) EnsureWritablePages((MethodTable::VTableIndir2_t *) pSlot);
+    }
+    else
+    {
+        newVal = addr;
+        slotAddr = (TADDR *) EnsureWritablePages((PCODE *) pSlot);
+    }
+
+    *(TADDR *)slotAddr = newVal;
+}
+
+#endif // CROSSGEN_COMPILE
+
 //*******************************************************************************
 BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
 {
@@ -4840,6 +5111,7 @@ BOOL MethodDesc::SetStableEntryPointInterlocked(PCODE addr)
     } CONTRACTL_END;
 
     _ASSERTE(!HasPrecode());
+    _ASSERTE(!IsVersionableWithoutJumpStamp());
 
     PCODE pExpected = GetTemporaryEntryPoint();
     TADDR pSlot = GetAddrOfSlot();
@@ -4904,7 +5176,7 @@ void NDirectMethodDesc::InterlockedSetNDirectFlags(WORD wFlags)
 }
 
 #ifndef CROSSGEN_COMPILE
-FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 entryPointName) const
+FARPROC NDirectMethodDesc::FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE hMod, PTR_CUTF8 entryPointName) const
 {
     CONTRACTL
     {
@@ -4914,7 +5186,11 @@ FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 
     }
     CONTRACTL_END;
 
+#ifndef FEATURE_PAL
     FARPROC pFunc = GetProcAddress(hMod, entryPointName);
+#else
+    FARPROC pFunc = PAL_GetProcAddressDirect(hMod, entryPointName);
+#endif
 
 #if defined(_TARGET_X86_)
 
@@ -4925,6 +5201,13 @@ FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 
 
     if (IsStdCall())
     {
+        if (GetModule()->IsReadyToRun())
+        {
+            // Computing if marshalling is required also computes the required stack size. We need the stack size to correctly form the
+            // name of the import pinvoke function on x86
+            ((NDirectMethodDesc*)this)->MarshalingRequired();
+        }
+
         DWORD probedEntrypointNameLength = (DWORD)(strlen(entryPointName) + 1); // 1 for null terminator
         int dstbufsize = (int)(sizeof(char) * (probedEntrypointNameLength + 10)); // 10 for stdcall mangling
         LPSTR szProbedEntrypointName = ((LPSTR)_alloca(dstbufsize + 1));
@@ -4950,7 +5233,7 @@ FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 
 }
 
 //*******************************************************************************
-LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
+LPVOID NDirectMethodDesc::FindEntryPoint(NATIVE_LIBRARY_HANDLE hMod) const
 {
     CONTRACTL
     {
@@ -5068,8 +5351,8 @@ BOOL MethodDesc::HasNativeCallableAttribute()
     }
     CONTRACTL_END;
 
-    HRESULT hr = GetMDImport()->GetCustomAttributeByName(GetMemberDef(),
-        g_NativeCallableAttribute,
+    HRESULT hr = GetModule()->GetCustomAttribute(GetMemberDef(),
+        WellKnownAttribute::NativeCallable,
         NULL,
         NULL);
     if (hr == S_OK)
@@ -5340,7 +5623,6 @@ void MethodDesc::WalkValueTypeParameters(MethodTable *pMT, WalkValueTypeParamete
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -5406,7 +5688,6 @@ static void CheckForEquivalenceAndLoadType(Module *pModule, mdToken token, Modul
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 

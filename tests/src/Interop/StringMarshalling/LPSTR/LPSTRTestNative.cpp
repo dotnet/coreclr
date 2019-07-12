@@ -3,6 +3,8 @@
 // See the LICENSE file in the project root for more information.
 
 #include <xplatform.h>
+#include <platformdefines.h>
+
 const char* strManaged = "Managed\0String\0";
 size_t   lenstrManaged = 7; // the length of strManaged
 
@@ -129,10 +131,10 @@ extern "C" DLL_EXPORT BOOL __cdecl RPinvoke_DelMarshal_InOut(Test_DelMarshal_InO
     LPCWSTR str = d(s);
     LPCWSTR ret = W("Return");    
 
-    size_t lenstr = wcslen(str);
-    size_t lenret = wcslen(ret);
+    size_t lenstr = TP_slen(str);
+    size_t lenret = TP_slen(ret);
 
-    if((lenret != lenstr)||(wcsncmp(str,ret,lenstr)!=0))
+    if((lenret != lenstr)||(TP_wcsncmp(str,ret,lenstr)!=0))
     {
         printf("Error in RPinvoke_DelMarshal_InOut, Returned value didn't match\n");
         return FALSE;

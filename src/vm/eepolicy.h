@@ -35,8 +35,6 @@ public:
         TA_None,  // No Abort
         // Abort at a safe spot: not having any lock, not inside finally, not inside catch
         TA_Safe,
-        // Do we need this one?
-        TA_V1Compatible,
         // Do not run user finally, no attention to lock count
         TA_Rude
     };
@@ -122,7 +120,7 @@ public:
 
     static void HandleExitProcess(ShutdownCompleteAction sca = SCA_ExitProcessWhenShutdownComplete);
 
-    static void DECLSPEC_NORETURN HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, LPCWSTR errorSource=NULL, LPCWSTR argExceptionString=NULL);
+    static int NOINLINE HandleFatalError(UINT exitCode, UINT_PTR address, LPCWSTR pMessage=NULL, PEXCEPTION_POINTERS pExceptionInfo= NULL, LPCWSTR errorSource=NULL, LPCWSTR argExceptionString=NULL);
 
     static void DECLSPEC_NORETURN HandleFatalStackOverflow(EXCEPTION_POINTERS *pException, BOOL fSkipDebugger = FALSE);
 
@@ -165,9 +163,6 @@ inline EEPolicy* GetEEPolicy()
     return (EEPolicy*)&g_EEPolicyInstance;
 }
 
-extern void FinalizerThreadAbortOnTimeout();
-extern ULONGLONG GetObjFinalizeStartTime();
-
 //
 // Use EEPOLICY_HANDLE_FATAL_ERROR when you have a situtation where the Runtime's internal state would be
 // inconsistent if execution were allowed to continue. This will apply the proper host's policy for fatal
@@ -185,8 +180,5 @@ extern ULONGLONG GetObjFinalizeStartTime();
 
 // FailFast with specific error code and exception details
 #define EEPOLICY_HANDLE_FATAL_ERROR_USING_EXCEPTION_INFO(_exitcode, _pExceptionInfo) EEPolicy::HandleFatalError(_exitcode, GetCurrentIP(), NULL, _pExceptionInfo);
-
-// Failfast with specific error code, exception details, and debug info
-#define EEPOLICY_HANDLE_FATAL_ERROR_USING_EXCEPTION_AND_DEBUG_INFO(_exitcode, _pExceptionInfo, _isDebug) EEPolicy::HandleFatalError(_exitcode, GetCurrentIP(), NULL, _pExceptionInfo, _isDebug);
 
 #endif  // EEPOLICY_H_

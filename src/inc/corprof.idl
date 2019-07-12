@@ -418,6 +418,9 @@ typedef HRESULT __stdcall StackSnapshotCallback(
                 BYTE context[],
                 void *clientData);
 
+/* Callback for each object reference */
+typedef BOOL STDMETHODCALLTYPE ObjectReferenceCallback(ObjectID root, ObjectID* reference, void *clientData);
+
 typedef enum
 {
     // These flags represent classes of callback events
@@ -627,9 +630,21 @@ typedef enum
 
     COR_PRF_HIGH_DISABLE_TIERED_COMPILATION         = 0x00000008,
 
+    COR_PRF_HIGH_BASIC_GC                           = 0x00000010,
+
+    // Enables the MovedReferences/MovedReferences2 callback for compacting GCs only.
+    COR_PRF_HIGH_MONITOR_GC_MOVED_OBJECTS           = 0x00000020,
+
     COR_PRF_HIGH_REQUIRE_PROFILE_IMAGE              = 0,
 
-    COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH             = COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS,
+    // Enables the large object allocation monitoring according to the LOH threshold.
+    COR_PRF_HIGH_MONITOR_LARGEOBJECT_ALLOCATED      = 0x00000040,
+
+    COR_PRF_HIGH_ALLOWABLE_AFTER_ATTACH             = COR_PRF_HIGH_IN_MEMORY_SYMBOLS_UPDATED | 
+                                                      COR_PRF_HIGH_MONITOR_DYNAMIC_FUNCTION_UNLOADS | 
+                                                      COR_PRF_HIGH_BASIC_GC |
+                                                      COR_PRF_HIGH_MONITOR_GC_MOVED_OBJECTS |
+                                                      COR_PRF_HIGH_MONITOR_LARGEOBJECT_ALLOCATED,
 
     // MONITOR_IMMUTABLE represents all flags that may only be set during initialization.
     // Trying to change any of these flags elsewhere will result in a
@@ -704,6 +719,21 @@ typedef enum
     COR_PRF_DESKTOP_CLR = 0x1,
     COR_PRF_CORE_CLR    = 0x2,
 } COR_PRF_RUNTIME_TYPE;
+
+/*
+ * COR_PRF_REJIT_FLAGS contains values used to control the behavior of
+ * RequestReJITWithInliners.
+ */
+typedef enum
+{
+    // ReJITted methods will be prevented from being inlined
+    COR_PRF_REJIT_BLOCK_INLINING = 0x1,
+
+    // This flag controls whether the runtime will call GetReJITParameters
+    // on methods that are ReJITted because they inline a method that was requested
+    // for ReJIT
+    COR_PRF_REJIT_INLINING_CALLBACKS    = 0x2
+} COR_PRF_REJIT_FLAGS;
 
 
 /* -------------------------------------------------------------------------- *
@@ -3909,6 +3939,47 @@ interface ICorProfilerInfo9 : ICorProfilerInfo8
 
     //Given the native code start address, return the the blocks of virtual memory that store this code (method code is not necessarily stored in a single contiguous memory region)
     HRESULT GetCodeInfo4(UINT_PTR pNativeCodeStartAddress, ULONG32 cCodeInfos, ULONG32* pcCodeInfos, COR_PRF_CODE_INFO codeInfos[]);
+};
+
+[
+    object,
+    uuid(2F1B5152-C869-40C9-AA5F-3ABE026BD720),
+    pointer_default(unique),
+    local
+]
+interface ICorProfilerInfo10 : ICorProfilerInfo9
+{
+    // Given an ObjectID, callback and clientData, enumerates each object reference (if any).
+    HRESULT EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData);
+
+    // Given an ObjectID, determines whether it is in a read only segment.
+    HRESULT IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
+
+    // Gets the value of the configured LOH Threshold.
+    HRESULT GetLOHObjectSizeThreshold(DWORD *pThreshold);
+
+    /*
+     * This method will ReJIT the methods requested, as well as any inliners
+     * of the methods requested.
+     * 
+     * RequestReJIT does not do any tracking of inlined methods. The profiler
+     * was expected to track inlining and call RequestReJIT for all inliners
+     * to make sure every instance of an inlined method was ReJITted.
+     * This poses a problem with ReJIT on attach, since the profiler was
+     * not present to monitor inlining. This method can be called to guarantee
+     * that the full set of inliners will be ReJITted as well.
+     */
+    HRESULT RequestReJITWithInliners(
+                [in]                       DWORD       dwRejitFlags,
+                [in]                       ULONG       cFunctions,
+                [in, size_is(cFunctions)]  ModuleID    moduleIds[],
+                [in, size_is(cFunctions)]  mdMethodDef methodIds[]);
+
+    // Suspend the runtime without performing a GC.
+    HRESULT SuspendRuntime();
+
+    // Restart the runtime from a previous suspension.
+    HRESULT ResumeRuntime();
 }
 
 /*
@@ -3985,25 +4056,3 @@ interface ICorProfilerAssemblyReferenceProvider : IUnknown
     // assembly specified in the wszAssemblyPath argument of the GetAssemblyReferences callback.
     HRESULT AddAssemblyReference(const COR_PRF_ASSEMBLY_REFERENCE_INFO * pAssemblyRefInfo);
 };
-
-
-/***************************************************************************************
-** ICLRProfiling                                                                     **
-** Activated using mscoree!CLRCreateInstance. Export AttachProfiler API to profilers **
-***************************************************************************************/
-[
-    uuid(B349ABE3-B56F-4689-BFCD-76BF39D888EA),
-    version(1.0),
-    helpstring("CoreCLR profiling interface for profiler attach"),
-    local
-]
-interface ICLRProfiling : IUnknown
-{
-    HRESULT AttachProfiler(
-        [in] DWORD dwProfileeProcessID,
-        [in] DWORD dwMillisecondsMax,                        // optional
-        [in] const CLSID * pClsidProfiler,
-        [in] LPCWSTR wszProfilerPath,                        // optional
-        [in, size_is(cbClientData)] void * pvClientData,     // optional
-        [in] UINT cbClientData);                             // optional
-}

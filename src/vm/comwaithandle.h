@@ -19,8 +19,8 @@
 class WaitHandleNative
 {
 public:
-    static FCDECL4(INT32, CorWaitOneNative, SafeHandle* safeWaitHandleUNSAFE, INT32 timeout, CLR_BOOL hasThreadAffinity, CLR_BOOL exitContext);
-    static FCDECL4(INT32, CorWaitMultipleNative, Object* waitObjectsUNSAFE, INT32 timeout, CLR_BOOL exitContext, CLR_BOOL waitForAll);
-    static FCDECL5(INT32, CorSignalAndWaitOneNative, SafeHandle* safeWaitHandleSignalUNSAFE, SafeHandle* safeWaitHandleWaitUNSAFE, INT32 timeout, CLR_BOOL hasThreadAffinity, CLR_BOOL exitContext);
+    static FCDECL2(INT32, CorWaitOneNative, HANDLE handle, INT32 timeout);
+    static FCDECL4(INT32, CorWaitMultipleNative, HANDLE *handleArray, INT32 numHandles, CLR_BOOL waitForAll, INT32 timeout);
+    static FCDECL3(INT32, CorSignalAndWaitOneNative, HANDLE waitHandleSignalUNSAFE, HANDLE waitHandleWaitUNSAFE, INT32 timeout);
 };
 #endif

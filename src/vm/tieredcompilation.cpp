@@ -63,10 +63,9 @@
 // Called at AppDomain construction
 TieredCompilationManager::TieredCompilationManager() :
     m_lock(CrstTieredCompilation),
+    m_countOfMethodsToOptimize(0),
     m_isAppDomainShuttingDown(FALSE),
     m_countOptimizationThreadsRunning(0),
-    m_callCountOptimizationThreshhold(1),
-    m_optimizationQuantumMs(50),
     m_methodsPendingCountingForTier1(nullptr),
     m_tieringDelayTimerHandle(nullptr),
     m_tier1CallCountingCandidateMethodRecentlyRecorded(false)
@@ -76,7 +75,7 @@ TieredCompilationManager::TieredCompilationManager() :
 }
 
 // Called at AppDomain Init
-void TieredCompilationManager::Init(ADID appDomainId)
+void TieredCompilationManager::Init()
 {
     CONTRACTL
     {
@@ -85,10 +84,6 @@ void TieredCompilationManager::Init(ADID appDomainId)
         MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-
-    CrstHolder holder(&m_lock);
-    m_domainId = appDomainId;
-    m_callCountOptimizationThreshhold = g_pConfig->TieredCompilation_Tier1CallCountThreshold();
 }
 
 #endif // FEATURE_TIERED_COMPILATION && !DACCESS_COMPILE
@@ -99,70 +94,79 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
     _ASSERTE(pMethodDesc != NULL);
 
 #ifdef FEATURE_TIERED_COMPILATION
+    if (!pMethodDesc->IsEligibleForTieredCompilation())
+    {
+        // The optimization tier is not used
+        return NativeCodeVersion::OptimizationTier0;
+    }
+
     if (pMethodDesc->RequestedAggressiveOptimization())
     {
-        // Methods flagged with MethodImplOptions.AggressiveOptimization begin at tier 1, as a workaround to cold methods with
-        // hot loops performing poorly (https://github.com/dotnet/coreclr/issues/19751)
+        // Methods flagged with MethodImplOptions.AggressiveOptimization start with and stay at tier 1
         return NativeCodeVersion::OptimizationTier1;
     }
-#endif // FEATURE_TIERED_COMPILATION
+
+    if (!g_pConfig->TieredCompilation_CallCounting())
+    {
+        // Call counting is disabled altogether through config, the intention is to remain at the initial tier
+        return NativeCodeVersion::OptimizationTier0;
+    }
+
+    if (!pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
+    {
+        // Tier 0 call counting may have been disabled for several reasons, the intention is to start with and stay at an
+        // optimized tier
+        return NativeCodeVersion::OptimizationTierOptimized;
+    }
+#endif
 
     return NativeCodeVersion::OptimizationTier0;
 }
 
 #if defined(FEATURE_TIERED_COMPILATION) && !defined(DACCESS_COMPILE)
 
-bool TieredCompilationManager::RequiresCallCounting(MethodDesc* pMethodDesc)
-{
-    WRAPPER_NO_CONTRACT;
-    _ASSERTE(pMethodDesc != NULL);
-    _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
-
-    return
-        g_pConfig->TieredCompilation_CallCounting() &&
-        GetInitialOptimizationTier(pMethodDesc) == NativeCodeVersion::OptimizationTier0;
-}
-
 // Called each time code in this AppDomain has been run. This is our sole entrypoint to begin
 // tiered compilation for now. Returns TRUE if no more notifications are necessary, but
 // more notifications may come anyways.
 //
-// currentCallCount is pre-incremented, that is to say the value is 1 on first call for a given
-//      method.
+// currentCallCountLimit is pre-decremented, that is to say the value is <= 0 when the
+//      threshold for promoting to tier 1 is reached.
 void TieredCompilationManager::OnMethodCalled(
     MethodDesc* pMethodDesc,
-    DWORD currentCallCount,
+    bool isFirstCall,
+    int currentCallCountLimit,
     BOOL* shouldStopCountingCallsRef,
-    BOOL* wasPromotedToTier1Ref)
+    BOOL* wasPromotedToNextTierRef)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
     _ASSERTE(shouldStopCountingCallsRef != nullptr);
-    _ASSERTE(wasPromotedToTier1Ref != nullptr);
+    _ASSERTE(wasPromotedToNextTierRef != nullptr);
 
     *shouldStopCountingCallsRef =
         // Stop call counting when the delay is in effect
         IsTieringDelayActive() ||
         // Initiate the delay on tier 0 activity (when a new eligible method is called the first time)
-        (currentCallCount == 1 && g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0) ||
+        (isFirstCall && g_pConfig->TieredCompilation_CallCountingDelayMs() != 0) ||
         // Stop call counting when ready for tier 1 promotion
-        currentCallCount >= m_callCountOptimizationThreshhold;
+        currentCallCountLimit <= 0;
 
-    *wasPromotedToTier1Ref = currentCallCount >= m_callCountOptimizationThreshhold;
+    *wasPromotedToNextTierRef = currentCallCountLimit <= 0;
 
-    if (currentCallCount == m_callCountOptimizationThreshhold)
+    if (currentCallCountLimit == 0)
     {
         AsyncPromoteMethodToTier1(pMethodDesc);
     }
 }
 
-void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTier1Promotion(MethodDesc* pMethodDesc)
+void TieredCompilationManager::OnMethodCallCountingStoppedWithoutTierPromotion(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
     _ASSERTE(pMethodDesc->IsEligibleForTieredCompilation());
 
-    if (g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() == 0)
+    if (g_pConfig->TieredCompilation_CallCountingDelayMs() == 0 ||
+        !pMethodDesc->GetCallCounter()->IsCallCountingEnabled(pMethodDesc))
     {
         return;
     }
@@ -235,7 +239,9 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         NativeCodeVersionCollection nativeVersions = ilVersion.GetNativeCodeVersions(pMethodDesc);
         for (NativeCodeVersionIterator cur = nativeVersions.Begin(), end = nativeVersions.End(); cur != end; cur++)
         {
-            if (cur->GetOptimizationTier() == NativeCodeVersion::OptimizationTier1)
+            NativeCodeVersion::OptimizationTier optimizationTier = cur->GetOptimizationTier();
+            if (optimizationTier == NativeCodeVersion::OptimizationTier1 ||
+                optimizationTier == NativeCodeVersion::OptimizationTierOptimized)
             {
                 // we've already promoted
                 LOG((LF_TIEREDCOMPILATION, LL_INFO100000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s) ignoring already promoted method\n",
@@ -270,6 +276,7 @@ void TieredCompilationManager::AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc
         if (pMethodListItem != NULL)
         {
             m_methodsToOptimize.InsertTail(pMethodListItem);
+            ++m_countOfMethodsToOptimize;
         }
 
         LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::AsyncPromoteMethodToTier1 Method=0x%pM (%s::%s), code version id=0x%x queued\n",
@@ -307,7 +314,7 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(g_pConfig->TieredCompilation());
-    _ASSERTE(g_pConfig->TieredCompilation_Tier1CallCountingDelayMs() != 0);
+    _ASSERTE(g_pConfig->TieredCompilation_CallCountingDelayMs() != 0);
 
     NewHolder<SArray<MethodDesc*>> methodsPendingCountingHolder = new(nothrow) SArray<MethodDesc*>();
     if (methodsPendingCountingHolder == nullptr)
@@ -335,7 +342,6 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
     {
         return false;
     }
-    timerContextHolder->AppDomainId = m_domainId;
     timerContextHolder->TimerId = 0;
 
     {
@@ -358,7 +364,7 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
                     &m_tieringDelayTimerHandle,
                     TieringDelayTimerCallback,
                     timerContextHolder,
-                    g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                    g_pConfig->TieredCompilation_CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */,
                     0 /* flags */))
             {
@@ -380,6 +386,10 @@ bool TieredCompilationManager::TryInitiateTieringDelay()
     }
 
     timerContextHolder.SuppressRelease(); // the timer context is automatically deleted by the timer infrastructure
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
+    {
+        ETW::CompilationLog::TieredCompilation::Runtime::SendPause();
+    }
     return true;
 }
 
@@ -392,7 +402,7 @@ void WINAPI TieredCompilationManager::TieringDelayTimerCallback(PVOID parameter,
     EX_TRY
     {
         GCX_COOP();
-        ManagedThreadBase::ThreadPool(timerContext->AppDomainId, TieringDelayTimerCallbackInAppDomain, nullptr);
+        ManagedThreadBase::ThreadPool(TieringDelayTimerCallbackInAppDomain, nullptr);
     }
     EX_CATCH
     {
@@ -406,13 +416,14 @@ void WINAPI TieredCompilationManager::TieringDelayTimerCallback(PVOID parameter,
 void TieredCompilationManager::TieringDelayTimerCallbackInAppDomain(LPVOID parameter)
 {
     WRAPPER_NO_CONTRACT;
+
+    GCX_PREEMP();
     GetAppDomain()->GetTieredCompilationManager()->TieringDelayTimerCallbackWorker();
 }
 
 void TieredCompilationManager::TieringDelayTimerCallbackWorker()
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
     HANDLE tieringDelayTimerHandle;
     bool tier1CallCountingCandidateMethodRecentlyRecorded;
@@ -441,7 +452,7 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
         {
             if (ThreadpoolMgr::ChangeTimerQueueTimer(
                     tieringDelayTimerHandle,
-                    g_pConfig->TieredCompilation_Tier1CallCountingDelayMs(),
+                    g_pConfig->TieredCompilation_CallCountingDelayMs(),
                     (DWORD)-1 /* Period, non-repeating */))
             {
                 success = true;
@@ -474,9 +485,25 @@ void TieredCompilationManager::TieringDelayTimerCallbackWorker()
         optimizeMethods = IncrementWorkerThreadCountIfNeeded();
     }
 
-    // Install call counters
     MethodDesc** methods = methodsPendingCountingForTier1->GetElements();
     COUNT_T methodCount = methodsPendingCountingForTier1->GetCount();
+
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
+    {
+        // TODO: Avoid scanning the list in the future
+        UINT32 newMethodCount = 0;
+        for (COUNT_T i = 0; i < methodCount; ++i)
+        {
+            MethodDesc *methodDesc = methods[i];
+            if (methodDesc->GetCallCounter()->WasCalledAtMostOnce(methodDesc))
+            {
+                ++newMethodCount;
+            }
+        }
+        ETW::CompilationLog::TieredCompilation::Runtime::SendResume(newMethodCount);
+    }
+
+    // Install call counters
     for (COUNT_T i = 0; i < methodCount; ++i)
     {
         ResumeCountingCalls(methods[i]);
@@ -495,9 +522,16 @@ void TieredCompilationManager::ResumeCountingCalls(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
-    _ASSERTE(pMethodDesc->IsVersionableWithPrecode());
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
 
-    pMethodDesc->GetPrecode()->ResetTargetInterlocked();
+    EX_TRY
+    {
+        pMethodDesc->ResetCodeEntryPoint();
+    }
+    EX_CATCH
+    {
+    }
+    EX_END_CATCH(RethrowTerminalExceptions);
 }
 
 bool TieredCompilationManager::TryAsyncOptimizeMethods()
@@ -565,11 +599,7 @@ void TieredCompilationManager::OptimizeMethodsCallback()
     EX_TRY
     {
         GCX_COOP();
-        ENTER_DOMAIN_ID(m_domainId);
-        {
-            OptimizeMethods();
-        }
-        END_DOMAIN_TRANSITION;
+        OptimizeMethods();
     }
     EX_CATCH
     {
@@ -584,17 +614,23 @@ void TieredCompilationManager::OptimizeMethodsCallback()
 // on a background thread. Each such method will be jitted with code
 // optimizations enabled and then installed as the active implementation
 // of the method entrypoint.
-// 
-// We need to be carefuly not to work for too long in a single invocation
-// of this method or we could starve the threadpool and force
-// it to create unnecessary additional threads.
 void TieredCompilationManager::OptimizeMethods()
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(DebugGetWorkerThreadCount() != 0);
-    _ASSERTE(GetAppDomain()->GetId() == m_domainId);
 
-    ULONGLONG startTickCount = CLRGetTickCount64();
+    // We need to be careful not to work for too long in a single invocation of this method or we could starve the thread pool
+    // and force it to create unnecessary additional threads. We will JIT for a minimum of this quantum, then schedule another
+    // work item to the thread pool and return this thread back to the pool.
+    const DWORD OptimizationQuantumMs = 50;
+
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
+    {
+        ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStart(m_countOfMethodsToOptimize);
+    }
+
+    UINT32 jittedMethodCount = 0;
+    DWORD startTickCount = GetTickCount();
     NativeCodeVersion nativeCodeVersion;
     EX_TRY
     {
@@ -617,13 +653,15 @@ void TieredCompilationManager::OptimizeMethods()
                     break;
                 }
             }
+
             OptimizeMethod(nativeCodeVersion);
+            ++jittedMethodCount;
 
             // If we have been running for too long return the thread to the threadpool and queue another event
             // This gives the threadpool a chance to service other requests on this thread before returning to
             // this work.
-            ULONGLONG currentTickCount = CLRGetTickCount64();
-            if (currentTickCount >= startTickCount + m_optimizationQuantumMs)
+            DWORD currentTickCount = GetTickCount();
+            if (currentTickCount - startTickCount >= OptimizationQuantumMs)
             {
                 if (!TryAsyncOptimizeMethods())
                 {
@@ -645,6 +683,11 @@ void TieredCompilationManager::OptimizeMethods()
             GET_EXCEPTION()->GetHR(), nativeCodeVersion.GetMethodDesc());
     }
     EX_END_CATCH(RethrowTerminalExceptions);
+
+    if (ETW::CompilationLog::TieredCompilation::Runtime::IsEnabled())
+    {
+        ETW::CompilationLog::TieredCompilation::Runtime::SendBackgroundJitStop(m_countOfMethodsToOptimize, jittedMethodCount);
+    }
 }
 
 // Jit compiles and installs new optimized code for a method.
@@ -702,10 +745,19 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
     // code version will activate then.
     ILCodeVersion ilParent;
     HRESULT hr = S_OK;
+    bool mayHaveEntryPointSlotsToBackpatch = pMethod->MayHaveEntryPointSlotsToBackpatch();
+    MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
+
     {
-        // As long as we are exclusively using precode publishing for tiered compilation
-        // methods this first attempt should succeed
+        // Backpatching entry point slots requires cooperative GC mode, see
+        // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+        // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+        // must be used here to prevent deadlock.
+        GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
         CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+
+        // As long as we are exclusively using any non-JumpStamp publishing for tiered compilation
+        // methods this first attempt should succeed
         ilParent = nativeCodeVersion.GetILCodeVersion();
         hr = ilParent.SetActiveNativeCodeVersion(nativeCodeVersion, FALSE);
         LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%pM (%s::%s), code version id=0x%x. SetActiveNativeCodeVersion ret=0x%x\n",
@@ -723,7 +775,13 @@ void TieredCompilationManager::ActivateCodeVersion(NativeCodeVersion nativeCodeV
         // viable. This fallback path is just here as a proof-of-concept.
         ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_FOR_REJIT);
         {
+            // Backpatching entry point slots requires cooperative GC mode, see
+            // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+            // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+            // must be used here to prevent deadlock.
+            GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
             CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+
             hr = ilParent.SetActiveNativeCodeVersion(nativeCodeVersion, TRUE);
             LOG((LF_TIEREDCOMPILATION, LL_INFO10000, "TieredCompilationManager::ActivateCodeVersion Method=0x%pM (%s::%s), code version id=0x%x. [Suspended] SetActiveNativeCodeVersion ret=0x%x\n",
                 pMethod, pMethod->m_pszDebugClassName, pMethod->m_pszDebugMethodName,
@@ -751,6 +809,7 @@ NativeCodeVersion TieredCompilationManager::GetNextMethodToOptimize()
     {
         NativeCodeVersion nativeCodeVersion = pElem->GetValue();
         delete pElem;
+        --m_countOfMethodsToOptimize;
         return nativeCodeVersion;
     }
     return NativeCodeVersion();
@@ -806,18 +865,25 @@ CORJIT_FLAGS TieredCompilationManager::GetJitFlags(NativeCodeVersion nativeCodeV
 #endif
         return flags;
     }
-    
-    if (nativeCodeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0 &&
-        !g_pConfig->TieredCompilation_OptimizeTier0())
+
+    switch (nativeCodeVersion.GetOptimizationTier())
     {
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
-    }
-    else
-    {
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER1);
+        case NativeCodeVersion::OptimizationTier0:
+            flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER0);
+            break;
+
+        case NativeCodeVersion::OptimizationTier1:
+            flags.Set(CORJIT_FLAGS::CORJIT_FLAG_TIER1);
+            // fall through
+
+        case NativeCodeVersion::OptimizationTierOptimized:
 #ifdef FEATURE_INTERPRETER
-        flags.Set(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE);
+            flags.Set(CORJIT_FLAGS::CORJIT_FLAG_MAKEFINALCODE);
 #endif
+            break;
+
+        default:
+            UNREACHABLE();
     }
     return flags;
 }

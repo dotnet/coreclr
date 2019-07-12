@@ -102,7 +102,7 @@ void DispParamOleColorMarshaler::MarshalNativeToManaged(VARIANT *pSrcVar, OBJECT
 
     // Box the System.Drawing.Color value class and give back the boxed object.
     TypeHandle hndColorType = 
-        GetThread()->GetDomain()->GetMarshalingData()->GetOleColorMarshalingInfo()->GetColorType();
+        GetThread()->GetDomain()->GetLoaderAllocator()->GetMarshalingData()->GetOleColorMarshalingInfo()->GetColorType();
     
     *pDestObj = hndColorType.GetMethodTable()->Box(&MngColor);
 }
@@ -465,9 +465,9 @@ void DispParamDelegateMarshaler::MarshalNativeToManaged(VARIANT *pSrcVar, OBJECT
     }
 
     if (pDelegate == NULL)
-        SetObjectReference(pDestObj, NULL, GetAppDomain());
+        SetObjectReference(pDestObj, NULL);
     else
-        SetObjectReference(pDestObj, COMDelegate::ConvertToDelegate(pDelegate, m_pDelegateMT), GetAppDomain());
+        SetObjectReference(pDestObj, COMDelegate::ConvertToDelegate(pDelegate, m_pDelegateMT));
 }
 
 void DispParamDelegateMarshaler::MarshalManagedToNative(OBJECTREF *pSrcObj, VARIANT *pDestVar)

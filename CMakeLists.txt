@@ -1,9 +1,7 @@
 # Verify minimum required version
-cmake_minimum_required(VERSION 2.8.12)
+cmake_minimum_required(VERSION 3.5.1)
 
-if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-    cmake_policy(SET CMP0042 NEW)
-endif()
+cmake_policy(SET CMP0042 NEW)
 
 # Set the project name
 project(CoreCLR)
@@ -11,7 +9,7 @@ project(CoreCLR)
 # Include cmake functions
 include(functions.cmake)
 
-# Include global configure settings
+# Verify that LTCG/LTO is available
 include(configure.cmake)
 
 if (WIN32)
@@ -23,8 +21,8 @@ endif (WIN32)
 set(CLR_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VM_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src/vm)
 set(GENERATED_INCLUDE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src/inc)
-set(GENERATED_EVENTING_DIR ${CMAKE_CURRENT_BINARY_DIR}/eventing)
-set(VERSION_FILE_PATH "${CMAKE_BINARY_DIR}/version.cpp")
+set(GENERATED_EVENTING_DIR ${CMAKE_CURRENT_BINARY_DIR}/Eventing)
+set(VERSION_FILE_PATH "${CMAKE_BINARY_DIR}/version.c")
 set(PAL_REDEFINES_FILE ${CMAKE_CURRENT_SOURCE_DIR}/src/dlls/mscordac/palredefines.S)
 
 set(CORECLR_SET_RPATH ON)
@@ -35,12 +33,6 @@ endif(CORECLR_SET_RPATH)
 
 OPTION(CLR_CMAKE_ENABLE_CODE_COVERAGE "Enable code coverage" OFF)
 OPTION(CLR_CMAKE_WARNINGS_ARE_ERRORS "Warnings are errors" ON)
-
-# Ensure that python is present
-find_program(PYTHON NAMES python2.7 python2 python)
-if (PYTHON STREQUAL "PYTHON-NOTFOUND")
-    message(FATAL_ERROR "PYTHON not found: Please install Python 2.7.9 or later from https://www.python.org/downloads/")
-endif()
 
 # Ensure other tools are present
 if (WIN32)
@@ -54,11 +46,7 @@ if (WIN32)
       endif()
 
       # Explicitly specify the assembler to be used for Arm32 compile
-      if($ENV{__VSVersion} STREQUAL "vs2015")
-        file(TO_CMAKE_PATH "$ENV{VCINSTALLDIR}\\bin\\x86_arm\\armasm.exe" CMAKE_ASM_COMPILER)
-      else()
-        file(TO_CMAKE_PATH "$ENV{VCToolsInstallDir}\\bin\\HostX86\\arm\\armasm.exe" CMAKE_ASM_COMPILER)
-      endif()
+      file(TO_CMAKE_PATH "$ENV{VCToolsInstallDir}\\bin\\HostX86\\arm\\armasm.exe" CMAKE_ASM_COMPILER)
 
       set(CMAKE_ASM_MASM_COMPILER ${CMAKE_ASM_COMPILER})
       message("CMAKE_ASM_MASM_COMPILER explicitly set to: ${CMAKE_ASM_MASM_COMPILER}")
@@ -170,7 +158,6 @@ if(CLR_CMAKE_PLATFORM_UNIX AND NOT DEFINED CLR_CROSS_COMPONENTS_BUILD)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)
-    add_subdirectory(src/ToolBox/SOS/lldbplugin)
     add_subdirectory(src/pal)
     add_subdirectory(src/coreclr/hosts)
     add_subdirectory(src/ildasm/unixcoreclrloader)
@@ -224,10 +211,6 @@ if (CLR_CMAKE_PLATFORM_UNIX)
   include_directories("src/pal/inc/rt")
   include_directories("src/pal/src/safecrt")
 endif (CLR_CMAKE_PLATFORM_UNIX)
-
-# Microsoft.Dotnet.BuildTools.Coreclr version
-set(BuildToolsVersion "1.0.4-prerelease")
-set(BuildToolsDir "${CLR_CMAKE_PACKAGES_DIR}/Microsoft.DotNet.BuildTools.CoreCLR/${BuildToolsVersion}")
 
 #------------------------------
 # Add Product Directory

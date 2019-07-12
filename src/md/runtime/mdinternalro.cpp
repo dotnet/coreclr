@@ -609,6 +609,10 @@ HRESULT MDInternalRO::EnumAllInit(      // return S_FALSE if record not found
         phEnum->m_ulCount = m_LiteWeightStgdb.m_MiniMd.getCountFiles();
         break;
 
+    case mdtCustomAttribute:
+        phEnum->m_ulCount = m_LiteWeightStgdb.m_MiniMd.getCountCustomAttributes();
+        break;
+
     default:
         _ASSERTE(!"Bad token kind!");
         break;
@@ -959,7 +963,7 @@ HRESULT MDInternalRO::GetCustomAttributeByName( // S_OK or error.
     __deref_out_bcount(*pcbData) const void  **ppData, // [OUT] Put pointer to data here.
     __out ULONG *pcbData)               // [OUT] Put size of data here.
 {
-    return m_LiteWeightStgdb.m_MiniMd.CommonGetCustomAttributeByName(tkObj, szName, ppData, pcbData);
+    return m_LiteWeightStgdb.m_MiniMd.CommonGetCustomAttributeByNameEx(tkObj, szName, NULL, ppData, pcbData);
 } // MDInternalRO::GetCustomAttributeByName
 
 
@@ -2172,7 +2176,7 @@ HRESULT MDInternalRO::GetPropertyInfoForMethodDef(  // Result.
     // Lazy initialization of m_pMethodSemanticsMap
     if ((ridMax > 10) && (m_pMethodSemanticsMap == NULL))
     {
-        NewHolder<CMethodSemanticsMap> pMethodSemanticsMap = new (nothrow) CMethodSemanticsMap[ridMax];
+        NewArrayHolder<CMethodSemanticsMap> pMethodSemanticsMap = new (nothrow) CMethodSemanticsMap[ridMax];
         if (pMethodSemanticsMap != NULL)
         {
             // Fill the table in MethodSemantics order.
@@ -3015,33 +3019,12 @@ HRESULT MDInternalRO::GetAssemblyProps(
     {
         *pdwAssemblyFlags = m_LiteWeightStgdb.m_MiniMd.getFlagsOfAssembly(pRecord);
 
-#ifdef FEATURE_WINDOWSPHONE
         // Turn on the afPublicKey if PublicKey blob is not empty
         DWORD cbPublicKey;
         const BYTE *pbPublicKey;
         IfFailRet(m_LiteWeightStgdb.m_MiniMd.getPublicKeyOfAssembly(pRecord, &pbPublicKey, &cbPublicKey));
         if (cbPublicKey != 0)
             *pdwAssemblyFlags |= afPublicKey;
-#else
-        if (ppbPublicKey)
-        {
-            if (pcbPublicKey && *pcbPublicKey)
-                *pdwAssemblyFlags |= afPublicKey;
-        }
-        else
-        {
-#ifdef _DEBUG
-            // Assert that afPublicKey is set if PublicKey blob is not empty
-            DWORD cbPublicKey;
-            const BYTE *pPublicKey;
-            IfFailRet(m_LiteWeightStgdb.m_MiniMd.getPublicKeyOfAssembly(pRecord, &pPublicKey, &cbPublicKey));
-            bool hasPublicKey = cbPublicKey != 0;
-            bool hasPublicKeyFlag = ( *pdwAssemblyFlags & afPublicKey ) != 0;
-            if(REGUTIL::GetConfigDWORD_DontUse_(CLRConfig::INTERNAL_AssertOnBadImageFormat, 0))
-                _ASSERTE( hasPublicKey == hasPublicKeyFlag );
-#endif
-        }
-#endif // FEATURE_WINDOWSPHONE
     }
 
     return S_OK;

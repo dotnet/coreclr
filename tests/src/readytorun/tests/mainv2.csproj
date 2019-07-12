@@ -11,6 +11,7 @@
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <DefineConstants>$(DefineConstants);STATIC;CORECLR</DefineConstants>
     <CLRTestKind>BuildAndRun</CLRTestKind>
+    <CrossGenTest>false</CrossGenTest>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
@@ -25,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="fieldgetter.ilproj" />
     <ProjectReference Include="testv1\test.csproj" />
+    <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="main.cs" />

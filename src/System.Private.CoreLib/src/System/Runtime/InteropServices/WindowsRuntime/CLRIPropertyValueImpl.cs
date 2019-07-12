@@ -2,12 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Security;
 
 using Internal.Runtime.CompilerServices;
 
@@ -65,7 +61,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public override string ToString()
+        public override string? ToString()
         {
             if (_data != null)
             {
@@ -326,12 +322,12 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 try
                 {
-                    coercedArray[i] = CoerceScalarValue<T>(scalarType, dataArray.GetValue(i));
+                    coercedArray[i] = CoerceScalarValue<T>(scalarType, dataArray.GetValue(i)!);
                 }
                 catch (InvalidCastException elementCastException)
                 {
                     Exception e = new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueArrayCoersion, this.Type, typeof (T).MakeArrayType().Name, i, elementCastException.Message), elementCastException);
-                    e.HResult = elementCastException._HResult;
+                    e.HResult = elementCastException.HResult;
                     throw e;
                 }
             }
@@ -379,7 +375,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     {
                         if (numericScalar.Item1 == typeof(T))
                         {
-                            return (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture);
+                            return (T)Convert.ChangeType(value, typeof(T), System.Globalization.CultureInfo.InvariantCulture)!;
                         }
                     }
                 }

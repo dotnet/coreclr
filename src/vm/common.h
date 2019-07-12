@@ -75,7 +75,6 @@
 #include <stdlib.h>
 #include <wchar.h>
 #include <objbase.h>
-#include <stddef.h>
 #include <float.h>
 #include <math.h>
 #include <time.h>
@@ -90,9 +89,6 @@
 #endif // _MSC_VER
 
 #include "volatile.h"
-
-// make all the unsafe redefinitions available
-#include "unsafe.h"
 
 #include <../../debug/inc/dbgtargetcontext.h>
 
@@ -115,11 +111,11 @@
 
 typedef VPTR(class LoaderAllocator)     PTR_LoaderAllocator;
 typedef VPTR(class AppDomain)           PTR_AppDomain;
-typedef VPTR(class AppDomainBaseObject) PTR_AppDomainBaseObject;
 typedef DPTR(class ArrayBase)           PTR_ArrayBase;
 typedef DPTR(class ArrayTypeDesc)       PTR_ArrayTypeDesc;
 typedef DPTR(class Assembly)            PTR_Assembly;
 typedef DPTR(class AssemblyBaseObject)  PTR_AssemblyBaseObject;
+typedef DPTR(class AssemblyLoadContextBaseObject) PTR_AssemblyLoadContextBaseObject;
 typedef DPTR(class AssemblyNameBaseObject) PTR_AssemblyNameBaseObject;
 typedef VPTR(class BaseDomain)          PTR_BaseDomain;
 typedef DPTR(class ClassLoader)         PTR_ClassLoader;
@@ -157,6 +153,7 @@ typedef DPTR(class NDirectMethodDesc)   PTR_NDirectMethodDesc;
 typedef VPTR(class Thread)              PTR_Thread;
 typedef DPTR(class Object)              PTR_Object;
 typedef DPTR(PTR_Object)                PTR_PTR_Object;
+typedef DPTR(class DelegateObject)      PTR_DelegateObject;
 typedef DPTR(class ObjHeader)           PTR_ObjHeader;
 typedef DPTR(class Precode)             PTR_Precode;
 typedef VPTR(class ReflectionModule)    PTR_ReflectionModule;
@@ -168,6 +165,9 @@ typedef DPTR(class ReJitManager)        PTR_ReJitManager;
 typedef DPTR(struct ReJitInfo)          PTR_ReJitInfo;
 typedef DPTR(struct SharedReJitInfo)    PTR_SharedReJitInfo;
 typedef DPTR(class StringObject)        PTR_StringObject;
+#ifdef FEATURE_UTF8STRING
+typedef DPTR(class Utf8StringObject)    PTR_Utf8StringObject;
+#endif // FEATURE_UTF8STRING
 typedef DPTR(class TypeHandle)          PTR_TypeHandle;
 typedef VPTR(class VirtualCallStubManager) PTR_VirtualCallStubManager;
 typedef VPTR(class VirtualCallStubManagerManager) PTR_VirtualCallStubManagerManager;
@@ -313,14 +313,12 @@ namespace Loader
 #include "eeconfig.h"
 
 #include "spinlock.h"
-#include "declsec.h"
 
 #ifdef FEATURE_COMINTEROP 
 #include "stdinterfaces.h"
 #endif
 
 #include "typehandle.h"
-#include "perfcounters.h"
 #include "methodtable.h"
 #include "typectxt.h"
 
@@ -333,7 +331,6 @@ namespace Loader
 #include "regdisp.h"
 #include "stackframe.h"
 #include "gms.h"
-#include "stackprobe.h"
 #include "fcall.h"
 #include "syncblk.h"
 #include "gcdesc.h"
@@ -385,7 +382,7 @@ inline VOID UnsafeEEEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CAN_TAKE_LOCK;
 
-    UnsafeEnterCriticalSection(lpCriticalSection);
+    EnterCriticalSection(lpCriticalSection);
     INCTHREADLOCKCOUNT();
 }
 
@@ -394,7 +391,7 @@ inline VOID UnsafeEELeaveCriticalSection(LPCRITICAL_SECTION lpCriticalSection)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
-    UnsafeLeaveCriticalSection(lpCriticalSection);
+    LeaveCriticalSection(lpCriticalSection);
     DECTHREADLOCKCOUNT();
 }
 
@@ -404,7 +401,7 @@ inline BOOL UnsafeEETryEnterCriticalSection(LPCRITICAL_SECTION lpCriticalSection
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CAN_TAKE_LOCK;
 
-    BOOL fEnteredCriticalSection = UnsafeTryEnterCriticalSection(lpCriticalSection);
+    BOOL fEnteredCriticalSection = TryEnterCriticalSection(lpCriticalSection);
     if(fEnteredCriticalSection)
     {
         INCTHREADLOCKCOUNT();
@@ -464,7 +461,6 @@ extern DummyGlobalContract ___contract;
 #include "clsload.inl"
 #include "domainfile.inl"
 #include "method.inl"
-#include "stackprobe.inl"
 #include "syncblk.inl"
 #include "threads.inl"
 #include "eehash.inl"
@@ -472,17 +468,13 @@ extern DummyGlobalContract ___contract;
 #include "WinRTRedirector.h"
 #include "winrtredirector.inl"
 #endif // FEATURE_COMINTEROP
+#include "eventtrace.inl"
 
 #if defined(COMMON_TURNED_FPO_ON)
 #pragma optimize("", on)        // Go back to command line default optimizations
 #undef COMMON_TURNED_FPO_ON
 #undef FPO_ON
 #endif
-
-extern INT64 g_PauseTime;          // Total duration of all pauses in the runtime
-extern Volatile<BOOL> g_IsPaused;   // True if the runtime is Paused for FAS
-extern CLREventStatic g_ClrResumeEvent;  // Event fired when the runtime is resumed after a Pause for FAS
-INT64 AdditionalWait(INT64 sPauseTime, INT64 sTime, INT64 expDuration);
 
 #endif // !_common_h_
 

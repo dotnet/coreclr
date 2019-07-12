@@ -86,7 +86,7 @@ static void appendStrNum(CQuickBytes *out, int num) {
     appendStr(out, buff);   
 }
 
-const PCCOR_SIGNATURE PrettyPrintSignature(
+PCCOR_SIGNATURE PrettyPrintSignature(
     PCCOR_SIGNATURE typePtr,            // type to convert,     
     unsigned typeLen,                   // the lenght of 'typePtr' 
     const char* name,                   // can be "", the name of the method for this sig 0 means local var sig 
@@ -184,7 +184,7 @@ const char* PrettyPrintSig(
 // Converts a com signature to a printable signature.
 // Note that return value is pointing at the CQuickBytes buffer, 
 
-const PCCOR_SIGNATURE PrettyPrintSignature(
+PCCOR_SIGNATURE PrettyPrintSignature(
     PCCOR_SIGNATURE typePtr,    // type to convert,     
     unsigned typeLen,           // the lenght of 'typePtr' 
     const char* name,           // can be "", the name of the method for this sig 0 means local var sig 
@@ -423,15 +423,12 @@ PCCOR_SIGNATURE PrettyPrintTypeOrDef(
     CONTRACTL
     {
         THROWS;
-        SO_TOLERANT;
         GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
     PCCOR_SIGNATURE pBegin, pEnd=NULL;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(ThrowStackOverflow());
-        
 #ifdef __ILDASM__
     ULONG L = (ULONG)(out->Size());
 #endif
@@ -454,7 +451,6 @@ PCCOR_SIGNATURE PrettyPrintTypeOrDef(
         }
     }
 #endif
-    END_SO_INTOLERANT_CODE;
     return pEnd;
 }
 

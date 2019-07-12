@@ -16,7 +16,6 @@
 #include "hash.h"
 #include "crst.h"
 #include "cgensys.h"
-#include "declsec.h"
 #ifdef FEATURE_COMINTEROP
 #include "stdinterfaces.h"
 #endif
@@ -37,7 +36,6 @@ class    ArrayClass;
 class    ArrayMethodDesc;
 struct   ClassCtorInfoEntry;
 class ClassLoader;
-class    DomainLocalBlock;
 class FCallMethodDesc;
 class    EEClass;
 class    EnCFieldDesc;
@@ -65,6 +63,7 @@ class   ComCallWrapperTemplate;
 class ClassFactoryBase;
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 class ArgDestination;
+enum class WellKnownAttribute : DWORD;
 
 //============================================================================
 // This is the in-memory structure of a class and it will evolve.
@@ -327,8 +326,10 @@ struct MethodTableWriteableData
         enum_flag_NGEN_OverridingInterface  = 0x00080000, // Overriding interface that we should generate WinRT CCW stubs for.
 
 #ifdef FEATURE_READYTORUN_COMPILER
-        enum_flag_NGEN_IsLayoutFixedComputed = 0x0010000, // Set if we have cached the result of IsLayoutFixed computation
-        enum_flag_NGEN_IsLayoutFixed        = 0x0020000, // The result of the IsLayoutFixed computation
+        enum_flag_NGEN_IsLayoutFixedComputed                    = 0x0010000, // Set if we have cached the result of IsLayoutFixed computation
+        enum_flag_NGEN_IsLayoutFixed                            = 0x0020000, // The result of the IsLayoutFixed computation
+        enum_flag_NGEN_IsLayoutInCurrentVersionBubbleComputed   = 0x0040000, // Set if we have cached the result of IsLayoutInCurrentVersionBubble computation
+        enum_flag_NGEN_IsLayoutInCurrentVersionBubble           = 0x0080000, // The result of the IsLayoutInCurrentVersionBubble computation
 #endif
 
 #endif // FEATURE_PREJIT
@@ -692,12 +693,7 @@ public:
     void SetLoaderAllocator(LoaderAllocator* pAllocator);
 
     // Get the domain local module - useful for static init checks
-    PTR_DomainLocalModule GetDomainLocalModule(AppDomain * pAppDomain);
-
-#ifndef DACCESS_COMPILE
-    // Version of GetDomainLocalModule which relies on the current AppDomain
     PTR_DomainLocalModule   GetDomainLocalModule();
-#endif
 
     MethodTable *LoadEnclosingMethodTable(ClassLoadLevel targetLevel = CLASS_DEPENDENCIES_LOADED);
 
@@ -876,7 +872,7 @@ public:
 
     //-------------------------------------------------------------------
     // THE CLASS INITIALIZATION CONDITION 
-    //  (and related DomainLocalBlock/DomainLocalModule storage)
+    //  (and related DomainLocalModule storage)
     //
     // - populate the DomainLocalModule if needed
     // - run the cctor 
@@ -913,7 +909,7 @@ public:
     // mark the class as having its cctor run.  
 #ifndef DACCESS_COMPILE
     void SetClassInited();
-    BOOL  IsClassInited(AppDomain* pAppDomain = NULL);   
+    BOOL  IsClassInited();
 
     BOOL IsInitError();
     void SetClassInitError();
@@ -1394,7 +1390,6 @@ public:
     PCODE GetSlot(UINT32 slotNumber)
     {
         WRAPPER_NO_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         CONSISTENCY_CHECK(slotNumber < GetNumVtableSlots());
 
         TADDR pSlot = GetSlotPtrRaw(slotNumber);
@@ -1428,7 +1423,6 @@ public:
     TADDR GetSlotPtrRaw(UINT32 slotNum)
     {
         WRAPPER_NO_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
         CONSISTENCY_CHECK(slotNum < GetNumVtableSlots());
 
         if (slotNum < GetNumVirtuals())
@@ -1458,7 +1452,6 @@ public:
     TADDR GetSlotPtr(UINT32 slotNum)
     {
         WRAPPER_NO_CONTRACT;
-        STATIC_CONTRACT_SO_TOLERANT;
 
         // Slots in NGened images are relative pointers
         CONSISTENCY_CHECK(!IsZapped());
@@ -1747,7 +1740,7 @@ public:
     BOOL IsString()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return HasComponentSize() && !IsArray();
+        return HasComponentSize() && !IsArray() && RawGetComponentSize() == 2;
     }
 
     BOOL            HasComponentSize() const
@@ -1931,6 +1924,9 @@ public:
     bool IsHFA();
 #endif // FEATURE_HFA
 
+    // Returns the size in bytes of this type if it is a HW vector type; 0 otherwise.
+    int GetVectorSize();
+
     // Get the HFA type. This is supported both with FEATURE_HFA, in which case it
     // depends on the cached bit on the class, or without, in which case it is recomputed
     // for each invocation.
@@ -1968,7 +1964,6 @@ public:
     // See JIT_IsInstanceOfInterface
     inline BOOL InstanceRequiresNonTrivialInterfaceCast()
     {
-        STATIC_CONTRACT_SO_TOLERANT;
         LIMITED_METHOD_CONTRACT;
 
         return GetFlag(enum_flag_NonTrivialInterfaceCast);
@@ -2446,14 +2441,14 @@ protected:
                            UINT32 slotNumber,
                            DispatchMapEntry *pEntry);
 
-public:
+private:
     BOOL FindDispatchImpl(
         UINT32         typeID, 
         UINT32         slotNumber, 
         DispatchSlot * pImplSlot,
         BOOL           throwOnConflict);
 
-
+public:
 #ifndef DACCESS_COMPILE
     BOOL FindDefaultInterfaceImplementation(
         MethodDesc *pInterfaceMD,
@@ -2464,8 +2459,6 @@ public:
 #endif // DACCESS_COMPILE
 
     DispatchSlot FindDispatchSlot(UINT32 typeID, UINT32 slotNumber, BOOL throwOnConflict);
-
-    DispatchSlot FindDispatchSlot(DispatchToken tok, BOOL throwOnConflict);
 
     // You must use the second of these two if there is any chance the pMD is a method
     // on a generic interface such as IComparable<T> (which it normally can be).  The 
@@ -2576,6 +2569,9 @@ public:
     }
 
     DWORD HasFixedAddressVTStatics();
+
+    // Indicates if the MethodTable only contains abstract methods
+    BOOL HasOnlyAbstractMethods();
 
     //-------------------------------------------------------------------
     // PER-INSTANTIATION STATICS INFO
@@ -2873,6 +2869,10 @@ public:
 
     // Get the MD Import for the metadata for the corresponding type declaration
     IMDInternalImport* GetMDImport();
+
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData);
     
     mdTypeDef GetEnclosingCl();
 
@@ -3191,17 +3191,19 @@ public:
 
       protected:
         ULONG m_cRef;
+        MethodTable *const m_pImplMT;
+        MethodTable *const m_pDeclMT;
 
       public:
-        MethodData() : m_cRef(1) { LIMITED_METHOD_CONTRACT; }
+        MethodData(MethodTable *implMT, MethodTable *declMT) : m_cRef(1), m_pImplMT(implMT), m_pDeclMT(declMT) { LIMITED_METHOD_CONTRACT; }
         virtual ~MethodData() { LIMITED_METHOD_CONTRACT; }
 
         virtual MethodData  *GetDeclMethodData() = 0;
-        virtual MethodTable *GetDeclMethodTable() = 0;
+        MethodTable *GetDeclMethodTable() { return m_pDeclMT; }
         virtual MethodDesc  *GetDeclMethodDesc(UINT32 slotNumber) = 0;
         
         virtual MethodData  *GetImplMethodData() = 0;
-        virtual MethodTable *GetImplMethodTable() = 0;
+        MethodTable *GetImplMethodTable() { return m_pImplMT; }
         virtual DispatchSlot GetImplSlot(UINT32 slotNumber) = 0;
         // Returns INVALID_SLOT_NUMBER if no implementation exists.
         virtual UINT32       GetImplSlotNumber(UINT32 slotNumber) = 0;
@@ -3291,41 +3293,34 @@ protected:
         static UINT32 GetObjectSize(MethodTable *pMT);
 
         // Constructor. Make sure you have allocated enough memory using GetObjectSize.
-        inline MethodDataObject(MethodTable *pMT)
-            { WRAPPER_NO_CONTRACT; Init(pMT, NULL); }
+        inline MethodDataObject(MethodTable *pMT) : MethodData(pMT, pMT)
+            { WRAPPER_NO_CONTRACT; Init(NULL); }
 
-        inline MethodDataObject(MethodTable *pMT, MethodData *pParentData)
-            { WRAPPER_NO_CONTRACT; Init(pMT, pParentData); }
+        inline MethodDataObject(MethodTable *pMT, MethodData *pParentData) : MethodData(pMT, pMT)
+            { WRAPPER_NO_CONTRACT; Init(pParentData); }
 
         virtual ~MethodDataObject() { LIMITED_METHOD_CONTRACT; }
 
         virtual MethodData  *GetDeclMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetDeclMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual MethodDesc *GetDeclMethodDesc(UINT32 slotNumber);
 
         virtual MethodData  *GetImplMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetImplMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual DispatchSlot GetImplSlot(UINT32 slotNumber);
         virtual UINT32       GetImplSlotNumber(UINT32 slotNumber);
         virtual MethodDesc  *GetImplMethodDesc(UINT32 slotNumber);
         virtual void InvalidateCachedVirtualSlot(UINT32 slotNumber);
 
         virtual UINT32 GetNumVirtuals()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetNumVirtuals(); }
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetNumVirtuals(); }
         virtual UINT32 GetNumMethods()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetCanonicalMethodTable()->GetNumMethods(); }
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetCanonicalMethodTable()->GetNumMethods(); }
 
       protected:
-        void Init(MethodTable *pMT, MethodData *pParentData);
+        void Init(MethodData *pParentData);
 
         BOOL PopulateNextLevel();
-
-        // This is the method table for the actual type we're gathering the data for
-        MethodTable *m_pMT;
 
         // This is used in staged map decoding - it indicates which type we will next decode.
         UINT32       m_iNextChainDepth;
@@ -3393,12 +3388,11 @@ protected:
             { LIMITED_METHOD_CONTRACT; return sizeof(MethodDataInterface); }
 
         // Constructor. Make sure you have allocated enough memory using GetObjectSize.
-        MethodDataInterface(MethodTable *pMT)
+        MethodDataInterface(MethodTable *pMT) : MethodData(pMT, pMT)
         {
             LIMITED_METHOD_CONTRACT;
             CONSISTENCY_CHECK(CheckPointer(pMT));
             CONSISTENCY_CHECK(pMT->IsInterface());
-            m_pMT = pMT;
         }
         virtual ~MethodDataInterface()
             { LIMITED_METHOD_CONTRACT; }
@@ -3408,8 +3402,6 @@ protected:
         //
         virtual MethodData  *GetDeclMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetDeclMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual MethodDesc *GetDeclMethodDesc(UINT32 slotNumber);
 
         //
@@ -3417,10 +3409,8 @@ protected:
         //
         virtual MethodData  *GetImplMethodData()
             { LIMITED_METHOD_CONTRACT; return this; }
-        virtual MethodTable *GetImplMethodTable()
-            { LIMITED_METHOD_CONTRACT; return m_pMT; }
         virtual DispatchSlot GetImplSlot(UINT32 slotNumber)
-            { WRAPPER_NO_CONTRACT; return DispatchSlot(m_pMT->GetRestoredSlot(slotNumber)); }
+            { WRAPPER_NO_CONTRACT; return DispatchSlot(m_pDeclMT->GetRestoredSlot(slotNumber)); }
         virtual UINT32       GetImplSlotNumber(UINT32 slotNumber)
             { LIMITED_METHOD_CONTRACT; return slotNumber; }
         virtual MethodDesc  *GetImplMethodDesc(UINT32 slotNumber);
@@ -3430,13 +3420,9 @@ protected:
         // Slot count data
         //
         virtual UINT32 GetNumVirtuals()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetNumVirtuals(); }
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetNumVirtuals(); }
         virtual UINT32 GetNumMethods()
-            { LIMITED_METHOD_CONTRACT; return m_pMT->GetNumMethods(); }
-
-      protected:
-        // This is the method table for the actual type we're gathering the data for
-        MethodTable *m_pMT;
+            { LIMITED_METHOD_CONTRACT; return m_pDeclMT->GetNumMethods(); }
     };  // class MethodDataInterface
 
     //--------------------------------------------------------------------------------------
@@ -3542,6 +3528,8 @@ public:
         UINT32                    cDeclTypeIDs, 
         MethodTable *             pMTDecl, 
         MethodTable *             pMTImpl);
+
+    void CopySlotFrom(UINT32 slotNumber, MethodDataWrapper &hSourceMTData, MethodTable *pSourceMT);
 
 protected:
     static void CheckInitMethodDataCache();
@@ -3668,14 +3656,14 @@ private:
 
 #if defined(FEATURE_HFA)
 #if defined(UNIX_AMD64_ABI)
-#error Can't define both FEATURE_HFA and UNIX_AMD64_ABI
+#error "Can't define both FEATURE_HFA and UNIX_AMD64_ABI"
 #endif
         enum_flag_IsHFA                     = 0x00000800,   // This type is an HFA (Homogenous Floating-point Aggregate)
 #endif // FEATURE_HFA
 
 #if defined(UNIX_AMD64_ABI)
 #if defined(FEATURE_HFA)
-#error Can't define both FEATURE_HFA and UNIX_AMD64_ABI
+#error "Can't define both FEATURE_HFA and UNIX_AMD64_ABI"
 #endif
         enum_flag_IsRegStructPassed         = 0x00000800,   // This type is a System V register passed struct.
 #endif // UNIX_AMD64_ABI
@@ -4067,7 +4055,6 @@ public:
     inline DPTR(TYPE) GETTER() \
     { \
         LIMITED_METHOD_CONTRACT; \
-        STATIC_CONTRACT_SO_TOLERANT; \
         _ASSERTE(Has##NAME()); \
         return dac_cast<DPTR(TYPE)>(dac_cast<TADDR>(this) + GetOffsetOfOptionalMember(OptionalMember_##NAME)); \
     }
@@ -4149,6 +4136,10 @@ public:
     BOOL Validate ();
 
 #ifdef FEATURE_READYTORUN_COMPILER
+    //
+    // Is field layout in this type within the current version bubble?
+    //
+    BOOL IsLayoutInCurrentVersionBubble();
     //
     // Is field layout in this type fixed within the current version bubble?
     // This check does not take the inheritance chain into account.

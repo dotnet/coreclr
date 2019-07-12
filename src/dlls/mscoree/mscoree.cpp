@@ -24,10 +24,6 @@
 
 #include "clrprivhosting.h"
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
-#include "../../vm/profattach.h"
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
-
 #include <dbgenginemetrics.h>
 
 // Locals.
@@ -62,7 +58,11 @@ extern "C" BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserv
 // we need to capture coreclr's hInstance before the C runtime initializes. This function
 // will capture hInstance, let the C runtime initialize and then invoke the "classic"
 // DllMain that initializes everything else.
-extern "C" BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
+extern "C"
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
+BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
     STATIC_CONTRACT_NOTHROW;
 
@@ -85,7 +85,6 @@ extern "C" BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpRe
             cccallbacks.m_hmodCoreCLR               = (HINSTANCE)hInstance;
             cccallbacks.m_pfnIEE                    = IEE;
             cccallbacks.m_pfnGetCORSystemDirectory  = GetCORSystemDirectoryInternaL;
-            cccallbacks.m_pfnGetCLRFunction         = GetCLRFunction;
             InitUtilcode(cccallbacks);
 
             if (!(result = _CRT_INIT(hInstance, dwReason, lpReserved)))
@@ -116,6 +115,9 @@ extern "C" BOOL WINAPI CoreDllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpRe
 }
 
 extern "C"
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
 BOOL WINAPI DllMain(HANDLE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
     STATIC_CONTRACT_NOTHROW;
@@ -221,7 +223,7 @@ HINSTANCE GetModuleInst()
 // %%Function: MetaDataGetDispenser
 // This function gets the Dispenser interface given the CLSID and REFIID.
 // ---------------------------------------------------------------------------
-STDAPI MetaDataGetDispenser(            // Return HRESULT
+STDAPI DLLEXPORT MetaDataGetDispenser(            // Return HRESULT
     REFCLSID    rclsid,                 // The class to desired.
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv)                   // Return interface pointer here.
@@ -251,7 +253,7 @@ ErrExit:
 // %%Function: GetMetaDataInternalInterface
 // This function gets the IMDInternalImport given the metadata on memory.
 // ---------------------------------------------------------------------------
-STDAPI  GetMetaDataInternalInterface(
+STDAPI DLLEXPORT GetMetaDataInternalInterface(
     LPVOID      pData,                  // [IN] in memory metadata section
     ULONG       cbData,                 // [IN] size of the metadata section
     DWORD       flags,                  // [IN] MDInternal_OpenForRead or MDInternal_OpenForENC
@@ -280,7 +282,7 @@ STDAPI  GetMetaDataInternalInterface(
 // This function gets the internal scopeless interface given the public
 // scopeless interface.
 // ---------------------------------------------------------------------------
-STDAPI  GetMetaDataInternalInterfaceFromPublic(
+STDAPI DLLEXPORT GetMetaDataInternalInterfaceFromPublic(
     IUnknown    *pv,                    // [IN] Given interface.
     REFIID      riid,                   // [IN] desired interface
     void        **ppv)                  // [OUT] returned interface
@@ -307,7 +309,7 @@ STDAPI  GetMetaDataInternalInterfaceFromPublic(
 // This function gets the public scopeless interface given the internal
 // scopeless interface.
 // ---------------------------------------------------------------------------
-STDAPI  GetMetaDataPublicInterfaceFromInternal(
+STDAPI DLLEXPORT GetMetaDataPublicInterfaceFromInternal(
     void        *pv,                    // [IN] Given interface.
     REFIID      riid,                   // [IN] desired interface.
     void        **ppv)                  // [OUT] returned interface
@@ -382,141 +384,6 @@ STDAPI ReOpenMetaDataWithMemoryEx(
     END_ENTRYPOINT_NOTHROW;
     return hr;
 }
-
-
-#ifndef CROSSGEN_COMPILE
-// ---------------------------------------------------------------------------
-// %%Function: CoInitializeCor
-// 
-// Parameters:
-//  fFlags                  - Initialization flags for the engine.  See the
-//                              COINITICOR enumerator for valid values.
-// 
-// Returns:
-//  S_OK                    - On success
-// 
-// Description:
-//  Reserved to initialize the Cor runtime engine explicitly.  This currently
-//  does nothing.
-// ---------------------------------------------------------------------------
-STDAPI CoInitializeCor(DWORD fFlags)
-{
-    WRAPPER_NO_CONTRACT;
-
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    // Since the CLR doesn't currently support being unloaded, we don't hold a ref
-    // count and don't even pretend to try to unload.
-    END_ENTRYPOINT_NOTHROW;
-
-    return (S_OK);
-}
-
-// ---------------------------------------------------------------------------
-// %%Function: CoUninitializeCor
-// 
-// Parameters:
-//  none
-// 
-// Returns:
-//  Nothing
-// 
-// Description:
-//  Function to indicate the client is done with the CLR. This currently does
-//  nothing.
-// ---------------------------------------------------------------------------
-STDAPI_(void)   CoUninitializeCor(void)
-{
-    WRAPPER_NO_CONTRACT;
-
-    BEGIN_ENTRYPOINT_VOIDRET;
-
-    // Since the CLR doesn't currently support being unloaded, we don't hold a ref
-    // count and don't even pretend to try to unload.
-    END_ENTRYPOINT_VOIDRET;
-
-}
-
-// Undef LoadStringRC & LoadStringRCEx so we can export these functions.
-#undef LoadStringRC
-#undef LoadStringRCEx
-
-// ---------------------------------------------------------------------------
-// %%Function: LoadStringRC
-// 
-// Parameters:
-//  none
-// 
-// Returns:
-//  Nothing
-// 
-// Description:
-//  Function to load a resource based on it's ID.
-// ---------------------------------------------------------------------------
-STDAPI LoadStringRC(
-    UINT iResourceID, 
-    __out_ecount(iMax) __out_z LPWSTR szBuffer, 
-    int iMax, 
-    int bQuiet
-)
-{
-    WRAPPER_NO_CONTRACT;
-
-    HRESULT hr = S_OK;
-
-    if (NULL == szBuffer)
-        return E_INVALIDARG;
-    if (0 == iMax)
-        return E_INVALIDARG;
-    
-    BEGIN_ENTRYPOINT_NOTHROW;
-    hr = UtilLoadStringRC(iResourceID, szBuffer, iMax, bQuiet);
-    END_ENTRYPOINT_NOTHROW;
-    return hr;
-}
-
-// ---------------------------------------------------------------------------
-// %%Function: LoadStringRCEx
-// 
-// Parameters:
-//  none
-// 
-// Returns:
-//  Nothing
-// 
-// Description:
-//  Ex version of the function to load a resource based on it's ID.
-// ---------------------------------------------------------------------------
-#ifdef FEATURE_USE_LCID
-STDAPI LoadStringRCEx(
-    LCID lcid,
-    UINT iResourceID, 
-    __out_ecount(iMax) __out_z LPWSTR szBuffer, 
-    int iMax, 
-    int bQuiet,
-    int *pcwchUsed
-)
-{
-    WRAPPER_NO_CONTRACT;
-    HRESULT hr = S_OK;
-
-    if (NULL == szBuffer)
-        return E_INVALIDARG;
-    if (0 == iMax)
-        return E_INVALIDARG;
-    
-    BEGIN_ENTRYPOINT_NOTHROW;   
-    hr = UtilLoadStringRCEx(lcid, iResourceID, szBuffer, iMax, bQuiet, pcwchUsed);
-    END_ENTRYPOINT_NOTHROW;
-    return hr;
-}
-#endif
-// Redefine them as errors to prevent people from using these from inside the rest of the compilation unit.
-#define LoadStringRC __error("From inside the CLR, use UtilLoadStringRC; LoadStringRC is only meant to be exported.")
-#define LoadStringRCEx __error("From inside the CLR, use UtilLoadStringRCEx; LoadStringRC is only meant to be exported.")
-
-#endif // CROSSGEN_COMPILE
-
 
 // Replacement for legacy shim API GetCORRequiredVersion(...) used in linked libraries.
 // Used in code:TiggerStorage::GetDefaultVersion#CallTo_CLRRuntimeHostInternal_GetImageVersionString.

@@ -26,7 +26,6 @@
 #include "field.h"
 #include "threads.h"
 #include "interoputil.h"
-#include "tlbexport.h"
 #include "comdelegate.h"
 #include "olevariant.h"
 #include "eeconfig.h"
@@ -147,7 +146,6 @@ Unknown_QueryInterface_Internal(ComCallWrapper* pWrap, IUnknown* pUnk, REFIID ri
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(IsInProcCCWTearOff(pUnk));
         PRECONDITION(CheckPointer(ppv, NULL_OK));
@@ -200,7 +198,18 @@ Unknown_QueryInterface_Internal(ComCallWrapper* pWrap, IUnknown* pUnk, REFIID ri
         // If we haven't found the IP or if we haven't looked yet (because we aren't
         // being aggregated), now look on the managed object to see if it supports the interface.
         if (pDestItf == NULL)
-            pDestItf = ComCallWrapper::GetComIPFromCCW(pWrap, riid, NULL, GetComIPFromCCW::CheckVisibility);
+        {
+            EX_TRY
+            {
+                pDestItf = ComCallWrapper::GetComIPFromCCW(pWrap, riid, NULL, GetComIPFromCCW::CheckVisibility);
+            }
+            EX_CATCH
+            {
+                Exception *e = GET_EXCEPTION();
+                hr = e->GetHR();
+            }
+            EX_END_CATCH(RethrowTerminalExceptions)
+        }
 
 ErrExit:
         // If we succeeded in obtaining the requested IP then return S_OK.
@@ -230,7 +239,6 @@ Unknown_AddRefInner_Internal(IUnknown* pUnk)
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(CheckPointer(pUnk));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -255,7 +263,6 @@ Unknown_AddRef_Internal(IUnknown* pUnk)
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(CheckPointer(pUnk));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -289,7 +296,6 @@ Unknown_ReleaseInner_Internal(IUnknown* pUnk)
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(CheckPointer(pUnk));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -317,7 +323,6 @@ Unknown_Release_Internal(IUnknown* pUnk)
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(CheckPointer(pUnk));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
     
@@ -359,7 +364,6 @@ Unknown_AddRefSpecial_Internal(IUnknown* pUnk)
         MODE_PREEMPTIVE;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(IsSimpleTearOff(pUnk));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -380,7 +384,6 @@ Unknown_ReleaseSpecial_Internal(IUnknown* pUnk)
         MODE_PREEMPTIVE;
         PRECONDITION(CheckPointer(pUnk));
         PRECONDITION(IsSimpleTearOff(pUnk));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -2821,7 +2824,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetProperty(IUnknown *pPropertyProvide
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
         PRECONDITION(IsSimpleTearOff(pPropertyProvider));
         PRECONDITION(CheckPointer(ppProperty, NULL_OK));
@@ -2901,7 +2903,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetIndexedProperty(IUnknown *pProperty
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
         PRECONDITION(IsSimpleTearOff(pPropertyProvider));
         PRECONDITION(CheckPointer(ppProperty, NULL_OK));
@@ -2980,7 +2981,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetStringRepresentation(IUnknown *pPro
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
         PRECONDITION(IsSimpleTearOff(pPropertyProvider));
         PRECONDITION(CheckPointer(phstrStringRepresentation, NULL_OK));
@@ -3044,7 +3044,6 @@ HRESULT __stdcall ICustomPropertyProvider_GetType(IUnknown *pPropertyProvider,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pPropertyProvider));
         PRECONDITION(IsSimpleTearOff(pPropertyProvider));
         PRECONDITION(CheckPointer(pTypeIdentifier));
@@ -3096,7 +3095,6 @@ HRESULT __stdcall IStringable_ToString(IUnknown* pStringable,
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        SO_TOLERANT;
         PRECONDITION(CheckPointer(pStringable));
         PRECONDITION(IsSimpleTearOff(pStringable));
         PRECONDITION(CheckPointer(pResult, NULL_OK));
@@ -3134,7 +3132,7 @@ HRESULT __stdcall IStringable_ToString(IUnknown* pStringable,
 
         // Get the MethodTable for Windows.Foundation.IStringable.
         StackSString strIStringable(SString::Utf8, W("Windows.Foundation.IStringable"));
-        MethodTable *pMTIStringable = GetWinRTType(&strIStringable, /* bThrowIfNotFound = */ FALSE).GetMethodTable();
+        MethodTable *pMTIStringable = LoadWinRTType(&strIStringable, /* bThrowIfNotFound = */ FALSE).GetMethodTable();
 
         if (pMT != NULL && pMTIStringable != NULL && pMT->ImplementsInterface(pMTIStringable))
         {

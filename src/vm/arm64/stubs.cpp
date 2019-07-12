@@ -1084,7 +1084,6 @@ void JIT_TailCall()
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 void InitJITHelpers1()
 {
-#ifdef FEATURE_PAL // TODO
     STANDARD_VM_CONTRACT;
 
     _ASSERTE(g_SystemInfo.dwNumberOfProcessors != 0);
@@ -1107,13 +1106,9 @@ void InitJITHelpers1()
             ECall::DynamicallyAssignFCallImpl(GetEEFuncEntryPoint(AllocateString_MP_FastPortable), ECall::FastAllocateString);
         }
     }
-#endif
 
     JIT_UpdateWriteBarrierState(GCHeapUtilities::IsServerHeap());
 }
-#ifndef FEATURE_PAL // TODO-ARM64-WINDOWS #13592
-EXTERN_C void JIT_UpdateWriteBarrierState(bool) {}
-#endif
 
 #else
 EXTERN_C void JIT_UpdateWriteBarrierState(bool) {}

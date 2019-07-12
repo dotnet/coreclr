@@ -13,7 +13,6 @@
 #include "eetwain.h"
 #include "codeman.h"
 #include "eeconfig.h"
-#include "stackprobe.h"
 #include "dbginterface.h"
 #include "generics.h"
 #ifdef FEATURE_INTERPRETER
@@ -128,7 +127,6 @@ BOOL CrawlFrame::IsInCalleesFrames(LPVOID stackPointer)
 MethodDesc* CrawlFrame::GetFunction()
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     if (pFunc != NULL)
     {
         return pFunc;
@@ -519,7 +517,6 @@ void ExInfoWalker::WalkToManaged()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
     }
@@ -558,7 +555,6 @@ UINT_PTR Thread::VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo* pCodeInfo /
         GC_NOTRIGGER;
 
         PRECONDITION(GetControlPC(pRD) == GetIP(pRD->pCurrentContext));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -598,7 +594,6 @@ PCODE Thread::VirtualUnwindCallFrame(T_CONTEXT* pContext,
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pContext, NULL_NOT_OK));
         PRECONDITION(CheckPointer(pContextPointers, NULL_OK));
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -718,7 +713,6 @@ PCODE Thread::VirtualUnwindNonLeafCallFrame(T_CONTEXT* pContext, KNONVOLATILE_CO
         PRECONDITION(CheckPointer(pContext, NULL_NOT_OK));
         PRECONDITION(CheckPointer(pContextPointers, NULL_OK));
         PRECONDITION(CheckPointer(pFunctionEntry, NULL_OK));
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -763,7 +757,6 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -908,7 +901,6 @@ StackWalkAction Thread::StackWalkFramesEx(
     // that any C++ destructors pushed in this function will never execute, and it means that this function can
     // never have a dynamic contract.
     STATIC_CONTRACT_WRAPPER;
-    STATIC_CONTRACT_SO_INTOLERANT;
     SCAN_IGNORE_THROW;            // see contract above
     SCAN_IGNORE_TRIGGER;          // see contract above
 
@@ -1553,28 +1545,32 @@ BOOL StackFrameIterator::IsValid(void)
         // Try to ensure that the frame chain did not change underneath us.
         // In particular, is thread's starting frame the same as it was when
         // we started?
-        //DevDiv 168789: In GCStress >= 4 two threads could race on triggering GC;
-        //  if the one that just made p/invoke call is second and hits the trap instruction
-        //  before call to syncronize with GC, it will push a frame [ResumableFrame on Unix 
-        //  and RedirectedThreadFrame on Windows] concurrently with GC stackwalking.
-        //  In normal case (no GCStress), after p/invoke, IL_STUB will check if GC is in progress and syncronize.
-        BOOL bRedirectedPinvoke = FALSE;
+        BOOL bIsRealStartFrameUnchanged = 
+            (m_pStartFrame != NULL) ||
+            (m_flags & POPFRAMES) ||
+            (m_pRealStartFrame == m_pThread->GetFrame());
 
 #ifdef FEATURE_HIJACK
-        bRedirectedPinvoke = ((GCStress<cfg_instr>::IsEnabled()) && 
-                              (m_pRealStartFrame != NULL) &&
-                              (m_pRealStartFrame != FRAME_TOP) &&
-                              (m_pRealStartFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()) && 
-                              (m_pThread->GetFrame() != NULL) &&
-                              (m_pThread->GetFrame() != FRAME_TOP) &&
-                              ((m_pThread->GetFrame()->GetVTablePtr() == ResumableFrame::GetMethodFrameVPtr()) ||
-                               (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr())));
+        // In GCStress >= 4 two threads could race on triggering GC;
+        // if the one that just made p/invoke call is second and hits the trap instruction
+        // before call to synchronize with GC, it will push a frame [ResumableFrame on Unix
+        // and RedirectedThreadFrame on Windows] concurrently with GC stackwalking.
+        // In normal case (no GCStress), after p/invoke, IL_STUB will check if GC is in progress and synchronize.
+        // NOTE: This condition needs to be evaluated after the previous one to prevent a subtle race condition
+        // (https://github.com/dotnet/coreclr/issues/21581)
+        bIsRealStartFrameUnchanged = bIsRealStartFrameUnchanged ||
+            ((GCStress<cfg_instr>::IsEnabled()) &&
+            (m_pRealStartFrame != NULL) &&
+            (m_pRealStartFrame != FRAME_TOP) &&
+            (m_pRealStartFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()) &&
+            (m_pThread->GetFrame() != NULL) &&
+            (m_pThread->GetFrame() != FRAME_TOP) &&
+            ((m_pThread->GetFrame()->GetVTablePtr() == ResumableFrame::GetMethodFrameVPtr()) ||
+            (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr())));
 #endif // FEATURE_HIJACK
 
-        _ASSERTE( (m_pStartFrame != NULL) ||
-                  (m_flags & POPFRAMES) ||
-                  (m_pRealStartFrame == m_pThread->GetFrame()) ||
-                  (bRedirectedPinvoke));
+        _ASSERTE(bIsRealStartFrameUnchanged);
+
 #endif //_DEBUG
 
         return FALSE;
@@ -2787,7 +2783,6 @@ void StackFrameIterator::ProcessIp(PCODE Ip)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     } CONTRACTL_END;
 
@@ -3200,7 +3195,6 @@ void StackFrameIterator::PostProcessingForManagedFrames(void)
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
     }
@@ -3238,7 +3232,6 @@ void StackFrameIterator::PostProcessingForNoFrameTransition()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         SUPPORTS_DAC;
     }

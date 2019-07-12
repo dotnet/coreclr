@@ -24,21 +24,13 @@
 // Have one internal, well-known, literal for the empty string.
 const BYTE SString::s_EmptyBuffer[2] = { 0 };
 
-// @todo: these need to be initialized by calling GetACP() or GetConsoleOutputCP()
-// followed by a GetCPInfo to see if the max character size is 1.
+// @todo: these need to be initialized by calling GetACP()
 
 UINT SString::s_ACP = 0;
-SVAL_IMPL_INIT(BOOL, SString, s_IsANSIMultibyte, TRUE);
 
 #ifndef DACCESS_COMPILE
 static BYTE s_EmptySpace[sizeof(SString)] = { 0 };
 #endif // DACCESS_COMPILE
-
-#if FEATURE_USE_LCID
-const LocaleID SString::s_defaultLCID = MAKELCID(MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US), SORT_DEFAULT);
-#else
-const LocaleID SString::s_defaultLCID = NULL;
-#endif
 
 SPTR_IMPL(SString,SString,s_Empty);
 
@@ -48,12 +40,8 @@ void SString::Startup()
     STATIC_CONTRACT_GC_NOTRIGGER;
 
     if (s_ACP == 0)
-    {
-        CPINFO info;
-        
+    {        
         UINT ACP = GetACP();
-        if (GetCPInfo(ACP, &info) && info.MaxCharSize == 1)
-            s_IsANSIMultibyte = FALSE;
 
 #ifndef DACCESS_COMPILE
         s_Empty = PTR_SString(new (s_EmptySpace) SString());
@@ -77,7 +65,7 @@ CHECK SString::CheckStartup()
 // Case insensitive helpers.
 //-----------------------------------------------------------------------------
 
-static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
+static WCHAR MapChar(WCHAR wc, DWORD dwFlags)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -85,13 +73,7 @@ static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
 
 #ifndef FEATURE_PAL
     
-#ifdef FEATURE_USE_LCID
-    int iRet = WszLCMapString(lcid, dwFlags, &wc, 1, &wTmp, 1);
-#else
-    // TODO: Uncertain if this is the best behavior.  Caller should specify locale name
-    if (lcid == NULL || lcid[0]==W('!')) lcid = W("");
-    int iRet = ::LCMapStringEx(lcid, dwFlags, &wc, 1, &wTmp, 1, NULL, NULL, 0);
-#endif
+    int iRet = ::LCMapStringEx(LOCALE_NAME_INVARIANT, dwFlags, &wc, 1, &wTmp, 1, NULL, NULL, 0);
     if (!iRet) {
         // This can fail in non-exceptional cases becauseof unknown unicode characters. 
         wTmp = wc;
@@ -102,12 +84,22 @@ static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
 
     if (dwFlags == LCMAP_UPPERCASE)
     {
-        wTmp = toupper(wc);
+        wTmp =
+#ifdef SELF_NO_HOST
+            toupper(wc);
+#else
+            PAL_ToUpperInvariant(wc);
+#endif
     }
     else
     {
         _ASSERTE(dwFlags == LCMAP_LOWERCASE);
-        wTmp = tolower(wc);
+        wTmp =
+#ifdef SELF_NO_HOST
+            tolower(wc);
+#else
+            PAL_ToLowerInvariant(wc);
+#endif
     }
 #endif // !FEATURE_PAL
 
@@ -122,7 +114,7 @@ static WCHAR MapChar(WCHAR wc, DWORD dwFlags, LocaleID lcid)
 #define SIMPLE_DOWNCASE(x) (IS_UPPER_A_TO_Z(x) ? ((x) - W('A') + W('a')) : (x))
 
 /* static */
-int SString::CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count, LocaleID lcid, BOOL stopOnNull, BOOL stopOnCount)
+int SString::CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count, BOOL stopOnNull, BOOL stopOnCount)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -147,8 +139,8 @@ int SString::CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT
         {
             if (diff != 0)
             {
-                diff = ((CAN_SIMPLE_UPCASE(ch1) ? SIMPLE_UPCASE(ch1) : MapChar(ch1, LCMAP_UPPERCASE, lcid))
-                        - (CAN_SIMPLE_UPCASE(ch2) ? SIMPLE_UPCASE(ch2) : MapChar(ch2, LCMAP_UPPERCASE, lcid)));
+                diff = ((CAN_SIMPLE_UPCASE(ch1) ? SIMPLE_UPCASE(ch1) : MapChar(ch1, LCMAP_UPPERCASE))
+                        - (CAN_SIMPLE_UPCASE(ch2) ? SIMPLE_UPCASE(ch2) : MapChar(ch2, LCMAP_UPPERCASE)));
             }
             if (diff != 0) 
             {
@@ -164,8 +156,7 @@ int SString::CaseCompareHelper(const WCHAR *buffer1, const WCHAR *buffer2, COUNT
 #define CAN_SIMPLE_UPCASE_ANSI(x) (((x) >= 0x20) && ((x) <= 0x7f))
 #define SIMPLE_UPCASE_ANSI(x) (IS_LOWER_A_TO_Z(x) ? ((x) - 'a' + 'A') : (x))
 
-// TODO: Need to get rid of LocaleID and use a LPCWSTR locale name instead.
-int GetCaseInsensitiveValueA(LocaleID lcid, const CHAR *buffer, int length) {
+int GetCaseInsensitiveValueA(const CHAR *buffer, int length) {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(buffer != NULL);
     _ASSERTE(length == 1 || ((length == 2) && IsDBCSLeadByte(*buffer)));    
@@ -188,13 +179,13 @@ int GetCaseInsensitiveValueA(LocaleID lcid, const CHAR *buffer, int length) {
     else 
     {
         _ASSERTE(conversionReturn == 1);
-        sortValue = MapChar(wideCh, LCMAP_UPPERCASE, lcid);
+        sortValue = MapChar(wideCh, LCMAP_UPPERCASE);
     }
     return sortValue;
 }
 
 /* static */
-int SString::CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_T count, LocaleID lcid, BOOL stopOnNull, BOOL stopOnCount)
+int SString::CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_T count, BOOL stopOnNull, BOOL stopOnCount)
 {
     LIMITED_METHOD_CONTRACT;
     
@@ -234,15 +225,14 @@ int SString::CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_
         else 
         {
             int length = 1;
-            if (s_IsANSIMultibyte 
-                && IsDBCSLeadByte(ch1) 
+            if (IsDBCSLeadByte(ch1) 
                 && IsDBCSLeadByte(ch2)
                 && (!stopOnCount || ((buffer1 + 1) < buffer1End))) 
             {
                 length = 2;
             }
-            int sortValue1 = GetCaseInsensitiveValueA(lcid, buffer1, length);
-            int sortValue2 = GetCaseInsensitiveValueA(lcid, buffer2, length);
+            int sortValue1 = GetCaseInsensitiveValueA(buffer1, length);
+            int sortValue2 = GetCaseInsensitiveValueA(buffer2, length);
             diff = sortValue1 - sortValue2;
             if (diff != 0) 
             {
@@ -256,7 +246,7 @@ int SString::CaseCompareHelperA(const CHAR *buffer1, const CHAR *buffer2, COUNT_
 }
 
 
-int CaseHashHelper(const WCHAR *buffer, COUNT_T count, LocaleID lcid)
+int CaseHashHelper(const WCHAR *buffer, COUNT_T count)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -266,7 +256,7 @@ int CaseHashHelper(const WCHAR *buffer, COUNT_T count, LocaleID lcid)
     while (buffer < bufferEnd)
     {
         WCHAR ch = *buffer++;
-        ch = CAN_SIMPLE_UPCASE(ch) ? SIMPLE_UPCASE(ch) : MapChar(ch, LCMAP_UPPERCASE, lcid);
+        ch = CAN_SIMPLE_UPCASE(ch) ? SIMPLE_UPCASE(ch) : MapChar(ch, LCMAP_UPPERCASE);
 
         hash = (((hash << 5) + hash) ^ ch);
     }
@@ -652,7 +642,7 @@ ULONG SString::Hash() const
 //-----------------------------------------------------------------------------
 // Hash the string contents
 //-----------------------------------------------------------------------------
-ULONG SString::HashCaseInsensitive(LocaleID lcid) const
+ULONG SString::HashCaseInsensitive() const
 {
     SS_CONTRACT(ULONG)
     {
@@ -670,7 +660,7 @@ ULONG SString::HashCaseInsensitive(LocaleID lcid) const
     {
     case REPRESENTATION_UNICODE:
     case REPRESENTATION_EMPTY:
-        result = CaseHashHelper(GetRawUnicode(), GetRawCount(), lcid);
+        result = CaseHashHelper(GetRawUnicode(), GetRawCount());
         break;
 
     case REPRESENTATION_ASCII:
@@ -1382,21 +1372,11 @@ BOOL SString::BeginsWith(const SString &s) const
 //-----------------------------------------------------------------------------
 // Returns TRUE if this string begins with the contents of s
 //-----------------------------------------------------------------------------
-BOOL SString::BeginsWithCaseInsensitive(const SString &s, LocaleID locale) const
-{
-    WRAPPER_NO_CONTRACT;
-
-    return MatchCaseInsensitive(Begin(), s, locale);
-}
-
-//-----------------------------------------------------------------------------
-// Returns TRUE if this string begins with the contents of s. Invariant locale.
-//-----------------------------------------------------------------------------
 BOOL SString::BeginsWithCaseInsensitive(const SString &s) const
 {
     WRAPPER_NO_CONTRACT;
 
-    return BeginsWithCaseInsensitive(s, s_defaultLCID);
+    return MatchCaseInsensitive(Begin(), s);
 }
 
 //-----------------------------------------------------------------------------
@@ -1418,7 +1398,7 @@ BOOL SString::EndsWith(const SString &s) const
 //-----------------------------------------------------------------------------
 // Returns TRUE if this string ends with the contents of s
 //-----------------------------------------------------------------------------
-BOOL SString::EndsWithCaseInsensitive(const SString &s, LocaleID locale) const
+BOOL SString::EndsWithCaseInsensitive(const SString &s) const
 {
     WRAPPER_NO_CONTRACT;
 
@@ -1428,17 +1408,7 @@ BOOL SString::EndsWithCaseInsensitive(const SString &s, LocaleID locale) const
         return FALSE;
     }
 
-    return MatchCaseInsensitive(End() - s.GetCount(), s, locale);
-}
-
-//-----------------------------------------------------------------------------
-// Returns TRUE if this string ends with the contents of s. Invariant locale.
-//-----------------------------------------------------------------------------
-BOOL SString::EndsWithCaseInsensitive(const SString &s) const
-{
-    WRAPPER_NO_CONTRACT;
-
-    return EndsWithCaseInsensitive(s, s_defaultLCID);
+    return MatchCaseInsensitive(End() - s.GetCount(), s);
 }
 
 //-----------------------------------------------------------------------------
@@ -1511,7 +1481,7 @@ int SString::Compare(const SString &s) const
 // Return 0 if equal, <0 if this < s, >0 is this > s. (same as strcmp).
 //-----------------------------------------------------------------------------
 
-int SString::CompareCaseInsensitive(const SString &s, LocaleID lcid) const
+int SString::CompareCaseInsensitive(const SString &s) const
 {
     CONTRACT(int)
     {
@@ -1548,12 +1518,12 @@ int SString::CompareCaseInsensitive(const SString &s, LocaleID lcid) const
     switch (GetRepresentation())
     {
     case REPRESENTATION_UNICODE:
-        result = CaseCompareHelper(GetRawUnicode(), source.GetRawUnicode(), smaller, lcid, FALSE, TRUE);
+        result = CaseCompareHelper(GetRawUnicode(), source.GetRawUnicode(), smaller, FALSE, TRUE);
         break;
 
     case REPRESENTATION_ASCII:
     case REPRESENTATION_ANSI:
-        result = CaseCompareHelperA(GetRawASCII(), source.GetRawASCII(), smaller, lcid, FALSE, TRUE);
+        result = CaseCompareHelperA(GetRawASCII(), source.GetRawASCII(), smaller, FALSE, TRUE);
         break;
 
     case REPRESENTATION_EMPTY:
@@ -1620,7 +1590,7 @@ BOOL SString::Equals(const SString &s) const
 // Compare this string's contents case insensitively to s's contents.
 // Return 1 if equal, 0 if not.
 //-----------------------------------------------------------------------------
-BOOL SString::EqualsCaseInsensitive(const SString &s, LocaleID lcid) const
+BOOL SString::EqualsCaseInsensitive(const SString &s) const
 {
     CONTRACT(BOOL)
     {
@@ -1643,11 +1613,11 @@ BOOL SString::EqualsCaseInsensitive(const SString &s, LocaleID lcid) const
     switch (GetRepresentation())
     {
     case REPRESENTATION_UNICODE:
-        RETURN (CaseCompareHelper(GetRawUnicode(), source.GetRawUnicode(), count, lcid, FALSE, TRUE) == 0);
+        RETURN (CaseCompareHelper(GetRawUnicode(), source.GetRawUnicode(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_ASCII:
     case REPRESENTATION_ANSI:
-        RETURN (CaseCompareHelperA(GetRawASCII(), source.GetRawASCII(), count, lcid, FALSE, TRUE) == 0);
+        RETURN (CaseCompareHelperA(GetRawASCII(), source.GetRawASCII(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_EMPTY:
         RETURN TRUE;
@@ -1710,7 +1680,7 @@ BOOL SString::Match(const CIterator &i, const SString &s) const
 // Compare s's contents case insensitively to the substring starting at position
 // Return TRUE if equal, FALSE if not
 //-----------------------------------------------------------------------------
-BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s, LocaleID lcid) const
+BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s) const
 {
     CONTRACT(BOOL)
     {
@@ -1735,10 +1705,10 @@ BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s, LocaleI
     {
     case REPRESENTATION_UNICODE:
     case REPRESENTATION_ANSI:
-        RETURN (CaseCompareHelper(i.GetUnicode(), source.GetRawUnicode(), count, lcid, FALSE, TRUE) == 0);
+        RETURN (CaseCompareHelper(i.GetUnicode(), source.GetRawUnicode(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_ASCII:
-        RETURN (CaseCompareHelperA(i.GetASCII(), source.GetRawASCII(), count, lcid, FALSE, TRUE) == 0);
+        RETURN (CaseCompareHelperA(i.GetASCII(), source.GetRawASCII(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_EMPTY:
         RETURN TRUE;
@@ -1755,7 +1725,7 @@ BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s, LocaleI
 // Compare c case insensitively to the character at position
 // Return TRUE if equal, FALSE if not
 //-----------------------------------------------------------------------------
-BOOL SString::MatchCaseInsensitive(const CIterator &i, WCHAR c, LocaleID lcid) const
+BOOL SString::MatchCaseInsensitive(const CIterator &i, WCHAR c) const
 {
     SS_CONTRACT(BOOL)
     {
@@ -1774,8 +1744,8 @@ BOOL SString::MatchCaseInsensitive(const CIterator &i, WCHAR c, LocaleID lcid) c
     WCHAR test = i[0];
 
     SS_RETURN (test == c
-               || ((CAN_SIMPLE_UPCASE(test) ? SIMPLE_UPCASE(test) : MapChar(test, LCMAP_UPPERCASE, lcid))
-                   == (CAN_SIMPLE_UPCASE(c) ? SIMPLE_UPCASE(c) : MapChar(c, LCMAP_UPPERCASE, lcid))));
+               || ((CAN_SIMPLE_UPCASE(test) ? SIMPLE_UPCASE(test) : MapChar(test, LCMAP_UPPERCASE))
+                   == (CAN_SIMPLE_UPCASE(c) ? SIMPLE_UPCASE(c) : MapChar(c, LCMAP_UPPERCASE))));
 }
 
 //-----------------------------------------------------------------------------
@@ -1799,7 +1769,7 @@ void SString::LowerCase()
 
     for (WCHAR *pwch = GetRawUnicode(); pwch < GetRawUnicode() + GetRawCount(); ++pwch)
     {
-        *pwch = (CAN_SIMPLE_DOWNCASE(*pwch) ? SIMPLE_DOWNCASE(*pwch) : MapChar(*pwch, LCMAP_LOWERCASE, s_defaultLCID));
+        *pwch = (CAN_SIMPLE_DOWNCASE(*pwch) ? SIMPLE_DOWNCASE(*pwch) : MapChar(*pwch, LCMAP_LOWERCASE));
     }
 }
 
@@ -1824,7 +1794,7 @@ void SString::LowerCase(__inout_z LPWSTR wszString)
     
     for (WCHAR * pwch = wszString; *pwch != '\0'; ++pwch)
     {
-        *pwch = (CAN_SIMPLE_DOWNCASE(*pwch) ? SIMPLE_DOWNCASE(*pwch) : MapChar(*pwch, LCMAP_LOWERCASE, s_defaultLCID));
+        *pwch = (CAN_SIMPLE_DOWNCASE(*pwch) ? SIMPLE_DOWNCASE(*pwch) : MapChar(*pwch, LCMAP_LOWERCASE));
     }
 }
 
@@ -1850,7 +1820,7 @@ void SString::UpperCase()
 
     for (WCHAR *pwch = GetRawUnicode(); pwch < GetRawUnicode() + GetRawCount(); ++pwch)
     {
-        *pwch = (CAN_SIMPLE_UPCASE(*pwch) ? SIMPLE_UPCASE(*pwch) : MapChar(*pwch, LCMAP_UPPERCASE, s_defaultLCID));
+        *pwch = (CAN_SIMPLE_UPCASE(*pwch) ? SIMPLE_UPCASE(*pwch) : MapChar(*pwch, LCMAP_UPPERCASE));
     }
 }
 
@@ -2698,7 +2668,6 @@ void SString::Clear()
         POSTCONDITION(IsEmpty());
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         SUPPORTS_DAC_HOST_ONLY;
     }
     CONTRACT_END;

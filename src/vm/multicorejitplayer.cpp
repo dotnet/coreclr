@@ -365,12 +365,11 @@ bool ModuleRecord::MatchWithModule(ModuleVersion & modVersion, bool & gotVersion
 }
 
 
-MulticoreJitProfilePlayer::MulticoreJitProfilePlayer(AppDomain * pDomain, ICLRPrivBinder * pBinderContext, LONG nSession, bool fAppxMode)
-    : m_stats(pDomain->GetMulticoreJitManager().GetStats()), m_appdomainSession(pDomain->GetMulticoreJitManager().GetProfileSession())
+MulticoreJitProfilePlayer::MulticoreJitProfilePlayer(ICLRPrivBinder * pBinderContext, LONG nSession, bool fAppxMode)
+    : m_stats(::GetAppDomain()->GetMulticoreJitManager().GetStats()), m_appdomainSession(::GetAppDomain()->GetMulticoreJitManager().GetProfileSession())
 {
     LIMITED_METHOD_CONTRACT;
 
-    m_DomainID           = pDomain->GetId();
     m_pBinderContext     = pBinderContext;
     m_nMySession         = nSession;
     m_moduleCount        = 0;
@@ -563,7 +562,7 @@ void MulticoreJitProfilePlayer::JITMethod(Module * pModule, unsigned methodIndex
 	// Ensure non-null module
 	if (pModule == NULL)
 	{
-		if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD))
+		if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD))
 		{
 			_FireEtwMulticoreJitA(W("NULLMODULEPOINTER"), NULL, methodIndex, 0, 0);
 		}
@@ -620,7 +619,7 @@ BadMethod:
         
     MulticoreJitTrace(("Filtered out methods: pModule:[%s] token:[%x]", pModule->GetSimpleName(), token));
 
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD)) 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD)) 
     {
         _FireEtwMulticoreJitA(W("FILTERMETHOD-GENERIC"), pModule->GetSimpleName(), token, 0, 0);
     }
@@ -745,7 +744,7 @@ HRESULT MulticoreJitProfilePlayer::UpdateModuleInfo()
                     info.Dump(W("    BlockingModule"), i);
     #endif
 
-                    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD)) 
+                    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD)) 
                     {
                         _FireEtwMulticoreJitA(W("BLOCKINGMODULE"), info.m_pRecord->GetModuleName(), i, info.m_curLevel, info.m_needLevel);
                     }
@@ -843,7 +842,7 @@ bool MulticoreJitProfilePlayer::GroupWaitForModuleLoad(int pos)
 
         MulticoreJitTrace(("Delay: %d ms", delay));
 
-        if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD)) 
+        if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, TRACE_LEVEL_VERBOSE, CLR_PRIVATEMULTICOREJIT_KEYWORD)) 
         {
             _FireEtwMulticoreJit(W("GROUPWAIT"), W("Delay"), delay, 0, 0);
         }
@@ -1238,9 +1237,8 @@ HRESULT MulticoreJitProfilePlayer::PlayProfile()
 
     unsigned nSize = m_nFileSize;
 
-    MulticoreJitTrace(("PlayProfile %d bytes in (%d, %s)", 
+    MulticoreJitTrace(("PlayProfile %d bytes in (%s)", 
         nSize,
-        GetAppDomain()->GetId().m_dwId, 
         GetAppDomain()->GetFriendlyNameForLogging()));
 
     while ((SUCCEEDED(hr)) && (nSize > sizeof(unsigned)))
@@ -1321,14 +1319,12 @@ HRESULT MulticoreJitProfilePlayer::JITThreadProc(Thread * pThread)
 
     EX_TRY
     {
-        ENTER_DOMAIN_ID(m_DomainID);
         {
             // Go into preemptive mode
             GCX_PREEMP();
 
             m_stats.m_hr = PlayProfile();
         }
-        END_DOMAIN_TRANSITION;
     }
     EX_CATCH
     {

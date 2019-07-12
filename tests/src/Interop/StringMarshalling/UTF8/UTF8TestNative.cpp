@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include <xplatform.h>
+#include <platformdefines.h>
 
 const int NSTRINGS = 6;
 #ifdef _WIN32
@@ -22,7 +23,7 @@ char* utf16_to_utf8(const wchar_t *srcstring)
     if ((srcstring == NULL) || (*srcstring == L'\0')) {
         return 0;
     }
-    size_t cchUTF16 = wcslen(srcstring) + 1;
+    size_t cchUTF16 = TP_slen(srcstring) + 1;
     int cbUTF8 = WideCharToMultiByte(CP_UTF8, 0,
         srcstring,
         (int)cchUTF16,
@@ -231,6 +232,16 @@ extern "C" DLL_EXPORT void __cdecl TestStructWithUtf8Field(struct FieldWithUtf8 
         }
     }
     free_utf8_string(pszNative);
+}
+
+extern "C" DLL_EXPORT void __cdecl SetStringInStruct(FieldWithUtf8* fieldStruct, char* str)
+{
+    size_t strLength = strlen(str);
+    char* strCopy = (char*)CoreClrAlloc(sizeof(char) * strlen(str) + 1);
+
+    memcpy(strCopy, str, strLength + 1);
+    fieldStruct->pFirst = strCopy;
+    fieldStruct->index = 0;
 }
 
 // test c# out keyword

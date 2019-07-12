@@ -33,7 +33,7 @@ namespace Microsoft.Win32
         public const int CalendarHijri = 0x08;
         public const int LocalBool = 0x10;
 
-        internal static readonly Type[] ClassTypes = {
+        internal static readonly Type?[] ClassTypes = {
             typeof(Empty),
             typeof(void),
             typeof(bool),
@@ -82,12 +82,7 @@ namespace Microsoft.Win32
                 throw new ArgumentNullException(nameof(culture));
             Variant result = new Variant();
             ChangeTypeEx(ref result, ref source,
-#if FEATURE_USE_LCID
                          culture.LCID,
-#else
-        // @CORESYSTODO: what does CoreSystem expect for this argument?
-                        0,
-#endif
                          targetClass.TypeHandle.Value, GetCVTypeFromClass(targetClass), options);
             return result;
         }

@@ -33,7 +33,7 @@ typedef DPTR(class CodeVersionManager) PTR_CodeVersionManager;
 
 // This HRESULT is only used as a private implementation detail. Corerror.xml has a comment in it
 //  reserving this value for our use but it doesn't appear in the public headers.
-#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED 0x80131381
+#define CORPROF_E_RUNTIME_SUSPEND_REQUIRED _HRESULT_TYPEDEF_(0x80131381L)
 
 #endif
 
@@ -53,7 +53,7 @@ public:
 #ifdef FEATURE_CODE_VERSIONING
     NativeCodeVersion(PTR_NativeCodeVersionNode pVersionNode);
 #endif
-    NativeCodeVersion(PTR_MethodDesc pMethod);
+    explicit NativeCodeVersion(PTR_MethodDesc pMethod);
     BOOL IsNull() const;
     PTR_MethodDesc GetMethodDesc() const;
     NativeCodeVersionId GetVersionId() const;
@@ -67,10 +67,14 @@ public:
     enum OptimizationTier
     {
         OptimizationTier0,
-        OptimizationTier1
+        OptimizationTier1,
+        OptimizationTierOptimized, // may do less optimizations than tier 1
     };
 #ifdef FEATURE_TIERED_COMPILATION
     OptimizationTier GetOptimizationTier() const;
+#ifndef DACCESS_COMPILE
+    void SetOptimizationTier(OptimizationTier tier);
+#endif
 #endif // FEATURE_TIERED_COMPILATION
     bool operator==(const NativeCodeVersion & rhs) const;
     bool operator!=(const NativeCodeVersion & rhs) const;
@@ -106,7 +110,7 @@ private:
     union
     {
         PTR_NativeCodeVersionNode m_pVersionNode;
-        struct SyntheticStorage
+        struct
         {
             PTR_MethodDesc m_pMethodDesc;
         } m_synthetic;
@@ -174,11 +178,18 @@ public:
         kStateActive = 0x00000002,
 
         kStateMask = 0x0000000F,
+
+        // Indicates that the method being ReJITted is an inliner of the actual 
+        // ReJIT request and we should not issue the GetReJITParameters for this 
+        // method.
+        kSuppressParams = 0x80000000
     };
 
     RejitFlags GetRejitState() const;
+    BOOL GetEnableReJITCallback() const;
 #ifndef DACCESS_COMPILE
     void SetRejitState(RejitFlags newState);
+    void SetEnableReJITCallback(BOOL state);
 #endif
 
 #ifdef DACCESS_COMPILE
@@ -204,7 +215,7 @@ private:
     union
     {
         PTR_ILCodeVersionNode m_pVersionNode;
-        struct SyntheticStorage
+        struct
         {
             PTR_Module m_pModule;
             mdMethodDef m_methodDef;
@@ -237,7 +248,10 @@ public:
 #endif
 #ifdef FEATURE_TIERED_COMPILATION
     NativeCodeVersion::OptimizationTier GetOptimizationTier() const;
+#ifndef DACCESS_COMPILE
+    void SetOptimizationTier(NativeCodeVersion::OptimizationTier tier);
 #endif
+#endif // FEATURE_TIERED_COMPILATION
 
 private:
     //union - could save a little memory?
@@ -320,12 +334,14 @@ public:
     DWORD GetJitFlags() const;
     const InstrumentedILOffsetMapping* GetInstrumentedILMap() const;
     ILCodeVersion::RejitFlags GetRejitState() const;
+    BOOL GetEnableReJITCallback() const;
     PTR_ILCodeVersionNode GetNextILVersionNode() const;
 #ifndef DACCESS_COMPILE
     void SetIL(COR_ILMETHOD* pIL);
     void SetJitFlags(DWORD flags);
     void SetInstrumentedILMap(SIZE_T cMap, COR_IL_MAP * rgMap);
     void SetRejitState(ILCodeVersion::RejitFlags newState);
+    void SetEnableReJITCallback(BOOL state);
     void SetNextILVersionNode(ILCodeVersionNode* pNextVersionNode);
 #endif
 
@@ -446,7 +462,7 @@ private:
     HRESULT UpdateJumpStampHelper(BYTE* pbCode, INT64 i64OldValue, INT64 i64NewValue, BOOL fContentionPossible);
 #endif
     PTR_MethodDesc m_pMethodDesc;
-    
+
     enum MethodDescVersioningStateFlags
     {
         JumpStampMask = 0x3,
@@ -555,7 +571,6 @@ public:
 
 typedef SHash<ILCodeVersioningStateHashTraits> ILCodeVersioningStateHash;
 
-
 class CodeVersionManager
 {
     friend class ILCodeVersion;
@@ -577,7 +592,7 @@ public:
     void EnterLock();
     void LeaveLock();
 #endif
-    
+
 #ifdef DEBUG
     BOOL LockOwnedByCurrentThread() const;
 #endif
@@ -615,6 +630,8 @@ public:
     static void OnAppDomainExit(AppDomain* pAppDomain);
 #endif
 
+    static bool IsMethodSupported(PTR_MethodDesc pMethodDesc);
+
 private:
 
 #ifndef DACCESS_COMPILE
@@ -635,7 +652,7 @@ private:
 
     //closed MethodDesc -> MethodDescVersioningState
     MethodDescVersioningStateHash m_methodDescVersioningStateMap;
-    
+
     CrstExplicitInit m_crstTable;
 };
 

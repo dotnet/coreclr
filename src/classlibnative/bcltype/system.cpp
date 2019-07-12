@@ -31,6 +31,7 @@
 #include "array.h"
 #include "eepolicy.h"
 
+#ifndef FEATURE_PAL
 typedef void(WINAPI *pfnGetSystemTimeAsFileTime)(LPFILETIME lpSystemTimeAsFileTime);
 extern pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime;
 
@@ -38,7 +39,6 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
 {
     pfnGetSystemTimeAsFileTime func = NULL;
 
-#ifndef FEATURE_PAL
     HMODULE hKernel32 = WszLoadLibrary(W("kernel32.dll"));
     if (hKernel32 != NULL)
     {
@@ -72,23 +72,28 @@ void WINAPI InitializeGetSystemTimeAsFileTime(LPFILETIME lpSystemTimeAsFileTime)
         }
     }
     if (func == NULL)
-#endif
     {
         func = &::GetSystemTimeAsFileTime;
     }
 
-    g_pfnGetSystemTimeAsFileTime = func;
-    func(lpSystemTimeAsFileTime);
+    InterlockedCompareExchangeT(&g_pfnGetSystemTimeAsFileTime, func, &InitializeGetSystemTimeAsFileTime);
+
+    g_pfnGetSystemTimeAsFileTime(lpSystemTimeAsFileTime);
 }
 
 pfnGetSystemTimeAsFileTime g_pfnGetSystemTimeAsFileTime = &InitializeGetSystemTimeAsFileTime;
+#endif // FEATURE_PAL
 
 FCIMPL0(INT64, SystemNative::__GetSystemTimeAsFileTime)
 {
     FCALL_CONTRACT;
 
     INT64 timestamp;
+#ifndef FEATURE_PAL
     g_pfnGetSystemTimeAsFileTime((FILETIME*)&timestamp);
+#else
+    GetSystemTimeAsFileTime((FILETIME*)&timestamp);
+#endif
 
 #if BIGENDIAN
     timestamp = (INT64)(((UINT64)timestamp >> 32) | ((UINT64)timestamp << 32));
@@ -187,6 +192,14 @@ FCIMPL0(UINT32, SystemNative::GetTickCount)
 }
 FCIMPLEND;
 
+FCIMPL0(UINT64, SystemNative::GetTickCount64)
+{
+    FCALL_CONTRACT;
+
+    return ::GetTickCount64();
+}
+FCIMPLEND;
+
 
 
 
@@ -272,7 +285,7 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
     {
         STRINGREF str = StringObject::NewString(argv[i]);
         STRINGREF * destData = ((STRINGREF*)(strArray->GetDataPtr())) + i;
-        SetObjectReference((OBJECTREF*)destData, (OBJECTREF)str, strArray->GetAppDomain());
+        SetObjectReference((OBJECTREF*)destData, (OBJECTREF)str);
     }
     delete [] argv;
 
@@ -320,13 +333,14 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
 
     BEGIN_QCALL;
 
+#ifndef FEATURE_PAL
     CPUGroupInfo::EnsureInitialized();
 
     if(CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
     {
         processorCount = CPUGroupInfo::GetNumActiveProcessors();
     }
-
+#endif // !FEATURE_PAL
     // Processor count will be 0 if CPU groups are disabled/not supported
     if(processorCount == 0)
     {
@@ -341,7 +355,7 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
 #ifdef FEATURE_PAL
     uint32_t cpuLimit;
 
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < processorCount)
+    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < (uint32_t)processorCount)
         processorCount = cpuLimit;
 #endif
 
@@ -349,18 +363,6 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
 
     return processorCount;
 }
-
-FCIMPL0(FC_BOOL_RET, SystemNative::HasShutdownStarted)
-{
-    FCALL_CONTRACT;
-
-    // Return true if the EE has started to shutdown and is now going to
-    // aggressively finalize objects referred to by static variables OR
-    // if someone is unloading the current AppDomain AND we have started
-    // finalizing objects referred to by static variables.
-    FC_RETURN_BOOL(g_fEEShutDown & ShutDown_Finalize2);
-}
-FCIMPLEND
 
 // FailFast is supported in BCL.small as internal to support failing fast in places where EEE used to be thrown.
 //
@@ -379,7 +381,6 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }CONTRACTL_END;
 
     struct
@@ -481,7 +482,6 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
     // skip this, if required.
     if (IsWatsonEnabled())
     {
-        BEGIN_SO_INTOLERANT_CODE(pThread);
         if ((gc.refExceptionForWatsonBucketing == NULL) || !SetupWatsonBucketsForFailFast(gc.refExceptionForWatsonBucketing))
         {
             PTR_EHWatsonBucketTracker pUEWatsonBucketTracker = pThread->GetExceptionState()->GetUEWatsonBucketTracker();
@@ -493,7 +493,6 @@ void SystemNative::GenericFailFast(STRINGREF refMesgString, EXCEPTIONREF refExce
                 pUEWatsonBucketTracker->ClearWatsonBucketDetails();
             }
         }
-        END_SO_INTOLERANT_CODE;
     }
 #endif // !FEATURE_PAL
 

@@ -55,7 +55,7 @@ public: // IDispatch
                 for (int j = 1; j < NamesCount; ++j)
                 {
                     const WCHAR *nameMaybe = Names[j];
-                    if (::wcscmp(name, nameMaybe) == 0)
+                    if (::TP_wcmp_s(name, nameMaybe) == 0)
                     {
                         *curr = DISPID{ j };
                         break;
@@ -107,6 +107,10 @@ public: // IDispatch
             case 5:
             {
                 return DoubleHVAValues_Proxy(pDispParams, pVarResult);
+            }
+            case 6:
+            {
+                return PassThroughLCID_Proxy(lcid, pVarResult);
             }
             }
 
@@ -410,12 +414,19 @@ private:
         return DoubleHVAValues(args[0], (HFA_4*)&pVarResult->pvRecord);
     }
 
+    HRESULT PassThroughLCID_Proxy(_In_ LCID lcid, _Inout_ VARIANT* pVarResult)
+    {
+        V_VT(pVarResult) = VT_I4;
+        V_I4(pVarResult) = lcid;
+        return S_OK;
+    }
+
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface<DispatchTesting, IDispatch, IDispatchTesting>(this, riid, ppvObject);
+        return DoQueryInterface(riid, ppvObject, static_cast<IDispatch *>(this), static_cast<IDispatchTesting *>(this));
     }
 
     DEFINE_REF_COUNTING();
@@ -428,7 +439,8 @@ const WCHAR * const DispatchTesting::Names[] =
     W("Add_Float_ReturnAndUpdateByRef"),
     W("Add_Double_ReturnAndUpdateByRef"),
     W("TriggerException"),
-    W("DoubleHVAValues")
+    W("DoubleHVAValues"),
+    W("PassThroughLCID")
 };
 
 const int DispatchTesting::NamesCount = ARRAYSIZE(DispatchTesting::Names);

@@ -32,14 +32,8 @@
 #include "typestring.h"
 #include "sigbuilder.h"
 
-#ifdef _MSC_VER
-#pragma warning(push)
-#pragma warning(disable:4244)
-#endif // _MSC_VER
-
 #define MAX_SIZE_FOR_VALUECLASS_IN_ARRAY 0xffff
 #define MAX_PTRS_FOR_VALUECLASSS_IN_ARRAY 0xffff
-
 
 /*****************************************************************************************/
 LPCUTF8 ArrayMethodDesc::GetMethodName()
@@ -430,12 +424,12 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         pClass->SetMethodTable (pMT);
 
         // Fill In the method table
-        pClass->SetNumMethods(numVirtuals + numNonVirtualSlots);
+        pClass->SetNumMethods(static_cast<WORD>(numVirtuals + numNonVirtualSlots));
 
-        pClass->SetNumNonVirtualSlots(numNonVirtualSlots);
+        pClass->SetNumNonVirtualSlots(static_cast<WORD>(numNonVirtualSlots));
     }
 
-    pMT->SetNumVirtuals(numVirtuals);
+    pMT->SetNumVirtuals(static_cast<WORD>(numVirtuals));
 
     pMT->SetParentMethodTable(pParentClass);
 
@@ -543,8 +537,11 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         if (!canShareVtableChunks)
         {
             // Copy top level class's vtable - note, vtable is contained within the MethodTable
+            MethodTable::MethodDataWrapper hParentMTData(MethodTable::GetMethodData(pParentClass, FALSE));
             for (UINT32 i = 0; i < numVirtuals; i++)
-                pMT->SetSlot(i, pParentClass->GetSlot(i));
+            {
+                pMT->CopySlotFrom(i, hParentMTData, pParentClass);
+            }
         }
 
         if (pClass != NULL)
@@ -738,7 +735,7 @@ MethodTable* Module::CreateArrayMethodTable(TypeHandle elemTypeHnd, CorElementTy
         CGCDesc::GetCGCDescFromMT(pMT)->InitValueClassSeries(pMT, 1);
         pSeries = CGCDesc::GetCGCDescFromMT(pMT)->GetHighestSeries();
         pSeries->SetSeriesOffset(ArrayBase::GetDataPtrOffset(pMT));
-        pSeries->val_serie[0].set_val_serie_item (0, pMT->GetComponentSize());
+        pSeries->val_serie[0].set_val_serie_item (0, static_cast<HALF_SIZE_T>(pMT->GetComponentSize()));
     }
 #endif
 
@@ -778,7 +775,6 @@ public:
         BOOL fHasLowerBounds = pMT->GetInternalCorElementType() == ELEMENT_TYPE_ARRAY;
 
         DWORD dwTotalLocalNum = NewLocal(ELEMENT_TYPE_I4);
-        DWORD dwFactorLocalNum = NewLocal(ELEMENT_TYPE_I4);
         DWORD dwLengthLocalNum = NewLocal(ELEMENT_TYPE_I4);
 
         mdToken tokRawData = GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
@@ -790,16 +786,13 @@ public:
         ILCodeLabel * pTypeMismatchExceptionLabel = NULL;
 
         UINT rank = pMT->GetRank();
-        UINT idx = rank;
         UINT firstIdx = 0;
         UINT hiddenArgIdx = rank;
         _ASSERTE(rank>0);
 
-		
 #ifndef _TARGET_X86_
         if(m_pMD->GetArrayFuncIndex() == ArrayMethodDesc::ARRAY_FUNC_ADDRESS)
         {
-            idx++;
             firstIdx = 1;
             hiddenArgIdx = 0;
         }
@@ -900,30 +893,30 @@ public:
             m_pCode->EmitLDFLDA(tokRawData);
             m_pCode->EmitLDC(ArrayBase::GetBoundsOffset(pMT) - Object::GetOffsetOfFirstField());
             m_pCode->EmitADD();
-            m_pCode->EmitLDARG(firstIdx);          
+            m_pCode->EmitLDARG(firstIdx);
             m_pCode->EmitBR(pCheckDone);
             m_pCode->EmitLabel(pNotSZArray);
         }
 
-        while(idx-- > firstIdx)
+        for (UINT i = 0; i < rank; i++)
         {
             // Cache length
             m_pCode->EmitLoadThis();
             m_pCode->EmitLDFLDA(tokRawData);
-            m_pCode->EmitLDC((ArrayBase::GetBoundsOffset(pMT) - Object::GetOffsetOfFirstField()) + (idx-firstIdx)*sizeof(DWORD));
+            m_pCode->EmitLDC((ArrayBase::GetBoundsOffset(pMT) - Object::GetOffsetOfFirstField()) + i*sizeof(DWORD));
             m_pCode->EmitADD();
             m_pCode->EmitLDIND_I4();
             m_pCode->EmitSTLOC(dwLengthLocalNum);
 
             // Fetch index
-            m_pCode->EmitLDARG(idx);
+            m_pCode->EmitLDARG(firstIdx + i);
 
             if (fHasLowerBounds)
             {
                 // Load lower bound
                 m_pCode->EmitLoadThis();
                 m_pCode->EmitLDFLDA(tokRawData);
-                m_pCode->EmitLDC((ArrayBase::GetLowerBoundsOffset(pMT) - Object::GetOffsetOfFirstField()) + (idx-firstIdx)*sizeof(DWORD));
+                m_pCode->EmitLDC((ArrayBase::GetLowerBoundsOffset(pMT) - Object::GetOffsetOfFirstField()) + i*sizeof(DWORD));
                 m_pCode->EmitADD();
                 m_pCode->EmitLDIND_I4();
 
@@ -937,26 +930,14 @@ public:
             m_pCode->EmitBGE_UN(pRangeExceptionLabel1);
 
             // Add to the running total if we have one already
-            if ((idx-firstIdx) != (rank - 1))
+            if (i > 0)
             {
-                m_pCode->EmitLDLOC(dwFactorLocalNum);
-                m_pCode->EmitMUL();
                 m_pCode->EmitLDLOC(dwTotalLocalNum);
+                m_pCode->EmitLDLOC(dwLengthLocalNum);
+                m_pCode->EmitMUL();
                 m_pCode->EmitADD();
             }
             m_pCode->EmitSTLOC(dwTotalLocalNum);
-
-            // Update factor if this is not the last iteration
-            if ((idx-firstIdx) != 0)
-            {
-                m_pCode->EmitLDLOC(dwLengthLocalNum);
-                if ((idx-firstIdx) != (rank - 1))
-                {
-                    m_pCode->EmitLDLOC(dwFactorLocalNum);
-                    m_pCode->EmitMUL();
-                }
-                m_pCode->EmitSTLOC(dwFactorLocalNum);                
-            }
         }
 
         // Compute element address
@@ -965,9 +946,11 @@ public:
         m_pCode->EmitLDC(ArrayBase::GetDataPtrOffset(pMT) - Object::GetOffsetOfFirstField());
         m_pCode->EmitADD();
         m_pCode->EmitLDLOC(dwTotalLocalNum);
-        
+
         m_pCode->EmitLabel(pCheckDone);
-        
+
+        m_pCode->EmitCONV_U();
+
         SIZE_T elemSize = pMT->GetComponentSize();
         if (elemSize != 1)
         {
@@ -1292,7 +1275,6 @@ void ArrayStubCache::CompileStub(const BYTE *pRawStub,
 UINT ArrayStubCache::Length(const BYTE *pRawStub)
 {
     LIMITED_METHOD_CONTRACT;
-    STATIC_CONTRACT_SO_TOLERANT;
     return ((ArrayOpScript*)pRawStub)->Length();
 }
 
@@ -1421,7 +1403,27 @@ MethodDesc* GetActualImplementationForArrayGenericIListOrIReadOnlyListMethod(Met
 }
 #endif // DACCESS_COMPILE
 
-#ifdef _MSC_VER
-#pragma warning(pop)
-#pragma warning(disable:4244)
-#endif // _MSC_VER: warning C4244
+CorElementType GetNormalizedIntegralArrayElementType(CorElementType elementType)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    _ASSERTE(CorTypeInfo::IsPrimitiveType_NoThrow(elementType));
+
+    // Array Primitive types such as E_T_I4 and E_T_U4 are interchangeable
+    // Enums with interchangeable underlying types are interchangable
+    // BOOL is NOT interchangeable with I1/U1, neither CHAR -- with I2/U2
+
+    switch (elementType)
+    {
+    case ELEMENT_TYPE_U1:
+    case ELEMENT_TYPE_U2:
+    case ELEMENT_TYPE_U4:
+    case ELEMENT_TYPE_U8:
+    case ELEMENT_TYPE_U:
+        return (CorElementType)(elementType - 1); // normalize to signed type
+    default:
+        break;
+    }
+
+    return elementType;
+}

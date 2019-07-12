@@ -118,18 +118,18 @@ void Attribute::SetManagedValue(CustomAttributeManagedValues gc, CustomAttribute
 
     if (type == SERIALIZATION_TYPE_TYPE || type == SERIALIZATION_TYPE_STRING)
     {
-        SetObjectReference((OBJECTREF*)&pValue->m_enumOrTypeName, gc.string, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&pValue->m_enumOrTypeName, gc.string);
     }
     else if (type == SERIALIZATION_TYPE_ENUM)
     {
-        SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string);
     }
     else if (type == SERIALIZATION_TYPE_SZARRAY)
     {
-        SetObjectReference((OBJECTREF*)&pValue->m_value, gc.array, GetAppDomain());
+        SetObjectReference((OBJECTREF*)&pValue->m_value, gc.array);
         
         if (pValue->m_type.m_arrayType == SERIALIZATION_TYPE_ENUM)
-            SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string, GetAppDomain());
+            SetObjectReference((OBJECTREF*)&pValue->m_type.m_enumName, gc.string);
     }   
 }
 
@@ -170,7 +170,7 @@ CustomAttributeManagedValues Attribute::GetManagedCaValue(CaValue* pCaVal)
 
             if (length != (ULONG)-1)
             {
-                gc.array = (CaValueArrayREF)AllocateValueSzArray(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT), length);
+                gc.array = (CaValueArrayREF)AllocateSzArray(TypeHandle(MscorlibBinder::GetClass(CLASS__CUSTOM_ATTRIBUTE_ENCODED_ARGUMENT)).MakeSZArray(), length);
                 CustomAttributeValue* pValues = gc.array->GetDirectPointerToNonObjectElements();
 
                 for (COUNT_T i = 0; i < length; i ++)
@@ -768,7 +768,7 @@ FCIMPL6(LPVOID, COMCustomAttribute::CreateCaObject, ReflectModuleBaseObject* pAt
         memset((void*)argToProtect, 0, cArgs * sizeof(OBJECTREF));
 
         // load the this pointer
-        argToProtect[0] = pCtorMD->GetMethodTable()->Allocate(); // this is the value to return after the ctor invocation
+        argToProtect[0] = gc.refCaType->GetType().GetMethodTable()->Allocate(); // this is the value to return after the ctor invocation
 
         if (pBlob) 
         {
@@ -866,7 +866,6 @@ FCIMPL5(VOID, COMCustomAttribute::ParseAttributeUsageAttribute, PVOID pData, ULO
     int inherited = 0;
     int allowMultiple = 1;    
         
-    BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), FCThrowVoid(kStackOverflowException));
     {
         CustomAttributeParser ca(pData, cData);
         
@@ -897,7 +896,6 @@ FCIMPL5(VOID, COMCustomAttribute::ParseAttributeUsageAttribute, PVOID pData, ULO
         *pInherited = namedArgs[inherited].val.boolean == TRUE;
         *pAllowMultiple = namedArgs[allowMultiple].val.boolean == TRUE;
     }
-    END_SO_INTOLERANT_CODE;    
 }
 FCIMPLEND
 
@@ -1312,7 +1310,7 @@ void COMCustomAttribute::ReadArray(Assembly *pCtorAssembly,
         TypeHandle arrayHandle = ClassLoader::LoadArrayTypeThrowing(th);
         if (arrayHandle.IsNull()) 
             goto badBlob;
-        *pArray = (BASEARRAYREF)AllocateArrayEx(arrayHandle, &bounds, 1);
+        *pArray = (BASEARRAYREF)AllocateSzArray(arrayHandle, bounds);
         BOOL fSuccess;
         switch (elementSize)
         {

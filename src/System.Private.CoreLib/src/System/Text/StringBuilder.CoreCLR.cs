@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+
 namespace System.Text
 {
     public partial class StringBuilder
@@ -38,7 +40,7 @@ namespace System.Text
             m_ChunkOffset = 0;
         }
 
-        internal void ReplaceBufferUtf8Internal(Span<byte> source)
+        internal void ReplaceBufferUtf8Internal(ReadOnlySpan<byte> source)
         {
             if (source.Length > m_MaxCapacity)
                 throw new ArgumentOutOfRangeException("capacity", SR.ArgumentOutOfRange_Capacity);
@@ -113,7 +115,7 @@ namespace System.Text
 
             bool isLastChunk = true;
             byte* dstPtr = (byte*)dest.ToPointer();
-            StringBuilder currentSrc = FindChunkForByte(len);
+            StringBuilder? currentSrc = FindChunkForByte(len);
 
             do
             {
@@ -132,6 +134,7 @@ namespace System.Text
                         Buffer.Memcpy(dstPtr + chunkOffsetInBytes, srcPtr, chunkLengthInBytes);
                     }
                 }
+
                 currentSrc = currentSrc.m_ChunkPrevious;
             }
             while (currentSrc != null);

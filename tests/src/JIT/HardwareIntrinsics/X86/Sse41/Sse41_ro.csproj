@@ -78,22 +78,6 @@
     <Compile Include="RoundToZero.Single.cs" />
     <Compile Include="RoundToZeroScalar.Double.cs" />
     <Compile Include="RoundToZeroScalar.Single.cs" />
-    <Compile Include="TestAllOnes.Byte.cs" />
-    <Compile Include="TestAllOnes.Int16.cs" />
-    <Compile Include="TestAllOnes.Int32.cs" />
-    <Compile Include="TestAllOnes.Int64.cs" />
-    <Compile Include="TestAllOnes.SByte.cs" />
-    <Compile Include="TestAllOnes.UInt16.cs" />
-    <Compile Include="TestAllOnes.UInt32.cs" />
-    <Compile Include="TestAllOnes.UInt64.cs" />
-    <Compile Include="TestAllZeros.Byte.cs" />
-    <Compile Include="TestAllZeros.Int16.cs" />
-    <Compile Include="TestAllZeros.Int32.cs" />
-    <Compile Include="TestAllZeros.Int64.cs" />
-    <Compile Include="TestAllZeros.SByte.cs" />
-    <Compile Include="TestAllZeros.UInt16.cs" />
-    <Compile Include="TestAllZeros.UInt32.cs" />
-    <Compile Include="TestAllZeros.UInt64.cs" />
     <Compile Include="TestC.Byte.cs" />
     <Compile Include="TestC.Int16.cs" />
     <Compile Include="TestC.Int32.cs" />
@@ -102,14 +86,6 @@
     <Compile Include="TestC.UInt16.cs" />
     <Compile Include="TestC.UInt32.cs" />
     <Compile Include="TestC.UInt64.cs" />
-    <Compile Include="TestMixOnesZeros.Byte.cs" />
-    <Compile Include="TestMixOnesZeros.Int16.cs" />
-    <Compile Include="TestMixOnesZeros.Int32.cs" />
-    <Compile Include="TestMixOnesZeros.Int64.cs" />
-    <Compile Include="TestMixOnesZeros.SByte.cs" />
-    <Compile Include="TestMixOnesZeros.UInt16.cs" />
-    <Compile Include="TestMixOnesZeros.UInt32.cs" />
-    <Compile Include="TestMixOnesZeros.UInt64.cs" />
     <Compile Include="TestNotZAndNotC.Byte.cs" />
     <Compile Include="TestNotZAndNotC.Int16.cs" />
     <Compile Include="TestNotZAndNotC.Int32.cs" />
@@ -155,14 +131,9 @@
     <Compile Include="Insert.Single.129.cs" />	
     <Compile Include="Insert.Single.192.cs" />
     <Compile Include="Program.Sse41.cs" />
-    <Compile Include="..\Shared\BooleanUnOpTest_DataTable.cs" />
-    <Compile Include="..\Shared\BooleanBinOpTest_DataTable.cs" />
-    <Compile Include="..\Shared\BooleanTwoCmpOpTest_DataTable.cs" />
-    <Compile Include="..\Shared\HorizontalBinOpTest_DataTable.cs" />
     <Compile Include="..\Shared\Program.cs" />
-    <Compile Include="..\Shared\SimpleUnOpTest_DataTable.cs" />
     <Compile Include="..\Shared\SimpleBinOpTest_DataTable.cs" />
-    <Compile Include="..\Shared\SimpleTernOpTest_DataTable.cs" />
+    <Compile Include="..\Shared\SimpleUnOpTest_DataTable.cs" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <PropertyGroup Condition=" '$(MsBuildProjectDirOverride)' != '' "></PropertyGroup>

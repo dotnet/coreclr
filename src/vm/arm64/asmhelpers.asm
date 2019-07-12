@@ -11,12 +11,14 @@
 #include "asmconstants.h"
 #include "asmmacros.h"
 
+#ifdef FEATURE_PREJIT
     IMPORT VirtualMethodFixupWorker
+    IMPORT StubDispatchFixupWorker
+#endif
     IMPORT ExternalMethodFixupWorker
     IMPORT PreStubWorker
     IMPORT NDirectImportWorker
     IMPORT VSD_ResolveWorker
-    IMPORT StubDispatchFixupWorker
     IMPORT JIT_InternalThrow
     IMPORT ComPreStubWorker
     IMPORT COMToCLRWorker
@@ -24,7 +26,6 @@
     IMPORT UMEntryPrestubUnwindFrameChainHandler
     IMPORT UMThunkStubUnwindFrameChainHandler
     IMPORT TheUMEntryPrestubWorker
-    IMPORT GetThread
     IMPORT CreateThreadBlockThrow
     IMPORT UMThunkStubRareDisableWorker
     IMPORT GetCurrentSavedRedirectContext
@@ -36,9 +37,13 @@
 #endif
 
     IMPORT ObjIsInstanceOfNoGC
-    IMPORT ArrayStoreCheck	
+    IMPORT ArrayStoreCheck
     SETALIAS g_pObjectClass,  ?g_pObjectClass@@3PEAVMethodTable@@EA 
     IMPORT  $g_pObjectClass
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+    IMPORT  g_sw_ww_table
+#endif
 
     IMPORT  g_ephemeral_low
     IMPORT  g_ephemeral_high
@@ -184,18 +189,18 @@ Done
 ; The call in ndirect import precode points to this function.
         NESTED_ENTRY NDirectImportThunk
 
-        PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
+        PROLOG_SAVE_REG_PAIR           fp, lr, #-224!
         SAVE_ARGUMENT_REGISTERS        sp, 16
-        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88 
+        SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96 
 
         mov     x0, x12
         bl      NDirectImportWorker
         mov     x12, x0
 
         ; pop the stack and restore original register state
-        RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
+        RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
         RESTORE_ARGUMENT_REGISTERS        sp, 16
-        EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
+        EPILOG_RESTORE_REG_PAIR           fp, lr, #224!
 
         ; If we got back from NDirectImportWorker, the MD has been successfully
         ; linked. Proceed to execute the original DLL call.
@@ -276,6 +281,108 @@ ThePreStubPatchLabel
 
     MEND
 
+; ------------------------------------------------------------------
+; Start of the writeable code region
+    LEAF_ENTRY JIT_PatchedCodeStart
+        ret      lr
+    LEAF_END
+
+;-----------------------------------------------------------------------------
+; void JIT_UpdateWriteBarrierState(bool skipEphemeralCheck)
+;
+; Update shadow copies of the various state info required for barrier
+;
+; State info is contained in a literal pool at the end of the function
+; Placed in text section so that it is close enough to use ldr literal and still
+; be relocatable. Eliminates need for PREPARE_EXTERNAL_VAR in hot code.
+;
+; Align and group state info together so it fits in a single cache line
+; and each entry can be written atomically
+;
+    WRITE_BARRIER_ENTRY JIT_UpdateWriteBarrierState
+        PROLOG_SAVE_REG_PAIR   fp, lr, #-16!
+
+        ; x0-x7 will contain intended new state
+        ; x8 will preserve skipEphemeralCheck
+        ; x12 will be used for pointers
+
+        mov      x8, x0
+
+        adrp     x12, g_card_table
+        ldr      x0, [x12, g_card_table]
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+        adrp     x12, g_card_bundle_table
+        ldr      x1, [x12, g_card_bundle_table]
+#endif
+
+#ifdef WRITE_BARRIER_CHECK
+        adrp     x12, $g_GCShadow
+        ldr      x2, [x12, $g_GCShadow]
+#endif
+
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        adrp     x12, g_sw_ww_table
+        ldr      x3, [x12, g_sw_ww_table]
+#endif
+
+        adrp     x12, g_ephemeral_low
+        ldr      x4, [x12, g_ephemeral_low]
+
+        adrp     x12, g_ephemeral_high
+        ldr      x5, [x12, g_ephemeral_high]
+
+        ; Check skipEphemeralCheck
+        cbz      x8, EphemeralCheckEnabled
+        movz     x4, #0
+        movn     x5, #0
+
+EphemeralCheckEnabled
+        adrp     x12, g_lowest_address
+        ldr      x6, [x12, g_lowest_address]
+
+        adrp     x12, g_highest_address
+        ldr      x7, [x12, g_highest_address]
+
+        ; Update wbs state
+        adr      x12, wbs_begin
+        stp      x0, x1, [x12], 16
+        stp      x2, x3, [x12], 16
+        stp      x4, x5, [x12], 16
+        stp      x6, x7, [x12], 16
+
+        EPILOG_RESTORE_REG_PAIR fp, lr, #16!
+        EPILOG_RETURN
+
+        ; Begin patchable literal pool
+        ALIGN 64  ; Align to power of two at least as big as patchable literal pool so that it fits optimally in cache line
+
+wbs_begin
+wbs_card_table
+        DCQ 0
+wbs_card_bundle_table
+        DCQ 0
+wbs_GCShadow
+        DCQ 0
+wbs_sw_ww_table
+        DCQ 0
+wbs_ephemeral_low
+        DCQ 0
+wbs_ephemeral_high
+        DCQ 0
+wbs_lowest_address
+        DCQ 0
+wbs_highest_address
+        DCQ 0
+
+    WRITE_BARRIER_END JIT_UpdateWriteBarrierState
+
+; ------------------------------------------------------------------
+; End of the writeable code region
+    LEAF_ENTRY JIT_PatchedCodeLast
+        ret      lr
+    LEAF_END
+
 ; void JIT_ByRefWriteBarrier
 ; On entry:
 ;   x13  : the source address (points to object reference to write)
@@ -286,6 +393,7 @@ ThePreStubPatchLabel
 ;   x13  : incremented by 8
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_ByRefWriteBarrier
 
@@ -305,17 +413,15 @@ ThePreStubPatchLabel
 ;   x12  : trashed
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_CheckedWriteBarrier
-        adrp     x12,  g_lowest_address
-        ldr      x12,  [x12, g_lowest_address]
+        ldr      x12,  wbs_lowest_address
         cmp      x14,  x12
-        blt      NotInHeap
 
-        adrp      x12, g_highest_address 
-        ldr      x12, [x12, g_highest_address] 
-        cmp      x14, x12
-        blt      JIT_WriteBarrier
+        ldr      x12,  wbs_highest_address
+        ccmphs   x14,  x12, #0x2
+        blo      JIT_WriteBarrier
 
 NotInHeap
         str      x15, [x14], 8
@@ -331,30 +437,32 @@ NotInHeap
 ;   x12  : trashed
 ;   x14  : incremented by 8
 ;   x15  : trashed
+;   x17  : trashed (ip1) if FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
 ;
     WRITE_BARRIER_ENTRY JIT_WriteBarrier
         stlr     x15, [x14]
 
 #ifdef WRITE_BARRIER_CHECK
-        ; Update GC Shadow Heap  
+        ; Update GC Shadow Heap 
 
-        ; need temporary registers. Save them before using. 
-        stp      x12, x13, [sp, #-16]!
+        ; Do not perform the work if g_GCShadow is 0
+        ldr      x12, wbs_GCShadow
+        cbz      x12, ShadowUpdateDisabled 
+
+        ; need temporary register. Save before using.
+        str      x13, [sp, #-16]!
 
         ; Compute address of shadow heap location:
         ;   pShadow = $g_GCShadow + (x14 - g_lowest_address)
-        adrp     x12, g_lowest_address
-        ldr      x12, [x12, g_lowest_address]
-        sub      x12, x14, x12
-        adrp     x13, $g_GCShadow
-        ldr      x13, [x13, $g_GCShadow]
+        ldr      x13, wbs_lowest_address
+        sub      x13, x14, x13
         add      x12, x13, x12
 
         ; if (pShadow >= $g_GCShadowEnd) goto end
         adrp     x13, $g_GCShadowEnd
         ldr      x13, [x13, $g_GCShadowEnd]
         cmp      x12, x13
-        bhs      shadowupdateend
+        bhs      ShadowUpdateEnd
 
         ; *pShadow = x15
         str      x15, [x12]
@@ -366,58 +474,67 @@ NotInHeap
         ; if ([x14] == x15) goto end
         ldr      x13, [x14]
         cmp      x13, x15
-        beq shadowupdateend
+        beq ShadowUpdateEnd
 
-        ; *pShadow = INVALIDGCVALUE (0xcccccccd)        
-        mov      x13, #0
-        movk     x13, #0xcccd
+        ; *pShadow = INVALIDGCVALUE (0xcccccccd)
+        movz     x13, #0xcccd
         movk     x13, #0xcccc, LSL #16
         str      x13, [x12]
 
-shadowupdateend
-        ldp      x12, x13, [sp],#16        
+ShadowUpdateEnd
+        ldr      x13, [sp], #16
+ShadowUpdateDisabled
 #endif
 
+#ifdef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
+        ; Update the write watch table if necessary
+        ldr      x12,  wbs_sw_ww_table
+        cbz      x12,  CheckCardTable
+        add      x12,  x12, x14, LSR #0xC  // SoftwareWriteWatch::AddressToTableByteIndexShift
+        ldrb     w17,  [x12]
+        cbnz     x17,  CheckCardTable
+        mov      w17,  0xFF
+        strb     w17,  [x12]
+#endif
+
+CheckCardTable
         ; Branch to Exit if the reference is not in the Gen0 heap
         ;
-        adrp     x12,  g_ephemeral_low
-        ldr      x12,  [x12, g_ephemeral_low]
+        adr      x12,  wbs_ephemeral_low
+        ldp      x12,  x16, [x12]
+        cbz      x12,  SkipEphemeralCheck
+
         cmp      x15,  x12
         blo      Exit
 
-        adrp     x12, g_ephemeral_high 
-        ldr      x12, [x12, g_ephemeral_high]
-        cmp      x15,  x12
+        cmp      x15,  x16
         bhi      Exit
 
-        ; Check if we need to update the card table        
-        adrp     x12, g_card_table
-        ldr      x12, [x12, g_card_table]
-        add      x15,  x12, x14 lsr #11
-        ldrb     w12, [x15]
-        cmp      x12, 0xFF
+SkipEphemeralCheck
+        ; Check if we need to update the card table
+        ldr      x12, wbs_card_table
+
+        ; x15 := offset within card table
+        lsr      x15, x14, #11
+
+        ldrb     w16, [x12, x15]
+        cmp      w16, 0xFF
         beq      Exit
 
 UpdateCardTable
-        mov      x12, 0xFF 
-        strb     w12, [x15]
+        mov      x16, 0xFF
+        strb     w16, [x12, x15]
+
+#ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
+#error Need to implement for ARM64
+#endif
+
 Exit
         add      x14, x14, 8
-        ret      lr          
+        ret      lr
     WRITE_BARRIER_END JIT_WriteBarrier
 
-; ------------------------------------------------------------------
-; Start of the writeable code region
-    LEAF_ENTRY JIT_PatchedCodeStart
-        ret      lr
-    LEAF_END
-
-; ------------------------------------------------------------------
-; End of the writeable code region
-    LEAF_ENTRY JIT_PatchedCodeLast
-        ret      lr
-    LEAF_END
-
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; VirtualMethodFixupStub
 ;
@@ -437,9 +554,9 @@ Exit
     NESTED_ENTRY VirtualMethodFixupStub
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-224!
     SAVE_ARGUMENT_REGISTERS        sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88 
+    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96 
 
     ; Refer to ZapImportVirtualThunk::Save
     ; for details on this.
@@ -456,8 +573,8 @@ Exit
 
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
+    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #224!
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
@@ -465,6 +582,8 @@ Exit
     EPILOG_BRANCH_REG x12
 
     NESTED_END
+#endif // FEATURE_PREJIT
+
 ;------------------------------------------------
 ; ExternalMethodFixupStub
 ;
@@ -538,6 +657,7 @@ LNoFloatRetVal
         ret
 LNoDoubleRetVal
 
+        ;; Float HFA return case
         cmp     w0, #16
         bne     LNoFloatHFARetVal
         ldp     s0, s1, [x1]
@@ -545,12 +665,21 @@ LNoDoubleRetVal
         ret
 LNoFloatHFARetVal
 
+        ;;Double HFA return case
         cmp     w0, #32
         bne     LNoDoubleHFARetVal
         ldp     d0, d1, [x1]
         ldp     d2, d3, [x1, #16]
         ret
 LNoDoubleHFARetVal
+
+        ;;Vector HVA return case
+        cmp     w3, #64
+        bne     LNoVectorHVARetVal
+        ldp     q0, q1, [x1]
+        ldp     q2, q3, [x1, #32]
+        ret
+LNoVectorHVARetVal
 
         EMIT_BREAKPOINT ; Unreachable
 
@@ -577,7 +706,7 @@ NoFloatingPointRetVal
 ;
     NESTED_ENTRY GenericComPlusCallStub
 
-        PROLOG_WITH_TRANSITION_BLOCK 0x20
+        PROLOG_WITH_TRANSITION_BLOCK ASM_ENREGISTERED_RETURNTYPE_MAXSIZE
 
         add         x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov         x1, x12                         ; pMethodDesc
@@ -591,8 +720,8 @@ NoFloatingPointRetVal
 
         ; x0 = fpRetSize
 
-        ; return value is stored before float argument registers
-        add         x1, sp, #(__PWTB_FloatArgumentRegisters - 0x20)
+        ; The return value is stored before float argument registers
+        add         x1, sp, #(__PWTB_FloatArgumentRegisters - ASM_ENREGISTERED_RETURNTYPE_MAXSIZE)
         bl          setStubReturnValue
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
@@ -761,7 +890,10 @@ COMToCLRDispatchHelper_StackLoop
     
 COMToCLRDispatchHelper_RegSetup
 
-    RESTORE_FLOAT_ARGUMENT_REGISTERS x1, -1 * GenericComCallStub_FrameOffset
+    ; We need an aligned offset for restoring float args, so do the subtraction into
+    ; a scratch register
+    sub     x5, x1, GenericComCallStub_FrameOffset
+    RESTORE_FLOAT_ARGUMENT_REGISTERS x5, 0
 
     mov lr, x2
     mov x12, x3
@@ -791,9 +923,9 @@ COMToCLRDispatchHelper_RegSetup
     NESTED_ENTRY TheUMEntryPrestub,,UMEntryPrestubUnwindFrameChainHandler
 
     ; Save arguments and return address
-    PROLOG_SAVE_REG_PAIR           fp, lr, #-160!
+    PROLOG_SAVE_REG_PAIR           fp, lr, #-224!
     SAVE_ARGUMENT_REGISTERS        sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 88
+    SAVE_FLOAT_ARGUMENT_REGISTERS  sp, 96
 
     mov x0, x12
     bl  TheUMEntryPrestubWorker
@@ -803,8 +935,8 @@ COMToCLRDispatchHelper_RegSetup
 
     ; pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS        sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 88
-    EPILOG_RESTORE_REG_PAIR           fp, lr, #160!
+    RESTORE_FLOAT_ARGUMENT_REGISTERS  sp, 96
+    EPILOG_RESTORE_REG_PAIR           fp, lr, #224!
 
     ; and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -831,8 +963,8 @@ UMThunkStub_StackArgs SETA 112
     ; save UMEntryThunk*
     str                 x12, [sp, #UMThunkStub_HiddenArg]
 
-    ; assuming GetThread does not clobber FP Args
-    bl                  GetThread
+    ; x0 = GetThread(). Trashes x19
+    INLINE_GETTHREAD    x0, x19
     cbz                 x0, UMThunkStub_DoThreadSetup
 
 UMThunkStub_HaveThread
@@ -921,11 +1053,13 @@ UMThunkStub_DoTrapReturningThreads
 
     NESTED_END
 
+    INLINE_GETTHREAD_CONSTANT_POOL
+    
 #ifdef FEATURE_HIJACK
 ; ------------------------------------------------------------------
 ; Hijack function for functions which return a scalar type or a struct (value type)
     NESTED_ENTRY OnHijackTripThread
-    PROLOG_SAVE_REG_PAIR   fp, lr, #-144!
+    PROLOG_SAVE_REG_PAIR   fp, lr, #-176!
     ; Spill callee saved registers 
     PROLOG_SAVE_REG_PAIR   x19, x20, #16
     PROLOG_SAVE_REG_PAIR   x21, x22, #32
@@ -936,9 +1070,9 @@ UMThunkStub_DoTrapReturningThreads
     ; save any integral return value(s)
     stp x0, x1, [sp, #96]
 
-    ; save any FP/HFA return value(s)
-    stp d0, d1, [sp, #112]
-    stp d2, d3, [sp, #128]
+    ; save any FP/HFA/HVA return value(s)
+    stp q0, q1, [sp, #112]
+    stp q2, q3, [sp, #144]
 
     mov x0, sp
     bl OnHijackWorker
@@ -946,16 +1080,16 @@ UMThunkStub_DoTrapReturningThreads
     ; restore any integral return value(s)
     ldp x0, x1, [sp, #96]
 
-    ; restore any FP/HFA return value(s)
-    ldp d0, d1, [sp, #112]
-    ldp d2, d3, [sp, #128]
+    ; restore any FP/HFA/HVA return value(s)
+    ldp q0, q1, [sp, #112]
+    ldp q2, q3, [sp, #144]
 
     EPILOG_RESTORE_REG_PAIR   x19, x20, #16
     EPILOG_RESTORE_REG_PAIR   x21, x22, #32
     EPILOG_RESTORE_REG_PAIR   x23, x24, #48
     EPILOG_RESTORE_REG_PAIR   x25, x26, #64
     EPILOG_RESTORE_REG_PAIR   x27, x28, #80
-    EPILOG_RESTORE_REG_PAIR   fp, lr,   #144!
+    EPILOG_RESTORE_REG_PAIR   fp, lr,   #176!
     EPILOG_RETURN
     NESTED_END
 

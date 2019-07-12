@@ -44,10 +44,12 @@ struct VTableCallHolder;
 // Forward function declarations
 extern "C" void InContextTPQuickDispatchAsmStub();
 
+#ifdef FEATURE_PREJIT
 extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBlock, 
                                                  TADDR siteAddrForRegisterIndirect,
                                                  DWORD sectionIndex, 
                                                  Module * pModule);
+#endif
 
 extern "C" PCODE STDCALL VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
                                            TADDR siteAddrForRegisterIndirect,
@@ -278,7 +280,7 @@ public:
           cache_entry_rangeList(),
           vtable_rangeList(),
           parentDomain(NULL),
-          isCollectible(false),
+          m_loaderAllocator(NULL),
           m_initialReservedMemForHeaps(NULL),
           m_FreeIndCellList(NULL),
           m_RecycledIndCellList(NULL),
@@ -493,7 +495,8 @@ private:
     DispatchHolder *GenerateDispatchStub(PCODE addrOfCode,
                                          PCODE addrOfFail,
                                          void *pMTExpected,
-                                         size_t dispatchToken);
+                                         size_t dispatchToken,
+                                         bool *pMayHaveReenteredCooperativeGCMode);
 
 #ifdef _TARGET_AMD64_
     // Used to allocate a long jump dispatch stub. See comment around
@@ -501,7 +504,8 @@ private:
     DispatchHolder *GenerateDispatchStubLong(PCODE addrOfCode,
                                              PCODE addrOfFail,
                                              void *pMTExpected,
-                                             size_t dispatchToken);
+                                             size_t dispatchToken,
+                                             bool *pMayHaveReenteredCooperativeGCMode);
 #endif
 
     ResolveHolder *GenerateResolveStub(PCODE addrOfResolver,
@@ -516,7 +520,7 @@ private:
     template <typename STUB_HOLDER>
     void AddToCollectibleVSDRangeList(STUB_HOLDER *holder)
     {
-        if (isCollectible)
+        if (m_loaderAllocator->IsCollectible())
         {
             parentDomain->GetCollectibleVSDRanges()->AddRange(reinterpret_cast<BYTE *>(holder->stub()),
                 reinterpret_cast<BYTE *>(holder->stub()) + holder->stub()->size(),
@@ -527,7 +531,8 @@ private:
     // The resolve cache is static across all AppDomains
     ResolveCacheElem *GenerateResolveCacheElem(void *addrOfCode,
                                                void *pMTExpected,
-                                               size_t token);
+                                               size_t token,
+                                               bool *pMayHaveReenteredCooperativeGCMode);
 
     ResolveCacheElem *GetResolveCacheElem(void *pMT,
                                           size_t token,
@@ -639,7 +644,8 @@ private:
 private:
     // The parent domain of this manager
     PTR_BaseDomain  parentDomain;
-    bool            isCollectible;
+
+    PTR_LoaderAllocator m_loaderAllocator;
 
     BYTE *          m_initialReservedMemForHeaps;
 
@@ -1590,7 +1596,7 @@ private:
     //we store the used count in bucket[CALL_STUB_COUNT_INDEX==1],
     //we have an unused cell to use as a temp at bucket[CALL_STUB_DEAD_LINK==2],
     //and the table starts at bucket[CALL_STUB_FIRST_INDEX==3],
-    size_t contents[];
+    size_t contents[0];
 };
 #ifdef _MSC_VER 
 #pragma warning(pop)

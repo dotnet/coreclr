@@ -451,42 +451,18 @@ public:
         }
     }
 
-#ifndef DACCESS_COMPILE
     PTR_BYTE GetBase()
     {
         CONTRACTL
         {
-          THROWS;
-          GC_TRIGGERS;
-          INJECT_FAULT(COMPlusThrowOM());
+          NOTHROW;
+          GC_NOTRIGGER;
         }
         CONTRACTL_END
 
         MethodTable *pMT = GetEnclosingMethodTable();
 
         return GetBaseInDomainLocalModule(pMT->GetDomainLocalModule());
-    }
-
-#endif //!DACCESS_COMPILE
-
-    PTR_BYTE GetBaseInDomain(AppDomain * appDomain)
-    {
-        CONTRACTL
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-        }
-        CONTRACTL_END;
-
-        Module *pModule = GetEnclosingMethodTable()->GetModuleForStatics();
-        if (pModule == NULL)
-            return NULL;
-
-        DomainLocalModule *pLocalModule = pModule->GetDomainLocalModule(appDomain);
-        if (pLocalModule == NULL)
-            return NULL;
-
-        return GetBaseInDomainLocalModule(pLocalModule);
     }
 
     // returns the address of the field
@@ -521,7 +497,7 @@ public:
 
         GCPROTECT_BEGIN(objRef);
         OBJECTREF *pObjRef = (OBJECTREF *)GetCurrentStaticAddress();
-        SetObjectReference(pObjRef, objRef, GetAppDomain());
+        SetObjectReference(pObjRef, objRef);
         GCPROTECT_END();
     }
 
@@ -656,7 +632,6 @@ public:
           NOTHROW;
           GC_NOTRIGGER;
           MODE_ANY;
-          SO_TOLERANT;
         }
         CONTRACTL_END
 
@@ -706,7 +681,6 @@ public:
           NOTHROW;
           GC_NOTRIGGER;
           MODE_ANY;
-          SO_TOLERANT;
         }
         CONTRACTL_END
         
@@ -724,7 +698,6 @@ public:
           NOTHROW;
           GC_NOTRIGGER;
           MODE_ANY;
-          SO_TOLERANT;
         }
         CONTRACTL_END
 

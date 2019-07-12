@@ -31,8 +31,6 @@ PtrHashMap *PEImage::s_Images = NULL;
 CrstStatic  PEImage::s_ijwHashLock;
 PtrHashMap *PEImage::s_ijwFixupDataHash;
 
-extern LocaleID g_lcid; // fusion path comparison lcid
-
 /* static */
 void PEImage::Startup()
 {
@@ -41,7 +39,6 @@ void PEImage::Startup()
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
-        SO_TOLERANT;
         POSTCONDITION(CheckStartup());
         INJECT_FAULT(COMPlusThrowOM(););
     }
@@ -49,8 +46,6 @@ void PEImage::Startup()
 
     if (CheckStartup())
         RETURN;
-
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(COMPlusThrowSO());
 
     s_hashLock.Init(CrstPEImage, (CrstFlags)(CRST_REENTRANCY|CRST_TAKEN_DURING_SHUTDOWN));
     LockOwner lock = { &s_hashLock, IsOwnerOfCrst };
@@ -63,12 +58,6 @@ void PEImage::Startup()
     s_ijwFixupDataHash->Init(CompareIJWDataBase, FALSE, &ijwLock);
 
     PEImageLayout::Startup();
-#ifdef FEATURE_USE_LCID
-    g_lcid = MAKELCID(LOCALE_INVARIANT, SORT_DEFAULT);
-#else // FEATURE_USE_LCID
-    g_lcid = NULL; // invariant
-#endif //FEATURE_USE_LCID
-    END_SO_INTOLERANT_CODE;
 
     RETURN;
 }
@@ -127,6 +116,7 @@ CHECK PEImage::CheckILFormat()
         pLayoutToCheck = pLayoutHolder;
     }
 
+#ifdef FEATURE_PREJIT
     if (PEFile::ShouldTreatNIAsMSIL())
     {
         // This PEImage may intentionally be an NI image, being used as if it were an
@@ -136,6 +126,7 @@ CHECK PEImage::CheckILFormat()
         CHECK(pLayoutToCheck->CheckCORFormat());
     }
     else
+#endif
     {
         CHECK(pLayoutToCheck->CheckILFormat());
     }
@@ -346,18 +337,6 @@ CHECK PEImage::CheckCanonicalFullPath(const SString &path)
     CHECK_OK;
 }
 
-#ifdef FEATURE_USE_LCID
-LCID g_lcid =0; // fusion path comparison lcid
-#else
-LPCWSTR g_lcid=NULL;
-#endif
-/* static */
-LocaleID PEImage::GetFileSystemLocale()
-{
-    LIMITED_METHOD_CONTRACT;
-    return g_lcid;
-}
-
 BOOL PEImage::PathEquals(const SString &p1, const SString &p2)
 {
     CONTRACTL
@@ -371,7 +350,7 @@ BOOL PEImage::PathEquals(const SString &p1, const SString &p2)
 #ifdef FEATURE_CASE_SENSITIVE_FILESYSTEM
     return p1.Equals(p2);
 #else
-    return p1.EqualsCaseInsensitive(p2, g_lcid);
+    return p1.EqualsCaseInsensitive(p2);
 #endif
 }
 
@@ -454,13 +433,12 @@ IMDInternalImport* PEImage::GetMDImport()
     return m_pMDImport;
 }
 
-#ifdef FEATURE_PREJIT
 IMDInternalImport* PEImage::GetNativeMDImport(BOOL loadAllowed)
 {
     CONTRACTL
     {
         INSTANCE_CHECK;
-        PRECONDITION(HasNativeHeader());
+        PRECONDITION(HasNativeHeader() || HasReadyToRunHeader());
         if (loadAllowed) GC_TRIGGERS;                    else GC_NOTRIGGER;
         if (loadAllowed) THROWS;                         else NOTHROW;
         if (loadAllowed) INJECT_FAULT(COMPlusThrowOM()); else FORBID_FAULT;
@@ -485,7 +463,7 @@ void PEImage::OpenNativeMDImport()
     CONTRACTL
     {
         INSTANCE_CHECK;
-        PRECONDITION(HasNativeHeader());
+        PRECONDITION(HasNativeHeader() || HasReadyToRunHeader());
         GC_TRIGGERS;
         THROWS;
         MODE_ANY;
@@ -512,7 +490,6 @@ void PEImage::OpenNativeMDImport()
     }
     _ASSERTE(m_pNativeMDImport);
 }
-#endif
 
 void PEImage::OpenMDImport()
 {
@@ -677,6 +654,7 @@ void PEImage::VerifyIsILOrNIAssembly(BOOL fIL)
         ThrowFormat(COR_E_ASSEMBLYEXPECTED);
 
     CHECK checkGoodFormat;
+#ifdef FEATURE_PREJIT
     if (fIL)
     {
         checkGoodFormat = CheckILFormat();
@@ -685,6 +663,9 @@ void PEImage::VerifyIsILOrNIAssembly(BOOL fIL)
     {
         checkGoodFormat = CheckNativeFormat();
     }
+#else
+    checkGoodFormat = CheckILFormat();
+#endif
     if (!checkGoodFormat)
         ThrowFormat(COR_E_BADIMAGEFORMAT);
     
@@ -742,8 +723,6 @@ LoaderHeap *PEImage::IJWFixupData::GetThunkHeap()
         {
             size_t * pPrivatePCLBytes = NULL;
             size_t * pGlobalPCLBytes = NULL;
-
-            COUNTER_ONLY(pPrivatePCLBytes = &(GetPerfCounters().m_Loading.cbLoaderHeapSize));
 
             LoaderHeap *pNewHeap = new LoaderHeap(VIRTUAL_ALLOC_RESERVE_GRANULARITY, // DWORD dwReserveBlockSize
                 0,                                 // DWORD dwCommitBlockSize
@@ -954,7 +933,6 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 PEImage::PEImage():
     m_refCount(1),
     m_bIsTrustedNativeImage(FALSE),
-    m_bIsNativeImageInstall(FALSE),
     m_bPassiveDomainOnly(FALSE),
     m_bInHashMap(FALSE),
 #ifdef METADATATRACKER_DATA
@@ -994,7 +972,6 @@ PTR_PEImageLayout PEImage::GetLayout(DWORD imageLayoutMask,DWORD flags)
     PTR_PEImageLayout pRetVal;
 
 #ifndef DACCESS_COMPILE
-    BEGIN_SO_INTOLERANT_CODE(GetThread());
     // First attempt to find an existing layout matching imageLayoutMask.  If that fails,
     // and the caller has asked us to create layouts if needed, then try again passing
     // the create flag to GetLayoutInternal.  We need this to be synchronized, but the common
@@ -1010,8 +987,7 @@ PTR_PEImageLayout PEImage::GetLayout(DWORD imageLayoutMask,DWORD flags)
         SimpleWriteLockHolder lock(m_pLayoutLock);
         pRetVal = GetLayoutInternal(imageLayoutMask,flags);
     }
-    END_SO_INTOLERANT_CODE;
-    
+
     return pRetVal;
 
 #else
@@ -1219,7 +1195,7 @@ PTR_PEImage PEImage::LoadImage(HMODULE hMod)
 
     StackSString path;
     GetPathFromDll(hMod, path);
-    PEImageHolder pImage(PEImage::OpenImage(path,(MDInternalImportFlags)(MDInternalImport_CheckLongPath|MDInternalImport_CheckShortPath)));
+    PEImageHolder pImage(PEImage::OpenImage(path,(MDInternalImportFlags)(0)));
     if (pImage->HasLoadedLayout())
         RETURN dac_cast<PTR_PEImage>(pImage.Extract());
 
@@ -1475,7 +1451,6 @@ BOOL PEImage::IsPtrInImage(PTR_CVOID data)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;

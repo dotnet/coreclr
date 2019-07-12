@@ -25,8 +25,6 @@
 #include "compile.h"
 #endif
 #include "array.h"
-#include "stackprobe.h"
-
 
 #ifndef DACCESS_COMPILE
 #ifdef _DEBUG
@@ -107,12 +105,10 @@ PTR_Module TypeDesc::GetLoaderModule()
 
         _ASSERTE(GetInternalCorElementType() == ELEMENT_TYPE_FNPTR);
         PTR_FnPtrTypeDesc asFnPtr = dac_cast<PTR_FnPtrTypeDesc>(this);
-        BEGIN_SO_INTOLERANT_CODE_NOTHROW(GetThread(), fFail = TRUE );
         if (!fFail)
         {
-            retVal =  ClassLoader::ComputeLoaderModuleForFunctionPointer(asFnPtr->GetRetAndArgTypesPointer(), asFnPtr->GetNumArgs()+1);
+            retVal = ClassLoader::ComputeLoaderModuleForFunctionPointer(asFnPtr->GetRetAndArgTypesPointer(), asFnPtr->GetNumArgs()+1);
         }                                              
-        END_SO_INTOLERANT_CODE;
         return retVal;
     }
 }
@@ -145,7 +141,6 @@ PTR_Module TypeDesc::GetModule() {
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
         SUPPORTS_DAC;
         // Function pointer types belong to no module
         //PRECONDITION(GetInternalCorElementType() != ELEMENT_TYPE_FNPTR);
@@ -510,23 +505,8 @@ BOOL TypeDesc::CanCastParam(TypeHandle fromParam, TypeHandle toParam, TypeHandle
         CorElementType toParamCorType = toParam.GetVerifierCorElementType();
         if(CorTypeInfo::IsPrimitiveType(toParamCorType))
         {
-            if (toParamCorType == fromParamCorType)
+            if (GetNormalizedIntegralArrayElementType(toParamCorType) == GetNormalizedIntegralArrayElementType(fromParamCorType))
                 return TRUE;
-
-            // Primitive types such as E_T_I4 and E_T_U4 are interchangeable
-            // Enums with interchangeable underlying types are interchangable
-            // BOOL is NOT interchangeable with I1/U1, neither CHAR -- with I2/U2
-            if((toParamCorType != ELEMENT_TYPE_BOOLEAN)
-                &&(fromParamCorType != ELEMENT_TYPE_BOOLEAN)
-                &&(toParamCorType != ELEMENT_TYPE_CHAR)
-                &&(fromParamCorType != ELEMENT_TYPE_CHAR))
-            {
-                if ((CorTypeInfo::Size(toParamCorType) == CorTypeInfo::Size(fromParamCorType))
-                    && (CorTypeInfo::IsFloat(toParamCorType) == CorTypeInfo::IsFloat(fromParamCorType)))
-                {
-                    return TRUE;
-                }
-            }
         } // end if(CorTypeInfo::IsPrimitiveType(toParamCorType))
     } // end if(CorTypeInfo::IsPrimitiveType(fromParamCorType)) 
 
@@ -541,7 +521,6 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -633,7 +612,6 @@ TypeHandle::CastResult TypeDesc::CanCastParamNoGC(TypeHandle fromParam, TypeHand
         NOTHROW;
         GC_NOTRIGGER;
         FORBID_FAULT;
-        SO_TOLERANT;
     }
     CONTRACTL_END
 
@@ -708,7 +686,6 @@ BOOL TypeDesc::IsEquivalentTo(TypeHandle type COMMA_INDEBUG(TypeHandlePairList *
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 

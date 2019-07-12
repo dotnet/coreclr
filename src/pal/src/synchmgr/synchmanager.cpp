@@ -1486,6 +1486,7 @@ namespace CorUnix
         }
 
         HANDLE hWorkerThread = NULL;
+        SIZE_T osThreadId = 0;
         palErr = InternalCreateThread(pthrCurrent,
                                       NULL,
                                       0,
@@ -1493,11 +1494,12 @@ namespace CorUnix
                                       (PVOID)pSynchManager,
                                       0,
                                       PalWorkerThread,
-                                      &pSynchManager->m_dwWorkerThreadTid,
+                                      &osThreadId,
                                       &hWorkerThread);
 
         if (NO_ERROR == palErr)
         {
+            pSynchManager->m_dwWorkerThreadTid = (DWORD)osThreadId;
             palErr = InternalGetThreadDataFromHandle(pthrCurrent,
                                                      hWorkerThread,
                                                      0,
@@ -1657,7 +1659,11 @@ namespace CorUnix
         // Call the termination request handler if one is registered.
         if (g_terminationRequestHandler != NULL)
         {
-            g_terminationRequestHandler();
+            // The process will terminate normally by calling exit.
+            // We use an exit code of '128 + signo'. This is a convention used in popular
+            // shells to calculate an exit code when the process was terminated by a signal.
+            // This is also used by the Process.ExitCode implementation.
+            g_terminationRequestHandler(128 + SIGTERM);
         }
 
         return 0;

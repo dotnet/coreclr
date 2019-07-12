@@ -897,9 +897,9 @@ struct BasicBlock : private LIR::Range
                              // is bbCodeOffsEnd - bbCodeOffs, assuming neither are BAD_IL_OFFSET.
 
 #ifdef DEBUG
-    void dspBlockILRange(); // Display the block's IL range as [XXX...YYY), where XXX and YYY might be "???" for
-                            // BAD_IL_OFFSET.
-#endif                      // DEBUG
+    void dspBlockILRange() const; // Display the block's IL range as [XXX...YYY), where XXX and YYY might be "???" for
+                                  // BAD_IL_OFFSET.
+#endif                            // DEBUG
 
     VARSET_TP bbVarUse; // variables used     by block (before an assignment)
     VARSET_TP bbVarDef; // variables assigned by block (before a use)
@@ -1076,7 +1076,7 @@ struct BasicBlock : private LIR::Range
     // Returns the first statement in the statement list of "this" that is
     // not an SSA definition (a lcl = phi(...) assignment).
     GenTreeStmt* FirstNonPhiDef();
-    GenTree*     FirstNonPhiDefOrCatchArgAsg();
+    GenTreeStmt* FirstNonPhiDefOrCatchArgAsg();
 
     BasicBlock() : bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
     {
@@ -1169,6 +1169,22 @@ struct BasicBlock : private LIR::Range
     {
         return (bbFlags & BBF_DOMINATED_BY_EXCEPTIONAL_ENTRY) != 0;
     }
+
+#ifdef DEBUG
+    bool Contains(const GenTree* node)
+    {
+        for (Iterator iter = begin(); iter != end(); ++iter)
+        {
+            if (*iter == node)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+#endif // DEBUG
+
+    static void DisplayStaticSizes(FILE* fout);
 };
 
 template <>

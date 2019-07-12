@@ -4,8 +4,6 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Security;
-using Microsoft.Win32;
 
 #if FEATURE_PERFTRACING
 
@@ -41,13 +39,13 @@ namespace System.Diagnostics.Tracing
         private uint m_loggingLevel;
 
         [MarshalAs(UnmanagedType.LPWStr)]
-        private readonly string m_filterData;
+        private readonly string? m_filterData;
 
         internal EventPipeProviderConfiguration(
             string providerName,
             ulong keywords,
             uint loggingLevel,
-            string filterData)
+            string? filterData)
         {
             if(string.IsNullOrEmpty(providerName))
             {
@@ -78,19 +76,26 @@ namespace System.Diagnostics.Tracing
             get { return m_loggingLevel; }
         }
 
-        internal string FilterData => m_filterData;
+        internal string? FilterData => m_filterData;
+    }
+
+    internal enum EventPipeSerializationFormat
+    {
+        NetPerf,
+        NetTrace
     }
 
     internal sealed class EventPipeConfiguration
     {
         private string m_outputFile;
+        private EventPipeSerializationFormat m_format;
         private uint m_circularBufferSizeInMB;
         private List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
-        private ulong m_multiFileTraceLengthInSeconds = 0;
 
         internal EventPipeConfiguration(
             string outputFile,
+            EventPipeSerializationFormat format,
             uint circularBufferSizeInMB)
         {
             if(string.IsNullOrEmpty(outputFile))
@@ -102,6 +107,7 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentOutOfRangeException(nameof(circularBufferSizeInMB));
             }
             m_outputFile = outputFile;
+            m_format = format;
             m_circularBufferSizeInMB = circularBufferSizeInMB;
             m_providers = new List<EventPipeProviderConfiguration>();
         }
@@ -111,14 +117,14 @@ namespace System.Diagnostics.Tracing
             get { return m_outputFile; }
         }
 
+        internal EventPipeSerializationFormat Format
+        {
+            get { return m_format; }
+        }
+
         internal uint CircularBufferSizeInMB
         {
             get { return m_circularBufferSizeInMB; }
-        }
-
-        internal ulong MultiFileTraceLengthInSeconds
-        {
-            get { return m_multiFileTraceLengthInSeconds; }
         }
 
         internal EventPipeProviderConfiguration[] Providers
@@ -126,18 +132,12 @@ namespace System.Diagnostics.Tracing
             get { return m_providers.ToArray(); }
         }
 
-        internal long ProfilerSamplingRateInNanoseconds
-        {
-            // 100 nanoseconds == 1 tick.
-            get { return m_minTimeBetweenSamples.Ticks * 100; }
-        }
-
         internal void EnableProvider(string providerName, ulong keywords, uint loggingLevel)
         {
             EnableProviderWithFilter(providerName, keywords, loggingLevel, null);
         }
 
-        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string filterData)
+        internal void EnableProviderWithFilter(string providerName, ulong keywords, uint loggingLevel, string? filterData)
         {
             m_providers.Add(new EventPipeProviderConfiguration(
                 providerName,
@@ -168,11 +168,6 @@ namespace System.Diagnostics.Tracing
 
             m_minTimeBetweenSamples = minTimeBetweenSamples;
         }
-
-        internal void SetMultiFileTraceLength(ulong traceLengthInSeconds)
-        {
-            m_multiFileTraceLengthInSeconds = traceLengthInSeconds;
-        }
     }
 
     internal static class EventPipe
@@ -195,11 +190,10 @@ namespace System.Diagnostics.Tracing
 
             s_sessionID = EventPipeInternal.Enable(
                 configuration.OutputFile,
+                configuration.Format,
                 configuration.CircularBufferSizeInMB,
-                configuration.ProfilerSamplingRateInNanoseconds,
                 providers,
-                providers.Length,
-                configuration.MultiFileTraceLengthInSeconds);
+                (uint)providers.Length);
         }
 
         internal static void Disable()
@@ -214,7 +208,12 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used by the configuration APIs to interact with EventPipe.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern UInt64 Enable(string outputFile, uint circularBufferSizeInMB, long profilerSamplingRateInNanoseconds, EventPipeProviderConfiguration[] providers, int numProviders, ulong multiFileTraceLengthInSeconds);
+        internal static extern UInt64 Enable(
+            string? outputFile,
+            EventPipeSerializationFormat format,
+            uint circularBufferSizeInMB,
+            EventPipeProviderConfiguration[] providers,
+            uint numProviders);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern void Disable(UInt64 sessionID);
@@ -223,7 +222,7 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used by EventSource to interact with the EventPipe.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern IntPtr CreateProvider(string providerName, UnsafeNativeMethods.ManifestEtw.EtwEnableCallback callbackFunc);
+        internal static extern IntPtr CreateProvider(string providerName, Interop.Advapi32.EtwEnableCallback callbackFunc);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         internal static extern unsafe IntPtr DefineEvent(IntPtr provHandle, uint eventID, long keywords, uint eventVersion, uint level, void *pMetadata, uint metadataLength);
@@ -251,7 +250,7 @@ namespace System.Diagnostics.Tracing
         internal static extern unsafe bool GetSessionInfo(UInt64 sessionID, EventPipeSessionInfo* pSessionInfo);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool GetNextEvent(EventPipeEventInstanceData* pInstance);
+        internal static extern unsafe bool GetNextEvent(UInt64 sessionID, EventPipeEventInstanceData* pInstance);
     }
 }
 

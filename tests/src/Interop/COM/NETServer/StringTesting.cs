@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Globalization;
 using System.Text;
 using System.Runtime.InteropServices;
 
@@ -126,6 +127,9 @@ public class StringTesting : Server.Contract.IStringTesting
         b = Reverse(a);
     }
 
+    // This behavior is the "desired" behavior for a string passed by-value with an [Out] attribute.
+    // However, block calling a COM or P/Invoke stub with an "[Out] string" parameter since that would allow users to
+    // edit an immutable string value in place. So, in the NetClient.Primitives.StringTests tests, we expect a MarshalDirectiveException.
     public void Reverse_LPWStr_OutAttr([MarshalAs(UnmanagedType.LPWStr)] string a, [Out][MarshalAs(UnmanagedType.LPWStr)] string b)
     {
         b = Reverse(a);
@@ -187,5 +191,19 @@ public class StringTesting : Server.Contract.IStringTesting
     public void Reverse_BStr_OutAttr([MarshalAs(UnmanagedType.BStr)] string a, [Out][MarshalAs(UnmanagedType.BStr)] string b)
     {
         b = Reverse(a);
+    }
+
+    
+    [LCIDConversion(1)]
+    [return:MarshalAs(UnmanagedType.LPWStr)]
+    public string Reverse_LPWStr_With_LCID([MarshalAs(UnmanagedType.LPWStr)] string a)
+    {
+        return Reverse(a);
+    }
+
+    [LCIDConversion(0)]
+    public void Pass_Through_LCID(out int lcid)
+    {
+        lcid = CultureInfo.CurrentCulture.LCID;
     }
 }

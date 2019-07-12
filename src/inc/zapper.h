@@ -129,6 +129,8 @@ class Zapper
 
     SString                 m_outputFilename;
 
+    SIZE_T                  m_customBaseAddress;
+
   public:
 
     struct assemblyDependencies
@@ -298,7 +300,6 @@ class Zapper
     void ComputeAssemblyDependencies(CORINFO_ASSEMBLY_HANDLE hAssembly);
 
     void CreatePdb(BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath);
-    void CreatePdbInCurrentDomain(BSTR pAssemblyPathOrName, BSTR pNativeImagePath, BSTR pPdbPath, BOOL pdbLines, BSTR pManagedPdbSearchPath);
 
     void DefineOutputAssembly(SString& strAssemblyName, ULONG * pHashAlgId);
 
@@ -363,6 +364,9 @@ class Zapper
     void SetOutputFilename(LPCWSTR pwszOutputFilename);
     SString GetOutputFileName();
 
+    void SetCustomBaseAddress(SIZE_T baseAddress);
+    SIZE_T GetCustomBaseAddress();
+
  private:
 
     void DestroyDomain();
@@ -379,9 +383,6 @@ class Zapper
     public:
         virtual void doCallback() = NULL;
     };
-
-    static HRESULT __stdcall GenericDomainCallback(LPVOID pvArgs);
-    void InvokeDomainCallback(DomainCallback *callback);
 
     void CompileInCurrentDomain(__in LPCWSTR path, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig);
     void ComputeDependenciesInCurrentDomain(LPCWSTR pAssemblyName, CORCOMPILE_NGEN_SIGNATURE * pNativeImageSig);

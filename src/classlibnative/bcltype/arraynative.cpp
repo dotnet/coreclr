@@ -133,21 +133,29 @@ FCIMPL1(INT64, ArrayNative::GetLongLengthNoRank, ArrayBase* array)
 FCIMPLEND
 
 
-FCIMPL1(INT32, ArrayNative::GetDataPtrOffsetInternal, ArrayBase* array)
+FCIMPL1(void*, ArrayNative::GetRawArrayData, ArrayBase* array)
 {
     FCALL_CONTRACT;
 
     VALIDATEOBJECT(array);
 
-    if (array == NULL)
-        FCThrow(kNullReferenceException);
+    _ASSERTE(array != NULL);
 
-    return ArrayBase::GetDataPtrOffset(array->GetMethodTable());
+    return array->GetDataPtr();
 }
 FCIMPLEND
 
+FCIMPL1(INT32, ArrayNative::GetElementSize, ArrayBase* array)
+{
+    FCALL_CONTRACT;
 
+    VALIDATEOBJECT(array);
 
+    _ASSERTE(array != NULL);
+
+    return (INT32)array->GetComponentSize();
+}
+FCIMPLEND
 
 
 
@@ -157,7 +165,6 @@ void ArrayInitializeWorker(ARRAYBASEREF * arrayRef,
                            MethodTable* pElemMT)
 {
     STATIC_CONTRACT_MODE_COOPERATIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     // Ensure that the array element type is fully loaded before executing its code
     pElemMT->EnsureInstanceActive();
@@ -275,7 +282,6 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayTypeNoGC(const BASEARRAY
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(pSrc != NULL);
         PRECONDITION(pDest != NULL);
     }
@@ -326,8 +332,9 @@ ArrayNative::AssignArrayEnum ArrayNative::CanAssignArrayTypeNoGC(const BASEARRAY
     // Copying primitives from one type to another
     if (CorTypeInfo::IsPrimitiveType_NoThrow(srcElType) && CorTypeInfo::IsPrimitiveType_NoThrow(destElType))
     {
-        if (srcElType == destElType)
+        if (GetNormalizedIntegralArrayElementType(srcElType) == GetNormalizedIntegralArrayElementType(destElType))
             return AssignWillWork;
+
         if (InvokeUtil::CanPrimitiveWiden(destElType, srcElType))
             return AssignPrimitiveWiden;
         else
@@ -479,7 +486,7 @@ void ArrayNative::CastCheckEachElement(const BASEARRAYREF pSrcUnsafe, const unsi
             COMPlusThrow(kInvalidCastException, W("InvalidCast_DownCastArrayElement"));
 
         OBJECTREF * destData = (OBJECTREF*)(gc.pDest->GetDataPtr()) + i - srcIndex + destIndex;
-        SetObjectReference(destData, gc.obj, gc.pDest->GetAppDomain());
+        SetObjectReference(destData, gc.obj);
     }
 
     GCPROTECT_END();
@@ -552,7 +559,7 @@ void ArrayNative::BoxEachElement(BASEARRAYREF pSrc, unsigned int srcIndex, BASEA
         gc.obj = pSrcMT->FastBox(&srcPtr);
 
         OBJECTREF * destData = (OBJECTREF*)((gc.dest)->GetDataPtr()) + i;
-        SetObjectReference(destData, gc.obj, gc.dest->GetAppDomain());
+        SetObjectReference(destData, gc.obj);
     }
     GCPROTECT_END();
     GCPROTECT_END();
@@ -585,7 +592,7 @@ void ArrayNative::UnBoxEachElement(BASEARRAYREF pSrc, unsigned int srcIndex, BAS
     MethodTable * pDestMT = destTH.GetMethodTable();
     PREFIX_ASSUME(pDestMT != NULL);
 
-    const unsigned int destSize = pDestMT->GetNumInstanceFieldBytes();
+    SIZE_T destSize = pDest->GetComponentSize();
     BYTE* srcData = (BYTE*) pSrc->GetDataPtr() + srcIndex * sizeof(OBJECTREF);
     BYTE* data = (BYTE*) pDest->GetDataPtr() + destIndex * destSize;
 
@@ -880,7 +887,6 @@ void memmoveGCRefs(void *dest, const void *src, size_t len)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
@@ -908,7 +914,6 @@ void ArrayNative::ArrayCopyNoTypeCheck(BASEARRAYREF pSrc, unsigned int srcIndex,
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
-        SO_TOLERANT;
         PRECONDITION(pSrc != NULL);
         PRECONDITION(srcIndex >= 0);
         PRECONDITION(pDest != NULL);
@@ -1319,7 +1324,7 @@ FCIMPL2(void, ArrayNative::SetValue, TypedByRef * target, Object* objUNSAFE)
     if (thTarget == TypeHandle(g_pObjectClass))
     {
         // Everything is compatible with Object
-        SetObjectReference((OBJECTREF*)target->data,(OBJECTREF)obj,GetAppDomain());
+        SetObjectReference((OBJECTREF*)target->data,(OBJECTREF)obj);
     }
     else
     if (!pTargetMT->IsValueType())
@@ -1335,7 +1340,7 @@ FCIMPL2(void, ArrayNative::SetValue, TypedByRef * target, Object* objUNSAFE)
             HELPER_METHOD_FRAME_END();
         }
 
-        SetObjectReference((OBJECTREF*)target->data,obj,GetAppDomain());
+        SetObjectReference((OBJECTREF*)target->data,obj);
     }
     else
     {

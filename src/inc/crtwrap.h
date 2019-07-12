@@ -21,10 +21,10 @@
 #include <wchar.h>
 #include <stdio.h>
 
-#ifndef PUB
-// PUB is defined to influence method visibility for some compilers.
-#define PUB
-#endif // !PUB
+#ifndef FEATURE_PAL
+// CoreCLR.dll uses linker .def files to control the exported symbols.
+// Define DLLEXPORT macro as empty on Windows.
+#define DLLEXPORT
+#endif
 
 #endif // __CrtWrap_h__
-

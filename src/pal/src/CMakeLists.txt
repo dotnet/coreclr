@@ -5,7 +5,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
   set(CLR_CMAKE_USE_SYSTEM_LIBUNWIND 1)
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin OR CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
 
-include_directories(SYSTEM /usr/local/include)
+if(NOT DEFINED ENV{ROOTFS_DIR})
+  include_directories(SYSTEM /usr/local/include)
+endif()
 
 add_compile_options(-fPIC)
 
@@ -121,25 +123,28 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
-add_definitions(-DPLATFORM_UNIX=1)
-add_definitions(-DLP64COMPATIBLE=1)
-add_definitions(-DFEATURE_PAL=1)
-add_definitions(-DCORECLR=1)
-add_definitions(-DPIC=1)
+if (FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION)
+  add_definitions(-DFEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION)
+endif(FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION)
+add_definitions(-DPLATFORM_UNIX)
+add_definitions(-DLP64COMPATIBLE)
+add_definitions(-DFEATURE_PAL)
+add_definitions(-DCORECLR)
+add_definitions(-DPIC)
 add_definitions(-D_FILE_OFFSET_BITS=64)
 if(PAL_CMAKE_PLATFORM_ARCH_AMD64)
-  add_definitions(-DBIT64=1)
-  add_definitions(-D_WIN64=1)
+  add_definitions(-DBIT64)
+  add_definitions(-D_WIN64)
   set(PAL_ARCH_SOURCES_DIR amd64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM)
-  add_definitions(-DBIT32=1)
+  add_definitions(-DBIT32)
   set(PAL_ARCH_SOURCES_DIR arm)
 elseif(PAL_CMAKE_PLATFORM_ARCH_ARM64)
-  add_definitions(-DBIT64=1)
-  add_definitions(-D_WIN64=1)
+  add_definitions(-DBIT64)
+  add_definitions(-D_WIN64)
   set(PAL_ARCH_SOURCES_DIR arm64)
 elseif(PAL_CMAKE_PLATFORM_ARCH_I386)
-  add_definitions(-DBIT32=1)
+  add_definitions(-DBIT32)
   set(PAL_ARCH_SOURCES_DIR i386)
 endif()
 
@@ -210,7 +215,7 @@ set(SOURCES
   loader/module.cpp
   loader/modulename.cpp
   locale/unicode.cpp
-  locale/unicode_data.cpp
+  locale/unicodedata.cpp
   locale/utf8.cpp
   map/common.cpp
   map/map.cpp
@@ -293,10 +298,18 @@ add_library(coreclrpal
   ${LIBUNWIND_OBJECTS}
 )
 
-add_library(tracepointprovider
-  STATIC
-  misc/tracepointprovider.cpp
-)
+# There is only one function exported in 'tracepointprovider.cpp' namely 'PAL_InitializeTracing',
+# which is guarded with '#if defined(__linux__)'. On macOS, Xcode issues the following warning:
+#
+# > warning: /Applications/Xcode-9.4.1.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib:
+# > warning for library: libtracepointprovider.a the table of contents is empty (no object file members in the library define global symbols)
+#
+if(CMAKE_SYSTEM_NAME STREQUAL Linux)
+  add_library(tracepointprovider
+    STATIC
+    misc/tracepointprovider.cpp
+  )
+endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
 if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   find_library(COREFOUNDATION CoreFoundation)
@@ -400,8 +413,9 @@ endif(CMAKE_SYSTEM_NAME STREQUAL NetBSD)
 add_subdirectory(examples)
 
 if(FEATURE_EVENT_TRACE)
-  add_subdirectory(${GENERATED_EVENTING_DIR}/eventprovider ${CMAKE_CURRENT_BINARY_DIR}/eventprovider)
+  add_subdirectory(eventprovider)
 endif(FEATURE_EVENT_TRACE)
+
 
 # Install the static PAL library for VS
 _install (TARGETS coreclrpal DESTINATION lib)

@@ -1039,7 +1039,135 @@ void CodeGen::inst_RV_RV_IV(instruction ins, emitAttr size, regNumber reg1, regN
 
     getEmitter()->emitIns_R_R_I(ins, size, reg1, reg2, ival);
 }
-#endif
+
+#ifdef FEATURE_HW_INTRINSICS
+//------------------------------------------------------------------------
+// inst_RV_TT_IV: Generates an instruction that takes 3 operands:
+//                a register operand, an operand that may be memory or register and an immediate
+//                and that returns a value in register
+//
+// Arguments:
+//    ins       -- The instruction being emitted
+//    attr      -- The emit attribute
+//    reg1      -- The first operand, a register
+//    rmOp      -- The second operand, which may be a memory node or a node producing a register
+//    ival      -- The immediate operand
+//
+// Notes:
+//    This isn't really specific to HW intrinsics, but depends on other methods that are
+//    only defined for FEATURE_HW_INTRINSICS, and is currently only used in that context.
+//
+void CodeGen::inst_RV_TT_IV(instruction ins, emitAttr attr, regNumber reg1, GenTree* rmOp, int ival)
+{
+    noway_assert(getEmitter()->emitVerifyEncodable(ins, EA_SIZE(attr), reg1));
+
+    if (rmOp->isContained() || rmOp->isUsedFromSpillTemp())
+    {
+        TempDsc* tmpDsc = nullptr;
+        unsigned varNum = BAD_VAR_NUM;
+        unsigned offset = (unsigned)-1;
+
+        if (rmOp->isUsedFromSpillTemp())
+        {
+            assert(rmOp->IsRegOptional());
+
+            tmpDsc = getSpillTempDsc(rmOp);
+            varNum = tmpDsc->tdTempNum();
+            offset = 0;
+
+            regSet.tmpRlsTemp(tmpDsc);
+        }
+        else if (rmOp->isIndir() || rmOp->OperIsHWIntrinsic())
+        {
+            GenTree*      addr;
+            GenTreeIndir* memIndir = nullptr;
+
+            if (rmOp->isIndir())
+            {
+                memIndir = rmOp->AsIndir();
+                addr     = memIndir->Addr();
+            }
+            else
+            {
+                assert(rmOp->AsHWIntrinsic()->OperIsMemoryLoad());
+                assert(HWIntrinsicInfo::lookupNumArgs(rmOp->AsHWIntrinsic()) == 1);
+                addr = rmOp->gtGetOp1();
+            }
+
+            switch (addr->OperGet())
+            {
+                case GT_LCL_VAR_ADDR:
+                {
+                    varNum = addr->AsLclVarCommon()->GetLclNum();
+                    offset = 0;
+                    break;
+                }
+
+                case GT_CLS_VAR_ADDR:
+                {
+                    getEmitter()->emitIns_R_C_I(ins, attr, reg1, addr->gtClsVar.gtClsVarHnd, 0, ival);
+                    return;
+                }
+
+                default:
+                {
+                    if (memIndir == nullptr)
+                    {
+                        // This is the HW intrinsic load case.
+                        // Until we improve the handling of addressing modes in the emitter, we'll create a
+                        // temporary GT_IND to generate code with.
+                        GenTreeIndir load = indirForm(rmOp->TypeGet(), addr);
+                        memIndir          = &load;
+                    }
+                    getEmitter()->emitIns_R_A_I(ins, attr, reg1, memIndir, ival);
+                    return;
+                }
+            }
+        }
+        else
+        {
+            switch (rmOp->OperGet())
+            {
+                case GT_LCL_FLD:
+                {
+                    GenTreeLclFld* lclField = rmOp->AsLclFld();
+
+                    varNum = lclField->GetLclNum();
+                    offset = lclField->gtLclFld.gtLclOffs;
+                    break;
+                }
+
+                case GT_LCL_VAR:
+                {
+                    assert(rmOp->IsRegOptional() || !compiler->lvaGetDesc(rmOp->gtLclVar.gtLclNum)->lvIsRegCandidate());
+                    varNum = rmOp->AsLclVar()->GetLclNum();
+                    offset = 0;
+                    break;
+                }
+
+                default:
+                    unreached();
+                    break;
+            }
+        }
+
+        // Ensure we got a good varNum and offset.
+        // We also need to check for `tmpDsc != nullptr` since spill temp numbers
+        // are negative and start with -1, which also happens to be BAD_VAR_NUM.
+        assert((varNum != BAD_VAR_NUM) || (tmpDsc != nullptr));
+        assert(offset != (unsigned)-1);
+
+        getEmitter()->emitIns_R_S_I(ins, attr, reg1, varNum, offset, ival);
+    }
+    else
+    {
+        regNumber rmOpReg = rmOp->gtRegNum;
+        getEmitter()->emitIns_SIMD_R_R_I(ins, attr, reg1, rmOpReg, ival);
+    }
+}
+#endif // FEATURE_HW_INTRINSICS
+
+#endif // _TARGET_XARCH_
 
 /*****************************************************************************
  *
@@ -1585,16 +1713,7 @@ instruction CodeGenInterface::ins_Load(var_types srcType, bool aligned /*=false*
 #elif defined(_TARGET_ARMARCH_)
     if (!varTypeIsSmall(srcType))
     {
-#if defined(_TARGET_ARM64_)
-        if (!varTypeIsI(srcType) && !varTypeIsUnsigned(srcType))
-        {
-            ins = INS_ldrsw;
-        }
-        else
-#endif // defined(_TARGET_ARM64_)
-        {
-            ins = INS_ldr;
-        }
+        ins = INS_ldr;
     }
     else if (varTypeIsByte(srcType))
     {
@@ -2244,39 +2363,6 @@ void CodeGen::instGen_Store_Reg_Into_Lcl(var_types dstType, regNumber srcReg, in
     emitAttr size = emitTypeSize(dstType);
 
     getEmitter()->emitIns_S_R(ins_Store(dstType), size, srcReg, varNum, offs);
-}
-
-/*****************************************************************************
- *
- *  Machine independent way to move an immediate into a stack based local variable
- */
-void CodeGen::instGen_Store_Imm_Into_Lcl(
-    var_types dstType, emitAttr sizeAttr, ssize_t imm, int varNum, int offs, regNumber regToUse)
-{
-#ifdef _TARGET_XARCH_
-#ifdef _TARGET_AMD64_
-    if ((EA_SIZE(sizeAttr) == EA_8BYTE) && (((int)imm != (ssize_t)imm) || EA_IS_CNS_RELOC(sizeAttr)))
-    {
-        assert(!"Invalid immediate for instGen_Store_Imm_Into_Lcl");
-    }
-    else
-#endif // _TARGET_AMD64_
-    {
-        getEmitter()->emitIns_S_I(ins_Store(dstType), sizeAttr, varNum, offs, (int)imm);
-    }
-#elif defined(_TARGET_ARMARCH_)
-    // Load imm into a register
-    regNumber immReg = regToUse;
-    assert(regToUse != REG_NA);
-    instGen_Set_Reg_To_Imm(sizeAttr, immReg, (ssize_t)imm);
-    instGen_Store_Reg_Into_Lcl(dstType, immReg, varNum, offs);
-    if (EA_IS_RELOC(sizeAttr))
-    {
-        regSet.verifyRegUsed(immReg);
-    }
-#else // _TARGET_*
-#error "Unknown _TARGET_"
-#endif // _TARGET_*
 }
 
 /*****************************************************************************/

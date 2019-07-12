@@ -11,8 +11,11 @@
 #include "eventpipeevent.h"
 #include "eventpipesession.h"
 #include "eventpipeblock.h"
+#include "eventpipethread.h"
 #include "fastserializableobject.h"
 #include "fastserializer.h"
+
+class EventPipeJsonFile;
 
 class EventPipeEventInstance
 {
@@ -21,7 +24,15 @@ class EventPipeEventInstance
 
 public:
 
-    EventPipeEventInstance(EventPipeSession &session, EventPipeEvent &event, DWORD threadID, BYTE *pData, unsigned int length, LPCGUID pActivityId, LPCGUID pRelatedActivityId);
+    EventPipeEventInstance(EventPipeEvent &event, 
+                           unsigned int procNumber,
+                           ULONGLONG threadID,
+                           BYTE *pData,
+                           unsigned int length,
+                           LPCGUID pActivityId,
+                           LPCGUID pRelatedActivityId);
+
+    void EnsureStack(const EventPipeSession &session);
 
     StackContents* GetStack()
     {
@@ -37,7 +48,7 @@ public:
         return m_pEvent;
     }
 
-    const LARGE_INTEGER* const GetTimeStamp() const
+    const LARGE_INTEGER* GetTimeStamp() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -58,28 +69,42 @@ public:
         m_metadataId = metadataId;
     }
 
-    DWORD GetThreadId() const
+    unsigned int GetProcNumber() const
     {
         LIMITED_METHOD_CONTRACT;
 
-        return m_threadID;
+        return m_procNumber;
     }
 
-    const GUID* const GetActivityId() const
+    DWORD GetThreadId32() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return (DWORD)m_threadId;
+    }
+
+    ULONGLONG GetThreadId64() const
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        return m_threadId;
+    }
+
+    const GUID* GetActivityId() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return &m_activityId;
     }
 
-    const GUID* const GetRelatedActivityId() const
+    const GUID* GetRelatedActivityId() const
     {
         LIMITED_METHOD_CONTRACT;
 
         return &m_relatedActivityId;
     }
 
-    const BYTE* const GetData() const
+    const BYTE* GetData() const
     {
         LIMITED_METHOD_CONTRACT;
 
@@ -100,7 +125,7 @@ public:
         return m_stackContents.GetSize();
     }
 
-    unsigned int GetAlignedTotalSize() const;
+    unsigned int GetAlignedTotalSize(EventPipeSerializationFormat format) const;
 
 #ifdef _DEBUG
     // Serialize this event to the JSON file.
@@ -117,7 +142,8 @@ protected:
 
     EventPipeEvent *m_pEvent;
     unsigned int m_metadataId;
-    DWORD m_threadID;
+    unsigned int m_procNumber;
+    ULONGLONG m_threadId;
     LARGE_INTEGER m_timeStamp;
     GUID m_activityId;
     GUID m_relatedActivityId;
@@ -138,15 +164,23 @@ private:
     void SetTimeStamp(LARGE_INTEGER timeStamp);
 };
 
-// A specific type of event instance for use by the SampleProfiler.
-// This is needed because the SampleProfiler knows how to walk stacks belonging
-// to threads other than the current thread.
-class SampleProfilerEventInstance : public EventPipeEventInstance
+typedef MapSHash<EventPipeThreadSessionState *, unsigned int> ThreadSequenceNumberMap;
+
+// A point in time marker that is used as a boundary when emitting events.
+// The events in a Nettrace file are not emitted in a fully sorted order
+// but we do guarantee that all events before a sequence point are emitted
+// prior to any events after the sequence point
+struct EventPipeSequencePoint
 {
+    // Entry in EventPipeBufferManager m_sequencePointList 
+    SLink m_Link;
 
-public:
+    // The timestamp the sequence point was captured
+    LARGE_INTEGER TimeStamp;
+    ThreadSequenceNumberMap ThreadSequenceNumbers;
 
-    SampleProfilerEventInstance(EventPipeSession &session, EventPipeEvent &event, Thread *pThread, BYTE *pData, unsigned int length);
+    EventPipeSequencePoint();
+    ~EventPipeSequencePoint();
 };
 
 #endif // FEATURE_PERFTRACING

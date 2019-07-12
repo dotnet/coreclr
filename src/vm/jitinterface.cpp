@@ -30,17 +30,16 @@
 #include "jitperf.h" // to track jit perf
 #include "corprof.h"
 #include "eeprofinterfaces.h"
-#include "perfcounters.h"
 #ifdef PROFILING_SUPPORTED
 #include "proftoeeinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.h"
 #include "eetoprofinterfaceimpl.inl"
 #include "profilepriv.h"
-#endif
+#include "rejit.h"
+#endif // PROFILING_SUPPORTED
 #include "ecall.h"
 #include "generics.h"
 #include "typestring.h"
-#include "stackprobe.h"
 #include "typedesc.h"
 #include "genericdict.h"
 #include "array.h"
@@ -52,8 +51,6 @@
 #ifdef HAVE_GCCOVER
 #include "gccover.h"
 #endif // HAVE_GCCOVER
-
-#include "mdaassistants.h"
 
 #ifdef FEATURE_PREJIT
 #include "compile.h"
@@ -101,12 +98,6 @@ GARY_IMPL(VMHELPDEF, hlpFuncTable, CORINFO_HELP_COUNT);
 GARY_IMPL(VMHELPDEF, hlpDynamicFuncTable, DYNAMIC_CORINFO_HELP_COUNT);
 
 #else // DACCESS_COMPILE
-
-/*********************************************************************/
-
-#if defined(ENABLE_PERF_COUNTERS)
-LARGE_INTEGER g_lastTimeInJitCompilation;
-#endif
 
 /*********************************************************************/
 
@@ -212,7 +203,6 @@ inline static void GetTypeContext(CORINFO_CONTEXT_HANDLE context, SigTypeContext
     {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
         PRECONDITION(context != NULL);
     }
@@ -374,7 +364,6 @@ void CheckForEquivalenceAndLoadTypeBeforeCodeIsRun(Module *pModule, mdToken toke
     {
         THROWS;
         GC_TRIGGERS;
-        SO_INTOLERANT;
     }
     CONTRACTL_END;
 
@@ -489,14 +478,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
-#ifdef PLATFORM_UNIX
+#if defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
-#endif // PLATFORM_UNIX
+#endif // defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -566,7 +555,6 @@ CEEInfo::ConvToJitSig(
 CORINFO_CLASS_HANDLE CEEInfo::getTokenTypeAsHandle (CORINFO_RESOLVED_TOKEN * pResolvedToken)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -605,7 +593,6 @@ size_t CEEInfo::findNameOfToken (
             size_t FQNameCapacity)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -634,7 +621,6 @@ size_t CEEInfo::findNameOfToken (
 CorInfoCanSkipVerificationResult CEEInfo::canSkipMethodVerification(CORINFO_METHOD_HANDLE ftnHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -686,7 +672,7 @@ bool IsInSameVersionBubble(Assembly * current, Assembly * target)
     if (current == target)
         return true;
 
-    return false;
+    return IsLargeVersionBubbleEnabled();
 }
 
 // Returns true if the assemblies defining current and target are in the same version bubble
@@ -731,7 +717,6 @@ CorInfoCanSkipVerificationResult CEEInfo::canSkipVerification(
         CORINFO_MODULE_HANDLE moduleHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -747,7 +732,6 @@ BOOL CEEInfo::isValidToken (
         mdToken                     metaTOK)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
@@ -780,7 +764,6 @@ BOOL CEEInfo::isValidStringRef (
         mdToken                     metaTOK)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -895,7 +878,6 @@ size_t CEEInfo::findNameOfToken (Module* module,
 CorInfoHelpFunc CEEInfo::getLazyStringLiteralHelper(CORINFO_MODULE_HANDLE handle)
 { 
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -951,7 +933,6 @@ static DECLSPEC_NORETURN void ThrowBadTokenException(CORINFO_RESOLVED_TOKEN * pR
 void CEEInfo::resolveToken(/* IN, OUT */ CORINFO_RESOLVED_TOKEN * pResolvedToken)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -1236,7 +1217,6 @@ bool isValidTokenForTryResolveToken(CEEInfo* info, CORINFO_RESOLVED_TOKEN* resol
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     } CONTRACTL_END;
 
@@ -1286,7 +1266,6 @@ LONG TryResolveTokenFilter(struct _EXCEPTION_POINTERS* exceptionPointers, void* 
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
         MODE_ANY;
     } CONTRACTL_END;
 
@@ -1309,7 +1288,6 @@ LONG TryResolveTokenFilter(struct _EXCEPTION_POINTERS* exceptionPointers, void* 
 bool CEEInfo::tryResolveToken(CORINFO_RESOLVED_TOKEN* resolvedToken)
 {
     // No dynamic contract here because SEH is used
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
@@ -1512,7 +1490,6 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
                            )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -1764,7 +1741,6 @@ void CEEInfo::getFieldInfo (CORINFO_RESOLVED_TOKEN * pResolvedToken,
 bool CEEInfo::isFieldStatic(CORINFO_FIELD_HANDLE fldHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -1788,7 +1764,6 @@ CEEInfo::findCallSiteSig(
     CORINFO_SIG_INFO *     sigRet)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -1870,7 +1845,6 @@ CEEInfo::findSig(
     CORINFO_SIG_INFO *     sigRet)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -1918,7 +1892,6 @@ CEEInfo::getClassSize(
     CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -1946,7 +1919,6 @@ CEEInfo::getHeapClassSize(
     CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -1978,7 +1950,6 @@ CEEInfo::getHeapClassSize(
 BOOL CEEInfo::canAllocateOnStack(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -2009,7 +1980,6 @@ BOOL CEEInfo::canAllocateOnStack(CORINFO_CLASS_HANDLE clsHnd)
 unsigned CEEInfo::getClassAlignmentRequirement(CORINFO_CLASS_HANDLE type, BOOL fDoubleAlignHint)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -2103,7 +2073,6 @@ CORINFO_FIELD_HANDLE
 CEEInfo::getFieldInClass(CORINFO_CLASS_HANDLE clsHnd, INT num)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -2128,7 +2097,6 @@ mdMethodDef
 CEEInfo::getMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -2160,7 +2128,6 @@ BOOL CEEInfo::checkMethodModifier(CORINFO_METHOD_HANDLE hMethod,
                                   BOOL fOptional)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2240,7 +2207,6 @@ static unsigned ComputeGCLayout(MethodTable * pMT, BYTE* gcPtrs)
 unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2333,7 +2299,6 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
                                                 /*OUT*/ SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* structPassInRegDescPtr)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2428,7 +2393,6 @@ bool CEEInfo::getSystemVAmd64PassStructInRegisterDescriptor(
 unsigned CEEInfo::getClassNumInstanceFields (CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -2459,7 +2423,6 @@ unsigned CEEInfo::getClassNumInstanceFields (CORINFO_CLASS_HANDLE clsHnd)
 CorInfoType CEEInfo::asCorInfoType (CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2481,7 +2444,6 @@ CorInfoType CEEInfo::asCorInfoType (CORINFO_CLASS_HANDLE clsHnd)
 CORINFO_LOOKUP_KIND CEEInfo::getLocationOfThisType(CORINFO_METHOD_HANDLE context)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2536,7 +2498,6 @@ CORINFO_METHOD_HANDLE CEEInfo::GetDelegateCtor(
                                         DelegateCtorArgs *pCtorData)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2577,7 +2538,6 @@ CORINFO_METHOD_HANDLE CEEInfo::GetDelegateCtor(
 void CEEInfo::MethodCompileComplete(CORINFO_METHOD_HANDLE methHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -2608,7 +2568,6 @@ void CEEInfo::embedGenericHandle(
             CORINFO_GENERICHANDLE_RESULT *pResult)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -3565,7 +3524,6 @@ NoSpecialCase:
 const char* CEEInfo::getClassName (CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -3603,7 +3561,6 @@ const char* CEEInfo::getClassName (CORINFO_CLASS_HANDLE clsHnd)
 const char* CEEInfo::getHelperName (CorInfoHelpFunc ftnNum)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3639,7 +3596,6 @@ int CEEInfo::appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
                              BOOL fAssembly)
 {
     CONTRACTL {
-        SO_TOLERANT;
         MODE_PREEMPTIVE;
         THROWS;
         GC_TRIGGERS;
@@ -3674,7 +3630,6 @@ int CEEInfo::appendClassName(__deref_inout_ecount(*pnBufLen) WCHAR** ppBuf,
 CORINFO_MODULE_HANDLE CEEInfo::getClassModule(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3697,7 +3652,6 @@ CORINFO_MODULE_HANDLE CEEInfo::getClassModule(CORINFO_CLASS_HANDLE clsHnd)
 CORINFO_ASSEMBLY_HANDLE CEEInfo::getModuleAssembly(CORINFO_MODULE_HANDLE modHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3718,7 +3672,6 @@ CORINFO_ASSEMBLY_HANDLE CEEInfo::getModuleAssembly(CORINFO_MODULE_HANDLE modHnd)
 const char* CEEInfo::getAssemblyName(CORINFO_ASSEMBLY_HANDLE asmHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -3737,7 +3690,6 @@ const char* CEEInfo::getAssemblyName(CORINFO_ASSEMBLY_HANDLE asmHnd)
 void* CEEInfo::LongLifetimeMalloc(size_t sz)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3756,7 +3708,6 @@ void* CEEInfo::LongLifetimeMalloc(size_t sz)
 void CEEInfo::LongLifetimeFree(void* obj)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3771,7 +3722,6 @@ void CEEInfo::LongLifetimeFree(void* obj)
 size_t CEEInfo::getClassModuleIdForStatics(CORINFO_CLASS_HANDLE clsHnd, CORINFO_MODULE_HANDLE *pModuleHandle, void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3804,7 +3754,6 @@ size_t CEEInfo::getClassModuleIdForStatics(CORINFO_CLASS_HANDLE clsHnd, CORINFO_
 BOOL CEEInfo::isValueClass(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3836,7 +3785,6 @@ BOOL CEEInfo::isValueClass(CORINFO_CLASS_HANDLE clsHnd)
 CorInfoInlineTypeCheck CEEInfo::canInlineTypeCheck(CORINFO_CLASS_HANDLE clsHnd, CorInfoInlineTypeCheckSource source)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3871,7 +3819,6 @@ CorInfoInlineTypeCheck CEEInfo::canInlineTypeCheck(CORINFO_CLASS_HANDLE clsHnd, 
 BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -3928,7 +3875,6 @@ BOOL CEEInfo::canInlineTypeCheckWithObjectVTable (CORINFO_CLASS_HANDLE clsHnd)
 DWORD CEEInfo::getClassAttribs (CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -3952,7 +3898,6 @@ DWORD CEEInfo::getClassAttribs (CORINFO_CLASS_HANDLE clsHnd)
 BOOL CEEInfo::isStructRequiringStackAllocRetBuf(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4092,7 +4037,6 @@ CorInfoInitClassResult CEEInfo::initClass(
             BOOL                    speculative)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4279,7 +4223,6 @@ exit: ;
 void CEEInfo::classMustBeLoadedBeforeCodeIsRun (CORINFO_CLASS_HANDLE typeToLoadHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -4299,7 +4242,6 @@ void CEEInfo::classMustBeLoadedBeforeCodeIsRun (CORINFO_CLASS_HANDLE typeToLoadH
 void CEEInfo::methodMustBeLoadedBeforeCodeIsRun (CORINFO_METHOD_HANDLE methHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -4319,7 +4261,6 @@ void CEEInfo::methodMustBeLoadedBeforeCodeIsRun (CORINFO_METHOD_HANDLE methHnd)
 CORINFO_METHOD_HANDLE CEEInfo::mapMethodDeclToMethodImpl(CORINFO_METHOD_HANDLE methHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4342,7 +4283,6 @@ CORINFO_METHOD_HANDLE CEEInfo::mapMethodDeclToMethodImpl(CORINFO_METHOD_HANDLE m
 CORINFO_CLASS_HANDLE CEEInfo::getBuiltinClass(CorInfoClassId classId)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4395,7 +4335,6 @@ CorInfoType CEEInfo::getTypeForPrimitiveValueClass(
         CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4482,7 +4421,6 @@ CorInfoType CEEInfo::getTypeForPrimitiveNumericClass(
         CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL{
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -4543,7 +4481,6 @@ CorInfoType CEEInfo::getTypeForPrimitiveNumericClass(
 void CEEInfo::getGSCookie(GSCookie * pCookieVal, GSCookie ** ppCookieVal)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4573,7 +4510,6 @@ BOOL CEEInfo::canCast(
         CORINFO_CLASS_HANDLE        parent)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4597,7 +4533,6 @@ BOOL CEEInfo::areTypesEquivalent(
         CORINFO_CLASS_HANDLE        cls2)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4622,7 +4557,6 @@ TypeCompareState CEEInfo::compareTypesForCast(
         CORINFO_CLASS_HANDLE        toClass)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4694,8 +4628,10 @@ TypeCompareState CEEInfo::compareTypesForCast(
     // In R2R it is a breaking change for a previously positive
     // cast to become negative, but not for a previously negative
     // cast to become positive. So in R2R a negative result is
-    // always reported back as May.
-    if (IsReadyToRunCompilation() && (result == TypeCompareState::MustNot))
+    // always reported back as May, except for CoreLib version bubble.
+    if (IsReadyToRunCompilation() && (result == TypeCompareState::MustNot)
+        && !GetAppDomain()->ToCompilationDomain()->GetTargetModule()->IsSystem()
+        && !IsLargeVersionBubbleEnabled())
     {
         result = TypeCompareState::May;
     }
@@ -4714,7 +4650,6 @@ TypeCompareState CEEInfo::compareTypesForEquality(
         CORINFO_CLASS_HANDLE        cls2)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4765,13 +4700,12 @@ TypeCompareState CEEInfo::compareTypesForEquality(
 }
 
 /*********************************************************************/
-// returns is the intersection of cls1 and cls2.
+// returns the intersection of cls1 and cls2.
 CORINFO_CLASS_HANDLE CEEInfo::mergeClasses(
         CORINFO_CLASS_HANDLE        cls1,
         CORINFO_CLASS_HANDLE        cls2)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4836,6 +4770,68 @@ CORINFO_CLASS_HANDLE CEEInfo::mergeClasses(
 }
 
 /*********************************************************************/
+static BOOL isMoreSpecificTypeHelper(
+       CORINFO_CLASS_HANDLE        cls1,
+       CORINFO_CLASS_HANDLE        cls2)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    TypeHandle hnd1 = TypeHandle(cls1);
+    TypeHandle hnd2 = TypeHandle(cls2);
+
+    // We can't really reason about equivalent types. Just
+    // assume the new type is not more specific.
+    if (hnd1.HasTypeEquivalence() || hnd2.HasTypeEquivalence())
+    {
+        return FALSE;
+    }
+
+    // If we have a mixture of shared and unshared types,
+    // consider the unshared type as more specific.
+    BOOL isHnd1CanonSubtype = hnd1.IsCanonicalSubtype();
+    BOOL isHnd2CanonSubtype = hnd2.IsCanonicalSubtype();
+    if (isHnd1CanonSubtype != isHnd2CanonSubtype)
+    {
+        // Only one of hnd1 and hnd2 is shared.
+        // hdn2 is more specific if hnd1 is the shared type.
+        return isHnd1CanonSubtype;
+    }
+
+    // Otherwise both types are either shared or not shared.
+    // Look for a common parent type.
+    TypeHandle merged = TypeHandle::MergeTypeHandlesToCommonParent(hnd1, hnd2);
+
+    // If the common parent is hnd1, then hnd2 is more specific.
+    return merged == hnd1;
+}
+
+// Returns true if cls2 is known to be a more specific type
+// than cls1 (a subtype or more restrictive shared type).
+BOOL CEEInfo::isMoreSpecificType(
+        CORINFO_CLASS_HANDLE        cls1,
+        CORINFO_CLASS_HANDLE        cls2)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    BOOL result = FALSE;
+
+    JIT_TO_EE_TRANSITION();
+
+    result = isMoreSpecificTypeHelper(cls1, cls2);
+
+    EE_TO_JIT_TRANSITION();
+    return result;
+}
+
+/*********************************************************************/
 // Given a class handle, returns the Parent type.
 // For COMObjectType, it returns Class Handle of System.Object.
 // Returns 0 if System.Object is passed in.
@@ -4843,7 +4839,6 @@ CORINFO_CLASS_HANDLE CEEInfo::getParentType(
             CORINFO_CLASS_HANDLE    cls)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4891,7 +4886,6 @@ CorInfoType CEEInfo::getChildType (
         )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4940,7 +4934,6 @@ CorInfoType CEEInfo::getChildType (
 BOOL CEEInfo::satisfiesClassConstraints(CORINFO_CLASS_HANDLE cls)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4963,7 +4956,6 @@ BOOL CEEInfo::satisfiesClassConstraints(CORINFO_CLASS_HANDLE cls)
 BOOL CEEInfo::isSDArray(CORINFO_CLASS_HANDLE  cls)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -4995,7 +4987,6 @@ BOOL CEEInfo::isSDArray(CORINFO_CLASS_HANDLE  cls)
 unsigned CEEInfo::getArrayRank(CORINFO_CLASS_HANDLE  cls)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5033,7 +5024,6 @@ void * CEEInfo::getArrayInitializationData(
             )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5076,7 +5066,6 @@ CorInfoIsAccessAllowedResult CEEInfo::canAccessClass(
             )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5178,7 +5167,6 @@ void CEEInfo::getCallInfo(
             CORINFO_CALL_INFO      *pResult /*out */)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5275,7 +5263,11 @@ void CEEInfo::getCallInfo(
             exactType, 
             pMD, 
             &fForceUseRuntimeLookup);
-        if (directMethod)
+        if (directMethod
+#ifdef FEATURE_DEFAULT_INTERFACES
+            && !directMethod->IsInterface() /* Could be a default interface method implementation */
+#endif
+            )
         {
             // Either
             //    1. no constraint resolution at compile time (!directMethod)
@@ -5304,6 +5296,7 @@ void CEEInfo::getCallInfo(
     //
 
     MethodDesc * pTargetMD = pMDAfterConstraintResolution;
+    DWORD dwTargetMethodAttrs = pTargetMD->GetAttrs();
 
     if (pTargetMD->HasMethodInstantiation())
     {
@@ -5361,12 +5354,6 @@ void CEEInfo::getCallInfo(
         directCall = true;
     }
     else
-    // Backwards compat: calls to abstract interface methods are treated as callvirt
-    if (pTargetMD->GetMethodTable()->IsInterface() && pTargetMD->IsAbstract())
-    {
-        directCall = false;
-    }
-    else
     if (!(flags & CORINFO_CALLINFO_CALLVIRT) || fResolvedConstraint)
     {
         directCall = true;
@@ -5407,12 +5394,11 @@ void CEEInfo::getCallInfo(
         if (pTargetMD->GetMethodTable()->IsInterface())
         {
             // Handle interface methods specially because the Sealed bit has no meaning on interfaces.
-            devirt = !IsMdVirtual(pTargetMD->GetAttrs());
+            devirt = !IsMdVirtual(dwTargetMethodAttrs);
         }
         else
         {
-            DWORD dwMethodAttrs = pTargetMD->GetAttrs();
-            devirt = !IsMdVirtual(dwMethodAttrs) || IsMdFinal(dwMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
+            devirt = !IsMdVirtual(dwTargetMethodAttrs) || IsMdFinal(dwTargetMethodAttrs) || pTargetMD->GetMethodTable()->IsSealed();
         }
 
         if (devirt)
@@ -5424,6 +5410,14 @@ void CEEInfo::getCallInfo(
 
     if (directCall)
     {
+        // Direct calls to abstract methods are not allowed
+        if (IsMdAbstract(dwTargetMethodAttrs) &&
+            // Compensate for always treating delegates as direct calls above
+            !(((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)))
+        {
+            COMPlusThrowHR(COR_E_BADIMAGEFORMAT, BFA_BAD_IL);
+        }
+
         bool allowInstParam = (flags & CORINFO_CALLINFO_ALLOWINSTPARAM);
 
         // Create instantiating stub if necesary
@@ -5452,21 +5446,33 @@ void CEEInfo::getCallInfo(
         //    (c) constraint calls that require runtime context lookup are never resolved 
         //        to underlying shared generic code
 
+        bool unresolvedLdVirtFtn = (flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt;
+
         if (((pResult->exactContextNeedsRuntimeLookup && pTargetMD->IsInstantiatingStub() && (!allowInstParam || fResolvedConstraint)) || fForceUseRuntimeLookup)
                 // Handle invalid IL - see comment in code:CEEInfo::ComputeRuntimeLookupForSharedGenericToken
                 && ContextIsShared(pResolvedToken->tokenContext))
         {
             _ASSERTE(!m_pMethodBeingCompiled->IsDynamicMethod());
-            pResult->kind = CORINFO_CALL_CODE_POINTER;
 
-            // For reference types, the constrained type does not affect method resolution
-            DictionaryEntryKind entryKind = (!constrainedType.IsNull() && constrainedType.IsValueType()) ? ConstrainedMethodEntrySlot : MethodEntrySlot;
+            if (IsReadyToRunCompilation() && unresolvedLdVirtFtn)
+            {
+                // Compensate for always treating delegates as direct calls above.
+                // Dictionary lookup is computed in embedGenericHandle as part of the LDVIRTFTN code sequence
+                pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;
+            }
+            else
+            {
+                pResult->kind = CORINFO_CALL_CODE_POINTER;
 
-            ComputeRuntimeLookupForSharedGenericToken(entryKind,
-                                                      pResolvedToken,
-                                                      pConstrainedResolvedToken,
-                                                      pMD,
-                                                      &pResult->codePointerLookup);
+                // For reference types, the constrained type does not affect method resolution
+                DictionaryEntryKind entryKind = (!constrainedType.IsNull() && constrainedType.IsValueType()) ? ConstrainedMethodEntrySlot : MethodEntrySlot;
+
+                ComputeRuntimeLookupForSharedGenericToken(entryKind,
+                                                            pResolvedToken,
+                                                            pConstrainedResolvedToken,
+                                                            pMD,
+                                                            &pResult->codePointerLookup);
+            }
         }
         else
         {
@@ -5477,13 +5483,10 @@ void CEEInfo::getCallInfo(
 
             pResult->kind = CORINFO_CALL;
 
-            if (IsReadyToRunCompilation())
+            if (IsReadyToRunCompilation() && unresolvedLdVirtFtn)
             {
                 // Compensate for always treating delegates as direct calls above
-                if ((flags & CORINFO_CALLINFO_LDFTN) && (flags & CORINFO_CALLINFO_CALLVIRT) && !resolvedCallVirt)
-                {
-                   pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;
-                }
+                pResult->kind = CORINFO_VIRTUALCALL_LDVIRTFTN;
             }
         }
         pResult->nullInstanceCheck = resolvedCallVirt;
@@ -5554,7 +5557,7 @@ void CEEInfo::getCallInfo(
                 // We shouldn't be using GetLoaderAllocator here because for LCG, we need to get the 
                 // VirtualCallStubManager from where the stub will be used. 
                 // For normal methods there is no difference.
-                LoaderAllocator *pLoaderAllocator = m_pMethodBeingCompiled->GetLoaderAllocatorForCode();
+                LoaderAllocator *pLoaderAllocator = m_pMethodBeingCompiled->GetLoaderAllocator();
                 VirtualCallStubManager *pMgr = pLoaderAllocator->GetVirtualCallStubManager();
 
                 PCODE addr = pMgr->GetCallStub(exactType, pTargetMD);
@@ -5851,7 +5854,6 @@ BOOL CEEInfo::canAccessFamily(CORINFO_METHOD_HANDLE hCaller,
 void CEEInfo::ThrowExceptionForHelper(const CORINFO_HELPER_DESC * throwHelper)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5896,7 +5898,6 @@ void CEEInfo::ThrowExceptionForHelper(const CORINFO_HELPER_DESC * throwHelper)
 BOOL CEEInfo::isRIDClassDomainID(CORINFO_CLASS_HANDLE cls)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5921,7 +5922,6 @@ unsigned CEEInfo::getClassDomainID (CORINFO_CLASS_HANDLE clsHnd,
                                     void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -5993,7 +5993,6 @@ bool __stdcall TrackAllocationsEnabled()
 CorInfoHelpFunc CEEInfo::getNewHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, CORINFO_METHOD_HANDLE callerHandle, bool * pHasSideEffects)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6132,7 +6131,6 @@ CorInfoHelpFunc CEEInfo::getNewHelperStatic(MethodTable * pMT, bool * pHasSideEf
 CorInfoHelpFunc CEEInfo::getNewArrHelper (CORINFO_CLASS_HANDLE arrayClsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6220,7 +6218,6 @@ CorInfoHelpFunc CEEInfo::getNewArrHelperStatic(TypeHandle clsHnd)
 CorInfoHelpFunc CEEInfo::getCastingHelper(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fThrowing)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6339,7 +6336,6 @@ CorInfoHelpFunc CEEInfo::getCastingHelperStatic(TypeHandle clsHnd, bool fThrowin
 CorInfoHelpFunc CEEInfo::getSharedCCtorHelper(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -6422,7 +6418,6 @@ CORINFO_CLASS_HANDLE  CEEInfo::getTypeForBox(CORINFO_CLASS_HANDLE  cls)
 CorInfoHelpFunc CEEInfo::getBoxHelper(CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6459,7 +6454,6 @@ CorInfoHelpFunc CEEInfo::getBoxHelper(CORINFO_CLASS_HANDLE clsHnd)
 CorInfoHelpFunc CEEInfo::getSecurityPrologHelper(CORINFO_METHOD_HANDLE ftn)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6495,7 +6489,6 @@ CORINFO_VARARGS_HANDLE CEEInfo::getVarArgsHandle(CORINFO_SIG_INFO *sig,
                                                  void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6527,7 +6520,6 @@ bool CEEInfo::canGetVarArgsHandle(CORINFO_SIG_INFO *sig)
 unsigned CEEInfo::getMethodHash (CORINFO_METHOD_HANDLE ftnHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6550,7 +6542,6 @@ unsigned CEEInfo::getMethodHash (CORINFO_METHOD_HANDLE ftnHnd)
 const char* CEEInfo::getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** scopeName)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6629,7 +6620,6 @@ const char* CEEInfo::getMethodName (CORINFO_METHOD_HANDLE ftnHnd, const char** s
 const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, const char** className, const char** namespaceName, const char **enclosingClassName)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6684,7 +6674,6 @@ const char* CEEInfo::getMethodNameFromMetadata(CORINFO_METHOD_HANDLE ftnHnd, con
 const char* CEEInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const char** namespaceName)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6715,7 +6704,6 @@ const char* CEEInfo::getClassNameFromMetadata(CORINFO_CLASS_HANDLE cls, const ch
 CORINFO_CLASS_HANDLE CEEInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE cls, unsigned index)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6739,7 +6727,6 @@ CORINFO_CLASS_HANDLE CEEInfo::getTypeInstantiationArgument(CORINFO_CLASS_HANDLE 
 DWORD CEEInfo::getMethodAttribs (CORINFO_METHOD_HANDLE ftn)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6870,6 +6857,13 @@ DWORD CEEInfo::getMethodAttribsInternal (CORINFO_METHOD_HANDLE ftn)
         result |= CORINFO_FLG_DELEGATE_INVOKE;
     }
 
+#ifndef CROSSGEN_COMPILE
+    if (!g_pConfig->TieredCompilation_QuickJitForLoops())
+    {
+        result |= CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS;
+    }
+#endif
+
     return result;
 }
 
@@ -6879,7 +6873,6 @@ void CEEInfo::setMethodAttribs (
         CorInfoMethodRuntimeFlags attribs)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -6922,6 +6915,28 @@ void CEEInfo::setMethodAttribs (
             ftn->SetNotInline(true);
         }
     }
+
+#ifndef CROSSGEN_COMPILE
+    if (attribs & (CORINFO_FLG_SWITCHED_TO_OPTIMIZED | CORINFO_FLG_SWITCHED_TO_MIN_OPT))
+    {
+        PrepareCodeConfig *config = GetThread()->GetCurrentPrepareCodeConfig();
+        if (config != nullptr)
+        {
+            if (attribs & CORINFO_FLG_SWITCHED_TO_MIN_OPT)
+            {
+                _ASSERTE(!ftn->IsJitOptimizationDisabled());
+                config->SetJitSwitchedToMinOpt();
+            }
+#ifdef FEATURE_TIERED_COMPILATION
+            else if (attribs & CORINFO_FLG_SWITCHED_TO_OPTIMIZED)
+            {
+                _ASSERTE(ftn->IsEligibleForTieredCompilation());
+                config->SetJitSwitchedToOptimized();
+            }
+#endif
+        }
+    }
+#endif // !CROSSGEN_COMPILE
 
     EE_TO_JIT_TRANSITION();
 }
@@ -6985,8 +7000,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__JIT_HELPERS));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7064,7 +7078,7 @@ bool getILIntrinsicImplementation(MethodDesc * ftn,
             // Call CompareTo method on the primitive type
             int tokCompareTo = pCompareToMD->GetMemberDef();
 
-            int index = (et - ELEMENT_TYPE_I1);
+            unsigned int index = (et - ELEMENT_TYPE_I1);
             _ASSERTE(index < _countof(ilcode));
 
             ilcode[index][0] = CEE_LDARGA_S;
@@ -7114,8 +7128,7 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__UNSAFE));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7356,10 +7369,7 @@ bool getILIntrinsicImplementationForVolatile(MethodDesc * ftn,
     // we substitute raw IL bodies for these methods that use the correct volatile instructions.
     //
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Volatile class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__VOLATILE));
-    _ASSERTE(strcmp(ftn->GetMethodTable()->GetClass()->GetDebugClassName(), "System.Threading.Volatile") == 0);
 
     const size_t VolatileMethodBodySize = 6;
 
@@ -7438,20 +7448,14 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib in the System.Threading.Interlocked class
-    _ASSERTE(ftn->GetModule()->IsSystem());
     _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__INTERLOCKED));
 
     // We are only interested if ftn's token and CompareExchange<T> token match
     if (ftn->GetMemberDef() != MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_T)->GetMemberDef())
-        return false;       
+        return false;
 
-    // Get MethodDesc for System.Threading.Interlocked.CompareExchangeFast()
-    MethodDesc* cmpxchgFast = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
-
-    // The MethodDesc lookup must not fail, and it should have the name "CompareExchangeFast"
-    _ASSERTE(cmpxchgFast != NULL);
-    _ASSERTE(strcmp(cmpxchgFast->GetName(), "CompareExchange") == 0);
+    // Get MethodDesc for non-generic System.Threading.Interlocked.CompareExchange()
+    MethodDesc* cmpxchgObject = MscorlibBinder::GetMethod(METHOD__INTERLOCKED__COMPARE_EXCHANGE_OBJECT);
 
     // Setup up the body of the method
     static BYTE il[] = {
@@ -7462,12 +7466,12 @@ bool getILIntrinsicImplementationForInterlocked(MethodDesc * ftn,
                           CEE_RET
                         };
 
-    // Get the token for System.Threading.Interlocked.CompareExchangeFast(), and patch [target]
-    mdMethodDef cmpxchgFastToken = cmpxchgFast->GetMemberDef();
-    il[4] = (BYTE)((int)cmpxchgFastToken >> 0);
-    il[5] = (BYTE)((int)cmpxchgFastToken >> 8);
-    il[6] = (BYTE)((int)cmpxchgFastToken >> 16);
-    il[7] = (BYTE)((int)cmpxchgFastToken >> 24);
+    // Get the token for non-generic System.Threading.Interlocked.CompareExchange(), and patch [target]
+    mdMethodDef cmpxchgObjectToken = cmpxchgObject->GetMemberDef();
+    il[4] = (BYTE)((int)cmpxchgObjectToken >> 0);
+    il[5] = (BYTE)((int)cmpxchgObjectToken >> 8);
+    il[6] = (BYTE)((int)cmpxchgObjectToken >> 16);
+    il[7] = (BYTE)((int)cmpxchgObjectToken >> 24);
 
     // Initialize methInfo
     methInfo->ILCode = const_cast<BYTE*>(il);
@@ -7484,8 +7488,7 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
 {
     STANDARD_VM_CONTRACT;
 
-    // Precondition: ftn is a method in mscorlib 
-    _ASSERTE(ftn->GetModule()->IsSystem());
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__RUNTIME_HELPERS));
 
     mdMethodDef tk = ftn->GetMemberDef();
 
@@ -7517,7 +7520,88 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         return true;
     }
 
+    if (tk == MscorlibBinder::GetMethod(METHOD__RUNTIME_HELPERS__IS_BITWISE_EQUATABLE)->GetMemberDef())
+    {
+        _ASSERTE(ftn->HasMethodInstantiation());
+        Instantiation inst = ftn->GetMethodInstantiation();
+
+        _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+        TypeHandle typeHandle = inst[0];
+        MethodTable * methodTable = typeHandle.GetMethodTable();
+
+        static const BYTE returnTrue[] = { CEE_LDC_I4_1, CEE_RET };
+        static const BYTE returnFalse[] = { CEE_LDC_I4_0, CEE_RET };
+
+        // Ideally we could detect automatically whether a type is trivially equatable
+        // (i.e., its operator == could be implemented via memcmp). But for now we'll
+        // do the simple thing and hardcode the list of types we know fulfill this contract.
+        // n.b. This doesn't imply that the type's CompareTo method can be memcmp-implemented,
+        // as a method like CompareTo may need to take a type's signedness into account.
+
+        if (methodTable == MscorlibBinder::GetClass(CLASS__BOOLEAN)
+            || methodTable == MscorlibBinder::GetClass(CLASS__BYTE)
+            || methodTable == MscorlibBinder::GetClass(CLASS__SBYTE)
+#ifdef FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR8)
+#endif // FEATURE_UTF8STRING
+            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT16)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT32)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINT64)
+            || methodTable == MscorlibBinder::GetClass(CLASS__INTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__UINTPTR)
+            || methodTable == MscorlibBinder::GetClass(CLASS__RUNE)
+            || methodTable->IsEnum())
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnTrue);
+        }
+        else
+        {
+            methInfo->ILCode = const_cast<BYTE*>(returnFalse);
+        }
+
+        methInfo->ILCodeSize = sizeof(returnTrue);
+        methInfo->maxStack = 1;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
+
     return false;
+}
+
+bool getILIntrinsicImplementationForActivator(MethodDesc* ftn,
+    CORINFO_METHOD_INFO* methInfo,
+    SigPointer* pSig)
+{
+    STANDARD_VM_CONTRACT;
+
+    _ASSERTE(MscorlibBinder::IsClass(ftn->GetMethodTable(), CLASS__ACTIVATOR));
+
+    // We are only interested if ftn's token and CreateInstance<T> token match
+    if (ftn->GetMemberDef() != MscorlibBinder::GetMethod(METHOD__ACTIVATOR__CREATE_INSTANCE_OF_T)->GetMemberDef())
+        return false;
+
+    _ASSERTE(ftn->HasMethodInstantiation());
+    Instantiation inst = ftn->GetMethodInstantiation();
+
+    _ASSERTE(ftn->GetNumGenericMethodArgs() == 1);
+    TypeHandle typeHandle = inst[0];
+    MethodTable* methodTable = typeHandle.GetMethodTable();
+
+    if (!methodTable->IsValueType() || methodTable->HasDefaultConstructor())
+        return false;
+
+    // Replace the body with implementation that just returns "default"
+    MethodDesc* createDefaultInstance = MscorlibBinder::GetMethod(METHOD__ACTIVATOR__CREATE_DEFAULT_INSTANCE_OF_T);
+    COR_ILMETHOD_DECODER header(createDefaultInstance->GetILHeader(FALSE), createDefaultInstance->GetMDImport(), NULL);
+    getMethodInfoILMethodHeaderHelper(&header, methInfo);
+    *pSig = SigPointer(header.LocalVarSig, header.cbLocalVarSig);
+
+    return true;
 }
 
 //---------------------------------------------------------------------------------------
@@ -7575,6 +7659,15 @@ getMethodInfoHelper(
             {
                 fILIntrinsic = getILIntrinsicImplementationForRuntimeHelpers(ftn, methInfo);
             }
+            else if (MscorlibBinder::IsClass(pMT, CLASS__ACTIVATOR))
+            {
+                SigPointer localSig;
+                fILIntrinsic = getILIntrinsicImplementationForActivator(ftn, methInfo, &localSig);
+                if (fILIntrinsic)
+                {
+                    localSig.GetSignature(&pLocalSig, &cbLocalSig);
+                }
+            }
         }
 
         if (!fILIntrinsic)
@@ -7588,7 +7681,7 @@ getMethodInfoHelper(
     {
         _ASSERTE(ftn->IsDynamicMethod());
 
-        DynamicResolver * pResolver = ftn->AsDynamicMethodDesc()->GetResolver();        
+        DynamicResolver * pResolver = ftn->AsDynamicMethodDesc()->GetResolver();
         unsigned int EHCount;
         methInfo->ILCode = pResolver->GetCodeInfo(&methInfo->ILCodeSize,
                                                   &methInfo->maxStack,
@@ -7715,7 +7808,6 @@ CEEInfo::getMethodInfo(
     CORINFO_METHOD_INFO * methInfo)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -7818,7 +7910,6 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
                                   DWORD*                pRestrictions)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -7990,6 +8081,21 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
             goto exit;
         }
 
+#if defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+        if (CORProfilerEnableRejit())
+        {
+            CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+            if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+            {
+                result = INLINE_FAIL;
+                szFailReason = "ReJIT methods cannot be inlined.";
+                goto exit;
+            }
+        }
+#endif // defined(FEATURE_REJIT) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
         // If the profiler wishes to be notified of JIT events and the result from
         // the above tests will cause a function to be inlined, we need to tell the
         // profiler that this inlining is going to take place, and give them a
@@ -8003,7 +8109,6 @@ CorInfoInline CEEInfo::canInline (CORINFO_METHOD_HANDLE hCaller,
             else
             {
                 BOOL fShouldInline;
-
                 HRESULT hr = g_profControlBlock.pProfInterface->JITInlining(
                     (FunctionID)pCaller,
                     (FunctionID)pCallee,
@@ -8065,7 +8170,6 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     JIT_TO_EE_TRANSITION();
 
@@ -8119,7 +8223,7 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
 #endif //_DEBUG
 
     //I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_VERBOSE,
                                      CLR_JITTRACING_KEYWORD))
     {
@@ -8177,6 +8281,35 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
 
     }
 
+
+#if defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    if(inlineResult == INLINE_PASS)
+    {
+        // We don't want to track the chain of methods, so intentionally use m_pMethodBeingCompiled
+        // to just track the methods that pCallee is eventually inlined in
+        MethodDesc *pCallee = GetMethod(inlineeHnd);
+        MethodDesc *pCaller = m_pMethodBeingCompiled;
+        pCallee->GetModule()->AddInlining(pCaller, pCallee);
+
+        if (CORProfilerEnableRejit())
+        {
+            // If ReJIT is enabled, there is a chance that a race happened where the profiler
+            // requested a ReJIT on a method, but before the ReJIT occurred an inlining happened.
+            // If we end up reporting an inlining on a method with non-default IL it means the race
+            // happened and we need to manually request ReJIT for it since it was missed.
+            CodeVersionManager* pCodeVersionManager = pCallee->GetCodeVersionManager();
+            CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+            ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pCallee);
+            if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
+            {
+                ModuleID modId = pCaller->GetModule()->GetModuleID();
+                mdMethodDef methodDef = pCaller->GetMemberDef();
+                ReJitManager::RequestReJIT(1, &modId, &methodDef, static_cast<COR_PRF_REJIT_FLAGS>(0));
+            }
+        }
+    }
+#endif // defined FEATURE_REJIT && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
     EE_TO_JIT_TRANSITION();
 }
 
@@ -8209,7 +8342,6 @@ void CEEInfo::initConstraintsForVerification(CORINFO_METHOD_HANDLE hMethod,
                                              BOOL *pfHasCircularMethodConstraints)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8242,7 +8374,6 @@ CorInfoInstantiationVerification
     CEEInfo::isInstantiationOfVerifiedGeneric(CORINFO_METHOD_HANDLE hMethod)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8287,7 +8418,6 @@ bool CEEInfo::canTailCall (CORINFO_METHOD_HANDLE hCaller,
                            bool fIsTailPrefix)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8390,7 +8520,6 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
 
     JIT_TO_EE_TRANSITION();
 
@@ -8446,7 +8575,7 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
 #endif //_DEBUG
 
     // I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_VERBOSE,
                                      CLR_JITTRACING_KEYWORD))
     {
@@ -8543,7 +8672,6 @@ void CEEInfo::getEHinfo(
             CORINFO_EH_CLAUSE* clause)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8575,7 +8703,6 @@ CEEInfo::getMethodSig(
     CORINFO_CLASS_HANDLE  owner)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8651,7 +8778,6 @@ CEEInfo::getMethodClass(
     CORINFO_METHOD_HANDLE methodHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8693,7 +8819,6 @@ CEEInfo::getMethodClass(
 CORINFO_MODULE_HANDLE CEEInfo::getMethodModule (CORINFO_METHOD_HANDLE methodHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -8726,7 +8851,6 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
                                           bool * pMustExpand)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -8802,7 +8926,6 @@ CorInfoIntrinsics CEEInfo::getIntrinsicID(CORINFO_METHOD_HANDLE methodHnd,
 bool CEEInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
 {
 CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -8841,7 +8964,6 @@ void CEEInfo::getMethodVTableOffset (CORINFO_METHOD_HANDLE methodHnd,
                                      bool * isRelative)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -9030,7 +9152,6 @@ CORINFO_METHOD_HANDLE CEEInfo::resolveVirtualMethod(CORINFO_METHOD_HANDLE method
                                                     CORINFO_CONTEXT_HANDLE ownerType)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9053,7 +9174,6 @@ CORINFO_METHOD_HANDLE CEEInfo::getUnboxedEntry(
     bool* requiresInstMethodTableArg)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9098,7 +9218,6 @@ void CEEInfo::expandRawHandleIntrinsic(
 CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClass(CORINFO_CLASS_HANDLE elemType)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9118,7 +9237,6 @@ CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClass(CORINFO_CLASS_HAND
 CORINFO_CLASS_HANDLE CEEInfo::getDefaultEqualityComparerClassHelper(CORINFO_CLASS_HANDLE elemType)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9202,7 +9320,6 @@ void CEEInfo::getFunctionEntryPoint(CORINFO_METHOD_HANDLE  ftnHnd,
                                     CORINFO_ACCESS_FLAGS   accessFlags)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9261,7 +9378,6 @@ void CEEInfo::getFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE   ftn,
                                          CORINFO_CONST_LOOKUP *  pResult)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9292,7 +9408,6 @@ void CEEInfo::getFunctionFixedEntryPoint(CORINFO_METHOD_HANDLE   ftn,
 const char* CEEInfo::getFieldName (CORINFO_FIELD_HANDLE fieldHnd, const char** scopeName)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9334,7 +9449,6 @@ const char* CEEInfo::getFieldName (CORINFO_FIELD_HANDLE fieldHnd, const char** s
 CORINFO_CLASS_HANDLE CEEInfo::getFieldClass (CORINFO_FIELD_HANDLE fieldHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -9364,7 +9478,6 @@ CorInfoType CEEInfo::getFieldType (CORINFO_FIELD_HANDLE fieldHnd,
                                    CORINFO_CLASS_HANDLE owner)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9443,7 +9556,6 @@ CorInfoType CEEInfo::getFieldTypeInternal (CORINFO_FIELD_HANDLE fieldHnd,
 unsigned CEEInfo::getFieldOffset (CORINFO_FIELD_HANDLE fieldHnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9481,7 +9593,6 @@ unsigned CEEInfo::getFieldOffset (CORINFO_FIELD_HANDLE fieldHnd)
 bool CEEInfo::isWriteBarrierHelperRequired(CORINFO_FIELD_HANDLE field)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9517,7 +9628,6 @@ bool CEEInfo::isWriteBarrierHelperRequired(CORINFO_FIELD_HANDLE field)
 DWORD CEEInfo::getFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE fieldHnd, void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9546,7 +9656,6 @@ DWORD CEEInfo::getFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE fieldHnd, void **
 void *CEEInfo::allocateArray(ULONG cBytes)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9566,7 +9675,6 @@ void *CEEInfo::allocateArray(ULONG cBytes)
 void CEEInfo::freeArray(void *array)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9584,7 +9692,6 @@ void CEEInfo::getBoundaries(CORINFO_METHOD_HANDLE ftn,
                                ICorDebugInfo::BoundaryTypes *implicitBoundaries)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9613,7 +9720,6 @@ void CEEInfo::getVars(CORINFO_METHOD_HANDLE ftn, ULONG32 *cVars, ICorDebugInfo::
                          bool *extendOthers)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9643,7 +9749,6 @@ void CEEInfo::getVars(CORINFO_METHOD_HANDLE ftn, ULONG32 *cVars, ICorDebugInfo::
 CORINFO_ARG_LIST_HANDLE CEEInfo::getArgNext(CORINFO_ARG_LIST_HANDLE args)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9673,7 +9778,6 @@ CorInfoTypeWithMod CEEInfo::getArgType (
         )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9770,7 +9874,6 @@ CORINFO_CLASS_HANDLE CEEInfo::getArgClass (
     )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9816,7 +9919,6 @@ CORINFO_CLASS_HANDLE CEEInfo::getArgClass (
 CorInfoType CEEInfo::getHFAType(CORINFO_CLASS_HANDLE hClass)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9841,7 +9943,6 @@ CorInfoType CEEInfo::getHFAType(CORINFO_CLASS_HANDLE hClass)
 CorInfoUnmanagedCallConv CEEInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE method)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9903,7 +10004,6 @@ BOOL NDirectMethodDesc::ComputeMarshalingRequired()
 BOOL CEEInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method, CORINFO_SIG_INFO* callSiteSig)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -9981,7 +10081,6 @@ BOOL CEEInfo::satisfiesMethodConstraints(
     CORINFO_METHOD_HANDLE       method)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10017,7 +10116,6 @@ BOOL CEEInfo::isCompatibleDelegate(
             BOOL*                       pfIsOpenDelegate)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10058,7 +10156,6 @@ void* CEEInfo::getPInvokeUnmanagedTarget(CORINFO_METHOD_HANDLE method,
                                                     void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10082,7 +10179,6 @@ void* CEEInfo::getAddressOfPInvokeFixup(CORINFO_METHOD_HANDLE method,
                                         void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10125,7 +10221,6 @@ CORINFO_JUST_MY_CODE_HANDLE CEEInfo::getJustMyCodeHandle(
                 CORINFO_JUST_MY_CODE_HANDLE**ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10175,7 +10270,6 @@ void InlinedCallFrame::GetEEInfo(CORINFO_EE_INFO::InlinedCallFrameInfo *pInfo)
 void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10195,11 +10289,27 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
     }
     else
     {
-        // inlinedCallFrameInfo is not used for R2R compilation
+        // We'll declare a fixed size to use for the inlined call frame for R2R here. The size we declare
+        // is currently slightly larger that the actual size of the struct, just in case we decide to add
+        // more fields to the struct in the future, in an effort to not completely invalidate existing R2R images.
+        // The assert below ensures that this fixed size is at least large enough to hold the data structures 
+        // used at runtime. 
+        // ** IMPORTANT ** If you ever need to change the value of this fixed size, make sure to change the R2R
+        // version number, otherwise older R2R images will probably crash when used.
+
+        const int r2rInlinedCallFrameSize = TARGET_POINTER_SIZE * 11;
+
+#if defined(_DEBUG) && !defined(CROSSBITNESS_COMPILE)
+        InlinedCallFrame::GetEEInfo(&pEEInfoOut->inlinedCallFrameInfo);
+        _ASSERTE(pEEInfoOut->inlinedCallFrameInfo.size <= r2rInlinedCallFrameSize);
+#endif
+
+        // inlinedCallFrameInfo is mostly not used for R2R compilation (only the size field is used)
         ZeroMemory(&pEEInfoOut->inlinedCallFrameInfo, sizeof(pEEInfoOut->inlinedCallFrameInfo));
 
-        pEEInfoOut->offsetOfThreadFrame = (DWORD)-1;
-        pEEInfoOut->offsetOfGCState     = (DWORD)-1;
+        pEEInfoOut->offsetOfThreadFrame         = (DWORD)-1;
+        pEEInfoOut->offsetOfGCState             = (DWORD)-1;
+        pEEInfoOut->inlinedCallFrameInfo.size   = r2rInlinedCallFrameSize;
     }
 
 #ifndef CROSSBITNESS_COMPILE
@@ -10242,7 +10352,6 @@ void CEEInfo::getEEInfo(CORINFO_EE_INFO *pEEInfoOut)
 LPCWSTR CEEInfo::getJitTimeLogFilename()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10263,7 +10372,6 @@ LPCWSTR CEEInfo::getJitTimeLogFilename()
 DWORD CEEInfo::getThreadTLSIndex(void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10280,7 +10388,6 @@ DWORD CEEInfo::getThreadTLSIndex(void **ppIndirection)
 const void * CEEInfo::getInlinedCallFrameVptr(void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10307,7 +10414,6 @@ const void * CEEInfo::getInlinedCallFrameVptr(void **ppIndirection)
 LONG * CEEInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10332,7 +10438,6 @@ LONG * CEEInfo::getAddrOfCaptureThreadGlobal(void **ppIndirection)
 HRESULT CEEInfo::GetErrorHRESULT(struct _EXCEPTION_POINTERS *pExceptionPointers)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
@@ -10363,7 +10468,6 @@ HRESULT CEEInfo::GetErrorHRESULT(struct _EXCEPTION_POINTERS *pExceptionPointers)
 ULONG CEEInfo::GetErrorMessage(__inout_ecount(bufferLength) LPWSTR buffer, ULONG bufferLength)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10404,7 +10508,6 @@ ULONG CEEInfo::GetErrorMessage(__inout_ecount(bufferLength) LPWSTR buffer, ULONG
 LONG EEFilterException(struct _EXCEPTION_POINTERS *pExceptionPointers, void *unused)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -10412,8 +10515,6 @@ LONG EEFilterException(struct _EXCEPTION_POINTERS *pExceptionPointers, void *unu
     int result = 0;
 
     JIT_TO_EE_TRANSITION_LEAF();
-
-    VALIDATE_BACKOUT_STACK_CONSUMPTION;
 
     unsigned code = pExceptionPointers->ExceptionRecord->ExceptionCode;
 
@@ -10499,7 +10600,6 @@ int CEEInfo::FilterException(struct _EXCEPTION_POINTERS *pExceptionPointers)
 void CEEInfo::HandleException(struct _EXCEPTION_POINTERS *pExceptionPointers)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
     } CONTRACTL_END;
@@ -10581,7 +10681,6 @@ void CEEInfo::ThrowExceptionForJitResult(
         HRESULT result)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -10600,7 +10699,6 @@ CORINFO_MODULE_HANDLE CEEInfo::embedModuleHandle(CORINFO_MODULE_HANDLE handle,
                                                  void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10622,7 +10720,6 @@ CORINFO_CLASS_HANDLE CEEInfo::embedClassHandle(CORINFO_CLASS_HANDLE handle,
                                                void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10643,7 +10740,6 @@ CORINFO_FIELD_HANDLE CEEInfo::embedFieldHandle(CORINFO_FIELD_HANDLE handle,
                                                void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10664,7 +10760,6 @@ CORINFO_METHOD_HANDLE CEEInfo::embedMethodHandle(CORINFO_METHOD_HANDLE handle,
                                                  void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10693,7 +10788,6 @@ void CEEInfo::setJitFlags(const CORJIT_FLAGS& jitFlags)
 DWORD CEEInfo::getJitFlags(CORJIT_FLAGS* jitFlags, DWORD sizeInBytes)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -10736,7 +10830,6 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
     // No dynamic contract here because SEH is used
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
 
     // NOTE: the lack of JIT/EE transition markers in this method is intentional. Any
@@ -10787,28 +10880,13 @@ bool CEEInfo::runWithErrorTrap(void (*function)(void*), void* param)
 /*********************************************************************/
 IEEMemoryManager* CEEInfo::getMemoryManager()
 {
-    CONTRACTL {
-        SO_TOLERANT;
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
-    } CONTRACTL_END;
-
-    IEEMemoryManager* result = NULL;
-
-    JIT_TO_EE_TRANSITION_LEAF();
-
-    result = GetEEMemoryManager();
-
-    EE_TO_JIT_TRANSITION_LEAF();
-
-    return result;
+    UNREACHABLE(); // OBSOLETE
+    return NULL;
 }
 
 /*********************************************************************/
 int CEEInfo::doAssert(const char* szFile, int iLine, const char* szExpr)
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
@@ -10839,7 +10917,6 @@ int CEEInfo::doAssert(const char* szFile, int iLine, const char* szExpr)
 
 void CEEInfo::reportFatalError(CorJitResult result)
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
@@ -10854,7 +10931,6 @@ void CEEInfo::reportFatalError(CorJitResult result)
 
 BOOL CEEInfo::logMsg(unsigned level, const char* fmt, va_list args)
 {
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
@@ -10891,7 +10967,6 @@ void* CEEJitInfo::getHelperFtn(CorInfoHelpFunc    ftnNum,         /* IN  */
                                void **            ppIndirection)  /* OUT */
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -11018,7 +11093,6 @@ void CEEJitInfo::GetProfilingHandle(BOOL                      *pbHookFunction,
                                     BOOL                      *pbIndirectedHandles)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11092,7 +11166,6 @@ void CEEJitInfo::setBoundaries(CORINFO_METHOD_HANDLE ftn, ULONG32 cMap,
                                ICorDebugInfo::OffsetMapping *pMap)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11111,7 +11184,6 @@ void CEEJitInfo::setBoundaries(CORINFO_METHOD_HANDLE ftn, ULONG32 cMap,
 void CEEJitInfo::setVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo::NativeVarInfo *vars)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11130,14 +11202,13 @@ void CEEJitInfo::setVars(CORINFO_METHOD_HANDLE ftn, ULONG32 cVars, ICorDebugInfo
 void CEEJitInfo::CompressDebugInfo()
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
     // Don't track JIT info for DynamicMethods.
-    if (m_pMethodBeingCompiled->IsDynamicMethod())
+    if (m_pMethodBeingCompiled->IsDynamicMethod() && !g_pConfig->GetTrackDynamicMethodDebugInfo())
         return;
 
     if (m_iOffsetMapping == 0 && m_iNativeVarInfo == 0)
@@ -11206,7 +11277,6 @@ void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwind
 {
 #ifdef WIN64EXCEPTIONS
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -11268,7 +11338,6 @@ void CEEJitInfo::allocUnwindInfo (
 {
 #ifdef WIN64EXCEPTIONS
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11436,7 +11505,6 @@ void CEEJitInfo::recordRelocation(void * location,
                                   INT32  addlDelta)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11632,7 +11700,6 @@ void CEEJitInfo::recordRelocation(void * location,
 WORD CEEJitInfo::getRelocTypeHint(void * target)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11654,7 +11721,6 @@ WORD CEEJitInfo::getRelocTypeHint(void * target)
 void CEEJitInfo::getModuleNativeEntryPointRange(void** pStart, void** pEnd)
 {
     CONTRACTL {
-        SO_TOLERANT;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_PREEMPTIVE;
@@ -11702,7 +11768,6 @@ InfoAccessType CEEJitInfo::constructStringLiteral(CORINFO_MODULE_HANDLE scopeHnd
                                                   void **ppValue)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11732,7 +11797,6 @@ InfoAccessType CEEJitInfo::constructStringLiteral(CORINFO_MODULE_HANDLE scopeHnd
 InfoAccessType CEEJitInfo::emptyStringLiteral(void ** ppValue)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11758,7 +11822,6 @@ void* CEEJitInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
                                   void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11813,7 +11876,6 @@ CORINFO_CLASS_HANDLE CEEJitInfo::getStaticFieldCurrentClass(CORINFO_FIELD_HANDLE
                                                             bool* pIsSpeculative)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11911,7 +11973,6 @@ void* CEEJitInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,
                                 void **ppIndirection)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11932,13 +11993,12 @@ void* CEEJitInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,
 }
 
 /*********************************************************************/
-HRESULT CEEJitInfo::allocBBProfileBuffer (
-    ULONG                         count,
-    ICorJitInfo::ProfileBuffer ** profileBuffer
+HRESULT CEEJitInfo::allocMethodBlockCounts (
+    UINT32                        count,           // count of <ILOffset, ExecutionCount> tuples
+    ICorJitInfo::BlockCounts **   pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
     )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -11967,10 +12027,10 @@ HRESULT CEEJitInfo::allocBBProfileBuffer (
         codeSize = m_ILHeader->GetCodeSize();    
     }
     
-    *profileBuffer = m_pMethodBeingCompiled->GetLoaderModule()->AllocateProfileBuffer(m_pMethodBeingCompiled->GetMemberDef(), count, codeSize);
-    hr = (*profileBuffer ? S_OK : E_OUTOFMEMORY);
+    *pBlockCounts = m_pMethodBeingCompiled->GetLoaderModule()->AllocateMethodBlockCounts(m_pMethodBeingCompiled->GetMemberDef(), count, codeSize);
+    hr = (*pBlockCounts != nullptr) ? S_OK : E_OUTOFMEMORY;
 #else // FEATURE_PREJIT
-    _ASSERTE(!"allocBBProfileBuffer not implemented on CEEJitInfo!");
+    _ASSERTE(!"allocMethodBlockCounts not implemented on CEEJitInfo!");
     hr = E_NOTIMPL;
 #endif // !FEATURE_PREJIT
 
@@ -11981,15 +12041,15 @@ HRESULT CEEJitInfo::allocBBProfileBuffer (
 
 // Consider implementing getBBProfileData on CEEJitInfo.  This will allow us
 // to use profile info in codegen for non zapped images.
-HRESULT CEEJitInfo::getBBProfileData (
+HRESULT CEEJitInfo::getMethodBlockCounts (
     CORINFO_METHOD_HANDLE         ftnHnd,
-    ULONG *                       size,
-    ICorJitInfo::ProfileBuffer ** profileBuffer,
-    ULONG *                       numRuns
+    UINT32 *                      pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+    ICorJitInfo::BlockCounts **   pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+    UINT32 *                      pNumRuns
     )
 {
     LIMITED_METHOD_CONTRACT;
-    _ASSERTE(!"getBBProfileData not implemented on CEEJitInfo!");
+    _ASSERTE(!"getMethodBlockCounts not implemented on CEEJitInfo!");
     return E_NOTIMPL;
 }
 
@@ -12005,7 +12065,6 @@ void CEEJitInfo::allocMem (
             )
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -12106,7 +12165,6 @@ void CEEJitInfo::allocMem (
 void * CEEJitInfo::allocGCInfo (size_t size)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -12144,7 +12202,6 @@ void CEEJitInfo::setEHcount (
         unsigned      cEH)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -12171,7 +12228,6 @@ void CEEJitInfo::setEHinfo (
         const CORINFO_EH_CLAUSE* clause)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -12221,7 +12277,6 @@ void CEEJitInfo::getEHinfo(
                               CORINFO_EH_CLAUSE*     clause)   /* OUT */
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -12258,7 +12313,6 @@ static CorJitResult CompileMethodWithEtwWrapper(EEJitManager *jitMgr,
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     SString namespaceOrClassName, methodName, methodSignature;
     // Fire an ETW event to mark the beginning of JIT'ing
@@ -12286,21 +12340,15 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
     STATIC_CONTRACT_MODE_PREEMPTIVE;
-    STATIC_CONTRACT_SO_INTOLERANT;
 
     CorJitResult ret = CORJIT_SKIPPED;   // Note that CORJIT_SKIPPED is an error exit status code
-
 
     comp->setJitFlags(jitFlags);
 
 #ifdef FEATURE_STACK_SAMPLING
-    // SO_INTOLERANT due to init affecting global state.
     static ConfigDWORD s_stackSamplingEnabled;
     bool samplingEnabled = (s_stackSamplingEnabled.val(CLRConfig::UNSUPPORTED_StackSamplingEnabled) != 0);
 #endif
-
-    BEGIN_SO_TOLERANT_CODE(GetThread());
-
 
 #if defined(ALLOW_SXS_JIT) && !defined(CROSSGEN_COMPILE)
     if (FAILED(ret) && jitMgr->m_alternateJit
@@ -12326,8 +12374,7 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
         // If we failed to jit, then fall back to the primary Jit.
         if (FAILED(ret))
         {
-            // Consider adding this call:
-            //      ((CEEJitInfo*)comp)->BackoutJitData(jitMgr);
+            ((CEEJitInfo*)comp)->BackoutJitData(jitMgr);
             ((CEEJitInfo*)comp)->ResetForJitRetry();
             ret = CORJIT_SKIPPED;
         }
@@ -12420,8 +12467,6 @@ CorJitResult invokeCompileMethodHelper(EEJitManager *jitMgr,
     }
 #endif
 
-    END_SO_TOLERANT_CODE;
-
     return ret;
 }
 
@@ -12463,11 +12508,13 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
                                 CORJIT_FLAGS flags,
                                 BYTE **nativeEntry,
                                 ULONG *nativeSizeOfCode,
-                                MethodDesc *ftn)
+                                NativeCodeVersion nativeCodeVersion)
 {
     // no dynamic contract here because SEH is used, with a finally clause
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_TRIGGERS;
+
+    MethodDesc* ftn = nativeCodeVersion.GetMethodDesc();
 
     LOG((LF_CORDB, LL_EVERYTHING, "CallCompileMethodWithSEHWrapper called...\n"));
 
@@ -12521,7 +12568,7 @@ CorJitResult CallCompileMethodWithSEHWrapper(EEJitManager *jitMgr,
             {
                 if (param.res == CORJIT_OK && !((CEEJitInfo*)param.comp)->JitAgain())
                 {
-                    g_pDebugInterface->JITComplete(ftn, (TADDR)*nativeEntry);
+                    g_pDebugInterface->JITComplete(nativeCodeVersion, (TADDR)*nativeEntry);
                 }
             }
         }
@@ -12695,7 +12742,7 @@ CORJIT_FLAGS GetCompileFlags(MethodDesc * ftn, CORJIT_FLAGS flags, CORINFO_METHO
 
     flags.Set(CORJIT_FLAGS::CORJIT_FLAG_SKIP_VERIFICATION);
 
-    if (ftn->IsILStub())
+    if (ftn->IsILStub() && !g_pConfig->GetTrackDynamicMethodDebugInfo())
     {
         // no debug info available for IL stubs
         flags.Clear(CORJIT_FLAGS::CORJIT_FLAG_DEBUG_INFO);
@@ -12714,7 +12761,6 @@ void ThrowExceptionForJit(HRESULT res)
     {
         THROWS;
         GC_NOTRIGGER;
-        SO_INTOLERANT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -12760,10 +12806,12 @@ BOOL g_fAllowRel32 = TRUE;
 // Calls to this method that occur to check if inlining can occur on x86,
 // are OK since they discard the return value of this method.
 
-PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags,
+PCODE UnsafeJitFunction(NativeCodeVersion nativeCodeVersion, COR_ILMETHOD_DECODER* ILHeader, CORJIT_FLAGS flags,
                         ULONG * pSizeOfCode)
 {
     STANDARD_VM_CONTRACT;
+
+    MethodDesc* ftn = nativeCodeVersion.GetMethodDesc();
 
     PCODE ret = NULL;
 
@@ -12982,15 +13030,6 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
                 QueryPerformanceCounter (&methodJitTimeStart);
 
 #endif
-#if defined(ENABLE_PERF_COUNTERS)
-            START_JIT_PERF();
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStart;
-            QueryPerformanceCounter (&CycleStart);
-#endif // defined(ENABLE_PERF_COUNTERS)
-
             // Note on debuggerTrackInfo arg: if we're only importing (ie, verifying/
             // checking to make sure we could JIT, but not actually generating code (
             // eg, for inlining), then DON'T TELL THE DEBUGGER about this.
@@ -13000,7 +13039,7 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
                                                   flags,
                                                   &nativeEntry,
                                                   &sizeOfCode,
-                                                  (MethodDesc*)ftn);
+                                                  nativeCodeVersion);
             LOG((LF_CORDB, LL_EVERYTHING, "Got through CallCompile MethodWithSEHWrapper\n"));
 
 #if FEATURE_PERFMAP
@@ -13009,20 +13048,6 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
             {
                 *pSizeOfCode = sizeOfCode;
             }
-#endif
-
-#if defined(ENABLE_PERF_COUNTERS)
-            LARGE_INTEGER CycleStop;
-            QueryPerformanceCounter(&CycleStop);
-            GetPerfCounters().m_Jit.timeInJitBase = GetPerfCounters().m_Jit.timeInJit;
-            GetPerfCounters().m_Jit.timeInJit += static_cast<DWORD>(CycleStop.QuadPart - CycleStart.QuadPart);
-            GetPerfCounters().m_Jit.cMethodsJitted++;
-            GetPerfCounters().m_Jit.cbILJitted+=methodInfo.ILCodeSize;
-
-#endif // defined(ENABLE_PERF_COUNTERS)
-
-#if defined(ENABLE_PERF_COUNTERS)
-            STOP_JIT_PERF();
 #endif
 
 #ifdef PERF_TRACK_METHOD_JITTIMES
@@ -13050,8 +13075,6 @@ PCODE UnsafeJitFunction(MethodDesc* ftn, COR_ILMETHOD_DECODER* ILHeader, CORJIT_
 
         if (!SUCCEEDED(res))
         {
-            COUNTER_ONLY(GetPerfCounters().m_Jit.cJitFailures++);
-
 #ifndef CROSSGEN_COMPILE
             jitInfo.BackoutJitData(jitMgr);
 #endif
@@ -13249,6 +13272,7 @@ void Module::LoadHelperTable()
     ClrFlushInstructionCache(table, tableSize);
 #endif // CROSSGEN_COMPILE
 }
+#endif // FEATURE_PREJIT
 
 #ifdef FEATURE_READYTORUN
 CorInfoHelpFunc MapReadyToRunHelper(ReadyToRunHelper helperNum)
@@ -13881,13 +13905,11 @@ BOOL LoadDynamicInfoEntry(Module *currentModule,
 
     return TRUE;
 }
-#endif // FEATURE_PREJIT
 
 void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
                                         CorInfoHelperTailCallSpecialHandling flags)
 {
     CONTRACTL {
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -13999,7 +14021,6 @@ void* CEEInfo::getFieldAddress(CORINFO_FIELD_HANDLE fieldHnd,
                                   void **ppIndirection)
 {
     CONTRACTL{
-        SO_TOLERANT;
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
@@ -14046,20 +14067,20 @@ void* CEEInfo::getMethodSync(CORINFO_METHOD_HANDLE ftnHnd,
     UNREACHABLE();      // only called on derived class.
 }
 
-HRESULT CEEInfo::allocBBProfileBuffer (
-        ULONG                 count,           // The number of basic blocks that we have
-        ProfileBuffer **      profileBuffer
+HRESULT CEEInfo::allocMethodBlockCounts (
+        UINT32                count,           // the count of <ILOffset, ExecutionCount> tuples
+        BlockCounts **        pBlockCounts     // pointer to array of <ILOffset, ExecutionCount> tuples
         )
 {
     LIMITED_METHOD_CONTRACT;
     UNREACHABLE_RET();      // only called on derived class.
 }
 
-HRESULT CEEInfo::getBBProfileData(
+HRESULT CEEInfo::getMethodBlockCounts(
         CORINFO_METHOD_HANDLE ftnHnd,
-        ULONG *               count,           // The number of basic blocks that we have
-        ProfileBuffer **      profileBuffer,
-        ULONG *               numRuns
+        UINT32 *              pCount,          // pointer to the count of <ILOffset, ExecutionCount> tuples
+        BlockCounts **        pBlockCounts,    // pointer to array of <ILOffset, ExecutionCount> tuples
+        UINT32 *              pNumRuns
         )
 {
     LIMITED_METHOD_CONTRACT;
@@ -14168,7 +14189,6 @@ void EECodeInfo::Init(PCODE codeAddress)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     Init(codeAddress, ExecutionManager::GetScanFlags());
@@ -14179,7 +14199,6 @@ void EECodeInfo::Init(PCODE codeAddress, ExecutionManager::ScanFlag scanFlag)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
-        SO_TOLERANT;
     } CONTRACTL_END;
 
     m_codeAddress = codeAddress;

@@ -256,7 +256,7 @@ public:
         m_token = INVALID_TOKEN;
     }
 
-    DispatchToken(UINT_PTR token)
+    explicit DispatchToken(UINT_PTR token)
     {
         CONSISTENCY_CHECK(token != INVALID_TOKEN);
         m_token = token;
@@ -412,7 +412,6 @@ public:
             THROWS;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             INJECT_FAULT(COMPlusThrowOM());
             PRECONDITION(m_nextID != 0);
             PRECONDITION(m_incSize != 0);
@@ -440,7 +439,6 @@ public:
             THROWS;
             GC_NOTRIGGER;
             MODE_ANY;
-            SO_TOLERANT;
             INJECT_FAULT(COMPlusThrowOM());
             PRECONDITION(m_nextFatID != 0);
             PRECONDITION(m_incSize != 0);

@@ -19,6 +19,9 @@ extern BOOL WINAPI DbgDllMain(HINSTANCE hInstance, DWORD dwReason,
 // OS when the dll gets loaded.  Control is simply deferred to the main code.
 //*****************************************************************************
 extern "C"
+#ifdef FEATURE_PAL
+DLLEXPORT // For Win32 PAL LoadLibrary emulation
+#endif
 BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID lpReserved)
 {
 	// Defer to the main debugging code.

@@ -28,16 +28,6 @@
 // Local prototypes.
 HRESULT FillErrorInfo(LPCWSTR szMsg, DWORD dwHelpContext);
 
-//*****************************************************************************
-// Function that we'll expose to the outside world to fire off the shutdown method
-//*****************************************************************************
-#ifdef SHOULD_WE_CLEANUP
-void ShutdownCompRC()
-{
-    CCompRC::ShutdownDefaultResourceDll();
-}
-#endif /* SHOULD_WE_CLEANUP */
-
 void GetResourceCultureCallbacks(
         FPGETTHREADUICULTURENAMES* fpGetThreadUICultureNames,
         FPGETTHREADUICULTUREID* fpGetThreadUICultureId)
@@ -84,13 +74,11 @@ HRESULT UtilLoadResourceString(CCompRC::ResourceCategory eCategory, UINT iResour
     {
         DISABLED(NOTHROW);
         GC_NOTRIGGER;
-        SO_TOLERANT;
     }
     CONTRACTL_END;
 
     HRESULT retVal = E_OUTOFMEMORY;
 
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
     SString::Startup();
     EX_TRY
     {
@@ -108,53 +96,8 @@ HRESULT UtilLoadResourceString(CCompRC::ResourceCategory eCategory, UINT iResour
     }
     EX_END_CATCH(SwallowAllExceptions);
 
-    END_SO_INTOLERANT_CODE;
-
     return retVal;
 }
-
-#ifdef FEATURE_USE_LCID
-STDAPI UtilLoadStringRCEx(
-    LCID lcid,
-    UINT iResourceID, 
-    __out_ecount(iMax) LPWSTR szBuffer, 
-    int iMax, 
-    int bQuiet,
-    int *pcwchUsed
-)
-{
-    CONTRACTL
-    {
-        DISABLED(NOTHROW);
-        GC_NOTRIGGER;
-        SO_TOLERANT;
-    }
-    CONTRACTL_END;
-        
-    HRESULT retVal = E_OUTOFMEMORY;
-
-    BEGIN_SO_INTOLERANT_CODE_NO_THROW_CHECK_THREAD(return COR_E_STACKOVERFLOW);
-    EX_TRY
-    {
-        SString::Startup();
-        CCompRC *pResourceDLL = CCompRC::GetDefaultResourceDll();
-
-        if (pResourceDLL != NULL)
-        {
-            retVal =  pResourceDLL->LoadString(bQuiet? CCompRC::Optional : CCompRC::Required,lcid, iResourceID, szBuffer, iMax, pcwchUsed);
-        }
-    }
-    EX_CATCH
-    {
-        // Catch any errors and return E_OUTOFMEMORY;
-        retVal = E_OUTOFMEMORY;
-    }
-    EX_END_CATCH(SwallowAllExceptions);
-    END_SO_INTOLERANT_CODE;
-
-    return retVal;
-}
-#endif //FEATURE_USE_LCID
 
 //*****************************************************************************
 // Format a Runtime Error message.
@@ -191,15 +134,9 @@ HRESULT __cdecl FormatRuntimeErrorVa(
     // find the text for it.
     else
     {
-#ifdef FEATURE_USE_LCID
-        if (WszFormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
-                0, hrRpt, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                rcMsg, cchMsg, 0/*<TODO>@todo: marker</TODO>*/))
-#else
         if (WszFormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
                 0, hrRpt, 0,
                 rcMsg, cchMsg, 0/*<TODO>@todo: marker</TODO>*/))
-#endif
         {
             hr = S_OK;
 

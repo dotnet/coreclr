@@ -94,20 +94,12 @@ public:
     static FCDECL1(INT32, InternalGetCorElementType, Object *pRefThis);
 
     static
-    void QCALLTYPE GetEnumValuesAndNames(EnregisteredTypeHandle pEnumType, QCall::ObjectHandleOnStack pReturnValues, QCall::ObjectHandleOnStack pReturnNames, BOOL fGetNames);
+    void QCALLTYPE GetEnumValuesAndNames(QCall::TypeHandle pEnumType, QCall::ObjectHandleOnStack pReturnValues, QCall::ObjectHandleOnStack pReturnNames, BOOL fGetNames);
 
     static FCDECL2_IV(Object*, InternalBoxEnum, ReflectClassBaseObject* pEnumType, INT64 value);
     static FCDECL2(FC_BOOL_RET, InternalEquals, Object *pRefThis, Object* pRefTarget);
     static FCDECL2(FC_BOOL_RET, InternalHasFlag, Object *pRefThis, Object* pRefFlags);
     static FCDECL2(int, InternalCompareTo, Object *pRefThis, Object* pRefTarget);
-};
-
-class ReflectionBinder {
-public:
-    static FCDECL2(FC_BOOL_RET, DBCanConvertPrimitive, ReflectClassBaseObject* vSource, ReflectClassBaseObject* vTarget);
-    static FCDECL2(FC_BOOL_RET, DBCanConvertObjectPrimitive, Object* vSourceObj, ReflectClassBaseObject* vTarget);
-
-
 };
 
 #endif // _REFLECTIONINVOCATION_H_

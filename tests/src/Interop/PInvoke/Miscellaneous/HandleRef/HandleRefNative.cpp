@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <xplatform.h>
+#include <platformdefines.h>
 
 const int intManaged = 1000;
 const int intNative = 2000;
@@ -83,3 +84,7 @@ extern "C" DLL_EXPORT int STDMETHODCALLTYPE TestNoGC(int *pintValue, GCCallback 
     return intReturn;
 }
 
+extern "C" DLL_EXPORT void* STDMETHODCALLTYPE InvalidMarshalPointer_Return()
+{
+    return nullptr;
+}

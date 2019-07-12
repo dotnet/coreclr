@@ -118,7 +118,7 @@ BOOL IsComObjectClass(TypeHandle type);
 // both assembly level and interface level
 //---------------------------------------------------------
 VOID ReadBestFitCustomAttribute(MethodDesc* pMD, BOOL* BestFit, BOOL* ThrowOnUnmappableChar);
-VOID ReadBestFitCustomAttribute(IMDInternalImport* pInternalImport, mdTypeDef cl, BOOL* BestFit, BOOL* ThrowOnUnmappableChar);
+VOID ReadBestFitCustomAttribute(Module* pModule, mdTypeDef cl, BOOL* BestFit, BOOL* ThrowOnUnmappableChar);
 int  InternalWideToAnsi(__in_ecount(iNumWideChars) LPCWSTR szWideString, int iNumWideChars, __out_ecount_opt(cbAnsiBufferSize) LPSTR szAnsiString, int cbAnsiBufferSize, BOOL fBestFit, BOOL fThrowOnUnmappableChar);
 
 //---------------------------------------------------------
@@ -136,9 +136,9 @@ void FillExceptionData(
     _In_opt_ IRestrictedErrorInfo* pRestrictedErrorInfo);
 
 //---------------------------------------------------------------------------
-//returns true if pImport has DefaultDllImportSearchPathsAttribute
-//if true, also returns dllImportSearchPathFlag and searchAssemblyDirectory values.
-BOOL GetDefaultDllImportSearchPathsAttributeValue(IMDInternalImport *pImport, mdToken token, DWORD * pDlImportSearchPathFlag);
+// If pImport has the DefaultDllImportSearchPathsAttribute, 
+// set the value of the attribute in pDlImportSearchPathFlags and return true.
+BOOL GetDefaultDllImportSearchPathsAttributeValue(Module *pModule, mdToken token, DWORD * pDlImportSearchPathFlags);
 
 //---------------------------------------------------------------------------
 // Returns the index of the LCID parameter if one exists and -1 otherwise.
@@ -443,7 +443,7 @@ MethodTable* GetClassFromIProvideClassInfo(IUnknown* pUnk);
 
 //--------------------------------------------------------------------------------
 // Try to load a WinRT type.
-TypeHandle GetWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound);
+TypeHandle LoadWinRTType(SString* ssTypeName, BOOL bThrowIfNotFound, ICLRPrivBinder* loadBinder = nullptr);
 
 //--------------------------------------------------------------------------------
 // Try to get the class from IInspectable.

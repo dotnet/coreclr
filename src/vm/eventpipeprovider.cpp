@@ -11,7 +11,12 @@
 
 #ifdef FEATURE_PERFTRACING
 
-EventPipeProvider::EventPipeProvider(EventPipeConfiguration *pConfig, const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
+EventPipeProvider::EventPipeProvider(
+    EventPipeConfiguration *pConfig,
+    const SString &providerName,
+    EventPipeCallback pCallbackFunction,
+    void *pCallbackData) : m_providerName(providerName),
+                           m_sessions(0)
 {
     CONTRACTL
     {
@@ -22,12 +27,10 @@ EventPipeProvider::EventPipeProvider(EventPipeConfiguration *pConfig, const SStr
     }
     CONTRACTL_END;
 
-    m_providerName = providerName;
-    m_enabled = false;
     m_deleteDeferred = false;
     m_keywords = 0;
     m_providerLevel = EventPipeEventLevel::Critical;
-    m_pEventList = new SList<SListElem<EventPipeEvent*>>();
+    m_pEventList = new SList<SListElem<EventPipeEvent *>>();
     m_pCallbackFunction = pCallbackFunction;
     m_pCallbackData = pCallbackData;
     m_pConfig = pConfig;
@@ -45,7 +48,7 @@ EventPipeProvider::~EventPipeProvider()
     CONTRACTL_END;
 
     // Free all of the events.
-    if(m_pEventList != NULL)
+    if (m_pEventList != NULL)
     {
         // We swallow exceptions here because the HOST_BREAKABLE
         // lock may throw and this destructor gets called in throw
@@ -55,100 +58,107 @@ EventPipeProvider::~EventPipeProvider()
             // Take the lock before manipulating the list.
             CrstHolder _crst(EventPipe::GetLock());
 
-            SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
-            while(pElem != NULL)
+            SListElem<EventPipeEvent *> *pElem = m_pEventList->GetHead();
+            while (pElem != NULL)
             {
                 EventPipeEvent *pEvent = pElem->GetValue();
                 delete pEvent;
 
-                SListElem<EventPipeEvent*> *pCurElem = pElem;
+                SListElem<EventPipeEvent *> *pCurElem = pElem;
                 pElem = m_pEventList->GetNext(pElem);
                 delete pCurElem;
             }
 
             delete m_pEventList;
         }
-        EX_CATCH { }
+        EX_CATCH {}
         EX_END_CATCH(SwallowAllExceptions);
 
         m_pEventList = NULL;
     }
 }
 
-const SString& EventPipeProvider::GetProviderName() const
+const SString &EventPipeProvider::GetProviderName() const
 {
     LIMITED_METHOD_CONTRACT;
-
     return m_providerName;
 }
 
-bool EventPipeProvider::Enabled() const
+INT64 EventPipeProvider::ComputeEventEnabledMask(INT64 keywords, EventPipeEventLevel eventLevel) const
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
 
-    return (m_pConfig->Enabled() && m_enabled);
+    return m_pConfig->ComputeEventEnabledMask((*this), keywords, eventLevel);
 }
 
-bool EventPipeProvider::EventEnabled(INT64 keywords) const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // The event is enabled if:
-    //  - The provider is enabled.
-    //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
-    return (Enabled() && ((keywords == 0) || ((m_keywords & keywords) != 0)));
-}
-
-bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // The event is enabled if:
-    //  - The provider is enabled.
-    //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
-    //  - The event level is LogAlways or the provider's verbosity level is set to greater than the event's verbosity level in the manifest.
-    return (EventEnabled(keywords) &&
-        ((eventLevel == EventPipeEventLevel::LogAlways) || (m_providerLevel >= eventLevel)));
-}
-
-void EventPipeProvider::SetConfiguration(bool providerEnabled, INT64 keywords, EventPipeEventLevel providerLevel, LPCWSTR pFilterData)
+EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
+    INT64 keywordsForAllSessions,
+    EventPipeEventLevel providerLevelForAllSessions,
+    uint64_t sessionMask,
+    INT64 keywords,
+    EventPipeEventLevel providerLevel,
+    LPCWSTR pFilterData)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION((m_sessions & sessionMask) == 0);
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    m_enabled = providerEnabled;
-    m_keywords = keywords;
-    m_providerLevel = providerLevel;
+    m_sessions |= sessionMask;
+
+    m_keywords = keywordsForAllSessions;
+    m_providerLevel = providerLevelForAllSessions;
 
     RefreshAllEvents();
-    InvokeCallback(pFilterData);
+    return PrepareCallbackData(m_keywords, m_providerLevel, pFilterData);
 }
 
-EventPipeEvent* EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, BYTE *pMetadata, unsigned int metadataLength)
+EventPipeProviderCallbackData EventPipeProvider::UnsetConfiguration(
+    INT64 keywordsForAllSessions,
+    EventPipeEventLevel providerLevelForAllSessions,
+    uint64_t sessionMask,
+    INT64 keywords,
+    EventPipeEventLevel providerLevel,
+    LPCWSTR pFilterData)
 {
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
+        PRECONDITION((m_sessions & sessionMask) != 0);
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    return AddEvent(eventID, keywords, eventVersion, level, true /* needStack */, pMetadata, metadataLength);
+    if (m_sessions & sessionMask)
+        m_sessions &= ~sessionMask;
+
+    m_keywords = keywordsForAllSessions;
+    m_providerLevel = providerLevelForAllSessions;
+
+    RefreshAllEvents();
+    return PrepareCallbackData(m_keywords, m_providerLevel, pFilterData);
 }
 
-EventPipeEvent* EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata, unsigned int metadataLength)
+EventPipeEvent *EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata, unsigned int metadataLength)
 {
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -174,7 +184,7 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -182,21 +192,27 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
     // Take the config lock before inserting a new event.
     CrstHolder _crst(EventPipe::GetLock());
 
-    m_pEventList->InsertTail(new SListElem<EventPipeEvent*>(&event));
+    m_pEventList->InsertTail(new SListElem<EventPipeEvent *>(&event));
     event.RefreshState();
 }
 
-void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
+/* static */ void EventPipeProvider::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(!EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
+    LPCWSTR pFilterData = eventPipeProviderCallbackData.pFilterData;
+    EventPipeCallback pCallbackFunction = eventPipeProviderCallbackData.pCallbackFunction;
+    bool enabled = eventPipeProviderCallbackData.enabled;
+    INT64 keywords = eventPipeProviderCallbackData.keywords;
+    EventPipeEventLevel providerLevel = eventPipeProviderCallbackData.providerLevel;
+    void *pCallbackData = eventPipeProviderCallbackData.pCallbackData;
 
     bool isEventFilterDescriptorInitialized = false;
     EventFilterDescriptor eventFilterDescriptor{};
@@ -224,19 +240,43 @@ void EventPipeProvider::InvokeCallback(LPCWSTR pFilterData)
         isEventFilterDescriptorInitialized = true;
     }
 
-    if(m_pCallbackFunction != NULL && !g_fEEShutDown)
+    if (pCallbackFunction != NULL && !g_fEEShutDown)
     {
-        (*m_pCallbackFunction)(
+        (*pCallbackFunction)(
             NULL, /* providerId */
-            m_enabled,
-            (UCHAR) m_providerLevel,
-            m_keywords,
+            enabled,
+            (UCHAR)providerLevel,
+            keywords,
             0 /* matchAllKeywords */,
             isEventFilterDescriptorInitialized ? &eventFilterDescriptor : NULL,
-            m_pCallbackData /* CallbackContext */);
+            pCallbackData /* CallbackContext */);
     }
 
     buffer.Destroy();
+}
+
+EventPipeProviderCallbackData EventPipeProvider::PrepareCallbackData(
+        INT64 keywords,
+        EventPipeEventLevel providerLevel,
+        LPCWSTR pFilterData)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
+
+    EventPipeProviderCallbackData result;
+    result.pFilterData = pFilterData;
+    result.pCallbackFunction = m_pCallbackFunction;
+    result.enabled = (m_sessions != 0);
+    result.providerLevel = providerLevel;
+    result.keywords = keywords;
+    result.pCallbackData = m_pCallbackData;
+    return result;
 }
 
 bool EventPipeProvider::GetDeleteDeferred() const
@@ -256,18 +296,17 @@ void EventPipeProvider::RefreshAllEvents()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(EventPipe::GetLock()->OwnedByCurrentThread());
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    SListElem<EventPipeEvent*> *pElem = m_pEventList->GetHead();
-    while(pElem != NULL)
+    SListElem<EventPipeEvent *> *pElem = m_pEventList->GetHead();
+    while (pElem != NULL)
     {
         EventPipeEvent *pEvent = pElem->GetValue();
         pEvent->RefreshState();
-
         pElem = m_pEventList->GetNext(pElem);
     }
 }

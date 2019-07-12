@@ -210,14 +210,18 @@ TODO: Talk about initializing strutures before use
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if !defined(SELECTANY)
+#if defined(__GNUC__)
+    #define SELECTANY extern __attribute__((weak))
+#else
     #define SELECTANY extern __declspec(selectany)
 #endif
+#endif
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 8903fe7b-a82a-4e2e-b691-f58430b485d1 */
-    0x8903fe7b,
-    0xa82a,
-    0x4e2e,
-    {0xb6, 0x91, 0xf5, 0x84, 0x30, 0xb4, 0x85, 0xd1}
+SELECTANY const GUID JITEEVersionIdentifier = { /* d609bed1-7831-49fc-bd49-b6f054dd4d46 */
+    0xd609bed1,
+    0x7831,
+    0x49fc,
+    {0xbd, 0x49, 0xb6, 0xf0, 0x54, 0xdd, 0x4d, 0x46}
 };
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,7 +330,7 @@ struct SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR
     //     returns true if we the eightbyte at index slotIndex is of SSE type.
     // 
     // Follows the rules of the AMD64 System V ABI specification at www.x86-64.org/documentation/abi.pdf.
-    // Please reffer to it for definitions/examples.
+    // Please refer to it for definitions/examples.
     //
     bool IsSseSlot(unsigned slotIndex) const
     {
@@ -828,7 +832,7 @@ enum CorInfoFlag
     CORINFO_FLG_INTRINSIC             = 0x00400000, // This method MAY have an intrinsic ID
     CORINFO_FLG_CONSTRUCTOR           = 0x00800000, // This method is an instance or type initializer
     CORINFO_FLG_AGGRESSIVE_OPT        = 0x01000000, // The method may contain hot code and should be aggressively optimized if possible
-//  CORINFO_FLG_UNUSED                = 0x02000000,
+    CORINFO_FLG_DISABLE_TIER0_FOR_LOOPS = 0x02000000, // Indicates that tier 0 JIT should not be used for a method that contains a loop
     CORINFO_FLG_NOSECURITYWRAP        = 0x04000000, // The method requires no security checks
     CORINFO_FLG_DONT_INLINE           = 0x10000000, // The method should not be inlined
     CORINFO_FLG_DONT_INLINE_CALLER    = 0x20000000, // The method should not be inlined, nor should its callers. It cannot be tail called.
@@ -860,6 +864,8 @@ enum CorInfoMethodRuntimeFlags
     CORINFO_FLG_BAD_INLINEE         = 0x00000001, // The method is not suitable for inlining
     CORINFO_FLG_VERIFIABLE          = 0x00000002, // The method has verifiable code
     CORINFO_FLG_UNVERIFIABLE        = 0x00000004, // The method has unverifiable code
+    CORINFO_FLG_SWITCHED_TO_MIN_OPT = 0x00000008, // The JIT decided to switch to MinOpt for this method, when it was not requested
+    CORINFO_FLG_SWITCHED_TO_OPTIMIZED = 0x00000010, // The JIT decided to switch to tier 1 for this method, when a different tier was requested
 };
 
 
@@ -2592,8 +2598,18 @@ public:
             CORINFO_CLASS_HANDLE        cls2
             ) = 0;
 
-    // returns is the intersection of cls1 and cls2.
+    // Returns the intersection of cls1 and cls2.
     virtual CORINFO_CLASS_HANDLE mergeClasses(
+            CORINFO_CLASS_HANDLE        cls1,
+            CORINFO_CLASS_HANDLE        cls2
+            ) = 0;
+
+    // Returns true if cls2 is known to be a more specific type
+    // than cls1 (a subtype or more restrictive shared type)
+    // for purposes of jit type tracking. This is a hint to the
+    // jit for optimization; it does not have correctness
+    // implications.
+    virtual BOOL isMoreSpecificType(
             CORINFO_CLASS_HANDLE        cls1,
             CORINFO_CLASS_HANDLE        cls2
             ) = 0;

@@ -29,6 +29,7 @@
 #include "sarray.h"
 #include "crsttypes.h"
 #include "daccess.h"
+#include "crossloaderallocatorhash.h"
 
 
 
@@ -106,7 +107,7 @@ public:
     static count_t Hash(key_t k)
     {
         LIMITED_METHOD_DAC_CONTRACT;
-        return ((count_t)k.m_methodDef ^ (count_t)k.m_module);
+        return ((count_t)k.m_methodDef ^ (count_t)(SIZE_T)k.m_module);
     }
     static const element_t Null()
     {
@@ -371,5 +372,56 @@ public:
 typedef DPTR(PersistentInlineTrackingMapR2R) PTR_PersistentInlineTrackingMapR2R;
 #endif //FEATURE_READYTORUN
 
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+// For inline tracking of JIT methods at runtime we use the CrossLoaderAllocatorHash
+class InliningInfoTrackerHashTraits : public NoRemoveDefaultCrossLoaderAllocatorHashTraits<MethodDesc *, MethodDesc *>
+{
+};
+
+typedef CrossLoaderAllocatorHash<InliningInfoTrackerHashTraits> InliningInfoTrackerHash;
+
+class JITInlineTrackingMap
+{
+public:
+    JITInlineTrackingMap(LoaderAllocator *pAssociatedLoaderAllocator);
+
+    void AddInlining(MethodDesc *inliner, MethodDesc *inlinee);
+    void AddInliningDontTakeLock(MethodDesc *inliner, MethodDesc *inlinee);
+    
+    template <class VisitFunc>
+    void VisitInliners(MethodDesc *inlinee, VisitFunc &func)
+    {
+        CONTRACTL
+        {
+            NOTHROW;
+            GC_TRIGGERS;
+            CAN_TAKE_LOCK;
+            MODE_ANY;
+        }
+        CONTRACTL_END;
+
+        GCX_COOP();
+        CrstHolder holder(&m_mapCrst);
+
+        auto lambda = [&](OBJECTREF obj, MethodDesc *lambdaInlinee, MethodDesc *lambdaInliner)
+        {
+            _ASSERTE(lambdaInlinee == inlinee);
+
+            return func(lambdaInliner, lambdaInlinee);
+        };
+
+        m_map.VisitValuesOfKey(inlinee, lambda);
+    }
+
+private:
+    BOOL InliningExistsDontTakeLock(MethodDesc *inliner, MethodDesc *inlinee);
+
+    Crst m_mapCrst;
+    InliningInfoTrackerHash m_map;
+};
+
+typedef DPTR(JITInlineTrackingMap) PTR_JITInlineTrackingMap;
+
+#endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
 #endif //INLINETRACKING_H_

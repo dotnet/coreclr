@@ -215,7 +215,6 @@ VOID LogAssert(
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_DEBUG_ONLY;
 
     // Log asserts to the stress log. Note that we can't include the szExpr b/c that 
@@ -621,12 +620,6 @@ CHAR g_szExprWithStack2[10480];
 #endif
 void *dbgForceToMemory;     // dummy pointer that pessimises enregistration
 
-#ifdef MDA_SUPPORTED
-#ifdef _DEBUG
-BOOL g_bMdaDisableAsserts = FALSE;
-#endif
-#endif
-
 int g_BufferLock = -1;
 
 VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
@@ -637,13 +630,6 @@ VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
     
     DEBUG_ONLY_FUNCTION;
-
-#ifdef MDA_SUPPORTED
-#ifdef _DEBUG
-    if (g_bMdaDisableAsserts)
-        return;
-#endif
-#endif
 
 #ifdef DACCESS_COMPILE
     // In the DAC case, asserts can mean one of two things.
@@ -687,19 +673,6 @@ VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
 
     DWORD dwAssertStacktrace = CLRConfig::GetConfigValue(CLRConfig::INTERNAL_AssertStacktrace);
 
-#if !defined(DACCESS_COMPILE) && defined(FEATURE_STACK_PROBE)
-    //global g_fpCheckNStackPagesAvailable is not present when SO infrastructure code is not present
-    // Trying to get a stack trace if there is little stack available can cause a silent process
-    // teardown, so only try to do this there is plenty of stack.
-    if ((dwAssertStacktrace) != 0 && (g_fpCheckNStackPagesAvailable != NULL)) 
-    {
-        if (!g_fpCheckNStackPagesAvailable(12)) 
-        {
-            fConstrained = TRUE;
-        }
-    }   
-#endif
-    
     LONG lAlreadyOwned = InterlockedExchange((LPLONG)&g_BufferLock, 1);
     if (fConstrained || dwAssertStacktrace == 0 || lAlreadyOwned == 1)
     {

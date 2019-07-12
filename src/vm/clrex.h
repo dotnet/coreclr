@@ -788,7 +788,7 @@ class EEFileLoadException : public EEException
 #define SET_CE_RETHROW_FLAG_FOR_EX_CATCH(expr)      ((expr == TRUE) && \
                                                      (g_pConfig->LegacyCorruptedStateExceptionsPolicy() == false) && \
                                                      (CEHelper::IsProcessCorruptedStateException(GetCurrentExceptionCode(), FALSE) ||     \
-                                                     ((!__state.DidCatchSO()) && (!__state.DidCatchCxx()) && \
+                                                     (!__state.DidCatchCxx() && \
                                                       CEHelper::IsLastActiveExceptionCorrupting(TRUE))))
 
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -810,11 +810,6 @@ class EEFileLoadException : public EEException
   #undef GET_EXCEPTION
   #define GET_EXCEPTION() (__pException == NULL ? __defaultException.Validate() : __pException.GetValue())
 #endif // _DEBUG
-
-// When we throw an exception, we need stay in SO-intolerant state and
-// probe for sufficient stack so that we don't SO during the processing.
-#undef HANDLE_SO_TOLERANCE_FOR_THROW
-#define HANDLE_SO_TOLERANCE_FOR_THROW STACK_PROBE_FOR_THROW(GetThread());
 
 LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv);
 
@@ -849,7 +844,7 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv);
         }                               \
         PAL_ENDTRY                      \
     }                                   \
-    PAL_EXCEPT_FILTER(CLRNoCatchHandler) \
+    PAL_EXCEPT_FILTER(EntryPointFilter) \
     {                                   \
     }                                   \
     PAL_ENDTRY
@@ -898,10 +893,7 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv);
 //
 #undef EX_ENDTRY
 #define EX_ENDTRY                                           \
-    PAL_CPP_ENDTRY                                          \
-    SO_INFRASTRUCTURE_CODE(if (__state.DidCatch()) { RESTORE_SO_TOLERANCE_STATE; }) \
-    SO_INFRASTRUCTURE_CODE(if (__state.DidCatchSO()) { HANDLE_STACKOVERFLOW_AFTER_CATCH; }) \
-    NO_SO_INFRASTRUCTURE_CODE_ASSERTE(!__state.DidCatchSO()) \
+    PAL_CPP_ENDTRY
 
 
 // CLRException::GetErrorInfo below invokes GetComIPFromObjectRef 
@@ -973,69 +965,45 @@ LONG CLRNoCatchHandler(EXCEPTION_POINTERS* pExceptionInfo, PVOID pv);
 // Comments:
 //   The BEGIN macro will setup a Thread if necessary. It should only be called
 //   in preemptive mode.  If you are calling it from cooperative mode, this implies
-//   we are executing "external" code in cooperative mode.  The Reentrancy MDA
-//   complains about this.
+//   we are executing "external" code in cooperative mode.
 //
 //   Only use this macro for actual boundaries between CLR and
 //   outside unmanaged code. If you want to connect internal pieces
 //   of CLR code, use EX_TRY instead.
 //===================================================================================
-#ifdef MDA_SUPPORTED
-NOINLINE BOOL HasIllegalReentrancyRare();
-#define HAS_ILLEGAL_REENTRANCY()  (NULL != MDA_GET_ASSISTANT(Reentrancy) && HasIllegalReentrancyRare())
-#else
-#define HAS_ILLEGAL_REENTRANCY() false
-#endif
+#define BEGIN_EXTERNAL_ENTRYPOINT(phresult)                         \
+    {                                                               \
+        HRESULT *__phr = (phresult);                                \
+        *__phr = S_OK;                                              \
+        _ASSERTE(GetThread() == NULL ||                             \
+                    !GetThread()->PreemptiveGCDisabled());          \
+        MAKE_CURRENT_THREAD_AVAILABLE_EX(GetThreadNULLOk());        \
+        if (CURRENT_THREAD == NULL)                                 \
+        {                                                           \
+            CURRENT_THREAD = SetupThreadNoThrow(__phr);             \
+        }                                                           \
+        if (CURRENT_THREAD != NULL)                                 \
+        {                                                           \
+            EX_TRY_THREAD(CURRENT_THREAD);                          \
+            {                                                       \
 
-#define BEGIN_EXTERNAL_ENTRYPOINT(phresult)                             \
-    {                                                                   \
-        HRESULT *__phr = (phresult);                                    \
-        *__phr = S_OK;                                                  \
-        _ASSERTE(GetThread() == NULL ||                                 \
-                    !GetThread()->PreemptiveGCDisabled());              \
-        if (HAS_ILLEGAL_REENTRANCY())                                   \
-        {                                                               \
-            *__phr = COR_E_ILLEGAL_REENTRANCY;                          \
-        }                                                               \
-        else                                                            \
-        if (!CanRunManagedCode())                                       \
-        {                                                               \
-            *__phr = E_PROCESS_SHUTDOWN_REENTRY;                        \
-        }                                                               \
-        else                                                            \
-        {                                                               \
-            MAKE_CURRENT_THREAD_AVAILABLE_EX(GetThreadNULLOk());        \
-            if (CURRENT_THREAD == NULL)                                 \
-            {                                                           \
-                CURRENT_THREAD = SetupThreadNoThrow(__phr);             \
-            }                                                           \
-            if (CURRENT_THREAD != NULL)                                 \
-            {                                                           \
-                BEGIN_SO_INTOLERANT_CODE_NOTHROW(CURRENT_THREAD, *__phr = COR_E_STACKOVERFLOW); \
-                EX_TRY_THREAD(CURRENT_THREAD);                          \
-                {                                                       \
-
-#define END_EXTERNAL_ENTRYPOINT                                         \
-                }                                                       \
-                EX_CATCH_HRESULT(*__phr);                               \
-                END_SO_INTOLERANT_CODE;                                 \
-            }                                                           \
-        }                                                               \
-    }                                                                   \
+#define END_EXTERNAL_ENTRYPOINT                                     \
+            }                                                       \
+            EX_CATCH_HRESULT(*__phr);                               \
+        }                                                           \
+    }                                                               \
 
 // This macro should be used at the entry points (e.g. COM interop boundaries) 
 // where CE's are not expected to get swallowed.
 #define END_EXTERNAL_ENTRYPOINT_RETHROW_CORRUPTING_EXCEPTIONS_EX(fCond) \
-                }                                                       \
-                EX_CATCH                                                \
-                {                                                       \
-                    *__phr = GET_EXCEPTION()->GetHR();                  \
-                }                                                       \
-                EX_END_CATCH(RethrowCorruptingExceptionsEx(fCond));     \
-                END_SO_INTOLERANT_CODE;                                 \
-            }                                                           \
-        }                                                               \
-    }                                                                   \
+            }                                                       \
+            EX_CATCH                                                \
+            {                                                       \
+                *__phr = GET_EXCEPTION()->GetHR();                  \
+            }                                                       \
+            EX_END_CATCH(RethrowCorruptingExceptionsEx(fCond));     \
+        }                                                           \
+    }                                                               \
 
 // This macro should be used at the entry points (e.g. COM interop boundaries) 
 // where CE's are not expected to get swallowed.

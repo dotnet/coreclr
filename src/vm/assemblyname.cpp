@@ -88,12 +88,10 @@ FCIMPL1(Object*, AssemblyNameNative::ToString, Object* refThisUNSAFE)
     if (pThis == NULL)
         COMPlusThrow(kNullReferenceException, W("NullReference_This"));
 
-    Thread *pThread = GetThread();
-
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     AssemblySpec spec;
-    spec.InitializeSpec(&(pThread->m_MarshalAlloc), (ASSEMBLYNAMEREF*) &pThis, FALSE); 
+    spec.InitializeSpec(pStackingAllocator, (ASSEMBLYNAMEREF*) &pThis, FALSE); 
 
     StackSString name;
     spec.GetFileOrDisplayName(ASM_DISPLAYF_VERSION |
@@ -149,7 +147,7 @@ FCIMPL1(Object*, AssemblyNameNative::GetPublicKeyToken, Object* refThisUNSAFE)
 FCIMPLEND
 
 
-FCIMPL3(void, AssemblyNameNative::Init, Object * refThisUNSAFE, OBJECTREF * pAssemblyRef, CLR_BOOL fRaiseResolveEvent)
+FCIMPL1(void, AssemblyNameNative::Init, Object * refThisUNSAFE)
 {
     FCALL_CONTRACT;
 
@@ -158,34 +156,17 @@ FCIMPL3(void, AssemblyNameNative::Init, Object * refThisUNSAFE, OBJECTREF * pAss
     
     HELPER_METHOD_FRAME_BEGIN_1(pThis);
     
-    *pAssemblyRef = NULL;
-
     if (pThis == NULL)
         COMPlusThrow(kNullReferenceException, W("NullReference_This"));
 
-    Thread * pThread = GetThread();
-
-    CheckPointHolder cph(pThread->m_MarshalAlloc.GetCheckpoint()); //hold checkpoint for autorelease
+    ACQUIRE_STACKING_ALLOCATOR(pStackingAllocator);
 
     AssemblySpec spec;
-    hr = spec.InitializeSpec(&(pThread->m_MarshalAlloc), (ASSEMBLYNAMEREF *) &pThis, TRUE); 
+    hr = spec.InitializeSpec(pStackingAllocator, (ASSEMBLYNAMEREF *) &pThis, TRUE); 
 
     if (SUCCEEDED(hr))
     {
         spec.AssemblyNameInit(&pThis,NULL);
-    }
-    else if ((hr == FUSION_E_INVALID_NAME) && fRaiseResolveEvent)
-    {
-        Assembly * pAssembly = GetAppDomain()->RaiseAssemblyResolveEvent(&spec);
-
-        if (pAssembly == NULL)
-        {
-            EEFileLoadException::Throw(&spec, hr);
-        }
-        else
-        {
-            *((OBJECTREF *) (&(*pAssemblyRef))) = pAssembly->GetExposedObject();
-        }
     }
     else
     {

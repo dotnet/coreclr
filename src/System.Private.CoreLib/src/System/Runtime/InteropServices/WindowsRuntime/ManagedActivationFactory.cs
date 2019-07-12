@@ -2,12 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Security;
 using System.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -50,7 +45,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         {
             try
             {
-                return Activator.CreateInstance(m_type);
+                return Activator.CreateInstance(m_type)!;
             }
             catch (MissingMethodException)
             {
@@ -59,7 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (TargetInvocationException e)
             {
-                throw e.InnerException;
+                throw e.InnerException!;
             }
         }
 

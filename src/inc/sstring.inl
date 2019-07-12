@@ -58,7 +58,6 @@ inline SString::SString()
         CONSTRUCTOR_CHECK;
         POSTCONDITION(IsEmpty());
         NOTHROW;
-        SO_TOLERANT;
         GC_NOTRIGGER;
     }
     CONTRACT_END;
@@ -66,7 +65,6 @@ inline SString::SString()
     RETURN;
 #else
     STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
 #endif
@@ -621,7 +619,6 @@ inline const SString &SString::Empty()
         NOTHROW;
         GC_NOTRIGGER;
         CANNOT_TAKE_LOCK;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -629,7 +626,6 @@ inline const SString &SString::Empty()
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 #endif
 
@@ -810,7 +806,7 @@ inline void SString::AppendUTF8(const CHAR c)
 /* static */
 inline int __cdecl SString::_stricmp(const CHAR *buffer1, const CHAR *buffer2) {
     WRAPPER_NO_CONTRACT;
-    int returnValue = CaseCompareHelperA(buffer1, buffer2, 0, s_defaultLCID, TRUE, FALSE);
+    int returnValue = CaseCompareHelperA(buffer1, buffer2, 0, TRUE, FALSE);
 #ifdef VERIFY_CRT_EQUIVALNCE
     _ASSERTE((returnValue == 0) == (::_stricmp(buffer1, buffer2) == 0));
 #endif
@@ -821,7 +817,7 @@ inline int __cdecl SString::_stricmp(const CHAR *buffer1, const CHAR *buffer2) {
 /* static */
 inline int __cdecl SString::_strnicmp(const CHAR *buffer1, const CHAR *buffer2, COUNT_T count) {
     WRAPPER_NO_CONTRACT;
-    int returnValue = CaseCompareHelperA(buffer1, buffer2, count, s_defaultLCID, TRUE, TRUE);
+    int returnValue = CaseCompareHelperA(buffer1, buffer2, count, TRUE, TRUE);
 #ifdef VERIFY_CRT_EQUIVALNCE
     _ASSERTE((returnValue == 0) == (::_strnicmp(buffer1, buffer2, count) == 0));
 #endif
@@ -831,7 +827,7 @@ inline int __cdecl SString::_strnicmp(const CHAR *buffer1, const CHAR *buffer2, 
 /* static */
 inline int __cdecl SString::_wcsicmp(const WCHAR *buffer1, const WCHAR *buffer2) {
     WRAPPER_NO_CONTRACT;
-    int returnValue = CaseCompareHelper(buffer1, buffer2, 0, s_defaultLCID, TRUE, FALSE);
+    int returnValue = CaseCompareHelper(buffer1, buffer2, 0, TRUE, FALSE);
 #ifdef VERIFY_CRT_EQUIVALNCE
     _ASSERTE((returnValue == 0) == (::_wcsicmp(buffer1, buffer2) == 0));
 #endif
@@ -842,7 +838,7 @@ inline int __cdecl SString::_wcsicmp(const WCHAR *buffer1, const WCHAR *buffer2)
 /* static */
 inline int __cdecl SString::_wcsnicmp(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count) {
     WRAPPER_NO_CONTRACT;
-    int returnValue = CaseCompareHelper(buffer1, buffer2, count, s_defaultLCID, TRUE, TRUE);
+    int returnValue = CaseCompareHelper(buffer1, buffer2, count, TRUE, TRUE);
 #ifdef VERIFY_CRT_EQUIVALNCE
     _ASSERTE((returnValue == 0) == (::_wcsnicmp(buffer1, buffer2, count) == 0));
 #endif
@@ -867,36 +863,6 @@ inline int SString::_tstrnicmp(const CHAR *buffer1, const CHAR *buffer2, COUNT_T
 inline int SString::_tstrnicmp(const WCHAR *buffer1, const WCHAR *buffer2, COUNT_T count)
 {
     return _wcsnicmp(buffer1, buffer2, count);
-}
-
-inline ULONG SString::HashCaseInsensitive() const
-{
-	WRAPPER_NO_CONTRACT;
-	return HashCaseInsensitive(s_defaultLCID);
-}
-
-inline int SString::CompareCaseInsensitive(const SString &s) const
-{
-	WRAPPER_NO_CONTRACT;
-	return CompareCaseInsensitive(s, s_defaultLCID);
-}
-
-inline BOOL SString::EqualsCaseInsensitive(const SString &s) const
-{
-	WRAPPER_NO_CONTRACT;
-	return EqualsCaseInsensitive(s, s_defaultLCID);
-}
-
-inline BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s) const
-{
-	WRAPPER_NO_CONTRACT;
-	return MatchCaseInsensitive(i, s, s_defaultLCID);
-}
-
-inline BOOL SString::MatchCaseInsensitive(const CIterator &i, WCHAR c) const
-{
-	WRAPPER_NO_CONTRACT;
-	return MatchCaseInsensitive(i, c, s_defaultLCID);
 }
 
 inline BOOL SString::Match(const CIterator &i, WCHAR c) const
@@ -1183,7 +1149,6 @@ inline BOOL SString::IsEmpty() const
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(this));
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     SS_CONTRACT_END;
@@ -1199,7 +1164,6 @@ inline BOOL SString::IsASCII() const
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(this));
         NOTHROW;
-        SO_TOLERANT;
     }
     SS_CONTRACT_END;
 
@@ -1460,7 +1424,7 @@ inline BOOL SString::IsFixedSize() const
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     if (GetRepresentation()&REPRESENTATION_VARIABLE_MASK)
-        return ((GetRepresentation() == REPRESENTATION_ANSI) && !s_IsANSIMultibyte);
+        return FALSE;
     else
         return TRUE;
 }
@@ -1519,7 +1483,6 @@ inline COUNT_T SString::SizeToCount(COUNT_T size) const
         PRECONDITION(CheckSize(size));
         SS_POSTCONDITION(CountToSize(RETVAL) == size);
         NOTHROW;
-        SO_TOLERANT;
         SUPPORTS_DAC;
     }
     SS_CONTRACT_END;
@@ -1536,7 +1499,6 @@ inline COUNT_T SString::GetBufferSizeInCharIncludeNullChar() const
 {
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_NOTHROW;
-    STATIC_CONTRACT_SO_TOLERANT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     return (GetSize() >> GetCharacterSizeShift());
@@ -1594,20 +1556,11 @@ inline CHECK SString::CheckCount(COUNT_T count)
 inline CHECK SString::CheckRepresentation(int representation)
 {
     CANNOT_HAVE_CONTRACT;
-#ifdef SSTRING_CONSOLECODEPAGE
-    CHECK(representation == REPRESENTATION_EMPTY
-          || representation == REPRESENTATION_UNICODE
-          || representation == REPRESENTATION_ASCII
-          || representation == REPRESENTATION_UTF8
-          || representation == REPRESENTATION_ANSI
-          || representation == REPRESENTATION_CONSOLE);
-#else
     CHECK(representation == REPRESENTATION_EMPTY
           || representation == REPRESENTATION_UNICODE
           || representation == REPRESENTATION_ASCII
           || representation == REPRESENTATION_UTF8
           || representation == REPRESENTATION_ANSI);
-#endif
     CHECK((representation & REPRESENTATION_MASK) == representation);
 
     CHECK_OK;

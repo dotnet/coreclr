@@ -48,10 +48,10 @@ LOCAL_LABEL(donestack):
     // given in x8. 
     ldr     x9, [x19,#CallDescrData__pFloatArgumentRegisters]
     cbz     x9, LOCAL_LABEL(NoFloatingPoint)
-    ldp     d0, d1, [x9]
-    ldp     d2, d3, [x9, #16]
-    ldp     d4, d5, [x9, #32]
-    ldp     d6, d7, [x9, #48]
+    ldp     q0, q1, [x9]
+    ldp     q2, q3, [x9, #32]
+    ldp     q4, q5, [x9, #64]
+    ldp     q6, q7, [x9, #96]
 LOCAL_LABEL(NoFloatingPoint):
 
     // Copy [pArgumentRegisters, ..., pArgumentRegisters + 56]
@@ -85,7 +85,7 @@ LOCAL_LABEL(NoFloatingPoint):
     bne     LOCAL_LABEL(NoDoubleReturn)
 
 LOCAL_LABEL(FloatReturn):
-    str     d0, [x19, #(CallDescrData__returnValue + 0)]
+    str     q0, [x19, #(CallDescrData__returnValue + 0)]
     b       LOCAL_LABEL(ReturnDone)
 
 LOCAL_LABEL(NoDoubleReturn):
@@ -97,6 +97,7 @@ LOCAL_LABEL(NoDoubleReturn):
     stp     s0, s1, [x19, #(CallDescrData__returnValue + 0)]
     stp     s2, s3, [x19, #(CallDescrData__returnValue + 0x08)]
     b       LOCAL_LABEL(ReturnDone)
+
 LOCAL_LABEL(NoFloatHFAReturn):
 
     //DoubleHFAReturn  return case
@@ -108,6 +109,16 @@ LOCAL_LABEL(NoFloatHFAReturn):
     b       LOCAL_LABEL(ReturnDone)
 
 LOCAL_LABEL(NoDoubleHFAReturn):
+
+    //VectorHFAReturn  return case
+    cmp     w3, #64
+    bne     LOCAL_LABEL(LNoVectorHFAReturn)
+
+    stp     q0, q1, [x19, #(CallDescrData__returnValue + 0)]
+    stp     q2, q3, [x19, #(CallDescrData__returnValue + 0x20)]
+    b       LOCAL_LABEL(ReturnDone)
+
+LOCAL_LABEL(LNoVectorHFAReturn):
 
     EMIT_BREAKPOINT // Unreachable
 

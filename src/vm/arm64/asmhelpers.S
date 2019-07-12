@@ -121,18 +121,18 @@ LEAF_END HelperMethodFrameRestoreState, _TEXT
 // The call in ndirect import precode points to this function.
 NESTED_ENTRY NDirectImportThunk, _TEXT, NoHandler
 
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -160
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -224
     SAVE_ARGUMENT_REGISTERS sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 88
+    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 96
 
     mov x0, x12
     bl NDirectImportWorker
     mov x12, x0
 
     // pop the stack and restore original register state
-    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 88
+    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 96
     RESTORE_ARGUMENT_REGISTERS sp, 16
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 160
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 224
 
     // If we got back from NDirectImportWorker, the MD has been successfully
     // linked. Proceed to execute the original DLL call.
@@ -474,6 +474,7 @@ LOCAL_LABEL(Exit):
     ret  lr  
 WRITE_BARRIER_END JIT_WriteBarrier
 
+#ifdef FEATURE_PREJIT
 //------------------------------------------------
 // VirtualMethodFixupStub
 //
@@ -493,9 +494,9 @@ WRITE_BARRIER_END JIT_WriteBarrier
 NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -160
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -224
     SAVE_ARGUMENT_REGISTERS sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 88
+    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 96
 
     // Refer to ZapImportVirtualThunk::Save
     // for details on this.
@@ -512,15 +513,16 @@ NESTED_ENTRY VirtualMethodFixupStub, _TEXT, NoHandler
 
     // pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 88
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 160
+    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 96
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 224
 
     PATCH_LABEL VirtualMethodFixupPatchLabel
 
     // and tailcall to the actual method
     EPILOG_BRANCH_REG x12
 
-NESTED_END VirtualMEthodFixupStub, _TEXT
+NESTED_END VirtualMethodFixupStub, _TEXT
+#endif // FEATURE_PREJIT
 
 //------------------------------------------------
 // ExternalMethodFixupStub
@@ -723,9 +725,9 @@ COMToCLRDispatchHelper_RegSetup
 NESTED_ENTRY TheUMEntryPrestub, _TEXT, UnhandledExceptionHandlerUnix
 
     // Save arguments and return address
-    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -160
+    PROLOG_SAVE_REG_PAIR_INDEXED fp, lr, -224
     SAVE_ARGUMENT_REGISTERS sp, 16
-    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 88
+    SAVE_FLOAT_ARGUMENT_REGISTERS sp, 96
 
     mov x0, x12
     bl C_FUNC(TheUMEntryPrestubWorker)
@@ -735,8 +737,8 @@ NESTED_ENTRY TheUMEntryPrestub, _TEXT, UnhandledExceptionHandlerUnix
 
     // pop the stack and restore original register state
     RESTORE_ARGUMENT_REGISTERS sp, 16
-    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 88
-    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 160
+    RESTORE_FLOAT_ARGUMENT_REGISTERS sp, 96
+    EPILOG_RESTORE_REG_PAIR_INDEXED fp, lr, 224
 
     // and tailcall to the actual method
     EPILOG_BRANCH_REG x12
@@ -855,7 +857,7 @@ NESTED_END UMThunkStub, _TEXT
 // ------------------------------------------------------------------
 // Hijack function for functions which return a scalar type or a struct (value type)
 NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
-    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -144
+    PROLOG_SAVE_REG_PAIR_INDEXED   fp, lr, -176
     // Spill callee saved registers
     PROLOG_SAVE_REG_PAIR   x19, x20, 16
     PROLOG_SAVE_REG_PAIR   x21, x22, 32
@@ -867,8 +869,8 @@ NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
     stp x0, x1, [sp, #96]
 
     // save any FP/HFA return value(s)
-    stp d0, d1, [sp, #112]
-    stp d2, d3, [sp, #128]
+    stp q0, q1, [sp, #112]
+    stp q2, q3, [sp, #144]
 
     mov x0, sp
     bl OnHijackWorker
@@ -877,15 +879,15 @@ NESTED_ENTRY OnHijackTripThread, _TEXT, NoHandler
     ldp x0, x1, [sp, #96]
 
     // restore any FP/HFA return value(s)
-    ldp d0, d1, [sp, #112]
-    ldp d2, d3, [sp, #128]
+    ldp q0, q1, [sp, #112]
+    ldp q2, q3, [sp, #144]
 
     EPILOG_RESTORE_REG_PAIR   x19, x20, 16
     EPILOG_RESTORE_REG_PAIR   x21, x22, 32
     EPILOG_RESTORE_REG_PAIR   x23, x24, 48
     EPILOG_RESTORE_REG_PAIR   x25, x26, 64
     EPILOG_RESTORE_REG_PAIR   x27, x28, 80
-    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   144
+    EPILOG_RESTORE_REG_PAIR_INDEXED   fp, lr,   176
     EPILOG_RETURN
 NESTED_END OnHijackTripThread, _TEXT
 
@@ -1304,7 +1306,7 @@ LEAF_ENTRY JIT_Stelem_Ref, _TEXT
     beq     C_FUNC(JIT_Stelem_DoWrite)
 
     // Types didnt match but allow writing into an array of objects
-    ldr     x3, =g_pObjectClass
+    PREPARE_EXTERNAL_VAR g_pObjectClass, x3
     ldr     x3, [x3]  // x3 = *g_pObjectClass
     cmp     x3, x12   // array type matches with Object*
     beq     C_FUNC(JIT_Stelem_DoWrite)

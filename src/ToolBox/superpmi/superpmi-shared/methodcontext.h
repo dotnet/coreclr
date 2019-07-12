@@ -425,10 +425,10 @@ public:
         DWORDLONG method;
         DWORDLONG delegateCls;
     };
-    struct Agnostic_GetBBProfileData
+    struct Agnostic_GetMethodBlockCounts
     {
         DWORD count;
-        DWORD profileBuffer_index;
+        DWORD pBlockCounts_index;
         DWORD numRuns;
         DWORD result;
     };
@@ -1189,20 +1189,24 @@ public:
     void dmpGetFieldThreadLocalStoreID(DWORDLONG key, DLD value);
     DWORD repGetFieldThreadLocalStoreID(CORINFO_FIELD_HANDLE field, void** ppIndirection);
 
-    void recGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                             ULONG*                       count,
-                             ICorJitInfo::ProfileBuffer** profileBuffer,
-                             ULONG*                       numRuns,
-                             HRESULT                      result);
-    void dmpGetBBProfileData(DWORDLONG key, const Agnostic_GetBBProfileData& value);
-    HRESULT repGetBBProfileData(CORINFO_METHOD_HANDLE        ftnHnd,
-                                ULONG*                       count,
-                                ICorJitInfo::ProfileBuffer** profileBuffer,
-                                ULONG*                       numRuns);
+    void recGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                 UINT32 *                     pCount,
+                                 ICorJitInfo::BlockCounts**   pBlockCounts,
+                                 UINT32 *                     pNumRuns,
+                                 HRESULT                      result);
+    void dmpGetMethodBlockCounts(DWORDLONG key, const Agnostic_GetMethodBlockCounts& value);
+    HRESULT repGetMethodBlockCounts(CORINFO_METHOD_HANDLE        ftnHnd,
+                                    UINT32 *                     pCount,
+                                    ICorJitInfo::BlockCounts**   pBlockCounts,
+                                    UINT32 *                     pNumRuns);
 
     void recMergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2, CORINFO_CLASS_HANDLE result);
     void dmpMergeClasses(DLDL key, DWORDLONG value);
     CORINFO_CLASS_HANDLE repMergeClasses(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
+
+    void recIsMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2, BOOL result);
+    void dmpIsMoreSpecificType(DLDL key, DWORD value);
+    BOOL repIsMoreSpecificType(CORINFO_CLASS_HANDLE cls1, CORINFO_CLASS_HANDLE cls2);
 
     void recGetCookieForPInvokeCalliSig(CORINFO_SIG_INFO* szMetaSig, void** ppIndirection, LPVOID result);
     void dmpGetCookieForPInvokeCalliSig(const GetCookieForPInvokeCalliSigValue& key, DLDL value);
@@ -1348,7 +1352,7 @@ private:
 };
 
 // ********************* Please keep this up-to-date to ease adding more ***************
-// Highest packet number: 173
+// Highest packet number: 174
 // *************************************************************************************
 enum mcPackets
 {
@@ -1401,7 +1405,7 @@ enum mcPackets
     Packet_GetArgType                                    = 140, // retired as 30 on 2013/07/03
     Packet_GetArrayInitializationData                    = 31,
     Packet_GetArrayRank                                  = 32,
-    Packet_GetBBProfileData                              = 33,
+    Packet_GetMethodBlockCounts                          = 33,
     Packet_GetBoundaries                                 = 34,
     Packet_GetBoxHelper                                  = 35,
     Packet_GetBuiltinClass                               = 36,
@@ -1494,6 +1498,7 @@ enum mcPackets
     Packet_IsValueClass                                  = 105,
     Packet_IsWriteBarrierHelperRequired                  = 106,
     Packet_MergeClasses                                  = 107,
+    Packet_IsMoreSpecificType                            = 174, // Added 2/14/2019
     Packet_PInvokeMarshalingRequired                     = 108,
     Packet_ResolveToken                                  = 109,
     Packet_ResolveVirtualMethod                          = 160, // Added 2/13/17
@@ -1503,7 +1508,7 @@ enum mcPackets
     Packet_ShouldEnforceCallvirtRestriction              = 112,
 
     PacketCR_AddressMap                        = 113,
-    PacketCR_AllocBBProfileBuffer              = 131,
+    PacketCR_AllocMethodBlockCounts            = 131,
     PacketCR_AllocGCInfo                       = 114,
     PacketCR_AllocMem                          = 115,
     PacketCR_AllocUnwindInfo                   = 132,

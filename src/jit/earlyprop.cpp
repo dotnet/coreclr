@@ -195,7 +195,7 @@ void Compiler::optEarlyProp()
             // Walk the stmt tree in linear order to rewrite any array length reference with a
             // constant array length.
             bool isRewritten = false;
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 GenTree* rewrittenTree = optEarlyPropRewriteTree(tree);
                 if (rewrittenTree != nullptr)
@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->gtStmt.gtStmtExpr == tree)
+            if (compCurStmt->gtStmtExpr == tree)
             {
                 return nullptr;
             }
@@ -322,7 +322,6 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
                         GenTree* comma = check->gtGetParent(nullptr);
                         if ((comma != nullptr) && comma->OperIs(GT_COMMA) && (comma->gtGetOp1() == check))
                         {
-                            GenTree* next = check->gtNext;
                             optRemoveRangeCheck(comma, compCurStmt);
                             // Both `tree` and `check` have been removed from the statement.
                             // 'tree' was replaced with 'nop' or side effect list under 'comma'.
@@ -497,11 +496,11 @@ void Compiler::optFoldNullCheck(GenTree* tree)
     // Check for a pattern like this:
     //
     //                         =
-    //                       /   \
+    //                       /   \.
     //                      x    comma
-    //                           /   \
+    //                           /   \.
     //                     nullcheck  +
-    //                         |     / \
+    //                         |     / \.
     //                         y    y  const
     //
     //
@@ -517,9 +516,9 @@ void Compiler::optFoldNullCheck(GenTree* tree)
     // and transform it into
     //
     //                         =
-    //                       /   \
+    //                       /   \.
     //                      x     +
-    //                           / \
+    //                           / \.
     //                          y  const
     //
     //

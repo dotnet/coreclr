@@ -13,7 +13,12 @@
 #pragma optimize( "t", on )
 #endif
 #endif
+
+#ifdef __GNUC__
+#define inline __attribute__((always_inline)) inline
+#else
 #define inline __forceinline
+#endif // __GNUC__
 
 #include "gc.h"
 
@@ -32,7 +37,7 @@ inline void FATAL_GC_ERROR()
     GCToOSInterface::DebugBreak();
 #endif // DACCESS_COMPILE
     _ASSERTE(!"Fatal Error in GC.");
-    GCToEEInterface::HandleFatalError(COR_E_EXECUTIONENGINE);
+    GCToEEInterface::HandleFatalError((unsigned int)COR_E_EXECUTIONENGINE);
 }
 
 #ifdef _MSC_VER
@@ -122,7 +127,6 @@ inline void FATAL_GC_ERROR()
 
 //#define SHORT_PLUGS           //keep plug short
 
-#define FFIND_OBJECT        //faster find_object, slower allocation
 #define FFIND_DECAY  7      //Number of GC for which fast find will be active
 
 #ifndef MAX_LONGPATH
@@ -407,11 +411,12 @@ enum gc_latency_level
 
 enum gc_tuning_point
 {
-    tuning_deciding_condemned_gen,
-    tuning_deciding_full_gc,
-    tuning_deciding_compaction,
-    tuning_deciding_expansion,
-    tuning_deciding_promote_ephemeral
+    tuning_deciding_condemned_gen = 0,
+    tuning_deciding_full_gc = 1,
+    tuning_deciding_compaction = 2,
+    tuning_deciding_expansion = 3,
+    tuning_deciding_promote_ephemeral = 4,
+    tuning_deciding_short_on_seg = 5
 };
 
 #if defined(TRACE_GC) && defined(BACKGROUND_GC)
@@ -436,10 +441,11 @@ enum allocation_state
     a_state_start = 0,
     a_state_can_allocate,
     a_state_cant_allocate,
+    // This could be due to having to wait till a GC is done,
+    // or having to try a different heap.
+    a_state_retry_allocate,
     a_state_try_fit,
     a_state_try_fit_new_seg,
-    a_state_try_fit_new_seg_after_cg,
-    a_state_try_fit_no_seg,
     a_state_try_fit_after_cg,
     a_state_try_fit_after_bgc,
     a_state_try_free_full_seg_in_bgc, 
@@ -1207,25 +1213,40 @@ public:
     static
     void shutdown_gc();
 
+    // If the hard limit is specified, take that into consideration
+    // and this means it may modify the # of heaps.
+    PER_HEAP_ISOLATED
+    size_t get_segment_size_hard_limit (uint32_t* num_heaps, bool should_adjust_num_heaps);
+
+    PER_HEAP_ISOLATED
+    bool should_retry_other_heap (size_t size);
+
     PER_HEAP
     CObjectHeader* allocate (size_t jsize,
-                             alloc_context* acontext);
+                             alloc_context* acontext,
+                             uint32_t flags);
 
 #ifdef MULTIPLE_HEAPS
-    static void balance_heaps (alloc_context* acontext);
+    static
+    void balance_heaps (alloc_context* acontext);
+    PER_HEAP
+    ptrdiff_t get_balance_heaps_loh_effective_budget ();
     static 
     gc_heap* balance_heaps_loh (alloc_context* acontext, size_t size);
+    // Unlike balance_heaps_loh, this may return nullptr if we failed to change heaps.
+    static
+    gc_heap* balance_heaps_loh_hard_limit_retry (alloc_context* acontext, size_t size);
     static
     void gc_thread_stub (void* arg);
 #endif //MULTIPLE_HEAPS
 
-    CObjectHeader* try_fast_alloc (size_t jsize);
-
     // For LOH allocations we only update the alloc_bytes_loh in allocation
     // context - we don't actually use the ptr/limit from it so I am
     // making this explicit by not passing in the alloc_context.
+    // Note: This is an instance method, but the heap instance is only used for
+    // lowest_address and highest_address, which are currently the same accross all heaps.
     PER_HEAP
-    CObjectHeader* allocate_large_object (size_t size, int64_t& alloc_bytes);
+    CObjectHeader* allocate_large_object (size_t size, uint32_t flags, int64_t& alloc_bytes);
 
 #ifdef FEATURE_STRUCTALIGN
     PER_HEAP
@@ -1433,13 +1454,13 @@ protected:
     void fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject);
 
     PER_HEAP
-    size_t limit_from_size (size_t size, size_t room, int gen_number,
+    size_t limit_from_size (size_t size, uint32_t flags, size_t room, int gen_number,
                             int align_const);
     PER_HEAP
-    int try_allocate_more_space (alloc_context* acontext, size_t jsize,
-                                 int alloc_generation_number);
-    PER_HEAP
-    BOOL allocate_more_space (alloc_context* acontext, size_t jsize,
+    allocation_state try_allocate_more_space (alloc_context* acontext, size_t jsize, uint32_t flags, 
+                                              int alloc_generation_number);
+    PER_HEAP_ISOLATED
+    BOOL allocate_more_space (alloc_context* acontext, size_t jsize, uint32_t flags, 
                               int alloc_generation_number);
 
     PER_HEAP
@@ -1454,6 +1475,7 @@ protected:
     BOOL a_fit_free_list_p (int gen_number, 
                             size_t size, 
                             alloc_context* acontext,
+                            uint32_t flags,
                             int align_const);
 
 #ifdef BACKGROUND_GC
@@ -1467,6 +1489,7 @@ protected:
     void bgc_loh_alloc_clr (uint8_t* alloc_start,
                             size_t size, 
                             alloc_context* acontext,
+                            uint32_t flags, 
                             int align_const, 
                             int lock_index,
                             BOOL check_used_p,
@@ -1508,6 +1531,7 @@ protected:
     PER_HEAP
     BOOL a_fit_free_list_large_p (size_t size, 
                                   alloc_context* acontext,
+                                  uint32_t flags, 
                                   int align_const);
 
     PER_HEAP
@@ -1515,12 +1539,14 @@ protected:
                               heap_segment* seg,
                               size_t size, 
                               alloc_context* acontext,
+                              uint32_t flags, 
                               int align_const,
                               BOOL* commit_failed_p);
     PER_HEAP
     BOOL loh_a_fit_segment_end_p (int gen_number,
                                   size_t size, 
                                   alloc_context* acontext,
+                                  uint32_t flags,
                                   int align_const,
                                   BOOL* commit_failed_p,
                                   oom_reason* oom_r);
@@ -1554,6 +1580,7 @@ protected:
     BOOL soh_try_fit (int gen_number,
                       size_t size, 
                       alloc_context* acontext,
+                      uint32_t flags,
                       int align_const,
                       BOOL* commit_failed_p,
                       BOOL* short_seg_end_p);
@@ -1561,15 +1588,17 @@ protected:
     BOOL loh_try_fit (int gen_number,
                       size_t size, 
                       alloc_context* acontext,
+                      uint32_t flags, 
                       int align_const,
                       BOOL* commit_failed_p,
                       oom_reason* oom_r);
 
     PER_HEAP
-    BOOL allocate_small (int gen_number,
-                         size_t size, 
-                         alloc_context* acontext,
-                         int align_const);
+    allocation_state allocate_small (int gen_number,
+                                     size_t size, 
+                                     alloc_context* acontext,
+                                     uint32_t flags,
+                                     int align_const);
 
 #ifdef RECORD_LOH_STATE
     #define max_saved_loh_states 12
@@ -1588,10 +1617,11 @@ protected:
     void add_saved_loh_state (allocation_state loh_state_to_save, EEThreadId thread_id);
 #endif //RECORD_LOH_STATE
     PER_HEAP
-    BOOL allocate_large (int gen_number,
-                         size_t size, 
-                         alloc_context* acontext,
-                         int align_const);
+    allocation_state allocate_large (int gen_number,
+                                     size_t size, 
+                                     alloc_context* acontext,
+                                     uint32_t flags, 
+                                     int align_const);
 
     PER_HEAP_ISOLATED
     int init_semi_shared();
@@ -1660,6 +1690,12 @@ protected:
     void decommit_heap_segment_pages (heap_segment* seg, size_t extra_space);
     PER_HEAP
     void decommit_heap_segment (heap_segment* seg);
+    PER_HEAP_ISOLATED
+    bool virtual_alloc_commit_for_heap (void* addr, size_t size, int h_number);
+    PER_HEAP_ISOLATED
+    bool virtual_commit (void* address, size_t size, int h_number=-1, bool* hard_limit_exceeded_p=NULL);
+    PER_HEAP_ISOLATED
+    bool virtual_decommit (void* address, size_t size, int h_number=-1);
     PER_HEAP
     void clear_gen0_bricks();
 #ifdef BACKGROUND_GC
@@ -1754,7 +1790,7 @@ protected:
     BOOL find_card (uint32_t* card_table, size_t& card,
                     size_t card_word_end, size_t& end_card);
     PER_HEAP
-    BOOL grow_heap_segment (heap_segment* seg, uint8_t* high_address);
+    BOOL grow_heap_segment (heap_segment* seg, uint8_t* high_address, bool* hard_limit_exceeded_p=NULL);
     PER_HEAP
     int grow_heap_segment (heap_segment* seg, uint8_t* high_address, uint8_t* old_loc, size_t size, BOOL pad_front_p REQD_ALIGN_AND_OFFSET_DCL);
     PER_HEAP
@@ -1831,8 +1867,8 @@ protected:
     void adjust_limit (uint8_t* start, size_t limit_size, generation* gen,
                        int gen_number);
     PER_HEAP
-    void adjust_limit_clr (uint8_t* start, size_t limit_size,
-                           alloc_context* acontext, heap_segment* seg,
+    void adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
+                           alloc_context* acontext, uint32_t flags, heap_segment* seg,
                            int align_const, int gen_number);
     PER_HEAP
     void  leave_allocation_segment (generation* gen);
@@ -2214,7 +2250,7 @@ protected:
     BOOL loh_object_p (uint8_t* o);
 
     PER_HEAP_ISOLATED
-    BOOL should_compact_loh();
+    BOOL loh_compaction_requested();
 
     // If the LOH compaction mode is just to compact once,
     // we need to see if we should reset it back to not compact.
@@ -2495,6 +2531,9 @@ protected:
     PER_HEAP
     void save_ephemeral_generation_starts();
 
+    PER_HEAP_ISOLATED
+    size_t get_gen0_min_size();
+
     PER_HEAP
     void set_static_data();
 
@@ -2529,7 +2568,10 @@ protected:
     size_t get_total_committed_size();
     PER_HEAP_ISOLATED
     size_t get_total_fragmentation();
-
+    PER_HEAP_ISOLATED
+    size_t get_total_gen_fragmentation (int gen_number);
+    PER_HEAP_ISOLATED
+    size_t get_total_gen_estimated_reclaim (int gen_number);
     PER_HEAP_ISOLATED
     void get_memory_info (uint32_t* memory_load, 
                           uint64_t* available_physical=NULL,
@@ -2538,6 +2580,9 @@ protected:
     size_t generation_size (int gen_number);
     PER_HEAP_ISOLATED
     size_t get_total_survived_size();
+    // this also resets allocated_since_last_gc
+    PER_HEAP_ISOLATED
+    size_t get_total_allocated_since_last_gc();
     PER_HEAP
     size_t get_current_allocated();
     PER_HEAP_ISOLATED
@@ -2565,13 +2610,21 @@ protected:
     PER_HEAP
     size_t committed_size();
     PER_HEAP
+    size_t committed_size (bool loh_p, size_t* allocated);
+    PER_HEAP
     size_t approximate_new_allocation();
     PER_HEAP
     size_t end_space_after_gc();
     PER_HEAP
+    size_t estimated_reclaim (int gen_number);
+    PER_HEAP
     BOOL decide_on_compacting (int condemned_gen_number,
                                size_t fragmentation,
                                BOOL& should_expand);
+    PER_HEAP
+    BOOL sufficient_space_end_seg (uint8_t* start, uint8_t* seg_end, 
+                                   size_t end_space_required, 
+                                   gc_tuning_point tp);
     PER_HEAP
     BOOL ephemeral_gen_fit_p (gc_tuning_point tp);
     PER_HEAP
@@ -2958,12 +3011,18 @@ public:
     size_t etw_allocation_running_amount[2];
 
     PER_HEAP
+    uint64_t total_alloc_bytes_soh;
+
+    PER_HEAP
+    uint64_t total_alloc_bytes_loh;
+
+    PER_HEAP
     int gc_policy;  //sweep, compact, expand
 
 #ifdef MULTIPLE_HEAPS
     PER_HEAP_ISOLATED
     bool gc_thread_no_affinitize_p;
-
+    
     PER_HEAP_ISOLATED
     GCEvent gc_start_event;
 
@@ -3041,6 +3100,83 @@ public:
 
     PER_HEAP_ISOLATED
     uint64_t entry_available_physical_mem;
+
+    // Hard limit for the heap, only supported on 64-bit.
+    // 
+    // Users can specify a hard limit for the GC heap via GCHeapHardLimit or
+    // a percentage of the physical memory this process is allowed to use via
+    // GCHeapHardLimitPercent. This is the maximum commit size the GC heap 
+    // can consume.
+    //
+    // The way the hard limit is decided is:
+    // 
+    // If the GCHeapHardLimit config is specified that's the value we use;
+    // else if the GCHeapHardLimitPercent config is specified we use that 
+    // value;
+    // else if the process is running inside a container with a memory limit,
+    // the hard limit is 
+    // max (20mb, 75% of the memory limit on the container).
+    //
+    // Due to the different perf charicteristics of containers we make the 
+    // following policy changes:
+    // 
+    // 1) No longer affinitize Server GC threads by default because we wouldn't 
+    // want all the containers on the machine to only affinitize to use the
+    // first few CPUs (and we don't know which CPUs are already used). You
+    // can however override this by specifying the GCHeapAffinitizeMask
+    // config which will decide which CPUs the process will affinitize the
+    // Server GC threads to.
+    // 
+    // 2) Segment size is determined by limit / number of heaps but has a 
+    // minimum value of 16mb. This can be changed by specifying the number
+    // of heaps via the GCHeapCount config. The minimum size is to avoid 
+    // the scenario where the hard limit is small but the process can use 
+    // many procs and we end up with tiny segments which doesn't make sense.
+    //
+    // 3) LOH compaction occurs automatically if needed.
+    //
+    // Since we do allow both gen0 and gen3 allocations, and we don't know 
+    // the distinction (and it's unrealistic to request users to specify
+    // this distribution) we reserve memory this way - 
+    // 
+    // For SOH we reserve (limit / number of heaps) per heap. 
+    // For LOH we reserve (limit * 2 / number of heaps) per heap. 
+    //
+    // This means the following -
+    // 
+    // + we never need to acquire new segments. This simplies the perf
+    // calculations by a lot.
+    //
+    // + we now need a different definition of "end of seg" because we
+    // need to make sure the total does not exceed the limit.
+    //
+    // + if we detect that we exceed the commit limit in the allocator we
+    // wouldn't want to treat that as a normal commit failure because that
+    // would mean we always do full compacting GCs.
+    // 
+    // TODO: some of the logic here applies to the general case as well
+    // such as LOH automatic compaction. However it will require more 
+    //testing to change the general case.
+    PER_HEAP_ISOLATED
+    size_t heap_hard_limit;
+
+    PER_HEAP_ISOLATED
+    CLRCriticalSection check_commit_cs;
+
+    PER_HEAP_ISOLATED
+    size_t current_total_committed;
+
+    // This is what GC uses for its own bookkeeping.
+    PER_HEAP_ISOLATED
+    size_t current_total_committed_bookkeeping;
+
+    // This is what GC's own book keeping consumes.
+    PER_HEAP_ISOLATED
+    size_t current_total_committed_gc_own;
+
+    // This is if large pages should be used.
+    PER_HEAP_ISOLATED
+    bool use_large_pages_p;
 
     PER_HEAP_ISOLATED
     size_t last_gc_index;
@@ -3545,10 +3681,8 @@ protected:
 
     PER_HEAP
     BOOL gen0_bricks_cleared;
-#ifdef FFIND_OBJECT
     PER_HEAP
     int gen0_must_clear_bricks;
-#endif //FFIND_OBJECT
     
     PER_HEAP_ISOLATED
     bool maxgen_size_inc_p; 
@@ -3623,6 +3757,9 @@ protected:
 
     PER_HEAP_ISOLATED
     size_t num_provisional_triggered;
+
+    PER_HEAP
+    size_t allocated_since_last_gc;
 
 #ifdef BACKGROUND_GC
     PER_HEAP_ISOLATED
@@ -3893,10 +4030,6 @@ private:
 
     }
 
-    BOOL FinalizeSegForAppDomain (void *pDomain, 
-                                  BOOL fRunFinalizers, 
-                                  unsigned int Seg);
-
 public:
     ~CFinalize();
     bool Initialize();
@@ -3915,9 +4048,6 @@ public:
     void SetSegForShutDown(BOOL fHasLock);
     size_t GetNumberFinalizableObjects();
     void DiscardNonCriticalObjects();
-
-    //Methods used by the app domain unloading call to finalize objects in an app domain
-    bool FinalizeAppDomain (void *pDomain, bool fRunFinalizers);
 
     void CheckFinalizerObjects();
 };
@@ -4483,18 +4613,6 @@ size_t gcard_of (uint8_t* object)
 {
     return (size_t)(object) / card_size;
 }
-
-inline
-void YieldProcessorScalingFactor()
-{
-    unsigned int n = g_yieldProcessorScalingFactor;
-    _ASSERTE(n != 0);
-    do
-    {
-        YieldProcessor();
-    } while (--n != 0);
-}
-
 #ifdef FEATURE_CARD_MARKING_STEALING
 #define CARD_MARKING_STEALING_GRANULARITY (8*1024*1024)
 

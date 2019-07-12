@@ -1178,3 +1178,82 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByRefOutL
 	return TRUE;
 }
 
+//////////////////////////////////////////////////////////////////////////////////////
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOverlappingLongFloat(OverlappingLongFloat str, LONG64 expected)
+{
+    return str.a == expected;
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsExpByValOverlappingMultipleEightByte(OverlappingMultipleEightbyte str, float i1, float i2, float i3)
+{
+    return str.arr[0] == i1 && str.arr[1] == i2 && str.arr[2] == i3;
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(FixedBufferClassificationTest str, float f)
+{
+    return str.f == f;
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+extern "C" DLL_EXPORT int GetStringLength(AutoString str)
+{
+#ifdef _WIN32
+    return (int)wcslen(str.str);
+#else
+    return (int)strlen(str.str);
+#endif
+}
+
+extern "C" DLL_EXPORT float STDMETHODCALLTYPE ProductHFA(HFA hfa)
+{
+    return hfa.f1 * hfa.f2 * hfa.f3 * hfa.f4;
+}
+
+extern "C" DLL_EXPORT HFA STDMETHODCALLTYPE GetHFA(float f1, float f2, float f3, float f4)
+{
+    return {f1, f2, f3, f4};
+}
+
+extern "C" DLL_EXPORT double STDMETHODCALLTYPE ProductDoubleHFA(DoubleHFA hfa)
+{
+    return hfa.d1 * hfa.d2;
+}
+
+extern "C" DLL_EXPORT ManyInts STDMETHODCALLTYPE GetMultiplesOf(int value)
+{
+    ManyInts multiples = 
+    {
+        value * 1,
+        value * 2,
+        value * 3,
+        value * 4,
+        value * 5,
+        value * 6,
+        value * 7,
+        value * 8, 
+        value * 9,
+        value * 10,
+        value * 11,
+        value * 12,
+        value * 13,
+        value * 14,
+        value * 15,
+        value * 16,
+        value * 17,
+        value * 18,
+        value * 19,
+        value * 20,
+    };
+
+    return multiples;
+}
+
+extern "C" DLL_EXPORT LongStructPack16Explicit STDMETHODCALLTYPE GetLongStruct(LONG64 val1, LONG64 val2)
+{
+    return {val1, val2};
+}
+
+extern "C" DLL_EXPORT MultipleBools STDMETHODCALLTYPE GetBools(BOOL b1, BOOL b2)
+{
+    return {b1, b2};
+}

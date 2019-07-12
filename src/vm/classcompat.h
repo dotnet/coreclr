@@ -20,12 +20,10 @@
 #include "hash.h"
 #include "crst.h"
 #include "cgensys.h"
-#include "declsec.h"
 #include "stdinterfaces.h"
 #include "slist.h"
 #include "spinlock.h"
 #include "typehandle.h"
-#include "perfcounters.h"
 #include "methodtable.h"
 #include "eeconfig.h"
 #include "typectxt.h"
@@ -40,7 +38,6 @@ class   ArrayClass;
 class   ArrayMethodDesc;
 class   Assembly;
 class   ClassLoader;
-class   DomainLocalBlock;
 class   FCallMethodDesc;
 class   EEClass;
 class   LayoutEEClass;
@@ -202,11 +199,12 @@ public:
 class MethodTableBuilder
 {
 public:
-    MethodTableBuilder(MethodTable * pMT) 
+    MethodTableBuilder(MethodTable * pMT, StackingAllocator *pStackingAllocator) 
     {
         LIMITED_METHOD_CONTRACT;
         m_pHalfBakedMT = pMT;
         m_pHalfBakedClass = pMT->GetClass();
+        m_pStackingAllocator = pStackingAllocator;
         NullBMTData();
     }
 public:
@@ -243,6 +241,9 @@ private:
     // <NICE> Get rid of this.</NICE>
     EEClass *m_pHalfBakedClass;
     MethodTable * m_pHalfBakedMT;
+    StackingAllocator *m_pStackingAllocator;
+
+    StackingAllocator* GetStackingAllocator() { return m_pStackingAllocator; }
 
     // GetHalfBakedClass: The EEClass you get back from this function may not have all its fields filled in yet.
     // Thus you have to make sure that the relevant item which you are accessing has
@@ -361,7 +362,6 @@ private:
             {
                 NOTHROW;
                 GC_NOTRIGGER;
-                SO_TOLERANT;
                 MODE_ANY;
             }
             CONTRACTL_END;
