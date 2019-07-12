@@ -766,13 +766,14 @@ namespace System
                 return span.TrimStart();
             }
 
-
-            for (int start = 0; start < span.Length; start++)
+            int start = 0;
+            while (start < span.Length)
             {
                 for (int i = 0; i < trimChars.Length; i++)
                 {
                     if (span[start] == trimChars[i])
                     {
+                        start++;
                         continue;
                     }
                 }
@@ -780,6 +781,7 @@ namespace System
                 return span.Slice(start);
 
             }
+            return span.Slice(start);
 
 
         }
