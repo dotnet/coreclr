@@ -767,18 +767,18 @@ namespace System
             }
 
             int start = 0;
-            while (start < span.Length)
-            {
-                for (int i = 0; i < trimChars.Length; i++)
-                {
-                    if (span[start] == trimChars[i])
-                    {
-                        start++;
-                        i = 0;
-                    }
-                }
 
-                return span.Slice(start);
+            for (int i = 0; i < trimChars.Length; i++)
+            {
+                if (span[start] == trimChars[i])
+                {
+                    start++;
+                    if (start < span.Length)
+                    {
+                        return span.Slice(start);
+                    }
+                    i = -1;
+                }
             }
 
             return span.Slice(start);
