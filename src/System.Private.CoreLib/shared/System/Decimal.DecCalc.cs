@@ -2421,7 +2421,7 @@ namespace System
                         if (tmp == 0)
                         {
                             if (mode <= MidpointRounding.ToZero)
-                                goto done;
+                                return; // We are done rounding
                             remainder = 0;
                             goto checkRemainder;
                         }
@@ -2451,7 +2451,7 @@ namespace System
 
             checkRemainder:
                 if (mode == MidpointRounding.ToZero)
-                    goto done;
+                    return; // We are done rounding
                 else if (mode == MidpointRounding.ToEven)
                 {
                     // To do IEEE rounding, we add LSB of result to sticky bits so either causes round up if remainder * 2 == last divisor.
@@ -2459,32 +2459,31 @@ namespace System
                     if ((sticky | d.ulo & 1) != 0)
                         remainder++;
                     if (power >= remainder)
-                        goto done;
+                        return; // We are done rounding
                 }
                 else if (mode == MidpointRounding.AwayFromZero)
                 {
                     // Round away from zero at the mid point.
                     remainder <<= 1;
                     if (power > remainder)
-                        goto done;
+                        return; // We are done rounding
                 }
                 else if (mode == MidpointRounding.ToNegativeInfinity)
                 {
                     // Round toward -infinity if we have chopped off a non-zero amount from a negative value.
                     if ((remainder | sticky) == 0 || !d.IsNegative)
-                        goto done;
+                        return; // We are done rounding
                 }
                 else
                 {
                     Debug.Assert(mode == MidpointRounding.ToPositiveInfinity);
                     // Round toward infinity if we have chopped off a non-zero amount from a positive value.
                     if ((remainder | sticky) == 0 || d.IsNegative)
-                        goto done;
+                        return; // We are done rounding
                 }
                 if (++d.Low64 == 0)
                     d.uhi++;
-                done:
-                return;
+                return; //We are done rounding
             }
 
             internal static uint DecDivMod1E9(ref DecCalc value)
