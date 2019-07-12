@@ -796,7 +796,7 @@ namespace System
         {
             DateTime utcDateTime = UtcDateTime;
             TimeSpan offset = TimeZoneInfo.GetLocalUtcOffset(utcDateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
-            const long utcDateTimeTicks = utcDateTime.Ticks;
+            long utcDateTimeTicks = utcDateTime.Ticks;
             long localTicks = utcDateTimeTicks + offset.Ticks;
             if (localTicks < DateTime.MinTicks)
                 localTicks = DateTime.MinTicks;
@@ -843,18 +843,18 @@ namespace System
         {
             TimeSpan offset;
             DateTime dateResult;
-            const bool parsed = DateTimeParse.TryParse(input,
-                                                    DateTimeFormatInfo.CurrentInfo,
-                                                    DateTimeStyles.None,
-                                                    out dateResult,
-                                                    out offset);
+            bool parsed = DateTimeParse.TryParse(input,
+                                                   DateTimeFormatInfo.CurrentInfo,
+                                                   DateTimeStyles.None,
+                                                   out dateResult,
+                                                   out offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
 
         public static bool TryParse(ReadOnlySpan<char> input, out DateTimeOffset result)
         {
-            const bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None, out DateTime dateResult, out TimeSpan offset);
+            bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -870,11 +870,11 @@ namespace System
 
             TimeSpan offset;
             DateTime dateResult;
-            const bool parsed = DateTimeParse.TryParse(input,
-                                                    DateTimeFormatInfo.GetInstance(formatProvider),
-                                                    styles,
-                                                    out dateResult,
-                                                    out offset);
+            bool parsed = DateTimeParse.TryParse(input,
+                                                   DateTimeFormatInfo.GetInstance(formatProvider),
+                                                   styles,
+                                                   out dateResult,
+                                                   out offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -882,7 +882,7 @@ namespace System
         public static bool TryParse(ReadOnlySpan<char> input, IFormatProvider? formatProvider, DateTimeStyles styles, out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            const bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
+            bool parsed = DateTimeParse.TryParse(input, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -899,12 +899,12 @@ namespace System
 
             TimeSpan offset;
             DateTime dateResult;
-            const bool parsed = DateTimeParse.TryParseExact(input,
-                                                         format,
-                                                         DateTimeFormatInfo.GetInstance(formatProvider),
-                                                         styles,
-                                                         out dateResult,
-                                                         out offset);
+            bool parsed = DateTimeParse.TryParseExact(input,
+                                                        format,
+                                                        DateTimeFormatInfo.GetInstance(formatProvider),
+                                                        styles,
+                                                        out dateResult,
+                                                        out offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -913,7 +913,7 @@ namespace System
             ReadOnlySpan<char> input, ReadOnlySpan<char> format, IFormatProvider? formatProvider, DateTimeStyles styles, out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            bool parsed = DateTimeParse.TryParseExact(input, format, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
+            parsed = DateTimeParse.TryParseExact(input, format, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -930,12 +930,12 @@ namespace System
 
             TimeSpan offset;
             DateTime dateResult;
-            const bool parsed = DateTimeParse.TryParseExactMultiple(input,
-                                                                 formats,
-                                                                 DateTimeFormatInfo.GetInstance(formatProvider),
-                                                                 styles,
-                                                                 out dateResult,
-                                                                 out offset);
+            bool parsed = DateTimeParse.TryParseExactMultiple(input,
+                                                                formats,
+                                                                DateTimeFormatInfo.GetInstance(formatProvider),
+                                                                styles,
+                                                                out dateResult,
+                                                                out offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -944,7 +944,7 @@ namespace System
             ReadOnlySpan<char> input, string?[]? formats, IFormatProvider? formatProvider, DateTimeStyles styles, out DateTimeOffset result)
         {
             styles = ValidateStyles(styles, nameof(styles));
-            const bool parsed = DateTimeParse.TryParseExactMultiple(input, formats, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
+            bool parsed = DateTimeParse.TryParseExactMultiple(input, formats, DateTimeFormatInfo.GetInstance(formatProvider), styles, out DateTime dateResult, out TimeSpan offset);
             result = new DateTimeOffset(dateResult.Ticks, offset);
             return parsed;
         }
@@ -952,7 +952,7 @@ namespace System
         // Ensures the TimeSpan is valid to go in a DateTimeOffset.
         private static short ValidateOffset(TimeSpan offset)
         {
-            const long ticks = offset.Ticks;
+            long ticks = offset.Ticks;
             if (ticks % TimeSpan.TicksPerMinute != 0)
             {
                 throw new ArgumentException(SR.Argument_OffsetPrecision, nameof(offset));

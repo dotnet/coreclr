@@ -260,7 +260,7 @@ BOOL IsCurrentModuleFileNameInAutoExclusionList()
     // Look in AutoExclusionList key for appName get the size of any value stored there.
     DWORD value, valueType, valueSize = sizeof(value);
     ret = WszRegQueryValueEx(hKeyHolder, wszAppName, 0, &valueType, reinterpret_cast<BYTE*>(&value), &valueSize);
-    if ((ret == ERROR_SUCCESS) && (valueType == REG_DWORD) && (value == 1))
+    return ((ret == ERROR_SUCCESS) && (valueType == REG_DWORD) && (value == 1))
     {   
         return TRUE;
     }
