@@ -6492,6 +6492,8 @@ void gc_heap::card_bundle_clear (size_t cardb)
     card_bundle_table [card_bundle_word (cardb)] &= ~(1 << card_bundle_bit (cardb));
     dprintf (1,("Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_bundle_cardw (cardb),
               (size_t)card_bundle_cardw (cardb+1)));
+    STRESS_LOG3(LF_GC, LL_INFO1000000, "Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_address(card_bundle_cardw(cardb)*card_word_width),
+        (size_t)card_address(card_bundle_cardw(cardb + 1) * card_word_width));
 }
 
 void gc_heap::card_bundle_set (size_t cardb)
@@ -27492,6 +27494,8 @@ void gc_heap::clear_cards (size_t start_card, size_t end_card)
         dprintf (3,("Cleared cards [%Ix:%Ix, %Ix:%Ix[",
                   start_card, (size_t)card_address (start_card),
                   end_card, (size_t)card_address (end_card)));
+        STRESS_LOG4(LF_GC, LL_INFO1000000, "Cleared cards [%Ix:%Ix, %Ix:%Ix[", start_card, (size_t)card_address(start_card),
+                end_card, (size_t)card_address(end_card));
     }
 }
 
@@ -28279,10 +28283,18 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
             dprintf (3, ("Found %Id cg pointers", cg_pointers_found));
             if (cg_pointers_found == 0)
             {
+#ifdef FEATURE_CARD_MARKING_STEALING
+                uint8_t* co = min(limit, last_object);
+                dprintf(3, (" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)co));
+                clear_cards(card, card_of(co));
+                n_card_set -= (card_of(co) - card);
+                total_cards_cleared += (card_of(co) - card);
+#else // FEATURE_CARD_MARKING_STEALING
                 dprintf(3,(" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)last_object));
                 clear_cards (card, card_of(last_object));
                 n_card_set -= (card_of (last_object) - card);
                 total_cards_cleared += (card_of (last_object) - card);
+#endif // FEATURE_CARD_MARKING_STEALING
             }
 
             n_eph += cg_pointers_found;
@@ -32380,9 +32392,16 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
             dprintf (3, ("Found %Id cg pointers", cg_pointers_found));
             if (cg_pointers_found == 0)
             {
-                dprintf(3,(" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)o));
+#ifdef FEATURE_CARD_MARKING_STEALING
+                uint8_t* co = min(limit, o);
+                dprintf(3, (" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)co));
+                clear_cards(card, card_of((uint8_t*)co));
+                total_cards_cleared += (card_of((uint8_t*)co) - card);
+#else // FEATURE_CARD_MARKING_STEALING
+                dprintf(3, (" Clearing cards [%Ix, %Ix[ ", (size_t)card_address(card), (size_t)o));
                 clear_cards (card, card_of((uint8_t*)o));
                 total_cards_cleared += (card_of((uint8_t*)o) - card);
+#endif // FEATURE_CARD_MARKING_STEALING
             }
             n_eph +=cg_pointers_found;
             cg_pointers_found = 0;
