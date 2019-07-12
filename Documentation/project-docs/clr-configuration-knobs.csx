@@ -337,14 +337,19 @@ public static class ConfigKnobsDoc
         "## Host Configuration Knobs\nThese can be passed in by a host during initialization. Note that the values are all passed in as strings, so if the type is boolean, the value would be the string \"true\" or \"false\", and if it's a numeric value, it would be in the form \"123\".\n";
 
     public static string HostConfigurationKnobsPart2 =
-        "\nName | Description | Type\n" +
-        "-----|-------------|------\n" +
-        "`System.GC.Concurrent` | Enable concurrent GC | boolean\n" +
-        "`System.GC.Server` | Enable server GC | boolean\n" +
-        "`System.GC.RetainVM` | Put segments that should be deleted on a standby list for future use instead of releasing them back to the OS | boolean\n" +
-        "`System.Runtime.TieredCompilation` | Enable tiered compilation | boolean\n" +
-        "`System.Threading.ThreadPool.MinThreads` | Override MinThreads for the ThreadPool worker pool | numeric\n" +
-        "`System.Threading.ThreadPool.MaxThreads` | Override MaxThreads for the ThreadPool worker pool | numeric\n\n\n";
+        "\nName | Description | Type | Minimum `dotnet` Version\n" +
+        "-----|-------------|------|-------------------------\n" +
+        "`System.GC.Concurrent` | Enable concurrent GC | boolean |\n" +
+        "`System.GC.HeapHardLimit` | Hard limit in bytes on managed heap size | numeric | 3.0\n" +
+        "`System.GC.HeapHardLimitPercent` | Sets hard limit as a percentage of physical memory | numeric | 3.0\n" +
+        "`System.GC.HeapAffinitizeMask` | A mask where each 1 bit is a processor that is allowed to be used by server GC threads | numeric | 3.0\n"+
+        "`System.GC.HeapCount` | Desired number of server GC heaps. The actual number of heaps is the minimum of HeapCount, the number of processors your process is allowed to use, and the number of set bits in HeapAffinitizeMask. | boolean | 3.0\n" +
+        "`System.GC.NoAffinitize` | Specifies to not affinitize server GC threads with CPUs | boolean | 3.0\n" +
+        "`System.GC.Server` | Enable server GC | boolean |\n" +
+        "`System.GC.RetainVM` | Put segments that should be deleted on a standby list for future use instead of releasing them back to the OS | boolean |\n" +
+        "`System.Runtime.TieredCompilation` | Enable tiered compilation | boolean |\n" +
+        "`System.Threading.ThreadPool.MinThreads` | Override MinThreads for the ThreadPool worker pool | numeric |\n" +
+        "`System.Threading.ThreadPool.MaxThreads` | Override MaxThreads for the ThreadPool worker pool | numeric |\n\n\n";
 
     public static string ClrConfigSectionHeader =
         "## Environment/Registry Configuration Knobs\n";

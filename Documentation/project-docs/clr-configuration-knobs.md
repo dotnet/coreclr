@@ -4,20 +4,25 @@ There are two primary ways to configure runtime behavior: CoreCLR hosts can pass
 These can be passed in by a host during initialization. Note that the values are all passed in as strings, so if the type is boolean, the value would be the string "true" or "false", and if it's a numeric value, it would be in the form "123".
 
 
-Name | Description | Type
------|-------------|------
-`System.GC.Concurrent` | Enable concurrent GC | boolean
-`System.GC.Server` | Enable server GC | boolean
-`System.GC.RetainVM` | Put segments that should be deleted on a standby list for future use instead of releasing them back to the OS | boolean
-`System.Runtime.TieredCompilation` | Enable tiered compilation | boolean
-`System.Threading.ThreadPool.MinThreads` | Override MinThreads for the ThreadPool worker pool | numeric
-`System.Threading.ThreadPool.MaxThreads` | Override MaxThreads for the ThreadPool worker pool | numeric
+Name | Description | Type | Minimum `dotnet` Version
+-----|-------------|------|-------------------------
+`System.GC.Concurrent` | Enable concurrent GC | boolean |
+`System.GC.HeapHardLimit` | Hard limit in bytes on managed heap size | numeric | 3.0
+`System.GC.HeapHardLimitPercent` | Sets hard limit as a percentage of physical memory | numeric | 3.0
+`System.GC.HeapAffinitizeMask` | A mask where each 1 bit is a processor that is allowed to be used by server GC threads | numeric | 3.0
+`System.GC.HeapCount` | Desired number of server GC heaps. The actual number of heaps is the minimum of HeapCount, the number of processors your process is allowed to use, and the number of set bits in HeapAffinitizeMask. | boolean | 3.0
+`System.GC.NoAffinitize` | Specifies to not affinitize server GC threads with CPUs | boolean | 3.0
+`System.GC.Server` | Enable server GC | boolean |
+`System.GC.RetainVM` | Put segments that should be deleted on a standby list for future use instead of releasing them back to the OS | boolean |
+`System.Runtime.TieredCompilation` | Enable tiered compilation | boolean |
+`System.Threading.ThreadPool.MinThreads` | Override MinThreads for the ThreadPool worker pool | numeric |
+`System.Threading.ThreadPool.MaxThreads` | Override MaxThreads for the ThreadPool worker pool | numeric |
 
 
 
 ## Environment/Registry Configuration Knobs
 
-This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [0ae3d02](https://github.com/dotnet/coreclr/commit/0ae3d020f82c3f8650b7e5eeaf9f1030f7e7e785) on 4/25/2019. It might be out of date. To generate latest documentation run `dotnet-script clr-configuration-knobs.csx` from this file directory.
+This table was machine-generated using `clr-configuration-knobs.csx` script from repository commit [c346b3f](https://github.com/dotnet/coreclr/commit/c346b3f1451eaf19a258ecaebcf91274ac46f5c8) on 7/12/2019. It might be out of date. To generate latest documentation run `dotnet-script clr-configuration-knobs.csx` from this file directory.
 
 When using these configurations from environment variables, the variables need to have the `COMPlus_` prefix in their names. e.g. To set DumpJittedMethods to 1, add the environment variable `COMPlus_DumpJittedMethods=1`.
 
@@ -25,40 +30,38 @@ See also [Setting configuration variables](../building/viewing-jit-dumps.md#sett
 
 #### Tables
 1. [AppDomain Configuration Knobs](#appdomain-configuration-knobs)
-2. [ARM Configuration Knobs](#arm-configuration-knobs)
-3. [Assembly Loader Configuration Knobs](#assembly-loader-configuration-knobs)
-4. [Conditional breakpoints Configuration Knobs](#conditional-breakpoints-configuration-knobs)
-5. [Debugger Configuration Knobs](#debugger-configuration-knobs)
-6. [Diagnostics (internal general-purpose) Configuration Knobs](#diagnostics-internal-general-purpose-configuration-knobs)
-7. [Entry point slot backpatch Configuration Knobs](#entry-point-slot-backpatch-configuration-knobs)
-8. [Exception Handling Configuration Knobs](#exception-handling-configuration-knobs)
-9. [Garbage collector Configuration Knobs](#garbage-collector-configuration-knobs)
-10. [GDBJIT Configuration Knobs](#gdbjit-configuration-knobs)
-11. [IBC Configuration Knobs](#ibc-configuration-knobs)
-12. [Interop Configuration Knobs](#interop-configuration-knobs)
-13. [Interpreter Configuration Knobs](#interpreter-configuration-knobs)
-14. [JIT Configuration Knobs](#jit-configuration-knobs)
-15. [JIT Hardware Intrinsics Configuration Knobs](#jit-hardware-intrinsics-configuration-knobs)
-16. [Jit Pitching Configuration Knobs](#jit-pitching-configuration-knobs)
-17. [Loader Configuration Knobs](#loader-configuration-knobs)
-18. [Loader heap Configuration Knobs](#loader-heap-configuration-knobs)
-19. [Log Configuration Knobs](#log-configuration-knobs)
-20. [MetaData Configuration Knobs](#metadata-configuration-knobs)
-21. [Native Binder Configuration Knobs](#native-binder-configuration-knobs)
-22. [NGEN Configuration Knobs](#ngen-configuration-knobs)
-23. [Performance Configuration Knobs](#performance-configuration-knobs)
-24. [Profiling API / ETW Configuration Knobs](#profiling-api--etw-configuration-knobs)
-25. [Spinning heuristics Configuration Knobs](#spinning-heuristics-configuration-knobs)
-26. [Stress Configuration Knobs](#stress-configuration-knobs)
-27. [Thread (miscellaneous) Configuration Knobs](#thread-miscellaneous-configuration-knobs)
-28. [Thread Suspend Configuration Knobs](#thread-suspend-configuration-knobs)
-29. [Threadpool Configuration Knobs](#threadpool-configuration-knobs)
-30. [Tiered Compilation Configuration Knobs](#tiered-compilation-configuration-knobs)
-31. [TypeLoader Configuration Knobs](#typeloader-configuration-knobs)
-32. [Uncategorized Configuration Knobs](#uncategorized-configuration-knobs)
-33. [Virtual call stubs Configuration Knobs](#virtual-call-stubs-configuration-knobs)
-34. [Watson Configuration Knobs](#watson-configuration-knobs)
-35. [Zap Configuration Knobs](#zap-configuration-knobs)
+2. [Assembly Loader Configuration Knobs](#assembly-loader-configuration-knobs)
+3. [Conditional breakpoints Configuration Knobs](#conditional-breakpoints-configuration-knobs)
+4. [Debugger Configuration Knobs](#debugger-configuration-knobs)
+5. [Diagnostics (internal general-purpose) Configuration Knobs](#diagnostics-internal-general-purpose-configuration-knobs)
+6. [Entry point slot backpatch Configuration Knobs](#entry-point-slot-backpatch-configuration-knobs)
+7. [Exception Handling Configuration Knobs](#exception-handling-configuration-knobs)
+8. [Garbage collector Configuration Knobs](#garbage-collector-configuration-knobs)
+9. [GDBJIT Configuration Knobs](#gdbjit-configuration-knobs)
+10. [IBC Configuration Knobs](#ibc-configuration-knobs)
+11. [Interop Configuration Knobs](#interop-configuration-knobs)
+12. [Interpreter Configuration Knobs](#interpreter-configuration-knobs)
+13. [JIT Configuration Knobs](#jit-configuration-knobs)
+14. [JIT Hardware Intrinsics Configuration Knobs](#jit-hardware-intrinsics-configuration-knobs)
+15. [Jit Pitching Configuration Knobs](#jit-pitching-configuration-knobs)
+16. [Loader Configuration Knobs](#loader-configuration-knobs)
+17. [Loader heap Configuration Knobs](#loader-heap-configuration-knobs)
+18. [Log Configuration Knobs](#log-configuration-knobs)
+19. [MetaData Configuration Knobs](#metadata-configuration-knobs)
+20. [Native Binder Configuration Knobs](#native-binder-configuration-knobs)
+21. [NGEN Configuration Knobs](#ngen-configuration-knobs)
+22. [Profiling API / ETW Configuration Knobs](#profiling-api--etw-configuration-knobs)
+23. [Spinning heuristics Configuration Knobs](#spinning-heuristics-configuration-knobs)
+24. [Stress Configuration Knobs](#stress-configuration-knobs)
+25. [Thread (miscellaneous) Configuration Knobs](#thread-miscellaneous-configuration-knobs)
+26. [Thread Suspend Configuration Knobs](#thread-suspend-configuration-knobs)
+27. [Threadpool Configuration Knobs](#threadpool-configuration-knobs)
+28. [Tiered Compilation Configuration Knobs](#tiered-compilation-configuration-knobs)
+29. [TypeLoader Configuration Knobs](#typeloader-configuration-knobs)
+30. [Uncategorized Configuration Knobs](#uncategorized-configuration-knobs)
+31. [Virtual call stubs Configuration Knobs](#virtual-call-stubs-configuration-knobs)
+32. [Watson Configuration Knobs](#watson-configuration-knobs)
+33. [Zap Configuration Knobs](#zap-configuration-knobs)
 
 #### AppDomain Configuration Knobs
 
@@ -192,7 +195,6 @@ Name | Description | Type | Class | Default Value | Flags
 `InjectFault` |  | `DWORD` | `INTERNAL` | `0` | REGUTIL_default
 `SuppressChecks` |  | `DWORD` | `INTERNAL` | |
 `SuppressLockViolationsOnReentryFromOS` | 64 bit OOM tests re-enter the CLR via RtlVirtualUnwind.  This indicates whether to suppress resulting locking violations. | `DWORD` | `INTERNAL` | `0` |
-`TestHooks` | Used by tests to get test an insight on various CLR workings | `STRING` | `INTERNAL` | |
 
 #### Entry point slot backpatch Configuration Knobs
 
@@ -293,13 +295,17 @@ Name | Description | Type | Class | Default Value | Flags
 `EnableRCWCleanupOnSTAShutdown` | Performs RCW cleanup when STA shutdown is detected using IInitializeSpy in classic processes. | `DWORD` | `INTERNAL` | `0` |
 `EventPipeCircularMB` | The EventPipe circular buffer size in megabytes. | `DWORD` | `INTERNAL` | `1024` |
 `EventPipeConfig` | Configuration for EventPipe. | `STRING` | `INTERNAL` | |
+`EventPipeNetTraceFormat` | Enable/disable using the newer nettrace file format. | `DWORD` | `INTERNAL` | `1` |
 `EventPipeOutputPath` | The full path excluding file name for the trace file that will be written when COMPlus_EnableEventPipe=1 | `STRING` | `INTERNAL` | |
+`EventPipeProcNumbers` | Enable/disable capturing processor numbers in EventPipe event headers | `DWORD` | `INTERNAL` | `0` |
 `EventPipeRundown` | Enable/disable eventpipe rundown. | `DWORD` | `INTERNAL` | `1` |
 `ExposeExceptionsInCOM` |  | `DWORD` | `INTERNAL` | |
 `InteropLogArguments` | Log all pinned arguments passed to an interop call | `DWORD` | `EXTERNAL` | `0` |
 `InteropValidatePinnedObjects` | After returning from a managed-to-unmanaged interop call, validate GC heap around objects pinned by IL stubs. | `DWORD` | `UNSUPPORTED` | `0` |
 `LocalWinMDPath` | Additional path to probe for WinMD files in if a WinRT type is not resolved using the standard paths. | `STRING` | `INTERNAL` | |
 `LogCCWRefCountChange` | Outputs debug information and calls LogCCWRefCountChange_BREAKPOINT when AddRef or Release is called on a CCW. | `STRING` | `UNSUPPORTED` | |
+`LTTng` | If COMPlus_LTTng is set to 0, this will prevent the LTTng library from being loaded at runtime | `DWORD` | `UNSUPORTED` | `1` |
+`LTTngConfig` | Configuration for LTTng. | `STRING` | `INTERNAL` | |
 `PInvokeInline` |  | `STRING` | `EXTERNAL` | | REGUTIL_default
 
 #### Interpreter Configuration Knobs
@@ -423,6 +429,7 @@ Name | Description | Type | Class | Default Value | Flags
 `JitHashHalt` | Same as JitHalt, but for a method hash | `DWORD` | | `-1` |
 `JitHeartbeat` |  | `DWORD` | `INTERNAL` | `0` |
 `JitHelperLogging` |  | `DWORD` | `INTERNAL` | `0` |
+`JitHostMaxSlabCache` | Sets jit host max slab cache size, 16MB default | `DWORD` | `EXTERNAL` | `0x1000000` |
 `JitImportBreak` |  | `SSV` | | |
 `JitInclude` |  | `SSV` | | |
 `JitInlineAdditionalMultiplier` |  | `DWORD` | | `0` |
@@ -533,6 +540,7 @@ Name | Description | Type | Class | Default Value | Flags
 `TailCallMax` |  | `STRING` | `INTERNAL` | | REGUTIL_default
 `TailCallOpt` |  | `STRING` | `EXTERNAL` | | REGUTIL_default
 `TailcallStress` |  | `DWORD` | | `0` |
+`TrackDynamicMethodDebugInfo` | Specifies whether debug info should be generated and tracked for dynamic methods | `DWORD` | `UNSUPPORTED` | `0` | REGUTIL_default
 
 #### JIT Hardware Intrinsics Configuration Knobs
 
@@ -684,17 +692,10 @@ Name | Description | Type | Class | Default Value | Flags
 `partialNGenStress` |  | `DWORD` | `INTERNAL` | `0` | REGUTIL_default
 `ZapDoNothing` |  | `DWORD` | `INTERNAL` | `0` | REGUTIL_default
 
-#### Performance Configuration Knobs
-
-Name | Description | Type | Class | Default Value | Flags
------|-------------|------|-------|---------------|-------
-`performanceScenario` | Activates a set of workload-specific default values for performance settings | `STRING` | `EXTERNAL` | |
-
 #### Profiling API / ETW Configuration Knobs
 
 Name | Description | Type | Class | Default Value | Flags
 -----|-------------|------|-------|---------------|-------
-`AttachThreadAlwaysOn` | Forces profapi attach thread to be created on startup, instead of on-demand. | `DWORD` | `EXTERNAL` | |
 `COR_ENABLE_PROFILING` | Flag to indicate whether profiling should be enabled for the currently running process. | `DWORD` | `EXTERNAL` | `0` | DontPrependCOMPlus_ \| IgnoreConfigFiles
 `COR_PROFILER` | Specifies GUID of profiler to load into currently running process | `STRING` | `EXTERNAL` | | DontPrependCOMPlus_
 `COR_PROFILER_PATH` | Specifies the path to the DLL of profiler to load into currently running process | `STRING` | `EXTERNAL` | | DontPrependCOMPlus_
@@ -706,20 +707,18 @@ Name | Description | Type | Class | Default Value | Flags
 `CORECLR_PROFILER_PATH_32` | CoreCLR only: Specifies the path to the DLL of profiler to load into currently running 32 process | `STRING` | `EXTERNAL` | | DontPrependCOMPlus_
 `CORECLR_PROFILER_PATH_64` | CoreCLR only: Specifies the path to the DLL of profiler to load into currently running 64 process | `STRING` | `EXTERNAL` | | DontPrependCOMPlus_
 `ETW_ObjectAllocationEventsPerTypePerSec` | Desired number of GCSampledObjectAllocation ETW events to be logged per type per second.  If 0, then the default built in to the implementation for the enabled event (e.g., High, Low), will be used. | `STRING` | `UNSUPPORTED` | | REGUTIL_default
-`ETWEnabled` | This flag is used on OSes < Vista to enable/disable ETW. It is disabled by default | `DWORD` | `EXTERNAL` | `0` | REGUTIL_default
-`MsBetweenAttachCheck` |  | `DWORD` | `EXTERNAL` | `500` |
 `PerfMapEnabled` | This flag is used on Linux to enable writing /tmp/perf-$pid.map. It is disabled by default | `DWORD` | `EXTERNAL` | `0` | REGUTIL_default
 `PerfMapIgnoreSignal` | When perf map is enabled, this option will configure the specified signal to be accepted and ignored as a marker in the perf logs.  It is disabled by default | `DWORD` | `EXTERNAL` | `0` | REGUTIL_default
-`ProfAPI_AttachProfilerMinTimeoutInMs` | Timeout in ms for the minimum time out value of AttachProfiler | `DWORD` | `EXTERNAL` | `10*1000` |
+`PerfMapShowOptimizationTiers` | Shows optimization tiers in the perf map for methods, as part of the symbol name. Useful for seeing separate stack frames for different optimization tiers of each method. | `DWORD` | `EXTERNAL` | `1` |
 `ProfAPI_DetachMaxSleepMs` | The maximum time, in milliseconds, the CLR will wait before checking whether a profiler that is in the process of detaching is ready to be unloaded. | `DWORD` | `EXTERNAL` | `0` |
 `ProfAPI_DetachMinSleepMs` | The minimum time, in milliseconds, the CLR will wait before checking whether a profiler that is in the process of detaching is ready to be unloaded. | `DWORD` | `EXTERNAL` | `0` |
 `ProfAPI_EnableRejitDiagnostics` | Enable extra dumping to stdout of rejit structures | `DWORD` | `INTERNAL` | `0` |
+`ProfApi_InliningTracking` | Enables the runtime's tracking of inlining for profiler ReJIT. | `DWORD` | `EXTERNAL` | `1` |
 `ProfAPI_ProfilerCompatibilitySetting` | Specifies the profiler loading policy (the default is not to load a V2 profiler in V4) | `STRING` | `EXTERNAL` | | REGUTIL_default \| TrimWhiteSpaceFromStringValue
 `ProfApi_RejitOnAttach` | Enables the ability for profilers to rejit methods on attach. | `DWORD` | `EXTERNAL` | `1` |
 `ProfAPI_TestOnlyEnableICorProfilerInfo` | Test-only flag to allow attaching profiler tests to call ICorProfilerInfo interface, which would otherwise be disallowed for attaching profilers | `DWORD` | `INTERNAL` | `0` |
 `ProfAPI_ValidateNGENInstrumentation` | This flag enables additional validations when using the IMetaDataEmit APIs for NGEN'ed images to ensure only supported edits are made. | `DWORD` | `UNSUPPORTED` | `0` |
 `ProfAPIFault` | Test-only bitmask to inject various types of faults in the profapi code | `DWORD` | `INTERNAL` | `0` |
-`ProfAPIMaxWaitForTriggerMs` | Timeout in ms for profilee to wait for each blocking operation performed by trigger app. | `DWORD` | `EXTERNAL` | `5*60*1000` |
 `StartupDelayMS` |  | `STRING` | `EXTERNAL` | |
 `TestOnlyAllowedEventMask` | Test-only bitmask to allow profiler tests to override CLR enforcement of COR_PRF_ALLOWABLE_AFTER_ATTACH and COR_PRF_MONITOR_IMMUTABLE | `DWORD` | `INTERNAL` | `0` |
 `TestOnlyEnableObjectAllocatedHook` | Test-only flag that forces CLR to initialize on startup as if ObjectAllocated callback were requested, to enable post-attach ObjectAllocated functionality. | `DWORD` | `INTERNAL` | `0` |
@@ -801,7 +800,7 @@ Name | Description | Type | Class | Default Value | Flags
 `TC_CallCountingDelayMs` | A perpetual delay in milliseconds that is applied call counting in tier 0 and jitting at higher tiers, while there is startup-like activity. | `DWORD` | `INTERNAL` | `100` |
 `TC_CallCountThreshold` | Number of times a method must be called in tier 0 after which it is promoted to the next tier. | `DWORD` | `INTERNAL` | `30` |
 `TC_DelaySingleProcMultiplier` | Multiplier for TC_CallCountingDelayMs that is applied on a single-processor machine or when the process is affinitized to a single processor. | `DWORD` | `INTERNAL` | `10` |
-`TC_QuickJit` | For methods that would be jitted, enable using quick JIT when appropriate. | `DWORD` | `EXTERNAL` | `0` |
+`TC_QuickJit` | For methods that would be jitted, enable using quick JIT when appropriate. | `DWORD` | `EXTERNAL` | `1` |
 `TC_QuickJitForLoops` | When quick JIT is enabled, quick JIT may also be used for methods that contain loops. | `DWORD` | `UNSUPPORTED` | `0` |
 `TieredCompilation` | Enables tiered compilation | `DWORD` | `EXTERNAL` | `1` |
 
