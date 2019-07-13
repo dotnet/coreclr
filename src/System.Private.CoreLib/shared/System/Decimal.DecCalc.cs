@@ -157,8 +157,8 @@ namespace System
             };
 
             // Used to fill uninitialized stack variables with non-zero pattern in debug builds
-            [System.Diagnostics.Conditional("DEBUG")]
-            private static unsafe void Poison<T>(ref T s) where T: unmanaged
+            [Conditional("DEBUG")]
+            private static unsafe void DebugPoison<T>(ref T s) where T: unmanaged
             {
                 MemoryMarshal.AsBytes(MemoryMarshal.CreateSpan(ref s, 1)).Fill(0xCD);
             }
@@ -992,7 +992,7 @@ ThrowOverflow:
                     //
                     Buf24 bufNum;
                     _ = &bufNum; // workaround for CS0165
-                    Poison(ref bufNum);
+                    DebugPoison(ref bufNum);
 
                     bufNum.Low64 = low64;
                     bufNum.Mid64 = tmp64;
@@ -1342,7 +1342,7 @@ ThrowOverflow:
                 uint hiProd;
                 Buf24 bufProd;
                 _ = &bufProd; // workaround for CS0165
-                Poison(ref bufProd);
+                DebugPoison(ref bufProd);
 
                 if ((d1.High | d1.Mid) == 0)
                 {
@@ -1924,7 +1924,7 @@ ReturnZero:
             {
                 Buf12 bufQuo;
                 _ = &bufQuo; // workaround for CS0165
-                Poison(ref bufQuo);
+                DebugPoison(ref bufQuo);
 
                 uint power;
                 int curScale;
@@ -2026,7 +2026,7 @@ ReturnZero:
                     //
                     Buf16 bufRem;
                     _ = &bufRem; // workaround for CS0165
-                    Poison(ref bufRem);
+                    DebugPoison(ref bufRem);
 
                     bufRem.Low64 = d1.Low64 << curScale;
                     bufRem.High64 = (d1.Mid + ((ulong)d1.High << 32)) >> (32 - curScale);
@@ -2096,7 +2096,7 @@ ReturnZero:
                         //
                         Buf12 bufDivisor;
                         _ = &bufDivisor; // workaround for CS0165
-                        Poison(ref bufDivisor);
+                        DebugPoison(ref bufDivisor);
 
                         bufDivisor.Low64 = divisor;
                         bufDivisor.U2 = (uint)((d2.Mid + ((ulong)d2.High << 32)) >> (32 - curScale));
@@ -2250,7 +2250,7 @@ ThrowOverflow:
                         // Try to scale up dividend to match divisor.
                         Buf12 bufQuo;
                         unsafe { _ = &bufQuo; } // workaround for CS0165
-                        Poison(ref bufQuo);
+                        DebugPoison(ref bufQuo);
 
                         bufQuo.Low64 = d1.Low64;
                         bufQuo.U2 = d1.High;
@@ -2311,7 +2311,7 @@ ThrowOverflow:
 
                 Buf28 b;
                 _ = &b; // workaround for CS0165
-                Poison(ref b);
+                DebugPoison(ref b);
 
                 b.Buf24.Low64 = d1.Low64 << shift;
                 b.Buf24.Mid64 = (d1.Mid + ((ulong)d1.High << 32)) >> (32 - shift);
@@ -2367,7 +2367,7 @@ ThrowOverflow:
                 {
                     Buf12 bufDivisor;
                     _ = &bufDivisor; // workaround for CS0165
-                    Poison(ref bufDivisor);
+                    DebugPoison(ref bufDivisor);
 
                     bufDivisor.Low64 = d2.Low64 << shift;
                     bufDivisor.U2 = (uint)((d2.Mid + ((ulong)d2.High << 32)) >> (32 - shift));
