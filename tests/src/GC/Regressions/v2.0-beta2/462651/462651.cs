@@ -30,7 +30,7 @@ public static void AllocStart()
     int iCacheClear = 0; // when 1000, clear the cache
     try
     {
-        //while(true)
+        //for(;;)
         for (int j=0; j<5000; j++)
         {
             int iVal = r.Next(1,100);

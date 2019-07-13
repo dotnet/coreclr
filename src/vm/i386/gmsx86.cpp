@@ -1355,7 +1355,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 break;
         }
     }
-    while(TRUE);    
+    for(;;);    
 
     lazyState->_esp = ctx.Esp;
     lazyState->_pRetAddr = PTR_TADDR(lazyState->_esp - 4);

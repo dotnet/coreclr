@@ -1367,7 +1367,7 @@ typedef struct _MCGEN_TRACE_BUFFER {
 } MCGEN_TRACE_BUFFER;
 
     REGHANDLE RegHandle = TraceContext.RegistrationHandle;
-    if(!TraceContext.IsEnabled || !McGenEventTracingEnabled(&TraceContext, Descriptor))
+    if(!(TraceContext.IsEnabled && McGenEventTracingEnabled(&TraceContext, Descriptor)))
     {
         return Result;
     }

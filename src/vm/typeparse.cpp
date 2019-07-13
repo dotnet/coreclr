@@ -413,7 +413,7 @@ BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameP
                     break;
             }
         }
-        while(true);
+        for(;;);
 
 done:
         m_currentItr--;

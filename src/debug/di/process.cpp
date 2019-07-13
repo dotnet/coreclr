@@ -10706,7 +10706,7 @@ void CordbRCEventThread::DrainWorkerQueue()
 {
     _ASSERTE(IsRCEventThread());
 
-    while(true)
+    for(;;)
     {
         RCETWorkItem* pCur = m_WorkerStack.Pop();
         if (pCur == NULL)

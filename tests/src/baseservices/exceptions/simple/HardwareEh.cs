@@ -120,7 +120,7 @@ public class HardwareEh
 								{
                                     List<object> list;
 									list = new List<object>();
-									while(true)
+									for(;;)
 									{
 										// allocate memory (86 meg chunks)
 										list.Add( new byte[8388608]);

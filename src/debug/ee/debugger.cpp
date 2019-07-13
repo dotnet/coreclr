@@ -1519,7 +1519,7 @@ DWORD WINAPI DbgInteropStressProc(void * lpParameter)
     // Note that this thread is a non-runtime thread. So it can't take any CLR locks
     // or do anything else that may block the helper thread.
     // (Log statements take CLR locks).
-    while(true)
+    for(;;)
     {
         i++;
 
@@ -1576,7 +1576,7 @@ DWORD WINAPI DbgInteropOOBStressProc(void * lpParameter)
     WRAPPER_NO_CONTRACT;
 
     int i = 0;
-    while(true)
+    for(;;)
     {
         i++;
         if (i % 10 == 1)
