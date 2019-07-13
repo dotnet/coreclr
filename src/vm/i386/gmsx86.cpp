@@ -1305,7 +1305,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    LazyMachState::unwindLazyState(ip:%p,bp:%p,sp:%p)\n", baseState->captureEip, baseState->captureEbp, baseState->captureEsp));
 
-    do
+    for(;;)
     {
 #ifdef DACCESS_COMPILE
         HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
@@ -1355,7 +1355,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 break;
         }
     }
-    for(;;);    
+     
 
     lazyState->_esp = ctx.Esp;
     lazyState->_pRetAddr = PTR_TADDR(lazyState->_esp - 4);

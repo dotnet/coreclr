@@ -530,7 +530,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     PCODE pvControlPc;
 
-    do
+    for(;;)
     {
 #ifndef FEATURE_PAL
         pvControlPc = Thread::VirtualUnwindCallFrame(&ctx, &nonVolRegPtrs);
@@ -580,7 +580,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 break;
         }
     }
-    for(;;);
+
 
     //
     // Update unwoundState so that HelperMethodFrameRestoreState knows which

@@ -8,7 +8,6 @@
 
 //
 
-
 #include "common.h"
 #include "class.h"
 #include "typehandle.h"
@@ -18,24 +17,22 @@
 #include "assemblynative.hpp"
 #include "fstring.h"
 
-
 //
 // TypeName
 //
-SString* TypeName::ToString(SString* pBuf, BOOL bAssemblySpec, BOOL bSignature, BOOL bGenericArguments)
+SString *TypeName::ToString(SString *pBuf, BOOL bAssemblySpec, BOOL bSignature, BOOL bGenericArguments)
 {
     WRAPPER_NO_CONTRACT;
 
-    PRECONDITION(!bGenericArguments & !bSignature &! bAssemblySpec);
+    PRECONDITION(!bGenericArguments & !bSignature & !bAssemblySpec);
 
     TypeNameBuilder tnb(pBuf);
 
-    for (COUNT_T i = 0; i < m_names.GetCount(); i ++)
+    for (COUNT_T i = 0; i < m_names.GetCount(); i++)
         tnb.AddName(m_names[i]->GetUnicode());
 
     return pBuf;
 }
-
 
 DWORD TypeName::AddRef()
 {
@@ -73,11 +70,11 @@ TypeName::~TypeName()
     }
     CONTRACTL_END;
 
-    for(COUNT_T i = 0; i < m_genericArguments.GetCount(); i ++)
+    for (COUNT_T i = 0; i < m_genericArguments.GetCount(); i++)
         m_genericArguments[i]->Release();
 }
 
-#if!defined(CROSSGEN_COMPILE)
+#if !defined(CROSSGEN_COMPILE)
 SAFEHANDLE TypeName::GetSafeHandle()
 {
     CONTRACTL
@@ -97,9 +94,8 @@ SAFEHANDLE TypeName::GetSafeHandle()
     MethodDescCallSite strCtor(METHOD__SAFE_TYPENAMEPARSER_HANDLE__CTOR);
 
     ARG_SLOT args[1] =
-    {
-        ObjToArgSlot(objSafeHandle)
-    };
+        {
+            ObjToArgSlot(objSafeHandle)};
 
     strCtor.Call(args);
 
@@ -134,7 +130,7 @@ void QCALLTYPE TypeName::QCreateTypeNameParser(LPCWSTR wszTypeName, QCall::Objec
             StackSString buf;
             StackSString msg(W("typeName@"));
             COUNT_T size = buf.GetUnicodeAllocation();
-            _itow_s(error, buf.OpenUnicodeBuffer(size), size, /*radix*/10);
+            _itow_s(error, buf.OpenUnicodeBuffer(size), size, /*radix*/ 10);
             buf.CloseBuffer();
             msg.Append(buf);
             COMPlusThrowArgumentException(msg.GetUnicode(), NULL);
@@ -145,7 +141,7 @@ void QCALLTYPE TypeName::QCreateTypeNameParser(LPCWSTR wszTypeName, QCall::Objec
 }
 
 /*static*/
-void QCALLTYPE TypeName::QReleaseTypeNameParser(TypeName * pTypeName)
+void QCALLTYPE TypeName::QReleaseTypeNameParser(TypeName *pTypeName)
 {
     CONTRACTL
     {
@@ -162,7 +158,7 @@ void QCALLTYPE TypeName::QReleaseTypeNameParser(TypeName * pTypeName)
 }
 
 /*static*/
-void QCALLTYPE TypeName::QGetNames(TypeName * pTypeName, QCall::ObjectHandleOnStack pNames)
+void QCALLTYPE TypeName::QGetNames(TypeName *pTypeName, QCall::ObjectHandleOnStack pNames)
 {
     CONTRACTL
     {
@@ -173,7 +169,7 @@ void QCALLTYPE TypeName::QGetNames(TypeName * pTypeName, QCall::ObjectHandleOnSt
 
     BEGIN_QCALL;
 
-    SArray<SString*> names = pTypeName->GetNames();
+    SArray<SString *> names = pTypeName->GetNames();
     COUNT_T count = names.GetCount();
 
     GCX_COOP();
@@ -205,7 +201,7 @@ void QCALLTYPE TypeName::QGetNames(TypeName * pTypeName, QCall::ObjectHandleOnSt
 }
 
 /*static*/
-void QCALLTYPE TypeName::QGetTypeArguments(TypeName * pTypeName, QCall::ObjectHandleOnStack pTypeArguments)
+void QCALLTYPE TypeName::QGetTypeArguments(TypeName *pTypeName, QCall::ObjectHandleOnStack pTypeArguments)
 {
     CONTRACTL
     {
@@ -216,7 +212,7 @@ void QCALLTYPE TypeName::QGetTypeArguments(TypeName * pTypeName, QCall::ObjectHa
 
     BEGIN_QCALL;
 
-    SArray<TypeName*> arguments = pTypeName->GetGenericArguments();
+    SArray<TypeName *> arguments = pTypeName->GetGenericArguments();
     COUNT_T count = arguments.GetCount();
 
     GCX_COOP();
@@ -250,7 +246,7 @@ void QCALLTYPE TypeName::QGetTypeArguments(TypeName * pTypeName, QCall::ObjectHa
 }
 
 /*static*/
-void QCALLTYPE TypeName::QGetModifiers(TypeName * pTypeName, QCall::ObjectHandleOnStack pModifiers)
+void QCALLTYPE TypeName::QGetModifiers(TypeName *pTypeName, QCall::ObjectHandleOnStack pModifiers)
 {
     CONTRACTL
     {
@@ -294,7 +290,7 @@ void QCALLTYPE TypeName::QGetModifiers(TypeName * pTypeName, QCall::ObjectHandle
 }
 
 /*static*/
-void QCALLTYPE TypeName::QGetAssemblyName(TypeName * pTypeName, QCall::StringHandleOnStack pAssemblyName)
+void QCALLTYPE TypeName::QGetAssemblyName(TypeName *pTypeName, QCall::StringHandleOnStack pAssemblyName)
 {
     CONTRACTL
     {
@@ -309,19 +305,21 @@ void QCALLTYPE TypeName::QGetAssemblyName(TypeName * pTypeName, QCall::StringHan
 
     END_QCALL;
 }
-#endif//!CROSSGEN_COMPILE
+#endif //!CROSSGEN_COMPILE
 
 //
 // TypeName::TypeNameParser
 //
 #undef IfFailGo
-#define IfFailGo(P) if (!P) return FALSE;
+#define IfFailGo(P) \
+    if (!P)         \
+        return FALSE;
 
-TypeName* TypeName::AddGenericArgument()
+TypeName *TypeName::AddGenericArgument()
 {
     WRAPPER_NO_CONTRACT;
 
-    TypeName* pGenArg = new TypeName();
+    TypeName *pGenArg = new TypeName();
     pGenArg->AddRef();
 
     pGenArg->m_bIsGenericArgument = TRUE;
@@ -349,17 +347,24 @@ TypeName::TypeNameParser::TypeNameTokens TypeName::TypeNameParser::LexAToken(BOO
 
     WCHAR c = *m_itr;
     m_itr++;
-    switch(c)
+    switch (c)
     {
-        case W(','): return TypeNameComma;
-        case W('['): return TypeNameOpenSqBracket;
-        case W(']'): return TypeNameCloseSqBracket;
-        case W('&'): return TypeNameAmpersand;
-        case W('*'): return TypeNameAstrix;
-        case W('+'): if (!ignorePlus) return TypeNamePlus;
-        case W('\\'):
-            m_itr--;
-            return TypeNameIdentifier;
+    case W(','):
+        return TypeNameComma;
+    case W('['):
+        return TypeNameOpenSqBracket;
+    case W(']'):
+        return TypeNameCloseSqBracket;
+    case W('&'):
+        return TypeNameAmpersand;
+    case W('*'):
+        return TypeNameAstrix;
+    case W('+'):
+        if (!ignorePlus)
+            return TypeNamePlus;
+    case W('\\'):
+        m_itr--;
+        return TypeNameIdentifier;
     }
 
     ASSERT(!IsTypeNameReservedChar(c));
@@ -368,7 +373,7 @@ TypeName::TypeNameParser::TypeNameTokens TypeName::TypeNameParser::LexAToken(BOO
     return TypeNameIdentifier;
 }
 
-BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameParser::TypeNameIdentifiers identifierType)
+BOOL TypeName::TypeNameParser::GetIdentifier(SString *sszId, TypeName::TypeNameParser::TypeNameIdentifiers identifierType)
 {
     CONTRACTL
     {
@@ -387,58 +392,60 @@ BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameP
 
     if (identifierType == TypeNameId)
     {
-        do
+        for (;;)
         {
-            switch (* m_currentItr ++)
+            switch (*m_currentItr++)
             {
-                case W(','):
-                case W('['):
-                case W(']'):
-                case W('&'):
-                case W('*'):
-                case W('+'):
-                case W('\0'):
-                    goto done;
+            case W(','):
+            case W('['):
+            case W(']'):
+            case W('&'):
+            case W('*'):
+            case W('+'):
+            case W('\0'):
+                goto done;
 
-                case W('\\'):
-                    m_escape.Append(m_currentItr - 1);
+            case W('\\'):
+                m_escape.Append(m_currentItr - 1);
 
-                    if (! IsTypeNameReservedChar(*m_currentItr) || *m_currentItr == '\0')
-                        return FALSE;
+                if (!IsTypeNameReservedChar(*m_currentItr) || *m_currentItr == '\0')
+                    return FALSE;
 
-                    m_currentItr++;
-                    break;
+                m_currentItr++;
+                break;
 
-                default:
-                    break;
+            default:
+                break;
             }
         }
-        for(;;);
 
-done:
+    done:
         m_currentItr--;
     }
     else if (identifierType == TypeNameFusionName)
     {
-        while(*m_currentItr != W('\0'))
+        while (*m_currentItr != W('\0'))
             m_currentItr++;
     }
     else if (identifierType == TypeNameEmbeddedFusionName)
     {
-        for (; (*m_currentItr != W('\0')) && (*m_currentItr != W(']')); m_currentItr++)
+        while ((*m_currentItr != W('\0')) && (*m_currentItr != W(']')))
         {
             if (*m_currentItr == W('\\'))
             {
                 if (*(m_currentItr + 1) == W(']'))
                 {
                     m_escape.Append(m_currentItr);
-                    m_currentItr ++;
+                    m_currentItr += 2;
                     continue;
                 }
             }
 
             if (*m_currentItr == '\0')
+            {
                 return FALSE;
+            }
+            m_currentItr += 2;
         }
         if (*m_currentItr == W('\0'))
         {
@@ -588,7 +595,7 @@ BOOL TypeName::TypeNameParser::GENARG()
     CONTRACTL_END;
     IfFailGo(TokenIs(TypeNameGENARG));
 
-    TypeName* pEnclosingTypeName = m_pTypeName;
+    TypeName *pEnclosingTypeName = m_pTypeName;
     m_pTypeName = m_pTypeName->AddGenericArgument();
     {
         if (TokenIs(TypeNameOpenSqBracket))
@@ -725,7 +732,7 @@ BOOL TypeName::TypeNameParser::ARRAY()
 
 // *empty*
 // ',' RANK
-BOOL TypeName::TypeNameParser::RANK(DWORD* pdwRank)
+BOOL TypeName::TypeNameParser::RANK(DWORD *pdwRank)
 {
     WRAPPER_NO_CONTRACT;
 
@@ -803,7 +810,7 @@ BOOL TypeName::TypeNameParser::NESTNAME()
 // the loaded type has public access.
 //--------------------------------------------------------------------------------------------------------------
 /* public static */
-TypeHandle TypeName::GetTypeUsingCASearchRules(LPCUTF8 szTypeName, Assembly *pRequestingAssembly, BOOL *pfNameIsAsmQualified/* = NULL*/, BOOL bDoVisibilityChecks/* = TRUE*/)
+TypeHandle TypeName::GetTypeUsingCASearchRules(LPCUTF8 szTypeName, Assembly *pRequestingAssembly, BOOL *pfNameIsAsmQualified /* = NULL*/, BOOL bDoVisibilityChecks /* = TRUE*/)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -813,7 +820,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCUTF8 szTypeName, Assembly *pRe
     return GetTypeUsingCASearchRules(sszAssemblyQualifiedName.GetUnicode(), pRequestingAssembly, pfNameIsAsmQualified, bDoVisibilityChecks);
 }
 
-TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRequestingAssembly, BOOL *pfNameIsAsmQualified/* = NULL*/, BOOL bDoVisibilityChecks/* = TRUE*/)
+TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRequestingAssembly, BOOL *pfNameIsAsmQualified /* = NULL*/, BOOL bDoVisibilityChecks /* = TRUE*/)
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_TRIGGERS;
@@ -833,7 +840,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     // on what we can allocate inline here. Leave the Windows versions alone to retain the perf benefits
     // since we don't have the same constraints.
     NewHolder<TypeName> pTypeName = new TypeName(szTypeName, &error);
-#else // __GNUC__
+#else  // __GNUC__
     TypeName typeName(szTypeName, &error);
     TypeName *pTypeName = &typeName;
 #endif // __GNUC__
@@ -843,7 +850,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         StackSString buf;
         StackSString msg(W("typeName@"));
         COUNT_T size = buf.GetUnicodeAllocation();
-        _itow_s(error,buf.OpenUnicodeBuffer(size),size,10);
+        _itow_s(error, buf.OpenUnicodeBuffer(size), size, 10);
         buf.CloseBuffer();
         msg.Append(buf);
         COMPlusThrowArgumentException(msg.GetUnicode(), NULL);
@@ -859,7 +866,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     th = pTypeName->GetTypeWorker(
         /*bThrowIfNotFound = */ TRUE,
         /*bIgnoreCase = */ FALSE,
-        /*pAssemblyGetType =*/ NULL,
+        /*pAssemblyGetType =*/NULL,
         /*fEnableCASearchRules = */ TRUE,
         /*fProhibitAsmQualifiedName = */ FALSE,
         pRequestingAssembly,
@@ -886,30 +893,25 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     return th;
 }
 
-
-
-
-
-
 //--------------------------------------------------------------------------------------------------------------
 // This everything-but-the-kitchen-sink version is what used to be called "GetType()". It exposes all the
 // funky knobs needed for implementing the specific requirements of the managed Type.GetType() apis and friends.
 //--------------------------------------------------------------------------------------------------------------
 /*public static */ TypeHandle TypeName::GetTypeManaged(
     LPCWSTR szTypeName,
-    DomainAssembly* pAssemblyGetType,
+    DomainAssembly *pAssemblyGetType,
     BOOL bThrowIfNotFound,
     BOOL bIgnoreCase,
     BOOL bProhibitAsmQualifiedName,
-    Assembly* pRequestingAssembly,
+    Assembly *pRequestingAssembly,
     BOOL bLoadTypeFromPartialNameHack,
     OBJECTREF *pKeepAlive,
-    ICLRPrivBinder * pPrivHostBinder)
+    ICLRPrivBinder *pPrivHostBinder)
 {
     STANDARD_VM_CONTRACT;
 
     if (!*szTypeName)
-      COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
+        COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
     DWORD error = (DWORD)-1;
 
@@ -923,7 +925,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     // on what we can allocate inline here. Leave the Windows versions alone to retain the perf benefits
     // since we don't have the same constraints.
     NewHolder<TypeName> pTypeName = new TypeName(szTypeName, &error);
-#else // __GNUC__
+#else  // __GNUC__
     TypeName typeName(szTypeName, &error);
     TypeName *pTypeName = &typeName;
 #endif // __GNUC__
@@ -936,7 +938,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         StackSString buf;
         StackSString msg(W("typeName@"));
         COUNT_T size = buf.GetUnicodeAllocation();
-        _itow_s(error, buf.OpenUnicodeBuffer(size), size, /*radix*/10);
+        _itow_s(error, buf.OpenUnicodeBuffer(size), size, /*radix*/ 10);
         buf.CloseBuffer();
         msg.Append(buf);
         COMPlusThrowArgumentException(msg.GetUnicode(), NULL);
@@ -948,7 +950,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         bPeriodPrefix ? FALSE : bThrowIfNotFound,
         bIgnoreCase,
         pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL,
-        /*fEnableCASearchRules = */TRUE,
+        /*fEnableCASearchRules = */ TRUE,
         bProhibitAsmQualifiedName,
         pRequestingAssembly,
         pPrivHostBinder,
@@ -967,7 +969,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
             StackSString buf;
             StackSString msg(W("typeName@"));
             COUNT_T size = buf.GetUnicodeAllocation();
-            _itow_s(error-1,buf.OpenUnicodeBuffer(size),size,10);
+            _itow_s(error - 1, buf.OpenUnicodeBuffer(size), size, 10);
             buf.CloseBuffer();
             msg.Append(buf);
             COMPlusThrowArgumentException(msg.GetUnicode(), NULL);
@@ -977,7 +979,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
             bThrowIfNotFound,
             bIgnoreCase,
             pAssemblyGetType ? pAssemblyGetType->GetAssembly() : NULL,
-            /*fEnableCASearchRules = */TRUE,
+            /*fEnableCASearchRules = */ TRUE,
             bProhibitAsmQualifiedName,
             pRequestingAssembly,
             pPrivHostBinder,
@@ -987,9 +989,6 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
 
     return result;
 }
-
-
-
 
 //-------------------------------------------------------------------------------------------
 // Retrieves a type from an assembly. It requires the caller to know which assembly
@@ -1005,7 +1004,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     _ASSERTE(pAssembly != NULL);
 
     if (!*szTypeName)
-      COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
+        COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
     DWORD error = (DWORD)-1;
 
@@ -1015,7 +1014,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     // on what we can allocate inline here. Leave the Windows versions alone to retain the perf benefits
     // since we don't have the same constraints.
     NewHolder<TypeName> pTypeName = new TypeName(szTypeName, &error);
-#else // __GNUC__
+#else  // __GNUC__
     TypeName typeName(szTypeName, &error);
     TypeName *pTypeName = &typeName;
 #endif // __GNUC__
@@ -1025,7 +1024,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         StackSString buf;
         StackSString msg(W("typeName@"));
         COUNT_T size = buf.GetUnicodeAllocation();
-        _itow_s(error,buf.OpenUnicodeBuffer(size),size,10);
+        _itow_s(error, buf.OpenUnicodeBuffer(size), size, 10);
         buf.CloseBuffer();
         msg.Append(buf);
         COMPlusThrowArgumentException(msg.GetUnicode(), NULL);
@@ -1038,9 +1037,9 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         COMPlusThrow(kArgumentException, IDS_EE_CANNOT_HAVE_ASSEMBLY_SPEC);
     }
 
-    return pTypeName->GetTypeWorker(bThrowIfNotFound, /*bIgnoreCase = */FALSE, pAssembly, /*fEnableCASearchRules = */FALSE, FALSE, NULL,
-        nullptr, // pPrivHostBinder
-        FALSE, NULL /* cannot find a collectible type unless it is in assembly */);
+    return pTypeName->GetTypeWorker(bThrowIfNotFound, /*bIgnoreCase = */ FALSE, pAssembly, /*fEnableCASearchRules = */ FALSE, FALSE, NULL,
+                                    nullptr, // pPrivHostBinder
+                                    FALSE, NULL /* cannot find a collectible type unless it is in assembly */);
 }
 
 //-------------------------------------------------------------------------------------------
@@ -1055,7 +1054,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     _ASSERTE(szFullyQualifiedName != NULL);
 
     if (!*szFullyQualifiedName)
-      COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
+        COMPlusThrow(kArgumentException, W("Format_StringZeroLength"));
 
     DWORD error = (DWORD)-1;
 
@@ -1065,7 +1064,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
     // on what we can allocate inline here. Leave the Windows versions alone to retain the perf benefits
     // since we don't have the same constraints.
     NewHolder<TypeName> pTypeName = new TypeName(szFullyQualifiedName, &error);
-#else // __GNUC__
+#else  // __GNUC__
     TypeName typeName(szFullyQualifiedName, &error);
     TypeName *pTypeName = &typeName;
 #endif // __GNUC__
@@ -1075,7 +1074,7 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
         StackSString buf;
         StackSString msg(W("typeName@"));
         COUNT_T size = buf.GetUnicodeAllocation();
-        _itow_s(error,buf.OpenUnicodeBuffer(size),size,10);
+        _itow_s(error, buf.OpenUnicodeBuffer(size), size, 10);
         buf.CloseBuffer();
         msg.Append(buf);
         COMPlusThrowArgumentException(msg.GetUnicode(), NULL);
@@ -1083,7 +1082,6 @@ TypeHandle TypeName::GetTypeUsingCASearchRules(LPCWSTR szTypeName, Assembly *pRe
 
     return pTypeName->GetTypeFromAsm();
 }
-
 
 TypeHandle TypeName::GetTypeFromAsm()
 {
@@ -1100,17 +1098,15 @@ TypeHandle TypeName::GetTypeFromAsm()
 
     return this->GetTypeWorker(
         /*bThrowIfNotFound =*/TRUE,
-        /*bIgnoreCase = */FALSE,
+        /*bIgnoreCase = */ FALSE,
         NULL,
-        /*fEnableCASearchRules = */FALSE,
+        /*fEnableCASearchRules = */ FALSE,
         FALSE,
         NULL,
         nullptr, // pPrivHostBinder
         FALSE,
         NULL /* cannot find a collectible type */);
 }
-
-
 
 // -------------------------------------------------------------------------------------------------------------
 // This is the "uber" GetType() that all public GetType() funnels through. It's main job is to figure out which
@@ -1122,12 +1118,12 @@ TypeHandle TypeName::GetTypeFromAsm()
 /* private instance */ TypeHandle TypeName::GetTypeWorker(
     BOOL bThrowIfNotFound,
     BOOL bIgnoreCase,
-    Assembly* pAssemblyGetType,
+    Assembly *pAssemblyGetType,
 
     BOOL fEnableCASearchRules,
     BOOL bProhibitAsmQualifiedName,
-    Assembly* pRequestingAssembly,
-    ICLRPrivBinder * pPrivHostBinder,
+    Assembly *pRequestingAssembly,
+    ICLRPrivBinder *pPrivHostBinder,
     BOOL bLoadTypeFromPartialNameHack,
     OBJECTREF *pKeepAlive)
 {
@@ -1168,7 +1164,7 @@ TypeHandle TypeName::GetTypeFromAsm()
             }
         }
 
-        SString * pssOuterTypeName = NULL;
+        SString *pssOuterTypeName = NULL;
         if (GetNames().GetCount() > 0)
         {
             pssOuterTypeName = GetNames()[0];
@@ -1230,14 +1226,14 @@ TypeHandle TypeName::GetTypeFromAsm()
         {
             AppDomain *pDomain = (AppDomain *)SystemDomain::GetCurrentDomain();
 
-            if ((BaseDomain*)pDomain != SystemDomain::System())
+            if ((BaseDomain *)pDomain != SystemDomain::System())
             {
                 TypeNameBuilder tnb;
-                for (COUNT_T i = 0; i < GetNames().GetCount(); i ++)
+                for (COUNT_T i = 0; i < GetNames().GetCount(); i++)
                     tnb.AddName(GetNames()[i]->GetUnicode());
 
                 StackScratchBuffer bufFullName;
-                DomainAssembly* pDomainAssembly = pDomain->RaiseTypeResolveEventThrowing(pRequestingAssembly?pRequestingAssembly->GetDomainAssembly():NULL,tnb.GetString()->GetANSI(bufFullName), pAsmRef);
+                DomainAssembly *pDomainAssembly = pDomain->RaiseTypeResolveEventThrowing(pRequestingAssembly ? pRequestingAssembly->GetDomainAssembly() : NULL, tnb.GetString()->GetANSI(bufFullName), pAsmRef);
                 if (pDomainAssembly)
                     th = GetTypeHaveAssembly(pDomainAssembly->GetAssembly(), bThrowIfNotFound, bIgnoreCase, pKeepAlive);
             }
@@ -1247,7 +1243,6 @@ TypeHandle TypeName::GetTypeFromAsm()
     {
         _ASSERTE(!"You must pass either a asm-qualified typename or an actual Assembly.");
     }
-
 
     if (!th.IsNull() && (!m_genericArguments.IsEmpty() || !m_signature.IsEmpty()))
     {
@@ -1350,8 +1345,7 @@ TypeHandle TypeName::GetTypeFromAsm()
         }
     }
 
-Exit:
-    ;
+Exit:;
     GCPROTECT_END();
 
     RETURN th;
@@ -1363,19 +1357,19 @@ Exit:
 /* private */
 TypeHandle
 TypeName::GetTypeHaveAssemblyHelper(
-    Assembly *  pAssembly,
-    BOOL        bThrowIfNotFound,
-    BOOL        bIgnoreCase,
-    OBJECTREF * pKeepAlive,
-    BOOL        bRecurse)
+    Assembly *pAssembly,
+    BOOL bThrowIfNotFound,
+    BOOL bIgnoreCase,
+    OBJECTREF *pKeepAlive,
+    BOOL bRecurse)
 {
     WRAPPER_NO_CONTRACT;
 
     TypeHandle th = TypeHandle();
-    SArray<SString *> & names = GetNames();
-    Module *      pManifestModule = pAssembly->GetManifestModule();
-    Module *      pLookOnlyInModule = NULL;
-    ClassLoader * pClassLoader = pAssembly->GetLoader();
+    SArray<SString *> &names = GetNames();
+    Module *pManifestModule = pAssembly->GetManifestModule();
+    Module *pLookOnlyInModule = NULL;
+    ClassLoader *pClassLoader = pAssembly->GetLoader();
 
     NameHandle typeName(pManifestModule, mdtBaseType);
 
@@ -1396,7 +1390,7 @@ TypeName::GetTypeHaveAssemblyHelper(
 
     EX_TRY
     {
-        for (COUNT_T i = 0; i < names.GetCount(); i ++)
+        for (COUNT_T i = 0; i < names.GetCount(); i++)
         {
             // each extra name represents one more level of nesting
             StackSString name(*(names[i]));
@@ -1417,7 +1411,7 @@ TypeName::GetTypeHaveAssemblyHelper(
                 break;
 
             if (th.GetAssembly() != pAssembly)
-            {   // It is forwarded type
+            { // It is forwarded type
 
                 // Use the found assembly class loader for potential nested types search
                 // The nested type has to be in the same module as the nesting type, so it doesn't make
@@ -1428,7 +1422,7 @@ TypeName::GetTypeHaveAssemblyHelper(
             // Nested types must live in the module of the nesting type
             if ((i == 0) && (names.GetCount() > 1) && (pLookOnlyInModule == NULL))
             {
-                Module * pFoundModule = th.GetModule();
+                Module *pFoundModule = th.GetModule();
 
                 // Ensure that the bucket in the NameHandle is set to a valid bucket for all cases.
 
@@ -1455,7 +1449,7 @@ TypeName::GetTypeHaveAssemblyHelper(
 
         if (th.IsNull() && bRecurse)
         {
-            IMDInternalImport * pManifestImport = pManifestModule->GetMDImport();
+            IMDInternalImport *pManifestImport = pManifestModule->GetMDImport();
             HENUMInternalHolder phEnum(pManifestImport);
             phEnum.EnumInit(mdtFile, mdTokenNil);
             mdToken mdFile;
@@ -1479,7 +1473,7 @@ TypeName::GetTypeHaveAssemblyHelper(
         if (bThrowIfNotFound)
             EX_RETHROW;
 
-        Exception * ex = GET_EXCEPTION();
+        Exception *ex = GET_EXCEPTION();
 
         // Let non-File-not-found exceptions propagate
         if (EEFileLoadException::GetFileLoadKind(ex->GetHR()) != kFileNotFoundException)
@@ -1490,13 +1484,12 @@ TypeName::GetTypeHaveAssemblyHelper(
     return th;
 } // TypeName::GetTypeHaveAssemblyHelper
 
-
-DomainAssembly * LoadDomainAssembly(
-    SString *  psszAssemblySpec,
-    Assembly * pRequestingAssembly,
-    ICLRPrivBinder * pPrivHostBinder,
-    BOOL       bThrowIfNotFound,
-    SString *  pssOuterTypeName)
+DomainAssembly *LoadDomainAssembly(
+    SString *psszAssemblySpec,
+    Assembly *pRequestingAssembly,
+    ICLRPrivBinder *pPrivHostBinder,
+    BOOL bThrowIfNotFound,
+    SString *pssOuterTypeName)
 {
     CONTRACTL
     {
@@ -1563,5 +1556,3 @@ DomainAssembly * LoadDomainAssembly(
 
     return pDomainAssembly;
 }
-
-
