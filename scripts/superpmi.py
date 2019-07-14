@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 ## Licensed to the .NET Foundation under one or more agreements.
 ## The .NET Foundation licenses this file to you under the MIT license.
@@ -33,6 +33,7 @@ import time
 import re
 import string
 import urllib
+import urllib.request
 import zipfile
 
 import xml.etree.ElementTree
@@ -190,6 +191,90 @@ class ChangeDir:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         os.chdir(self.cwd)
+
+class AsyncSubprocessHelper:
+    def __init__(self, items, subproc_count=multiprocessing.cpu_count(), verbose=False):
+        item_queue = asyncio.Queue()
+        for item in items:
+            item_queue.put_nowait(item)
+
+        self.items = items
+        self.subproc_count = subproc_count
+        self.verbose = verbose
+
+        if 'win32' in sys.platform:
+            # Windows specific event-loop policy & cmd
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
+    async def __get_item__(self, item, index, size, async_callback, *extra_args):
+        """ Wrapper to the async callback which will schedule based on the queue
+        """
+
+        # Wait for the queue to become free. Then start
+        # running the sub process.
+        subproc_id = await self.subproc_count_queue.get()
+
+        print_prefix = ""
+
+        if self.verbose:
+            print_prefix = "[{}:{}]: ".format(index, size)
+
+        await async_callback(print_prefix, item, *extra_args)
+
+        # Add back to the queue, incase another process wants to run.
+        self.subproc_count_queue.put_nowait(subproc_id)
+
+    async def __run_to_completion__(self, async_callback, *extra_args):
+        """ async wrapper for run_to_completion
+        """
+
+        chunk_size = self.subproc_count
+
+        # Create a queue with a chunk size of the cpu count
+        #
+        # Each run_pmi invocation will remove an item from the
+        # queue before running a potentially long running pmi run.
+        #
+        # When the queue is drained, we will wait queue.get which
+        # will wait for when a run_pmi instance has added back to the
+        subproc_count_queue = asyncio.Queue(chunk_size)
+        diff_queue = asyncio.Queue()
+
+        for item in self.items:
+            diff_queue.put_nowait(item)
+
+        for item in range(chunk_size):
+            subproc_count_queue.put_nowait(item)
+
+        self.subproc_count_queue = subproc_count_queue
+        tasks = []
+
+        count = 1
+        item = diff_queue.get_nowait() if not diff_queue.empty() else None
+        while item is not None:
+            tasks.append(self.__get_item__(item, count, diff_queue.qsize(), async_callback, *extra_args))
+            count += 1
+
+            item = diff_queue.get_nowait() if not diff_queue.empty() else None
+
+        await asyncio.gather(*tasks)
+
+    def run_to_completion(self, async_callback, *extra_args):
+        """ Run until the item queue has been depleted
+
+             Notes:
+            Acts as a wrapper to abstract the async calls to
+            async_callback. Note that this will allow cpu_count 
+            amount of running subprocesses. Each time the queue
+            is emptied, another process will start. Note that
+            the python code is single threaded, it will just
+            rely on async/await to start subprocesses at
+            subprocess_count
+        """
+
+        reset_env = os.environ.copy()
+        asyncio.run(self.__run_to_completion__(async_callback, *extra_args))
+        os.environ.update(reset_env)
 
 ################################################################################
 # SuperPMI Collect
@@ -906,6 +991,7 @@ class SuperPMIReplayAsmDiffs:
 
                     print("{} location exists. Attempting to create: {}".format(bin_asm_location, new_bin_asm_location))
                     bin_asm_location = new_bin_asm_location
+                    
 
                 base_asm_location = os.path.join(bin_asm_location, "base")
                 diff_asm_location = os.path.join(bin_asm_location, "diff")
@@ -913,7 +999,7 @@ class SuperPMIReplayAsmDiffs:
                 bin_dump_location = os.path.join(self.coreclr_args.bin_location, "jit_dump", "jit_dump")
 
                 count = 0
-                while os.path.isdir(bin_asm_location):
+                while os.path.isdir(bin_dump_location):
                     new_base_dump_location = os.path.join(self.coreclr_args.bin_location, "jit_dump", "jit_dump" + str(count))
                     
                     count += 1
@@ -961,175 +1047,184 @@ class SuperPMIReplayAsmDiffs:
                 text_differences = asyncio.Queue()
                 jit_dump_differences = asyncio.Queue()
 
+                async def create_asm(print_prefix, item, self, text_differences, base_asm_location, diff_asm_location):
+                    """ Run superpmi over an mc to create dasm for the method.
+                    """
+                    # Setup to call SuperPMI for both the diff jit and the base
+                    # jit
+
+                    # TODO: add aljit support
+                    #
+                    # Set: -jitoption force AltJit=* -jitoption force AltJitNgen=*
+
+                    force_altjit_options = [
+                        "-jitoption",
+                        "force",
+                        "AltJit=",
+                        "-jitoption",
+                        "force",
+                        "AltJitNgen="
+                    ]
+
+                    flags = [
+                        "-c",
+                        item,
+                        "-v",
+                        "q" # only log from the jit.
+                    ]
+
+                    flags += force_altjit_options
+                    
+                    asm_env = os.environ.copy()
+                    asm_env["COMPlus_JitDisasm"] = "*"
+                    asm_env["COMPlus_JitUnwindDump"] = "*"
+                    asm_env["COMPlus_JitEHDump"] = "*"
+                    asm_env["COMPlus_JitDiffableDasm"] = "1"
+                    asm_env["COMPlus_NgenDisasm"] = "*"
+                    asm_env["COMPlus_NgenDump"] = "*"
+                    asm_env["COMPlus_NgenUnwindDump"] = "*"
+                    asm_env["COMPlus_NgenEHDump"] = "*"
+                    asm_env["COMPlus_JitEnableNoWayAssert"] = "1"
+                    asm_env["COMPlus_JitNoForceFallback"] = "1"
+                    asm_env["COMPlus_JitRequired"] = "1"
+                    asm_env["COMPlus_TieredCompilation"] = "0"
+
+                    # Change the working directory to the core root we will call SuperPMI from.
+                    # This is done to allow libcorcedistools to be loaded correctly on unix
+                    # as the loadlibrary path will be relative to the current directory.
+                    with ChangeDir(self.coreclr_args.core_root) as dir:
+                        command = [self.superpmi_path] + flags + [self.base_jit_path, self.mch_file]
+
+                        # Generate diff and base asm
+                        base_txt = None
+                        diff_txt = None
+
+                        with open(os.path.join(base_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
+                            os.environ.update(asm_env)
+
+                            print("{}Invoking: {}".format(print_prefix, " ".join(command)))
+                            
+                            proc = await asyncio.create_subprocess_shell(" ".join(command), stdout=file_handle, stderr=asyncio.subprocess.PIPE)
+                            await proc.communicate()
+
+                        with open(os.path.join(base_asm_location, "{}.dasm".format(item)), 'r') as file_handle:
+                            base_txt = file_handle.read()
+
+                        command = [self.superpmi_path] + flags + [self.diff_jit_path, self.mch_file]
+
+                        with open(os.path.join(diff_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
+                            os.environ.update(asm_env)
+
+                            print("Invoking: ".format(print_prefix) + " ".join(command))
+                            proc = await asyncio.create_subprocess_shell(" ".join(command), stdout=file_handle, stderr=asyncio.subprocess.PIPE)
+                            
+                            await proc.communicate()
+
+                        with open(os.path.join(diff_asm_location, "{}.dasm".format(item)), 'r') as file_handle:
+                            diff_txt = file_handle.read()
+
+                        # Sanity checks
+                        assert base_txt != ""
+                        assert base_txt is not None
+
+                        assert diff_txt != ""
+                        assert diff_txt is not None
+
+                        if base_txt != diff_txt:
+                            text_differences.put_nowait(item)
+
+                    print("{}Finished. ------------------------------------------------------------------".format(print_prefix))
+
+                async def create_jit_dump(print_prefix, item, self, jit_dump_differences, base_dump_location, diff_dump_location):
+                    """ Run superpmi over an mc to create dasm for the method.
+                    """
+                    # Setup to call SuperPMI for both the diff jit and the base
+                    # jit
+
+                    # TODO: add aljit support
+                    #
+                    # Set: -jitoption force AltJit=* -jitoption force AltJitNgen=*
+
+                    force_altjit_options = [
+                        "-jitoption",
+                        "force",
+                        "AltJit=",
+                        "-jitoption",
+                        "force",
+                        "AltJitNgen="
+                    ]
+
+                    flags = [
+                        "-c",
+                        item,
+                        "-v",
+                        "q" # only log from the jit.
+                    ]
+
+                    flags += force_altjit_options
+                    
+                    jit_dump_env = os.environ.copy()
+                    jit_dump_env["COMPlus_JitEnableNoWayAssert"] = "1"
+                    jit_dump_env["COMPlus_JitNoForceFallback"] = "1"
+                    jit_dump_env["COMPlus_JitRequired"] = "1"
+                    jit_dump_env["COMPlus_JitDump"] = "*"
+                    
+                    # Generate jit dumps
+                    base_txt = None
+                    diff_txt = None
+
+                    # Change the working directory to the core root we will call SuperPMI from.
+                    # This is done to allow libcorcedistools to be loaded correctly on unix
+                    # as the loadlibrary path will be relative to the current directory.
+                    with ChangeDir(self.coreclr_args.core_root) as dir:
+
+                        command = [self.superpmi_path] + flags + [self.base_jit_path, self.mch_file]
+
+                        with open(os.path.join(base_dump_location, "{}.txt".format(item)), 'w') as file_handle:
+                            os.environ.update(jit_dump_env)
+
+                            print("{}Invoking: ".format(print_prefix) + " ".join(command))
+                            proc = await asyncio.create_subprocess_shell(" ".join(command), stdout=file_handle, stderr=asyncio.subprocess.PIPE)
+                            
+                            await proc.communicate()
+
+                        with open(os.path.join(base_dump_location, "{}.txt".format(item)), 'r') as file_handle:
+                            base_txt = file_handle.read()
+
+                        command = [self.superpmi_path] + flags + [self.diff_jit_path, self.mch_file]
+
+                        with open(os.path.join(diff_dump_location, "{}.txt".format(item)), 'w') as file_handle:
+                            os.environ.update(jit_dump_env)
+
+                            print("{}Invoking: ".format(print_prefix) + " ".join(command))
+                            proc = await asyncio.create_subprocess_shell(" ".join(command), stdout=file_handle, stderr=asyncio.subprocess.PIPE)
+                            
+                            await proc.communicate()
+                        
+                        with open(os.path.join(diff_dump_location, "{}.txt".format(item)), 'r') as file_handle:
+                            diff_txt = file_handle.read()
+
+                        # Sanity checks
+                        assert base_txt != ""
+                        assert base_txt is not None
+
+                        assert diff_txt != ""
+                        assert diff_txt is not None
+
+                        if base_txt != diff_txt:
+                            jit_dump_differences.put_nowait(item)
+
                 if not self.coreclr_args.diff_with_code_only:
-                    diff_queue = asyncio.Queue()
+                    diff_items = []
 
                     for item in self.diff_mcl_contents:
-                        diff_queue.put(item)
+                        diff_items.append(item)
 
-                    async def create_asm(subproc_count_queue, thread_id, item):
-                        """ Run superpmi over an mc to create dasm for the method.
-                        """
-                        # Setup to call SuperPMI for both the diff jit and the base
-                        # jit
+                    subproc_helper = AsyncSubprocessHelper(diff_items, verbose=True)
+                    subproc_helper.run_to_completion(create_asm, self, text_differences, base_asm_location, diff_asm_location)
 
-                        # TODO: add aljit support
-                        #
-                        # Set: -jitoption force AltJit=* -jitoption force AltJitNgen=*
-
-                        # Wait for the queue to become free. Then start
-                        # running the process.
-                        thread_id = await subproc_count_queue.get()
-
-                        force_altjit_options = [
-                            "-jitoption",
-                            "force",
-                            "AltJit=",
-                            "-jitoption",
-                            "force",
-                            "AltJitNgen="
-                        ]
-
-                        flags = [
-                            "-c",
-                            item,
-                            "-v",
-                            "q" # only log from the jit.
-                        ]
-
-                        flags += force_altjit_options
-
-                        reset_env = os.environ.copy()
-                        
-                        asm_env = os.environ.copy()
-                        asm_env["COMPlus_JitDisasm"] = "*"
-                        asm_env["COMPlus_JitUnwindDump"] = "*"
-                        asm_env["COMPlus_JitEHDump"] = "*"
-                        asm_env["COMPlus_JitDiffableDasm"] = "1"
-                        asm_env["COMPlus_NgenDisasm"] = "*"
-                        asm_env["COMPlus_NgenDump"] = "*"
-                        asm_env["COMPlus_NgenUnwindDump"] = "*"
-                        asm_env["COMPlus_NgenEHDump"] = "*"
-                        asm_env["COMPlus_JitEnableNoWayAssert"] = "1"
-                        asm_env["COMPlus_JitNoForceFallback"] = "1"
-                        asm_env["COMPlus_JitRequired"] = "1"
-
-                        jit_dump_env = os.environ.copy()
-                        jit_dump_env["COMPlus_JitEnableNoWayAssert"] = "1"
-                        jit_dump_env["COMPlus_JitNoForceFallback"] = "1"
-                        jit_dump_env["COMPlus_JitRequired"] = "1"
-                        jit_dump_env["COMPlus_JitDump"] = "*"
-
-                        # Change the working directory to the core root we will call SuperPMI from.
-                        # This is done to allow libcorcedistools to be loaded correctly on unix
-                        # as the loadlibrary path will be relative to the current directory.
-                        with ChangeDir(coreclr_args.core_root) as dir:
-                            command = [superpmi_path] + flags + [base_jit_path, mch_file]
-
-                            # Generate diff and base asm
-                            base_txt = None
-                            diff_txt = None
-
-                            with open(os.path.join(base_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
-                                os.environ.update(asm_env)
-
-                                print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                                
-                                base_txt, stderr = await proc.communicate()
-                                file_handle.write(base_txt)
-
-                            command = [superpmi_path] + flags + [diff_jit_path, mch_file]
-
-                            with open(os.path.join(diff_asm_location, "{}.dasm".format(item)), 'w') as file_handle:
-                                os.environ.update(asm_env)
-
-                                print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                                
-                                diff_txt, stderr = await proc.communicate()
-                                file_handle.write(diff_txt)
-
-                            if base_txt != diff_txt:
-                                text_differences.put_nowait(item)
-                            
-                            os.environ.update(reset_env)
-
-                            if self.coreclr_args.diff_jit_dump:
-                                # Generate jit dumps
-                                base_txt = None
-                                diff_txt = None
-
-                                command = [superpmi_path] + flags + [base_jit_path, mch_file]
-
-                                with open(os.path.join(base_dump_location, "{}.txt".format(item)), 'w') as file_handle:
-                                    os.environ.update(jit_dump_env)
-
-                                    print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                    proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                                    
-                                    base_txt, stderr = await proc.communicate()
-                                    file_handle.write(base_txt)
-
-                                command = [superpmi_path] + flags + [diff_jit_path, mch_file]
-
-                                with open(os.path.join(diff_dump_location, "{}.txt".format(item)), 'w') as file_handle:
-                                    os.environ.update(jit_dump_env)
-
-                                    print("[TID: {}]: Invoking: ".format(thread_id) + " ".join(command))
-                                    proc = await asyncio.create_subprocess_shell(*command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
-                                    
-                                    diff_txt, stderr = await proc.communicate()
-                                    file_handle.write(diff_txt)
-
-                                if base_txt != diff_txt:
-                                    jit_dump_differences.put_nowait(item)
-
-                        os.environ.update(reset_env)
-
-                        # Add back to the queue, incase another process wants to run.
-                        subproc_count_queue.put_nowait(1)
-                        print("[TID: {}]: Finished. ------------------------------------------------------------------".format(thread_id))
-
-                    async def create_asm_handler(diff_queue):
-                        """ Setup for async calls to create_asm
-
-                        Notes:
-                            Acts as a wrapper to abstract the async calls to
-                            create_asm. Note that this will allow cpu_count 
-                            amount of running subprocesses. Each time the queue
-                            is emptied, another process will start. Note that
-                            the python code is single threaded, it will just
-                            rely on async/await to start subprocesses at
-                            subprocess_count
-                        """
-                        thread_count = multiprocessing.cpu_count()
-
-                        procs = []
-                        proc_index = 0
-
-                        chunk_size = thread_count
-
-                        # Create a queue with a chunk size of the cpu count
-                        #
-                        # Each run_pmi invocation will remove an item from the
-                        # queue before running a potentially long running pmi run.
-                        #
-                        # When the queue is drained, we will wait queue.get which
-                        # will wait for when a run_pmi instance has added back to the
-                        subproc_count_queue = asyncio.Queue(chunk_size)
-                        diff_queue = asyncio.Queue()
-
-                        for item in range(chunk_size):
-                            subproc_count_queue.put_nowait(item)
-
-                        item = diff_queue.get_nowait() if not diff_queue.empty() else None
-                        while item is not None:
-                            create_asm(subproc_count_queue, item)
-
-                            item = diff_queue.get_nowait() if not diff_queue.empty() else None
-
-                    create_asm_handler(diff_queue)
+                    if self.coreclr_args.diff_jit_dump:
+                        subproc_helper.run_to_completion(create_jit_dump, self, jit_dump_differences, base_dump_location, diff_dump_location)
 
                 else:
                     # We have already generated asm under <coreclr_bin_path>/asm/base and <coreclr_bin_path>/asm/diff
@@ -1420,6 +1515,11 @@ def setup_args(args):
                             "output_mch_path",
                             lambda unused: True,
                             "Unable to set output_mch_path")
+        
+        coreclr_args.verify(args,
+                            "log_file",
+                            lambda unused: True,
+                            "Unable to set log_file.")
 
         coreclr_args.verify(args,
                             "skip_collect_mc_files",
