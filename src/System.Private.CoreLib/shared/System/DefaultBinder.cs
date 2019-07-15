@@ -217,7 +217,7 @@ namespace System
                     // now do a "classic" type check
                     if (pCls.IsPrimitive)
                     {
-                        if (argTypes[paramOrder[i][j]] == null || !CanChangePrimitive(args[paramOrder[i][j]]?.GetType(), pCls))
+                        if (argTypes[paramOrder[i][j]] == null || !CanChangePrimitive(args[paramOrder[i][j]]!.GetType(), pCls)) //TODO-NULLABLE https://github.com/dotnet/csharplang/issues/2388
                         {
                             break;
                         }
@@ -247,7 +247,7 @@ namespace System
                     {
                         if (paramArrayType.IsPrimitive)
                         {
-                            if (argTypes[j] == null || !CanChangePrimitive(args[j]?.GetType(), paramArrayType))
+                            if (argTypes[j] == null || !CanChangePrimitive(args[j]?.GetType(), paramArrayType)) //TODO-NULLABLE https://github.com/dotnet/csharplang/issues/2388
                                 break;
                         }
                         else
