@@ -387,7 +387,7 @@ BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameP
 
     if (identifierType == TypeNameId)
     {
-        for(;;)
+        do
         {
             switch (* m_currentItr ++)
             {
@@ -413,6 +413,7 @@ BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameP
                     break;
             }
         }
+        while(true);
 
 done:
         m_currentItr--;
