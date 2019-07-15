@@ -1123,7 +1123,6 @@ public class FastTailCallCandidates
     public static int StackBasedCallee(int a, int b, StructSizeThirtyTwo sstt)
     {
         int count = 0;
-        long max = sstt.a;
         for (int i = 0; i < sstt.a; ++i)
         {
             if (i % 10 == 0)
