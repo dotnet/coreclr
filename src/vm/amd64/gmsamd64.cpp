@@ -47,7 +47,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     PCODE pvControlPc;
     
-    for(;;)
+    do 
     {
 
 #ifndef FEATURE_PAL
@@ -101,6 +101,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 break;
         }    
     }
+    while(TRUE);
 
     //
     // Update unwoundState so that HelperMethodFrameRestoreState knows which

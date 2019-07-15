@@ -170,7 +170,7 @@ int SHMLock(void)
 
         my_pid = gPID;
         
-        for(;;)
+        while(TRUE)
         {
             //
             // Try to grab the spinlock
