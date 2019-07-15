@@ -142,7 +142,7 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pAvailable, CORDB_REGISTER, regCount, true, true);
     
-    for (int i = 0 ; i < regCount ; ++i)
+    for (int i = 0 ; i < (int)regCount ; ++i)
     {
         if (i * 8 <= REGISTER_ARM64_V31)
         {
@@ -166,7 +166,7 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
 
     UINT iRegister = 0;
 
-    for (int m = 0 ; m < maskCount ; ++m)
+    for (int m = 0 ; m < (int)maskCount ; ++m)
     {
         for (int bit = 0 ; bit < 8 ; ++bit)
         {
