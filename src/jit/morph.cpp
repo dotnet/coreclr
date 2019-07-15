@@ -7161,15 +7161,15 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     const unsigned maxRegArgs = MAX_REG_ARG;
-    hasTwoSlotSizedStruct     = hasTwoSlotSizedStruct || info.compHasMultiSlotArgs;
+    hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
 
-// If we reached here means that callee has only those argument types which can be passed in
-// a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
-// If we are passing args on stack for the callee and it has more args passed on stack than
-// the caller, then fast tail call cannot be performed.
-//
-// Note that the GC'ness of on stack args need not match since the arg setup area is marked
-// as non-interruptible for fast tail calls.
+    // If we reached here means that callee has only those argument types which can be passed in
+    // a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
+    // If we are passing args on stack for the callee and it has more args passed on stack than
+    // the caller, then fast tail call cannot be performed.
+    //
+    // Note that the GC'ness of on stack args need not match since the arg setup area is marked
+    // as non-interruptible for fast tail calls.
 
 #ifdef WINDOWS_AMD64_ABI
     assert(calleeStackSize == 0);
