@@ -280,7 +280,7 @@ void HelperCanary::ThreadProc()
 {
     _ASSERTE(m_CanaryThreadId == GetCurrentThreadId());
 
-    while(true)
+    for(;;)
     {
         WaitForSingleObject(m_hPingEvent, INFINITE);
 

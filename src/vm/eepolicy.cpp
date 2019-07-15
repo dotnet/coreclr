@@ -254,7 +254,7 @@ EPolicyAction EEPolicy::GetFinalAction(EPolicyAction action, Thread *pThread)
         return action;
     }
 
-    while(TRUE)
+    for(;;)
     {
         // Look at default action.  If the default action is more severe,
         // use the default action instead.

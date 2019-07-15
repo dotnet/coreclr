@@ -516,7 +516,7 @@ readfile( LPVOID lpParam )
 	/*Start Operation*/
 
 	// Open the existing file. 
-	while(TRUE)
+	for(;;)
 		{
 
 		hFile = CreateFile("samplefile.dat",  // file name 
@@ -638,7 +638,7 @@ enterandleave_cs( LPVOID lpParam )
 		 
 	//Trace("Critical Section Started\n");
 	
-	while(TRUE)
+	for(;;)
 		{
 	EnterCriticalSection(&lcs);
 
@@ -684,7 +684,7 @@ allocateandfree_memory( LPVOID lpParam )
 		}
 	
 	 
-	while(TRUE)
+	for(;;)
 	{
 
 		//do allocate and free operation
