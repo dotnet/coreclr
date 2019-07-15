@@ -426,7 +426,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 #endif
     bool bset16bit=false;
     bool b16bit=false;
-    for (;;)
+    for(;;)
     {
         _ASSERTE(count++ < 1000);       // we should never walk more than 1000 instructions!
         b16bit=bset16bit;
@@ -1305,7 +1305,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
 
     LOG((LF_GCROOTS, LL_INFO100000, "STACKWALK    LazyMachState::unwindLazyState(ip:%p,bp:%p,sp:%p)\n", baseState->captureEip, baseState->captureEbp, baseState->captureEsp));
 
-    for (;;)
+    do
     {
 #ifdef DACCESS_COMPILE
         HRESULT hr = DacVirtualUnwind(threadId, &ctx, &nonVolRegPtrs);
@@ -1354,7 +1354,8 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
             if (fIsManagedCode)
                 break;
         }
-    }   
+    }
+    while(TRUE);    
 
     lazyState->_esp = ctx.Esp;
     lazyState->_pRetAddr = PTR_TADDR(lazyState->_esp - 4);
