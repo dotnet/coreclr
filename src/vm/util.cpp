@@ -1583,11 +1583,11 @@ static size_t GetCacheSizeFromCpuId()
 
         DWORD maxCpuId = getcpuid(0, buffer);
 
-        if (dwBuffer[1] == 'uneG') 
+        if (dwBuffer[1] == *(DWORD*)("uneG"))
         {
-            if (dwBuffer[3] == 'Ieni') 
+            if (dwBuffer[3] == *(DWORD*)("Ieni"))
             {
-                if (dwBuffer[2] == 'letn') 
+                if (dwBuffer[2] == *(DWORD*)("letn"))
                 {
                     /*
                     //The following lines are commented because the OS API  on Windows 2003 SP1 is not returning the Cache Relation information on x86. 
@@ -1634,9 +1634,9 @@ static size_t GetCacheSizeFromCpuId()
             }
         }
 
-        else if (dwBuffer[1] == 'htuA') {
-            if (dwBuffer[3] == 'itne') {
-                if (dwBuffer[2] == 'DMAc') {
+        else if (dwBuffer[1] == *(DWORD*)("htuA")) {
+            if (dwBuffer[3] == *(DWORD*)("itne")) {
+                if (dwBuffer[2] == *(DWORD*)("DMAc")) {
 
                     if (getcpuid(0x80000000, buffer) >= 0x80000006)
                     {
