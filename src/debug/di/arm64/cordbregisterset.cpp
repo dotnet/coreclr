@@ -47,7 +47,38 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG64* pAvailable)
                 | SETBITULONG64(REGISTER_ARM64_X27)
                 | SETBITULONG64(REGISTER_ARM64_X28)
                 | SETBITULONG64(REGISTER_ARM64_FP)
-                | SETBITULONG64(REGISTER_ARM64_LR);
+                | SETBITULONG64(REGISTER_ARM64_LR)
+                | SETBITULONG64(REGISTER_ARM64_V0)
+                | SETBITULONG64(REGISTER_ARM64_V1)
+                | SETBITULONG64(REGISTER_ARM64_V2)
+                | SETBITULONG64(REGISTER_ARM64_V3)
+                | SETBITULONG64(REGISTER_ARM64_V4)
+                | SETBITULONG64(REGISTER_ARM64_V5)
+                | SETBITULONG64(REGISTER_ARM64_V6)
+                | SETBITULONG64(REGISTER_ARM64_V7)
+                | SETBITULONG64(REGISTER_ARM64_V8)
+                | SETBITULONG64(REGISTER_ARM64_V9)
+                | SETBITULONG64(REGISTER_ARM64_V10)
+                | SETBITULONG64(REGISTER_ARM64_V11)
+                | SETBITULONG64(REGISTER_ARM64_V12)
+                | SETBITULONG64(REGISTER_ARM64_V13)
+                | SETBITULONG64(REGISTER_ARM64_V14)
+                | SETBITULONG64(REGISTER_ARM64_V15)
+                | SETBITULONG64(REGISTER_ARM64_V16)
+                | SETBITULONG64(REGISTER_ARM64_V17)
+                | SETBITULONG64(REGISTER_ARM64_V18)
+                | SETBITULONG64(REGISTER_ARM64_V19)
+                | SETBITULONG64(REGISTER_ARM64_V20)
+                | SETBITULONG64(REGISTER_ARM64_V21)
+                | SETBITULONG64(REGISTER_ARM64_V22)
+                | SETBITULONG64(REGISTER_ARM64_V23)
+                | SETBITULONG64(REGISTER_ARM64_V24)
+                | SETBITULONG64(REGISTER_ARM64_V25)
+                | SETBITULONG64(REGISTER_ARM64_V26)
+                | SETBITULONG64(REGISTER_ARM64_V27)
+                | SETBITULONG64(REGISTER_ARM64_V28)
+                | SETBITULONG64(REGISTER_ARM64_V29)
+                | SETBITULONG64(REGISTER_ARM64_V30);
 
     return S_OK;
 }
@@ -63,17 +94,24 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
 
     VALIDATE_POINTER_TO_OBJECT_ARRAY(regBuffer, CORDB_REGISTER, regCount, true, true);
     
-    // @ARM64TODO: floating point support
-
     for (int i = REGISTER_ARM64_PC;
-         i <= REGISTER_ARM64_LR && iRegister < regCount;
+         i <= REGISTER_ARM64_V30 && iRegister < regCount;
          i++)
     {
         if (mask &  SETBITULONG64(i))
         {
+            _ASSERTE (iRegister < regCount);
+
             if ((i >= REGISTER_ARM64_X0) && (i <= REGISTER_ARM64_X28))
             {
                 regBuffer[iRegister++] = m_rd->X[i - REGISTER_ARM64_X0];
+                continue;
+            }
+
+            if ((i >= REGISTER_ARM64_V0) && (i <= REGISTER_ARM64_V30))
+            {
+                regBuffer[iRegister++] = *(CORDB_REGISTER*)
+                                          &(m_thread->m_floatValues[(i - REGISTER_ARM64_V0)]);
                 continue;
             }
 
