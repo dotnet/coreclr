@@ -1929,7 +1929,7 @@ FCIMPL3(Object *, SignatureNative::GetCustomModifiers, SignatureNative* pSignatu
         CorElementType cmodTypeExpected = fRequired ? ELEMENT_TYPE_CMOD_REQD : ELEMENT_TYPE_CMOD_OPT;
         
         // Discover the number of required and optional custom modifiers.   
-        while(TRUE)
+        for(;;)
         {
             BYTE data;
             IfFailThrow(sp.GetByte(&data));

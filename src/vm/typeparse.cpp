@@ -387,7 +387,7 @@ BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameP
 
     if (identifierType == TypeNameId)
     {
-        do
+        for(;;)
         {
             switch (* m_currentItr ++)
             {
@@ -413,7 +413,6 @@ BOOL TypeName::TypeNameParser::GetIdentifier(SString* sszId, TypeName::TypeNameP
                     break;
             }
         }
-        while(true);
 
 done:
         m_currentItr--;
@@ -425,20 +424,22 @@ done:
     }
     else if (identifierType == TypeNameEmbeddedFusionName)
     {
-        for (; (*m_currentItr != W('\0')) && (*m_currentItr != W(']')); m_currentItr++)
+        while ((*m_currentItr != W('\0')) && (*m_currentItr != W(']')))
         {
             if (*m_currentItr == W('\\'))
             {
                 if (*(m_currentItr + 1) == W(']'))
                 {
                     m_escape.Append(m_currentItr);
-                    m_currentItr ++;
+                    m_currentItr +=2;
                     continue;
                 }
             }
 
-            if (*m_currentItr == '\0')
+            if (*m_currentItr == '\0'){
                 return FALSE;
+            }
+            m_currentItr++;
         }
         if (*m_currentItr == W('\0'))
         {
