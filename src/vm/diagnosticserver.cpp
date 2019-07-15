@@ -214,14 +214,22 @@ bool DiagnosticServer::Shutdown()
                 {
                     _ASSERTE(!"Failed to mark pending synchronous I/O operations issued by Diagnostics Server Thread as canceled.");
                 }
-                ::WaitForSingleObject(s_hServerThread, INFINITE);
 #endif // FEATURE_PAL
 
+                // At this point, IO operations on the server thread through the
+                // IPC channel has been closed/cancelled.
+
+                // On non-Windows, this function is blocking on threads that already exit.
+                // ::WaitForSingleObject(s_hServerThread, INFINITE);
+
+                // Close the thread handle (dispose OS resource).
                 ::CloseHandle(s_hServerThread);
+                s_hServerThread = INVALID_HANDLE_VALUE;
             }
 
-            delete s_pIpc;
-            s_pIpc = nullptr;
+            // If we do not wait for thread to teardown, then we cannot delete this object.
+            // delete s_pIpc;
+            // s_pIpc = nullptr;
         }
         fSuccess = true;
     }
