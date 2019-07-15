@@ -1478,9 +1478,9 @@ public:
             return { this->numRegs, 0 };
         }
     }
-
-    __declspec(property(get = getHfaType)) var_types hfaType;
-    var_types getHfaType()
+    
+    __declspec(property(get = GetHfaType)) var_types hfaType;
+    var_types GetHfaType()
     {
 #ifdef FEATURE_HFA
         return HfaTypeFromElemKind(_hfaElemKind);
