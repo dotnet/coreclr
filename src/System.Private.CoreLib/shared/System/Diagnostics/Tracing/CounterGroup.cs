@@ -26,7 +26,6 @@ namespace System.Diagnostics.Tracing
         {
             _eventSource = eventSource;
             _counters = new List<DiagnosticCounter>();
-            _pollingEnabledEvent = new ManualResetEvent(false);
             RegisterCommandCallback();
         }
 
@@ -124,7 +123,7 @@ namespace System.Diagnostics.Tracing
         private DateTime _timeStampSinceCollectionStarted;
         private int _pollingIntervalInMilliseconds;
         private Thread? _pollingThread;
-        private ManualResetEvent _pollingEnabledEvent;
+        private ManualResetEvent? _pollingEnabledEvent;
         private bool _isPollingEnabled;
 
         private void EnablePollingThread(float pollingIntervalInSeconds)
@@ -137,13 +136,17 @@ namespace System.Diagnostics.Tracing
             }
             else if (_pollingIntervalInMilliseconds == 0 || pollingIntervalInSeconds * 1000 < _pollingIntervalInMilliseconds)
             {
-                Debug.WriteLine("Polling interval changed at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
                 _pollingIntervalInMilliseconds = (int)(pollingIntervalInSeconds * 1000);
                 _timeStampSinceCollectionStarted = DateTime.UtcNow;
                 // Don't capture the current ExecutionContext and its AsyncLocals onto the timer causing them to live forever
                 bool restoreFlow = false;
                 try
                 {
+                    if (_pollingEnabledEvent == null)
+                    {
+                        _pollingEnabledEvent = new ManualResetEvent(false);
+                    }
+
                     if (!ExecutionContext.IsFlowSuppressed())
                     {
                         ExecutionContext.SuppressFlow();
@@ -152,30 +155,32 @@ namespace System.Diagnostics.Tracing
 
                     if (_pollingThread == null)
                     {
-                        _pollingThread = new Thread(() => PollForValues());
-                        _pollingThread.Start();    
+                        Thread t = new Thread(PollForValues) { IsBackground = true };
+                        t.Start();
+                        _pollingThread = t;
                     }
-                    else
-                    {
-                        _pollingEnabledEvent.Set();
-                    }
+                }
+                catch (OutOfMemoryException)
+                {
+                    _isPollingEnabled = false; // If we can't start the polling thread, disable polling.
                 }
                 finally
                 {
                     // Restore the current ExecutionContext
                     if (restoreFlow)
                         ExecutionContext.RestoreFlow();
+
+                    if (_pollingEnabledEvent != null)
+                        _pollingEnabledEvent.Set();
                 }
             }
-            // Always fire the timer event (so you see everything up to this time).  
-            OnTimer();
         }
 
         private void PollForValues()
         {
-            while(true)
+            while (true)
             {
-                while(_isPollingEnabled)
+                while (_isPollingEnabled)
                 {
                     if (!OnTimer())
                     {
@@ -183,15 +188,16 @@ namespace System.Diagnostics.Tracing
                     }
                     Thread.Sleep(_pollingIntervalInMilliseconds);
                 }
-
-                _pollingEnabledEvent.WaitOne(); // Block until polling is enabled again
-                _pollingEnabledEvent.Reset(); // Reset this.
+                if (_pollingEnabledEvent != null)
+                {
+                    _pollingEnabledEvent.WaitOne(); // Block until polling is enabled again
+                    _pollingEnabledEvent.Reset(); // Reset this.
+                }
             }
         }
 
         private bool OnTimer()
         {
-            Debug.WriteLine("Polling thread fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
             lock (this) // Lock the CounterGroup
             {
                 if (_eventSource.IsEnabled())
