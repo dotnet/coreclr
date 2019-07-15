@@ -6954,14 +6954,14 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    callee(int, int, float, int)
 //
 //    -- Callee requires stack space that is equal to the caller --
-//    caller({ int, int }, { int, int }, { int }, { int }, { int }, { int }) -- 6 int register arguments, 16 byte stack
+//    caller({ long, long }, { int, int }, { int }, { int }, { int }, { int }) -- 6 int register arguments, 16 byte stack
 //    space
 //    callee(int, int, int, int, int, int, int, int) -- 6 int register arguments, 16 byte stack space
 //
 //    -- Callee requires stack space that is less than the caller --
-//    caller({ int, int }, int, { int, int }, int, { int, int }, { int, int }) 6 int register arguments, 32 byte stack
+//    caller({ long, long }, int, { long, long }, int, { long, long }, { long, long }) 6 int register arguments, 32 byte stack
 //    space
-//    callee(int, int, int, int, int, int, { int, int } ) // 6 int register arguments, 16 byte stack space
+//    callee(int, int, int, int, int, int, { long, long } ) // 6 int register arguments, 16 byte stack space
 //
 //    -- Callee will have all register arguments --
 //    caller(int)
