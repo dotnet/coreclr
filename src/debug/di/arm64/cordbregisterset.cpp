@@ -142,8 +142,19 @@ HRESULT CordbRegisterSet::GetRegistersAvailable(ULONG32 regCount,
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(pAvailable, CORDB_REGISTER, regCount, true, true);
     
-    // Defer to adapter for v1.0 interface
-    return GetRegistersAvailableAdapter(regCount, pAvailable);
+    for (int i = 0 ; i < regCount ; ++i)
+    {
+        if (i * 8 <= REGISTER_ARM64_V31)
+        {
+            pAvailable[i] = (i * 8 == REGISTER_ARM64_V31) ? BYTE(0x1) : BYTE(0xff);
+        }
+        else
+        {
+            pAvailable[i] = 0;
+        }
+    }
+
+    return S_OK;
 }
 
 
@@ -153,8 +164,49 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
     FAIL_IF_NEUTERED(this);
     VALIDATE_POINTER_TO_OBJECT_ARRAY(regBuffer, CORDB_REGISTER, regCount, true, true);
 
-    // Defer to adapter for v1.0 interface
-    return GetRegistersAdapter(maskCount, mask, regCount, regBuffer);
+    UINT iRegister = 0;
+
+    for (int m = 0 ; m < maskCount ; ++m)
+    {
+        for (int bit = 0 ; bit < 8 ; ++bit)
+        {
+            if (mask[m] & SETBITULONG64(bit))
+            {
+                _ASSERTE (iRegister < regCount);
+
+                int i = m * 8 + bit;
+
+                if ((i >= REGISTER_ARM64_X0) && (i <= REGISTER_ARM64_X28))
+                {
+                    regBuffer[iRegister++] = m_rd->X[i - REGISTER_ARM64_X0];
+                    continue;
+                }
+
+                if ((i >= REGISTER_ARM64_V0) && (i <= REGISTER_ARM64_V31))
+                {
+                    regBuffer[iRegister++] = *(CORDB_REGISTER*)
+                                              &(m_thread->m_floatValues[(i - REGISTER_ARM64_V0)]);
+                    continue;
+                }
+
+                switch (i)
+                {
+                case REGISTER_ARM64_PC:
+                    regBuffer[iRegister++] = m_rd->PC; break;
+                case REGISTER_ARM64_SP:
+                    regBuffer[iRegister++] = m_rd->SP; break;
+                case REGISTER_ARM64_FP:
+                    regBuffer[iRegister++] = m_rd->FP; break;
+                case REGISTER_ARM64_LR:
+                    regBuffer[iRegister++] = m_rd->LR; break;
+                default:
+                    _ASSERTE(false); break;
+                }
+            }
+        }
+    }
+
+    return S_OK;
 }
 
 
