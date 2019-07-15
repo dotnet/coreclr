@@ -7072,7 +7072,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
     // Count user args while tracking whether any of them has a larger than one
     // stack slot sized requirement. This requirement is required to support
-    // lowering the fast tail call. Which, currently only supports copying
+    // lowering the fast tail call, which, currently only supports copying
     // stack slot arguments which have only one stack slot.
     //
     // Note that we don't need to count
@@ -7080,7 +7080,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // these won't contribute to out-going arg size.
     // 
     // For each struct arg, determine whether the argument would have  > 1 stack 
-    // slot if on the stack If it has > 1 stack slot we will not fastTailCall. 
+    // slot if on the stack. If it has > 1 stack slot we will not fastTailCall. 
     // This is an implementation limitation of LowerFastTailCall that is tracked by:
     // https://github.com/dotnet/coreclr/issues/12644.
 
@@ -7090,7 +7090,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
     for (unsigned index = 0; index < nCalleeArgs; ++index)
     {
-        fgArgTabEntry* arg = argInfo->GetArgEntry(index);
+        fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
 
         if (!arg->isStruct)
         {
