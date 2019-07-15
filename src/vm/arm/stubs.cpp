@@ -580,7 +580,7 @@ void LazyMachState::unwindLazyState(LazyMachState* baseState,
                 break;
         }
     }
-    for(;;);
+    while(TRUE);
 
     //
     // Update unwoundState so that HelperMethodFrameRestoreState knows which

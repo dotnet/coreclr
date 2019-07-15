@@ -625,7 +625,7 @@ void EventPipeBufferManager::WriteAllBuffersToFileV4(EventPipeFile *pFile, LARGE
         }
     }
 
-    for(;;) // loop across sequence points
+    while(true) // loop across sequence points
     {
         while (true) // loop across events within a sequence point boundary
         {
