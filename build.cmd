@@ -23,6 +23,8 @@ if defined VS160COMNTOOLS (
     set __VSVersion=vs2017
 )
 
+set __WinSDKVersion=10.0.17763.0
+
 :: Work around Jenkins CI + msbuild problem: Jenkins sometimes creates very large environment
 :: variables, and msbuild can't handle environment blocks with such large variables. So clear
 :: out the variables that might be too large.
@@ -461,8 +463,8 @@ if %__BuildCrossArchNative% EQU 1 (
     set __VCBuildArch=x86_amd64
     if /i "%__CrossArch%" == "x86" ( set __VCBuildArch=x86 )
 
-    echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
-    call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
+    echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch! %__WinSDKVersion%
+    call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch! %__WinSDKVersion%
     @if defined _echo @echo on
 
     if not exist "%__CrossCompIntermediatesDir%" md "%__CrossCompIntermediatesDir%"
@@ -540,8 +542,8 @@ if %__BuildNative% EQU 1 (
         set ___CrossBuildDefine="-DCLR_CMAKE_CROSS_ARCH=1" "-DCLR_CMAKE_CROSS_HOST_ARCH=%__CrossArch%"
     )
 
-    echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
-    call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch!
+    echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch! %__WinSDKVersion%
+    call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCBuildArch! %__WinSDKVersion%
     @if defined _echo @echo on
 
     if not defined VSINSTALLDIR (
@@ -775,8 +777,8 @@ if %__BuildNativeCoreLib% EQU 1 (
     if %__PgoInstrument% EQU 1 (
         set __VCExecArch=%__BuildArch%
         if /i [%__BuildArch%] == [x64] set __VCExecArch=amd64
-        echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
-        call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch!
+        echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch! %__WinSDKVersion%
+        call                                 "%__VCToolsRoot%\vcvarsall.bat" !__VCExecArch! %__WinSDKVersion%
         @if defined _echo @echo on
         if NOT !errorlevel! == 0 (
             echo %__MsgPrefix%Error: Failed to load native tools environment for !__VCExecArch!

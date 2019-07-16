@@ -34,8 +34,8 @@ if not exist "%_VSCOMNTOOLS%" (
     echo        Please see https://github.com/dotnet/coreclr/blob/master/Documentation/building/windows-instructions.md for build instructions.
     exit /b 1
 )
-echo %__MsgPrefix%"%_VSCOMNTOOLS%\VsDevCmd.bat"
-call "%_VSCOMNTOOLS%\VsDevCmd.bat"
+echo %__MsgPrefix%"%_VSCOMNTOOLS%\VsDevCmd.bat -winsdk=10.0.17763.0"
+call "%_VSCOMNTOOLS%\VsDevCmd.bat" -winsdk=10.0.17763.0
 
 :skip_setup
 

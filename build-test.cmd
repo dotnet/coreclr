@@ -22,6 +22,8 @@ if defined VS160COMNTOOLS (
     set __VSVersion=vs2017
 )
 
+set __WinSDKVersion=10.0.17763.0
+
 :: Set the default arguments for build
 set __BuildArch=x64
 set __BuildType=Debug
@@ -202,8 +204,8 @@ if /i "%__BuildArch%" == "x86" ( set __VCBuildArch=x86 )
 if /i "%__BuildArch%" == "arm" ( set __VCBuildArch=x86_arm )
 if /i "%__BuildArch%" == "arm64" ( set __VCBuildArch=x86_arm64 )
 
-echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildArch%
-call                                 "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildArch%
+echo %__MsgPrefix%Using environment: "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildArch% %__WinSDKVersion%
+call                                 "%__VCToolsRoot%\vcvarsall.bat" %__VCBuildArch% %__WinSDKVersion%
 @if defined _echo @echo on
 
 if not defined VSINSTALLDIR (
