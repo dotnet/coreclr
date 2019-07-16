@@ -2588,7 +2588,10 @@ GenTree* Compiler::fgInsertCommaFormTemp(GenTree** ppTree, CORINFO_CLASS_HANDLE 
 // fgInitArgInfo: Construct the fgArgInfo for the call with the fgArgEntry for each arg
 //
 // Arguments:
-//    callNode - the call for which we are generating the fgArgInfo
+//    callNode      - the call for which we are generating the fgArgInfo
+//    reInitArgInfo - force the argInfo to be regenerated. This is only useful
+//                    if the arguments have changed between the first and
+//                    subsequent calls. Defaults to false.
 //
 // Return Value:
 //    None
@@ -2599,7 +2602,7 @@ GenTree* Compiler::fgInsertCommaFormTemp(GenTree** ppTree, CORINFO_CLASS_HANDLE 
 //    This method only computes the arg table and arg entries for the call (the fgArgInfo),
 //    and makes no modification of the args themselves.
 //
-void Compiler::fgInitArgInfo(GenTreeCall* call)
+void Compiler::fgInitArgInfo(GenTreeCall* call, bool reInitArgInfo/*=false*/)
 {
     GenTree* args;
     GenTree* argx;
@@ -2623,7 +2626,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
     const unsigned maxRegArgs = MAX_REG_ARG; // other arch: fixed constant number
 #endif
 
-    if (call->fgArgInfo != nullptr)
+    if (call->fgArgInfo != nullptr && !reInitArgInfo)
     {
         // We've already initialized and set the fgArgInfo.
         return;
@@ -7626,6 +7629,9 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     // The function is responsible for doing explicit null check when it is necessary.
     assert(!call->NeedsNullCheck());
 
+    // Force, re-evaluating the args as we have just changed the argument list.
+    fgInitArgInfo(call, /*reInitArgInfo=*/true);
+
     JITDUMP("fgMorphTailCall (after):\n");
     DISPTREE(call);
 }
@@ -8152,7 +8158,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                     szFailReason = "Method with non-standard args passed in callee trash register cannot be tail "
                                    "called via helper";
                 }
-#ifdef _TARGET_ARM64_
+#if defined(_TARGET_ARM64_) || defined(_TARGET_UNIX_)
                 else
                 {
                     // NYI - TAILCALL_RECURSIVE/TAILCALL_HELPER.
