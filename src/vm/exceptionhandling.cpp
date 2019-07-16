@@ -21,10 +21,6 @@
 #define USE_CURRENT_CONTEXT_IN_FILTER
 #endif // _TARGET_X86_
 
-#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
-#define VSD_STUB_CAN_THROW_AV
-#endif // _TARGET_ARM_ || _TARGET_X86_
-
 #if defined(_TARGET_ARM_) || defined(_TARGET_ARM64_)
 // ARM/ARM64 uses Caller-SP to locate PSPSym in the funclet frame.
 #define USE_CALLER_SP_IN_FUNCLET
@@ -4661,6 +4657,15 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
         // Check whether we are crossing managed-to-native boundary
         while (!ExecutionManager::IsManagedCode(controlPc))
         {
+#ifdef VSD_STUB_CAN_THROW_AV
+            if (IsIPinVirtualStub(controlPc))
+            {
+                AdjustContextForVirtualStub(NULL, frameContext);
+                controlPc = GetIP(frameContext);
+                break;
+            }
+#endif // VSD_STUB_CAN_THROW_AV
+
             UINT_PTR sp = GetSP(frameContext);
 
             BOOL success = PAL_VirtualUnwind(frameContext, NULL);
@@ -5144,39 +5149,6 @@ BOOL IsSafeToCallExecutionManager()
            GCStress<cfg_instr_ngen>::IsEnabled();
 }
 
-#ifdef VSD_STUB_CAN_THROW_AV
-//Return TRUE if pContext->Pc is in VirtualStub
-static BOOL IsIPinVirtualStub(PCODE f_IP)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    Thread * pThread = GetThread();
-
-    // We may not have a managed thread object. Example is an AV on the helper thread.
-    // (perhaps during StubManager::IsStub)
-    if (pThread == NULL)
-    {
-        return FALSE;
-    }
-
-    VirtualCallStubManager::StubKind sk;
-    VirtualCallStubManager::FindStubManager(f_IP, &sk, FALSE /* usePredictStubKind */);
-
-    if (sk == VirtualCallStubManager::SK_DISPATCH)
-    {
-        return TRUE;
-    }
-    else if (sk == VirtualCallStubManager::SK_RESOLVE)
-    {
-        return TRUE;
-    }
-
-    else {
-        return FALSE;
-    }
-}
-#endif // VSD_STUB_CAN_THROW_AV
-
 BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
 {
     PCODE controlPc = GetIP(contextRecord);
@@ -5190,18 +5162,9 @@ BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD e
         IsIPInMarkedJitHelper(controlPc));
 }
 
-#ifdef _TARGET_ARM_
-static inline BOOL HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord, Thread *pThread)
+#ifdef FEATURE_EMULATE_SINGLESTEP
+static inline BOOL HandleSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExceptionRecord, Thread *pThread)
 {
-#ifdef __linux__
-    // On ARM Linux exception point to the break instruction,
-    // but the rest of the code expects that it points to an instruction after the break
-    if (pExceptionRecord->ExceptionCode == EXCEPTION_BREAKPOINT)
-    {
-        SetIP(pContext, GetIP(pContext) + CORDbg_BREAK_INSTRUCTION_SIZE);
-        pExceptionRecord->ExceptionAddress = (void *)GetIP(pContext);
-    }
-#endif
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
     // The implementation will end up throwing an EXCEPTION_BREAKPOINT rather than an EXCEPTION_SINGLE_STEP
     // and leaves other aspects of the thread context in an invalid state. Therefore we use this opportunity
@@ -5220,7 +5183,7 @@ static inline BOOL HandleArmSingleStep(PCONTEXT pContext, PEXCEPTION_RECORD pExc
     }
     return FALSE;
 }
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
 BOOL HandleHardwareException(PAL_SEHException* ex)
 {
@@ -5285,8 +5248,20 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
         Thread *pThread = GetThread();
         if (pThread != NULL && g_pDebugInterface != NULL)
         {
-#ifdef _TARGET_ARM_
-            HandleArmSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), pThread);
+            // On ARM and ARM64 Linux exception point to the break instruction.
+            // See https://static.docs.arm.com/ddi0487/db/DDI0487D_b_armv8_arm.pdf#page=6916&zoom=100,0,152
+            // at aarch64/exceptions/debug/AArch64.SoftwareBreakpoint
+            // However, the rest of the code expects that it points to an instruction after the break.
+#if defined(__linux__) && (defined(_TARGET_ARM_) || defined(_TARGET_ARM64_))
+            if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
+            {
+                SetIP(ex->GetContextRecord(), GetIP(ex->GetContextRecord()) + CORDbg_BREAK_INSTRUCTION_SIZE);
+                ex->GetExceptionRecord()->ExceptionAddress = (void *)GetIP(ex->GetContextRecord());
+            }
+#endif
+
+#ifdef FEATURE_EMULATE_SINGLESTEP
+            HandleSingleStep(ex->GetContextRecord(), ex->GetExceptionRecord(), pThread);
 #endif
             if (ex->GetExceptionRecord()->ExceptionCode == STATUS_BREAKPOINT)
             {

@@ -368,7 +368,7 @@ void Module::NotifyEtwLoadFinished(HRESULT hr)
 
     // we report only successful loads
     if (SUCCEEDED(hr) &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_INFORMATION, 
                                      KEYWORDZERO))
     {
@@ -3405,6 +3405,61 @@ BOOL Module::IsInCurrentVersionBubble()
     return TRUE;
 #endif // FEATURE_NATIVE_IMAGE_GENERATION
 }
+
+#if defined(FEATURE_READYTORUN) && !defined(FEATURE_READYTORUN_COMPILER)
+//---------------------------------------------------------------------------------------
+// Check if the target module is in the same version bubble as this one
+// The current implementation uses the presence of an AssemblyRef for the target module's assembly in
+// the native manifest metadata.
+//
+// Arguments:
+//      * target - target module to check
+//
+// Return Value:
+//      TRUE if the target module is in the same version bubble as this one
+//
+BOOL Module::IsInSameVersionBubble(Module *target)
+{
+    STANDARD_VM_CONTRACT;
+
+    if (this == target)
+    {
+        return TRUE;
+    }
+
+    if (!HasNativeOrReadyToRunImage())
+    {
+        return FALSE;
+    }
+
+    // Check if the current module's image has native manifest metadata, otherwise the current->GetNativeAssemblyImport() asserts.
+    COUNT_T cMeta=0;
+    const void* pMeta = GetFile()->GetOpenedILimage()->GetNativeManifestMetadata(&cMeta);
+    if (pMeta == NULL)
+    {
+        return FALSE;
+    }
+
+    IMDInternalImport* pMdImport = GetNativeAssemblyImport();
+
+    LPCUTF8 targetName = target->GetAssembly()->GetSimpleName();
+
+    HENUMInternal assemblyEnum;
+    HRESULT hr = pMdImport->EnumAllInit(mdtAssemblyRef, &assemblyEnum);
+    mdAssemblyRef assemblyRef;
+    while (pMdImport->EnumNext(&assemblyEnum, &assemblyRef))
+    {
+        LPCSTR assemblyName;
+        hr = pMdImport->GetAssemblyRefProps(assemblyRef, NULL, NULL, &assemblyName, NULL, NULL, NULL, NULL);
+        if (strcmp(assemblyName, targetName) == 0)
+        {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+#endif // FEATURE_READYTORUN && !FEATURE_READYTORUN_COMPILER
 
 //---------------------------------------------------------------------------------------
 //

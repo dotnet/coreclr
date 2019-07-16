@@ -1,24 +1,35 @@
--notrait category=OuterLoop 
+# This is a "response file" used to pass fine-grained test exclusions to the
+# corefx xunit test wrapper scripts, RunTests.cmd or RunTests.sh. Lines here
+# should be in a format that xunit understands. Lines beginning with '#' are
+# comment lines and are ignored.
+#
+# The interesting xunit exclusion syntax is (extracted from help screen for
+# "dotnet.exe xunit.console.dll -?"):
+#
+# -------------------------------------------------------------------------
+# -nomethod "name"       : do not run a given test method (can be fully specified or use a wildcard;
+#                        : i.e., 'MyNamespace.MyClass.MyTestMethod' or '*.MyTestMethod')
+#                        : if specified more than once, acts as an AND operation
+# -noclass "name"        : do not run any methods in a given test class (should be fully
+#                        : specified; i.e., 'MyNamespace.MyClass')
+#                        : if specified more than once, acts as an AND operation
+# -nonamespace "name"    : do not run any methods in a given namespace (i.e.,
+#                        : 'MyNamespace.MySubNamespace')
+#                        : if specified more than once, acts as an AND operation
+# -------------------------------------------------------------------------
+#
+# Please list a GitHub issue for every exclusion.
+
+-notrait category=OuterLoop
 -notrait category=RequiresElevation
 
-# Wrong Microsoft.Bcl.AsyncInterfaces binary (netcoreapp vs. netstandard)
--noclass System.Threading.Tasks.Sources.Tests.ManualResetValueTaskSourceTests
+# System.ComponentModel.Composition.Registration.Tests: test failures
+-noclass System.ComponentModel.Composition.Registration.Tests.RegistrationBuilderAttributedOverrideUnitTests
 
-# Old System.Composition.Runtime
--nomethod System.Composition.Runtime.Tests.CompositionContractTests.Equals_Object_ReturnsExpected
--noclass System.Composition.Hosting.Tests.ContainerConfigurationTests
-
-# Missing OOB dependencies
--nonamespace System.Numerics.Tensors.Tests
--nonamespace System.Numerics.Tensors
--nonamespace System.Resources.Extensions.Tests
+# Timeout on Linux/arm32
 -nonamespace System.Data.SqlClient.Tests
--nonamespace System.Data.SqlClient.ManualTesting.Tests
--nonamespace System.Drawing.Printing.Tests
--nonamespace System.Media.Test
--noclass System.Security.Cryptography.X509Certificates.Tests.X509Certificate2UITests
 
-# Missing OOB dependencies - Disable UTF8 string tests
+# Missing OOB dependencies (System.Utf8String.Experimental) - Disable UTF8 string tests
 -noclass System.Net.Http.Tests.Utf8StringContentTests
 -noclass System.Tests.Char8Tests
 -noclass System.Tests.MemoryTests
@@ -26,46 +37,45 @@
 -noclass System.Tests.Utf8ExtensionsTests
 -noclass System.Tests.Utf8StringTests
 
-# Missing OOB dependencies - Disable Tests from System.ComponentModel entirely
--nonamespace System.ComponentModel.Composition
--nonamespace System.ComponentModel.Composition.AttributedModel
--nonamespace System.ComponentModel.Composition.Extensibility
--nonamespace System.ComponentModel.Composition.Factories
--nonamespace System.ComponentModel.Composition.Hosting
--nonamespace System.ComponentModel.Composition.Primitives
--nonamespace System.ComponentModel.Composition.ReflectionModel
--nonamespace System.ComponentModel.Tests
--nonamespace System.ComponentModel.Design.Tests
--nonamespace System.ComponentModel.Design.Serialization.Tests
--nonamespace System.ComponentModel.Design.Tests
--nonamespace System.ComponentModel.TypeConverterTests
--nonamespace Tests.Integration
-
-# https://github.com/dotnet/coreclr/pull/24604
+# https://github.com/dotnet/corefx/issues/37886
 -nomethod System.Security.Cryptography.Rsa.Tests.RSAXml.FromNonsenseXml
 
-# Temporarily disabled tests waiting for CoreCLR/CoreFX changes to propagate 
--nomethod System.Tests.AppDomainTests.MonitoringIsEnabled
--nomethod System.Tests.AppDomainTests.MonitoringSurvivedMemorySize
--nomethod System.Tests.AppDomainTests.MonitoringSurvivedProcessMemorySize
--nomethod System.Tests.AppDomainTests.MonitoringTotalAllocatedMemorySize
--nomethod System.Tests.AppDomainTests.MonitoringTotalProcessorTime
--nomethod System.Text.Tests.StringBuilderTests.AppendFormat
+# System.Net.Tests are known for their instability
+-nonamespace System.Net.Http.Functional.Tests
+-nonamespace System.Net.Sockets.Tests
 
-# requires corefx test updates
--nomethod System.Tests.EnvironmentTests.FailFast_ExceptionStackTrace_StackOverflowException
--nomethod System.Tests.EnvironmentTests.FailFast_ExceptionStackTrace_InnerException
--nomethod System.Tests.EnvironmentTests.FailFast_ExceptionStackTrace_ArgumentException
+-noclass System.Net.Tests.HttpListenerContextTests
+-noclass System.Net.Tests.HttpListenerAuthenticationTests
+-noclass System.Net.Tests.HttpListenerResponseTests
+-noclass System.Net.Tests.HttpListenerResponseCookiesTests
 
-# requires corefx test updates: https://github.com/dotnet/corefx/pull/38269
--nomethod System.Reflection.Emit.Tests.DynamicMethodctor1.String_Type_TypeArray_Module
--nomethod System.Reflection.Emit.Tests.DynamicMethodctor1.String_Type_TypeArray_Type
--nomethod System.Reflection.Emit.Tests.MethodBuilderGetGenericArguments.GetGenericArguments_NonGenericMethod_ReturnsNull
--nomethod System.Reflection.Emit.Tests.MethodBuilderSetReturnType.SetReturnType_NullReturnType_ReturnsVoid
--nomethod System.Reflection.Emit.Tests.MethodBuilderSetSignature.SetSignature_AllParametersNull
--nomethod System.Reflection.Emit.Tests.MethodBuilderSetSignature.SetSignature_NullReturnType_CustomModifiersSetToWrongTypes
--nomethod System.Reflection.Emit.Tests.TypeBuilderDefineMethodTests.DefineMethod
--nomethod System.Tests.StringTests.CasingNegativeTest
--nomethod System.Tests.StringTests.CompareNegativeTest
--nomethod System.Tests.StringTests.ToLowerNullCulture
--nomethod System.Tests.StringTests.ToUpperNullCulture
+-nomethod System.Net.Tests.HttpListenerResponseTests.Redirect_Invoke_SetsRedirectionProperties
+-nomethod System.Net.Mail.Tests.SmtpClientTest.TestMailDeliveryAsync
+
+-nomethod System.Net.Security.Tests.LoggingTest.EventSource_EventsRaisedAsExpected
+-nomethod System.Net.Security.Tests.SslStreamSniTest.SslStream_NoSniFromClient_CallbackReturnsNull
+
+# System.Linq.Expressions.Tests and System.Linq.Expressions.Tests.ArrayBoundsTests.NewArrayBounds in particular are long-running:
+# https://github.com/dotnet/coreclr/issues/25269
+-nomethod System.Linq.Expressions.Tests.ArrayBoundsTests.NewArrayBounds
+-nonamespace System.Linq.Expressions.Tests
+
+# Timeout in System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.SerializeHugeObjectGraphs: https://github.com/dotnet/coreclr/issues/20246
+-nomethod System.Runtime.Serialization.Formatters.Tests.BinaryFormatterTests.SerializeHugeObjectGraphs
+
+# Test failure: https://github.com/dotnet/corefx/issues/37989
+-nomethod MonoTests.System.Runtime.Caching.MemoryCacheTest.Contains
+
+# Timeout in System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
+# https://github.com/dotnet/coreclr/issues/22414
+-nomethod System.Numerics.Tests.ToStringTest.RunRegionSpecificStandardFormatToStringTests
+
+# Timeout in System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
+# https://github.com/dotnet/coreclr/issues/18912
+-nomethod System.Text.RegularExpressions.Tests.RegexMatchTests.Match_ExcessPrefix
+
+# Assert: https://github.com/dotnet/coreclr/issues/25050
+-nonamespace System.Data.Common.Tests
+
+# Test failure: https://github.com/dotnet/corefx/issues/39223
+-nomethod System.ComponentModel.TypeConverterTests.FontConverterTest.TestConvertFrom

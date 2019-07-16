@@ -9,6 +9,7 @@
 #include "eventpipe.h"
 #include "eventpipebuffermanager.h"
 #include "eventpipeconfiguration.h"
+#include "eventpipeeventpayload.h"
 #include "eventpipesessionprovider.h"
 #include "eventpipeevent.h"
 #include "eventpipeeventsource.h"
@@ -28,171 +29,41 @@
 #ifdef FEATURE_PERFTRACING
 
 CrstStatic EventPipe::s_configCrst;
-bool EventPipe::s_tracingInitialized = false;
-EventPipeConfiguration *EventPipe::s_pConfig = NULL;
-EventPipeSessions *EventPipe::s_pSessions = NULL;
-EventPipeEventSource *EventPipe::s_pEventSource = NULL;
-HANDLE EventPipe::s_fileSwitchTimerHandle = NULL;
-ULONGLONG EventPipe::s_lastFlushTime = 0;
-
-#ifdef FEATURE_PAL
-// This function is auto-generated from /src/scripts/genEventPipe.py
-extern "C" void InitProvidersAndEvents();
-#else
-void InitProvidersAndEvents();
+Volatile<EventPipeState> EventPipe::s_state(EventPipeState::NotInitialized);
+EventPipeConfiguration EventPipe::s_config;
+EventPipeEventSource *EventPipe::s_pEventSource = nullptr;
+VolatilePtr<EventPipeSession> EventPipe::s_pSessions[MaxNumberOfSessions];
+Volatile<uint64_t> EventPipe::s_allowWrite = 0;
+#ifndef FEATURE_PAL
+unsigned int * EventPipe::s_pProcGroupOffsets = nullptr;
 #endif
+Volatile<uint32_t> EventPipe::s_numberOfSessions(0);
 
-EventPipeEventPayload::EventPipeEventPayload(EventData *pEventData, unsigned int eventDataCount)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    m_pData = NULL;
-    m_pEventData = pEventData;
-    m_eventDataCount = eventDataCount;
-    m_allocatedData = false;
-
-    S_UINT32 tmp_size = S_UINT32(0);
-    for (unsigned int i = 0; i < m_eventDataCount; i++)
-    {
-        tmp_size += S_UINT32(m_pEventData[i].Size);
-    }
-
-    if (tmp_size.IsOverflow())
-    {
-        // If there is an overflow, drop the data and create an empty payload
-        m_pEventData = NULL;
-        m_eventDataCount = 0;
-        m_size = 0;
-    }
-    else
-    {
-        m_size = tmp_size.Value();
-    }
-}
-
-EventPipeEventPayload::~EventPipeEventPayload()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (m_allocatedData && m_pData != NULL)
-    {
-        delete[] m_pData;
-        m_pData = NULL;
-    }
-}
-
-void EventPipeEventPayload::Flatten()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (m_size > 0)
-    {
-        if (!IsFlattened())
-        {
-            BYTE *tmp_pData = new (nothrow) BYTE[m_size];
-            if (tmp_pData != NULL)
-            {
-                m_allocatedData = true;
-                CopyData(tmp_pData);
-                m_pData = tmp_pData;
-            }
-        }
-    }
-}
-
-void EventPipeEventPayload::CopyData(BYTE *pDst)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (m_size > 0)
-    {
-        if (IsFlattened())
-        {
-            memcpy(pDst, m_pData, m_size);
-        }
-
-        else if (m_pEventData != NULL)
-        {
-            unsigned int offset = 0;
-            for (unsigned int i = 0; i < m_eventDataCount; i++)
-            {
-                memcpy(pDst + offset, (BYTE *)m_pEventData[i].Ptr, m_pEventData[i].Size);
-                offset += m_pEventData[i].Size;
-            }
-        }
-    }
-}
-
-BYTE *EventPipeEventPayload::GetFlatData()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (!IsFlattened())
-    {
-        Flatten();
-    }
-    return m_pData;
-}
-
-void EventPipeProviderCallbackDataQueue::Enqueue(EventPipeProviderCallbackData *pEventPipeProviderCallbackData)
-{
-    SListElem<EventPipeProviderCallbackData> *listnode = new SListElem<EventPipeProviderCallbackData>(); // throws
-    listnode->m_Value = *pEventPipeProviderCallbackData;
-    list.InsertTail(listnode);
-}
-
-bool EventPipeProviderCallbackDataQueue::TryDequeue(EventPipeProviderCallbackData *pEventPipeProviderCallbackData)
-{
-    if (list.IsEmpty())
-        return false;
-
-    SListElem<EventPipeProviderCallbackData> *listnode = list.RemoveHead();
-    *pEventPipeProviderCallbackData = listnode->m_Value;
-    delete listnode;
-    return true;
-}
+// This function is auto-generated from /src/scripts/genEventPipe.py
+#ifdef FEATURE_PAL
+extern "C"
+#endif
+void InitProvidersAndEvents();
 
 void EventPipe::Initialize()
 {
     STANDARD_VM_CONTRACT;
 
-    s_tracingInitialized = s_configCrst.InitNoThrow(
+    if (s_state != EventPipeState::NotInitialized)
+    {
+        _ASSERTE(!"EventPipe::Initialize was already initialized.");
+        return;
+    }
+
+    const bool tracingInitialized = s_configCrst.InitNoThrow(
         CrstEventPipe,
         (CrstFlags)(CRST_REENTRANCY | CRST_TAKEN_DURING_SHUTDOWN | CRST_HOST_BREAKABLE));
 
-    s_pSessions = new EventPipeSessions();
-    s_pConfig = new EventPipeConfiguration(s_pSessions);
-    s_pConfig->Initialize();
+    // Initialize the session container to nullptr.
+    for (VolatilePtr<EventPipeSession> &session : s_pSessions)
+        session.Store(nullptr);
+
+    s_config.Initialize();
 
     s_pEventSource = new EventPipeEventSource();
 
@@ -203,6 +74,32 @@ void EventPipe::Initialize()
     // Set the sampling rate for the sample profiler.
     const unsigned long DefaultProfilerSamplingRateInNanoseconds = 1000000; // 1 msec.
     SampleProfiler::SetSamplingRate(DefaultProfilerSamplingRateInNanoseconds);
+
+
+    if (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_EventPipeProcNumbers) != 0)
+    {
+#ifndef FEATURE_PAL
+        // setup the windows processor group offset table
+        WORD numGroups = ::GetActiveProcessorGroupCount();
+        s_pProcGroupOffsets = new (nothrow) unsigned int[numGroups];
+        if (s_pProcGroupOffsets)
+        {
+            unsigned int countProcs = 0;
+            for (WORD i = 0; i < numGroups; i++)
+            {
+                s_pProcGroupOffsets[i] = countProcs;
+                countProcs += GetActiveProcessorCount(i);
+            }
+        }
+#endif
+    }
+
+
+    {
+        CrstHolder _crst(GetLock());
+        if (tracingInitialized)
+            s_state = EventPipeState::Initialized;
+    }
 }
 
 void EventPipe::Shutdown()
@@ -212,15 +109,9 @@ void EventPipe::Shutdown()
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
-        // These 3 pointers are initialized once on EventPipe::Initialize
-        //PRECONDITION(s_pConfig != nullptr);
-        //PRECONDITION(s_pEventSource != nullptr);
-        //PRECONDITION(s_pSessions != nullptr);
+        PRECONDITION(s_state != EventPipeState::ShuttingDown);
     }
     CONTRACTL_END;
-
-    if (s_pConfig == nullptr || s_pEventSource == nullptr || s_pSessions == nullptr)
-        return;
 
     if (g_fProcessDetach)
     {
@@ -236,46 +127,36 @@ void EventPipe::Shutdown()
         return;
     }
 
-    // Mark tracing as no longer initialized.
-    s_tracingInitialized = false;
+    if (s_state != EventPipeState::Initialized)
+        return;
 
     // We are shutting down, so if disabling EventPipe throws, we need to move along anyway.
     EX_TRY
     {
-        if (s_pSessions != nullptr)
         {
-            //  The sessions collection is modified inside Disable.
-            CQuickArrayList<EventPipeSessionID> sessionIds;
-            {
-                CrstHolder _crst(GetLock());
-                for (auto iterator = s_pSessions->Begin(); iterator != s_pSessions->End(); ++iterator)
-                    sessionIds.Push(iterator->Key());
-            }
-
-            for (SIZE_T i = 0; i < sessionIds.Size(); ++i)
-                Disable(sessionIds[i]);
+            CrstHolder _crst(GetLock());
+            s_state = EventPipeState::ShuttingDown;
         }
+
+        for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
+        {
+            EventPipeSession *pSession = s_pSessions[i].Load();
+            if (pSession)
+                Disable(reinterpret_cast<EventPipeSessionID>(pSession));
+        }
+
+        // dotnet/coreclr: issue 24850: EventPipe shutdown race conditions
+        // Deallocating providers/events here might cause AV if a WriteEvent
+        // was to occur. Thus, we are not doing this cleanup.
+
+        // // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
+        // // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
+        // delete s_pEventSource;
+        // s_pEventSource = nullptr;
+        // s_config.Shutdown();
     }
     EX_CATCH {}
     EX_END_CATCH(SwallowAllExceptions);
-
-    // Remove EventPipeEventSource first since it tries to use the data structures that we remove below.
-    // We need to do this after disabling sessions since those try to write to EventPipeEventSource.
-    delete s_pEventSource;
-    s_pEventSource = nullptr;
-
-    EventPipeConfiguration *pConfig = s_pConfig;
-    EventPipeSessions *pSessions = s_pSessions;
-
-    // Set the static pointers to NULL so that the rest of the EventPipe knows that they are no longer available.
-    // Flush process write buffers to make sure other threads can see the change.
-    s_pConfig = nullptr;
-    s_pSessions = nullptr;
-    FlushProcessWriteBuffers();
-
-    // Free resources.
-    delete pConfig;
-    delete pSessions;
 }
 
 EventPipeSessionID EventPipe::Enable(
@@ -284,6 +165,8 @@ EventPipeSessionID EventPipe::Enable(
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
     EventPipeSessionType sessionType,
+    EventPipeSerializationFormat format,
+    const bool rundownRequested,
     IpcStream *const pStream)
 {
     CONTRACTL
@@ -291,13 +174,11 @@ EventPipeSessionID EventPipe::Enable(
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(format < EventPipeSerializationFormat::Count);
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
     }
     CONTRACTL_END;
-
-    if (!s_tracingInitialized)
-        return 0;
 
     // If the state or arguments are invalid, bail here.
     if (sessionType == EventPipeSessionType::File && strOutputPath == nullptr)
@@ -307,25 +188,35 @@ EventPipeSessionID EventPipe::Enable(
 
     EventPipeSessionID sessionId = 0;
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        EventPipeSession *pSession = s_pConfig->CreateSession(
+        if (s_state != EventPipeState::Initialized)
+            return;
+
+        const uint32_t SessionIndex = GenerateSessionIndex();
+        if (SessionIndex >= EventPipe::MaxNumberOfSessions)
+            return;
+
+        EventPipeSession *const pSession = new EventPipeSession(
+            SessionIndex,
             strOutputPath,
             pStream,
             sessionType,
+            format,
+            rundownRequested,
             circularBufferSizeInMB,
             pProviders,
             numProviders);
 
-        if (pSession == nullptr)
-            return;
-        sessionId = EnableInternal(pSession, pEventPipeProviderCallbackDataQueue);
-        if (sessionId == 0)
+        const bool fSuccess = EnableInternal(pSession, pEventPipeProviderCallbackDataQueue);
+        if (fSuccess)
+            sessionId = reinterpret_cast<EventPipeSessionID>(pSession);
+        else
             delete pSession;
     });
 
     return sessionId;
 }
 
-EventPipeSessionID EventPipe::EnableInternal(
+bool EventPipe::EnableInternal(
     EventPipeSession *const pSession,
     EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
 {
@@ -334,19 +225,27 @@ EventPipeSessionID EventPipe::EnableInternal(
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(s_tracingInitialized);
-        PRECONDITION(s_pConfig != nullptr);
+        PRECONDITION(s_state == EventPipeState::Initialized);
         PRECONDITION(pSession != nullptr && pSession->IsValid());
         PRECONDITION(IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    // If tracing is not initialized or is already enabled, bail here.
-    if (!s_tracingInitialized || s_pConfig == nullptr)
-        return 0;
-
     if (pSession == nullptr || !pSession->IsValid())
-        return 0;
+        return false;
+
+    // Return if the index is invalid.
+    if (pSession->GetIndex() >= MaxNumberOfSessions)
+    {
+        _ASSERTE(!"Session index was out of range.");
+        return false;
+    }
+
+    if (s_numberOfSessions >= MaxNumberOfSessions)
+    {
+        _ASSERTE(!"Max number of sessions reached.");
+        return false;
+    }
 
     // Register the SampleProfiler the very first time.
     SampleProfiler::Initialize(pEventPipeProviderCallbackDataQueue);
@@ -355,10 +254,17 @@ EventPipeSessionID EventPipe::EnableInternal(
     s_pEventSource->Enable(pSession);
 
     // Save the session.
-    s_pSessions->Add(pSession->GetId(), pSession);
+    if (s_pSessions[pSession->GetIndex()].LoadWithoutBarrier() != nullptr)
+    {
+        _ASSERTE(!"Attempting to override an existing session.");
+        return false;
+    }
+    s_pSessions[pSession->GetIndex()].Store(pSession);
+    s_allowWrite |= pSession->GetMask();
+    ++s_numberOfSessions;
 
     // Enable tracing.
-    s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+    s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
 
     // Enable the sample profiler
     SampleProfiler::Enable(pEventPipeProviderCallbackDataQueue);
@@ -366,8 +272,7 @@ EventPipeSessionID EventPipe::EnableInternal(
     // Enable the session.
     pSession->Enable();
 
-    // Return the session ID.
-    return pSession->GetId();
+    return true;
 }
 
 void EventPipe::Disable(EventPipeSessionID id)
@@ -389,7 +294,8 @@ void EventPipe::Disable(EventPipeSessionID id)
     GCX_PREEMP();
 
     RunWithCallbackPostponed([&](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue) {
-        DisableInternal(id, pEventPipeProviderCallbackDataQueue);
+        if (s_numberOfSessions > 0)
+            DisableInternal(id, pEventPipeProviderCallbackDataQueue);
     });
 }
 
@@ -409,24 +315,24 @@ static void LogProcessInformationEvent(EventPipeEventSource &eventSource)
     eventSource.SendProcessInfo(pCmdLine);
 }
 
-void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue* pEventPipeProviderCallbackDataQueue)
+void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(s_pConfig != nullptr);
+        PRECONDITION(id != 0);
+        PRECONDITION(s_numberOfSessions > 0);
         PRECONDITION(IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (s_pConfig == nullptr || !s_pConfig->Enabled())
+    if (!IsSessionIdInCollection(id))
         return;
 
-    EventPipeSession *pSession = nullptr;
-    if (!s_pSessions->Lookup(id, &pSession) || (pSession == nullptr))
-        return;
+    // If the session was not found, then there is nothing else to do.
+    EventPipeSession *const pSession = reinterpret_cast<EventPipeSession *>(id);
 
     // Disable the profiler.
     SampleProfiler::Disable();
@@ -434,45 +340,75 @@ void EventPipe::DisableInternal(EventPipeSessionID id, EventPipeProviderCallback
     // Log the process information event.
     LogProcessInformationEvent(*s_pEventSource);
 
-    // Log the runtime information event.
-    ETW::InfoLog::RuntimeInformation(ETW::InfoLog::InfoStructs::Normal);
-
     // Disable pSession tracing.
-    s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
-    pSession->Disable();
+    s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
 
-    // Do rundown before fully stopping the session.
-    pSession->EnableRundown();
-    s_pConfig->Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+    pSession->Disable(); // WriteAllBuffersToFile, and remove providers.
 
-    pSession->ExecuteRundown();
-    s_pConfig->Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+    // Do rundown before fully stopping the session unless rundown wasn't requested
+    if (pSession->RundownRequested())
+    {
+        pSession->EnableRundown(); // Set Rundown provider.
 
-    // Remove the session.
-    s_pSessions->Remove(id);
-    s_pConfig->DeleteSession(pSession);
+        EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
+        if (pEventPipeThread != nullptr)
+        {
+            pEventPipeThread->SetAsRundownThread(pSession);
+            {
+                s_config.Enable(*pSession, pEventPipeProviderCallbackDataQueue);
+                {
+                    pSession->ExecuteRundown();
+                }
+                s_config.Disable(*pSession, pEventPipeProviderCallbackDataQueue);
+            }
+            pEventPipeThread->SetAsRundownThread(nullptr);
+        }
+        else
+        {
+            _ASSERTE(!"Failed to get or create the EventPipeThread for rundown events.");
+        }
+    }
 
-    // Delete deferred providers.
+    s_allowWrite &= ~(pSession->GetMask()); 
+    pSession->SuspendWriteEvent();
+    bool ignored;
+    pSession->WriteAllBuffersToFile(&ignored); // Flush the buffers to the stream/file
+
+    --s_numberOfSessions;
+
+    // At this point, we should not be writing events to this session anymore
+    // This is a good time to remove the session from the array.
+    _ASSERTE(s_pSessions[pSession->GetIndex()] == pSession);
+
+    // Remove the session from the array, and mask.
+    s_pSessions[pSession->GetIndex()].Store(nullptr);
+
+    // Write a final sequence point to the file now that all events have
+    // been emitted.
+    pSession->WriteSequencePointUnbuffered();
+
+    delete pSession;
+
     // Providers can't be deleted during tracing because they may be needed when serializing the file.
-    s_pConfig->DeleteDeferredProviders();
+    s_config.DeleteDeferredProviders();
 }
 
 EventPipeSession *EventPipe::GetSession(EventPipeSessionID id)
 {
     LIMITED_METHOD_CONTRACT;
-    CrstHolder _crst(GetLock());
 
-    if (s_pSessions == nullptr)
-        return nullptr;
+    {
+        CrstHolder _crst(GetLock());
 
-    EventPipeSession *pSession = nullptr;
-    return s_pSessions->Lookup(id, &pSession) ? pSession : nullptr;
-}
+        if (s_state == EventPipeState::NotInitialized)
+        {
+            _ASSERTE(!"EventPipe::GetSession invoked before EventPipe was initialized.");
+            return nullptr;
+        }
 
-bool EventPipe::Enabled()
-{
-    LIMITED_METHOD_CONTRACT;
-    return s_tracingInitialized && (s_pSessions != NULL) && (s_pSessions->GetCount() > 0);
+        return IsSessionIdInCollection(id) ?
+            reinterpret_cast<EventPipeSession*>(id) : nullptr;
+    }
 }
 
 EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventPipeCallback pCallbackFunction, void *pCallbackData)
@@ -505,12 +441,11 @@ EventPipeProvider *EventPipe::CreateProvider(const SString &providerName, EventP
     }
     CONTRACTL_END;
 
-    return (s_pConfig != NULL) ? s_pConfig->CreateProvider(
-                                     providerName,
-                                     pCallbackFunction,
-                                     pCallbackData,
-                                     pEventPipeProviderCallbackDataQueue)
-                               : nullptr;
+    return s_config.CreateProvider(
+        providerName,
+        pCallbackFunction,
+        pCallbackData,
+        pEventPipeProviderCallbackDataQueue);
 }
 
 EventPipeProvider *EventPipe::GetProvider(const SString &providerName)
@@ -523,7 +458,7 @@ EventPipeProvider *EventPipe::GetProvider(const SString &providerName)
     }
     CONTRACTL_END;
 
-    return (s_pConfig != NULL) ? s_pConfig->GetProvider(providerName) : nullptr;
+    return s_config.GetProvider(providerName);
 }
 
 void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
@@ -551,10 +486,7 @@ void EventPipe::DeleteProvider(EventPipeProvider *pProvider)
         else
         {
             // Delete the provider now.
-            if (s_pConfig != NULL)
-            {
-                s_pConfig->DeleteProvider(pProvider);
-            }
+            s_config.DeleteProvider(pProvider);
         }
     }
 }
@@ -594,13 +526,11 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
-        // PRECONDITION(s_pConfig != nullptr);
-        // PRECONDITION(s_pSessions != nullptr);
     }
     CONTRACTL_END;
 
-    // We can't procede without a configuration or sessions.
-    if (s_pConfig == nullptr || s_pSessions == nullptr)
+    // We can't proceed if tracing is not initialized.
+    if (s_state == EventPipeState::NotInitialized)
         return;
 
     // Exit early if the event is not enabled.
@@ -608,64 +538,109 @@ void EventPipe::WriteEventInternal(EventPipeEvent &event, EventPipeEventPayload 
         return;
 
     // Get the current thread;
-    Thread *pThread = GetThread();
+    Thread *const pThread = GetThread();
 
     // If the activity id isn't specified AND we are in a managed thread, pull it from the current thread.
     // If pThread is NULL (we aren't in writing from a managed thread) then pActivityId can be NULL
-    if (pActivityId == NULL && pThread != NULL)
-    {
+    if (pActivityId == nullptr && pThread != nullptr)
         pActivityId = pThread->GetActivityId();
+
+    WriteEventInternal(
+        pThread,
+        event,
+        payload,
+        pActivityId,
+        pRelatedActivityId);
+}
+
+void EventPipe::WriteEventInternal(
+    Thread *pThread,
+    EventPipeEvent &event,
+    EventPipeEventPayload &payload,
+    LPCGUID pActivityId,
+    LPCGUID pRelatedActivityId,
+    Thread *pEventThread,
+    StackContents *pStack)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    // We can't proceed if tracing is not initialized.
+    if (s_state == EventPipeState::NotInitialized)
+        return;
+
+    EventPipeThread *const pEventPipeThread = EventPipeThread::GetOrCreate();
+    if (pEventPipeThread == nullptr)
+    {
+        _ASSERTE(!"Failed to get or create an EventPipeThread.");
+        return;
     }
 
-    for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
-         iterator != s_pSessions->End();
-         ++iterator)
+    if (pEventPipeThread->IsRundownThread())
     {
-        const EventPipeSessionID &Id = iterator->Key();
-        EventPipeSession *const pSession = iterator->Value();
+        EventPipeSession *const pRundownSession = pEventPipeThread->GetRundownSession();
+        _ASSERTE(pRundownSession != nullptr);
+        _ASSERTE(pThread != nullptr);
 
-        _ASSERTE(s_pConfig->IsSessionIdValid(Id) && (pSession != nullptr));
-        if (!s_pConfig->IsSessionIdValid(Id) || pSession == nullptr)
-            continue;
-
-        if (!pSession->RundownEnabled())
+        BYTE *pData = payload.GetFlatData();
+        if (pThread != nullptr && pRundownSession != nullptr && pData != nullptr)
         {
-            pSession->WriteEvent(pThread, event, payload, pActivityId, pRelatedActivityId);
-        }
-        else
-        {
-            if (!pSession->IsRundownThread())
-                return;
-
-            _ASSERTE(pThread != nullptr);
-            BYTE *pData = payload.GetFlatData();
-            if (pData != NULL)
+            // EventPipeFile::WriteEvent needs to allocate a metadata event
+            // and can therefore throw. In this context we will silently
+            // fail rather than disrupt the caller
+            EX_TRY
             {
-                // Write synchronously to the file.
-                // We're under lock and blocking the disabling thread.
-                // This copy occurs here (rather than at file write) because
-                // A) The FastSerializer API would need to change if we waited
-                // B) It is unclear there is a benefit to multiple file write calls
-                //    as opposed a a buffer copy here
-                EventPipeEventInstance instance(
-                    event,
-                    pThread->GetOSThreadId(),
-                    pData,
-                    payload.GetSize(),
-                    pActivityId,
-                    pRelatedActivityId);
-                instance.EnsureStack(*pSession);
-
-                // EventPipeFile::WriteEvent needs to allocate a metadata event
-                // and can therefore throw. In this context we will silently
-                // fail rather than disrupt the caller
-                EX_TRY
-                {
-                    pSession->WriteEvent(instance);
-                }
-                EX_CATCH {}
-                EX_END_CATCH(SwallowAllExceptions);
+                _ASSERTE(pRundownSession != nullptr);
+                if (pRundownSession != nullptr)
+                    pRundownSession->WriteEventBuffered(
+                        pThread,
+                        event,
+                        payload,
+                        pActivityId,
+                        pRelatedActivityId,
+                        pEventThread,
+                        pStack);
             }
+            EX_CATCH {}
+            EX_END_CATCH(SwallowAllExceptions);
+        }
+    }
+    else
+    {
+        for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
+        {
+            if ((s_allowWrite & ((uint64_t)1 << i)) == 0)
+                continue;
+
+            // Now that we know this session is probably live we pay the perf cost of the memory barriers
+            // Setting this flag lets a thread trying to do a concurrent disable that it is not safe to delete
+            // session ID i. The if check above also ensures that once the session is unpublished this thread
+            // will eventually stop ever storing ID i into the WriteInProgress flag. This is important to
+            // guarantee termination of the YIELD_WHILE loop in SuspendWriteEvents.
+            pEventPipeThread->SetSessionWriteInProgress(i);
+            {
+                EventPipeSession *const pSession = s_pSessions[i].Load();
+
+                // Disable is allowed to set s_pSessions[i] = NULL at any time and that may have occured in between
+                // the check and the load
+                if (pSession != nullptr)
+                    pSession->WriteEventBuffered(
+                        pThread,
+                        event,
+                        payload,
+                        pActivityId,
+                        pRelatedActivityId,
+                        pEventThread,
+                        pStack);
+            }
+            // Do not reference pSession past this point, we are signaling Disable() that it is safe to
+            // delete it
+            pEventPipeThread->SetSessionWriteInProgress(UINT32_MAX);
         }
     }
 }
@@ -677,37 +652,20 @@ void EventPipe::WriteSampleProfileEvent(Thread *pSamplingThread, EventPipeEvent 
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(pEvent != nullptr);
     }
     CONTRACTL_END;
 
-    if (s_pSessions == nullptr || s_pConfig == nullptr)
-        return;
-
     EventPipeEventPayload payload(pData, length);
-
-    // Write the event to the thread's buffer.
-    // Specify the sampling thread as the "current thread", so that we select the right buffer.
-    // Specify the target thread so that the event gets properly attributed.
-    for (EventPipeSessions::Iterator iterator = s_pSessions->Begin();
-         iterator != s_pSessions->End();
-         ++iterator)
-    {
-        const EventPipeSessionID &Id = iterator->Key();
-        EventPipeSession *const pSession = iterator->Value();
-
-        _ASSERTE(s_pConfig->IsSessionIdValid(Id) && (pSession != nullptr));
-        if (!s_pConfig->IsSessionIdValid(Id) || (pSession == nullptr))
-            continue;
-
-        pSession->WriteEvent(
-            pSamplingThread,
-            *pEvent,
-            payload,
-            NULL /* pActivityId */,
-            NULL /* pRelatedActivityId */,
-            pTargetThread,
-            &stackContents);
-    }
+    WriteEventInternal(
+        pSamplingThread,
+        *pEvent,
+        payload,
+        nullptr /* pActivityId */,
+        nullptr /* pRelatedActivityId */,
+        pTargetThread,
+        &stackContents
+    );
 }
 
 bool EventPipe::WalkManagedStackForCurrentThread(StackContents &stackContents)
@@ -783,6 +741,35 @@ StackWalkAction EventPipe::StackWalkCallback(CrawlFrame *pCf, StackContents *pDa
     return SWA_CONTINUE;
 }
 
+uint32_t EventPipe::GenerateSessionIndex()
+{
+    LIMITED_METHOD_CONTRACT;
+    PRECONDITION(IsLockOwnedByCurrentThread());
+
+    for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
+        if (s_pSessions[i].LoadWithoutBarrier() == nullptr)
+            return i;
+    return MaxNumberOfSessions;
+}
+
+bool EventPipe::IsSessionIdInCollection(EventPipeSessionID id)
+{
+    LIMITED_METHOD_CONTRACT;
+    PRECONDITION(id != 0);
+    PRECONDITION(IsLockOwnedByCurrentThread());
+
+    const EventPipeSession *const pSession = reinterpret_cast<EventPipeSession *>(id);
+    for (uint32_t i = 0; i < MaxNumberOfSessions; ++i)
+    {
+        if (s_pSessions[i] == pSession)
+        {
+            _ASSERTE(i == pSession->GetIndex());
+            return true;
+        }
+    }
+    return false;
+}
+
 EventPipeEventInstance *EventPipe::GetNextEvent(EventPipeSessionID sessionID)
 {
     CONTRACTL
@@ -796,8 +783,16 @@ EventPipeEventInstance *EventPipe::GetNextEvent(EventPipeSessionID sessionID)
 
     // Only fetch the next event if a tracing session exists.
     // The buffer manager is not disposed until the process is shutdown.
-    EventPipeSession *pSession = nullptr;
-    return s_pSessions->Lookup(sessionID, &pSession) ? pSession->GetNextEvent() : nullptr;
+    EventPipeSession *const pSession = GetSession(sessionID);
+    return pSession ? pSession->GetNextEvent() : nullptr;
+}
+
+HANDLE EventPipe::GetWaitHandle(EventPipeSessionID sessionID)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    EventPipeSession *const pSession = GetSession(sessionID);
+    return pSession ? pSession->GetWaitEvent()->GetHandleUNHOSTED() : 0;
 }
 
 void EventPipe::InvokeCallback(EventPipeProviderCallbackData eventPipeProviderCallbackData)
@@ -815,8 +810,7 @@ EventPipeEventInstance *EventPipe::BuildEventMetadataEvent(EventPipeEventInstanc
     }
     CONTRACTL_END;
 
-    // s_pConfig Gets initialized once on EventPipe::Initialize
-    return (s_pConfig != nullptr) ? s_pConfig->BuildEventMetadataEvent(instance, metadataId) : nullptr;
+    return s_config.BuildEventMetadataEvent(instance, metadataId);
 }
 
 #ifdef DEBUG

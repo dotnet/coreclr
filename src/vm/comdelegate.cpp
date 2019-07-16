@@ -1617,6 +1617,9 @@ extern "C" void * _ReturnAddress(void);
 FCIMPL3(void, COMDelegate::DelegateConstruct, Object* refThisUNSAFE, Object* targetUNSAFE, PCODE method)
 {
     FCALL_CONTRACT;
+    // If you modify this logic, please update DacDbiInterfaceImpl::GetDelegateType, DacDbiInterfaceImpl::GetDelegateType,
+    // DacDbiInterfaceImpl::GetDelegateFunctionData, and DacDbiInterfaceImpl::GetDelegateTargetObject.
+
 
     struct _gc
     {
@@ -1784,6 +1787,9 @@ MethodDesc *COMDelegate::GetMethodDesc(OBJECTREF orDelegate)
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;
+
+    // If you modify this logic, please update DacDbiInterfaceImpl::GetDelegateType, DacDbiInterfaceImpl::GetDelegateType,
+    // DacDbiInterfaceImpl::GetDelegateFunctionData, and DacDbiInterfaceImpl::GetDelegateTargetObject.
 
     MethodDesc *pMethodHandle = NULL;
 
@@ -3060,6 +3066,10 @@ MethodDesc* COMDelegate::GetDelegateCtor(TypeHandle delegateType, MethodDesc *pT
     //
     // Another is to pass a gchandle to the delegate ctor. This is fastest, but only works if we can predict the gc handle at this time. 
     //  We will use this for the non secure variants
+    //
+    // If you modify this logic, please update DacDbiInterfaceImpl::GetDelegateType, DacDbiInterfaceImpl::GetDelegateType,
+    // DacDbiInterfaceImpl::GetDelegateFunctionData, and DacDbiInterfaceImpl::GetDelegateTargetObject.
+
 
     if (invokeArgCount == methodArgCount) 
     {
@@ -3202,109 +3212,6 @@ BOOL COMDelegate::ValidateCtor(TypeHandle instHnd,
     if (pDlgtInvoke == NULL)
         return FALSE;
     return IsMethodDescCompatible(instHnd, ftnParentHnd, pFtn, dlgtHnd, pDlgtInvoke, DBF_RelaxedSignature, pfIsOpenDelegate);
-}
-
-BOOL COMDelegate::ValidateBeginInvoke(DelegateEEClass* pClass)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-
-        PRECONDITION(CheckPointer(pClass));
-        PRECONDITION(CheckPointer(pClass->GetBeginInvokeMethod()));
-
-        // insert fault. Can the binder throw an OOM?
-    }
-    CONTRACTL_END;
-
-    if (pClass->GetInvokeMethod() == NULL)
-        return FALSE;
-
-    // We check the signatures under the typical instantiation of the possibly generic class 
-    MetaSig beginInvokeSig(pClass->GetBeginInvokeMethod()->LoadTypicalMethodDefinition());
-    MetaSig invokeSig(pClass->GetInvokeMethod()->LoadTypicalMethodDefinition());
-
-    if (beginInvokeSig.GetCallingConventionInfo() != (IMAGE_CEE_CS_CALLCONV_HASTHIS | IMAGE_CEE_CS_CALLCONV_DEFAULT))
-        return FALSE;
-
-    if (beginInvokeSig.NumFixedArgs() != invokeSig.NumFixedArgs() + 2)
-        return FALSE;
-
-    if (beginInvokeSig.GetRetTypeHandleThrowing() != TypeHandle(MscorlibBinder::GetClass(CLASS__IASYNCRESULT)))
-        return FALSE;
-
-    while(invokeSig.NextArg() != ELEMENT_TYPE_END)
-    {
-        beginInvokeSig.NextArg();
-        if (beginInvokeSig.GetLastTypeHandleThrowing() != invokeSig.GetLastTypeHandleThrowing())
-            return FALSE;
-    }
-
-    beginInvokeSig.NextArg();
-    if (beginInvokeSig.GetLastTypeHandleThrowing()!= TypeHandle(MscorlibBinder::GetClass(CLASS__ASYNCCALLBACK)))
-        return FALSE;
-
-    beginInvokeSig.NextArg();
-    if (beginInvokeSig.GetLastTypeHandleThrowing()!= TypeHandle(g_pObjectClass))
-        return FALSE;
-
-    if (beginInvokeSig.NextArg() != ELEMENT_TYPE_END)
-        return FALSE;
-
-    return TRUE;
-}
-
-BOOL COMDelegate::ValidateEndInvoke(DelegateEEClass* pClass)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-
-        PRECONDITION(CheckPointer(pClass));
-        PRECONDITION(CheckPointer(pClass->GetEndInvokeMethod()));
-
-        // insert fault. Can the binder throw an OOM?
-    }
-    CONTRACTL_END;
-
-    if (pClass->GetInvokeMethod() == NULL)
-        return FALSE;
-
-    // We check the signatures under the typical instantiation of the possibly generic class 
-    MetaSig endInvokeSig(pClass->GetEndInvokeMethod()->LoadTypicalMethodDefinition());
-    MetaSig invokeSig(pClass->GetInvokeMethod()->LoadTypicalMethodDefinition());
-
-    if (endInvokeSig.GetCallingConventionInfo() != (IMAGE_CEE_CS_CALLCONV_HASTHIS | IMAGE_CEE_CS_CALLCONV_DEFAULT))
-        return FALSE;
-
-    if (endInvokeSig.GetRetTypeHandleThrowing() != invokeSig.GetRetTypeHandleThrowing())
-        return FALSE;
-
-    CorElementType type;
-    while((type = invokeSig.NextArg()) != ELEMENT_TYPE_END)
-    {
-        if (type == ELEMENT_TYPE_BYREF)
-        {
-            endInvokeSig.NextArg();
-            if (endInvokeSig.GetLastTypeHandleThrowing() != invokeSig.GetLastTypeHandleThrowing())
-                return FALSE;
-        }
-    }
-
-    if (endInvokeSig.NextArg() == ELEMENT_TYPE_END)
-        return FALSE;
-
-    if (endInvokeSig.GetLastTypeHandleThrowing() != TypeHandle(MscorlibBinder::GetClass(CLASS__IASYNCRESULT)))
-        return FALSE;
-
-    if (endInvokeSig.NextArg() != ELEMENT_TYPE_END)
-        return FALSE;
-
-    return TRUE;
 }
 
 BOOL COMDelegate::IsSecureDelegate(DELEGATEREF dRef)

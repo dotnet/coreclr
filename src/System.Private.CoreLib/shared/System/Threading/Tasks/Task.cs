@@ -194,12 +194,10 @@ namespace System.Threading.Tasks
         {
             Debug.Assert(task != null, "Null Task objects can't be added to the ActiveTasks collection");
 
-#pragma warning disable CS8634 // TODO-NULLABLE: Remove warning disable when nullable attributes are respected
             LazyInitializer.EnsureInitialized(ref s_currentActiveTasks, () => new Dictionary<int, Task>());
-#pragma warning restore CS8634
 
             int taskId = task.Id;
-            lock (s_currentActiveTasks!) // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            lock (s_currentActiveTasks)
             {
                 s_currentActiveTasks[taskId] = task;
             }
@@ -1345,9 +1343,7 @@ namespace System.Threading.Tasks
         /// <returns>The initialized contingent properties object.</returns>
         internal ContingentProperties EnsureContingentPropertiesInitialized()
         {
-#pragma warning disable CS8634 // TODO-NULLABLE: Remove warning disable when nullable attributes are respected
-            return LazyInitializer.EnsureInitialized(ref m_contingentProperties, () => new ContingentProperties())!;
-#pragma warning restore CS8634
+            return LazyInitializer.EnsureInitialized(ref m_contingentProperties, () => new ContingentProperties());
         }
 
         /// <summary>
@@ -3300,11 +3296,10 @@ namespace System.Threading.Tasks
         {
             Debug.Assert(continuationObject != null);
 
-            TplEventSource log = TplEventSource.Log;
-            bool TplEventSourceLoggingEnabled = log.IsEnabled();
-            if (TplEventSourceLoggingEnabled)
+            TplEventSource? log = TplEventSource.Log;
+            if (!log.IsEnabled())
             {
-                log.RunningContinuation(Id, continuationObject);
+                log = null;
             }
 
             if (AsyncCausalityTracer.LoggingOn)
@@ -3355,26 +3350,64 @@ namespace System.Threading.Tasks
             lock (continuations) { }
             int continuationCount = continuations.Count;
 
-            // Fire the asynchronous continuations first ...
-            for (int i = 0; i < continuationCount; i++)
+            // Fire the asynchronous continuations first. However, if we're not able to run any continuations synchronously,
+            // then we can skip this first pass, since the second pass that tries to run everything synchronously will instead
+            // run everything asynchronously anyway.
+            if (canInlineContinuations)
             {
-                // Synchronous continuation tasks will have the ExecuteSynchronously option,
-                // and we're looking for asynchronous tasks...
-                if (continuations[i] is StandardTaskContinuation tc &&
-                    (tc.m_options & TaskContinuationOptions.ExecuteSynchronously) == 0)
+                bool forceContinuationsAsync = false;
+                for (int i = 0; i < continuationCount; i++)
                 {
-                    if (TplEventSourceLoggingEnabled)
+                    // For StandardTaskContinuations, we respect the TaskContinuationOptions.ExecuteSynchronously option,
+                    // as the developer needs to explicitly opt-into running the continuation synchronously, and if they do,
+                    // they get what they asked for. ITaskCompletionActions are only ever created by the runtime, and we always
+                    // try to execute them synchronously. For all other continuations (related to await), we only run it synchronously
+                    // if it's the first such continuation; otherwise, we force it to run asynchronously so as to not artificially
+                    // delay an await continuation behind other arbitrary user code created as a previous await continuation.
+
+                    object? currentContinuation = continuations[i];
+                    if (currentContinuation == null)
                     {
-                        log.RunningContinuationList(Id, i, tc);
+                        // The continuation was unregistered and null'd out, so just skip it.
+                        continue;
                     }
-                    continuations[i] = null; // so that we can skip this later
-                    tc.Run(this, canInlineContinuations);
+                    else if (currentContinuation is StandardTaskContinuation stc)
+                    {
+                        if ((stc.m_options & TaskContinuationOptions.ExecuteSynchronously) == 0)
+                        {
+                            continuations[i] = null; // so that we can skip this later
+                            log?.RunningContinuationList(Id, i, stc);
+                            stc.Run(this, canInlineContinuationTask: false);
+                        }
+                    }
+                    else if (!(currentContinuation is ITaskCompletionAction))
+                    {
+                        if (forceContinuationsAsync)
+                        {
+                            continuations[i] = null;
+                            log?.RunningContinuationList(Id, i, currentContinuation);
+                            switch (currentContinuation)
+                            {
+                                case IAsyncStateMachineBox stateMachineBox:
+                                    AwaitTaskContinuation.RunOrScheduleAction(stateMachineBox, allowInlining: false);
+                                    break;
+
+                                case Action action:
+                                    AwaitTaskContinuation.RunOrScheduleAction(action, allowInlining: false);
+                                    break;
+
+                                default:
+                                    Debug.Assert(currentContinuation is TaskContinuation);
+                                    ((TaskContinuation)currentContinuation).Run(this, canInlineContinuationTask: false);
+                                    break;
+                            }
+                        }
+                        forceContinuationsAsync = true;
+                    }
                 }
             }
 
             // ... and then fire the synchronous continuations (if there are any).
-            // This includes ITaskCompletionAction, AwaitTaskContinuations, IAsyncStateMachineBox,
-            // and Action delegates, which are all by default implicitly synchronous.
             for (int i = 0; i < continuationCount; i++)
             {
                 object? currentContinuation = continuations[i];
@@ -3383,10 +3416,7 @@ namespace System.Threading.Tasks
                     continue;
                 }
                 continuations[i] = null; // to enable free'ing up memory earlier
-                if (TplEventSourceLoggingEnabled)
-                {
-                    log.RunningContinuationList(Id, i, currentContinuation);
-                }
+                log?.RunningContinuationList(Id, i, currentContinuation);
 
                 switch (currentContinuation)
                 {
@@ -5178,7 +5208,7 @@ namespace System.Threading.Tasks
         {
             if (!cancellationToken.IsCancellationRequested)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.cancellationToken);
-            return new Task<TResult>(true, default!, TaskCreationOptions.None, cancellationToken); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            return new Task<TResult>(true, default, TaskCreationOptions.None, cancellationToken);
         }
 
         /// <summary>Creates a <see cref="Task"/> that's completed due to cancellation with the specified exception.</summary>
@@ -6664,7 +6694,7 @@ namespace System.Threading.Tasks
                     if (Task.s_asyncDebuggingEnabled)
                         RemoveFromActiveTasks(this);
 
-                    result = TrySetResult(taskTResult != null ? taskTResult.Result : default!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                    result = TrySetResult(taskTResult != null ? taskTResult.Result : default);
                     break;
             }
             return result;

@@ -168,6 +168,7 @@ class     CRWLock;
 struct    LockEntry;
 class     PendingTypeLoadHolder;
 class     PrepareCodeConfig;
+class     NativeCodeVersion;
 
 struct    ThreadLocalBlock;
 typedef DPTR(struct ThreadLocalBlock) PTR_ThreadLocalBlock;
@@ -493,8 +494,11 @@ typedef Thread::ForbidSuspendThreadHolder ForbidSuspendThreadHolder;
 
 #else // CROSSGEN_COMPILE
 
-#ifdef _TARGET_ARM_
+#if (defined(_TARGET_ARM_) && defined(FEATURE_EMULATE_SINGLESTEP))
 #include "armsinglestepper.h"
+#endif
+#if (defined(_TARGET_ARM64_) && defined(FEATURE_EMULATE_SINGLESTEP))
+#include "arm64singlestepper.h"
 #endif
 
 #if !defined(PLATFORM_SUPPORTS_SAFE_THREADSUSPEND)
@@ -2561,6 +2565,10 @@ public:
         return m_ThreadId;
     }
 
+    // The actual OS thread ID may be 64 bit on some platforms but 
+    // the runtime has historically used 32 bit IDs. We continue to
+    // downcast by default to limit the impact but GetOSThreadId64()
+    // is available for code-paths which correctly handle it.
     DWORD       GetOSThreadId()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2568,17 +2576,29 @@ public:
 #ifndef DACCESS_COMPILE
         _ASSERTE (m_OSThreadId != 0xbaadf00d);
 #endif // !DACCESS_COMPILE
+        return (DWORD)m_OSThreadId;
+    }
+
+    // Allows access to the full 64 bit id on platforms which use it
+    SIZE_T      GetOSThreadId64()
+    {
+        LIMITED_METHOD_CONTRACT;
+        SUPPORTS_DAC;
+#ifndef DACCESS_COMPILE
+        _ASSERTE(m_OSThreadId != 0xbaadf00d);
+#endif // !DACCESS_COMPILE
         return m_OSThreadId;
     }
 
     // This API is to be used for Debugger only.
     // We need to be able to return the true value of m_OSThreadId.
+    // On platforms with 64 bit thread IDs we downcast to 32 bit.
     //
     DWORD       GetOSThreadIdForDebugger()
     {
         SUPPORTS_DAC;
         LIMITED_METHOD_CONTRACT;
-        return m_OSThreadId;
+        return (DWORD) m_OSThreadId;
     }
 
     BOOL        IsThreadPoolThread()
@@ -2893,11 +2913,16 @@ public:
             ResetThreadStateNC(Thread::TSNC_DebuggerIsStepping);
     }
 
-#ifdef _TARGET_ARM_
-    // ARM doesn't currently support any reliable hardware mechanism for single-stepping. Instead we emulate
-    // this in software. This support is used only by the debugger.
+#ifdef FEATURE_EMULATE_SINGLESTEP
+    // ARM doesn't currently support any reliable hardware mechanism for single-stepping.
+    // ARM64 unix doesn't currently support any reliable hardware mechanism for single-stepping.
+    // For each we emulate single step in software. This support is used only by the debugger.
 private:
+#if defined(_TARGET_ARM_)
     ArmSingleStepper m_singleStepper;
+#else
+    Arm64SingleStepper m_singleStepper;
+#endif
 public:
 #ifndef DACCESS_COMPILE
     // Given the context with which this thread shall be resumed and the first WORD of the instruction that
@@ -2910,9 +2935,13 @@ public:
         m_singleStepper.Enable();
     }
 
-    void BypassWithSingleStep(DWORD ip, WORD opcode1, WORD opcode2)
+    void BypassWithSingleStep(const void* ip ARM_ARG(WORD opcode1) ARM_ARG(WORD opcode2) ARM64_ARG(uint32_t opcode))
     {
-        m_singleStepper.Bypass(ip, opcode1, opcode2);
+#if defined(_TARGET_ARM_)
+        m_singleStepper.Bypass((DWORD)ip, opcode1, opcode2);
+#else
+        m_singleStepper.Bypass((uint64_t)ip, opcode);
+#endif
     }
 
     void DisableSingleStep()
@@ -2938,7 +2967,7 @@ public:
         return m_singleStepper.Fixup(pCtx, dwExceptionCode);
     }
 #endif // !DACCESS_COMPILE
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     private:
 
@@ -3639,7 +3668,7 @@ private:
                 || handle == SWITCHOUT_HANDLE_VALUE
                 || m_OSThreadId == 0
                 || m_OSThreadId == 0xbaadf00d
-                || ::MatchThreadHandleToOsId(handle, m_OSThreadId) );
+                || ::MatchThreadHandleToOsId(handle, (DWORD)m_OSThreadId) );
         }
 #endif
 
@@ -3655,7 +3684,7 @@ private:
             || h == SWITCHOUT_HANDLE_VALUE
             || m_OSThreadId == 0
             || m_OSThreadId == 0xbaadf00d
-            || ::MatchThreadHandleToOsId(h, m_OSThreadId) );
+            || ::MatchThreadHandleToOsId(h, (DWORD)m_OSThreadId) );
 #endif
         FastInterlockExchangePointer(&m_ThreadHandle, h);
     }
@@ -3672,7 +3701,7 @@ private:
     HANDLE          m_ThreadHandleForClose;
     HANDLE          m_ThreadHandleForResume;
     BOOL            m_WeOwnThreadHandle;
-    DWORD           m_OSThreadId;
+    SIZE_T          m_OSThreadId;
 
     BOOL CreateNewOSThread(SIZE_T stackSize, LPTHREAD_START_ROUTINE start, void *args);
 
@@ -3684,7 +3713,7 @@ private:
     friend class NDirect; // Quick access to thread stub creation
 
 #ifdef HAVE_GCCOVER
-    friend void DoGcStress (PT_CONTEXT regs, MethodDesc *pMD);  // Needs to call UnhijackThread
+    friend void DoGcStress (PT_CONTEXT regs, NativeCodeVersion nativeCodeVersion);  // Needs to call UnhijackThread
 #endif // HAVE_GCCOVER
 
     ULONG           m_ExternalRefCount;

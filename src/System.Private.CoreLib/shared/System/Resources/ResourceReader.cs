@@ -1030,9 +1030,7 @@ namespace System.Resources
                 }
             }
 
-#pragma warning disable CS8612 // TODO-NULLABLE: Covariant return types (https://github.com/dotnet/roslyn/issues/23268)
             public object Current => Entry;
-#pragma warning restore CS8612
 
             // Warning: This requires that you call the Key or Entry property FIRST before calling it!
             internal int DataPosition => _dataPosition;

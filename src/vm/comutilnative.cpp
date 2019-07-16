@@ -125,15 +125,6 @@ FCIMPL1(FC_BOOL_RET, ExceptionNative::IsImmutableAgileException, Object* pExcept
 }
 FCIMPLEND
 
-FCIMPL1(FC_BOOL_RET, ExceptionNative::IsTransient, INT32 hresult)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(Exception::IsTransient(hresult));
-}
-FCIMPLEND
-
-
 // This FCall sets a flag against the thread exception state to indicate to
 // IL_Throw and the StackTraceInfo implementation to account for the fact
 // that we have restored a foreign exception dispatch details.
@@ -826,13 +817,6 @@ void QCALLTYPE Buffer::MemMove(void *dst, void *src, size_t length)
 {
     QCALL_CONTRACT;
 
-#if !defined(FEATURE_CORESYSTEM)
-    // Callers of memcpy do expect and handle access violations in some scenarios.
-    // Access violations in the runtime dll are turned into fail fast by the vector exception handler by default.
-    // We need to supress this behavior for CoreCLR using AVInRuntimeImplOkayHolder because of memcpy is statically linked in.
-    AVInRuntimeImplOkayHolder avOk;
-#endif
-
     memmove(dst, src, length);
 }
 
@@ -893,15 +877,15 @@ UINT64   GCInterface::m_remPressure[NEW_PRESSURE_COUNT] = {0, 0, 0, 0};   // his
 // (m_iteration % NEW_PRESSURE_COUNT) is used as an index into m_addPressure and m_remPressure
 UINT     GCInterface::m_iteration = 0;
 
-FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation)
+FCIMPL6(void, GCInterface::GetMemoryInfo, UINT64* highMemLoadThreshold, UINT64* totalAvailableMemoryBytes, UINT64* lastRecordedMemLoadBytes, UINT32* lastRecordedMemLoadPct, size_t* lastRecordedHeapSizeBytes, size_t* lastRecordedFragmentationBytes)
 {
     FCALL_CONTRACT;
 
     FC_GC_POLL_NOT_NEEDED();
     
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem, 
-                                                       lastRecordedMemLoad, 
-                                                       lastRecordedHeapSize, lastRecordedFragmentation);
+    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalAvailableMemoryBytes,
+                                                       lastRecordedMemLoadBytes, lastRecordedMemLoadPct, 
+                                                       lastRecordedHeapSizeBytes, lastRecordedFragmentationBytes);
 }
 FCIMPLEND
 
@@ -1342,7 +1326,7 @@ FCIMPLEND;
 **Arguments: args-> pointer to section, size of section
 **Exceptions: None
 ==============================================================================*/
-void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, INT32 sizeSection)
+void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, SIZE_T sizeSection)
 {
     QCALL_CONTRACT;
 

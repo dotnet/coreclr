@@ -16,6 +16,7 @@ class EventPipeEventInstance;
 class EventPipeFile;
 class EventPipeSessionProvider;
 class EventPipeSessionProviderList;
+class EventPipeThread;
 
 // TODO: Revisit the need of this enum and its usage.
 enum class EventPipeSessionType
@@ -25,20 +26,34 @@ enum class EventPipeSessionType
     IpcStream
 };
 
+enum class EventPipeSerializationFormat
+{
+    // Default format used in .Net Core 2.0-3.0 Preview 6
+    // TBD - it may remain the default format .Net Core 3.0 when
+    // used with private EventPipe managed API via reflection.
+    // This format had limited official exposure in documented
+    // end-user RTM scenarios, but it is supported by PerfView,
+    // TraceEvent, and was used by AI profiler
+    NetPerfV3,
+
+    // Default format we plan to use in .Net Core 3 Preview7+
+    // for most if not all scenarios
+    NetTraceV4,
+
+    Count
+};
+
+//! Encapsulates an EventPipe session information and memory management.
 class EventPipeSession
 {
 private:
-
-    const EventPipeSessionID m_Id;
+    const uint32_t m_index;
 
     // The set of configurations for each provider in the session.
-    EventPipeSessionProviderList *m_pProviderList;
-
-    // The configured size of the circular buffer.
-    const size_t m_CircularBufferSizeInBytes;
+    EventPipeSessionProviderList *const m_pProviderList;
 
     // Session buffer manager.
-    EventPipeBufferManager *const m_pBufferManager;
+    EventPipeBufferManager * m_pBufferManager;
 
     // True if rundown is enabled.
     Volatile<bool> m_rundownEnabled;
@@ -46,6 +61,13 @@ private:
     // The type of the session.
     // This determines behavior within the system (e.g. policies around which events to drop, etc.)
     const EventPipeSessionType m_SessionType;
+
+    // For file/IPC sessions this controls the format emitted. For in-proc EventListener it is
+    // irrelevant.
+    EventPipeSerializationFormat m_format;
+
+    // For determininig if a particular session needs rundown events
+    const bool m_rundownRequested;
 
     // Start date and time in UTC.
     FILETIME m_sessionStartTime;
@@ -59,20 +81,15 @@ private:
     // Data members used when an IPC streaming thread is used.
     Volatile<BOOL> m_ipcStreamingEnabled = false;
 
-    //
+    // When the session is of IPC type, this becomes a handle to the streaming thread.
     Thread *m_pIpcStreamingThread = nullptr;
 
-    //
+    // Event object used to signal Disable that the IPC streaming thread is done.
     CLREvent m_threadShutdownEvent;
-
-    //
-    Thread *m_pRundownThread = nullptr;
 
     void CreateIpcStreamingThread();
 
     static DWORD WINAPI ThreadProc(void *args);
-
-    void DestroyIpcStreamingThread();
 
     void SetThreadShutdownEvent();
 
@@ -80,20 +97,28 @@ private:
 
 public:
     EventPipeSession(
-        EventPipeSessionID id,
+        uint32_t index,
         LPCWSTR strOutputPath,
         IpcStream *const pStream,
         EventPipeSessionType sessionType,
-        unsigned int circularBufferSizeInMB,
+        EventPipeSerializationFormat format,
+        bool rundownRequested,
+        uint32_t circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
         bool rundownEnabled = false);
     ~EventPipeSession();
 
-    EventPipeSessionID GetId() const
+    uint64_t GetMask() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_Id;
+        return ((uint64_t)1 << m_index);
+    }
+
+    uint32_t GetIndex() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_index;
     }
 
     // Get the session type.
@@ -103,11 +128,18 @@ public:
         return m_SessionType;
     }
 
-    // Get the configured size of the circular buffer.
-    size_t GetCircularBufferSize() const
+    // Get the format version used by the file/IPC serializer
+    EventPipeSerializationFormat GetSerializationFormat() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_CircularBufferSizeInBytes;
+        return m_format;
+    }
+
+    // Get whether rundown was requested by the client.
+    bool RundownRequested() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_rundownRequested;
     }
 
     // Determine if rundown is enabled.
@@ -124,12 +156,6 @@ public:
         return m_sessionStartTime;
     }
 
-    bool IsRundownThread() const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (m_pRundownThread == GetThread());
-    }
-
     // Get the session start timestamp.
     LARGE_INTEGER GetStartTimeStamp() const
     {
@@ -143,15 +169,29 @@ public:
         return m_ipcStreamingEnabled;
     }
 
+#ifdef DEBUG
+    EventPipeBufferManager* GetBufferManager() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pBufferManager;
+    }
+#endif
+
+    Thread *GetIpcStreamingThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_pIpcStreamingThread;
+    }
+
     // Add a new provider to the session.
     void AddSessionProvider(EventPipeSessionProvider *pProvider);
 
     // Get the session provider for the specified provider if present.
-    EventPipeSessionProvider* GetSessionProvider(EventPipeProvider *pProvider);
+    EventPipeSessionProvider* GetSessionProvider(const EventPipeProvider *pProvider) const;
 
-    bool WriteAllBuffersToFile();
+    bool WriteAllBuffersToFile(bool *pEventsWritten);
 
-    bool WriteEvent(
+    bool WriteEventBuffered(
         Thread *pThread,
         EventPipeEvent &event,
         EventPipeEventPayload &payload,
@@ -160,21 +200,29 @@ public:
         Thread *pEventThread = nullptr,
         StackContents *pStack = nullptr);
 
-    void WriteEvent(EventPipeEventInstance &instance);
+    // Write a sequence point into the output stream synchronously
+    void WriteSequencePointUnbuffered();
 
     EventPipeEventInstance *GetNextEvent();
+
+    CLREvent *GetWaitEvent();
 
     // Enable a session in the event pipe.
     void Enable();
 
     // Disable a session in the event pipe.
+    // side-effects: writes all buffers to stream/file
     void Disable();
+
+    // Force all in-progress writes to either finish or cancel
+    // This is required to ensure we can safely flush and delete the buffers
+    void SuspendWriteEvent();
 
     void EnableRundown();
     void ExecuteRundown();
 
     // Determine if the session is valid or not.  Invalid sessions can be detected before they are enabled.
-    bool IsValid() /* This is not const because CrtsHolder does not take a const* */;
+    bool IsValid() const;
 
     bool HasIpcStreamingStarted() /* This is not const because CrtsHolder does not take a const* */;
 };

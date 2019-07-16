@@ -13,30 +13,45 @@
 #ifdef FEATURE_PERFTRACING
 
 EventPipeSession::EventPipeSession(
-    EventPipeSessionID id,
+    uint32_t index,
     LPCWSTR strOutputPath,
     IpcStream *const pStream,
     EventPipeSessionType sessionType,
-    unsigned int circularBufferSizeInMB,
+    EventPipeSerializationFormat format,
+    bool rundownSwitch,
+    uint32_t circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
-    bool rundownEnabled) : m_Id(id),
+    bool rundownEnabled) : m_index(index),
                            m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
-                           m_CircularBufferSizeInBytes(static_cast<size_t>(circularBufferSizeInMB) << 20),
-                           m_pBufferManager(new EventPipeBufferManager()),
                            m_rundownEnabled(rundownEnabled),
-                           m_SessionType(sessionType)
+                           m_SessionType(sessionType),
+                           m_format(format),
+                           m_rundownRequested(rundownSwitch)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(index < EventPipe::MaxNumberOfSessions);
+        PRECONDITION(format < EventPipeSerializationFormat::Count);
         PRECONDITION(circularBufferSizeInMB > 0);
         PRECONDITION(numProviders > 0 && pProviders != nullptr);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    size_t sequencePointAllocationBudget = 0;
+    // Hard coded 10MB for now, we'll probably want to make
+    // this configurable later.
+    if (GetSessionType() != EventPipeSessionType::Listener &&
+        GetSerializationFormat() >= EventPipeSerializationFormat::NetTraceV4)
+    {
+        sequencePointAllocationBudget = 10 * 1024 * 1024;
+    }
+
+    m_pBufferManager = new EventPipeBufferManager(this, static_cast<size_t>(circularBufferSizeInMB) << 20, sequencePointAllocationBudget);
 
     // Create the event pipe file.
     // A NULL output path means that we should not write the results to a file.
@@ -46,11 +61,11 @@ EventPipeSession::EventPipeSession(
     {
     case EventPipeSessionType::File:
         if (strOutputPath != nullptr)
-            m_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)));
+            m_pFile = new EventPipeFile(new FileStreamWriter(SString(strOutputPath)), format);
         break;
 
     case EventPipeSessionType::IpcStream:
-        m_pFile = new EventPipeFile(new IpcStreamWriter(m_Id, pStream));
+        m_pFile = new EventPipeFile(new IpcStreamWriter(reinterpret_cast<uint64_t>(this), pStream), format);
         break;
 
     default:
@@ -69,10 +84,10 @@ EventPipeSession::~EventPipeSession()
         NOTHROW;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(!m_ipcStreamingEnabled);
     }
     CONTRACTL_END;
 
-    // TODO: Stop streaming thread? Review synchronization.
     delete m_pProviderList;
     delete m_pBufferManager;
     delete m_pFile;
@@ -103,21 +118,6 @@ void EventPipeSession::SetThreadShutdownEvent()
 
     // Signal Disable() that the thread has been destroyed.
     m_threadShutdownEvent.Set();
-}
-
-void EventPipeSession::DestroyIpcStreamingThread()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    if (m_pIpcStreamingThread != nullptr)
-        ::DestroyThread(m_pIpcStreamingThread);
-    m_pIpcStreamingThread = nullptr;
 }
 
 static void PlatformSleep()
@@ -162,40 +162,58 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
     if (!pEventPipeSession->HasIpcStreamingStarted())
         return 1;
 
+    Thread *const pThisThread = pEventPipeSession->GetIpcStreamingThread();
+    bool fSuccess = true;
+    CLREvent *waitEvent = pEventPipeSession->GetWaitEvent();
+
     {
         GCX_PREEMP();
         EX_TRY
         {
-            bool fSuccess = true;
             while (pEventPipeSession->IsIpcStreamingEnabled())
             {
-                if (!pEventPipeSession->WriteAllBuffersToFile())
+                bool eventsWritten = false;
+                if (!pEventPipeSession->WriteAllBuffersToFile(&eventsWritten))
                 {
                     fSuccess = false;
                     break;
                 }
 
+                if (!eventsWritten)
+                {
+                    // No events were available, sleep until more are available
+                    waitEvent->Wait(INFINITE, FALSE);
+                }
+                
                 // Wait until it's time to sample again.
                 PlatformSleep();
             }
 
             pEventPipeSession->SetThreadShutdownEvent();
-
-            if (!fSuccess)
-            {
-                EventPipe::RunWithCallbackPostponed([pEventPipeSession](EventPipeProviderCallbackDataQueue *pEventPipeProviderCallbackDataQueue){pEventPipeSession->Disable();});
-            }
         }
         EX_CATCH
         {
             pEventPipeSession->SetThreadShutdownEvent();
             // TODO: STRESS_LOG ?
-            // TODO: Should we notify EventPipe itself to remove this session from the list.
+            // TODO: Notify `EventPipe` itself to remove this session from the list.
         }
         EX_END_CATCH(SwallowAllExceptions);
     }
 
-    pEventPipeSession->DestroyIpcStreamingThread();
+    EX_TRY
+    {
+        if (!fSuccess)
+            EventPipe::Disable(reinterpret_cast<EventPipeSessionID>(pEventPipeSession));
+    }
+    EX_CATCH
+    {
+        // TODO: STRESS_LOG ?
+    }
+    EX_END_CATCH(SwallowAllExceptions);
+
+    if (pThisThread != nullptr)
+        ::DestroyThread(pThisThread);
+
     return 0;
 }
 
@@ -224,7 +242,7 @@ void EventPipeSession::CreateIpcStreamingThread()
     m_threadShutdownEvent.CreateManualEvent(FALSE);
 }
 
-bool EventPipeSession::IsValid()
+bool EventPipeSession::IsValid() const
 {
     CONTRACTL
     {
@@ -235,7 +253,7 @@ bool EventPipeSession::IsValid()
     }
     CONTRACTL_END;
 
-    return (m_pProviderList != nullptr) && (!m_pProviderList->IsEmpty());
+    return !m_pProviderList->IsEmpty();
 }
 
 void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
@@ -251,7 +269,7 @@ void EventPipeSession::AddSessionProvider(EventPipeSessionProvider *pProvider)
     m_pProviderList->AddSessionProvider(pProvider);
 }
 
-EventPipeSessionProvider *EventPipeSession::GetSessionProvider(EventPipeProvider *pProvider)
+EventPipeSessionProvider *EventPipeSession::GetSessionProvider(const EventPipeProvider *pProvider) const
 {
     CONTRACTL
     {
@@ -264,7 +282,7 @@ EventPipeSessionProvider *EventPipeSession::GetSessionProvider(EventPipeProvider
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
-bool EventPipeSession::WriteAllBuffersToFile()
+bool EventPipeSession::WriteAllBuffersToFile(bool *pEventsWritten)
 {
     CONTRACTL
     {
@@ -282,11 +300,11 @@ bool EventPipeSession::WriteAllBuffersToFile()
     // the current timestamp are written into the file.
     LARGE_INTEGER stopTimeStamp;
     QueryPerformanceCounter(&stopTimeStamp);
-    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp);
+    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp, pEventsWritten);
     return !m_pFile->HasErrors();
 }
 
-bool EventPipeSession::WriteEvent(
+bool EventPipeSession::WriteEventBuffered(
     Thread *pThread,
     EventPipeEvent &event,
     EventPipeEventPayload &payload,
@@ -304,12 +322,12 @@ bool EventPipeSession::WriteEvent(
     CONTRACTL_END;
 
     // Filter events specific to "this" session based on precomputed flag on provider/events.
-    return event.IsEnabled(GetId()) ?
-        m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId) :
+    return event.IsEnabled(GetMask()) ?
+        m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId, pEventThread, pStack) :
         false;
 }
 
-void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)
+void EventPipeSession::WriteSequencePointUnbuffered()
 {
     CONTRACTL
     {
@@ -321,7 +339,9 @@ void EventPipeSession::WriteEvent(EventPipeEventInstance &instance)
 
     if (m_pFile == nullptr)
         return;
-    m_pFile->WriteEvent(instance);
+    EventPipeSequencePoint sequencePoint;
+    m_pBufferManager->InitSequencePointThreadList(&sequencePoint);
+    m_pFile->WriteSequencePoint(&sequencePoint);
 }
 
 EventPipeEventInstance *EventPipeSession::GetNextEvent()
@@ -336,6 +356,13 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     CONTRACTL_END;
 
     return m_pBufferManager->GetNextEvent();
+}
+
+CLREvent *EventPipeSession::GetWaitEvent()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pBufferManager->GetWaitEvent();
 }
 
 void EventPipeSession::Enable()
@@ -381,6 +408,11 @@ void EventPipeSession::EnableRundown()
     };
     const uint32_t RundownProvidersSize = sizeof(RundownProviders) / sizeof(EventPipeProviderConfiguration);
 
+    // update the provider context here since the callback doesn't happen till we actually try to do rundown.
+    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventPipeProvider.Level = VerboseLoggingLevel;
+    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventPipeProvider.EnabledKeywordsBitmask = Keywords;
+    MICROSOFT_WINDOWS_DOTNETRUNTIME_RUNDOWN_PROVIDER_DOTNET_Context.EventPipeProvider.IsEnabled = true;
+
     // Update provider list with rundown configuration.
     for (uint32_t i = 0; i < RundownProvidersSize; ++i)
     {
@@ -392,7 +424,6 @@ void EventPipeSession::EnableRundown()
             Config.GetFilterData()));
     }
 
-    m_pRundownThread = GetThread();
     m_rundownEnabled = true;
 }
 
@@ -403,22 +434,23 @@ void EventPipeSession::DisableIpcStreamingThread()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+        PRECONDITION(m_SessionType == EventPipeSessionType::IpcStream);
+        PRECONDITION(m_ipcStreamingEnabled);
     }
     CONTRACTL_END;
 
-    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
-    {
-        _ASSERTE(!g_fProcessDetach);
+    _ASSERTE(!g_fProcessDetach);
 
-        // The IPC streaming thread will watch this value and exit
-        // when profiling is disabled.
-        m_ipcStreamingEnabled = false;
+    // The IPC streaming thread will watch this value and exit
+    // when profiling is disabled.
+    m_ipcStreamingEnabled = false;
 
-        // Wait for the sampling thread to clean itself up.
-        m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
-        m_threadShutdownEvent.CloseEvent();
-    }
+    // Thread could be waiting on the event that there is new data to read.
+    m_pBufferManager->GetWaitEvent()->Set();
+
+    // Wait for the sampling thread to clean itself up.
+    m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
+    m_threadShutdownEvent.CloseEvent();
 }
 
 void EventPipeSession::Disable()
@@ -428,23 +460,30 @@ void EventPipeSession::Disable()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
-        // Lock must be held by EventPipe::Disable.
-        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (m_pFile == nullptr)
-        return;
+    if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
+        DisableIpcStreamingThread();
 
-    DisableIpcStreamingThread();
+    bool ignored;
+    WriteAllBuffersToFile(&ignored);
+    m_pProviderList->Clear();
+}
+
+void EventPipeSession::SuspendWriteEvent()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
 
     // Force all in-progress writes to either finish or cancel
     // This is required to ensure we can safely flush and delete the buffers
-    m_pBufferManager->SuspendWriteEvent();
-    {
-        WriteAllBuffersToFile();
-        m_pProviderList->Clear();
-    }
+    m_pBufferManager->SuspendWriteEvent(GetIndex());
 }
 
 void EventPipeSession::ExecuteRundown()

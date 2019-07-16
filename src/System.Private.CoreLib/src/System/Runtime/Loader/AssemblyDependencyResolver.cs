@@ -99,7 +99,7 @@ namespace System.Runtime.Loader
             _assemblyPaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             foreach (string assemblyPath in assemblyPaths)
             {
-                _assemblyPaths.Add(Path.GetFileNameWithoutExtension(assemblyPath)!, assemblyPath); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                _assemblyPaths.Add(Path.GetFileNameWithoutExtension(assemblyPath)!, assemblyPath); // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
             }
 
             _nativeSearchPaths = SplitPathsList(nativeSearchPathsList);
@@ -144,7 +144,7 @@ namespace System.Runtime.Loader
             else if (assemblyName.Name != null)
             {
                 // Load code assembly - simply look it up in the dictionary by its simple name.
-                if (_assemblyPaths.TryGetValue(assemblyName.Name, out string assemblyPath))
+                if (_assemblyPaths.TryGetValue(assemblyName.Name, out string? assemblyPath))
                 {
                     // Only returnd the assembly if it exists on disk - this is to make the behavior of the API
                     // consistent. Resource and native resolutions will only return existing files

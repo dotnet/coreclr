@@ -46,6 +46,7 @@ public:
     //!
     static UINT64 QCALLTYPE Enable(
         __in_z LPCWSTR outputFile,
+        EventPipeSerializationFormat format,
         UINT32 circularBufferSizeInMB,
         EventPipeProviderConfiguration *pProviders,
         UINT32 numProviders);
@@ -97,6 +98,10 @@ public:
     static bool QCALLTYPE GetNextEvent(
         UINT64 sessionID,
         EventPipeEventInstanceData *pInstance);
+
+    static HANDLE QCALLTYPE GetWaitHandle(
+        UINT64 sessionID);
+
 };
 
 #endif // FEATURE_PERFTRACING

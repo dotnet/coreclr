@@ -8905,24 +8905,50 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                 NO_WAY("Unsupported JMP indirection");
             }
 
-            const emitter::EmitCallType callType =
-                (addrInfo.accessType == IAT_VALUE) ? emitter::EC_FUNC_TOKEN : emitter::EC_FUNC_TOKEN_INDIR;
+            // If we have IAT_PVALUE we might need to jump via register indirect, as sometimes the
+            // indirection cell can't be reached by the jump.
+            emitter::EmitCallType callType;
+            void*                 addr;
+            regNumber             indCallReg;
 
-            // Simply emit a jump to the methodHnd. This is similar to a call so we can use
-            // the same descriptor with some minor adjustments.
+            if (addrInfo.accessType == IAT_PVALUE)
+            {
+                if (genCodeIndirAddrCanBeEncodedAsPCRelOffset((size_t)addrInfo.addr))
+                {
+                    // 32 bit displacement will work
+                    callType   = emitter::EC_FUNC_TOKEN_INDIR;
+                    addr       = addrInfo.addr;
+                    indCallReg = REG_NA;
+                }
+                else
+                {
+                    // 32 bit displacement won't work
+                    callType   = emitter::EC_INDIR_ARD;
+                    indCallReg = REG_RAX;
+                    addr       = nullptr;
+                    instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
+                    regSet.verifyRegUsed(indCallReg);
+                }
+            }
+            else
+            {
+                callType   = emitter::EC_FUNC_TOKEN;
+                addr       = addrInfo.addr;
+                indCallReg = REG_NA;
+            }
 
             // clang-format off
             getEmitter()->emitIns_Call(callType,
                                        methHnd,
                                        INDEBUG_LDISASM_COMMA(nullptr)
-                                       addrInfo.addr,
+                                       addr,
                                        0,                                                      // argSize
                                        EA_UNKNOWN                                              // retSize
                                        MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(EA_UNKNOWN),        // secondRetSize
                                        gcInfo.gcVarPtrSetCur,
                                        gcInfo.gcRegGCrefSetCur,
                                        gcInfo.gcRegByrefSetCur,
-                                       BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
+                                       BAD_IL_OFFSET, indCallReg, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
                                        true /* isJump */
             );
             // clang-format on

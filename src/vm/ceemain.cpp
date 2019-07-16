@@ -630,11 +630,7 @@ void EEStartupHelper(COINITIEE fFlags)
         // This needs to be done before config because config uses SString::Empty()
         SString::Startup();
 
-        // Initialize EEConfig
-        if (!g_pConfig)
-        {
-            IfFailGo(EEConfig::Setup());
-        }
+        IfFailGo(EEConfig::Setup());
 
 #ifndef CROSSGEN_COMPILE
         // Initialize Numa and CPU group information
@@ -897,7 +893,6 @@ void EEStartupHelper(COINITIEE fFlags)
 #endif // FEATURE_COMINTEROP
 
         StubHelpers::Init();
-        NDirect::Init();
 
         // Before setting up the execution manager initialize the first part
         // of the JIT helpers.
@@ -1290,9 +1285,11 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
     }
 
 #ifdef FEATURE_PERFTRACING
-    // Shutdown the event pipe.
-    EventPipe::Shutdown();
-    DiagnosticServer::Shutdown();
+    if (!fIsDllUnloading)
+    {
+        EventPipe::Shutdown();
+        DiagnosticServer::Shutdown();
+    }
 #endif // FEATURE_PERFTRACING
 
 #if defined(FEATURE_COMINTEROP)

@@ -103,11 +103,22 @@ void ProfilerDiagnosticProtocolHelper::AttachProfiler(DiagnosticsIpc::IpcMessage
         goto ErrExit;
     }
 
-    hr = ProfilingAPIUtility::LoadProfilerForAttach(&payload->profilerGuid,
-                                                    payload->pwszProfilerPath,
-                                                    payload->pClientData,
-                                                    payload->cbClientData,
-                                                    payload->dwAttachTimeout);
+    // Certain actions are only allowable during attach, and this flag is how we track it.
+    ClrFlsSetThreadType(ThreadType_ProfAPI_Attach);
+
+    EX_TRY
+    {
+        hr = ProfilingAPIUtility::LoadProfilerForAttach(&payload->profilerGuid,
+                                                        payload->pwszProfilerPath,
+                                                        payload->pClientData,
+                                                        payload->cbClientData,
+                                                        payload->dwAttachTimeout);
+    }
+    EX_CATCH_HRESULT(hr);
+
+    // Clear the flag so this thread isn't permanently marked as the attach thread.
+    ClrFlsClearThreadType(ThreadType_ProfAPI_Attach);
+
 ErrExit:
     if (hr != S_OK)
     {

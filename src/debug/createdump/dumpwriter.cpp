@@ -391,7 +391,7 @@ DumpWriter::WriteNTFileInfo()
 
     for (const MemoryRegion& image : m_crashInfo.ModuleMappings())
     {
-        struct NTFileEntry entry { image.StartAddress(), image.EndAddress(), image.Offset() };
+        struct NTFileEntry entry { image.StartAddress(), image.EndAddress(), image.Offset() / pageSize };
         if (!WriteData(&entry, sizeof(entry))) { 
             return false;
         }
@@ -447,7 +447,6 @@ DumpWriter::WriteThread(const ThreadInfo& thread, int fatal_signal)
         return false;
     }
 
-#if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
     nhdr.n_descsz = sizeof(user_fpregs_struct);
     nhdr.n_type = NT_FPREGSET;
     if (!WriteData(&nhdr, sizeof(nhdr)) ||
@@ -455,7 +454,6 @@ DumpWriter::WriteThread(const ThreadInfo& thread, int fatal_signal)
         !WriteData(thread.FPRegisters(), sizeof(user_fpregs_struct))) {
         return false;
     }
-#endif
 
     nhdr.n_namesz = 6;
 

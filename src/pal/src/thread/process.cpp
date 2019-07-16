@@ -1674,6 +1674,7 @@ public:
         PAL_ERROR pe = NO_ERROR;
         BOOL ret;
         UnambiguousProcessDescriptor unambiguousProcessDescriptor;
+        SIZE_T osThreadId = 0;
 
 #ifdef __APPLE__
         if (lpApplicationGroupId != NULL)
@@ -1734,7 +1735,6 @@ public:
 
         // Add a reference for the thread handler
         AddRef();
-
         pe = InternalCreateThread(
             pThread,
             NULL,
@@ -1743,7 +1743,7 @@ public:
             this,
             0,
             UserCreatedThread,
-            &m_threadId,
+            &osThreadId,
             &m_threadHandle);
 
         if (NO_ERROR != pe)
@@ -1752,7 +1752,7 @@ public:
             Release();
             goto exit;
         }
-
+        m_threadId = (DWORD)osThreadId;
     exit:
         return pe;
     }
@@ -3337,8 +3337,9 @@ PROCCreateCrashDump(char** argv)
         // Gives the child process permission to use /proc/<pid>/mem and ptrace
         if (prctl(PR_SET_PTRACER, childpid, 0, 0, 0) == -1)
         {
+            // Ignore any error because on some CentOS and OpenSUSE distros, it isn't
+            // supported but createdump works just fine.
             ERROR("PPROCCreateCrashDump: prctl() FAILED %d (%s)\n", errno, strerror(errno));
-            return false;
         }
         // Parent waits until the child process is done
         int wstatus = 0;

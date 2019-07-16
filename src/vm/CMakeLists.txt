@@ -177,6 +177,7 @@ set(VM_HEADERS_DAC_AND_WKS_COMMON
     field.h
     fptrstubs.h
     frames.h
+    gccover.h
     gctoclreventsink.h
     gcheaputilities.h
     generics.h
@@ -323,14 +324,17 @@ set(VM_SOURCES_WKS
     eventpipeconfiguration.cpp
     eventpipeevent.cpp
     eventpipeeventinstance.cpp
+    eventpipeeventpayload.cpp
     eventpipeeventsource.cpp
     eventpipeblock.cpp
+    eventpipecommontypes.cpp
     eventpipefile.cpp
     eventpipeinternal.cpp
     eventpipejsonfile.cpp
     eventpipemetadatagenerator.cpp
     eventpipeprotocolhelper.cpp
     eventpipeprovider.cpp
+    eventpipethread.cpp
     eventpipebuffer.cpp
     eventpipebuffermanager.cpp
     eventpipesession.cpp
@@ -442,9 +446,11 @@ set(VM_HEADERS_WKS
     eventpipeblock.h
     eventpipebuffer.h
     eventpipebuffermanager.h
+    eventpipecommontypes.h
     eventpipeconfiguration.h
     eventpipeevent.h
     eventpipeeventinstance.h
+    eventpipeeventpayload.h
     eventpipeeventsource.h
     eventpipefile.h
     eventpipeinternal.h
@@ -460,7 +466,6 @@ set(VM_HEADERS_WKS
     fieldmarshaler.h
     finalizerthread.h
     frameworkexceptionloader.h
-    gccover.h
     gcenv.h
     gcenv.ee.h
     gcenv.os.h
@@ -501,6 +506,7 @@ set(VM_HEADERS_WKS
     sha1.h
     simplerwlock.hpp
     sourceline.h
+    stackcontents.h
     stackingallocator.h
     stringliteralmap.h
     stubcache.h
@@ -846,6 +852,12 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         ${ARCH_SOURCES_DIR}/virtualcallstubcpu.hpp
         exceptionhandling.h
     )
+
+    if(CLR_CMAKE_PLATFORM_UNIX)
+        list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
+            ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
+        )
+    endif(CLR_CMAKE_PLATFORM_UNIX)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)

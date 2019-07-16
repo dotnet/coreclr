@@ -34,7 +34,7 @@ enum ReturnValues
 #define NumItems(s) (sizeof(s) / sizeof(s[0]))
 
 STDAPI CreatePDBWorker(LPCWSTR pwzAssemblyPath, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzAppNiPaths, LPCWSTR pwzPdbPath, BOOL fGeneratePDBLinesInfo, LPCWSTR pwzManagedPdbSearchPath, LPCWSTR pwzPlatformWinmdPaths, LPCWSTR pwzDiasymreaderPath);
-STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
+STDAPI NGenWorker(LPCWSTR pwzFilename, DWORD dwFlags, LPCWSTR pwzPlatformAssembliesPaths, LPCWSTR pwzTrustedPlatformAssemblies, LPCWSTR pwzPlatformResourceRoots, LPCWSTR pwzAppPaths, LPCWSTR pwzOutputFilename=NULL, SIZE_T customBaseAddress=0, LPCWSTR pwzPlatformWinmdPaths=NULL, ICorSvcLogger *pLogger = NULL, LPCWSTR pwszCLRJITPath = nullptr);
 void SetSvcLogger(ICorSvcLogger *pCorSvcLogger);
 void SetMscorlibPath(LPCWSTR wzSystemDirectory);
 
@@ -108,6 +108,7 @@ void PrintUsageHelper()
        W("\n")
        W("    /? or /help          - Display this screen\n")
        W("    /nologo              - Prevents displaying the logo\n")
+       W("    /nowarnings          - Prevents displaying warning messages\n")
        W("    /silent              - Do not display completion message\n")
        W("    /verbose             - Display verbose information\n")
        W("    @response.rsp        - Process command line arguments from specified\n")
@@ -154,6 +155,9 @@ void PrintUsageHelper()
        W("                           input assemblies\n")
 
 #endif
+#ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+       W("    /BaseAddress <value> - Specifies base address to use for compilation.\n")
+#endif
 #ifdef FEATURE_WINMD_RESILIENT
        W(" WinMD Parameters\n")
        W("    /WinMDResilient - Generate images resilient to WinMD dependency changes.\n")
@@ -178,6 +182,7 @@ void PrintUsageHelper()
 
 class CrossgenLogger : public ICorSvcLogger
 {
+public:
     STDMETHODIMP_(ULONG)    AddRef()  {return E_NOTIMPL;}
     STDMETHODIMP_(ULONG)    Release() {return E_NOTIMPL;}
     STDMETHODIMP            QueryInterface(REFIID riid,void ** ppv)
@@ -205,10 +210,20 @@ class CrossgenLogger : public ICorSvcLogger
     {
         if (logLevel == LogLevel_Error)
             OutputErr(message);
-        else
+        else if(logLevel != LogLevel_Warning || m_bEnableWarningLogging)
             Output(message);
         return S_OK;
     }
+
+    void SetWarningLogging(bool value)
+    {
+        m_bEnableWarningLogging = value;
+    }
+
+    CrossgenLogger() : m_bEnableWarningLogging(true) { }
+
+private:
+    bool m_bEnableWarningLogging;
 };
 
 CrossgenLogger                g_CrossgenLogger;
@@ -424,6 +439,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
     LPCWSTR pwzOutputFilename = NULL;
     LPCWSTR pwzPublicKeys = nullptr;
     bool fLargeVersionBubbleSwitch = false;
+    SIZE_T baseAddress = 0;
 
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
     LPCWSTR pwszCLRJITPath = nullptr;
@@ -489,6 +505,10 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             dwFlags |= NGENWORKER_FLAGS_VERBOSE;
         }
+        else if (MatchParameter(*argv, W("nowarnings")))
+        {
+            dwFlags |= NGENWORKER_FLAGS_SUPPRESS_WARNINGS;
+        }
         else if (MatchParameter(*argv, W("Tuning")))
         {
             dwFlags |= NGENWORKER_FLAGS_TUNING;
@@ -526,6 +546,19 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         {
             dwFlags |= NGENWORKER_FLAGS_LARGEVERSIONBUBBLE;
             fLargeVersionBubbleSwitch = true;
+        }
+#endif
+#ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+        else if (MatchParameter(*argv, W("BaseAddress")))
+        {
+            if (baseAddress != 0)
+            {
+                OutputErr(W("Cannot specify multiple base addresses.\n"));
+                exit(INVALID_ARGUMENTS);
+            }
+            baseAddress = (SIZE_T) _wcstoui64(argv[1], NULL, 0);
+            argv++;
+            argc--;
         }
 #endif
         else if (MatchParameter(*argv, W("NoMetaData")))
@@ -891,6 +924,12 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
         
     }
 
+    // Verbose mode will always print warnings
+    if ((dwFlags & NGENWORKER_FLAGS_VERBOSE) != 0)
+        dwFlags &= ~NGENWORKER_FLAGS_SUPPRESS_WARNINGS;
+
+    g_CrossgenLogger.SetWarningLogging((dwFlags & NGENWORKER_FLAGS_SUPPRESS_WARNINGS) == 0);
+
     // Initialize the logger
     SetSvcLogger(&g_CrossgenLogger);
 
@@ -920,6 +959,7 @@ int _cdecl wmain(int argc, __in_ecount(argc) WCHAR **argv)
          pwzPlatformResourceRoots,
          pwzAppPaths,
          pwzOutputFilename,
+         baseAddress,
          pwzPlatformWinmdPaths
 #if !defined(FEATURE_MERGE_JIT_AND_ENGINE)
         ,

@@ -396,7 +396,7 @@ namespace System
             if (symlinkPath != null)
             {
                 // symlinkPath can be relative path, use Path to get the full absolute path.
-                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!);
 
                 string timeZoneDirectory = GetTimeZoneDirectory();
                 if (symlinkPath.StartsWith(timeZoneDirectory, StringComparison.Ordinal))
@@ -618,7 +618,7 @@ namespace System
             string? id;
             if (TryGetLocalTzFile(out rawData, out id))
             {
-                TimeZoneInfo? result = GetTimeZoneFromTzData(rawData!, id!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                TimeZoneInfo? result = GetTimeZoneFromTzData(rawData, id);
                 if (result != null)
                 {
                     return result;
@@ -629,7 +629,7 @@ namespace System
             return Utc;
         }
 
-        private static TimeZoneInfo? GetTimeZoneFromTzData(byte[] rawData, string id)
+        private static TimeZoneInfo? GetTimeZoneFromTzData(byte[]? rawData, string id)
         {
             if (rawData != null)
             {
@@ -660,7 +660,7 @@ namespace System
             }
             else if (!tzDirectory.EndsWith(Path.DirectorySeparatorChar))
             {
-                tzDirectory += Path.DirectorySeparatorChar;
+                tzDirectory += PathInternal.DirectorySeparatorCharAsString;
             }
 
             return tzDirectory;
@@ -993,7 +993,7 @@ namespace System
                     {
                         if (!IsValidAdjustmentRuleOffest(timeZoneBaseUtcOffset, r))
                         {
-                            NormalizeAdjustmentRuleOffset(timeZoneBaseUtcOffset, ref r!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                            NormalizeAdjustmentRuleOffset(timeZoneBaseUtcOffset, ref r);
                         }
 
                         rulesList.Add(r);

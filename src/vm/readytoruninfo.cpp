@@ -807,11 +807,77 @@ PCODE ReadyToRunInfo::GetEntryPoint(MethodDesc * pMD, PrepareCodeConfig* pConfig
     }
 
 done:
-    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, R2RGetEntryPoint))
+    if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, R2RGetEntryPoint))
     {
         ETW::MethodLog::GetR2RGetEntryPoint(pMD, pEntryPoint);
     }
     return pEntryPoint;
+}
+
+
+void ReadyToRunInfo::MethodIterator::ParseGenericMethodSignatureAndRid(uint *pOffset, RID *pRid)
+{
+    _ASSERTE(!m_genericParser.IsNull());
+
+    HRESULT hr = S_OK;
+    *pOffset = -1;
+    *pRid = -1;
+
+    PCCOR_SIGNATURE pBlob = (PCCOR_SIGNATURE)m_genericParser.GetBlob();
+    SigPointer sig(pBlob);
+
+    DWORD methodFlags = 0;
+    // Skip the signature so we can get to the offset
+    hr = sig.GetData(&methodFlags);
+    if (FAILED(hr))
+    {
+        return;
+    }
+
+    if (methodFlags & ENCODE_METHOD_SIG_OwnerType)
+    {
+        hr = sig.SkipExactlyOne();
+        if (FAILED(hr))
+        {
+            return;
+        }
+    }
+
+    _ASSERTE((methodFlags & ENCODE_METHOD_SIG_SlotInsteadOfToken) == 0);
+    _ASSERTE((methodFlags & ENCODE_METHOD_SIG_MemberRefToken) == 0);
+
+    hr = sig.GetData(pRid);
+    if (FAILED(hr))
+    {
+        return;
+    }
+    
+    if (methodFlags & ENCODE_METHOD_SIG_MethodInstantiation)
+    {
+        DWORD numGenericArgs;
+        hr = sig.GetData(&numGenericArgs);
+        if (FAILED(hr))
+        {
+            return;
+        }
+    
+        for (DWORD i = 0; i < numGenericArgs; i++)
+        {
+            hr = sig.SkipExactlyOne();
+            if (FAILED(hr))
+            {
+                return;
+            }
+        }
+    }
+
+    // Now that we have the size of the signature we can grab the offset and decode it
+    PCCOR_SIGNATURE pSigNew;
+    DWORD cbSigNew;
+    sig.GetSignature(&pSigNew, &cbSigNew);
+
+    m_genericCurrentSig = pBlob;
+    *pOffset = m_genericParser.GetOffset() + (uint)(pSigNew - pBlob);
 }
 
 BOOL ReadyToRunInfo::MethodIterator::Next()
@@ -824,12 +890,24 @@ BOOL ReadyToRunInfo::MethodIterator::Next()
     }
     CONTRACTL_END;
 
+    // Enumerate non-generic methods
     while (++m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
     {
         uint offset;
         if (m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+        {
             return TRUE;
+        }
     }
+
+    // Enumerate generic instantiations
+    m_genericParser = m_genericEnum.GetNext();
+    if (!m_genericParser.IsNull())
+    {
+        ParseGenericMethodSignatureAndRid(&m_genericCurrentOffset, &m_genericCurrentRid);
+        return TRUE;
+    }
+
     return FALSE;
 }
 
@@ -837,7 +915,18 @@ MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc()
 {
     STANDARD_VM_CONTRACT;
 
-    return MemberLoader::GetMethodDescFromMethodDef(m_pInfo->m_pModule, mdtMethodDef | (m_methodDefIndex + 1), FALSE);
+    mdMethodDef methodToken = mdTokenNil;
+    if (m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
+    {
+        methodToken = mdtMethodDef | (m_methodDefIndex + 1);
+        return MemberLoader::GetMethodDescFromMethodDef(m_pInfo->m_pModule, methodToken, FALSE);
+    }
+    else
+    {
+        _ASSERTE(m_genericCurrentOffset > 0 && m_genericCurrentSig != NULL);
+        return ZapSig::DecodeMethod(m_pInfo->m_pModule, m_pInfo->m_pModule, m_genericCurrentSig);
+    }
+    
 }
 
 MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc_NoRestore()
@@ -851,9 +940,22 @@ MethodDesc * ReadyToRunInfo::MethodIterator::GetMethodDesc_NoRestore()
     CONTRACTL_END;
 
     uint offset;
-    if (!m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+    if (m_methodDefIndex < (int)m_pInfo->m_methodDefEntryPoints.GetCount())
     {
-        return NULL;
+        if (!m_pInfo->m_methodDefEntryPoints.TryGetAt(m_methodDefIndex, &offset))
+        {
+            return NULL;
+        }
+    }
+    else
+    {
+        if (m_genericCurrentOffset <= 0)
+        {
+            // Failed to parse generic info.
+            return NULL;
+        }
+
+        offset = m_genericCurrentOffset;
     }
 
     uint id;

@@ -2255,25 +2255,13 @@ void * MAPMapPEFile(HANDLE hFile)
     //Step 1: Read the PE headers and reserve enough space for the whole image somewhere.
     IMAGE_DOS_HEADER dosHeader;
     IMAGE_NT_HEADERS ntHeader;
-    errno = 0;
-    if (0 != lseek(fd, 0, SEEK_SET))
-    {
-        palError = FILEGetLastErrorFromErrno();
-        ERROR_(LOADER)( "lseek failed\n" );
-        goto done;
-    }
-    if (sizeof(dosHeader) != read(fd, &dosHeader, sizeof(dosHeader)))
+    if (sizeof(dosHeader) != pread(fd, &dosHeader, sizeof(dosHeader), 0))
     {
         palError = FILEGetLastErrorFromErrno();
         ERROR_(LOADER)( "reading dos header failed\n" );
         goto done;
     }
-    if (dosHeader.e_lfanew != lseek(fd, dosHeader.e_lfanew, SEEK_SET))
-    {
-        palError = FILEGetLastErrorFromErrno();
-        goto done;
-    }
-    if (sizeof(ntHeader) != read(fd, &ntHeader, sizeof(ntHeader)))
+    if (sizeof(ntHeader) != pread(fd, &ntHeader, sizeof(ntHeader), dosHeader.e_lfanew))
     {
         palError = FILEGetLastErrorFromErrno();
         goto done;
@@ -2362,9 +2350,16 @@ void * MAPMapPEFile(HANDLE hFile)
 
     if (loadedBase == NULL)
     {
+        void *usedBaseAddr = NULL;
+#ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+        if (g_useDefaultBaseAddr)
+        {
+            usedBaseAddr = (void*) preferredBase;
+        }
+#endif // FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
         // MAC64 requires we pass MAP_SHARED (or MAP_PRIVATE) flags - otherwise, the call is failed.
         // Refer to mmap documentation at http://www.manpagez.com/man/2/mmap/ for details.
-        loadedBase = mmap(NULL, virtualSize, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
+        loadedBase = mmap(usedBaseAddr, virtualSize, PROT_NONE, MAP_ANON|MAP_PRIVATE, -1, 0);
     }
 
     if (MAP_FAILED == loadedBase)

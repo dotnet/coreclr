@@ -19,6 +19,7 @@
 
 UINT64 QCALLTYPE EventPipeInternal::Enable(
     __in_z LPCWSTR outputFile,
+    EventPipeSerializationFormat format,
     UINT32 circularBufferSizeInMB,
     EventPipeProviderConfiguration *pProviders,
     UINT32 numProviders)
@@ -29,6 +30,7 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
 
     // Invalid input!
     if (circularBufferSizeInMB == 0 ||
+        format >= EventPipeSerializationFormat::Count ||
         numProviders == 0 ||
         pProviders == nullptr)
     {
@@ -43,6 +45,8 @@ UINT64 QCALLTYPE EventPipeInternal::Enable(
             pProviders,
             numProviders,
             outputFile != NULL ? EventPipeSessionType::File : EventPipeSessionType::Listener,
+            format,
+            true,
             nullptr);
     }
     END_QCALL;
@@ -261,7 +265,7 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(UINT64 sessionID, EventPipeEventI
     {
         pInstance->ProviderID = pNextInstance->GetEvent()->GetProvider();
         pInstance->EventID = pNextInstance->GetEvent()->GetEventID();
-        pInstance->ThreadID = pNextInstance->GetThreadId();
+        pInstance->ThreadID = pNextInstance->GetThreadId32();
         pInstance->TimeStamp.QuadPart = pNextInstance->GetTimeStamp()->QuadPart;
         pInstance->ActivityId = *pNextInstance->GetActivityId();
         pInstance->RelatedActivityId = *pNextInstance->GetRelatedActivityId();
@@ -271,6 +275,19 @@ bool QCALLTYPE EventPipeInternal::GetNextEvent(UINT64 sessionID, EventPipeEventI
 
     END_QCALL;
     return pNextInstance != NULL;
+}
+
+HANDLE QCALLTYPE EventPipeInternal::GetWaitHandle(UINT64 sessionID)
+{
+    QCALL_CONTRACT;
+
+    HANDLE waitHandle;
+    BEGIN_QCALL;
+
+    waitHandle = EventPipe::GetWaitHandle(sessionID);
+
+    END_QCALL;
+    return waitHandle;
 }
 
 #endif // FEATURE_PERFTRACING
