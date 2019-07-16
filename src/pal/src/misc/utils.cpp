@@ -26,10 +26,6 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC); // some headers have code with asserts, so do t
 #include <mach/message.h>
 #endif //HAVE_VM_ALLOCATE
 
-#if HAVE_SYS_SYSCTL_H
-#include <sys/sysctl.h>
-#endif
-
 #include <sys/mman.h>
 
 #include "pal/utils.h"
@@ -331,67 +327,36 @@ void UTIL_SetLastErrorFromMach(kern_return_t MachReturn)
 
 #ifdef __APPLE__
 
-#define DARWIN_VERSION_MOJAVE 18
-
-/*++
-Function:
-  GetDarwinVersion() - Helper function to get the version of the Apple's darwin
---*/
-static UINT GetDarwinVersion()
-{
-    static UINT version = 0;
-
-    if (!version)
-    {
-        char str[32] = {0};
-        size_t size = sizeof(str);
-        int mib[2];
-
-        mib[0] = CTL_KERN;
-        mib[1] = KERN_OSRELEASE;
-        int err = sysctl(mib, 2, str, &size, NULL, 0);
-        _ASSERTE(err == 0);
-        int cnt = sscanf(str, "%d", &version);
-        _ASSERTE(cnt == 1);
-        _ASSERTE(version > 0);
-    }
-
-    return version;
-}
-
 /*++
 Function:
   IsRunningOnMojaveHardenedRuntime() - Test if the current process is running on Mojave hardened runtime
 --*/
 BOOL IsRunningOnMojaveHardenedRuntime()
 {
-    static int isRunningOnMojaveHardenedRuntime = -1;
+    static volatile int isRunningOnMojaveHardenedRuntime = -1;
 
     if (isRunningOnMojaveHardenedRuntime == -1)
     {
-        if (GetDarwinVersion() >= DARWIN_VERSION_MOJAVE)
+        BOOL mhrDetected = FALSE;
+        int pageSize = sysconf(_SC_PAGE_SIZE);
+        // Try to map a page with read-write-execute protection. It should fail on Mojave hardened runtime.
+        void* testPage = mmap(NULL, pageSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+        if (testPage == MAP_FAILED && (errno == EACCES))
         {
-            BOOL mhrDetected = FALSE;
-            int pageSize = sysconf(_SC_PAGE_SIZE);
-            // Try to map a page with read-write-execute protection. It should fail on Mojave hardened runtime.
-            void* testPage = mmap(NULL, pageSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-            if (testPage == MAP_FAILED && (errno == EACCES))
-            {
-                // The mapping has failed with EACCES, check if making the same mapping with MAP_JIT flag works
-                testPage = mmap(NULL, pageSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_JIT, -1, 0);
-                if (testPage != MAP_FAILED)
-                {
-                    mhrDetected = TRUE;
-                }
-            }
-
+            // The mapping has failed with EACCES, check if making the same mapping with MAP_JIT flag works
+            testPage = mmap(NULL, pageSize, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_JIT, -1, 0);
             if (testPage != MAP_FAILED)
             {
-                munmap(testPage, pageSize);
+                mhrDetected = TRUE;
             }
-
-            isRunningOnMojaveHardenedRuntime = (int)mhrDetected;
         }
+
+        if (testPage != MAP_FAILED)
+        {
+            munmap(testPage, pageSize);
+        }
+
+        isRunningOnMojaveHardenedRuntime = (int)mhrDetected;
     }
 
     return (BOOL)isRunningOnMojaveHardenedRuntime;
