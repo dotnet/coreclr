@@ -1,12 +1,21 @@
-variables:
-- name: DOTNET_SKIP_FIRST_TIME_EXPERIENCE
-  value: true
-
 trigger:
-- master
+  batch: true
+  branches:
+    include:
+    - master
+    - release/3.0
 
 pr:
 - master
+- release/3.0
+
+# Temporarily set a build number format that includes a large revision
+# number that won't conflict with buildpipeline official builds.
+name: $(Date:yyyyMMdd)$(Rev:.7r)
+
+variables:
+- name: DOTNET_SKIP_FIRST_TIME_EXPERIENCE
+  value: true
 
 jobs:
 

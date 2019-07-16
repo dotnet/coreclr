@@ -77,6 +77,21 @@ EventPipeSession::EventPipeSession(
     QueryPerformanceCounter(&m_sessionStartTimeStamp);
 }
 
+void EventPipeSession::Close()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
+    // FIXME: **ONLY** closes the stream. This explicitly **LEAKS** the
+    // provider list and buffer manager.
+    delete m_pFile;
+}
+
 EventPipeSession::~EventPipeSession()
 {
     CONTRACTL

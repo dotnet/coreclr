@@ -108,6 +108,7 @@ public:
         uint32_t numProviders,
         bool rundownEnabled = false);
     ~EventPipeSession();
+    void Close();
 
     uint64_t GetMask() const
     {
