@@ -7158,11 +7158,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // as non-interruptible for fast tail calls.
 
 #ifdef WINDOWS_AMD64_ABI
-    assert(calleeStackSize == 0);
-    size_t calleeStackSlots = ((calleeArgRegCount + calleeFloatArgRegCount) > maxRegArgs)
-                                  ? (calleeArgRegCount + calleeFloatArgRegCount) - maxRegArgs
-                                  : 0;
-    calleeStackSize        = calleeStackSlots * TARGET_POINTER_SIZE;
     size_t callerStackSize = info.compArgStackSize;
 
     bool hasStackArgs = false;
@@ -7191,15 +7186,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // that we are not dealing with structs that are >8 bytes.
 
     bool   hasStackArgs    = false;
-    size_t maxFloatRegArgs = MAX_FLOAT_REG_ARG;
-
-    size_t calleeIntStackArgCount = calleeArgRegCount > maxRegArgs ? calleeArgRegCount - maxRegArgs : 0;
-    size_t calleeFloatStackArgCount =
-        calleeFloatArgRegCount > maxFloatRegArgs ? calleeFloatArgRegCount - maxFloatRegArgs : 0;
-
-    size_t calleeStackArgCount = calleeIntStackArgCount + calleeFloatStackArgCount;
     size_t callerStackSize     = info.compArgStackSize;
-    calleeStackSize += calleeStackArgCount * TARGET_POINTER_SIZE;
 
     if (callerStackSize > 0 || calleeStackSize > 0)
     {
