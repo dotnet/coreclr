@@ -110,6 +110,22 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG64 mask, ULONG32 regCount,
 
             if ((i >= REGISTER_ARM64_V0) && (i <= REGISTER_ARM64_V30))
             {
+                if (!m_thread->m_fFloatStateValid)
+                {
+                    HRESULT     hr = S_OK;
+                    EX_TRY
+                    {
+                        m_thread->LoadFloatState();
+                    }
+                    EX_CATCH_HRESULT(hr);
+
+                    if ( !SUCCEEDED(hr) )
+                    {
+                        return hr;
+                    }
+                    LOG( ( LF_CORDB, LL_INFO1000, "CRS::GR: Loaded float state\n" ) );
+                }
+
                 regBuffer[iRegister++] = *(CORDB_REGISTER*)
                                           &(m_thread->m_floatValues[(i - REGISTER_ARM64_V0)]);
                 continue;
@@ -184,6 +200,22 @@ HRESULT CordbRegisterSet::GetRegisters(ULONG32 maskCount, BYTE mask[],
 
                 if ((i >= REGISTER_ARM64_V0) && (i <= REGISTER_ARM64_V31))
                 {
+                    if (!m_thread->m_fFloatStateValid)
+                    {
+                        HRESULT     hr = S_OK;
+                        EX_TRY
+                        {
+                            m_thread->LoadFloatState();
+                        }
+                        EX_CATCH_HRESULT(hr);
+
+                        if ( !SUCCEEDED(hr) )
+                        {
+                            return hr;
+                        }
+                        LOG( ( LF_CORDB, LL_INFO1000, "CRS::GR: Loaded float state\n" ) );
+                    }
+
                     regBuffer[iRegister++] = *(CORDB_REGISTER*)
                                               &(m_thread->m_floatValues[(i - REGISTER_ARM64_V0)]);
                     continue;
