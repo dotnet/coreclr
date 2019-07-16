@@ -69,7 +69,7 @@ bool DebuggerControllerPatch::IsSafeForStackTrace()
 
 }
 
-#ifndef FEATURE_EMULATE_SINGLESTEP
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
 // returns a pointer to the shared buffer.  each call will AddRef() the object
 // before returning it so callers only need to Release() when they're finished with it.
 SharedPatchBypassBuffer* DebuggerControllerPatch::GetOrCreateSharedPatchBypassBuffer()
@@ -92,7 +92,7 @@ SharedPatchBypassBuffer* DebuggerControllerPatch::GetOrCreateSharedPatchBypassBu
 
     return m_pSharedPatchBypassBuffer;
 }
-#endif // FEATURE_EMULATE_SINGLESTEP
+#endif // FEATURE_BYPASS_WITH_SINGLESTEP
 
 // @todo - remove all this splicing trash
 // This Sort/Splice stuff just reorders the patches within a particular chain such
@@ -502,7 +502,7 @@ DebuggerControllerPatch *DebuggerPatchTable::AddPatchForMethodDef(DebuggerContro
     {
         ThrowOutOfMemory();
     }
-#ifndef FEATURE_EMULATE_SINGLESTEP
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
     patch->Initialize();
 #endif
 
@@ -602,7 +602,7 @@ DebuggerControllerPatch *DebuggerPatchTable::AddPatchForAddress(DebuggerControll
     {
         ThrowOutOfMemory();
     }
-#ifndef FEATURE_EMULATE_SINGLESTEP
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
     patch->Initialize();
 #endif
 
@@ -721,7 +721,7 @@ void DebuggerPatchTable::RemovePatch(DebuggerControllerPatch *patch)
 {
     // Since we're deleting this patch, it must not be activated (i.e. it must not have a stored opcode)
     _ASSERTE( !patch->IsActivated() );
-#ifndef FEATURE_EMULATE_SINGLESTEP
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
     patch->DoCleanup();
 #endif
 
@@ -4337,7 +4337,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     // On ARM the single-step emulation already utilizes a per-thread execution buffer similar to the scheme
     // below. As a result we can skip most of the instruction parsing logic that's instead internalized into
     // the single-step emulation itself.
-#ifndef FEATURE_EMULATE_SINGLESTEP
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
 
     // NOTE: in order to correctly single-step RIP-relative writes on multiple threads we need to set up
     // a shared buffer with the instruction and a buffer for the RIP-relative value so that all threads
@@ -4423,7 +4423,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
     }
 #endif // _TARGET_AMD64_
 
-#endif // !FEATURE_EMULATE_SINGLESTEP
+#endif // !FEATURE_BYPASS_WITH_SINGLESTEP
 
     // Signals our thread that the debugger will be manipulating the context 
     // during the patch skip operation. This effectively prevents other threads
@@ -4457,8 +4457,8 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
         ARM_ONLY(_ASSERTE(!"We should always have a filter context in DebuggerPatchSkip."));
     }
 
-#ifdef FEATURE_EMULATE_SINGLESTEP
-    // Since we emulate all single-stepping on ARM/ARM64 using an instruction buffer and a breakpoint all we have to
+#ifdef FEATURE_BYPASS_WITH_SINGLESTEP
+    // Since we emulate all single-stepping on ARM using an instruction buffer and a breakpoint all we have to
     // do here is initiate a normal single-step except that we pass the instruction to be stepped explicitly
     // (calling EnableSingleStep() would infer this by looking at the PC in the context, which would pick up
     // the patch we're trying to skip).
@@ -4483,7 +4483,7 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
         m_singleStep = true;
     }
 
-#else // FEATURE_EMULATE_SINGLESTEP
+#else // FEATURE_BYPASS_WITH_SINGLESTEP
    
 #ifdef _TARGET_ARM64_
     patchBypass = NativeWalker::SetupOrSimulateInstructionForPatchSkip(context, m_pSharedPatchBypassBuffer, (const BYTE *)patch->address, patch->opcode);
@@ -4506,14 +4506,14 @@ DebuggerPatchSkip::DebuggerPatchSkip(Thread *thread,
 
     EnableSingleStep();
 
-#endif // FEATURE_EMULATE_SINGLESTEP
+#endif // FEATURE_BYPASS_WITH_SINGLESTEP
 
     EnableExceptionHook();
 }
 
 DebuggerPatchSkip::~DebuggerPatchSkip()
 {
-#ifndef FEATURE_EMULATE_SINGLESTEP
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
     _ASSERTE(m_pSharedPatchBypassBuffer);
     m_pSharedPatchBypassBuffer->Release();
 #endif
@@ -4521,8 +4521,8 @@ DebuggerPatchSkip::~DebuggerPatchSkip()
 
 void DebuggerPatchSkip::DebuggerDetachClean()
 {
-// Since for ARM/ARM64 SharedPatchBypassBuffer isn't existed, we don't have to anything here.
-#ifndef FEATURE_EMULATE_SINGLESTEP
+// Since for ARM SharedPatchBypassBuffer isn't existed, we don't have to anything here.
+#ifndef FEATURE_BYPASS_WITH_SINGLESTEP
    // Fix for Bug 1176448
    // When a debugger is detaching from the debuggee, we need to move the IP if it is pointing 
    // somewhere in PatchBypassBuffer.All managed threads are suspended during detach, so changing 
@@ -4635,7 +4635,7 @@ TP_RESULT DebuggerPatchSkip::TriggerPatch(DebuggerControllerPatch *patch,
     ARM_ONLY(_ASSERTE(!"Should not have called DebuggerPatchSkip::TriggerPatch."));
     LOG((LF_CORDB, LL_EVERYTHING, "DPS::TP called\n"));
 
-#if defined(_DEBUG) && !defined(FEATURE_EMULATE_SINGLESTEP)
+#if defined(_DEBUG) && !defined(FEATURE_BYPASS_WITH_SINGLESTEP)
     CONTEXT *context = GetManagedLiveCtx(thread);
 
     LOG((LF_CORDB, LL_INFO1000, "DPS::TP: We've patched 0x%x (byPass:0x%x) "
@@ -4654,7 +4654,7 @@ TP_RESULT DebuggerPatchSkip::TriggerPatch(DebuggerControllerPatch *patch,
 
     patchCheck = g_patches->GetNextPatch(patchCheck);
     _ASSERTE(patchCheck == NULL);
-#endif // defined(_DEBUG) && !defined(FEATURE_EMULATE_SINGLESTEP)
+#endif // defined(_DEBUG) && !defined(FEATURE_BYPASS_WITH_SINGLESTEP)
 
     DisableAll();
     EnableExceptionHook();
@@ -4692,7 +4692,7 @@ TP_RESULT DebuggerPatchSkip::TriggerExceptionHook(Thread *thread, CONTEXT * cont
 
     LOG((LF_CORDB,LL_INFO10000, "DPS::TEH: doing the patch-skip thing\n"));    
 
-#if defined(_TARGET_ARM64_) && !defined(FEATURE_EMULATE_SINGLESTEP)
+#if defined(_TARGET_ARM64_) && !defined(FEATURE_BYPASS_WITH_SINGLESTEP)
 
     if (!IsSingleStep(exception->ExceptionCode))
     {
@@ -4715,7 +4715,7 @@ TP_RESULT DebuggerPatchSkip::TriggerExceptionHook(Thread *thread, CONTEXT * cont
     SetIP(context, targetIp);
     LOG((LF_CORDB, LL_ALWAYS, "Redirecting after Patch to 0x%p\n", GetIP(context)));
 
-#elif defined(FEATURE_EMULATE_SINGLESTEP)
+#elif defined(FEATURE_BYPASS_WITH_SINGLESTEP)
 
 //Do nothing 
 #else
