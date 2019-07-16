@@ -1461,22 +1461,45 @@ public:
 #endif
     }
 
-    jitstd::pair<unsigned, unsigned> getNumIntRegAndFloatRegForStructArg()
+    unsigned intRegCount()
     {
-        assert (this->isStruct);
-
 #if defined(UNIX_AMD64_ABI)
-        return { this->structIntRegs, this->structFloatRegs };
-#endif // UNIX_AMD64_ABI
+        if (this->isStruct)
+        {
+            return this->structIntRegs;
+        }
+#endif // defined(UNIX_AMD64_ABI)
+
+        if (!this->isPassedInFloatRegisters())
+        {
+            return this->numRegs;
+        }
+
+        return 0;
+
+    }
+    
+    unsigned floatRegCount()
+    {
+#if defined(UNIX_AMD64_ABI)
+        if (this->isStruct)
+        {
+            return this->structFloatRegs;
+        }
+#endif // defined(UNIX_AMD64_ABI)
 
         if (this->isPassedInFloatRegisters())
         {
-            return { 0, this->numRegs };
+            return this->numRegs;
         }
-        else
-        {
-            return { this->numRegs, 0 };
-        }
+
+        return 0;
+
+    }
+
+    unsigned stackSize()
+    {
+        return (TARGET_POINTER_SIZE * this->numSlots);
     }
     
     __declspec(property(get = GetHfaType)) var_types hfaType;
