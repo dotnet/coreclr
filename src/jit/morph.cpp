@@ -7118,14 +7118,14 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         {
             hasNonEnregisterableStructs = argStackSize > 0 ? true : hasNonEnregisterableStructs;
             hasLargerThanOneStackSlotSizedStruct = countRegistersUsedForArg > 1 ? true : hasLargerThanOneStackSlotSizedStruct;
-        }
 
-        // Byref arguments are not allowed to fast tail call as the information
-        // of the caller's stack is lost when the callee is compiled.
-        if (arg->passedByRef)
-        {
-            hasByrefParameter = true;
-            break;
+            // Byref struct arguments are not allowed to fast tail call as the information
+            // of the caller's stack is lost when the callee is compiled.
+            if (arg->passedByRef)
+            {
+                hasByrefParameter = true;
+                break;
+            }
         }
     }
 
