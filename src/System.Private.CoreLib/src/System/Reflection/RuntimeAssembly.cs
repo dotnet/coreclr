@@ -54,7 +54,7 @@ namespace System.Reflection
             }
         }
 
-        public override event ModuleResolveEventHandler ModuleResolve
+        public override event ModuleResolveEventHandler ModuleResolve // TODO-NULLABLE: Should all events use nullable delegate types?
         {
             add
             {
