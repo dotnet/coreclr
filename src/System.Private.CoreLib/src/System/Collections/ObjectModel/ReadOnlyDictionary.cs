@@ -273,7 +273,7 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (array!.Rank != 1) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            if (array.Rank != 1)
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
@@ -318,7 +318,7 @@ namespace System.Collections.ObjectModel
                     {
                         foreach (var item in m_dictionary)
                         {
-                            objects![index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                            objects[index++] = new KeyValuePair<TKey, TValue>(item.Key, item.Value);
                         }
                     }
                     catch (ArrayTypeMismatchException)
@@ -430,7 +430,7 @@ namespace System.Collections.ObjectModel
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
-                m_collection = collection!; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                m_collection = collection;
             }
 
             #region ICollection<T> Members
@@ -538,7 +538,7 @@ namespace System.Collections.ObjectModel
                 {
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.collection);
                 }
-                m_collection = collection!; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                m_collection = collection;
             }
 
             #region ICollection<T> Members
@@ -647,7 +647,7 @@ namespace System.Collections.ObjectModel
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (array!.Rank != 1) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            if (array.Rank != 1)
             {
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankMultiDimNotSupported);
             }
@@ -707,7 +707,7 @@ namespace System.Collections.ObjectModel
                 {
                     foreach (var item in collection)
                     {
-                        objects![index++] = item; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                        objects[index++] = item;
                     }
                 }
                 catch (ArrayTypeMismatchException)
