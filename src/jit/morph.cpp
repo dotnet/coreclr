@@ -12374,6 +12374,8 @@ DONE_MORPHING_CHILDREN:
             }
             break;
 
+        CM_EQ_OP:
+
         case GT_EQ:
         case GT_NE:
 
@@ -12859,6 +12861,7 @@ DONE_MORPHING_CHILDREN:
                         oper = (oper == GT_LE) ? GT_EQ : GT_NE;
                         tree->SetOper(oper, GenTree::PRESERVE_VN);
                         tree->gtFlags &= ~GTF_UNSIGNED;
+                        goto CM_EQ_OP;
                     }
                 }
             }
