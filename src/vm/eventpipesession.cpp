@@ -365,6 +365,7 @@ CLREvent *EventPipeSession::GetWaitEvent()
     return m_pBufferManager->GetWaitEvent();
 }
 
+// MUST be called AFTER sending the IPC response
 void EventPipeSession::Enable()
 {
     CONTRACTL
@@ -376,6 +377,8 @@ void EventPipeSession::Enable()
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    m_pFile->InitializeFile();
 
     if (m_SessionType == EventPipeSessionType::IpcStream)
         CreateIpcStreamingThread();

@@ -88,6 +88,7 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter, EventPipeSerialization
     CONTRACTL_END;
 
     m_format = format;
+    m_pStreamWriter = pStreamWriter;
     m_pBlock = new EventPipeEventBlock(100 * 1024, format);
     m_pMetadataBlock = new EventPipeMetadataBlock(100 * 1024);
     m_pStackBlock = new EventPipeStackBlock(100 * 1024);
@@ -107,22 +108,7 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter, EventPipeSerialization
 
     m_samplingRateInNs = SampleProfiler::GetSamplingRate();
 
-    bool fSuccess = true;
-    if (m_format >= EventPipeSerializationFormat::NetTraceV4)
-    {
-        const char* pHeader = "Nettrace";
-        uint32_t bytesWritten = 0;
-        fSuccess = pStreamWriter->Write(pHeader, 8, bytesWritten) && bytesWritten == 8;
-    }
-    if (fSuccess)
-    {
-        // Create the file stream and write the FastSerialization header.
-        m_pSerializer = new FastSerializer(pStreamWriter);
-    }
-    else
-    {
-        m_pSerializer = nullptr;
-    }
+
 
     m_serializationLock.Init(LOCK_TYPE_DEFAULT);
 
@@ -138,8 +124,38 @@ EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter, EventPipeSerialization
     QueryPerformanceCounter(&m_lastSortedTimestamp);
 #endif
 
+
+}
+
+void EventPipeFile::InitializeFile()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    bool fSuccess = true;
+    if (m_format >= EventPipeSerializationFormat::NetTraceV4)
+    {
+        const char* pHeader = "Nettrace";
+        uint32_t bytesWritten = 0;
+        fSuccess = m_pStreamWriter->Write(pHeader, 8, bytesWritten) && bytesWritten == 8;
+    }
+    if (fSuccess)
+    {
+        // Create the file stream and write the FastSerialization header.
+        m_pSerializer = new FastSerializer(m_pStreamWriter);
+    }
+    else
+    {
+        m_pSerializer = nullptr;
+    }
     // Write the first object to the file.
     m_pSerializer->WriteObject(this);
+    m_isInitialized = true;
 }
 
 EventPipeFile::~EventPipeFile()

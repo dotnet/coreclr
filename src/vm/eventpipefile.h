@@ -75,6 +75,7 @@ public:
     EventPipeFile(StreamWriter *pStreamWriter, EventPipeSerializationFormat format);
     ~EventPipeFile();
 
+    void InitializeFile();
     EventPipeSerializationFormat GetSerializationFormat() const;
     void WriteEvent(EventPipeEventInstance &instance, ULONGLONG captureThreadId, unsigned int sequenceNumber, BOOL isSortedEvent);
     void WriteSequencePoint(EventPipeSequencePoint* pSequencePoint);
@@ -153,6 +154,8 @@ private:
     // The frequency of the timestamps used for this file.
     LARGE_INTEGER m_timeStampFrequency;
 
+    StreamWriter *m_pStreamWriter;
+
     unsigned int m_pointerSize;
 
     unsigned int m_currentProcessId;
@@ -169,6 +172,10 @@ private:
     MapSHashWithRemove<EventPipeEvent *, unsigned int> *m_pMetadataIds;
 
     Volatile<LONG> m_metadataIdCounter;
+
+    // Indicates whether the file has been initialized,
+    // e.g., has the header been sent to the stream?
+    Volatile<BOOL> m_isInitialized;
 
     unsigned int m_stackIdCounter;
     EventPipeStackHash m_stackHash;
