@@ -205,6 +205,8 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance, ULONGLONG captu
     }
     CONTRACTL_END;
 
+    ASSERT(m_isInitialized);
+
 #ifdef DEBUG
     _ASSERTE(instance.GetTimeStamp()->QuadPart >= m_lastSortedTimestamp.QuadPart);
     if (isSortedEvent)
@@ -250,6 +252,8 @@ void EventPipeFile::WriteSequencePoint(EventPipeSequencePoint* pSequencePoint)
     }
     CONTRACTL_END;
 
+    ASSERT(m_isInitialized);
+
     if (m_format < EventPipeSerializationFormat::NetTraceV4)
     {
         // sequence points aren't used in NetPerf format
@@ -279,6 +283,9 @@ void EventPipeFile::Flush(FlushFlags flags)
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    ASSERT(m_isInitialized);
+
     // we write current blocks to the disk, whether they are full or not
     if ((m_pMetadataBlock->GetBytesWritten() != 0) && ((flags & FlushMetadataBlock) != 0))
     {
@@ -309,6 +316,8 @@ void EventPipeFile::WriteEnd()
     }
     CONTRACTL_END;
 
+    ASSERT(m_isInitialized);
+
     Flush();
 
     // "After the last EventBlock is emitted, the stream is ended by emitting a NullReference Tag which indicates that there are no more objects in the stream to read."
@@ -330,6 +339,8 @@ void EventPipeFile::WriteEventToBlock(EventPipeEventInstance &instance,
         MODE_ANY;
     }
     CONTRACTL_END;
+
+    ASSERT(m_isInitialized);
 
     instance.SetMetadataId(metadataId);
 
