@@ -2730,7 +2730,6 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
             // Instead, duplicate what the CleanupWorkList does as raw IL instructions here.
             psl->SetCleanupNeeded();
             ILCodeStream* pslILCleanup = psl->GetCleanupCodeStream();
-            pslIL->SetStubTargetArgType(ELEMENT_TYPE_I);
 
             DWORD dwNativeHandle = pslIL->NewLocal(ELEMENT_TYPE_I);
             DWORD dwAddRefd = pslIL->NewLocal(ELEMENT_TYPE_BOOLEAN);
