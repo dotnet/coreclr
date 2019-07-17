@@ -148,14 +148,20 @@ void EventPipeFile::InitializeFile()
     {
         // Create the file stream and write the FastSerialization header.
         m_pSerializer = new FastSerializer(m_pStreamWriter);
+        
+        // Write the first object to the file.
+        m_pSerializer->WriteObject(this);
+#ifdef DEBUG
+        m_isInitialized = true;
+#endif
     }
     else
     {
         m_pSerializer = nullptr;
+#ifdef DEBUG
+        m_isInitialized = false;
+#endif
     }
-    // Write the first object to the file.
-    m_pSerializer->WriteObject(this);
-    m_isInitialized = true;
 }
 
 EventPipeFile::~EventPipeFile()
@@ -205,9 +211,8 @@ void EventPipeFile::WriteEvent(EventPipeEventInstance &instance, ULONGLONG captu
     }
     CONTRACTL_END;
 
-    ASSERT(m_isInitialized);
-
 #ifdef DEBUG
+    ASSERT(m_isInitialized);
     _ASSERTE(instance.GetTimeStamp()->QuadPart >= m_lastSortedTimestamp.QuadPart);
     if (isSortedEvent)
     {
@@ -252,7 +257,9 @@ void EventPipeFile::WriteSequencePoint(EventPipeSequencePoint* pSequencePoint)
     }
     CONTRACTL_END;
 
+#ifdef DEBUG
     ASSERT(m_isInitialized);
+#endif
 
     if (m_format < EventPipeSerializationFormat::NetTraceV4)
     {
@@ -284,7 +291,9 @@ void EventPipeFile::Flush(FlushFlags flags)
     }
     CONTRACTL_END;
 
+#ifdef DEBUG
     ASSERT(m_isInitialized);
+#endif
 
     // we write current blocks to the disk, whether they are full or not
     if ((m_pMetadataBlock->GetBytesWritten() != 0) && ((flags & FlushMetadataBlock) != 0))
@@ -316,7 +325,9 @@ void EventPipeFile::WriteEnd()
     }
     CONTRACTL_END;
 
+#ifdef DEBUG
     ASSERT(m_isInitialized);
+#endif
 
     Flush();
 
@@ -340,7 +351,9 @@ void EventPipeFile::WriteEventToBlock(EventPipeEventInstance &instance,
     }
     CONTRACTL_END;
 
+#ifdef DEBUG
     ASSERT(m_isInitialized);
+#endif
 
     instance.SetMetadataId(metadataId);
 

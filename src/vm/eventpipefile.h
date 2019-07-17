@@ -173,14 +173,14 @@ private:
 
     Volatile<LONG> m_metadataIdCounter;
 
-    // Indicates whether the file has been initialized,
-    // e.g., has the header been sent to the stream?
-    Volatile<BOOL> m_isInitialized;
-
     unsigned int m_stackIdCounter;
     EventPipeStackHash m_stackHash;
 #ifdef DEBUG
     LARGE_INTEGER m_lastSortedTimestamp;
+
+    // Indicates whether the file has been initialized,
+    // e.g., has the header been sent to the stream?
+    BOOL m_isInitialized;
 #endif
 };
 
