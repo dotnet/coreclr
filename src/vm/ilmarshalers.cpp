@@ -370,7 +370,7 @@ void ILWSTRMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
     pslILEmit->EmitLDFLDA(fieldDef);
     EmitStoreNativeValue(pslILEmit);
 
-    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+    EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
 
     pslILEmit->EmitLabel(pNullRefLabel);
 }
@@ -1975,7 +1975,7 @@ void ILHSTRINGMarshaler::EmitConvertCLRToHSTRINGReference(ILCodeStream* pslILEmi
     pslILEmit->EmitLDLOCA(dwHStringHeaderLocal);
     pslILEmit->EmitCALL(METHOD__HSTRINGMARSHALER__CONVERT_TO_NATIVE_REFERENCE, 2, 1);
 
-    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedStringLocal);
+    EmitLogNativeArgument(pslILEmit, dwPinnedStringLocal);
 
     EmitStoreNativeValue(pslILEmit);
 }
@@ -2477,7 +2477,7 @@ void ILBlittablePtrMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeS
         pslILEmit->EmitADD();
         pslILEmit->EmitLabel(pSkipAddLabel);
 
-        EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+        EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
 
         EmitStoreNativeValue(pslILEmit);
     }
@@ -3744,7 +3744,7 @@ void ILNativeArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
     pslILEmit->EmitADD();
     EmitStoreNativeValue(pslILEmit);
 
-    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+    EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
 
     pslILEmit->EmitLabel(pNullRefLabel);
 }
@@ -4594,7 +4594,7 @@ void ILHiddenLengthArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit
     pslILEmit->EmitADD();
     EmitStoreNativeValue(pslILEmit);
 
-    EmitLogNativeArgumentsIfNeeded(pslILEmit, dwPinnedLocal);
+    EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
 
     // MarshalDone:
     pslILEmit->EmitLabel(pMarshalDoneLabel);

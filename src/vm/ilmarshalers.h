@@ -220,11 +220,11 @@ protected:
     DWORD               m_dwMngdMarshalerLocalNum;
 
 private:
+    NDirectStubLinker* m_pslNDirect;
     ILCodeStream*       m_pcsMarshal;
     ILCodeStream*       m_pcsUnmarshal;
     ILStubMarshalHome   m_nativeHome;
     ILStubMarshalHome   m_managedHome;
-    NDirectStubLinker*  m_pslNDirect;
 
 public:
 
@@ -259,7 +259,7 @@ private:
         m_pargs = pargs;
         m_dwMarshalFlags = dwMarshalFlags;
         m_argidx = argidx;
-        m_dwMngdMarshalerLocalNum = -1;
+        m_dwMngdMarshalerLocalNum = LOCAL_NUM_UNUSED;
     }
 
 protected:
@@ -353,7 +353,7 @@ protected:
         m_nativeHome.EmitStoreHomeAddr(pslILEmit);
     }
 
-    void EmitLogNativeArgumentsIfNeeded(ILCodeStream* pslILEmit, DWORD dwPinnedLocal)
+    void EmitLogNativeArgument(ILCodeStream* pslILEmit, DWORD dwPinnedLocal)
     {
         if (g_pConfig->InteropLogArguments())
         {
@@ -844,7 +844,7 @@ protected:
         }
         CONTRACTL_END;
 
-        CONSISTENCY_CHECK((DWORD)-1 != m_dwMngdMarshalerLocalNum);
+        CONSISTENCY_CHECK(LOCAL_NUM_UNUSED != m_dwMngdMarshalerLocalNum);
         pslILEmit->EmitLDLOC(m_dwMngdMarshalerLocalNum);
     }
 
@@ -858,7 +858,7 @@ protected:
         }
         CONTRACTL_END;
 
-        CONSISTENCY_CHECK((DWORD)-1 != m_dwMngdMarshalerLocalNum);
+        CONSISTENCY_CHECK(LOCAL_NUM_UNUSED != m_dwMngdMarshalerLocalNum);
         pslILEmit->EmitLDLOCA(m_dwMngdMarshalerLocalNum);
     }
 
@@ -2087,7 +2087,7 @@ class ILOptimizedAllocMarshaler : public ILMarshaler
 public:
     ILOptimizedAllocMarshaler(BinderMethodID clearNat) :
         m_idClearNative(clearNat),
-        m_dwLocalBuffer((DWORD)-1)
+        m_dwLocalBuffer(LOCAL_NUM_UNUSED)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -2098,7 +2098,7 @@ public:
 
 protected:
     const BinderMethodID m_idClearNative;
-    DWORD m_dwLocalBuffer;      // localloc'ed temp buffer variable or -1 if not used
+    DWORD m_dwLocalBuffer;      // localloc'ed temp buffer variable or LOCAL_NUM_UNUSED if not used
 };
 
 class ILUTF8BufferMarshaler : public ILOptimizedAllocMarshaler
@@ -2582,8 +2582,8 @@ public:
 
 
     ILVBByValStrWMarshaler() : 
-        m_dwCCHLocal(-1)
-       ,m_dwLocalBuffer(-1)
+        m_dwCCHLocal(LOCAL_NUM_UNUSED)
+       ,m_dwLocalBuffer(LOCAL_NUM_UNUSED)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -2616,7 +2616,7 @@ public:
     };
 
     ILVBByValStrMarshaler() :
-        m_dwCCHLocal(-1)
+        m_dwCCHLocal(LOCAL_NUM_UNUSED)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -2940,9 +2940,9 @@ public:
     };
 
     ILArrayWithOffsetMarshaler() : 
-        m_dwCountLocalNum(-1),
-        m_dwOffsetLocalNum(-1),
-        m_dwPinnedLocalNum(-1)
+        m_dwCountLocalNum(LOCAL_NUM_UNUSED),
+        m_dwOffsetLocalNum(LOCAL_NUM_UNUSED),
+        m_dwPinnedLocalNum(LOCAL_NUM_UNUSED)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3256,7 +3256,7 @@ public:
             METHOD__NIL,
             METHOD__NIL
             ), 
-        m_dwOriginalManagedLocalNum(-1)
+        m_dwOriginalManagedLocalNum(LOCAL_NUM_UNUSED)
     {
         LIMITED_METHOD_CONTRACT;
     }
@@ -3344,7 +3344,7 @@ public:
                         METHOD__NIL)
     {
         LIMITED_METHOD_CONTRACT;
-        m_dwMngdMarshalerLocalNum = -1;
+        m_dwMngdMarshalerLocalNum = LOCAL_NUM_UNUSED;
     }
 
 protected:
