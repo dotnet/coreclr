@@ -281,11 +281,12 @@ void EventPipe::StartStreaming(EventPipeSessionID id)
         MODE_ANY;
     }
     CONTRACTL_END;
-    
+
+    CrstHolder _crst(GetLock());
+
     if (!IsSessionIdInCollection(id))
         return;
 
-    // If the session was not found, then there is nothing else to do.
     EventPipeSession *const pSession = reinterpret_cast<EventPipeSession *>(id);
 
     pSession->Enable();
