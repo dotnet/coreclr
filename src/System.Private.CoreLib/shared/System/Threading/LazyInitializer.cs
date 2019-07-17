@@ -272,7 +272,7 @@ namespace System.Threading
                 }
             }
 
-            return target!; // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+            return target!; // TODO-NULLABLE: Compiler can't infer target's non-nullness (https://github.com/dotnet/roslyn/issues/37300)
         }
 
         /// <summary>
