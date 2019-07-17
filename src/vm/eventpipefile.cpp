@@ -187,6 +187,10 @@ EventPipeFile::~EventPipeFile()
     delete m_pStackBlock;
     delete m_pSerializer;
     delete m_pMetadataIds;
+
+#ifdef DEBUG
+        m_isInitialized = false;
+#endif
 }
 
 EventPipeSerializationFormat EventPipeFile::GetSerializationFormat() const
