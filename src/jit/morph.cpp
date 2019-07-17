@@ -12437,7 +12437,7 @@ DONE_MORPHING_CHILDREN:
                 op1 = tree->gtOp.gtOp1;
                 if ((op1->gtOper == GT_MOD) || (op1->gtOper == GT_UMOD))
                 {
-                    if (op1->gtOp.gtOp2->IsIntegralConst())
+                    if (varTypeIsIntegralOrI(op1->gtOp.gtOp1->gtType) && (op1->gtOp.gtOp2->IsIntegralConst()))
                     {
                         ssize_t divider = op1->gtOp.gtOp2->AsIntCon()->IconValue();
                         if ((divider > 1) && (isPow2(divider)))
