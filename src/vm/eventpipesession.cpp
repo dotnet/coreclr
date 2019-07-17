@@ -18,6 +18,7 @@ EventPipeSession::EventPipeSession(
     IpcStream *const pStream,
     EventPipeSessionType sessionType,
     EventPipeSerializationFormat format,
+    bool rundownSwitch,
     uint32_t circularBufferSizeInMB,
     const EventPipeProviderConfiguration *pProviders,
     uint32_t numProviders,
@@ -25,7 +26,8 @@ EventPipeSession::EventPipeSession(
                            m_pProviderList(new EventPipeSessionProviderList(pProviders, numProviders)),
                            m_rundownEnabled(rundownEnabled),
                            m_SessionType(sessionType),
-                           m_format(format)
+                           m_format(format),
+                           m_rundownRequested(rundownSwitch)
 {
     CONTRACTL
     {
@@ -177,6 +179,7 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
 
     Thread *const pThisThread = pEventPipeSession->GetIpcStreamingThread();
     bool fSuccess = true;
+    CLREvent *waitEvent = pEventPipeSession->GetWaitEvent();
 
     {
         GCX_PREEMP();
@@ -184,12 +187,19 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
         {
             while (pEventPipeSession->IsIpcStreamingEnabled())
             {
-                if (!pEventPipeSession->WriteAllBuffersToFile())
+                bool eventsWritten = false;
+                if (!pEventPipeSession->WriteAllBuffersToFile(&eventsWritten))
                 {
                     fSuccess = false;
                     break;
                 }
 
+                if (!eventsWritten)
+                {
+                    // No events were available, sleep until more are available
+                    waitEvent->Wait(INFINITE, FALSE);
+                }
+                
                 // Wait until it's time to sample again.
                 PlatformSleep();
             }
@@ -287,7 +297,7 @@ EventPipeSessionProvider *EventPipeSession::GetSessionProvider(const EventPipePr
     return m_pProviderList->GetSessionProvider(pProvider);
 }
 
-bool EventPipeSession::WriteAllBuffersToFile()
+bool EventPipeSession::WriteAllBuffersToFile(bool *pEventsWritten)
 {
     CONTRACTL
     {
@@ -305,7 +315,7 @@ bool EventPipeSession::WriteAllBuffersToFile()
     // the current timestamp are written into the file.
     LARGE_INTEGER stopTimeStamp;
     QueryPerformanceCounter(&stopTimeStamp);
-    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp);
+    m_pBufferManager->WriteAllBuffersToFile(m_pFile, stopTimeStamp, pEventsWritten);
     return !m_pFile->HasErrors();
 }
 
@@ -330,32 +340,6 @@ bool EventPipeSession::WriteEventBuffered(
     return event.IsEnabled(GetMask()) ?
         m_pBufferManager->WriteEvent(pThread, *this, event, payload, pActivityId, pRelatedActivityId, pEventThread, pStack) :
         false;
-}
-
-void EventPipeSession::WriteEventUnbuffered(EventPipeEventInstance &instance, EventPipeThread* pThread)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    if (m_pFile == nullptr)
-        return;
-    ULONGLONG captureThreadId;
-    uint32_t sequenceNumber;
-    {
-        SpinLockHolder _slh(pThread->GetLock());
-        EventPipeThreadSessionState *const pState = pThread->GetOrCreateSessionState(this);
-        if (pState == nullptr)
-            return;
-        captureThreadId = pThread->GetOSThreadId();
-        sequenceNumber = pState->GetSequenceNumber();
-        pState->IncrementSequenceNumber();
-    }
-    m_pFile->WriteEvent(instance, captureThreadId, sequenceNumber, TRUE);
 }
 
 void EventPipeSession::WriteSequencePointUnbuffered()
@@ -387,6 +371,13 @@ EventPipeEventInstance *EventPipeSession::GetNextEvent()
     CONTRACTL_END;
 
     return m_pBufferManager->GetNextEvent();
+}
+
+CLREvent *EventPipeSession::GetWaitEvent()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pBufferManager->GetWaitEvent();
 }
 
 void EventPipeSession::Enable()
@@ -469,6 +460,9 @@ void EventPipeSession::DisableIpcStreamingThread()
     // when profiling is disabled.
     m_ipcStreamingEnabled = false;
 
+    // Thread could be waiting on the event that there is new data to read.
+    m_pBufferManager->GetWaitEvent()->Set();
+
     // Wait for the sampling thread to clean itself up.
     m_threadShutdownEvent.Wait(INFINITE, FALSE /* bAlertable */);
     m_threadShutdownEvent.CloseEvent();
@@ -487,11 +481,24 @@ void EventPipeSession::Disable()
     if ((m_SessionType == EventPipeSessionType::IpcStream) && m_ipcStreamingEnabled)
         DisableIpcStreamingThread();
 
+    bool ignored;
+    WriteAllBuffersToFile(&ignored);
+    m_pProviderList->Clear();
+}
+
+void EventPipeSession::SuspendWriteEvent()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    }
+    CONTRACTL_END;
+
     // Force all in-progress writes to either finish or cancel
     // This is required to ensure we can safely flush and delete the buffers
     m_pBufferManager->SuspendWriteEvent(GetIndex());
-    WriteAllBuffersToFile();
-    m_pProviderList->Clear();
 }
 
 void EventPipeSession::ExecuteRundown()

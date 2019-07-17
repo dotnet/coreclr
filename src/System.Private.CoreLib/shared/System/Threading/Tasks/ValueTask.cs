@@ -449,7 +449,7 @@ namespace System.Threading.Tasks
 
             _obj = task;
 
-            _result = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            _result = default;
             _continueOnCapturedContext = true;
             _token = 0;
         }
@@ -468,7 +468,7 @@ namespace System.Threading.Tasks
             _obj = source;
             _token = token;
 
-            _result = default!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            _result = default;
             _continueOnCapturedContext = true;
         }
 
@@ -740,6 +740,7 @@ namespace System.Threading.Tasks
         }
 
         /// <summary>Gets the result.</summary>
+        [DebuggerBrowsable(DebuggerBrowsableState.Never)] // prevent debugger evaluation from invalidating an underling IValueTaskSource<T>
         public TResult Result
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -780,6 +781,8 @@ namespace System.Threading.Tasks
         {
             if (IsCompletedSuccessfully)
             {
+                Debugger.NotifyOfCrossThreadDependency(); // prevent debugger evaluation from invalidating an underling IValueTaskSource<T> unless forced
+
                 TResult result = Result;
                 if (result != null)
                 {
