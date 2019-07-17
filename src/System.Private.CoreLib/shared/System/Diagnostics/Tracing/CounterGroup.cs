@@ -172,31 +172,20 @@ namespace System.Diagnostics.Tracing
         {
             lock (this) // Lock the CounterGroup
             {
-                if (_eventSource.IsEnabled())
+                foreach (var counter in _counters)
                 {
-                    DateTime now = DateTime.UtcNow;
-                    TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
-
-                    foreach (var counter in _counters)
+                    if (counter is IncrementingEventCounter ieCounter)
                     {
-                        if (counter is IncrementingEventCounter ieCounter)
-                        {
-                            ieCounter.UpdateMetric();    
-                        }
-                        else if (counter is IncrementingPollingCounter ipCounter)
-                        {
-                            ipCounter.UpdateMetric();    
-                        }
-                        else if (counter is EventCounter eCounter)
-                        {
-                            eCounter.ResetStatistics();
-                        }
+                        ieCounter.UpdateMetric();
                     }
-                    _timeStampSinceCollectionStarted = now;
-                }
-                else
-                {
-                    DisposeTimer();
+                    else if (counter is IncrementingPollingCounter ipCounter)
+                    {
+                        ipCounter.UpdateMetric();
+                    }
+                    else if (counter is EventCounter eCounter)
+                    {
+                        eCounter.ResetStatistics();
+                    }
                 }
             }
         }
