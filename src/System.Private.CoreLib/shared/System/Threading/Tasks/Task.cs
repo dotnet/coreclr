@@ -1512,7 +1512,7 @@ namespace System.Threading.Tasks
                     }
                 }
 
-                return contingentProps.m_completionEvent!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                return contingentProps.m_completionEvent;
             }
         }
 
@@ -1802,7 +1802,7 @@ namespace System.Threading.Tasks
 
             lock (props)
             {
-                props.m_exceptionsHolder!.Add(exceptionObject, representsCancellation); // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                props.m_exceptionsHolder.Add(exceptionObject, representsCancellation);
             }
         }
 

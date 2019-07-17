@@ -284,6 +284,6 @@ namespace System.Threading
         private static object EnsureLockInitialized([NotNull] ref object? syncLock) =>
             syncLock ??
             Interlocked.CompareExchange(ref syncLock, new object(), null) ??
-            syncLock!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+            syncLock;
     }
 }
