@@ -12422,28 +12422,20 @@ DONE_MORPHING_CHILDREN:
                 }
             }
 
-            //
-            // Here we look for the following transformation
-            //
-            //                        EQ/NE                 EQ/NE
-            //                        /  \                  /   \
-            //                    (U)MOD  CNS 0    ->     AND   CNS 0
-            //                     /   \                 /   \
-            //                    x    CNS              x    CNS-1
-            //
             // X % C == 0 can be transformed to X & (C-1) == 0 if C is a power of two
+            // if X is unsigned then ' == 0' is not required (handled in lowering)
             if (op2->IsIntegralConst(0))
             {
-                op1 = tree->gtOp.gtOp1;
-                if ((op1->gtOper == GT_MOD) || (op1->gtOper == GT_UMOD))
+                op1 = tree->AsOp()->gtGetOp1();
+                if (op1->OperIs(GT_MOD))
                 {
-                    if (varTypeIsIntegralOrI(op1->gtOp.gtOp1->gtType) && (op1->gtOp.gtOp2->IsIntegralConst()))
+                    if (varTypeIsIntegralOrI(op1->AsOp()->gtGetOp1()->gtType) && (op1->AsOp()->gtGetOp2()->IsIntegralConst()))
                     {
-                        ssize_t divider = op1->gtOp.gtOp2->AsIntCon()->IconValue();
-                        if ((divider > 1) && (isPow2(divider)))
+                        ssize_t divider = op1->AsOp()->gtGetOp2()->AsIntCon()->IconValue();
+                        if (isPow2(divider))
                         {
-                            op1->gtOp.gtOp2->gtIntCon.gtIconVal = divider - 1;
-                            op1->ChangeOper(GT_AND);
+                            op1->AsOp()->gtGetOp2()->AsIntCon()->SetIconValue(divider - 1);
+                            op1->SetOper(GT_AND);
                         }
                     }
                 }
