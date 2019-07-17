@@ -202,7 +202,9 @@ void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
     //     We can't easily run these instructions from the redirect buffer so we emulate their effect (i.e.
     //     update the current context in the same way as executing the instruction would). The breakpoint
     //     fixup logic will restore the PC to the real resultant PC we cache in m_targetPc.
-    //  2) For all other cases (including emulation cases where we aborted due to a memory fault) we copy the
+    //  2) The current instruction uses the PC to load a literal. We cannot emulate all these cases on arm64.
+    //     In this case we alter the instruction to reference a new copy of the literal in out buffer
+    //  3) For all other cases (including emulation cases where we aborted due to a memory fault) we copy the
     //     single instruction into the redirect buffer for execution followed by a breakpoint (once we regain
     //     control in the breakpoint fixup logic we can then reset the PC to its proper location.
 
@@ -213,16 +215,21 @@ void Arm64SingleStepper::Apply(T_CONTEXT *pCtx)
         LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 1: Emulate\n"));
         // Case 1: Emulate an instruction that reads or writes the PC.
         m_fEmulate = true;
+        // Terminate the redirection buffer with a breakpoint.
+        m_rgCode[idxNextInstruction++] = kBreakpointOp;
     }
     else
     {
-        LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 2: CopyInstruction.\n"));
-        // Case 2: In all other cases copy the instruction to the buffer and we'll run it directly.
-        m_rgCode[idxNextInstruction++] = opcode;
+        if (!TryAdjustLoadLiteral(pCtx, opcode, &idxNextInstruction))
+        {
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 3: CopyInstruction.\n"));
+            // Case 3: In all other cases copy the instruction to the buffer and we'll run it directly.
+            m_rgCode[idxNextInstruction++] = opcode;
+            // Terminate the redirection buffer with a breakpoint.
+            m_rgCode[idxNextInstruction++] = kBreakpointOp;
+        }
     }
 
-    // Always terminate the redirection buffer with a breakpoint.
-    m_rgCode[idxNextInstruction++] = kBreakpointOp;
     _ASSERTE(idxNextInstruction <= kMaxCodeBuffer);
 
     // Set the thread up so it will redirect to our buffer when execution resumes.
@@ -386,51 +393,25 @@ void Arm64SingleStepper::SetReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t value)
     (&pCtx->X0)[reg] = value;
 }
 
-// Set the current value of a register.
-void Arm64SingleStepper::SetFPReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t valueLo, uint64_t valueHi)
-{
-    _ASSERTE(reg <= 31);
-
-    pCtx->V[reg].Low = valueLo;
-    pCtx->V[reg].High = valueHi;
-}
-
-// Attempt to read a 4, or 8 byte value from memory, zero or sign extend it to a 8-byte value and place
-// that value into the buffer pointed at by pdwResult. Returns false if attempting to read the location
-// caused a fault.
-bool Arm64SingleStepper::GetMem(uint64_t *pdwResult, uint8_t* pAddress, int cbSize, bool fSignExtend)
+// Attempt to read a 4 byte value from memory and place that value into
+// the buffer pointed at by pdwResult. Returns false if attempting to
+// read the location caused a fault.
+bool Arm64SingleStepper::GetMem(uint32_t *pdwResult, uint32_t* pAddress)
 {
     struct Param
     {
-        uint64_t *pdwResult;
-        uint8_t *pAddress;
-        int cbSize;
-        bool fSignExtend;
+        uint32_t *pdwResult;
+        uint32_t *pAddress;
         bool bReturnValue;
     } param;
 
     param.pdwResult = pdwResult;
     param.pAddress = pAddress;
-    param.cbSize = cbSize;
-    param.fSignExtend = fSignExtend;
     param.bReturnValue = true;
 
     PAL_TRY(Param *, pParam, &param)
     {
-        switch (pParam->cbSize)
-        {
-        case 4:
-            *pParam->pdwResult = *(uint32_t*)pParam->pAddress;
-            if (pParam->fSignExtend && (*pParam->pdwResult & 0x80000000))
-                *pParam->pdwResult |= 0xffffffff00000000;
-            break;
-        case 8:
-            *pParam->pdwResult = *(uint64_t*)pParam->pAddress;
-            break;
-        default:
-            UNREACHABLE();
-            pParam->bReturnValue = false;
-        }
+        *pParam->pdwResult = *pParam->pAddress;
     }
     PAL_EXCEPT(EXCEPTION_EXECUTE_HANDLER)
     {
@@ -443,16 +424,11 @@ bool Arm64SingleStepper::GetMem(uint64_t *pdwResult, uint8_t* pAddress, int cbSi
 
 // Wrapper around GetMem above that will automatically return from TryEmulate() indicating the instruction
 // could not be emulated if we try to read memory and fail due to an exception. This logic works (i.e. we can
-// simply return without worrying whether we've already updated the thread context) due to the fact that we
-// either (a) read memory before updating any registers (the various LDR literal variants) or (b) update the
-// register list before the base register in LDM-like operations (and this should therefore be an idempotent
-// operation when we re-execute the instruction). If this ever changes we will have to store a copy of the
-// original context we can use to revert changes (it gets even more complex if we ever have to emulate an
-// instruction that writes memory).
-#define GET_MEM(_result, _addr, _size, _signextend)                     \
-    do {                                                                \
-        if (!GetMem((_result), (_addr), (_size), (_signextend)))        \
-            return false;                                               \
+// simply return without worrying whether we've already updated the thread context).
+#define GET_MEM(_result, _addr)                     \
+    do {                                            \
+        if (!GetMem((_result), (_addr)))            \
+            return false;                           \
     } while (false)
 
 // Parse the instruction opcode. If the instruction reads or writes the PC it will be emulated by updating
@@ -630,67 +606,80 @@ bool Arm64SingleStepper::TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execu
             }
         }
     }
-    else if ((opcode & 0x3b000000) == 0x18000000) // Load register (literal)
-    {
-        uint64_t opc = BitExtract(opcode, 31, 30);
-
-        fEmulated = (opc != 3);
-        if (execute)
-        {
-            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate Load register (literal)\n"));
-
-            uint64_t V =     BitExtract(opcode, 26, 26);
-            uint64_t imm19 = BitExtract(opcode, 23, 5, true);
-            uint64_t Rt =    BitExtract(opcode, 4, 0);
-
-            uint64_t imm = (imm19 << 2);
-
-            uint8_t* address = (uint8_t*)(m_originalPc + imm);
-
-            uint64_t value = 0;
-            uint64_t valueHi;
-
-            switch (opc)
-            {
-            case 0: // 32-bit
-                GET_MEM(&value, address, 4, false);
-
-                if (V == 0)
-                    SetReg(pCtx, Rt, value);
-                else
-                    SetFPReg(pCtx, Rt, value);
-                break;
-            case 1: // 64-bit GPR
-                GET_MEM(&value, address, 8, false);
-
-                if (V == 0)
-                    SetReg(pCtx, Rt, value);
-                else
-                    SetFPReg(pCtx, Rt, value);
-                break;
-            case 2:
-                if (V == 0)
-                {
-                    // 32-bit GPR Sign extended
-                    GET_MEM(&value, address, 4, true);
-                    SetReg(pCtx, Rt, value);
-                }
-                else
-                {
-                    // 128-bit FP & SIMD
-                    GET_MEM(&value, address, 8, false);
-                    GET_MEM(&valueHi, address + 8, 8, false);
-                    SetFPReg(pCtx, Rt, value, valueHi);
-                }
-                break;
-            default:
-                _ASSERTE(FALSE);
-            }
-        }
-    }
 
     LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper::TryEmulate(opcode=%x) emulated=%s redirectedPc=%s\n",
         opcode, fEmulated ? "true" : "false", fRedirectedPc ? "true" : "false"));
 
     return fEmulated;
+}
+
+// Parse the instruction. If the instruction reads a pc relative literal, a revised instruction, breakpoint
+// and literal will be placed in the code buffer.
+bool Arm64SingleStepper::TryAdjustLoadLiteral(T_CONTEXT *pCtx, uint32_t opcode, int *written)
+{
+    size_t literalLenInInstructions = 0;
+
+    if ((opcode & 0x3b000000) == 0x18000000) // Load register (literal)
+    {
+        uint64_t opc = BitExtract(opcode, 31, 30);
+        uint64_t V =     BitExtract(opcode, 26, 26);
+
+        switch (opc )
+        {
+        case 0: // 32-bit
+            literalLenInInstructions = 1;
+            break;
+        case 1: // 64-bit GPR
+            literalLenInInstructions = 2;
+            break;
+        case 2:
+            if (V == 0)
+            {
+                // 32-bit GPR Sign extended
+                literalLenInInstructions = 1;
+            }
+            else
+            {
+                // 128-bit FP & SIMD
+                literalLenInInstructions = 4;
+            }
+            break;
+        default:
+            // These are either unallocated or PC relative prefetch hints which we can ignore
+            break;
+        }
+
+        if (literalLenInInstructions != 0)
+        {
+            uint32_t adjustedOpcode = opcode;
+
+            // Remove original immediate field
+            adjustedOpcode ^= (BitExtract(opcode, 23, 5) << 5);
+
+            // Insert adjusted literal offset
+            // We will place literal two instructions after this instruction
+            adjustedOpcode ^= (2 << 5);
+
+            int idxNextInstruction = 0;
+
+            m_rgCode[idxNextInstruction++] = adjustedOpcode;
+            m_rgCode[idxNextInstruction++] = kBreakpointOp;
+
+            // Calculate the original literal address
+            uint64_t imm19 = BitExtract(opcode, 23, 5, true);
+            uint32_t* address = (uint32_t*)(m_originalPc + (imm19 << 2));
+
+            // Copy the literal
+            for ( size_t i = 0; i < literalLenInInstructions; ++i)
+            {
+                GET_MEM(&m_rgCode[idxNextInstruction++], address + i);
+            }
+
+            *written = idxNextInstruction;
+
+            LOG((LF_CORDB, LL_INFO100000, "Arm64SingleStepper: Case 2: Adjust load literal.\n"));
+        }
+    }
+
+    return (literalLenInInstructions != 0);
 }

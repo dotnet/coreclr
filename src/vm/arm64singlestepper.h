@@ -48,9 +48,10 @@ public:
 private:
     enum
     {
-        kMaxCodeBuffer = 2, // max slots in our redirect buffer
+        kMaxCodeBuffer = 6, // max slots in our redirect buffer
                             // 1 for current instruction
                             // 1 for final breakpoint
+                            // 4 for literal data
 #ifdef __linux__
         kBreakpointOp = 0xD4200000 + (0x11E1 << 5), // Opcode for the breakpoint instruction used on ARM64 Linux
 #else
@@ -94,19 +95,20 @@ private:
     // Set the current value of a register.
     void SetReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t value);
 
-    // Set the current value of a FP register.
-    void SetFPReg(T_CONTEXT *pCtx, uint64_t reg, uint64_t valueLo, uint64_t valueHi = 0);
-
     // Attempt to read a 4, or 8 byte value from memory, zero or sign extend it to a 8-byte value and place
     // that value into the buffer pointed at by pdwResult. Returns false if attempting to read the location
     // caused a fault.
-    bool GetMem(uint64_t *pdwResult, uint8_t* pAddress, int cbSize, bool fSignExtend);
+    bool GetMem(uint32_t *pdwResult, uint32_t* pAddress);
 
     // Parse the instruction opcode. If the instruction reads or writes the PC it will be emulated by updating
     // the thread context appropriately and true will be returned. If the instruction is not one of those cases
     // (or it is but we faulted trying to read memory during the emulation) no state is updated and false is
     // returned instead.
     bool TryEmulate(T_CONTEXT *pCtx, uint32_t opcode, bool execute);
+
+    // Parse the instruction. If the instruction reads a pc relative literal, a revised instruction, breakpoint
+    // and literal will be placed in the code buffer.
+    bool TryAdjustLoadLiteral(T_CONTEXT *pCtx, uint32_t opcode, int *written);
 };
 
 #endif // !__ARM64_SINGLE_STEPPER_H__
