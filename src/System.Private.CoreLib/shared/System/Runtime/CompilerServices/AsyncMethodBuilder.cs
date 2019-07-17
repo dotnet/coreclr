@@ -602,7 +602,7 @@ namespace System.Runtime.CompilerServices
                 if (context == null)
                 {
                     Debug.Assert(StateMachine != null);
-                    StateMachine!.MoveNext(); // TODO-NULLABLE: remove ! when Debug.Assert on fields is respected (https://github.com/dotnet/roslyn/issues/36830)
+                    StateMachine.MoveNext();
                 }
                 else
                 {
