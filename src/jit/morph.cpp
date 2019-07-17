@@ -12431,7 +12431,8 @@ DONE_MORPHING_CHILDREN:
                 op1 = tree->AsOp()->gtGetOp1();
                 if (op1->OperIs(GT_MOD))
                 {
-                    if (varTypeIsIntegralOrI(op1->AsOp()->gtGetOp1()->gtType) && (op1->AsOp()->gtGetOp2()->IsIntegralConst()))
+                    if (varTypeIsIntegralOrI(op1->AsOp()->gtGetOp1()->gtType) && 
+                        (op1->AsOp()->gtGetOp2()->IsIntegralConst()))
                     {
                         ssize_t divider = op1->AsOp()->gtGetOp2()->AsIntCon()->IconValue();
                         if (isPow2(divider))
