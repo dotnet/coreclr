@@ -13,7 +13,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 
-namespace BasicEventSourceTests
+namespace EventCounterRegressionTests
 {
 
     public class SimpleEventListener : EventListener
@@ -96,7 +96,7 @@ namespace BasicEventSourceTests
             {
                 Thread.Sleep(5000);
 
-                if (myListener.MaxIncrement > 1)
+                if (myListener.MaxIncrement > 5)
                 {
                     Console.WriteLine($"Test Failed - Saw more than 5 exceptions / sec {myListener.MaxIncrement}");
                     return 1;
