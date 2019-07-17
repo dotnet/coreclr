@@ -67,7 +67,7 @@ LEAF_ENTRY JIT_MemCpy, _TEXT
         cmp     byte ptr [rdi], 0       // check dest for null
         cmp     byte ptr [rsi], 0       // check src for null
 
-        jmp     C_PLTFUNC(memmove)      // forward to the CRT implementation, using memmove to handle overlapping buffers
+        jmp     C_PLTFUNC(memcpy)      // forward to the CRT implementation
 
 Exit_MemCpy:
         ret

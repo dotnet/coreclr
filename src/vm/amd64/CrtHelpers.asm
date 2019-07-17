@@ -78,7 +78,10 @@ LEAF_ENTRY JIT_MemCpy, _TEXT
         cmp     byte ptr [rcx], 0       ; check dest for null
         cmp     byte ptr [rdx], 0       ; check src for null
 
-        jmp     memmove                 ; forward to the CRT implementation, using memmove to handle overlapping buffers
+        ; Use memmove to handle overlapping buffers for better
+        ; compatibility with .NET Framework. Needing to handle
+        ; overlapping buffers in cpblk is undefined by the spec.
+        jmp     memmove                 ; forward to the CRT implementation
 
 Exit_MemCpy:
         ret
