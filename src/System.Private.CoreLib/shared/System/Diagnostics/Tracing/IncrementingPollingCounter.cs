@@ -58,9 +58,8 @@ namespace System.Diagnostics.Tracing
             {
                 lock (this)
                 {
-                    double temp = _increment;
+                    _prevIncrement = _increment;
                     _increment = _totalValueProvider();
-                    _prevIncrement = temp;
                 }
             }
             catch (Exception ex)
