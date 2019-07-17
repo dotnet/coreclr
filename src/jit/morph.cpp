@@ -12422,8 +12422,8 @@ DONE_MORPHING_CHILDREN:
                 }
             }
 
-            // X % C == 0 can be transformed to X & (C-1) == 0 if C is a power of two
-            // if X is unsigned then ' == 0' is not required (handled in lowering)
+            // Transform X MOD C == 0 to X UMOD C == 0 if C is a power of two
+            // then lowering will be able to transform it to X & (C-1) == 0
             if (op2->IsIntegralConst(0))
             {
                 op1 = tree->AsOp()->gtGetOp1();
@@ -12434,8 +12434,7 @@ DONE_MORPHING_CHILDREN:
                         ssize_t divider = op1->AsOp()->gtGetOp2()->AsIntCon()->IconValue();
                         if (isPow2(divider))
                         {
-                            op1->AsOp()->gtGetOp2()->AsIntCon()->SetIconValue(divider - 1);
-                            op1->SetOper(GT_AND);
+                            op1->SetOper(GT_UMOD);
                         }
                     }
                 }
