@@ -154,7 +154,7 @@ private:
     // The frequency of the timestamps used for this file.
     LARGE_INTEGER m_timeStampFrequency;
 
-    StreamWriter *m_pStreamWriter;
+    StreamWriter * const m_pStreamWriter;
 
     unsigned int m_pointerSize;
 
