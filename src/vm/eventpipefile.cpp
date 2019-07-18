@@ -78,7 +78,8 @@ DWORD GetFileMinVersion(EventPipeSerializationFormat format)
 
 EventPipeFile::EventPipeFile(StreamWriter *pStreamWriter, EventPipeSerializationFormat format) :
     FastSerializableObject(GetFileVersion(format), GetFileMinVersion(format), format >= EventPipeSerializationFormat::NetTraceV4), 
-    m_pStreamWriter(pStreamWriter)
+    m_pStreamWriter(pStreamWriter),
+    m_pSerializer(nullptr)
 {
     CONTRACTL
     {
@@ -135,6 +136,7 @@ void EventPipeFile::InitializeFile()
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
         PRECONDITION(m_pStreamWriter != nullptr);
+        PRECONDITION(m_pSerializer == nullptr);
     }
     CONTRACTL_END;
 
@@ -148,14 +150,10 @@ void EventPipeFile::InitializeFile()
     if (fSuccess)
     {
         // Create the file stream and write the FastSerialization header.
-        m_pSerializer = new FastSerializer(m_pStreamWriter);
+        m_pSerializer = new (nothrow) FastSerializer(m_pStreamWriter);
         
         // Write the first object to the file.
         m_pSerializer->WriteObject(this);
-    }
-    else
-    {
-        m_pSerializer = nullptr;
     }
 }
 
