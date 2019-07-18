@@ -1476,9 +1476,8 @@ public:
         }
 
         return 0;
-
     }
-    
+
     unsigned floatRegCount()
     {
 #if defined(UNIX_AMD64_ABI)
@@ -1494,14 +1493,13 @@ public:
         }
 
         return 0;
-
     }
 
     unsigned stackSize()
     {
         return (TARGET_POINTER_SIZE * this->numSlots);
     }
-    
+
     __declspec(property(get = GetHfaType)) var_types hfaType;
     var_types GetHfaType()
     {

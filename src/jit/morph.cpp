@@ -1184,8 +1184,8 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned                                    
     fgArgTabEntry* curArgTabEntry = AddRegArg(argNum, node, parent, regNum, numRegs, alignment, isStruct, isVararg);
     assert(curArgTabEntry != nullptr);
 
-    curArgTabEntry->isStruct = isStruct; // is this a struct arg
-    curArgTabEntry->structIntRegs = structIntRegs;
+    curArgTabEntry->isStruct        = isStruct; // is this a struct arg
+    curArgTabEntry->structIntRegs   = structIntRegs;
     curArgTabEntry->structFloatRegs = structFloatRegs;
 
     curArgTabEntry->checkIsStruct();
@@ -2962,7 +2962,8 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
 
         // This is a register argument - put it in the table.
         call->fgArgInfo->AddRegArg(argIndex, argx, nullptr, genMapIntRegArgNumToRegNum(intArgRegNum), 1, 1, false,
-                                   callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
+                                   callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(0)
+                                       UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
 
         intArgRegNum++;
 #ifdef WINDOWS_AMD64_ABI
@@ -3564,10 +3565,10 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
 
             // This is a register argument - put it in the table
             newArgEntry = call->fgArgInfo->AddRegArg(argIndex, argx, args, nextRegNum, size, argAlign, isStructArg,
-                                                     callIsVararg UNIX_AMD64_ABI_ONLY_ARG(nextOtherRegNum) 
+                                                     callIsVararg UNIX_AMD64_ABI_ONLY_ARG(nextOtherRegNum)
                                                          UNIX_AMD64_ABI_ONLY_ARG(structIntRegs)
-                                                         UNIX_AMD64_ABI_ONLY_ARG(structFloatRegs)
-                                                         UNIX_AMD64_ABI_ONLY_ARG(&structDesc));
+                                                             UNIX_AMD64_ABI_ONLY_ARG(structFloatRegs)
+                                                                 UNIX_AMD64_ABI_ONLY_ARG(&structDesc));
 
             newArgEntry->SetIsBackFilled(isBackFilled);
             newArgEntry->isNonStandard = isNonStandard;
@@ -6954,12 +6955,14 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    callee(int, int, float, int)
 //
 //    -- Callee requires stack space that is equal to the caller --
-//    caller({ long, long }, { int, int }, { int }, { int }, { int }, { int }) -- 6 int register arguments, 16 byte stack
+//    caller({ long, long }, { int, int }, { int }, { int }, { int }, { int }) -- 6 int register arguments, 16 byte
+//    stack
 //    space
 //    callee(int, int, int, int, int, int, int, int) -- 6 int register arguments, 16 byte stack space
 //
 //    -- Callee requires stack space that is less than the caller --
-//    caller({ long, long }, int, { long, long }, int, { long, long }, { long, long }) 6 int register arguments, 32 byte stack
+//    caller({ long, long }, int, { long, long }, int, { long, long }, { long, long }) 6 int register arguments, 32 byte
+//    stack
 //    space
 //    callee(int, int, int, int, int, int, { long, long } ) // 6 int register arguments, 16 byte stack space
 //
@@ -7051,17 +7054,17 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 #endif // DEBUG
     };
 
-    // Note on vararg methods:
-    // If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
-    // But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
-    // fixed args. Therefore, we can allow a vararg method to fast tail call other methods as long as
-    // out-going area required for callee is bounded by caller's fixed argument space.
-    //
-    // Note that callee being a vararg method is not a problem since we can account the params being passed.
-    //
-    // We will currently decide to not fast tail call on Windows armarch if the caller or callee is a vararg
-    // method. This is due to the ABI differences for native vararg methods for these platforms. There is
-    // work required to shuffle arguments to the correct locations.
+// Note on vararg methods:
+// If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
+// But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
+// fixed args. Therefore, we can allow a vararg method to fast tail call other methods as long as
+// out-going area required for callee is bounded by caller's fixed argument space.
+//
+// Note that callee being a vararg method is not a problem since we can account the params being passed.
+//
+// We will currently decide to not fast tail call on Windows armarch if the caller or callee is a vararg
+// method. This is due to the ABI differences for native vararg methods for these platforms. There is
+// work required to shuffle arguments to the correct locations.
 
 #if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
     if (info.compIsVarArgs || callee->IsVarargs())
@@ -7087,9 +7090,9 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // stack slot sized requirement. This requirement is required to support
     // lowering the fast tail call, which, currently only supports copying
     // stack slot arguments which have only one stack slot.
-    // 
-    // For each struct arg, determine whether the argument would have  > 1 stack 
-    // slot if on the stack. If it has > 1 stack slot we will not fastTailCall. 
+    //
+    // For each struct arg, determine whether the argument would have  > 1 stack
+    // slot if on the stack. If it has > 1 stack slot we will not fastTailCall.
     // This is an implementation limitation of LowerFastTailCall that is tracked by:
     // https://github.com/dotnet/coreclr/issues/12644.
 
@@ -7102,9 +7105,9 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     {
         fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
 
-        unsigned argStackSize = arg->stackSize();
+        unsigned argStackSize     = arg->stackSize();
         unsigned argFloatRegCount = arg->floatRegCount();
-        unsigned argIntRegCount = arg->intRegCount();
+        unsigned argIntRegCount   = arg->intRegCount();
 
         unsigned countRegistersUsedForArg = argIntRegCount + argFloatRegCount;
 
@@ -7117,7 +7120,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         if (arg->isStruct)
         {
             hasNonEnregisterableStructs = argStackSize > 0 ? true : hasNonEnregisterableStructs;
-            hasLargerThanOneStackSlotSizedStruct = countRegistersUsedForArg > 1 ? true : hasLargerThanOneStackSlotSizedStruct;
+            hasLargerThanOneStackSlotSizedStruct =
+                countRegistersUsedForArg > 1 ? true : hasLargerThanOneStackSlotSizedStruct;
 
             // Byref struct arguments are not allowed to fast tail call as the information
             // of the caller's stack is lost when the callee is compiled.
@@ -7140,7 +7144,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         }
     }
 
-    const unsigned maxRegArgs = MAX_REG_ARG;
+    const unsigned maxRegArgs            = MAX_REG_ARG;
     hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
 
     if (hasByrefParameter)
@@ -7149,13 +7153,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         return false;
     }
 
-    // If we reached here means that callee has only those argument types which can be passed in
-    // a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
-    // If we are passing args on stack for the callee and it haas a larger stack size than
-    // the caller, then fast tail call cannot be performed.
-    //
-    // Note that the GC'ness of on stack args need not match since the arg setup area is marked
-    // as non-interruptible for fast tail calls.
+// If we reached here means that callee has only those argument types which can be passed in
+// a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
+// If we are passing args on stack for the callee and it haas a larger stack size than
+// the caller, then fast tail call cannot be performed.
+//
+// Note that the GC'ness of on stack args need not match since the arg setup area is marked
+// as non-interruptible for fast tail calls.
 
 #ifdef WINDOWS_AMD64_ABI
     size_t callerStackSize = info.compArgStackSize;
@@ -7167,7 +7171,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         hasStackArgs = true;
     }
 
-    // x64 Windows: If we have stack args then make sure the callee's incoming 
+    // x64 Windows: If we have stack args then make sure the callee's incoming
     // arguments is less than the caller's
     if (hasStackArgs && (nCalleeArgs > nCallerArgs))
     {
@@ -7186,7 +7190,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // that we are not dealing with structs that are >8 bytes.
 
     bool   hasStackArgs    = false;
-    size_t callerStackSize     = info.compArgStackSize;
+    size_t callerStackSize = info.compArgStackSize;
 
     if (callerStackSize > 0 || calleeStackSize > 0)
     {
@@ -7200,8 +7204,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
     if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize)
     {
-        reportFastTailCallDecision("Will not fastTailCall hasLargerThanOneStackSlotSizedStruct && calleeStackSize", callerStackSize,
-                                   calleeStackSize);
+        reportFastTailCallDecision("Will not fastTailCall hasLargerThanOneStackSlotSizedStruct && calleeStackSize",
+                                   callerStackSize, calleeStackSize);
         return false;
     }
 
@@ -8605,7 +8609,7 @@ NO_TAIL_CALL:
                 {
                     // Force re-evaluating the argInfo as the return argument has changed.
                     call->fgArgInfo = nullptr;
-                    origDest = dest;
+                    origDest        = dest;
 
                     retValTmpNum = lvaGrabTemp(true DEBUGARG("substitute local for ret buff arg"));
                     lvaSetStruct(retValTmpNum, structHnd, true);
