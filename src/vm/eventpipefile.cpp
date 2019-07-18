@@ -150,7 +150,7 @@ void EventPipeFile::InitializeFile()
     if (fSuccess)
     {
         // Create the file stream and write the FastSerialization header.
-        m_pSerializer = new (nothrow) FastSerializer(m_pStreamWriter);
+        m_pSerializer = new FastSerializer(m_pStreamWriter);
         
         // Write the first object to the file.
         m_pSerializer->WriteObject(this);
