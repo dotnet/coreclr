@@ -6898,7 +6898,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    caller(int, int, int, int)
 //    callee(int, int, float, int)
 //
-//    -- Callee requires stack space that is equal to the caller --
+//    -- Callee requires stack space that is equal or less than the caller --
 //    caller(struct, struct, struct, struct, struct, struct)
 //    callee(int, int, int, int, int, int)
 //
@@ -6915,6 +6915,10 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    -- Callee requires stack space that is larger than the caller --
 //    caller(struct, double, struct, float, struct, struct)
 //    callee(int, int, int, int, int, double, double, double)
+//
+//    -- Callee has a byref struct argument --
+//    caller(int, int, int)
+//    callee(struct(size 3 bytes))
 //
 // Unix Amd64 && Arm64:
 //    A fastTailCall decision can be made whenever the callee's stack space is
@@ -6940,12 +6944,6 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    will be placed on the stack or enregistered. Therefore, the conservative
 //    decision of do not fast tail call is taken. This limitations should be
 //    removed if/when fgMorphArgs no longer depends on fgCanFastTailCall.
-//
-//    4) Arm64 Only, if there are HFA arguments and the callee has stack
-//    arguments, the decision will be reported as cannot fast tail call.
-//    This is because before fgMorphArgs is done, the struct is unknown whether it
-//    will be placed on the stack or enregistered. Therefore, the conservative
-//    decision of do not fast tail call is taken.
 //
 // Can fast tail call examples (amd64 Unix):
 //
