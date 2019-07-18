@@ -365,8 +365,7 @@ CLREvent *EventPipeSession::GetWaitEvent()
     return m_pBufferManager->GetWaitEvent();
 }
 
-// MUST be called AFTER sending the IPC response
-void EventPipeSession::Enable()
+void EventPipeSession::StartStreaming()
 {
     CONTRACTL
     {

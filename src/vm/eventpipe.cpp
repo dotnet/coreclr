@@ -289,7 +289,7 @@ void EventPipe::StartStreaming(EventPipeSessionID id)
 
     EventPipeSession *const pSession = reinterpret_cast<EventPipeSession *>(id);
 
-    pSession->Enable();
+    pSession->StartStreaming();
 }
 
 void EventPipe::Disable(EventPipeSessionID id)
