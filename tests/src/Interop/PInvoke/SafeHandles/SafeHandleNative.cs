@@ -64,6 +64,9 @@ namespace SafeHandleTests
         
         [DllImport(nameof(SafeHandleNative), EntryPoint = "SafeHandleReturn")]
         public static extern NoDefaultConstructorSafeHandle SafeHandleReturn_NoDefaultConstructor(IntPtr expectedValue);
+
+        [DllImport(nameof(SafeHandleNative), EntryPoint = "SafeHandleReturn")]
+        public static extern AbstractDerivedSafeHandleImplementation SafeHandleReturn_AbstractDerivedImplementation(IntPtr expectedValue);
         
         [DllImport(nameof(SafeHandleNative), PreserveSig = false)]
         public static extern TestSafeHandle SafeHandleReturn_Swapped(IntPtr expectedValue);

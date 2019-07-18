@@ -37,6 +37,9 @@ namespace SafeHandleTests
             
             Assert.Throws<MarshalDirectiveException>(() => SafeHandleNative.SafeHandleReturn_AbstractDerived(initialValue));
             Assert.Throws<MissingMethodException>(() => SafeHandleNative.SafeHandleReturn_NoDefaultConstructor(initialValue));
+
+            var abstractDerivedImplementationHandle = SafeHandleNative.SafeHandleReturn_AbstractDerivedImplementation(initialValue);
+            Assert.AreEqual(initialValue, abstractDerivedImplementationHandle.DangerousGetHandle());
         
             testHandle = SafeHandleNative.SafeHandleReturn_Swapped(newValue);
             Assert.AreEqual(newValue, testHandle.DangerousGetHandle());
