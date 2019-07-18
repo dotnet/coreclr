@@ -5129,6 +5129,8 @@ void Compiler::fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
                 // struct parameters if they are passed as arguments to a tail call.
                 if (!call->IsTailCallViaHelper() && (varDsc->lvRefCnt(RCS_EARLY) == 1) && !fgMightHaveLoop())
                 {
+                    assert(!call->IsTailCall());
+
                     varDsc->setLvRefCnt(0, RCS_EARLY);
                     args->gtOp.gtOp1 = lcl;
                     argEntry->node   = lcl;
