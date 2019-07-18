@@ -2588,10 +2588,7 @@ GenTree* Compiler::fgInsertCommaFormTemp(GenTree** ppTree, CORINFO_CLASS_HANDLE 
 // fgInitArgInfo: Construct the fgArgInfo for the call with the fgArgEntry for each arg
 //
 // Arguments:
-//    callNode      - the call for which we are generating the fgArgInfo
-//    reInitArgInfo - force the argInfo to be regenerated. This is only useful
-//                    if the arguments have changed between the first and
-//                    subsequent calls. Defaults to false.
+//    callNode - the call for which we are generating the fgArgInfo
 //
 // Return Value:
 //    None
