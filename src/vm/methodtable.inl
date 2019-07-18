@@ -1613,6 +1613,8 @@ inline void MethodTable::UnBoxIntoUnchecked(void *dest, OBJECTREF src)
 }
 #endif
 //==========================================================================================
+
+//TODO: VS inline?
 __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(MethodTable *pTargetMT)
 {
     CONTRACTL
@@ -1639,6 +1641,8 @@ __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(
 }
 
 //==========================================================================================
+
+//TODO: VS inline?
 inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited)
 {
     CONTRACTL
@@ -1659,7 +1663,7 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
 
     // We only consider type-based conversion rules here.
     // Therefore a negative result cannot rule out convertibility for ICastable and COM objects
-    if (!result && !(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
+    if (result || !(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
     {
         CastCache::TryAddToCacheAny(this, pTargetMT, (BOOL)result);
     }

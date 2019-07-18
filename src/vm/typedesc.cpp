@@ -366,6 +366,8 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     if (TypeHandle(this) == toType)
         return TRUE;
 
+    //TODO: VS cache some results.
+
     //A boxed variable type can be cast to any of its constraints, or object, if none are specified
     if (IsGenericVariable())
     {

@@ -424,9 +424,7 @@ void ArrayNative::CastCheckEachElement(const BASEARRAYREF pSrcUnsafe, const unsi
 
         // Now that we have grabbed obj, we are no longer subject to races from another
         // mutator thread.
-        // try "NoGC" version first. It is cheaper and will check the cache.
         if (gc.obj != NULL && 
-            !ObjIsInstanceOfNoGC(OBJECTREFToObject(gc.obj), destTH) &&
             !ObjIsInstanceOf(OBJECTREFToObject(gc.obj), destTH))
             COMPlusThrow(kInvalidCastException, W("InvalidCast_DownCastArrayElement"));
 
@@ -1279,7 +1277,8 @@ FCIMPL2(void, ArrayNative::SetValue, TypedByRef * target, Object* objUNSAFE)
             // target->data is protected by the caller
             HELPER_METHOD_FRAME_BEGIN_1(obj);
 
-            if (!ObjIsInstanceOf(OBJECTREFToObject(obj), thTarget))
+            // call "Core" version directly since "NoGC" did a cache lookup already 
+            if (!ObjIsInstanceOfCore(OBJECTREFToObject(obj), thTarget))
                 COMPlusThrow(kInvalidCastException,W("InvalidCast_StoreArrayElement"));
 
             HELPER_METHOD_FRAME_END();
