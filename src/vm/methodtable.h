@@ -1987,16 +1987,22 @@ public:
     //   so the caller should now call CanCastToXRestoring if it cares
     // 
     BOOL CanCastToInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited = NULL);
+    TypeHandle::CastResult CanCastToInterfaceNoGC(MethodTable* pTargetMT);
+
     BOOL CanCastToClass(MethodTable *pTargetMT, TypeHandlePairList *pVisited = NULL);
+    TypeHandle::CastResult CanCastToClassNoGC(MethodTable* pTargetMT);
+
     BOOL CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited);
-    BOOL CanCastByVarianceToInterfaceOrDelegate(MethodTable *pTargetMT, TypeHandlePairList *pVisited);
-
-    BOOL CanCastToNonVariantInterface(MethodTable *pTargetMT);
-
-    TypeHandle::CastResult CanCastToInterfaceNoGC(MethodTable *pTargetMT);
-    TypeHandle::CastResult CanCastToClassNoGC(MethodTable *pTargetMT);
-    TypeHandle::CastResult CanCastToClassOrInterfaceNoGC(MethodTable *pTargetMT);
+    TypeHandle::CastResult CanCastToClassOrInterfaceNoGC(MethodTable* pTargetMT);
+   
+    BOOL MethodTable::ArraySupportsBizarreInterface(MethodTable* pInterfaceMT, TypeHandlePairList* pVisited);
     TypeHandle::CastResult ArraySupportsBizarreInterfaceNoGC(MethodTable *pTargetMT);
+
+    BOOL ArrayIsInstanceOf(TypeHandle toTypeHnd, TypeHandlePairList* pVisited);
+    TypeHandle::CastResult ArrayIsInstanceOfNoGC(TypeHandle toTypeHnd);
+
+    BOOL CanCastByVarianceToInterfaceOrDelegate(MethodTable* pTargetMT, TypeHandlePairList* pVisited);
+    BOOL CanCastToNonVariantInterface(MethodTable* pTargetMT);
 
     // The inline part of equivalence check.
 #ifndef DACCESS_COMPILE

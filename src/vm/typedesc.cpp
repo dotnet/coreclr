@@ -402,33 +402,43 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
         }
         return FALSE;
     }
+    
+    if (IsArray())
+    {
+        BOOL fCast = FALSE;
+        MethodTable* pMT = this->GetMethodTable();
+
+        if (toType.IsArray())
+        {
+            fCast = pMT->ArrayIsInstanceOf(toType, /* pVisited */ NULL);
+        }
+        else
+        {
+            MethodTable* toMT = toType.GetMethodTable();
+            if (toMT->IsInterface() && toMT->HasInstantiation())
+            {
+                fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
+            }
+            else
+            {
+                fCast = pMT->CanCastToClassOrInterface(toMT, /* pVisited */ NULL);
+            }
+        }
+
+        // leafs add cached conversion for the method table
+        // since we started from a typedesc, add a typedesc conversion too
+        CastCache::TryAddToCache(TypeHandle(this), toType, fCast);
+        return fCast;
+    }
 
     // If we're not casting to a TypeDesc (i.e. not to a reference array type, variable type etc.)
     // then we must be trying to cast to a class or interface type.
     if (!toType.IsTypeDesc())
     {
-        if (!IsArray())
-        {
-            // I am a variable type, pointer type, function pointer type
-            // etc.  I am not an object or value type.  Therefore
-            // I can't be cast to an object or value type.
-            return FALSE;
-        }
-
-        MethodTable* toMT = toType.AsMethodTable();
-        if (toMT->IsInterface() && toMT->HasInstantiation())
-        {
-            if (ArraySupportsBizarreInterface((ArrayTypeDesc*)this, toMT))
-            {
-                return TRUE;
-            }
-        }
-
-        MethodTable *pMT = GetMethodTable();
-        _ASSERTE(pMT != 0);
-
-        // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
-        return pMT->CanCastToClassOrInterface(toMT, pVisited);
+        // I am a variable type, pointer type, function pointer type
+        // etc.  I am not an object or value type.  Therefore
+        // I can't be cast to an object or value type.
+        return FALSE;
     }
 
     TypeDesc* toTypeDesc = toType.AsTypeDesc();
@@ -436,19 +446,12 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     CorElementType toKind = toTypeDesc->GetInternalCorElementType();
     CorElementType fromKind = GetInternalCorElementType();
 
-    //TODO: VS cache the result? except when calling CanCastToClassOrInterface.
-
-    // The element kinds must match, only exception is that SZARRAY matches a one dimension ARRAY
-    if (!(toKind == fromKind || (toKind == ELEMENT_TYPE_ARRAY && fromKind == ELEMENT_TYPE_SZARRAY)))
+    // The element kinds must match
+    if (toKind != fromKind)
         return FALSE;
 
     switch (toKind)
     {
-    case ELEMENT_TYPE_ARRAY:
-        if (dac_cast<PTR_ArrayTypeDesc>(this)->GetRank() != dac_cast<PTR_ArrayTypeDesc>(toTypeDesc)->GetRank())
-            return FALSE;
-        // fall through
-    case ELEMENT_TYPE_SZARRAY:
     case ELEMENT_TYPE_BYREF:
     case ELEMENT_TYPE_PTR:
         return TypeDesc::CanCastParam(dac_cast<PTR_ParamTypeDesc>(this)->GetTypeParam(), dac_cast<PTR_ParamTypeDesc>(toTypeDesc)->GetTypeParam(), pVisited);
@@ -460,6 +463,10 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
 
     default:
         BAD_FORMAT_NOTHROW_ASSERT(toKind == ELEMENT_TYPE_TYPEDBYREF || CorTypeInfo::IsPrimitiveType(toKind));
+        // array cast should have been handled above
+        _ASSERTE(toKind != ELEMENT_TYPE_ARRAY);
+        _ASSERTE(toKind != ELEMENT_TYPE_SZARRAY);
+
         return TRUE;
     }
 }
@@ -519,6 +526,7 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
     {
         NOTHROW;
         GC_NOTRIGGER;
+        MODE_COOPERATIVE;
         FORBID_FAULT;
     }
     CONTRACTL_END
@@ -554,29 +562,46 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
         return TypeHandle::MaybeCast;
     }
 
+    if (IsArray())
+    {
+        TypeHandle::CastResult result = TypeHandle::CannotCast;
+        MethodTable* pMT = this->GetMethodTable();
+
+        if (toType.IsArray())
+        {
+            result = pMT->ArrayIsInstanceOfNoGC(toType);
+        }
+        else
+        {
+            MethodTable* toMT = toType.GetMethodTable();
+            if (toMT->IsInterface() && toMT->HasInstantiation())
+            {
+                result = pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
+            }
+            else
+            {
+                result = pMT->CanCastToClassOrInterfaceNoGC(toMT);
+            }
+        }
+
+        // leafs add cached conversion for the method table
+        // since we started from a typedesc, add a typedesc conversion too
+        if (result != TypeHandle::MaybeCast)
+        {
+            CastCache::TryAddToCacheNoGC(TypeHandle(this), toType, result);
+        }
+
+        return result;
+    }
+
     // If we're not casting to a TypeDesc (i.e. not to a reference array type, variable type etc.)
     // then we must be trying to cast to a class or interface type.
     if (!toType.IsTypeDesc())
     {
-        if (!IsArray())
-        {
-            // I am a variable type, pointer type, function pointer type
-            // etc.  I am not an object or value type.  Therefore
-            // I can't be cast to an object or value type.
-            return TypeHandle::CannotCast;
-        }
-
-        MethodTable *pMT = GetMethodTable();
-        _ASSERTE(pMT != 0);
-
-        MethodTable* toMT = toType.AsMethodTable();
-        if (toMT->IsInterface() && toMT->HasInstantiation())
-        {
-            return pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
-        }
-
-        // This does the right thing if 'type' == System.Array or System.Object, System.Clonable ...
-        return pMT->CanCastToClassOrInterfaceNoGC(toMT);
+        // I am a variable type, pointer type, function pointer type
+        // etc.  I am not an object or value type.  Therefore
+        // I can't be cast to an object or value type.
+        return TypeHandle::CannotCast;
     }
 
     TypeDesc* toTypeDesc = toType.AsTypeDesc();
@@ -584,17 +609,12 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
     CorElementType toKind = toTypeDesc->GetInternalCorElementType();
     CorElementType fromKind = GetInternalCorElementType();
 
-    // The element kinds must match, only exception is that SZARRAY matches a one dimension ARRAY
-    if (!(toKind == fromKind || (toKind == ELEMENT_TYPE_ARRAY && fromKind == ELEMENT_TYPE_SZARRAY)))
+    // The element kinds must match
+    if (toKind != fromKind)
         return TypeHandle::CannotCast;
 
     switch (toKind)
     {
-    case ELEMENT_TYPE_ARRAY:
-        if (dac_cast<PTR_ArrayTypeDesc>(this)->GetRank() != dac_cast<PTR_ArrayTypeDesc>(toTypeDesc)->GetRank())
-            return TypeHandle::CannotCast;
-        // fall through
-    case ELEMENT_TYPE_SZARRAY:
     case ELEMENT_TYPE_BYREF:
     case ELEMENT_TYPE_PTR:
         return TypeDesc::CanCastParamNoGC(dac_cast<PTR_ParamTypeDesc>(this)->GetTypeParam(), dac_cast<PTR_ParamTypeDesc>(toTypeDesc)->GetTypeParam());
@@ -606,6 +626,9 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
 
     default:
         BAD_FORMAT_NOTHROW_ASSERT(toKind == ELEMENT_TYPE_TYPEDBYREF || CorTypeInfo::IsPrimitiveType_NoThrow(toKind));
+        // array cast should have been handled above
+        _ASSERTE(toKind != ELEMENT_TYPE_ARRAY);
+        _ASSERTE(toKind != ELEMENT_TYPE_SZARRAY);
         return TypeHandle::CanCast;
     }
 }
@@ -616,6 +639,7 @@ TypeHandle::CastResult TypeDesc::CanCastParamNoGC(TypeHandle fromParam, TypeHand
     {
         NOTHROW;
         GC_NOTRIGGER;
+        MODE_COOPERATIVE;
         FORBID_FAULT;
     }
     CONTRACTL_END

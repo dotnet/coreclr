@@ -2071,55 +2071,7 @@ HCIMPLEND_RAW
 //
 //========================================================================
 
-TypeHandle::CastResult ArrayIsInstanceOfNoGC(MethodTable* pMT, TypeHandle toTypeHnd)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        PRECONDITION(pMT->IsArray());
-        PRECONDITION(toTypeHnd.IsArray());
-    } CONTRACTL_END;
 
-    ArrayTypeDesc *toArrayType = toTypeHnd.AsArray();
-
-    // GetRank touches EEClass. Try to avoid it for SZArrays.
-    if (toArrayType->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY)
-    {
-        if (pMT->IsMultiDimArray())
-        {
-            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
-            return TypeHandle::CannotCast;
-        }
-    }
-    else
-    {
-        if (pMT->GetRank() != toArrayType->GetRank())
-        {
-            CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
-            return TypeHandle::CannotCast;
-        }
-    }
-    _ASSERTE(pMT->GetRank() == toArrayType->GetRank());
-
-    //TODO: VS "Approx" API may need renaming. Arrays know their ElementType quite precisely.
-    TypeHandle elementTypeHandle = pMT->GetApproxArrayElementTypeHandle();
-    TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
-
-    if (elementTypeHandle == toElementTypeHandle)
-    {
-        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, TRUE);
-        return TypeHandle::CanCast;
-    }
-
-    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(elementTypeHandle, toElementTypeHandle);
-    if (result != TypeHandle::MaybeCast)
-    {
-        CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, (BOOL)result);
-    }
-
-    return result;
-}
 
 TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTypeHnd)
 {
@@ -2144,15 +2096,16 @@ TypeHandle::CastResult ObjIsInstanceOfNoGCCore(Object *pObject, TypeHandle toTyp
     if (pMT->IsArray())
     {
         if (toTypeHnd.IsArray())
-            return ArrayIsInstanceOfNoGC(pMT, toTypeHnd);
+            return pMT->ArrayIsInstanceOfNoGC(toTypeHnd);
 
-        MethodTable* toMT = toTypeHnd.AsMethodTable();
-        if (toMT->IsInterface() && toMT->HasInstantiation())
+        if (toTypeHnd.IsInterface() && toTypeHnd.HasInstantiation())
         {
+            MethodTable* toMT = toTypeHnd.GetMethodTable();
             return pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
         }
     }
-    else if (toTypeHnd.IsTypeDesc())
+    
+    if (toTypeHnd.IsTypeDesc())
     {
         CastCache::TryAddToCacheNoGC(pMT, toTypeHnd, FALSE);
         return TypeHandle::CannotCast;
@@ -2170,7 +2123,7 @@ TypeHandle::CastResult STDCALL ObjIsInstanceOfNoGC(Object *pObject, TypeHandle t
         PRECONDITION(CheckPointer(pObject));
     } CONTRACTL_END;
 
-    MethodTable *pMT = pObject->GetMethodTable();
+    MethodTable* pMT = pObject->GetMethodTable();
     TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, toTypeHnd);
     if (result != TypeHandle::MaybeCast)
     {
@@ -2189,66 +2142,91 @@ BOOL ObjIsInstanceOfCore(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastEx
         PRECONDITION(CheckPointer(pObject));
     } CONTRACTL_END;
 
-    BOOL fCast = FALSE;
-
-    OBJECTREF obj = ObjectToOBJECTREF(pObject);
-
-    GCPROTECT_BEGIN(obj);
-
-    TypeHandle fromTypeHnd = obj->GetTypeHandle();
-
     // If we are trying to cast a proxy we need to delegate to remoting
     // services which will determine whether the proxy and the type are compatible.
     // Start by doing a quick static cast check to see if the type information captured in
     // the metadata indicates that the cast is legal.
-    if (fromTypeHnd.CanCastTo(toTypeHnd))
-    {
-        fCast = TRUE;
-    }
-    else
-#ifdef FEATURE_COMINTEROP
-    // If we are casting a COM object from interface then we need to do a check to see 
-    // if it implements the interface.
-    if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsComObjectType())
-    {
-        fCast = ComObject::SupportsInterface(obj, toTypeHnd.AsMethodTable());
-    }
-    else
-#endif // FEATURE_COMINTEROP
-    if (Nullable::IsNullableForType(toTypeHnd, obj->GetMethodTable()))
-    {
-        // allow an object of type T to be cast to Nullable<T> (they have the same representation)
-        CastCache::TryAddToCache(fromTypeHnd, toTypeHnd, TRUE);
-        fCast = TRUE;
-    }
-#ifdef FEATURE_ICASTABLE
-    // If type implements ICastable interface we give it a chance to tell us if it can be casted 
-    // to a given type.
-    else if (toTypeHnd.IsInterface() && fromTypeHnd.GetMethodTable()->IsICastable())
-    {
-        // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
-        OBJECTREF exception = NULL;
-        GCPROTECT_BEGIN(exception);
-        
-        PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
 
-        OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
+    BOOL fCast = FALSE;
+    MethodTable* pMT = pObject->GetMethodTable();
 
-        DECLARE_ARGHOLDER_ARRAY(args, 3);
-        args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
-        args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(managedType);
-        args[ARGNUM_2] = PTR_TO_ARGHOLDER(&exception);
+    OBJECTREF obj = ObjectToOBJECTREF(pObject);
+    GCPROTECT_BEGIN(obj);
 
-        CALL_MANAGED_METHOD(fCast, BOOL, args);
-        INDEBUG(managedType = NULL); // managedType isn't protected during the call
-
-        if (!fCast && throwCastException && exception != NULL)
+    if (pMT->IsArray())
+    {
+        if (toTypeHnd.IsArray())
         {
-            RealCOMPlusThrow(exception);
+            fCast = pMT->ArrayIsInstanceOf(toTypeHnd, /* pVisited */ NULL);
         }
-        GCPROTECT_END(); //exception
+        else
+        {
+            MethodTable* toMT = toTypeHnd.GetMethodTable();
+            if (toMT->IsInterface() && toMT->HasInstantiation())
+            {
+                fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
+            }
+            else
+            {
+                fCast = pMT->CanCastToClassOrInterface(toMT, /* pVisited */ NULL);
+            }
+        }
     }
+    else if (toTypeHnd.IsTypeDesc())
+    {
+        CastCache::TryAddToCache(pMT, toTypeHnd, FALSE);
+        fCast = FALSE;
+    }
+    else if (pMT->CanCastToClassOrInterface(toTypeHnd.AsMethodTable(), /* pVisited */ NULL))
+    {
+        fCast = TRUE;
+    }
+    else
+    {
+#ifdef FEATURE_COMINTEROP
+        // If we are casting a COM object from interface then we need to do a check to see 
+        // if it implements the interface.
+        if (toTypeHnd.IsInterface() && pMT->IsComObjectType())
+        {
+            fCast = ComObject::SupportsInterface(obj, toTypeHnd.AsMethodTable());
+        }
+        else
+#endif // FEATURE_COMINTEROP
+            if (Nullable::IsNullableForType(toTypeHnd, obj->GetMethodTable()))
+            {
+                // allow an object of type T to be cast to Nullable<T> (they have the same representation)
+                CastCache::TryAddToCache(pMT, toTypeHnd, TRUE);
+                fCast = TRUE;
+            }
+#ifdef FEATURE_ICASTABLE
+        // If type implements ICastable interface we give it a chance to tell us if it can be casted 
+        // to a given type.
+            else if (toTypeHnd.IsInterface() && pMT->IsICastable())
+            {
+                // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
+                OBJECTREF exception = NULL;
+                GCPROTECT_BEGIN(exception);
+
+                PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
+
+                OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
+
+                DECLARE_ARGHOLDER_ARRAY(args, 3);
+                args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
+                args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(managedType);
+                args[ARGNUM_2] = PTR_TO_ARGHOLDER(&exception);
+
+                CALL_MANAGED_METHOD(fCast, BOOL, args);
+                INDEBUG(managedType = NULL); // managedType isn't protected during the call
+
+                if (!fCast && throwCastException && exception != NULL)
+                {
+                    RealCOMPlusThrow(exception);
+                }
+                GCPROTECT_END(); //exception
+            }
 #endif // FEATURE_ICASTABLE   
+    }
 
     if (!fCast && throwCastException)
     {
@@ -2450,7 +2428,7 @@ HCIMPL2(Object *, JIT_ChkCastArray, CORINFO_CLASS_HANDLE type, Object *pObject)
         result = CastCache::TryGetFromCache(pMT, th);
         if (result == TypeHandle::MaybeCast)
         {
-            result = ArrayIsInstanceOfNoGC(pMT, th);
+            result = pMT->ArrayIsInstanceOfNoGC(th);
         }
     }
 
@@ -2495,7 +2473,7 @@ HCIMPL2(Object *, JIT_IsInstanceOfArray, CORINFO_CLASS_HANDLE type, Object *pObj
         TypeHandle::CastResult result = CastCache::TryGetFromCache(pMT, th);
         if (result == TypeHandle::MaybeCast)
         {
-            result = ArrayIsInstanceOfNoGC(pMT, th);
+            result = pMT->ArrayIsInstanceOfNoGC(th);
         }
 
         switch (result) {

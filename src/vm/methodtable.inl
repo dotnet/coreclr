@@ -1621,7 +1621,7 @@ __forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(
     {
         NOTHROW;
         GC_NOTRIGGER;
-        MODE_ANY;
+        MODE_COOPERATIVE;
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(!pTargetMT->IsArray());
@@ -1649,7 +1649,7 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_COOPERATIVE;
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(pTargetMT));
         PRECONDITION(!pTargetMT->IsArray());
@@ -1665,7 +1665,7 @@ inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeH
     // Therefore a negative result cannot rule out convertibility for ICastable and COM objects
     if (result || !(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
     {
-        CastCache::TryAddToCacheAny(this, pTargetMT, (BOOL)result);
+        CastCache::TryAddToCache(this, pTargetMT, (BOOL)result);
     }
 
     return result;

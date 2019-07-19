@@ -119,21 +119,6 @@ public:
         TryAddToCache(source.AsTAddr(), target.AsTAddr(), result, false);
     }
 
-    FORCEINLINE static void TryAddToCacheAny(MethodTable* pSourceMT, TypeHandle target, BOOL result)
-    {
-        CONTRACTL
-        {
-            THROWS;
-            GC_TRIGGERS;
-            MODE_ANY;
-        }
-        CONTRACTL_END;
-
-        GCX_COOP();
-
-        TryAddToCache(pSourceMT, target, result);
-    }
-
     FORCEINLINE static void TryAddToCache(MethodTable* pSourceMT, TypeHandle target, BOOL result)
     {
         CONTRACTL
@@ -374,7 +359,7 @@ public:
     {
     }
 
-    FORCEINLINE static TypeHandle::CastResult TryGetFromCacheAny(TypeHandle source, TypeHandle target)
+    FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TypeHandle source, TypeHandle target)
     {
         return TypeHandle::MaybeCast;
     }

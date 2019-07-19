@@ -646,6 +646,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
     {
         THROWS;
         GC_TRIGGERS;
+        MODE_ANY;
         INJECT_FAULT(COMPlusThrowOM());
 
         LOADS_TYPE(CLASS_DEPENDENCIES_LOADED);
@@ -658,23 +659,33 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
     bool isTypeDesc = IsTypeDesc();
     if (!isTypeDesc && type.IsTypeDesc())
         return false;
-
-    TypeHandle::CastResult result = CastCache::TryGetFromCacheAny(*this, type);
-    if (result != TypeHandle::MaybeCast)
+        
     {
-        return (BOOL)result;
-    }
+        GCX_COOP();
 
-    if (isTypeDesc)
-        return AsTypeDesc()->CanCastTo(type, pVisited);
-                
-    return AsMethodTable()->CanCastToClassOrInterface(type.AsMethodTable(), pVisited);
+        TypeHandle::CastResult result = CastCache::TryGetFromCache(*this, type);
+        if (result != TypeHandle::MaybeCast)
+        {
+            return (BOOL)result;
+        }
+
+        if (isTypeDesc)
+            return AsTypeDesc()->CanCastTo(type, pVisited);
+
+        return AsMethodTable()->CanCastToClassOrInterface(type.AsMethodTable(), pVisited);
+    }
 }
 
 #include <optsmallperfcritical.h>
 TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
 
     if (*this == type)
         return CanCast;
@@ -683,7 +694,7 @@ TypeHandle::CastResult TypeHandle::CanCastToNoGC(TypeHandle type)  const
     if (!isTypeDesc && type.IsTypeDesc())
         return CannotCast;
 
-    TypeHandle::CastResult result = CastCache::TryGetFromCacheAny(*this, type);
+    TypeHandle::CastResult result = CastCache::TryGetFromCache(*this, type);
     if (result != TypeHandle::MaybeCast)
     {
         return result;

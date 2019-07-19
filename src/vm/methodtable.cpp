@@ -1738,9 +1738,41 @@ TypeHandle::CastResult MethodTable::CanCastToClassNoGC(MethodTable *pTargetMT)
 }
 
 //==========================================================================================
-TypeHandle::CastResult MethodTable::ArraySupportsBizarreInterfaceNoGC(MethodTable * pInterfaceMT)
+BOOL MethodTable::ArraySupportsBizarreInterface(MethodTable * pInterfaceMT, TypeHandlePairList* pVisited)
 {
     CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(pInterfaceMT->IsInterface());
+        PRECONDITION(pInterfaceMT->HasInstantiation());
+    } CONTRACTL_END;
+
+    // IList<T> & IReadOnlyList<T> only supported for SZ_ARRAYS
+    if (this->IsMultiDimArray())
+    {
+        CastCache::TryAddToCache(this, pInterfaceMT, FALSE);
+        return FALSE;
+    }
+
+    if (!IsImplicitInterfaceOfSZArray(pInterfaceMT))
+    {
+        CastCache::TryAddToCache(this, pInterfaceMT, FALSE);
+        return FALSE;
+    }
+
+    //TODO: "Approx" API may need renaming. Arrays know their ElementType quite precisely.
+    BOOL result = TypeDesc::CanCastParam(this->GetApproxArrayElementTypeHandle(), pInterfaceMT->GetInstantiation()[0], pVisited);
+
+    CastCache::TryAddToCache(this, pInterfaceMT, (BOOL)result);
+    return result;
+}
+
+//==========================================================================================
+TypeHandle::CastResult MethodTable::ArraySupportsBizarreInterfaceNoGC(MethodTable* pInterfaceMT)
+{
+    CONTRACTL{
         NOTHROW;
         GC_NOTRIGGER;
         MODE_COOPERATIVE;
@@ -1777,6 +1809,100 @@ TypeHandle::CastResult MethodTable::ArraySupportsBizarreInterfaceNoGC(MethodTabl
 
     return result;
 }
+
+TypeHandle::CastResult MethodTable::ArrayIsInstanceOfNoGC(TypeHandle toTypeHnd)
+{
+    CONTRACTL{
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(toTypeHnd.IsArray());
+    } CONTRACTL_END;
+
+    ArrayTypeDesc* toArrayType = toTypeHnd.AsArray();
+
+    // GetRank touches EEClass. Try to avoid it for SZArrays.
+    if (toArrayType->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY)
+
+    {
+        if (this->IsMultiDimArray())
+        {
+            CastCache::TryAddToCacheNoGC(this, toTypeHnd, FALSE);
+            return TypeHandle::CannotCast;
+        }
+    }
+    else
+    {
+        if (this->GetRank() != toArrayType->GetRank())
+        {
+            CastCache::TryAddToCacheNoGC(this, toTypeHnd, FALSE);
+            return TypeHandle::CannotCast;
+        }
+    }
+    _ASSERTE(this->GetRank() == toArrayType->GetRank());
+
+    //TODO: VS "Approx" API may need renaming. Arrays know their ElementType quite precisely.
+    TypeHandle elementTypeHandle = this->GetApproxArrayElementTypeHandle();
+    TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
+
+    if (elementTypeHandle == toElementTypeHandle)
+    {
+        CastCache::TryAddToCacheNoGC(this, toTypeHnd, TRUE);
+        return TypeHandle::CanCast;
+    }
+
+    TypeHandle::CastResult result = TypeDesc::CanCastParamNoGC(elementTypeHandle, toElementTypeHandle);
+    if (result != TypeHandle::MaybeCast)
+    {
+        CastCache::TryAddToCacheNoGC(this, toTypeHnd, (BOOL)result);
+    }
+
+    return result;
+}
+
+BOOL MethodTable::ArrayIsInstanceOf(TypeHandle toTypeHnd, TypeHandlePairList* pVisited)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(this->IsArray());
+        PRECONDITION(toTypeHnd.IsArray());
+    } CONTRACTL_END;
+
+    ArrayTypeDesc* toArrayType = toTypeHnd.AsArray();
+
+    // GetRank touches EEClass. Try to avoid it for SZArrays.
+    if (toArrayType->GetInternalCorElementType() == ELEMENT_TYPE_SZARRAY)
+    {
+        if (this->IsMultiDimArray())
+        {
+            CastCache::TryAddToCache(this, toTypeHnd, FALSE);
+            return TypeHandle::CannotCast;
+        }
+    }
+    else
+    {
+        if (this->GetRank() != toArrayType->GetRank())
+        {
+            CastCache::TryAddToCache(this, toTypeHnd, FALSE);
+            return TypeHandle::CannotCast;
+        }
+    }
+    _ASSERTE(this->GetRank() == toArrayType->GetRank());
+
+    //TODO: VS "Approx" API may need renaming. Arrays know their ElementType quite precisely.
+    TypeHandle elementTypeHandle = this->GetApproxArrayElementTypeHandle();
+    TypeHandle toElementTypeHandle = toArrayType->GetArrayElementTypeHandle();
+
+    BOOL result = (elementTypeHandle == toElementTypeHandle) ||
+        TypeDesc::CanCastParam(elementTypeHandle, toElementTypeHandle, pVisited);
+
+    CastCache::TryAddToCache(this, toTypeHnd, (BOOL)result);
+    return result;
+}
+
 #include <optdefault.h>
 
 
