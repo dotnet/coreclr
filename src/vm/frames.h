@@ -2536,7 +2536,7 @@ private:
     // Keep as last entry in class
     DEFINE_VTABLE_GETTER_AND_DTOR(GCFrame)
 
-#ifndef FEATURE_PAL
+#if !defined(FEATURE_PAL) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     ~GCFrame();
 #endif
 };
@@ -3647,7 +3647,7 @@ public:
 
 #define GCPROTECT_END()                                                 \
                 DEBUG_ASSURE_NO_RETURN_END(GCPROTECT) }                 \
-                __gcframe.Pop(); } while(0)
+                } while(0)
 
 
 #else // #ifndef DACCESS_COMPILE

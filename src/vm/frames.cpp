@@ -1001,7 +1001,7 @@ VOID GCFrame::Pop()
 #endif
 }
 
-#ifndef FEATURE_PAL
+#if !defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
 // GCFrame destructor removes the GCFrame from the current thread's explicit frame list.
 // This prevents issues in functions that have HELPER_METHOD_FRAME_BEGIN / END around 
 // GCPROTECT_BEGIN / END and where the C++ compiler places some local variables over 
@@ -1024,7 +1024,7 @@ GCFrame::~GCFrame()
         Pop();
     }
 }
-#endif // FEATURE_PAL
+#endif // !FEATURE_PAL && !CROSSGEN_COMPILE
 
 #ifdef FEATURE_INTERPRETER
 // Methods of IntepreterFrame.
