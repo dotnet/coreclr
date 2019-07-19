@@ -2729,10 +2729,15 @@ MarshalerOverrideStatus ILSafeHandleMarshaler::ArgumentOverride(NDirectStubLinke
             // We can't afford allocating for every SafeHandle by-value argument.
             // Instead, duplicate what the CleanupWorkList does as raw IL instructions here.
             psl->SetCleanupNeeded();
+            ILCodeStream* pslSetup = psl->GetSetupCodeStream();
             ILCodeStream* pslILCleanup = psl->GetCleanupCodeStream();
 
             DWORD dwNativeHandle = pslIL->NewLocal(ELEMENT_TYPE_I);
             DWORD dwAddRefd = pslIL->NewLocal(ELEMENT_TYPE_BOOLEAN);
+
+            pslSetup->EmitLDC(0);
+            pslSetup->EmitSTLOC(dwAddRefd);
+
             pslIL->EmitLDARG(argidx);
             pslIL->EmitLDLOCA(dwAddRefd);
             pslIL->EmitCALL(METHOD__STUBHELPERS__SAFE_HANDLE_ADD_REF, 2, 1);
