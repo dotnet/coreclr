@@ -2072,12 +2072,6 @@ AGAIN:
             }
             break;
 
-        case GT_STMT:
-            temp = tree->gtStmt.gtStmtExpr;
-            assert(temp);
-            hash = genTreeHashAdd(hash, gtHashValue(temp));
-            break;
-
         case GT_ARR_ELEM:
 
             hash = genTreeHashAdd(hash, gtHashValue(tree->gtArrElem.gtArrObj));
