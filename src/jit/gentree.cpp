@@ -7303,8 +7303,7 @@ GenTree* Compiler::gtCloneExpr(
     switch (oper)
     {
         case GT_STMT:
-            copy = gtCloneExpr(tree->gtStmt.gtStmtExpr, addFlags, deepVarNum, deepVarVal);
-            copy = gtNewStmt(copy, tree->gtStmt.gtStmtILoffsx);
+            NO_WAY("Use gtCloneStmt instead");
             goto DONE;
 
         case GT_CALL:

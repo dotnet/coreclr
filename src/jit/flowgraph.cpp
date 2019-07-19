@@ -14927,7 +14927,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     for (GenTreeStmt* curStmt = bDest->firstStmt(); curStmt != nullptr; curStmt = curStmt->getNextStmt())
     {
         // Clone/substitute the expression.
-        GenTreeStmt* stmt = gtCloneExpr(curStmt)->AsStmt();
+        GenTreeStmt* stmt = gtCloneStmt(curStmt);
 
         // cloneExpr doesn't handle everything.
         if (stmt == nullptr)

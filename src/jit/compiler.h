@@ -2576,6 +2576,12 @@ public:
         return gtCloneExpr(tree, addFlags, varNum, varVal, varNum, varVal);
     }
 
+    GenTreeStmt* gtCloneStmt(GenTreeStmt* stmt)
+    {
+        GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
+        return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
+    }
+
     // Internal helper for cloning a call
     GenTreeCall* gtCloneExprCallHelper(GenTreeCall* call,
                                        unsigned     addFlags   = 0,
