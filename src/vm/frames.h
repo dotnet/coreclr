@@ -2535,6 +2535,10 @@ private:
 
     // Keep as last entry in class
     DEFINE_VTABLE_GETTER_AND_DTOR(GCFrame)
+
+#ifndef FEATURE_PAL
+    ~GCFrame();
+#endif
 };
 
 #ifdef FEATURE_INTERPRETER

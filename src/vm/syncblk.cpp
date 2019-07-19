@@ -2564,6 +2564,42 @@ double ComputeElapsedTimeInNanosecond(LARGE_INTEGER startTicks, LARGE_INTEGER en
     return (elapsedTicks * NsPerSecond) / freq.QuadPart;
 }
 
+DWORD AwareLock::WaitForSemEvent(INT32 timeOut)
+{
+    // We might be interrupted during the wait (Thread.Interrupt), so we need an
+    // exception handler round the call.
+    struct Param
+    {
+        AwareLock *pThis;
+        INT32 timeOut;
+        DWORD ret;
+    } param;
+    param.pThis = this;
+    param.timeOut = timeOut;
+
+    EE_TRY_FOR_FINALLY(Param *, pParam, &param)
+    {
+        pParam->ret = pParam->pThis->m_SemEvent.Wait(pParam->timeOut, TRUE);
+        _ASSERTE((pParam->ret == WAIT_OBJECT_0) || (pParam->ret == WAIT_TIMEOUT));
+    }
+    EE_FINALLY
+    {
+        if (GOT_EXCEPTION())
+        {
+            // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
+            // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
+            // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
+            // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
+            // another thread as necessary.
+
+            // We must decrement the waiter count.
+            m_lockState.InterlockedUnregisterWaiter();
+        }
+    } EE_END_FINALLY;
+
+    return param.ret;
+}
+
 BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 {
     STATIC_CONTRACT_THROWS;
@@ -2613,43 +2649,12 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 
         for (;;)
         {
-            // We might be interrupted during the wait (Thread.Interrupt), so we need an
-            // exception handler round the call.
-            struct Param
-            {
-                AwareLock *pThis;
-                INT32 timeOut;
-                DWORD ret;
-            } param;
-            param.pThis = this;
-            param.timeOut = timeOut;
-
             // Measure the time we wait so that, in the case where we wake up
             // and fail to acquire the mutex, we can adjust remaining timeout
             // accordingly.
             ULONGLONG start = CLRGetTickCount64();
 
-            EE_TRY_FOR_FINALLY(Param *, pParam, &param)
-            {
-                pParam->ret = pParam->pThis->m_SemEvent.Wait(pParam->timeOut, TRUE);
-                _ASSERTE((pParam->ret == WAIT_OBJECT_0) || (pParam->ret == WAIT_TIMEOUT));
-            }
-            EE_FINALLY
-            {
-                if (GOT_EXCEPTION())
-                {
-                    // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
-                    // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
-                    // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
-                    // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
-                    // another thread as necessary.
-
-                    // We must decrement the waiter count.
-                    m_lockState.InterlockedUnregisterWaiter();
-                }
-            } EE_END_FINALLY;
-
-            ret = param.ret;
+            ret = WaitForSemEvent(timeOut);
             if (ret != WAIT_OBJECT_0)
             {
                 // We timed out, decrement waiter count.
