@@ -540,8 +540,6 @@ private: // friend access is required for this unsafe function
         m_HoldingThread = holdingThread;
     }
 
-    DWORD WaitForSemEvent(INT32 timeOut);
-
 public:
     static void SpinWait(const YieldProcessorNormalizationInfo &normalizationInfo, DWORD spinIteration);
 
