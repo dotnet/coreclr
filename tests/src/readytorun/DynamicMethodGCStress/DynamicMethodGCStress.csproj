@@ -22,14 +22,14 @@
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)
-%CORE_ROOT%\crossgen.exe /readytorun /platform_assemblies_paths %CORE_ROOT%%3B%25CD% /out DynamicMethodGCStress.ni.exe DynamicMethodGCStress.exe
-set ExePath=DynamicMethodGCStress.ni.exe
+%CORE_ROOT%\crossgen.exe /readytorun /platform_assemblies_paths %CORE_ROOT%%3B%25CD% /out DynamicMethodGCStress.ni.dll DynamicMethodGCStress.dll
+set ExePath=DynamicMethodGCStress.ni.dll
 set COMPlus_GCStress=3
 ]]></CLRTestBatchPreCommands>
   <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
-$CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out DynamicMethodGCStress.ni.exe DynamicMethodGCStress.exe
-ExePath=DynamicMethodGCStress.ni.exe
+$CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out DynamicMethodGCStress.ni.dll DynamicMethodGCStress.dll
+ExePath=DynamicMethodGCStress.ni.dll
 export COMPlus_GCStress=3
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>  
