@@ -4865,12 +4865,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
             return false;
 
         case GT_STMT:
-            if (def == this->AsStmt()->gtStmtExpr)
-            {
-                *use = &this->AsStmt()->gtStmtExpr;
-                return true;
-            }
-            return false;
+            unreached(); // Should not call TryGetUse on statements.
 
         case GT_ARR_ELEM:
         {
@@ -8289,7 +8284,7 @@ GenTree* GenTree::GetChild(unsigned childNum)
                 return AsField()->gtFldObj;
 
             case GT_STMT:
-                return AsStmt()->gtStmtExpr;
+                unreached(); // Access stmt's child directly.
 
             case GT_ARR_ELEM:
                 if (childNum == 0)
@@ -8571,16 +8566,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 
         case GT_STMT:
-            if (m_node->AsStmt()->gtStmtExpr == nullptr)
-            {
-                m_state = -1;
-            }
-            else
-            {
-                m_edge    = &m_node->AsStmt()->gtStmtExpr;
-                m_advance = &GenTreeUseEdgeIterator::Terminate;
-            }
-            return;
+            unreached();
 
         case GT_ARR_ELEM:
             m_edge = &m_node->AsArrElem()->gtArrObj;

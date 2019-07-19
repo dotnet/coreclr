@@ -4356,11 +4356,7 @@ void GenTree::VisitOperands(TVisitor visitor)
             return;
 
         case GT_STMT:
-            if (this->AsStmt()->gtStmtExpr != nullptr)
-            {
-                visitor(this->AsStmt()->gtStmtExpr);
-            }
-            return;
+            unreached();
 
         case GT_ARR_ELEM:
         {
