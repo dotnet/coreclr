@@ -9515,31 +9515,6 @@ BasicBlock* Compiler::fgSplitBlockAfterNode(BasicBlock* curr, GenTree* node)
     return newBlock;
 }
 
-//------------------------------------------------------------------------------
-// fgSplitBlockAtBeginning - Split the given block into two blocks.
-//                         Control falls through from original to new block,
-//                         and the new block is returned.
-//                         All code in the original block goes into the new block
-//------------------------------------------------------------------------------
-BasicBlock* Compiler::fgSplitBlockAtBeginning(BasicBlock* curr)
-{
-    BasicBlock* newBlock = fgSplitBlockAtEnd(curr);
-
-    newBlock->bbTreeList = curr->bbTreeList;
-    curr->bbTreeList     = nullptr;
-
-    // The new block now has all the code, and the old block has none. Update the
-    // IL offsets for the block to reflect this.
-
-    newBlock->bbCodeOffs    = curr->bbCodeOffs;
-    newBlock->bbCodeOffsEnd = curr->bbCodeOffsEnd;
-
-    curr->bbCodeOffs    = BAD_IL_OFFSET;
-    curr->bbCodeOffsEnd = BAD_IL_OFFSET;
-
-    return newBlock;
-}
-
 //------------------------------------------------------------------------
 // fgSplitEdge: Splits the edge between a block 'curr' and its successor 'succ' by creating a new block
 //              that replaces 'succ' as a successor of 'curr', and which branches unconditionally
