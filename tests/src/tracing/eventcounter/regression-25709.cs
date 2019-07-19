@@ -98,10 +98,10 @@ namespace EventCounterRegressionTests
                 Thread.Sleep(5000);
 
                 // The number below is supposed to be 2 at maximum, but in debug builds, the calls to 
-                // EventSource.Write() takes a lot longer than we thought, and the reflection in 
-                // workingset counter also adds a huge amount of time, which makes the test fail in 
-                // debug CIs. Setting the check to 3 to compensate for these.
-                if (myListener.MaxIncrement > 3)
+                // EventSource.Write() takes a lot longer than we thought(~1s), and the reflection in 
+                // workingset counter also adds a huge amount of time (> 1s), which makes the test fail in 
+                // debug CIs. Setting the check to 4 to compensate for these.
+                if (myListener.MaxIncrement > 4)
                 {
                     Console.WriteLine($"Test Failed - Saw more than 3 exceptions / sec {myListener.MaxIncrement}");
                     return 1;
