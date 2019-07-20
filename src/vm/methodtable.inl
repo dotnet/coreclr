@@ -17,7 +17,6 @@
 #include "methodtable.h"
 #include "genericdict.h"
 #include "threadstatics.h"
-#include "castcache.h"
 
 //==========================================================================================
 inline PTR_EEClass MethodTable::GetClass_NoLogging()
@@ -1612,64 +1611,6 @@ inline void MethodTable::UnBoxIntoUnchecked(void *dest, OBJECTREF src)
     }
 }
 #endif
-//==========================================================================================
-
-//TODO: VS inline?
-__forceinline TypeHandle::CastResult MethodTable::CanCastToClassOrInterfaceNoGC(MethodTable *pTargetMT)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_COOPERATIVE;
-        INSTANCE_CHECK;
-        PRECONDITION(CheckPointer(pTargetMT));
-        PRECONDITION(!pTargetMT->IsArray());
-    }
-    CONTRACTL_END
-
-    TypeHandle::CastResult result = pTargetMT->IsInterface() ?
-                                        CanCastToInterfaceNoGC(pTargetMT) :
-                                        CanCastToClassNoGC(pTargetMT);
-
-    if (result != TypeHandle::MaybeCast)
-    {
-        CastCache::TryAddToCacheNoGC(this, pTargetMT, (BOOL)result);
-    }
-
-    return result;
-}
-
-//==========================================================================================
-
-//TODO: VS inline?
-inline BOOL MethodTable::CanCastToClassOrInterface(MethodTable *pTargetMT, TypeHandlePairList *pVisited)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-        INSTANCE_CHECK;
-        PRECONDITION(CheckPointer(pTargetMT));
-        PRECONDITION(!pTargetMT->IsArray());
-        PRECONDITION(IsRestored_NoLogging());
-    }
-    CONTRACTL_END
-
-    BOOL result = pTargetMT->IsInterface() ?
-                                CanCastToInterface(pTargetMT, pVisited) :
-                                CanCastToClass(pTargetMT, pVisited);
-
-    // We only consider type-based conversion rules here.
-    // Therefore a negative result cannot rule out convertibility for ICastable and COM objects
-    if (result || !(pTargetMT->IsInterface() && ( this->IsComObjectType() || this->IsICastable())))
-    {
-        CastCache::TryAddToCache(this, pTargetMT, (BOOL)result);
-    }
-
-    return result;
-}
 
 //==========================================================================================
 FORCEINLINE PTR_Module MethodTable::GetGenericsStaticsModuleAndID(DWORD * pID)

@@ -25,6 +25,7 @@
 #include "compile.h"
 #endif
 #include "array.h"
+#include "castcache.h"
 
 #ifndef DACCESS_COMPILE
 #ifdef _DEBUG
@@ -366,7 +367,40 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
     if (TypeHandle(this) == toType)
         return TRUE;
 
-    //TODO: VS cache some results.
+    if (IsArray())
+    {
+        BOOL fCast = FALSE;
+        MethodTable* pMT = this->GetMethodTable();
+
+        if (toType.IsArray())
+        {
+            fCast = pMT->ArrayIsInstanceOf(toType, /* pVisited */ NULL);
+        }
+        else if (toType.IsTypeDesc())
+        {
+            fCast = FALSE;
+        }
+        else
+        {
+            MethodTable* toMT = toType.AsMethodTable();
+            if (toMT->IsInterface() && toMT->HasInstantiation())
+            {
+                fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
+            }
+            else
+            {
+                fCast = pMT->CanCastToClassOrInterface(toMT, /* pVisited */ NULL);
+            }
+        }
+
+        // leafs add cached conversion for the method table
+        // since we started from a typedesc, add a typedesc conversion too
+        CastCache::TryAddToCache(TypeHandle(this), toType, fCast);
+        return fCast;
+    }
+
+    // NOTE: The rest of the cases that we handle here are very uncommon.
+    //       We will not bother with caching these unless a good reason discovered.
 
     //A boxed variable type can be cast to any of its constraints, or object, if none are specified
     if (IsGenericVariable())
@@ -401,34 +435,6 @@ BOOL TypeDesc::CanCastTo(TypeHandle toType, TypeHandlePairList *pVisited)
                 return TRUE;
         }
         return FALSE;
-    }
-    
-    if (IsArray())
-    {
-        BOOL fCast = FALSE;
-        MethodTable* pMT = this->GetMethodTable();
-
-        if (toType.IsArray())
-        {
-            fCast = pMT->ArrayIsInstanceOf(toType, /* pVisited */ NULL);
-        }
-        else
-        {
-            MethodTable* toMT = toType.GetMethodTable();
-            if (toMT->IsInterface() && toMT->HasInstantiation())
-            {
-                fCast = pMT->ArraySupportsBizarreInterface(toMT, /* pVisited */ NULL);
-            }
-            else
-            {
-                fCast = pMT->CanCastToClassOrInterface(toMT, /* pVisited */ NULL);
-            }
-        }
-
-        // leafs add cached conversion for the method table
-        // since we started from a typedesc, add a typedesc conversion too
-        CastCache::TryAddToCache(TypeHandle(this), toType, fCast);
-        return fCast;
     }
 
     // If we're not casting to a TypeDesc (i.e. not to a reference array type, variable type etc.)
@@ -534,6 +540,45 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
     if (TypeHandle(this) == toType)
         return TypeHandle::CanCast;
 
+    if (IsArray())
+    {
+        TypeHandle::CastResult result = TypeHandle::CannotCast;
+        MethodTable* pMT = this->GetMethodTable();
+
+        if (toType.IsArray())
+        {
+            result = pMT->ArrayIsInstanceOfNoGC(toType);
+        }
+        else if (toType.IsTypeDesc())
+        {
+            result = TypeHandle::CannotCast;
+        }
+        else
+        {
+            MethodTable* toMT = toType.AsMethodTable();
+            if (toMT->IsInterface() && toMT->HasInstantiation())
+            {
+                result = pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
+            }
+            else
+            {
+                result = pMT->CanCastToClassOrInterfaceNoGC(toMT);
+            }
+        }
+
+        // leafs add cached conversion for the method table
+        // since we started from a typedesc, add a typedesc conversion too
+        if (result != TypeHandle::MaybeCast)
+        {
+            CastCache::TryAddToCacheNoGC(TypeHandle(this), toType, result);
+        }
+
+        return result;
+    }
+
+    // NOTE: The rest of the cases that we handle here are very uncommon.
+    //       We will not bother with caching these unless a good reason discovered.
+
     //A boxed variable type can be cast to any of its constraints, or object, if none are specified
     if (IsGenericVariable())
     {
@@ -560,38 +605,6 @@ TypeHandle::CastResult TypeDesc::CanCastToNoGC(TypeHandle toType)
                 return TypeHandle::CanCast;
         }
         return TypeHandle::MaybeCast;
-    }
-
-    if (IsArray())
-    {
-        TypeHandle::CastResult result = TypeHandle::CannotCast;
-        MethodTable* pMT = this->GetMethodTable();
-
-        if (toType.IsArray())
-        {
-            result = pMT->ArrayIsInstanceOfNoGC(toType);
-        }
-        else
-        {
-            MethodTable* toMT = toType.GetMethodTable();
-            if (toMT->IsInterface() && toMT->HasInstantiation())
-            {
-                result = pMT->ArraySupportsBizarreInterfaceNoGC(toMT);
-            }
-            else
-            {
-                result = pMT->CanCastToClassOrInterfaceNoGC(toMT);
-            }
-        }
-
-        // leafs add cached conversion for the method table
-        // since we started from a typedesc, add a typedesc conversion too
-        if (result != TypeHandle::MaybeCast)
-        {
-            CastCache::TryAddToCacheNoGC(TypeHandle(this), toType, result);
-        }
-
-        return result;
     }
 
     // If we're not casting to a TypeDesc (i.e. not to a reference array type, variable type etc.)

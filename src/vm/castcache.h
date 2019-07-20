@@ -28,7 +28,7 @@
 // The overal design of the cache is an open-addressing hash table with quadratic probing 
 // strategy and a limited bucket size. 
 // In a case of inserting into a full bucket, we -
-// 1) try getting a bigger table if not already at max size. (additional grow heuristics TBD), otherwise
+// 1) try getting a bigger table if not already at max size. Otherwise
 // 2) pick a random victim entry within the bucket and replace it with a new entry. 
 // That is basically our expiration policy. We want to keep things simple.
 // 
@@ -37,13 +37,12 @@
 // As a result TryGet is Wait-Free - no locking or spinning.
 //             TryAdd is mostly Wait-Free (may try allocating a new table), but is more complex than TryGet.
 // 
-// The assumption that same source and target TypeHandle keep the same relationship could be, in theory, 
+// The assumption that same source and target TypeHandle keep the same relationship could be 
 // broken if the types involved are unloaded and their handles are reused.
 // To counter that possibility we simply flush the whole cache on assembly unloads.
 //
-// Whenever we need to replace or resize the table, the obsolete table is passed to SyncClean 
-// for a safe disposal when EE is suspended. That guarantees that the obsolete table is no longer in use 
-// without any syncronization with readers/writers, which would be very unfortunate.
+// Whenever we need to replace or resize the table, we simply allocate a new one and atomically 
+// update the static handle. The old table may be still in use, but will eventually be collected by GC.
 // 
 class CastCache
 {
@@ -92,13 +91,18 @@ public:
         }
         CONTRACTL_END;
 
-        //TODO: VS handle OOM. maybe lower size to min?
         m_Table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
 
         this->TableMask() = size - 1;
 
-        //TODO: VS this is actually a Log2. Is there a helper?
-        this->TableBits() = CountBits(size - 1);
+        // Fibonacci hash reduces the value into desired range by shifting right by the number of leading zeroes in 'size-1' 
+        DWORD bitCnt;
+#if BIT64
+        this->HashShift() = (BYTE)(63 - BitScanReverse64(&bitCnt, size - 1));
+#else
+        BitScanReverse(&bitCnt, size - 1);
+        this->HashShift() = (BYTE)(31 - bitCnt);
+#endif
     }
 
     CastCache(OBJECTREF arr)
@@ -215,7 +219,7 @@ public:
         return *(DWORD*)AuxData();
     }
 
-    FORCEINLINE BYTE& TableBits()
+    FORCEINLINE BYTE& HashShift()
     {
         return *((BYTE*)AuxData() + sizeof(DWORD));
     }
@@ -232,13 +236,32 @@ public:
 
 private:
 
+// The cache size is driven by demand and generally is fairly small. (casts are repetitive)
+// Even conversion-churning tests such as Linq.Expressions will not need > 4096
+// When we reach the limit, the new entries start replacing the old ones somewhat randomly.
+// Considering that typically the cache size is small and that hit rates are high with good locality, 
+// just keeping the cache around seems a simple and viable strategy.
+// 
+// Additional behaviors that could be considered, if there are scenarios that could be improved:
+//     - flush the cache based on some heuristics
+//     - shrink the cache based on some heuristics
+// 
 #if DEBUG
     static const DWORD INITIAL_CACHE_SIZE = 8;    // MUST BE A POWER OF TWO
+    static const DWORD MAXIMUM_CACHE_SIZE = 512;  // make this lower than release to make it easier to reach this in tests.
 #else
     static const DWORD INITIAL_CACHE_SIZE = 128;  // MUST BE A POWER OF TWO
+    static const DWORD MAXIMUM_CACHE_SIZE = 4096; // 4096 * sizeof(CastCacheEntry) is 98304 bytes on 64bit. We will rarely need this much though.
 #endif
 
-    static const DWORD MAXIMUM_CACHE_SIZE = 128 * 1024; //TODO: VS too big?
+// Lower bucket size will cause the table to resize earlier
+// Higher bucket size will increase upper bound cost of Get
+//
+// In a cold scenario and 64byte cache line:
+//    1 cache miss for 1 probe, 
+//    2 sequential misses for 3 probes, 
+//    then a miss can be assumed for every additional probe.
+// We pick 8 as the probe limit (hoping for 4 probes on average), but the number can be refined further.
     static const DWORD BUCKET_SIZE = 8;
 
     static OBJECTHANDLE   s_cache;
@@ -302,8 +325,6 @@ private:
         }
         CONTRACTL_END;
 
-        //TODO: VS need to be smarter with resize or this is enough? 
-        //TODO: any problems with concurent expansion and waste, perhaps a spinlock?
         if (currentCache.m_Table == NULL || currentCache.Size() < MAXIMUM_CACHE_SIZE)
         {
             return MaybeReplaceCacheWithLarger(currentCache).m_Table != NULL;
@@ -319,16 +340,16 @@ private:
 
     FORCEINLINE DWORD KeyToBucket(TADDR source, TADDR target)
     {
-        // upper bits are less interesting, so we do "rotl(source, <half-size>) ^ target" for mixing;
-        // hash the mixed value to desired size
-        // we use fibonacci hashing
+        // upper bits of addresses do not vary much, so to reduce loss due to cancelling out, 
+        // we do `rotl(source, <half-size>) ^ target` for mixing inputs.
+        // then we use fibonacci hashing to reduce the value to desired size.
 
 #if BIT64
         TADDR hash = (((ULONGLONG)source << 32) | ((ULONGLONG)source >> 32)) ^ target;
-        return (DWORD)((hash * 11400714819323198485llu) >> (64 - this->TableBits()));
+        return (DWORD)((hash * 11400714819323198485llu) >> this->HashShift());
 #else
         TADDR hash = _rotl(source, 16) ^ target;
-        return (DWORD)((hash * 2654435769ul) >> (32 - this->TableBits()));
+        return (DWORD)((hash * 2654435769ul) >> this->HashShift());
 #endif
     }
 

@@ -81,7 +81,7 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
     for (DWORD i = 0; i < BUCKET_SIZE; i++)
     {
         // must read in this order: version1 -> entry parts -> version2
-        // because writers change them in opposite order
+        // because writers change them in the opposite order
         DWORD version1 = VolatileLoad(&pEntry->version1);
         TADDR entrySource = pEntry->source;
         TADDR entryTargetAndResult = VolatileLoad(&pEntry->targetAndResult);
@@ -89,7 +89,7 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
         if (entrySource == source)
         {
             // target never has its lower bit set.
-            // matching entryTargetAndResult would have same bits, except for the lowest one, which is the result.
+            // a matching entryTargetAndResult would have same bits, except for the lowest one, which is the result.
             entryTargetAndResult ^= target;
             if (entryTargetAndResult <= 1)
             {
