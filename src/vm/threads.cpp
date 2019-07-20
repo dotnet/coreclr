@@ -1070,6 +1070,8 @@ PCODE AdjustWriteBarrierIP(PCODE controlPc)
 
 #endif // FEATURE_WRITEBARRIER_COPY
 
+extern "C" void *JIT_WriteBarrier_Loc;
+
 //---------------------------------------------------------------------------
 // One-time initialization. Called during Dll initialization. So
 // be careful what you do in here!
@@ -1097,6 +1099,10 @@ void InitThreadManager()
     }
 
     memcpy(s_barrierCopy, (BYTE*)JIT_PatchedCodeStart, (BYTE*)JIT_PatchedCodeLast - (BYTE*)JIT_PatchedCodeStart);
+
+    // Store the JIT_WriteBarrier copy location to a global variable so that the JIT_Stelem_Ref and its helpers
+    // can jump to it.
+    JIT_WriteBarrier_Loc = GetWriteBarrierCodeLocation((void*)JIT_WriteBarrier);
 
     SetJitHelperFunction(CORINFO_HELP_ASSIGN_REF, GetWriteBarrierCodeLocation((void*)JIT_WriteBarrier));
 #else // FEATURE_WRITEBARRIER_COPY
