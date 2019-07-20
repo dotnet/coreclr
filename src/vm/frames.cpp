@@ -1001,7 +1001,7 @@ VOID GCFrame::Pop()
 #endif
 }
 
-#if !defined(FEATURE_PAL) && !defined(CROSSGEN_COMPILE)
+#ifndef CROSSGEN_COMPILE
 // GCFrame destructor removes the GCFrame from the current thread's explicit frame list.
 // This prevents issues in functions that have HELPER_METHOD_FRAME_BEGIN / END around 
 // GCPROTECT_BEGIN / END and where the C++ compiler places some local variables over 
@@ -1018,13 +1018,13 @@ GCFrame::~GCFrame()
 
     if (m_Next != NULL)
     {
-        GCX_COOP();
+        GCX_COOP_THREAD_EXISTS(m_pCurThread);
         // When the frame is destroyed, make sure it is no longer in the
         // frame chain managed by the Thread.
         Pop();
     }
 }
-#endif // !FEATURE_PAL && !CROSSGEN_COMPILE
+#endif // !CROSSGEN_COMPILE
 
 #ifdef FEATURE_INTERPRETER
 // Methods of IntepreterFrame.

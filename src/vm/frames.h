@@ -2534,9 +2534,9 @@ private:
     BOOL          m_MaybeInterior;
 
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_DTOR(GCFrame)
+    DEFINE_VTABLE_GETTER(GCFrame)
 
-#if !defined(FEATURE_PAL) && !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
     ~GCFrame();
 #endif
 };
