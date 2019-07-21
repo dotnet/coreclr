@@ -796,19 +796,16 @@ namespace System
         {
             DateTime utcDateTime = UtcDateTime;
             TimeSpan offset = TimeZoneInfo.GetLocalUtcOffset(utcDateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
-            long utcTicks = utcDateTime.Ticks;
-            long localTicks = utcTicks + offset.Ticks;
-            if (localTicks < DateTime.MinTicks)
-                localTicks = DateTime.MinTicks;
-            else if (localTicks > DateTime.MaxTicks)
-                localTicks = DateTime.MaxTicks;
-            else
-                return new DateTimeOffset(utcTicks, offset);
+            long localTicks = utcDateTime.Ticks + offset.Ticks;
+            if (localTicks < DateTime.MinTicks || localTicks > DateTime.MaxTicks)
+            {
+                if (throwOnOverflow)
+                    throw new ArgumentException(SR.Arg_ArgumentOutOfRangeException);
 
-            if (throwOnOverflow)
-                throw new ArgumentException(SR.Arg_ArgumentOutOfRangeException);
+                localTicks = localTicks < DateTime.MinTicks ? DateTime.MinTicks : DateTime.MaxTicks;
+            }
 
-            return new DateTimeOffset(localTicks, TimeSpan.Zero);
+            return new DateTimeOffset(localTicks, offset);
         }
 
         public override string ToString()
