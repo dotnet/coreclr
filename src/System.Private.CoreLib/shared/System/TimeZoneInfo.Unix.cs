@@ -396,7 +396,7 @@ namespace System
             if (symlinkPath != null)
             {
                 // symlinkPath can be relative path, use Path to get the full absolute path.
-                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!); // TODO-NULLABLE: Remove ! when nullable attributes are respected
+                symlinkPath = Path.GetFullPath(symlinkPath, Path.GetDirectoryName(tzFilePath)!);
 
                 string timeZoneDirectory = GetTimeZoneDirectory();
                 if (symlinkPath.StartsWith(timeZoneDirectory, StringComparison.Ordinal))
@@ -660,7 +660,7 @@ namespace System
             }
             else if (!tzDirectory.EndsWith(Path.DirectorySeparatorChar))
             {
-                tzDirectory += Path.DirectorySeparatorChar;
+                tzDirectory += PathInternal.DirectorySeparatorCharAsString;
             }
 
             return tzDirectory;

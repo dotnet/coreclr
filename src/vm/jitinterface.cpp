@@ -478,14 +478,14 @@ CEEInfo::ConvToJitSig(
         IfFailThrow(sig.GetCallingConvInfo(&data));
         sigRet->callConv = (CorInfoCallConv) data;
 
-#ifdef PLATFORM_UNIX
+#if defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
         if ((isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_VARARG)) ||
             (isCallConv(sigRet->callConv, IMAGE_CEE_CS_CALLCONV_NATIVEVARARG)))
         {
             // This signature corresponds to a method that uses varargs, which are not supported.
              COMPlusThrow(kInvalidProgramException, IDS_EE_VARARG_NOT_SUPPORTED);
         }
-#endif // PLATFORM_UNIX
+#endif // defined(PLATFORM_UNIX) || defined(_TARGET_ARM_)
 
         // Skip number of type arguments
         if (sigRet->callConv & IMAGE_CEE_CS_CALLCONV_GENERIC)
@@ -8223,7 +8223,7 @@ void CEEInfo::reportInliningDecision (CORINFO_METHOD_HANDLE inlinerHnd,
 #endif //_DEBUG
 
     //I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_VERBOSE,
                                      CLR_JITTRACING_KEYWORD))
     {
@@ -8575,7 +8575,7 @@ void CEEInfo::reportTailCallDecision (CORINFO_METHOD_HANDLE callerHnd,
 #endif //_DEBUG
 
     // I'm gonna duplicate this code because the format is slightly different.  And LoggingOn is debug only.
-    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+    if (ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_VERBOSE,
                                      CLR_JITTRACING_KEYWORD))
     {
@@ -10263,6 +10263,9 @@ void InlinedCallFrame::GetEEInfo(CORINFO_EE_INFO::InlinedCallFrameInfo *pInfo)
     pInfo->offsetOfCalleeSavedFP         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCalleeSavedFP);
     pInfo->offsetOfCallTarget            = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_Datum);
     pInfo->offsetOfReturnAddress         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pCallerReturnAddress);
+#ifdef _TARGET_ARM_
+    pInfo->offsetOfSPAfterProlog         = sizeof(GSCookie) + offsetof(InlinedCallFrame, m_pSPAfterProlog);
+#endif // _TARGET_ARM_
 }
 
 /*********************************************************************/
@@ -14261,6 +14264,30 @@ TADDR EECodeInfo::GetStartAddress()
     } CONTRACTL_END;
 
     return m_pJM->JitTokenToStartAddress(m_methodToken);
+}
+
+NativeCodeVersion EECodeInfo::GetNativeCodeVersion()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+
+    PTR_MethodDesc pMD = PTR_MethodDesc(GetMethodDesc());
+    if (pMD == NULL)
+    {
+        return NativeCodeVersion();
+    }
+
+#ifdef FEATURE_CODE_VERSIONING
+    CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+    return pCodeVersionManager->GetNativeCodeVersion(pMD, PINSTRToPCODE(GetStartAddress()));
+#else
+    return NativeCodeVersion(pMD);
+#endif
 }
 
 #if defined(WIN64EXCEPTIONS)

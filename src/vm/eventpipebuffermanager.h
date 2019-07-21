@@ -63,6 +63,9 @@ private:
     SpinLock m_lock;
     Volatile<BOOL> m_writeEventSuspending;
 
+    // Event for synchronizing real time reading
+    CLREvent m_waitEvent;
+
     // Iterator state for reader thread
     // These are not protected by m_lock and expected to only be used on the reader thread
     EventPipeEventInstance* m_pCurrentEvent;
@@ -120,14 +123,14 @@ private:
     // Initially the iterator starts uninitialized and GetCurrentEvent() returns NULL. Calling MoveNextXXX()
     // attempts to advance the cursor to the next event. If there is no event prior to stopTimeStamp then
     // the GetCurrentEvent() again returns NULL, otherwise it returns that event. The event pointer returned
-    // by GetCurrentEvent() is valid until MoveNextXXX() is called again. Once all events in a buffer have 
+    // by GetCurrentEvent() is valid until MoveNextXXX() is called again. Once all events in a buffer have
     // been read the iterator will delete that buffer from the pool.
 
     // Moves to the next oldest event searching across all threads. If there is no event older than
     // stopTimeStamp then GetCurrentEvent() will return NULL.
     void MoveNextEventAnyThread(LARGE_INTEGER stopTimeStamp);
 
-    // Moves to the next oldest event from the same thread as the current event. If there is no event 
+    // Moves to the next oldest event from the same thread as the current event. If there is no event
     // older than stopTimeStamp then GetCurrentEvent() will return NULL. This should only be called
     // when GetCurrentEvent() is non-null (because we need to know what thread's events to iterate)
     void MoveNextEventSameThread(LARGE_INTEGER stopTimeStamp);
@@ -169,14 +172,14 @@ public:
     // EXPECTED USAGE: First the caller will disable all events via configuration, then call
     // SuspendWriteEvent() to force any WriteEvent calls that may still be in progress to either
     // finish or cancel. After that all BufferLists and Buffers can be safely drained and/or deleted.
-    void SuspendWriteEvent(EventPipeSessionID sessionId);
+    void SuspendWriteEvent(uint32_t sessionIndex);
 
     // Write the contents of the managed buffers to the specified file.
     // The stopTimeStamp is used to determine when tracing was stopped to ensure that we
     // skip any events that might be partially written due to races when tracing is stopped.
-    void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp);
-    void WriteAllBuffersToFileV3(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
-    void WriteAllBuffersToFileV4(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp);
+    void WriteAllBuffersToFile(EventPipeFile *pFile, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten);
+    void WriteAllBuffersToFileV3(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten);
+    void WriteAllBuffersToFileV4(EventPipeFile *pFastSerializableObject, LARGE_INTEGER stopTimeStamp, bool *pEventsWritten);
 
     // Attempt to de-allocate resources as best we can.  It is possible for some buffers to leak because
     // threads can be in the middle of a write operation and get blocked, and we may not get an opportunity
@@ -185,6 +188,8 @@ public:
 
     // Get next event.  This is used to dispatch events to EventListener.
     EventPipeEventInstance* GetNextEvent();
+    
+    CLREvent *GetWaitEvent();
 
 #ifdef _DEBUG
     bool EnsureConsistency();
@@ -212,7 +217,7 @@ private:
     unsigned int m_bufferCount;
 
     // The sequence number of the last event that was read, only
-    // updated/read by the reader thread. 
+    // updated/read by the reader thread.
     unsigned int m_lastReadSequenceNumber;
 
 public:

@@ -84,30 +84,24 @@ const SString &EventPipeProvider::GetProviderName() const
     return m_providerName;
 }
 
-bool EventPipeProvider::EventEnabled(INT64 keywords) const
+INT64 EventPipeProvider::ComputeEventEnabledMask(INT64 keywords, EventPipeEventLevel eventLevel) const
 {
-    LIMITED_METHOD_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+        PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
+    }
+    CONTRACTL_END;
 
-    // The event is enabled if:
-    //  - The provider is enabled.
-    //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
-    return (Enabled() && ((keywords == 0) || ((m_keywords & keywords) != 0)));
-}
-
-bool EventPipeProvider::EventEnabled(INT64 keywords, EventPipeEventLevel eventLevel) const
-{
-    LIMITED_METHOD_CONTRACT;
-
-    // The event is enabled if:
-    //  - The provider is enabled.
-    //  - The event keywords are unspecified in the manifest (== 0) or when masked with the enabled config are != 0.
-    //  - The event level is LogAlways or the provider's verbosity level is set to greater than the event's verbosity level in the manifest.
-    return (EventEnabled(keywords) &&
-            ((eventLevel == EventPipeEventLevel::LogAlways) || (m_providerLevel >= eventLevel)));
+    return m_pConfig->ComputeEventEnabledMask((*this), keywords, eventLevel);
 }
 
 EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
-    uint64_t sessionId,
+    INT64 keywordsForAllSessions,
+    EventPipeEventLevel providerLevelForAllSessions,
+    uint64_t sessionMask,
     INT64 keywords,
     EventPipeEventLevel providerLevel,
     LPCWSTR pFilterData)
@@ -117,42 +111,46 @@ EventPipeProviderCallbackData EventPipeProvider::SetConfiguration(
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION(sessionId != 0);
+        PRECONDITION((m_sessions & sessionMask) == 0);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    m_sessions |= sessionId;
+    m_sessions |= sessionMask;
 
-    // Set Keywords to be the union of all keywords
-    m_keywords |= keywords;
+    m_keywords = keywordsForAllSessions;
+    m_providerLevel = providerLevelForAllSessions;
 
-    // Set the provider level to "Log Always" or the biggest verbosity.
-    m_providerLevel = (providerLevel < m_providerLevel) ? m_providerLevel : providerLevel;
-
-    RefreshAllEvents(sessionId, keywords, providerLevel);
-    return PrepareCallbackData(keywords, providerLevel, pFilterData);
+    RefreshAllEvents();
+    return PrepareCallbackData(m_keywords, m_providerLevel, pFilterData);
 }
 
 EventPipeProviderCallbackData EventPipeProvider::UnsetConfiguration(
-        uint64_t sessionId,
-        INT64 keywords,
-        EventPipeEventLevel providerLevel,
-        LPCWSTR pFilterData)
+    INT64 keywordsForAllSessions,
+    EventPipeEventLevel providerLevelForAllSessions,
+    uint64_t sessionMask,
+    INT64 keywords,
+    EventPipeEventLevel providerLevel,
+    LPCWSTR pFilterData)
 {
     CONTRACTL
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        PRECONDITION((m_sessions & sessionId) != 0);
+        PRECONDITION((m_sessions & sessionMask) != 0);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
 
-    if (m_sessions & sessionId)
-        m_sessions &= ~sessionId;
-    return PrepareCallbackData(keywords, providerLevel, pFilterData);
+    if (m_sessions & sessionMask)
+        m_sessions &= ~sessionMask;
+
+    m_keywords = keywordsForAllSessions;
+    m_providerLevel = providerLevelForAllSessions;
+
+    RefreshAllEvents();
+    return PrepareCallbackData(m_keywords, m_providerLevel, pFilterData);
 }
 
 EventPipeEvent *EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords, unsigned int eventVersion, EventPipeEventLevel level, bool needStack, BYTE *pMetadata, unsigned int metadataLength)
@@ -160,7 +158,7 @@ EventPipeEvent *EventPipeProvider::AddEvent(unsigned int eventID, INT64 keywords
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -186,7 +184,7 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -293,15 +291,12 @@ void EventPipeProvider::SetDeleteDeferred()
     m_deleteDeferred = true;
 }
 
-void EventPipeProvider::RefreshAllEvents(
-    uint64_t sessionId,
-    INT64 keywords,
-    EventPipeEventLevel providerLevel)
+void EventPipeProvider::RefreshAllEvents()
 {
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
