@@ -176,8 +176,7 @@ namespace System
         {
             get
             {
-                DateTime utcNow = DateTime.UtcNow;
-                return new DateTimeOffset(utcNow.Ticks, TimeZoneInfo.GetLocalUtcOffset(utcNow, TimeZoneInfoOptions.NoThrowOnInvalidTime));
+                return ToLocalTime(DateTime.UtcNow, true);
             }
         }
 
@@ -560,8 +559,7 @@ namespace System
         //
         public static DateTimeOffset FromFileTime(long fileTime)
         {
-            DateTime utcDateTime = DateTime.FromFileTimeUtc(fileTime);
-            return new DateTimeOffset(utcDateTime.Ticks, TimeZoneInfo.GetLocalUtcOffset(utcDateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime));
+            return ToLocalTime(DateTime.FromFileTimeUtc(fileTime), true);
         }
 
         public static DateTimeOffset FromUnixTimeSeconds(long seconds)
@@ -794,7 +792,11 @@ namespace System
 
         internal DateTimeOffset ToLocalTime(bool throwOnOverflow)
         {
-            DateTime utcDateTime = UtcDateTime;
+            return ToLocalTime(UtcDateTime, throwOnOverflow);
+        }
+
+        private static DateTimeOffset ToLocalTime(DateTime utcDateTime, bool throwOnOverflow)
+        {
             TimeSpan offset = TimeZoneInfo.GetLocalUtcOffset(utcDateTime, TimeZoneInfoOptions.NoThrowOnInvalidTime);
             long localTicks = utcDateTime.Ticks + offset.Ticks;
             if (localTicks < DateTime.MinTicks || localTicks > DateTime.MaxTicks)
@@ -804,7 +806,7 @@ namespace System
 
                 localTicks = localTicks < DateTime.MinTicks ? DateTime.MinTicks : DateTime.MaxTicks;
             }
-
+            
             return new DateTimeOffset(localTicks, offset);
         }
 
