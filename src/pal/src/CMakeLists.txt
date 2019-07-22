@@ -283,7 +283,6 @@ set(SOURCES
   thread/process.cpp
   thread/thread.cpp
   thread/threadsusp.cpp
-  thread/tls.cpp
 )
 
 if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)

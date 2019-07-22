@@ -31,7 +31,7 @@ Abstract:
 #endif // HAVE_MACH_EXCEPTIONS
 
 #include "threadsusp.hpp"
-#include "tls.hpp"
+#include "threadinfo.hpp"
 #include "synchobjects.hpp"
 #include <errno.h>
 
@@ -103,11 +103,6 @@ namespace CorUnix
         CPalThread *pThread,
         CPalThread *pNewThread,
         HANDLE *phThread
-        );
-
-    PAL_ERROR
-    InitializeEndingThreadsData(
-        void
         );
 
     BOOL
@@ -339,11 +334,6 @@ namespace CorUnix
         //
 
     private:
-        // This is set whenever this thread is currently executing within
-        // a region of code that depends on this instance of the PAL
-        // in the process.
-        bool m_fInPal;
-
 #if HAVE_MACH_EXCEPTIONS
         // Record of Mach exception handlers that were already registered when we register our own CoreCLR
         // specific handlers.
@@ -360,7 +350,6 @@ namespace CorUnix
         CThreadSynchronizationInfo synchronizationInfo;
         CThreadSuspensionInfo suspensionInfo;
         CThreadSEHInfo sehInfo;
-        CThreadTLSInfo tlsInfo;
         CThreadApcInfo apcInfo;
         CThreadCRTInfo crtInfo;
 
@@ -391,9 +380,6 @@ namespace CorUnix
             m_stackBase(NULL),
             m_stackLimit(NULL),
             m_alternateStack(NULL)
-#ifdef FEATURE_PAL_SXS
-          , m_fInPal(TRUE)
-#endif // FEATURE_PAL_SXS
         {
         };
 
@@ -687,28 +673,6 @@ namespace CorUnix
             void
             );
         
-#ifdef FEATURE_PAL_SXS
-        //
-        // Functions for PAL side-by-side support
-        //
-
-        // This function needs to be called on a thread when it enters
-        // a region of code that depends on this instance of the PAL
-        // in the process.
-        PAL_ERROR Enter(PAL_Boundary boundary);
-
-        // This function needs to be called on a thread when it leaves
-        // a region of code that depends on this instance of the PAL
-        // in the process.
-        PAL_ERROR Leave(PAL_Boundary boundary);
-
-        // Returns TRUE whenever this thread is executing in a region
-        // of code that depends on this instance of the PAL in the process.
-        BOOL IsInPal()
-        {
-            return m_fInPal;
-        };
-
 #if HAVE_MACH_EXCEPTIONS
         // Hook Mach exceptions, i.e., call thread_swap_exception_ports
         // to replace the thread's current exception ports with our own.
@@ -732,7 +696,6 @@ namespace CorUnix
             return &m_sMachExceptionHandlers;
         }
 #endif // HAVE_MACH_EXCEPTIONS
-#endif // FEATURE_PAL_SXS
     };
 
 #if defined(FEATURE_PAL_SXS)
@@ -795,13 +758,6 @@ VOID
 TLSCleanup(
     void
     );
-
-VOID 
-WaitForEndingThreads(
-    void
-    );
-
-extern int free_threads_spinlock;
 
 extern PAL_ActivationFunction g_activationFunction;
 extern PAL_SafeActivationCheckFunction g_safeActivationCheckFunction;
