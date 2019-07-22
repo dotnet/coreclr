@@ -4326,7 +4326,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
                block->bbNext->bbNum, bTest->bbNum);
         printf("\nEstimated code size expansion is %d\n ", estDupCostSz);
 
-        gtDispTree(copyOfCondStmt);
+        gtDispTree(copyOfCondStmt->gtStmtExpr);
     }
 
 #endif
@@ -9042,7 +9042,7 @@ void Compiler::optOptimizeBools()
             {
                 printf("Folded %sboolean conditions of " FMT_BB " and " FMT_BB " to :\n",
                        c2->OperIsLeaf() ? "" : "non-leaf ", b1->bbNum, b2->bbNum);
-                gtDispTree(s1);
+                gtDispTree(s1->gtStmtExpr);
                 printf("\n");
             }
 #endif

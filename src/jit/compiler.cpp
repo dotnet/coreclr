@@ -8684,7 +8684,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (trees)
             {
-                cTree(comp, stmt);
+                cTree(comp, stmt->gtStmtExpr);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8698,7 +8698,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt);
+                cTreeIR(comp, stmt->gtStmtExpr);
             }
 
             if (!noStmts && !trees)
