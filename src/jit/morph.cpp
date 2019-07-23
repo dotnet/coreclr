@@ -122,6 +122,91 @@ GenTree* Compiler::fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgLi
 
 /*****************************************************************************
  *
+ *  Morph X * Y + Z into FMA intrinsic
+ *  X *  Y + Z  ->  NI_FMA_MultiplyAddScalar
+ *  X * -Y + Z  ->  NI_FMA_MultiplyAddNegatedScalar
+ * -X *  Y + Z  ->  NI_FMA_MultiplyAddNegatedScalar
+ * -X * -Y + Z  ->  NI_FMA_MultiplyAddScalar
+ *  X *  Y - Z  ->  NI_FMA_MultiplySubtractScalar
+ *  X * -Y - Z  ->  NI_FMA_MultiplySubtractNegatedScalar
+ * -X *  Y - Z  ->  NI_FMA_MultiplySubtractNegatedScalar
+ * -X * -Y - Z  ->  NI_FMA_MultiplySubtractScalar
+ */
+
+GenTree* Compiler::fgMorphFmadd(GenTree* tree)
+{
+    GenTree* mull = nullptr;
+    GenTree* c    = nullptr;
+
+    if (!tree->OperIs(GT_ADD, GT_SUB))
+    {
+        return tree;
+    }
+    if (!compSupports(InstructionSet_FMA))
+    {
+        // TODO: check for COMPlus_InsertFma=1
+        return tree;
+    }
+    if (tree->AsOp()->gtGetOp1()->OperIs(GT_MUL))
+    {
+        mull = tree->AsOp()->gtGetOp1();
+        c = tree->AsOp()->gtGetOp2();
+    }
+    else if (tree->AsOp()->gtGetOp2()->OperIs(GT_MUL))
+    {
+        mull = tree->AsOp()->gtGetOp2();
+        c = tree->AsOp()->gtGetOp1();
+    }
+    else
+    {
+        return tree;
+    }
+
+    GenTree* a = mull->AsOp()->gtGetOp1();
+    GenTree* b = mull->AsOp()->gtGetOp2();
+
+    if (!varTypeIsFloating(a->TypeGet()) || 
+        !varTypeIsFloating(b->TypeGet()) || 
+        !varTypeIsFloating(c->TypeGet()) ||
+        a->TypeGet() != b->TypeGet() ||
+        a->TypeGet() != c->TypeGet())
+    {
+        return tree;
+    }
+
+    const var_types typ = a->TypeGet();
+    bool negated = a->OperIs(GT_NEG) ^ b->OperIs(GT_NEG);
+
+    if (a->OperIs(GT_NEG))
+    {
+        a = a->gtOp.gtOp1;
+    }
+    if (b->OperIs(GT_NEG))
+    {
+        b = b->gtOp.gtOp1;
+    }
+
+    NamedIntrinsic fma;
+    if (tree->OperIs(GT_ADD))
+    {
+        fma = negated ? NI_FMA_MultiplyAddNegatedScalar : NI_FMA_MultiplyAddScalar;
+    }
+    else
+    {
+        fma = negated ? NI_FMA_MultiplySubtractNegatedScalar : NI_FMA_MultiplySubtractScalar;
+    }
+
+    GenTree* op1 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, a, NI_Vector128_CreateScalarUnsafe, typ, 16);
+    GenTree* op2 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, b, NI_Vector128_CreateScalarUnsafe, typ, 16);
+    GenTree* op3 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, c, NI_Vector128_CreateScalarUnsafe, typ, 16);
+    GenTree* res = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, op3, fma, typ, 16);
+
+    tree->ReplaceWith(gtNewSimdHWIntrinsicNode(typ, res, NI_Vector128_ToScalar, typ, 16), this);
+    return tree;
+}
+
+/*****************************************************************************
+ *
  *  Morph a cast node (we perform some very simple transformations here).
  */
 
@@ -11420,6 +11505,15 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
 
         case GT_CAST:
             return fgMorphCast(tree);
+
+        case GT_SUB:
+        case GT_ADD:
+            if (tree->AsOp()->gtGetOp1()->OperIs(GT_MUL) && varTypeIsFloating(typ))
+            {
+                return fgMorphFmadd(tree);
+            }
+
+            break;
 
         case GT_MUL:
 

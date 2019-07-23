@@ -5319,6 +5319,7 @@ private:
 #endif // FEATURE_SIMD
     GenTree* fgMorphArrayIndex(GenTree* tree);
     GenTree* fgMorphCast(GenTree* tree);
+    GenTree* fgMorphFmadd(GenTree* tree);
     GenTree* fgUnwrapProxy(GenTree* objRef);
     GenTreeFieldList* fgMorphLclArgToFieldlist(GenTreeLclVarCommon* lcl);
     void fgInitArgInfo(GenTreeCall* call);
