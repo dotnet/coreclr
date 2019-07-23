@@ -416,8 +416,6 @@ Interval 17: float RefPositions {} physReg:NA Preferences=[allFloat]
 <RefPosition #42  @27  RefTypeUse <Ivl:15> BB01 regmask=[allInt] minReg=1 last>
 <RefPosition #43  @27  RefTypeUse <Ivl:16 internal> STORE_BLK BB01 regmask=[allInt] minReg=1 last>
 <RefPosition #44  @27  RefTypeUse <Ivl:17 internal> STORE_BLK BB01 regmask=[allFloat] minReg=1 last>
-    +<TreeNodeInfo 0=1 1i 1f src=[allInt] int=[rax rcx rdx rbx rbp rsi rdi r8-r15 mm0-mm15] dst=[allInt] I>[--]
-  consume= 1 produce=0
 ```
 The “@ 27” is the location number of the node. “internal” indicates a register that is internal to the node (in this case 2 internal registers are needed, one float (XMM on XARCH) and one int, as temporaries for copying). “regmask” indicates the register constraints for the `RefPosition`.
 
