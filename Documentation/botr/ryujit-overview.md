@@ -340,7 +340,15 @@ t17 = ▌  DIV       double $146
 
 Lowering is responsible for transforming the IR in such a way that the control flow, and any register requirements, are fully exposed.
 
-It does an execution-order traversal that performs context-dependent transformations such as expanding switch statements (using a switch table or a series of conditional branches), constructing addressing modes, determining the code generation strategy for block assignments (e.g. `GT_STORE_BLK`) which may become helper calls, unrolled loops, or an instruction like `rep stos` etc.  For example, this:
+It does an execution-order traversal that performs context-dependent transformations such as
+* expanding switch statements (using a switch table or a series of conditional branches)
+* constructing addressing modes (LEA nodes)
+* determining the code generation strategy for block assignments (e.g. `GT_STORE_BLK`) which may become helper calls, unrolled loops, or an instruction like `rep stos`
+* generating machine specific instructions (e.g. generating the BT x86/64 instruction)
+* mark "contained" nodes - such a node does not generate any code and relies on its user to include the node's operation in its own codegen (e.g. memory operands, immediate operands)
+* mark "reg optional" nodes - despite the name, such a node may produce a value in a register but its user does not require a register and can consume the value directly from a memory location
+
+For example, this:
 ```
 t47 =    LCL_VAR   ref    V00 arg0
 t48 =    LCL_VAR   int    V01 arg1
@@ -587,9 +595,35 @@ Full instructions for dumping the compilation of some managed code can be found 
 
 ## Reading expression trees
 
-It takes some time to learn to “read” the expression trees, which are printed with the children indented from the parent, and, for binary operators, with the first operand below the parent and the second operand above.
+Expression trees are displayed using a pre-order traversal, with the subtrees of a node being displayed under the node in operand order (e.g. `gtOp1`, `gtOp2`). This is similar to the way trees are displayed in tyical user interfaces (e.g. folder trees). Note that the operand order may be different from the actual execution order, determined by `GTF_REVERSE_OPS` or other means. The operand order usually follows the order in high level languages so that the typical infix, left to right expression `a - b` becomes prefix, top to bottom tree:
+```
+▌  SUB       double
+├──▌  LCL_VAR   double V03 a
+└──▌  LCL_VAR   double V02 b
+```
+Assignments are displayed like all other binary operators, with `dest = src` becoming:
+```
+▌  ASG       double
+├──▌  LCL_VAR   double V03 dest
+└──▌  LCL_VAR   double V02 src
+```
+Calls initially display in source order:
+[000004] --C-G-------              *  CALL      void   Program.Order
+[000000] ------------ arg0         +--*  CNS_INT   int    1
+[000001] ------------ arg1         +--*  CNS_INT   int    2
+[000002] ------------ arg2         +--*  CNS_INT   int    3
+[000003] ------------ arg3         \--*  CNS_INT   int    4
+```
+but call morphing may change the order depending on the ABI so the above may become:
+[000004] --CXG+------              *  CALL      void   Program.Order
+[000002] -----+------ arg2 on STK  +--*  CNS_INT   int    3
+[000003] -----+------ arg3 on STK  +--*  CNS_INT   int    4
+[000000] -----+------ arg0 in ecx  +--*  CNS_INT   int    1
+[000001] -----+------ arg1 in edx  \--*  CNS_INT   int    2
+```
+where the node labels (e.g. arg0) help identifying the call arguments after reordering.
 
-Here is an example dump
+Here is a full dump of an entire statement:
 ```
 [000026] ------------              ▌  STMT      void  (IL 0x010...  ???)
 [000025] --C-G-------              └──▌  RETURN    double
@@ -608,8 +642,6 @@ Here is an example dump
 [000019] ------------                          ├──▌  LCL_VAR   double V03 loc0
 [000020] ------------                          └──▌  LCL_VAR   double V02 arg2
 ```
-
-Trees are displayed using a pre-order traversal, with the subtrees of a node being displayed under the node in operand order (e.g. gtOp1, gtOp2). This is similar to the way trees are displayed in tyical user interfaces (e.g. folder trees). Note that the operand order may be different from the actual execution order, determined by `GTF_REVERSE_OPS` or other means.
 
 Tree nodes are identified by their `gtTreeID`. This field only exists in DEBUG builds, but is quite useful for debugging, since all tree nodes are created from the routine `gtNewNode` (in [src/jit/gentree.cpp](https://github.com/dotnet/coreclr/blob/master/src/jit/gentree.cpp)). If you find a bad tree and wish to understand how it got corrupted, you can place a conditional breakpoint at the end of `gtNewNode` to see when it is created, and then a data breakpoint on the field that you believe is corrupted.
 
