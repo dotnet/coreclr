@@ -98,7 +98,8 @@ public:
         // Fibonacci hash reduces the value into desired range by shifting right by the number of leading zeroes in 'size-1' 
         DWORD bitCnt;
 #if BIT64
-        this->HashShift() = (BYTE)(63 - BitScanReverse64(&bitCnt, size - 1));
+        BitScanReverse64(&bitCnt, size - 1);
+        this->HashShift() = (BYTE)(63 - bitCnt);
 #else
         BitScanReverse(&bitCnt, size - 1);
         this->HashShift() = (BYTE)(31 - bitCnt);
