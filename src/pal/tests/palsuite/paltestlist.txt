@@ -112,7 +112,6 @@ c_runtime/iswxdigit/test1/paltest_iswxdigit_test1
 c_runtime/isxdigit/test1/paltest_isxdigit_test1
 c_runtime/labs/test1/paltest_labs_test1
 c_runtime/llabs/test1/paltest_llabs_test1
-c_runtime/localtime/test1/paltest_localtime_test1
 c_runtime/log/test1/paltest_log_test1
 c_runtime/log2/test1/paltest_log2_test1
 c_runtime/log2f/test1/paltest_log2f_test1

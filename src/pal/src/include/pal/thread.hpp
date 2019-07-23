@@ -156,32 +156,16 @@ namespace CorUnix
 #endif // HAVE_MACH_EXCEPTIONS
 #endif // FEATURE_PAL_SXS
 
-    /* In the windows CRT there is a constant defined for the max width
-    of a _ecvt conversion. That constant is 348. 348 for the value, plus
-    the exponent value, decimal, and sign if required. */
-#define ECVT_MAX_COUNT_SIZE 348
-#define ECVT_MAX_BUFFER_SIZE 357
-
-    /*STR_TIME_SIZE is defined as 26 the size of the
-      return val by ctime_r*/
-#define STR_TIME_SIZE 26
-
     class CThreadCRTInfo : public CThreadInfoInitializer
     {
     public:
         CHAR *       strtokContext; // Context for strtok function
         WCHAR *      wcstokContext; // Context for wcstok function
-        struct PAL_tm localtimeBuffer; // Buffer for localtime function
-        CHAR         ctimeBuffer[ STR_TIME_SIZE ]; // Buffer for ctime function
-        CHAR         ECVTBuffer[ ECVT_MAX_BUFFER_SIZE ]; // Buffer for _ecvt function.
 
         CThreadCRTInfo() :
             strtokContext(NULL),
             wcstokContext(NULL)
         {
-            ZeroMemory(&localtimeBuffer, sizeof(localtimeBuffer));
-            ZeroMemory(ctimeBuffer, sizeof(ctimeBuffer));
-            ZeroMemory(ECVTBuffer, sizeof(ECVTBuffer));
         };
     };
 

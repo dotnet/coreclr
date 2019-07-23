@@ -189,7 +189,6 @@ set(SOURCES
   cruntime/math.cpp
   cruntime/mbstring.cpp
   cruntime/misc.cpp
-  cruntime/misctls.cpp
   cruntime/path.cpp
   cruntime/printf.cpp
   cruntime/printfcpp.cpp
