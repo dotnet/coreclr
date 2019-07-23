@@ -1030,7 +1030,7 @@ bool Compiler::optExtractInitTestIncr(
 
     // Check if last two statements in the loop body are the increment of the iterator
     // and the loop termination test.
-    noway_assert(bottom->bbTreeList != nullptr);
+    noway_assert(bottom->bbStmtList != nullptr);
     GenTreeStmt* testStmt = bottom->lastStmt();
     noway_assert(testStmt != nullptr && testStmt->gtNext == nullptr);
 
@@ -1045,7 +1045,7 @@ bool Compiler::optExtractInitTestIncr(
     GenTreeStmt* incrStmt = testStmt->getPrevStmt();
     if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->gtStmtExpr) == BAD_VAR_NUM)
     {
-        if (top == nullptr || top->bbTreeList == nullptr || top->bbTreeList->gtPrev == nullptr)
+        if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->gtPrev == nullptr)
         {
             return false;
         }
@@ -2884,7 +2884,7 @@ bool Compiler::optCanonicalizeLoop(unsigned char loopInd)
     {
         newT->bbJumpKind = BBJ_ALWAYS;
         newT->bbJumpDest = t;
-        newT->bbTreeList = nullptr;
+        newT->bbStmtList = nullptr;
         fgInsertStmtAtEnd(newT, fgNewStmtFromTree(gtNewOperNode(GT_NOP, TYP_VOID, nullptr)));
     }
 
@@ -2913,7 +2913,7 @@ bool Compiler::optCanonicalizeLoop(unsigned char loopInd)
         BasicBlock* h2               = fgNewBBafter(BBJ_ALWAYS, h, /*extendRegion*/ true);
         optLoopTable[loopInd].lpHead = h2;
         h2->bbJumpDest               = optLoopTable[loopInd].lpEntry;
-        h2->bbTreeList               = nullptr;
+        h2->bbStmtList               = nullptr;
         fgInsertStmtAtEnd(h2, fgNewStmtFromTree(gtNewOperNode(GT_NOP, TYP_VOID, nullptr)));
     }
 
@@ -3832,7 +3832,7 @@ void Compiler::optUnrollLoops()
             // Gut the old loop body
             for (block = head->bbNext;; block = block->bbNext)
             {
-                block->bbTreeList = nullptr;
+                block->bbStmtList = nullptr;
                 block->bbJumpKind = BBJ_NONE;
                 block->bbFlags &= ~(BBF_NEEDS_GCPOLL | BBF_LOOP_HEAD);
                 if (block->bbJumpDest != nullptr)
@@ -4119,7 +4119,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     // the conditional, so any other statements will not get cloned
     //  TODO-CQ: consider cloning the whole bTest block as inserting it after block.
     //
-    if (bTest->bbTreeList != condStmt)
+    if (bTest->bbStmtList != condStmt)
     {
         return;
     }
@@ -6237,7 +6237,7 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
     {
         /* Empty pre-header - store the single statement in the block */
 
-        preHead->bbTreeList = hoistStmt;
+        preHead->bbStmtList = hoistStmt;
         hoistStmt->gtPrev   = hoistStmt;
     }
 

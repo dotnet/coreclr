@@ -430,7 +430,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, 
 
     /* Store the tree list in the basic block */
 
-    block->bbTreeList = firstStmt;
+    block->bbStmtList = firstStmt;
 
     /* The block should not already be marked as imported */
     assert((block->bbFlags & BBF_IMPORTED) == 0);

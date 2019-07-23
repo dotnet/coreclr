@@ -2315,7 +2315,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
             {
                 JITDUMP("removing stmt with no side effects\n");
 
-                // No side effects - remove the whole statement from the block->bbTreeList
+                // No side effects - remove the whole statement from the block->bbStmtList.
                 fgRemoveStmt(compCurBB, compCurStmt);
 
                 // Since we removed it do not process the rest (i.e. RHS) of the statement

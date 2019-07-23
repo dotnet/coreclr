@@ -743,6 +743,8 @@ struct BasicBlock : private LIR::Range
 
     __declspec(property(get = getBBTreeList, put = setBBTreeList)) GenTree* bbTreeList; // the body of the block.
 
+    GenTreeStmt* bbStmtList;
+
     GenTree* getBBTreeList() const
     {
         return m_firstNode;
@@ -1078,7 +1080,7 @@ struct BasicBlock : private LIR::Range
     GenTreeStmt* FirstNonPhiDef();
     GenTreeStmt* FirstNonPhiDefOrCatchArgAsg();
 
-    BasicBlock() : bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
+    BasicBlock() : bbStmtList(nullptr), bbLiveIn(VarSetOps::UninitVal()), bbLiveOut(VarSetOps::UninitVal())
     {
     }
 
