@@ -155,19 +155,6 @@ namespace CorUnix
     };
 #endif // HAVE_MACH_EXCEPTIONS
 #endif // FEATURE_PAL_SXS
-    
-    class CThreadSEHInfo : public CThreadInfoInitializer
-    {
-    public:
-#if !HAVE_MACH_EXCEPTIONS
-        BOOL safe_state;
-        int signal_code;
-#endif // !HAVE_MACH_EXCEPTIONSG
-
-        CThreadSEHInfo()
-        {
-        };
-    };
 
     /* In the windows CRT there is a constant defined for the max width
     of a _ecvt conversion. That constant is 348. 348 for the value, plus
@@ -349,7 +336,6 @@ namespace CorUnix
 
         CThreadSynchronizationInfo synchronizationInfo;
         CThreadSuspensionInfo suspensionInfo;
-        CThreadSEHInfo sehInfo;
         CThreadApcInfo apcInfo;
         CThreadCRTInfo crtInfo;
 
