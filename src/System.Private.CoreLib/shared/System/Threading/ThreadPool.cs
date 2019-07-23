@@ -32,7 +32,17 @@ namespace System.Threading
 {
     internal static class ThreadPoolGlobals
     {
-        public static readonly int processorCount = Environment.ProcessorCount;
+        // Limit for the number of pending thread requests.
+        // For correctness we only need to guarantee 1 request for a queued task.
+        // However VM lags with introduction of workers and we want some buffer, so that incoming bursts of work are not throttled by the lag.
+        // There are also costs:
+        //   1) it will take longer to saturate a larger number and being a shared state it may be pretty expensive to update. 
+        //      It can be particularly a problem on a machine with lots of cores due to contending increments.
+        //
+        //   2) when the pool gets empty we will get at tail of this many threads becoming active and checking the pool queues.
+        //
+        // 
+        public static readonly int maxOutstandingRequests = 1; // (int)Math.Log2(Environment.ProcessorCount + 1);
 
         public static volatile bool threadPoolInitialized;
         public static bool enableWorkerTracking;
@@ -1128,7 +1138,7 @@ namespace System.Threading
         {
             loggingEnabled = FrameworkEventSource.Log.IsEnabled(EventLevel.Verbose, FrameworkEventSource.Keywords.ThreadPool | FrameworkEventSource.Keywords.ThreadTransfer);
 
-            _localQueues = new LocalQueue[RoundUpToPowerOf2(ThreadPoolGlobals.processorCount)];
+            _localQueues = new LocalQueue[RoundUpToPowerOf2(Environment.ProcessorCount)];
         }
 
         /// <summary>
@@ -1186,7 +1196,7 @@ namespace System.Threading
             // If we have not yet requested #procs threads, then request a new thread.
             //
             int count = numOutstandingThreadRequests;
-            while (count < ThreadPoolGlobals.processorCount)
+            while (count < ThreadPoolGlobals.maxOutstandingRequests)
             {
                 int prev = Interlocked.CompareExchange(ref numOutstandingThreadRequests, count + 1, count);
                 if (prev == count)
