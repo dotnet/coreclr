@@ -344,7 +344,7 @@ It does an execution-order traversal that performs context-dependent transformat
 * expanding switch statements (using a switch table or a series of conditional branches)
 * constructing addressing modes (LEA nodes)
 * determining the code generation strategy for block assignments (e.g. `GT_STORE_BLK`) which may become helper calls, unrolled loops, or an instruction like `rep stos`
-* generating machine specific instructions (e.g. generating the BT x86/64 instruction)
+* generating machine specific instructions (e.g. generating the `BT` x86/64 instruction)
 * mark "contained" nodes - such a node does not generate any code and relies on its user to include the node's operation in its own codegen (e.g. memory operands, immediate operands)
 * mark "reg optional" nodes - despite the name, such a node may produce a value in a register but its user does not require a register and can consume the value directly from a memory location
 
@@ -605,7 +605,8 @@ Assignments are displayed like all other binary operators, with `dest = src` bec
 ├──▌  LCL_VAR   double V03 dest
 └──▌  LCL_VAR   double V02 src
 ```
-Calls initially display in source order:
+Calls initially display in source order - `Order(1, 2, 3, 4)` is:
+```
 [000004] --C-G-------              *  CALL      void   Program.Order
 [000000] ------------ arg0         +--*  CNS_INT   int    1
 [000001] ------------ arg1         +--*  CNS_INT   int    2
@@ -613,6 +614,7 @@ Calls initially display in source order:
 [000003] ------------ arg3         \--*  CNS_INT   int    4
 ```
 but call morphing may change the order depending on the ABI so the above may become:
+```
 [000004] --CXG+------              *  CALL      void   Program.Order
 [000002] -----+------ arg2 on STK  +--*  CNS_INT   int    3
 [000003] -----+------ arg3 on STK  +--*  CNS_INT   int    4
