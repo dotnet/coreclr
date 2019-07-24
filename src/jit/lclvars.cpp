@@ -1003,6 +1003,11 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 
 #endif // _TARGET_XXX_
 
+            if (cSlots > 1)
+            {
+                varDscInfo->hasMultiSlotStruct = true;
+            }
+
 #if FEATURE_FASTTAILCALL
             if (cSlots > 1)
             {

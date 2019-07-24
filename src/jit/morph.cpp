@@ -7069,22 +7069,10 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 #if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
     if (info.compIsVarArgs || callee->IsVarargs())
     {
-        reportFastTailCallDecision("Tail calls not supported on windows armarch.", 0, 0);
+        reportFastTailCallDecision("Fast tail calls with varargs not supported on Windows ARM/ARM64", 0, 0);
         return false;
     }
 #endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
-
-    unsigned nCallerArgs = info.compArgsCount;
-    unsigned nCalleeArgs = argInfo->ArgCount();
-
-    size_t callerArgRegCount      = codeGen->intRegState.rsCalleeRegArgCount;
-    size_t callerFloatArgRegCount = codeGen->floatRegState.rsCalleeRegArgCount;
-
-    // Count the callee args including implicit and hidden.
-    // Note that GenericContext and VarargCookie are added by importer while
-    // importing the call to gtCallArgs list along with explicit user args.
-    size_t calleeArgRegCount      = 0;
-    size_t calleeFloatArgRegCount = 0;
 
     // Count user args while tracking whether any of them has a larger than one
     // stack slot sized requirement. This requirement is required to support
@@ -7101,7 +7089,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     bool   hasByrefParameter                    = false;
     size_t calleeStackSize                      = 0;
 
-    for (unsigned index = 0; index < nCalleeArgs; ++index)
+    for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
     {
         fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
 
@@ -7109,19 +7097,30 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         unsigned argFloatRegCount = arg->floatRegCount();
         unsigned argIntRegCount   = arg->intRegCount();
 
+#if !defined(FEATURE_ARG_SPLIT)
+        if (argStackSize > 0)
+        {
+            assert(argFloatRegCount == 0 && argIntRegCount == 0);
+        }
+#endif // !defined(FEATURE_ARG_SPLIT)
+
         unsigned countRegistersUsedForArg = argIntRegCount + argFloatRegCount;
 
         calleeStackSize += argStackSize;
-        calleeFloatArgRegCount += argFloatRegCount;
-        calleeArgRegCount += argIntRegCount;
 
         // This exists to account for special case situations where we will not
         // fast tail call.
         if (arg->isStruct)
         {
-            hasNonEnregisterableStructs = argStackSize > 0 ? true : hasNonEnregisterableStructs;
-            hasLargerThanOneStackSlotSizedStruct =
-                countRegistersUsedForArg > 1 ? true : hasLargerThanOneStackSlotSizedStruct;
+            if (argStackSize > 0)
+            {
+                hasNonEnregisterableStructs = true;
+            }
+
+            if (countRegistersUsedForArg > 1)
+            {
+                hasLargerThanOneStackSlotSizedStruct = true;
+            }
 
             // Byref struct arguments are not allowed to fast tail call as the information
             // of the caller's stack is lost when the callee is compiled.
@@ -7145,7 +7144,14 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     const unsigned maxRegArgs            = MAX_REG_ARG;
+    size_t callerStackSize = info.compArgStackSize;
     hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
+
+    bool   hasStackArgs    = false;
+    if (callerStackSize > 0 || calleeStackSize > 0)
+    {
+        hasStackArgs = true;
+    }
 
     if (hasByrefParameter)
     {
@@ -7155,15 +7161,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
 // If we reached here means that callee has only those argument types which can be passed in
 // a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
-// If we are passing args on stack for the callee and it haas a larger stack size than
+// If we are passing args on stack for the callee and it has a larger stack size than
 // the caller, then fast tail call cannot be performed.
 //
 // Note that the GC'ness of on stack args need not match since the arg setup area is marked
 // as non-interruptible for fast tail calls.
 
 #ifdef WINDOWS_AMD64_ABI
-    size_t callerStackSize = info.compArgStackSize;
-
     bool hasStackArgs = false;
 
     if (callerStackSize > 0 || calleeStackSize > 0)
@@ -7173,9 +7177,9 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
     // x64 Windows: If we have stack args then make sure the callee's incoming
     // arguments is less than the caller's
-    if (hasStackArgs && (nCalleeArgs > nCallerArgs))
+    if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (nCalleeArgs > nCallerArgs)", callerStackSize,
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)", callerStackSize,
                                    calleeStackSize);
         return false;
     }
@@ -7189,20 +7193,12 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // Also, in the case that we have to pass arguments on the stack make sure
     // that we are not dealing with structs that are >8 bytes.
 
-    bool   hasStackArgs    = false;
-    size_t callerStackSize = info.compArgStackSize;
-
-    if (callerStackSize > 0 || calleeStackSize > 0)
-    {
-        hasStackArgs = true;
-    }
-
     // Either the caller or callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not
     // fastTailCall.
     //
     // When either the caller or callee have multi-stlot stack arguments we cannot safely
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
-    if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize)
+    if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize > 0)
     {
         reportFastTailCallDecision("Will not fastTailCall hasLargerThanOneStackSlotSizedStruct && calleeStackSize",
                                    callerStackSize, calleeStackSize);
@@ -7223,16 +7219,9 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // not true in many cases on x64 linux, remove this pessimization when
     // LowerFastTailCall is fixed. See https://github.com/dotnet/coreclr/issues/12468
     // for more information.
-    if (hasStackArgs && (nCalleeArgs > nCallerArgs))
+    if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (nCalleeArgs > nCallerArgs)", callerStackSize,
-                                   calleeStackSize);
-        return false;
-    }
-
-    if (calleeStackSize > callerStackSize)
-    {
-        reportFastTailCallDecision("Will not fastTailCall calleeStackSize > callerStackSize", callerStackSize,
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)", callerStackSize,
                                    calleeStackSize);
         return false;
     }

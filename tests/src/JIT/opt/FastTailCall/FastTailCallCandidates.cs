@@ -1092,7 +1092,7 @@ public class FastTailCallCandidates
         [FieldOffset(16)] public long c;
         [FieldOffset(24)] public long d;
 
-        public StructSizeThirtyTwo(int a, int b, int c, int d)
+        public StructSizeThirtyTwo(long a, long b, long c, long d)
         {
             this.a = a;
             this.b = b;
@@ -1212,7 +1212,6 @@ public class FastTailCallCandidates
         if (a % 2 == 0)
         {
             a = 1;
-            b = b + 2;
             return DoubleCountRetBuffCallee(new StructSizeEightIntNotExplicit(a, a), 
                                             new StructSizeEightIntNotExplicit(a, a), 
                                             new StructSizeEightIntNotExplicit(a, a), 
@@ -1221,7 +1220,6 @@ public class FastTailCallCandidates
         }
         else
         {
-            a = 4;
             b = b + 1;
             return DoubleCountRetBuffCallee(new StructSizeEightIntNotExplicit(b, b), 
                                             new StructSizeEightIntNotExplicit(b, b), 

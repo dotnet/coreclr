@@ -1330,7 +1330,7 @@ public:
 #if defined(UNIX_AMD64_ABI)
     // Unix amd64 will split floating point types and integer types in structs
     // between floating point and general purpose registers. Keep track of that
-    // information so we do not need to re-compute it later.
+    // information so we do not need to recompute it later.
     unsigned structIntRegs;
     unsigned structFloatRegs;
 #endif // UNIX_AMD64_ABI
@@ -1466,12 +1466,23 @@ public:
 #if defined(UNIX_AMD64_ABI)
         if (this->isStruct)
         {
+            if (this->numSlots > 0)
+            {
+                return 0;
+            }
             return this->structIntRegs;
         }
 #endif // defined(UNIX_AMD64_ABI)
 
         if (!this->isPassedInFloatRegisters())
         {
+#if !defined(FEATURE_ARG_SPLIT)
+            if (this->numSlots > 0)
+            {
+                return 0;
+            }
+#endif // !(FEATURE_ARG_SPLIT)
+
             return this->numRegs;
         }
 
@@ -1483,12 +1494,24 @@ public:
 #if defined(UNIX_AMD64_ABI)
         if (this->isStruct)
         {
+            if (this->numSlots > 0)
+            {
+                return 0;
+            }
+
             return this->structFloatRegs;
         }
 #endif // defined(UNIX_AMD64_ABI)
 
         if (this->isPassedInFloatRegisters())
         {
+#if !defined(FEATURE_ARG_SPLIT)
+            if (this->numSlots > 0)
+            {
+                return 0;
+            }
+#endif // !(FEATURE_ARG_SPLIT)
+
             return this->numRegs;
         }
 
