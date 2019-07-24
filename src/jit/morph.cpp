@@ -122,15 +122,16 @@ GenTree* Compiler::fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgLi
 
 /*****************************************************************************
  *
- *  Morph X * Y + Z into FMA intrinsic
- *  X *  Y + Z  ->  NI_FMA_MultiplyAddScalar
- *  X * -Y + Z  ->  NI_FMA_MultiplyAddNegatedScalar
- * -X *  Y + Z  ->  NI_FMA_MultiplyAddNegatedScalar
- * -X * -Y + Z  ->  NI_FMA_MultiplyAddScalar
- *  X *  Y - Z  ->  NI_FMA_MultiplySubtractScalar
- *  X * -Y - Z  ->  NI_FMA_MultiplySubtractNegatedScalar
- * -X *  Y - Z  ->  NI_FMA_MultiplySubtractNegatedScalar
- * -X * -Y - Z  ->  NI_FMA_MultiplySubtractScalar
+ *  Morph X * Y + Z into FMA intrinsics:
+ *
+ *   X *  Y + Z  ->  NI_FMA_MultiplyAddScalar
+ *   X * -Y + Z  ->  NI_FMA_MultiplyAddNegatedScalar
+ *  -X *  Y + Z  ->  NI_FMA_MultiplyAddNegatedScalar
+ *  -X * -Y + Z  ->  NI_FMA_MultiplyAddScalar
+ *   X *  Y - Z  ->  NI_FMA_MultiplySubtractScalar
+ *   X * -Y - Z  ->  NI_FMA_MultiplySubtractNegatedScalar
+ *  -X *  Y - Z  ->  NI_FMA_MultiplySubtractNegatedScalar
+ *  -X * -Y - Z  ->  NI_FMA_MultiplySubtractScalar
  */
 
 GenTree* Compiler::fgMorphFmadd(GenTree* tree)
@@ -178,12 +179,16 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
         return tree;
     }
 
-    // TODO: fix
     if (gtIsActiveCSE_Candidate(mull) || !fgGlobalMorph)
     {
-        // shouldn't generate fmadd here:
-        // _z = a * b;
-        // return a * b + c;
+        // TODO: should not insert fmadd here and let the CSE phase do its work
+        //
+        // double Foo(double a, double b, double c, out double z)
+        // {
+        //     z = a * b;         // a * b
+        //     return a * b + c;  // z + c
+        // }
+        //
         return tree;
     }
 
