@@ -2459,32 +2459,31 @@ void ILBlittablePtrMarshaler::EmitConvertSpaceAndContentsCLRToNativeTemp(ILCodeS
 {
     STANDARD_VM_CONTRACT;
 
-    if (CanUsePinnedLayoutClass())
-    {
-        ILCodeLabel* pSkipAddLabel = pslILEmit->NewCodeLabel();
-        LocalDesc managedTypePinned = GetManagedType();
-        managedTypePinned.MakePinned();
-        DWORD dwPinnedLocal = pslILEmit->NewLocal(managedTypePinned);
-
-        EmitLoadManagedValue(pslILEmit);
-
-        pslILEmit->EmitSTLOC(dwPinnedLocal);
-        pslILEmit->EmitLDLOC(dwPinnedLocal);
-        pslILEmit->EmitCONV_U();
-        pslILEmit->EmitDUP();
-        pslILEmit->EmitBRFALSE(pSkipAddLabel);
-        pslILEmit->EmitLDC(Object::GetOffsetOfFirstField());
-        pslILEmit->EmitADD();
-        pslILEmit->EmitLabel(pSkipAddLabel);
-
-        EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
-
-        EmitStoreNativeValue(pslILEmit);
-    }
-    else
+    if (!CanUsePinnedLayoutClass())
     {
         ILLayoutClassPtrMarshalerBase::EmitConvertSpaceAndContentsCLRToNativeTemp(pslILEmit);
+        return;
     }
+
+    ILCodeLabel* pSkipAddLabel = pslILEmit->NewCodeLabel();
+    LocalDesc managedTypePinned = GetManagedType();
+    managedTypePinned.MakePinned();
+    DWORD dwPinnedLocal = pslILEmit->NewLocal(managedTypePinned);
+
+    EmitLoadManagedValue(pslILEmit);
+
+    pslILEmit->EmitSTLOC(dwPinnedLocal);
+    pslILEmit->EmitLDLOC(dwPinnedLocal);
+    pslILEmit->EmitCONV_U();
+    pslILEmit->EmitDUP();
+    pslILEmit->EmitBRFALSE(pSkipAddLabel);
+    pslILEmit->EmitLDC(Object::GetOffsetOfFirstField());
+    pslILEmit->EmitADD();
+    pslILEmit->EmitLabel(pSkipAddLabel);
+
+    EmitLogNativeArgument(pslILEmit, dwPinnedLocal);
+
+    EmitStoreNativeValue(pslILEmit);
 }
 
 
