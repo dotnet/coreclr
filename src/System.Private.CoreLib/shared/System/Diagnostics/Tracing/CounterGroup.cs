@@ -54,11 +54,26 @@ namespace System.Diagnostics.Tracing
             {
                 Debug.Assert(e.Arguments != null);
 
+                if (s_pollingThreadEvent == null)
+                {
+                    s_pollingThreadEvent = new ManualResetEvent(false);
+                }
+
+
                 if (e.Arguments.TryGetValue("EventCounterIntervalSec", out string? valueStr) && float.TryParse(valueStr, out float value))
                 {
                     lock (this)      // Lock the CounterGroup
                     {
                         EnableTimer(value);
+                    }
+
+                    lock (s_pollingThreadLock)
+                    {
+                        if (s_counterGroupCnt == 0 && s_pollingThreadEvent != null)
+                        {
+                            s_pollingThreadEvent.Set();
+                        }
+                        s_counterGroupCnt++;
                     }
                 }
             }
@@ -66,7 +81,17 @@ namespace System.Diagnostics.Tracing
             {
                 lock (this)
                 {
-                    _pollingIntervalInMilliseconds = 0;
+                    _pollingIntervalInMilliseconds = 0;   
+                }
+
+                lock (s_pollingThreadLock)
+                {
+                    s_counterGroupCnt--;
+
+                    if (s_counterGroupCnt == 0 && s_pollingThreadEvent != null)
+                    {
+                        s_pollingThreadEvent.Reset();
+                    }
                 }
             }
         }
@@ -120,31 +145,19 @@ namespace System.Diagnostics.Tracing
 
         private DateTime _timeStampSinceCollectionStarted;
         private int _pollingIntervalInMilliseconds;
-        private Timer? _pollingTimer;
-
-        private void DisposeTimer()
-        {
-            Debug.Assert(Monitor.IsEntered(this));
-            if (_pollingTimer != null)
-            {
-                _pollingTimer.Dispose();
-                _pollingTimer = null;
-            }
-        }
-
+        internal DateTime nextpollingTimeStamp;
+        
         private void EnableTimer(float pollingIntervalInSeconds)
         {
             Debug.Assert(Monitor.IsEntered(this));
             if (pollingIntervalInSeconds <= 0)
             {
-                DisposeTimer();
                 _pollingIntervalInMilliseconds = 0;
             }
             else if (_pollingIntervalInMilliseconds == 0 || pollingIntervalInSeconds * 1000 < _pollingIntervalInMilliseconds)
             {
                 Debug.WriteLine("Polling interval changed at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
                 _pollingIntervalInMilliseconds = (int)(pollingIntervalInSeconds * 1000);
-                DisposeTimer();
                 ResetCounters(); // Reset statistics for counters before we start the thread.
                 _timeStampSinceCollectionStarted = DateTime.UtcNow;
                 // Don't capture the current ExecutionContext and its AsyncLocals onto the timer causing them to live forever
@@ -157,7 +170,24 @@ namespace System.Diagnostics.Tracing
                         restoreFlow = true;
                     }
 
-                    _pollingTimer = new Timer(s => ((CounterGroup)s!).OnTimer(null), this, _pollingIntervalInMilliseconds, _pollingIntervalInMilliseconds);
+                    // _pollingTimer = new Timer(s => ((CounterGroup)s!).OnTimer(null), this, _pollingIntervalInMilliseconds, _pollingIntervalInMilliseconds);
+
+                    lock(s_pollingThreadLock)
+                    {
+                        nextpollingTimeStamp = DateTime.UtcNow + new TimeSpan(0, 0, (int)pollingIntervalInSeconds);
+                        Debug.WriteLine("Set nextpollingTimeStamp to " + nextpollingTimeStamp.ToString("mm.ss.fffffff"));
+
+                        // If we are already polling for some other EventSource, check the next polling time and update if necessary (i.e. if we need to poll before the next earliest polling time.)
+                        // Otherwise, create a new polling thread and set the next sleep time.
+                        
+                        if (s_pollingThread == null)
+                        {
+                            Debug.WriteLine("Creating a polling thread ");
+                            s_pollingThread = new Thread(PollForValues) { IsBackground = true };
+                            s_sleepDurationInMilliseconds = (int)pollingIntervalInSeconds * 1000;
+                            s_pollingThread.Start();
+                        }
+                    }
                 }
                 finally
                 {
@@ -190,7 +220,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private void OnTimer(object? state)
+        internal void OnTimer()
         {
             Debug.WriteLine("Timer fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
             lock (this) // Lock the CounterGroup
@@ -205,48 +235,69 @@ namespace System.Diagnostics.Tracing
                         counter.WritePayload((float)elapsed.TotalSeconds, _pollingIntervalInMilliseconds);
                     }
                     _timeStampSinceCollectionStarted = now;
-                }
-                else
-                {
-                    DisposeTimer();
+                    nextpollingTimeStamp = now + new TimeSpan(0, 0, 0, 0, _pollingIntervalInMilliseconds);
                 }
             }
         }
 
-        #region PCL timer hack
 
-#if ES_BUILD_PCL
-        internal delegate void TimerCallback(object state);
+        // PollingThread stuff
+        private static readonly object s_pollingThreadLock  = new object(); // This lock protects the three static obj below
+        private static Thread? s_pollingThread;
+        private static int s_sleepDurationInMilliseconds;
+        private static ManualResetEvent? s_pollingThreadEvent;
+        private static int s_counterGroupCnt = 0;
 
-        internal sealed class Timer : CancellationTokenSource, IDisposable
+        private static void PollForValues()
         {
-            private int _period;
-            private TimerCallback _callback;
-            private object _state;
-
-            internal Timer(TimerCallback callback, object state, int dueTime, int period)
+            while (true)
             {
-                _callback = callback;
-                _state = state;
-                _period = period;
-                Schedule(dueTime);
-            }
+                while (s_counterGroupCnt > 0)
+                {
+                    Debug.WriteLine("PollingThread woke up at " + DateTime.UtcNow.ToString("mm.ss.fffffff"));
+                    Debug.WriteLine("Sleep duration is " + s_sleepDurationInMilliseconds.ToString() + " ms.");
 
-            private void Schedule(int dueTime)
-            {
-                Task.Delay(dueTime, Token).ContinueWith(OnTimer, null, CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously | TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
-            }
+                    DateTime nextPoll = DateTime.UtcNow + new TimeSpan(0, 0, 0, 0, s_sleepDurationInMilliseconds);
 
-            private void OnTimer(Task t, object s)
-            {
-                Schedule(_period);
-                _callback(_state);
-            }
+                    if (s_counterGroups == null)
+                    {
+                        Debug.WriteLine("s_counterGroups is null. Breaking.");
+                        break;
+                    }
+                    lock (s_pollingThreadLock)
+                    {
+                        foreach (WeakReference<CounterGroup> counterGroupRef in s_counterGroups)
+                        {
+                            if (counterGroupRef == null)
+                                continue;
+                            if (!counterGroupRef.TryGetTarget(out CounterGroup? counterGroup))
+                                continue;
 
-            public new void Dispose() { base.Cancel(); }
+                            if (counterGroup != null)
+                            {
+                                if (counterGroup.nextpollingTimeStamp < DateTime.UtcNow)
+                                {
+                                    counterGroup.OnTimer();
+                                }
+                                Debug.WriteLine("this counterGroup's next poll is " + counterGroup.nextpollingTimeStamp);
+
+                                int millisecondsTillNextPoll = (int)(counterGroup.nextpollingTimeStamp - DateTime.UtcNow).TotalMilliseconds;
+                                if (millisecondsTillNextPoll < s_sleepDurationInMilliseconds && millisecondsTillNextPoll > 0)
+                                {
+                                    s_sleepDurationInMilliseconds = millisecondsTillNextPoll;
+                                }
+                            }
+                        }
+                    }
+                    Thread.Sleep(s_sleepDurationInMilliseconds);                    
+                }
+                if (s_pollingThreadEvent != null)
+                {
+                    s_pollingThreadEvent.WaitOne(); // Block until polling is enabled again
+                }
+            }
         }
-#endif
-        #endregion // PCL timer hack
+
 
         #endregion // Timer Processing
 
