@@ -35,6 +35,7 @@ CONFIG_INTEGER(JitBreakOnBadCode, W("JitBreakOnBadCode"), 0)
 CONFIG_INTEGER(JitBreakOnMinOpts, W("JITBreakOnMinOpts"), 0) // Halt if jit switches to MinOpts
 CONFIG_INTEGER(JitBreakOnUnsafeCode, W("JitBreakOnUnsafeCode"), 0)
 CONFIG_INTEGER(JitCanUseSSE2, W("JitCanUseSSE2"), -1)
+CONFIG_INTEGER(JitInsertFma, W("JitInsertFma"), 0) // If 1, Jit is allowed to replace a * b + c patterns with FMA instructions
 CONFIG_INTEGER(JitCloneLoops, W("JitCloneLoops"), 1) // If 0, don't clone. Otherwise clone loops for optimizations.
 CONFIG_INTEGER(JitDebugLogLoopCloning, W("JitDebugLogLoopCloning"), 0) // In debug builds log places where loop cloning
                                                                        // optimizations are performed on the fast path.

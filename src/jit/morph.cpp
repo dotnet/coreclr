@@ -146,7 +146,7 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
     {
         return tree;
     }
-    if (!compSupports(InstructionSet_FMA))
+    if (!JitConfig.JitInsertFma || !compSupports(InstructionSet_FMA))
     {
         // TODO: check for COMPlus_InsertFma=1
         return tree;

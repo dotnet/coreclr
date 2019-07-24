@@ -355,6 +355,7 @@ Name | Description | Type | Class | Default Value | Flags
 `JITBreakOnMinOpts` | Halt if jit switches to MinOpts | `DWORD` | `JitBreakOnMinOpts` | `0` |
 `JitBreakOnUnsafeCode` |  | `DWORD` | | `0` |
 `JitCanUseSSE2` |  | `DWORD` | | `-1` |
+`JitInsertFma` | If 1, Jit is allowed to replace a * b + c patterns with FMA instructions. | `DWORD` | | `0` |
 `JitCloneLoops` | If 0, don't clone. Otherwise clone loops for optimizations. | `DWORD` | | `1` |
 `JitComponentUnitTests` | Run JIT component unit tests | `DWORD` | `RunComponentUnitTests` | `0` |
 `JitDebugBreak` |  | `SSV` | | |
