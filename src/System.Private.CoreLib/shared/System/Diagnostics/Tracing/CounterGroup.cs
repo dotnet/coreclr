@@ -170,8 +170,6 @@ namespace System.Diagnostics.Tracing
                         restoreFlow = true;
                     }
 
-                    // _pollingTimer = new Timer(s => ((CounterGroup)s!).OnTimer(null), this, _pollingIntervalInMilliseconds, _pollingIntervalInMilliseconds);
-
                     lock(s_pollingThreadLock)
                     {
                         nextpollingTimeStamp = DateTime.UtcNow + new TimeSpan(0, 0, (int)pollingIntervalInSeconds);
@@ -241,7 +239,6 @@ namespace System.Diagnostics.Tracing
         }
 
 
-        // PollingThread stuff
         private static readonly object s_pollingThreadLock  = new object(); // This lock protects the three static obj below
         private static Thread? s_pollingThread;
         private static int s_sleepDurationInMilliseconds;
