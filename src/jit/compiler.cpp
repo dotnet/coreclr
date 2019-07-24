@@ -9372,15 +9372,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     }
                 }
                 break;
-
-            case GT_STMT:
-
-                if (tree->gtFlags & GTF_STMT_CMPADD)
-                {
-                    chars += printf("[STMT_CMPADD]");
-                }
-                break;
-
             default:
 
             {
@@ -10290,24 +10281,6 @@ void cNodeIR(Compiler* comp, GenTree* tree)
         if (foldLists)
         {
             return;
-        }
-    }
-    else if (op == GT_STMT)
-    {
-        if (noStmts)
-        {
-            if (dataflowView)
-            {
-                child = tree->GetChild(0);
-                if (child->gtOper != GT_COMMA)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
         }
     }
     else if (op == GT_COMMA)

@@ -542,7 +542,7 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock*  block,
 //    node      - The node to be inserted.
 //
 // Return Value:
-//    Returns the new (potentially) GT_STMT node.
+//    Returns the new (potentially) statement.
 //
 // Notes:
 //    If 'stmt' is not already a statement, a new statement is created from it.
@@ -601,7 +601,7 @@ GenTreeStmt* Compiler::fgInsertTreeAtBeg(BasicBlock* block, GenTree* tree)
 /*****************************************************************************
  *
  *  Insert the given tree or statement at the end of the given basic block.
- *  Returns the (potentially) new GT_STMT node.
+ *  Returns the (potentially) new statement.
  *  If the block can be a conditional block, use fgInsertStmtNearEnd.
  */
 
@@ -642,7 +642,7 @@ GenTreeStmt* Compiler::fgInsertTreeAtEnd(BasicBlock* block, GenTree* tree)
  *
  *  Insert the given tree or statement at the end of the given basic block, but before
  *  the GT_JTRUE, if present.
- *  Returns the (potentially) new GT_STMT node.
+ *  Returns the (potentially) new statement.
  */
 
 GenTreeStmt* Compiler::fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt)
@@ -714,8 +714,8 @@ GenTreeStmt* Compiler::fgInsertTreeNearEnd(BasicBlock* block, GenTree* tree)
 
 /*****************************************************************************
  *
- *  Insert the given statement "stmt" after GT_STMT node "insertionPoint".
- *  Returns the newly inserted GT_STMT node.
+ *  Insert the given statement "stmt" after "insertionPoint" statement.
+ *  Returns the newly inserted statement.
  *  Note that the gtPrev list of statement nodes is circular, but the gtNext list is not.
  */
 
@@ -750,8 +750,8 @@ GenTreeStmt* Compiler::fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* inserti
     return stmt;
 }
 
-//  Insert the given tree or statement before GT_STMT node "insertionPoint".
-//  Returns the newly inserted GT_STMT node.
+//  Insert the given tree or statement before "insertionPoint" statement.
+//  Returns the newly inserted statement.
 
 GenTreeStmt* Compiler::fgInsertStmtBefore(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt)
 {
@@ -14269,7 +14269,6 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
 #endif // DEBUG
 
                 /* Replace the conditional statement with the list of side effects */
-                noway_assert(sideEffList->gtOper != GT_STMT);
                 noway_assert(sideEffList->gtOper != GT_SWITCH);
 
                 switchStmt->gtStmtExpr = sideEffList;
@@ -14683,7 +14682,6 @@ bool Compiler::fgOptimizeBranchToNext(BasicBlock* block, BasicBlock* bNext, Basi
 #endif // DEBUG
 
                     /* Replace the conditional statement with the list of side effects */
-                    noway_assert(sideEffList->gtOper != GT_STMT);
                     noway_assert(sideEffList->gtOper != GT_JTRUE);
 
                     condStmt->gtStmtExpr = sideEffList;
@@ -18548,7 +18546,6 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
 
     noway_assert(tree);
     assert(!IsUninitialized(tree));
-    noway_assert(tree->gtOper != GT_STMT);
 
     /* Figure out what kind of a node we have */
 
@@ -21109,8 +21106,6 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
 
 void Compiler::fgDebugCheckFlags(GenTree* tree)
 {
-    noway_assert(tree->gtOper != GT_STMT);
-
     const genTreeOps oper      = tree->OperGet();
     const unsigned   kind      = tree->OperKind();
     unsigned         treeFlags = tree->gtFlags & GTF_ALL_EFFECT;
@@ -21615,7 +21610,7 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, GenTreeStmt* stmt)
 
 /*****************************************************************************
  *
- * A DEBUG routine to check the correctness of the links between GT_STMT nodes
+ * A DEBUG routine to check the correctness of the links between statements
  * and ordinary nodes within a statement.
  *
  ****************************************************************************/
@@ -21668,8 +21663,8 @@ void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
     for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
     {
         /* Verify that bbStmtList is threaded correctly */
-        /* Note that for the GT_STMT list, the gtPrev list is circular. The gtNext list is not: gtNext of the
-        * last GT_STMT in a block is nullptr. */
+        /* Note that for the statements list, the gtPrev list is circular. The gtNext list is not: gtNext of the
+        * last statement in a block is nullptr. */
 
         noway_assert(stmt->gtPrev);
 
@@ -21716,8 +21711,7 @@ void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
             }
         }
 
-        /* For each GT_STMT node check that the nodes are threaded correcly - gtStmtList */
-
+        // For each statement check that the nodes are threaded correctly - gtStmtList.
         if (fgStmtListThreaded)
         {
             fgDebugCheckNodeLinks(block, stmt);

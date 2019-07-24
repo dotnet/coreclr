@@ -4357,9 +4357,6 @@ void GenTree::VisitOperands(TVisitor visitor)
             }
             return;
 
-        case GT_STMT:
-            unreached();
-
         case GT_ARR_ELEM:
         {
             GenTreeArrElem* const arrElem = this->AsArrElem();

@@ -303,6 +303,8 @@ public:
 class GenTreeUseEdgeIterator;
 class GenTreeOperandIterator;
 
+struct GenTreeStmt;
+
 /*****************************************************************************/
 
 // Forward declarations of the subtypes
@@ -402,7 +404,7 @@ struct GenTree
     unsigned char gtLIRFlags; // Used for nodes that are in LIR. See LIR::Flags in lir.h for the various flags.
 
 #if ASSERTION_PROP
-    AssertionInfo gtAssertionInfo; // valid only for non-GT_STMT nodes
+    AssertionInfo gtAssertionInfo;
 
     bool GeneratesAssertion() const
     {
@@ -2019,10 +2021,6 @@ public:
     bool IsCall() const
     {
         return OperGet() == GT_CALL;
-    }
-    bool IsStatement() const
-    {
-        return OperGet() == GT_STMT;
     }
     inline bool IsHelperCall();
 
@@ -4879,8 +4877,6 @@ struct GenTreeRetExpr : public GenTree
 #endif
 };
 
-/* gtStmt   -- 'statement expr' (GT_STMT) */
-
 class InlineContext;
 
 struct GenTreeILOffset : public GenTree
@@ -4962,8 +4958,6 @@ struct GenTreeStmt
         , gtPrev(nullptr)
         , compilerAdded(false)
     {
-        // Statements can't have statements as part of their expression tree.
-        assert(expr->gtOper != GT_STMT);
     }
 
 #if DEBUGGABLE_GENTREE

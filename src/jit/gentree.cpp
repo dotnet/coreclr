@@ -260,7 +260,6 @@ void GenTree::InitNodeSize()
     GenTree::s_gtNodeSizes[GT_RET_EXPR]         = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_OBJ]              = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_FIELD]            = TREE_NODE_SZ_LARGE;
-    GenTree::s_gtNodeSizes[GT_STMT]             = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_CMPXCHG]          = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_QMARK]            = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_LEA]              = TREE_NODE_SZ_LARGE;
@@ -1126,9 +1125,6 @@ AGAIN:
         return true;
     }
 
-    assert(op1->gtOper != GT_STMT);
-    assert(op2->gtOper != GT_STMT);
-
     oper = op1->OperGet();
 
     /* The operators must be equal */
@@ -1533,8 +1529,6 @@ AGAIN:
     oper = tree->OperGet();
     kind = tree->OperKind();
 
-    assert(oper != GT_STMT);
-
     /* Is this a constant node? */
 
     if (kind & GTK_CONST)
@@ -1843,7 +1837,6 @@ unsigned Compiler::gtHashValue(GenTree* tree)
 
 AGAIN:
     assert(tree);
-    assert(tree->gtOper != GT_STMT);
 
     /* Figure out what kind of a node we have */
 
@@ -3063,7 +3056,6 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
 unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 {
     assert(tree);
-    assert(tree->gtOper != GT_STMT);
 
 #ifdef DEBUG
     /* Clear the GTF_DEBUG_NODE_MORPHED flag as well */
@@ -4679,10 +4671,6 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
             }
         }
         break;
-
-        case GT_STMT:
-            noway_assert(!"Illegal node for gtGetChildPointer()");
-            unreached();
     }
 
     return nullptr;
@@ -4863,9 +4851,6 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
                 return true;
             }
             return false;
-
-        case GT_STMT:
-            unreached(); // Should not call TryGetUse on statements.
 
         case GT_ARR_ELEM:
         {
@@ -7305,10 +7290,6 @@ GenTree* Compiler::gtCloneExpr(
 
     switch (oper)
     {
-        case GT_STMT:
-            NO_WAY("Use gtCloneStmt instead");
-            goto DONE;
-
         case GT_CALL:
 
             // We can't safely clone calls that have GT_RET_EXPRs via gtCloneExpr.
@@ -8126,7 +8107,6 @@ unsigned GenTree::NumChildren()
                 return 2;
 
             case GT_FIELD:
-            case GT_STMT:
                 return 1;
 
             case GT_ARR_ELEM:
@@ -8282,9 +8262,6 @@ GenTree* GenTree::GetChild(unsigned childNum)
 
             case GT_FIELD:
                 return AsField()->gtFldObj;
-
-            case GT_STMT:
-                unreached(); // Access stmt's child directly.
 
             case GT_ARR_ELEM:
                 if (childNum == 0)
@@ -8564,9 +8541,6 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
                 m_advance = &GenTreeUseEdgeIterator::Terminate;
             }
             return;
-
-        case GT_STMT:
-            unreached();
 
         case GT_ARR_ELEM:
             m_edge = &m_node->AsArrElem()->gtArrObj;
@@ -9300,14 +9274,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
     }
     else
     {
-        if (tree->gtOper == GT_STMT)
-        {
-            prev = tree->gtStmt.gtStmtExpr;
-        }
-        else
-        {
-            prev = tree;
-        }
+        prev = tree;
 
         bool     hasSeqNum = true;
         unsigned dotNum    = 0;
@@ -9327,7 +9294,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
 
         // If we have an indent stack, don't add additional characters,
         // as it will mess up the alignment.
-        bool displayDotNum = tree->gtOper != GT_STMT && hasSeqNum && (indentStack == nullptr);
+        bool displayDotNum = hasSeqNum && (indentStack == nullptr);
         if (displayDotNum)
         {
             printf("N%03u.%02u ", prev->gtSeqNum, dotNum);
@@ -9719,11 +9686,6 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                         printf("(P?!)"); // Promoted struct
                     }
                 }
-            }
-
-            if (tree->gtOper == GT_STMT)
-            {
-                unreached();
             }
 
             if (tree->IsArgPlaceHolderNode() && (tree->gtArgPlace.gtArgPlaceClsHnd != nullptr))
@@ -10945,9 +10907,6 @@ void Compiler::gtDispTree(GenTree*     tree,
             }
         }
         break;
-
-        case GT_STMT:
-            unreached();
 
         case GT_ARR_ELEM:
             gtDispCommonEndLine(tree);
@@ -14974,8 +14933,6 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
             }
         }
     };
-
-    assert(!expr->OperIs(GT_STMT));
 
     SideEffectExtractor extractor(this, flags);
 

@@ -535,7 +535,7 @@ inline void Compiler::impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel)
 
 /*****************************************************************************
  *
- *  Append the given GT_STMT node to the current block's tree list.
+ *  Append the given statement to the current block's tree list.
  *  [0..chkLevel) is the portion of the stack which we will check for
  *    interference with stmt and spill if needed.
  */
@@ -688,7 +688,7 @@ GenTreeStmt* Compiler::impExtractLastStmt()
 }
 
 //-------------------------------------------------------------------------
-// impInsertStmtBefore: Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore".
+// impInsertStmtBefore: Insert the given "stmt" before "stmtBefore".
 //
 // Arguments:
 //    stmt       - a statement to insert;
@@ -736,7 +736,7 @@ GenTreeStmt* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSET
 
 /*****************************************************************************
  *
- *  Insert the given exression tree before GT_STMT "stmtBefore"
+ *  Insert the given expression tree before "stmtBefore"
  */
 
 void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTreeStmt* stmtBefore)
