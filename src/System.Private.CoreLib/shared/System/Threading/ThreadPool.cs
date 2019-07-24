@@ -33,7 +33,7 @@ namespace System.Threading
     internal static class ThreadPoolGlobals
     {
         // Limit for the number of pending thread requests.
-        // For correctness we only need to guarantee 1 request for a queued task.
+        // For correctness we only need to guarantee that 1 request exists when a task is queued.
         // However VM lags with introduction of workers and we want some buffer, so that incoming bursts of work are not throttled by the lag.
         // There are also costs:
         //   1) it will take longer to saturate a larger number and being a shared state it may be pretty expensive to update. 
@@ -41,8 +41,8 @@ namespace System.Threading
         //
         //   2) when the pool gets empty we will get at tail of this many threads becoming active and checking the pool queues.
         //
-        // 
-        public static readonly int maxOutstandingRequests = 1; // (int)Math.Log2(Environment.ProcessorCount + 1);
+        // TODO: VS  I do not have a lot of tests sensitive to this. Those that I have prefer "1", so perhaps switch to that?
+        public static readonly int maxOutstandingRequests = Environment.ProcessorCount; //1; // (int)Math.Log2(Environment.ProcessorCount + 1);
 
         public static volatile bool threadPoolInitialized;
         public static bool enableWorkerTracking;
