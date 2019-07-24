@@ -4878,8 +4878,6 @@ void Compiler::ResetOptAnnotations()
     {
         for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            stmt->gtFlags &= ~GTF_STMT_HAS_CSE;
-
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 tree->ClearVN();
@@ -9380,10 +9378,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                 if (tree->gtFlags & GTF_STMT_CMPADD)
                 {
                     chars += printf("[STMT_CMPADD]");
-                }
-                if (tree->gtFlags & GTF_STMT_HAS_CSE)
-                {
-                    chars += printf("[STMT_HAS_CSE]");
                 }
                 break;
 
