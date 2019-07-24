@@ -235,7 +235,7 @@ namespace System.Diagnostics.Tracing
         }
 
 
-        private static readonly object s_pollingThreadLock  = new object(); // This lock protects the three static obj below
+        private static readonly object s_pollingThreadLock  = new object(); // This lock protects the 4 static fields below used by the polling thread.
         private static Thread? s_pollingThread;
         private static int s_sleepDurationInMilliseconds;
         private static ManualResetEvent? s_pollingThreadEvent;
