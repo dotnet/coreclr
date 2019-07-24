@@ -7168,13 +7168,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 // as non-interruptible for fast tail calls.
 
 #ifdef WINDOWS_AMD64_ABI
-    bool hasStackArgs = false;
-
-    if (callerStackSize > 0 || calleeStackSize > 0)
-    {
-        hasStackArgs = true;
-    }
-
     // x64 Windows: If we have stack args then make sure the callee's incoming
     // arguments is less than the caller's
     if (hasStackArgs && (calleeStackSize > callerStackSize))
