@@ -135,6 +135,10 @@ GenTree* Compiler::fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgLi
 
 GenTree* Compiler::fgMorphFmadd(GenTree* tree)
 {
+#if !defined(FEATURE_HW_INTRINSICS) || !defined(_TARGET_XARCH_)
+    return tree;
+#else
+    
     GenTree* mull = nullptr;
     GenTree* c    = nullptr;
 
@@ -147,12 +151,13 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
         // TODO: check for COMPlus_InsertFma=1
         return tree;
     }
-    if (tree->AsOp()->gtGetOp1()->OperIs(GT_MUL))
+
+    if (tree->AsOp()->gtGetOp1()->OperIs(GT_MUL)) // a * b + c
     {
         mull = tree->AsOp()->gtGetOp1();
         c = tree->AsOp()->gtGetOp2();
     }
-    else if (tree->AsOp()->gtGetOp2()->OperIs(GT_MUL))
+    else if (tree->AsOp()->gtGetOp2()->OperIs(GT_MUL)) // c + a * b
     {
         mull = tree->AsOp()->gtGetOp2();
         c = tree->AsOp()->gtGetOp1();
@@ -175,7 +180,7 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
     }
 
     const var_types typ = a->TypeGet();
-    bool negated = a->OperIs(GT_NEG) ^ b->OperIs(GT_NEG);
+    const bool negated = a->OperIs(GT_NEG) ^ b->OperIs(GT_NEG);
 
     if (a->OperIs(GT_NEG))
     {
@@ -201,8 +206,8 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
     GenTree* op3 = gtNewSimdHWIntrinsicNode(TYP_SIMD16, c, NI_Vector128_CreateScalarUnsafe, typ, 16);
     GenTree* res = gtNewSimdHWIntrinsicNode(TYP_SIMD16, op1, op2, op3, fma, typ, 16);
 
-    tree->ReplaceWith(gtNewSimdHWIntrinsicNode(typ, res, NI_Vector128_ToScalar, typ, 16), this);
-    return tree;
+    return gtNewSimdHWIntrinsicNode(typ, res, NI_Vector128_ToScalar, typ, 16);
+#endif
 }
 
 /*****************************************************************************
@@ -11510,7 +11515,17 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
         case GT_ADD:
             if (tree->AsOp()->gtGetOp1()->OperIs(GT_MUL) && varTypeIsFloating(typ))
             {
-                return fgMorphFmadd(tree);
+                GenTree* fmadd = fgMorphFmadd(tree);
+                if (fmadd != tree)
+                {
+                    tree = fmadd;
+#ifdef DEBUG
+                    tree->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                    typ = tree->TypeGet();
+                    op1 = tree->gtGetOp1();
+                    op2 = tree->gtGetOp2();
+                }
             }
 
             break;
