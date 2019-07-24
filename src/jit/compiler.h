@@ -1466,23 +1466,12 @@ public:
 #if defined(UNIX_AMD64_ABI)
         if (this->isStruct)
         {
-            if (this->numSlots > 0)
-            {
-                return 0;
-            }
             return this->structIntRegs;
         }
 #endif // defined(UNIX_AMD64_ABI)
 
         if (!this->isPassedInFloatRegisters())
         {
-#if !defined(FEATURE_ARG_SPLIT)
-            if (this->numSlots > 0)
-            {
-                return 0;
-            }
-#endif // !(FEATURE_ARG_SPLIT)
-
             return this->numRegs;
         }
 
@@ -1494,24 +1483,12 @@ public:
 #if defined(UNIX_AMD64_ABI)
         if (this->isStruct)
         {
-            if (this->numSlots > 0)
-            {
-                return 0;
-            }
-
             return this->structFloatRegs;
         }
 #endif // defined(UNIX_AMD64_ABI)
 
         if (this->isPassedInFloatRegisters())
         {
-#if !defined(FEATURE_ARG_SPLIT)
-            if (this->numSlots > 0)
-            {
-                return 0;
-            }
-#endif // !(FEATURE_ARG_SPLIT)
-
             return this->numRegs;
         }
 

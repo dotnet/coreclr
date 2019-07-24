@@ -1223,6 +1223,10 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned argNum,
     curArgTabEntry->parent     = parent;
     curArgTabEntry->slotNum    = nextSlotNum;
     curArgTabEntry->numRegs    = 0;
+#if defined (UNIX_AMD64_ABI)
+    curArgTabEntry->structIntRegs   = 0;
+    curArgTabEntry->structFloatRegs = 0;
+#endif // defined(UNIX_AMD64_ABI)
     curArgTabEntry->numSlots   = numSlots;
     curArgTabEntry->alignment  = alignment;
     curArgTabEntry->lateArgInx = UINT_MAX;
