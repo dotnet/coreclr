@@ -3050,7 +3050,7 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
     {
         case IAT_VALUE:
             // Non-virtual direct call to known address
-            if (!IsCallTargetInRange(addr) || call->IsTailCall())
+            if (!IsCallTargetInRange(addr) || call->IsTailCallViaHelper())
             {
                 result = AddrGen(addr);
             }
