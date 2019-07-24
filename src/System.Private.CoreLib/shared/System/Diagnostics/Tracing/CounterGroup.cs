@@ -156,7 +156,6 @@ namespace System.Diagnostics.Tracing
             }
             else if (_pollingIntervalInMilliseconds == 0 || pollingIntervalInSeconds * 1000 < _pollingIntervalInMilliseconds)
             {
-                Debug.WriteLine("Polling interval changed at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
                 _pollingIntervalInMilliseconds = (int)(pollingIntervalInSeconds * 1000);
                 ResetCounters(); // Reset statistics for counters before we start the thread.
                 _timeStampSinceCollectionStarted = DateTime.UtcNow;
@@ -173,14 +172,12 @@ namespace System.Diagnostics.Tracing
                     lock(s_pollingThreadLock)
                     {
                         nextpollingTimeStamp = DateTime.UtcNow + new TimeSpan(0, 0, (int)pollingIntervalInSeconds);
-                        Debug.WriteLine("Set nextpollingTimeStamp to " + nextpollingTimeStamp.ToString("mm.ss.fffffff"));
 
                         // If we are already polling for some other EventSource, check the next polling time and update if necessary (i.e. if we need to poll before the next earliest polling time.)
                         // Otherwise, create a new polling thread and set the next sleep time.
                         
                         if (s_pollingThread == null)
                         {
-                            Debug.WriteLine("Creating a polling thread ");
                             s_pollingThread = new Thread(PollForValues) { IsBackground = true };
                             s_sleepDurationInMilliseconds = (int)pollingIntervalInSeconds * 1000;
                             s_pollingThread.Start();
@@ -220,7 +217,6 @@ namespace System.Diagnostics.Tracing
 
         internal void OnTimer()
         {
-            Debug.WriteLine("Timer fired at " + DateTime.UtcNow.ToString("mm.ss.ffffff"));
             lock (this) // Lock the CounterGroup
             {
                 if (_eventSource.IsEnabled())
@@ -251,14 +247,10 @@ namespace System.Diagnostics.Tracing
             {
                 while (s_counterGroupCnt > 0)
                 {
-                    Debug.WriteLine("PollingThread woke up at " + DateTime.UtcNow.ToString("mm.ss.fffffff"));
-                    Debug.WriteLine("Sleep duration is " + s_sleepDurationInMilliseconds.ToString() + " ms.");
-
                     DateTime nextPoll = DateTime.UtcNow + new TimeSpan(0, 0, 0, 0, s_sleepDurationInMilliseconds);
 
                     if (s_counterGroups == null)
                     {
-                        Debug.WriteLine("s_counterGroups is null. Breaking.");
                         break;
                     }
                     lock (s_pollingThreadLock)
@@ -276,7 +268,6 @@ namespace System.Diagnostics.Tracing
                                 {
                                     counterGroup.OnTimer();
                                 }
-                                Debug.WriteLine("this counterGroup's next poll is " + counterGroup.nextpollingTimeStamp);
 
                                 int millisecondsTillNextPoll = (int)(counterGroup.nextpollingTimeStamp - DateTime.UtcNow).TotalMilliseconds;
                                 if (millisecondsTillNextPoll < s_sleepDurationInMilliseconds && millisecondsTillNextPoll > 0)
