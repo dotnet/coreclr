@@ -169,7 +169,7 @@ namespace System.Diagnostics.Tracing
                         restoreFlow = true;
                     }
 
-                    lock(s_pollingThreadLock)
+                    lock (s_pollingThreadLock)
                     {
                         nextpollingTimeStamp = DateTime.UtcNow + new TimeSpan(0, 0, (int)pollingIntervalInSeconds);
 
