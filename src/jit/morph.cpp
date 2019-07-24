@@ -146,7 +146,7 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
     {
         return tree;
     }
-    if (!JitConfig.JitInsertFma || !compSupports(InstructionSet_FMA))
+    if (!JitConfig.JitInsertFma() || !compSupports(InstructionSet_FMA))
     {
         return tree;
     }
@@ -175,6 +175,15 @@ GenTree* Compiler::fgMorphFmadd(GenTree* tree)
         a->TypeGet() != b->TypeGet() ||
         a->TypeGet() != c->TypeGet())
     {
+        return tree;
+    }
+
+    // TODO: fix
+    if (gtIsActiveCSE_Candidate(mull) || !fgGlobalMorph)
+    {
+        // shouldn't generate fmadd here:
+        // _z = a * b;
+        // return a * b + c;
         return tree;
     }
 
