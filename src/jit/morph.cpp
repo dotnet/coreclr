@@ -1217,13 +1217,13 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned argNum,
     nextSlotNum = roundUp(nextSlotNum, alignment);
 
     curArgTabEntry->setRegNum(0, REG_STK);
-    curArgTabEntry->argNum     = argNum;
-    curArgTabEntry->node       = node;
-    curArgTabEntry->argType    = node->TypeGet();
-    curArgTabEntry->parent     = parent;
-    curArgTabEntry->slotNum    = nextSlotNum;
-    curArgTabEntry->numRegs    = 0;
-#if defined (UNIX_AMD64_ABI)
+    curArgTabEntry->argNum  = argNum;
+    curArgTabEntry->node    = node;
+    curArgTabEntry->argType = node->TypeGet();
+    curArgTabEntry->parent  = parent;
+    curArgTabEntry->slotNum = nextSlotNum;
+    curArgTabEntry->numRegs = 0;
+#if defined(UNIX_AMD64_ABI)
     curArgTabEntry->structIntRegs   = 0;
     curArgTabEntry->structFloatRegs = 0;
 #endif // defined(UNIX_AMD64_ABI)
@@ -7148,10 +7148,10 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 
     const unsigned maxRegArgs            = MAX_REG_ARG;
-    size_t callerStackSize = info.compArgStackSize;
+    size_t         callerStackSize       = info.compArgStackSize;
     hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
 
-    bool   hasStackArgs    = false;
+    bool hasStackArgs = false;
     if (callerStackSize > 0 || calleeStackSize > 0)
     {
         hasStackArgs = true;
@@ -7176,8 +7176,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // arguments is less than the caller's
     if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)", callerStackSize,
-                                   calleeStackSize);
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)",
+                                   callerStackSize, calleeStackSize);
         return false;
     }
 
@@ -7218,8 +7218,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // for more information.
     if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)", callerStackSize,
-                                   calleeStackSize);
+        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)",
+                                   callerStackSize, calleeStackSize);
         return false;
     }
 
