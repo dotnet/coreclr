@@ -109,19 +109,21 @@ namespace System.Diagnostics.Tracing
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayUnits = DisplayUnits ?? "";
                 payload.Name = Name;
-                ResetStatistics();
                 EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new CounterPayloadType(payload));
             }
+            ResetStatistics();
         }
 
         internal void ResetStatistics()
         {
-            Debug.Assert(Monitor.IsEntered(this));
-            _count = 0;
-            _sum = 0;
-            _sumSquared = 0;
-            _min = double.PositiveInfinity;
-            _max = double.NegativeInfinity;
+            lock(this)
+            {
+                _count = 0;
+                _sum = 0;
+                _sumSquared = 0;
+                _min = double.PositiveInfinity;
+                _max = double.NegativeInfinity;
+            }
         }
 
         #endregion // Statistics Calculation
