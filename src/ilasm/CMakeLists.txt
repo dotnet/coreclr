@@ -106,9 +106,7 @@ if(WIN32)
     )
 else()
     list(APPEND ILASM_LINK_LIBRARIES
-        ${START_WHOLE_ARCHIVE} # force all PAL objects to be included so all exports are available
         coreclrpal
-        ${END_WHOLE_ARCHIVE}
         mscorrc_debug
         palrt
     )
