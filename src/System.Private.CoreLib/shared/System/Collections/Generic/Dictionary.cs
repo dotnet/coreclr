@@ -83,6 +83,7 @@ namespace System.Collections.Generic
             FixupComparer();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void FixupComparer()
         {
             if (typeof(TKey) == typeof(string))
