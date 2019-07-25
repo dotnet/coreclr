@@ -303,23 +303,13 @@ typedef struct
 typedef BOOL (*PSIGCOMPARE)(PCCOR_SIGNATURE, DWORD, PCCOR_SIGNATURE, DWORD, void*);
 
 
-
-// {CE0F34ED-BBC6-11d2-941E-0000F8083460}
-EXTERN_GUID(IID_IMDInternalImport, 0xce0f34ed, 0xbbc6, 0x11d2, 0x94, 0x1e, 0x0, 0x0, 0xf8, 0x8, 0x34, 0x60);
+// {1B119F60-C507-4024-BB39-F8223FB3E1FD}
+EXTERN_GUID(IID_IMDInternalImport, 0x1b119f60, 0xc507, 0x4024, 0xbb, 0x39, 0xf8, 0x22, 0x3f, 0xb3, 0xe1, 0xfd);
 
 #undef  INTERFACE
 #define INTERFACE IMDInternalImport
 DECLARE_INTERFACE_(IMDInternalImport, IUnknown)
 {
-    //----------------------------------------------------------------------------------------
-    // !!! READ THIS !!!
-    // 
-    // New methods have to be added at the end. The order and signatures of the existing methods 
-    // have to be preserved. We need to maintain a backward compatibility for this interface to
-    // allow ildasm to work on SingleCLR.
-    //
-    //----------------------------------------------------------------------------------------
-
     //*****************************************************************************
     // return the count of entries of a given kind in a scope 
     // For example, pass in mdtMethodDef will tell you how many MethodDef 

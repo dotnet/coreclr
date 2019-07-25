@@ -307,18 +307,8 @@ extern CQuickBytes *        g_szBuf_JUMPPT;
 extern CQuickBytes *        g_szBuf_UnquotedProperName;
 extern CQuickBytes *        g_szBuf_ProperName;
 
-MetaDataGetDispenserFunc metaDataGetDispenser;
-GetMetaDataInternalInterfaceFunc getMetaDataInternalInterface;
-GetMetaDataInternalInterfaceFromPublicFunc getMetaDataInternalInterfaceFromPublic;
-GetMetaDataPublicInterfaceFromInternalFunc getMetaDataPublicInterfaceFromInternal;
-
 BOOL Init()
 {
-    metaDataGetDispenser = (MetaDataGetDispenserFunc)MetaDataGetDispenser;
-    getMetaDataInternalInterface = (GetMetaDataInternalInterfaceFunc)GetMetaDataInternalInterface;
-    getMetaDataInternalInterfaceFromPublic = (GetMetaDataInternalInterfaceFromPublicFunc)GetMetaDataInternalInterfaceFromPublic;
-    getMetaDataPublicInterfaceFromInternal = (GetMetaDataPublicInterfaceFromInternalFunc)GetMetaDataPublicInterfaceFromInternal;
-
     g_szBuf_KEYWORD = new CQuickBytes();
     g_szBuf_COMMENT = new CQuickBytes();
     g_szBuf_ERRORMSG = new CQuickBytes();
@@ -1605,7 +1595,7 @@ mdToken TypeRefToTypeDef(mdToken tk, IMDInternalImport *pIMDI, IMDInternalImport
             IUnknown *pUnk; 
             if(FAILED(pIAMDI[0]->QueryInterface(IID_IUnknown, (void**)&pUnk))) goto AssignAndReturn;
 
-            if (FAILED(getMetaDataInternalInterfaceFromPublic(
+            if (FAILED(GetMetaDataInternalInterfaceFromPublic(
                 pUnk,
                 IID_IMDInternalImport,
                 (LPVOID *)ppIMDInew)))
@@ -6830,7 +6820,7 @@ void DumpMetaInfo(__in __nullterminated const WCHAR* pwzFileName, __in_opt __nul
     if(pch && (!_wcsicmp(pch+1,W("lib")) || !_wcsicmp(pch+1,W("obj"))))
     {   // This works only when all the rest does not
         // Init and run.
-        if (metaDataGetDispenser(CLSID_CorMetaDataDispenser,
+        if (MetaDataGetDispenser(CLSID_CorMetaDataDispenser,
             IID_IMetaDataDispenserEx, (void **)&g_pDisp))
                 {
                     WCHAR *pwzObjFileName=NULL;
@@ -6852,7 +6842,7 @@ void DumpMetaInfo(__in __nullterminated const WCHAR* pwzFileName, __in_opt __nul
         HRESULT hr = S_OK;
         if(g_pDisp == NULL)
         {
-            hr = metaDataGetDispenser(CLSID_CorMetaDataDispenser,
+            hr = MetaDataGetDispenser(CLSID_CorMetaDataDispenser,
                 IID_IMetaDataDispenserEx, (void **)&g_pDisp);
         }
         if(SUCCEEDED(hr))
@@ -7340,7 +7330,7 @@ BOOL DumpFile()
         g_cbMetaData = VAL32(g_CORHeader->MetaData.Size);
     }
 
-    if (FAILED(getMetaDataInternalInterface(
+    if (FAILED(GetMetaDataInternalInterface(
         (BYTE *)g_pMetaData,
         g_cbMetaData,
         openFlags,
@@ -7354,7 +7344,7 @@ BOOL DumpFile()
     }
 
     TokenSigInit(g_pImport);
-    if (FAILED(metaDataGetDispenser(CLSID_CorMetaDataDispenser, IID_IMetaDataDispenser, (LPVOID*)&pMetaDataDispenser)))
+    if (FAILED(MetaDataGetDispenser(CLSID_CorMetaDataDispenser, IID_IMetaDataDispenser, (LPVOID*)&pMetaDataDispenser)))
     {
         if (g_fDumpHeader)
             DumpHeader(g_CORHeader, g_pFile);
