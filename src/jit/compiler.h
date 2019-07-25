@@ -4327,6 +4327,7 @@ public:
 
     IL_OFFSET fgFindBlockILOffset(BasicBlock* block);
 
+    BasicBlock* fgSplitBlockAtBeginning(BasicBlock* curr);
     BasicBlock* fgSplitBlockAtEnd(BasicBlock* curr);
     BasicBlock* fgSplitBlockAfterStatement(BasicBlock* curr, GenTreeStmt* stmt);
     BasicBlock* fgSplitBlockAfterNode(BasicBlock* curr, GenTree* node); // for LIR
