@@ -13,17 +13,20 @@
 
 //
 // A very lightweight cache that maps {source, target} -> result, where result is 
-// a boolean value indicating that the types are definitely convertible or definitely not.
+// a boolean value indicating that the type of the source can cast to the target type or 
+// definitely cannot.
+//
+// In the terminology of ECMA335 the relationship is called "compatible-with". 
+// This is the relation used by castclass and isinst (III.4.3).
+// 
 // We generically allow either MethodTable* or TypeHandle as source/target. Either value
 // uniquely maps to a single type with no possibility of confusion. Besides for most types 
 // TypeHandle a MethodTable* are the same value anyways.
 //
-// The primary purpose is caching results of conversion analysis assuming that covertibility relationship, 
-// once computed, cannot change. (except for unloadable assemblies case, which is special).
-//
-// One thing to consider is that conversions are relatively fast, which demands that the cache is fast too.
+// One thing to consider is that cast analysis is relatively fast, which demands that the cache is fast too.
 // On the other hand, we do not need to be 100% accurate about a presence of an entry in a cache, 
-// since everything can be re-computed relatively quickly. (we still hope to have a good hit rate)
+// since everything can be re-computed relatively quickly. 
+// We still hope to have a good hit rate, but can tolerate items pushed/flushed from the cache. 
 //
 // The overal design of the cache is an open-addressing hash table with quadratic probing 
 // strategy and a limited bucket size. 
@@ -37,8 +40,8 @@
 // As a result TryGet is Wait-Free - no locking or spinning.
 //             TryAdd is mostly Wait-Free (may try allocating a new table), but is more complex than TryGet.
 // 
-// The assumption that same source and target TypeHandle keep the same relationship could be 
-// broken if the types involved are unloaded and their handles are reused.
+// The assumption that same source and target keep the same relationship could be 
+// broken if the types involved are unloaded and their handles are reused. (ABA problem).
 // To counter that possibility we simply flush the whole cache on assembly unloads.
 //
 // Whenever we need to replace or resize the table, we simply allocate a new one and atomically 

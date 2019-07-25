@@ -2184,39 +2184,33 @@ BOOL ObjIsInstanceOfCore(Object *pObject, TypeHandle toTypeHnd, BOOL throwCastEx
         }
         else
 #endif // FEATURE_COMINTEROP
-            if (Nullable::IsNullableForType(toTypeHnd, obj->GetMethodTable()))
-            {
-                // allow an object of type T to be cast to Nullable<T> (they have the same representation)
-                CastCache::TryAddToCache(pMT, toTypeHnd, TRUE);
-                fCast = TRUE;
-            }
 #ifdef FEATURE_ICASTABLE
         // If type implements ICastable interface we give it a chance to tell us if it can be casted 
         // to a given type.
-            else if (toTypeHnd.IsInterface() && pMT->IsICastable())
+        if (toTypeHnd.IsInterface() && pMT->IsICastable())
+        {
+            // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
+            OBJECTREF exception = NULL;
+            GCPROTECT_BEGIN(exception);
+
+            PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
+
+            OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
+
+            DECLARE_ARGHOLDER_ARRAY(args, 3);
+            args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
+            args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(managedType);
+            args[ARGNUM_2] = PTR_TO_ARGHOLDER(&exception);
+
+            CALL_MANAGED_METHOD(fCast, BOOL, args);
+            INDEBUG(managedType = NULL); // managedType isn't protected during the call
+
+            if (!fCast && throwCastException && exception != NULL)
             {
-                // Make actuall call to ICastableHelpers.IsInstanceOfInterface(obj, interfaceTypeObj, out exception)
-                OBJECTREF exception = NULL;
-                GCPROTECT_BEGIN(exception);
-
-                PREPARE_NONVIRTUAL_CALLSITE(METHOD__ICASTABLEHELPERS__ISINSTANCEOF);
-
-                OBJECTREF managedType = toTypeHnd.GetManagedClassObject(); //GC triggers
-
-                DECLARE_ARGHOLDER_ARRAY(args, 3);
-                args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(obj);
-                args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(managedType);
-                args[ARGNUM_2] = PTR_TO_ARGHOLDER(&exception);
-
-                CALL_MANAGED_METHOD(fCast, BOOL, args);
-                INDEBUG(managedType = NULL); // managedType isn't protected during the call
-
-                if (!fCast && throwCastException && exception != NULL)
-                {
-                    RealCOMPlusThrow(exception);
-                }
-                GCPROTECT_END(); //exception
+                RealCOMPlusThrow(exception);
             }
+            GCPROTECT_END(); //exception
+        }
 #endif // FEATURE_ICASTABLE   
     }
 
