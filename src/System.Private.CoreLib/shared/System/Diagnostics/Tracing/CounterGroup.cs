@@ -275,8 +275,8 @@ namespace System.Diagnostics.Tracing
                             }
                         }
                     }
-                    Thread.Sleep(s_sleepDurationInMilliseconds);                    
                 }
+                Thread.Sleep(s_sleepDurationInMilliseconds);
                 if (s_pollingThreadEvent != null)
                 {
                     s_pollingThreadEvent.WaitOne(); // Block until polling is enabled again
