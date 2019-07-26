@@ -38,7 +38,7 @@ namespace Tracing.Tests.GCStartStop
             };
             
             var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
-            return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesTraceContainGCStartEvents);
+            return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesTraceContainGCEvents);
         }
 
         private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
@@ -56,7 +56,7 @@ namespace Tracing.Tests.GCStartStop
             }
         };
 
-        private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainGCStartEvents = (source) => 
+        private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainGCEvents = (source) => 
         {
             int GCStartEvents = 0;
             int GCEndEvents = 0;
