@@ -109,9 +109,9 @@ namespace System.Diagnostics.Tracing
                 payload.DisplayName = DisplayName ?? "";
                 payload.DisplayUnits = DisplayUnits ?? "";
                 payload.Name = Name;
+                ResetStatistics();
                 EventSource.Write("EventCounters", new EventSourceOptions() { Level = EventLevel.LogAlways }, new CounterPayloadType(payload));
             }
-            ResetStatistics();
         }
 
         internal void ResetStatistics()
