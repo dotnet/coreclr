@@ -257,7 +257,7 @@ namespace System.Diagnostics.Tracing
             {
                 lock (s_counterGroupLock)
                 {
-                    while (s_counterGroupEnabledList?.Count > 0)
+                    if (s_counterGroupEnabledList != null)
                     {
                         foreach (CounterGroup counterGroup in s_counterGroupEnabledList)
                         {
