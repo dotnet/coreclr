@@ -2071,9 +2071,9 @@ namespace System.Diagnostics.Tracing
 
                 // Checking to see if the Parameter types (from the Event method) match the supplied argument types.
                 // Fail if one of two things hold : either the argument type is not equal or assignable to the parameter type, or the 
-                // argument is null and the parameter type is non-nullable or a ref type.
-                if (args[i] != null && !(argType!.Equals(pType) || pType.IsAssignableFrom(argType))
-                    || args[i] == null && !((pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>)) || !pType.IsValueType))
+                // argument is null and the parameter type is non-nullable, i.e., not derived from Nullable<T> and not a ref type.
+                if ((args[i] != null && !pType.IsAssignableFrom(argType))
+                    || (args[i] == null && !((pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>)) || !pType.IsValueType)))
                 {
                     typesMatch = false;
                     break;
