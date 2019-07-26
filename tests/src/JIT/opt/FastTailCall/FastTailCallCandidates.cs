@@ -1246,8 +1246,8 @@ public class FastTailCallCandidates
     ///
     /// On x64 linux this will not fast tail call.
     ///
-    /// The caller uses 10 integer registers 56 bytes of stack (10 args)
-    /// The callee uses 10 integer registers, 32 bytes of stack (10 args)
+    /// The caller uses 6 integer registers 56 bytes of stack (10 args)
+    /// The callee uses 6 integer registers, 32 bytes of stack (10 args)
     ///
     /// Return 100 is a pass.
     /// Return 114 is a failure.
@@ -1259,7 +1259,7 @@ public class FastTailCallCandidates
                                                         long four,
                                                         long five,
                                                         long six,
-                                                        long seven,                 // stack slot 5
+                                                        long seven,
                                                         long eight,                 // stack slot 6
                                                         long nine,                  // stack slot 7
                                                         long ten)                   // stack slot 8
@@ -1307,8 +1307,8 @@ public class FastTailCallCandidates
     ///
     /// On x64 linux this will not fast tail call.
     ///
-    /// The caller uses 2 integer registers 32 bytes of stack (3 args)
-    /// The callee uses 3 integer registers, 0 bytes of stack (3 args)
+    /// The caller uses 6 integer registers 56 bytes of stack (3 args)
+    /// The callee uses 6 integer registers, 32 bytes of stack (3 args)
     ///
     /// Return 100 is a pass.
     /// Return 113 is a failure.
@@ -1350,8 +1350,8 @@ public class FastTailCallCandidates
     ///
     /// On x64 linux this will not fast tail call.
     ///
-    /// The caller uses 2 integer registers 32 bytes of stack (3 args)
-    /// The callee uses 3 integer registers, 0 bytes of stack (3 args)
+    /// The caller uses 6 integer registers 56 bytes of stack (3 args)
+    /// The callee uses 6 integer registers, 32 bytes of stack (3 args)
     ///
     /// Return 100 is a pass.
     /// Return 113 is a failure.
