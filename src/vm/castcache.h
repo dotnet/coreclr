@@ -35,7 +35,7 @@
 // 2) pick a random victim entry within the bucket and replace it with a new entry. 
 // That is basically our expiration policy. We want to keep things simple.
 // 
-// The table permits fully concurrent writes and stores. We use double-versioned entries to detect tearing, 
+// The cache permits fully concurrent writes and stores. We use double-versioned entries to detect tearing, 
 // which happens temporarily during updating. Entries in a torn state are ignored by readers and writers.
 // As a result TryGet is Wait-Free - no locking or spinning.
 //             TryAdd is mostly Wait-Free (may try allocating a new table), but is more complex than TryGet.
@@ -83,36 +83,6 @@ class CastCache
     };
 
 public:
-
-    CastCache(DWORD size)
-    {
-        CONTRACTL
-        {
-            THROWS;
-            GC_TRIGGERS;
-            MODE_COOPERATIVE;
-        }
-        CONTRACTL_END;
-
-        m_Table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
-
-        this->TableMask() = size - 1;
-
-        // Fibonacci hash reduces the value into desired range by shifting right by the number of leading zeroes in 'size-1' 
-        DWORD bitCnt;
-#if BIT64
-        BitScanReverse64(&bitCnt, size - 1);
-        this->HashShift() = (BYTE)(63 - bitCnt);
-#else
-        BitScanReverse(&bitCnt, size - 1);
-        this->HashShift() = (BYTE)(31 - bitCnt);
-#endif
-    }
-
-    CastCache(OBJECTREF arr)
-        : m_Table((BASEARRAYREF)arr)
-    {
-    }
 
     FORCEINLINE static void TryAddToCache(TypeHandle source, TypeHandle target, BOOL result)
     {
@@ -209,35 +179,6 @@ public:
 
     static void FlushCurrentCache();
 
-    FORCEINLINE CastCacheEntry* Elements()
-    {
-
-        // element 0 is used for embedded aux data, skip it
-        return (CastCacheEntry*)AuxData() + 1;
-    }
-
-    // TableMask is "size - 1" 
-    // we need that more often that we need size
-    FORCEINLINE DWORD& TableMask()
-    {
-        return *(DWORD*)AuxData();
-    }
-
-    FORCEINLINE BYTE& HashShift()
-    {
-        return *((BYTE*)AuxData() + sizeof(DWORD));
-    }
-
-    FORCEINLINE BYTE& VictimCounter()
-    {
-        return *((BYTE*)AuxData() + sizeof(DWORD) + 1);
-    }
-
-    FORCEINLINE DWORD TableSize()
-    {
-        return this->TableMask() + 1;
-    }
-
 private:
 
 // The cache size is driven by demand and generally is fairly small. (casts are repetitive)
@@ -269,8 +210,6 @@ private:
     static const DWORD BUCKET_SIZE = 8;
 
     static OBJECTHANDLE   s_cache;
-    BASEARRAYREF m_Table;
-
 
     FORCEINLINE static TypeHandle::CastResult TryGetFromCache(TADDR source, TADDR target)
     {
@@ -287,14 +226,7 @@ private:
             return TypeHandle::CanCast;
         }
 
-        OBJECTHANDLE c = s_cache;
-        if (c == NULL)
-        {
-            return TypeHandle::MaybeCast;
-        }
-
-        CastCache cache = CastCache(ObjectFromHandle(c));
-        return cache.TryGet(source, target);
+        return TryGet(source, target);
     }
 
     FORCEINLINE static void TryAddToCache(TADDR source, TADDR target, BOOL result, BOOL noGC)
@@ -313,13 +245,7 @@ private:
         TrySet(source, target, result, noGC);
     }
 
-    FORCEINLINE byte* AuxData()
-    {
-        // element 0 is used for embedded aux data
-        return (byte*)OBJECTREFToObject(this->m_Table) + ARRAYBASE_SIZE;
-    }
-
-    FORCEINLINE static bool TryGrow(CastCache currentCache)
+    FORCEINLINE static bool TryGrow(BASEARRAYREF table)
     {
         CONTRACTL
         {
@@ -329,20 +255,16 @@ private:
         }
         CONTRACTL_END;
 
-        if (currentCache.m_Table == NULL || currentCache.Size() < MAXIMUM_CACHE_SIZE)
+        DWORD newSize = CacheElementCount(table) * 2;
+        if (newSize < MAXIMUM_CACHE_SIZE)
         {
-            return MaybeReplaceCacheWithLarger(currentCache).m_Table != NULL;
+            return MaybeReplaceCacheWithLarger(newSize);
         }
 
         return false;
     }
 
-    FORCEINLINE DWORD Size()
-    {
-        return this->TableSize();
-    }
-
-    FORCEINLINE DWORD KeyToBucket(TADDR source, TADDR target)
+    FORCEINLINE static DWORD KeyToBucket(BASEARRAYREF table, TADDR source, TADDR target)
     {
         // upper bits of addresses do not vary much, so to reduce loss due to cancelling out, 
         // we do `rotl(source, <half-size>) ^ target` for mixing inputs.
@@ -350,16 +272,57 @@ private:
 
 #if BIT64
         TADDR hash = (((ULONGLONG)source << 32) | ((ULONGLONG)source >> 32)) ^ target;
-        return (DWORD)((hash * 11400714819323198485llu) >> this->HashShift());
+        return (DWORD)((hash * 11400714819323198485llu) >> HashShift(table));
 #else
         TADDR hash = _rotl(source, 16) ^ target;
-        return (DWORD)((hash * 2654435769ul) >> this->HashShift());
+        return (DWORD)((hash * 2654435769ul) >> HashShift(table));
 #endif
     }
 
-    static CastCache MaybeReplaceCacheWithLarger(CastCache currentCache);
+    FORCEINLINE static byte* AuxData(BASEARRAYREF table)
+    {
+        LIMITED_METHOD_CONTRACT;
 
-    TypeHandle::CastResult TryGet(TADDR source, TADDR target);
+        // element 0 is used for embedded aux data
+        return (byte*)OBJECTREFToObject(table) + ARRAYBASE_SIZE;
+    }
+
+    FORCEINLINE static CastCacheEntry* Elements(BASEARRAYREF table)
+    {
+        LIMITED_METHOD_CONTRACT;
+        // element 0 is used for embedded aux data, skip it
+        return (CastCacheEntry*)AuxData(table) + 1;
+    }
+
+    // TableMask is "size - 1" 
+    // we need that more often that we need size
+    FORCEINLINE static DWORD& TableMask(BASEARRAYREF table)
+    {
+        LIMITED_METHOD_CONTRACT;
+        return *(DWORD*)AuxData(table);
+    }
+
+    FORCEINLINE static BYTE& HashShift(BASEARRAYREF table)
+    {
+        LIMITED_METHOD_CONTRACT;
+        return *((BYTE*)AuxData(table) + sizeof(DWORD));
+    }
+
+    FORCEINLINE static BYTE& VictimCounter(BASEARRAYREF table)
+    {
+        LIMITED_METHOD_CONTRACT;
+        return *((BYTE*)AuxData(table) + sizeof(DWORD) + 1);
+    }
+
+    FORCEINLINE static DWORD CacheElementCount(BASEARRAYREF table)
+    {
+        LIMITED_METHOD_CONTRACT;
+        return TableMask(table) + 1;
+    }
+
+    static BASEARRAYREF CreateCastCache(DWORD size);
+    static BOOL MaybeReplaceCacheWithLarger(DWORD size);
+    static TypeHandle::CastResult TryGet(TADDR source, TADDR target);
     static void TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC);
 
 #else // !DACCESS_COMPILE && !CROSSGEN_COMPILE

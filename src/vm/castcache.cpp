@@ -12,7 +12,7 @@
 
 OBJECTHANDLE CastCache::s_cache = NULL;
 
-CastCache CastCache::MaybeReplaceCacheWithLarger(CastCache currentCache)
+BASEARRAYREF CastCache::CreateCastCache(DWORD size)
 {
     CONTRACTL
     {
@@ -22,20 +22,65 @@ CastCache CastCache::MaybeReplaceCacheWithLarger(CastCache currentCache)
     }
     CONTRACTL_END;
 
-    int newSize = currentCache.m_Table == NULL ? INITIAL_CACHE_SIZE : currentCache.Size() * 2;
-    CastCache newCache = CastCache(newSize);
+    BASEARRAYREF table = NULL;
 
-    OBJECTREF currentCacheRef = ObjectFromHandle(s_cache);
-    OBJECTREF prevCacheRef = (OBJECTREF)(Object*)InterlockedCompareExchangeObjectInHandle(s_cache, newCache.m_Table, currentCacheRef);
+    try
+    {
+        table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
+    }
+    catch (OutOfMemoryException)
+    {
+        // try a small cache
+        size = INITIAL_CACHE_SIZE;
+        try
+        {
+            table = (BASEARRAYREF)AllocatePrimitiveArray(CorElementType::ELEMENT_TYPE_I8, (size + 1) * sizeof(CastCacheEntry) / sizeof(INT64));
+        }
+        catch (OutOfMemoryException)
+        {
+            // OK, no cache then
+            return NULL;
+        }
+    }
 
-    if (prevCacheRef == currentCacheRef)
+    TableMask(table) = size - 1;
+
+    // Fibonacci hash reduces the value into desired range by shifting right by the number of leading zeroes in 'size-1' 
+    DWORD bitCnt;
+#if BIT64
+    BitScanReverse64(&bitCnt, size - 1);
+    HashShift(table) = (BYTE)(63 - bitCnt);
+#else
+    BitScanReverse(&bitCnt, size - 1);
+    HashShift(table) = (BYTE)(31 - bitCnt);
+#endif
+
+    return table;
+}
+
+BOOL CastCache::MaybeReplaceCacheWithLarger(DWORD size)
+{
+    CONTRACTL
     {
-        return newCache;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
     }
-    else
+    CONTRACTL_END;
+
+    BASEARRAYREF newTable = CreateCastCache(size);
+    if (!newTable)
     {
-        return CastCache(prevCacheRef);
+        return FALSE;
     }
+
+    // since we are resizing, there must be a cache
+    _ASSERTE(s_cache);
+
+    OBJECTREF currentTableRef = ObjectFromHandle(s_cache);
+    OBJECTREF prevTableRef = (OBJECTREF)(Object*)InterlockedCompareExchangeObjectInHandle(s_cache, newTable, currentTableRef);
+
+    return prevTableRef == currentTableRef;
 }
 
 void CastCache::FlushCurrentCache()
@@ -48,21 +93,24 @@ void CastCache::FlushCurrentCache()
     }
     CONTRACTL_END;
 
-    if (s_cache == NULL)
+    OBJECTHANDLE cache = s_cache;
+    if (cache == NULL)
     {
-        CastCache newCache = CastCache(INITIAL_CACHE_SIZE);
-        s_cache = CreateGlobalHandle(newCache.m_Table);
-        return;
+        cache = CreateGlobalHandle(NULL);
+        OBJECTHANDLE prevCache = FastInterlockCompareExchangePointer(&s_cache, cache, NULL);
+        if (prevCache != NULL)
+        {
+            // someone has already created the cache, use that
+            DestroyGlobalHandle(cache);
+            cache = prevCache;
+        }
     }
 
-    CastCache currentCache = CastCache(ObjectFromHandle(s_cache));
-    int newSize = currentCache.m_Table == NULL ? INITIAL_CACHE_SIZE : currentCache.Size();
+    BASEARRAYREF currentTableRef = (BASEARRAYREF)ObjectFromHandle(cache);
+    int size = !currentTableRef ? INITIAL_CACHE_SIZE : CacheElementCount(currentTableRef);
 
-    CastCache newCache = CastCache(newSize);
-    if (newCache.m_Table == NULL)
-        newCache = CastCache(INITIAL_CACHE_SIZE);
-
-    StoreObjectInHandle(s_cache, newCache.m_Table);
+    BASEARRAYREF newTable = CreateCastCache(size);
+    StoreObjectInHandle(cache, newTable);
 }
 
 TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
@@ -75,8 +123,16 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
     }
     CONTRACTL_END;
 
-    DWORD index = KeyToBucket(source, target);
-    CastCacheEntry* pEntry = &Elements()[index];
+    OBJECTHANDLE cache = s_cache;
+    if (cache == NULL)
+    {
+        return TypeHandle::MaybeCast;
+    }
+
+    BASEARRAYREF table = (BASEARRAYREF)ObjectFromHandle(cache);
+
+    DWORD index = KeyToBucket(table, source, target);
+    CastCacheEntry* pEntry = &Elements(table)[index];
 
     for (DWORD i = 0; i < BUCKET_SIZE; i++)
     {
@@ -113,7 +169,7 @@ TypeHandle::CastResult CastCache::TryGet(TADDR source, TADDR target)
 
         // quadratic reprobe
         index += i;
-        pEntry = &Elements()[index & TableMask()];
+        pEntry = &Elements(table)[index & TableMask(table)];
     }
 
     return TypeHandle::MaybeCast;
@@ -140,19 +196,19 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
     }
 
     DWORD bucket;
-    CastCache currentCache(OBJECTREF((TADDR)NULL));
+    BASEARRAYREF table;
 
     do
     {
-        currentCache = CastCache(ObjectFromHandle(s_cache));
-        if (!currentCache.m_Table)
+        table = (BASEARRAYREF)ObjectFromHandle(s_cache);
+        if (!table)
         {
             return;
         }
 
-        bucket = currentCache.KeyToBucket(source, target);
+        bucket = KeyToBucket(table, source, target);
         DWORD index = bucket;
-        CastCacheEntry* pEntry = &currentCache.Elements()[index];
+        CastCacheEntry* pEntry = &Elements(table)[index];
 
         for (DWORD i = 0; i < BUCKET_SIZE; i++)
         {
@@ -182,20 +238,20 @@ void CastCache::TrySet(TADDR source, TADDR target, BOOL result, BOOL noGC)
 
             // quadratic reprobe
             index += i;
-            pEntry = &currentCache.Elements()[index & currentCache.TableMask()];
+            pEntry = &Elements(table)[index & TableMask(table)];
         }
 
         // bucket is full.
-    } while (!noGC && TryGrow(currentCache));
+    } while (!noGC && TryGrow(table));
 
     // pick a victim somewhat randomly within a bucket 
     // NB: ++ is not interlocked. We are ok if we lose counts here. It is just a number that changes.
-    DWORD victim = currentCache.VictimCounter()++ & (BUCKET_SIZE - 1);
+    DWORD victim = VictimCounter(table)++ & (BUCKET_SIZE - 1);
     // position the victim in a quadratic reprobe bucket
     victim = (victim * victim + victim) / 2;
 
     {
-        CastCacheEntry* pEntry = &currentCache.Elements()[(bucket + victim) & currentCache.TableMask()];
+        CastCacheEntry* pEntry = &Elements(table)[(bucket + victim) & TableMask(table)];
 
         DWORD version2 = pEntry->version1;
         if (version2 == MAXDWORD)
