@@ -7268,7 +7268,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // that we are not dealing with structs that are >8 bytes.
 
     bool   hasStackArgs    = false;
-    bool   calleeHasStackArgs = calleeStackSize > 0;
     size_t maxFloatRegArgs = MAX_FLOAT_REG_ARG;
 
     size_t calleeIntStackArgCount = calleeArgRegCount > maxRegArgs ? calleeArgRegCount - maxRegArgs : 0;
@@ -7297,7 +7296,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     //
     // When either the caller or callee have multi-stlot stack arguments we cannot safely
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
-    if (calleeHasStackArgs && hasTwoSlotSizedStruct)
+    if (hasStackArgs && hasTwoSlotSizedStruct)
     {
         reportFastTailCallDecision("Will not fastTailCall calleeStackSize > 0 && hasTwoSlotSizedStruct",
                                    callerStackSize, calleeStackSize);
