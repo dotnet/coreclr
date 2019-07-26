@@ -179,6 +179,8 @@ HRESULT EEConfig::Init()
     iGCHeapCount = 0;
     iGCNoAffinitize = 0;
     iGCAffinityMask = 0;
+    iGCHeapHardLimit = 0;
+    iGCHeapHardLimitPercent = 0;
 
 #ifdef GCTRIMCOMMIT
     iGCTrimCommit = 0;
@@ -808,18 +810,20 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCAffinityMask) iGCAffinityMask =  Configuration::GetKnobULONGLONGValue(W("System.GC.HeapAffinitizeMask"));
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigULONGLONG_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
+    iGCHeapHardLimit = GetConfigULONGLONG_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimit, iGCHeapHardLimit);
+    if (!iGCHeapHardLimit) iGCHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
 #else
     iGCAffinityMask = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapAffinitizeMask, iGCAffinityMask);
     if (!iGCAffinityMask) iGCAffinityMask = Configuration::GetKnobDWORDValue(W("System.GC.HeapAffinitizeMask"), 0);
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
+    iGCHeapHardLimit = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimit, iGCHeapHardLimit);
+    if (!iGCHeapHardLimit) iGCHeapHardLimit = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimit"), 0);
 #endif //_WIN64
 
-    const ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
-    iGCHeapHardLimit = FitsIn<size_t, ULONGLONG>(ullHeapHardLimit)
-        ? static_cast<size_t>(ullHeapHardLimit)
-        : ClrSafeInt<size_t>::MaxInt();
-    iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
+    iGCHeapHardLimitPercent = GetConfigDWORD_DontUse_(CLRConfig::EXTERNAL_GCHeapHardLimitPercent, iGCHeapHardLimitPercent);
+    if (!iGCHeapHardLimitPercent)
+        iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
 
     if (g_IGCHoardVM)
         iGCHoardVM = g_IGCHoardVM;
