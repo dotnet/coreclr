@@ -334,7 +334,7 @@ DECLARE_INTERFACE_(IMDInternalImport, IUnknown)
         HENUMInternal   *phEnumBody,        // [OUT] buffer to fill for enumerator data for MethodBody tokens.
         HENUMInternal   *phEnumDecl) PURE;  // [OUT] buffer to fill for enumerator data for MethodDecl tokens.
     
-    STDMETHOD_(ULONG, EnumMethodImplGetCount)(
+    ULONG EnumMethodImplGetCount(
         HENUMInternal   *phEnumBody,        // [IN] MethodBody enumerator.  
         HENUMInternal   *phEnumDecl)        // [IN] MethodDecl enumerator.
     {

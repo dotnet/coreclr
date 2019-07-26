@@ -19,7 +19,7 @@
 // %%Function: MetaDataGetDispenser
 // This function gets the Dispenser interface given the CLSID and REFIID.
 // ---------------------------------------------------------------------------
-STDAPI DLLEXPORT MetaDataGetDispenser(            // Return HRESULT
+STDAPI DLLEXPORT MetaDataGetDispenser(  // Return HRESULT
     REFCLSID    rclsid,                 // The class to desired.
     REFIID      riid,                   // Interface wanted on class factory.
     LPVOID FAR  *ppv)                   // Return interface pointer here.
