@@ -816,10 +816,18 @@ namespace System
 
             if (exponent <= 0x03FE)
             {
-                // Any value less than or equal to 0.5 will always round to exactly zero.
-                // However, we need to preserve the original sign for IEEE compliance.
+                if ((bits << 1) == 0)
+                {
+                    // Exactly +/- zero should return the original value
+                    return a;
+                }
 
-                return CopySign(0, a);
+                // Any value less than or equal to 0.5 will always round to exactly zero
+                // and any value greater than 0.5 will always round to exactly one. However,
+                // we need to preserve the original sign for IEEE compliance.
+
+                double result = ((exponent == 0x03FE) && (double.ExtractSignificandFromBits(bits) != 0)) ? 1.0 : 0.0;
+                return CopySign(result, a);
             }
 
             if (exponent >= 0x0433)

@@ -48,11 +48,11 @@ namespace System
         internal const int SignShift = 31;
         internal const int ShiftedSignMask = (int)(SignMask >> SignShift);
 
-        internal const ulong ExponentMask = 0x7F80_0000;
+        internal const uint ExponentMask = 0x7F80_0000;
         internal const int ExponentShift = 23;
         internal const int ShiftedExponentMask = (int)(ExponentMask >> ExponentShift);
 
-        internal const ulong SignificandMask = 0x007F_FFFF;
+        internal const uint SignificandMask = 0x007F_FFFF;
 
         internal const byte MinSign = 0;
         internal const byte MaxSign = 1;
@@ -137,6 +137,11 @@ namespace System
         internal static int ExtractExponentFromBits(uint bits)
         {
             return (int)(bits >> ExponentShift) & ShiftedExponentMask;
+        }
+
+        internal static uint ExtractSignificandFromBits(uint bits)
+        {
+            return bits & SignificandMask;
         }
 
         // Compares this object to another object, returning an integer that

@@ -1902,10 +1902,18 @@ double FloatingPointUtils::round(double x)
 
     if (exponent <= 0x03FE)
     {
-        // Any value less than or equal to 0.5 will always round to exactly zero.
-        // However, we need to preserve the original sign for IEEE compliance.
+        if ((bits << 1) == 0)
+        {
+            // Exactly +/- zero should return the original value
+            return x;
+        }
+        
+        // Any value less than or equal to 0.5 will always round to exactly zero
+        // and any value greater than 0.5 will always round to exactly one. However,
+        // we need to preserve the original sign for IEEE compliance.
 
-        return _copysign(0, x);
+        double result = ((exponent == 0x03FE) && ((bits & UI64(0x000FFFFFFFFFFFFF)) != 0)) ? 1.0 : 0.0;
+        return _copysign(result, x);
     }
 
     if (exponent >= 0x0433)
@@ -1976,10 +1984,18 @@ float FloatingPointUtils::round(float x)
 
     if (exponent <= 0x7E)
     {
-        // Any value less than or equal to 0.5 will always round to exactly zero.
-        // However, we need to preserve the original sign for IEEE compliance.
+        if ((bits << 1) == 0)
+        {
+            // Exactly +/- zero should return the original value
+            return x;
+        }
 
-        return _copysignf(0, x);
+        // Any value less than or equal to 0.5 will always round to exactly zero
+        // and any value greater than 0.5 will always round to exactly one. However,
+        // we need to preserve the original sign for IEEE compliance.
+
+        float result = ((exponent == 0x7E) && ((bits & 0x007FFFFF) != 0)) ? 1.0f : 0.0f;
+        return _copysignf(result, x);
     }
 
     if (exponent >= 0x96)

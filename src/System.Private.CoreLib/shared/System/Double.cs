@@ -144,6 +144,11 @@ namespace System
             return (int)(bits >> ExponentShift) & ShiftedExponentMask;
         }
 
+        internal static ulong ExtractSignificandFromBits(ulong bits)
+        {
+            return bits & SignificandMask;
+        }
+
         // Compares this object to another object, returning an instance of System.Relation.
         // Null is considered less than any instance.
         //
