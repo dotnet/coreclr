@@ -254,6 +254,22 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTre
         }
     }
 
+    // Remove range check if array is known to have 256 or more elements and the index is UBYTE
+    if (arrSize >= 256 && treeIndex->OperIsSimple())
+    {
+        GenTree* asgNode = treeIndex->gtGetOp1();
+        if (asgNode->OperIs(GT_ASG) && asgNode->OperIsSimple())
+        {
+            GenTree* castNode = asgNode->AsOp()->gtOp2;
+            if (castNode->OperIs(GT_CAST) && castNode->AsCast()->gtCastType == TYP_UBYTE)
+            {
+                JITDUMP("Removing range check (index is UBYTE, arrSize:%d)\n", arrSize);
+                m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
+                return;
+            }
+        }
+    }
+
     GetRangeMap()->RemoveAll();
     GetOverflowMap()->RemoveAll();
     m_pSearchPath = new (m_alloc) SearchPath(m_alloc);
