@@ -1053,7 +1053,7 @@ bool RangeCheck::ComputeDoesOverflow(BasicBlock* block, GenTree* expr)
     else if (expr->OperGet() == GT_CAST)
     {
         GenTreeCast* castExpr = expr->AsCast();
-        if (castExpr->CastToType() == TYP_UBYTE) // TODO: other types?
+        if (castExpr->CastToType() == TYP_UBYTE && castExpr->CastFromType() == TYP_INT)
         {
             overflows = false;
         }
