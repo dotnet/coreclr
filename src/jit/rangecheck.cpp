@@ -1155,7 +1155,7 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
     }
     else if (expr->OperIs(GT_CAST) || varTypeIsSmallInt(expr->TypeGet()))
     {
-        var_types exprType = expr->OperIs(GT_CAST) ? expr->AsCast()->gtCastType : expr->TypeGet();
+        var_types exprType = expr->OperIs(GT_CAST) ? expr->AsCast()->CastToType() : expr->TypeGet();
 
         switch (exprType)
         {
