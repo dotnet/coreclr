@@ -254,22 +254,6 @@ void RangeCheck::OptimizeRangeCheck(BasicBlock* block, GenTreeStmt* stmt, GenTre
         }
     }
 
-    // Remove range check if array is known to have 256 or more elements and the index is UBYTE
-    if (arrSize >= 256 && treeIndex->OperIsSimple())
-    {
-        GenTree* asgNode = treeIndex->gtGetOp1();
-        if (asgNode->OperIs(GT_ASG) && asgNode->OperIsSimple())
-        {
-            GenTree* castNode = asgNode->AsOp()->gtOp2;
-            if (castNode->OperIs(GT_CAST) && castNode->AsCast()->gtCastType == TYP_UBYTE)
-            {
-                JITDUMP("Removing range check (index is UBYTE, arrSize:%d)\n", arrSize);
-                m_pCompiler->optRemoveRangeCheck(treeParent, stmt);
-                return;
-            }
-        }
-    }
-
     GetRangeMap()->RemoveAll();
     GetOverflowMap()->RemoveAll();
     m_pSearchPath = new (m_alloc) SearchPath(m_alloc);
@@ -1066,6 +1050,15 @@ bool RangeCheck::ComputeDoesOverflow(BasicBlock* block, GenTree* expr)
     {
         overflows = DoesPhiOverflow(block, expr);
     }
+    else if (expr->OperGet() == GT_CAST)
+    {
+        GenTreeCast* castExpr = expr->AsCast();
+        if (castExpr->CastToType() == TYP_UBYTE) // TODO: other types?
+        {
+            overflows = false;
+        }
+    }
+
     GetOverflowMap()->Set(expr, overflows, OverflowMap::Overwrite);
     m_pSearchPath->Remove(expr);
     return overflows;
@@ -1160,9 +1153,11 @@ Range RangeCheck::ComputeRange(BasicBlock* block, GenTree* expr, bool monotonic 
             JITDUMP("%s\n", range.ToString(m_pCompiler->getAllocatorDebugOnly()));
         }
     }
-    else if (varTypeIsSmallInt(expr->TypeGet()))
+    else if (expr->OperIs(GT_CAST) || varTypeIsSmallInt(expr->TypeGet()))
     {
-        switch (expr->TypeGet())
+        var_types exprType = expr->OperIs(GT_CAST) ? expr->AsCast()->gtCastType : expr->TypeGet();
+
+        switch (exprType)
         {
             case TYP_UBYTE:
                 range = Range(Limit(Limit::keConstant, 0), Limit(Limit::keConstant, 255));
