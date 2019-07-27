@@ -257,6 +257,8 @@ namespace System.Diagnostics.Tracing
             {
                 lock (s_counterGroupLock)
                 {
+                    s_sleepDurationInMilliseconds = Int32.MaxValue;
+
                     if (s_counterGroupEnabledList != null)
                     {
                         foreach (CounterGroup counterGroup in s_counterGroupEnabledList)
@@ -276,7 +278,11 @@ namespace System.Diagnostics.Tracing
                         }
                     }
                 }
-                Thread.Sleep(s_sleepDurationInMilliseconds);
+                // Only sleep if we actually had something in the enabled counter group
+                if (s_sleepDurationInMilliseconds != Int32.MaxValue)
+                {
+                    Thread.Sleep(s_sleepDurationInMilliseconds);
+                }
                 if (s_pollingThreadEvent != null)
                 {
                     s_pollingThreadEvent.WaitOne(); // Block until polling is enabled again
