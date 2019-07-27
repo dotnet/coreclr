@@ -162,7 +162,6 @@ namespace System.Diagnostics.Tracing
                     if (s_pollingThread == null)
                     {
                         s_pollingThread = new Thread(PollForValues) { IsBackground = true };
-                        s_sleepDurationInMilliseconds = (int)pollingIntervalInSeconds * 1000;
                         s_pollingThread.Start();
                     }
 
@@ -247,17 +246,18 @@ namespace System.Diagnostics.Tracing
 
 
         private static Thread? s_pollingThread;
-        private static int s_sleepDurationInMilliseconds;
         private static ManualResetEvent? s_pollingThreadEvent;
         private static List<CounterGroup>? s_counterGroupEnabledList;
 
         private static void PollForValues()
         {
+            ManualResetEvent? pollingThreadEvent = null;
             while (true)
             {
+                int sleepDurationInMilliseconds = Int32.MaxValue;
                 lock (s_counterGroupLock)
                 {
-                    s_sleepDurationInMilliseconds = Int32.MaxValue;
+                    pollingThreadEvent = s_pollingThreadEvent;
 
                     if (s_counterGroupEnabledList != null)
                     {
@@ -270,22 +270,22 @@ namespace System.Diagnostics.Tracing
                             }
 
                             int millisecondsTillNextPoll = (int)((counterGroup._nextPollingTimeStamp - now).TotalMilliseconds);
-                            millisecondsTillNextPoll = millisecondsTillNextPoll > 1 ? millisecondsTillNextPoll : 1;
-                            if (millisecondsTillNextPoll < s_sleepDurationInMilliseconds)
+                            millisecondsTillNextPoll = Math.Max(1, millisecondsTillNextPoll);
+                            if (millisecondsTillNextPoll < sleepDurationInMilliseconds)
                             {
-                                s_sleepDurationInMilliseconds = millisecondsTillNextPoll;
+                                sleepDurationInMilliseconds = millisecondsTillNextPoll;
                             }
                         }
                     }
                 }
                 // Only sleep if we actually had something in the enabled counter group
-                if (s_sleepDurationInMilliseconds != Int32.MaxValue)
+                if (sleepDurationInMilliseconds != Int32.MaxValue)
                 {
-                    Thread.Sleep(s_sleepDurationInMilliseconds);
+                    Thread.Sleep(sleepDurationInMilliseconds);
                 }
-                if (s_pollingThreadEvent != null)
+                if (pollingThreadEvent != null)
                 {
-                    s_pollingThreadEvent.WaitOne(); // Block until polling is enabled again
+                    pollingThreadEvent.WaitOne(); // Block until polling is enabled again
                 }
             }
         }
