@@ -65,6 +65,12 @@ public class FastTailCallCandidates
         CheckOutput(DoubleCountRetBuffCaller(1));
         CheckOutput(Struct32CallerWrapper());
         CheckOutput(Struct32CallerWrapperCalleeHasStack(2));
+        CheckOutput(CallerEnregisterableAmd64WindowsStructs8Bytes(1, 2));
+        CheckOutput(CallerAmd64WindowsStructs7Bytes(1, 2));
+        CheckOutput(CallerAmd64WindowsStructs6Bytes(1, 2));
+        CheckOutput(CallerAmd64WindowsStructs5Bytes(1, 2));
+        CheckOutput(CallerAmd64WindowsStructs4Bytes(1, 2));
+        CheckOutput(CallerAmd64WindowsStructs3Bytes(1, 2));
 
         return s_ret_value;
 
@@ -1471,7 +1477,7 @@ public class FastTailCallCandidates
     /// The callee uses 6 integer registers, 32 bytes of stack (3 args)
     ///
     /// Return 100 is a pass.
-    /// Return 113 is a failure.
+    /// Return 114 is a failure.
     ///
     /// </remarks>
     public static int Struct32CallerWrapperCalleeHasStack(int two)
@@ -1493,6 +1499,373 @@ public class FastTailCallCandidates
         }
 
         return 100;
+    }
+
+    /// <summary>
+    /// Decision to fast tail call. See CallerEnregisterableAmd64WindowsStructs8Bytes for more
+    /// information.
+    /// </summary>
+    public static int CalleeEnregisterableAmd64WindowsStructs8Bytes(StructSizeEightNotExplicit eightByteStruct)
+    {
+        long a = eightByteStruct.a;
+
+        // Force this to not be inlined
+        int count = 0;
+        for (int i = 0; i < a; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1000000)
+        {
+            a = count;
+        }
+
+        if (count == 1)
+        {
+            a = 100;
+        }
+        else
+        {
+            a = 115;
+        }
+
+        return (int)a;
+    }
+
+    /// <summary>
+    /// Windows x64 tail call tests
+    /// </summary>
+    /// <remarks>
+    ///
+    /// All targets will fast tail call
+    ///
+    /// The caller uses 2 integer registers (2 args)
+    /// The callee uses 1 integer registers (1 args)
+    ///
+    /// Return 100 is a pass.
+    /// Return 115 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerEnregisterableAmd64WindowsStructs8Bytes(int a, int b)
+    {
+        if (a % 2 == 0)
+        {
+            return CalleeEnregisterableAmd64WindowsStructs8Bytes(new StructSizeEightNotExplicit(a));
+        }
+        else
+        {
+            return CalleeEnregisterableAmd64WindowsStructs8Bytes(new StructSizeEightNotExplicit(b));
+        }
+    }
+
+    /// <summary>
+    /// Decision to fast tail call. See CallerAmd64WindowsStructs7Bytes for more
+    /// information.
+    /// </summary>
+    public static int CalleeAmd64WindowsStructs7Bytes(StructSizeSevenNotExplicit sevenByteStruct)
+    {
+        int a = sevenByteStruct.a;
+
+        // Force this to not be inlined
+        int count = 0;
+        for (int i = 0; i < a; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1000000)
+        {
+            a = count;
+        }
+
+        if (count == 1)
+        {
+            a = 100;
+        }
+        else
+        {
+            a = 116;
+        }
+
+        return (int)a;
+    }
+
+    /// <summary>
+    /// Windows x64 tail call tests
+    /// </summary>
+    /// <remarks>
+    ///
+    /// All targets will fast tail call
+    ///
+    /// The caller uses 2 integer registers (2 args)
+    /// The callee uses 1 integer registers (1 args)
+    ///
+    /// Return 100 is a pass.
+    /// Return 116 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerAmd64WindowsStructs7Bytes(int a, int b)
+    {
+        if (a % 2 == 0)
+        {
+            return CalleeAmd64WindowsStructs7Bytes(new StructSizeSevenNotExplicit(a, 1, 2, 3));
+        }
+        else
+        {
+            return CalleeAmd64WindowsStructs7Bytes(new StructSizeSevenNotExplicit(b, 1, 2, 3));
+        }
+    }
+
+    /// <summary>
+    /// Decision to fast tail call. See CallerAmd64WindowsStructs6Bytes for more
+    /// information.
+    /// </summary>
+    public static int CalleeAmd64WindowsStructs6Bytes(StructSizeSixNotExplicit sixByteStruct)
+    {
+        int a = sixByteStruct.a;
+
+        // Force this to not be inlined
+        int count = 0;
+        for (int i = 0; i < a; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1000000)
+        {
+            a = count;
+        }
+
+        if (count == 1)
+        {
+            a = 100;
+        }
+        else
+        {
+            a = 117;
+        }
+
+        return (int)a;
+    }
+
+    /// <summary>
+    /// Windows x64 tail call tests
+    /// </summary>
+    /// <remarks>
+    ///
+    /// All targets will fast tail call
+    ///
+    /// The caller uses 2 integer registers (2 args)
+    /// The callee uses 1 integer registers (1 args)
+    ///
+    /// Return 100 is a pass.
+    /// Return 117 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerAmd64WindowsStructs6Bytes(int a, int b)
+    {
+        if (a % 2 == 0)
+        {
+            return CalleeAmd64WindowsStructs6Bytes(new StructSizeSixNotExplicit(a, 1, 2));
+        }
+        else
+        {
+            return CalleeAmd64WindowsStructs6Bytes(new StructSizeSixNotExplicit(b, 1, 2));
+        }
+    }
+
+    /// <summary>
+    /// Decision to fast tail call. See CallerAmd64WindowsStructs5Bytes for more
+    /// information.
+    /// </summary>
+    public static int CalleeAmd64WindowsStructs5Bytes(StructSizeFiveNotExplicit fiveByteStruct)
+    {
+        int a = fiveByteStruct.a;
+
+        // Force this to not be inlined
+        int count = 0;
+        for (int i = 0; i < a; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1000000)
+        {
+            a = count;
+        }
+
+        if (count == 1)
+        {
+            a = 100;
+        }
+        else
+        {
+            a = 118;
+        }
+
+        return (int)a;
+    }
+
+    /// <summary>
+    /// Windows x64 tail call tests
+    /// </summary>
+    /// <remarks>
+    ///
+    /// All targets will fast tail call
+    ///
+    /// The caller uses 2 integer registers (2 args)
+    /// The callee uses 1 integer registers (1 args)
+    ///
+    /// Return 100 is a pass.
+    /// Return 118 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerAmd64WindowsStructs5Bytes(int a, int b)
+    {
+        if (a % 2 == 0)
+        {
+            return CalleeAmd64WindowsStructs5Bytes(new StructSizeFiveNotExplicit(a, 1));
+        }
+        else
+        {
+            return CalleeAmd64WindowsStructs5Bytes(new StructSizeFiveNotExplicit(b, 1));
+        }
+    }
+
+    /// <summary>
+    /// Decision to fast tail call. See CallerAmd64WindowsStructs4Bytes for more
+    /// information.
+    /// </summary>
+    public static int CalleeAmd64WindowsStructs4Bytes(StructSizeFourNotExplicit fourByteStruct)
+    {
+        int a = fourByteStruct.a;
+
+        // Force this to not be inlined
+        int count = 0;
+        for (int i = 0; i < a; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1000000)
+        {
+            a = count;
+        }
+
+        if (count == 1)
+        {
+            a = 100;
+        }
+        else
+        {
+            a = 119;
+        }
+
+        return (int)a;
+    }
+
+    /// <summary>
+    /// Windows x64 tail call tests
+    /// </summary>
+    /// <remarks>
+    ///
+    /// All targets will fast tail call
+    ///
+    /// The caller uses 2 integer registers (2 args)
+    /// The callee uses 1 integer registers (1 args)
+    ///
+    /// Return 100 is a pass.
+    /// Return 119 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerAmd64WindowsStructs4Bytes(int a, int b)
+    {
+        if (a % 2 == 0)
+        {
+            return CalleeAmd64WindowsStructs4Bytes(new StructSizeFourNotExplicit(a));
+        }
+        else
+        {
+            return CalleeAmd64WindowsStructs4Bytes(new StructSizeFourNotExplicit(a));
+        }
+    }
+
+    /// <summary>
+    /// Decision to fast tail call. See CallerAmd64WindowsStructs3Bytes for more
+    /// information.
+    /// </summary>
+    public static int CalleeAmd64WindowsStructs3Bytes(StructSizeThreeNotExplicit threeByteStruct)
+    {
+        int a = threeByteStruct.a;
+
+        // Force this to not be inlined
+        int count = 0;
+        for (int i = 0; i < a; ++i)
+        {
+            if (i % 2 == 0)
+            {
+                ++count;
+            }
+        }
+
+        if (count == 1000000)
+        {
+            a = count;
+        }
+
+        if (count == 1)
+        {
+            a = 100;
+        }
+        else
+        {
+            a = 120;
+        }
+
+        return (int)a;
+    }
+
+    /// <summary>
+    /// Windows x64 tail call tests
+    /// </summary>
+    /// <remarks>
+    ///
+    /// x64 windows will not fast tail call because the struct is passed
+    /// byref.
+    ///
+    /// The caller uses 2 integer registers (2 args)
+    /// The callee uses 1 integer registers (1 args)
+    ///
+    /// Return 100 is a pass.
+    /// Return 120 is a failure.
+    ///
+    /// </remarks>
+    public static int CallerAmd64WindowsStructs3Bytes(byte a, byte b)
+    {
+        if (a % 2 == 0)
+        {
+            return CalleeAmd64WindowsStructs3Bytes(new StructSizeThreeNotExplicit(a, a, a));
+        }
+        else
+        {
+            return CalleeAmd64WindowsStructs3Bytes(new StructSizeThreeNotExplicit(b, b, b));
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////
