@@ -136,6 +136,15 @@ namespace System.Diagnostics.Tracing
                     s_pollingThreadEvent = new ManualResetEvent(false);
                 }
 
+                if (s_pollingThreadSleepEvent == null)
+                {
+                    s_pollingThreadSleepEvent = new AutoResetEvent(false);
+                }
+                else
+                {
+                    s_pollingThreadSleepEvent.Set();
+                }
+
                 if (s_counterGroupEnabledList == null)
                 {
                     s_counterGroupEnabledList = new List<CounterGroup>();
@@ -247,17 +256,22 @@ namespace System.Diagnostics.Tracing
 
         private static Thread? s_pollingThread;
         private static ManualResetEvent? s_pollingThreadEvent;
+        // Used for sleeping for a certain amount of time while allowing the thread to be woken up
+        private static AutoResetEvent? s_pollingThreadSleepEvent;
+
         private static List<CounterGroup>? s_counterGroupEnabledList;
 
         private static void PollForValues()
         {
             ManualResetEvent? pollingThreadEvent = null;
+            AutoResetEvent? sleepEvent = null;
             while (true)
             {
                 int sleepDurationInMilliseconds = Int32.MaxValue;
                 lock (s_counterGroupLock)
                 {
                     pollingThreadEvent = s_pollingThreadEvent;
+                    sleepEvent = s_pollingThreadSleepEvent;
 
                     if (s_counterGroupEnabledList != null)
                     {
@@ -281,7 +295,7 @@ namespace System.Diagnostics.Tracing
                 // Only sleep if we actually had something in the enabled counter group
                 if (sleepDurationInMilliseconds != Int32.MaxValue)
                 {
-                    Thread.Sleep(sleepDurationInMilliseconds);
+                    sleepEvent?.WaitOne(sleepDurationInMilliseconds);
                 }
                 if (pollingThreadEvent != null)
                 {
