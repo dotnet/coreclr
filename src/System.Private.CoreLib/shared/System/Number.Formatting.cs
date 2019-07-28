@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Buffers;
 using System.Buffers.Text;
 using System.Diagnostics;
 using System.Globalization;
@@ -300,6 +301,8 @@ namespace System
         {
             "(#)", "-#", "- #", "#-", "# -",
         };
+
+        private static readonly SpanAction<char, ulong> int32ToHexCharsAction = Int32ToHexChars;
 
         public static unsafe string FormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
@@ -707,7 +710,7 @@ namespace System
             {
                 // The fmt-(X-A+10) hack has the effect of dictating whether we produce uppercase or lowercase
                 // hex numbers for a-f. 'X' as the fmt code produces uppercase. 'x' as the format code produces lowercase.
-                return Int32ToHexStr(value, (char)(fmt - ('X' - 'A' + 10)), digits);
+                return Int32ToHexStr((uint)value, (char)(fmt - ('X' - 'A' + 10)));
             }
             else
             {
@@ -753,7 +756,7 @@ namespace System
             {
                 // The fmt-(X-A+10) hack has the effect of dictating whether we produce uppercase or lowercase
                 // hex numbers for a-f. 'X' as the fmt code produces uppercase. 'x' as the format code produces lowercase.
-                return TryInt32ToHexStr(value, (char)(fmt - ('X' - 'A' + 10)), digits, destination, out charsWritten);
+                return TryInt32ToHexStr((uint)value, (char)(fmt - ('X' - 'A' + 10)), destination, out charsWritten);
             }
             else
             {
@@ -797,7 +800,7 @@ namespace System
             {
                 // The fmt-(X-A+10) hack has the effect of dictating whether we produce uppercase or lowercase
                 // hex numbers for a-f. 'X' as the fmt code produces uppercase. 'x' as the format code produces lowercase.
-                return Int32ToHexStr((int)value, (char)(fmt - ('X' - 'A' + 10)), digits);
+                return Int32ToHexStr(value, (char)(fmt - ('X' - 'A' + 10)));
             }
             else
             {
@@ -841,7 +844,7 @@ namespace System
             {
                 // The fmt-(X-A+10) hack has the effect of dictating whether we produce uppercase or lowercase
                 // hex numbers for a-f. 'X' as the fmt code produces uppercase. 'x' as the format code produces lowercase.
-                return TryInt32ToHexStr((int)value, (char)(fmt - ('X' - 'A' + 10)), digits, destination, out charsWritten);
+                return TryInt32ToHexStr(value, (char)(fmt - ('X' - 'A' + 10)), destination, out charsWritten);
             }
             else
             {
@@ -1134,27 +1137,25 @@ namespace System
             return true;
         }
 
-        private static unsafe string Int32ToHexStr(int value, char hexBase, int digits)
+        private static unsafe string Int32ToHexStr(uint value, char hexBase)
         {
-            if (digits < 1)
-                digits = 1;
+            // add the hexBase into the state in the bytes above the value.
+            ulong state = hexBase;
+            state <<= 32;
 
-            int bufferLength = Math.Max(digits, FormattingHelpers.CountHexDigits((uint)value));
-            string result = string.FastAllocateString(bufferLength);
-            fixed (char* buffer = result)
-            {
-                char* p = Int32ToHexChars(buffer + bufferLength, (uint)value, hexBase, digits);
-                Debug.Assert(p == buffer);
-            }
+            state |= value;
+
+            int bufferLength = Math.Max(1, FormattingHelpers.CountHexDigits(value));
+
+            string result = string.Create(bufferLength, state, int32ToHexCharsAction);
+
             return result;
         }
 
-        private static unsafe bool TryInt32ToHexStr(int value, char hexBase, int digits, Span<char> destination, out int charsWritten)
+        private static unsafe bool TryInt32ToHexStr(uint value, char hexBase, Span<char> destination, out int charsWritten)
         {
-            if (digits < 1)
-                digits = 1;
+           int bufferLength = Math.Max(1, FormattingHelpers.CountHexDigits((uint)value));
 
-            int bufferLength = Math.Max(digits, FormattingHelpers.CountHexDigits((uint)value));
             if (bufferLength > destination.Length)
             {
                 charsWritten = 0;
@@ -1162,11 +1163,15 @@ namespace System
             }
 
             charsWritten = bufferLength;
-            fixed (char* buffer = &MemoryMarshal.GetReference(destination))
-            {
-                char* p = Int32ToHexChars(buffer + bufferLength, (uint)value, hexBase, digits);
-                Debug.Assert(p == buffer);
-            }
+
+            // add the hexBase into the state in the bytes above the value.
+            ulong state = hexBase;
+            state <<= 32;
+
+            state |= value;
+
+            Int32ToHexChars(destination, state);
+
             return true;
         }
 
@@ -1179,6 +1184,19 @@ namespace System
                 value >>= 4;
             }
             return buffer;
+        }
+
+        private static void Int32ToHexChars(Span<char> buffer, ulong state)
+        {
+            // the hax base is stored in the higher bytes of the state
+            int hexBase = (int)(state >> 32);
+
+            for (int i = buffer.Length - 1; i >= 0; i--)
+            {
+                byte digit = (byte)(state & 0xF);
+                buffer[i] = (char)(digit + (digit < 10 ? (byte)'0' : hexBase));
+                state >>= 4;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)] // called from only one location
