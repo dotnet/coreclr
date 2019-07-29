@@ -80,7 +80,7 @@ namespace System
                 {
                     foreach (string name in environmentKey.GetValueNames())
                     {
-                        string? value = environmentKey.GetValue(name, "")!.ToString(); // TODO-NULLABLE: Remove ! when [NotNullIfNotNull] respected
+                        string? value = environmentKey.GetValue(name, "").ToString();
                         try
                         {
                             results.Add(name, value);
@@ -404,7 +404,7 @@ namespace System
 #if FEATURE_APPX
         private static class WinRTFolderPaths
         {
-            private static Func<SpecialFolder, SpecialFolderOption, string> s_winRTFolderPathsGetFolderPath;
+            private static Func<SpecialFolder, SpecialFolderOption, string>? s_winRTFolderPathsGetFolderPath;
 
             public static string GetFolderPath(SpecialFolder folder, SpecialFolderOption option)
             {

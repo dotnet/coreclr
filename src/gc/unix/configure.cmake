@@ -4,6 +4,7 @@ check_include_files(numa.h HAVE_NUMA_H)
 check_include_files(pthread_np.h HAVE_PTHREAD_NP_H)
 
 check_function_exists(vm_allocate HAVE_VM_ALLOCATE)
+check_function_exists(sysctlbyname HAVE_SYSCTLBYNAME)
 
 check_cxx_source_compiles("
     #include <pthread.h>
@@ -95,4 +96,4 @@ endif()
 
 check_library_exists(${PTHREAD_LIBRARY} pthread_getaffinity_np "" HAVE_PTHREAD_GETAFFINITY_NP)
 
-configure_file(${CMAKE_CURRENT_LIST_DIR}/config.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.h)
+configure_file(${CMAKE_CURRENT_LIST_DIR}/config.gc.h.in ${CMAKE_CURRENT_BINARY_DIR}/config.gc.h)

@@ -184,7 +184,7 @@ DWORD WINAPI EventPipeSession::ThreadProc(void *args)
                     // No events were available, sleep until more are available
                     waitEvent->Wait(INFINITE, FALSE);
                 }
-                
+
                 // Wait until it's time to sample again.
                 PlatformSleep();
             }
@@ -224,6 +224,7 @@ void EventPipeSession::CreateIpcStreamingThread()
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        PRECONDITION(m_SessionType == EventPipeSessionType::IpcStream);
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
@@ -365,7 +366,7 @@ CLREvent *EventPipeSession::GetWaitEvent()
     return m_pBufferManager->GetWaitEvent();
 }
 
-void EventPipeSession::Enable()
+void EventPipeSession::StartStreaming()
 {
     CONTRACTL
     {
@@ -376,6 +377,9 @@ void EventPipeSession::Enable()
         PRECONDITION(EventPipe::IsLockOwnedByCurrentThread());
     }
     CONTRACTL_END;
+
+    if (m_pFile != nullptr)
+        m_pFile->InitializeFile();
 
     if (m_SessionType == EventPipeSessionType::IpcStream)
         CreateIpcStreamingThread();
