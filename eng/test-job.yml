@@ -323,6 +323,12 @@ jobs:
           - forcerelocs
           - gcstress15
 
+    ${{ if ne(parameters.corefxTests, true) }}:
+    - task: PublishBuildArtifacts@1
+      displayName: Publish test build
+      inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
+        artifactName: ${{ format('{0}_{1}_{2}_tests', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Publish Logs
     - task: PublishBuildArtifacts@1
