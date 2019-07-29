@@ -125,15 +125,6 @@ FCIMPL1(FC_BOOL_RET, ExceptionNative::IsImmutableAgileException, Object* pExcept
 }
 FCIMPLEND
 
-FCIMPL1(FC_BOOL_RET, ExceptionNative::IsTransient, INT32 hresult)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(Exception::IsTransient(hresult));
-}
-FCIMPLEND
-
-
 // This FCall sets a flag against the thread exception state to indicate to
 // IL_Throw and the StackTraceInfo implementation to account for the fact
 // that we have restored a foreign exception dispatch details.
@@ -771,11 +762,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
     PTR_BYTE dstPtr = dst->GetDataPtr() + dstOffset;
 
     if ((srcPtr != dstPtr) && (count > 0)) {
-#if defined(_AMD64_) && !defined(PLATFORM_UNIX)
-        JIT_MemCpy(dstPtr, srcPtr, count);
-#else
         memmove(dstPtr, srcPtr, count);
-#endif
     }
 
     FC_GC_POLL();
@@ -886,15 +873,15 @@ UINT64   GCInterface::m_remPressure[NEW_PRESSURE_COUNT] = {0, 0, 0, 0};   // his
 // (m_iteration % NEW_PRESSURE_COUNT) is used as an index into m_addPressure and m_remPressure
 UINT     GCInterface::m_iteration = 0;
 
-FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation)
+FCIMPL6(void, GCInterface::GetMemoryInfo, UINT64* highMemLoadThreshold, UINT64* totalAvailableMemoryBytes, UINT64* lastRecordedMemLoadBytes, UINT32* lastRecordedMemLoadPct, size_t* lastRecordedHeapSizeBytes, size_t* lastRecordedFragmentationBytes)
 {
     FCALL_CONTRACT;
 
     FC_GC_POLL_NOT_NEEDED();
     
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem, 
-                                                       lastRecordedMemLoad, 
-                                                       lastRecordedHeapSize, lastRecordedFragmentation);
+    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalAvailableMemoryBytes,
+                                                       lastRecordedMemLoadBytes, lastRecordedMemLoadPct, 
+                                                       lastRecordedHeapSizeBytes, lastRecordedFragmentationBytes);
 }
 FCIMPLEND
 

@@ -538,7 +538,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
 
 #ifdef HAVE_GCCOVER
         if (GCStress<cfg_instr_ngen>::IsEnabled())
-            SetupGcCoverage(this, (BYTE*)pCode);
+            SetupGcCoverage(pConfig->GetCodeVersion(), (BYTE*)pCode);
 #endif // HAVE_GCCOVER
 
 #ifdef PROFILING_SUPPORTED 
@@ -1015,7 +1015,7 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
             return pOtherCode;
         }
 
-        SetupGcCoverage(this, (BYTE*)pCode);
+        SetupGcCoverage(pConfig->GetCodeVersion(), (BYTE*)pCode);
 
         // This thread should always win the publishing race
         // since we're under a lock.

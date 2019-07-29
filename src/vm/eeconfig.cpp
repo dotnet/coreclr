@@ -122,44 +122,27 @@ LPUTF8 NarrowWideChar(__inout_z LPWSTR str)
     RETURN NULL;
 }
 
+/**************************************************************/
+static EEConfig g_EEConfig;
+
 HRESULT EEConfig::Setup()
 {
     STANDARD_VM_CONTRACT;
 
     ETWOnStartup (EEConfigSetup_V1,EEConfigSetupEnd_V1);
-        
-    // This 'new' uses EEConfig's overloaded new, which uses a static memory buffer and will
-    // not fail
-    EEConfig *pConfig = new EEConfig();
+
+    _ASSERTE(g_pConfig == NULL && "EEConfig::Setup called multiple times!");
+
+    EEConfig *pConfig = &g_EEConfig;
 
     HRESULT hr = pConfig->Init();
 
     if (FAILED(hr))
         return hr;
 
-    EEConfig *pConfigOld = NULL;
-    pConfigOld = InterlockedCompareExchangeT(&g_pConfig, pConfig, NULL);
+    g_pConfig = pConfig;
 
-    _ASSERTE(pConfigOld == NULL && "EEConfig::Setup called multiple times!");
-    
     return S_OK;
-}
-
-/**************************************************************/
-// For in-place constructor
-BYTE g_EEConfigMemory[sizeof(EEConfig)];
-
-void *EEConfig::operator new(size_t size)
-{
-    CONTRACT(void*) {
-        FORBID_FAULT;
-        GC_NOTRIGGER;
-        NOTHROW;
-        MODE_ANY;
-        POSTCONDITION(CheckPointer(RETVAL));
-    } CONTRACT_END;
-
-    RETURN g_EEConfigMemory;
 }
 
 /**************************************************************/
@@ -831,6 +814,12 @@ fTrackDynamicMethodDebugInfo = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_
     if (!iGCSegmentSize) iGCSegmentSize =  GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCSegmentSize, iGCSegmentSize);
     if (!iGCgen0size) iGCgen0size = GetConfigDWORD_DontUse_(CLRConfig::UNSUPPORTED_GCgen0size, iGCgen0size);
 #endif //_WIN64
+
+    const ULONGLONG ullHeapHardLimit = Configuration::GetKnobULONGLONGValue(W("System.GC.HeapHardLimit"));
+    iGCHeapHardLimit = FitsIn<size_t, ULONGLONG>(ullHeapHardLimit)
+        ? static_cast<size_t>(ullHeapHardLimit)
+        : ClrSafeInt<size_t>::MaxInt();
+    iGCHeapHardLimitPercent = Configuration::GetKnobDWORDValue(W("System.GC.HeapHardLimitPercent"), 0);
 
     if (g_IGCHoardVM)
         iGCHoardVM = g_IGCHoardVM;

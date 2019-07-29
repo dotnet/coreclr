@@ -479,10 +479,13 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// Fires when a Command (e.g. Enable) comes from a an EventListener.  
         /// </summary>
-        public event EventHandler<EventCommandEventArgs> EventCommandExecuted
+        public event EventHandler<EventCommandEventArgs>? EventCommandExecuted
         {
             add
             {
+                if (value == null)
+                    return;
+
                 m_eventCommandExecuted += value;
 
                 // If we have an EventHandler<EventCommandEventArgs> attached to the EventSource before the first command arrives
@@ -2515,7 +2518,7 @@ namespace System.Diagnostics.Tracing
             return eventData.Parameters[parameterId].ParameterType;
         }
 
-        private static readonly bool m_EventSourcePreventRecursion = false;
+        private const bool m_EventSourcePreventRecursion = false;
 #else
         private int GetParameterCount(EventMetadata eventData)
         {
@@ -3836,18 +3839,6 @@ namespace System.Diagnostics.Tracing
             return -1;
         }
 
-#if false // This routine is not needed at all, it was used for unit test debugging. 
-        [Conditional("DEBUG")]
-        private static void OutputDebugString(string msg)
-        {
-#if !ES_BUILD_PCL
-            msg = msg.TrimEnd('\r', '\n') +
-                    string.Format(CultureInfo.InvariantCulture, ", Thrd({0})" + Environment.NewLine, Environment.CurrentManagedThreadId);
-            System.Diagnostics.Debugger.Log(0, null, msg);
-#endif
-        }
-#endif
-
         /// <summary>
         /// Sends an error message to the debugger (outputDebugString), as well as the EventListeners 
         /// It will do this even if the EventSource is not enabled.  
@@ -3898,11 +3889,6 @@ namespace System.Diagnostics.Tracing
         private bool ThrowOnEventWriteErrors
         {
             get { return (m_config & EventSourceSettings.ThrowOnEventWriteErrors) != 0; }
-            set
-            {
-                if (value) m_config |= EventSourceSettings.ThrowOnEventWriteErrors;
-                else m_config &= ~EventSourceSettings.ThrowOnEventWriteErrors;
-            }
         }
 
         private bool SelfDescribingEvents
@@ -3912,19 +3898,6 @@ namespace System.Diagnostics.Tracing
                 Debug.Assert(((m_config & EventSourceSettings.EtwManifestEventFormat) != 0) !=
                                 ((m_config & EventSourceSettings.EtwSelfDescribingEventFormat) != 0));
                 return (m_config & EventSourceSettings.EtwSelfDescribingEventFormat) != 0;
-            }
-            set
-            {
-                if (!value)
-                {
-                    m_config |= EventSourceSettings.EtwManifestEventFormat;
-                    m_config &= ~EventSourceSettings.EtwSelfDescribingEventFormat;
-                }
-                else
-                {
-                    m_config |= EventSourceSettings.EtwSelfDescribingEventFormat;
-                    m_config &= ~EventSourceSettings.EtwManifestEventFormat;
-                }
             }
         }
 
@@ -3983,7 +3956,7 @@ namespace System.Diagnostics.Tracing
         // Rather than depending on initialized statics, use lazy initialization to ensure that the statics are initialized exactly when they are needed.
 
         // used for generating GUID from eventsource name
-        private static byte[] namespaceBytes;
+        private static byte[]? namespaceBytes;
 
 #endregion
     }
@@ -4072,7 +4045,7 @@ namespace System.Diagnostics.Tracing
         /// In a multi-threaded environment, it is possible that 'EventSourceEventWrittenCallback' 
         /// events for a particular eventSource to occur BEFORE the EventSourceCreatedCallback is issued.
         /// </summary>
-        public event EventHandler<EventSourceCreatedEventArgs> EventSourceCreated
+        public event EventHandler<EventSourceCreatedEventArgs>? EventSourceCreated
         {
             add
             {
@@ -4090,7 +4063,7 @@ namespace System.Diagnostics.Tracing
         /// This event is raised whenever an event has been written by a EventSource for which 
         /// the EventListener has enabled events.  
         /// </summary>
-        public event EventHandler<EventWrittenEventArgs> EventWritten;
+        public event EventHandler<EventWrittenEventArgs>? EventWritten;
 
         static EventListener()
         {
@@ -4281,7 +4254,7 @@ namespace System.Diagnostics.Tracing
         /// <param name="eventData"></param>
         internal protected virtual void OnEventWritten(EventWrittenEventArgs eventData)
         {
-            EventHandler<EventWrittenEventArgs> callBack = this.EventWritten;
+            EventHandler<EventWrittenEventArgs>? callBack = this.EventWritten;
             if (callBack != null)
             {
                 callBack(this, eventData);
@@ -4509,11 +4482,11 @@ namespace System.Diagnostics.Tracing
             {
                 if (s_EventSources == null)
                     Interlocked.CompareExchange(ref s_EventSources, new List<WeakReference>(2), null);
-                return s_EventSources!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                return s_EventSources;
             }
         }
 
-        private void CallBackForExistingEventSources(bool addToListenersList, EventHandler<EventSourceCreatedEventArgs> callback)
+        private void CallBackForExistingEventSources(bool addToListenersList, EventHandler<EventSourceCreatedEventArgs>? callback)
         {
             lock (EventListenersLock)
             {
@@ -4537,36 +4510,40 @@ namespace System.Diagnostics.Tracing
                         s_Listeners = this;
                     }
 
-                    // Find all existing eventSources call OnEventSourceCreated to 'catchup'
-                    // Note that we DO have reentrancy here because 'AddListener' calls out to user code (via OnEventSourceCreated callback) 
-                    // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
-                    // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
-                    // is created.
-                    WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
+                    if (callback != null)
+                    {
+                        // Find all existing eventSources call OnEventSourceCreated to 'catchup'
+                        // Note that we DO have reentrancy here because 'AddListener' calls out to user code (via OnEventSourceCreated callback) 
+                        // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
+                        // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
+                        // is created.
+                        WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
 
 #if DEBUG
-                    bool previousValue = s_ConnectingEventSourcesAndListener;
-                    s_ConnectingEventSourcesAndListener = true;
-                    try
-                    {
-#endif
-                        for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+                        bool previousValue = s_ConnectingEventSourcesAndListener;
+                        s_ConnectingEventSourcesAndListener = true;
+                        try
                         {
-                            WeakReference eventSourceRef = eventSourcesSnapshot[i];
-                            if (eventSourceRef.Target is EventSource eventSource)
-                            {
-                                EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
-                                args.EventSource = eventSource;
-                                callback(this, args);
-                            }
-                        }
-#if DEBUG
-                    }
-                    finally
-                    {
-                        s_ConnectingEventSourcesAndListener = previousValue;
-                    }
 #endif
+                            for (int i = 0; i < eventSourcesSnapshot.Length; i++)
+                            {
+                                WeakReference eventSourceRef = eventSourcesSnapshot[i];
+                                if (eventSourceRef.Target is EventSource eventSource)
+                                {
+                                    EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
+                                    args.EventSource = eventSource;
+                                    callback(this, args);
+                                }
+                            }
+#if DEBUG
+                        }
+                        finally
+                        {
+                            s_ConnectingEventSourcesAndListener = previousValue;
+                        }
+#endif
+                    }
+
                     Validate();
                 }
                 finally
@@ -5542,7 +5519,7 @@ namespace System.Diagnostics.Tracing
         {
             if (this.channelTab == null)
             {
-                return new ulong[0];
+                return Array.Empty<ulong>();
             }
 
             // We create an array indexed by the channel id for fast look up.
