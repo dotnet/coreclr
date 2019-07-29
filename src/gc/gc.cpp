@@ -6962,7 +6962,12 @@ size_t card_bundle_cardw (size_t cardb)
 // Clear the specified card bundle
 void gc_heap::card_bundle_clear (size_t cardb)
 {
-    card_bundle_table [card_bundle_word (cardb)] &= ~(1 << card_bundle_bit (cardb));
+#ifdef FEATURE_CARD_MARKING_STEALING
+    // with card marking stealing, we may have multiple threads trying to clear bits in the same card bundle word
+    Interlocked::And((volatile uint32_t*)& card_bundle_table[card_bundle_word(cardb)], (uint32_t)~(1 << card_bundle_bit(cardb)));
+#else
+    card_bundle_table[card_bundle_word(cardb)] &= ~(1 << card_bundle_bit(cardb));
+#endif
     dprintf (2, ("Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_bundle_cardw (cardb),
               (size_t)card_bundle_cardw (cardb+1)));
     STRESS_LOG3(LF_GC, LL_INFO1000000, "Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_address(card_bundle_cardw(cardb)*card_word_width),
@@ -25531,6 +25536,29 @@ void gc_heap::relocate_phase (int condemned_gen_number,
     }
 #endif //BACKGROUND_GC
 
+#ifdef FEATURE_CARD_MARKING_STEALING
+    // for card marking stealing, do the other relocations *before* we scan the older generations
+    // this gives us a chance to make up for imbalance in these phases later
+    {
+        dprintf(3, ("Relocating survivors"));
+        relocate_survivors(condemned_gen_number,
+            first_condemned_address);
+    }
+
+#ifdef FEATURE_PREMORTEM_FINALIZATION
+    dprintf(3, ("Relocating finalization data"));
+    finalize_queue->RelocateFinalizationData(condemned_gen_number,
+        __this);
+#endif // FEATURE_PREMORTEM_FINALIZATION
+
+
+    {
+        dprintf(3, ("Relocating handle table"));
+        GCScan::GcScanHandles(GCHeap::Relocate,
+            condemned_gen_number, max_generation, &sc);
+    }
+#endif // FEATURE_CARD_MARKING_STEALING
+
     if (condemned_gen_number != max_generation)
     {
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
@@ -25574,6 +25602,9 @@ void gc_heap::relocate_phase (int condemned_gen_number,
             relocate_in_large_objects ();
         }
     }
+#ifndef FEATURE_CARD_MARKING_STEALING
+    // moved this code *before* we scan the older generations via mark_through_cards_xxx
+    // this gives us a chance to have mark_through_cards_xxx make up for imbalance in the other relocations
     {
         dprintf(3,("Relocating survivors"));
         relocate_survivors (condemned_gen_number,
@@ -25593,6 +25624,8 @@ void gc_heap::relocate_phase (int condemned_gen_number,
         GCScan::GcScanHandles(GCHeap::Relocate,
                                   condemned_gen_number, max_generation, &sc);
     }
+#endif // !FEATURE_CARD_MARKING_STEALING
+
 
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
     if (condemned_gen_number != max_generation)
@@ -29174,7 +29207,12 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                 assert (Align (size (o)) >= Align (min_obj_size));
                 size_t s = size (o);
 
+                // next_o is the next object in the heap walk
                 uint8_t* next_o =  o + Align (s);
+
+                // while cont_o is the object we should continue with at the end_object label
+                uint8_t* cont_o = next_o;
+
                 Prefetch (next_o);
 
                 if ((o >= gen_boundary) &&
@@ -29248,7 +29286,7 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                         }
                         else if (foundp && (start_address < limit))
                         {
-                            next_o = find_first_object (start_address, o);
+                            cont_o = find_first_object(start_address, o);
                             goto end_object;
                         }
                         else
@@ -29307,7 +29345,7 @@ go_through_refs:
                                          }
                                          else if (foundp && (start_address < limit))
                                          {
-                                             next_o = find_first_object (start_address, o);
+                                             cont_o = find_first_object(start_address, o);
                                              goto end_object;
                                          }
                                          else
@@ -29329,7 +29367,7 @@ go_through_refs:
                     if (brick_table [brick_of (o)] <0)
                         fix_brick_to_highest (o, next_o);
                 }
-                o = next_o;
+                o = cont_o;
             }
         end_limit:
             last_object = o;

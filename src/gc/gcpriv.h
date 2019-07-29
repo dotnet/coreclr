@@ -4645,7 +4645,8 @@ size_t gcard_of (uint8_t* object)
     return (size_t)(object) / card_size;
 }
 #ifdef FEATURE_CARD_MARKING_STEALING
-#define CARD_MARKING_STEALING_GRANULARITY (8*1024*1024)
+// make this at least one card bundle bit (256 kB in 64-bit architectures, 128 kB in 32-bit)
+#define CARD_MARKING_STEALING_GRANULARITY (card_size*card_word_width*card_bundle_size)
 
 #define THIS_ARG    , __this
 class card_marking_enumerator
