@@ -6968,6 +6968,7 @@ void gc_heap::card_bundle_clear (size_t cardb)
 #else
     card_bundle_table[card_bundle_word(cardb)] &= ~(1 << card_bundle_bit(cardb));
 #endif
+#endif
     dprintf (2, ("Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_bundle_cardw (cardb),
               (size_t)card_bundle_cardw (cardb+1)));
     STRESS_LOG3(LF_GC, LL_INFO1000000, "Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_address(card_bundle_cardw(cardb)*card_word_width),
@@ -7114,7 +7115,13 @@ void gc_heap::set_brick (size_t index, ptrdiff_t val)
     if (val >= 0)
         brick_table [index] = (short)val+1;
     else
-        brick_table [index] = (short)val;
+    {
+        if (val < -100)
+        {
+            STRESS_LOG3(LF_GC, LL_INFO1000, "setting brick %Ix to large negative value %d on heap %d", index, val, heap_number);
+        }
+        brick_table[index] = (short)val;
+    }
 }
 
 inline
@@ -28533,6 +28540,10 @@ void gc_heap::fix_brick_to_highest (uint8_t* o, uint8_t* next_o)
                new_current_brick, (size_t)o, (size_t)next_o));
     while (b < limit)
     {
+        if (new_current_brick - b < -100 && GCToEEInterface::GetThread() == nullptr)
+        {
+            STRESS_LOG3(LF_GC, LL_INFO1000, "fix_brick_to_highest setting brick %Ix to a large negative value %d on heap %d", b, new_current_brick - b, heap_number);
+        }
         set_brick (b,(new_current_brick - b));
         b++;
     }
@@ -28578,9 +28589,14 @@ uint8_t* gc_heap::find_first_object (uint8_t* start, uint8_t* first_object)
     size_t min_cl = (size_t)first_object / brick_size;
 
     //dprintf (3,( "Looking for intersection with %Ix from %Ix", (size_t)start, (size_t)o));
-#ifdef TRACE_GC
+//#ifdef TRACE_GC
     unsigned int n_o = 1;
-#endif //TRACE_GC
+//#endif //TRACE_GC
+
+    if (start - next_o >= 1024*1024 && GCToEEInterface::GetThread() == nullptr)
+    {
+        STRESS_LOG3(LF_GC, LL_INFO1000, "find_first_object large distance on heap %d starting at %Ix looking for %Ix", heap_number, next_o, start);
+    }
 
     uint8_t* next_b = min (align_lower_brick (next_o) + brick_size, start+1);
 
@@ -28588,9 +28604,9 @@ uint8_t* gc_heap::find_first_object (uint8_t* start, uint8_t* first_object)
     {
         do
         {
-#ifdef TRACE_GC
+//#ifdef TRACE_GC
             n_o++;
-#endif //TRACE_GC
+//#endif //TRACE_GC
             o = next_o;
             assert (Align (size (o)) >= Align (min_obj_size));
             next_o = o + Align (size (o));
@@ -28612,6 +28628,10 @@ uint8_t* gc_heap::find_first_object (uint8_t* start, uint8_t* first_object)
     //dprintf (3, ("Looked at %Id objects, fixing brick [%Ix-[%Ix", 
     dprintf (3, ("%Id o, [%Ix-[%Ix", 
         n_o, bo, brick));
+    if (n_o >= 1000 && GCToEEInterface::GetThread() == nullptr)
+    {
+        STRESS_LOG3(LF_GC, LL_INFO1000, "Looked at %Id objects on heap %d for start of object covering %Ix", n_o, heap_number, start);
+    }
     if (bo < brick)
     {
         set_brick (bo, (o - brick_address(bo)));
@@ -28619,6 +28639,10 @@ uint8_t* gc_heap::find_first_object (uint8_t* start, uint8_t* first_object)
         int x = -1;
         while (b < brick)
         {
+            if (x < -100)
+            {
+                STRESS_LOG3(LF_GC, LL_INFO1000, "about to set brick %Ix to large negative value %d on heap %d", b, x, heap_number);
+            }
             set_brick (b,x--);
             b++;
         }
@@ -29286,7 +29310,7 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                         }
                         else if (foundp && (start_address < limit))
                         {
-                            cont_o = find_first_object(start_address, o);
+                            cont_o = find_first_object (start_address, o);
                             goto end_object;
                         }
                         else
@@ -29345,7 +29369,7 @@ go_through_refs:
                                          }
                                          else if (foundp && (start_address < limit))
                                          {
-                                             cont_o = find_first_object(start_address, o);
+                                             cont_o = find_first_object (start_address, o);
                                              goto end_object;
                                          }
                                          else
