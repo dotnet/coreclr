@@ -3325,11 +3325,16 @@ public:
             *m_pShadowSP |= ICodeManager::SHADOW_SP_FILTER_DONE;
         }
     }
+
+#ifndef CROSSGEN_COMPILE
+    ~ExceptionFilterFrame();
+#endif
+
 #endif
 
 private:
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ExceptionFilterFrame)
+    DEFINE_VTABLE_GETTER_AND_CTOR(ExceptionFilterFrame)
 };
 
 #ifdef _DEBUG

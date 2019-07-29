@@ -1024,6 +1024,26 @@ GCFrame::~GCFrame()
         Pop();
     }
 }
+
+ExceptionFilterFrame::~ExceptionFilterFrame()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (m_Next != NULL)
+    {
+        GCX_COOP();
+        // When the frame is destroyed, make sure it is no longer in the
+        // frame chain managed by the Thread.
+        Pop();
+    }
+}
+
 #endif // !CROSSGEN_COMPILE
 
 #ifdef FEATURE_INTERPRETER
