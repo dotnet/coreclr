@@ -4,34 +4,12 @@
 
 using System;
 using System.Diagnostics.Tracing;
-using System.IO;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Collections.Generic;
 using Microsoft.Diagnostics.Tools.RuntimeClient;
-using Microsoft.Diagnostics.Tracing;
 using Tracing.Tests.Common;
 
 namespace Tracing.Tests.ExceptionThrown_V1
 {
-    public sealed class MyEvents
-    {
-        private MyEvents() {}
-        public static MyEvents Log = new MyEvents();
-        public void MyEvent1() 
-        {
-            try
-            {
-                throw new ArgumentNullException("Throw ArgumentNullException");
-            } 
-            catch (Exception e)
-            {
-                //Do nonthing
-            }
-        }
-    }
-
     public class ProviderValidation
     {
         public static int Main(string[] args)
@@ -39,22 +17,11 @@ namespace Tracing.Tests.ExceptionThrown_V1
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
-                new Provider("Microsoft-Windows-DotNETRuntime", 1000000000000000, EventLevel.Warning)
+                new Provider("Microsoft-Windows-DotNETRuntime", 0b1000_0000_0000_0000, EventLevel.Warning)
             };
-            
-            var tests = new int[] { 4, 10 }
-                .Select(x => (uint)Math.Pow(2, x))
-                .Select(bufferSize => new SessionConfiguration(circularBufferSizeMB: bufferSize, format: EventPipeSerializationFormat.NetTrace,  providers: providers))
-                .Select<SessionConfiguration, Func<int>>(configuration => () => IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration));
 
-            foreach (var test in tests)
-            {
-                var ret = test();
-                if (ret < 0)
-                    return ret;
-            }
-
-            return 100;
+            var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
+            return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration);
         }
 
         private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
@@ -66,9 +33,16 @@ namespace Tracing.Tests.ExceptionThrown_V1
 
         private static Action _eventGeneratingAction = () => 
         {
-            foreach (var _ in Enumerable.Range(0,1000))
+            for (int i = 0; i < 1000; i++)
             {
-                MyEvents.Log.MyEvent1();
+                try
+                {
+                    throw new ArgumentNullException("Throw ArgumentNullException");
+                } 
+                catch (Exception e)
+                {
+                    //Do nothing
+                }
             }
         };
     }
