@@ -131,25 +131,6 @@ namespace System.Diagnostics.Tracing
             }
             else if (_pollingIntervalInMilliseconds == 0 || pollingIntervalInSeconds * 1000 < _pollingIntervalInMilliseconds)
             {
-                if (s_pollingThreadEvent == null)
-                {
-                    s_pollingThreadEvent = new ManualResetEvent(false);
-                }
-
-                if (s_pollingThreadSleepEvent == null)
-                {
-                    s_pollingThreadSleepEvent = new AutoResetEvent(false);
-                }
-                else
-                {
-                    s_pollingThreadSleepEvent.Set();
-                }
-
-                if (s_counterGroupEnabledList == null)
-                {
-                    s_counterGroupEnabledList = new List<CounterGroup>();
-                }
-
                 _pollingIntervalInMilliseconds = (int)(pollingIntervalInSeconds * 1000);
                 ResetCounters(); // Reset statistics for counters before we start the thread.
 
@@ -165,28 +146,24 @@ namespace System.Diagnostics.Tracing
                     }
 
                     _nextPollingTimeStamp = DateTime.UtcNow + new TimeSpan(0, 0, (int)pollingIntervalInSeconds);
-                    // If we are already polling for some other EventSource, check the next polling time and update if necessary (i.e. if we need to poll before the next earliest polling time.)
-                    // Otherwise, create a new polling thread and set the next sleep time.
                     
+                    // Create the polling thread and init all the shared state if needed
                     if (s_pollingThread == null)
                     {
+                        s_pollingThreadSleepEvent = new AutoResetEvent(false);
+                        s_counterGroupEnabledList = new List<CounterGroup>();
                         s_pollingThread = new Thread(PollForValues) { IsBackground = true };
                         s_pollingThread.Start();
                     }
 
-                    if (s_counterGroupEnabledList != null)
+                    if (!s_counterGroupEnabledList!.Contains(this))
                     {
-                        if (!s_counterGroupEnabledList.Contains(this))
-                        {
-                            s_counterGroupEnabledList.Add(this);
-                        }
-
-                        if (s_counterGroupEnabledList.Count == 1 && s_pollingThreadEvent != null)
-                        {
-                            // This means we need to restart the polling thread.
-                            s_pollingThreadEvent.Set();
-                        }
+                        s_counterGroupEnabledList.Add(this);
                     }
+
+                    // notify the polling thread that the polling interval may have changed and the sleep should
+                    // be recomputed
+                    s_pollingThreadSleepEvent!.Set();
                 }
                 finally
                 {
@@ -201,11 +178,6 @@ namespace System.Diagnostics.Tracing
         {
             _pollingIntervalInMilliseconds = 0;
             s_counterGroupEnabledList?.Remove(this);
-
-            if (s_counterGroupEnabledList?.Count == 0 && s_pollingThreadEvent != null)
-            {
-                s_pollingThreadEvent.Reset();
-            }
         }
 
         private void ResetCounters()
@@ -232,30 +204,28 @@ namespace System.Diagnostics.Tracing
 
         private void OnTimer()
         {
-            lock (s_counterGroupLock) // Lock the CounterGroup
+            Debug.Assert(Monitor.IsEntered(s_counterGroupLock));
+            if (_eventSource.IsEnabled())
             {
-                if (_eventSource.IsEnabled())
+                DateTime now = DateTime.UtcNow;
+                TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
+
+                foreach (var counter in _counters)
                 {
-                    DateTime now = DateTime.UtcNow;
-                    TimeSpan elapsed = now - _timeStampSinceCollectionStarted;
-
-                    foreach (var counter in _counters)
-                    {
-                        counter.WritePayload((float)elapsed.TotalSeconds, _pollingIntervalInMilliseconds);
-                    }
-                    _timeStampSinceCollectionStarted = now;
-
-                    do {
-                        _nextPollingTimeStamp += new TimeSpan(0, 0, 0, 0, _pollingIntervalInMilliseconds);
-                    } while(_nextPollingTimeStamp <= now);
+                    counter.WritePayload((float)elapsed.TotalSeconds, _pollingIntervalInMilliseconds);
                 }
+                _timeStampSinceCollectionStarted = now;
+
+                do
+                {
+                    _nextPollingTimeStamp += new TimeSpan(0, 0, 0, 0, _pollingIntervalInMilliseconds);
+                } while (_nextPollingTimeStamp <= now);
             }
         }
 
 
 
         private static Thread? s_pollingThread;
-        private static ManualResetEvent? s_pollingThreadEvent;
         // Used for sleeping for a certain amount of time while allowing the thread to be woken up
         private static AutoResetEvent? s_pollingThreadSleepEvent;
 
@@ -263,44 +233,31 @@ namespace System.Diagnostics.Tracing
 
         private static void PollForValues()
         {
-            ManualResetEvent? pollingThreadEvent = null;
             AutoResetEvent? sleepEvent = null;
             while (true)
             {
                 int sleepDurationInMilliseconds = Int32.MaxValue;
                 lock (s_counterGroupLock)
                 {
-                    pollingThreadEvent = s_pollingThreadEvent;
                     sleepEvent = s_pollingThreadSleepEvent;
-
-                    if (s_counterGroupEnabledList != null)
+                    foreach (CounterGroup counterGroup in s_counterGroupEnabledList!)
                     {
-                        foreach (CounterGroup counterGroup in s_counterGroupEnabledList)
+                        DateTime now = DateTime.UtcNow;
+                        if (counterGroup._nextPollingTimeStamp < now + new TimeSpan(0, 0, 0, 0, 1))
                         {
-                            DateTime now = DateTime.UtcNow;
-                            if (counterGroup._nextPollingTimeStamp < now + new TimeSpan(0, 0, 0, 0, 1))
-                            {
-                                counterGroup.OnTimer();
-                            }
-
-                            int millisecondsTillNextPoll = (int)((counterGroup._nextPollingTimeStamp - now).TotalMilliseconds);
-                            millisecondsTillNextPoll = Math.Max(1, millisecondsTillNextPoll);
-                            if (millisecondsTillNextPoll < sleepDurationInMilliseconds)
-                            {
-                                sleepDurationInMilliseconds = millisecondsTillNextPoll;
-                            }
+                            counterGroup.OnTimer();
                         }
+
+                        int millisecondsTillNextPoll = (int)((counterGroup._nextPollingTimeStamp - now).TotalMilliseconds);
+                        millisecondsTillNextPoll = Math.Max(1, millisecondsTillNextPoll);
+                        sleepDurationInMilliseconds = Math.Min(sleepDurationInMilliseconds, millisecondsTillNextPoll);
                     }
                 }
-                // Only sleep if we actually had something in the enabled counter group
-                if (sleepDurationInMilliseconds != Int32.MaxValue)
+                if (sleepDurationInMilliseconds == Int32.MaxValue)
                 {
-                    sleepEvent?.WaitOne(sleepDurationInMilliseconds);
+                    sleepDurationInMilliseconds = -1; // WaitOne uses -1 to mean infinite
                 }
-                if (pollingThreadEvent != null)
-                {
-                    pollingThreadEvent.WaitOne(); // Block until polling is enabled again
-                }
+                sleepEvent?.WaitOne(sleepDurationInMilliseconds);
             }
         }
 
