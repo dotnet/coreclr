@@ -125,7 +125,6 @@ parser.add_argument("--large_version_bubble", dest="large_version_bubble", actio
 parser.add_argument("--precompile_core_root", dest="precompile_core_root", action="store_true", default=False)
 parser.add_argument("--sequential", dest="sequential", action="store_true", default=False)
 
-parser.add_argument("--build_xunit_test_wrappers", dest="build_xunit_test_wrappers", action="store_true", default=False)
 parser.add_argument("--generate_layout", dest="generate_layout", action="store_true", default=False)
 parser.add_argument("--generate_layout_only", dest="generate_layout_only", action="store_true", default=False)
 parser.add_argument("--analyze_results_only", dest="analyze_results_only", action="store_true", default=False)
@@ -1127,11 +1126,6 @@ def setup_args(args):
                                       "Error setting test location.")
 
     coreclr_setup_args.verify(args,
-                              "build_xunit_test_wrappers",
-                              lambda arg: True,
-                              "Error setting build_xunit_test_wrappers")
-
-    coreclr_setup_args.verify(args,
                               "generate_layout_only",
                               lambda arg: True,
                               "Error setting generate_layout_only")
@@ -1219,11 +1213,6 @@ def setup_args(args):
                               "sequential",
                               lambda arg: True,
                               "Error setting sequential")
-    
-    coreclr_setup_args.verify(args,
-                              "build_xunit_test_wrappers",
-                              lambda arg: True,
-                              "Error setting build_xunit_test_wrappers")
     
     coreclr_setup_args.verify(args,
                               "verbose",
