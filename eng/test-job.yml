@@ -323,18 +323,17 @@ jobs:
           - forcerelocs
           - gcstress15
 
-    ${{ if ne(parameters.corefxTests, true) }}:
-      - task: PublishBuildArtifacts@1
-        displayName: Publish test build
-        inputs:
-          pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
-          artifactName: ${{ format('{0}_{1}_{2}_tests', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    - task: PublishBuildArtifacts@1
+      displayName: Publish Test Build
+      inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
+        artifactName: ${{ format('{0}_{1}_{2}_tests', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Publish Logs
     - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
-        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
+         pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
           artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r_corefx', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
