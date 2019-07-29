@@ -353,6 +353,13 @@ void NativeCodeVersion::SetActiveChildFlag(BOOL isActive)
     LIMITED_METHOD_DAC_CONTRACT;
     if (m_storageKind == StorageKind::Explicit)
     {
+        if (isActive &&
+            !CodeVersionManager::InitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion() &&
+            GetMethodDesc()->GetNativeCode() == NULL)
+        {
+            CodeVersionManager::SetInitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion();
+        }
+
         AsNode()->SetActiveChildFlag(isActive);
     }
     else
@@ -1869,6 +1876,10 @@ void ILCodeVersioningState::LinkILCodeVersionNode(ILCodeVersionNode* pILCodeVers
 }
 #endif
 
+#ifndef DACCESS_COMPILE
+bool CodeVersionManager::s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion = false;
+#endif
+
 CodeVersionManager::CodeVersionManager()
 {}
 
@@ -2146,6 +2157,10 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
     }
 #endif
 
+    // Assume that a new IL code version will be added for a method def, and that an instantiation may not yet have native code
+    // for the default native code version
+    CodeVersionManager::SetInitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion();
+
     // step 1 - mark the IL versions as being active, this ensures that
     // any new method instantiations added after this point will bind to
     // the correct version
@@ -2277,12 +2292,185 @@ HRESULT CodeVersionManager::AddNativeCodeVersion(
     return S_OK;
 }
 
-PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub)
+PCODE CodeVersionManager::PublishNonJumpStampVersionableCodeIfNecessary(
+    MethodDesc* pMethodDesc,
+    bool *doBackpatchRef,
+    bool *doFullBackpatchRef)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(!LockOwnedByCurrentThread());
-    _ASSERTE(pMethodDesc->IsVersionable());
-    _ASSERTE(!pMethodDesc->IsPointingToPrestub() || !pMethodDesc->IsVersionableWithJumpStamp());
+    _ASSERTE(pMethodDesc->IsVersionableWithoutJumpStamp());
+    _ASSERTE(doBackpatchRef != nullptr);
+    _ASSERTE(*doBackpatchRef);
+    _ASSERTE(doFullBackpatchRef != nullptr);
+    _ASSERTE(!*doFullBackpatchRef);
+
+    HRESULT hr = S_OK;
+    PCODE pCode;
+    NativeCodeVersion activeVersion;
+    do
+    {
+        // Try a faster check to see if the default native code version would be the active one. If any method gets a new IL or
+        // native code version when the method's default native code version does not have native code, the global flag on
+        // CodeVersionManager is set (not a typical case, may be possible with profilers). So, if the flag is not set and the
+        // default native code version does not have native code, then it must be the active code version.
+        pCode = pMethodDesc->GetNativeCode();
+        if (pCode == NULL && !CodeVersionManager::InitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion())
+        {
+            activeVersion = NativeCodeVersion(pMethodDesc);
+            break;
+        }
+
+        if (!pMethodDesc->IsPointingToPrestub())
+        {
+            *doFullBackpatchRef = true;
+            return NULL;
+        }
+
+        TableLockHolder lock(this);
+
+        if (SUCCEEDED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &activeVersion)))
+        {
+            pCode = activeVersion.GetNativeCode();
+            break;
+        }
+
+        _ASSERTE(hr == E_OUTOFMEMORY);
+        ReportCodePublishError(pMethodDesc, hr);
+        *doBackpatchRef = false;
+        return pCode != NULL ? pCode : pMethodDesc->PrepareInitialCode();
+    } while (false);
+
+#ifdef FEATURE_TIERED_COMPILATION
+    bool shouldCountCalls = true;
+#endif
+    while (true)
+    {
+        // Compile the code if needed
+        bool doPublish = true;
+        bool profilerMayHaveActivatedNonDefaultCodeVersion = false;
+        if (pCode == NULL)
+        {
+            PrepareCodeConfigBuffer configBuffer(activeVersion);
+            PrepareCodeConfig *config = configBuffer.GetConfig();
+            pCode = pMethodDesc->PrepareCode(config);
+
+        #ifdef FEATURE_CODE_VERSIONING
+            if (config->ProfilerMayHaveActivatedNonDefaultCodeVersion())
+            {
+                profilerMayHaveActivatedNonDefaultCodeVersion = true;
+            }
+        #endif
+
+            if (config->GeneratedOrLoadedNewCode())
+            {
+            #ifdef FEATURE_TIERED_COMPILATION
+                _ASSERTE(!config->ShouldCountCalls() || pMethodDesc->IsEligibleForTieredCompilation());
+                _ASSERTE(
+                    !config->ShouldCountCalls() ||
+                    activeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0);
+                if (shouldCountCalls &&
+                    config->ShouldCountCalls() && // the generated code was at a tier that is call-counted
+                    activeVersion.IsDefaultVersion()) // this is the first call to the method
+                {
+                    if (!GetAppDomain()->GetTieredCompilationManager()->OnMethodCalledFirstTime(pMethodDesc))
+                    {
+                        doPublish = false;
+                    }
+
+                    shouldCountCalls = false;
+                }
+            #endif
+            }
+            else
+            {
+                _ASSERTE(!config->ShouldCountCalls());
+
+                // The thread that generated or loaded the new code will publish the code and backpatch if necessary
+                doPublish = false;
+            }
+        }
+    #ifdef FEATURE_TIERED_COMPILATION
+        else if (shouldCountCalls && CallCounter::OnMethodCalledSubsequently(activeVersion, &doPublish))
+        {
+            shouldCountCalls = false;
+        }
+    #endif
+
+        bool mayHaveEntryPointSlotsToBackpatch = doPublish && pMethodDesc->MayHaveEntryPointSlotsToBackpatch();
+        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
+
+        // Try a faster check to see if we can avoid checking the currently active code version
+        // - For the default code version, if a profiler is attached it may be notified of JIT events and may request rejit
+        //   synchronously on the same thread. In that case, for back-compat as described below, the returned code must be for
+        //   the rejitted or newer code.
+        // - It must be ensured that there are no races that could cause an older entry point to replace a newer entry point.
+        //   For non-default code versions, it's necessary to check the currently active code version and publish under the
+        //   CodeVersionManager's lock. For default code versions, the entry point is atomically updated and only if it is
+        //   pointing to the prestub.
+        if (activeVersion.IsDefaultVersion() && !profilerMayHaveActivatedNonDefaultCodeVersion)
+        {
+            if (doPublish)
+            {
+                pMethodDesc->TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(pCode, mayHaveEntryPointSlotsToBackpatch);
+            }
+            else
+            {
+                *doBackpatchRef = false;
+            }
+            return pCode;
+        }
+
+        // Backpatching entry point slots requires cooperative GC mode, see
+        // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+        // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+        // must be used here to prevent deadlock.
+        GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
+        TableLockHolder lock(this);
+
+        NativeCodeVersion newActiveVersion;
+        if (FAILED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &newActiveVersion)))
+        {
+            break;
+        }
+
+        // The common case is that newActiveCode == activeCode, however we did leave the lock so there is
+        // possibility that the active version has changed. If it has we need to restart the compilation
+        // and publishing process with the new active version instead.
+        //
+        // In theory it should be legitimate to break out of this loop and run the less recent active version,
+        // because ultimately this is a race between one thread that is updating the version and another thread
+        // trying to run the current version. However for back-compat with ReJIT we need to guarantee that
+        // a versioning update at least as late as the profiler JitCompilationFinished callback wins the race.
+        if (newActiveVersion == activeVersion)
+        {
+            if (doPublish)
+            {
+                pMethodDesc->SetCodeEntryPoint(pCode);
+            }
+            else
+            {
+                *doBackpatchRef = false;
+            }
+            return pCode;
+        }
+
+        activeVersion = newActiveVersion;
+        pCode = activeVersion.GetNativeCode();
+    }
+
+    _ASSERTE(hr == E_OUTOFMEMORY);
+    ReportCodePublishError(pMethodDesc, hr);
+    *doBackpatchRef = false;
+    return pCode;
+}
+
+PCODE CodeVersionManager::PublishJumpStampVersionableCodeIfNecessary(MethodDesc* pMethodDesc)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(!LockOwnedByCurrentThread());
+    _ASSERTE(pMethodDesc->IsVersionableWithJumpStamp());
+    _ASSERTE(!pMethodDesc->IsPointingToPrestub());
 
     HRESULT hr = S_OK;
     PCODE pCode = NULL;
@@ -2293,7 +2481,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         if (FAILED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &activeVersion)))
         {
             _ASSERTE(hr == E_OUTOFMEMORY);
-            ReportCodePublishError(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef(), pMethodDesc, hr);
+            ReportCodePublishError(pMethodDesc, hr);
             return NULL;
         }
     }
@@ -2305,11 +2493,11 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         pCode = activeVersion.GetNativeCode();
         if (pCode == NULL)
         {
-            pCode = pMethodDesc->PrepareCode(activeVersion);
+            PrepareCodeConfigBuffer configBuffer(activeVersion);
+            pCode = pMethodDesc->PrepareCode(configBuffer.GetConfig());
         }
 
-        bool mayHaveEntryPointSlotsToBackpatch = pMethodDesc->MayHaveEntryPointSlotsToBackpatch();
-        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
+        _ASSERTE(!pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
 
         // suspend in preparation for publishing if needed
         if (fEESuspend)
@@ -2318,11 +2506,6 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         }
 
         {
-            // Backpatching entry point slots requires cooperative GC mode, see
-            // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
-            // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
-            // must be used here to prevent deadlock.
-            GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
             TableLockHolder lock(this);
 
             // The common case is that newActiveCode == activeCode, however we did leave the lock so there is
@@ -2337,7 +2520,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             if (FAILED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &newActiveVersion)))
             {
                 _ASSERTE(hr == E_OUTOFMEMORY);
-                ReportCodePublishError(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef(), pMethodDesc, hr);
+                ReportCodePublishError(pMethodDesc, hr);
                 pCode = NULL;
                 break;
             }
@@ -2347,12 +2530,6 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             }
             else
             {
-                // if we aren't allowed to backpatch we are done
-                if (!fCanBackpatchPrestub)
-                {
-                    break;
-                }
-
                 // attempt to publish the active version still under the lock
                 if (FAILED(hr = PublishNativeCodeVersion(pMethodDesc, activeVersion, fEESuspend)))
                 {
@@ -2367,7 +2544,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
                     }
                     else
                     {
-                        ReportCodePublishError(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef(), pMethodDesc, hr);
+                        ReportCodePublishError(pMethodDesc, hr);
                         pCode = NULL;
                         break;
                     }
@@ -2385,7 +2562,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             ThreadSuspend::RestartEE(FALSE, TRUE);
         }
     }
-    
+
     // if the EE is still suspended from breaking in the middle of the loop, resume it
     if (fEESuspend)
     {
@@ -2872,6 +3049,20 @@ void CodeVersionManager::ReportCodePublishError(CodePublishError* pErrorRecord)
     ReportCodePublishError(pErrorRecord->pModule, pErrorRecord->methodDef, pErrorRecord->pMethodDesc, pErrorRecord->hrStatus);
 }
 
+NOINLINE void CodeVersionManager::ReportCodePublishError(MethodDesc* pMD, HRESULT hrStatus)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        CAN_TAKE_LOCK;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    ReportCodePublishError(pMD->GetModule(), pMD->GetMemberDef(), pMD, hrStatus);
+}
+
 void CodeVersionManager::ReportCodePublishError(Module* pModule, mdMethodDef methodDef, MethodDesc* pMD, HRESULT hrStatus)
 {
     CONTRACTL
@@ -2992,7 +3183,7 @@ PublishMethodHolder::~PublishMethodHolder()
         pCodeVersionManager->LeaveLock();
         if (FAILED(m_hr))
         {
-            pCodeVersionManager->ReportCodePublishError(m_pMD->GetModule(), m_pMD->GetMemberDef(), m_pMD, m_hr);
+            pCodeVersionManager->ReportCodePublishError(m_pMD, m_hr);
         }
     }
 }

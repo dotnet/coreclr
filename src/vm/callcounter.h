@@ -65,7 +65,7 @@ public:
     static count_t Hash(key_t k)
     {
         LIMITED_METHOD_CONTRACT;
-        return (count_t)dac_cast<TADDR>(k);
+        return (count_t)(dac_cast<TADDR>(k) >> POINTER_HASH_SHIFT);
     }
 
     static const element_t Null() { LIMITED_METHOD_CONTRACT; return element_t(PTR_NULL, 0); }
@@ -90,14 +90,13 @@ public:
     CallCounter();
 #endif
 
-    static bool IsEligibleForCallCounting(PTR_MethodDesc pMethodDesc);
     bool IsCallCountingEnabled(PTR_MethodDesc pMethodDesc);
 #ifndef DACCESS_COMPILE
     void DisableCallCounting(MethodDesc* pMethodDesc);
-    bool WasCalledAtMostOnce(MethodDesc* pMethodDesc);
 #endif
 
-    void OnMethodCalled(MethodDesc* pMethodDesc, TieredCompilationManager *pTieredCompilationManager, BOOL* shouldStopCountingCallsRef, BOOL* wasPromotedToNextTierRef);
+    static bool OnMethodCalledSubsequently(NativeCodeVersion nativeCodeVersion, bool *doPublishRef);
+    bool IncrementCount(MethodDesc* pMethodDesc);
 
 private:
 
