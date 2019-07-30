@@ -1905,7 +1905,7 @@ void Lowering::RehomeArgForFastTailCall(unsigned int lclNum,
                                         GenTreeCall* callNode)
 {
     unsigned int tmpLclNum = BAD_VAR_NUM;
-    for (GenTree* treeNode = overwritingNode; treeNode != callNode; treeNode = treeNode->gtNext)
+    for (GenTree* treeNode = overwritingNode->gtNext; treeNode != callNode; treeNode = treeNode->gtNext)
     {
         if (!treeNode->OperIsLocal() && !treeNode->OperIsLocalAddr())
         {
@@ -2004,11 +2004,9 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     // of call is setup.  Note that once a stack arg is setup, it cannot have nested
     // calls subsequently in execution order to setup other args, because the nested
     // call could over-write the stack arg that is setup earlier.
-    GenTree*             firstPutArgStk = nullptr;
-    GenTreeArgList*      args;
     ArrayStack<GenTree*> putargs(comp->getAllocator(CMK_ArrayStack));
 
-    for (args = call->gtCallArgs; args; args = args->Rest())
+    for (GenTreeArgList* args = call->gtCallArgs; args; args = args->Rest())
     {
         GenTree* tmp = args->Current();
         if (tmp->OperGet() == GT_PUTARG_STK)
@@ -2017,7 +2015,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         }
     }
 
-    for (args = call->gtCallLateArgs; args; args = args->Rest())
+    for (GenTreeArgList* args = call->gtCallLateArgs; args; args = args->Rest())
     {
         GenTree* tmp = args->Current();
         if (tmp->OperGet() == GT_PUTARG_STK)
@@ -2025,52 +2023,11 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
             putargs.Push(tmp);
         }
     }
-
-    if (!putargs.Empty())
-    {
-        firstPutArgStk = putargs.Bottom();
-    }
-
-    // If we have a putarg_stk node, also count the number of non-standard args the
-    // call node has.  Note that while determining whether a tail call can be fast
-    // tail called, we don't count non-standard args (passed in R10 or R11) since they
-    // don't contribute to outgoing arg space.  These non-standard args are not
-    // accounted in caller's arg count but accounted in callee's arg count after
-    // fgMorphArgs(). Therefore, exclude callee's non-standard args while mapping
-    // callee's stack arg num to corresponding caller's stack arg num.
-    unsigned calleeNonStandardArgCount = call->GetNonStandardAddedArgCount(comp);
-
-// Say Caller(a, b, c, d, e) fast tail calls Callee(e, d, c, b, a)
-// i.e. passes its arguments in reverse to Callee. During call site
-// setup, after computing argument side effects, stack args are setup
-// first and reg args next.  In the above example, both Callers and
-// Callee stack args (e and a respectively) share the same stack slot
-// and are alive at the same time.  The act of setting up Callee's
-// stack arg will over-write the stack arg of Caller and if there are
-// further uses of Caller stack arg we have to make sure that we move
-// it to a temp before over-writing its slot and use temp in place of
-// the corresponding Caller stack arg.
-//
-// For the above example, conceptually this is what is done
-//       tmp = e;
-//       Stack slot of e  = a
-//       R9 = b, R8 = c, RDx = d
-//       RCX = tmp
-//
-// The below logic is meant to detect cases like this and introduce
-// temps to set up args correctly for Callee.
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        printf("Trees during LowerFastTailCall, before:\n");
-        comp->fgDispBasicBlocks(true);
-    }
-#endif
 
     GenTree* startNonGCNode = nullptr;
-    if (firstPutArgStk != nullptr)
+    if (!putargs.Empty())
     {
+        GenTree* firstPutArgStk = putargs.Bottom();
         // Insert GT_START_NONGC node before the first GT_PUTARG_STK node.
         // Note that if there are no args to be setup on stack, no need to
         // insert GT_START_NONGC node.
@@ -2099,119 +2056,52 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         // incoming args that live in that area. If we have later uses of those args, this
         // is a problem. We introduce a defensive copy into a temp here of those args that
         // potentially may cause problems.
-        for (unsigned int i = 0; i < comp->info.compArgsCount; i++)
+        for (int i = 0; i < putargs.Height(); i++)
         {
-            LclVarDsc* callerArgDsc = comp->lvaTable + i;
-            if (callerArgDsc->lvIsRegArg)
+            GenTreePutArgStk* put     = putargs.Bottom(i)->AsPutArgStk();
+            // This put will overwrite our incoming stack args. If there are uses
+            // of the overwritten arg then introduce a defensive copy of it.
+            unsigned int      overwrittenStart    = put->getArgOffset();
+            unsigned int      overwrittenEnd = overwrittenStart + put->getArgSize();
+            int               baseOff = -1; // Stack offset of first arg on stack
+            for (unsigned callerArgLclNum = 0; callerArgLclNum < comp->info.compArgsCount; callerArgLclNum++)
             {
-                continue;
-            }
+                LclVarDsc* callerArgDsc = comp->lvaTable + callerArgLclNum;
+                if (callerArgDsc->lvIsRegArg)
+                    continue;
 
-            assert(callerArgDsc->lvIsParam);
+                assert(callerArgDsc->lvStkOffs != BAD_STK_OFFS);
+                
+                if (baseOff == -1)
+                    baseOff = callerArgDsc->lvStkOffs;
 
-            RehomeArgForFastTailCall(i, firstPutArgStk, firstPutArgStk, call);
-            callerArgDsc = comp->lvaTable + i;
+                // On all ABIs where we fast tail call the stack args should come in order.
+                assert(baseOff <= callerArgDsc->lvStkOffs);
 
-            if (!callerArgDsc->lvPromoted)
-            {
-                continue;
-            }
+                // Compute offset of this stack argument relative to the first stack arg.
+                // This will be its offset into the incoming arg space area.
+                unsigned int argStart = static_cast<unsigned int>(callerArgDsc->lvStkOffs - baseOff);
+                unsigned int argEnd   = argStart + comp->lvaLclSize(callerArgLclNum);
 
-            unsigned int fieldsFirst = callerArgDsc->lvFieldLclStart;
-            unsigned int fieldsEnd   = fieldsFirst + callerArgDsc->lvFieldCnt;
-            for (unsigned int j = fieldsFirst; j < fieldsEnd; j++)
-            {
-                RehomeArgForFastTailCall(j, firstPutArgStk, firstPutArgStk, call);
+                // If ranges do not overlap then this PUTARG_STK will not mess up the arg.
+                if ((overwrittenEnd <= argStart) || (overwrittenStart >= argEnd))
+                    continue;
+
+                RehomeArgForFastTailCall(callerArgLclNum, firstPutArgStk, put, call);
+                // The call can introduce temps and invalidate the pointer.
+                callerArgDsc = comp->lvaTable + callerArgLclNum;
+
+                // For promoted locals we have more work to do as its fields could also have been invalidated.
+                if (!callerArgDsc->lvPromoted)
+                    continue;
+
+                unsigned int fieldsFirst = callerArgDsc->lvFieldLclStart;
+                unsigned int fieldsEnd   = fieldsFirst + callerArgDsc->lvFieldCnt;
+                for (unsigned int j = fieldsFirst; j < fieldsEnd; j++)
+                    RehomeArgForFastTailCall(j, firstPutArgStk, put, call);
             }
         }
     }
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        printf("Trees during LowerFastTailCall, after:\n");
-        comp->fgDispBasicBlocks(true);
-    }
-#endif
-
-    // for (int i = 0; i < putargs.Height(); i++)
-    //{
-    //    GenTree* putArgStkNode = putargs.Bottom(i);
-
-    //    assert(putArgStkNode->OperGet() == GT_PUTARG_STK);
-
-    //    // Get the caller arg num corresponding to this callee arg.
-    //    // Note that these two args share the same stack slot. Therefore,
-    //    // if there are further uses of corresponding caller arg, we need
-    //    // to move it to a temp and use the temp in this call tree.
-    //    //
-    //    // Note that Caller is guaranteed to have a param corresponding to
-    //    // this Callee's arg since fast tail call mechanism counts the
-    //    // stack slots required for both Caller and Callee for passing params
-    //    // and allow fast tail call only if stack slots required by Caller >=
-    //    // Callee.
-    //    fgArgTabEntry* argTabEntry = comp->gtArgEntryByNode(call, putArgStkNode);
-    //    assert(argTabEntry);
-    //    unsigned callerArgNum = argTabEntry->argNum - calleeNonStandardArgCount;
-
-    //    unsigned   callerArgLclNum = callerArgNum;
-    //    LclVarDsc* callerArgDsc    = comp->lvaTable + callerArgLclNum;
-    //    if (callerArgDsc->lvPromoted)
-    //    {
-    //        callerArgLclNum =
-    //            callerArgDsc->lvFieldLclStart; // update the callerArgNum to the promoted struct field's lclNum
-    //        callerArgDsc = comp->lvaTable + callerArgLclNum;
-    //    }
-    //    noway_assert(callerArgDsc->lvIsParam);
-
-    //    // Start searching in execution order list till we encounter call node
-    //    unsigned  tmpLclNum = BAD_VAR_NUM;
-    //    var_types tmpType   = TYP_UNDEF;
-    //    for (GenTree* treeNode = putArgStkNode->gtNext; treeNode != call; treeNode = treeNode->gtNext)
-    //    {
-    //        if (treeNode->OperIsLocal() || treeNode->OperIsLocalAddr())
-    //        {
-    //            // This should not be a GT_PHI_ARG.
-    //            assert(treeNode->OperGet() != GT_PHI_ARG);
-
-    //            GenTreeLclVarCommon* lcl = treeNode->AsLclVarCommon();
-
-    //            // Fast tail calling criteria permits passing of structs of size 1, 2, 4 and 8 as args.
-    //            // It is possible that the callerArgLclNum corresponds to such a struct whose stack slot
-    //            // is getting over-written by setting up of a stack arg and there are further uses of
-    //            // any of its fields if such a struct is type-dependently promoted.  In this case too
-    //            // we need to introduce a temp.
-    //            if ((lcl->gtLclNum == callerArgNum) || (lcl->gtLclNum == callerArgLclNum))
-    //            {
-    //                // Create tmp and use it in place of callerArgDsc
-    //                if (tmpLclNum == BAD_VAR_NUM)
-    //                {
-    //                    // Set tmpType first before calling lvaGrabTemp, as that call invalidates callerArgDsc
-    //                    tmpType   = genActualType(callerArgDsc->lvaArgType());
-    //                    tmpLclNum = comp->lvaGrabTemp(
-    //                        true DEBUGARG("Fast tail call lowering is creating a new local variable"));
-
-    //                    comp->lvaTable[tmpLclNum].lvType            = tmpType;
-    //                    comp->lvaTable[tmpLclNum].lvDoNotEnregister = comp->lvaTable[lcl->gtLclNum].lvDoNotEnregister;
-    //                }
-
-    //                lcl->SetLclNum(tmpLclNum);
-    //            }
-    //        }
-    //    }
-
-    //    // If we have created a temp, insert an embedded assignment stmnt before
-    //    // the first putargStkNode i.e.
-    //    //     tmpLcl = CallerArg
-    //    if (tmpLclNum != BAD_VAR_NUM)
-    //    {
-    //        assert(tmpType != TYP_UNDEF);
-    //        GenTreeLclVar* local      = new (comp, GT_LCL_VAR) GenTreeLclVar(GT_LCL_VAR, tmpType, callerArgLclNum);
-    //        GenTree*       assignExpr = comp->gtNewTempAssign(tmpLclNum, local);
-    //        ContainCheckRange(local, assignExpr);
-    //        BlockRange().InsertBefore(firstPutArgStk, LIR::SeqTree(comp, assignExpr));
-    //    }
-    //}
 
     // Insert GT_PROF_HOOK node to emit profiler tail call hook. This should be
     // inserted before the args are setup but after the side effects of args are
