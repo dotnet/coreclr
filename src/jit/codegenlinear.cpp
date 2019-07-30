@@ -1647,8 +1647,10 @@ void CodeGen::genPutArgStkFieldList(GenTreePutArgStk* putArgStk, unsigned outArg
         unsigned thisFieldOffset = argOffset + fieldListPtr->gtFieldOffset;
         getEmitter()->emitIns_S_R(ins_Store(type), attr, reg, outArgVarNum, thisFieldOffset);
 
-        // We can't write beyond the arg area
-        assert((thisFieldOffset + EA_SIZE_IN_BYTES(attr)) <= compiler->lvaLclSize(outArgVarNum));
+        // We can't write beyond the arg area unless this is a tail call, in which case we use
+        // the first stack arg as the base of the incoming arg area.
+        assert(putArgStk->gtCall->IsFastTailCall() ||
+               (thisFieldOffset + EA_SIZE_IN_BYTES(attr)) <= compiler->lvaLclSize(outArgVarNum));
     }
 }
 #endif // !_TARGET_X86_

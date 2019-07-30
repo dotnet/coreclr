@@ -137,6 +137,10 @@ private:
     GenTree* LowerDirectCall(GenTreeCall* call);
     GenTree* LowerNonvirtPinvokeCall(GenTreeCall* call);
     GenTree* LowerTailCallViaHelper(GenTreeCall* callNode, GenTree* callTarget);
+    void RehomeArgForFastTailCall(unsigned int lclNum,
+                                  GenTree*     insertTempBefore,
+                                  GenTree*     overwritingNode,
+                                  GenTreeCall* callNode);
     void LowerFastTailCall(GenTreeCall* callNode);
     void InsertProfTailCallHook(GenTreeCall* callNode, GenTree* insertionPoint);
     GenTree* LowerVirtualVtableCall(GenTreeCall* call);
