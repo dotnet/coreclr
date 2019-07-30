@@ -325,10 +325,10 @@ jobs:
 
     # Zip tests
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: pushd $(Build.SourcesDirectory) && zip -r $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).zip ./* && popd
+      - script: pushd $(Build.SourcesDirectory) && tar -czvf $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).tar.gz ./* && popd
         displayName: Zip Tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('$(Build.SourcesDirectory)\\bin\\tests\\$(osGroup).$(archType).$(buildConfigUpper)', '$(Build.SourcesDirectory)\\bin\\tests\\$(osGroup).$(archType).$(buildConfigUpper).zip')\"
+      - script: powershell -NoProfile -Command "Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('$(Build.SourcesDirectory)\\bin\\tests\\$(osGroup).$(archType).$(buildConfigUpper)', '$(Build.SourcesDirectory)\\bin\\tests\\$(osGroup).$(archType).$(buildConfigUpper).zip')"
         displayName: Zip Tests
 
     - task: PublishBuildArtifacts@1
