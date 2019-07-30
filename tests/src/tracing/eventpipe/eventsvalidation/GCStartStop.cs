@@ -15,6 +15,7 @@ namespace Tracing.Tests.GCStartStop
     {
         public static int Main(string[] args)
         {
+            Console.WriteLine("EventPipe validation test");
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
@@ -22,6 +23,7 @@ namespace Tracing.Tests.GCStartStop
             };
             
             var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
+            Console.WriteLine("Validation method: RunAndValidateEventCounts");
             return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesTraceContainEvents);
         }
 
@@ -34,21 +36,24 @@ namespace Tracing.Tests.GCStartStop
 
         private static Action _eventGeneratingAction = () => 
         {
-            for (int i = 0; i < 1000; i++)
+            Console.WriteLine("Event generating method: _eventGeneratingAction start");
+            for (int i = 0; i < 100; i++)
             {
                 ProviderValidation providerValidation = new ProviderValidation();
                 providerValidation = null;
                 GC.Collect();
             }
+            Console.WriteLine("Event generating method: _eventGeneratingAction end");
         };
 
         private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainEvents = (source) => 
         {
+            Console.WriteLine("Callback method: _DoesTraceContainEvents");
             int GCStartEvents = 0;
             int GCEndEvents = 0;
             source.Clr.GCStart += (eventData) => GCStartEvents += 1;
             source.Clr.GCStop += (eventData) => GCEndEvents += 1;
-            return () => GCStartEvents >= 1000 && GCEndEvents <= 1000 && GCStartEvents == GCEndEvents ? 100 : -1;
+            return () => GCStartEvents >= 100 && GCEndEvents <= 100 && GCStartEvents == GCEndEvents ? 100 : -1;
         };
     }
 }
