@@ -194,18 +194,6 @@
 
   </Target>
 
-  <PropertyGroup>
-     <PrepareForRunDependsOn>$(PrepareForRunDependsOn);ResetReferenceCopyLocalPaths</PrepareForRunDependsOn>
-  </PropertyGroup>
-
-  <Target Name="ResetReferenceCopyLocalPaths"
-          Condition="'@(ReferenceCopyLocalPaths)' != ''"
-          BeforeTargets="_CopyFilesMarkedCopyLocal">
-    <ItemGroup>
-       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.CopyLocal)' != 'true'"/>
-    </ItemGroup>
-  </Target>
-
   <Target Name="UpdateReferenceItems"
           BeforeTargets="BeforeResolveReferences"
   >
