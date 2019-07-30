@@ -163,10 +163,10 @@ namespace JitBench
 
         static IEnumerable<BenchmarkConfiguration> GetBenchmarkConfigurations(CommandLineOptions options)
         {
-            string tieredEnv = Environment.GetEnvironmentVariable("COMPLUS_TieredCompilation");
-            string minoptsEnv = Environment.GetEnvironmentVariable("COMPLUS_JitMinopts");
-            string r2rEnv = Environment.GetEnvironmentVariable("COMPLUS_ReadyToRun");
-            string ngenEnv = Environment.GetEnvironmentVariable("COMPLUS_ZapDisable");
+            string tieredEnv = Environment.GetEnvironmentVariable("COMPlus_TieredCompilation");
+            string minoptsEnv = Environment.GetEnvironmentVariable("COMPlus_JitMinopts");
+            string r2rEnv = Environment.GetEnvironmentVariable("COMPlus_ReadyToRun");
+            string noNgenEnv = Environment.GetEnvironmentVariable("COMPlus_ZapDisable");
             BenchmarkConfiguration envConfig = new BenchmarkConfiguration();
             if(tieredEnv != null && tieredEnv != "0")
             {
@@ -176,11 +176,11 @@ namespace JitBench
             {
                 envConfig.WithMinOpts();
             }
-            if(r2rEnv != null && r2rEnv != "1")
+            if(r2rEnv != null && r2rEnv == "0")
             {
                 envConfig.WithNoR2R();
             }
-            if(ngenEnv != null && ngenEnv != "0")
+            if(noNgenEnv != null && noNgenEnv != "0")
             {
                 envConfig.WithNoNgen();
             }
@@ -198,7 +198,6 @@ namespace JitBench
 
             BenchmarkConfiguration[] possibleConfigs = new BenchmarkConfiguration[]
             {
-                new BenchmarkConfiguration(),
                 new BenchmarkConfiguration().WithTiering(),
                 new BenchmarkConfiguration().WithMinOpts(),
                 new BenchmarkConfiguration().WithNoR2R(),
