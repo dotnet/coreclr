@@ -37,7 +37,7 @@ namespace Tracing.Tests.GCStartStop
         private static Action _eventGeneratingAction = () => 
         {
             Console.WriteLine("Event generating method: _eventGeneratingAction start");
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 ProviderValidation providerValidation = new ProviderValidation();
                 providerValidation = null;
@@ -57,7 +57,7 @@ namespace Tracing.Tests.GCStartStop
                 Console.WriteLine("Event counts validation");
                 Console.WriteLine("GCStartEvents: " + GCStartEvents);
                 Console.WriteLine("GCEndEvents: " + GCEndEvents);
-                return GCStartEvents >= 100 && GCEndEvents <= 100 && GCStartEvents == GCEndEvents ? 100 : -1;
+                return GCStartEvents >= 1000 && GCEndEvents >= 1000 && GCStartEvents == GCEndEvents ? 100 : -1;
             };
         };
     }
