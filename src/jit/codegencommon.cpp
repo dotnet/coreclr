@@ -8641,10 +8641,10 @@ void CodeGen::genFnEpilog(BasicBlock* block)
             {
                 assert(call->gtCallMethHnd != nullptr);
                 // clang-format off
-                getEmitter()->emitIns_Call(callType,
-                                           methHnd,
+                getEmitter()->emitIns_Call(emitter::EC_FUNC_TOKEN,
+                                           call->gtCallMethHnd,
                                            INDEBUG_LDISASM_COMMA(nullptr)
-                                           addr,
+                                           call->gtDirectCallAddress,
                                            0,          // argSize
                                            EA_UNKNOWN  // retSize
                                            ARM64_ARG(EA_UNKNOWN), // secondRetSize
@@ -8652,7 +8652,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                                            gcInfo.gcRegGCrefSetCur,
                                            gcInfo.gcRegByrefSetCur,
                                            BAD_IL_OFFSET, // IL offset
-                                           indCallReg,    // ireg
+                                           REG_NA,        // ireg
                                            REG_NA,        // xreg
                                            0,             // xmul
                                            0,             // disp
