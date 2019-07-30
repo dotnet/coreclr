@@ -204,6 +204,9 @@ jobs:
       archType: x64
       osGroup: Windows_NT
       osIdentifier: Windows_NT
+      container:
+        image: coreclr-release-3-0-0
+        registry: jashook/
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - Windows.10.Amd64.Open
