@@ -87,18 +87,6 @@
   <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
   <Import Project="$(ProjectDir)..\dependencies.props" />
 
-  <!-- Add test-specific package restore sources. -->
-  <PropertyGroup>
-    <RestoreSources Condition="'$(DotNetBuildOffline)' != 'true'">
-      https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json;
-      $(RestoreSources)
-    </RestoreSources>
-    <RestoreSources Condition="'$(IntermediateAzureFeed)' != ''">
-      $(IntermediateAzureFeed);
-      $(RestoreSources)
-    </RestoreSources>
-  </PropertyGroup>
-
   <!-- Use Roslyn Compilers to build -->
   <Import Project="$(RoslynPropsFile)" Condition="Exists('$(RoslynPropsFile)')" />
 

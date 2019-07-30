@@ -11,13 +11,6 @@
     <PackageReference Include="optimization.IBC.CoreCLR" Version="$(optimizationIBCCoreCLRVersion)" Condition="'$(optimizationIBCCoreCLRVersion)'!=''" />
   </ItemGroup>
 
-  <PropertyGroup>
-    <RestoreSources>
-      https://dotnetfeed.blob.core.windows.net/dotnet-core/index.json;
-      $(RestoreSources);
-    </RestoreSources>
-  </PropertyGroup>
-
   <!--                                                                       -->
   <!-- Task: DumpPgoDataPackageVersion                                       -->
   <!--                                                                       -->
