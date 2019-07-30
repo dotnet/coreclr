@@ -8626,10 +8626,45 @@ void CodeGen::genFnEpilog(BasicBlock* block)
         else
         {
             // Fast tail call.
-            // Call target = REG_FASTTAILCALL_TARGET
-            // https://github.com/dotnet/coreclr/issues/4827
-            // Do we need a special encoding for stack walker like rex.w prefix for x64?
-            getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), REG_FASTTAILCALL_TARGET);
+            GenTreeCall* call     = jmpNode->AsCall();
+            gtCallTypes  callType = (gtCallTypes)call->gtCallType;
+
+            // Fast tail calls cannot happen to helpers.
+            assert((callType == CT_INDIRECT) || (callType == CT_USER_FUNC));
+
+            // Try to dispatch this as a direct branch; this is possible when the call is
+            // truly direct. In this case, the control expression will be null and the direct
+            // target address will be in gtDirectCallAddress. It is still possible that calls
+            // to user funcs require indirection, in which case the control expression will
+            // be non-null.
+            if ((callType == CT_USER_FUNC) && (call->gtControlExpr == nullptr))
+            {
+                assert(call->gtCallMethHnd != nullptr);
+                // clang-format off
+                getEmitter()->emitIns_Call(callType,
+                                           methHnd,
+                                           INDEBUG_LDISASM_COMMA(nullptr)
+                                           addr,
+                                           0,          // argSize
+                                           EA_UNKNOWN  // retSize
+                                           ARM64_ARG(EA_UNKNOWN), // secondRetSize
+                                           gcInfo.gcVarPtrSetCur,
+                                           gcInfo.gcRegGCrefSetCur,
+                                           gcInfo.gcRegByrefSetCur,
+                                           BAD_IL_OFFSET, // IL offset
+                                           indCallReg,    // ireg
+                                           REG_NA,        // xreg
+                                           0,             // xmul
+                                           0,             // disp
+                                           true);         // isJump
+                // clang-format on
+            }
+            else
+            {
+                // Target requires indirection to obtain. genCallInstruction will have materialized
+                // it into REG_FASTTAILCALL_TARGET already, so just branch to it.
+                getEmitter()->emitIns_R(INS_br, emitTypeSize(TYP_I_IMPL), REG_FASTTAILCALL_TARGET);
+            }
         }
 #endif // FEATURE_FASTTAILCALL
     }
