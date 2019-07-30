@@ -231,6 +231,10 @@
     <ProjectAssetsFile></ProjectAssetsFile>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'">
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+
   <Import Project="../../clr.featuredefines.props" />
 
 </Project>
