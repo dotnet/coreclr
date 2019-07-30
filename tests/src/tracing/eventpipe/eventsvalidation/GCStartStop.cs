@@ -53,7 +53,12 @@ namespace Tracing.Tests.GCStartStop
             int GCEndEvents = 0;
             source.Clr.GCStart += (eventData) => GCStartEvents += 1;
             source.Clr.GCStop += (eventData) => GCEndEvents += 1;
-            return () => GCStartEvents >= 100 && GCEndEvents <= 100 && GCStartEvents == GCEndEvents ? 100 : -1;
+            return () => {
+                Console.WriteLine("Event counts validation");
+                Console.WriteLine("GCStartEvents: " + GCStartEvents);
+                Console.WriteLine("GCEndEvents: " + GCEndEvents);
+                return GCStartEvents >= 100 && GCEndEvents <= 100 && GCStartEvents == GCEndEvents ? 100 : -1;
+            };
         };
     }
 }
