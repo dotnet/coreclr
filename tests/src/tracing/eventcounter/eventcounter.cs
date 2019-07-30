@@ -96,8 +96,8 @@ namespace BasicEventSourceTests
             public bool validateMean()
             {
                 // we expect to see 1 because we wrote only 1s
-                // we might also see 0 because there is a period of time we didn't write stuff and got callback
-                if (!means.Contains(1) && !means.Contains(0)) 
+                // we *might* also see 0 because there is a period of time we didn't write stuff and got callback
+                if (!means.Contains(1)) 
                 {
                     Console.WriteLine("Mean doesn't have a 1");
                     return false;
