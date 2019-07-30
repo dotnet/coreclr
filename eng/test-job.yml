@@ -323,10 +323,18 @@ jobs:
           - forcerelocs
           - gcstress15
 
+    # Zip tests
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: zip -r $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).zip $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
+        displayName: Zip Tests
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: powershell -NoProfile -Command \"Add-Type -Assembly 'System.IO.Compression.FileSystem'; [System.IO.Compression.ZipFile]::CreateFromDirectory('$(Build.SourcesDirectory)\\bin\\tests\\${osGroup}.${archType}.${buildConfigUpper}', '$(Build.SourcesDirectory)\\bin\\tests\\${osGroup}.${archType}.${buildConfigUpper}.zip')\"
+        displayName: Zip Tests
+
     - task: PublishBuildArtifacts@1
       displayName: Publish Test Build
       inputs:
-        pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
+        pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).zip
         artifactName: ${{ format('{0}_{1}_{2}_tests', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Publish Logs
