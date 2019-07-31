@@ -45,9 +45,10 @@
     <Error Condition=" '$(BUILD_BUILDNUMBER)' == '' " Text="BUILD_BUILDNUMBER must be set" />
     <Error Condition=" '$(BUILD_SOURCEVERSION)' == '' " Text="BUILD_SOURCEVERSION must be set" />
 
-
     <PropertyGroup>
-      <AssetManifestFilePath>$(ArtifactsLogDir)AssetManifest\$(OSIdentifier)-$(BuildArch)</AssetManifestFilePath>
+      <AssetManifestFilePath>$(ArtifactsLogDir)AssetManifest\$(OSIdentifier)-$(BuildArch).xml</AssetManifestFilePath>
+      <TempWorkingDirectory>$(ArtifactsDir)\..\AssetsTmpDir\$([System.Guid]::NewGuid())</TempWorkingDirectory>
+
       <!-- Work around an issue where the repo URI is different on
            OSX, causing the manifests to have different headers, which
            makes publishing to BAR fail later when it tries to merge
@@ -59,15 +60,16 @@
     <Message Importance="High" Text="BUILD_REPOSITORY_URI: $(BUILD_REPOSITORY_URI)" />
     <Message Importance="High" Text="_TemporaryBuildRepositoryUri: $(_TemporaryBuildRepositoryUri)" />
 
-    <PushToBlobFeed ExpectedFeedUrl="$(AzureFeedUrl)"
-                    AccountKey="$(AzureAccountKey)"
-                    ItemsToPush="@(ItemsToPushToBlobFeed)"
-                    ManifestBuildData="Location=$(AzureFeedUrl)"
-                    ManifestRepoUri="$(_TemporaryBuildRepositoryUri)"
-                    ManifestBranch="$(BUILD_SOURCEBRANCH)"
-                    ManifestBuildId="$(BUILD_BUILDNUMBER)"
-                    ManifestCommit="$(BUILD_SOURCEVERSION)"
-                    AssetManifestPath="$(AssetManifestFilePath)" />
+    <PushToAzureDevOpsArtifacts
+        ItemsToPush="@(ItemsToPushToBlobFeed)"
+        ManifestBuildData="Location=$(AzureFeedUrl)"
+        ManifestRepoUri="$(_TemporaryBuildRepositoryUri)"
+        ManifestBranch="$(BUILD_SOURCEBRANCH)"
+        ManifestBuildId="$(BUILD_BUILDNUMBER)"
+        ManifestCommit="$(BUILD_SOURCEVERSION)"
+        PublishFlatContainer="false"
+        AssetManifestPath="$(AssetManifestFilePath)"
+        AssetsTemporaryDirectory="$(TempWorkingDirectory)" />
   </Target>
 
 </Project>
