@@ -14,12 +14,16 @@ class CommonStringTests
 {
     private static readonly string InitialString = "Hello World";
 
-    public static void RunTests(bool runStringBuilderTests = true)
+    public static void RunTests(bool runStringBuilderTests = true, bool runStructTests = true)
     {
         RunStringTests();
         if (runStringBuilderTests)
         {
             RunStringBuilderTests();
+        }
+        if (runStructTests)
+        {
+            RunStructTests();
         }
     }
 
@@ -68,5 +72,19 @@ class CommonStringTests
             b.Clear();
             b.Append(reversed);
         }));
+    }
+
+    private static void RunStructTests()
+    {
+        Assert.IsTrue(MatchFunctionNameInStruct(new StringInStruct { str = nameof(MatchFunctionNameInStruct)}));
+
+        var str = new StringInStruct
+        {
+            str = InitialString
+        };
+
+        ReverseInplaceByrefInStruct(ref str);
+
+        Assert.AreEqual(Helpers.Reverse(InitialString), str.str);
     }
 }

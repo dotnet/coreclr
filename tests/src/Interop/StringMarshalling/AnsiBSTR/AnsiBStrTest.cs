@@ -14,7 +14,7 @@ class AnsiBStrTest
     {
         try
         {
-            CommonStringTests.RunTests(runStringBuilderTests: false);
+            CommonStringTests.RunTests(runStringBuilderTests: false, runStructTests: false);
         }
         catch (System.Exception ex)
         {

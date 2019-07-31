@@ -6,6 +6,11 @@
 // The StringType and Tests type aliases and the FUNCTION_NAME macro
 // must be defined for this file to compile.
 
+struct StringInStruct
+{
+    StringType str;
+};
+
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFunctionName(StringType str)
 {
     return Tests::Compare(FUNCTION_NAME, str);
@@ -16,9 +21,19 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFunctionNameByRef(StringType* 
     return Tests::Compare(FUNCTION_NAME, *str);
 }
 
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFunctionNameInStruct(StringInStruct str)
+{
+    return Tests::Compare(FUNCTION_NAME, str.str);
+}
+
 extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseInplace(StringType str)
 {
     Tests::ReverseInplace(str);
+}
+
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseInplaceByrefInStruct(StringInStruct* str)
+{
+    Tests::ReverseInplace(str->str);
 }
 
 extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseInplaceByref(StringType* str)

@@ -26,12 +26,22 @@ class StringMarshalingTestNative
 #error A string marshaling type must be specified.
 #endif
 
+    public struct StringInStruct
+    {
+        [MarshalAs(StringMarshalingType)]
+        public string str;
+    }
+
     [DllImport(NativeLibraryName)]
     public static extern bool MatchFunctionName([MarshalAs(StringMarshalingType)] string actual);
     [DllImport(NativeLibraryName)]
     public static extern bool MatchFunctionNameByRef([MarshalAs(StringMarshalingType)] ref string actual);
     [DllImport(NativeLibraryName)]
+    public static extern bool MatchFunctionNameInStruct(StringInStruct str);
+    [DllImport(NativeLibraryName)]
     public static extern void ReverseInplace([MarshalAs(StringMarshalingType)] StringBuilder str);
+    [DllImport(NativeLibraryName)]
+    public static extern void ReverseInplaceByrefInStruct(ref StringInStruct str);
     [DllImport(NativeLibraryName)]
     public static extern void ReverseInplaceByref([MarshalAs(StringMarshalingType)] ref string str);
     [DllImport(NativeLibraryName)]
