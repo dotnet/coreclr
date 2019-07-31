@@ -72,7 +72,6 @@ template<typename StringT, size_t LengthFunction(typename StringTraits<StringT>:
 struct StringMarshalingTests : StringMarshalingTestsBase<StringTraits<StringT>, LengthFunction>
 {
     using Base = StringMarshalingTestsBase<StringTraits<StringT>, LengthFunction>;
-    using StringT =  typename Base::StringT;
 
     static void Reverse(StringT str, StringT* result)
     {
