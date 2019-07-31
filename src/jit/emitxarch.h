@@ -39,17 +39,8 @@ struct CnsVal
     bool    cnsReloc;
 };
 
-UNATIVE_OFFSET emitInsSize(code_t code);
-UNATIVE_OFFSET emitInsSizeSV(code_t code, int var, int dsp);
-UNATIVE_OFFSET emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp);
-UNATIVE_OFFSET emitInsSizeSV(instrDesc* id, code_t code, int var, int dsp, int val);
-UNATIVE_OFFSET emitInsSizeRR(instrDesc* id, code_t code);
-UNATIVE_OFFSET emitInsSizeRR(instrDesc* id, code_t code, int val);
-UNATIVE_OFFSET emitInsSizeRR(instruction ins, regNumber reg1, regNumber reg2, emitAttr attr);
 UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code);
 UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code, int val);
-UNATIVE_OFFSET emitInsSizeCV(instrDesc* id, code_t code);
-UNATIVE_OFFSET emitInsSizeCV(instrDesc* id, code_t code, int val);
 
 template <bool generateCode>
 BYTE* emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = nullptr);
