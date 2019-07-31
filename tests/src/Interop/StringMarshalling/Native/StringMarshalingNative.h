@@ -12,14 +12,12 @@ struct StringTraits
     using type = StringT;
     using CharT = typename std::remove_pointer<StringT>::type;
     using ConstStringT = CharT const *;
-    static const bool VerifyNullTerminator = true;
 };
 
 struct BSTRTraits
 {
     using type = BSTR;
     using ConstStringT = BSTR;
-    static const bool VerifyNullTerminator = false;
 };
 
 template<typename StringT>
@@ -43,7 +41,7 @@ struct StringMarshalingTestsBase
     using StringT = typename StringTraitsT::type;
     using ConstStringT = typename StringTraitsT::ConstStringT;
 
-    static BOOL Compare(ConstStringT expected, const StringT actual)
+    static BOOL Compare(ConstStringT expected, const ConstStringT actual)
     {
         if (LengthFunction(expected) != LengthFunction(actual))
         {
@@ -51,13 +49,14 @@ struct StringMarshalingTestsBase
         }
 
         size_t length = LengthFunction(expected);
-
-        for (size_t i = 0; i < length + (StringTraitsT::VerifyNullTerminator ? 1 : 0); i++)
+        ConstStringT currE = expected;
+        ConstStringT endE = expected + length;
+        ConstStringT currA = actual;
+        ConstStringT endA = actual + length;
+        for (; currE != endE; ++currE, ++currA)
         {
-            if (((CharT*)expected)[i] != ((CharT*)actual)[i])
-            {
+            if (((CharT)*currE) != ((CharT)*currA))
                 return FALSE;
-            }
         }
         
         return TRUE;
