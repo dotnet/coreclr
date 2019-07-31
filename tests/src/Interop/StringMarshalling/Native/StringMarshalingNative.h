@@ -48,11 +48,11 @@ struct StringMarshalingTestsBase
             return FALSE;
         }
 
-        size_t length = LengthFunction(expected);
-        ConstStringT currE = expected;
-        ConstStringT endE = expected + length;
-        ConstStringT currA = actual;
-        ConstStringT endA = actual + length;
+        size_t length = LengthFunction(expected) + 1;
+        CharT const* currE = (CharT const*)expected;
+        CharT const* endE = (CharT const*)expected + length;
+        CharT const* currA = (CharT const*)actual;
+        CharT const* endA = (CharT const*)actual + length;
         for (; currE != endE; ++currE, ++currA)
         {
             if (((CharT)*currE) != ((CharT)*currA))
