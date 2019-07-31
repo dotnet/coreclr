@@ -29,7 +29,7 @@ namespace System.Text
         // - 0x40 bit if set means 'is letter or digit'
         // - 0x20 bit is reserved for future use
         // - bottom 5 bits are the UnicodeCategory of the character
-        private static ReadOnlySpan<byte> AsciiCharInfo => new byte[256]
+        private static ReadOnlySpan<byte> AsciiCharInfo => new byte[]
         {
             0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x8E, 0x8E, 0x8E, 0x8E, 0x8E, 0x0E, 0x0E,
             0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E, 0x0E,
@@ -38,14 +38,7 @@ namespace System.Text
             0x18, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40,
             0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x40, 0x14, 0x18, 0x15, 0x1B, 0x12,
             0x1B, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
-            0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x14, 0x19, 0x15, 0x19, 0x0E,
-
-            // pad with zeros to make 256 elements so any access to AsciiCharInfo via byte index 
-            // won't generate redundant bound checks
-            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-            0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+            0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x14, 0x19, 0x15, 0x19, 0x0E
         };
 
         private readonly uint _value;
@@ -1085,7 +1078,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return (UnicodeCategory)(AsciiCharInfo[(byte)value.Value] & UnicodeCategoryMask);
+                return (UnicodeCategory)(AsciiCharInfo[value.Value] & UnicodeCategoryMask);
             }
             else
             {
@@ -1178,7 +1171,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return ((AsciiCharInfo[(byte)value.Value] & IsLetterOrDigitFlag) != 0);
+                return ((AsciiCharInfo[value.Value] & IsLetterOrDigitFlag) != 0);
             }
             else
             {
@@ -1241,7 +1234,7 @@ namespace System.Text
         {
             if (value.IsAscii)
             {
-                return (AsciiCharInfo[(byte)value.Value] & IsWhiteSpaceFlag) != 0;
+                return (AsciiCharInfo[value.Value] & IsWhiteSpaceFlag) != 0;
             }
 
             // U+0085 is special since it's a whitespace character but is in the Control category
