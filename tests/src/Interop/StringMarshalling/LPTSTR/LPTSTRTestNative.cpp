@@ -18,3 +18,33 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE Verify_NullTerminators_PastEnd(LPCW
 {
     return buffer[length+1] == W('\0');
 }
+
+struct ByValStringInStructAnsi
+{
+    char str[20];
+};
+
+struct ByValStringInStructUnicode
+{
+    WCHAR str[20];
+};
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFuncNameAnsi(ByValStringInStructAnsi str)
+{
+    return StringMarshalingTests<char*, strlen>::Compare(__func__, str.str);
+}
+
+extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFuncNameUni(ByValStringInStructUnicode str)
+{
+    return StringMarshalingTests<LPWSTR, TP_slen>::Compare(__FUNCTIONW__, str.str);
+}
+
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseByValStringAnsi(ByValStringInStructAnsi* str)
+{
+    StringMarshalingTests<char*, strlen>::ReverseInplace(str->str);
+}
+
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseByValStringUni(ByValStringInStructUnicode* str)
+{
+    StringMarshalingTests<LPWSTR, TP_slen>::ReverseInplace(str->str);
+}
