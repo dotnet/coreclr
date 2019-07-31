@@ -4,187 +4,93 @@
 
 using System;
 using System.Runtime.InteropServices;
+using TestLibrary;
 
-#pragma warning disable 618
-[StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
-public struct Stru_Exp_DecAsCYAsFld
+public class DecimalTest
 {
-    [FieldOffset(0)]
-    public char wc;
+    private const int StartingIntValue = 42;
+    private const int NewIntValue = 18;
 
-    [FieldOffset(8)]
-    [MarshalAs(UnmanagedType.Currency)]
-    public decimal cy;
-}
-
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-public struct Stru_Seq_DecAsLPStructAsFld
-{
-    public double dblVal;
-
-    public char cVal;
-
-    [MarshalAs(UnmanagedType.LPStruct)]
-    public decimal dec;
-}
-
-public struct NestedCurrency
-{
-    [MarshalAs(UnmanagedType.Currency)]
-    public decimal dec;
-}
-
-public class CMain
-{
-    //DECIMAL
-    [DllImport("DecNative")]
-    static extern bool TakeDecAsInOutParamAsLPStructByRef([MarshalAs(UnmanagedType.LPStruct), In, Out] ref decimal dec);
-    [DllImport("DecNative")]
-    static extern bool TakeDecAsOutParamAsLPStructByRef([MarshalAs(UnmanagedType.LPStruct), Out] out decimal dec);
-    [DllImport("DecNative")]
-    [return: MarshalAs(UnmanagedType.LPStruct)]
-    static extern decimal RetDec();
-
-    //CY
-    [DllImport("DecNative")]
-    static extern bool TakeCYAsInOutParamAsLPStructByRef([MarshalAs(UnmanagedType.Currency), In, Out] ref decimal cy);
-    [DllImport("DecNative")]
-    static extern bool TakeCYAsOutParamAsLPStructByRef([MarshalAs(UnmanagedType.Currency), Out] out decimal cy);
-    [DllImport("DecNative")]
-    [return: MarshalAs(UnmanagedType.Currency)]
-    static extern decimal RetCY();
-    [DllImport("DecNative", EntryPoint = "RetCY")]
-    static extern NestedCurrency RetCYStruct();
-    [DllImport("DecNative")]
-    static extern bool TakeStru_Exp_DecAsCYAsFldByInOutRef([Out] out Stru_Exp_DecAsCYAsFld s);
-
-    static int fails = 0;
-    static decimal CY_MAX_VALUE = 922337203685477.5807M;
-    static decimal CY_MIN_VALUE = -922337203685477.5808M;
-
-    static bool MarshalAsLPStruct()
+    public static int Main()
     {
-        Console.WriteLine("MarshalAsLPStruct started.");
-        // DECIMAL
-        decimal dec = decimal.MaxValue;
-        if (!TakeDecAsInOutParamAsLPStructByRef(ref dec))
-        {
-            Console.WriteLine("Test Failed: TakeDecAsInOutParamAsLPStructByRef : Returned false");
-            return false;
-        }
-        if (decimal.MinValue != dec)
-        {
-            Console.WriteLine($"Test Failed: Expected 'decimal.MinValue'. Got {dec}.");
-            return false;
-        }
-
-        dec = decimal.Zero;
-        if (!TakeDecAsOutParamAsLPStructByRef(out dec))
-        {
-            Console.WriteLine("Test Failed: TakeDecAsOutParamAsLPStructByRef : Returned false");
-            return false;
-        }
-        if (decimal.MinValue != dec)
-        {
-            Console.WriteLine($"Test Failed: Expected 'decimal.MinValue'. Got {dec}.");
-            return false;
-        }
-
-        dec = RetDec();
-        if (dec != decimal.MaxValue)
-        {
-            Console.WriteLine($"Test Failed. Expected 'decimal.MaxValue'. Got {dec}");
-        }
-
-        Console.WriteLine("MarshalAsLPStruct end.");
-        return true;
-    }
-
-    static bool MarshalAsCurrencyScenario()
-    {
-        Console.WriteLine("MarshalAsCurrencyScenario started.");
-        //CY
-        decimal cy = CY_MAX_VALUE;
-        if (!TakeCYAsInOutParamAsLPStructByRef(ref cy))
-        { 
-            Console.WriteLine("Test Failed: TakeCYAsInOutParamAsLPStructByRef : Returned false");
-            return false;
-        }
-        if (CY_MIN_VALUE != cy)
-        { 
-            Console.WriteLine($"Test Failed: Expected 'CY_MIN_VALUE'. Got {cy}.");
-            return false;
-        }
-
-        cy = decimal.MaxValue;
-        if (!TakeCYAsOutParamAsLPStructByRef(out cy))
-        { 
-            Console.WriteLine("Test Failed: TakeCYAsOutParamAsLPStructByRef : Returned false");
-            return false;
-        }
-        if (CY_MIN_VALUE != cy)
-        { 
-            Console.WriteLine($"Test Failed: Expected 'CY_MIN_VALUE'. Got {cy}.");
-            return false;
-        }
-
-        bool exceptionThrown = false;
-
         try
         {
-            RetCY();
-        }
-        catch (MarshalDirectiveException)
-        {
-            exceptionThrown = true;
-        }
-        if (!exceptionThrown)
-        {
-            Console.WriteLine("Expected MarshalDirectiveException from RetCY() not thrown");
-            return false;
-        }
-
-        cy = RetCYStruct().dec;
-        if (cy != CY_MIN_VALUE)
-        {
-            Console.WriteLine($"Test Failed: RetCYStruct. Expected 'CY_MIN_VALUE'. Got '{cy}'.");
-            return false;
-        }
-
-        Stru_Exp_DecAsCYAsFld s = new Stru_Exp_DecAsCYAsFld();
-        s.cy = CY_MAX_VALUE;
-        s.wc = 'I';
-        if (!TakeStru_Exp_DecAsCYAsFldByInOutRef(out s))
-        {
-            Console.WriteLine("Test Failed: TakeStru_Exp_DecAsCYAsFldByInOutRef : Returned false");
-            return false;
-        }
-        if (!TakeStru_Exp_DecAsCYAsFldByInOutRef(out s))
-            if (CY_MAX_VALUE != s.cy)
+            RunDecimalTests();
+            RunLPDecimalTests();
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                Console.WriteLine($"Test Failed: Expected 'CY_MAX_VALUE'. Got {s.cy}.");
-                return false;
+                RunCurrencyTests();
             }
-        if ('C' != s.wc)
-        {
-            Console.WriteLine($"Test Failed: Expected 'C'. Got {s.wc}.");
-            return false;
         }
-
-        Console.WriteLine("MarshalAsCurrencyScenario end.");
-        return true;
+        catch (System.Exception ex)
+        {
+            Console.WriteLine(ex.ToString());
+            return 101;
+        }
+        return 100;
     }
 
-    static int Main()
+    private static void RunDecimalTests()
     {
-        bool success = true;
-        success = success && MarshalAsLPStruct();
-        if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-        {
-            success = success && MarshalAsCurrencyScenario();
-        }
+        Assert.AreEqual((decimal)StartingIntValue, DecimalTestNative.CreateDecimalFromInt(StartingIntValue));
 
-        return success ? 100 : 101;
+        Assert.IsTrue(DecimalTestNative.DecimalEqualToInt((decimal)StartingIntValue, StartingIntValue));
+
+        decimal localDecimal = (decimal)StartingIntValue;
+        Assert.IsTrue(DecimalTestNative.ValidateAndChangeDecimal(ref localDecimal, StartingIntValue, NewIntValue));
+        Assert.AreEqual((decimal)NewIntValue, localDecimal);
+
+        DecimalTestNative.GetDecimalForInt(NewIntValue, out var dec);
+        Assert.AreEqual((decimal)NewIntValue, dec);
+        
+        Assert.AreEqual((decimal)StartingIntValue, DecimalTestNative.CreateWrappedDecimalFromInt(StartingIntValue).dec);
+
+        Assert.IsTrue(DecimalTestNative.WrappedDecimalEqualToInt(new DecimalTestNative.DecimalWrapper { dec = (decimal)StartingIntValue }, StartingIntValue));
+
+        var localDecimalWrapper = new DecimalTestNative.DecimalWrapper { dec = (decimal)StartingIntValue };
+        Assert.IsTrue(DecimalTestNative.ValidateAndChangeWrappedDecimal(ref localDecimalWrapper, StartingIntValue, NewIntValue));
+        Assert.AreEqual((decimal)NewIntValue, localDecimalWrapper.dec);
+
+        DecimalTestNative.GetWrappedDecimalForInt(NewIntValue, out var decWrapper);
+        Assert.AreEqual((decimal)NewIntValue, decWrapper.dec);        
+    }
+
+    private static void RunLPDecimalTests()
+    {
+        Assert.AreEqual((decimal)StartingIntValue, DecimalTestNative.CreateLPDecimalFromInt(StartingIntValue));
+
+        Assert.IsTrue(DecimalTestNative.LPDecimalEqualToInt((decimal)StartingIntValue, StartingIntValue));
+
+        decimal localDecimal = (decimal)StartingIntValue;
+        Assert.IsTrue(DecimalTestNative.ValidateAndChangeLPDecimal(ref localDecimal, StartingIntValue, NewIntValue));
+        Assert.AreEqual((decimal)NewIntValue, localDecimal);
+
+        DecimalTestNative.GetLPDecimalForInt(NewIntValue, out var dec);
+        Assert.AreEqual((decimal)NewIntValue, dec);
+    }
+
+    private static void RunCurrencyTests()
+    {        
+        Assert.Throws<MarshalDirectiveException>(() => DecimalTestNative.CreateCurrencyFromInt(StartingIntValue));
+
+        Assert.IsTrue(DecimalTestNative.CurrencyEqualToInt((decimal)StartingIntValue, StartingIntValue));
+
+        decimal localCurrency = (decimal)StartingIntValue;
+        Assert.IsTrue(DecimalTestNative.ValidateAndChangeCurrency(ref localCurrency, StartingIntValue, NewIntValue));
+        Assert.AreEqual((decimal)NewIntValue, localCurrency);
+
+        DecimalTestNative.GetCurrencyForInt(NewIntValue, out var cy);
+        Assert.AreEqual((decimal)NewIntValue, cy);
+        
+        Assert.AreEqual((decimal)StartingIntValue, DecimalTestNative.CreateWrappedCurrencyFromInt(StartingIntValue).currency);
+
+        Assert.IsTrue(DecimalTestNative.WrappedCurrencyEqualToInt(new DecimalTestNative.CurrencyWrapper { currency = (decimal)StartingIntValue }, StartingIntValue));
+
+        var localCurrencyWrapper = new DecimalTestNative.CurrencyWrapper { currency = (decimal)StartingIntValue };
+        Assert.IsTrue(DecimalTestNative.ValidateAndChangeWrappedCurrency(ref localCurrencyWrapper, StartingIntValue, NewIntValue));
+        Assert.AreEqual((decimal)NewIntValue, localCurrencyWrapper.currency);
+
+        DecimalTestNative.GetWrappedCurrencyForInt(NewIntValue, out var currencyWrapper);
+        Assert.AreEqual((decimal)NewIntValue, currencyWrapper.currency);      
     }
 }
-#pragma warning restore 618
