@@ -71,6 +71,9 @@ struct StringMarshalingTestsBase
 template<typename StringT, size_t LengthFunction(typename StringTraits<StringT>::ConstStringT)>
 struct StringMarshalingTests : StringMarshalingTestsBase<StringTraits<StringT>, LengthFunction>
 {
+    using Base = StringMarshalingTestsBase<StringTraits<StringT>, LengthFunction>;
+    using StringT =  typename Base::StringT;
+
     static void Reverse(StringT str, StringT* result)
     {
         size_t length = LengthFunction(str);
@@ -79,7 +82,7 @@ struct StringMarshalingTests : StringMarshalingTestsBase<StringTraits<StringT>, 
         
         memcpy(buffer, str, byteSize);
 
-        ReverseInplace(buffer);
+        Base::ReverseInplace(buffer);
         *result = buffer;
     }
 
@@ -92,17 +95,19 @@ struct StringMarshalingTests : StringMarshalingTestsBase<StringTraits<StringT>, 
 template<size_t LengthFunction(BSTR), typename CharT, BSTR Alloc(CharT const*, size_t)>
 struct BStrMarshalingTests : StringMarshalingTestsBase<BSTRTraits, LengthFunction, CharT>
 {
+    using Base = StringMarshalingTestsBase<BSTRTraits, LengthFunction, CharT>;
+    using StringT =  typename Base::StringT;
     static void Reverse(BSTR str, StringT* result)
     {
         size_t length = LengthFunction(str);
         StringT buffer = Alloc((CharT const*)str, length);
 
-        ReverseInplace(buffer);
+        Base::ReverseInplace(buffer);
         *result = buffer;
     }
 
     static void FreeString(StringT str)
     {
-        SysFreeString(str);
+        CoreClrBStrFree(str);
     }
 };
