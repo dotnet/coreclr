@@ -52,7 +52,9 @@ public class DecimalTest
         Assert.AreEqual((decimal)NewIntValue, localDecimalWrapper.dec);
 
         DecimalTestNative.GetWrappedDecimalForInt(NewIntValue, out var decWrapper);
-        Assert.AreEqual((decimal)NewIntValue, decWrapper.dec);        
+        Assert.AreEqual((decimal)NewIntValue, decWrapper.dec);
+
+        DecimalTestNative.PassThroughDecimalToCallback((decimal)NewIntValue, d => Assert.AreEqual((decimal)NewIntValue, d));  
     }
 
     private static void RunLPDecimalTests()
@@ -67,6 +69,8 @@ public class DecimalTest
 
         DecimalTestNative.GetLPDecimalForInt(NewIntValue, out var dec);
         Assert.AreEqual((decimal)NewIntValue, dec);
+
+        DecimalTestNative.PassThroughLPDecimalToCallback((decimal)NewIntValue, d => Assert.AreEqual((decimal)NewIntValue, d));
     }
 
     private static void RunCurrencyTests()
@@ -92,5 +96,7 @@ public class DecimalTest
 
         DecimalTestNative.GetWrappedCurrencyForInt(NewIntValue, out var currencyWrapper);
         Assert.AreEqual((decimal)NewIntValue, currencyWrapper.currency);      
+        
+        DecimalTestNative.PassThroughCurrencyToCallback((decimal)NewIntValue, d => Assert.AreEqual((decimal)NewIntValue, d));
     }
 }

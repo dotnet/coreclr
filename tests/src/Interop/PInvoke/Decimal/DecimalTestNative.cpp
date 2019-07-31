@@ -149,3 +149,24 @@ extern "C" DLL_EXPORT void STDMETHODCALLTYPE GetWrappedCurrencyForInt(int32_t i,
 {
     currency->currency = CreateCurrencyFromInt(i);
 }
+
+using DecimalCallback = void(STDMETHODCALLTYPE*)(DECIMAL);
+
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE PassThroughDecimalToCallback(DECIMAL dec, DecimalCallback cb)
+{
+    cb(dec);
+}
+
+using LPDecimalCallback = void(STDMETHODCALLTYPE*)(LPDECIMAL);
+
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE PassThroughLPDecimalToCallback(LPDECIMAL dec, LPDecimalCallback cb)
+{
+    cb(dec);
+}
+
+using CurrencyCallback = void(STDMETHODCALLTYPE*)(CURRENCY);
+
+extern "C" DLL_EXPORT void STDMETHODCALLTYPE PassThroughCurrencyToCallback(CURRENCY cy, CurrencyCallback cb)
+{
+    cb(cy);
+}

@@ -60,4 +60,15 @@ static class DecimalTestNative
     public static extern void GetCurrencyForInt(int i, [MarshalAs(UnmanagedType.Currency)] out decimal currency);
     [DllImport(nameof(DecimalTestNative))]
     public static extern void GetWrappedCurrencyForInt(int i, out CurrencyWrapper currency);
+
+    public delegate void DecimalCallback(decimal dec);
+    public delegate void LPDecimalCallback([MarshalAs(UnmanagedType.LPStruct)] decimal dec);
+    public delegate void CurrencyCallback([MarshalAs(UnmanagedType.Currency)] decimal dec);
+
+    [DllImport(nameof(DecimalTestNative))]
+    public static extern void PassThroughDecimalToCallback(decimal dec, DecimalCallback callback);
+    [DllImport(nameof(DecimalTestNative))]
+    public static extern void PassThroughLPDecimalToCallback([MarshalAs(UnmanagedType.LPStruct)] decimal dec, LPDecimalCallback callback);
+    [DllImport(nameof(DecimalTestNative))]
+    public static extern void PassThroughCurrencyToCallback([MarshalAs(UnmanagedType.Currency)] decimal dec, CurrencyCallback callback);
 }
