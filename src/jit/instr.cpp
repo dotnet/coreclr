@@ -190,7 +190,13 @@ const char* CodeGen::genSizeStr(emitAttr attr)
 
 void CodeGen::instGen(instruction ins)
 {
-
+#ifdef _TARGET_XARCH_
+    if (ins == INS_nop)
+    {
+        instNop(1);
+        return;
+    }
+#endif
     getEmitter()->emitIns(ins);
 
 #ifdef _TARGET_XARCH_
