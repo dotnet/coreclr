@@ -40,7 +40,6 @@ struct CnsVal
 };
 
 UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code);
-UNATIVE_OFFSET emitInsSizeAM(instrDesc* id, code_t code, int val);
 
 template <bool generateCode>
 BYTE* emitOutputAM(BYTE* dst, instrDesc* id, code_t code, CnsVal* addc = nullptr);

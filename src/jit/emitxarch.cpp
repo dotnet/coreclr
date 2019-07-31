@@ -1994,47 +1994,6 @@ UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code)
     return size;
 }
 
-inline UNATIVE_OFFSET emitter::emitInsSizeAM(instrDesc* id, code_t code, int val)
-{
-    assert(id->idIns() != INS_invalid);
-    instruction    ins       = id->idIns();
-    UNATIVE_OFFSET valSize   = EA_SIZE_IN_BYTES(id->idOpSize());
-    bool           valInByte = ((signed char)val == val) && (ins != INS_mov) && (ins != INS_test);
-
-    // We should never generate BT mem,reg because it has poor performance. BT mem,imm might be useful
-    // but it requires special handling of the immediate value (it is always encoded in a byte).
-    // Let's not complicate things until this is needed.
-    assert(ins != INS_bt);
-
-#ifdef _TARGET_AMD64_
-    // mov reg, imm64 is the only opcode which takes a full 8 byte immediate
-    // all other opcodes take a sign-extended 4-byte immediate
-    noway_assert(valSize <= sizeof(INT32) || !id->idIsCnsReloc());
-#endif // _TARGET_AMD64_
-
-    if (valSize > sizeof(INT32))
-    {
-        valSize = sizeof(INT32);
-    }
-
-    if (id->idIsCnsReloc())
-    {
-        valInByte = false; // relocs can't be placed in a byte
-        assert(valSize == sizeof(INT32));
-    }
-
-    if (valInByte)
-    {
-        valSize = sizeof(char);
-    }
-    else
-    {
-        assert(!IsSSEOrAVXInstruction(ins));
-    }
-
-    return valSize + emitInsSizeAM(id, code);
-}
-
 /*****************************************************************************
  *
  *  Allocate instruction descriptors for instructions with address modes.
@@ -11441,7 +11400,8 @@ BYTE* emitter::emitOutputLJ(BYTE* dst, instrDesc* i)
                 // TODO-XArch-Cleanup: revisit this.
                 instrDescAmd  idAmdStackLocal;
                 instrDescAmd* idAmd = &idAmdStackLocal;
-                *(instrDesc*)idAmd  = *(instrDesc*)id; // copy all the "core" fields
+
+                *(instrDesc*)idAmd = *(instrDesc*)id; // copy all the "core" fields
                 memset((BYTE*)idAmd + sizeof(instrDesc), 0,
                        sizeof(instrDescAmd) - sizeof(instrDesc)); // zero out the tail that wasn't copied
 
@@ -11452,9 +11412,13 @@ BYTE* emitter::emitOutputLJ(BYTE* dst, instrDesc* i)
                 idAmd->idSetIsDspReloc(id->idIsDspReloc());
                 assert(emitGetInsAmdAny(idAmd) == distVal); // make sure "disp" is stored properly
 
-                UNATIVE_OFFSET sz = emitInsSizeAM(idAmd, insCodeRM(ins));
+#ifdef DEBUG
+                instrDescDebugInfo idDebugOnlyInfoLocal = *id->idDebugOnlyInfo();
+                idDebugOnlyInfoLocal.idSize             = emitSizeOfInsDsc(idAmd);
+                idAmd->idDebugOnlyInfo(&idDebugOnlyInfoLocal);
+#endif
 
-                idAmd->idCodeSize(sz);
+                emitPredictInstSize(idAmd);
 
                 code = insCodeRM(ins);
                 code |= (insEncodeReg345(ins, id->idReg1(), EA_PTRSIZE, &code) << 8);
@@ -11542,7 +11506,7 @@ BYTE* emitter::emitOutputLJ(BYTE* dst, instrDesc* i)
 template <bool generateCode>
 size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 {
-    assert(generateCode == emitIssuing);
+    assert(!generateCode || emitIssuing);
 
     BYTE*         dst           = *dp;
     size_t        sz            = sizeof(instrDesc);
