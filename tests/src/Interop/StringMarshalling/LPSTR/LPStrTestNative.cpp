@@ -5,7 +5,7 @@
 #include "../Native/StringMarshalingNative.h"
 
 using StringType = LPSTR;
-using Tests = StringMarshalingTests<StringType, strlen>;
+using Tests = StringMarshalingTests<StringType, default_callconv_strlen>;
 
 #define FUNCTION_NAME __func__
 

@@ -31,7 +31,7 @@ struct ByValStringInStructUnicode
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFuncNameAnsi(ByValStringInStructAnsi str)
 {
-    return StringMarshalingTests<char*, strlen>::Compare(__func__, str.str);
+    return StringMarshalingTests<char*, default_callconv_strlen>::Compare(__func__, str.str);
 }
 
 extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFuncNameUni(ByValStringInStructUnicode str)
@@ -41,7 +41,7 @@ extern "C" DLL_EXPORT BOOL STDMETHODCALLTYPE MatchFuncNameUni(ByValStringInStruc
 
 extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseByValStringAnsi(ByValStringInStructAnsi* str)
 {
-    StringMarshalingTests<char*, strlen>::ReverseInplace(str->str);
+    StringMarshalingTests<char*, default_callconv_strlen>::ReverseInplace(str->str);
 }
 
 extern "C" DLL_EXPORT void STDMETHODCALLTYPE ReverseByValStringUni(ByValStringInStructUnicode* str)

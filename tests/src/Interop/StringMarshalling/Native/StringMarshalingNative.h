@@ -110,3 +110,10 @@ struct BStrMarshalingTests : StringMarshalingTestsBase<BSTRTraits, LengthFunctio
         CoreClrBStrFree(str);
     }
 };
+
+// We the length function needs to match the default calling convention. Since CoreCLR builds with stdcall as the default on Windows, the built-in strlen function is the wrong calling convention.
+// Provide a simple wrapper here that uses the default calling convention to enable tests to use strlen.
+size_t default_callconv_strlen(const char* str)
+{
+    return strlen(str);
+}
