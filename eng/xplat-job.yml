@@ -67,8 +67,7 @@ jobs:
 
       # Public Windows Build Pool
       ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(variables['System.TeamProject'], 'public')) }}:
-        name: NetCorePublic-Pool
-        queue: windows-2019
+        vmImage: windows-2019
 
     workspace:
       clean: all
