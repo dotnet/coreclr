@@ -95,7 +95,7 @@ template<size_t LengthFunction(BSTR), typename CharT, BSTR Alloc(CharT const*, s
 struct BStrMarshalingTests : StringMarshalingTestsBase<BSTRTraits, LengthFunction, CharT>
 {
     using Base = StringMarshalingTestsBase<BSTRTraits, LengthFunction, CharT>;
-    using StringT =  typename Base::StringT;
+    using StringT = typename Base::StringT;
     static void Reverse(BSTR str, StringT* result)
     {
         size_t length = LengthFunction(str);
