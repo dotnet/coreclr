@@ -55,7 +55,7 @@ struct StringMarshalingTestsBase
         CharT const* endA = (CharT const*)actual + length;
         for (; currE != endE; ++currE, ++currA)
         {
-            if (((CharT)*currE) != ((CharT)*currA))
+            if (*currE != *currA)
                 return FALSE;
         }
         
