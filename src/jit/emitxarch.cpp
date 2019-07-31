@@ -2588,8 +2588,14 @@ void emitter::emitIns_Nop(unsigned size)
     emitCurIGsize += size;
 }
 
-void emitter::emitPredictInstSize(instrDesc* id, UNATIVE_OFFSET prevSize, bool skipNewSize)
+void emitter::emitPredictInstSize(instrDesc* id)
 {
+    emitPredictInstSize(id, 0, false, true);
+}
+
+void emitter::emitPredictInstSize(instrDesc* id, UNATIVE_OFFSET prevSize, bool skipNewSize, bool skipPrevSize)
+{
+    assert(!skipPrevSize || !skipNewSize);
     if (skipNewSize)
     {
         // skip this instruction.
@@ -2602,29 +2608,40 @@ void emitter::emitPredictInstSize(instrDesc* id, UNATIVE_OFFSET prevSize, bool s
 
         emitOutputInstr<false>(emitCurIG, id, &arrP);
         UNATIVE_OFFSET newSize = (UNATIVE_OFFSET)(arrP - arr);
-        assert(newSize <= prevSize);
+        if (!skipPrevSize)
+        {
+            assert(newSize <= prevSize);
+        }
+        else
+        {
+            assert(prevSize == 0);
+        }
 
         id->idCodeSize(newSize);
     }
 
     static int counter = 0, sizeOld = 1, sizeNew = 1, counterNew = 0, counterNewBetter = 0;
-    counter++;
-    sizeOld += prevSize;
-    sizeNew += id->idCodeSize();
 
-    if (!skipNewSize)
+    if (!skipPrevSize)
     {
-        counterNew++;
-        if (id->idCodeSize() != prevSize)
+        counter++;
+        sizeOld += prevSize;
+        sizeNew += id->idCodeSize();
+
+        if (!skipNewSize)
         {
-            counterNewBetter++;
+            counterNew++;
+            if (id->idCodeSize() != prevSize)
+            {
+                counterNewBetter++;
+            }
         }
-    }
 
-    if (counter % 10000 == 0)
-    {
-        printf("counter %d, oldSize %d, newSize %d, ratio %lf, counter new %d, new %.2lf\n", counter, sizeOld, sizeNew,
-               (double)sizeOld / sizeNew, counterNew, counterNewBetter * 100.0 / counter);
+        if (counter % 10000 == 0)
+        {
+            printf("counter %d, oldSize %d, newSize %d, ratio %lf, counter new %d, new %.2lf\n", counter, sizeOld,
+                   sizeNew, (double)sizeOld / sizeNew, counterNew, counterNewBetter * 100.0 / counter);
+        }
     }
 
     dispIns(id);

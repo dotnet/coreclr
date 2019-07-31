@@ -1581,7 +1581,11 @@ private:
 #ifdef _TARGET_XARCH_
     template <bool generateCode = true>
     size_t emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp);
-    void emitPredictInstSize(instrDesc* id, UNATIVE_OFFSET prevSize, bool skipNewSize = false);
+    void emitPredictInstSize(instrDesc* id);
+    void emitPredictInstSize(instrDesc*     id,
+                             UNATIVE_OFFSET prevSize,
+                             bool           skipNewSize  = false,
+                             bool           skipPrevSize = false);
 #else
     size_t emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp);
 #endif
