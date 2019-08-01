@@ -2017,7 +2017,7 @@ public:
 };
 
 
-class FieldMarshaler_Decimal : public FieldMarshaler
+class FieldMarshaler_Decimal : public FieldMarshaler_NestedType
 {
 public:
     static constexpr NStructFieldType s_nft = NFT_DECIMAL;
@@ -2056,6 +2056,11 @@ public:
         CONTRACTL_END;
       
         memcpyNoGCRefs(pCLR, pNative, sizeof(DECIMAL));
+    }
+
+    MethodTable* GetNestedNativeMethodTableImpl() const
+    {
+        return MscorlibBinder::GetClass(CLASS__DECIMAL);
     }
 
 };

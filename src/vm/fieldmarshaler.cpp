@@ -435,7 +435,7 @@ VOID ParseNativeType(Module*                     pModule,
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_Decimal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_WELL_KNOWN);
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_Decimal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS);
                 }
 #ifdef FEATURE_COMINTEROP
                 else if (ntype == NATIVE_TYPE_CURRENCY)
@@ -3778,6 +3778,8 @@ MethodTable* FieldMarshaler_NestedType::GetNestedNativeMethodTable() const
             return ((FieldMarshaler_NestedValueClass*)this)->GetNestedNativeMethodTableImpl();
         case NFT_FIXEDARRAY:
             return ((FieldMarshaler_FixedArray*)this)->GetNestedNativeMethodTableImpl();
+        case NFT_DECIMAL:
+            return ((FieldMarshaler_Decimal*)this)->GetNestedNativeMethodTableImpl();
         default:
             UNREACHABLE_MSG("unexpected type of FieldMarshaler_NestedType");
             return nullptr;
@@ -3794,6 +3796,8 @@ UINT32 FieldMarshaler_NestedType::GetNumElements() const
             return ((FieldMarshaler_NestedValueClass*)this)->GetNumElementsImpl();
         case NFT_FIXEDARRAY:
             return ((FieldMarshaler_FixedArray*)this)->GetNumElementsImpl();
+        case NFT_DECIMAL:
+            return ((FieldMarshaler_Decimal*)this)->GetNumElementsImpl();
         default:
             UNREACHABLE_MSG("unexpected type of FieldMarshaler_NestedType");
             return 1;
