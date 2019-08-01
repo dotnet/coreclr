@@ -139,7 +139,7 @@ private:
     GenTree* LowerTailCallViaHelper(GenTreeCall* callNode, GenTree* callTarget);
     void RehomeArgForFastTailCall(unsigned int lclNum,
                                   GenTree*     insertTempBefore,
-                                  GenTree*     overwritingNode,
+                                  GenTree*     lookForUsesStart,
                                   GenTreeCall* callNode);
     void LowerFastTailCall(GenTreeCall* callNode);
     void InsertProfTailCallHook(GenTreeCall* callNode, GenTree* insertionPoint);

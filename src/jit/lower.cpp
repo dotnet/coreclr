@@ -1901,11 +1901,11 @@ void Lowering::InsertProfTailCallHook(GenTreeCall* call, GenTree* insertionPoint
 // Note: This function may introduce new temps.
 void Lowering::RehomeArgForFastTailCall(unsigned int lclNum,
                                         GenTree*     insertTempBefore,
-                                        GenTree*     overwritingNode,
+                                        GenTree*     lookForUsesStart,
                                         GenTreeCall* callNode)
 {
     unsigned int tmpLclNum = BAD_VAR_NUM;
-    for (GenTree* treeNode = overwritingNode->gtNext; treeNode != callNode; treeNode = treeNode->gtNext)
+    for (GenTree* treeNode = lookForUsesStart; treeNode != callNode; treeNode = treeNode->gtNext)
     {
         if (!treeNode->OperIsLocal() && !treeNode->OperIsLocalAddr())
         {
@@ -2024,15 +2024,24 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         }
     }
 
+#ifdef DEBUG
+    if (VERBOSE)
+    {
+        printf("(LowerFastTailCall) trees before\n");
+        comp->fgDispBasicBlocks(true);
+    }
+#endif
+
     GenTree* startNonGCNode = nullptr;
     if (!putargs.Empty())
     {
-        GenTree* firstPutArgStk = putargs.Bottom();
-        // Insert GT_START_NONGC node before the first GT_PUTARG_STK node.
+        bool unused;
+        GenTree* insertionPoint = BlockRange().GetTreeRange(putargs.Bottom(), &unused).FirstNode();
+        // Insert GT_START_NONGC node before we evaluate the PUTARG_STK args.
         // Note that if there are no args to be setup on stack, no need to
         // insert GT_START_NONGC node.
         startNonGCNode = new (comp, GT_START_NONGC) GenTree(GT_START_NONGC, TYP_VOID);
-        BlockRange().InsertBefore(firstPutArgStk, startNonGCNode);
+        BlockRange().InsertBefore(insertionPoint, startNonGCNode);
 
         // Gc-interruptability in the following case:
         //     foo(a, b, c, d, e) { bar(a, b, c, d, e); }
@@ -2059,6 +2068,13 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         for (int i = 0; i < putargs.Height(); i++)
         {
             GenTreePutArgStk* put     = putargs.Bottom(i)->AsPutArgStk();
+            if (VERBOSE)
+            {
+                printf("putarg %d unlinear order:\n", i);
+                comp->gtDispTree(put);
+                printf("putarg %d linear order\n", i);
+                comp->gtDispTreeRange(BlockRange(), put);
+            }
             // This put will overwrite our incoming stack args. If there are uses
             // of the overwritten arg then introduce a defensive copy of it.
             unsigned int      overwrittenStart    = put->getArgOffset();
@@ -2087,7 +2103,19 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                 if ((overwrittenEnd <= argStart) || (overwrittenStart >= argEnd))
                     continue;
 
-                RehomeArgForFastTailCall(callerArgLclNum, firstPutArgStk, put, call);
+                // Codegen cannot handle a disjoint overlapping copy. For example, if
+                // we have
+                // bar(S16 stack, S32 stack2)
+                // foo(S32 stack, S32 stack2) { bar(..., stack) }
+                // then we may end up having to move 'stack' in foo 16 bytes ahead.
+                // It is possible that this PUTARG_STK is the only use, in which case we will
+                // need to introduce a temp 
+                // look for uses starting from it. Note that we assume non-disjoint copies are OK.
+                GenTree* lookForUsesFrom = put->gtNext;
+                if (overwrittenStart != argStart)
+                    lookForUsesFrom = insertionPoint;
+
+                RehomeArgForFastTailCall(callerArgLclNum, insertionPoint, lookForUsesFrom, call);
                 // The call can introduce temps and invalidate the pointer.
                 callerArgDsc = comp->lvaTable + callerArgLclNum;
 
@@ -2098,10 +2126,18 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                 unsigned int fieldsFirst = callerArgDsc->lvFieldLclStart;
                 unsigned int fieldsEnd   = fieldsFirst + callerArgDsc->lvFieldCnt;
                 for (unsigned int j = fieldsFirst; j < fieldsEnd; j++)
-                    RehomeArgForFastTailCall(j, firstPutArgStk, put, call);
+                    RehomeArgForFastTailCall(j, insertionPoint, lookForUsesFrom, call);
             }
         }
     }
+
+#ifdef DEBUG
+    if (VERBOSE)
+    {
+        printf("(LowerFastTailCall) trees after\n");
+        comp->fgDispBasicBlocks(true);
+    }
+#endif
 
     // Insert GT_PROF_HOOK node to emit profiler tail call hook. This should be
     // inserted before the args are setup but after the side effects of args are

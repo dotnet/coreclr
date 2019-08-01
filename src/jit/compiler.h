@@ -8733,7 +8733,6 @@ public:
 
 #if FEATURE_FASTTAILCALL
         size_t compArgStackSize;     // Incoming argument stack size in bytes
-        bool   compHasMultiSlotArgs; // Caller has >8 byte sized struct parameter
 #endif                               // FEATURE_FASTTAILCALL
 
         unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
