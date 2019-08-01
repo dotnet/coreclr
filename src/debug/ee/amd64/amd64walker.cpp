@@ -590,9 +590,15 @@ static int opSize(Amd64InstrDecode::InstrForm form, int pp, bool W, bool L, bool
     case Amd64InstrDecode::InstrForm::MOp_M4B_I4B:
         opSize = 4;
         break;
+    // L_M4B_or_M2B
     case Amd64InstrDecode::InstrForm::MOp_L_M4B_or_M2B:
+        opSize = L ? 4 : 2;
+        break;
+    // W_M4B_or_M1B
     case Amd64InstrDecode::InstrForm::M1st_W_M4B_or_M1B:
     case Amd64InstrDecode::InstrForm::MOp_W_M4B_or_M1B:
+        opSize = W ? 4 : 1;
+        break;
     // M2B
     case Amd64InstrDecode::InstrForm::M1st_M2B:
     case Amd64InstrDecode::InstrForm::M1st_M2B_I1B:
@@ -665,10 +671,11 @@ static int immSize(Amd64InstrDecode::InstrForm form, int pp, bool W, bool L, boo
     case Amd64InstrDecode::InstrForm::M1st_WP_M8B_I4B_or_M4B_I4B_or_M2B_I2B:
     case Amd64InstrDecode::InstrForm::MOp_WP_M8B_I4B_or_M4B_I4B_or_M2B_I2B:
     case Amd64InstrDecode::InstrForm::WP_I4B_or_I4B_or_I2B:
-        immSize = (W || P) ? 4 : 2;
+        immSize = W ? 4 : P ? 4 : 2;
         break;
-
     case Amd64InstrDecode::InstrForm::WP_I8B_or_I4B_or_I2B:
+        immSize = W ? 8 : P ? 4 : 2;
+        break;
         break;
     default:
         break;
