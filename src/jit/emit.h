@@ -2717,11 +2717,6 @@ inline void emitter::emitEnableGC()
 }
 #endif // !defined(JIT32_GCENCODER)
 
-#ifdef _TARGET_XARCH_
-template size_t emitter::emitOutputInstr<true>(insGroup* ig, instrDesc* id, BYTE** dp);
-template size_t emitter::emitOutputInstr<false>(insGroup* ig, instrDesc* id, BYTE** dp);
-#endif
-
 /*****************************************************************************/
 #endif // _EMIT_H_
 /*****************************************************************************/

@@ -12735,6 +12735,9 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 #pragma warning(pop)
 #endif
 
+template size_t emitter::emitOutputInstr<true>(insGroup* ig, instrDesc* id, BYTE** dp);
+template size_t emitter::emitOutputInstr<false>(insGroup* ig, instrDesc* id, BYTE** dp);
+
 /*****************************************************************************/
 /*****************************************************************************/
 
