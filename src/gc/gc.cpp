@@ -34781,7 +34781,11 @@ HRESULT GCHeap::Initialize()
         return CLR_E_GC_BAD_AFFINITY_CONFIG;
     }
 
-    if ((cpu_index_ranges_holder.Get() != nullptr) || (config_affinity_mask != 0))
+    if ((cpu_index_ranges_holder.Get() != nullptr)
+#ifndef FEATURE_PAL
+        || (config_affinity_mask != 0)
+#endif
+    )
     {
         affinity_config_specified_p = true;
     }
