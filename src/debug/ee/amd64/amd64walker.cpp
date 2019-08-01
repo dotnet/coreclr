@@ -865,8 +865,6 @@ void NativeWalker::DecodeInstructionForPatchSkip(const BYTE *address, Instructio
             opCodeMap = Primary;
     }
 
-    ModRMByte modrm = {0};
-
     Amd64InstrDecode::InstrForm form = Amd64InstrDecode::InstrForm::None;
     switch (opCodeMap)
     {
@@ -907,55 +905,29 @@ void NativeWalker::DecodeInstructionForPatchSkip(const BYTE *address, Instructio
         _ASSERTE(false);
     }
 
-    int modrmBytes = 0;
-    if (IsModRm(form, pp, W, L, fPrefix66))
-    {
-        ModRMByte modrm(address[1]);
-        modrmBytes = 1;
+    bool fModRM = IsModRm(form, pp, W, L, fPrefix66);
+    ModRMByte modrm = ModRMByte(address[1]);
 
+    if (fModRM && (modrm.mod == 0x0) && (modrm.rm == 0x5))
+    {
+        // RIP-relative addressing.
         if (form & Amd64InstrDecode::InstrForm::Extension)
         {
             form = Amd64InstrDecode::instrFormExtension[(size_t(form ^ Amd64InstrDecode::InstrForm::Extension) << 3) | modrm.reg];
         }
 
-        if((modrm.mod == 0x0) && (modrm.rm == 0x5))
-        {
-            // RIP-relative addressing.
-            pInstrAttrib->m_dwOffsetToDisp = (DWORD)(address - originalAddr) + 2;
-            _ASSERTE(pInstrAttrib->m_dwOffsetToDisp <= MAX_INSTRUCTION_LENGTH);
+        pInstrAttrib->m_dwOffsetToDisp = (DWORD)(address - originalAddr) + 1 /* op */ + 1 /* modrm */;
+        _ASSERTE(pInstrAttrib->m_dwOffsetToDisp <= MAX_INSTRUCTION_LENGTH);
 
-            modrmBytes = 5;
+        const int dispBytes = 4;
+        const int immBytes = immSize(form, pp, W, L, fPrefix66);
 
-            pInstrAttrib->m_fIsWrite = IsWrite(form, pp, W, L, fPrefix66);
-            pInstrAttrib->m_cOperandSize = opSize(form, pp, W, L, fPrefix66);
-        }
-        else if((modrm.mod != 0x3) && (modrm.rm == 0x4))
-        {
-            // SIB byte
-            modrmBytes = 2;
+        pInstrAttrib->m_cbInstr = pInstrAttrib->m_dwOffsetToDisp + dispBytes + immBytes;
+        _ASSERTE(pInstrAttrib->m_cbInstr <= MAX_INSTRUCTION_LENGTH);
 
-            if (modrm.mod == 0x0)
-            {
-                BYTE sib = address[2];
-                int base = sib & 0x7;
-                if (base == 5)
-                {
-                    modrmBytes += 4;
-                }
-            }
-        }
-
-        if (modrm.mod == 0x1)
-        {
-            modrmBytes += 1;
-        }
-        else if (modrm.mod == 0x2)
-        {
-            modrmBytes += 4;
-        }
+        pInstrAttrib->m_fIsWrite = IsWrite(form, pp, W, L, fPrefix66);
+        pInstrAttrib->m_cOperandSize = opSize(form, pp, W, L, fPrefix66);
     }
-    pInstrAttrib->m_cbInstr = (DWORD)(address - originalAddr) + 1 + modrmBytes + immSize(form, pp, W, L, fPrefix66);
-    _ASSERTE(pInstrAttrib->m_cbInstr <= MAX_INSTRUCTION_LENGTH);
 
     if (opCodeMap == Primary)
     {
@@ -988,7 +960,7 @@ void NativeWalker::DecodeInstructionForPatchSkip(const BYTE *address, Instructio
                 // Read opcode modifier from modr/m
                 //
 
-                _ASSERTE(modrmBytes > 0);
+                _ASSERTE(fModRM);
                 switch (modrm.reg)
                 {
                     case 2:
