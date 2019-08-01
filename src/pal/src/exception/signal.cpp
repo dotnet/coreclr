@@ -412,6 +412,8 @@ bool IsRunningOnAlternateStack(void *context)
     bool isRunningOnAlternateStack;
     if (g_enable_alternate_stack_check)
     {
+        // Note: WSL doesn't return the alternate signal ranges in the uc_stack (the whole structure is zeroed no
+        // matter whether the code is running on an alternate stack or not). So the check would always fail on WSL.
         stack_t *signalStack = &((native_context_t *)context)->uc_stack;
         // Check if the signalStack local variable address is within the alternate stack range. If it is not,
         // then either the alternate stack was not installed at all or the current method is not running on it.
