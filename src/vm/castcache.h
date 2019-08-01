@@ -256,7 +256,7 @@ private:
         CONTRACTL_END;
 
         DWORD newSize = CacheElementCount(table) * 2;
-        if (newSize < MAXIMUM_CACHE_SIZE)
+        if (newSize <= MAXIMUM_CACHE_SIZE)
         {
             return MaybeReplaceCacheWithLarger(newSize);
         }
