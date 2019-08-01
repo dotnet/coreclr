@@ -81,7 +81,7 @@ namespace Amd64InstructioTableGenerator
         public readonly EncodingFlags encodingFlags;
         readonly byte opIndex;
 
-        public int opCode
+        public int opCodeExt
         {
             get
             {
@@ -610,12 +610,12 @@ namespace Amd64InstructioTableGenerator
         {
             if (samples.Count > 0)
             {
-                bool regEnc = (regExpandOpcodes.Count > 0) && ((samples[0].map, samples[0].opCode >> 4) == regExpandOpcodes[0]);
+                bool regEnc = (regExpandOpcodes.Count > 0) && ((samples[0].map, samples[0].opCodeExt >> 4) == regExpandOpcodes[0]);
 
-                if ((sample.opCode != samples[0].opCode) || (regEnc && (sample.modrm_reg != samples[0].modrm_reg)))
+                if ((sample.opCodeExt != samples[0].opCodeExt) || (regEnc && (sample.modrm_reg != samples[0].modrm_reg)))
                 {
                     SummarizeSamples(regEnc);
-                    if (regEnc && ((sample.opCode >> 4) != (samples[0].opCode >> 4)))
+                    if (regEnc && ((sample.opCodeExt >> 4) != (samples[0].opCodeExt >> 4)))
                     {
                         // Console.WriteLine($"Removing {regExpandOpcodes[0]}");
                         regExpandOpcodes.RemoveAt(0);
@@ -746,7 +746,7 @@ namespace Amd64InstructioTableGenerator
             }
             rules = rules.Replace("^_", "").Replace("^", "None");
 
-            AddOpCode(sample.map, sample.opCode, reg, sample.modrm_reg, rules, mnemonics);
+            AddOpCode(sample.map, sample.opCodeExt, reg, sample.modrm_reg, rules, mnemonics);
             // string op = reg ? $"OpReg(0x{sample.opCode:x3}, 0x{sample.modrm_reg})" : $"Op(0x{sample.opCode:x3})";
             // Console.WriteLine($"Amd64Op({sample.map}, {op}, {sample.mnemonic}, {rules})");
         }
