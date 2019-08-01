@@ -5086,6 +5086,13 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
     BasicBlock* bbFalse = bbCond->bbJumpDest;
     BasicBlock* bbTrue  = bbCond->bbNext;
 
+#ifdef _DEBUG
+    if (verbose)
+    {
+        printf("Finding unique paths flows from " FMT_BB ", \n", bbCond->bbNum);
+    }
+#endif
+
     if (isReversedCond)
     {
         std::swap(bbFalse, bbTrue);
@@ -5112,6 +5119,13 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     {
                         recFlow.Set(bbFlowTo, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowTo);
+
+#ifdef _DEBUG
+                        if (verbose)
+                        {
+                            printf("  found path for " FMT_BB ", \n", bbFlowTo->bbNum);
+                        }
+#endif
                     }
                     else
                     {
@@ -5128,6 +5142,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     {
                         recFlow.Set(bbFlowTo, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowTo);
+#ifdef _DEBUG
+                        if (verbose)
+                        {
+                            printf("  found path for " FMT_BB ", \n", bbFlowTo->bbNum);
+                        }
+#endif
                     }
                     else
                     {
@@ -5144,6 +5164,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                     {
                         recFlow.Set(bbFlowToF, true, BlkSet::SetKind::Overwrite);
                         recTemp.push_back(bbFlowToF);
+#ifdef _DEBUG
+                        if (verbose)
+                        {
+                            printf("  found path for " FMT_BB ", \n", bbFlowToF->bbNum);
+                        }
+#endif
                     }
                     else
                     {
@@ -5176,6 +5202,12 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
                         {
                             recFlow.Set(bbFlowTo, true, BlkSet::SetKind::Overwrite);
                             recTemp.push_back(bbFlowTo);
+#ifdef _DEBUG
+                            if (verbose)
+                            {
+                                printf("  found path to " FMT_BB ", \n", bbFlowTo->bbNum);
+                            }
+#endif
                         }
                         else
                         {
@@ -5207,11 +5239,24 @@ bool Compiler::optExtractUniqueBBFromCondScope(BasicBlock*                  bbCo
         recTemp.clear();
     }
 
+#ifdef _DEBUG
+    if (verbose)
+    {
+        printf(FMT_BB " can uniquely flows to \n", bbCond->bbNum);
+    }
+#endif
+
     for (auto iter = recFlow.Begin(); !iter.Equal(recFlow.End()); iter.Next())
     {
         if (iter.GetValue() == true)
         {
             extracted->push_back(iter.Get());
+#ifdef _DEBUG
+            if (verbose)
+            {
+                printf("  -" FMT_BB ", \n", bbCond->bbNum);
+            }
+#endif
         }
     }
 
