@@ -151,6 +151,15 @@ jobs:
         displayName: Build tests
 
 
+    # Build test packages
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) $(officialBuildIdArg) $(portableBuildArg) -BuildNativeTestPackage -ci
+        displayName: Build native test assets package
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(officialBuildIdArg) -BuildNativeTestPackage -ci
+        displayName: Build native test assets package
+
+
     # Send tests to Helix
     - template: /eng/send-to-helix-step.yml
       parameters:

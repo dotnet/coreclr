@@ -69,13 +69,9 @@ jobs:
       # Variables used by arcade to gather asset manifests
       - name: _DotNetPublishToBlobFeed
         value: true
-    - name: officialBuildIdArg
-      value: ''
     - name: ibcOptimizeArg
       value: ''
     - ${{ if and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest')) }}:
-      - name: officialBuildIdArg
-        value: '-officialbuildid=$(Build.BuildNumber)'
       # IBCMerge is currently Windows-only and x86/x64-only
       - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), or(eq(parameters.archType, 'x64'), eq(parameters.archType, 'x86'))) }}:
         - name: ibcOptimizeArg
