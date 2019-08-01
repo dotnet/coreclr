@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.Build.Traversal">
+    <Import Project="packaging.props" />
+
+    <ItemGroup>
+        <ProjectReference Include="Microsoft.Private.Tests.Native.CoreCLR/Microsoft.Private.Tests.Native.CoreCLR.builds" />
+    </ItemGroup>
+
+    <Import Project="packaging.targets" />
+</Project>

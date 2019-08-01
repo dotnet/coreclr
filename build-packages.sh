@@ -70,6 +70,7 @@ esac
 
 buildArgs=
 unprocessedBuildArgs=
+buildNativeTestPackage=0
 
 # TODO: get rid of argument processing entirely once we remove the
 # uses of -Arg=Value style in buildpipeline.
@@ -99,6 +100,9 @@ while :; do
             __CrossBuild=$(echo $1| cut -d'=' -f 2)
             buildArgs="$buildArgs /p:__DoCrossArchBuild=$__CrossBuild"
             ;;
+        -BuildNativeTestPackage)
+            buildNativeTestPackage=1
+            ;;
         -portablebuild=false)
             buildArgs="$buildArgs /p:PortableBuild=false"
             __IsPortableBuild=0
@@ -125,8 +129,14 @@ if [ "${__DistroRid}" = "linux-musl-arm64" ]; then
     export OutputRID=${__DistroRid}
 fi
 
+packagesProject=packages.builds
+
+if [ $buildNativeTestPackage = 1 ]; then
+    packagesProject=testpackages.builds
+fi
+
 logFile=$__ProjectRoot/bin/Logs/build-packages.binlog
-$__ProjectRoot/eng/common/build.sh -r -b -projects $__ProjectRoot/src/.nuget/packages.builds \
+$__ProjectRoot/eng/common/build.sh -r -b -projects $__ProjectRoot/src/.nuget/$packagesProject \
                                    -verbosity minimal -bl:$logFile \
                                    /p:__BuildOS=$__BuildOS /p:ArcadeBuild=true \
                                    /p:PortableBuild=true /p:__DistroRid=$__DistroRid \

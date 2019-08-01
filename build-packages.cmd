@@ -7,6 +7,7 @@ set "__args=%*"
 set processedArgs=
 set unprocessedArgs=
 set __MSBuildArgs=
+set __BuildNativeTestPackage=0
 
 :Arg_Loop
 if "%1" == "" goto ArgsDone
@@ -15,10 +16,11 @@ if /I [%1] == [/help] goto Usage
 
 REM CMD eats "=" on the argument list.
 REM TODO: remove all -Property=Value type arguments here once we get rid of them in buildpipeline.
-if /i "%1" == "-BuildArch"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "-BuildType"       (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "-OfficialBuildId" (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:OfficialBuildId=%2&shift&shift&goto Arg_Loop)
-if /i "%1" == "--"               (set processedArgs=!processedArgs! %1&shift)
+if /i "%1" == "-BuildArch"              (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildArch=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-BuildType"              (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:__BuildType=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-OfficialBuildId"        (set processedArgs=!processedArgs! %1=%2&set __MSBuildArgs=!__MSBuildArgs! /p:OfficialBuildId=%2&shift&shift&goto Arg_Loop)
+if /i "%1" == "-BuildNativeTestPackage" (set processedArgs=!processedArgs! %1&set __BuildNativeTestPackage=1&shift&goto Arg_Loop)
+if /i "%1" == "--"                      (set processedArgs=!processedArgs! %1&shift)
 
 REM handle any unprocessed arguments, assumed to go only after the processed arguments above
 if [!processedArgs!]==[] (
@@ -33,9 +35,14 @@ if [!processedArgs!]==[] (
 
 :ArgsDone
 
+set __packagesProject=packages.builds
+if %__BuildNativeTestPackage% EQU 1 (
+  set __packagesProject=testpackages.builds
+)
+
 set logFile=%__ProjectDir%bin\Logs\build-packages.binlog
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%eng\common\build.ps1"^
-  -r -b -projects %__ProjectDir%src\.nuget\packages.builds^
+  -r -b -projects %__ProjectDir%src\.nuget\%__packagesProject%^
   -verbosity minimal /bl:%logFile% /nodeReuse:false^
   /p:__BuildOS=Windows_NT /p:ArcadeBuild=true^
   /p:PortableBuild=true /p:FilterToOSGroup=Windows_NT^
