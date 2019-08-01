@@ -3605,10 +3605,6 @@ void Compiler::optUnrollLoops()
         }
 
         // Locate/initialize the increment/test statements.
-
-        GenTreeStmt* loopStmt = bottom->firstStmt();
-        noway_assert(loopStmt != nullptr);
-
         GenTreeStmt* initStmt = head->lastStmt();
         noway_assert((initStmt != nullptr) && (initStmt->gtNext == nullptr));
 
@@ -3694,9 +3690,9 @@ void Compiler::optUnrollLoops()
                     ++loopRetCount;
                 }
 
-                // Visit all the statements in the loop.
+                // Visit all the statements in the block.
 
-                for (GenTreeStmt* stmt = loopStmt; stmt != nullptr; stmt = stmt->gtNextStmt)
+                for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
                 {
                     /* Calculate gtCostSz */
                     gtSetStmtInfo(stmt);
