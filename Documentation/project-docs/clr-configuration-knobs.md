@@ -283,6 +283,7 @@ Name | Description | Type | Class | Default Value | Flags
 `DisableHotCold` | Master hot/cold splitting switch in Jit64 | `DWORD` | `UNSUPPORTED` | |
 `DisableIBC` | Disables the use of IBC data | `DWORD` | `UNSUPPORTED` | `0` | REGUTIL_default
 `UseIBCFile` |  | `DWORD` | `EXTERNAL` | `0` | REGUTIL_default
+`IBCFileDir` | Directory to search for IBC files | `STRING` | `EXTERNAL` | |
 
 #### Interop Configuration Knobs
 

@@ -325,7 +325,7 @@ RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_ConvertIbcData, W("ConvertIbcData"), 1, 
 RETAIL_CONFIG_DWORD_INFO_DIRECT_ACCESS(UNSUPPORTED_DisableHotCold, W("DisableHotCold"), "Master hot/cold splitting switch in Jit64")
 RETAIL_CONFIG_DWORD_INFO_EX(UNSUPPORTED_DisableIBC, W("DisableIBC"), 0, "Disables the use of IBC data", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_DWORD_INFO_EX(EXTERNAL_UseIBCFile, W("UseIBCFile"), 0, "", CLRConfig::REGUTIL_default)
-
+RETAIL_CONFIG_STRING_INFO(EXTERNAL_IBCFileDir, W("IBCFileDir"), "Directory to search for IBC files")
 
 ///
 /// JIT

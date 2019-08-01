@@ -2475,7 +2475,20 @@ HRESULT ZapImage::LocateProfileData()
     // Couldn't find profile resource--let's see if there's an ibc file to use instead
     //
 
-    SString path(m_pModuleFileName);
+    SString path;
+
+    LPWSTR ibcDir = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_IBCFileDir);
+    if (ibcDir != NULL)
+    {
+        LPCWSTR moduleFileName = wcsrchr(m_pModuleFileName, DIRECTORY_SEPARATOR_CHAR_W);
+        path.Set(ibcDir);
+        path.Append(DIRECTORY_SEPARATOR_CHAR_W);
+        path.Append(moduleFileName);
+    }
+    else
+    {
+        path.Set(m_pModuleFileName); // the same directory as the IL dll
+    }
 
     SString::Iterator dot = path.End();
     if (path.FindBack(dot, '.'))
