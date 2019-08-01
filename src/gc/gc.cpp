@@ -34805,12 +34805,7 @@ HRESULT GCHeap::Initialize()
 
     nhp = min (nhp, MAX_SUPPORTED_CPUS);
 #ifndef FEATURE_REDHAWK
-    gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? false : (GCConfig::GetNoAffinitize() != 0));
-
-    if (gc_heap::heap_hard_limit)
-    {
-        gc_heap::gc_thread_no_affinitize_p = ((config_affinity_set.Count() == 0) && (config_affinity_mask == 0));
-    }
+    gc_heap::gc_thread_no_affinitize_p = (gc_heap::heap_hard_limit ? !affinity_config_specified_p : (GCConfig::GetNoAffinitize() != 0));
 
     if (!(gc_heap::gc_thread_no_affinitize_p))
     {
