@@ -2024,14 +2024,6 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         }
     }
 
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        printf("(LowerFastTailCall) trees before\n");
-        comp->fgDispBasicBlocks(true);
-    }
-#endif
-
     GenTree* startNonGCNode = nullptr;
     if (!putargs.Empty())
     {
@@ -2068,24 +2060,25 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         for (int i = 0; i < putargs.Height(); i++)
         {
             GenTreePutArgStk* put     = putargs.Bottom(i)->AsPutArgStk();
-            if (VERBOSE)
-            {
-                printf("putarg %d unlinear order:\n", i);
-                comp->gtDispTree(put);
-                printf("putarg %d linear order\n", i);
-                comp->gtDispTreeRange(BlockRange(), put);
-            }
             // This put will overwrite our incoming stack args. If there are uses
             // of the overwritten arg then introduce a defensive copy of it.
             unsigned int      overwrittenStart    = put->getArgOffset();
             unsigned int      overwrittenEnd = overwrittenStart + put->getArgSize();
+#if !(defined(_TARGET_WINDOWS_) && defined(_TARGET_64BIT_))
             int               baseOff = -1; // Stack offset of first arg on stack
+#endif
             for (unsigned callerArgLclNum = 0; callerArgLclNum < comp->info.compArgsCount; callerArgLclNum++)
             {
                 LclVarDsc* callerArgDsc = comp->lvaTable + callerArgLclNum;
                 if (callerArgDsc->lvIsRegArg)
                     continue;
 
+#if defined(_TARGET_WINDOWS_) && defined(_TARGET_64BIT_)
+                // On Win64, the argument position determines the stack slot uniquely, and even the
+                // register args take up space in the stack frame (shadow space).
+                unsigned int argStart = callerArgLclNum * TARGET_POINTER_SIZE;
+                unsigned int argEnd = argStart + static_cast<unsigned int>(callerArgDsc->lvArgStackSize());
+#else
                 assert(callerArgDsc->lvStkOffs != BAD_STK_OFFS);
                 
                 if (baseOff == -1)
@@ -2098,6 +2091,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                 // This will be its offset into the incoming arg space area.
                 unsigned int argStart = static_cast<unsigned int>(callerArgDsc->lvStkOffs - baseOff);
                 unsigned int argEnd   = argStart + comp->lvaLclSize(callerArgLclNum);
+#endif
 
                 // If ranges do not overlap then this PUTARG_STK will not mess up the arg.
                 if ((overwrittenEnd <= argStart) || (overwrittenStart >= argEnd))
@@ -2130,14 +2124,6 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
             }
         }
     }
-
-#ifdef DEBUG
-    if (VERBOSE)
-    {
-        printf("(LowerFastTailCall) trees after\n");
-        comp->fgDispBasicBlocks(true);
-    }
-#endif
 
     // Insert GT_PROF_HOOK node to emit profiler tail call hook. This should be
     // inserted before the args are setup but after the side effects of args are
