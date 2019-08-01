@@ -418,6 +418,9 @@ typedef HRESULT __stdcall StackSnapshotCallback(
                 BYTE context[],
                 void *clientData);
 
+/* Callback for each object reference */
+typedef BOOL STDMETHODCALLTYPE ObjectReferenceCallback(ObjectID root, ObjectID* reference, void *clientData);
+
 typedef enum
 {
     // These flags represent classes of callback events
@@ -3946,8 +3949,8 @@ interface ICorProfilerInfo9 : ICorProfilerInfo8
 ]
 interface ICorProfilerInfo10 : ICorProfilerInfo9
 {
-    // Given an ObjectID, fetches all its object references and offsets (if any).
-    HRESULT GetObjectReferences(ObjectID objectId, ULONG32 cNumReferences, ULONG32 *pcNumReferences, ObjectID references[], SIZE_T offsets[]);
+    // Given an ObjectID, callback and clientData, enumerates each object reference (if any).
+    HRESULT EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData);
 
     // Given an ObjectID, determines whether it is in a read only segment.
     HRESULT IsFrozenObject(ObjectID objectId, BOOL *pbFrozen);
@@ -3971,6 +3974,12 @@ interface ICorProfilerInfo10 : ICorProfilerInfo9
                 [in]                       ULONG       cFunctions,
                 [in, size_is(cFunctions)]  ModuleID    moduleIds[],
                 [in, size_is(cFunctions)]  mdMethodDef methodIds[]);
+
+    // Suspend the runtime without performing a GC.
+    HRESULT SuspendRuntime();
+
+    // Restart the runtime from a previous suspension.
+    HRESULT ResumeRuntime();
 }
 
 /*
@@ -4047,25 +4056,3 @@ interface ICorProfilerAssemblyReferenceProvider : IUnknown
     // assembly specified in the wszAssemblyPath argument of the GetAssemblyReferences callback.
     HRESULT AddAssemblyReference(const COR_PRF_ASSEMBLY_REFERENCE_INFO * pAssemblyRefInfo);
 };
-
-
-/***************************************************************************************
-** ICLRProfiling                                                                     **
-** Activated using mscoree!CLRCreateInstance. Export AttachProfiler API to profilers **
-***************************************************************************************/
-[
-    uuid(B349ABE3-B56F-4689-BFCD-76BF39D888EA),
-    version(1.0),
-    helpstring("CoreCLR profiling interface for profiler attach"),
-    local
-]
-interface ICLRProfiling : IUnknown
-{
-    HRESULT AttachProfiler(
-        [in] DWORD dwProfileeProcessID,
-        [in] DWORD dwMillisecondsMax,                        // optional
-        [in] const CLSID * pClsidProfiler,
-        [in] LPCWSTR wszProfilerPath,                        // optional
-        [in, size_is(cbClientData)] void * pvClientData,     // optional
-        [in] UINT cbClientData);                             // optional
-}

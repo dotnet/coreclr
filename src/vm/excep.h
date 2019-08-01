@@ -22,7 +22,14 @@ class Thread;
 #include <excepcpu.h>
 #include "interoputil.h"
 
+#if defined(_TARGET_ARM_) || defined(_TARGET_X86_)
+#define VSD_STUB_CAN_THROW_AV
+#endif // _TARGET_ARM_ || _TARGET_X86_
+
 BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord);
+#ifdef VSD_STUB_CAN_THROW_AV
+BOOL IsIPinVirtualStub(PCODE f_IP);
+#endif // VSD_STUB_CAN_THROW_AV
 bool IsIPInMarkedJitHelper(UINT_PTR uControlPc);
 
 #if defined(FEATURE_HIJACK) && (!defined(_TARGET_X86_) || defined(FEATURE_PAL))
@@ -566,12 +573,8 @@ void VerifyValidTransitionFromManagedCode(Thread *pThread, CrawlFrame *pCF);
 // This is a workaround designed to allow the use of the StubLinker object at bootup
 // time where the EE isn't sufficient awake to create COM+ exception objects.
 // Instead, COMPlusThrow(rexcep) does a simple RaiseException using this code.
-// Or use COMPlusThrowBoot() to explicitly do so.
 //==========================================================================
 #define BOOTUP_EXCEPTION_COMPLUS  0xC0020001
-
-void COMPlusThrowBoot(HRESULT hr);
-
 
 //==========================================================================
 // Used by the classloader to record a managed exception object to explain
@@ -867,9 +870,6 @@ enum ExceptionNotificationHandlerType
     ,
     FirstChanceExceptionHandler = 0x2
 };
-
-// Defined in Frames.h
-// class ContextTransitionFrame;
 
 // This class contains methods to support delivering the various exception notifications.
 class ExceptionNotifications

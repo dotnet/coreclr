@@ -673,7 +673,7 @@ namespace System.Reflection.Emit
             CanSkipCSEvaluation = 0x8,
         }
 
-        internal override RuntimeType? GetJitContext(ref int securityControlFlags)
+        internal override RuntimeType? GetJitContext(out int securityControlFlags)
         {
             RuntimeType? typeOwner;
 
@@ -703,7 +703,7 @@ namespace System.Reflection.Emit
         }
 
         internal override byte[] GetCodeInfo(
-            ref int stackSize, ref int initLocals, ref int EHCount)
+            out int stackSize, out int initLocals, out int EHCount)
         {
             stackSize = m_stackSize;
             if (m_exceptionHeader != null && m_exceptionHeader.Length != 0)
@@ -769,7 +769,6 @@ namespace System.Reflection.Emit
         }
 
         internal override string? GetStringLiteral(int token) { return m_scope.GetString(token); }
-
 
         internal override void ResolveToken(int token, out IntPtr typeHandle, out IntPtr methodHandle, out IntPtr fieldHandle)
         {
@@ -1038,7 +1037,7 @@ namespace System.Reflection.Emit
         public int GetTokenFor(RuntimeMethodHandle method)
         {
             IRuntimeMethodInfo methodReal = method.GetMethodInfo();
-            if (methodReal != null) // TODO-NULLABLE: never null
+            if (methodReal != null)
             {
                 RuntimeMethodHandleInternal rmhi = methodReal.Value;
                 if (!RuntimeMethodHandle.IsDynamicMethod(rmhi))

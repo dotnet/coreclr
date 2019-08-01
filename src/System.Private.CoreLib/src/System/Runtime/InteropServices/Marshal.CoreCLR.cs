@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
@@ -175,11 +176,12 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentException(SR.Argument_MustBeRuntimeMethodInfo, nameof(m));
             }
 
-            InternalPrelink(rmi);
+            InternalPrelink(((IRuntimeMethodInfo)rmi).Value);
+            GC.KeepAlive(rmi);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void InternalPrelink(IRuntimeMethodInfo m);
+        private static extern void InternalPrelink(RuntimeMethodHandleInternal m);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern /* struct _EXCEPTION_POINTERS* */ IntPtr GetExceptionPointers();
@@ -233,14 +235,14 @@ namespace System.Runtime.InteropServices
 
             if (m is RuntimeModule rtModule)
             {
-                return GetHINSTANCE(rtModule.GetNativeHandle());
+                return GetHINSTANCE(JitHelpers.GetQCallModuleOnStack(ref rtModule));
             }
 
             return (IntPtr)(-1);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetHINSTANCE(RuntimeModule m);
+        private static extern IntPtr GetHINSTANCE(QCallModule m);
 
 #endif // FEATURE_COMINTEROP
 
@@ -318,7 +320,7 @@ namespace System.Runtime.InteropServices
 
         // This method is identical to Type.GetTypeFromCLSID. Since it's interop specific, we expose it
         // on Marshal for more consistent API surface.
-        public static Type GetTypeFromCLSID(Guid clsid) => RuntimeType.GetTypeFromCLSIDImpl(clsid, null, throwOnError: false);
+        public static Type? GetTypeFromCLSID(Guid clsid) => RuntimeType.GetTypeFromCLSIDImpl(clsid, null, throwOnError: false);
 
         /// <summary>
         /// Return the IUnknown* for an Object if the current context is the one
@@ -348,8 +350,7 @@ namespace System.Runtime.InteropServices
             return GetComInterfaceForObjectNative(o, T, false, true);
         }
 
-        // TODO-NULLABLE-GENERIC: T cannot be null
-        public static IntPtr GetComInterfaceForObject<T, TInterface>(T o) => GetComInterfaceForObject(o!, typeof(TInterface));
+        public static IntPtr GetComInterfaceForObject<T, TInterface>([DisallowNull] T o) => GetComInterfaceForObject(o!, typeof(TInterface));
 
         /// <summary>
         /// Return the IUnknown* representing the interface for the Object.
@@ -387,10 +388,9 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern IntPtr CreateAggregatedObject(IntPtr pOuter, object o);
 
-        public static IntPtr CreateAggregatedObject<T>(IntPtr pOuter, T o)
+        public static IntPtr CreateAggregatedObject<T>(IntPtr pOuter, T o) where T : notnull
         {
-            // TODO-NULLABLE-GENERIC: T cannot be null
-            return CreateAggregatedObject(pOuter, (object)o!);
+            return CreateAggregatedObject(pOuter, (object)o);
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -583,6 +583,7 @@ namespace System.Runtime.InteropServices
         /// This method takes the given COM object and wraps it in an object
         /// of the specified type. The type must be derived from __ComObject.
         /// </summary>
+        [return: NotNullIfNotNull("o")]
         public static object? CreateWrapperOfType(object? o, Type t)
         {
             if (t is null)
@@ -640,9 +641,8 @@ namespace System.Runtime.InteropServices
             return Wrapper;
         }
 
-        public static TWrapper CreateWrapperOfType<T, TWrapper>(T o)
+        public static TWrapper CreateWrapperOfType<T, TWrapper>([AllowNull] T o)
         {
-            // TODO-NULLABLE-GENERIC: T can be null
             return (TWrapper)CreateWrapperOfType(o, typeof(TWrapper))!;
         }
 
@@ -667,30 +667,28 @@ namespace System.Runtime.InteropServices
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern void GetNativeVariantForObject(object? obj, /* VARIANT * */ IntPtr pDstNativeVariant);
 
-        public static void GetNativeVariantForObject<T>(T obj, IntPtr pDstNativeVariant)
+        public static void GetNativeVariantForObject<T>([AllowNull] T obj, IntPtr pDstNativeVariant)
         {
-            // TODO-NULLABLE-GENERIC: T can be null
-            GetNativeVariantForObject((object)obj!, pDstNativeVariant);
+            GetNativeVariantForObject((object?)obj, pDstNativeVariant);
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern object? GetObjectForNativeVariant(/* VARIANT * */ IntPtr pSrcNativeVariant);
 
+        [return: MaybeNull]
         public static T GetObjectForNativeVariant<T>(IntPtr pSrcNativeVariant)
         {
-            // TODO-NULLABLE-GENERIC: T can be null
             return (T)GetObjectForNativeVariant(pSrcNativeVariant)!;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern object?[] GetObjectsForNativeVariants(/* VARIANT * */ IntPtr aSrcNativeVariant, int cVars);
 
-        // TODO-NULLABLE-GENERIC: T[] contents can be null
         public static T[] GetObjectsForNativeVariants<T>(IntPtr aSrcNativeVariant, int cVars)
         {
             object?[] objects = GetObjectsForNativeVariants(aSrcNativeVariant, cVars);
 
-            T[]? result = new T[objects.Length];
+            T[] result = new T[objects.Length];
             Array.Copy(objects, 0, result, 0, objects.Length);
 
             return result;

@@ -1,37 +1,56 @@
-<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildThisFileDirectory)..\..\dir.props" />
-
-  <PropertyGroup>
-    <!-- This property must be set to the same value as $(PackageOutputPath) for the nuspecs and nupkgs to be binplaced to the intended location. -->
-    <OutputPath>$(PackageOutputPath)</OutputPath>
-  </PropertyGroup>
+<Project Sdk="Microsoft.Build.Traversal">
+  <Import Project="packaging.props" />
 
   <ItemGroup Condition="'$(__SkipCoreLibBuild)'==''">
-    <Project Include="Microsoft.NETCore.Runtime.CoreCLR\Microsoft.NETCore.Runtime.CoreCLR.builds" />
+    <ProjectReference Include="Microsoft.NETCore.Runtime.CoreCLR\Microsoft.NETCore.Runtime.CoreCLR.builds" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetsWindows)'=='true'">
-    <Project Include="Microsoft.TargetingPack.Private.CoreCLR\Microsoft.TargetingPack.Private.CoreCLR.pkgproj" />
+    <ProjectReference Include="Microsoft.TargetingPack.Private.CoreCLR\Microsoft.TargetingPack.Private.CoreCLR.pkgproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetsWindows)'=='true' OR '$(DotNetBuildFromSource)'=='true'">
-    <Project Include="Microsoft.NET.Sdk.IL\Microsoft.NET.Sdk.IL.pkgproj" />
+    <ProjectReference Include="Microsoft.NET.Sdk.IL\Microsoft.NET.Sdk.IL.pkgproj" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(__SkipNativeBuild)'==''">
-    <Project Include="Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.builds" />
-    <Project Include="Microsoft.NETCore.TestHost\Microsoft.NETCore.TestHost.builds" />
-    <Project Include="Microsoft.NETCore.Native\Microsoft.NETCore.Native.builds" />
+    <ProjectReference Include="Microsoft.NETCore.Jit\Microsoft.NETCore.Jit.builds" />
+    <ProjectReference Include="Microsoft.NETCore.TestHost\Microsoft.NETCore.TestHost.builds" />
+    <ProjectReference Include="Microsoft.NETCore.Native\Microsoft.NETCore.Native.builds" />
   </ItemGroup>
 
   <ItemGroup>
-    <Project Include="Microsoft.NETCore.ILAsm\Microsoft.NETCore.ILAsm.builds" />
-    <Project Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
+    <ProjectReference Include="Microsoft.NETCore.ILAsm\Microsoft.NETCore.ILAsm.builds" />
+    <ProjectReference Include="Microsoft.NETCore.ILDAsm\Microsoft.NETCore.ILDAsm.builds" />
   </ItemGroup>
 
-  <Import Project="$(ToolsDir)versioning.targets" />
-  <!-- Make sure we create version.txt file since it will be packaged -->
-  <Target Name="EnsureVersionInfoFileExists" BeforeTargets="Build" DependsOnTargets="CreateVersionInfoFile" />
+  <!-- Generate a version.txt file we include in our packages
+       The InitializeSourceControlInformationFromSourceControlManager is part of Microsoft.Build.Tasks.Git
+       and is responsible for setting SourceRevisionId -->
+  <Target Name="GenerateVersionInfoFileForPackages"
+          BeforeTargets="Build"
+          DependsOnTargets="InitializeSourceControlInformationFromSourceControlManager">
 
-  <Import Project="$(MSBuildThisFileDirectory)..\..\dir.traversal.targets" />
+    <Error Condition="'$(SourceRevisionId)' == ''" Text="SourceRevisionId is not set, which means the SourceLink targets are not included in the build. Those are needed to produce a correct sha for our build outputs." />
+
+    <MakeDir Directories="$([System.IO.Path]::GetDirectoryName($(VersionTxtFile)))" />
+    <WriteLinesToFile
+      File="$(VersionTxtFile)"
+      Lines="$(SourceRevisionId)"
+      Overwrite="true" />
+  </Target>
+
+  <!-- Update the project references with additional properties calculated during the execution phase.
+       _InitializeAssemblyVersion is provided by Arcade. It sets the AssemblyVersion and FileVersion properties.
+       We depend on this private Arcade target instead of the SDK-defined GetAssemblyVersion since the packaging
+       build does not use the .NET SDK -->
+  <Target Name="UpdateAdditionalProperties"
+          BeforeTargets="Build"
+          DependsOnTargets="_InitializeAssemblyVersion">
+    <ItemGroup>
+      <!-- Pass the FileVersion calculated by _InitializeAssemblyVersion to referenced projects -->
+      <ProjectReference Update="@(ProjectReference)"
+                        AdditionalProperties="%(AdditionalProperties);FileVersion=$(FileVersion)" />
+    </ItemGroup>
+  </Target>
 </Project>

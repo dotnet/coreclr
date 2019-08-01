@@ -1081,43 +1081,6 @@ bool SaveContainedObjectRef(Object * pBO, void * context)
     return TRUE;
 }
 
-typedef struct _ObjectRefOffsetTuple
-{
-    Object* pCurObjRef;
-    SIZE_T* pCurObjOffset;
-} ObjectRefOffsetTuple;
-
-//---------------------------------------------------------------------------------------
-//
-// Callback of type walk_fn used by IGCHeap::DiagWalkObject.  Stores each object reference
-// encountered into an array.
-//
-// Arguments:
-//      o - original object
-//      pBO - Object reference encountered in walk
-//      context - Array of locations within the walked object that point to other
-//                objects.  On entry, (*context) points to the next unfilled array
-//                entry.  On exit, that location is filled, and (*context) is incremented
-//                to point to the next entry.
-//
-// Return Value:
-//      Always returns TRUE to object walker so it walks the entire object
-//
-
-bool SaveContainedObjectRef2(Object* o, uint8_t** pBO, void* context)
-{
-    LIMITED_METHOD_CONTRACT;
-
-    auto x = (ObjectRefOffsetTuple*)context;
-    *((Object **)(x->pCurObjRef)) = (Object *)*pBO;
-    *((SIZE_T **)(x->pCurObjOffset)) = (SIZE_T*)((uint8_t*)pBO - (uint8_t*)o);
-
-    x->pCurObjRef++;
-    x->pCurObjOffset++;
-
-    return TRUE;
-}
-
 //---------------------------------------------------------------------------------------
 //
 // Callback of type walk_fn used by the GC when walking the heap, to help profapi and ETW
@@ -1205,7 +1168,7 @@ bool HeapWalkHelper(Object * pBO, void * pvContext)
 
 #ifdef FEATURE_EVENT_TRACE
     if (s_forcedGCInProgress &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_INFORMATION, 
                                      CLR_GCHEAPDUMP_KEYWORD))
     {
@@ -1357,7 +1320,7 @@ void ScanRootsHelper(Object* pObj, Object ** ppRoot, ScanContext *pSC, uint32_t 
 #ifdef FEATURE_EVENT_TRACE
     // Notify ETW of the root
     if (s_forcedGCInProgress &&
-        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, 
+        ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, 
                                      TRACE_LEVEL_INFORMATION, 
                                      CLR_GCHEAPDUMP_KEYWORD))
     {
@@ -6842,27 +6805,32 @@ HRESULT ProfToEEInterfaceImpl::RequestReJITWithInliners(
 
     // Remember the profiler is doing this, as that means we must never detach it!
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+
+    HRESULT hr = SetupThreadForReJIT();
+    if (FAILED(hr))
+    {
+        return hr;
+    }
     
     GCX_PREEMP();
     return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(dwRejitFlags));
 }
 
 /*
- * GetObjectReferences
+ * EnumerateObjectReferences
  * 
- * Gets the object references (if any) from the ObjectID.
+ * Enumerates the object references (if any) from the ObjectID.
  * 
  * Parameters:
  *      objectId        - object id of interest
- *      cNumReferences  - count of references for which the profiler has allocated buffer space
- *      pcNumReferences - actual count of references
- *      references      - filled array of object references
+ *      callback        - callback to call for each object reference
+ *      clientData      - client data for the profiler to pass and receive for each reference
  *
  * Returns:
- *   S_OK if successful
+ *   S_OK if successful, S_FALSE if no references
  *
  */
-HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cNumReferences, ULONG32 *pcNumReferences, ObjectID references[], SIZE_T offsets[])
+HRESULT ProfToEEInterfaceImpl::EnumerateObjectReferences(ObjectID objectId, ObjectReferenceCallback callback, void* clientData)
 {
     CONTRACTL
     {
@@ -6878,10 +6846,10 @@ HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cN
         kP2EEAllowableAfterAttach,
         (LF_CORPROF,
         LL_INFO1000,
-        "**PROF: GetObjectReferences 0x%p.\n",
+        "**PROF: EnumerateObjectReferences 0x%p.\n",
         objectId));
 
-    if (cNumReferences > 0 && (pcNumReferences == nullptr || references == nullptr || offsets == nullptr))
+    if (callback == nullptr)
     {
         return E_INVALIDARG;
     }
@@ -6891,26 +6859,13 @@ HRESULT ProfToEEInterfaceImpl::GetObjectReferences(ObjectID objectId, ULONG32 cN
 
     if (pMT->ContainsPointersOrCollectible())
     {
-        if (cNumReferences == 0)
-        {
-            *pcNumReferences = 0;
-            GCHeapUtilities::GetGCHeap()->DiagWalkObject(pBO, &CountContainedObjectRef, (void*)pcNumReferences);
-        }
-        else
-        {
-            ObjectRefOffsetTuple t;
-            t.pCurObjRef = (Object*)references;
-            t.pCurObjOffset = offsets;
-
-            GCHeapUtilities::GetGCHeap()->DiagWalkObject2(pBO, &SaveContainedObjectRef2, (void*)&t);
-        }
+        GCHeapUtilities::GetGCHeap()->DiagWalkObject2(pBO, (walk_fn2)callback, clientData);
+        return S_OK;
     }
     else
     {
-        *pcNumReferences = 0;
+        return S_FALSE;
     }
-
-    return S_OK;
 }
 
 /*
@@ -6986,6 +6941,71 @@ HRESULT ProfToEEInterfaceImpl::GetLOHObjectSizeThreshold(DWORD *pThreshold)
 
     *pThreshold = g_pConfig->GetGCLOHThreshold();
 
+    return S_OK;
+}
+
+HRESULT ProfToEEInterfaceImpl::SuspendRuntime()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+        EE_THREAD_NOT_REQUIRED;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: SuspendRuntime\n"));
+
+    if (!g_fEEStarted)
+    {
+        return CORPROF_E_RUNTIME_UNINITIALIZED;
+    }
+
+    if (ThreadSuspend::SysIsSuspendInProgress() || (ThreadSuspend::GetSuspensionThread() != 0))
+    {
+        return CORPROF_E_SUSPENSION_IN_PROGRESS;
+    }
+    
+    g_profControlBlock.fProfilerRequestedRuntimeSuspend = TRUE;
+    ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_REASON::SUSPEND_FOR_PROFILER);
+    return S_OK;
+}
+
+HRESULT ProfToEEInterfaceImpl::ResumeRuntime()
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        MODE_ANY;
+        CAN_TAKE_LOCK;
+    }
+    CONTRACTL_END;
+
+    PROFILER_TO_CLR_ENTRYPOINT_SYNC_EX(
+        kP2EEAllowableAfterAttach | kP2EETriggers,
+        (LF_CORPROF,
+        LL_INFO1000,
+        "**PROF: ResumeRuntime\n"));
+    
+    if (!g_fEEStarted)
+    {
+        return CORPROF_E_RUNTIME_UNINITIALIZED;
+    }
+
+    if (!g_profControlBlock.fProfilerRequestedRuntimeSuspend)
+    {
+        return CORPROF_E_UNSUPPORTED_CALL_SEQUENCE;
+    }
+
+    ThreadSuspend::RestartEE(FALSE /* bFinishedGC */, TRUE /* SuspendSucceeded */);
+    g_profControlBlock.fProfilerRequestedRuntimeSuspend = FALSE;
     return S_OK;
 }
 
@@ -7847,15 +7867,6 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
                                                BYTE * pbContext,
                                               ULONG32 contextSize)
 {
-
-#if !defined(FEATURE_HIJACK)
-
-    // DoStackSnapshot needs Thread::Suspend/ResumeThread functionality.
-    // On platforms w/o support for these APIs return E_NOTIMPL.
-    return E_NOTIMPL;
-
-#else // !defined(FEATURE_HIJACK)
-
     CONTRACTL
     {
         // Yay!  (Note: NOTHROW is vital.  The throw at minimum allocates
@@ -8019,7 +8030,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     HostCallPreference hostCallPreference;
     
     // First, check "1) Target thread to walk == current thread OR Target thread is suspended"
-    if (pThreadToSnapshot != pCurrentThread)
+    if (pThreadToSnapshot != pCurrentThread && !g_profControlBlock.fProfilerRequestedRuntimeSuspend)
     {
 #ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
         hr = E_NOTIMPL;
@@ -8202,7 +8213,7 @@ HRESULT ProfToEEInterfaceImpl::DoStackSnapshot(ThreadID thread,
     // inlined P/Invoke.  In this case, the InlinedCallFrame will be used to help start off our
     // stackwalk at the top of the stack.
     //
-    if (pThreadToSnapshot != pCurrentThread)
+    if (pThreadToSnapshot != pCurrentThread && !g_profControlBlock.fProfilerRequestedRuntimeSuspend)
     {
 #ifndef PLATFORM_SUPPORTS_SAFE_THREADSUSPEND
         hr = E_NOTIMPL;
@@ -8304,8 +8315,6 @@ Cleanup:
     }
 
     return hr;
-
-#endif // !defined(FEATURE_HIJACK)
 }
 
 
@@ -8652,6 +8661,27 @@ HRESULT ProfToEEInterfaceImpl::GetReJITIDs(
     return ReJitManager::GetReJITIDs(pMD, cReJitIds, pcReJitIds, reJitIds);
 }
 
+
+HRESULT ProfToEEInterfaceImpl::SetupThreadForReJIT()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+        if (GetThread() == NULL)
+        {
+            SetupThread();
+        }
+
+        Thread *pThread = GetThread();
+        pThread->SetProfilerCallbackStateFlags(COR_PRF_CALLBACKSTATE_REJIT_WAS_CALLED);
+    }
+    EX_CATCH_HRESULT(hr);
+
+    return hr;
+}
+
 HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
                                             ModuleID    moduleIds[],  // in
                                             mdMethodDef methodIds[])  // in
@@ -8700,6 +8730,12 @@ HRESULT ProfToEEInterfaceImpl::RequestReJIT(ULONG       cFunctions,   // in
 
     // Remember the profiler is doing this, as that means we must never detach it!
     g_profControlBlock.pProfInterface->SetUnrevertiblyModifiedILFlag();
+    
+    HRESULT hr = SetupThreadForReJIT();
+    if (FAILED(hr))
+    {
+        return hr;
+    }
     
     GCX_PREEMP();
     return ReJitManager::RequestReJIT(cFunctions, moduleIds, methodIds, static_cast<COR_PRF_REJIT_FLAGS>(0));
@@ -8757,6 +8793,12 @@ HRESULT ProfToEEInterfaceImpl::RequestRevert(ULONG       cFunctions,  // in
     {
         memset(rgHrStatuses, 0, sizeof(HRESULT) * cFunctions);
         _ASSERTE(S_OK == rgHrStatuses[0]);
+    }
+    
+    HRESULT hr = SetupThreadForReJIT();
+    if (FAILED(hr))
+    {
+        return hr;
     }
 
     GCX_PREEMP();

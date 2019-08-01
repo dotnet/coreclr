@@ -207,10 +207,7 @@ CORJIT_FLAGS ZapInfo::ComputeJitFlags(CORINFO_METHOD_HANDLE handle)
     if (IsReadyToRunCompilation())
     {
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_READYTORUN);
-#ifndef PLATFORM_UNIX
-        // PInvoke Helpers are not yet implemented on non-Windows platforms
         jitFlags.Set(CORJIT_FLAGS::CORJIT_FLAG_USE_PINVOKE_HELPERS);
-#endif
     }
 #endif  // FEATURE_READYTORUN_COMPILER
 
@@ -430,7 +427,11 @@ void ZapInfo::CompileMethod()
 
     // If we are doing partial ngen, only compile methods with profile data
     if (!CurrentMethodHasProfileData() && m_zapper->m_pOpt->m_fPartialNGen)
+    {
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Info(W("Skipped because of no profile data\n"));
         return;
+    }
 
     // During ngen we look for a hint attribute on the method that indicates
     // the method should be preprocessed for early
@@ -441,14 +442,39 @@ void ZapInfo::CompileMethod()
     // this they can add the hint and reduce the perf cost at runtime.
     m_pImage->m_pPreloader->PrePrepareMethodIfNecessary(m_currentMethodHandle);
 
-    DWORD methodAttribs = getMethodAttribs(m_currentMethodHandle);
+    // Retrieve method attributes from EEJitInfo - the ZapInfo's version updates
+    // some of the flags related to hardware intrinsics but we don't want that.
+    DWORD methodAttribs = m_pEEJitInfo->getMethodAttribs(m_currentMethodHandle);
     if (methodAttribs & CORINFO_FLG_AGGRESSIVE_OPT)
     {
         // Skip methods marked with MethodImplOptions.AggressiveOptimization, they will be jitted instead. In the future,
         // consider letting the JIT determine whether aggressively optimized code can/should be pregenerated for the method
         // instead of this check.
+        if (m_zapper->m_pOpt->m_verbose)
+            m_zapper->Info(W("Skipped because of aggressive optimization flag\n"));
         return;
     }
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if (methodAttribs & CORINFO_FLG_JIT_INTRINSIC)
+    {
+        // Skip generating hardware intrinsic method bodies.
+        //
+        // We don't know what the implementation should do (whether it can do the actual intrinsic thing, or whether
+        // it should throw a PlatformNotSupportedException).
+
+        const char* namespaceName;
+        getMethodNameFromMetadata(m_currentMethodHandle, nullptr, &namespaceName, nullptr);
+        if (strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0
+            || strcmp(namespaceName, "System.Runtime.Intrinsics") == 0)
+        {
+            if (m_zapper->m_pOpt->m_verbose)
+                m_zapper->Info(W("Skipped due to being a hardware intrinsic\n"));
+            return;
+        }
+    }
+#endif
 
     m_jitFlags = ComputeJitFlags(m_currentMethodHandle);
 
@@ -2086,6 +2112,98 @@ void ZapInfo::GetProfilingHandle(BOOL                      *pbHookFunction,
     *pbIndirectedHandles = TRUE;
 }
 
+//
+// This strips the CORINFO_FLG_JIT_INTRINSIC flag from some of the named intrinsic methods.
+//
+DWORD FilterNamedIntrinsicMethodAttribs(DWORD attribs, CORINFO_METHOD_HANDLE ftn, ICorDynamicInfo* pJitInfo)
+{
+    if (attribs & CORINFO_FLG_JIT_INTRINSIC)
+    {
+        // Figure out which intrinsic we are dealing with.
+        const char* namespaceName;
+        const char* className;
+        const char* enclosingClassName;
+        const char* methodName = pJitInfo->getMethodNameFromMetadata(ftn, &className, &namespaceName, &enclosingClassName);
+
+        // Is this the get_IsSupported method that checks whether intrinsic is supported?
+        bool fIsGetIsSupportedMethod   = strcmp(methodName, "get_IsSupported") == 0;
+        bool fIsPlatformHWIntrinsic    = false;
+        bool fIsHWIntrinsic            = false;
+        bool fTreatAsRegularMethodCall = false;
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        fIsPlatformHWIntrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0;
+#elif _TARGET_ARM64_
+        fIsPlatformHWIntrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0;
+#endif
+
+        fIsHWIntrinsic = fIsPlatformHWIntrinsic || (strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+
+        // By default, we want to treat the get_IsSupported method for platform specific HWIntrinsic ISAs as
+        // method calls. This will be modified as needed below based on what ISAs are considered baseline.
+        //
+        // We also want to treat the non-platform specific hardware intrinsics as regular method calls. This
+        // is because they often change the code they emit based on what ISAs are supported by the compiler,
+        // but we don't know what the target machine will support.
+        //
+        // Additionally, we make sure none of the hardware intrinsic method bodies get pregenerated in crossgen
+        // (see ZapInfo::CompileMethod) but get JITted instead. The JITted method will have the correct
+        // answer for the CPU the code is running on.
+        fTreatAsRegularMethodCall = (fIsGetIsSupportedMethod && fIsPlatformHWIntrinsic) || (!fIsPlatformHWIntrinsic && fIsHWIntrinsic);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+        if (fIsPlatformHWIntrinsic)
+        {
+            // Simplify the comparison logic by grabbing the name of the ISA
+            const char* isaName = (enclosingClassName == nullptr) ? className : enclosingClassName;
+
+            if ((strcmp(isaName, "Sse") == 0) || (strcmp(isaName, "Sse2") == 0))
+            {
+                if ((enclosingClassName == nullptr) || (strcmp(className, "X64") == 0))
+                {
+                    // If it's anything related to Sse/Sse2, we can expand unconditionally since this is
+                    // a baseline requirement of CoreCLR.
+                    fTreatAsRegularMethodCall = false;
+                }
+            }
+            else if ((strcmp(className, "Avx") == 0) || (strcmp(className, "Fma") == 0) || (strcmp(className, "Avx2") == 0) || (strcmp(className, "Bmi1") == 0) || (strcmp(className, "Bmi2") == 0))
+            {
+                if ((enclosingClassName == nullptr) || (strcmp(className, "X64") == 0))
+                {
+                    // If it is the get_IsSupported method for an ISA which requires the VEX
+                    // encoding we want to expand unconditionally. This will force those code
+                    // paths to be treated as dead code and dropped from the compilation.
+                    //
+                    // For all of the other intrinsics in an ISA which requires the VEX encoding
+                    // we need to treat them as regular method calls. This is done because RyuJIT
+                    // doesn't currently support emitting both VEX and non-VEX encoded instructions
+                    // for a single method.
+                    fTreatAsRegularMethodCall = !fIsGetIsSupportedMethod;
+                }
+            }
+        }
+        else if (strcmp(namespaceName, "System") == 0)
+        {
+            if ((strcmp(className, "Math") == 0) || (strcmp(className, "MathF") == 0))
+            {
+                // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
+                // However, we don't know the ISAs the target machine supports so we should
+                // fallback to the method call implementation instead.
+                fTreatAsRegularMethodCall = strcmp(methodName, "Round") == 0;
+            }
+        }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+        if (fTreatAsRegularMethodCall)
+        {
+            // Treat as a regular method call (into a JITted method).
+            attribs = (attribs & ~CORINFO_FLG_JIT_INTRINSIC) | CORINFO_FLG_DONT_INLINE;
+        }
+    }
+
+    return attribs;
+}
+
 //return a callable stub that will do the virtual or interface call
 
 
@@ -2110,6 +2228,8 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                                */
                               (CORINFO_CALLINFO_FLAGS)(flags | CORINFO_CALLINFO_KINDONLY),
                               pResult);
+
+    pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, pResult->hMethod, m_pEEJitInfo);
 
 #ifdef FEATURE_READYTORUN_COMPILER
     if (IsReadyToRunCompilation())
@@ -2152,7 +2272,16 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
         if (pResult->thisTransform == CORINFO_BOX_THIS)
         {
             // READYTORUN: FUTURE: Optionally create boxing stub at runtime
-            ThrowHR(E_NOTIMPL);
+            // We couldn't resolve the constrained call into a valuetype instance method and we're asking the JIT
+            // to box and do a virtual dispatch. If we were to allow the boxing to happen now, it could break future code
+            // when the user adds a method to the valuetype that makes it possible to avoid boxing (if there is state
+            // mutation in the method).
+            
+            // We allow this at least for primitives and enums because we control them
+            // and we know there's no state mutation.
+            CorInfoType constrainedType = getTypeForPrimitiveValueClass(pConstrainedResolvedToken->hClass);
+            if (constrainedType == CORINFO_TYPE_UNDEF)
+                ThrowHR(E_NOTIMPL);
         }
     }
 
@@ -2222,6 +2351,18 @@ void ZapInfo::getCallInfo(CORINFO_RESOLVED_TOKEN * pResolvedToken,
             }
             else
             {
+                if (pResult->methodFlags & CORINFO_FLG_INTRINSIC)
+                {
+                    bool unused;
+                    CorInfoIntrinsics intrinsic = getIntrinsicID(pResult->hMethod, &unused);
+                    if ((intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContext)
+                     || (intrinsic == CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr)
+                     )
+                    {
+                        // These intrinsics are always expanded directly in the jit and do not correspond to external methods
+                        return;
+                    }
+                }
                 pImport = m_pImage->GetImportTable()->GetExternalMethodCell(pResult->hMethod, pResolvedToken, pConstrainedResolvedToken);
             }
 
@@ -3672,7 +3813,8 @@ unsigned ZapInfo::getMethodHash(CORINFO_METHOD_HANDLE ftn)
 
 DWORD ZapInfo::getMethodAttribs(CORINFO_METHOD_HANDLE ftn)
 {
-    return m_pEEJitInfo->getMethodAttribs(ftn);
+    DWORD result = m_pEEJitInfo->getMethodAttribs(ftn);
+    return FilterNamedIntrinsicMethodAttribs(result, ftn, m_pEEJitInfo);
 }
 
 void ZapInfo::setMethodAttribs(CORINFO_METHOD_HANDLE ftn, CorInfoMethodRuntimeFlags attribs)
@@ -3842,7 +3984,19 @@ void ZapInfo::expandRawHandleIntrinsic(
 CorInfoIntrinsics ZapInfo::getIntrinsicID(CORINFO_METHOD_HANDLE method,
                                           bool * pMustExpand)
 {
-    return m_pEEJitInfo->getIntrinsicID(method, pMustExpand);
+    CorInfoIntrinsics intrinsicID = m_pEEJitInfo->getIntrinsicID(method, pMustExpand);
+
+#if defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+    if ((intrinsicID == CORINFO_INTRINSIC_Ceiling) || (intrinsicID == CORINFO_INTRINSIC_Floor))
+    {
+        // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
+        // However, we don't know the ISAs the target machine supports so we should
+        // fallback to the method call implementation instead.
+        intrinsicID = CORINFO_INTRINSIC_Illegal;
+    }
+#endif // defined(_TARGET_X86_) || defined(_TARGET_AMD64_)
+
+    return intrinsicID;
 }
 
 bool ZapInfo::isInSIMDModule(CORINFO_CLASS_HANDLE classHnd)
@@ -3858,8 +4012,8 @@ CorInfoUnmanagedCallConv ZapInfo::getUnmanagedCallConv(CORINFO_METHOD_HANDLE met
 BOOL ZapInfo::pInvokeMarshalingRequired(CORINFO_METHOD_HANDLE method,
                                                        CORINFO_SIG_INFO* sig)
 {
-#ifdef PLATFORM_UNIX
-    // TODO: Support for pinvoke helpers on non-Windows platforms
+#if defined(_TARGET_X86_) && defined(PLATFORM_UNIX)
+    // FUTURE ReadyToRun: x86 pinvoke stubs on Unix platforms
     if (IsReadyToRunCompilation())
         return TRUE; 
 #endif

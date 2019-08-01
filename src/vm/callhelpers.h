@@ -69,8 +69,7 @@ void CallDescrWorkerWithHandler(
 
 void DispatchCall(
                 CallDescrData *   pCallDescrData,
-                OBJECTREF *             pRefException,
-                ContextTransitionFrame* pFrame = NULL
+                OBJECTREF *             pRefException
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
                 , CorruptionSeverity *  pSeverity = NULL
 #endif // FEATURE_CORRUPTING_EXCEPTIONS
@@ -362,10 +361,6 @@ public:
 #define MDCALLDEF_ARGSLOT(wrappedmethod, ext)                                       \
         FORCEINLINE void wrappedmethod##ext (const ARG_SLOT* pArguments, ARG_SLOT *pReturnValue, int cbReturnValue) \
         {                                                                           \
-            WRAPPER_NO_CONTRACT;                                                    \
-            {                                                                       \
-                GCX_FORBID();  /* arg array is not protected */                     \
-            }                                                                       \
             CallTargetWorker(pArguments, pReturnValue, cbReturnValue);              \
             /* Bigendian layout not support */                                      \
         }
@@ -373,11 +368,6 @@ public:
 #define MDCALLDEF_REFTYPE(wrappedmethod,  permitvaluetypes, ext, ptrtype, reftype)              \
         FORCEINLINE reftype wrappedmethod##ext (const ARG_SLOT* pArguments)                     \
         {                                                                                       \
-            WRAPPER_NO_CONTRACT;                                                                \
-            {                                                                                   \
-                GCX_FORBID();  /* arg array is not protected */                                 \
-                CONSISTENCY_CHECK(MetaSig::RETOBJ == m_pMD->ReturnsObject(true));               \
-            }                                                                                   \
             ARG_SLOT retval;                                                                    \
             CallTargetWorker(pArguments, &retval, sizeof(retval));                              \
             return ObjectTo##reftype(*(ptrtype *)                                               \
@@ -542,7 +532,6 @@ enum EEToManagedCallFlags
     /* thread abort has been requested */                                       \
     if (!(flags & EEToManagedCriticalCall))                                     \
     {                                                                           \
-        TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));                \
         if (CURRENT_THREAD->IsAbortRequested()) {                               \
             CURRENT_THREAD->HandleThreadAbort();                                \
         }                                                                       \

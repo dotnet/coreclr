@@ -70,6 +70,10 @@ inline void ProfControlBlock::Init()
     fConcurrentGCDisabledForAttach = FALSE;
 
     ResetPerSessionStatus();
+
+    fProfControlBlockInitialized = TRUE;
+
+    fProfilerRequestedRuntimeSuspend = FALSE;
 }
 
 // Reset those variables that is only for the current attach session

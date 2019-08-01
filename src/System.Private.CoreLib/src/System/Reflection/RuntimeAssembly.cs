@@ -21,7 +21,7 @@ namespace System.Reflection
         internal RuntimeAssembly() { throw new NotSupportedException(); }
 
         #region private data members
-        private event ModuleResolveEventHandler _ModuleResolve;
+        private event ModuleResolveEventHandler? _ModuleResolve;
         private string? m_fullname;
         private object? m_syncRoot;   // Used to keep collectible types alive and as the syncroot for reflection.emit
 #pragma warning disable 169
@@ -29,6 +29,8 @@ namespace System.Reflection
 #pragma warning restore 169
 
         #endregion
+
+        internal IntPtr GetUnderlyingNativeHandle() { return m_assembly; }
 
         private sealed class ManifestResourceStream : UnmanagedMemoryStream
         {
@@ -48,11 +50,11 @@ namespace System.Reflection
                 {
                     Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                 }
-                return m_syncRoot!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+                return m_syncRoot;
             }
         }
 
-        public override event ModuleResolveEventHandler ModuleResolve
+        public override event ModuleResolveEventHandler? ModuleResolve
         {
             add
             {
@@ -67,14 +69,15 @@ namespace System.Reflection
         private const string s_localFilePrefix = "file:";
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetCodeBase(RuntimeAssembly assembly,
+        private static extern void GetCodeBase(QCallAssembly assembly,
                                                bool copiedName,
                                                StringHandleOnStack retString);
 
         internal string? GetCodeBase(bool copiedName)
         {
             string? codeBase = null;
-            GetCodeBase(GetNativeHandle(), copiedName, JitHelpers.GetStringHandleOnStack(ref codeBase));
+            RuntimeAssembly runtimeAssembly = this;
+            GetCodeBase(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), copiedName, JitHelpers.GetStringHandleOnStack(ref codeBase));
             return codeBase;
         }
 
@@ -100,20 +103,17 @@ namespace System.Reflection
                     GetFlags() | AssemblyNameFlags.PublicKey,
                     null); // strong name key pair
 
-            Module? manifestModule = ManifestModule;
-            if (manifestModule != null)
+            Module manifestModule = ManifestModule;
+            if (manifestModule.MDStreamVersion > 0x10000)
             {
-                if (manifestModule.MDStreamVersion > 0x10000)
-                {
-                    manifestModule.GetPEKind(out PortableExecutableKinds pek, out ImageFileMachine ifm);
-                    an.SetProcArchIndex(pek, ifm);
-                }
+                manifestModule.GetPEKind(out PortableExecutableKinds pek, out ImageFileMachine ifm);
+                an.SetProcArchIndex(pek, ifm);
             }
             return an;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetFullName(RuntimeAssembly assembly, StringHandleOnStack retString);
+        private static extern void GetFullName(QCallAssembly assembly, StringHandleOnStack retString);
 
         public override string? FullName
         {
@@ -123,7 +123,8 @@ namespace System.Reflection
                 if (m_fullname == null)
                 {
                     string? s = null;
-                    GetFullName(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref s));
+                    RuntimeAssembly runtimeAssembly = this;
+                    GetFullName(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetStringHandleOnStack(ref s));
                     Interlocked.CompareExchange(ref m_fullname, s, null);
                 }
 
@@ -132,14 +133,15 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetEntryPoint(RuntimeAssembly assembly, ObjectHandleOnStack retMethod);
+        private static extern void GetEntryPoint(QCallAssembly assembly, ObjectHandleOnStack retMethod);
 
         public override MethodInfo? EntryPoint
         {
             get
             {
                 IRuntimeMethodInfo? methodHandle = null;
-                GetEntryPoint(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref methodHandle));
+                RuntimeAssembly runtimeAssembly = this;
+                GetEntryPoint(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetObjectHandleOnStack(ref methodHandle));
 
                 if (methodHandle == null)
                     return null;
@@ -149,7 +151,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetType(RuntimeAssembly assembly,
+        private static extern void GetType(QCallAssembly assembly,
                                             string name,
                                             bool throwOnError,
                                             bool ignoreCase,
@@ -167,7 +169,8 @@ namespace System.Reflection
             object? keepAlive = null;
             AssemblyLoadContext? assemblyLoadContextStack = AssemblyLoadContext.CurrentContextualReflectionContext;
 
-            GetType(GetNativeHandle(),
+            RuntimeAssembly runtimeAssembly = this;
+            GetType(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly),
                     name,
                     throwOnError,
                     ignoreCase,
@@ -180,12 +183,13 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetExportedTypes(RuntimeAssembly assembly, ObjectHandleOnStack retTypes);
+        private static extern void GetExportedTypes(QCallAssembly assembly, ObjectHandleOnStack retTypes);
 
         public override Type[] GetExportedTypes()
         {
             Type[]? types = null;
-            GetExportedTypes(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref types));
+            RuntimeAssembly runtimeAssembly = this;
+            GetExportedTypes(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetObjectHandleOnStack(ref types));
             return types!;
         }
 
@@ -211,14 +215,20 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static extern bool GetIsCollectible(RuntimeAssembly assembly);
+        internal static extern Interop.BOOL GetIsCollectible(QCallAssembly assembly);
 
-        public override bool IsCollectible => GetIsCollectible(GetNativeHandle());
+        public override bool IsCollectible
+        {
+            get
+            {
+                RuntimeAssembly runtimeAssembly = this;
+                return GetIsCollectible(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly)) != Interop.BOOL.FALSE;
+            }
+        }
 
         // GetResource will return a pointer to the resources in memory.
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern unsafe byte* GetResource(RuntimeAssembly assembly,
+        private static extern unsafe byte* GetResource(QCallAssembly assembly,
                                                        string resourceName,
                                                        out uint length);
 
@@ -241,7 +251,8 @@ namespace System.Reflection
         public unsafe override Stream? GetManifestResourceStream(string name)
         {
             uint length = 0;
-            byte* pbInMemoryResource = GetResource(GetNativeHandle(), name, out length);
+            RuntimeAssembly runtimeAssembly = this;
+            byte* pbInMemoryResource = GetResource(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), name, out length);
 
             if (pbInMemoryResource != null)
             {
@@ -257,7 +268,7 @@ namespace System.Reflection
             throw new PlatformNotSupportedException();
         }
 
-        public override Module? ManifestModule
+        public override Module ManifestModule
         {
             get
             {
@@ -353,12 +364,13 @@ namespace System.Reflection
         // Returns the module in this assembly with name 'name'
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetModule(RuntimeAssembly assembly, string name, ObjectHandleOnStack retModule);
+        private static extern void GetModule(QCallAssembly assembly, string name, ObjectHandleOnStack retModule);
 
         public override Module? GetModule(string name)
         {
             Module? retModule = null;
-            GetModule(GetNativeHandle(), name, JitHelpers.GetObjectHandleOnStack(ref retModule));
+            RuntimeAssembly runtimeAssembly = this;
+            GetModule(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), name, JitHelpers.GetObjectHandleOnStack(ref retModule));
             return retModule;
         }
 
@@ -410,7 +422,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern int GetManifestResourceInfo(RuntimeAssembly assembly,
+        private static extern int GetManifestResourceInfo(QCallAssembly assembly,
                                                           string resourceName,
                                                           ObjectHandleOnStack assemblyRef,
                                                           StringHandleOnStack retFileName);
@@ -419,7 +431,8 @@ namespace System.Reflection
         {
             RuntimeAssembly? retAssembly = null;
             string? fileName = null;
-            int location = GetManifestResourceInfo(GetNativeHandle(), resourceName,
+            RuntimeAssembly runtimeAssembly = this;
+            int location = GetManifestResourceInfo(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), resourceName,
                                                    JitHelpers.GetObjectHandleOnStack(ref retAssembly),
                                                    JitHelpers.GetStringHandleOnStack(ref fileName));
 
@@ -431,7 +444,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetLocation(RuntimeAssembly assembly, StringHandleOnStack retString);
+        private static extern void GetLocation(QCallAssembly assembly, StringHandleOnStack retString);
 
         public override string Location
         {
@@ -439,21 +452,23 @@ namespace System.Reflection
             {
                 string? location = null;
 
-                GetLocation(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref location));
+                RuntimeAssembly runtimeAssembly = this;
+                GetLocation(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetStringHandleOnStack(ref location));
 
                 return location!;
             }
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetImageRuntimeVersion(RuntimeAssembly assembly, StringHandleOnStack retString);
+        private static extern void GetImageRuntimeVersion(QCallAssembly assembly, StringHandleOnStack retString);
 
         public override string ImageRuntimeVersion
         {
             get
             {
                 string? s = null;
-                GetImageRuntimeVersion(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref s));
+                RuntimeAssembly runtimeAssembly = this;
+                GetImageRuntimeVersion(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetStringHandleOnStack(ref s));
                 return s!;
             }
         }
@@ -503,7 +518,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetVersion(RuntimeAssembly assembly,
+        private static extern void GetVersion(QCallAssembly assembly,
                                               out int majVer,
                                               out int minVer,
                                               out int buildNum,
@@ -512,23 +527,25 @@ namespace System.Reflection
         internal Version GetVersion()
         {
             int majorVer, minorVer, build, revision;
-            GetVersion(GetNativeHandle(), out majorVer, out minorVer, out build, out revision);
+            RuntimeAssembly runtimeAssembly = this;
+            GetVersion(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), out majorVer, out minorVer, out build, out revision);
             return new Version(majorVer, minorVer, build, revision);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetLocale(RuntimeAssembly assembly, StringHandleOnStack retString);
+        private static extern void GetLocale(QCallAssembly assembly, StringHandleOnStack retString);
 
         internal CultureInfo GetLocale()
         {
             string? locale = null;
 
-            GetLocale(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref locale));
+            RuntimeAssembly runtimeAssembly = this;
+            GetLocale(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetStringHandleOnStack(ref locale));
 
             if (locale == null)
                 return CultureInfo.InvariantCulture;
 
-            return new CultureInfo(locale);
+            return CultureInfo.GetCultureInfo(locale);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -543,45 +560,49 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetSimpleName(RuntimeAssembly assembly, StringHandleOnStack retSimpleName);
+        private static extern void GetSimpleName(QCallAssembly assembly, StringHandleOnStack retSimpleName);
 
         internal string? GetSimpleName()
         {
+            RuntimeAssembly runtimeAssembly = this;
             string? name = null;
-            GetSimpleName(GetNativeHandle(), JitHelpers.GetStringHandleOnStack(ref name));
+            GetSimpleName(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetStringHandleOnStack(ref name));
             return name;
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern AssemblyHashAlgorithm GetHashAlgorithm(RuntimeAssembly assembly);
+        private static extern AssemblyHashAlgorithm GetHashAlgorithm(QCallAssembly assembly);
 
         private AssemblyHashAlgorithm GetHashAlgorithm()
         {
-            return GetHashAlgorithm(GetNativeHandle());
+            RuntimeAssembly runtimeAssembly = this;
+            return GetHashAlgorithm(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly));
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern AssemblyNameFlags GetFlags(RuntimeAssembly assembly);
+        private static extern AssemblyNameFlags GetFlags(QCallAssembly assembly);
 
         private AssemblyNameFlags GetFlags()
         {
-            return GetFlags(GetNativeHandle());
+            RuntimeAssembly runtimeAssembly = this;
+            return GetFlags(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly));
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetPublicKey(RuntimeAssembly assembly, ObjectHandleOnStack retPublicKey);
+        private static extern void GetPublicKey(QCallAssembly assembly, ObjectHandleOnStack retPublicKey);
 
         internal byte[]? GetPublicKey()
         {
             byte[]? publicKey = null;
-            GetPublicKey(GetNativeHandle(), JitHelpers.GetObjectHandleOnStack(ref publicKey));
+            RuntimeAssembly runtimeAssembly = this;
+            GetPublicKey(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), JitHelpers.GetObjectHandleOnStack(ref publicKey));
             return publicKey;
         }
 
         // This method is called by the VM.
         private RuntimeModule? OnModuleResolveEvent(string moduleName)
         {
-            ModuleResolveEventHandler moduleResolve = _ModuleResolve;
+            ModuleResolveEventHandler? moduleResolve = _ModuleResolve;
             if (moduleResolve == null)
                 return null;
 
@@ -646,7 +667,7 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetModules(RuntimeAssembly assembly,
+        private static extern void GetModules(QCallAssembly assembly,
                                               bool loadIfNotFound,
                                               bool getResourceModules,
                                               ObjectHandleOnStack retModuleHandles);
@@ -655,7 +676,9 @@ namespace System.Reflection
                                      bool getResourceModules)
         {
             RuntimeModule[]? modules = null;
-            GetModules(GetNativeHandle(), loadIfNotFound, getResourceModules, JitHelpers.GetObjectHandleOnStack(ref modules));
+            RuntimeAssembly runtimeAssembly = this;
+
+            GetModules(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly), loadIfNotFound, getResourceModules, JitHelpers.GetObjectHandleOnStack(ref modules));
             return modules!;
         }
 
@@ -682,6 +705,8 @@ namespace System.Reflection
 
             MetadataImport scope = GetManifestModule(GetNativeHandle()).MetadataImport;
             scope.Enum(MetadataTokenType.ExportedType, 0, out MetadataEnumResult enumResult);
+            RuntimeAssembly runtimeAssembly = this;
+            QCallAssembly pAssembly = JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly);
             for (int i = 0; i < enumResult.Length; i++)
             {
                 MetadataToken mdtExternalType = enumResult[i];
@@ -690,7 +715,7 @@ namespace System.Reflection
                 ObjectHandleOnStack pType = JitHelpers.GetObjectHandleOnStack(ref type);
                 try
                 {
-                    GetForwardedType(this, mdtExternalType, pType);
+                    GetForwardedType(pAssembly, mdtExternalType, pType);
                     if (type == null)
                         continue;  // mdtExternalType was not a forwarder entry.
                 }
@@ -700,7 +725,7 @@ namespace System.Reflection
                     exception = e;
                 }
 
-                Debug.Assert((type != null) != (exception != null)); // Exactly one of these must be non-null. // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2388
+                Debug.Assert((type != null) != (exception != null)); // Exactly one of these must be non-null.
 
                 if (type != null)
                 {
@@ -745,6 +770,6 @@ namespace System.Reflection
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetForwardedType(RuntimeAssembly assembly, MetadataToken mdtExternalType, ObjectHandleOnStack type);
+        private static extern void GetForwardedType(QCallAssembly assembly, MetadataToken mdtExternalType, ObjectHandleOnStack type);
     }
 }

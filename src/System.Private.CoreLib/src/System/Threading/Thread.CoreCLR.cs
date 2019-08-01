@@ -269,9 +269,9 @@ namespace System.Threading
         public static void SpinWait(int iterations) => SpinWaitInternal(iterations);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool YieldInternal();
+        private static extern Interop.BOOL YieldInternal();
 
-        public static bool Yield() => YieldInternal();
+        public static bool Yield() => YieldInternal() != Interop.BOOL.FALSE;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());
@@ -468,18 +468,20 @@ namespace System.Threading
         {
             get
             {
-                if (s_optimalMaxSpinWaitsPerSpinIteration != 0)
-                {
-                    return s_optimalMaxSpinWaitsPerSpinIteration;
-                }
-
-                // This is done lazily because the first call to the function below in the process triggers a measurement that
-                // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
-                // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
-                s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
-                Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
-                return s_optimalMaxSpinWaitsPerSpinIteration;
+                int optimalMaxSpinWaitsPerSpinIteration = s_optimalMaxSpinWaitsPerSpinIteration;
+                return optimalMaxSpinWaitsPerSpinIteration != 0 ? optimalMaxSpinWaitsPerSpinIteration : CalculateOptimalMaxSpinWaitsPerSpinIteration();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int CalculateOptimalMaxSpinWaitsPerSpinIteration()
+        {
+            // This is done lazily because the first call to the function below in the process triggers a measurement that
+            // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
+            // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
+            s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
+            Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
+            return s_optimalMaxSpinWaitsPerSpinIteration;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]

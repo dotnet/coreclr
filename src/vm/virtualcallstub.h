@@ -44,10 +44,12 @@ struct VTableCallHolder;
 // Forward function declarations
 extern "C" void InContextTPQuickDispatchAsmStub();
 
+#ifdef FEATURE_PREJIT
 extern "C" PCODE STDCALL StubDispatchFixupWorker(TransitionBlock * pTransitionBlock, 
                                                  TADDR siteAddrForRegisterIndirect,
                                                  DWORD sectionIndex, 
                                                  Module * pModule);
+#endif
 
 extern "C" PCODE STDCALL VSD_ResolveWorker(TransitionBlock * pTransitionBlock,
                                            TADDR siteAddrForRegisterIndirect,
@@ -493,7 +495,8 @@ private:
     DispatchHolder *GenerateDispatchStub(PCODE addrOfCode,
                                          PCODE addrOfFail,
                                          void *pMTExpected,
-                                         size_t dispatchToken);
+                                         size_t dispatchToken,
+                                         bool *pMayHaveReenteredCooperativeGCMode);
 
 #ifdef _TARGET_AMD64_
     // Used to allocate a long jump dispatch stub. See comment around
@@ -501,7 +504,8 @@ private:
     DispatchHolder *GenerateDispatchStubLong(PCODE addrOfCode,
                                              PCODE addrOfFail,
                                              void *pMTExpected,
-                                             size_t dispatchToken);
+                                             size_t dispatchToken,
+                                             bool *pMayHaveReenteredCooperativeGCMode);
 #endif
 
     ResolveHolder *GenerateResolveStub(PCODE addrOfResolver,
@@ -527,7 +531,8 @@ private:
     // The resolve cache is static across all AppDomains
     ResolveCacheElem *GenerateResolveCacheElem(void *addrOfCode,
                                                void *pMTExpected,
-                                               size_t token);
+                                               size_t token,
+                                               bool *pMayHaveReenteredCooperativeGCMode);
 
     ResolveCacheElem *GetResolveCacheElem(void *pMT,
                                           size_t token,

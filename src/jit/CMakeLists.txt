@@ -1,13 +1,14 @@
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 include_directories("./jitstd")
 include_directories("../inc")
 
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  add_compile_options(-fpermissive)
+  add_compile_options($<$<COMPILE_LANGUAGE:CXX>:-fpermissive>)
   add_compile_options(-Wno-error)
 endif()
+
+add_compile_options($<$<CXX_COMPILER_ID:MSVC>:-W4>)
 
 if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR (CLR_CMAKE_TARGET_ARCH_I386 AND NOT CLR_CMAKE_PLATFORM_UNIX))
   add_definitions(-DFEATURE_SIMD)
@@ -15,7 +16,7 @@ if (CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR (CLR_CMAKE_TAR
 endif ()
 
 # JIT_BUILD disables certain PAL_TRY debugging features
-add_definitions(-DJIT_BUILD=1)
+add_definitions(-DJIT_BUILD)
 
 if(WIN32)
   set(JIT_RESOURCES Native.rc)

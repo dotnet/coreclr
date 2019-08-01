@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -17,7 +18,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // Cached multicast delegate which will invoke all of the currently registered delegates.  This
         // will be accessed frequently in common coding paterns, so we don't want to calculate it repeatedly.
-        private volatile T m_invokeList = null!; // TODO-NULLABLE-GENERIC
+        private volatile T? m_invokeList = null;
 
         public EventRegistrationTokenTable()
         {
@@ -31,20 +32,19 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         // The InvocationList property provides access to a delegate which will invoke every registered event handler
         // in this table.  If the property is set, the new value will replace any existing token registrations.
-        public T InvocationList
+        public T? InvocationList
         {
             get
             {
                 return m_invokeList;
             }
-
             set
             {
                 lock (m_tokens)
                 {
                     // The value being set replaces any of the existing values
                     m_tokens.Clear();
-                    m_invokeList = null!; // TODO-NULLABLE-GENERIC
+                    m_invokeList = null;
 
                     if (value != null)
                     {
@@ -54,7 +54,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public EventRegistrationToken AddEventHandler(T handler)
+        public EventRegistrationToken AddEventHandler(T? handler)
         {
             // Windows Runtime allows null handlers.  Assign those a token value of 0 for easy identity
             if (handler == null)
@@ -84,7 +84,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Update the current invocation list to include the newly added delegate
             Delegate? invokeList = (Delegate?)(object?)m_invokeList;
             invokeList = MulticastDelegate.Combine(invokeList, (Delegate)(object)handler);
-            m_invokeList = (T)(object?)invokeList!; // TODO-NULLABLE-GENERIC
+            m_invokeList = (T?)(object?)invokeList;
 
             return token;
         }
@@ -151,7 +151,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // Remove the event handler from the table and 
         // Get the delegate associated with an event registration token if it exists
         // If the event registration token is not registered, returns false
-        public bool RemoveEventHandler(EventRegistrationToken token, out T handler)
+        public bool RemoveEventHandler(EventRegistrationToken token, [NotNullWhen(true)] out T? handler)
         {
             lock (m_tokens)
             {
@@ -179,7 +179,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public void RemoveEventHandler(T handler)
+        public void RemoveEventHandler(T? handler)
         {
             // To match the Windows Runtime behaivor when adding a null handler, removing one is a no-op
             if (handler == null)
@@ -195,8 +195,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 // value.  Therefore we need to make sure we really have the handler we want before taking the
                 // fast path.
                 EventRegistrationToken preferredToken = GetPreferredToken(handler);
-                T registeredHandler;
-                if (m_tokens.TryGetValue(preferredToken, out registeredHandler))
+                if (m_tokens.TryGetValue(preferredToken, out T? registeredHandler))
                 {
                     if (registeredHandler == handler)
                     {
@@ -227,15 +226,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private void RemoveEventHandlerNoLock(EventRegistrationToken token)
         {
-            T handler;
-            if (m_tokens.TryGetValue(token, out handler))
+            if (m_tokens.TryGetValue(token, out T? handler))
             {
                 m_tokens.Remove(token);
 
                 // Update the current invocation list to remove the delegate
                 Delegate? invokeList = (Delegate?)(object?)m_invokeList;
                 invokeList = MulticastDelegate.Remove(invokeList, (Delegate?)(object?)handler);
-                m_invokeList = (T)(object?)invokeList!; // TODO-NULLABLE-GENERIC
+                m_invokeList = (T?)(object?)invokeList;
             }
         }
 
@@ -245,7 +243,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 Interlocked.CompareExchange(ref refEventTable, new EventRegistrationTokenTable<T>(), null);
             }
-            return refEventTable!; // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/26761
+            return refEventTable;
         }
     }
 }

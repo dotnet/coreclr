@@ -2458,7 +2458,6 @@ BOOL AwareLock::TryEnter(INT32 timeOut)
     CONTRACTL_END;
 
     Thread  *pCurThread = GetThread();
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID, FALSE));
 
     if (pCurThread->IsAbortRequested())
     {
@@ -2582,7 +2581,7 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
     // the object associated with this lock.
     _ASSERTE(pCurThread->PreemptiveGCDisabled());
 
-    BOOLEAN IsContentionKeywordEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, TRACE_LEVEL_INFORMATION, CLR_CONTENTION_KEYWORD);
+    BOOLEAN IsContentionKeywordEnabled = ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, TRACE_LEVEL_INFORMATION, CLR_CONTENTION_KEYWORD);
     LARGE_INTEGER startTicks = { {0} };
 
     if (IsContentionKeywordEnabled)
@@ -2614,49 +2613,51 @@ BOOL AwareLock::EnterEpilogHelper(Thread* pCurThread, INT32 timeOut)
 
         for (;;)
         {
-            // We might be interrupted during the wait (Thread.Interrupt), so we need an
-            // exception handler round the call.
-            struct Param
-            {
-                AwareLock *pThis;
-                INT32 timeOut;
-                DWORD ret;
-            } param;
-            param.pThis = this;
-            param.timeOut = timeOut;
-
             // Measure the time we wait so that, in the case where we wake up
             // and fail to acquire the mutex, we can adjust remaining timeout
             // accordingly.
             ULONGLONG start = CLRGetTickCount64();
 
-            EE_TRY_FOR_FINALLY(Param *, pParam, &param)
+            // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
+            // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
+            // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
+            // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
+            // another thread as necessary.
+
+            // We must decrement the waiter count in the case an exception happened. This holder takes care of that
+            class UnregisterWaiterHolder
             {
-                pParam->ret = pParam->pThis->m_SemEvent.Wait(pParam->timeOut, TRUE);
-                _ASSERTE((pParam->ret == WAIT_OBJECT_0) || (pParam->ret == WAIT_TIMEOUT));
-            }
-            EE_FINALLY
-            {
-                if (GOT_EXCEPTION())
+                LockState* m_pLockState;
+            public:
+                UnregisterWaiterHolder(LockState* pLockState) : m_pLockState(pLockState)
                 {
-                    // It is likely the case that An APC threw an exception, for instance Thread.Interrupt(). The wait subsystem
-                    // guarantees that if a signal to the event being waited upon is observed by the woken thread, that thread's
-                    // wait will return WAIT_OBJECT_0. So in any race between m_SemEvent being signaled and the wait throwing an
-                    // exception, a thread that is woken by an exception would not observe the signal, and the signal would wake
-                    // another thread as necessary.
-
-                    // We must decrement the waiter count.
-                    m_lockState.InterlockedUnregisterWaiter();
                 }
-            } EE_END_FINALLY;
 
-            ret = param.ret;
+                ~UnregisterWaiterHolder()
+                {
+                    if (m_pLockState != NULL)
+                    {
+                        m_pLockState->InterlockedUnregisterWaiter();
+                    }
+                }
+
+                void SuppressRelease()
+                {
+                    m_pLockState = NULL;
+                }
+            } unregisterWaiterHolder(&m_lockState);
+
+            ret = m_SemEvent.Wait(timeOut, TRUE);
+            _ASSERTE((ret == WAIT_OBJECT_0) || (ret == WAIT_TIMEOUT));
+
             if (ret != WAIT_OBJECT_0)
             {
-                // We timed out, decrement waiter count.
-                m_lockState.InterlockedUnregisterWaiter();
+                // We timed out
+                // (the holder unregisters the waiter here)
                 break;
             }
+
+            unregisterWaiterHolder.SuppressRelease();
 
             // Spin a bit while trying to acquire the lock. This has a few benefits:
             // - Spinning helps to reduce waiter starvation. Since other non-waiter threads can take the lock while there are

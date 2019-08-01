@@ -90,15 +90,14 @@ namespace System.Reflection.Emit
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
 
-            string comma = "";
-            for (int i = 1; i < rank; i++)
-                comma += ",";
+            string s = rank == 1 ?
+                "[]" :
+                "[" + new string(',', rank - 1) + "]";
 
-            string s = string.Format(CultureInfo.InvariantCulture, "[{0}]", comma);
             return SymbolType.FormCompoundType(s, this, 0)!;
         }
         public override Guid GUID { get { throw new NotSupportedException(); } }
-        public override object InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target, object[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters) { throw new NotSupportedException(); }
+        public override object InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target, object?[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters) { throw new NotSupportedException(); }
         public override Assembly Assembly { get { return m_type.Assembly; } }
         public override RuntimeTypeHandle TypeHandle { get { throw new NotSupportedException(); } }
         public override string? FullName

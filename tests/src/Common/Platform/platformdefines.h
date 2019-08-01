@@ -106,6 +106,10 @@ typedef unsigned int ULONG, *PULONG;
 #define STDMETHODCALLTYPE
 #endif
 
+#ifndef STDMETHODVCALLTYPE
+#define STDMETHODVCALLTYPE
+#endif
+
 #ifndef _MSC_VER
 #if __i386__
 #define __stdcall __attribute__((stdcall))
@@ -148,7 +152,8 @@ typedef int error_t;
 typedef void* LPVOID;
 typedef unsigned char BYTE;
 typedef WCHAR OLECHAR;
-typedef double DATE;
+typedef double DATE;          
+typedef DWORD LCID;
 #endif
 
 typedef ULONG_PTR DWORD_PTR;

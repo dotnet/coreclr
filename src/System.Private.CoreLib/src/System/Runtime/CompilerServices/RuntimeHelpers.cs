@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -27,7 +28,8 @@ namespace System.Runtime.CompilerServices
         // Of course, reference types are not cloned.
         //
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern object GetObjectValue(object obj);
+        [return: NotNullIfNotNull("obj")]
+        public static extern object? GetObjectValue(object? obj);
 
         // RunClassConstructor causes the class constructor for the given type to be triggered
         // in the current domain.  After this call returns, the class constructor is guaranteed to
@@ -63,7 +65,7 @@ namespace System.Runtime.CompilerServices
 
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void _CompileMethod(IRuntimeMethodInfo method);
+        internal static extern void _CompileMethod(RuntimeMethodHandleInternal method);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
@@ -161,6 +163,12 @@ namespace System.Runtime.CompilerServices
             // See getILIntrinsicImplementationForRuntimeHelpers for how this happens.
             throw new InvalidOperationException();
         }
+
+        internal static ref byte GetRawData(this object obj) =>
+            ref Unsafe.As<RawData>(obj).Data;
+
+        internal static ref byte GetRawSzArrayData(this Array array) =>
+            ref Unsafe.As<RawSzArrayData>(array).Data;
 
         // Returns true iff the object has a component size;
         // i.e., is variable length like System.String or Array.

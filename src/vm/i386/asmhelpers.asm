@@ -35,8 +35,6 @@ ifdef FEATURE_COMINTEROP
 EXTERN _StubRareDisableHRWorker@4:PROC
 endif ; FEATURE_COMINTEROP
 EXTERN _StubRareDisableTHROWWorker@4:PROC
-EXTERN __imp__TlsGetValue@4:DWORD
-TlsGetValue PROTO stdcall
 ifdef FEATURE_HIJACK
 EXTERN _OnHijackWorker@4:PROC
 endif ;FEATURE_HIJACK
@@ -61,8 +59,9 @@ ifdef FEATURE_COMINTEROP
 EXTERN _CLRToCOMWorker@8:PROC
 endif
 
-ifdef FEATURE_PREJIT
 EXTERN _ExternalMethodFixupWorker@16:PROC
+
+ifdef FEATURE_PREJIT
 EXTERN _VirtualMethodFixupWorker@8:PROC
 EXTERN _StubDispatchFixupWorker@16:PROC
 endif
@@ -1523,7 +1522,6 @@ _DelayLoad_MethodCall@0 endp
 endif
 
 ifdef FEATURE_PREJIT
-
 ;=======================================================================================
 ; The call in softbound vtable slots initially points to this function.
 ; The pupose of this function is to transfer the control to right target and
@@ -1564,8 +1562,7 @@ public _VirtualMethodFixupPatchLabel@0
         ret
 
 _VirtualMethodFixupStub@0 endp
-
-endif ; FEATURE_PREJIT
+endif
 
 ;==========================================================================
 ; The prestub

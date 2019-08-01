@@ -256,8 +256,6 @@ public:
 
     static HRESULT Setup();
 
-    void *operator new(size_t size);
-
     HRESULT Init();
     HRESULT Cleanup();
 
@@ -273,13 +271,13 @@ public:
 
     // Jit-config
 
-    DWORD         JitHostMaxSlabCache(void)         const {LIMITED_METHOD_CONTRACT;  return dwJitHostMaxSlabCache; }
-    
-    unsigned int  GenOptimizeType(void)             const {LIMITED_METHOD_CONTRACT;  return iJitOptimizeType; }
-    bool          JitFramed(void)                   const {LIMITED_METHOD_CONTRACT;  return fJitFramed; }
-    bool          JitAlignLoops(void)               const {LIMITED_METHOD_CONTRACT;  return fJitAlignLoops; }
-    bool          AddRejitNops(void)                const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
-    bool          JitMinOpts(void)                  const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
+    DWORD         JitHostMaxSlabCache(void)                 const {LIMITED_METHOD_CONTRACT;  return dwJitHostMaxSlabCache; }
+    bool          GetTrackDynamicMethodDebugInfo(void)      const {LIMITED_METHOD_CONTRACT;  return fTrackDynamicMethodDebugInfo; }    
+    unsigned int  GenOptimizeType(void)                     const {LIMITED_METHOD_CONTRACT;  return iJitOptimizeType; }
+    bool          JitFramed(void)                           const {LIMITED_METHOD_CONTRACT;  return fJitFramed; }
+    bool          JitAlignLoops(void)                       const {LIMITED_METHOD_CONTRACT;  return fJitAlignLoops; }
+    bool          AddRejitNops(void)                        const {LIMITED_METHOD_DAC_CONTRACT;  return fAddRejitNops; }
+    bool          JitMinOpts(void)                          const {LIMITED_METHOD_CONTRACT;  return fJitMinOpts; }
     
     // Tiered Compilation config
 #if defined(FEATURE_TIERED_COMPILATION)
@@ -615,6 +613,8 @@ public:
     int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
     int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
     size_t  GetGCAffinityMask()             const {LIMITED_METHOD_CONTRACT; return iGCAffinityMask;}
+    size_t  GetGCHeapHardLimit()            const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimit;}
+    int     GetGCHeapHardLimitPercent()     const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimitPercent;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -784,12 +784,12 @@ private: //----------------------------------------------------------------
 
     // Jit-config
 
-    DWORD dwJitHostMaxSlabCache; // max size for jit host slab cache
-
-    bool fJitFramed;           // Enable/Disable EBP based frames
-    bool fJitAlignLoops;       // Enable/Disable loop alignment
-    bool fAddRejitNops;        // Enable/Disable nop padding for rejit.          default is true
-    bool fJitMinOpts;          // Enable MinOpts for all jitted methods
+    DWORD dwJitHostMaxSlabCache;       // max size for jit host slab cache
+    bool fTrackDynamicMethodDebugInfo; //  Enable/Disable tracking dynamic method debug info
+    bool fJitFramed;                   // Enable/Disable EBP based frames
+    bool fJitAlignLoops;               // Enable/Disable loop alignment
+    bool fAddRejitNops;                // Enable/Disable nop padding for rejit.          default is true
+    bool fJitMinOpts;                  // Enable MinOpts for all jitted methods
 
     unsigned iJitOptimizeType; // 0=Blended,1=SmallCode,2=FastCode,              default is 0=Blended
     
@@ -920,6 +920,8 @@ private: //----------------------------------------------------------------
     int  iGCHeapCount;
     int  iGCNoAffinitize;
     size_t  iGCAffinityMask;
+    size_t iGCHeapHardLimit;
+    int iGCHeapHardLimitPercent;
 
 #ifdef GCTRIMCOMMIT
 

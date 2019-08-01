@@ -43,9 +43,9 @@ namespace System.Threading
         }
         // Context callback: same sig for SendOrPostCallback and ContextCallback
         internal static ContextCallback _ccb = new ContextCallback(IOCompletionCallback_Context);
-        internal static void IOCompletionCallback_Context(object state)
+        internal static void IOCompletionCallback_Context(object? state)
         {
-            _IOCompletionCallback helper = (_IOCompletionCallback)state;
+            _IOCompletionCallback? helper = (_IOCompletionCallback?)state;
             Debug.Assert(helper != null, "_IOCompletionCallback cannot be null");
             helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pNativeOverlapped);
         }
@@ -164,7 +164,7 @@ namespace System.Threading
             _overlappedData = new OverlappedData(this);
         }
 
-        public Overlapped(int offsetLo, int offsetHi, IntPtr hEvent, IAsyncResult ar) : this()
+        public Overlapped(int offsetLo, int offsetHi, IntPtr hEvent, IAsyncResult? ar) : this()
         {
             Debug.Assert(_overlappedData != null, "Initialized in delegated ctor");
             _overlappedData.OffsetLow = offsetLo;
@@ -174,7 +174,7 @@ namespace System.Threading
         }
 
         [Obsolete("This constructor is not 64-bit compatible.  Use the constructor that takes an IntPtr for the event handle.  http://go.microsoft.com/fwlink/?linkid=14202")]
-        public Overlapped(int offsetLo, int offsetHi, int hEvent, IAsyncResult ar) : this(offsetLo, offsetHi, new IntPtr(hEvent), ar)
+        public Overlapped(int offsetLo, int offsetHi, int hEvent, IAsyncResult? ar) : this(offsetLo, offsetHi, new IntPtr(hEvent), ar)
         {
         }
 

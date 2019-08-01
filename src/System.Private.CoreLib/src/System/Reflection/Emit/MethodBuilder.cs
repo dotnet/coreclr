@@ -6,6 +6,7 @@ using System.Text;
 using CultureInfo = System.Globalization.CultureInfo;
 using System.Diagnostics.SymbolStore;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -43,7 +44,7 @@ namespace System.Reflection.Emit
         // Parameters
         private SignatureHelper? m_signature;
         internal Type[]? m_parameterTypes;
-        private Type? m_returnType;
+        private Type m_returnType;
         private Type[]? m_returnTypeRequiredCustomModifiers;
         private Type[]? m_returnTypeOptionalCustomModifiers;
         private Type[][]? m_parameterTypeRequiredCustomModifiers;
@@ -85,16 +86,7 @@ namespace System.Reflection.Emit
             m_strName = name;
             m_module = mod;
             m_containingType = type;
-
-            // 
-            //if (returnType == null)
-            //{
-            //    m_returnType = typeof(void);
-            //}
-            //else
-            {
-                m_returnType = returnType;
-            }
+            m_returnType = returnType ?? typeof(void);
 
             if ((attributes & MethodAttributes.Static) == 0)
             {
@@ -269,7 +261,7 @@ namespace System.Reflection.Emit
                 // if it is in a debug module
                 //
                 SymbolToken tk = new SymbolToken(MetadataTokenInternal);
-                ISymbolWriter symWriter = dynMod.GetSymWriter()!; // TODO-NULLABLE: https://github.com/dotnet/csharplang/issues/2388
+                ISymbolWriter symWriter = dynMod.GetSymWriter()!;
 
                 // call OpenMethod to make this method the current method
                 symWriter.OpenMethod(tk);
@@ -361,7 +353,7 @@ namespace System.Reflection.Emit
                 m_parameterTypes = Array.Empty<Type>();
 
             m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, m_inst != null ? m_inst.Length : 0,
-                m_returnType == null ? typeof(void) : m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
+                m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
                 m_parameterTypes, m_parameterTypeRequiredCustomModifiers, m_parameterTypeOptionalCustomModifiers);
 
             return m_signature;
@@ -521,13 +513,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        public override ICustomAttributeProvider? ReturnTypeCustomAttributes
-        {
-            get
-            {
-                return null;
-            }
-        }
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes => new EmptyCAHolder();
 
         public override Type? ReflectedType
         {
@@ -587,7 +573,7 @@ namespace System.Reflection.Emit
             return this;
         }
 
-        public override Type? ReturnType
+        public override Type ReturnType
         {
             get
             {
@@ -605,7 +591,7 @@ namespace System.Reflection.Emit
             return rmi.GetParameters();
         }
 
-        public override ParameterInfo? ReturnParameter
+        public override ParameterInfo ReturnParameter
         {
             get
             {
@@ -646,7 +632,7 @@ namespace System.Reflection.Emit
 
         public override bool IsGenericMethod { get { return m_inst != null; } }
 
-        public override Type[]? GetGenericArguments() { return m_inst; }
+        public override Type[] GetGenericArguments() => m_inst ?? Array.Empty<Type>();
 
         public override MethodInfo MakeGenericMethod(params Type[] typeArguments)
         {
@@ -741,20 +727,21 @@ namespace System.Reflection.Emit
 
             int sigLength;
             byte[] sigBytes = GetMethodSignature().InternalGetSignature(out sigLength);
+            ModuleBuilder module = m_module;
 
-            int token = TypeBuilder.DefineMethod(m_module.GetNativeHandle(), m_containingType.MetadataTokenInternal, m_strName, sigBytes, sigLength, Attributes);
+            int token = TypeBuilder.DefineMethod(JitHelpers.GetQCallModuleOnStack(ref module), m_containingType.MetadataTokenInternal, m_strName, sigBytes, sigLength, Attributes);
             m_tkMethod = new MethodToken(token);
 
             if (m_inst != null)
                 foreach (GenericTypeParameterBuilder tb in m_inst)
                     if (!tb.m_type.IsCreated()) tb.m_type.CreateType();
 
-            TypeBuilder.SetMethodImpl(m_module.GetNativeHandle(), token, m_dwMethodImplFlags);
+            TypeBuilder.SetMethodImpl(JitHelpers.GetQCallModuleOnStack(ref module), token, m_dwMethodImplFlags);
 
             return m_tkMethod;
         }
 
-        public void SetParameters(params Type[]? parameterTypes)
+        public void SetParameters(params Type[] parameterTypes)
         {
             CheckContext(parameterTypes);
 
@@ -834,7 +821,8 @@ namespace System.Reflection.Emit
 
             m_canBeRuntimeImpl = true;
 
-            TypeBuilder.SetMethodImpl(m_module.GetNativeHandle(), MetadataTokenInternal, attributes);
+            ModuleBuilder module = m_module;
+            TypeBuilder.SetMethodImpl(JitHelpers.GetQCallModuleOnStack(ref module), MetadataTokenInternal, attributes);
         }
 
         public ILGenerator GetILGenerator()

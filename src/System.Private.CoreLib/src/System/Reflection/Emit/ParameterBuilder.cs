@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.CompilerServices;
+
 namespace System.Reflection.Emit
 {
     public class ParameterBuilder
@@ -12,7 +14,7 @@ namespace System.Reflection.Emit
             TypeBuilder.SetConstantValue(
                 _methodBuilder.GetModuleBuilder(),
                 _token.Token,
-                _position == 0 ? _methodBuilder.ReturnType! : _methodBuilder.m_parameterTypes![_position - 1],
+                _position == 0 ? _methodBuilder.ReturnType : _methodBuilder.m_parameterTypes![_position - 1],
                 defaultValue);
         }
 
@@ -56,8 +58,9 @@ namespace System.Reflection.Emit
             _name = paramName;
             _methodBuilder = methodBuilder;
             _attributes = attributes;
+            ModuleBuilder module = _methodBuilder.GetModuleBuilder();
             _token = new ParameterToken(TypeBuilder.SetParamInfo(
-                        _methodBuilder.GetModuleBuilder().GetNativeHandle(),
+                        JitHelpers.GetQCallModuleOnStack(ref module),
                         _methodBuilder.GetToken().Token,
                         sequence,
                         attributes,

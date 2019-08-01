@@ -616,7 +616,7 @@ ClrDataAccess::GetRegisterName(int regNum, unsigned int count, __out_z __inout_e
         W("X7"),
         W("X8"),  W("X9"),  W("X10"), W("X11"), W("X12"), W("X13"), W("X14"), W("X15"), W("X16"), W("X17"), 
         W("X18"), W("X19"), W("X20"), W("X21"), W("X22"), W("X23"), W("X24"), W("X25"), W("X26"), W("X27"), 
-        W("X28"), W("Fp"),  W("Sp"),  W("Lr")
+        W("X28"), W("Fp"),  W("Lr"),  W("Sp")
     };
 #elif defined(_TARGET_X86_)
     static const wchar_t *regs[] = 
@@ -759,7 +759,7 @@ ClrDataAccess::GetThreadData(CLRDATA_ADDRESS threadAddr, struct DacpThreadData *
     // initialize our local copy from the marshaled target Thread instance
     ZeroMemory (threadData, sizeof(DacpThreadData));
     threadData->corThreadId = thread->m_ThreadId;
-    threadData->osThreadId = thread->m_OSThreadId;
+    threadData->osThreadId = (DWORD)thread->m_OSThreadId;
     threadData->state = thread->m_State;
     threadData->preemptiveGCDisabled = thread->m_fPreemptiveGCDisabled;
     threadData->allocContextPtr = TO_CDADDR(thread->m_alloc_context.alloc_ptr);
@@ -889,19 +889,32 @@ HRESULT ClrDataAccess::GetMethodDescData(
         if (pcNeededRevertedRejitData != NULL)
             *pcNeededRevertedRejitData = 0;
 
-        methodDescData->requestedIP = ip;
-        methodDescData->bHasNativeCode = pMD->HasNativeCode();
-        methodDescData->bIsDynamic = (pMD->IsLCGMethod()) ? TRUE : FALSE;
-        methodDescData->wSlotNumber = pMD->GetSlot();
-        if (pMD->HasNativeCode())
+        NativeCodeVersion requestedNativeCodeVersion, activeNativeCodeVersion;
+        if (ip != NULL)
         {
-            methodDescData->NativeCodeAddr = TO_CDADDR(pMD->GetNativeCode());
-#ifdef DBG_TARGET_ARM
-            methodDescData->NativeCodeAddr &= ~THUMB_CODE;
-#endif
+            requestedNativeCodeVersion = ExecutionManager::GetNativeCodeVersion(CLRDATA_ADDRESS_TO_TADDR(ip));
         }
         else
         {
+#ifdef FEATURE_CODE_VERSIONING
+            activeNativeCodeVersion = pMD->GetCodeVersionManager()->GetActiveILCodeVersion(pMD).GetActiveNativeCodeVersion(pMD);
+#else
+            activeNativeCodeVersion = NativeCodeVersion(pMD);
+#endif
+            requestedNativeCodeVersion = activeNativeCodeVersion;
+        }
+
+        methodDescData->requestedIP = ip;
+        methodDescData->bIsDynamic = (pMD->IsLCGMethod()) ? TRUE : FALSE;
+        methodDescData->wSlotNumber = pMD->GetSlot();
+        if (!requestedNativeCodeVersion.IsNull() && requestedNativeCodeVersion.GetNativeCode() != NULL)
+        {
+            methodDescData->bHasNativeCode = TRUE;
+            methodDescData->NativeCodeAddr = TO_CDADDR(PCODEToPINSTR(requestedNativeCodeVersion.GetNativeCode()));
+        }
+        else
+        {
+            methodDescData->bHasNativeCode = FALSE;
             methodDescData->NativeCodeAddr = (CLRDATA_ADDRESS)-1;
         }
         methodDescData->AddressOfNativeCodeSlot = pMD->HasNativeCodeSlot() ? TO_CDADDR(pMD->GetAddrOfNativeCodeSlot()) : NULL;
@@ -926,29 +939,24 @@ HRESULT ClrDataAccess::GetMethodDescData(
             CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
 
             // Current ReJitInfo
-            ILCodeVersion activeILCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
-            NativeCodeVersion activeChild = activeILCodeVersion.GetActiveNativeCodeVersion(pMD);
-            CopyNativeCodeVersionToReJitData(activeChild, activeChild, &methodDescData->rejitDataCurrent);
-            
-            if (!activeChild.IsNull())
+            if (activeNativeCodeVersion.IsNull())
             {
-                // This was already set previously, but MethodDesc::GetNativeCode is potentially not aware of
-                // a new native code version, so this is more accurate.
-                methodDescData->NativeCodeAddr = activeChild.GetNativeCode();
+                ILCodeVersion activeILCodeVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+                activeNativeCodeVersion = activeILCodeVersion.GetActiveNativeCodeVersion(pMD);
             }
-
+            CopyNativeCodeVersionToReJitData(
+                activeNativeCodeVersion,
+                activeNativeCodeVersion,
+                &methodDescData->rejitDataCurrent);
+            
             // Requested ReJitInfo
             _ASSERTE(methodDescData->rejitDataRequested.rejitID == 0);
-            if (methodDescData->requestedIP != NULL)
+            if (ip != NULL && !requestedNativeCodeVersion.IsNull())
             {
-                NativeCodeVersion nativeCodeVersionRequested = pCodeVersionManager->GetNativeCodeVersion(
-                    pMD,
-                    CLRDATA_ADDRESS_TO_TADDR(methodDescData->requestedIP));
-
-                if (!nativeCodeVersionRequested.IsNull())
-                {
-                    CopyNativeCodeVersionToReJitData(nativeCodeVersionRequested, activeChild, &methodDescData->rejitDataRequested);
-                }
+                CopyNativeCodeVersionToReJitData(
+                    requestedNativeCodeVersion,
+                    activeNativeCodeVersion,
+                    &methodDescData->rejitDataRequested);
             }
 
             // Total number of jitted rejit versions
@@ -1000,7 +1008,10 @@ HRESULT ClrDataAccess::GetMethodDescData(
                             }
 
                             NativeCodeVersion activeRejitChild = ilCodeVersion.GetActiveNativeCodeVersion(pMD);
-                            CopyNativeCodeVersionToReJitData(activeRejitChild, activeChild, &rgRevertedRejitData[iRejitDataReverted]);
+                            CopyNativeCodeVersionToReJitData(
+                                activeRejitChild,
+                                activeNativeCodeVersion,
+                                &rgRevertedRejitData[iRejitDataReverted]);
                             iRejitDataReverted++;
                         }
                         // pcNeededRevertedRejitData != NULL as per condition at top of function (cuz rgRevertedRejitData !=
@@ -1017,24 +1028,20 @@ HRESULT ClrDataAccess::GetMethodDescData(
         }
         EX_END_CATCH(SwallowAllExceptions)
         hr = S_OK; // Failure to get rejitids is not fatal
+
 #endif // FEATURE_REJIT
 
-#if defined(HAVE_GCCOVER)
-        if (pMD->m_GcCover)
+#ifdef HAVE_GCCOVER
+        if (!requestedNativeCodeVersion.IsNull())
         {
-            EX_TRY
+            PTR_GCCoverageInfo gcCover = requestedNativeCodeVersion.GetGCCoverageInfo();
+            if (gcCover != NULL)
             {
                 // In certain minidumps, we won't save the gccover information.
                 // (it would be unwise to do so, it is heavy and not a customer scenario).
-                methodDescData->GCStressCodeCopy = HOST_CDADDR(pMD->m_GcCover) + offsetof(GCCoverageInfo, savedCode);
+                methodDescData->GCStressCodeCopy = HOST_CDADDR(gcCover) + offsetof(GCCoverageInfo, savedCode);
             }
-            EX_CATCH
-            {
-                methodDescData->GCStressCodeCopy = 0;
-            }
-            EX_END_CATCH(SwallowAllExceptions)
         }
-        else
 #endif // HAVE_GCCOVER
 
         // Set this above Dario since you know how to tell if dynamic
@@ -1131,32 +1138,56 @@ HRESULT ClrDataAccess::GetTieredVersions(
                     goto cleanup;
                 }
 
+                TADDR r2rImageBase = NULL;
+                TADDR r2rImageEnd = NULL;
+                {
+                    PTR_Module pModule = (PTR_Module)pMD->GetModule();
+                    if (pModule->IsReadyToRun())
+                    {
+                        PTR_PEImageLayout pImage = pModule->GetReadyToRunInfo()->GetImage();
+                        r2rImageBase = dac_cast<TADDR>(pImage->GetBase());
+                        r2rImageEnd = r2rImageBase + pImage->GetSize();
+                    }
+                }
+
                 NativeCodeVersionCollection nativeCodeVersions = ilCodeVersion.GetNativeCodeVersions(pMD);
                 int count = 0;
                 for (NativeCodeVersionIterator iter = nativeCodeVersions.Begin(); iter != nativeCodeVersions.End(); iter++)
                 {
-                    nativeCodeAddrs[count].NativeCodeAddr = (*iter).GetNativeCode();
+                    TADDR pNativeCode = PCODEToPINSTR((*iter).GetNativeCode());
+                    nativeCodeAddrs[count].NativeCodeAddr = pNativeCode;
                     PTR_NativeCodeVersionNode pNode = (*iter).AsNode();
                     nativeCodeAddrs[count].NativeCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(pNode));
 
-                    if (pMD->IsEligibleForTieredCompilation())
+                    if (r2rImageBase <= pNativeCode && pNativeCode < r2rImageEnd)
+                    {
+                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_ReadyToRun;
+                    }
+                    else if (pMD->IsEligibleForTieredCompilation())
                     {
                         switch ((*iter).GetOptimizationTier())
                         {
                         default:
-                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_UNKNOWN;
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Unknown;
                             break;
                         case NativeCodeVersion::OptimizationTier0:
-                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_0;
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_QuickJitted;
                             break;
                         case NativeCodeVersion::OptimizationTier1:
-                            nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::TIERED_1;
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_OptimizedTier1;
+                            break;
+                        case NativeCodeVersion::OptimizationTierOptimized:
+                            nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
                             break;
                         }
                     }
+                    else if (pMD->IsJitOptimizationDisabled())
+                    {
+                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_MinOptJitted;
+                    }
                     else
                     {
-                        nativeCodeAddrs[count].TieredInfo = DacpTieredVersionData::NON_TIERED;
+                        nativeCodeAddrs[count].OptimizationTier = DacpTieredVersionData::OptimizationTier_Optimized;
                     }
 
                     ++count;

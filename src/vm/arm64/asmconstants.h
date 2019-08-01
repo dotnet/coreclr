@@ -54,6 +54,9 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 #define SIZEOF__FloatArgumentRegisters 0x80
 ASMCONSTANTS_C_ASSERT(SIZEOF__FloatArgumentRegisters == sizeof(FloatArgumentRegisters))
 
+#define ASM_ENREGISTERED_RETURNTYPE_MAXSIZE 0x40
+ASMCONSTANTS_C_ASSERT(ASM_ENREGISTERED_RETURNTYPE_MAXSIZE == ENREGISTERED_RETURNTYPE_MAXSIZE)
+
 #define CallDescrData__pSrc                     0x00
 #define CallDescrData__numStackSlots            0x08
 #define CallDescrData__pArgumentRegisters       0x10
@@ -214,6 +217,9 @@ ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallerReturnAddress == offsetof(Inlin
 
 #define               InlinedCallFrame__m_pCalleeSavedFP 0x30
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCalleeSavedFP == offsetof(InlinedCallFrame, m_pCalleeSavedFP))
+
+#define               InlinedCallFrame__m_pThread 0x38
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pThread == offsetof(InlinedCallFrame, m_pThread))
 
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT

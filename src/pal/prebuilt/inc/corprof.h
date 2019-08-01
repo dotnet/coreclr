@@ -6,7 +6,7 @@
  /* File created by MIDL compiler version 8.01.0622 */
 /* at Mon Jan 18 19:14:07 2038
  */
-/* Compiler settings for D:/git/coreclr/src/inc/corprof.idl:
+/* Compiler settings for C:/git/coreclr/src/inc/corprof.idl:
     Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.01.0622 
     protocol : dce , ms_ext, c_ext, robust
     error checks: allocation ref bounds_check enum stub_data 
@@ -232,13 +232,6 @@ typedef interface ICorProfilerThreadEnum ICorProfilerThreadEnum;
 typedef interface ICorProfilerAssemblyReferenceProvider ICorProfilerAssemblyReferenceProvider;
 
 #endif  /* __ICorProfilerAssemblyReferenceProvider_FWD_DEFINED__ */
-
-
-#ifndef __ICLRProfiling_FWD_DEFINED__
-#define __ICLRProfiling_FWD_DEFINED__
-typedef interface ICLRProfiling ICLRProfiling;
-
-#endif  /* __ICLRProfiling_FWD_DEFINED__ */
 
 
 /* header files for imported files */
@@ -491,6 +484,11 @@ typedef HRESULT __stdcall __stdcall StackSnapshotCallback(
     COR_PRF_FRAME_INFO frameInfo,
     ULONG32 contextSize,
     BYTE context[  ],
+    void *clientData);
+
+typedef BOOL ObjectReferenceCallback( 
+    ObjectID root,
+    ObjectID *reference,
     void *clientData);
 
 typedef /* [public] */ 
@@ -15192,12 +15190,10 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
     ICorProfilerInfo10 : public ICorProfilerInfo9
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE GetObjectReferences( 
+        virtual HRESULT STDMETHODCALLTYPE EnumerateObjectReferences( 
             ObjectID objectId,
-            ULONG32 cNumReferences,
-            ULONG32 *pcNumReferences,
-            ObjectID references[  ],
-            SIZE_T offsets[  ]) = 0;
+            ObjectReferenceCallback callback,
+            void *clientData) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE IsFrozenObject( 
             ObjectID objectId,
@@ -15211,6 +15207,10 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
             /* [in] */ ULONG cFunctions,
             /* [size_is][in] */ ModuleID moduleIds[  ],
             /* [size_is][in] */ mdMethodDef methodIds[  ]) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE SuspendRuntime( void) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE ResumeRuntime( void) = 0;
         
     };
     
@@ -15797,13 +15797,11 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
             ULONG32 *pcCodeInfos,
             COR_PRF_CODE_INFO codeInfos[  ]);
         
-        HRESULT ( STDMETHODCALLTYPE *GetObjectReferences )( 
+        HRESULT ( STDMETHODCALLTYPE *EnumerateObjectReferences )( 
             ICorProfilerInfo10 * This,
             ObjectID objectId,
-            ULONG32 cNumReferences,
-            ULONG32 *pcNumReferences,
-            ObjectID references[  ],
-            SIZE_T offsets[  ]);
+            ObjectReferenceCallback callback,
+            void *clientData);
         
         HRESULT ( STDMETHODCALLTYPE *IsFrozenObject )( 
             ICorProfilerInfo10 * This,
@@ -15820,6 +15818,12 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
             /* [in] */ ULONG cFunctions,
             /* [size_is][in] */ ModuleID moduleIds[  ],
             /* [size_is][in] */ mdMethodDef methodIds[  ]);
+        
+        HRESULT ( STDMETHODCALLTYPE *SuspendRuntime )( 
+            ICorProfilerInfo10 * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *ResumeRuntime )( 
+            ICorProfilerInfo10 * This);
         
         END_INTERFACE
     } ICorProfilerInfo10Vtbl;
@@ -16123,8 +16127,8 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
     ( (This)->lpVtbl -> GetCodeInfo4(This,pNativeCodeStartAddress,cCodeInfos,pcCodeInfos,codeInfos) ) 
 
 
-#define ICorProfilerInfo10_GetObjectReferences(This,objectId,cNumReferences,pcNumReferences,references,offsets) \
-    ( (This)->lpVtbl -> GetObjectReferences(This,objectId,cNumReferences,pcNumReferences,references,offsets) ) 
+#define ICorProfilerInfo10_EnumerateObjectReferences(This,objectId,callback,clientData) \
+    ( (This)->lpVtbl -> EnumerateObjectReferences(This,objectId,callback,clientData) ) 
 
 #define ICorProfilerInfo10_IsFrozenObject(This,objectId,pbFrozen)   \
     ( (This)->lpVtbl -> IsFrozenObject(This,objectId,pbFrozen) ) 
@@ -16134,6 +16138,12 @@ EXTERN_C const IID IID_ICorProfilerInfo10;
 
 #define ICorProfilerInfo10_RequestReJITWithInliners(This,dwRejitFlags,cFunctions,moduleIds,methodIds)   \
     ( (This)->lpVtbl -> RequestReJITWithInliners(This,dwRejitFlags,cFunctions,moduleIds,methodIds) ) 
+
+#define ICorProfilerInfo10_SuspendRuntime(This) \
+    ( (This)->lpVtbl -> SuspendRuntime(This) ) 
+
+#define ICorProfilerInfo10_ResumeRuntime(This)  \
+    ( (This)->lpVtbl -> ResumeRuntime(This) ) 
 
 #endif /* COBJMACROS */
 
@@ -16468,96 +16478,6 @@ EXTERN_C const IID IID_ICorProfilerAssemblyReferenceProvider;
 
 
 #endif  /* __ICorProfilerAssemblyReferenceProvider_INTERFACE_DEFINED__ */
-
-
-#ifndef __ICLRProfiling_INTERFACE_DEFINED__
-#define __ICLRProfiling_INTERFACE_DEFINED__
-
-/* interface ICLRProfiling */
-/* [object][local][helpstring][version][uuid] */ 
-
-
-EXTERN_C const IID IID_ICLRProfiling;
-
-#if defined(__cplusplus) && !defined(CINTERFACE)
-    
-    MIDL_INTERFACE("B349ABE3-B56F-4689-BFCD-76BF39D888EA")
-    ICLRProfiling : public IUnknown
-    {
-    public:
-        virtual HRESULT STDMETHODCALLTYPE AttachProfiler( 
-            /* [in] */ DWORD dwProfileeProcessID,
-            /* [in] */ DWORD dwMillisecondsMax,
-            /* [in] */ const CLSID *pClsidProfiler,
-            /* [in] */ LPCWSTR wszProfilerPath,
-            /* [size_is][in] */ void *pvClientData,
-            /* [in] */ UINT cbClientData) = 0;
-        
-    };
-    
-    
-#else   /* C style interface */
-
-    typedef struct ICLRProfilingVtbl
-    {
-        BEGIN_INTERFACE
-        
-        HRESULT ( STDMETHODCALLTYPE *QueryInterface )( 
-            ICLRProfiling * This,
-            /* [in] */ REFIID riid,
-            /* [annotation][iid_is][out] */ 
-            _COM_Outptr_  void **ppvObject);
-        
-        ULONG ( STDMETHODCALLTYPE *AddRef )( 
-            ICLRProfiling * This);
-        
-        ULONG ( STDMETHODCALLTYPE *Release )( 
-            ICLRProfiling * This);
-        
-        HRESULT ( STDMETHODCALLTYPE *AttachProfiler )( 
-            ICLRProfiling * This,
-            /* [in] */ DWORD dwProfileeProcessID,
-            /* [in] */ DWORD dwMillisecondsMax,
-            /* [in] */ const CLSID *pClsidProfiler,
-            /* [in] */ LPCWSTR wszProfilerPath,
-            /* [size_is][in] */ void *pvClientData,
-            /* [in] */ UINT cbClientData);
-        
-        END_INTERFACE
-    } ICLRProfilingVtbl;
-
-    interface ICLRProfiling
-    {
-        CONST_VTBL struct ICLRProfilingVtbl *lpVtbl;
-    };
-
-    
-
-#ifdef COBJMACROS
-
-
-#define ICLRProfiling_QueryInterface(This,riid,ppvObject)   \
-    ( (This)->lpVtbl -> QueryInterface(This,riid,ppvObject) ) 
-
-#define ICLRProfiling_AddRef(This)  \
-    ( (This)->lpVtbl -> AddRef(This) ) 
-
-#define ICLRProfiling_Release(This) \
-    ( (This)->lpVtbl -> Release(This) ) 
-
-
-#define ICLRProfiling_AttachProfiler(This,dwProfileeProcessID,dwMillisecondsMax,pClsidProfiler,wszProfilerPath,pvClientData,cbClientData)   \
-    ( (This)->lpVtbl -> AttachProfiler(This,dwProfileeProcessID,dwMillisecondsMax,pClsidProfiler,wszProfilerPath,pvClientData,cbClientData) ) 
-
-#endif /* COBJMACROS */
-
-
-#endif  /* C style interface */
-
-
-
-
-#endif  /* __ICLRProfiling_INTERFACE_DEFINED__ */
 
 
 /* Additional Prototypes for ALL interfaces */

@@ -54,26 +54,28 @@ namespace System
     public static class GC
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void GetMemoryInfo(out uint highMemLoadThreshold,
-                                                  out ulong totalPhysicalMem,
-                                                  out uint lastRecordedMemLoad,
+        internal static extern void GetMemoryInfo(out ulong highMemLoadThresholdBytes,
+                                                  out ulong totalAvailableMemoryBytes,
+                                                  out ulong lastRecordedMemLoadBytes,
+                                                  out uint lastRecordedMemLoadPct,
                                                   // The next two are size_t
-                                                  out UIntPtr lastRecordedHeapSize,
-                                                  out UIntPtr lastRecordedFragmentation);
+                                                  out UIntPtr lastRecordedHeapSizeBytes,
+                                                  out UIntPtr lastRecordedFragmentationBytes);
 
         public static GCMemoryInfo GetGCMemoryInfo()
         {
-            GetMemoryInfo(out uint highMemLoadThreshold,
-                          out ulong totalPhysicalMem,
-                          out uint lastRecordedMemLoad,
-                          out UIntPtr lastRecordedHeapSize,
-                          out UIntPtr lastRecordedFragmentation);
+            GetMemoryInfo(out ulong highMemLoadThresholdBytes,
+                          out ulong totalAvailableMemoryBytes,
+                          out ulong lastRecordedMemLoadBytes,
+                          out uint _,
+                          out UIntPtr lastRecordedHeapSizeBytes,
+                          out UIntPtr lastRecordedFragmentationBytes);
 
-            return new GCMemoryInfo((long)((double)highMemLoadThreshold / 100 * totalPhysicalMem),
-                                    (long)((double)lastRecordedMemLoad / 100 * totalPhysicalMem),
-                                    (long)totalPhysicalMem,
-                                    (long)(ulong)lastRecordedHeapSize,
-                                    (long)(ulong)lastRecordedFragmentation);
+            return new GCMemoryInfo(highMemoryLoadThresholdBytes: (long)highMemLoadThresholdBytes,
+                                    memoryLoadBytes: (long)lastRecordedMemLoadBytes,
+                                    totalAvailableMemoryBytes: (long)totalAvailableMemoryBytes,
+                                    heapSizeBytes: (long)(ulong)lastRecordedHeapSizeBytes,
+                                    fragmentedBytes: (long)(ulong)lastRecordedFragmentationBytes);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -102,6 +104,12 @@ namespace System
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern ulong GetSegmentSize();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern int GetLastGCPercentTimeInGC();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern ulong GetGenerationSize(int gen);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _AddMemoryPressure(ulong bytesAllocated);
@@ -339,10 +347,10 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, int sectionSize);
+        private static extern IntPtr _RegisterFrozenSegment(IntPtr sectionAddress, IntPtr sectionSize);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr _UnregisterFrozenSegment(IntPtr segmentHandle);
+        private static extern void _UnregisterFrozenSegment(IntPtr segmentHandle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern long GetAllocatedBytesForCurrentThread();
@@ -535,13 +543,14 @@ namespace System
 
         private static float GetMemoryLoad()
         {
-            GetMemoryInfo(out uint _,
+            GetMemoryInfo(out ulong _,
                           out ulong _,
-                          out uint lastRecordedMemLoad,
+                          out ulong _,
+                          out uint lastRecordedMemLoadPct,
                           out UIntPtr _,
                           out UIntPtr _);
 
-            return (float)lastRecordedMemLoad / 100;
+            return (float)lastRecordedMemLoadPct;
         }
 
         private static bool InvokeMemoryLoadChangeNotifications()
@@ -654,6 +663,11 @@ namespace System
         // the array is always zero-initialized.
         internal static T[] AllocateUninitializedArray<T>(int length)
         {
+            if (RuntimeHelpers.IsReferenceOrContainsReferences<T>())
+            {
+                return new T[length];
+            }
+
             if (length < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, 0, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 #if DEBUG

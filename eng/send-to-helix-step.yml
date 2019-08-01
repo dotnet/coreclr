@@ -16,11 +16,12 @@ parameters:
   timeoutPerTestInMinutes: ''
   runCrossGen: ''
   helixProjectArguments: ''
+  runInUnloadableContext: ''
 
 steps:
 - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
   # TODO: Remove and consolidate this when we move to arcade via init-tools.cmd.
-  - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)\eng\empty.proj
+  - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)\eng\empty.csproj
     displayName: Restore blob feed tasks
     ${{ if ne(parameters.condition, '') }}:
       condition: ${{ parameters.condition }}
@@ -41,6 +42,7 @@ steps:
       _HelixTargetQueues: ${{ join(',', parameters.helixQueues) }}
       _HelixType: ${{ parameters.helixType }}
       _RunCrossGen: ${{ parameters.runCrossGen }}
+      _RunInUnloadableContext: ${{ parameters.runInUnloadableContext }}
       _Scenarios: ${{ join(',', parameters.scenarios) }}
       _TimeoutPerTestCollectionInMinutes: ${{ parameters.timeoutPerTestCollectionInMinutes }}
       _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}
@@ -51,7 +53,7 @@ steps:
 
 - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
   # TODO: Remove and consolidate this when we move to arcade via init-tools.sh.
-  - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.proj
+  - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.csproj
     displayName: Restore blob feed tasks
     ${{ if ne(parameters.condition, '') }}:
       condition: ${{ parameters.condition }}
@@ -76,6 +78,7 @@ steps:
       _HelixTargetQueues: ${{ join(',', parameters.helixQueues) }}
       _HelixType: ${{ parameters.helixType }}
       _RunCrossGen: ${{ parameters.runCrossGen }}
+      _RunInUnloadableContext: ${{ parameters.runInUnloadableContext }}
       _Scenarios: ${{ join(',', parameters.scenarios) }}
       _TimeoutPerTestCollectionInMinutes: ${{ parameters.timeoutPerTestCollectionInMinutes }}
       _TimeoutPerTestInMinutes: ${{ parameters.timeoutPerTestInMinutes }}

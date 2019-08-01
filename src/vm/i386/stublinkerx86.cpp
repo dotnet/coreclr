@@ -82,12 +82,6 @@ extern "C" VOID __cdecl DebugCheckStubUnwindInfo();
 #endif // _DEBUG
 #endif // _TARGET_AMD64_
 
-// Presumably this code knows what it is doing with TLS.  If we are hiding these
-// services from normal code, reveal them here.
-#ifdef TlsGetValue
-#undef TlsGetValue
-#endif
-
 #ifdef FEATURE_COMINTEROP
 Thread* __stdcall CreateThreadBlockReturnHr(ComMethodFrame *pFrame);
 #endif
@@ -6485,7 +6479,7 @@ void rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, MethodDesc* pMD)
     CONTRACTL
     {
         THROWS;         // Creating a JumpStub could throw OutOfMemory
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -6500,7 +6494,7 @@ BOOL rel32SetInterlocked(/*PINT32*/ PVOID pRel32, TADDR target, TADDR expected, 
     CONTRACTL
     {
         THROWS;         // Creating a JumpStub could throw OutOfMemory
-        GC_TRIGGERS;
+        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 

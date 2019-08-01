@@ -52,6 +52,9 @@
 // Support for extracting MethodDesc of a delegate.
 #include "comdelegate.h"
 
+#ifdef HAVE_GCCOVER
+#include "gccover.h"
+#endif // HAVE_GCCOVER
 
 #ifndef FEATURE_PAL
 // Windows uses 64kB as the null-reference area
@@ -105,7 +108,7 @@ BOOL IsExceptionFromManagedCode(const EXCEPTION_RECORD * pExceptionRecord)
 
 #ifndef DACCESS_COMPILE
 
-#define SZ_UNHANDLED_EXCEPTION W("Unhandled Exception:")
+#define SZ_UNHANDLED_EXCEPTION W("Unhandled exception.")
 #define SZ_UNHANDLED_EXCEPTION_CHARLEN ((sizeof(SZ_UNHANDLED_EXCEPTION) / sizeof(WCHAR)))
 
 
@@ -154,17 +157,6 @@ BOOL NotifyAppDomainsOfUnhandledException(
 
 VOID SetManagedUnhandledExceptionBit(
     BOOL        useLastThrownObject);
-
-
-void COMPlusThrowBoot(HRESULT hr)
-{
-    STATIC_CONTRACT_THROWS;
-
-    _ASSERTE(g_fEEShutDown >= ShutDown_Finalize2 || !"This should not be called unless we are in the last phase of shutdown!");
-    ULONG_PTR arg = hr;
-    RaiseException(BOOTUP_EXCEPTION_COMPLUS, EXCEPTION_NONCONTINUABLE, 1, &arg);
-}
-
 
 //-------------------------------------------------------------------------------
 // This simply tests to see if the exception object is a subclass of
@@ -243,7 +235,7 @@ ULONG GetExceptionMessage(OBJECTREF throwable,
 
 //-----------------------------------------------------------------------------
 // Given an object, get the "message" from it.  If the object is an Exception
-//  call Exception.InternalToString, otherwise, call Object.ToString
+//  call Exception.ToString, otherwise, call Object.ToString
 //-----------------------------------------------------------------------------
 void GetExceptionMessage(OBJECTREF throwable, SString &result)
 {
@@ -339,23 +331,13 @@ STRINGREF GetExceptionMessage(OBJECTREF throwable)
     if (throwable == NULL)
         return NULL;
 
-    // Assume we're calling Exception.InternalToString() ...
-    BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_TO_STRING;
-
-    // ... but if it isn't an exception, call Object.ToString().
-    _ASSERTE(IsException(throwable->GetMethodTable()));        // what is the pathway here?
-    if (!IsException(throwable->GetMethodTable()))
-    {
-        sigID = METHOD__OBJECT__TO_STRING;
-    }
-
     // Return value.
     STRINGREF pString = NULL;
 
     GCPROTECT_BEGIN(throwable);
 
-    // Get the MethodDesc on which we'll call.
-    MethodDescCallSite toString(sigID, &throwable);
+    // Call Object.ToString(). Note that exceptions do not have to inherit from System.Exception
+    MethodDescCallSite toString(METHOD__OBJECT__TO_STRING, &throwable);
 
     // Make the call.
     ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -497,12 +479,8 @@ void ExceptionPreserveStackTrace(   // No return.
     {
         LOG((LF_EH, LL_INFO1000, "ExceptionPreserveStackTrace called\n"));
 
-        // We're calling Exception.InternalPreserveStackTrace() ...
-        BinderMethodID sigID = METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE;
-
-
-        // Get the MethodDesc on which we'll call.
-        MethodDescCallSite preserveStackTrace(sigID, &throwable);
+        // Call Exception.InternalPreserveStackTrace() ...
+        MethodDescCallSite preserveStackTrace(METHOD__EXCEPTION__INTERNAL_PRESERVE_STACK_TRACE, &throwable);
 
         // Make the call.
         ARG_SLOT arg[1] = {ObjToArgSlot(throwable)};
@@ -4412,7 +4390,7 @@ LONG UserBreakpointFilter(EXCEPTION_POINTERS* pEP)
     }
 #endif // DEBUGGING_SUPPORTED
 
-    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
+    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, FailFast))
     {
         // Fire an ETW FailFast event
         FireEtwFailFast(W("StatusBreakpoint"),
@@ -5268,8 +5246,6 @@ DefaultCatchHandlerExceptionMessageWorker(Thread* pThread,
     GCPROTECT_BEGIN(throwable);
     if (throwable != NULL)
     {
-        PrintToStdErrA("\n");
-
         if (FAILED(UtilLoadResourceString(CCompRC::Error, IDS_EE_UNHANDLED_EXCEPTION, buf, buf_size)))
         {
             wcsncpy_s(buf, buf_size, SZ_UNHANDLED_EXCEPTION, SZ_UNHANDLED_EXCEPTION_CHARLEN);
@@ -5465,28 +5441,15 @@ DefaultCatchHandler(PEXCEPTION_POINTERS pExceptionPointers,
                     // die. e.g. IsAsyncThreadException() and Exception.ToString both consume too much stack -- and can't
                     // be called here.
                     dump = FALSE;
-                    PrintToStdErrA("\n");
-
-                    if (FAILED(UtilLoadStringRC(IDS_EE_UNHANDLED_EXCEPTION, buf, buf_size)))
-                    {
-                        wcsncpy_s(buf, COUNTOF(buf), SZ_UNHANDLED_EXCEPTION, SZ_UNHANDLED_EXCEPTION_CHARLEN);
-                    }
-
-                    PrintToStdErrW(buf);
 
                     if (IsOutOfMemory)
                     {
-                        PrintToStdErrA(" OutOfMemoryException.\n");
+                        PrintToStdErrA("Out of memory.\n");
                     }
                     else
                     {
-                        PrintToStdErrA(" StackOverflowException.\n");
+                        PrintToStdErrA("Stack overflow.\n");
                     }
-                }
-                else if (!CanRunManagedCode(LoaderLockCheck::None))
-                {
-                    // Well, if we can't enter the runtime, we very well can't get the exception message.
-                    dump = FALSE;
                 }
                 else if (SentEvent || IsAsyncThreadException(&throwable))
                 {
@@ -5623,20 +5586,13 @@ BOOL NotifyAppDomainsOfUnhandledException(
 #endif
 
     GCPROTECT_BEGIN(throwable);
-    //BOOL IsStackOverflow = (throwable->GetMethodTable() == g_pStackOverflowExceptionClass);
 
     // Notify the AppDomain that we have taken an unhandled exception.  Can't notify of stack overflow -- guard
     // page is not yet reset.
 
     // Send up the unhandled exception appdomain event.
-    //
-    // If we can't run managed code, we can't deliver the event. Nor do we attempt to delieve the event in stack
-    // overflow or OOM conditions.
-    if (/*!IsStackOverflow &&*/
-        pThread->DetermineIfGuardPagePresent() &&
-        CanRunManagedCode(LoaderLockCheck::None))
+    if (pThread->DetermineIfGuardPagePresent())
     {
-
         // x86 only
 #if !defined(WIN64EXCEPTIONS)
         // If the Thread object's exception state's exception pointers
@@ -6596,6 +6552,8 @@ DWORD GetGcMarkerExceptionCode(LPVOID ip)
 #if defined(HAVE_GCCOVER)
     WRAPPER_NO_CONTRACT;
 
+    // IsGcCoverageInterrupt(ip) requires "gccover.h"
+    //
     if (GCStress<cfg_any>::IsEnabled() && IsGcCoverageInterrupt(ip))
     {
         return STATUS_CLR_GCCOVER_CODE;
@@ -6695,7 +6653,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
 
 #ifdef DEBUGGING_SUPPORTED
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
     // The implementation will end up throwing an EXCEPTION_BREAKPOINT rather than an EXCEPTION_SINGLE_STEP
     // and leaves other aspects of the thread context in an invalid state. Therefore we use this opportunity
@@ -6713,7 +6671,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
         pExceptionRecord->ExceptionCode = EXCEPTION_SINGLE_STEP;
         pExceptionRecord->ExceptionAddress = (PVOID)pContext->Pc;
     }
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     // Is this exception really meant for the COM+ Debugger? Note: we will let the debugger have a chance if there
     // is a debugger attached to any part of the process. It is incorrect to consider whether or not the debugger
@@ -6757,6 +6715,39 @@ EXTERN_C void JIT_WriteBarrier_Debug_End();
 #ifdef _TARGET_ARM_
 EXTERN_C void FCallMemcpy_End();
 #endif
+
+#ifdef VSD_STUB_CAN_THROW_AV
+//Return TRUE if pContext->Pc is in VirtualStub
+BOOL IsIPinVirtualStub(PCODE f_IP)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Thread * pThread = GetThread();
+
+    // We may not have a managed thread object. Example is an AV on the helper thread.
+    // (perhaps during StubManager::IsStub)
+    if (pThread == NULL)
+    {
+        return FALSE;
+    }
+
+    VirtualCallStubManager::StubKind sk;
+    VirtualCallStubManager::FindStubManager(f_IP, &sk, FALSE /* usePredictStubKind */);
+
+    if (sk == VirtualCallStubManager::SK_DISPATCH)
+    {
+        return TRUE;
+    }
+    else if (sk == VirtualCallStubManager::SK_RESOLVE)
+    {
+        return TRUE;
+    }
+
+    else {
+        return FALSE;
+    }
+}
+#endif // VSD_STUB_CAN_THROW_AV
 
 // Check if the passed in instruction pointer is in one of the
 // JIT helper functions.
@@ -13216,8 +13207,7 @@ MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDe
         // The construction of the COM->CLR path ensures that our corresponding ComMethodFrame
         // should be present further up the stack. Normally, the ComMethodFrame in question is
         // simply the next stack frame; however, there are situations where there may be other
-        // stack frames present (such as an optional ContextTransitionFrame if we switched
-        // AppDomains, or an inlined stack frame from a QCall in the IL stub).
+        // stack frames present (such as an inlined stack frame from a QCall in the IL stub).
         while (pCurFrame->GetVTablePtr() != ComMethodFrame::GetMethodFrameVPtr())
         {
             pCurFrame = pCurFrame->PtrNextFrame();

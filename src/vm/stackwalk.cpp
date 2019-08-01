@@ -769,6 +769,16 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
 #ifndef FEATURE_PAL
         uControlPc = VirtualUnwindCallFrame(pContext);
 #else // !FEATURE_PAL
+
+#ifdef VSD_STUB_CAN_THROW_AV
+        if (IsIPinVirtualStub(uControlPc))
+        {
+            AdjustContextForVirtualStub(NULL, pContext);
+            uControlPc = GetIP(pContext);
+            break;
+        }
+#endif // VSD_STUB_CAN_THROW_AV
+
         BOOL success = PAL_VirtualUnwind(pContext, NULL);
         if (!success)
         {
@@ -1429,7 +1439,6 @@ BOOL StackFrameIterator::ResetRegDisp(PREGDISPLAY pRegDisp,
                 _ASSERTE(curPc == GetControlPC(m_crawl.pRD));
             }
 
-            // this call also updates the appdomain if the explicit frame is a ContextTransitionFrame
             m_crawl.GotoNextFrame();
         }
     }
@@ -1545,28 +1554,32 @@ BOOL StackFrameIterator::IsValid(void)
         // Try to ensure that the frame chain did not change underneath us.
         // In particular, is thread's starting frame the same as it was when
         // we started?
-        //DevDiv 168789: In GCStress >= 4 two threads could race on triggering GC;
-        //  if the one that just made p/invoke call is second and hits the trap instruction
-        //  before call to syncronize with GC, it will push a frame [ResumableFrame on Unix 
-        //  and RedirectedThreadFrame on Windows] concurrently with GC stackwalking.
-        //  In normal case (no GCStress), after p/invoke, IL_STUB will check if GC is in progress and syncronize.
-        BOOL bRedirectedPinvoke = FALSE;
+        BOOL bIsRealStartFrameUnchanged = 
+            (m_pStartFrame != NULL) ||
+            (m_flags & POPFRAMES) ||
+            (m_pRealStartFrame == m_pThread->GetFrame());
 
 #ifdef FEATURE_HIJACK
-        bRedirectedPinvoke = ((GCStress<cfg_instr>::IsEnabled()) && 
-                              (m_pRealStartFrame != NULL) &&
-                              (m_pRealStartFrame != FRAME_TOP) &&
-                              (m_pRealStartFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()) && 
-                              (m_pThread->GetFrame() != NULL) &&
-                              (m_pThread->GetFrame() != FRAME_TOP) &&
-                              ((m_pThread->GetFrame()->GetVTablePtr() == ResumableFrame::GetMethodFrameVPtr()) ||
-                               (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr())));
+        // In GCStress >= 4 two threads could race on triggering GC;
+        // if the one that just made p/invoke call is second and hits the trap instruction
+        // before call to synchronize with GC, it will push a frame [ResumableFrame on Unix
+        // and RedirectedThreadFrame on Windows] concurrently with GC stackwalking.
+        // In normal case (no GCStress), after p/invoke, IL_STUB will check if GC is in progress and synchronize.
+        // NOTE: This condition needs to be evaluated after the previous one to prevent a subtle race condition
+        // (https://github.com/dotnet/coreclr/issues/21581)
+        bIsRealStartFrameUnchanged = bIsRealStartFrameUnchanged ||
+            ((GCStress<cfg_instr>::IsEnabled()) &&
+            (m_pRealStartFrame != NULL) &&
+            (m_pRealStartFrame != FRAME_TOP) &&
+            (m_pRealStartFrame->GetVTablePtr() == InlinedCallFrame::GetMethodFrameVPtr()) &&
+            (m_pThread->GetFrame() != NULL) &&
+            (m_pThread->GetFrame() != FRAME_TOP) &&
+            ((m_pThread->GetFrame()->GetVTablePtr() == ResumableFrame::GetMethodFrameVPtr()) ||
+            (m_pThread->GetFrame()->GetVTablePtr() == RedirectedThreadFrame::GetMethodFrameVPtr())));
 #endif // FEATURE_HIJACK
 
-        _ASSERTE( (m_pStartFrame != NULL) ||
-                  (m_flags & POPFRAMES) ||
-                  (m_pRealStartFrame == m_pThread->GetFrame()) ||
-                  (bRedirectedPinvoke));
+        _ASSERTE(bIsRealStartFrameUnchanged);
+
 #endif //_DEBUG
 
         return FALSE;
@@ -2450,8 +2463,7 @@ StackWalkAction StackFrameIterator::NextRaw(void)
         // pushed on the stack after the frame is running
         _ASSERTE((m_crawl.pFrame == FRAME_TOP) ||
                  ((TADDR)GetRegdisplaySP(m_crawl.pRD) < dac_cast<TADDR>(m_crawl.pFrame)) ||
-                 (m_crawl.pFrame->GetVTablePtr() == FaultingExceptionFrame::GetMethodFrameVPtr()) ||
-                 (m_crawl.pFrame->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr()));
+                 (m_crawl.pFrame->GetVTablePtr() == FaultingExceptionFrame::GetMethodFrameVPtr()));
 #endif // !defined(ELIMINATE_FEF)
 
         // Get rid of the frame (actually, it isn't really popped)
@@ -3043,9 +3055,7 @@ BOOL StackFrameIterator::CheckForSkippedFrames(void)
     LOG((LF_GCROOTS, LL_EVERYTHING, "STACKWALK: CheckForSkippedFrames\n"));
 
     // We might have skipped past some Frames.
-    // This happens with InlinedCallFrames and if we unwound
-    // out of a finally in managed code or for ContextTransitionFrames
-    // that are inserted into the managed call stack.
+    // This happens with InlinedCallFrames.
     while ( (m_crawl.pFrame != FRAME_TOP) &&
             (dac_cast<TADDR>(m_crawl.pFrame) < pvReferenceSP)
           )

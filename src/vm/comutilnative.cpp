@@ -43,8 +43,6 @@
 
 #include "arraynative.inl"
 
-#define STACK_OVERFLOW_MESSAGE   W("StackOverflowException")
-
 /*===================================IsDigit====================================
 **Returns a bool indicating whether the character passed in represents a   **
 **digit.
@@ -126,15 +124,6 @@ FCIMPL1(FC_BOOL_RET, ExceptionNative::IsImmutableAgileException, Object* pExcept
     FC_RETURN_BOOL(CLRException::IsPreallocatedExceptionObject(pException));
 }
 FCIMPLEND
-
-FCIMPL1(FC_BOOL_RET, ExceptionNative::IsTransient, INT32 hresult)
-{
-    FCALL_CONTRACT;
-
-    FC_RETURN_BOOL(Exception::IsTransient(hresult));
-}
-FCIMPLEND
-
 
 // This FCall sets a flag against the thread exception state to indicate to
 // IL_Throw and the StackTraceInfo implementation to account for the fact
@@ -378,38 +367,19 @@ static BSTR GetExceptionDescription(OBJECTREF objException)
     GCPROTECT_BEGIN(MessageString)
     GCPROTECT_BEGIN(objException)
     {
-#ifdef FEATURE_APPX
-        if (AppX::IsAppXProcess())
-        {
-            // In AppX, call Exception.ToString(false, false) which returns a string containing the exception class
-            // name and callstack without file paths/names. This is used for unhandled exception bucketing/analysis.
-            MethodDescCallSite getMessage(METHOD__EXCEPTION__TO_STRING, &objException);
+        // read Exception.Message property
+        MethodDescCallSite getMessage(METHOD__EXCEPTION__GET_MESSAGE, &objException);
 
-            ARG_SLOT GetMessageArgs[] =
-            {
-                ObjToArgSlot(objException),
-                BoolToArgSlot(false),  // needFileLineInfo
-                BoolToArgSlot(false)   // needMessage
-            };
-            MessageString = getMessage.Call_RetSTRINGREF(GetMessageArgs);
-        }
-        else
-#endif // FEATURE_APPX
-        {
-            // read Exception.Message property
-            MethodDescCallSite getMessage(METHOD__EXCEPTION__GET_MESSAGE, &objException);
+        ARG_SLOT GetMessageArgs[] = { ObjToArgSlot(objException)};
+        MessageString = getMessage.Call_RetSTRINGREF(GetMessageArgs);
 
-            ARG_SLOT GetMessageArgs[] = { ObjToArgSlot(objException)};
-            MessageString = getMessage.Call_RetSTRINGREF(GetMessageArgs);
-
-            // if the message string is empty then use the exception classname.
-            if (MessageString == NULL || MessageString->GetStringLength() == 0) {
-                // call GetClassName
-                MethodDescCallSite getClassName(METHOD__EXCEPTION__GET_CLASS_NAME, &objException);
-                ARG_SLOT GetClassNameArgs[] = { ObjToArgSlot(objException)};
-                MessageString = getClassName.Call_RetSTRINGREF(GetClassNameArgs);
-                _ASSERTE(MessageString != NULL && MessageString->GetStringLength() != 0);
-            }
+        // if the message string is empty then use the exception classname.
+        if (MessageString == NULL || MessageString->GetStringLength() == 0) {
+            // call GetClassName
+            MethodDescCallSite getClassName(METHOD__EXCEPTION__GET_CLASS_NAME, &objException);
+            ARG_SLOT GetClassNameArgs[] = { ObjToArgSlot(objException)};
+            MessageString = getClassName.Call_RetSTRINGREF(GetClassNameArgs);
+            _ASSERTE(MessageString != NULL && MessageString->GetStringLength() != 0);
         }
 
         // Allocate the description BSTR.
@@ -554,14 +524,6 @@ void ExceptionNative::GetExceptionData(OBJECTREF objException, ExceptionData *pE
     CONTRACTL_END;
 
     ZeroMemory(pED, sizeof(ExceptionData));
-
-    if (objException->GetMethodTable() == g_pStackOverflowExceptionClass) {
-        // In a low stack situation, most everything else in here will fail.
-        // <TODO>@TODO: We're not turning the guard page back on here, yet.</TODO>
-        pED->hr = COR_E_STACKOVERFLOW;
-        pED->bstrDescription = SysAllocString(STACK_OVERFLOW_MESSAGE);
-        return;
-    }
 
     GCPROTECT_BEGIN(objException);
     pED->hr = GetExceptionHResult(objException);
@@ -800,11 +762,7 @@ FCIMPL5(VOID, Buffer::BlockCopy, ArrayBase *src, int srcOffset, ArrayBase *dst, 
     PTR_BYTE dstPtr = dst->GetDataPtr() + dstOffset;
 
     if ((srcPtr != dstPtr) && (count > 0)) {
-#if defined(_AMD64_) && !defined(PLATFORM_UNIX)
-        JIT_MemCpy(dstPtr, srcPtr, count);
-#else
         memmove(dstPtr, srcPtr, count);
-#endif
     }
 
     FC_GC_POLL();
@@ -854,13 +812,6 @@ FCIMPLEND
 void QCALLTYPE Buffer::MemMove(void *dst, void *src, size_t length)
 {
     QCALL_CONTRACT;
-
-#if !defined(FEATURE_CORESYSTEM)
-    // Callers of memcpy do expect and handle access violations in some scenarios.
-    // Access violations in the runtime dll are turned into fail fast by the vector exception handler by default.
-    // We need to supress this behavior for CoreCLR using AVInRuntimeImplOkayHolder because of memcpy is statically linked in.
-    AVInRuntimeImplOkayHolder avOk;
-#endif
 
     memmove(dst, src, length);
 }
@@ -922,15 +873,15 @@ UINT64   GCInterface::m_remPressure[NEW_PRESSURE_COUNT] = {0, 0, 0, 0};   // his
 // (m_iteration % NEW_PRESSURE_COUNT) is used as an index into m_addPressure and m_remPressure
 UINT     GCInterface::m_iteration = 0;
 
-FCIMPL5(void, GCInterface::GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation)
+FCIMPL6(void, GCInterface::GetMemoryInfo, UINT64* highMemLoadThreshold, UINT64* totalAvailableMemoryBytes, UINT64* lastRecordedMemLoadBytes, UINT32* lastRecordedMemLoadPct, size_t* lastRecordedHeapSizeBytes, size_t* lastRecordedFragmentationBytes)
 {
     FCALL_CONTRACT;
 
     FC_GC_POLL_NOT_NEEDED();
     
-    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalPhysicalMem, 
-                                                       lastRecordedMemLoad, 
-                                                       lastRecordedHeapSize, lastRecordedFragmentation);
+    return GCHeapUtilities::GetGCHeap()->GetMemoryInfo(highMemLoadThreshold, totalAvailableMemoryBytes,
+                                                       lastRecordedMemLoadBytes, lastRecordedMemLoadPct, 
+                                                       lastRecordedHeapSizeBytes, lastRecordedFragmentationBytes);
 }
 FCIMPLEND
 
@@ -1165,6 +1116,22 @@ FCIMPL1(int, GCInterface::GetGenerationWR, LPVOID handle)
 }
 FCIMPLEND
 
+FCIMPL0(int, GCInterface::GetLastGCPercentTimeInGC)
+{
+    FCALL_CONTRACT;
+
+    return GCHeapUtilities::GetGCHeap()->GetLastGCPercentTimeInGC();
+}
+FCIMPLEND
+
+FCIMPL1(UINT64, GCInterface::GetGenerationSize, int gen)
+{
+    FCALL_CONTRACT;
+
+    return (UINT64)(GCHeapUtilities::GetGCHeap()->GetLastGCGenerationSize(gen));
+}
+FCIMPLEND
+
 /*================================GetTotalMemory================================
 **Action: Returns the total number of bytes in use
 **Returns: The total number of bytes in use
@@ -1296,12 +1263,30 @@ FCIMPL1(INT64, GCInterface::GetTotalAllocatedBytes, CLR_BOOL precise)
 
     if (!precise)
     {
-        // NOTE: we do not want to make imprecise flavor too slow. 
-        // As it could be noticed we read 64bit values that may be concurrently updated.
-        // Such reads are not guaranteed to be atomic on 32bit and inrare cases we may see torn values resultng in outlier results.
-        // That would be extremely rare and in a context of imprecise helper is not worth additional synchronization.
+#ifdef _TARGET_64BIT_
         uint64_t unused_bytes = Thread::dead_threads_non_alloc_bytes;
-        return GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
+#else
+        // As it could be noticed we read 64bit values that may be concurrently updated.
+        // Such reads are not guaranteed to be atomic on 32bit so extra care should be taken.
+        uint64_t unused_bytes = FastInterlockCompareExchangeLong((LONG64*)& Thread::dead_threads_non_alloc_bytes, 0, 0);
+#endif
+
+        uint64_t allocated_bytes = GCHeapUtilities::GetGCHeap()->GetTotalAllocatedBytes() - unused_bytes;
+
+        // highest reported allocated_bytes. We do not want to report a value less than that even if unused_bytes has increased.
+        static uint64_t high_watermark;
+
+        uint64_t current_high = high_watermark;
+        while (allocated_bytes > current_high)
+        {           
+            uint64_t orig = FastInterlockCompareExchangeLong((LONG64*)& high_watermark, allocated_bytes, current_high);
+            if (orig == current_high)
+                return allocated_bytes;
+
+            current_high = orig;
+        }
+
+        return current_high;
     }
 
     INT64 allocated;
@@ -1337,7 +1322,7 @@ FCIMPLEND;
 **Arguments: args-> pointer to section, size of section
 **Exceptions: None
 ==============================================================================*/
-void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, INT32 sizeSection)
+void* QCALLTYPE GCInterface::RegisterFrozenSegment(void* pSection, SIZE_T sizeSection)
 {
     QCALL_CONTRACT;
 

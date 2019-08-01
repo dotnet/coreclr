@@ -5,6 +5,8 @@
 #include "common.h"
 #include "fastserializer.h"
 #include "diagnosticsipc.h"
+#include <diagnosticsprotocol.h>
+#include <eventpipeprotocolhelper.h>
 
 #ifdef FEATURE_PERFTRACING
 
@@ -25,14 +27,6 @@ IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pSt
 
     if (_pStream == nullptr)
         return;
-
-    uint32_t nBytesWritten = 0;
-    bool fSuccess = _pStream->Write(&id, sizeof(id), nBytesWritten);
-    if (!fSuccess)
-    {
-        delete _pStream;
-        _pStream = nullptr;
-    }
 }
 
 IpcStreamWriter::~IpcStreamWriter()
@@ -160,7 +154,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     }
     CONTRACTL_END;
 
-    WriteTag(FastSerializerTags::BeginObject);
+    WriteTag(pObject->IsPrivate() ? FastSerializerTags::BeginPrivateObject : FastSerializerTags::BeginObject);
 
     WriteSerializationType(pObject);
 
@@ -216,7 +210,7 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     CONTRACTL_END;
 
     // Write the BeginObject tag.
-    WriteTag(FastSerializerTags::BeginObject);
+    WriteTag(pObject->IsPrivate() ? FastSerializerTags::BeginPrivateObject : FastSerializerTags::BeginObject);
 
     // Write a NullReferenceTag, which implies that the following fields belong to SerializationType.
     WriteTag(FastSerializerTags::NullReference);

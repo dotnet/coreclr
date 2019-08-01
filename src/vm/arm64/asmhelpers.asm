@@ -11,12 +11,14 @@
 #include "asmconstants.h"
 #include "asmmacros.h"
 
+#ifdef FEATURE_PREJIT
     IMPORT VirtualMethodFixupWorker
+    IMPORT StubDispatchFixupWorker
+#endif
     IMPORT ExternalMethodFixupWorker
     IMPORT PreStubWorker
     IMPORT NDirectImportWorker
     IMPORT VSD_ResolveWorker
-    IMPORT StubDispatchFixupWorker
     IMPORT JIT_InternalThrow
     IMPORT ComPreStubWorker
     IMPORT COMToCLRWorker
@@ -532,6 +534,7 @@ Exit
         ret      lr
     WRITE_BARRIER_END JIT_WriteBarrier
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; VirtualMethodFixupStub
 ;
@@ -579,6 +582,8 @@ Exit
     EPILOG_BRANCH_REG x12
 
     NESTED_END
+#endif // FEATURE_PREJIT
+
 ;------------------------------------------------
 ; ExternalMethodFixupStub
 ;
@@ -701,7 +706,7 @@ NoFloatingPointRetVal
 ;
     NESTED_ENTRY GenericComPlusCallStub
 
-        PROLOG_WITH_TRANSITION_BLOCK 0x20
+        PROLOG_WITH_TRANSITION_BLOCK ASM_ENREGISTERED_RETURNTYPE_MAXSIZE
 
         add         x0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov         x1, x12                         ; pMethodDesc
@@ -716,8 +721,7 @@ NoFloatingPointRetVal
         ; x0 = fpRetSize
 
         ; The return value is stored before float argument registers
-        ; The maximum size of a return value is 0x40 (HVA of 4x16)
-        add         x1, sp, #(__PWTB_FloatArgumentRegisters - 0x40)
+        add         x1, sp, #(__PWTB_FloatArgumentRegisters - ASM_ENREGISTERED_RETURNTYPE_MAXSIZE)
         bl          setStubReturnValue
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN

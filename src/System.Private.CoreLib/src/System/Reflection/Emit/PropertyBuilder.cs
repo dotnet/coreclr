@@ -13,6 +13,7 @@
 ** 
 ===========================================================*/
 
+using System.Runtime.CompilerServices;
 using CultureInfo = System.Globalization.CultureInfo;
 
 namespace System.Reflection.Emit
@@ -89,8 +90,9 @@ namespace System.Reflection.Emit
             }
 
             m_containingType.ThrowIfCreated();
+            ModuleBuilder module = m_moduleBuilder;
             TypeBuilder.DefineMethodSemantics(
-                m_moduleBuilder.GetNativeHandle(),
+                JitHelpers.GetQCallModuleOnStack(ref module),
                 m_prToken.Token,
                 semantics,
                 mdBuilder.GetToken().Token);
@@ -153,12 +155,12 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(object? obj, object? value, object[]? index)
+        public override void SetValue(object? obj, object? value, object?[]? index)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, object[]? index, CultureInfo? culture)
+        public override void SetValue(object? obj, object? value, BindingFlags invokeAttr, Binder? binder, object?[]? index, CultureInfo? culture)
         {
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }

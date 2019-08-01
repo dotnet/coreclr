@@ -531,16 +531,8 @@ inline HRESULT OutOfMemory()
 //*****************************************************************************
 // Handle accessing localizable resource strings
 //*****************************************************************************
-// NOTE: Should use locale names as much as possible.  LCIDs don't support
-// custom cultures on Vista+.
-// TODO: This should always use the names
-#ifdef FEATURE_USE_LCID    
-typedef LCID LocaleID;
-typedef LCID LocaleIDValue;
-#else
 typedef LPCWSTR LocaleID;
 typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
-#endif
 
 // Notes about the culture callbacks:
 // - The language we're operating in can change at *runtime*!
@@ -556,12 +548,7 @@ typedef WCHAR LocaleIDValue[LOCALE_NAME_MAX_LENGTH];
 
 // Callback to obtain both the culture name and the culture's parent culture name
 typedef HRESULT (*FPGETTHREADUICULTURENAMES)(__inout StringArrayList* pCultureNames);
-#ifdef FEATURE_USE_LCID
-// Callback to return the culture ID.
-const LCID UICULTUREID_DONTCARE = (LCID)-1;
-#else
 const LPCWSTR UICULTUREID_DONTCARE = NULL;
-#endif
 
 typedef int (*FPGETTHREADUICULTUREID)(LocaleIDValue*);
 
@@ -571,17 +558,8 @@ HMODULE CLRLoadLibraryEx(LPCWSTR lpLibFileName, HANDLE hFile, DWORD dwFlags);
 
 BOOL CLRFreeLibrary(HMODULE hModule);
 
-// Prevent people from using LoadStringRC & LoadStringRCEx from inside the product since it
-// causes issues with having the wrong version picked up inside the shim.
-#define LoadStringRC __error("From inside the CLR, use UtilLoadStringRC; LoadStringRC is only meant to be exported.")
-#define LoadStringRCEx __error("From inside the CLR, use UtilLoadStringRCEx; LoadStringRC is only meant to be exported.")
-
 // Load a string using the resources for the current module.
 STDAPI UtilLoadStringRC(UINT iResouceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet=FALSE);
-
-#ifdef FEATURE_USE_LCID
-STDAPI UtilLoadStringRCEx(LCID lcid, UINT iResourceID, __out_ecount (iMax) LPWSTR szBuffer, int iMax, int bQuiet, int *pcwchUsed);
-#endif
 
 // Specify callbacks so that UtilLoadStringRC can find out which language we're in.
 // If no callbacks specified (or both parameters are NULL), we default to the
@@ -647,12 +625,8 @@ public:
         _ASSERTE(m_hInst != NULL || m_fMissing);
         if (id == UICULTUREID_DONTCARE)
             return FALSE;
-        
-#ifdef FEATURE_USE_LCID
-        return id == m_LangId;
-#else
+
         return wcscmp(id, m_LangId) == 0;
-#endif
     }
     
     HRESOURCEDLL GetLibraryHandle()
@@ -687,9 +661,6 @@ public:
   private:
     void SetId(LocaleID id)
     {
-#ifdef FEATURE_USE_LCID
-        m_LangId = id;
-#else
         if (id != UICULTUREID_DONTCARE)
         {
             wcsncpy_s(m_LangId, NumItems(m_LangId), id, NumItems(m_LangId));
@@ -699,7 +670,6 @@ public:
         {
             m_LangId[0] = W('\0');
         }
-#endif
     }
  };
 
@@ -1336,6 +1306,7 @@ class NumaNodeInfo
 {
 private:
     static BOOL m_enableGCNumaAware;
+    static uint16_t m_nNodes;
     static BOOL InitNumaNodeInfoAPI();
 
 public:
@@ -1349,6 +1320,7 @@ public: 	// functions
                                      DWORD allocType, DWORD prot, DWORD node);
 #ifndef FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(PPROCESSOR_NUMBER proc_no, PUSHORT node_no);
+    static bool GetNumaInfo(PUSHORT total_nodes, DWORD* max_procs_per_node);
 #else // !FEATURE_PAL
     static BOOL GetNumaProcessorNodeEx(USHORT proc_no, PUSHORT node_no);
 #endif // !FEATURE_PAL
@@ -1393,6 +1365,7 @@ public:
     static void GetGroupForProcessor(WORD processor_number, 
 		    WORD *group_number, WORD *group_processor_number);
     static DWORD CalculateCurrentProcessorNumber();
+    static bool GetCPUGroupInfo(PUSHORT total_groups, DWORD* max_procs_per_group);
     //static void PopulateCPUUsageArray(void * infoBuffer, ULONG infoSize);
 
 #if !defined(FEATURE_REDHAWK)
@@ -4944,22 +4917,15 @@ BOOL IsIPInModule(HMODULE_TGT hModule, PCODE ip);
 // which in turn calls InitUtilcode.
 //
 // This structure collects all of the critical callback info passed in InitUtilcode().
-// Note that one of them is GetCLRFunction() which is itself a gofer for many other
-// callbacks. If a callback fetch be safely deferred until we have TLS and stack probe
-// functionality running, it should be added to that function rather than this structure.
-// Things like IEE are here because that callback has to be set up before GetCLRFunction()
-// can be safely called.
 //----------------------------------------------------------------------------------------
 struct CoreClrCallbacks
 {
     typedef IExecutionEngine* (* pfnIEE_t)();
     typedef HRESULT (* pfnGetCORSystemDirectory_t)(SString& pbuffer);
-    typedef void* (* pfnGetCLRFunction_t)(LPCSTR functionName);
 
     HINSTANCE                   m_hmodCoreCLR;
     pfnIEE_t                    m_pfnIEE;
     pfnGetCORSystemDirectory_t  m_pfnGetCORSystemDirectory;
-    pfnGetCLRFunction_t         m_pfnGetCLRFunction;
 };
 
 
@@ -5346,9 +5312,5 @@ struct SpinConstants
 };
 
 extern SpinConstants g_SpinConstants;
-
-// ======================================================================================
-
-void* GetCLRFunction(LPCSTR FunctionName);
 
 #endif // __UtilCode_h__

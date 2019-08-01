@@ -165,10 +165,6 @@ void  Thread::SetFrame(Frame *pFrame)
         pWalk = m_pFrame;
         while (fExist && pWalk != pFrame && pWalk != (Frame*)-1)
         {
-            if (pWalk->GetVTablePtr() == ContextTransitionFrame::GetMethodFrameVPtr())
-            {
-                _ASSERTE (((ContextTransitionFrame *)pWalk)->GetReturnDomain() == m_pDomain);
-            }
             pWalk = pWalk->m_Next;
         }
     }
@@ -744,7 +740,7 @@ Thread* SetupThread(BOOL fInternal)
 
 #ifdef FEATURE_INTEROP_DEBUGGING
     // Ensure that debugger word slot is allocated
-    UnsafeTlsSetValue(g_debuggerWordTLSIndex, 0);
+    TlsSetValue(g_debuggerWordTLSIndex, 0);
 #endif
 
     // We now have a Thread object visable to the RS. unmark special status.
@@ -1025,14 +1021,6 @@ Thread* WINAPI CreateThreadBlockThrow()
     Thread* pThread = NULL;
     BEGIN_ENTRYPOINT_THROWS;
 
-    if (!CanRunManagedCode())
-    {
-        // CLR is shutting down - someone's DllMain detach event may be calling back into managed code.
-        // It is misleading to use our COM+ exception code, since this is not a managed exception.  
-        ULONG_PTR arg = E_PROCESS_SHUTDOWN_REENTRY;
-        RaiseException(EXCEPTION_EXX, 0, 1, &arg);
-    }
-
     HRESULT hr = S_OK;
     pThread = SetupThreadNoThrow(&hr);
     if (pThread == NULL)
@@ -1105,7 +1093,7 @@ void InitThreadManager()
 #endif // !FEATURE_PAL
 
 #ifdef FEATURE_INTEROP_DEBUGGING
-    g_debuggerWordTLSIndex = UnsafeTlsAlloc();
+    g_debuggerWordTLSIndex = TlsAlloc();
     if (g_debuggerWordTLSIndex == TLS_OUT_OF_INDEXES)
         COMPlusThrowWin32();
 #endif
@@ -1368,9 +1356,9 @@ Thread::Thread()
     m_debuggerCantStop = 0;
     m_fInteropDebuggingHijacked = FALSE;
     m_profilerCallbackState = 0;
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
+#if defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
     m_dwProfilerEvacuationCounter = 0;
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
+#endif // defined(PROFILING_SUPPORTED) || defined(PROFILING_SUPPORTED_DATA)
 
     m_pProfilerFilterContext = NULL;
 
@@ -1464,9 +1452,7 @@ Thread::Thread()
 
     m_pPendingTypeLoad = NULL;
 
-#ifdef FEATURE_PREJIT
     m_pIBCInfo = NULL;
-#endif
 
     m_dwAVInRuntimeImplOkayCount = 0;
 
@@ -1551,6 +1537,8 @@ Thread::Thread()
 #endif // FEATURE_PERFTRACING
     m_HijackReturnKind = RT_Illegal;
     m_DeserializationTracker = NULL;
+
+    m_currentPrepareCodeConfig = nullptr;
 }
 
 //--------------------------------------------------------------------
@@ -2220,7 +2208,11 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_PAL
+    SIZE_T  ourId = 0;
+#else
     DWORD   ourId = 0;
+#endif
     HANDLE  h = NULL;
     DWORD dwCreationFlags = CREATE_SUSPENDED;
 
@@ -2258,12 +2250,16 @@ BOOL Thread::CreateNewOSThread(SIZE_T sizeToCommitOrReserve, LPTHREAD_START_ROUT
     lpThreadArgs->lpThreadFunction = start;
     lpThreadArgs->lpArg = args;
 
-    h = ::CreateThread(NULL     /*=SECURITY_ATTRIBUTES*/,
-                       sizeToCommitOrReserve,
-                       intermediateThreadProc,
-                       lpThreadArgs,
-                       dwCreationFlags,
-                       &ourId);
+#ifdef FEATURE_PAL
+    h = ::PAL_CreateThread64(NULL     /*=SECURITY_ATTRIBUTES*/,
+#else
+    h = ::CreateThread(      NULL     /*=SECURITY_ATTRIBUTES*/,
+#endif
+                             sizeToCommitOrReserve,
+                             intermediateThreadProc,
+                             lpThreadArgs,
+                             dwCreationFlags,
+                             &ourId);
 
     if (h == NULL)
         return FALSE;
@@ -2630,11 +2626,9 @@ Thread::~Thread()
 
     g_pThinLockThreadIdDispenser->DisposeId(GetThreadId());
 
-#ifdef FEATURE_PREJIT
     if (m_pIBCInfo) {
         delete m_pIBCInfo;
     }
-#endif
 
 #ifdef FEATURE_EVENT_TRACE
     // Destruct the thread local type cache for allocation sampling
@@ -3397,7 +3391,8 @@ DWORD Thread::DoAppropriateWaitWorker(int countHandles, HANDLE *handles, BOOL wa
     // since fundamental parts of the system (such as the GC) rely on non alertable
     // waits not running any managed code. Also if we are past the point in shutdown were we
     // are allowed to run managed code then we can't forward the call to the sync context.
-    if (!ignoreSyncCtx && alertable && CanRunManagedCode(LoaderLockCheck::None) 
+    if (!ignoreSyncCtx
+        && alertable
         && !HasThreadStateNC(Thread::TSNC_BlockedForShutdown))
     {
         GCX_COOP();
@@ -4719,7 +4714,11 @@ BOOL Thread::PrepareApartmentAndContext()
     }
     CONTRACTL_END;
 
+#ifdef FEATURE_PAL
+    m_OSThreadId = ::PAL_GetCurrentOSThreadId();
+#else
     m_OSThreadId = ::GetCurrentThreadId();
+#endif
 
 #ifdef FEATURE_COMINTEROP_APARTMENT_SUPPORT
     // Be very careful in here because we haven't set up e.g. TLS yet.
@@ -4961,7 +4960,11 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
             {
                 // We should never be attempting to CoUninitialize another thread than
                 // the currently running thread.
+#ifdef FEATURE_PAL
+                _ASSERTE(m_OSThreadId == ::PAL_GetCurrentOSThreadId());
+#else
                 _ASSERTE(m_OSThreadId == ::GetCurrentThreadId());
+#endif
 
                 // CoUninitialize the thread and reset the STA/MTA/CoInitialized state bits.
                 ::CoUninitialize();
@@ -5011,7 +5014,11 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
     // Don't use the TS_Unstarted state bit to check for this, it's cleared far
     // too late in the day for us. Instead check whether we're in the correct
     // thread context.
+#ifdef FEATURE_PAL
+    if (m_OSThreadId != ::PAL_GetCurrentOSThreadId())
+#else
     if (m_OSThreadId != ::GetCurrentThreadId())
+#endif
     {
         FastInterlockOr((ULONG *) &m_State, (state == AS_InSTA) ? TS_InSTA : TS_InMTA);
         return state;
@@ -7260,22 +7267,6 @@ void Thread::ClearContext()
 #endif //FEATURE_COMINTEROP
 }
 
-void DECLSPEC_NORETURN Thread::RaiseCrossContextException(Exception* pExOrig, ContextTransitionFrame* pFrame)
-{
-    CONTRACTL
-    {
-        THROWS;
-        WRAPPER(GC_TRIGGERS);
-    }
-    CONTRACTL_END;
-
-    // pEx is NULL means that the exception is CLRLastThrownObjectException
-    CLRLastThrownObjectException lastThrown;
-    Exception* pException = pExOrig ? pExOrig : &lastThrown;
-    COMPlusThrow(CLRException::GetThrowableFromException(pException));
-}
-
-
 BOOL Thread::HaveExtraWorkForFinalizer()
 {
     LIMITED_METHOD_CONTRACT;
@@ -7459,10 +7450,6 @@ static void ManagedThreadBase_DispatchMiddle(ManagedThreadCallState *pCallState)
         else
         {
             // Setting up the unwind_and_continue_handler ensures that C++ exceptions do not leak out.
-            // An example is when Thread1 in Default AppDomain creates AppDomain2, enters it, creates
-            // another thread T2 and T2 throws OOM exception (that goes unhandled). At the transition
-            // boundary, END_DOMAIN_TRANSITION will catch it and invoke RaiseCrossContextException
-            // that will rethrow the OOM as a C++ exception. 
             //
             // Without unwind_and_continue_handler below, the exception will fly up the stack to
             // this point, where it will be rethrown and thus leak out. 
@@ -7920,8 +7907,6 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
     CONTRACTL_END;
 
-    FieldDesc *         pFD;
-
     // This is the case when we're building mscorlib and haven't yet created
     // the system assembly.
     if (SystemDomain::System()->SystemAssembly()==NULL || g_fForbidEnterEE) {
@@ -7929,22 +7914,9 @@ OBJECTREF Thread::GetCulture(BOOL bUICulture)
     }
 
     OBJECTREF pCurrentCulture;
-    if (bUICulture) {
-        // Call the Getter for the CurrentUICulture.  This will cause it to populate the field.
-        MethodDescCallSite propGet(METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE);
-        ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
-        pCurrentCulture = ArgSlotToObj(retVal);
-    } else {
-        //This is  faster than calling the property, because this is what the call does anyway.
-        pFD = MscorlibBinder::GetField(FIELD__CULTURE_INFO__CURRENT_CULTURE);
-        _ASSERTE(pFD);
-
-        pFD->CheckRunClassInitThrowing();
-
-        pCurrentCulture = pFD->GetStaticOBJECTREF();
-        _ASSERTE(pCurrentCulture!=NULL);
-    }
-
+    MethodDescCallSite propGet(bUICulture ? METHOD__CULTURE_INFO__GET_CURRENT_UI_CULTURE : METHOD__CULTURE_INFO__GET_CURRENT_CULTURE);
+    ARG_SLOT retVal = propGet.Call_RetArgSlot(NULL);
+    pCurrentCulture = ArgSlotToObj(retVal);
     return pCurrentCulture;
 }
 

@@ -285,21 +285,7 @@ namespace System.Reflection.Emit
 
         public override Type MakeArrayType(int rank)
         {
-            if (rank <= 0)
-                throw new IndexOutOfRangeException();
-
-            string szrank = "";
-            if (rank == 1)
-            {
-                szrank = "*";
-            }
-            else
-            {
-                for (int i = 1; i < rank; i++)
-                    szrank += ",";
-            }
-
-            string s = string.Format(CultureInfo.InvariantCulture, "[{0}]", szrank); // [,,]
+            string s = GetRankString(rank);
             SymbolType? st = SymbolType.FormCompoundType(m_format + s, m_baseType, 0) as SymbolType;
             return st!;
         }
@@ -318,7 +304,7 @@ namespace System.Reflection.Emit
         }
 
         public override object InvokeMember(string name, BindingFlags invokeAttr, Binder? binder, object? target,
-            object[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
+            object?[]? args, ParameterModifier[]? modifiers, CultureInfo? culture, string[]? namedParameters)
         {
             throw new NotSupportedException(SR.NotSupported_NonReflectedType);
         }
@@ -391,12 +377,10 @@ namespace System.Reflection.Emit
             get { return m_baseType.Namespace; }
         }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         public override Type BaseType
         {
             get { return typeof(System.Array); }
         }
-#pragma warning restore CS8608
 
         protected override ConstructorInfo GetConstructorImpl(BindingFlags bindingAttr, Binder? binder,
                 CallingConventions callConvention, Type[] types, ParameterModifier[]? modifiers)

@@ -97,7 +97,6 @@ int LinearScan::BuildNode(GenTree* tree)
                 {
                     tree->ClearRegOptional();
                     tree->SetContained();
-                    INDEBUG(dumpNodeInfo(tree, dstCandidates, 0, 0));
                     return 0;
                 }
             }
@@ -117,7 +116,6 @@ int LinearScan::BuildNode(GenTree* tree)
             LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
             if (isCandidateVar(varDsc))
             {
-                INDEBUG(dumpNodeInfo(tree, dstCandidates, 0, 1));
                 return 0;
             }
             srcCount = 0;
@@ -705,7 +703,6 @@ int LinearScan::BuildNode(GenTree* tree)
     assert(isLocalDefUse == (tree->IsValue() && tree->IsUnusedValue()));
     assert(!tree->IsUnusedValue() || (dstCount != 0));
     assert(dstCount == tree->GetRegisterDstCount());
-    INDEBUG(dumpNodeInfo(tree, dstCandidates, srcCount, dstCount));
     return srcCount;
 }
 
@@ -806,7 +803,6 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     int       srcCount      = 0;
     GenTree*  op1           = node->gtOp1;
     GenTree*  op2           = node->gtGetOp2IfPresent();
-    bool      isReverseOp   = node->IsReverseOp();
     regMaskTP op1Candidates = candidates;
     regMaskTP op2Candidates = candidates;
 
@@ -831,7 +827,6 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     bool prefOp2 = false;
     getTgtPrefOperands(node, prefOp1, prefOp2);
     assert(!prefOp2 || node->OperIsCommutative());
-    assert(!isReverseOp || node->OperIsCommutative());
 
     // Determine which operand, if any, should be delayRegFree. Normally, this would be op2,
     // but if we have a commutative operator and op1 is a contained memory op, it would be op1.
@@ -867,12 +862,6 @@ int LinearScan::BuildRMWUses(GenTreeOp* node, regMaskTP candidates)
     {
         assert(!prefOp1 || delayUseOperand != op1);
         assert(!prefOp2 || delayUseOperand != op2);
-    }
-
-    if (isReverseOp)
-    {
-        op1 = op2;
-        op2 = node->gtOp1;
     }
 
     // Build first use
@@ -1441,31 +1430,26 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         }
     }
 
-    if ((size != 0) && (blkSizeRegMask != RBM_NONE))
+    if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (blkSizeRegMask != RBM_NONE))
     {
         // Reserve a temp register for the block size argument.
         buildInternalIntRegisterDefForNode(blkNode, blkSizeRegMask);
     }
 
-    if (!dstAddr->isContained() && !blkNode->IsReverseOp())
-    {
-        srcCount++;
-        BuildUse(dstAddr, dstAddrRegMask);
-    }
-    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
-    {
-        srcCount++;
-        BuildUse(srcAddrOrFill, sourceRegMask);
-    }
-    if (!dstAddr->isContained() && blkNode->IsReverseOp())
+    if (!dstAddr->isContained())
     {
         srcCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
 
-    if (size == 0)
+    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
     {
-        assert(blkNode->OperIs(GT_STORE_DYN_BLK));
+        srcCount++;
+        BuildUse(srcAddrOrFill, sourceRegMask);
+    }
+
+    if (blkNode->OperIs(GT_STORE_DYN_BLK))
+    {
         // The block size argument is a third argument to GT_STORE_DYN_BLK
         srcCount++;
         GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;
@@ -2500,12 +2484,6 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
 
                     buildUses = false;
                 }
-                break;
-            }
-
-            case NI_SSE41_TestAllOnes:
-            {
-                buildInternalFloatRegisterDefForNode(intrinsicTree);
                 break;
             }
 

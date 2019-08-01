@@ -156,9 +156,13 @@ generate_layout()
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
 
     if [ "$__BuildOS" != "OSX" ]; then
-        nextCommand="\"$__TestDir/setup-stress-dependencies.sh\" --outputDir=$CORE_ROOT"
+        nextCommand="\"$__TestDir/setup-stress-dependencies.sh\" --arch=$__BuildArch --outputDir=$CORE_ROOT"
         echo "Resolve runtime dependences via $nextCommand"
         eval $nextCommand
+        if [ $? != 0 ]; then
+            echo "${__MsgPrefix}Error: setup-stress-dependencies failed."
+            exit 1
+        fi
     fi
 
     # Precompile framework assemblies with crossgen if required
@@ -490,13 +494,14 @@ build_native_projects()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                                     /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                                     /p:UsePartialNGENOptimization=false /maxcpucount \
-                                     $__ProjectDir/build.proj /t:GenerateVersionHeader \
-                                     /p:GenerateVersionHeader=true /p:NativeVersionSourceFile=$__versionSourceFile \
-                                     /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                     $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            $__ProjectRoot/eng/common/msbuild.sh $__ProjectRoot/eng/empty.csproj \
+                                                 /p:NativeVersionFile=$__versionSourceFile \
+                                                 /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore \
+                                                 $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            if [ $? -ne 0 ]; then
+                echo "Failed to generate native version file."
+                exit $?
+            fi
         else
             # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -929,7 +934,7 @@ else
   __NumProc=$(nproc --all)
 fi
 
-__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS")
+__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS" "/nodeReuse:false")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
@@ -993,7 +998,12 @@ fi
 # init the target distro name
 initTargetDistroRid
 
-# Override tool directory
+if [ $__PortableBuild == 0 ]; then
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
+fi
+
+# Restore Build Tools
+source $__ProjectRoot/init-tools.sh
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests

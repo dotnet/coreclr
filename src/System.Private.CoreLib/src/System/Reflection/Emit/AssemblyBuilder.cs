@@ -262,7 +262,7 @@ namespace System.Reflection.Emit
                                                               ref StackCrawlMark stackMark,
                                                               AssemblyBuilderAccess access);
 
-        private class AssemblyBuilderLock { }
+        private static readonly object s_assemblyBuilderLock = new object();
 
         internal static AssemblyBuilder InternalDefineDynamicAssembly(
             AssemblyName name,
@@ -270,7 +270,7 @@ namespace System.Reflection.Emit
             ref StackCrawlMark stackMark,
             IEnumerable<CustomAttributeBuilder>? unsafeAssemblyAttributes)
         {
-            lock (typeof(AssemblyBuilderLock))
+            lock (s_assemblyBuilderLock)
             {
                 // We can only create dynamic assemblies in the current domain
                 return new AssemblyBuilder(name,
@@ -497,7 +497,7 @@ namespace System.Reflection.Emit
             return InternalAssembly.GetType(name, throwOnError, ignoreCase);
         }
 
-        public override Module? ManifestModule => _manifestModuleBuilder.InternalModule;
+        public override Module ManifestModule => _manifestModuleBuilder.InternalModule;
 
         public override bool ReflectionOnly => InternalAssembly.ReflectionOnly;
 

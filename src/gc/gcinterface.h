@@ -605,11 +605,12 @@ public:
     // lastRecordedMemLoad - physical memory load in percentage recorded in the last GC
     // lastRecordedHeapSize - total managed heap size recorded in the last GC
     // lastRecordedFragmentation - total fragmentation in the managed heap recorded in the last GC
-    virtual void GetMemoryInfo(uint32_t* highMemLoadThreshold, 
-                               uint64_t* totalPhysicalMem, 
-                               uint32_t* lastRecordedMemLoad,
-                               size_t* lastRecordedHeapSize,
-                               size_t* lastRecordedFragmentation) = 0;
+    virtual void GetMemoryInfo(uint64_t* highMemLoadThresholdBytes,
+                               uint64_t* totalPhysicalMemoryBytes,
+                               uint64_t* lastRecordedMemLoadBytes,
+                               uint32_t* lastRecordedMemLoadPct,
+                               size_t* lastRecordedHeapSizeBytes,
+                               size_t* lastRecordedFragmentationBytes) = 0;
 
     // Gets the current GC latency mode.
     virtual int GetGcLatencyMode() = 0;
@@ -673,6 +674,10 @@ public:
 
     // Indicates that an object's finalizer should be run upon the object's collection.
     virtual bool RegisterForFinalization(int gen, Object* obj) = 0;
+
+    virtual int GetLastGCPercentTimeInGC() = 0;
+
+    virtual size_t GetLastGCGenerationSize(int gen) = 0;
 
     /*
     ===========================================================================

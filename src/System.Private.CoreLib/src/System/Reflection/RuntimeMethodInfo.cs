@@ -4,6 +4,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Security;
 using System.Text;
@@ -400,6 +401,7 @@ namespace System.Reflection
                 mb._methodBase = this;
             return mb;
         }
+
         #endregion
 
         #region Invocation Logic(On MemberBase)
@@ -418,6 +420,7 @@ namespace System.Reflection
             }
         }
 
+        [DoesNotReturn]
         private void ThrowNoInvokeException()
         {
             // method is on a class that contains stack pointers
@@ -507,7 +510,6 @@ namespace System.Reflection
 
         #region MethodInfo Overrides
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
         public override Type ReturnType
         {
             get { return Signature.ReturnType; }
@@ -518,19 +520,11 @@ namespace System.Reflection
             get { return ReturnParameter; }
         }
 
-        public override ParameterInfo ReturnParameter
-        {
-            get
-            {
-                FetchReturnParameter();
-                return (m_returnParameter as ParameterInfo)!;
-            }
-        }
-#pragma warning restore CS8608
+        public override ParameterInfo ReturnParameter => FetchReturnParameter();
 
-        public override bool IsCollectible => RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle));
+        public override bool IsCollectible => (RuntimeMethodHandle.GetIsCollectible(new RuntimeMethodHandleInternal(m_handle)) != Interop.BOOL.FALSE);
 
-        public override MethodInfo? GetBaseDefinition()
+        public override MethodInfo GetBaseDefinition()
         {
             if (!IsVirtual || IsStatic || m_declaringType == null || m_declaringType.IsInterface)
                 return this;
@@ -553,7 +547,7 @@ namespace System.Reflection
                 declaringType = (RuntimeType)declaringType.BaseType!;
             } while (declaringType != null);
 
-            return (MethodInfo?)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle);
+            return (MethodInfo)RuntimeType.GetMethodBase(baseDeclaringType, baseMethodHandle)!;
         }
 
         public override Delegate CreateDelegate(Type delegateType)
@@ -610,7 +604,7 @@ namespace System.Reflection
         #endregion
 
         #region Generics
-        public override MethodInfo? MakeGenericMethod(params Type[] methodInstantiation)
+        public override MethodInfo MakeGenericMethod(params Type[] methodInstantiation)
         {
             if (methodInstantiation == null)
                 throw new ArgumentNullException(nameof(methodInstantiation));
@@ -659,7 +653,7 @@ namespace System.Reflection
                 throw;
             }
 
-            return ret;
+            return ret!;
         }
 
         internal RuntimeType[] GetGenericArgumentsInternal()
@@ -678,12 +672,12 @@ namespace System.Reflection
             return types;
         }
 
-        public override MethodInfo? GetGenericMethodDefinition()
+        public override MethodInfo GetGenericMethodDefinition()
         {
             if (!IsGenericMethod)
                 throw new InvalidOperationException();
 
-            return RuntimeType.GetMethodBase(m_declaringType, RuntimeMethodHandle.StripMethodInstantiation(this)) as MethodInfo;
+            return (RuntimeType.GetMethodBase(m_declaringType, RuntimeMethodHandle.StripMethodInstantiation(this)) as MethodInfo)!;
         }
 
         public override bool IsGenericMethod

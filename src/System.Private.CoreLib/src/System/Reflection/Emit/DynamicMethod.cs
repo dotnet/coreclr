@@ -41,7 +41,7 @@ namespace System.Reflection.Emit
         // We capture the creation context so that we can do the checks against the same context,
         // irrespective of when the method gets compiled. Note that the DynamicMethod does not know when
         // it is ready for use since there is not API which indictates that IL generation has completed.
-        private static volatile InternalModuleBuilder s_anonymouslyHostedDynamicMethodsModule;
+        private static volatile InternalModuleBuilder? s_anonymouslyHostedDynamicMethodsModule;
         private static readonly object s_anonymouslyHostedDynamicMethodsModuleLock = new object();
 
         //
@@ -49,8 +49,8 @@ namespace System.Reflection.Emit
         //
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes)
+                             Type? returnType,
+                             Type[]? parameterTypes)
         {
             Init(name,
                 MethodAttributes.Public | MethodAttributes.Static,
@@ -64,8 +64,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              bool restrictedSkipVisibility)
         {
             Init(name,
@@ -80,8 +80,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Module m)
         {
             if (m == null)
@@ -99,8 +99,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Module m,
                              bool skipVisibility)
         {
@@ -121,8 +121,8 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              MethodAttributes attributes,
                              CallingConventions callingConvention,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Module m,
                              bool skipVisibility)
         {
@@ -141,8 +141,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Type owner)
         {
             if (owner == null)
@@ -160,8 +160,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Type owner,
                              bool skipVisibility)
         {
@@ -182,8 +182,8 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              MethodAttributes attributes,
                              CallingConventions callingConvention,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Type owner,
                              bool skipVisibility)
         {
@@ -342,7 +342,9 @@ namespace System.Reflection.Emit
             {
                 // Compile the method since accessibility checks are done as part of compilation.
                 GetMethodDescriptor();
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle!);
+                IRuntimeMethodInfo? methodHandle = m_methodHandle;
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                GC.KeepAlive(methodHandle);
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, null, GetMethodDescriptor());
@@ -357,7 +359,9 @@ namespace System.Reflection.Emit
             {
                 // Compile the method since accessibility checks are done as part of compilation
                 GetMethodDescriptor();
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(m_methodHandle!);
+                IRuntimeMethodInfo? methodHandle = m_methodHandle;
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                GC.KeepAlive(methodHandle);
             }
 
             MulticastDelegate d = (MulticastDelegate)Delegate.CreateDelegateNoSecurityCheck(delegateType, target, GetMethodDescriptor());
@@ -486,11 +490,11 @@ namespace System.Reflection.Emit
 
         public override bool IsDefined(Type attributeType, bool inherit) { return m_dynMethod.IsDefined(attributeType, inherit); }
 
-        public override Type? ReturnType { get { return m_dynMethod.ReturnType; } }
+        public override Type ReturnType { get { return m_dynMethod.ReturnType; } }
 
-        public override ParameterInfo? ReturnParameter { get { return m_dynMethod.ReturnParameter; } }
+        public override ParameterInfo ReturnParameter { get { return m_dynMethod.ReturnParameter; } }
 
-        public override ICustomAttributeProvider? ReturnTypeCustomAttributes { get { return m_dynMethod.ReturnTypeCustomAttributes; } }
+        public override ICustomAttributeProvider ReturnTypeCustomAttributes { get { return m_dynMethod.ReturnTypeCustomAttributes; } }
 
         //
         // DynamicMethod specific methods
@@ -702,7 +706,6 @@ namespace System.Reflection.Emit
                 get { return m_owner.IsSecurityTransparent; }
             }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
             public override Type ReturnType
             {
                 get
@@ -710,23 +713,13 @@ namespace System.Reflection.Emit
                     return m_owner.m_returnType;
                 }
             }
-#pragma warning restore CS8608
 
-            public override ParameterInfo? ReturnParameter
+            public override ParameterInfo ReturnParameter
             {
-                get { return null; }
+                get { return new RuntimeParameterInfo(this, null, m_owner.m_returnType, -1); }
             }
 
-#pragma warning disable CS8608 // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
-            public override ICustomAttributeProvider ReturnTypeCustomAttributes
-            {
-                get { return GetEmptyCAHolder(); }
-            }
-#pragma warning restore CS8608
-
-            //
-            // private implementation
-            //
+            public override ICustomAttributeProvider ReturnTypeCustomAttributes => new EmptyCAHolder();
 
             internal RuntimeParameterInfo[] LoadParameters()
             {
@@ -741,34 +734,6 @@ namespace System.Reflection.Emit
                         m_parameters = parameters;
                 }
                 return m_parameters;
-            }
-
-            // private implementation of CA for the return type
-            private ICustomAttributeProvider GetEmptyCAHolder()
-            {
-                return new EmptyCAHolder();
-            }
-
-            ///////////////////////////////////////////////////
-            // EmptyCAHolder
-            private class EmptyCAHolder : ICustomAttributeProvider
-            {
-                internal EmptyCAHolder() { }
-
-                object[] ICustomAttributeProvider.GetCustomAttributes(Type attributeType, bool inherit)
-                {
-                    return Array.Empty<object>();
-                }
-
-                object[] ICustomAttributeProvider.GetCustomAttributes(bool inherit)
-                {
-                    return Array.Empty<object>();
-                }
-
-                bool ICustomAttributeProvider.IsDefined(Type attributeType, bool inherit)
-                {
-                    return false;
-                }
             }
         }
     }

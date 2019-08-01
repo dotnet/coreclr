@@ -38,8 +38,6 @@ CRITICAL_SECTION g_dacCritSec;
 ClrDataAccess* g_dacImpl;
 HINSTANCE g_thisModule;
 
-extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
-
 EXTERN_C
 #ifdef FEATURE_PAL
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
@@ -86,9 +84,6 @@ BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
         {
             DeleteCriticalSection(&g_dacCritSec);
         }
-#ifndef FEATURE_PAL
-        TLS_FreeMasterSlotIndex();
-#endif
         g_procInitialized = false;
         break;
     }
@@ -469,8 +464,6 @@ MetaEnum::End(void)
     switch(m_kind)
     {
     case mdtTypeDef:
-        m_mdImport->EnumTypeDefClose(&m_enum);
-        break;
     case mdtMethodDef:
     case mdtFieldDef:
         m_mdImport->EnumClose(&m_enum);
@@ -494,7 +487,7 @@ MetaEnum::NextToken(mdToken* token,
     switch(m_kind)
     {
     case mdtTypeDef:
-        if (!m_mdImport->EnumTypeDefNext(&m_enum, token))
+        if (!m_mdImport->EnumNext(&m_enum, token))
         {
             return S_FALSE;
         }
@@ -5617,7 +5610,6 @@ ClrDataAccess::Initialize(void)
     cccallbacks.m_hmodCoreCLR               = (HINSTANCE)m_globalBase; // Base address of the runtime in the target process
     cccallbacks.m_pfnIEE                    = NULL;
     cccallbacks.m_pfnGetCORSystemDirectory  = NULL;
-    cccallbacks.m_pfnGetCLRFunction         = NULL;
     InitUtilcode(cccallbacks);
 
     return S_OK;
@@ -7845,13 +7837,10 @@ STDAPI OutOfProcessExceptionEventSignatureCallback(__in PDWORD pContext,
     }
     EX_CATCH_HRESULT(hr);
 
-#ifndef FEATURE_WINDOWSPHONE
-    // we can't assert this on phone as it's possible for the OS to kill
+    // it's possible for the OS to kill
     // the faulting process before WER crash reporting has completed.
-    _ASSERTE(hr == S_OK);
-#else
     _ASSERTE(hr == S_OK || hr == CORDBG_E_READVIRTUAL_FAILURE);
-#endif
+
     if (hr != S_OK)
     {
         // S_FALSE means either it is not a managed exception or we do not have Watson buckets.

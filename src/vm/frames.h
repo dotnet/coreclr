@@ -115,9 +115,6 @@
 //    |                           transition through N/Direct
 #endif
 //    |
-//    +-ContextTransitionFrame  - this frame is used to mark an appdomain transition
-//    |
-//    |
 //    +-TailCallFrame           - padding for tailcalls
 //    |
 //    +-ProtectByRefsFrame
@@ -255,7 +252,6 @@ FRAME_TYPE_NAME(DebuggerU2MCatchHandlerFrame)
 FRAME_TYPE_NAME(UMThkCallFrame)
 #endif
 FRAME_TYPE_NAME(InlinedCallFrame)
-FRAME_TYPE_NAME(ContextTransitionFrame)
 FRAME_TYPE_NAME(TailCallFrame)
 FRAME_TYPE_NAME(ExceptionFilterFrame)
 #if defined(_DEBUG)
@@ -2534,7 +2530,11 @@ private:
     BOOL          m_MaybeInterior;
 
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_DTOR(GCFrame)
+    DEFINE_VTABLE_GETTER(GCFrame)
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    ~GCFrame();
+#endif
 };
 
 #ifdef FEATURE_INTERPRETER
@@ -3019,6 +3019,18 @@ public:
     // registers across an NDirect call.
     TADDR                m_pCalleeSavedFP;
 
+    // This field is used to cache the current thread object where this frame is
+    // executing. This is especially helpful on Unix platforms for the PInvoke assembly
+    // stubs, since there is no easy way to inline an implementation of GetThread.
+    PTR_VOID             m_pThread;
+
+#ifdef _TARGET_ARM_
+    // Store the value of SP after prolog to ensure we can unwind functions that use
+    // stackalloc. In these functions, the m_pCallSiteSP can already be augmented by
+    // the stackalloc size, which is variable.
+    TADDR               m_pSPAfterProlog;
+#endif // _TARGET_ARM_
+
 public:
     //---------------------------------------------------------------
     // Expose key offsets and values for stub generation.
@@ -3073,63 +3085,6 @@ public:
 
     // Keep as last entry in class
     DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(InlinedCallFrame)
-};
-
-//------------------------------------------------------------------------
-// This frame is used to mark a Context/AppDomain Transition
-//------------------------------------------------------------------------
-
-class ContextTransitionFrame : public Frame
-{
-private:
-    PTR_Object  m_LastThrownObjectInParentContext;                                        
-    ULONG_PTR   m_LockCount;            // Number of locks the thread takes
-                                        // before the transition.
-    VPTR_VTABLE_CLASS(ContextTransitionFrame, Frame)
-
-public:
-    virtual void GcScanRoots(promote_func *fn, ScanContext* sc);
-
-    OBJECTREF GetLastThrownObjectInParentContext()
-    {
-        return ObjectToOBJECTREF(m_LastThrownObjectInParentContext);
-    }
-
-    void SetLastThrownObjectInParentContext(OBJECTREF lastThrownObject)
-    {
-        m_LastThrownObjectInParentContext = OBJECTREFToObject(lastThrownObject);
-    }
-
-    void SetLockCount(DWORD lockCount)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_LockCount = lockCount;
-    }
-    DWORD GetLockCount()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (DWORD) m_LockCount;
-    }
-
-
-    // Let debugger know that we're transitioning between AppDomains.
-    ETransitionType GetTransitionType()
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return TT_AppDomain;
-    }
-
-#ifndef DACCESS_COMPILE
-    ContextTransitionFrame()
-    : m_LastThrownObjectInParentContext(NULL)
-    , m_LockCount(0)
-    {
-        LIMITED_METHOD_CONTRACT;
-    }
-#endif
-
-    // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_DTOR(ContextTransitionFrame)
 };
 
 // TODO [DAVBR]: For the full fix for VsWhidbey 450273, this
@@ -3309,11 +3264,16 @@ public:
             *m_pShadowSP |= ICodeManager::SHADOW_SP_FILTER_DONE;
         }
     }
+
+#ifndef CROSSGEN_COMPILE
+    ~ExceptionFilterFrame();
+#endif
+
 #endif
 
 private:
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ExceptionFilterFrame)
+    DEFINE_VTABLE_GETTER_AND_CTOR(ExceptionFilterFrame)
 };
 
 #ifdef _DEBUG
@@ -3631,7 +3591,7 @@ public:
 
 #define GCPROTECT_END()                                                 \
                 DEBUG_ASSURE_NO_RETURN_END(GCPROTECT) }                 \
-                __gcframe.Pop(); } while(0)
+                } while(0)
 
 
 #else // #ifndef DACCESS_COMPILE

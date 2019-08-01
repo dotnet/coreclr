@@ -1213,12 +1213,7 @@ COR_ILMETHOD* MethodDesc::GetILHeader(BOOL fAllowOverrides /*=FALSE*/)
 }
 
 //*******************************************************************************
-MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
-#ifdef _DEBUG
-    bool supportStringConstructors,
-#endif
-    MethodTable** pMT
-    )
+ReturnKind MethodDesc::ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors))
 {
     CONTRACTL
     {
@@ -1243,7 +1238,7 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
         case ELEMENT_TYPE_ARRAY:
         case ELEMENT_TYPE_OBJECT:
         case ELEMENT_TYPE_VAR:
-            return(MetaSig::RETOBJ);
+            return RT_Object;
 
 #ifdef ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE
         case ELEMENT_TYPE_VALUETYPE:
@@ -1258,22 +1253,48 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
                     if (!thValueType.IsTypeDesc())
                     {
                         MethodTable * pReturnTypeMT = thValueType.AsMethodTable();
-                        if (pMT != NULL)
-                        {
-                            *pMT = pReturnTypeMT;
-                        }
-
 #ifdef UNIX_AMD64_ABI
                         if (pReturnTypeMT->IsRegPassedStruct())
                         {
-                            return MetaSig::RETVALUETYPE;
+                            // The Multi-reg return case using the classhandle is only implemented for AMD64 SystemV ABI.
+                            // On other platforms, multi-reg return is not supported with GcInfo v1.
+                            // So, the relevant information must be obtained from the GcInfo tables (which requires version2).
+                            EEClass* eeClass = pReturnTypeMT->GetClass();
+                            ReturnKind regKinds[2] = { RT_Unset, RT_Unset };
+                            int orefCount = 0;
+                            for (int i = 0; i < 2; i++)
+                            {
+                                if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerReference)
+                                {
+                                    regKinds[i] = RT_Object;
+                                }
+                                else if (eeClass->GetEightByteClassification(i) == SystemVClassificationTypeIntegerByRef)
+                                {
+                                    regKinds[i] = RT_ByRef;
+                                }
+                                else
+                                {
+                                    regKinds[i] = RT_Scalar;
+                                }
+                            }
+                            ReturnKind structReturnKind = GetStructReturnKind(regKinds[0], regKinds[1]);
+                            return structReturnKind;
                         }
-#endif // !UNIX_AMD64_ABI
+#endif // UNIX_AMD64_ABI
 
-                        if (pReturnTypeMT->ContainsPointers())
+                        if (pReturnTypeMT->ContainsPointers() || pReturnTypeMT->IsByRefLike())
                         {
-                            _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
-                            return MetaSig::RETOBJ;
+                            if (pReturnTypeMT->GetNumInstanceFields() == 1)
+                            {
+                                _ASSERTE(pReturnTypeMT->GetNumInstanceFieldBytes() == sizeof(void*));
+                                // Note: we can't distinguish RT_Object from RT_ByRef, the caller has to tolerate that. 
+                                return RT_Object;
+                            }
+                            else
+                            {
+                                // Multi reg return case with pointers, can't restore the actual kind.
+                                return RT_Illegal;
+                            }
                         }
                     }
                 }
@@ -1290,19 +1311,47 @@ MetaSig::RETURNTYPE MethodDesc::ReturnsObject(
             if (IsCtor() && GetMethodTable()->HasComponentSize())
             {
                 _ASSERTE(supportStringConstructors);
-                return MetaSig::RETOBJ;
+                return RT_Object;
             }
             break;
 #endif // _DEBUG
 
         case ELEMENT_TYPE_BYREF:
-            return(MetaSig::RETBYREF);
+            return RT_ByRef;
 
         default:
             break;
     }
 
-    return(MetaSig::RETNONOBJ);
+    return RT_Scalar;
+}
+
+ReturnKind MethodDesc::GetReturnKind(INDEBUG(bool supportStringConstructors))
+{
+#ifdef _WIN64
+    // For simplicity, we don't hijack in funclets, but if you ever change that, 
+    // be sure to choose the OnHijack... callback type to match that of the FUNCLET
+    // not the main method (it would probably be Scalar).
+#endif // _WIN64
+
+    ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+    // Mark that we are performing a stackwalker like operation on the current thread.
+    // This is necessary to allow the signature parsing functions to work without triggering any loads
+    ClrFlsValueSwitch threadStackWalking(TlsIdx_StackWalkerWalkingThread, GetThread());
+
+#ifdef _TARGET_X86_
+    MetaSig msig(this);
+    if (msig.HasFPReturn())
+    {
+        // Figuring out whether the function returns FP or not is hard to do
+        // on-the-fly, so we use a different callback helper on x86 where this
+        // piece of information is needed in order to perform the right save &
+        // restore of the return value around the call to OnHijackScalarWorker.
+        return RT_Float;
+    }
+#endif // _TARGET_X86_
+    
+    return ParseReturnKindFromSig(INDEBUG(supportStringConstructors));
 }
 
 #ifdef FEATURE_COMINTEROP
@@ -3169,6 +3218,10 @@ void DynamicMethodDesc::Restore()
         RestoreSignatureContainingInternalTypes(pSig, cSigLen);
     }
 }
+#else // FEATURE_PREJIT
+void DynamicMethodDesc::Restore()
+{
+}
 #endif // FEATURE_PREJIT
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
@@ -3912,7 +3965,6 @@ void ComPlusCallInfo::Fixup(DataImage *image)
 
 #endif // !DACCESS_COMPILE
 
-#ifdef FEATURE_PREJIT
 //*******************************************************************************
 void MethodDesc::CheckRestore(ClassLoadLevel level)
 {
@@ -3932,11 +3984,11 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
 
             // First restore method table pointer in singleton chunk;
             // it might be out-of-module
+#ifdef FEATURE_PREJIT
             GetMethodDescChunk()->RestoreMTPointer(level);
 #ifdef _DEBUG
             Module::RestoreMethodTablePointer(&m_pDebugMethodTable, NULL, level);
 #endif
-
             // Now restore wrapped method desc if present; we need this for the dictionary layout too
             if (pIMD->IMD_IsWrapperStubWithInstantiations())
                 Module::RestoreMethodDescPointer(&pIMD->m_pWrappedMethodDesc);
@@ -3946,6 +3998,9 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
             {
                 GetMethodDictionary()->Restore(GetNumGenericMethodArgs(), level);
             }
+#else
+            ClassLoader::EnsureLoaded(TypeHandle(GetMethodTable()), level);
+#endif
 
             g_IBCLogger.LogMethodDescWriteAccess(this);
 
@@ -3992,13 +4047,6 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
         }
     }
 }
-#else // FEATURE_PREJIT
-//*******************************************************************************
-void MethodDesc::CheckRestore(ClassLoadLevel level)
-{
-    LIMITED_METHOD_CONTRACT;
-}
-#endif // !FEATURE_PREJIT
 
 // static
 MethodDesc* MethodDesc::GetMethodDescFromStubAddr(PCODE addr, BOOL fSpeculative /*=FALSE*/)
@@ -4803,12 +4851,12 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
         // Functional requirement
         CodeVersionManager::IsMethodSupported(this) &&
 
-        // Policy - If quick JIT is disabled for the startup tier and the module is not ReadyToRun, the method would effectively
-        // not be tiered currently, so make the method ineligible for tiering to avoid some unnecessary overhead
-        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->IsReadyToRun()) &&
+        // Policy - If QuickJit is disabled and the module does not have any pregenerated code, the method would effectively not
+        // be tiered currently, so make the method ineligible for tiering to avoid some unnecessary overhead
+        (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
 
-        // Policy - Debugging works much better with unoptimized code
-        !CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) &&
+        // Policy - Generating optimized code is not disabled
+        !IsJitOptimizationDisabled() &&
 
         // Policy - Tiered compilation is not disabled by the profiler
         !CORProfilerDisableTieredCompilation())
@@ -4822,6 +4870,24 @@ bool MethodDesc::DetermineAndSetIsEligibleForTieredCompilation()
     return false;
 }
 
+#endif // !DACCESS_COMPILE
+
+#ifndef CROSSGEN_COMPILE
+bool MethodDesc::IsJitOptimizationDisabled()
+{
+    WRAPPER_NO_CONTRACT;
+
+    return
+        g_pConfig->JitMinOpts() ||
+#ifdef _DEBUG
+        g_pConfig->GenDebuggableCode() ||
+#endif
+        CORDisableJITOptimizations(GetModule()->GetDebuggerInfoBits()) ||
+        (!IsNoMetadata() && IsMiNoOptimization(GetImplAttrs()));
+}
+#endif
+
+#ifndef DACCESS_COMPILE
 #ifndef CROSSGEN_COMPILE
 
 void MethodDesc::RecordAndBackpatchEntryPointSlot(
@@ -5110,7 +5176,7 @@ void NDirectMethodDesc::InterlockedSetNDirectFlags(WORD wFlags)
 }
 
 #ifndef CROSSGEN_COMPILE
-FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 entryPointName) const
+FARPROC NDirectMethodDesc::FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE hMod, PTR_CUTF8 entryPointName) const
 {
     CONTRACTL
     {
@@ -5120,7 +5186,11 @@ FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 
     }
     CONTRACTL_END;
 
+#ifndef FEATURE_PAL
     FARPROC pFunc = GetProcAddress(hMod, entryPointName);
+#else
+    FARPROC pFunc = PAL_GetProcAddressDirect(hMod, entryPointName);
+#endif
 
 #if defined(_TARGET_X86_)
 
@@ -5163,7 +5233,7 @@ FARPROC NDirectMethodDesc::FindEntryPointWithMangling(HINSTANCE hMod, PTR_CUTF8 
 }
 
 //*******************************************************************************
-LPVOID NDirectMethodDesc::FindEntryPoint(HINSTANCE hMod) const
+LPVOID NDirectMethodDesc::FindEntryPoint(NATIVE_LIBRARY_HANDLE hMod) const
 {
     CONTRACTL
     {

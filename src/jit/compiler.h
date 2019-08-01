@@ -1327,6 +1327,14 @@ public:
                       // Note that on ARM, if we have a double hfa, this reflects the number
                       // of DOUBLE registers.
 
+#if defined(UNIX_AMD64_ABI)
+    // Unix amd64 will split floating point types and integer types in structs
+    // between floating point and general purpose registers. Keep track of that
+    // information so we do not need to recompute it later.
+    unsigned structIntRegs;
+    unsigned structFloatRegs;
+#endif // UNIX_AMD64_ABI
+
     // A slot is a pointer sized region in the OutArg area.
     unsigned slotNum;  // When an argument is passed in the OutArg area this is the slot number in the OutArg area
     unsigned numSlots; // Count of number of slots that this argument uses
@@ -1451,6 +1459,45 @@ public:
 #else
         return false;
 #endif
+    }
+
+    unsigned intRegCount()
+    {
+#if defined(UNIX_AMD64_ABI)
+        if (this->isStruct)
+        {
+            return this->structIntRegs;
+        }
+#endif // defined(UNIX_AMD64_ABI)
+
+        if (!this->isPassedInFloatRegisters())
+        {
+            return this->numRegs;
+        }
+
+        return 0;
+    }
+
+    unsigned floatRegCount()
+    {
+#if defined(UNIX_AMD64_ABI)
+        if (this->isStruct)
+        {
+            return this->structFloatRegs;
+        }
+#endif // defined(UNIX_AMD64_ABI)
+
+        if (this->isPassedInFloatRegisters())
+        {
+            return this->numRegs;
+        }
+
+        return 0;
+    }
+
+    unsigned stackSize()
+    {
+        return (TARGET_POINTER_SIZE * this->numSlots);
     }
 
     __declspec(property(get = GetHfaType)) var_types hfaType;
@@ -1728,6 +1775,8 @@ public:
                              const bool                                                       isStruct,
                              const bool                                                       isVararg,
                              const regNumber                                                  otherRegNum,
+                             const unsigned                                                   structIntRegs,
+                             const unsigned                                                   structFloatRegs,
                              const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr);
 #endif // UNIX_AMD64_ABI
 
@@ -3527,6 +3576,7 @@ protected:
 
 #ifdef FEATURE_HW_INTRINSICS
     GenTree* impHWIntrinsic(NamedIntrinsic        intrinsic,
+                            CORINFO_CLASS_HANDLE  clsHnd,
                             CORINFO_METHOD_HANDLE method,
                             CORINFO_SIG_INFO*     sig,
                             bool                  mustExpand);
@@ -3540,6 +3590,7 @@ protected:
 
 #ifdef _TARGET_XARCH_
     GenTree* impBaseIntrinsic(NamedIntrinsic        intrinsic,
+                              CORINFO_CLASS_HANDLE  clsHnd,
                               CORINFO_METHOD_HANDLE method,
                               CORINFO_SIG_INFO*     sig,
                               bool                  mustExpand);
@@ -5105,8 +5156,8 @@ protected:
 
     bool fgHasBackwardJump;
 
-    bool fgCanSwitchToTier1();
-    void fgSwitchToTier1();
+    bool fgCanSwitchToOptimized();
+    void fgSwitchToOptimized();
 
     bool fgMayExplicitTailCall();
 
@@ -5770,7 +5821,7 @@ public:
 #define LPFLG_VAR_LIMIT 0x0100    // iterator is compared with a local var (var # found in lpVarLimit)
 #define LPFLG_CONST_LIMIT 0x0200  // iterator is compared with a constant (found in lpConstLimit)
 #define LPFLG_ARRLEN_LIMIT 0x0400 // iterator is compared with a.len or a[i].len (found in lpArrLenLimit)
-#define LPFLG_SIMD_LIMIT 0x0080   // iterator is compared with Vector<T>.Count (found in lpConstLimit)
+#define LPFLG_SIMD_LIMIT 0x0080   // iterator is compared with vector element count (found in lpConstLimit)
 
 #define LPFLG_HAS_PREHEAD 0x0800 // lpHead is known to be a preHead for this loop
 #define LPFLG_REMOVED 0x1000     // has been removed from the loop table (unrolled or optimized away)
@@ -6665,7 +6716,10 @@ public:
     ASSERT_TP optGetVnMappedAssertions(ValueNum vn);
 
     // Used for respective assertion propagations.
-    AssertionIndex optAssertionIsSubrange(GenTree* tree, var_types toType, ASSERT_VALARG_TP assertions);
+    AssertionIndex optAssertionIsSubrange(GenTree*         tree,
+                                          var_types        fromType,
+                                          var_types        toType,
+                                          ASSERT_VALARG_TP assertions);
     AssertionIndex optAssertionIsSubtype(GenTree* tree, GenTree* methodTableArg, ASSERT_VALARG_TP assertions);
     AssertionIndex optAssertionIsNonNullInternal(GenTree* op, ASSERT_VALARG_TP assertions);
     bool optAssertionIsNonNull(GenTree*         op,
@@ -7439,8 +7493,8 @@ private:
 #endif // _TARGET_ARM_
 
 #if defined(_TARGET_UNIX_)
-    int mapRegNumToDwarfReg(regNumber reg);
-    void createCfiCode(FuncInfoDsc* func, UCHAR codeOffset, UCHAR opcode, USHORT dwarfReg, INT offset = 0);
+    short mapRegNumToDwarfReg(regNumber reg);
+    void createCfiCode(FuncInfoDsc* func, UNATIVE_OFFSET codeOffset, UCHAR opcode, short dwarfReg, INT offset = 0);
     void unwindPushPopCFI(regNumber reg);
     void unwindBegPrologCFI();
     void unwindPushPopMaskCFI(regMaskTP regMask, bool isFloat);
@@ -9449,10 +9503,6 @@ public:
     // Node "from" is being eliminated, and being replaced by node "to".  If "from" had any associated
     // test data, associate that data with "to".
     void TransferTestDataToNode(GenTree* from, GenTree* to);
-
-    // Requires that "to" is a clone of "from".  If any nodes in the "from" tree
-    // have annotations, attach similar annotations to the corresponding nodes in "to".
-    void CopyTestDataToCloneTree(GenTree* from, GenTree* to);
 
     // These are the methods that test that the various conditions implied by the
     // test attributes are satisfied.

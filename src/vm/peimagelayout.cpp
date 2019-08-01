@@ -8,6 +8,7 @@
 #include "common.h"
 #include "peimagelayout.h"
 #include "peimagelayout.inl"
+#include "dataimage.h"
 
 #if defined(PLATFORM_WINDOWS) && !defined(CROSSGEN_COMPILE)
 #include "amsi.h"
@@ -87,8 +88,6 @@ PEImageLayout* PEImageLayout::Map(HANDLE hFile, PEImage* pOwner)
             ThrowHR(COR_E_BADIMAGEFORMAT);
     RETURN pAlloc.Extract();
 }
-
-#ifdef FEATURE_PREJIT
 
 #ifdef FEATURE_PAL
 DWORD SectionCharacteristicsToPageProtection(UINT characteristics)
@@ -293,7 +292,6 @@ void PEImageLayout::ApplyBaseRelocations()
         ClrFlushInstructionCache(pFlushRegion, cbFlushRegion);
     }
 }
-#endif // FEATURE_PREJIT
 
 
 RawImageLayout::RawImageLayout(const void *flat, COUNT_T size, PEImage* pOwner)
@@ -337,7 +335,6 @@ RawImageLayout::RawImageLayout(const void *flat, COUNT_T size, PEImage* pOwner)
         memcpy(m_DataCopy,flat,size);
         flat=m_DataCopy;
     }
-    TESTHOOKCALL(ImageMapped(GetPath(),flat,IM_FLAT));
     Init((void*)flat,size);
 }
 RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOwnership, BOOL bFixedUp)
@@ -366,7 +363,6 @@ RawImageLayout::RawImageLayout(const void *mapped, PEImage* pOwner, BOOL bTakeOw
 #endif // !FEATURE_PAL
     }
 
-    TESTHOOKCALL(ImageMapped(GetPath(),mapped,bFixedUp?IM_IMAGEMAP|IM_FIXEDUP:IM_IMAGEMAP));
     IfFailThrow(Init((void*)mapped,(bool)(bFixedUp!=FALSE)));
 }
 
@@ -394,7 +390,7 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
         ThrowLastError();
 
 
-    m_FileView.Assign(CLRMapViewOfFileEx(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0,
+    m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0,
                                 (void *) source->GetPreferredBase()));
     if (m_FileView == NULL)
         m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_ALL_ACCESS, 0, 0, 0));
@@ -403,7 +399,6 @@ ConvertedImageLayout::ConvertedImageLayout(PEImageLayout* source)
         ThrowLastError();
 
     source->LayoutILOnly(m_FileView, TRUE); //@TODO should be false for streams
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));
     IfFailThrow(Init(m_FileView));
 
 #ifdef CROSSGEN_COMPILE
@@ -470,7 +465,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, 0, 0, 0));
     if (m_FileView == NULL)
         ThrowLastError();
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_IMAGEMAP));
     IfFailThrow(Init((void *) m_FileView));
 
 #ifdef CROSSGEN_COMPILE
@@ -538,7 +532,6 @@ MappedImageLayout::MappedImageLayout(HANDLE hFile, PEImage* pOwner)
     LOG((LF_LOADER, LL_INFO1000, "PEImage: image %S (hFile %p) mapped @ %p\n",
         (LPCWSTR) GetPath(), hFile, (void*)m_LoadedFile));
 
-    TESTHOOKCALL(ImageMapped(GetPath(),m_LoadedFile,IM_IMAGEMAP));
     IfFailThrow(Init((void *) m_LoadedFile));
 
     if (!HasCorHeader())
@@ -589,7 +582,6 @@ LoadedImageLayout::LoadedImageLayout(PEImage* pOwner, BOOL bNTSafeLoad, BOOL bTh
         HRESULT hr = HRESULT_FROM_GetLastError();
         EEFileLoadException::Throw(pOwner->GetPath(), hr, NULL);
     }
-    TESTHOOKCALL(ImageMapped(GetPath(),m_Module,IM_LOADLIBRARY));
     IfFailThrow(Init(m_Module,true));
 
     LOG((LF_LOADER, LL_INFO1000, "PEImage: Opened HMODULE %S\n", (LPCWSTR) GetPath()));
@@ -626,7 +618,6 @@ FlatImageLayout::FlatImageLayout(HANDLE hFile, PEImage* pOwner)
         if (m_FileView == NULL)
             ThrowLastError();
     }
-    TESTHOOKCALL(ImageMapped(GetPath(),m_FileView,IM_FLAT));
     Init(m_FileView, size);
 }
 

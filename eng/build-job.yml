@@ -3,7 +3,7 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
-  containerName: ''
+  container: ''
   crossrootfsDir: ''
   timeoutInMinutes: ''
 
@@ -28,8 +28,8 @@ jobs:
       condition: false
 
     # Run all steps in the container.
-    # Note that the containers are resources defined in azure-pipelines.yml
-    containerName: ${{ parameters.containerName }}
+    # Note that the containers are defined in platform-matrix.yml
+    container: ${{ parameters.container }}
 
     timeoutInMinutes: ${{ parameters.timeoutInMinutes }}
 
@@ -57,7 +57,7 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
       - name: clangArg
         value: '-clang6.0'
-    - ${{ if and(eq(parameters.osIdentifier, 'Linux_musl'), eq(parameters.archType, 'arm64')) }}:
+    - ${{ if eq(parameters.archType, 'arm64') }}:
       - name: clangArg
         value: '-clang5.0'
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
@@ -123,15 +123,15 @@ jobs:
 
     # Build
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg)
+      - script: ./build.sh $(buildConfig) $(archType) $(crossArg) -skiptests -skipnuget $(clangArg) $(stripSymbolsArg) $(officialBuildIdArg) /p:ContinuousIntegrationBuild=true
         displayName: Build product
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
+      - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg) /p:ContinuousIntegrationBuild=true
         displayName: Build product
 
     # Sign on Windows
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest'), eq(parameters.osGroup, 'Windows_NT')) }}:
-      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfigUpper) /p:DotNetSignType=%_SignType% -projects $(Build.SourcesDirectory)\eng\empty.proj
+      - script: powershell eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(buildConfigUpper) /p:DotNetSignType=%_SignType% -projects $(Build.SourcesDirectory)\eng\empty.csproj
         displayName: Sign Binaries
 
       - task: PublishBuildArtifacts@1
@@ -143,19 +143,11 @@ jobs:
         continueOnError: true
         condition: always()
 
-    # Upload build as pipeline artifact
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - task: PublishPipelineArtifact@0
-        displayName: Save product build as pipeline artifact
-        inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - task: PublishPipelineArtifact@0
-        displayName: Save product build as pipeline artifact
-        inputs:
-          artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-          targetPath: $(Build.SourcesDirectory)\bin\Product\$(osGroup).$(archType).$(buildConfigUpper)
+    - task: PublishBuildArtifacts@1
+      displayName: Publish product build
+      inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
+        artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
@@ -167,16 +159,16 @@ jobs:
 
     # Build packages
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) -OfficialBuildId=$(Build.BuildNumber) $(portableBuildArg)
+      - script: ./build-packages.sh -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(crossPackagesArg) $(officialBuildIdArg) $(portableBuildArg) -ci
         displayName: Build packages
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) -OfficialBuildId=$(Build.BuildNumber)
+      - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(officialBuildIdArg) -ci
         displayName: Build packages
 
     # Publish official build
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-        - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.proj
+        - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.csproj
           displayName: Restore blob feed tasks
           ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
             env:
@@ -192,13 +184,13 @@ jobs:
               DotNetCoreSdkDir: /usr/local/dotnet
       - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
         # TODO: pass publish feed url and access token in from the internal pipeline
-        - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)\eng\empty.proj
+        - powershell: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)\eng\empty.csproj
           displayName: Restore blob feed tasks
         - powershell: eng\common\msbuild.ps1 -ci src\publishwitharcade.proj /p:__BuildType=$(buildConfigUpper) /p:__BuildArch=$(archType) /p:OSIdentifier=$(osIdentifier) /p:AzureFeedUrl=$(dotnetfeedUrl) /p:AzureAccountKey=$(dotnetfeedPAT)
           displayName: Publish packages to blob feed
           env:
             # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
-            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages 
+            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages
       # Save nuget packages in pipeline for update dotnet/versions
       - task: PublishPipelineArtifact@0
         displayName: Save packages as pipeline artifact
@@ -207,10 +199,10 @@ jobs:
           targetPath: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)/.nuget/pkg
 
     # Publish Logs
-    - task: PublishPipelineArtifact@0
+    - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
+        pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         artifactName: ${{ format('build_{0}_{1}_{2}_Logs', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-        targetPath: $(Build.SourcesDirectory)/bin/Logs
       continueOnError: true
       condition: always()

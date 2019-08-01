@@ -451,8 +451,7 @@ public:
         STANDARD_VM_CONTRACT;
 
         ILCodeStream* pcs = m_slIL.GetDispatchCodeStream();
-        
-#ifdef FEATURE_USE_LCID
+
         if (SF_IsReverseStub(m_dwStubFlags))
         {
             if ((m_slIL.GetStubTargetCallingConv() & IMAGE_CEE_CS_CALLCONV_HASTHIS) == IMAGE_CEE_CS_CALLCONV_HASTHIS)
@@ -504,12 +503,6 @@ public:
                 pcs->EmitCALL(METHOD__CULTURE_INFO__GET_ID, 1, 1);
             }
         }
-#else // FEATURE_USE_LCID
-        if (SF_IsForwardStub(m_dwStubFlags))
-        {
-            pcs->EmitLDC(0x0409); // LCID_ENGLISH_US
-        }
-#endif // FEATURE_USE_LCID
 
         // add the extra arg to the unmanaged signature
         LocalDesc locDescNative(ELEMENT_TYPE_I4);
@@ -808,7 +801,7 @@ public:
         DWORD dwMethodDescLocalNum = (DWORD)-1;
 
         // Notify the profiler of call out of the runtime
-        if (!SF_IsReverseCOMStub(m_dwStubFlags) && (CORProfilerTrackTransitions() || SF_IsNGENedStubForProfiling(m_dwStubFlags)))
+        if (!SF_IsReverseCOMStub(m_dwStubFlags) && (CORProfilerTrackTransitions() || (!IsReadyToRunCompilation() && SF_IsNGENedStubForProfiling(m_dwStubFlags))))
         {
             dwMethodDescLocalNum = m_slIL.EmitProfilerBeginTransitionCallback(pcsDispatch, m_dwStubFlags);
             _ASSERTE(dwMethodDescLocalNum != (DWORD)-1);
@@ -1055,7 +1048,7 @@ public:
         //
         
         // If the category and the event is enabled...
-        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context, ILStubGenerated))
+        if (ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context, ILStubGenerated))
         {
             EtwOnILStubGenerated(
                 pStubMD, 
@@ -2302,27 +2295,23 @@ void NDirectStubLinker::DoNDirect(ILCodeStream *pcsEmit, DWORD dwStubFlags, Meth
 #endif // FEATURE_COMINTEROP
             {
                 EmitLoadStubContext(pcsEmit, dwStubFlags);
+                // pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
+                pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
+                pcsEmit->EmitADD();
 
+                if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
                 {
-                    // Perf: inline the helper for now
-                    //pcsEmit->EmitCALL(METHOD__STUBHELPERS__GET_NDIRECT_TARGET, 1, 1);
-                    pcsEmit->EmitLDC(offsetof(NDirectMethodDesc, ndirect.m_pWriteableData));
-                    pcsEmit->EmitADD();
-
-                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
-                    {
-                        pcsEmit->EmitDUP();
-                    }
-
-                    pcsEmit->EmitLDIND_I();
-
-                    if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
-                    {
-                        pcsEmit->EmitADD();
-                    }
-
-                    pcsEmit->EmitLDIND_I();
+                    pcsEmit->EmitDUP();
                 }
+
+                pcsEmit->EmitLDIND_I();
+
+                if (decltype(NDirectMethodDesc::ndirect.m_pWriteableData)::isRelative)
+                {
+                    pcsEmit->EmitADD();
+                }
+
+                pcsEmit->EmitLDIND_I();
             }
 #ifdef FEATURE_COMINTEROP
             else
@@ -3046,7 +3035,7 @@ BOOL HeuristicDoesThisLookLikeAGetLastErrorCall(LPBYTE pTarget)
     if (!pGetLastError)
     {
         // No need to use a holder here, since no cleanup is necessary.
-        HMODULE hMod = CLRGetModuleHandle(WINDOWS_KERNEL32_DLLNAME_W);
+        HMODULE hMod = WszGetModuleHandle(WINDOWS_KERNEL32_DLLNAME_W);
         if (hMod)
         {
             pGetLastError = (LPBYTE)GetProcAddress(hMod, "GetLastError");
@@ -3812,7 +3801,6 @@ static void CreateNDirectStubWorker(StubState*         pss,
     //
 
     UINT nativeStackSize = (SF_IsCOMStub(dwStubFlags) ? sizeof(SLOT) : 0);
-    bool fHasCopyCtorArgs = false;
     bool fStubNeedsCOM = SF_IsCOMStub(dwStubFlags);
     
     // Normally we would like this to be false so that we use the correct signature 
@@ -4049,8 +4037,6 @@ static void CreateNDirectStubWorker(StubState*         pss,
                     COMPlusThrow(kMarshalDirectiveException, IDS_EE_NDIRECT_BADNATL_THISCALL);
             }
 
-            fHasCopyCtorArgs = info.GetMarshalType() == MarshalInfo::MARSHAL_TYPE_BLITTABLEVALUECLASSWITHCOPYCTOR ? TRUE : FALSE;
-
             argidx++;
         }
         
@@ -4145,7 +4131,6 @@ static void CreateNDirectStubWorker(StubState*         pss,
         DynamicMethodDesc *pDMD = pMD->AsDynamicMethodDesc();
 
         pDMD->SetNativeStackArgSize(static_cast<WORD>(nativeStackSize));
-        pDMD->SetHasCopyCtorArgs(fHasCopyCtorArgs);
         pDMD->SetStubNeedsCOMStarted(fStubNeedsCOM);
     }
 
@@ -5130,14 +5115,11 @@ MethodDesc* CreateInteropILStub(
         // appropriate intercept stub
 
         WORD cbStackArgSize = pStubMD->AsDynamicMethodDesc()->GetNativeStackArgSize();
-        BOOL fHasCopyCtorArgs = pStubMD->AsDynamicMethodDesc()->HasCopyCtorArgs();
-
         if (pTargetMD->IsNDirect())
         {
             NDirectMethodDesc *pTargetNMD = (NDirectMethodDesc *)pTargetMD;
             
             pTargetNMD->SetStackArgumentSize(cbStackArgSize, (CorPinvokeMap)0);
-            pTargetNMD->SetHasCopyCtorArgs(fHasCopyCtorArgs);
         }
 #ifdef FEATURE_COMINTEROP
         else
@@ -5149,7 +5131,6 @@ MethodDesc* CreateInteropILStub(
                 if (pComInfo != NULL)
                 {
                     pComInfo->SetStackArgumentSize(cbStackArgSize);
-                    pComInfo->SetHasCopyCtorArgs(fHasCopyCtorArgs);
                 }
             }
         }
@@ -5588,7 +5569,7 @@ MethodDesc* RestoreNGENedStub(MethodDesc* pStubMD)
 
 #if defined(HAVE_GCCOVER)
         if (GCStress<cfg_instr_ngen>::IsEnabled())
-            SetupGcCoverage(pStubMD, (BYTE*) pCode);
+            SetupGcCoverage(NativeCodeVersion(pStubMD), (BYTE*)pCode);
 #endif // HAVE_GCCOVER
 
     }
@@ -5732,7 +5713,7 @@ void CreateCLRToDispatchCOMStub(
 #endif // FEATURE_COMINTEROP
 
 /*static*/
-LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, HINSTANCE hMod)
+LPVOID NDirect::NDirectGetEntryPoint(NDirectMethodDesc *pMD, NATIVE_LIBRARY_HANDLE hMod)
 {
     // GetProcAddress cannot be called while preemptive GC is disabled.
     // It requires the OS to take the loader lock.
@@ -5762,33 +5743,10 @@ VOID NDirectMethodDesc::SetNDirectTarget(LPVOID pTarget)
     }
     CONTRACTL_END;
 
-    Stub *pInterceptStub = NULL;
-
     NDirectWriteableData* pWriteableData = GetWriteableData();
     EnsureWritablePages(pWriteableData);
     g_IBCLogger.LogNDirectCodeAccess(this);
-
-    if (pInterceptStub != NULL)
-    {
-        ndirect.m_pNativeNDirectTarget = pTarget;
-        
-#if defined(_TARGET_X86_)
-        pTarget = (PVOID)pInterceptStub->GetEntryPoint();
-
-        LPVOID oldTarget = GetNDirectImportThunkGlue()->GetEntrypoint();
-        if (FastInterlockCompareExchangePointer(&pWriteableData->m_pNDirectTarget, pTarget,
-                                                oldTarget) != oldTarget)
-        {
-            pInterceptStub->DecRef();
-        }
-#else
-        _ASSERTE(pInterceptStub == NULL); // we don't intercept for anything else than host on !_TARGET_X86_
-#endif
-    }
-    else
-    {
-        pWriteableData->m_pNDirectTarget = pTarget;
-    }
+    pWriteableData->m_pNDirectTarget = pTarget;
 }
 
 
@@ -5929,11 +5887,7 @@ static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, 
 
 #ifndef FEATURE_PAL
 
-    if ((flags & 0xFFFFFF00) != 0
-#ifndef FEATURE_CORESYSTEM
-        && NDirect::SecureLoadLibrarySupported()
-#endif // !FEATURE_CORESYSTEM
-        )
+    if ((flags & 0xFFFFFF00) != 0)
     {
         hmod = CLRLoadLibraryEx(name, NULL, flags & 0xFFFFFF00);
         if (hmod != NULL)
@@ -5962,10 +5916,6 @@ static NATIVE_LIBRARY_HANDLE LocalLoadLibraryHelper( LPCWSTR name, DWORD flags, 
     
     return hmod;
 }
-
-#if !defined(FEATURE_PAL)
-bool         NDirect::s_fSecureLoadLibrarySupported = false;
-#endif
 
 #define TOLOWER(a) (((a) >= W('A') && (a) <= W('Z')) ? (W('a') + (a - W('A'))) : (a))
 #define TOHEX(a)   ((a)>=10 ? W('a')+(a)-10 : W('0')+(a))
@@ -6148,7 +6098,7 @@ INT_PTR NDirect::GetNativeLibraryExport(NATIVE_LIBRARY_HANDLE handle, LPCWSTR sy
     if ((address == NULL) && throwOnError)
         COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDR_WIN_DLL, symbolName);
 #else // !FEATURE_PAL
-    INT_PTR address = reinterpret_cast<INT_PTR>(PAL_GetProcAddressDirect((NATIVE_LIBRARY_HANDLE)handle, lpstr));
+    INT_PTR address = reinterpret_cast<INT_PTR>(PAL_GetProcAddressDirect(handle, lpstr));
     if ((address == NULL) && throwOnError)
         COMPlusThrow(kEntryPointNotFoundException, IDS_EE_NDIRECT_GETPROCADDR_UNIX_SO, symbolName);
 #endif // !FEATURE_PAL
@@ -6632,7 +6582,7 @@ NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModuleBySearch(Assembly *callingAssemb
 }
 
 // This Method returns an instance of the PAL-Registered handle
-HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
+NATIVE_LIBRARY_HANDLE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracker * pErrorTracker)
 {
     CONTRACTL
     {
@@ -6648,12 +6598,9 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     PREFIX_ASSUME( name != NULL );
     MAKE_WIDEPTR_FROMUTF8( wszLibName, name );
 
-    ModuleHandleHolder hmod = LoadLibraryModuleViaCallback(pMD, wszLibName);
+    NativeLibraryHandleHolder hmod = LoadLibraryModuleViaCallback(pMD, wszLibName);
     if (hmod != NULL)
     {
-#ifdef FEATURE_PAL
-        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
         return hmod.Extract();
     }
 
@@ -6666,9 +6613,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         hmod = LoadLibraryModuleViaHost(pMD, wszLibName);
         if (hmod != NULL)
         {
-#ifdef FEATURE_PAL
-            hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
             return hmod.Extract();
         }
     }
@@ -6682,10 +6626,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
     hmod = LoadLibraryModuleBySearch(pMD, pErrorTracker, wszLibName);
     if (hmod != NULL)
     {
-#ifdef FEATURE_PAL
-        hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
-
         // If we have a handle add it to the cache.
         pDomain->AddUnmanagedImageToCache(wszLibName, hmod);
         return hmod.Extract();
@@ -6696,9 +6636,6 @@ HINSTANCE NDirect::LoadLibraryModule(NDirectMethodDesc * pMD, LoadLibErrorTracke
         hmod = LoadLibraryModuleViaEvent(pMD, wszLibName);
         if (hmod != NULL)
         {
-#ifdef FEATURE_PAL
-            hmod = PAL_RegisterLibraryDirect(hmod, wszLibName);
-#endif // FEATURE_PAL
             return hmod.Extract();
         }
     }
@@ -6753,7 +6690,7 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
     LoadLibErrorTracker errorTracker;
 
     BOOL fSuccess = FALSE;
-    HINSTANCE hmod = LoadLibraryModule( pMD, &errorTracker );
+    NATIVE_LIBRARY_HANDLE hmod = LoadLibraryModule( pMD, &errorTracker );
     if ( hmod )
     {
         LPVOID pvTarget = NDirectGetEntryPoint(pMD, hmod);
@@ -6789,35 +6726,6 @@ VOID NDirect::NDirectLink(NDirectMethodDesc *pMD)
 #endif
     }
 }
-
-
-//---------------------------------------------------------
-// One-time init
-//---------------------------------------------------------
-/*static*/ void NDirect::Init()
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
-    }
-    CONTRACTL_END;
-
-#if !defined(FEATURE_PAL)
-    // Check if the OS supports the new secure LoadLibraryEx flags introduced in KB2533623
-    HMODULE hMod = CLRGetModuleHandle(WINDOWS_KERNEL32_DLLNAME_W);
-    _ASSERTE(hMod != NULL);
-
-    if (GetProcAddress(hMod, "AddDllDirectory") != NULL)
-    {
-        // The AddDllDirectory export was added in KB2533623 together with the new flag support
-        s_fSecureLoadLibrarySupported = true;
-    }
-#endif // !FEATURE_PAL
-}
-
 
 //==========================================================================
 // This function is reached only via NDirectImportThunk. It's purpose

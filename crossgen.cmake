@@ -1,6 +1,7 @@
 # Contains the crossgen build specific definitions. Included by the leaf crossgen cmake files.
 
 add_definitions(
+    -DFEATURE_PREJIT
     -DCROSSGEN_COMPILE
     -DCROSS_COMPILE
     -DFEATURE_NATIVE_IMAGE_GENERATION
@@ -9,13 +10,14 @@ add_definitions(
 remove_definitions(
     -DFEATURE_CODE_VERSIONING
     -DEnC_SUPPORTED
-    -DFEATURE_EVENT_TRACE=1
+    -DFEATURE_EVENT_TRACE
     -DFEATURE_INTERPRETER
     -DFEATURE_MULTICOREJIT
     -DFEATURE_PERFMAP
     -DFEATURE_REJIT
     -DFEATURE_TIERED_COMPILATION
     -DFEATURE_VERSIONING_LOG
+    -DFEATURE_PROFAPI_ATTACH_DETACH
 )
 
 if(FEATURE_READYTORUN)

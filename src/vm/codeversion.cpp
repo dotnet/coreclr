@@ -25,17 +25,29 @@
 // versioning information
 //
 
+NativeCodeVersion::NativeCodeVersion() : m_pMethodDesc(PTR_NULL) {};
 NativeCodeVersion::NativeCodeVersion(const NativeCodeVersion & rhs) : m_pMethodDesc(rhs.m_pMethodDesc) {}
 NativeCodeVersion::NativeCodeVersion(PTR_MethodDesc pMethod) : m_pMethodDesc(pMethod) {}
 BOOL NativeCodeVersion::IsNull() const { return m_pMethodDesc == NULL; }
 PTR_MethodDesc NativeCodeVersion::GetMethodDesc() const { return m_pMethodDesc; }
-PCODE NativeCodeVersion::GetNativeCode() const { return m_pMethodDesc->GetNativeCode(); }
 NativeCodeVersionId NativeCodeVersion::GetVersionId() const { return 0; }
-// ReJITID NativeCodeVersion::GetILCodeVersionId() const; { return 0; }
-// ILCodeVersion NativeCodeVersion::GetILCodeVersion() const { return ILCodeVersion(m_pMethodDesc); }
+BOOL NativeCodeVersion::IsDefaultVersion() const { return TRUE; }
+PCODE NativeCodeVersion::GetNativeCode() const { return m_pMethodDesc->GetNativeCode(); }
+
 #ifndef DACCESS_COMPILE
 BOOL NativeCodeVersion::SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected) { return m_pMethodDesc->SetNativeCodeInterlocked(pCode, pExpected); }
 #endif
+
+#ifdef HAVE_GCCOVER
+PTR_GCCoverageInfo NativeCodeVersion::GetGCCoverageInfo() const { return GetMethodDesc()->m_GcCover; }
+void NativeCodeVersion::SetGCCoverageInfo(PTR_GCCoverageInfo gcCover)
+{
+    MethodDesc *pMD = GetMethodDesc();
+    _ASSERTE(gcCover == NULL || pMD->m_GcCover == NULL);
+    *EnsureWritablePages(&pMD->m_GcCover) = gcCover;
+}
+#endif
+
 bool NativeCodeVersion::operator==(const NativeCodeVersion & rhs) const { return m_pMethodDesc == rhs.m_pMethodDesc; }
 bool NativeCodeVersion::operator!=(const NativeCodeVersion & rhs) const { return !operator==(rhs); }
 
@@ -63,6 +75,9 @@ NativeCodeVersionNode::NativeCodeVersionNode(
     m_id(id),
 #ifdef FEATURE_TIERED_COMPILATION
     m_optTier(optimizationTier),
+#endif
+#ifdef HAVE_GCCOVER
+    m_gcCover(PTR_NULL),
 #endif
     m_flags(0)
 {}
@@ -165,6 +180,24 @@ void NativeCodeVersionNode::SetOptimizationTier(NativeCodeVersion::OptimizationT
 #endif
 
 #endif // FEATURE_TIERED_COMPILATION
+
+#ifdef HAVE_GCCOVER
+
+PTR_GCCoverageInfo NativeCodeVersionNode::GetGCCoverageInfo() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_gcCover;
+}
+
+void NativeCodeVersionNode::SetGCCoverageInfo(PTR_GCCoverageInfo gcCover)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(gcCover == NULL || m_gcCover == NULL);
+
+    m_gcCover = gcCover;
+}
+
+#endif // HAVE_GCCOVER
 
 NativeCodeVersion::NativeCodeVersion() :
     m_storageKind(StorageKind::Unknown)
@@ -370,6 +403,40 @@ void NativeCodeVersion::SetOptimizationTier(OptimizationTier tier)
 #endif
 
 #endif
+
+#ifdef HAVE_GCCOVER
+
+PTR_GCCoverageInfo NativeCodeVersion::GetGCCoverageInfo() const
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        return AsNode()->GetGCCoverageInfo();
+    }
+    else
+    {
+        return GetMethodDesc()->m_GcCover;
+    }
+}
+
+void NativeCodeVersion::SetGCCoverageInfo(PTR_GCCoverageInfo gcCover)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        AsNode()->SetGCCoverageInfo(gcCover);
+    }
+    else
+    {
+        MethodDesc *pMD = GetMethodDesc();
+        _ASSERTE(gcCover == NULL || pMD->m_GcCover == NULL);
+        *EnsureWritablePages(&pMD->m_GcCover) = gcCover;
+    }
+}
+
+#endif // HAVE_GCCOVER
 
 PTR_NativeCodeVersionNode NativeCodeVersion::AsNode() const
 {
@@ -2123,7 +2190,13 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
 
     // step 3 - update each pre-existing method instantiation
     {
+        // Backpatching entry point slots requires cooperative GC mode, see
+        // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+        // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+        // must be used here to prevent deadlock.
+        GCX_COOP();
         TableLockHolder lock(this);
+
         for (DWORD i = 0; i < cActiveVersions; i++)
         {
             // Its possible the active IL version has changed if
@@ -2235,7 +2308,8 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             pCode = pMethodDesc->PrepareCode(activeVersion);
         }
 
-        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
+        bool mayHaveEntryPointSlotsToBackpatch = pMethodDesc->MayHaveEntryPointSlotsToBackpatch();
+        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
 
         // suspend in preparation for publishing if needed
         if (fEESuspend)
@@ -2244,7 +2318,13 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         }
 
         {
+            // Backpatching entry point slots requires cooperative GC mode, see
+            // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+            // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+            // must be used here to prevent deadlock.
+            GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
             TableLockHolder lock(this);
+
             // The common case is that newActiveCode == activeCode, however we did leave the lock so there is
             // possibility that the active version has changed. If it has we need to restart the compilation
             // and publishing process with the new active version instead.
@@ -2298,7 +2378,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
                     break;
                 }
             }
-        } // exit lock
+        } // exit lock, revert GC mode
 
         if (fEESuspend)
         {
@@ -2318,9 +2398,30 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
 {
     // TODO: This function needs to make sure it does not change the precode's target if call counting is in progress. Track
     // whether call counting is currently being done for the method, and use a lock to ensure the expected precode target.
-    WRAPPER_NO_CONTRACT;
+
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+
+        // Backpatching entry point slots requires cooperative GC mode, see MethodDescBackpatchInfoTracker::Backpatch_Locked().
+        // The code version manager's table lock is an unsafe lock that may be taken in any GC mode. The lock is taken in
+        // cooperative GC mode on other paths, so the caller must use the same ordering to prevent deadlock (switch to
+        // cooperative GC mode before taking the lock).
+        if (pMethod->MayHaveEntryPointSlotsToBackpatch())
+        {
+            MODE_COOPERATIVE;
+        }
+        else
+        {
+            MODE_ANY;
+        }
+        NOTHROW;
+    }
+    CONTRACTL_END;
+
     _ASSERTE(LockOwnedByCurrentThread());
     _ASSERTE(pMethod->IsVersionable());
+
     HRESULT hr = S_OK;
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
     if (pMethod->IsVersionableWithoutJumpStamp())

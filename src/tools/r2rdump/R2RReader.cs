@@ -553,15 +553,7 @@ namespace R2RDump
                         unwindInfo = new Amd64.UnwindInfo(Image, unwindOffset);
                         if (isEntryPoint[runtimeFunctionId])
                         {
-                            try
-                            {
-                                gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
-                            }
-                            catch (IndexOutOfRangeException)
-                            {
-                                Console.WriteLine($"Warning: Could not parse GC Info for method: {method.SignatureString}");
-                            }
-
+                            gcInfo = new Amd64.GcInfo(Image, unwindOffset + unwindInfo.Size, Machine, R2RHeader.MajorVersion);
                         }
                     }
                     else if (Machine == Machine.I386)
@@ -765,7 +757,7 @@ namespace R2RDump
                     continue;
                 }
 
-                var debugInfo = new DebugInfo(Image, offset, Machine);
+                var debugInfo = new DebugInfo(Image, offset, Machine, Options.Normalize);
                 _runtimeFunctionToDebugInfo.Add((int)i, debugInfo);
             }
         }

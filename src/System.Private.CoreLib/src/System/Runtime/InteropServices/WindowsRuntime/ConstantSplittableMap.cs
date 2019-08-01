@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
@@ -18,7 +19,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     /// <typeparam name="TKey">Type of objects that act as keys.</typeparam>    
     /// <typeparam name="TValue">Type of objects that act as entries / values.</typeparam>
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue> where TKey : object
+    internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue> where TKey : notnull
     {
         private class KeyValuePairComparator : IComparer<KeyValuePair<TKey, TValue>>
         {
@@ -145,14 +146,14 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         #region IReadOnlyDictionary members
 
-        public bool TryGetValue(TKey key, out TValue value)
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
-            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default!); // TODO-NULLABLE-GENERIC
+            KeyValuePair<TKey, TValue> searchKey = new KeyValuePair<TKey, TValue>(key, default!);
             int index = Array.BinarySearch(items, firstItemIndex, Count, searchKey, keyValuePairComparator);
 
             if (index < 0)
             {
-                value = default!; // TODO-NULLABLE-GENERIC
+                value = default!;
                 return false;
             }
 
@@ -205,7 +206,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
             }
 
-            object? IEnumerator.Current // TODO-NULLABLE: https://github.com/dotnet/roslyn/issues/23268
+            object? IEnumerator.Current
             {
                 get
                 {

@@ -4455,8 +4455,6 @@ NOINLINE static void JIT_MonExit_Helper(Object* obj, BYTE* pbLockTaken)
         COMPlusThrow(kSynchronizationLockException);
 
     if (pbLockTaken != 0) *pbLockTaken = 0;
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -4480,8 +4478,6 @@ NOINLINE static void JIT_MonExit_Signal(Object* obj)
     SyncBlock *psb = objRef->PassiveGetSyncBlock();
     if (psb != NULL)
         psb->QuickGetMonitor()->Signal();
-
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
@@ -4619,7 +4615,6 @@ NOINLINE static void JIT_MonExitStatic_Helper(AwareLock *lock, BYTE* pbLockTaken
         COMPlusThrow(kSynchronizationLockException);
     MONHELPER_STATE(*pbLockTaken = 0;)
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -4637,7 +4632,6 @@ NOINLINE static void JIT_MonExitStatic_Signal(AwareLock *lock)
 
     lock->Signal();
 
-    TESTHOOKCALL(AppDomainCanBeUnloaded(DefaultADID,FALSE));
     if (GET_THREAD()->IsAbortRequested()) {
         GET_THREAD()->HandleThreadAbort();
     }
@@ -5106,7 +5100,7 @@ void DoJITFailFast ()
     __report_gsfailure((ULONG_PTR)0);
 #endif // defined(_TARGET_X86_)
 #else // FEATURE_PAL
-    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
+    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, FailFast))
     {
         // Fire an ETW FailFast event
         FireEtwFailFast(W("Unsafe buffer security check failure: Buffer overrun detected"),

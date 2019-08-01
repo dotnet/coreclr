@@ -4,6 +4,7 @@
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Text;
 using Internal.Runtime.CompilerServices;
@@ -13,7 +14,10 @@ namespace System
     /// <summary>
     /// Represents an immutable string of UTF-8 code units.
     /// </summary>
-    public sealed partial class Utf8String : IEquatable<Utf8String?>
+    public sealed partial class Utf8String :
+#nullable disable // see comment on String
+        IEquatable<Utf8String>
+#nullable restore
     {
         /*
          * STATIC FIELDS
@@ -179,7 +183,7 @@ namespace System
         /// Returns <see langword="true"/> if <paramref name="value"/> is <see langword="null"/> or zero length;
         /// <see langword="false"/> otherwise.
         /// </summary>
-        public static bool IsNullOrEmpty(Utf8String? value)
+        public static bool IsNullOrEmpty([NotNullWhen(false)] Utf8String? value)
         {
             // Copied from String.IsNullOrEmpty. See that method for detailed comments on why this pattern is used.
             return (value is null || 0u >= (uint)value.Length) ? true : false;

@@ -13,12 +13,12 @@
 #include "util.hpp"
 #include "vars.hpp"
 #include "clsload.hpp"
+#include "sigparser.h"
 #include "zapsig.h"
 #include "threads.h"
 
 #include "eecontract.h"
 #include "typectxt.h"
-#include "sigparser.h"
 
 //---------------------------------------------------------------------------------------
 // These macros define how arguments are mapped to the stack in the managed calling convention.
@@ -886,9 +886,6 @@ class MetaSig
         CorElementType GetReturnType() const;
 
         BOOL IsReturnTypeVoid() const;
-
-
-        enum RETURNTYPE {RETOBJ, RETBYREF, RETNONOBJ, RETVALUETYPE};
 
         CorElementType GetReturnTypeNormalized(TypeHandle * pthValueType = NULL) const;
 

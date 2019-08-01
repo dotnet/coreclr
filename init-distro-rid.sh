@@ -56,7 +56,13 @@ initNonPortableDistroRid()
                     VERSION_ID=${VERSION_ID%.*}
                 fi
 
-                nonPortableBuildID="${ID}.${VERSION_ID}-${buildArch}"
+                if [ -z ${VERSION_ID+x} ]; then
+                        # Rolling release distros do not set VERSION_ID, so omit
+                        # it here to be consistent with everything else.
+                        nonPortableBuildID="${ID}-${buildArch}"
+                else
+                        nonPortableBuildID="${ID}.${VERSION_ID}-${buildArch}"
+                fi
             fi
             
         elif [ -e "${rootfsDir}/etc/redhat-release" ]; then
@@ -131,6 +137,12 @@ initDistroRidGlobal()
             echo "Error rootfsDir has been passed, but the location is not valid."
             exit 1
         fi
+    fi
+
+    if [ "$buildArch" = "armel" ]; then
+        # Armel cross build is Tizen specific and does not support Portable RID build
+        export __PortableBuild=0
+        isPortable=0
     fi
 
     initNonPortableDistroRid ${buildOs} ${buildArch} ${isPortable} ${rootfsDir}

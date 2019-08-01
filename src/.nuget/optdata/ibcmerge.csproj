@@ -1,7 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
-
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
@@ -12,12 +9,29 @@
     <PackageReference Include="microsoft.dotnet.ibcmerge" Version="[$(IbcMergePackageVersion)]" Condition="'$(IbcMergePackageVersion)'!=''" />
   </ItemGroup>
 
+  <!--                                                                       -->
+  <!-- Task: DumpIbcMergePackageVersion                                       -->
+  <!--                                                                       -->
+  <!-- Notes:                                                                -->
+  <!--                                                                       -->
+  <!-- DumpIbcMergePackageVersion is used by build.sh and build.cmd to pass  -->
+  <!-- the version information to cmake. The task will write a file to be    -->
+  <!-- read back by build.cmd/sh. The path for the file is:                  --> 
+  <!-- $(IbcMergePackageVersionOutputFile)                                    -->
+  <!--                                                                       -->
   <Target Name="DumpIbcMergePackageVersion">
-    <Message Importance="high" Text="$(IbcMergePackageVersion)" />
+    <!-- Error if IbcMergePackageVersionOutputFile is not set. -->
+    <Error Condition="'$(IbcMergePackageVersionOutputFile)'==''" Text="IbcMergePackageVersionOutputFile must be passed as a property." />
+
+    <!-- Cleanup old version file -->
+    <Delete Files="$(IbcMergePackageVersionOutputFile)" Condition="Exists('$(IbcMergePackageVersionOutputFile)')" />
+    <WriteLinesToFile File="$(IbcMergePackageVersionOutputFile)" Lines="$(IbcMergePackageVersion)" Overwrite="true"/>
+    <Message Text="IbcMergePackageVersion: $(IbcMergePackageVersion) written to: $(IbcMergePackageVersionOutputFile)" Importance="High" />
   </Target>
 
   <PropertyGroup>
     <RestoreSources>
+      $(RestoreSources);
       https://devdiv.pkgs.visualstudio.com/_packaging/dotnet-core-internal-tooling/nuget/v3/index.json;
     </RestoreSources>
   </PropertyGroup>

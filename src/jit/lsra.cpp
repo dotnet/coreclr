@@ -5682,7 +5682,7 @@ void LinearScan::allocateRegisters()
 #ifdef DEBUG
                 // Under stress mode, don't attempt to allocate a reg to
                 // reg optional ref position, unless it's a ParamDef.
-                if (allocateReg && regOptionalNoAlloc() && (currentRefPosition->refType != RefTypeParamDef))
+                if (allocateReg && regOptionalNoAlloc())
                 {
                     allocateReg = false;
                 }
@@ -5826,6 +5826,55 @@ void LinearScan::allocateRegisters()
             lastAllocatedRefPosition = currentRefPosition;
         }
     }
+
+#ifdef JIT32_GCENCODER
+    // For the JIT32_GCENCODER, when lvaKeepAliveAndReportThis is true, we must either keep this "this" pointer
+    // in the same register for the entire method, or keep it on the stack. Rather than imposing this constraint
+    // as we allocate, we will force all refs to the stack if it is split or spilled.
+    if (enregisterLocalVars && compiler->lvaKeepAliveAndReportThis())
+    {
+        LclVarDsc* thisVarDsc = compiler->lvaGetDesc(compiler->info.compThisArg);
+        if (!thisVarDsc->lvDoNotEnregister)
+        {
+            Interval* interval = getIntervalForLocalVar(thisVarDsc->lvVarIndex);
+            if (interval->isSplit)
+            {
+                // We'll have to spill this.
+                setIntervalAsSpilled(interval);
+            }
+            if (interval->isSpilled)
+            {
+                for (RefPosition* ref = interval->firstRefPosition; ref != nullptr; ref = ref->nextRefPosition)
+                {
+                    if (ref->RegOptional())
+                    {
+                        ref->registerAssignment = RBM_NONE;
+                        ref->reload             = false;
+                        ref->spillAfter         = false;
+                    }
+                    switch (ref->refType)
+                    {
+                        case RefTypeDef:
+                            if (ref->registerAssignment != RBM_NONE)
+                            {
+                                ref->spillAfter = true;
+                            }
+                            break;
+                        case RefTypeUse:
+                            if (ref->registerAssignment != RBM_NONE)
+                            {
+                                ref->reload     = true;
+                                ref->spillAfter = true;
+                                ref->copyReg    = false;
+                                ref->moveReg    = false;
+                            }
+                            break;
+                    }
+                }
+            }
+        }
+    }
+#endif // JIT32_GCENCODER
 
     // Free registers to clear associated intervals for resolution phase
     CLANG_FORMAT_COMMENT_ANCHOR;
@@ -8961,62 +9010,6 @@ void Interval::microDump()
 void RegRecord::tinyDump()
 {
     printf("<Reg:%-3s> ", getRegName(regNum));
-}
-
-void LinearScan::dumpNodeInfo(GenTree* node, regMaskTP dstCandidates, int srcCount, int dstCount)
-{
-    if (!VERBOSE)
-    {
-        return;
-    }
-    // This is formatted like the old dump to make diffs easier. TODO-Cleanup: improve.
-    int       internalIntCount   = 0;
-    int       internalFloatCount = 0;
-    regMaskTP internalCandidates = RBM_NONE;
-    for (int i = 0; i < internalCount; i++)
-    {
-        RefPosition* def = internalDefs[i];
-        if (def->getInterval()->registerType == TYP_INT)
-        {
-            internalIntCount++;
-        }
-        else
-        {
-            internalFloatCount++;
-        }
-        internalCandidates |= def->registerAssignment;
-    }
-    if (dstCandidates == RBM_NONE)
-    {
-        dstCandidates = varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT);
-    }
-    if (internalCandidates == RBM_NONE)
-    {
-        internalCandidates = allRegs(TYP_INT);
-    }
-    printf("    +<TreeNodeInfo %d=%d %di %df", dstCount, srcCount, internalIntCount, internalFloatCount);
-    printf(" src=");
-    dumpRegMask(varTypeIsFloating(node) ? allRegs(TYP_FLOAT) : allRegs(TYP_INT));
-    printf(" int=");
-    dumpRegMask(internalCandidates);
-    printf(" dst=");
-    dumpRegMask(dstCandidates);
-    if (node->IsUnusedValue())
-    {
-        printf(" L");
-    }
-    printf(" I");
-    if (pendingDelayFree)
-    {
-        printf(" D");
-    }
-    if (setInternalRegsDelayFree)
-    {
-        printf(" ID");
-    }
-    printf(">");
-    node->dumpLIRFlags();
-    printf("\n  consume= %d produce=%d\n", srcCount, dstCount);
 }
 
 void LinearScan::dumpDefList()

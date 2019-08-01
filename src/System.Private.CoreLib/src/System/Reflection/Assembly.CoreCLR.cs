@@ -80,7 +80,7 @@ namespace System.Reflection
         {
             RuntimeAssembly? retAssembly = null;
             GetExecutingAssemblyNative(JitHelpers.GetStackCrawlMarkHandle(ref stackMark), JitHelpers.GetObjectHandleOnStack(ref retAssembly));
-            return retAssembly!; // TODO-NULLABLE: Confirm this can never be null
+            return retAssembly;
         }
 
         // Get the assembly that the current code is running from.
@@ -120,5 +120,8 @@ namespace System.Reflection
         // Exists to faciliate code sharing between CoreCLR and CoreRT.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool IsRuntimeImplemented() => this is RuntimeAssembly;
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        internal static extern uint GetAssemblyCount();
     }
 }

@@ -162,42 +162,27 @@ namespace System
         {
             get
             {
-                // By default attempt to include file and line number info
-                return GetStackTrace(true);
+                string? stackTraceString = _stackTraceString;
+                string? remoteStackTraceString = _remoteStackTraceString;
+
+                // if no stack trace, try to get one
+                if (stackTraceString != null)
+                {
+                    return remoteStackTraceString + stackTraceString;
+                }
+                if (_stackTrace == null)
+                {
+                    return remoteStackTraceString;
+                }
+
+                return remoteStackTraceString + GetStackTrace(this);
             }
         }
 
-        // Computes and returns the stack trace as a string
-        // Attempts to get source file and line number information if needFileInfo
-        // is true.  Note that this requires FileIOPermission(PathDiscovery), and so
-        // will usually fail in CoreCLR.  To avoid the demand and resulting
-        // SecurityException we can explicitly not even try to get fileinfo.
-        private string? GetStackTrace(bool needFileInfo)
-        {
-            string? stackTraceString = _stackTraceString;
-            string? remoteStackTraceString = _remoteStackTraceString;
-
-            // if no stack trace, try to get one
-            if (stackTraceString != null)
-            {
-                return remoteStackTraceString + stackTraceString;
-            }
-            if (_stackTrace == null)
-            {
-                return remoteStackTraceString;
-            }
-
-            // Obtain the stack trace string. Note that since GetStackTrace
-            // will add the path to the source file if the PDB is present:
-            // we need to make sure we don't store the stack trace string in
-            // the _stackTraceString member variable.
-            return remoteStackTraceString + GetStackTrace(needFileInfo, this);
-        }
-
-        private static string GetStackTrace(bool needFileInfo, Exception e)
+        private static string GetStackTrace(Exception e)
         {
             // Do not include a trailing newline for backwards compatibility
-            return new StackTrace(e, needFileInfo).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
+            return new StackTrace(e, fNeedFileInfo: true).ToString(System.Diagnostics.StackTrace.TraceFormat.Normal);
         }
 
         private string? CreateSourceName()
@@ -244,30 +229,11 @@ namespace System
         //  copy the stack trace to _remoteStackTraceString.
         internal void InternalPreserveStackTrace()
         {
-            string? tmpStackTraceString;
-
-#if FEATURE_APPX
-            if (ApplicationModel.IsUap)
-            {
-                // Call our internal GetStackTrace in AppX so we can parse the result should
-                // we need to strip file/line info from it to make it PII-free. Calling the
-                // public and overridable StackTrace getter here was probably not intended.
-                tmpStackTraceString = GetStackTrace(true);
-
-                // Make sure that the _source field is initialized if Source is not overriden.
-                // We want it to contain the original faulting point.
-                string? source = Source;
-            }
-            else
-#else // FEATURE_APPX
-            // Preinitialize _source on CoreSystem as well. The legacy behavior is not ideal and
-            // we keep it for back compat but we can afford to make the change on the Phone.
+            // Make sure that the _source field is initialized if Source is not overriden.
+            // We want it to contain the original faulting point.
             string? source = Source;
-#endif // FEATURE_APPX
-            {
-                // Call the StackTrace getter in classic for compat.
-                tmpStackTraceString = StackTrace;
-            }
+
+            string? tmpStackTraceString = StackTrace;
 
             if (tmpStackTraceString != null && tmpStackTraceString.Length > 0)
             {
@@ -406,21 +372,6 @@ namespace System
         // See src\inc\corexcep.h's EXCEPTION_COMPLUS definition:
         private const int _COMPlusExceptionCode = unchecked((int)0xe0434352);   // Win32 exception code for COM+ exceptions
 
-        // InternalToString is called by the runtime to get the exception text.
-        internal string InternalToString()
-        {
-            // Get the current stack trace string. 
-            return ToString(true, true);
-        }
-
-        internal bool IsTransient
-        {
-            get
-            {
-                return nIsTransient(HResult);
-            }
-        }
-
         private string? SerializationRemoteStackTraceString => _remoteStackTraceString;
 
         private object? SerializationWatsonBuckets => _watsonBuckets;
@@ -433,15 +384,12 @@ namespace System
 
                 if (stackTraceString == null && _stackTrace != null)
                 {
-                    stackTraceString = GetStackTrace(true, this);
+                    stackTraceString = GetStackTrace(this);
                 }
 
                 return stackTraceString;
             }
         }
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool nIsTransient(int hr);
 
         // This piece of infrastructure exists to help avoid deadlocks 
         // between parts of mscorlib that might throw an exception while 

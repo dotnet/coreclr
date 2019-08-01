@@ -679,31 +679,26 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
         }
     }
 
-    if ((size != 0) && (blkSizeRegMask != RBM_NONE))
+    if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (blkSizeRegMask != RBM_NONE))
     {
         // Reserve a temp register for the block size argument.
         buildInternalIntRegisterDefForNode(blkNode, blkSizeRegMask);
     }
 
-    if (!dstAddr->isContained() && !blkNode->IsReverseOp())
-    {
-        srcCount++;
-        BuildUse(dstAddr, dstAddrRegMask);
-    }
-    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
-    {
-        srcCount++;
-        BuildUse(srcAddrOrFill, sourceRegMask);
-    }
-    if (!dstAddr->isContained() && blkNode->IsReverseOp())
+    if (!dstAddr->isContained())
     {
         srcCount++;
         BuildUse(dstAddr, dstAddrRegMask);
     }
 
-    if (size == 0)
+    if ((srcAddrOrFill != nullptr) && !srcAddrOrFill->isContained())
     {
-        assert(blkNode->OperIs(GT_STORE_DYN_BLK));
+        srcCount++;
+        BuildUse(srcAddrOrFill, sourceRegMask);
+    }
+
+    if (blkNode->OperIs(GT_STORE_DYN_BLK))
+    {
         // The block size argument is a third argument to GT_STORE_DYN_BLK
         srcCount++;
         GenTree* blockSize = blkNode->AsDynBlk()->gtDynamicSize;

@@ -556,7 +556,7 @@ INT32 QCALLTYPE COMModule::GetMemberRefOfMethodInfo(QCall::ModuleHandle pModule,
 // Return a MemberRef token given a RuntimeFieldInfo
 //
 //******************************************************************************
-mdMemberRef QCALLTYPE COMModule::GetMemberRefOfFieldInfo(QCall::ModuleHandle pModule, mdTypeDef tr, void * th, mdFieldDef tkField)
+mdMemberRef QCALLTYPE COMModule::GetMemberRefOfFieldInfo(QCall::ModuleHandle pModule, mdTypeDef tr, QCall::TypeHandle th, mdFieldDef tkField)
 {
     QCALL_CONTRACT;
     
@@ -571,7 +571,7 @@ mdMemberRef QCALLTYPE COMModule::GetMemberRefOfFieldInfo(QCall::ModuleHandle pMo
     }
     else
     {
-        TypeHandle typeHandle = TypeHandle::FromPtr(th);       
+        TypeHandle typeHandle = th.AsTypeHandle();
 
         RefClassWriter * pRCW = pModule->GetReflectionModule()->GetClassWriter(); 
         _ASSERTE(pRCW);
@@ -903,27 +903,7 @@ void QCALLTYPE COMModule::GetFullyQualifiedName(QCall::ModuleHandle pModule, QCa
     {
         LPCWSTR fileName = pModule->GetPath();
         if (*fileName != 0) {
-            {
-#ifdef FEATURE_WINDOWSPHONE
-                //
-                // On Phone we use only native images without any concept of the matching IL image
-                // To stop native image filenames leaking through to apps, fudge Reflection::get_Name
-                // so apps see Foo.dll instead of Foo.ni.dll
-                //
-                if (pModule->GetFile()->GetAssembly()->GetILimage()->IsTrustedNativeImage())
-                {
-                    SString fileNameWithoutNi(fileName);
-
-                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.dll"), W(".dll"));
-                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.exe"), W(".exe"));
-                    ReplaceNiExtension(fileNameWithoutNi, W(".ni.winmd"), W(".winmd"));
- 
-                    retString.Set(fileNameWithoutNi);
-                }
-                else
-#endif
                 retString.Set(fileName);
-            }
         } else {
             hr = UtilLoadStringRC(IDS_EE_NAME_UNKNOWN, wszBuffer, sizeof( wszBuffer ) / sizeof( WCHAR ), true );
             if (FAILED(hr))
@@ -1040,7 +1020,7 @@ Object* GetTypesInner(Module* pModule)
     // Get the count of typedefs
     hEnum.EnumTypeDefInit();
 
-    dwNumTypeDefs = pInternalImport->EnumTypeDefGetCount(&hEnum);
+    dwNumTypeDefs = pInternalImport->EnumGetCount(&hEnum);
 
     // Allocate the COM+ array
     bSystemAssembly = (pModule->GetAssembly() == SystemDomain::SystemAssembly());
@@ -1053,7 +1033,7 @@ Object* GetTypesInner(Module* pModule)
 
     GCPROTECT_BEGIN(throwable);
     // Now create each COM+ Method object and insert it into the array.
-    while (pInternalImport->EnumTypeDefNext(&hEnum, &tdCur))
+    while (pInternalImport->EnumNext(&hEnum, &tdCur))
     {
         // Get the VM class for the current class token
         TypeHandle curClass;

@@ -110,7 +110,7 @@ public:
     static FORCEINLINE UINT64 InterlockedAdd(UINT64 *pAugend, UINT64 addend);
     static FORCEINLINE UINT64 InterlockedSub(UINT64 *pMinuend, UINT64 subtrahend);
 
-    static FCDECL5(void,    GetMemoryInfo, UINT32* highMemLoadThreshold, UINT64* totalPhysicalMem, UINT32* lastRecordedMemLoad, size_t* lastRecordedHeapSize, size_t* lastRecordedFragmentation);
+    static FCDECL6(void,    GetMemoryInfo, UINT64* highMemLoadThresholdBytes, UINT64* totalAvailableMemoryBytes, UINT64* lastRecordedMemLoadBytes, UINT32* lastRecordedMemLoadPct, size_t* lastRecordedHeapSizBytes, size_t* lastRecordedFragmentationBytes);
     static FCDECL0(int,     GetGcLatencyMode);
     static FCDECL1(int,     SetGcLatencyMode, int newLatencyMode);
     static FCDECL0(int,     GetLOHCompactionMode);
@@ -122,7 +122,8 @@ public:
     static FCDECL1(int,     GetGenerationWR, LPVOID handle);
     static FCDECL1(int,     GetGeneration, Object* objUNSAFE);
     static FCDECL0(UINT64,  GetSegmentSize);
-
+    static FCDECL0(int,     GetLastGCPercentTimeInGC);
+    static FCDECL1(UINT64,  GetGenerationSize, int gen);
     static 
     INT64 QCALLTYPE GetTotalMemory();
 
@@ -145,7 +146,7 @@ public:
 
 #ifdef FEATURE_BASICFREEZE
     static
-    void* QCALLTYPE RegisterFrozenSegment(void *pSection, INT32 sizeSection);
+    void* QCALLTYPE RegisterFrozenSegment(void *pSection, SIZE_T sizeSection);
 
     static
     void QCALLTYPE UnregisterFrozenSegment(void *segmentHandle);

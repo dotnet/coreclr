@@ -17,13 +17,13 @@ namespace System
             }
         }
 
-        private static string? GetBaseDirectoryCore()
+        private static string GetBaseDirectoryCore()
         {
             // Fallback path for hosts that do not set APP_CONTEXT_BASE_DIRECTORY explicitly
             string? directory = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
-            if (directory != null && !PathInternal.EndsInDirectorySeparator(directory))
-                directory += Path.DirectorySeparatorChar;
-            return directory;
+            if (directory != null && !Path.EndsInDirectorySeparator(directory))
+                directory += PathInternal.DirectorySeparatorCharAsString;
+            return directory ?? string.Empty;
         }
     }
 }

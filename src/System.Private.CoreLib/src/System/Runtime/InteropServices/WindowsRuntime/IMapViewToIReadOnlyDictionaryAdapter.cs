@@ -5,6 +5,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.InteropServices.WindowsRuntime
@@ -36,7 +37,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<K> Keys { get }
-        internal IEnumerable<K> Keys<K, V>() where K : object
+        internal IEnumerable<K> Keys<K, V>() where K : notnull
         {
             IMapView<K, V> _this = Unsafe.As<IMapView<K, V>>(this);
             IReadOnlyDictionary<K, V> roDictionary = (IReadOnlyDictionary<K, V>)_this;
@@ -44,7 +45,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // IEnumerable<V> Values { get }
-        internal IEnumerable<V> Values<K, V>() where K : object
+        internal IEnumerable<V> Values<K, V>() where K : notnull
         {
             IMapView<K, V> _this = Unsafe.As<IMapView<K, V>>(this);
             IReadOnlyDictionary<K, V> roDictionary = (IReadOnlyDictionary<K, V>)_this;
@@ -52,7 +53,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool ContainsKey(K key)
-        internal bool ContainsKey<K, V>(K key) where K : object
+        internal bool ContainsKey<K, V>(K key) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -62,7 +63,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         }
 
         // bool TryGetValue(TKey key, out TValue value)
-        internal bool TryGetValue<K, V>(K key, out V value) where K : object
+        internal bool TryGetValue<K, V>(K key, [MaybeNullWhen(false)] out V value) where K : notnull
         {
             if (key == null)
                 throw new ArgumentNullException(nameof(key));
@@ -73,7 +74,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // throw an exception from Lookup.
             if (!_this.HasKey(key))
             {
-                value = default!; // TODO-NULLABLE-GENERIC
+                value = default!;
                 return false;
             }
 
@@ -86,7 +87,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             {
                 if (HResults.E_BOUNDS == ex.HResult)
                 {
-                    value = default!; // TODO-NULLABLE-GENERIC
+                    value = default!;
                     return false;
                 }
                 throw;
@@ -116,7 +117,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
     // Note: One day we may make these return IReadOnlyCollection<T>
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey> where TKey : object
+    internal sealed class ReadOnlyDictionaryKeyCollection<TKey, TValue> : IEnumerable<TKey> where TKey : notnull
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
 
@@ -169,7 +170,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class ReadOnlyDictionaryKeyCollection<TKey, TValue>
 
 
-    internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey> where TKey : object
+    internal sealed class ReadOnlyDictionaryKeyEnumerator<TKey, TValue> : IEnumerator<TKey> where TKey : notnull
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;
@@ -211,7 +212,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
 
     [DebuggerDisplay("Count = {Count}")]
-    internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue> where TKey : object
+    internal sealed class ReadOnlyDictionaryValueCollection<TKey, TValue> : IEnumerable<TValue> where TKey : notnull
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
 
@@ -268,7 +269,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     }  // public class ReadOnlyDictionaryValueCollection<TKey, TValue>
 
 
-    internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> where TKey : object
+    internal sealed class ReadOnlyDictionaryValueEnumerator<TKey, TValue> : IEnumerator<TValue> where TKey : notnull
     {
         private readonly IReadOnlyDictionary<TKey, TValue> dictionary;
         private IEnumerator<KeyValuePair<TKey, TValue>> enumeration;

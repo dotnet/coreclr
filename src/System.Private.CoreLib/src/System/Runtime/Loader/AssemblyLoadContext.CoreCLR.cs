@@ -31,7 +31,7 @@ namespace System.Runtime.Loader
         private static extern void LoadFromPath(IntPtr ptrNativeAssemblyLoadContext, string? ilPath, string? niPath, ObjectHandleOnStack retAssembly);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public static extern Assembly[] GetLoadedAssemblies();
+        internal static extern Assembly[] GetLoadedAssemblies();
 
         private Assembly InternalLoadFromPath(string? assemblyPath, string? nativeImagePath)
         {
@@ -114,7 +114,7 @@ namespace System.Runtime.Loader
         {
             Assembly? resolvedAssembly = null;
 
-            Func<AssemblyLoadContext, AssemblyName, Assembly> assemblyResolveHandler = _resolving;
+            Func<AssemblyLoadContext, AssemblyName, Assembly>? assemblyResolveHandler = _resolving;
 
             if (assemblyResolveHandler != null)
             {
@@ -209,7 +209,7 @@ namespace System.Runtime.Loader
         {
             IntPtr resolvedDll = IntPtr.Zero;
 
-            Func<Assembly, string, IntPtr> dllResolveHandler = _resolvingUnmanagedDll;
+            Func<Assembly, string, IntPtr>? dllResolveHandler = _resolvingUnmanagedDll;
 
             if (dllResolveHandler != null)
             {
@@ -248,7 +248,7 @@ namespace System.Runtime.Loader
         }
         
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern IntPtr GetLoadContextForAssembly(RuntimeAssembly assembly);
+        private static extern IntPtr GetLoadContextForAssembly(QCallAssembly assembly);
 
         // Returns the load context in which the specified assembly has been loaded
         public static AssemblyLoadContext? GetLoadContext(Assembly assembly)
@@ -265,7 +265,8 @@ namespace System.Runtime.Loader
             // We only support looking up load context for runtime assemblies.
             if (rtAsm != null)
             {
-                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(rtAsm);
+                RuntimeAssembly runtimeAssembly = rtAsm;
+                IntPtr ptrAssemblyLoadContext = GetLoadContextForAssembly(JitHelpers.GetQCallAssemblyOnStack(ref runtimeAssembly));
                 if (ptrAssemblyLoadContext == IntPtr.Zero)
                 {
                     // If the load context is returned null, then the assembly was bound using the TPA binder
@@ -297,7 +298,7 @@ namespace System.Runtime.Loader
         // This method is called by the VM.
         private static void OnAssemblyLoad(RuntimeAssembly assembly)
         {
-            AssemblyLoad?.Invoke(null /* AppDomain */, new AssemblyLoadEventArgs(assembly));
+            AssemblyLoad?.Invoke(AppDomain.CurrentDomain, new AssemblyLoadEventArgs(assembly));
         }
 
         // This method is called by the VM.
@@ -318,7 +319,7 @@ namespace System.Runtime.Loader
             return InvokeResolveEvent(AssemblyResolve, assembly, assemblyFullName);
         }
 
-        private static RuntimeAssembly? InvokeResolveEvent(ResolveEventHandler eventHandler, RuntimeAssembly assembly, string name)
+        private static RuntimeAssembly? InvokeResolveEvent(ResolveEventHandler? eventHandler, RuntimeAssembly assembly, string name)
         {
             if (eventHandler == null)
                 return null;
@@ -327,7 +328,7 @@ namespace System.Runtime.Loader
 
             foreach (ResolveEventHandler handler in eventHandler.GetInvocationList())
             {
-                Assembly asm = handler(null /* AppDomain */, args);
+                Assembly? asm = handler(AppDomain.CurrentDomain, args);
                 RuntimeAssembly? ret = GetRuntimeAssembly(asm);
                 if (ret != null)
                     return ret;
@@ -336,7 +337,7 @@ namespace System.Runtime.Loader
             return null;
         }
 
-        private static RuntimeAssembly? GetRuntimeAssembly(Assembly asm)
+        private static RuntimeAssembly? GetRuntimeAssembly(Assembly? asm)
         {
             return
                 asm == null ? null :

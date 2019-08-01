@@ -1689,10 +1689,10 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
     {
         // Ngen case - GS cookie constant needs to be accessed through an indirection.
         instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, regGSConst, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSConst, regGSConst, 0);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, regGSConst, regGSConst, 0);
     }
     // Load this method's GS value from the stack frame
-    getEmitter()->emitIns_R_S(ins_Load(TYP_I_IMPL), EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
+    getEmitter()->emitIns_R_S(INS_ldr, EA_PTRSIZE, regGSValue, compiler->lvaGSSecurityCookie, 0);
     // Compare with the GC cookie constant
     getEmitter()->emitIns_R_R(INS_cmp, EA_PTRSIZE, regGSConst, regGSValue);
 
@@ -6483,62 +6483,6 @@ void CodeGen::genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed
 #endif // !ARM64 !ARM
 }
 
-/*-----------------------------------------------------------------------------
- *
- *  Set the "GS" security cookie in the prolog.
- */
-
-void CodeGen::genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed)
-{
-    assert(compiler->compGeneratingProlog);
-
-    if (!compiler->getNeedsGSSecurityCookie())
-    {
-        return;
-    }
-
-    noway_assert(compiler->gsGlobalSecurityCookieAddr || compiler->gsGlobalSecurityCookieVal);
-
-    if (compiler->gsGlobalSecurityCookieAddr == nullptr)
-    {
-#ifdef _TARGET_AMD64_
-        // eax = #GlobalSecurityCookieVal64; [frame.GSSecurityCookie] = eax
-        getEmitter()->emitIns_R_I(INS_mov, EA_PTRSIZE, REG_RAX, compiler->gsGlobalSecurityCookieVal);
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_RAX, compiler->lvaGSSecurityCookie, 0);
-#else
-        //  mov   dword ptr [frame.GSSecurityCookie], #GlobalSecurityCookieVal
-        instGen_Store_Imm_Into_Lcl(TYP_I_IMPL, EA_PTRSIZE, compiler->gsGlobalSecurityCookieVal,
-                                   compiler->lvaGSSecurityCookie, 0, initReg);
-#endif
-    }
-    else
-    {
-        regNumber reg;
-#ifdef _TARGET_XARCH_
-        // Always use EAX on x86 and x64
-        // On x64, if we're not moving into RAX, and the address isn't RIP relative, we can't encode it.
-        reg = REG_EAX;
-#else
-        // We will just use the initReg since it is an available register
-        reg = initReg;
-#endif
-
-        *pInitRegZeroed = false;
-
-#if CPU_LOAD_STORE_ARCH
-        instGen_Set_Reg_To_Imm(EA_PTR_DSP_RELOC, reg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, reg, reg, 0);
-        regSet.verifyRegUsed(reg);
-#else
-        //  mov   reg, dword ptr [compiler->gsGlobalSecurityCookieAddr]
-        //  mov   dword ptr [frame.GSSecurityCookie], reg
-        getEmitter()->emitIns_R_AI(INS_mov, EA_PTR_DSP_RELOC, reg, (ssize_t)compiler->gsGlobalSecurityCookieAddr);
-        regSet.verifyRegUsed(reg);
-#endif
-        getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, reg, compiler->lvaGSSecurityCookie, 0);
-    }
-}
-
 #ifdef PROFILING_SUPPORTED
 
 //-----------------------------------------------------------------------------------
@@ -8961,24 +8905,50 @@ void CodeGen::genFnEpilog(BasicBlock* block)
                 NO_WAY("Unsupported JMP indirection");
             }
 
-            const emitter::EmitCallType callType =
-                (addrInfo.accessType == IAT_VALUE) ? emitter::EC_FUNC_TOKEN : emitter::EC_FUNC_TOKEN_INDIR;
+            // If we have IAT_PVALUE we might need to jump via register indirect, as sometimes the
+            // indirection cell can't be reached by the jump.
+            emitter::EmitCallType callType;
+            void*                 addr;
+            regNumber             indCallReg;
 
-            // Simply emit a jump to the methodHnd. This is similar to a call so we can use
-            // the same descriptor with some minor adjustments.
+            if (addrInfo.accessType == IAT_PVALUE)
+            {
+                if (genCodeIndirAddrCanBeEncodedAsPCRelOffset((size_t)addrInfo.addr))
+                {
+                    // 32 bit displacement will work
+                    callType   = emitter::EC_FUNC_TOKEN_INDIR;
+                    addr       = addrInfo.addr;
+                    indCallReg = REG_NA;
+                }
+                else
+                {
+                    // 32 bit displacement won't work
+                    callType   = emitter::EC_INDIR_ARD;
+                    indCallReg = REG_RAX;
+                    addr       = nullptr;
+                    instGen_Set_Reg_To_Imm(EA_HANDLE_CNS_RELOC, indCallReg, (ssize_t)addrInfo.addr);
+                    regSet.verifyRegUsed(indCallReg);
+                }
+            }
+            else
+            {
+                callType   = emitter::EC_FUNC_TOKEN;
+                addr       = addrInfo.addr;
+                indCallReg = REG_NA;
+            }
 
             // clang-format off
             getEmitter()->emitIns_Call(callType,
                                        methHnd,
                                        INDEBUG_LDISASM_COMMA(nullptr)
-                                       addrInfo.addr,
+                                       addr,
                                        0,                                                      // argSize
                                        EA_UNKNOWN                                              // retSize
                                        MULTIREG_HAS_SECOND_GC_RET_ONLY_ARG(EA_UNKNOWN),        // secondRetSize
                                        gcInfo.gcVarPtrSetCur,
                                        gcInfo.gcRegGCrefSetCur,
                                        gcInfo.gcRegByrefSetCur,
-                                       BAD_IL_OFFSET, REG_NA, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
+                                       BAD_IL_OFFSET, indCallReg, REG_NA, 0, 0,  /* iloffset, ireg, xreg, xmul, disp */
                                        true /* isJump */
             );
             // clang-format on
@@ -9206,11 +9176,9 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
     {
         // This is the first block of a filter
 
-        getEmitter()->emitIns_R_R_I(ins_Load(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_R1,
-                                    genFuncletInfo.fiPSP_slot_CallerSP_offset);
+        getEmitter()->emitIns_R_R_I(INS_ldr, EA_PTRSIZE, REG_R1, REG_R1, genFuncletInfo.fiPSP_slot_CallerSP_offset);
         regSet.verifyRegUsed(REG_R1);
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R1, REG_SPBASE,
-                                    genFuncletInfo.fiPSP_slot_SP_offset);
+        getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_R1, REG_SPBASE, genFuncletInfo.fiPSP_slot_SP_offset);
         getEmitter()->emitIns_R_R_I(INS_sub, EA_PTRSIZE, REG_FPBASE, REG_R1,
                                     genFuncletInfo.fiFunctionCallerSPtoFPdelta);
     }
@@ -9220,8 +9188,7 @@ void CodeGen::genFuncletProlog(BasicBlock* block)
         getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, REG_R3, REG_FPBASE,
                                     genFuncletInfo.fiFunctionCallerSPtoFPdelta);
         regSet.verifyRegUsed(REG_R3);
-        getEmitter()->emitIns_R_R_I(ins_Store(TYP_I_IMPL), EA_PTRSIZE, REG_R3, REG_SPBASE,
-                                    genFuncletInfo.fiPSP_slot_SP_offset);
+        getEmitter()->emitIns_R_R_I(INS_str, EA_PTRSIZE, REG_R3, REG_SPBASE, genFuncletInfo.fiPSP_slot_SP_offset);
     }
 }
 
@@ -9882,7 +9849,7 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
     *pInitRegZeroed  = false;
 
     getEmitter()->emitIns_R_R_I(INS_add, EA_PTRSIZE, regTmp, regBase, callerSPOffs);
-    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
+    getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
 
 #elif defined(_TARGET_ARM64_)
 
@@ -9894,7 +9861,7 @@ void CodeGen::genSetPSPSym(regNumber initReg, bool* pInitRegZeroed)
     *pInitRegZeroed  = false;
 
     getEmitter()->emitIns_R_R_Imm(INS_add, EA_PTRSIZE, regTmp, REG_SPBASE, SPtoCallerSPdelta);
-    getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
+    getEmitter()->emitIns_S_R(INS_str, EA_PTRSIZE, regTmp, compiler->lvaPSPSym, 0);
 
 #elif defined(_TARGET_AMD64_)
 
