@@ -34782,7 +34782,7 @@ HRESULT GCHeap::Initialize()
     }
 
     if ((cpu_index_ranges_holder.Get() != nullptr)
-#ifndef FEATURE_PAL
+#ifdef PLATFORM_WINDOWS
         || (config_affinity_mask != 0)
 #endif
     )
@@ -34820,10 +34820,10 @@ HRESULT GCHeap::Initialize()
         {
             nhp = min(nhp, num_affinitized_processors);
         }
-#ifdef FEATURE_PAL
+#ifndef PLATFORM_WINDOWS
         // Limit the GC heaps to the number of processors available in the system.
         nhp = min (nhp, GCToOSInterface::GetTotalProcessorCount());
-#endif // FEATURE_PAL
+#endif // !PLATFORM_WINDOWS
     }
 #endif //!FEATURE_REDHAWK
 #endif //MULTIPLE_HEAPS
