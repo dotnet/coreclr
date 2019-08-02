@@ -9,7 +9,7 @@
   <ItemGroup />
   <PropertyGroup></PropertyGroup>
   <ItemGroup>
-    <Compile Include="b04319.il" />
+    <Compile Include="$(MSBuildProjectName).il" />
   </ItemGroup>
   <ItemGroup />
 </Project>

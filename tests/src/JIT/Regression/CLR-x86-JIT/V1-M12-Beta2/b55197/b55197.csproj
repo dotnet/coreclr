@@ -8,7 +8,7 @@
     <DebugType></DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="b55197.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

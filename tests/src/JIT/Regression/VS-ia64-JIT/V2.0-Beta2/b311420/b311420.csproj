@@ -11,7 +11,7 @@
     <Optimize>False</Optimize>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="b311420.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

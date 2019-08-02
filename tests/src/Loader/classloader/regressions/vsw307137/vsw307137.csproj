@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup />
   <ItemGroup>
-    <Compile Include="vsw307137.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

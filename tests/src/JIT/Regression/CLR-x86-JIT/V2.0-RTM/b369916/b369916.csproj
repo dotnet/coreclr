@@ -9,7 +9,7 @@
     <Optimize>False</Optimize>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="b369916.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

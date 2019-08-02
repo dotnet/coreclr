@@ -7,7 +7,7 @@
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="452950.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

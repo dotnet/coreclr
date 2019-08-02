@@ -9,7 +9,7 @@
   </PropertyGroup>
   <ItemGroup />
   <ItemGroup>
-    <Compile Include="rundownvalidation.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
     <ProjectReference Include="../common/common.csproj" />
   </ItemGroup>
 </Project>

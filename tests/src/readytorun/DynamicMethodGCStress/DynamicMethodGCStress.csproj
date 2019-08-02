@@ -7,7 +7,7 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DynamicMethodGCStress.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[

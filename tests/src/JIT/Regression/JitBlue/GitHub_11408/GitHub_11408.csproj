@@ -9,7 +9,7 @@
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="GitHub_11408.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[

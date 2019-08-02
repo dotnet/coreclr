@@ -14,7 +14,7 @@
     <DefineConstants>$(DefineConstants);CORECLR</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="bug595776.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

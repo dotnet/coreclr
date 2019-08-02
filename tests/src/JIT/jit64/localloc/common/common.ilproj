@@ -10,7 +10,7 @@
     <DebugType></DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="common.il" />
+    <Compile Include="$(MSBuildProjectName).il" />
   </ItemGroup>
   <ItemGroup />
 </Project>

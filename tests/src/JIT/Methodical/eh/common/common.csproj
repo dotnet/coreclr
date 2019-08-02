@@ -11,7 +11,7 @@
     <DebugType></DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="common.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>

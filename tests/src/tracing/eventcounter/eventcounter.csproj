@@ -10,7 +10,7 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="eventcounter.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
     <ProjectReference Include="../common/common.csproj" />
   </ItemGroup>
 </Project>

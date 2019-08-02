@@ -10,6 +10,6 @@
   <ItemGroup />
   <ItemGroup />
   <ItemGroup>
-    <Compile Include="GitHub_8231.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
 </Project>

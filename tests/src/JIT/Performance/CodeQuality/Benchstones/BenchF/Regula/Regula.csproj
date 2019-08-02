@@ -9,7 +9,7 @@
   <ItemGroup />
   <ItemGroup />
   <ItemGroup>
-    <Compile Include="Regula.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <PropertyGroup>
     <ProjectAssetsFile>$(JitPackagesConfigFileDirectory)benchmark\obj\project.assets.json</ProjectAssetsFile>

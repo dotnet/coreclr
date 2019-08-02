@@ -8,7 +8,7 @@
     <Optimize>True</Optimize>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DevDiv_377155.il" />
+    <Compile Include="$(MSBuildProjectName).il" />
   </ItemGroup>
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[

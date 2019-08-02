@@ -6,6 +6,6 @@
   <ItemGroup />
   <ItemGroup />
   <ItemGroup>
-    <Compile Include="StructPacking.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
 </Project>

@@ -9,7 +9,7 @@
     <DebugType>None</DebugType>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DevDiv_279829.il" />
+    <Compile Include="$(MSBuildProjectName).il" />
   </ItemGroup>
   <ItemGroup />
 </Project>

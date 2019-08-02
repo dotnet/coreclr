@@ -8,7 +8,7 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="ContextualReflection.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
     <ProjectReference Include="ContextualReflectionDependency.csproj" />
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>

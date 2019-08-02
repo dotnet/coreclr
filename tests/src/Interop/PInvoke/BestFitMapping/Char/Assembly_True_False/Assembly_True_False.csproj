@@ -8,7 +8,7 @@
   </PropertyGroup>
   <ItemGroup />
   <ItemGroup>
-    <Compile Include="Assembly_True_False.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <Import Project="../../../../Interop.settings.targets" />
   <ItemGroup />

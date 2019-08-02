@@ -10,7 +10,7 @@
     <Optimize>True</Optimize>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="GitHub_22583.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
     <ProjectReference Include="lib.csproj" />
     <ProjectReference Include="base.csproj">
       <EmbedInteropTypes>True</EmbedInteropTypes>

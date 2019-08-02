@@ -14,7 +14,7 @@
     <CLRTestExitCode>0</CLRTestExitCode>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="b16102.cs" />
+    <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup />
 </Project>
