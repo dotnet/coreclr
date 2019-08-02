@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
@@ -11,11 +10,6 @@
     <!-- This test has a secondary thread with an infinite loop -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <!-- Default configurations to help VS understand the configurations -->
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="DynamicMethodGCStress.cs" />
   </ItemGroup>
@@ -26,12 +20,12 @@ $(CLRTestBatchPreCommands)
 set ExePath=DynamicMethodGCStress.ni.dll
 set COMPlus_GCStress=3
 ]]></CLRTestBatchPreCommands>
-  <BashCLRTestPreCommands><![CDATA[
+    <BashCLRTestPreCommands><![CDATA[
 $(BashCLRTestPreCommands)
 $CORE_ROOT/crossgen -readytorun -platform_assemblies_paths $CORE_ROOT:`pwd` -out DynamicMethodGCStress.ni.dll DynamicMethodGCStress.dll
 ExePath=DynamicMethodGCStress.ni.dll
 export COMPlus_GCStress=3
 ]]></BashCLRTestPreCommands>
-  </PropertyGroup>  
+  </PropertyGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>
