@@ -3,11 +3,9 @@
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="*.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <None Include="NativeLibrary.cpp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

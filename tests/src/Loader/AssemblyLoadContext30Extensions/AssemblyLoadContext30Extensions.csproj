@@ -4,9 +4,7 @@
     <!-- The test uses non-unloadable AssemblyLoadContext  -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

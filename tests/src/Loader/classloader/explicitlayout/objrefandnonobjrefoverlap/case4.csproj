@@ -5,9 +5,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="case4.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

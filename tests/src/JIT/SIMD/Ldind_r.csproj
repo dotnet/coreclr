@@ -4,12 +4,10 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize></Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Ldind.cs" />
   </ItemGroup>

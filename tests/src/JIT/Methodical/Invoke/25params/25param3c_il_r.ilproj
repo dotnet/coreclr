@@ -6,10 +6,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="25param3c.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

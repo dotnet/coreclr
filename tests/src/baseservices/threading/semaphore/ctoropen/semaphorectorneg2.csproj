@@ -4,10 +4,8 @@
     <CLRTestPriority>1</CLRTestPriority>
     <CLRTestExecutionArguments>/iCount:-1 /mCount:3 /semName:" "</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="semaphorectorneg2.cs" />
     <Compile Include="..\semaphorecommon.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

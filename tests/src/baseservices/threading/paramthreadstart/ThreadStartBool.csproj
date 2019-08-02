@@ -4,9 +4,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestExecutionArguments>false</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="threadstartbool.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

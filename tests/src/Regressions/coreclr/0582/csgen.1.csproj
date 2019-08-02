@@ -5,11 +5,9 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="csgen.1.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <NoWarn Include="162" />
   </ItemGroup>

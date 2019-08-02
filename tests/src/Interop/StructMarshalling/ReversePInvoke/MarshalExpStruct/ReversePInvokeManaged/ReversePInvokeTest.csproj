@@ -7,13 +7,11 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ReversePInvokeTest.cs" />
     <Compile Include="..\..\Helper.cs" />
     <Compile Include="..\..\Struct.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\CMakeLists.txt" />
   </ItemGroup>

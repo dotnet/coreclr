@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
@@ -30,5 +29,4 @@ export COMPlus_JitStressModeNamesNot=STRESS_RANDOM_INLINE
 export COMPlus_JitObjectStackAllocation=1
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <ItemGroup />
 </Project>

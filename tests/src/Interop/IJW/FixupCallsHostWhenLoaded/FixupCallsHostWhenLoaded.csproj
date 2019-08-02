@@ -14,7 +14,6 @@
   <PropertyGroup>
     <CopyDebugCRTDllsToOutputDirectory>true</CopyDebugCRTDllsToOutputDirectory>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="FixupCallsHostWhenLoaded.cs" />
     <Compile Include="../IjwHelper.cs" />

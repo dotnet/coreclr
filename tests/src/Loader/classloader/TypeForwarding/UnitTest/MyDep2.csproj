@@ -5,12 +5,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="MyDep2.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="MyDep3.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

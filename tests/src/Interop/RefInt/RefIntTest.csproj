@@ -5,11 +5,9 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="*.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="CMakeLists.txt"></ProjectReference>

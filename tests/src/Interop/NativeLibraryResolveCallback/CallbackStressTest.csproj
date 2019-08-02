@@ -5,11 +5,9 @@
     <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
     <DefineConstants Condition="$(OSGroup) == 'Windows_NT'">WINDOWS</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="CallbackStressTest.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>

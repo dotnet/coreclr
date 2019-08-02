@@ -4,7 +4,6 @@
     <IlasmRoundTrip>true</IlasmRoundTrip>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>False</Optimize>
@@ -13,5 +12,4 @@
     <Compile Include="BouncingBall.cs" />
     <Compile Include="Ball.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

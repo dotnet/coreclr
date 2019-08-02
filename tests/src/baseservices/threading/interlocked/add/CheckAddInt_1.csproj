@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>CheckAddInt.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>/start:0 /add:100</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

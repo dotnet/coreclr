@@ -10,10 +10,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="jump.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

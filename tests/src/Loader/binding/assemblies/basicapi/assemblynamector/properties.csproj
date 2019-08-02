@@ -6,9 +6,7 @@
     <CLRTestPriority>1</CLRTestPriority>
     <CLRTestExecutionArguments>-trustedexe</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="properties.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

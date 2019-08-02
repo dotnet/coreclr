@@ -15,7 +15,6 @@
     -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="RuntimeEventSourceTest.cs" />
     <ProjectReference Include="../common/common.csproj" />

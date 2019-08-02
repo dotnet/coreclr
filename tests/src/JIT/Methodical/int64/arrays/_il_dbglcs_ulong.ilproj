@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="lcs_ulong.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

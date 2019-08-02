@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DebugType>None</DebugType>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="inloop.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

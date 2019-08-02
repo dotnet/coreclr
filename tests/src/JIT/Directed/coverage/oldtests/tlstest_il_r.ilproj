@@ -8,12 +8,9 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="tlstest.il" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="tls1.ilproj" />
     <ProjectReference Include="tls2.ilproj" />

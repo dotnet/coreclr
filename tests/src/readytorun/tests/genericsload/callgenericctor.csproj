@@ -6,7 +6,6 @@
     <ZapRequire>1</ZapRequire>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="genericslib.ilproj">
       <Project>{F74F55A1-DFCF-4C7C-B462-E96E1D0BB667}</Project>
@@ -15,7 +14,6 @@
   <ItemGroup>
     <Compile Include="callgenericctor.cs" />
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)

@@ -6,10 +6,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="conv_ovf_i1_un.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

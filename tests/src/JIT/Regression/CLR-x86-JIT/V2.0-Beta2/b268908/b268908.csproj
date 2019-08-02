@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="vars2.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

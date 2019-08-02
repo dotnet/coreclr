@@ -4,9 +4,7 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="289745.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

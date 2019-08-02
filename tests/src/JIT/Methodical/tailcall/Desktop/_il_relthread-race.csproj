@@ -7,7 +7,6 @@
     <IsLongRunningGCTest>true</IsLongRunningGCTest>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
@@ -15,5 +14,4 @@
   <ItemGroup>
     <Compile Include="thread-race.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

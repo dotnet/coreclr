@@ -4,7 +4,6 @@
     <CLRTestExecutionArguments>1000 40 191919</CLRTestExecutionArguments>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="dynamo.cs" />
     <Compile Include="basenode.cs" />
@@ -12,5 +11,4 @@
     <Compile Include="randomnode.cs" />
     <Compile Include="staticnode.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -8,9 +8,7 @@
   <PropertyGroup>
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

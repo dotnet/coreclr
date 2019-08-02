@@ -4,7 +4,6 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestExecutionArguments>2048</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="gettotalmemory.cs" />
   </ItemGroup>
@@ -12,5 +11,4 @@
     <ProjectReference Include="largeobject.csproj" />
     <ProjectReference Include="memcheck.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

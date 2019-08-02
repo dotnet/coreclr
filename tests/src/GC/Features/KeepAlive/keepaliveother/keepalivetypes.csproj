@@ -4,9 +4,7 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="keepalivetypes.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

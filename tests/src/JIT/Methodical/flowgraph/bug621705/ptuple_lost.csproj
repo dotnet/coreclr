@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
@@ -11,5 +10,4 @@
   <ItemGroup>
     <Compile Include="ptuple_lost.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

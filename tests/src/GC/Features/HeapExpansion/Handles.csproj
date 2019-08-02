@@ -4,11 +4,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Handles.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="GCUtil_HeapExpansion.csproj" />

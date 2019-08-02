@@ -2,13 +2,11 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <DebugType>None</DebugType>
     <Optimize></Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="MathRoundSingle.cs" />
   </ItemGroup>

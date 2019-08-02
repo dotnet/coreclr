@@ -6,12 +6,10 @@
     <!-- This test timeouts (but completes if given a long time) if running with other tests in parallel -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="pluggaps.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="GCUtil_HeapExpansion.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

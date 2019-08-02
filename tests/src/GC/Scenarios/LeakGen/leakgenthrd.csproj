@@ -6,9 +6,7 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="leakgenthrd.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

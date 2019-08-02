@@ -5,10 +5,8 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="rethrowandfinally.cs" />
     <Compile Include="trace.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -10,11 +10,9 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="mcc_i13.il ..\common\common.il" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>

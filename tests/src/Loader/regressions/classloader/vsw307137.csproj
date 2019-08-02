@@ -4,9 +4,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="vsw307137.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

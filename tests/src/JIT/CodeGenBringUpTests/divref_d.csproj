@@ -7,8 +7,6 @@
     <DebugType>Full</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="divref.cs" />
   </ItemGroup>

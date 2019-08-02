@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
@@ -10,7 +9,6 @@
   <ItemGroup>
     <Compile Include="moduleHandleCache.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="moduleLibrary.csproj" />
   </ItemGroup>

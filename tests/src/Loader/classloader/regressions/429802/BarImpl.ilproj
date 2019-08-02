@@ -5,12 +5,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="BarImpl.il" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="MyBar.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

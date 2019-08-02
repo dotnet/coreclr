@@ -5,12 +5,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Test6_forwarder.il" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="Test6_supplier.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

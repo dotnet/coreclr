@@ -4,11 +4,9 @@
     <CLRTestPriority>1</CLRTestPriority>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="waithandlewaitone1.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>

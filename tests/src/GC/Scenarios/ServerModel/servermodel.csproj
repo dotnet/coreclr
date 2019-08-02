@@ -5,7 +5,6 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <HeapVerifyIncompatible Condition="'$(Platform)' == 'x86' or '$(Platform)' == 'arm' or '$(Platform)' == 'arm64'">true</HeapVerifyIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="cache.cs" />
     <Compile Include="parameters.cs" />
@@ -14,5 +13,4 @@
     <Compile Include="servermodel.cs" />
     <Compile Include="settings.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

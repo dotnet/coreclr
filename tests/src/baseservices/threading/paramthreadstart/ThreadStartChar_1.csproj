@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>ThreadStartChar.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>k</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

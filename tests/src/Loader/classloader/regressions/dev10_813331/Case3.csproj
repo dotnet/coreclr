@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Case3.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="Library2.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <RestorePackages>false</RestorePackages>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="_knu165r.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

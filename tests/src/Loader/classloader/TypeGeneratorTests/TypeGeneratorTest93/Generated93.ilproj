@@ -10,5 +10,4 @@
   <ItemGroup>
     <ProjectReference Include="..\TestFramework\TestFramework.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

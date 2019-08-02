@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
@@ -13,5 +12,4 @@
   <ItemGroup>
     <Compile Include="ddb87766.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

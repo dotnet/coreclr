@@ -7,7 +7,6 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <Optimize>True</Optimize>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
@@ -16,5 +15,4 @@
   <ItemGroup>
     <Compile Include="loop2.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

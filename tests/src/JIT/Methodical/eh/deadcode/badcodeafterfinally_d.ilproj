@@ -5,14 +5,12 @@
     <!-- #2444 -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="badcodeafterfinally.il" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\common\common.csproj" />
   </ItemGroup>

@@ -3,11 +3,9 @@
     <OutputType>Exe</OutputType>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="MarshalArrayByValTest.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="CMakeLists.txt" />

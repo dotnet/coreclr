@@ -5,9 +5,7 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include=".\helper.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

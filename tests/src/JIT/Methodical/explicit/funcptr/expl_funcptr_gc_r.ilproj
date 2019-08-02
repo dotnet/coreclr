@@ -7,10 +7,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="expl_funcptr_gc.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

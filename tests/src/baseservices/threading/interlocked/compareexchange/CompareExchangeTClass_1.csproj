@@ -7,7 +7,4 @@
     <CLRTestExecutionArguments>"hello world"</CLRTestExecutionArguments>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

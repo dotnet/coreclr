@@ -4,9 +4,7 @@
     <CLRTestExecutionArguments>1 1000 50000</CLRTestExecutionArguments>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="bestfit.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

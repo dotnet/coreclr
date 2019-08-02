@@ -4,11 +4,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="InducedGen0GC.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="ILatencyTest.csproj" />
   </ItemGroup>

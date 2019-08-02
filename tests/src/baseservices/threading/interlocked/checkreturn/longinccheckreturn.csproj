@@ -3,10 +3,8 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="..\common\interlockedhelper_coreclr.cs" />
     <Compile Include="longinccheckreturn.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

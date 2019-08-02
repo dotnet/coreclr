@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="utility.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -7,8 +7,6 @@
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Lt1.cs" />
   </ItemGroup>

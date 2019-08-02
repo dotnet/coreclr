@@ -5,11 +5,9 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="isudokuboard.cs" />
     <Compile Include="isudokugenerator.cs" />
     <Compile Include="isudokusolver.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

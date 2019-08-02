@@ -4,7 +4,6 @@
     <CLRTestPriority>1</CLRTestPriority>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="skippage5.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

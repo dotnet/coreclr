@@ -6,11 +6,9 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="filterfiltercatchcatch.il" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\common\common.csproj" />
   </ItemGroup>

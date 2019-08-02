@@ -6,9 +6,7 @@
     <CLRTestPriority>1</CLRTestPriority>
     <CLRTestExecutionArguments>"hello"</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="compareexchangetstring.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

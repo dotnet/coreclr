@@ -4,7 +4,6 @@
     <!-- Timeout on Arm64 -->
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
     <DebugType>PdbOnly</DebugType>
@@ -17,5 +16,4 @@
   <ItemGroup>
     <Compile Include="ArrayWithThread.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

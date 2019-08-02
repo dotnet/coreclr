@@ -4,9 +4,7 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Castable.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

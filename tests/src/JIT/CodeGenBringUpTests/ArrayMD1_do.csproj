@@ -8,8 +8,6 @@
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ArrayMD1.cs" />
   </ItemGroup>

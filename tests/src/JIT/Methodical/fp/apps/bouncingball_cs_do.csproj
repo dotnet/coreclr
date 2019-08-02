@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
     <Compile Include="BouncingBall.cs" />
     <Compile Include="Ball.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -7,9 +7,7 @@
     <IsLongRunningGCTest>true</IsLongRunningGCTest>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="delete_next_card_table.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

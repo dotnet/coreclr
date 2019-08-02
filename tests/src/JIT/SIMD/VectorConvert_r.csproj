@@ -5,12 +5,10 @@
   <PropertyGroup Condition="'$(BuildArch)' == 'x86'">
     <DefineConstants>BIT32;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize></Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="VectorConvert.cs" />
     <Compile Include="VectorUtil.cs" />

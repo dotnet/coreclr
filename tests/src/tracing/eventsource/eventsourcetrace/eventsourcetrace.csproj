@@ -9,7 +9,6 @@
     <!-- https://github.com/dotnet/coreclr/issues/24423 -->
     <JitOptimizationSensitive>True</JitOptimizationSensitive>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="EventSourceTrace.cs" />
     <ProjectReference Include="../../common/common.csproj" />

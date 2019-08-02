@@ -8,9 +8,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="lib-219037.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

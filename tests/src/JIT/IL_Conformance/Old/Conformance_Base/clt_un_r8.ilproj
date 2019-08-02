@@ -8,10 +8,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="clt_un_r8.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

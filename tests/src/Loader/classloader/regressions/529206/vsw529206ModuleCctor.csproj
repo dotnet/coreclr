@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="vsw529206ModuleCctor.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="moduleCctorThrow.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

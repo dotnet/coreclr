@@ -4,7 +4,6 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="boxing001.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

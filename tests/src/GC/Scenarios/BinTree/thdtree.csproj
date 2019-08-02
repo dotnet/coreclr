@@ -5,12 +5,10 @@
     <!-- The test leaves threads running at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="thdtree.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="bintree.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

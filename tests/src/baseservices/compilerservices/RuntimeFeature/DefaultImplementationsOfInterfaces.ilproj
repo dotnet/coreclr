@@ -4,10 +4,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="DefaultImplementationsOfInterfaces.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

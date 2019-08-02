@@ -8,10 +8,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="bgt_i4.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

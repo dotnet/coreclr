@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <HeapVerifyIncompatible Condition="'$(Platform)' == 'arm'">true</HeapVerifyIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
     <DebugType>PdbOnly</DebugType>
@@ -14,5 +13,4 @@
   <ItemGroup>
     <Compile Include="GetAllocatedBytesForCurrentThread.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

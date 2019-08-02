@@ -8,9 +8,7 @@
   <PropertyGroup>
     <DebugType>pdbonly</DebugType>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="self_override1.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

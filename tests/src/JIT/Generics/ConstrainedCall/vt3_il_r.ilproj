@@ -7,10 +7,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="vt3.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

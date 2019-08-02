@@ -5,12 +5,10 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="callipinvoke.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

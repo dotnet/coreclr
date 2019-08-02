@@ -6,7 +6,6 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>False</Optimize>
@@ -14,5 +13,4 @@
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

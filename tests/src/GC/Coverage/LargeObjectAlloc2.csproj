@@ -3,9 +3,7 @@
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="LargeObjectAlloc2.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

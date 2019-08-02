@@ -4,7 +4,6 @@
     <!-- Test unsupported outside of windows (type equivalence) -->
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <Optimize>True</Optimize>
@@ -16,5 +15,4 @@
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
 </Project>

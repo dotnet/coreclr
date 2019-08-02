@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <Optimize>True</Optimize>
@@ -21,5 +20,4 @@ $(BashCLRTestPreCommands)
 export COMPlus_JitDoSsa=0
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <ItemGroup />
 </Project>

@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <Optimize>True</Optimize>
@@ -10,7 +9,6 @@
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup>
     <!-- Set JitStreess variables, Linux requires them to be properly capitalized. -->
     <CLRTestBatchPreCommands><![CDATA[

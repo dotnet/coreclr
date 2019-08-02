@@ -5,12 +5,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="foo2.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="foo1.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -7,12 +7,10 @@
     <!-- https://github.com/dotnet/coreclr/issues/23624 -->
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Embedded</DebugType>
     <Optimize></Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Add.Byte.cs" />
     <Compile Include="Add.Int16.cs" />

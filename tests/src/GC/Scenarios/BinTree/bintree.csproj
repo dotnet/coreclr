@@ -4,10 +4,8 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="bintree.cs" />
     <Compile Include="treethread.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>ThreadStartLong.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>max</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

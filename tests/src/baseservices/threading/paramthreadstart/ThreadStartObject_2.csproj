@@ -5,7 +5,4 @@
     <CLRTestPriority>1</CLRTestPriority>
     <CLRTestProjectToRun>ThreadStartObject.csproj</CLRTestProjectToRun>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

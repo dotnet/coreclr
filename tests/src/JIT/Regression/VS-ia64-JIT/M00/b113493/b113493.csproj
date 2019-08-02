@@ -4,12 +4,10 @@
     <!-- This test leaves threads running at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="bad.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

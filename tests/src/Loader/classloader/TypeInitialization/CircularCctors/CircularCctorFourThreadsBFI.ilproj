@@ -5,9 +5,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="CircularCctorFourThreadsBFI.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

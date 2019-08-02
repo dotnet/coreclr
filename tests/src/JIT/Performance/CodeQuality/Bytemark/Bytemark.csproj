@@ -9,8 +9,6 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ByteMark.cs" />
     <Compile Include="Huffman.cs" />

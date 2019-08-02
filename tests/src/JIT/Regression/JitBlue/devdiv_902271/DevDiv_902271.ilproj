@@ -7,12 +7,10 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <JitOptimizationSensitive>true</JitOptimizationSensitive>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="DevDiv_902271.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

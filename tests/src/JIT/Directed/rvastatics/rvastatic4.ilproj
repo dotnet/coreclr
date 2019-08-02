@@ -9,9 +9,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="rvastatic4.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

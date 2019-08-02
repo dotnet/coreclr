@@ -4,12 +4,10 @@
     <!-- This test is disabled until #12224 is fixed -->
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="b08944b.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

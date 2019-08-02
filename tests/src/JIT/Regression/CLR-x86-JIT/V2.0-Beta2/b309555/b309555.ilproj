@@ -7,10 +7,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="x86-test-1084346006.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

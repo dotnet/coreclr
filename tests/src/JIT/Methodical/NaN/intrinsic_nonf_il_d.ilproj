@@ -4,12 +4,10 @@
     <RestorePackages>true</RestorePackages>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="intrinsic_nonf.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -3,9 +3,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="OpenDelegate.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="L-2-12-3.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="L-2-12-3D.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -2,12 +2,10 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="isinst_catch.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

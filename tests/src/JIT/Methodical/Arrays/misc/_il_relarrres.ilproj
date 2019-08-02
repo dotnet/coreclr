@@ -4,7 +4,6 @@
     <RestorePackages>true</RestorePackages>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <JitOptimizationSensitive>true</JitOptimizationSensitive>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="arrres.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

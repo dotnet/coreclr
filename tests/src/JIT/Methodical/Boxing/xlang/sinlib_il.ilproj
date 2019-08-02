@@ -4,12 +4,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="sinlib.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

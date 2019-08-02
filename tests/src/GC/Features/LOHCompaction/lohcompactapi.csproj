@@ -5,9 +5,7 @@
     <!-- Test will timeout on Unix -->
     <IsLongRunningGCTest>true</IsLongRunningGCTest>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="lohcompactapi.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -4,10 +4,7 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="ILHelper.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

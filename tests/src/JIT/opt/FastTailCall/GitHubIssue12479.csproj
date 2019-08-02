@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <IlasmRoundTrip>true</IlasmRoundTrip>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
     <DebugType>None</DebugType>
@@ -18,5 +17,4 @@
   <ItemGroup>
     <Compile Include="GitHubIssue12479.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -8,10 +8,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="Box_Unbox.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

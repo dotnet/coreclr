@@ -5,9 +5,7 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="simple.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -6,9 +6,7 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ServerSpin.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

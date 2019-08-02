@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
@@ -11,5 +10,4 @@
   <ItemGroup>
     <Compile Include="GitHub_16065b.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

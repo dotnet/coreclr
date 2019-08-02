@@ -6,10 +6,8 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="openmutexpos3.cs" />
     <Compile Include="..\openmutexcommon.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

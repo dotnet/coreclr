@@ -3,9 +3,7 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="nullarraymember.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

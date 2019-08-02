@@ -5,9 +5,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="strmap.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

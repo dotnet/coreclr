@@ -4,7 +4,6 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <DefineConstants>$(DefineConstants);SIMPLE_HFA;FLOAT32</DefineConstants>
@@ -12,7 +11,6 @@
   <ItemGroup>
     <Compile Include="hfa_managed.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="hfa_simple_f32_common.csproj" />
   </ItemGroup>

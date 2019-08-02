@@ -5,9 +5,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="NestedInterface05.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

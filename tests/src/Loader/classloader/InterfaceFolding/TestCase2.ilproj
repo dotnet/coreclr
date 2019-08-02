@@ -5,9 +5,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="TestCase2.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

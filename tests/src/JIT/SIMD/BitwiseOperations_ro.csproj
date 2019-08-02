@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <IlasmRoundTrip>true</IlasmRoundTrip>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="BitwiseOperations.cs" />
   </ItemGroup>

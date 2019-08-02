@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="exec16.il" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="nesting16.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

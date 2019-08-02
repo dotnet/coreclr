@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>CheckAddLong.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>/start:-922337203685477 /add:100</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

@@ -3,7 +3,6 @@
     <OutputType>Library</OutputType>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <Optimize>True</Optimize>
@@ -11,5 +10,4 @@
   <ItemGroup>
     <Compile Include="base.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

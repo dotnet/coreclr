@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
     <Compile Include="nullcomparaison.cs" />
     <Compile Include="StructDefinitions.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

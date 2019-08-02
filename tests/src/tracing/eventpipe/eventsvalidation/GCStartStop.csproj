@@ -8,7 +8,6 @@
     <CLRTestPriority>0</CLRTestPriority>
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="GCStartStop.cs" />
     <ProjectReference Include="../common/common.csproj" />

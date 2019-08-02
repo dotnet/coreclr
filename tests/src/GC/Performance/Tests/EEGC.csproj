@@ -5,11 +5,9 @@
     <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="EEGC.cs" />
     <Compile Include="Node.cs" />
     <Compile Include="SleepThread.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

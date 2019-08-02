@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="InterfaceInheritanceTest2.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="VarInterfaceLib2.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -6,9 +6,7 @@
     <!-- This test tries to print to console from a finalizer after the static with stdout SafeHandle is finalized -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="keepalivefinalize.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

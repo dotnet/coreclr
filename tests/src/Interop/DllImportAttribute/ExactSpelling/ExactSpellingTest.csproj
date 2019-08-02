@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ExactSpellingTest.cs" />
   </ItemGroup>

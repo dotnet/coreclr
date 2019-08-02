@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>full</DebugType>
     <Optimize>False</Optimize>
@@ -11,7 +10,6 @@
   <ItemGroup>
     <Compile Include="hfa_testG.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\dll\common.csproj" />
     <ProjectReference Include="..\dll\hfa_nested_f32_common.csproj" />

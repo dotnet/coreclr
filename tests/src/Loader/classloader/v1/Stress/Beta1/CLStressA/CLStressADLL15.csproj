@@ -5,9 +5,7 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="CLStressADLL15.cool" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

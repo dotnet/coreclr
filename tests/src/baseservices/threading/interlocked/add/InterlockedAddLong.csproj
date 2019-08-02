@@ -5,9 +5,7 @@
     <CLRTestExecutionArguments>/loops:100 /addVal:100</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="interlockedaddlong.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

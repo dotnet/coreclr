@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <NoLogo>True</NoLogo>
@@ -13,5 +12,4 @@
   <ItemGroup>
     <Compile Include="gettypetypeofmatrix.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

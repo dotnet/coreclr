@@ -5,9 +5,7 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Types101.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

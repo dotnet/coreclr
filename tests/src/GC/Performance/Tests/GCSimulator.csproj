@@ -5,10 +5,8 @@
     <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="GCSimulator.cs" />
     <Compile Include="lifetimefx.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

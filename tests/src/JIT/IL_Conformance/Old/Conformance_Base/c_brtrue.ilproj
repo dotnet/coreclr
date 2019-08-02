@@ -8,10 +8,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="c_brtrue.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

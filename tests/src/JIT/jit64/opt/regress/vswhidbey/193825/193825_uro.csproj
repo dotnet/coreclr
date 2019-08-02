@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="repro.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

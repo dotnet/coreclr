@@ -4,7 +4,6 @@
     <RestorePackages>true</RestorePackages>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
@@ -12,5 +11,4 @@
     <Compile Condition="'$(BuildArch)' == 'x86'" Include="sizeof32.il" />
     <Compile Condition="'$(BuildArch)' != 'x86'" Include="64sizeof32.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

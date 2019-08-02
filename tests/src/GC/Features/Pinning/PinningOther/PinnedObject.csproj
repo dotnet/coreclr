@@ -4,11 +4,9 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="PinnedObject.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="GCUtil_Pinning.csproj" />
   </ItemGroup>

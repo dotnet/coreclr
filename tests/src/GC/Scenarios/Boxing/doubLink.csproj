@@ -5,9 +5,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="doubLink.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

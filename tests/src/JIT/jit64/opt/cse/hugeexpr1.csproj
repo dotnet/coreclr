@@ -4,7 +4,6 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -15,5 +14,4 @@
   <ItemGroup>
     <Compile Include="hugeexpr1.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

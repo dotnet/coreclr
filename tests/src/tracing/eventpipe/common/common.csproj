@@ -7,7 +7,6 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="IpcTraceTest.cs" />
   </ItemGroup>

@@ -4,10 +4,7 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="VT.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="dlbigleakthd.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="DoubLink.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

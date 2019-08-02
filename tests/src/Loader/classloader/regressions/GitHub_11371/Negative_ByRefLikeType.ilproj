@@ -8,5 +8,4 @@
   <ItemGroup>
     <Compile Include="Negative_ByRefLikeType.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

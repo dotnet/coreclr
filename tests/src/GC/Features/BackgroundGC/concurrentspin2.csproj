@@ -5,9 +5,7 @@
     <IsLongRunningGCTest>true</IsLongRunningGCTest>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="concurrentspin2.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

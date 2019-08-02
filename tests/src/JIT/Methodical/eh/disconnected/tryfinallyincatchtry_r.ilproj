@@ -6,11 +6,9 @@
   <PropertyGroup>
     <DebugType>pdbonly</DebugType>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="tryfinallyincatchtry.il" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\common\common.csproj" />
   </ItemGroup>

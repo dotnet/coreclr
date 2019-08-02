@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="add.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

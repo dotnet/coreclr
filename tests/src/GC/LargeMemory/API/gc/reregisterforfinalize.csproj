@@ -5,7 +5,6 @@
     <CLRTestExecutionArguments>2048</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="reregisterforfinalize.cs" />
   </ItemGroup>
@@ -13,5 +12,4 @@
     <ProjectReference Include="largeobject.csproj" />
     <ProjectReference Include="memcheck.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

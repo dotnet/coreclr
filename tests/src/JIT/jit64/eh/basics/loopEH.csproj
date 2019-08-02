@@ -4,7 +4,6 @@
     <IlasmRoundTrip>true</IlasmRoundTrip>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="loopEH.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

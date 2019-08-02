@@ -5,7 +5,4 @@
     <CLRTestProjectToRun>ThreadStartBool.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>true</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

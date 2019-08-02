@@ -7,10 +7,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="ldc_c_cpblk.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

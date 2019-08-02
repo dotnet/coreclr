@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Unbox003.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="Lib.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

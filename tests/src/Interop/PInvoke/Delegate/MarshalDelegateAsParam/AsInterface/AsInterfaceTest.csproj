@@ -9,12 +9,10 @@
     <!-- RefCounted handle holding a delegate in the test alive at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="AsInterfaceTest.cs" />
   </ItemGroup>
   <Import Project="../../../../Interop.settings.targets" />
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\CMakeLists.txt" />
   </ItemGroup>

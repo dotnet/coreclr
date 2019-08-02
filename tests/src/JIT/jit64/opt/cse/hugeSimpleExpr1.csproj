@@ -4,7 +4,6 @@
     <!-- Timeout on Arm64 -->
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="hugeSimpleExpr1.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

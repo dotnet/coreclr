@@ -4,7 +4,6 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="GitHub_9945_2.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

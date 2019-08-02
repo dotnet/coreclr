@@ -8,10 +8,8 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="DefaultStackCommit.cs" />
     <Compile Include="StackCommitCommon.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

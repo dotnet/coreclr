@@ -6,9 +6,7 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

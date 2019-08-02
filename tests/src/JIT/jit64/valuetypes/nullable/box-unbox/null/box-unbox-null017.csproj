@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
@@ -11,5 +10,4 @@
     <Compile Include="box-unbox-null017.cs" />
     <Compile Include="..\structdef.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

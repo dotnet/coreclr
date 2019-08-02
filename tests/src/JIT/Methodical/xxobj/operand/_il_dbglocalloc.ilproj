@@ -5,12 +5,10 @@
     <!-- #2444 -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="localloc.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

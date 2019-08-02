@@ -4,9 +4,7 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="assem.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -7,12 +7,10 @@
     <!--Test unsupported uses rva_statics -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="test147911.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

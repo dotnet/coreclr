@@ -3,7 +3,6 @@
     <OutputType>Library</OutputType>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <Optimize>True</Optimize>
@@ -14,5 +13,4 @@
       <EmbedInteropTypes>True</EmbedInteropTypes>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
 </Project>

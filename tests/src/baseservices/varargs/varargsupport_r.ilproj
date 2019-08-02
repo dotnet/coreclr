@@ -2,9 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="varargsupport.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

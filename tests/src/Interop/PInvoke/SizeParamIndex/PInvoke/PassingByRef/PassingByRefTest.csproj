@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="PassingByRefTest.cs" />
     <Compile Include="..\helper.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>

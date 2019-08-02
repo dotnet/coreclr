@@ -6,7 +6,6 @@
   <PropertyGroup>
     <DefineConstants Condition=" '$(OSGroup)' == 'Windows_NT' ">$(DefineConstants);WIN32</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
@@ -15,7 +14,6 @@
     <Compile Include="varargmanaged.cs" />
     <Compile Include="varargtypes.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>

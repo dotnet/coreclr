@@ -5,9 +5,7 @@
     <CLRTestPriority>1</CLRTestPriority>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="exchangetstring.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

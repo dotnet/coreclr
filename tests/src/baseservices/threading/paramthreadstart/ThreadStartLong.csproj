@@ -5,9 +5,7 @@
     <CLRTestExecutionArguments>min</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="threadstartlong.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

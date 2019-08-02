@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="VSW576621.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="test.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

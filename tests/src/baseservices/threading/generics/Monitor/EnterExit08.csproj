@@ -5,10 +5,8 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="EnterExit08.cs" />
     <Compile Include="MonitorHelper.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

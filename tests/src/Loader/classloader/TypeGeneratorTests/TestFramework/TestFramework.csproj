@@ -7,5 +7,4 @@
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

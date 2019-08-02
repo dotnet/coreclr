@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>ThreadStartOperations.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>min</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

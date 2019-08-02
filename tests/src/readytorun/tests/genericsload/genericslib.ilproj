@@ -3,10 +3,7 @@
     <OutputType>library</OutputType>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="genericslib.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

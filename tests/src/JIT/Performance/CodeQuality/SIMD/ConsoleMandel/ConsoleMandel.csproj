@@ -6,8 +6,6 @@
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ConsoleMandel.cs" />
     <Compile Include="Abstractions.cs" />

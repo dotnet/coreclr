@@ -4,12 +4,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="itest9.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

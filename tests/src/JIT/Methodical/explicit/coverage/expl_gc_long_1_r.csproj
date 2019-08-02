@@ -7,7 +7,6 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <DebugType>None</DebugType>
@@ -16,5 +15,4 @@
     <Compile Include="expl_gc_long_1.cs" />
     <Compile Include="body_safe_long.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

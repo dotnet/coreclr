@@ -5,12 +5,10 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="modifiers.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="modifiersdata.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -5,9 +5,7 @@
     <CLRTestExecutionArguments>""</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="threadstartobject.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

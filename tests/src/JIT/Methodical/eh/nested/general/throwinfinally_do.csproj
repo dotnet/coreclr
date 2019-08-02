@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -10,7 +9,6 @@
   <ItemGroup>
     <Compile Include="throwinfinally.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\..\common\common.csproj" />
   </ItemGroup>

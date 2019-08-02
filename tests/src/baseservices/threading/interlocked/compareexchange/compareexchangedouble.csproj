@@ -4,9 +4,7 @@
     <CLRTestPriority>1</CLRTestPriority>
     <CLRTestExecutionArguments>/loops:100 /addVal:1.79769313486232E+304</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="compareexchangedouble.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

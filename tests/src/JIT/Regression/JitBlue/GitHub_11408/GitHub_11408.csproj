@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <Optimize>True</Optimize>
@@ -21,5 +20,4 @@ $(BashCLRTestPreCommands)
 export COMPlus_TailcallStress=1
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <ItemGroup />
 </Project>

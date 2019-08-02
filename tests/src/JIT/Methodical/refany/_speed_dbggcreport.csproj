@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -10,6 +9,4 @@
   <ItemGroup>
     <Compile Include="gcreport.cs" />
   </ItemGroup>
-  <PropertyGroup />
-  <ItemGroup />
 </Project>

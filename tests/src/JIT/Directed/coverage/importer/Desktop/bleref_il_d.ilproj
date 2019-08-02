@@ -5,12 +5,10 @@
     <!-- Test relies on Verifier support see #4851 -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="bleref.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

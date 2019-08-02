@@ -8,7 +8,6 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include=".\helper.csproj">
       <Project>{F74F55A1-DFCF-4C7C-B462-E96E1D0BB667}</Project>
@@ -17,7 +16,6 @@
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).cs" />
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)

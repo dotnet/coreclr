@@ -10,9 +10,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="b26324b.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

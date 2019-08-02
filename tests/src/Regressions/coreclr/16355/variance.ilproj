@@ -6,9 +6,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="variance.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

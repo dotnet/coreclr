@@ -4,9 +4,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ReferenceSystemPrivateCoreLib>true</ReferenceSystemPrivateCoreLib>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="*.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

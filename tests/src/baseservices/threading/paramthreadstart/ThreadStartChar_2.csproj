@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>ThreadStartChar.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>1234</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

@@ -6,7 +6,6 @@
     <CLRTestPriority>0</CLRTestPriority>
     <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="DetourHelpers.cs" />
     <Compile Include="LoaderClass.cs" />
@@ -16,7 +15,6 @@
     <Compile Include="ReliabilityTestSet.cs" />
     <Compile Include="RFLogging.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <Content Include="..\testmix_gc.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

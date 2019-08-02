@@ -5,12 +5,10 @@
     <IsLongRunningGCTest>true</IsLongRunningGCTest>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="doublinknoleak.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="DoubLink.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

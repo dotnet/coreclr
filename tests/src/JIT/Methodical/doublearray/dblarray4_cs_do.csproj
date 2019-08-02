@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>True</Optimize>
@@ -22,5 +21,4 @@ $(BashCLRTestPreCommands)
 export COMPlus_DoubleArrayToLargeObjectHeap=0x64
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <ItemGroup />
 </Project>

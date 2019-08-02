@@ -6,11 +6,9 @@
     <!-- The test leaves AssemblyLoadContext.Default.ResolvingUnmanagedDll event registered to a method in the test at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="*.cs" />
   </ItemGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="CMakeLists.txt" />
   </ItemGroup>

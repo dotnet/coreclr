@@ -7,7 +7,4 @@
     <CLRTestExecutionArguments>null "This is a string"</CLRTestExecutionArguments>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

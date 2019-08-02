@@ -8,10 +8,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="subovfun1.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

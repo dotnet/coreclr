@@ -7,9 +7,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="switch4.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

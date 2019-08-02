@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <NoLogo>True</NoLogo>
@@ -14,5 +13,4 @@
   <ItemGroup>
     <Compile Include="ConcatTest.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

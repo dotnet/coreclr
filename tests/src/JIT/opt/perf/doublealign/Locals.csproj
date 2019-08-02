@@ -4,7 +4,6 @@
     <IlasmRoundTrip>true</IlasmRoundTrip>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
     <DebugType>None</DebugType>
@@ -19,5 +18,4 @@
   <ItemGroup>
     <Compile Include="locals.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

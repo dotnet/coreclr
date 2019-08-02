@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="nstructresur.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="strmap.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

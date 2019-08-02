@@ -8,8 +8,6 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="LocallocCnstB5001.cs" />
   </ItemGroup>

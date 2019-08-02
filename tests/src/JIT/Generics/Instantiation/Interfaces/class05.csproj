@@ -2,12 +2,10 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Class05.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

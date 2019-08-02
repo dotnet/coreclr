@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <Optimize>true</Optimize>
     <DebugType>None</DebugType>
@@ -11,5 +10,4 @@
   <ItemGroup>
     <Compile Include="$(MSBuildProjectName).il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

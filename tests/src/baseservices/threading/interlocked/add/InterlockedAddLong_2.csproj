@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>InterlockedAddLong.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>/loops:100 /addVal:-922337203685477</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

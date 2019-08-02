@@ -6,7 +6,4 @@
     <CLRTestProjectToRun>ThreadStartObject.csproj</CLRTestProjectToRun>
     <CLRTestExecutionArguments>MyObject</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
-  <ItemGroup />
 </Project>

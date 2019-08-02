@@ -7,12 +7,10 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="AsInterfaceTest.cs" />
   </ItemGroup>
   <Import Project="../../../../Interop.settings.targets" />
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="..\CMakeLists.txt" />
     <ProjectReference Include="..\RefLib\RefLib.csproj" />

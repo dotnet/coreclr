@@ -7,7 +7,6 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="StructABI.cs" />
     <Compile Include="StructABI.Windows.cs" Condition="'$(OSGroup)' == 'Windows_NT'" />

@@ -14,7 +14,6 @@
       -->
     <DisableProjectBuild>true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="EventPipeAndEtw.cs" />
     <ProjectReference Include="../../common/common.csproj" />

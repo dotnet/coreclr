@@ -7,8 +7,6 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Condition="'$(BuildArch)' == 'x86'" Include="arglist.il" />
     <Compile Condition="'$(BuildArch)' == 'x64'" Include="arglist64.il" />
@@ -16,5 +14,4 @@
     <Compile Condition="'$(BuildArch)' == 'arm64'" Include="arglist64.il" />
     <Compile Condition="'$(BuildArch)' == 'armel'" Include="arglistARM.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

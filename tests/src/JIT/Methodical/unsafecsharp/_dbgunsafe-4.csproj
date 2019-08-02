@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>False</Optimize>
@@ -13,5 +12,4 @@
     <Compile Include="unsafe-4.cs" />
     <Compile Include="main.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

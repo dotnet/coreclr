@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="huge_gcref.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

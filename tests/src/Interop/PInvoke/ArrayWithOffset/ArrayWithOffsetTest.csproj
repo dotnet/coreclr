@@ -5,7 +5,6 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="*.cs" />
   </ItemGroup>

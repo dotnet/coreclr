@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>False</Optimize>
@@ -11,6 +10,4 @@
   <ItemGroup>
     <Compile Include="stress1.cs" />
   </ItemGroup>
-  <PropertyGroup />
-  <ItemGroup />
 </Project>

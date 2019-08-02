@@ -7,9 +7,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="loop_06_24_02.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

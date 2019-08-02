@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
@@ -14,5 +13,4 @@
     <Compile Condition="'$(BuildArch)' ==   'arm'" Include="i_array_merge-i386.il" />
     <Compile Condition="'$(BuildArch)' ==   'armel'" Include="i_array_merge-i386.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -8,8 +8,6 @@
     <DebugType>Full</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="LocallocCnstB32_Loop.cs" />
   </ItemGroup>

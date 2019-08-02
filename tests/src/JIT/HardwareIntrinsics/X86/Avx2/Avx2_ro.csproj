@@ -5,12 +5,10 @@
     <!-- It takes a long time to complete (on a non-AVX machine) -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Embedded</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Add.Byte.cs" />
     <Compile Include="Add.Int16.cs" />

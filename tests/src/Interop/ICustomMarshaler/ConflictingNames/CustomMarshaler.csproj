@@ -3,9 +3,7 @@
   <PropertyGroup>
     <OutputType>library</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="CustomMarshaler.cs" />
   </ItemGroup>
-  <ItemGroup></ItemGroup>
 </Project>

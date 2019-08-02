@@ -9,9 +9,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Test-TLS.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

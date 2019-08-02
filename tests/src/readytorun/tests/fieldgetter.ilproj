@@ -3,9 +3,7 @@
     <OutputType>Library</OutputType>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="fieldgetter.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

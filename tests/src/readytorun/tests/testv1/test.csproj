@@ -4,9 +4,7 @@
     <DefineConstants>$(DefineConstants);STATIC;CORECLR</DefineConstants>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="..\test.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

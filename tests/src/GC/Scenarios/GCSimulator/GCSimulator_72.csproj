@@ -10,10 +10,8 @@
     <CLRTestProjectToRun>GCSimulator.csproj</CLRTestProjectToRun>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="GCSimulator.cs" />
     <Compile Include="lifetimefx.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

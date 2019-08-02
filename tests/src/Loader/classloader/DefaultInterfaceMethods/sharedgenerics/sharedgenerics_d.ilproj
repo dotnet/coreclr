@@ -8,12 +8,10 @@
     <!-- See https://github.com/dotnet/coreclr/issues/25690 -->
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="sharedgenerics.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

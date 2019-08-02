@@ -3,12 +3,9 @@
     <OutputType>Exe</OutputType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="DoWhileBndChk.cs" />
   </ItemGroup>
-  <PropertyGroup />
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>

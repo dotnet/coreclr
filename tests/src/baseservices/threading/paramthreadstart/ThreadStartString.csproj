@@ -5,9 +5,7 @@
     <CLRTestExecutionArguments>MyStringHere</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="threadstartstring.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

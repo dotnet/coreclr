@@ -5,7 +5,6 @@
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>False</Optimize>
@@ -13,5 +12,4 @@
   <ItemGroup>
     <Compile Include="refarg_i1.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -5,7 +5,6 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="TraceControl.cs" />
     <ProjectReference Include="../common/common.csproj" />

@@ -8,9 +8,7 @@
     <!-- This test leaves secondary threads running at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ExternalException.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

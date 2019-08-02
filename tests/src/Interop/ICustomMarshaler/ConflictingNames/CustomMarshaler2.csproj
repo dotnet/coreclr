@@ -4,9 +4,7 @@
     <OutputType>library</OutputType>
     <DefineConstants>$(DefineConstants);CUSTOMMARSHALERS2</DefineConstants>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="CustomMarshaler.cs" />
   </ItemGroup>
-  <ItemGroup></ItemGroup>
 </Project>

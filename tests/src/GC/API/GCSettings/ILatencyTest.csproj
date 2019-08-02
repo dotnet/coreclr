@@ -4,9 +4,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <CLRTestKind>SharedLibrary</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ILatencyTest.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

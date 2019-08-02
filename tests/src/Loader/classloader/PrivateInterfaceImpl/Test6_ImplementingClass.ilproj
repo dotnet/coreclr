@@ -5,7 +5,6 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Test6_ImplementingClass.il" />
   </ItemGroup>
@@ -14,5 +13,4 @@
     <ProjectReference Include="Test6_supplier.ilproj" />
     <ProjectReference Include="Test6_FriendPriInterface.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

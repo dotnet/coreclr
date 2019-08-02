@@ -5,7 +5,6 @@
     <GCStressIncompatible Condition="'$(Platform)' == 'x86'">true</GCStressIncompatible>
     <HeapVerifyIncompatible Condition="'$(Platform)' == 'x86'">true</HeapVerifyIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
@@ -16,5 +15,4 @@
   <ItemGroup>
     <Compile Include="hijacking.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

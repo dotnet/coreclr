@@ -4,12 +4,10 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="jmpwrappers.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

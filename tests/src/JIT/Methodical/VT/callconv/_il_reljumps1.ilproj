@@ -4,12 +4,10 @@
     <RestorePackages>true</RestorePackages>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="jumps1.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

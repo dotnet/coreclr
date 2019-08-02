@@ -5,9 +5,7 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="stack.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

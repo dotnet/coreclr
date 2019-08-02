@@ -5,9 +5,7 @@
     <!-- The test timeouts when running tests in parallel -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="bestfit-finalize.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

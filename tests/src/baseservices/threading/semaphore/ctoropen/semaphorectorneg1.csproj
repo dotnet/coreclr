@@ -4,9 +4,7 @@
     <CLRTestPriority>1</CLRTestPriority>
     <CLRTestExecutionArguments>/iCount:-2147483647 /mCount:2147483647</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="semaphorectorneg1.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

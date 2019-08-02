@@ -6,9 +6,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="badendfinally.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

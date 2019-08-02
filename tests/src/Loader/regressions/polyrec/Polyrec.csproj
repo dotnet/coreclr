@@ -7,9 +7,7 @@
     <!-- This test leaves threads running at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="polyrec.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

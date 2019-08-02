@@ -5,9 +5,7 @@
     <CLRTestKind>SharedLibrary</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="forwarder1.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

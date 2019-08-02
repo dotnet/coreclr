@@ -3,9 +3,7 @@
     <OutputType>Exe</OutputType>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="gcstress.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

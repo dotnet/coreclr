@@ -2,10 +2,7 @@
   <PropertyGroup>
     <OutputType>Library</OutputType>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="StringThrower.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

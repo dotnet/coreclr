@@ -6,9 +6,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ebdTryEnd.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

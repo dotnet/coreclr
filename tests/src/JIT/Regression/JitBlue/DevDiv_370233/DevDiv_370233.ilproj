@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>None</DebugType>
     <Optimize>True</Optimize>
@@ -20,5 +19,4 @@ $(BashCLRTestPreCommands)
 export COMPlus_JitStressRegs=0x200
 ]]></BashCLRTestPreCommands>
   </PropertyGroup>
-  <ItemGroup />
 </Project>

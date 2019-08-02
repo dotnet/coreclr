@@ -9,9 +9,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>False</Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="global.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

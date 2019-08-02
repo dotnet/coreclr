@@ -4,9 +4,7 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestExecutionArguments>7 40 4 77</CLRTestExecutionArguments>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="rancollect.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

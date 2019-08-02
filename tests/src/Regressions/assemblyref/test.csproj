@@ -4,7 +4,6 @@
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="test.cs" />
   </ItemGroup>
@@ -14,5 +13,4 @@
       <Name>assem</Name>
     </ProjectReference>
   </ItemGroup>
-  <ItemGroup />
 </Project>

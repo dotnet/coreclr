@@ -4,7 +4,6 @@
     <CLRTestKind>BuildOnly</CLRTestKind>
     <GenerateRunScript>false</GenerateRunScript>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType></DebugType>
     <DefineConstants>$(DefineConstants);NESTED_HFA;FLOAT64</DefineConstants>
@@ -12,5 +11,4 @@
   <ItemGroup>
     <Compile Include="hfa_common.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

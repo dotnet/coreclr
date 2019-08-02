@@ -6,10 +6,8 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="semaphoreopenneg6.cs" />
     <Compile Include="..\semaphorecommon.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

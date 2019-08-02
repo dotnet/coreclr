@@ -10,10 +10,7 @@
     <DebugType>PdbOnly</DebugType>
     <Optimize>True</Optimize>
   </PropertyGroup>
-  <ItemGroup />
-  <PropertyGroup></PropertyGroup>
   <ItemGroup>
     <Compile Include="calli_excep.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

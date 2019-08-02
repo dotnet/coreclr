@@ -4,9 +4,7 @@
     <CLRTestPriority>1</CLRTestPriority>
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="unregister03.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

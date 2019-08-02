@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
@@ -12,5 +11,4 @@
     <Compile Include="testgenstr.cs" />
     <Compile Include="test4.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

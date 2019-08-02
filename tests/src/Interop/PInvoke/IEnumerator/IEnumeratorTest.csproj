@@ -10,7 +10,6 @@
     <!-- RefCounted handle to System.Runtime.InteropServices.CustomMarshalers.EnumVariantViewOfEnumerator holds the LoaderAllocator alive via System.Linq.Enumerable+RangeIterator -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="*.cs" />
   </ItemGroup>

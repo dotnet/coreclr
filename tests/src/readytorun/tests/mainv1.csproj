@@ -5,7 +5,6 @@
     <DefineConstants>$(DefineConstants);STATIC;CORECLR</DefineConstants>
     <CrossGenTest>false</CrossGenTest>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <ProjectReference Include="fieldgetter.ilproj" />
     <ProjectReference Include="testv1\test.csproj">
@@ -16,7 +15,6 @@
   <ItemGroup>
     <Compile Include="main.cs" />
   </ItemGroup>
-  <ItemGroup />
   <PropertyGroup>
     <CLRTestBatchPreCommands><![CDATA[
 $(CLRTestBatchPreCommands)

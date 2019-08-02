@@ -5,9 +5,7 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Nested_I_Nested_J\TestCase6.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

@@ -7,7 +7,6 @@
     <Optimize>True</Optimize>
     <JitOptimizationSensitive>true</JitOptimizationSensitive>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ExplicitTailCallNoSO.il" />
   </ItemGroup>

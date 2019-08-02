@@ -2,7 +2,6 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
   </PropertyGroup>
@@ -10,5 +9,4 @@
     <Compile Include="castclass032.cs" />
     <Compile Include="..\structdef.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

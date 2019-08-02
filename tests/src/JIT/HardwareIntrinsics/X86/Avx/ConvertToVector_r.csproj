@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Embedded</DebugType>
     <Optimize></Optimize>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="ConvertToVector128Int32.Double.cs" />
     <Compile Include="ConvertToVector128Single.Double.cs" />

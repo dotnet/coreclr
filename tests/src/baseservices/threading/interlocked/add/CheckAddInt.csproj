@@ -5,9 +5,7 @@
     <CLRTestExecutionArguments>/start:2147483647 /add:100</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="checkaddint.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

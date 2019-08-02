@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="ldelem_get.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

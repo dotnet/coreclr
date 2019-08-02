@@ -4,9 +4,7 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="memcheck.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

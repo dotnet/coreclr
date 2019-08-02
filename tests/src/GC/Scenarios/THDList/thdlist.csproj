@@ -5,11 +5,9 @@
     <!-- This test leaves threads running at exit -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="thdlist.cs" />
     <Compile Include="llthread.cs" />
     <Compile Include="linkedlist.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

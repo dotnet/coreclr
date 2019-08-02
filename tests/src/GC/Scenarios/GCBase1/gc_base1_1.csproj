@@ -5,9 +5,7 @@
     <CLRTestExecutionArguments>8 100</CLRTestExecutionArguments>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="gc_base1.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

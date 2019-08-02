@@ -5,9 +5,7 @@
     <DefineConstants>$(DefineConstants);STATIC;PROJECTK_BUILD</DefineConstants>
     <CLRTestKind>BuildOnly</CLRTestKind>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="b115557.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

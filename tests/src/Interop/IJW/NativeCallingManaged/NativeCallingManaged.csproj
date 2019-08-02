@@ -14,7 +14,6 @@
   <PropertyGroup>
     <CopyDebugCRTDllsToOutputDirectory>true</CopyDebugCRTDllsToOutputDirectory>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="NativeCallingManaged.cs" />
     <Compile Include="../IjwHelper.cs" />

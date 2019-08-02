@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
     <Optimize>False</Optimize>
@@ -11,6 +10,4 @@
   <ItemGroup>
     <Compile Include="loop6.cs" />
   </ItemGroup>
-  <PropertyGroup />
-  <ItemGroup />
 </Project>

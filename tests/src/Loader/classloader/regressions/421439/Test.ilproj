@@ -5,7 +5,6 @@
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="Test.il" />
   </ItemGroup>
@@ -13,5 +12,4 @@
     <ProjectReference Include="RefX1.ilproj" />
     <ProjectReference Include="ValX1.ilproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

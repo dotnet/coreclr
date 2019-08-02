@@ -3,12 +3,10 @@
     <OutputType>Exe</OutputType>
     <RestorePackages>true</RestorePackages>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <DebugType>Full</DebugType>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="float64_range1.il" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

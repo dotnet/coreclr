@@ -6,7 +6,6 @@
     <TestUnsupportedOutsideWindows>true</TestUnsupportedOutsideWindows>
     <DisableProjectBuild Condition="'$(TargetsUnix)' == 'true'">true</DisableProjectBuild>
   </PropertyGroup>
-  <ItemGroup />
   <PropertyGroup>
     <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
     <DebugType>PdbOnly</DebugType>
@@ -16,5 +15,4 @@
   <ItemGroup>
     <Compile Include="getclassfrommethodparam.cs" />
   </ItemGroup>
-  <ItemGroup />
 </Project>

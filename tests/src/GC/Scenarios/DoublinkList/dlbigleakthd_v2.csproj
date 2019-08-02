@@ -4,12 +4,10 @@
     <GCStressIncompatible>true</GCStressIncompatible>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
-  <ItemGroup />
   <ItemGroup>
     <Compile Include="dlbigleakthd.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="DoubLink.csproj" />
   </ItemGroup>
-  <ItemGroup />
 </Project>
