@@ -9,10 +9,7 @@
     <Compile Include="Reflection.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Common\CoreCLRTestLibrary\CoreCLRTestLibrary.csproj">
-      <Project>{c8c0dc74-fac4-45b1-81fe-70c4808366e0}</Project>
-      <Name>CoreCLRTestLibrary</Name>
-    </ProjectReference>
+    <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
     <ProjectReference Include="..\NETServer\NETServer.csproj">
       <Project>{C04AB564-CC61-499D-9F4C-AA1A9FDE42C9}</Project>
       <Name>NETServer</Name>

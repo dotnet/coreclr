@@ -14,7 +14,7 @@
   <ItemGroup>
     <ProjectReference Include="DefaultInterfaces/CMakeLists.txt" />
     <ProjectReference Include="../NetServer/NetServer.DefaultInterfaces.ilproj" />
-    <ProjectReference Include="../../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+    <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), Interop.settings.targets))\Interop.settings.targets" />
 </Project>

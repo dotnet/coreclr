@@ -10,6 +10,6 @@
   <ItemGroup>
     <Compile Include="ContextualReflection.cs" />
     <ProjectReference Include="ContextualReflectionDependency.csproj" />
-    <ProjectReference Include="../../Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
+    <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />
   </ItemGroup>
 </Project>
