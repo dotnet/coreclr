@@ -6970,8 +6970,6 @@ void gc_heap::card_bundle_clear (size_t cardb)
 #endif
     dprintf (2, ("Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_bundle_cardw (cardb),
               (size_t)card_bundle_cardw (cardb+1)));
-    STRESS_LOG3(LF_GC, LL_INFO1000000, "Cleared card bundle %Ix [%Ix, %Ix[", cardb, (size_t)card_address(card_bundle_cardw(cardb)*card_word_width),
-        (size_t)card_address(card_bundle_cardw(cardb + 1) * card_word_width));
 }
 
 void gc_heap::card_bundle_set (size_t cardb)
@@ -24681,8 +24679,6 @@ void gc_heap::relocate_address (uint8_t** pold_address THREAD_NUMBER_DCL)
             }
         }
 
-//        STRESS_LOG3(LF_GC, LL_INFO1000000, "reloc: %Ix old: %Ix new: %Ix", pold_address, old_address, new_address);
-
         *pold_address = new_address;
         return;
     }
@@ -28947,7 +28943,6 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
             dprintf (3, ("NewC: %Ix, start: %Ix, end: %Ix",
                         (size_t)card, (size_t)start_address,
                         (size_t)card_address (end_card)));
-            STRESS_LOG3(LF_GC, LL_INFO10000, "New run of cards on heap %d: [%Ix,%Ix[\n", heap_number, (size_t)start_address, (size_t)card_address(end_card));
         }
         limit = min (end, card_address (end_card));
 
@@ -28993,8 +28988,8 @@ bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_
         {
             if (seg == segment)
             {
-                low = ticket_within_seg == 0 ? start : aligned_start + (size_t)ticket_within_seg * CARD_MARKING_STEALING_GRANULARITY;
-                high = (ticket_within_seg + 1 == ticket_count_within_seg) ? end : aligned_start + (size_t)(ticket_within_seg + 1) * CARD_MARKING_STEALING_GRANULARITY;
+                low = (ticket_within_seg == 0) ? start : (aligned_start + (size_t)ticket_within_seg * CARD_MARKING_STEALING_GRANULARITY);
+                high = (ticket_within_seg + 1 == ticket_count_within_seg) ? end : (aligned_start + (size_t)(ticket_within_seg + 1) * CARD_MARKING_STEALING_GRANULARITY);
                 chunk_high = high;
                 return true;
             }
