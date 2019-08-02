@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>FuncPtrAsDelegateParam</AssemblyName>
     <OutputType>exe</OutputType>
@@ -19,5 +18,4 @@
     </ProjectReference>
     <ProjectReference Include="CMakeLists.txt"></ProjectReference>
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

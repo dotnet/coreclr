@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>ExplicitSize</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -11,5 +10,4 @@
     <Compile Include="ExplicitSize.cs" />
   </ItemGroup>
   <ItemGroup />
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

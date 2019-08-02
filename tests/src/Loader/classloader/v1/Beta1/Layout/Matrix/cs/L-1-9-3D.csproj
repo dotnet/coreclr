@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>L-1-9-3D</AssemblyName>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -12,5 +11,4 @@
     <Compile Include="L-1-9-3D.cs" />
   </ItemGroup>
   <ItemGroup />
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

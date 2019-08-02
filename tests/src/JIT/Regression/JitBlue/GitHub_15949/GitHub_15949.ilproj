@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -11,5 +10,4 @@
   <ItemGroup>
     <Compile Include="GitHub_15949.il" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

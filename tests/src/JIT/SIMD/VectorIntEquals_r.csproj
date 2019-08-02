@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
@@ -14,5 +13,4 @@
     <Compile Include="VectorIntEquals.cs" />
     <Compile Include="VectorUtil.cs" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

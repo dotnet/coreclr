@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -20,5 +19,4 @@
     <ProjectReference Include="..\dll\hfa_nested_f64_interop_cpp.csproj" />
     <ProjectReference Include="..\dll\CMakelists.txt" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

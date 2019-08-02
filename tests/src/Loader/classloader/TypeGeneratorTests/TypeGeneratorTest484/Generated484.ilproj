@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>Generated484</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -13,5 +12,4 @@
     <ProjectReference Include="..\TestFramework\TestFramework.csproj" />
   </ItemGroup>
   <ItemGroup />
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

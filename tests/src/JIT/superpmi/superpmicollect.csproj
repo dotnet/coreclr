@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -19,7 +18,6 @@
     <Compile Include="superpmicollect.cs" />
   </ItemGroup>
   <ItemGroup />
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <!-- TestProjects file contains the relative paths to the test projects that are used by superpmicollect test. -->
   <PropertyGroup>
     <_TestProjectsFileName>TestProjects.txt</_TestProjectsFileName>

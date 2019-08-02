@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>Activator</AssemblyName>
     <OutputType>Exe</OutputType>
@@ -22,7 +21,6 @@
     <ProjectReference Include="Servers\AssemblyC.csproj" />
     <ProjectReference Include="Servers\AssemblyContracts.csproj" />
   </ItemGroup>
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
   <!-- Set up an isolated directory for the server assemblies -->
   <Target Name="SetUpIsolatedDirectory" AfterTargets="CopyFilesToOutputDirectory">
     <PropertyGroup>
