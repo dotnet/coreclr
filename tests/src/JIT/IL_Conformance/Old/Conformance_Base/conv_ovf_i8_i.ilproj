@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk.IL">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <DisableProjectBuild Condition="'$(Platform)' == 'x64'">true</DisableProjectBuild>

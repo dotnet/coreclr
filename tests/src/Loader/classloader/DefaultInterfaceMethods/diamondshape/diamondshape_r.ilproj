@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk.IL">
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ReferenceLocalMscorlib>true</ReferenceLocalMscorlib>
@@ -7,7 +7,7 @@
     <CLRTestPriority>0</CLRTestPriority>
   </PropertyGroup>
   <PropertyGroup>
-    <DebugType></DebugType>
+    <DebugType />
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="diamondshape.il" />

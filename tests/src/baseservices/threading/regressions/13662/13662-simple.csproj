@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <!-- Under heavy load, some of the TimerCallback functions don't complete before the test exits, preventing unload -->

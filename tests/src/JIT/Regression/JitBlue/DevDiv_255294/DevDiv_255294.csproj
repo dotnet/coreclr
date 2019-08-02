@@ -1,10 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
   <PropertyGroup>
-    <DebugType></DebugType>
+    <DebugType />
     <Optimize>True</Optimize>
     <!-- It hits timeout with R2R and JitStress=1, issue 16573 -->
     <JitOptimizationSensitive>true</JitOptimizationSensitive>

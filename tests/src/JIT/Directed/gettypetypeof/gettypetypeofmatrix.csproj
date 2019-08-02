@@ -1,10 +1,10 @@
-<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
   <PropertyGroup>
     <!-- Set to 'Full' if the Debug? column is marked in the spreadsheet. Leave blank otherwise. -->
-    <DebugType></DebugType>
+    <DebugType />
     <!-- Set to 'True' if the Debug? column is marked in the spreadsheet, and 'False' otherwise. -->
     <Optimize>True</Optimize>
   </PropertyGroup>

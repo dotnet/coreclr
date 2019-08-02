@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -6,7 +6,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <DebugType>None</DebugType>
-    <Optimize></Optimize>
+    <Optimize />
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Ldind.cs" />

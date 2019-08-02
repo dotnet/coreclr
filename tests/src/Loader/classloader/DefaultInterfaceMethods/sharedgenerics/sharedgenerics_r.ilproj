@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project Sdk="Microsoft.NET.Sdk.IL">
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ReferenceLocalMscorlib>true</ReferenceLocalMscorlib>
@@ -9,7 +9,7 @@
     <GCStressIncompatible>true</GCStressIncompatible>
   </PropertyGroup>
   <PropertyGroup>
-    <DebugType></DebugType>
+    <DebugType />
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="sharedgenerics.il" />
