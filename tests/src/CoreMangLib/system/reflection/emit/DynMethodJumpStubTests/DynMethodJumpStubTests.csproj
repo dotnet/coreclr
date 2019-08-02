@@ -1,10 +1,7 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
     <AssemblyName>DynMethodJumpStubTests</AssemblyName>
-    <ProjectGuid>{742D9E05-668D-4B90-97F9-717A7572FE6C}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <CLRTestPriority>1</CLRTestPriority>
     <!-- Test unsupported outside of windows -->

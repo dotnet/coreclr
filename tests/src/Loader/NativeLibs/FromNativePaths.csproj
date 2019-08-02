@@ -1,10 +1,7 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <AssemblyName>FromNativePaths</AssemblyName>
-    <ProjectGuid>{649A239B-AB4B-4E20-BDCA-3BA736E8B790}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <!-- The test cannot be run twice in the same process since it moves a native dll that it uses for pinvoke later -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>

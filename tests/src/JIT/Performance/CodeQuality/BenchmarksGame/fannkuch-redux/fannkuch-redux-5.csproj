@@ -1,15 +1,7 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <SchemaVersion>2.0</SchemaVersion>
-    <ProjectGuid>{F49D82D3-9D13-47B5-83F8-52B1FE3FF452}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
-    <NuGetTargetMoniker>.NETStandard,Version=v1.4</NuGetTargetMoniker>
-    <NuGetTargetMonikerShort>netstandard1.4</NuGetTargetMonikerShort>
   </PropertyGroup>
   <PropertyGroup>
     <DebugType>pdbonly</DebugType>

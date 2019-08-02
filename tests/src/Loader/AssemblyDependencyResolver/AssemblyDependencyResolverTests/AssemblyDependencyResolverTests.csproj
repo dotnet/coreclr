@@ -4,10 +4,6 @@
     <OutputType>Exe</OutputType>
     <CLRTestKind>BuildAndRun</CLRTestKind>
     <CLRTestPriority>1</CLRTestPriority>
-    <ProjectGuid>{ABB86728-A3E0-4489-BD97-A0BAB00B322F}</ProjectGuid>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectTypeGuids>{786C830F-07A1-408B-BD7F-6EE04809D6DB};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <RequiresMockHostPolicy>true</RequiresMockHostPolicy>
   </PropertyGroup>
   <ItemGroup>

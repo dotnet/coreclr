@@ -1,10 +1,7 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <AssemblyName>FinalizeTimeout</AssemblyName>
-    <ProjectGuid>{3B0E8096-79D4-413F-9010-F68DF90073B5}</ProjectGuid>
     <OutputType>Exe</OutputType>
     <GCStressIncompatible>true</GCStressIncompatible>
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>

@@ -1,13 +1,9 @@
 <Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <AssemblyName>R2RDumpTest</AssemblyName>
-    <SchemaVersion>2.0</SchemaVersion>
     <OutputType>Exe</OutputType>
     <CLSCompliant>false</CLSCompliant>
-    <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <CoreClrDir>..\..\..\..\..\..\</CoreClrDir>
     <R2RDumpCommand>$(CoreClrDir)bin\Product\$(BuildOS).$(BuildArch).$(BuildType)\netcoreapp2.0\R2RDump.dll</R2RDumpCommand>
     <DotnetToolCommand>$(CoreClrDir).dotnet\dotnet</DotnetToolCommand>
