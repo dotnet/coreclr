@@ -341,7 +341,10 @@ jobs:
     - task: PublishBuildArtifacts@1
       displayName: Publish Test Build
       inputs:
-        pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).*
+        ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+          pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).tar.gz
+        ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+          pathtoPublish: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).zip
         artifactName: ${{ format('Tests_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Publish Logs
