@@ -3961,13 +3961,13 @@ public:
 
 #ifdef FEATURE_CARD_MARKING_STEALING
     PER_HEAP
-    VOLATILE(uint32_t)    card_mark_ticket_soh;
+    VOLATILE(uint32_t)    card_mark_chunk_index_soh;
 
     PER_HEAP
     VOLATILE(bool)        card_mark_done_soh;
 
     PER_HEAP
-    VOLATILE(uint32_t)    card_mark_ticket_loh;
+    VOLATILE(uint32_t)    card_mark_chunk_index_loh;
 
     PER_HEAP
     VOLATILE(bool)        card_mark_done_loh;
@@ -3975,11 +3975,11 @@ public:
     PER_HEAP
     void reset_card_marking_enumerators()
     {
-        // set ticket counter to all 1 bits so that incrementing it yields 0 as the first ticket
-        card_mark_ticket_soh = ~0;
+        // set chunk index to all 1 bits so that incrementing it yields 0 as the first index
+        card_mark_chunk_index_soh = ~0;
         card_mark_done_soh = false;
 
-        card_mark_ticket_loh = ~0;
+        card_mark_chunk_index_loh = ~0;
         card_mark_done_loh = false;
     }
 
@@ -4654,15 +4654,15 @@ class card_marking_enumerator
 private:
     heap_segment*       segment;
     uint8_t*            gc_low;
-    uint32_t            segment_start_ticket;
-    VOLATILE(uint32_t)* ticket_counter;
+    uint32_t            segment_start_chunk_index;
+    VOLATILE(uint32_t)* chunk_index_counter;
     uint8_t*            chunk_high;
-    uint32_t            old_ticket;
-    static const uint32_t INVALID_TICKET = ~0u;
+    uint32_t            old_chunk_index;
+    static const uint32_t INVALID_CHUNK_INDEX = ~0u;
 
 public:
     card_marking_enumerator(heap_segment* seg, uint8_t* low, VOLATILE(uint32_t)* counter) :
-        segment(seg), gc_low(low), segment_start_ticket(0), ticket_counter(counter), chunk_high(nullptr), old_ticket(INVALID_TICKET)
+        segment(seg), gc_low(low), segment_start_chunk_index(0), chunk_index_counter(counter), chunk_high(nullptr), old_chunk_index(INVALID_CHUNK_INDEX)
     {
     }
 

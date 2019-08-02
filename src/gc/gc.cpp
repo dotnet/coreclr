@@ -2946,9 +2946,9 @@ CFinalize*  gc_heap::finalize_queue = 0;
 #endif // FEATURE_PREMORTEM_FINALIZATION
 
 #ifdef FEATURE_CARD_MARKING_STEALING
-VOLATILE(uint32_t) gc_heap::card_mark_ticket_soh;
+VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_soh;
 VOLATILE(bool) gc_heap::card_mark_done_soh;
-VOLATILE(uint32_t) gc_heap::card_mark_ticket_loh;
+VOLATILE(uint32_t) gc_heap::card_mark_chunk_index_loh;
 VOLATILE(bool) gc_heap::card_mark_done_loh;
 #endif // FEATURE_CARD_MARKING_STEALING
 
@@ -28969,35 +28969,35 @@ bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_
     if (segment == nullptr)
         return false;
 
-    uint32_t ticket = old_ticket;
-    old_ticket = INVALID_TICKET;
-    if (ticket == INVALID_TICKET)
-        ticket = Interlocked::Increment(ticket_counter);
+    uint32_t chunk_index = old_chunk_index;
+    old_chunk_index = INVALID_CHUNK_INDEX;
+    if (chunk_index == INVALID_CHUNK_INDEX)
+        chunk_index = Interlocked::Increment(chunk_index_counter);
 
     while (true)
     {
-        uint32_t ticket_within_seg = ticket - segment_start_ticket;
+        uint32_t chunk_index_within_seg = chunk_index - segment_start_chunk_index;
 
         uint8_t* start = heap_segment_mem(segment);
         uint8_t* end = compute_next_end(segment, gc_low);
 
         uint8_t* aligned_start = (uint8_t*)((size_t)start & ~(CARD_MARKING_STEALING_GRANULARITY - 1));
         size_t seg_size = end - aligned_start;
-        uint32_t ticket_count_within_seg = (uint32_t)((seg_size + (CARD_MARKING_STEALING_GRANULARITY - 1)) / CARD_MARKING_STEALING_GRANULARITY);
-        if (ticket_within_seg < ticket_count_within_seg)
+        uint32_t chunk_count_within_seg = (uint32_t)((seg_size + (CARD_MARKING_STEALING_GRANULARITY - 1)) / CARD_MARKING_STEALING_GRANULARITY);
+        if (chunk_index_within_seg < chunk_count_within_seg)
         {
             if (seg == segment)
             {
-                low = (ticket_within_seg == 0) ? start : (aligned_start + (size_t)ticket_within_seg * CARD_MARKING_STEALING_GRANULARITY);
-                high = (ticket_within_seg + 1 == ticket_count_within_seg) ? end : (aligned_start + (size_t)(ticket_within_seg + 1) * CARD_MARKING_STEALING_GRANULARITY);
+                low = (chunk_index_within_seg == 0) ? start : (aligned_start + (size_t)chunk_index_within_seg * CARD_MARKING_STEALING_GRANULARITY);
+                high = (chunk_index_within_seg + 1 == chunk_count_within_seg) ? end : (aligned_start + (size_t)(chunk_index_within_seg + 1) * CARD_MARKING_STEALING_GRANULARITY);
                 chunk_high = high;
                 return true;
             }
             else
             {
                 // we found the correct segment, but it's not the segment our caller is in,
-                // so keep the ticket for later
-                old_ticket = ticket;
+                // so keep the chunk index for later
+                old_chunk_index = chunk_index;
                 return false;
             }
         }
@@ -29007,7 +29007,7 @@ bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_
         {
             return false;
         }
-        segment_start_ticket += ticket_count_within_seg;
+        segment_start_chunk_index += chunk_count_within_seg;
     }
 }
 
@@ -29105,7 +29105,7 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
     size_t total_cards_cleared = 0;
 
 #ifdef FEATURE_CARD_MARKING_STEALING
-    card_marking_enumerator card_mark_enumerator (seg, low, (VOLATILE(uint32_t)*)&card_mark_ticket_soh);
+    card_marking_enumerator card_mark_enumerator (seg, low, (VOLATILE(uint32_t)*)&card_mark_chunk_index_soh);
     card_word_end = 0;
 #endif // FEATURE_CARD_MARKING_STEALING
 
@@ -33311,7 +33311,7 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
     size_t total_cards_cleared = 0;
 
 #ifdef FEATURE_CARD_MARKING_STEALING
-    card_marking_enumerator card_mark_enumerator(seg, low, (VOLATILE(uint32_t)*) & card_mark_ticket_loh);
+    card_marking_enumerator card_mark_enumerator(seg, low, (VOLATILE(uint32_t)*) & card_mark_chunk_index_loh);
     card_word_end = 0;
 #endif // FEATURE_CARD_MARKING_STEALING
 
