@@ -435,7 +435,9 @@ VOID ParseNativeType(Module*                     pModule,
             {
                 if (fDefault || ntype == NATIVE_TYPE_STRUCT)
                 {
-                    selectedNft = InitFieldMarshaler<FieldMarshaler_Decimal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED_VALUE_CLASS);
+                    // The decimal type can't be blittable since the managed and native alignment requirements differ.
+                    // Native needs 8-byte alignment since one field is a 64-bit integer, but managed only needs 4-byte alignment since all fields are ints.
+                    selectedNft = InitFieldMarshaler<FieldMarshaler_Decimal>(pfwalk->m_FieldMarshaler, NATIVE_FIELD_CATEGORY_NESTED);
                 }
 #ifdef FEATURE_COMINTEROP
                 else if (ntype == NATIVE_TYPE_CURRENCY)
