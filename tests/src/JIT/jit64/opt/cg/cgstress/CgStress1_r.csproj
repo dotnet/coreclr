@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Exe</OutputType>
     <!-- NOTE: this test simply takes too long to complete under heap verify. It is not fundamentally incompatible. -->
     <GCStressIncompatible Condition="'$(Platform)' == 'x86'">true</GCStressIncompatible>

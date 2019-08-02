@@ -1,7 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <AssemblyName>interfacestatics</AssemblyName>
-    <FileAlignment>512</FileAlignment>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <ReferenceLocalMscorlib>true</ReferenceLocalMscorlib>
     <OutputType>Exe</OutputType>

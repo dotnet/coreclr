@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Library</OutputType>
     <RestorePackages>true</RestorePackages>
     <CLRTestKind>BuildOnly</CLRTestKind>

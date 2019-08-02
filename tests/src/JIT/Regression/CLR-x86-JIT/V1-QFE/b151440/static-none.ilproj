@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk.IL" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Exe</OutputType>
     <!-- This is failing due to the fact that it compares main arguments with the GetCommandLineArgs function result -->
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>

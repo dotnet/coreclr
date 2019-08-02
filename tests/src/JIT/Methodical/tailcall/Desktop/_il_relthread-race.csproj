@@ -1,6 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <AssemblyName>$(MSBuildProjectName)</AssemblyName>
     <OutputType>Exe</OutputType>
     <!-- NOTE: this test simply takes too long to complete under heap verify or GCStress. It is not fundamentally incompatible. -->
     <HeapVerifyIncompatible>true</HeapVerifyIncompatible>
