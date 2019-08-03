@@ -302,7 +302,7 @@ namespace System
             "(#)", "-#", "- #", "#-", "# -",
         };
 
-        private static readonly SpanAction<char, ulong> int32ToHexCharsAction = Int32ToHexChars;
+        private static readonly SpanAction<char, ulong> s_int32ToHexCharsAction = Int32ToHexChars;
 
         public static unsafe string FormatDecimal(decimal value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
@@ -1137,7 +1137,7 @@ namespace System
             return true;
         }
 
-        private static unsafe string Int32ToHexStr(uint value, char hexBase)
+        private static string Int32ToHexStr(uint value, char hexBase)
         {
             // add the hexBase into the state in the bytes above the value.
             ulong state = hexBase;
@@ -1147,7 +1147,7 @@ namespace System
 
             int bufferLength = Math.Max(1, FormattingHelpers.CountHexDigits(value));
 
-            string result = string.Create(bufferLength, state, int32ToHexCharsAction);
+            string result = string.Create(bufferLength, state, s_int32ToHexCharsAction);
 
             return result;
         }
@@ -1164,13 +1164,15 @@ namespace System
 
             charsWritten = bufferLength;
 
+            Span<char> hexChars = destination.Slice(0, bufferLength);
+
             // add the hexBase into the state in the bytes above the value.
             ulong state = hexBase;
             state <<= 32;
 
             state |= value;
 
-            Int32ToHexChars(destination, state);
+            Int32ToHexChars(hexChars, state);
 
             return true;
         }
@@ -1188,7 +1190,7 @@ namespace System
 
         private static void Int32ToHexChars(Span<char> buffer, ulong state)
         {
-            // the hax base is stored in the higher bytes of the state
+            // the hexBase is stored in the higher bytes of the state
             int hexBase = (int)(state >> 32);
 
             for (int i = buffer.Length - 1; i >= 0; i--)
