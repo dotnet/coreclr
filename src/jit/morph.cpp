@@ -12829,6 +12829,26 @@ DONE_MORPHING_CHILDREN:
             break;
 #endif
 
+
+        case GT_ARR_LENGTH:
+            if (op1->OperIs(GT_IND) && fgGlobalMorph)
+            {
+                GenTree* strCon = op1->AsOp()->gtGetOp1();
+                if (strCon->OperIs(GT_CNS_INT) && strCon->IsIconHandle(GTF_ICON_STR_HDL))
+                {
+                    CORINFO_String* asString = *reinterpret_cast<CORINFO_String * *>(strCon->AsIntCon()->IconValue());
+                    if (asString != nullptr)
+                    {
+                        tree = gtNewIconNode(asString->stringLen);
+#ifdef DEBUG
+                        tree->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
+#endif // DEBUG
+                        return tree;
+                    }
+                }
+            }
+            break;
+
         case GT_ADD:
 
         CM_OVF_OP:
