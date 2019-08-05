@@ -854,26 +854,22 @@ namespace BINDER_SPACE
                                    &bindResult)) == HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
                 )
             {
-                if ((fInspectionOnly && !bindResult.HaveResult()) ||
-                    (bindResult.GetRetargetedAssemblyName() == NULL))
+                IF_FAIL_GO(CreateImageAssembly(pIMetaDataAssemblyImport,
+                                                PeKind,
+                                                pPEImage,
+                                                NULL,
+                                                fInspectionOnly,
+                                                &bindResult));
+                if (fInspectionOnly)
                 {
-                    IF_FAIL_GO(CreateImageAssembly(pIMetaDataAssemblyImport,
-                                                   PeKind,
-                                                   pPEImage,
-                                                   NULL,
-                                                   fInspectionOnly,
-                                                   &bindResult));
-                    if (fInspectionOnly)
-                    {
-                        // For inspection-only, we do not share the map.
-                        IF_FAIL_GO(Register(pApplicationContext, fInspectionOnly, &bindResult));
-                    }
-                    else
-                    {
-                        // Remember the post-bind version of the context
-                        kContextVersion = pApplicationContext->GetVersion();
-                        fNeedHostRegister = TRUE;
-                    }
+                    // For inspection-only, we do not share the map.
+                    IF_FAIL_GO(Register(pApplicationContext, fInspectionOnly, &bindResult));
+                }
+                else
+                {
+                    // Remember the post-bind version of the context
+                    kContextVersion = pApplicationContext->GetVersion();
+                    fNeedHostRegister = TRUE;
                 }
             }
         } // lock(pApplicationContext)
