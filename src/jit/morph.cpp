@@ -12831,6 +12831,7 @@ DONE_MORPHING_CHILDREN:
 
 
         case GT_ARR_LENGTH:
+            // Morph "constant_string".Length to CNS_INT(15)
             if (op1->OperIs(GT_IND) && fgGlobalMorph)
             {
                 GenTree* strCon = op1->AsOp()->gtGetOp1();
