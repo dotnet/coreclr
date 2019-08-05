@@ -810,6 +810,7 @@ namespace System
             // ************************************************************************************
 
             // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
+            // This only includes the roundToNearestTiesToEven code paths
 
             ulong bits = (ulong)BitConverter.DoubleToInt64Bits(a);
             int exponent = double.ExtractExponentFromBits(bits);

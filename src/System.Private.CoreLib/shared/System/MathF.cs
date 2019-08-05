@@ -255,6 +255,7 @@ namespace System
             // ************************************************************************************
 
             // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
+            // This only includes the roundToNearestTiesToEven code paths
 
             uint bits = (uint)BitConverter.SingleToInt32Bits(x);
             int exponent = float.ExtractExponentFromBits(bits);

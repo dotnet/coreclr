@@ -1896,6 +1896,7 @@ double FloatingPointUtils::round(double x)
     // ************************************************************************************
 
     // This is based on the 'Berkeley SoftFloat Release 3e' algorithm
+    // This only includes the roundToNearestTiesToEven code paths
 
     uint64_t bits     = *reinterpret_cast<uint64_t*>(&x);
     int32_t  exponent = (int32_t)(bits >> 52) & 0x07FF;
