@@ -12840,9 +12840,7 @@ DONE_MORPHING_CHILDREN:
                     if (asString != nullptr)
                     {
                         tree = gtNewIconNode(asString->stringLen);
-#ifdef DEBUG
-                        tree->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
-#endif // DEBUG
+                        INDEBUG(tree->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED);
                         return tree;
                     }
                 }
