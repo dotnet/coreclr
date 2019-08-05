@@ -780,7 +780,7 @@ int CEEInfo::getStringLength (
     {
         DWORD dwCharCount;
         LPCWSTR pString;
-        if (!FAILED((module)->GetMDImport()->GetUserString(metaTOK, &dwCharCount, NULL, &pString)) && (pString != nullptr) && (dwCharCount >= 0))
+        if (!FAILED((module)->GetMDImport()->GetUserString(metaTOK, &dwCharCount, NULL, &pString)) && (pString != nullptr))
         {
             length = dwCharCount;
         }
