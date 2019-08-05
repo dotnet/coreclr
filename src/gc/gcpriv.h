@@ -366,7 +366,7 @@ class recursive_gc_sync;
 #define FEATURE_CARD_MARKING_STEALING
 #ifdef FEATURE_CARD_MARKING_STEALING
 class card_marking_enumerator;
-#endif FEATURE_CARD_MARKING_STEALING
+#endif // FEATURE_CARD_MARKING_STEALING
 
 // The following 2 modes are of the same format as in clr\src\bcl\system\runtime\gcsettings.cs
 // make sure you change that one if you change this one!

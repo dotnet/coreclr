@@ -28972,7 +28972,7 @@ bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_
     uint32_t chunk_index = old_chunk_index;
     old_chunk_index = INVALID_CHUNK_INDEX;
     if (chunk_index == INVALID_CHUNK_INDEX)
-        chunk_index = Interlocked::Increment(chunk_index_counter);
+        chunk_index = Interlocked::Increment((volatile int32_t *)chunk_index_counter);
 
     while (true)
     {
