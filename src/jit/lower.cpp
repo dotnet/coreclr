@@ -2070,6 +2070,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
             for (unsigned callerArgLclNum = 0; callerArgLclNum < comp->info.compArgsCount; callerArgLclNum++)
             {
                 LclVarDsc* callerArgDsc = comp->lvaTable + callerArgLclNum;
+                printf("arg%d: IsRegArg: %u, Reg: %d\n", callerArgLclNum, callerArgDsc->lvIsRegArg, callerArgDsc->lvArgReg);
                 if (callerArgDsc->lvIsRegArg)
                     continue;
 
