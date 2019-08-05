@@ -239,7 +239,6 @@ set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
 set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 call "%__ProjectDir%\cmake_msbuild.cmd" /nologo /verbosity:minimal /clp:Summary /nodeReuse:false^
-  /l:BinClashLogger,Tools/net46/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   "%__NativeTestIntermediatesDir%\install.vcxproj"^
@@ -279,7 +278,6 @@ set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 REM Disable warnAsError - coreclr issue 19922
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\build.proj -warnAsError:0 /t:BatchRestorePackages /nodeReuse:false^
-  '/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log'^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   '!__Logging!' %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
@@ -403,7 +401,6 @@ set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\runtest.proj /t:CreateTestOverlay /nodeReuse:false^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%
@@ -437,7 +434,6 @@ set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
 
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -File "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\runtest.proj /t:CreateTestHost /nodeReuse:false^
-  /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll;LogFile=binclash.log^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
   !__Logging! %__CommonMSBuildArgs% %RuntimeIdArg% %__PriorityArg% %__UnprocessedBuildArgs%

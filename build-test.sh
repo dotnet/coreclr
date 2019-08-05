@@ -376,13 +376,6 @@ build_MSBuild_projects()
     __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
 
-    # Use binclashlogger by default if no other logger is specified
-    if [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
-        __msbuildEventLogging=
-    else
-        __msbuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
-    fi
-
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
         # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
         # See https://github.com/Microsoft/msbuild/issues/2993
@@ -412,7 +405,6 @@ build_MSBuild_projects()
             buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
             buildArgs+=("${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-            buildArgs+=("$__msbuildEventLogging")
             buildArgs+=("${extraBuildParameters[@]}")
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
@@ -445,7 +437,6 @@ build_MSBuild_projects()
         buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
         buildArgs+=("${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-        buildArgs+=("$__msbuildEventLogging")
         buildArgs+=("${extraBuildParameters[@]}")
         buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
