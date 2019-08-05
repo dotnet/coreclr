@@ -3791,6 +3791,12 @@ BOOL ZapInfo::isValidStringRef (
     return m_pEEJitInfo->isValidStringRef(tokenScope, token);
 }
 
+int ZapInfo::getStringLength (
+            CORINFO_MODULE_HANDLE       tokenScope,
+            unsigned                    token)
+{
+    return m_pEEJitInfo->getStringLength(tokenScope, token);
+}
 
 //
 // ICorMethodInfo

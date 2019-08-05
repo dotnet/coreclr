@@ -4579,6 +4579,7 @@ void MethodContext::dmpIsValidStringRef(DLD key, DWORD value)
 {
     printf("IsValidStringRef key mod-%016llX tok-%08X, value res-%u", key.A, key.B, value);
 }
+
 BOOL MethodContext::repIsValidStringRef(CORINFO_MODULE_HANDLE module, unsigned metaTOK)
 {
     DLD key;
@@ -4589,6 +4590,39 @@ BOOL MethodContext::repIsValidStringRef(CORINFO_MODULE_HANDLE module, unsigned m
     key.B = (DWORD)metaTOK;
 
     BOOL value = (BOOL)IsValidStringRef->Get(key);
+    return value;
+}
+
+void MethodContext::recGetStringLength(CORINFO_MODULE_HANDLE module, unsigned metaTOK, int result)
+{
+    if (GetStringLength == nullptr)
+        GetStringLength = new LightWeightMap<DLD, DWORD>();
+
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+
+    key.A = (DWORDLONG)module;
+    key.B = (DWORD)metaTOK;
+
+    GetStringLength->Add(key, (DWORD)result);
+}
+
+void MethodContext::dmpGetStringLength(DLD key, DWORD value)
+{
+    printf("GetStringLength key mod-%016llX tok-%08X, value res-%u", key.A, key.B, value);
+}
+
+int MethodContext::repGetStringLength(CORINFO_MODULE_HANDLE module, unsigned metaTOK)
+{
+    DLD key;
+    ZeroMemory(&key, sizeof(DLD)); // We use the input structs as a key and use memcmp to compare.. so we need to zero
+                                   // out padding too
+
+    key.A = (DWORDLONG)module;
+    key.B = (DWORD)metaTOK;
+
+    int value = (int)GetStringLength->Get(key);
     return value;
 }
 

@@ -757,6 +757,44 @@ BOOL CEEInfo::isValidToken (
     return result;
 }
 
+int CEEInfo::getStringLength (
+        CORINFO_MODULE_HANDLE       moduleHnd,
+        mdToken                     metaTOK)
+{
+    CONTRACTL{
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    int length = 0;
+    Module* module = GetModule(moduleHnd);
+
+    JIT_TO_EE_TRANSITION();
+
+    if (IsDynamicScope(moduleHnd))
+    {
+        length = GetDynamicResolver(moduleHnd)->GetStringLength(metaTOK);
+    }
+    else
+    {
+        DWORD dwCharCount;
+        LPCWSTR pString;
+        if (!FAILED((module)->GetMDImport()->GetUserString(metaTOK, &dwCharCount, NULL, &pString)) && (pString != nullptr) && (dwCharCount >= 0))
+        {
+            length = dwCharCount;
+        }
+        else
+        {
+            length = -1;
+        }
+    }
+
+    EE_TO_JIT_TRANSITION();
+
+    return length;
+}
+
 /*********************************************************************/
 // Checks if the given metadata token is valid StringRef
 BOOL CEEInfo::isValidStringRef (

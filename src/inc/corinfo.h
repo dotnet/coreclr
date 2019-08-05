@@ -2304,6 +2304,11 @@ public:
             unsigned                    metaTOK     /* IN  */
             ) = 0;
 
+    virtual int getStringLength (
+            CORINFO_MODULE_HANDLE       module,     /* IN  */
+            unsigned                    metaTOK     /* IN  */
+            ) = 0;
+
     virtual BOOL shouldEnforceCallvirtRestriction(
             CORINFO_MODULE_HANDLE   scope
             ) = 0;

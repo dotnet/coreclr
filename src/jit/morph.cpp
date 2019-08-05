@@ -11717,6 +11717,21 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             }
             break;
 
+        case GT_ARR_LENGTH:
+            // Morph "constant_string".Length to CNS_INT
+            if (op1->OperIs(GT_CNS_STR))
+            {
+                GenTreeStrCon* strCon = op1->AsStrCon();
+                int len = info.compCompHnd->getStringLength(strCon->gtScpHnd, strCon->gtSconCPX);
+                if (len >= 0)
+                {
+                    tree = gtNewIconNode(len);
+                    INDEBUG(tree->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED);
+                    return tree;
+                }
+            }
+            break;
+
         case GT_EQ:
         case GT_NE:
         {
@@ -12828,24 +12843,6 @@ DONE_MORPHING_CHILDREN:
             fgAddCodeRef(compCurBB, bbThrowIndex(compCurBB), SCK_DIV_BY_ZERO);
             break;
 #endif
-
-        case GT_ARR_LENGTH:
-            // Morph "constant_string".Length to CNS_INT(15)
-            if (op1->OperIs(GT_IND) && fgGlobalMorph)
-            {
-                GenTree* strCon = op1->AsOp()->gtGetOp1();
-                if (strCon->OperIs(GT_CNS_INT) && strCon->IsIconHandle(GTF_ICON_STR_HDL))
-                {
-                    CORINFO_String* asString = *reinterpret_cast<CORINFO_String**>(strCon->AsIntCon()->IconValue());
-                    if (asString != nullptr)
-                    {
-                        tree = gtNewIconNode(asString->stringLen);
-                        INDEBUG(tree->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED);
-                        return tree;
-                    }
-                }
-            }
-            break;
 
         case GT_ADD:
 
