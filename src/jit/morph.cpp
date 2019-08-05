@@ -11722,7 +11722,7 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             if (op1->OperIs(GT_CNS_STR))
             {
                 GenTreeStrCon* strCon = op1->AsStrCon();
-                int len = info.compCompHnd->getStringLength(strCon->gtScpHnd, strCon->gtSconCPX);
+                int            len =    info.compCompHnd->getStringLength(strCon->gtScpHnd, strCon->gtSconCPX);
                 if (len >= 0)
                 {
                     tree = gtNewIconNode(len);
