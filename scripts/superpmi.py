@@ -455,14 +455,14 @@ class SuperPMICollect:
             print("")
 
             if self.command != None:
-                print("%s %s" % (self.command, " ".join(args)))
+                print("%s %s" % (self.command, " ".join(self.args)))
 
                 assert isinstance(self.command, str)
-                assert isinstance(args, list)
+                assert isinstance(self.args, list)
 
                 return_code = 1
 
-                self.command, = [self.command,] + args 
+                self.command = [self.command,] + self.args
                 proc = subprocess.Popen(self.command, env=env_copy)
 
                 proc.communicate()
@@ -1572,15 +1572,13 @@ def setup_args(args):
     if coreclr_args.mode == "collect":
         coreclr_args.verify(args,
                             "collection_command",
-                            lambda command_list: command_list is None or len(command_list) == 1,
-                            "Unable to find script.",
-                            modify_arg=lambda arg: arg if arg is None else arg[0],
-                            modify_after_validation=True)
+                            lambda command: command is None or os.path.isfile(command),
+                            "Unable to find script.")
         coreclr_args.verify(args,
                             "collection_args",
                             lambda unused: True,
                             "Unable to set collection_args",
-                            modify_arg=lambda collection_args: collection_args[0].split(" ") if collection_args is not None else collection_args)
+                            modify_arg=lambda collection_args: collection_args.split(" ") if collection_args is not None else collection_args)
 
         coreclr_args.verify(args,
                             "pmi",
@@ -1589,7 +1587,7 @@ def setup_args(args):
         
         coreclr_args.verify(args,
                             "pmi_assemblies",
-                            lambda items: len(items) > 0,
+                            lambda items: args.pmi is False or len(items) > 0,
                             "Unable to set pmi_assemblies",
                             modify_arg=lambda items: [item for item in items if os.path.isdir(item) or os.path.isfile(item)])
 
