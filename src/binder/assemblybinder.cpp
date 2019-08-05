@@ -577,7 +577,7 @@ namespace BINDER_SPACE
 
 #ifndef CROSSGEN_COMPILE
     Retry:
-       {
+        {
             // Lock the binding application context
             CRITSEC_Holder contextLock(pApplicationContext->GetCriticalSectionCookie());
 #endif
@@ -690,7 +690,7 @@ namespace BINDER_SPACE
         StackSString sCoreLibDir(systemDirectory);
         ReleaseHolder<Assembly> pSystemAssembly;
 
-        if(!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
+        if (!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
         {
             sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
         }
@@ -1026,10 +1026,11 @@ namespace BINDER_SPACE
 
         if (!fNgenExplicitBind)
         {
-            IF_FAIL_GO(BindLockedOrService(pApplicationContext,
-                                           pAssemblyName,
-                                           excludeAppPaths,
-                                           &lockedBindResult));
+            IF_FAIL_GO(BindLocked(pApplicationContext,
+                                  pAssemblyName,
+                                  0 /*  Do not IgnoreDynamicBinds */,
+                                  excludeAppPaths,
+                                  &lockedBindResult));
             if (lockedBindResult.HaveResult())
             {
                 pBindResult->SetResult(&lockedBindResult);
@@ -1114,38 +1115,6 @@ namespace BINDER_SPACE
         return hr;
     }
 
-    /* static */
-    HRESULT AssemblyBinder::BindLockedOrService(ApplicationContext *pApplicationContext,
-                                                AssemblyName       *pAssemblyName,
-                                                bool                excludeAppPaths,
-                                                BindResult         *pBindResult)
-    {
-        HRESULT hr = S_OK;
-        BINDER_LOG_ENTER(W("AssemblyBinder::BindLockedOrService"));
-
-        BindResult lockedBindResult;
-
-        IF_FAIL_GO(BindLocked(pApplicationContext,
-                              pAssemblyName,
-                              0 /*  Do not IgnoreDynamicBinds */,
-                              excludeAppPaths,
-                              &lockedBindResult));
-
-        if (lockedBindResult.HaveResult())
-        {
-            // Locked Bind succeeded
-            pBindResult->SetResult(&lockedBindResult);
-        }
-        else
-        {
-            pBindResult->SetNoResult();
-        }
-
-    Exit:
-        BINDER_LOG_LEAVE_HR(W("AssemblyBinder::BindLockedOrService"), hr);
-        return hr;
-    }
-
 #ifndef CROSSGEN_COMPILE
     /* static */
     HRESULT AssemblyBinder::FindInExecutionContext(ApplicationContext  *pApplicationContext,
@@ -1196,8 +1165,7 @@ namespace BINDER_SPACE
     // This does not do a version check.  The binder applies version policy
     // further up the stack once it gets a successful bind.
     //
-    BOOL TestCandidateRefMatchesDef(ApplicationContext *pApplicationContext,
-                                    AssemblyName *pRequestedAssemblyName,
+    BOOL TestCandidateRefMatchesDef(AssemblyName *pRequestedAssemblyName,
                                     AssemblyName *pBoundAssemblyName,
                                     BOOL tpaListAssembly)
     {
@@ -1260,7 +1228,7 @@ namespace BINDER_SPACE
             IF_FAIL_GO(hr);
 
             AssemblyName *pBoundAssemblyName = pAssembly->GetAssemblyName();
-            if (TestCandidateRefMatchesDef(pApplicationContext, pRequestedAssemblyName, pBoundAssemblyName, false /*tpaListAssembly*/))
+            if (TestCandidateRefMatchesDef(pRequestedAssemblyName, pBoundAssemblyName, false /*tpaListAssembly*/))
             {
                 pBindResult->SetResult(pAssembly);
                 GO_WITH_HRESULT(S_OK);
@@ -1376,7 +1344,7 @@ namespace BINDER_SPACE
                     // Any other error is fatal
                     IF_FAIL_GO(hr);
                     
-                    if (TestCandidateRefMatchesDef(pApplicationContext, pRequestedAssemblyName, pTPAAssembly->GetAssemblyName(), true /*tpaListAssembly*/))
+                    if (TestCandidateRefMatchesDef(pRequestedAssemblyName, pTPAAssembly->GetAssemblyName(), true /*tpaListAssembly*/))
                     {
                         // We have found the requested assembly match on TPA with validation of the full-qualified name. Bind to it.
                         pBindResult->SetResult(pTPAAssembly);
@@ -1474,7 +1442,7 @@ namespace BINDER_SPACE
                         // we fail the bind.
 
                         // Compare requested AssemblyName with that from the candidate assembly 
-                        if (TestCandidateRefMatchesDef(pApplicationContext, pRequestedAssemblyName, pAssembly->GetAssemblyName(), false /*tpaListAssembly*/))
+                        if (TestCandidateRefMatchesDef(pRequestedAssemblyName, pAssembly->GetAssemblyName(), false /*tpaListAssembly*/))
                         {
                             // At this point, we have found an assembly with the expected name in the App paths. If this was also found on TPA,
                             // make sure that the app assembly has the same fullname (excluding version) as the TPA version. If it does, then
@@ -1482,7 +1450,7 @@ namespace BINDER_SPACE
                             // TPA assembly.
                             if (fPartialMatchOnTpa)
                             {
-                                if (TestCandidateRefMatchesDef(pApplicationContext, pAssembly->GetAssemblyName(), pTPAAssembly->GetAssemblyName(), true /*tpaListAssembly*/))
+                                if (TestCandidateRefMatchesDef(pAssembly->GetAssemblyName(), pTPAAssembly->GetAssemblyName(), true /*tpaListAssembly*/))
                                 {
                                     // Fullname (SimpleName+Culture+PKT) matched for TPA and app assembly - so bind to TPA instance.
                                     pBindResult->SetResult(pTPAAssembly);

@@ -147,10 +147,6 @@ namespace BINDER_SPACE
                                   /* in */  DWORD               dwBindFlags,
                                   /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
-        static HRESULT BindLockedOrService(/* in */  ApplicationContext *pApplicationContext,
-                                           /* in */  AssemblyName       *pAssemblyName,
-                                           /* in */  bool                excludeAppPaths,
-                                           /* out */ BindResult         *pBindResult);
 
         static HRESULT FindInExecutionContext(/* in */  ApplicationContext  *pApplicationContext,
                                               /* in */  AssemblyName        *pAssemblyName,
