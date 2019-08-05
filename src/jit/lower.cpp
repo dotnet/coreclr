@@ -1167,8 +1167,10 @@ GenTree* Lowering::NewPutArg(GenTreeCall* call, GenTree* arg, fgArgTabEntry* inf
                 }
             }
 
+#ifdef DEBUG
             if (comp->verbose)
                 printf("Creating putarg at slot %d, num slots %d\n", info->slotNum, info->numSlots);
+#endif
 
             putArg =
                 new (comp, GT_PUTARG_STK) GenTreePutArgStk(GT_PUTARG_STK, TYP_VOID, arg,
@@ -2070,16 +2072,20 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
 #if !(defined(_TARGET_WINDOWS_) && defined(_TARGET_64BIT_))
             int               baseOff = -1; // Stack offset of first arg on stack
 #endif
+#ifdef DEBUG
             if (comp->verbose)
                 printf("putarg%d: start: %u, size: %u\n", i, put->getArgOffset(), put->getArgSize());
+#endif
 
             for (unsigned callerArgLclNum = 0; callerArgLclNum < comp->info.compArgsCount; callerArgLclNum++)
             {
                 LclVarDsc* callerArgDsc = comp->lvaTable + callerArgLclNum;
+#ifdef DEBUG
                 if (comp->verbose)
                 {
                     printf("arg%d: IsRegArg: %u, Reg: %d, stkoffs: %d, size: %d\n", callerArgLclNum, callerArgDsc->lvIsRegArg, callerArgDsc->lvArgReg, callerArgDsc->lvStkOffs, comp->lvaLclSize(callerArgLclNum));
                 }
+#endif
                 if (callerArgDsc->lvIsRegArg)
                     continue;
 
