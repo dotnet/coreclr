@@ -4579,7 +4579,6 @@ void MethodContext::dmpIsValidStringRef(DLD key, DWORD value)
 {
     printf("IsValidStringRef key mod-%016llX tok-%08X, value res-%u", key.A, key.B, value);
 }
-
 BOOL MethodContext::repIsValidStringRef(CORINFO_MODULE_HANDLE module, unsigned metaTOK)
 {
     DLD key;
