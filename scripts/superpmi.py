@@ -463,7 +463,7 @@ class SuperPMICollect:
                 return_code = 1
 
                 self.command, = [self.command,] + args 
-                proc = subprocess.Popen(self.command,, env=env_copy)
+                proc = subprocess.Popen(self.command, env=env_copy)
 
                 proc.communicate()
                 return_code = proc.returncode
