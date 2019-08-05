@@ -72,21 +72,20 @@ collect_parser = subparsers.add_parser("collect")
 collect_parser.add_argument("collection_command", nargs='?', help=superpmi_collect_help)
 collect_parser.add_argument("collection_args", nargs='?', help="Arguments to pass to the SuperPMI collect command.")
 
-collect_parser.add_argument("--break_on_assert", dest="break_on_assert", default=False, action="store_true")
-collect_parser.add_argument("--break_on_error", dest="break_on_error", default=False, action="store_true")
+collect_parser.add_argument("--break_on_assert", dest="break_on_assert", default=False, action="store_true", help="While verifying a clean superpmi collection enable break on assert.")
+collect_parser.add_argument("--break_on_error", dest="break_on_error", default=False, action="store_true", help="While verifying a clean superpmi collection enable break on assert.")
 
-collect_parser.add_argument("-log_file", dest="log_file", default=None)
+collect_parser.add_argument("-log_file", dest="log_file", default=None, help="Write output to a log file")
 
-collect_parser.add_argument("-arch", dest="arch", nargs='?', default="x64") 
-collect_parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checked")
-collect_parser.add_argument("-test_location", dest="test_location", nargs="?", default=None)
-collect_parser.add_argument("-pmi_assemblies", dest="pmi_assemblies", nargs="+", default=[])
-collect_parser.add_argument("-core_root", dest="core_root", nargs='?', default=None)
-collect_parser.add_argument("-product_location", dest="product_location", nargs='?', default=None)
-collect_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-collect_parser.add_argument("-test_env", dest="test_env", default=None)
-collect_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
-collect_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
+collect_parser.add_argument("-arch", dest="arch", nargs='?', default="x64", help="Arch, default is x64") 
+collect_parser.add_argument("-build_type", dest="build_type", nargs='?', default="Checked", help="Build type, Checked is default")
+collect_parser.add_argument("-test_location", dest="test_location", nargs="?", default=None, help="Test location. This is optional")
+collect_parser.add_argument("-pmi_assemblies", dest="pmi_assemblies", nargs="+", default=[], help="Pass a sequence of managed dlls or directories to recurisvely run pmi over while collecting.")
+collect_parser.add_argument("-core_root", dest="core_root", nargs='?', default=None, help="Location of the Core_Root location. If not passed it will be deduced if possible.")
+collect_parser.add_argument("-product_location", dest="product_location", nargs='?', default=None, help="Location of the built product, this is optional.")
+collect_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))), help="Location of the coreclr repo. Optional.")
+collect_parser.add_argument("-test_env", dest="test_env", default=None, help="Test env to pass to the coreclr tests if collecting over the tests.")
+collect_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None, help="Location to drop the final mch file. By default it will drop to bin/mch/$(buildType).$(arch).$(config)/$(buildType).$(arch).$(config).mch")
 
 collect_parser.add_argument("--pmi", dest="pmi", default=False, action="store_true", help="Use pmi on a set of directories or assemblies")
 collect_parser.add_argument("--use_zapdisable", dest="use_zapdisable", default=False, action="store_true", help="Allow redundant calls to the systems libraries for more coverage.")
@@ -122,7 +121,6 @@ replay_parser.add_argument("-product_location", dest="product_location", nargs='
 replay_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 replay_parser.add_argument("-test_env", dest="test_env", default=None)
 replay_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
-replay_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
 
 replay_parser.add_argument("--skip_collect_mc_files", dest="skip_collect_mc_files", default=False, action="store_true")
 replay_parser.add_argument("--skip_cleanup", dest="skip_cleanup", default=False, action="store_true")
@@ -149,7 +147,6 @@ asm_diff_parser.add_argument("-product_location", dest="product_location", nargs
 asm_diff_parser.add_argument("-coreclr_repo_location", dest="coreclr_repo_location", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 asm_diff_parser.add_argument("-test_env", dest="test_env", default=None)
 asm_diff_parser.add_argument("-output_mch_path", dest="output_mch_path", default=None)
-asm_diff_parser.add_argument("-run_from_coreclr_dir", dest="run_from_coreclr_dir", default=False)
 asm_diff_parser.add_argument("-previous_temp_location", dest="previous_temp_location", default=None, help="Reuse the existing temp dir location. This is useful if the previous run failed or was canceled.")
 
 asm_diff_parser.add_argument("--skip_collect_mc_files", dest="skip_collect_mc_files", default=False, action="store_true")
@@ -429,7 +426,7 @@ class SuperPMICollect:
     # Helper Methods
     ############################################################################
 
-    def __collect_mc_files__(self,):
+    def __collect_mc_files__(self):
         """ Do the actual SuperPMI collection for a command
         
         Returns:
@@ -458,15 +455,15 @@ class SuperPMICollect:
             print("")
 
             if self.command != None:
-                print("%s %s" % (command, " ".join(args)))
+                print("%s %s" % (self.command, " ".join(args)))
 
-                assert isinstance(command, str)
+                assert isinstance(self.command, str)
                 assert isinstance(args, list)
 
                 return_code = 1
 
-                command = [command] + args 
-                proc = subprocess.Popen(command, env=env_copy)
+                self.command, = [self.command,] + args 
+                proc = subprocess.Popen(self.command,, env=env_copy)
 
                 proc.communicate()
                 return_code = proc.returncode
@@ -1525,11 +1522,6 @@ def setup_args(args):
                         lambda mode: mode in ["collect", "replay", "asmdiffs"],
                         'Incorrect mode passed, please choose from ["collect", "replay", "asmdiffs"]')
 
-    coreclr_args.verify(args,
-                        "run_from_coreclr_dir",
-                        lambda unused: True,
-                        "Error setting run_from_coreclr_dir")
-
     default_coreclr_bin_mch_location = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
 
     def setup_mch_arg(arg):
@@ -1598,7 +1590,7 @@ def setup_args(args):
         coreclr_args.verify(args,
                             "pmi_assemblies",
                             lambda items: len(items) > 0,
-                            "Unable to set pmi",
+                            "Unable to set pmi_assemblies",
                             modify_arg=lambda items: [item for item in items if os.path.isdir(item) or os.path.isfile(item)])
 
         coreclr_args.verify(args,
