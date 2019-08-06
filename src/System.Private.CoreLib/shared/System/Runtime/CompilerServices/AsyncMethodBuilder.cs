@@ -315,7 +315,7 @@ namespace System.Runtime.CompilerServices
     {
 #if !PROJECTN
         /// <summary>A cached task for default(TResult).</summary>
-        internal readonly static Task<TResult> s_defaultResultTask = AsyncTaskCache.CreateCacheableTask<TResult>(default);
+        internal static readonly Task<TResult> s_defaultResultTask = AsyncTaskCache.CreateCacheableTask<TResult>(default);
 #endif
 
         /// <summary>The lazily-initialized built task.</summary>
@@ -517,10 +517,16 @@ namespace System.Runtime.CompilerServices
             box.StateMachine = stateMachine;
             box.Context = currentContext;
 
-            // Finally, log the creation of the state machine box object / task for this async method.
+            // Log the creation of the state machine box object / task for this async method.
             if (AsyncCausalityTracer.LoggingOn)
             {
                 AsyncCausalityTracer.TraceOperationCreation(box, "Async: " + stateMachine.GetType().Name);
+            }
+
+            // And if async debugging is enabled, track the task.
+            if (System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
+            {
+                System.Threading.Tasks.Task.AddToActiveTasks(box);
             }
 
             return box;
@@ -618,6 +624,12 @@ namespace System.Runtime.CompilerServices
 
                 if (IsCompleted)
                 {
+                    // If async debugging is enabled, remove the task from tracking.
+                    if (System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
+                    {
+                        System.Threading.Tasks.Task.RemoveFromActiveTasks(this);
+                    }
+
                     // Clear out state now that the async method has completed.
                     // This avoids keeping arbitrary state referenced by lifted locals
                     // if this Task / state machine box is held onto.
@@ -716,31 +728,14 @@ namespace System.Runtime.CompilerServices
         {
             Debug.Assert(m_task != null, "Expected non-null task");
 
-            if (AsyncCausalityTracer.LoggingOn || System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
-            {
-                LogExistingTaskCompletion();
-            }
-
-            if (!m_task.TrySetResult(result))
-            {
-                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
-            }
-        }
-
-        /// <summary>Handles logging for the successful completion of an operation.</summary>
-        private void LogExistingTaskCompletion()
-        {
-            Debug.Assert(m_task != null);
-
             if (AsyncCausalityTracer.LoggingOn)
             {
                 AsyncCausalityTracer.TraceOperationCompletion(m_task, AsyncCausalityStatus.Completed);
             }
 
-            // only log if we have a real task that was previously created
-            if (System.Threading.Tasks.Task.s_asyncDebuggingEnabled)
+            if (!m_task.TrySetResult(result))
             {
-                System.Threading.Tasks.Task.RemoveFromActiveTasks(m_task);
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.TaskT_TransitionToFinal_AlreadyCompleted);
             }
         }
 
@@ -940,12 +935,12 @@ namespace System.Runtime.CompilerServices
         // All static members are initialized inline to ensure type is beforefieldinit
 
         /// <summary>A cached Task{Boolean}.Result == true.</summary>
-        internal readonly static Task<bool> TrueTask = CreateCacheableTask(true);
+        internal static readonly Task<bool> TrueTask = CreateCacheableTask(true);
         /// <summary>A cached Task{Boolean}.Result == false.</summary>
-        internal readonly static Task<bool> FalseTask = CreateCacheableTask(false);
+        internal static readonly Task<bool> FalseTask = CreateCacheableTask(false);
 
         /// <summary>The cache of Task{Int32}.</summary>
-        internal readonly static Task<int>[] Int32Tasks = CreateInt32Tasks();
+        internal static readonly Task<int>[] Int32Tasks = CreateInt32Tasks();
         /// <summary>The minimum value, inclusive, for which we want a cached task.</summary>
         internal const int INCLUSIVE_INT32_MIN = -1;
         /// <summary>The maximum value, exclusive, for which we want a cached task.</summary>

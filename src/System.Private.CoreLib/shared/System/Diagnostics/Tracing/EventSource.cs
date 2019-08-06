@@ -2067,12 +2067,13 @@ namespace System.Diagnostics.Tracing
             {
                 Type pType = infos[i].ParameterType;
 
+                Type? argType = args[i]?.GetType();
+
                 // Checking to see if the Parameter types (from the Event method) match the supplied argument types.
-                // Fail if one of two things hold : either the argument type is not equal to the parameter type, or the 
-                // argument is null and the parameter type is non-nullable.
-                if ((args[i] != null && (args[i]!.GetType() != pType)) // TODO-NULLABLE: Indexer nullability tracked (https://github.com/dotnet/roslyn/issues/34644)
-                    || (args[i] == null && (!(pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>))))
-                    )
+                // Fail if one of two things hold : either the argument type is not equal or assignable to the parameter type, or the 
+                // argument is null and the parameter type is a non-Nullable<T> value type.
+                if ((args[i] != null && !pType.IsAssignableFrom(argType))
+                    || (args[i] == null && !((pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(Nullable<>)) || !pType.IsValueType)))
                 {
                     typesMatch = false;
                     break;
@@ -2518,7 +2519,7 @@ namespace System.Diagnostics.Tracing
             return eventData.Parameters[parameterId].ParameterType;
         }
 
-        private static readonly bool m_EventSourcePreventRecursion = false;
+        private const bool m_EventSourcePreventRecursion = false;
 #else
         private int GetParameterCount(EventMetadata eventData)
         {
@@ -3956,7 +3957,7 @@ namespace System.Diagnostics.Tracing
         // Rather than depending on initialized statics, use lazy initialization to ensure that the statics are initialized exactly when they are needed.
 
         // used for generating GUID from eventsource name
-        private static byte[] namespaceBytes;
+        private static byte[]? namespaceBytes;
 
 #endregion
     }
@@ -4236,7 +4237,7 @@ namespace System.Diagnostics.Tracing
         /// for a particular eventSource to occur BEFORE the OnEventSourceCreated is issued.
         /// </summary>
         /// <param name="eventSource"></param>
-        internal protected virtual void OnEventSourceCreated(EventSource eventSource)
+        protected internal virtual void OnEventSourceCreated(EventSource eventSource)
         {
             EventHandler<EventSourceCreatedEventArgs>? callBack = this._EventSourceCreated;
             if (callBack != null)
@@ -4252,7 +4253,7 @@ namespace System.Diagnostics.Tracing
         /// the EventListener has enabled events.  
         /// </summary>
         /// <param name="eventData"></param>
-        internal protected virtual void OnEventWritten(EventWrittenEventArgs eventData)
+        protected internal virtual void OnEventWritten(EventWrittenEventArgs eventData)
         {
             EventHandler<EventWrittenEventArgs>? callBack = this.EventWritten;
             if (callBack != null)
@@ -5335,7 +5336,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Instance fields
-        readonly internal EventListener m_Listener;   // The dispatcher this entry is for
+        internal readonly EventListener m_Listener;   // The dispatcher this entry is for
         internal bool[]? m_EventEnabled;              // For every event in a the eventSource, is it enabled?
 
         // Only guaranteed to exist after a InsureInit()
@@ -5519,7 +5520,7 @@ namespace System.Diagnostics.Tracing
         {
             if (this.channelTab == null)
             {
-                return new ulong[0];
+                return Array.Empty<ulong>();
             }
 
             // We create an array indexed by the channel id for fast look up.

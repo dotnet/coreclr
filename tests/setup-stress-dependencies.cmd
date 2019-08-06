@@ -54,7 +54,7 @@ REM ============================================================================
 
 set __DotNetToolDir=%__ThisScriptPath%..\Tools
 set __DotNetCmd=%__ThisScriptPath%..\dotnet.cmd
-set __PackageDir=%__ThisScriptPath%..\Packages
+set __PackageDir=%__ThisScriptPath%..\.packages
 set __CsprojPath=%__ThisScriptPath%\src\Common\stress_dependencies\stress_dependencies.csproj
 
 REM Check if dotnet cli exists
@@ -79,7 +79,7 @@ REM ============================================================================
 
 REM Download the package
 echo Downloading CoreDisTools package
-set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --source https://dotnet.myget.org/F/dotnet-core/ --packages "%__PackageDir%"
+set DOTNETCMD="%__DotNetCmd%" restore "%__CsprojPath%" --packages "%__PackageDir%"
 echo %DOTNETCMD%
 call %DOTNETCMD%
 if errorlevel 1 goto Fail
