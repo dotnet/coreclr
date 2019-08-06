@@ -1897,6 +1897,18 @@ void NotifyDebuggerOfStartup()
 
 #endif // !FEATURE_PAL
 
+#ifdef FEATURE_PAL
+void Debugger::CleanupTransportSocket(void)
+{
+#ifdef FEATURE_DBGIPC_TRANSPORT_VM
+    if (g_pDbgTransport != NULL)
+    {
+        g_pDbgTransport->AbortConnection();
+    }
+#endif // FEATURE_DBGIPC_TRANSPORT_VM
+}
+#endif // FEATURE_PAL
+
 //---------------------------------------------------------------------------------------
 //
 // Initialize Left-Side debugger object
@@ -2049,9 +2061,6 @@ HRESULT Debugger::Startup(void)
             ShutdownTransport();
             ThrowHR(hr);
         }
-    #ifdef FEATURE_PAL
-        PAL_SetShutdownCallback(AbortTransport);
-    #endif // FEATURE_PAL
     #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
         RaiseStartupNotification();
