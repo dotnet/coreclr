@@ -6,15 +6,17 @@ jobs:
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
-    buildConfig: checked
+    buildConfig: release
     platforms:
     - Linux_x64
     - Windows_NT_x64
+    jobParameters:
+      testGroup: gc-reliability
 
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
-    buildConfig: checked
+    buildConfig: release
     platforms:
     - Linux_x64
     - Windows_NT_x64
