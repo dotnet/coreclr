@@ -62,13 +62,7 @@ namespace BINDER_SPACE
                                             /* in */ PEImage    *pNativePEImage,
                                             /* out */ Assembly **ppAssembly);
 
-        // Special assembly binder entry point for byte arrays
-        static HRESULT PreBindByteArray(/* in */  ApplicationContext *pApplicationContext,
-                                        /* in */  PEImage            *pPEImage,
-                                        /* in */  BOOL                fInspectionOnly);
-
         static HRESULT GetAssembly(/* in */  SString     &assemblyPath,
-                                   /* in */  BOOL         fInspectionOnly,
                                    /* in */  BOOL         fIsInGAC,
                                    /* in */  BOOL         fExplicitBindToNativeImage,
                                    /* out */ Assembly   **ppAssembly,
@@ -147,10 +141,6 @@ namespace BINDER_SPACE
                                   /* in */  DWORD               dwBindFlags,
                                   /* in */  bool                excludeAppPaths,
                                   /* out */ BindResult         *pBindResult);
-        static HRESULT BindLockedOrService(/* in */  ApplicationContext *pApplicationContext,
-                                           /* in */  AssemblyName       *pAssemblyName,
-                                           /* in */  bool                excludeAppPaths,
-                                           /* out */ BindResult         *pBindResult);
 
         static HRESULT FindInExecutionContext(/* in */  ApplicationContext  *pApplicationContext,
                                               /* in */  AssemblyName        *pAssemblyName,
@@ -158,12 +148,10 @@ namespace BINDER_SPACE
 
         static HRESULT BindByTpaList(/* in */  ApplicationContext  *pApplicationContext,
                                      /* in */  AssemblyName        *pRequestedAssemblyName,
-                                     /* in */  BOOL                 fInspectionOnly,
                                      /* in */  bool                 excludeAppPaths,
                                      /* out */ BindResult          *pBindResult);
         
         static HRESULT Register(/* in */  ApplicationContext *pApplicationContext,
-                                /* in */  BOOL                fInspectionOnly,
                                 /* in */  BindResult         *pBindResult);
         static HRESULT RegisterAndGetHostChosen(/* in */  ApplicationContext *pApplicationContext,
                                                 /* in */  LONG                kContextVersion,
