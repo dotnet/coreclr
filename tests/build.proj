@@ -51,6 +51,9 @@
   </Target>
 
   <Target Name="RestorePackage">
+    <PropertyGroup>
+     <DotnetRestoreCommand>dotnet restore</DotnetRestoreCommand>
+    </PropertyGroup>
     <Exec Condition="'$(__DistroRid)' == ''" Command="$(DotnetRestoreCommand) $(RestoreProj) $(PackageVersionArg)" StandardOutputImportance="Low" />
     <Exec Condition="'$(__DistroRid)' != ''" Command="$(DotnetRestoreCommand) -r $(__DistroRid) $(RestoreProj) $(PackageVersionArg)" StandardOutputImportance="Low" />
   </Target>

@@ -52,8 +52,6 @@
                                          ProjectLanguage="$(Language)"
                                          ProjectLockFile="%(CoreRootProjectLockJsonFiles.Identity)"
                                          TargetMonikers="@(TestTargetFramework)">
-      <Output TaskParameter="ResolvedAnalyzers" ItemName="Analyzer" />
-      <Output TaskParameter="ResolvedReferences" ItemName="Reference" />
       <Output TaskParameter="ResolvedCopyLocalItems" ItemName="RunTimeCopyLocal" />
     </PrereleaseResolveNuGetPackageAssets>
     <ItemGroup>
@@ -79,83 +77,6 @@
       UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
       <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
     </Copy>
-  </Target>
-
-  <Target Name="CopyDependencyToRef"
-    Inputs="@(RefProjectLockJsonFiles)"
-    Outputs="$(RefDestination)\*.*">
-
-    <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
-         for the xunit wrapper projects -->
-    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="true"
-                                         IncludeFrameworkReferences="false"
-                                         NuGetPackagesDirectory="$(PackagesDir)"
-                                         RuntimeIdentifier="$(TargetRid)"
-                                         ProjectLanguage="$(Language)"
-                                         ProjectLockFile="%(RefProjectLockJsonFiles.Identity)"
-                                         TargetMonikers="@(TestTargetFramework)">
-      <Output TaskParameter="ResolvedAnalyzers" ItemName="RefAnalyzer" />
-      <Output TaskParameter="ResolvedReferences" ItemName="RefReference" />
-      <Output TaskParameter="ResolvedCopyLocalItems" ItemName="RefRunTimeCopyLocal" />
-    </PrereleaseResolveNuGetPackageAssets>
-    
-    <Copy
-      SourceFiles="@(RefRunTimeCopyLocal)"
-      DestinationFolder="$(RefDestination)"
-      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
-      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-      Retries="$(CopyRetryCount)"
-      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
-    </Copy>
-  </Target>
-
-  <Target Name="CopyDependencyToProduct"
-    Inputs="@(ProductProjectLockJsonFiles)"
-    Outputs="$(ProductDestination)\*.*">
-
-    <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
-         for the xunit wrapper projects -->
-    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="true"
-                                         IncludeFrameworkReferences="false"
-                                         NuGetPackagesDirectory="$(PackagesDir)"
-                                         RuntimeIdentifier="$(TargetRid)"
-                                         ProjectLanguage="$(Language)"
-                                         ProjectLockFile="%(ProductProjectLockJsonFiles.Identity)"
-                                         TargetMonikers="@(TestTargetFramework)">
-      <Output TaskParameter="ResolvedAnalyzers" ItemName="RefAnalyzer" />
-      <Output TaskParameter="ResolvedReferences" ItemName="RefReference" />
-      <Output TaskParameter="ResolvedCopyLocalItems" ItemName="RefRunTimeCopyLocal" />
-    </PrereleaseResolveNuGetPackageAssets>
-    
-    <Copy
-      SourceFiles="@(RefRunTimeCopyLocal)"
-      DestinationFolder="$(ProductDestination)"
-      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
-      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-      Retries="$(CopyRetryCount)"
-      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
-    </Copy>
-  </Target>
-
-  <Target Name="CopyCrossgenToProduct"
-    AfterTargets="CopyDependencyToProduct"
-    Outputs="$(ProductDestination)\crossgen.exe;$(CORE_OVERLAY)\crossgen.exe">
-
-    <Copy
-      SourceFiles="@(CrossGenFiles)"
-      DestinationFolder="$(ProductDestination)"
-      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
-      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-      Retries="$(CopyRetryCount)"
-      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
-    </Copy>
-
   </Target>
 
 </Project>

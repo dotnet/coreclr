@@ -172,10 +172,6 @@ REM === Restore Build Tools
 REM ===
 REM =========================================================================================
 
-call "%__ProjectDir%\init-tools.cmd"
-if NOT [%ERRORLEVEL%]==[0] (
-    exit /b %ERRORLEVEL%
-)
 @if defined _echo @echo on
 
 set "__ToolsDir=%__ProjectDir%\Tools"
