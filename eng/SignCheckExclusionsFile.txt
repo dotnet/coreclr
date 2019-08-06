@@ -1,0 +1,11 @@
+;; File passed to the SignCheck tool for exclusions
+
+;; The IL version of SPCL is never signed.
+runtimes/*/il/System.Private.CoreLib.dll; *.nupkg;
+
+;;
+;; Platforms that don't support signing.
+;;
+*.osx-*.nupkg;;
+*.linux-*.nupkg;;
+*.rhel.*.nupkg;;
