@@ -6,6 +6,6 @@
     <CLRTestPriority>1</CLRTestPriority>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="AVException01.cs" />
+    <Compile Include="AVException02.cs" />
   </ItemGroup>
 </Project>
