@@ -7,16 +7,16 @@ jobs:
   parameters:
     jobTemplate: build-job.yml
     buildConfig: checked
+    platforms:
     - Linux_x64
-    - OSX_x64
     - Windows_NT_x64
 
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: test-job.yml
     buildConfig: checked
+    platforms:
     - Linux_x64
-    - OSX_x64
     - Windows_NT_x64
     helixQueueGroup: ci
     jobParameters:
