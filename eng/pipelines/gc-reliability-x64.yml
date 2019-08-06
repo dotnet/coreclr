@@ -1,0 +1,23 @@
+trigger: none
+
+pr: none
+
+jobs:
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: build-job.yml
+    buildConfig: checked
+    - Linux_x64
+    - OSX_x64
+    - Windows_NT_x64
+
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: test-job.yml
+    buildConfig: checked
+    - Linux_x64
+    - OSX_x64
+    - Windows_NT_x64
+    helixQueueGroup: ci
+    jobParameters:
+      testGroup: gc-reliability
