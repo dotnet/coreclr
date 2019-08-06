@@ -62,11 +62,6 @@ namespace BINDER_SPACE
                                             /* in */ PEImage    *pNativePEImage,
                                             /* out */ Assembly **ppAssembly);
 
-        // Special assembly binder entry point for byte arrays
-        static HRESULT PreBindByteArray(/* in */  ApplicationContext *pApplicationContext,
-                                        /* in */  PEImage            *pPEImage,
-                                        /* in */  BOOL                fInspectionOnly);
-
         static HRESULT GetAssembly(/* in */  SString     &assemblyPath,
                                    /* in */  BOOL         fInspectionOnly,
                                    /* in */  BOOL         fIsInGAC,
