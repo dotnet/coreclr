@@ -39,7 +39,6 @@
 #include "dbgenginemetrics.h"
 
 #include "../../vm/rejit.h"
-#include "../../vm/diagnosticserver.h"
 
 #include "threadsuspend.h"
 
@@ -899,7 +898,6 @@ AbortTransport()
     {
         g_pDbgTransport->AbortConnection();
     }
-    DiagnosticServer::Shutdown();
 }
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
