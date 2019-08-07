@@ -44,8 +44,6 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-
-            Debug.Assert(s_dataStore != null, "s_dataStore is not inited yet");
             
             if (s_dataStore == null)
                 return null;
@@ -62,8 +60,6 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-
-            Debug.Assert(s_dataStore != null, "s_dataStore is not inited yet");
 
             if (s_dataStore == null)
             {
