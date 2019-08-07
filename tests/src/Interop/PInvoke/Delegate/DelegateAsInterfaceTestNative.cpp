@@ -9,17 +9,16 @@ namespace
     HRESULT InvokeDelegate(IDispatch* dele, VARIANT* pResult)
     {
         HRESULT hr;
-        BSTR bstrNames[1];
-        bstrNames[0] = SysAllocString(L"DynamicInvoke");
+        BSTR bstrName = SysAllocString(L"DynamicInvoke");
         DISPID dispid = 0;
         hr = dele->GetIDsOfNames(
             IID_NULL,
-            bstrNames,
-            sizeof(bstrNames) / sizeof(bstrNames[0]),
+            &bstrName,
+            1,
             GetUserDefaultLCID(),
             &dispid);
 
-        SysFreeString(bstrNames[0]);
+        SysFreeString(bstrName);
 
         if (FAILED(hr))
         {
@@ -28,8 +27,6 @@ namespace
         }
 
         DISPPARAMS params = { NULL, NULL, 0, 0 };
-
-
         hr = dele->Invoke(
             dispid,
             IID_NULL,
