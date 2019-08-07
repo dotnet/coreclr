@@ -325,7 +325,7 @@ jobs:
     #       - gcstress15
 
     # Zip tests
-    - ${{ if and(eq(parameters.publishTestArtifacts, true, ne(parameters.corefxTests, true)) }}:
+    - ${{ if and(eq(parameters.publishTestArtifacts, true), ne(parameters.corefxTests, true)) }}:
       - task: ArchiveFiles@2
         displayName: Zip Tests
         inputs:
@@ -340,7 +340,7 @@ jobs:
             archiveFile: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).zip
           includeRootFolder: true 
 
-    - ${{ if and(eq(parameters.publishTestArtifacts, true, ne(parameters.corefxTests, true)) }}:
+    - ${{ if and(eq(parameters.publishTestArtifacts, true), ne(parameters.corefxTests, true)) }}:
       - task: PublishBuildArtifacts@1
         displayName: Publish Test Build
         inputs:
