@@ -614,7 +614,9 @@ void EESocketCleanupHelper()
     }
 
     // Close the diagnostic server socket.
+#ifdef FEATURE_PERFTRACING
     DiagnosticServer::Shutdown();
+#endif // FEATURE_PERFTRACING
 }
 #endif // FEATURE_PAL
 #endif // CROSSGEN_COMPILE
@@ -677,11 +679,11 @@ void EEStartupHelper(COINITIEE fFlags)
         // Initialize the event pipe.
         EventPipe::Initialize();
 
+#endif // FEATURE_PERFTRACING
+
 #ifdef FEATURE_PAL
         PAL_SetShutdownCallback(EESocketCleanupHelper);
 #endif // FEATURE_PAL
-
-#endif // FEATURE_PERFTRACING
 
 #ifdef FEATURE_GDBJIT
         // Initialize gdbjit
