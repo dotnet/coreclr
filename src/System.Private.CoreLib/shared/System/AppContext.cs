@@ -13,7 +13,7 @@ namespace System
 {
     public static partial class AppContext
     {
-        private static readonly Dictionary<string, object?> s_dataStore = new Dictionary<string, object?>();
+        private static Dictionary<string, object?> s_dataStore;
         private static Dictionary<string, bool>? s_switches;
         private static string? s_defaultBaseDirectory;
 
@@ -43,6 +43,8 @@ namespace System
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
+            Debug.Assert(s_dataStore != null, "AppContext.Setup should be called first.");
+
             object? data;
             lock (s_dataStore)
             {
@@ -55,6 +57,8 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
+
+            Debug.Assert(s_dataStore != null, "AppContext.Setup should be called first.");
 
             lock (s_dataStore)
             {
@@ -131,5 +135,25 @@ namespace System
                 s_switches[switchName] = isEnabled;
             }
         }
+
+#if !CORERT
+        internal static unsafe void Setup(char** pNames, char** pValues, int count)
+        {
+            s_dataStore = new Dictionary<string, object?>(count);
+            for (int i = 0; i < count; i++)
+            {
+                s_dataStore.Add(new string(pNames[i]), new string(pValues[i]));
+            }
+        }
+
+        private static string GetBaseDirectoryCore()
+        {
+            // Fallback path for hosts that do not set APP_CONTEXT_BASE_DIRECTORY explicitly
+            string? directory = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
+            if (directory != null && !Path.EndsInDirectorySeparator(directory))
+                directory += PathInternal.DirectorySeparatorCharAsString;
+            return directory ?? string.Empty;
+        }
+#endif
     }
 }
