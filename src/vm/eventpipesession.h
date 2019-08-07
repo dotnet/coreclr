@@ -66,6 +66,9 @@ private:
     // irrelevant.
     EventPipeSerializationFormat m_format;
 
+    // For determininig if a particular session needs rundown events
+    const bool m_rundownRequested;
+
     // Start date and time in UTC.
     FILETIME m_sessionStartTime;
 
@@ -99,6 +102,7 @@ public:
         IpcStream *const pStream,
         EventPipeSessionType sessionType,
         EventPipeSerializationFormat format,
+        bool rundownRequested,
         uint32_t circularBufferSizeInMB,
         const EventPipeProviderConfiguration *pProviders,
         uint32_t numProviders,
@@ -108,7 +112,7 @@ public:
     uint64_t GetMask() const
     {
         LIMITED_METHOD_CONTRACT;
-        return (1ui64 << m_index);
+        return ((uint64_t)1 << m_index);
     }
 
     uint32_t GetIndex() const
@@ -129,6 +133,13 @@ public:
     {
         LIMITED_METHOD_CONTRACT;
         return m_format;
+    }
+
+    // Get whether rundown was requested by the client.
+    bool RundownRequested() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_rundownRequested;
     }
 
     // Determine if rundown is enabled.
@@ -178,7 +189,7 @@ public:
     // Get the session provider for the specified provider if present.
     EventPipeSessionProvider* GetSessionProvider(const EventPipeProvider *pProvider) const;
 
-    bool WriteAllBuffersToFile();
+    bool WriteAllBuffersToFile(bool *pEventsWritten);
 
     bool WriteEventBuffered(
         Thread *pThread,
@@ -189,18 +200,27 @@ public:
         Thread *pEventThread = nullptr,
         StackContents *pStack = nullptr);
 
-    void WriteEventUnbuffered(EventPipeEventInstance &instance, EventPipeThread* pThread);
-
     // Write a sequence point into the output stream synchronously
     void WriteSequencePointUnbuffered();
 
     EventPipeEventInstance *GetNextEvent();
 
+    CLREvent *GetWaitEvent();
+
     // Enable a session in the event pipe.
-    void Enable();
+    // MUST be called AFTER sending the IPC response
+    // Side effects:
+    // - sends file header information for nettrace format
+    // - turns on IpcStreaming thread which flushes events to stream
+    void StartStreaming();
 
     // Disable a session in the event pipe.
+    // side-effects: writes all buffers to stream/file
     void Disable();
+
+    // Force all in-progress writes to either finish or cancel
+    // This is required to ensure we can safely flush and delete the buffers
+    void SuspendWriteEvent();
 
     void EnableRundown();
     void ExecuteRundown();

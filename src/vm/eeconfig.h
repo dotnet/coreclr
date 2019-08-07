@@ -613,6 +613,8 @@ public:
     int     GetGCHeapCount()                const {LIMITED_METHOD_CONTRACT; return iGCHeapCount;}
     int     GetGCNoAffinitize ()            const {LIMITED_METHOD_CONTRACT; return iGCNoAffinitize;}
     size_t  GetGCAffinityMask()             const {LIMITED_METHOD_CONTRACT; return iGCAffinityMask;}
+    size_t  GetGCHeapHardLimit()            const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimit;}
+    int     GetGCHeapHardLimitPercent()     const {LIMITED_METHOD_CONTRACT; return iGCHeapHardLimitPercent;}
 
 #ifdef GCTRIMCOMMIT
 
@@ -666,7 +668,6 @@ public:
         REQUIRE_ZAPS_NONE,      // Dont care if native image is used or not
         REQUIRE_ZAPS_ALL,       // All assemblies must have native images
         REQUIRE_ZAPS_ALL_JIT_OK,// All assemblies must have native images, but its OK if the JIT-compiler also gets used (if some function was not ngenned)
-        REQUIRE_ZAPS_SUPPORTED, // All assemblies must have native images, unless the loader does not support the scenario. Its OK if the JIT-compiler also gets used
         
         REQUIRE_ZAPS_COUNT
     };
@@ -918,6 +919,8 @@ private: //----------------------------------------------------------------
     int  iGCHeapCount;
     int  iGCNoAffinitize;
     size_t  iGCAffinityMask;
+    size_t iGCHeapHardLimit;
+    int iGCHeapHardLimitPercent;
 
 #ifdef GCTRIMCOMMIT
 

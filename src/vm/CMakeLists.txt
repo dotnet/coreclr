@@ -383,7 +383,6 @@ set(VM_SOURCES_WKS
     runtimehandles.cpp
     safehandle.cpp
     sampleprofiler.cpp
-    sha1.cpp
     simplerwlock.cpp
     sourceline.cpp
     stackingallocator.cpp
@@ -503,7 +502,6 @@ set(VM_HEADERS_WKS
     reflectioninvocation.h
     runtimehandles.h
     sampleprofiler.h
-    sha1.h
     simplerwlock.hpp
     sourceline.h
     stackcontents.h
@@ -852,6 +850,12 @@ elseif(CLR_CMAKE_TARGET_ARCH_ARM64)
         ${ARCH_SOURCES_DIR}/virtualcallstubcpu.hpp
         exceptionhandling.h
     )
+
+    if(CLR_CMAKE_PLATFORM_UNIX)
+        list(APPEND VM_SOURCES_DAC_AND_WKS_ARCH
+            ${ARCH_SOURCES_DIR}/arm64singlestepper.cpp
+        )
+    endif(CLR_CMAKE_PLATFORM_UNIX)
 endif()
 
 if(CLR_CMAKE_PLATFORM_UNIX)

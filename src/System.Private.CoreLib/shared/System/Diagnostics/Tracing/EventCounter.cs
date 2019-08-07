@@ -114,14 +114,16 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        private void ResetStatistics()
+        internal void ResetStatistics()
         {
-            Debug.Assert(Monitor.IsEntered(this));
-            _count = 0;
-            _sum = 0;
-            _sumSquared = 0;
-            _min = double.PositiveInfinity;
-            _max = double.NegativeInfinity;
+            lock(this)
+            {
+                _count = 0;
+                _sum = 0;
+                _sumSquared = 0;
+                _min = double.PositiveInfinity;
+                _max = double.NegativeInfinity;
+            }
         }
 
         #endregion // Statistics Calculation
@@ -129,7 +131,6 @@ namespace System.Diagnostics.Tracing
         // Values buffering
         private const int BufferedSize = 10;
         private const double UnusedBufferSlotValue = double.NegativeInfinity;
-        private const int UnsetIndex = -1;
         private volatile double[] _bufferedValues = null!;
         private volatile int _bufferedValuesIndex;
 

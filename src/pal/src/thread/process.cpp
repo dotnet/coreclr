@@ -1465,12 +1465,6 @@ static BOOL PROCEndProcess(HANDLE hProcess, UINT uExitCode, BOOL bTerminateUncon
 
         LOGEXIT("PROCEndProcess will not return\n");
 
-        // exit() runs atexit handlers possibly registered by foreign code.
-        // The right thing to do here is to leave the PAL.  If our client
-        // registered our own PAL_Terminate with atexit(), the latter will
-        // explicitly re-enter us.
-        PAL_Leave(PAL_BoundaryBottom);
-
         if (bTerminateUnconditionally)
         {
             // abort() has the semantics that
@@ -3337,8 +3331,9 @@ PROCCreateCrashDump(char** argv)
         // Gives the child process permission to use /proc/<pid>/mem and ptrace
         if (prctl(PR_SET_PTRACER, childpid, 0, 0, 0) == -1)
         {
+            // Ignore any error because on some CentOS and OpenSUSE distros, it isn't
+            // supported but createdump works just fine.
             ERROR("PPROCCreateCrashDump: prctl() FAILED %d (%s)\n", errno, strerror(errno));
-            return false;
         }
         // Parent waits until the child process is done
         int wstatus = 0;
