@@ -890,15 +890,6 @@ ShutdownTransport()
         g_pDbgTransport = NULL;
     }
 }
-
-void
-AbortTransport()
-{
-    if (g_pDbgTransport != NULL)
-    {
-        g_pDbgTransport->AbortConnection();
-    }
-}
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
 
@@ -1895,17 +1886,15 @@ void NotifyDebuggerOfStartup()
 
 #endif // !FEATURE_PAL
 
-#ifdef FEATURE_PAL
 void Debugger::CleanupTransportSocket(void)
 {
-#ifdef FEATURE_DBGIPC_TRANSPORT_VM
+#if defined(FEATURE_PAL) && defined(FEATURE_DBGIPC_TRANSPORT_VM)
     if (g_pDbgTransport != NULL)
     {
         g_pDbgTransport->AbortConnection();
     }
-#endif // FEATURE_DBGIPC_TRANSPORT_VM
+#endif // FEATURE_PAL && FEATURE_DBGIPC_TRANSPORT_VM
 }
-#endif // FEATURE_PAL
 
 //---------------------------------------------------------------------------------------
 //
