@@ -8,6 +8,9 @@ using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Threading;
+using System.IO;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace System
 {
