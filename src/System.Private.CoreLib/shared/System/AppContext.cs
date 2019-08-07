@@ -45,7 +45,10 @@ namespace System
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
-            Debug.Assert(s_dataStore != null, "AppContext.Setup should be called first.");
+            Debug.Assert(s_dataStore != null, "s_dataStore is not inited yet");
+            
+            if (s_dataStore == null)
+                return null;
 
             object? data;
             lock (s_dataStore)
@@ -60,7 +63,12 @@ namespace System
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
 
-            Debug.Assert(s_dataStore != null, "AppContext.Setup should be called first.");
+            Debug.Assert(s_dataStore != null, "s_dataStore is not inited yet");
+
+            if (s_dataStore == null)
+            {
+                Interlocked.CompareExchange(ref s_dataStore, new Dictionary<string, bool>(), null);
+            }
 
             lock (s_dataStore)
             {
@@ -141,6 +149,7 @@ namespace System
 #if !CORERT
         internal static unsafe void Setup(char** pNames, char** pValues, int count)
         {
+            Debug.Assert(s_dataStore == null, "s_dataStore is not expected to be inited before Setup is called");
             s_dataStore = new Dictionary<string, object?>(count);
             for (int i = 0; i < count; i++)
             {
