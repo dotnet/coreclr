@@ -3,14 +3,13 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
 using System.Runtime.Loader;
 using System.Runtime.Versioning;
 using System.Threading;
-using System.IO;
-using System.Reflection;
-using System.Diagnostics;
 
 namespace System
 {
