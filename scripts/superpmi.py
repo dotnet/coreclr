@@ -565,7 +565,7 @@ class SuperPMICollect:
         """ Merge the mch files that were passed
 
         Notes:
-            mcs -merge <s_baseMchFile> [self.coreclr_args.mch_files]
+            mcs -concat <s_baseMchFile> [self.coreclr_args.mch_files]
 
         """
 
