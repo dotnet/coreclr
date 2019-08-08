@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 
-  <UsingTask TaskName="PrereleaseResolveNuGetPackageAssets" AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll"/>
   <ItemGroup>
     <TestTargetFramework Include=".NETCoreApp,Version=v5.0">
       <Folder>netcoreapp5.0</Folder>
@@ -18,8 +17,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <CoreRootProjectLockJsonFiles Include="$(SourceDir)Common\test_runtime\obj\project.assets.json"/>
-    <CoreRootProjectLockJsonFiles Include="$(SourceDir)Common\test_dependencies\obj\project.assets.json"/>
+    <CoreRootProjectFiles Include="$(SourceDir)Common\test_runtime\test_runtime.csproj" />
+    <CoreRootProjectFiles Include="$(SourceDir)Common\test_dependencies\test_dependencies.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -43,40 +42,10 @@
     Inputs="@(CoreRootProjectLockJsonFiles)"
     Outputs="$(CORE_ROOT)\*.*">
 
-    <!-- This will use the overridden PrereleaseResolveNuGetPackageAssets, which outputs copy local items
-         for the xunit wrapper projects -->
-    <PrereleaseResolveNuGetPackageAssets AllowFallbackOnTargetSelection="false"
-                                         IncludeFrameworkReferences="false"
-                                         NuGetPackagesDirectory="$(PackagesDir)"
-                                         RuntimeIdentifier="$(TargetRid)"
-                                         ProjectLanguage="$(Language)"
-                                         ProjectLockFile="%(CoreRootProjectLockJsonFiles.Identity)"
-                                         TargetMonikers="@(TestTargetFramework)">
-      <Output TaskParameter="ResolvedCopyLocalItems" ItemName="RunTimeCopyLocal" />
-    </PrereleaseResolveNuGetPackageAssets>
-    <ItemGroup>
-      <RunTimeDependecyExclude Include="$(CORE_ROOT)\**\*.*"  />
-      <RunTimeDependecyExcludeFiles Include="@(RunTimeDependecyExclude -> '%(FileName)%(Extension)')" />
-      <RunTimeDependecyExcludeFiles Include="@(RunTimeDependecyExclude -> '%(FileName).ni%(Extension)')" />
-      <RunTimeDependecyExcludeFiles Include="@(RunTimeDependecyExclude -> '%(FileName).pdb')" />
-      <AllResolvedRuntimeDependencies Include="@(RunTimeCopyLocal -> '%(FileName)%(Extension)')">
-        <File>%(Identity)</File>
-      </AllResolvedRuntimeDependencies>
-      <RunTimeDependecyCopyLocalFile Include="@(AllResolvedRuntimeDependencies)"  Exclude="@(RunTimeDependecyExcludeFiles)"/>
-      <RunTimeDependecyCopyLocal Include="@(RunTimeDependecyCopyLocalFile -> '%(File)')"  />
-      <RunTimeDependecyCopyLocal Include="$(TargetingPackPath)/*" />
-    </ItemGroup>
-    
-    <Copy
-      SourceFiles="@(RunTimeDependecyCopyLocal)"
-      DestinationFolder="$(CORE_ROOT)"
-      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
-      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
-      Retries="$(CopyRetryCount)"
-      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
-      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
-      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
-    </Copy>
+    <MSBuild Projects="@(CoreRootProjectFiles)"
+             Targets="CopyDependencyToCoreRoot"
+             Properties="Language=C#;RuntimeIdentifier=$(TargetRid)" />
+
   </Target>
 
 </Project>

@@ -5,4 +5,34 @@
     If they ever need to take part, we can conditionally include them as documented
     here https://docs.microsoft.com/en-us/visualstudio/msbuild/customize-your-build#directorybuildprops-and-directorybuildtargets
   -->
+
+  <Target Name="CopyDependencyToCoreRoot"
+          DependsOnTargets="ResolveAssemblyReferences">
+
+    <ItemGroup>
+      <RunTimeDependecyExclude Include="$(CORE_ROOT)\**\*.*"  />
+      <RunTimeDependecyExcludeFiles Include="@(RunTimeDependecyExclude -> '%(FileName)%(Extension)')" />
+      <RunTimeDependecyExcludeFiles Include="@(RunTimeDependecyExclude -> '%(FileName).ni%(Extension)')" />
+      <RunTimeDependecyExcludeFiles Include="@(RunTimeDependecyExclude -> '%(FileName).pdb')" />
+      <AllResolvedRuntimeDependencies Include="@(RuntimeCopyLocalItems -> '%(FileName)%(Extension)');@(NativeCopyLocalItems -> '%(FileName)%(Extension)')">
+        <File>%(Identity)</File>
+      </AllResolvedRuntimeDependencies>
+      <RunTimeDependecyCopyLocalFile Include="@(AllResolvedRuntimeDependencies)"  Exclude="@(RunTimeDependecyExcludeFiles)"/>
+      <RunTimeDependecyCopyLocal Include="@(RunTimeDependecyCopyLocalFile -> '%(File)')"  />
+      <RunTimeDependecyCopyLocal Include="$(TargetingPackPath)/*" />
+    </ItemGroup>
+
+    <Copy
+      SourceFiles="@(RunTimeDependecyCopyLocal)"
+      DestinationFolder="$(CORE_ROOT)"
+      SkipUnchangedFiles="$(SkipCopyUnchangedFiles)"
+      OverwriteReadOnlyFiles="$(OverwriteReadOnlyFiles)"
+      Retries="$(CopyRetryCount)"
+      RetryDelayMilliseconds="$(CopyRetryDelayMilliseconds)"
+      UseHardlinksIfPossible="$(CreateHardLinksForCopyFilesToOutputDirectoryIfPossible)">
+      <Output TaskParameter="DestinationFiles" ItemName="FileWrites" />
+    </Copy>
+
+  </Target>
+
 </Project>

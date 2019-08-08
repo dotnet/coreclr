@@ -13,6 +13,7 @@
       <DisabledProjects Include="Common\targeting_pack_ref\targeting_pack_ref.csproj" />
       <DisabledProjects Include="Common\external\external.csproj" />
       <DisabledProjects Include="Common\PerfHarness\PerfHarness.csproj" />
+      <DisabledProjects Include="Common\stress_dependencies\stress_dependencies.csproj" />
       <DisabledProjects Include="GC\Performance\Framework\GCPerfTestFramework.csproj" />
       <DisabledProjects Include="JIT\config\**" />
       <DisabledProjects Include="Performance\performance.csproj" />

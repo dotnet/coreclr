@@ -15,7 +15,6 @@
   <PropertyGroup>
     <TraversalBuildDependsOn>
       BatchRestorePackages;
-      BuildTargetingPack;
       $(TraversalBuildDependsOn);
     </TraversalBuildDependsOn>
   </PropertyGroup>
@@ -32,12 +31,6 @@
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\JIT\config\benchmark+intrinsic\benchmark+intrinsic.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\performance\performance.csproj" />
   </ItemGroup>
-
-  <Target Name="BuildTargetingPack" AfterTargets="BatchRestorePackages" Condition="$(__SkipTargetingPackBuild) != 'true'">
-    <Message Text="Building Targeting Pack" Importance="High" />
-    <Error  Text="BuildOS has not been specified. Please do that then run build again."  Condition="'$(BuildOS)' == 'AnyOS'" />
-    <MSBuild Projects="$(MSBuildThisFileDirectory)\src\Common\external\external.depproj" />
-  </Target>
 
   <Target Name="BatchRestorePackages" Condition="$(__SkipPackageRestore) != 'true'">
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Restoring all packages..." />

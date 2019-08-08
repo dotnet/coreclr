@@ -7,6 +7,7 @@
 
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ProjectAssetsFile>$(SourceDir)Common\Coreclr.TestWrapper\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 
   <ItemGroup>

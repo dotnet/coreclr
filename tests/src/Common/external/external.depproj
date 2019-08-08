@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" DefaultTargets="Build">
+<Project Sdk="Microsoft.NET.Sdk">
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <!-- Given that xunit packages bring with them part of the framework, we need to specify a runtime in order to get the assets
@@ -10,7 +9,6 @@
     <NugetTargetMoniker>.NETCoreApp,Version=v1.1</NugetTargetMoniker>
     <NugetTargetMonikerShort>netcoreapp1.1</NugetTargetMonikerShort>
     <NugetRuntimeIdentifier>win7-x64</NugetRuntimeIdentifier>
-    <ContainsPackageReferences>true</ContainsPackageReferences>
     <OutputPath>$(TargetingPackPath)</OutputPath>
     <XUnitRunnerPackageId>xunit.runner.console</XUnitRunnerPackageId>
     <XUnitRunnerTargetFramework>netcoreapp2.0</XUnitRunnerTargetFramework>
@@ -18,39 +16,19 @@
     <IsTestProject>false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.Compilers">
-      <Version>1.1.1</Version>
-    </PackageReference>
-    <PackageReference Include="CommandLineParser">
-      <Version>2.1.1-beta</Version>
-    </PackageReference>
-    <PackageReference Include="xunit.performance.api">
-      <Version>$(XunitPerformanceApiPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="xunit.performance.core">
-      <Version>$(XunitPerformanceApiPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="xunit.performance.execution">
-      <Version>$(XunitPerformanceApiPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="xunit.performance.metrics">
-      <Version>$(XunitPerformanceApiPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent">
-      <Version>$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="Newtonsoft.Json">
-      <Version>12.0.1</Version>
-    </PackageReference>
-    <PackageReference Include="xunit">
-      <Version>$(XunitPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="$(XUnitRunnerPackageId)">
-      <Version>$(XunitPackageVersion)</Version>
-    </PackageReference>
-    <PackageReference Include="xunit.runner.utility">
-      <Version>$(XunitPackageVersion)</Version>
-    </PackageReference>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="1.1.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="1.1.1" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="1.1.1" />>
+    <PackageReference Include="CommandLineParser" Version="2.1.1-beta" />
+    <PackageReference Include="xunit.performance.api" Version="$(XunitPerformanceApiPackageVersion)" />
+    <PackageReference Include="xunit.performance.core" Version="$(XunitPerformanceApiPackageVersion)" />
+    <PackageReference Include="xunit.performance.execution" Version="$(XunitPerformanceApiPackageVersion)" />
+    <PackageReference Include="xunit.performance.metrics" Version="$(XunitPerformanceApiPackageVersion)" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="$(MicrosoftDiagnosticsTracingTraceEventPackageVersion)" />
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
+    <PackageReference Include="xunit" Version="$(XunitPackageVersion)" />
+    <PackageReference Include="$(XUnitRunnerPackageId)" Version="$(XunitPackageVersion)" />
+    <PackageReference Include="xunit.runner.utility" Version="$(XunitPackageVersion)" />
   </ItemGroup>
   <PropertyGroup>
     <TargetFramework>netcoreapp1.1</TargetFramework>
@@ -58,26 +36,20 @@
     <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
-    <PackageToInclude Include="xunit.abstractions"/>
-    <PackageToInclude Include="xunit.assert"/>
-    <PackageToInclude Include="xunit.extensibility.core"/>
-    <PackageToInclude Include="xunit.extensibility.execution"/>
-    <PackageToInclude Include="xunit.runner.utility"/>
-    <PackageToInclude Include="xunit.performance.api"/>
-    <PackageToInclude Include="xunit.performance.core"/>
-    <PackageToInclude Include="xunit.performance.execution"/>
-    <PackageToInclude Include="xunit.performance.metrics"/>
-    <PackageToInclude Include="Microsoft.Diagnostics.Tracing.TraceEvent"/>
-    <PackageToInclude Include="Newtonsoft.Json"/>
-    <PackageToInclude Include="Microsoft.CodeAnalysis.Analyzers"/>
-    <PackageToInclude Include="Microsoft.CodeAnalysis.Common"/>
-    <PackageToInclude Include="Microsoft.CodeAnalysis.Compilers"/>
-    <PackageToInclude Include="Microsoft.CodeAnalysis.CSharp"/>
-    <PackageToInclude Include="Microsoft.CodeAnalysis.VisualBasic"/>
-    <PackageToInclude Include="CommandLineParser"/>
   </ItemGroup>
 
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+
+  <Target Name="CreateManifestResourceNames" />
+  <Target Name="CoreCompile">
+    <ItemGroup>
+      <IntermediateAssembly Remove="@(IntermediateAssembly)" />
+      <ContentWithTargetPath Include="@(ReferenceCopyLocalPaths)">
+        <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        <TargetPath>%(ReferenceCopyLocalPaths.SubFolder)%(FileName)%(Extension)</TargetPath>
+      </ContentWithTargetPath>
+    </ItemGroup>
+  </Target>
 
   <PropertyGroup>
     <ProjectAssetsFile>$(SourceDir)Common\external\obj\project.assets.json</ProjectAssetsFile>
