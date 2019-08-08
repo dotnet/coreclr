@@ -18124,12 +18124,12 @@ public:
 
         WalkTree(&stmt->gtStmtExpr, nullptr);
 
-        // We could have somethinge like STMT(IND(ADDR(LCL_VAR))) so we need to escape
+        // We could have something like STMT(IND(ADDR(LCL_VAR))) so we need to escape
         // the location here. This doesn't seem to happen often, if ever. The importer
         // tends to wrap such a tree in a COMMA.
         if (TopValue(0).IsLocation())
         {
-            EscapeLocation(TopValue(0), stmt);
+            EscapeLocation(TopValue(0), nullptr);
         }
         else
         {
@@ -18501,7 +18501,7 @@ private:
         // - It can be a GT_OBJ that has a correct size, but different than the size of the LHS.
         //   The LHS size takes precedence.
         // Just take the LHS size in all cases.
-        if (user->OperIs(GT_ASG) && (indir == user->gtGetOp2()))
+        if (user != nullptr && user->OperIs(GT_ASG) && (indir == user->gtGetOp2()))
         {
             indir = user->gtGetOp1();
 
