@@ -3880,7 +3880,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         if (verbose)
         {
             printf("*** creating GC Poll in block " FMT_BB "\n", block->bbNum);
-            gtDispTreeList(block->bbStmtList);
+            gtDispStmtList(block->bbStmtList);
         }
 #endif // DEBUG
     }
@@ -4017,11 +4017,11 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         if (verbose)
         {
             printf("*** creating inlined GC Poll in top block " FMT_BB "\n", top->bbNum);
-            gtDispTreeList(top->bbStmtList);
+            gtDispStmtList(top->bbStmtList);
             printf(" poll block is " FMT_BB "\n", poll->bbNum);
-            gtDispTreeList(poll->bbStmtList);
+            gtDispStmtList(poll->bbStmtList);
             printf(" bottom block is " FMT_BB "\n", bottom->bbNum);
-            gtDispTreeList(bottom->bbStmtList);
+            gtDispStmtList(bottom->bbStmtList);
         }
 #endif // DEBUG
     }

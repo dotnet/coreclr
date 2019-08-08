@@ -1631,7 +1631,7 @@ void SsaBuilder::Print(BasicBlock** postOrder, int count)
     for (int i = count - 1; i >= 0; --i)
     {
         printf("After SSA " FMT_BB ":\n", postOrder[i]->bbNum);
-        m_pCompiler->gtDispTreeList(postOrder[i]->bbStmtList);
+        m_pCompiler->gtDispStmtList(postOrder[i]->bbStmtList);
     }
 }
 #endif // DEBUG
