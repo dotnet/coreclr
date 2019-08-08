@@ -1076,7 +1076,7 @@ bool Compiler::optExtractInitTestIncr(
     noway_assert(initStmt != nullptr && (initStmt->gtNext == nullptr));
 
     // If it is a duplicated loop condition, skip it.
-    if (initStmt->gtFlags & GTF_STMT_CMPADD)
+    if (initStmt->compilerAdded)
     {
         bool doGetPrev = true;
 #ifdef DEBUG
@@ -3613,7 +3613,7 @@ void Compiler::optUnrollLoops()
         GenTreeStmt* incrStmt = testStmt->gtPrevStmt;
         noway_assert(incrStmt != nullptr);
 
-        if ((initStmt->gtFlags & GTF_STMT_CMPADD) != 0)
+        if (initStmt->compilerAdded)
         {
             /* Must be a duplicated loop condition */
             noway_assert(initStmt->gtStmtExpr->gtOper == GT_JTRUE);
@@ -3698,7 +3698,7 @@ void Compiler::optUnrollLoops()
                     gtSetStmtInfo(stmt);
 
                     /* Update loopCostSz */
-                    loopCostSz += stmt->gtCostSz;
+                    loopCostSz += stmt->gtStmtExpr->gtCostSz;
                 }
 
                 if (block == bottom)
@@ -4248,7 +4248,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
 
     GenTreeStmt* copyOfCondStmt = fgInsertTreeAtEnd(block, condTree);
 
-    copyOfCondStmt->gtFlags |= GTF_STMT_CMPADD;
+    copyOfCondStmt->compilerAdded = true;
 
     if (opts.compDbgInfo)
     {
@@ -6215,8 +6215,8 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
     compCurBB = preHead;
     hoist     = fgMorphTree(hoist);
 
-    GenTreeStmt* hoistStmt = gtNewStmt(hoist);
-    hoistStmt->gtFlags |= GTF_STMT_CMPADD;
+    GenTreeStmt* hoistStmt   = gtNewStmt(hoist);
+    hoistStmt->compilerAdded = true;
 
     /* simply append the statement at the end of the preHead's list */
 

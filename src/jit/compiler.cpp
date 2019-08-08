@@ -4747,8 +4747,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         {
             for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
-                compSizeEstimate += stmt->GetCostSz();
-                compCycleEstimate += stmt->GetCostEx();
+                compSizeEstimate += stmt->gtStmtExpr->GetCostSz();
+                compCycleEstimate += stmt->gtStmtExpr->GetCostEx();
             }
         }
     }
@@ -8463,7 +8463,7 @@ GenTree* dFindTree(unsigned id)
     {
         for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
-            tree = dFindTree(stmt, id);
+            tree = dFindTree(stmt->gtStmtExpr, id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;

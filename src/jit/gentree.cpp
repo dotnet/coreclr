@@ -15355,13 +15355,9 @@ bool GenTree::IsPhiDefn()
     return res;
 }
 
-bool GenTree::IsPhiDefnStmt()
+bool GenTreeStmt::IsPhiDefnStmt()
 {
-    if (OperGet() != GT_STMT)
-    {
-        return false;
-    }
-    GenTree* asg = gtStmt.gtStmtExpr;
+    GenTree* asg = gtStmtExpr;
     return asg->IsPhiDefn();
 }
 

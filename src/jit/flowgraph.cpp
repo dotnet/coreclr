@@ -656,7 +656,7 @@ GenTreeStmt* Compiler::fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt)
         noway_assert(firstStmt != nullptr);
         GenTreeStmt* lastStmt = block->lastStmt();
         noway_assert(lastStmt != nullptr && lastStmt->gtNext == nullptr);
-        GenTree* insertionPoint = lastStmt->gtPrev;
+        GenTreeStmt* insertionPoint = lastStmt->gtPrev;
 
 #if DEBUG
         if (block->bbJumpKind == BBJ_COND)
@@ -19226,15 +19226,16 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
 
     for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        if (stmt->gtCostSz < MAX_COST)
+        unsigned char cost = stmt->gtStmtExpr->gtCostSz;
+        if (cost < MAX_COST)
         {
-            costSz += stmt->gtCostSz;
+            costSz += cost;
         }
         else
         {
             // We could walk the tree to find out the real gtCostSz,
             // but just using MAX_COST for this trees code size works OK
-            costSz += stmt->gtCostSz;
+            costSz += cost;
         }
     }
 
@@ -21062,8 +21063,6 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
     if (genReturnBB != nullptr)
     {
         assert(genReturnBB->bbTreeList != nullptr || genReturnBB->bbStmtList != nullptr);
-        assert(genReturnBB->IsLIR() || genReturnBB->bbStmtList->gtOper == GT_STMT);
-        assert(genReturnBB->IsLIR() || genReturnBB->bbStmtList->gtType == TYP_VOID);
     }
 
     // The general encoder/decoder (currently) only reports "this" as a generics context as a stack location,
@@ -22887,7 +22886,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 
     noway_assert(iciBlock->bbStmtList != nullptr);
     noway_assert(iciStmt->gtStmtExpr != nullptr);
-    assert(iciBlock->Contains(iciStmt) && (iciStmt->gtStmtExpr == iciCall));
+    assert(iciStmt->gtStmtExpr == iciCall);
     noway_assert(iciCall->gtOper == GT_CALL);
 
 #ifdef DEBUG
@@ -23666,8 +23665,6 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
     InlLclVarInfo*       lclVarInfo        = inlineInfo->lclVarInfo;
     unsigned             gcRefLclCnt       = inlineInfo->numberOfGcRefLocals;
     const unsigned       argCnt            = inlineInfo->argCnt;
-
-    noway_assert(callStmt->gtOper == GT_STMT);
 
     for (unsigned lclNum = 0; lclNum < lclCnt; lclNum++)
     {
