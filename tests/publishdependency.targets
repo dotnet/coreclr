@@ -8,7 +8,6 @@
   </ItemGroup>
 
   <PropertyGroup>
-    <!-- defined in buildtools packaging.targets, but we need this before targets are imported -->
     <PackagePlatform Condition="'$(PackagePlatform)' == ''">$(__BuildArch)</PackagePlatform>
     <PackagePlatform Condition="'$(PackagePlatform)' == 'amd64'">x64</PackagePlatform>
     <MinOSForArch>win7</MinOSForArch>

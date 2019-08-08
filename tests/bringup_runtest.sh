@@ -448,7 +448,6 @@ function create_testhost
     fi
 
     # Initialize test variables
-    local buildToolsDir=$coreClrSrc/Tools
     local dotnetExe=$coreClrSrc/dotnet.sh
     local coreClrSrcTestDir=$coreClrSrc/tests
     

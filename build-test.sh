@@ -680,7 +680,6 @@ export __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
 __PackagesDir="$__ProjectDir/.packages"
 __RootBinDir="$__ProjectDir/bin"
-__BuildToolsDir="$__ProjectDir/Tools"
 __DotNetCli="$__ProjectDir/dotnet.sh"
 __UnprocessedBuildArgs=
 __CommonMSBuildArgs=
