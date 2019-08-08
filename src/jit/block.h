@@ -1175,6 +1175,7 @@ struct BasicBlock : private LIR::Range
 #ifdef DEBUG
     bool Contains(const GenTree* node)
     {
+        assert(IsLIR());
         for (Iterator iter = begin(); iter != end(); ++iter)
         {
             if (*iter == node)
