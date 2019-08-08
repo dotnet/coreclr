@@ -667,12 +667,12 @@ namespace System
         {
             //TimeSpan.TimeToTicks is a family access function which does no error checking, so
             //we need to put some error checking out here.
-            if (hour < 0 || hour >= 24 || minute < 0 || minute >= 60 || second < 0 || second >= 60)
+            if ((uint)hour >= 24 || (uint)minute >= 60 || (uint)second >= 60)
             {
                 ThrowHelper.ThrowArgumentOutOfRange_BadHourMinuteSecond();
             }
             
-            return (TimeSpan.TimeToTicks(hour, minute, second));
+            return TimeSpan.TimeToTicks(hour, minute, second);
         }
 
         // Returns the number of days in the month given by the year and
@@ -1195,7 +1195,7 @@ namespace System
             {
                 ThrowHelper.ThrowArgumentOutOfRange_Year();
             }
-            return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+            return (year & 3) == 0 && ((year & 15) == 0 || (year % 25) != 0);
         }
 
         // Constructs a DateTime from a string. The string must specify a
