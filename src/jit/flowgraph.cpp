@@ -520,7 +520,7 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock*  block,
         return answerOnBoundExceeded;
     }
 
-    GenTree* curr = block->firstStmt();
+    GenTreeStmt* curr = block->firstStmt();
     do
     {
         (*numTraversed)++;
@@ -529,7 +529,7 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock*  block,
             break;
         }
         curr = curr->gtNext;
-    } while (curr);
+    } while (curr != nullptr);
     return curr != nullptr;
 }
 #endif // DEBUG
@@ -14651,21 +14651,22 @@ bool Compiler::fgOptimizeBranchToNext(BasicBlock* block, BasicBlock* bNext, Basi
         }
         else
         {
-            GenTreeStmt* cond = block->lastStmt();
-            noway_assert(cond->gtStmtExpr->gtOper == GT_JTRUE);
+            GenTreeStmt* condStmt = block->lastStmt();
+            GenTree*     cond     = condStmt->gtStmtExpr;
+            noway_assert(cond->gtOper == GT_JTRUE);
 
             /* check for SIDE_EFFECTS */
-            if (cond->gtStmtExpr->gtFlags & GTF_SIDE_EFFECT)
+            if (cond->gtFlags & GTF_SIDE_EFFECT)
             {
                 /* Extract the side effects from the conditional */
                 GenTree* sideEffList = nullptr;
 
-                gtExtractSideEffList(cond->gtStmtExpr, &sideEffList);
+                gtExtractSideEffList(cond, &sideEffList);
 
                 if (sideEffList == nullptr)
                 {
                     compCurBB = block;
-                    fgRemoveStmt(block, cond);
+                    fgRemoveStmt(block, condStmt);
                 }
                 else
                 {
@@ -14685,17 +14686,17 @@ bool Compiler::fgOptimizeBranchToNext(BasicBlock* block, BasicBlock* bNext, Basi
                     noway_assert(sideEffList->gtOper != GT_STMT);
                     noway_assert(sideEffList->gtOper != GT_JTRUE);
 
-                    cond->gtStmtExpr = sideEffList;
+                    condStmt->gtStmtExpr = sideEffList;
 
                     if (fgStmtListThreaded)
                     {
                         compCurBB = block;
 
                         /* Update ordering, costs, FP levels, etc. */
-                        gtSetStmtInfo(cond);
+                        gtSetStmtInfo(condStmt);
 
                         /* Re-link the nodes for this statement */
-                        fgSetStmtSeq(cond);
+                        fgSetStmtSeq(condStmt);
                     }
                 }
             }
@@ -14703,7 +14704,7 @@ bool Compiler::fgOptimizeBranchToNext(BasicBlock* block, BasicBlock* bNext, Basi
             {
                 compCurBB = block;
                 /* conditional has NO side effect - remove it */
-                fgRemoveStmt(block, cond);
+                fgRemoveStmt(block, condStmt);
             }
         }
 
