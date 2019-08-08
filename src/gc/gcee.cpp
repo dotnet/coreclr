@@ -223,7 +223,6 @@ void GCHeap::UpdatePostGCCounters()
     }
 
     // Update percent time spent in GC
-    //
 
     if (_timeInGCBase != 0)
         g_percentTimeInGCSinceLastGC = (int)(g_TotalTimeInGC * 100 / _timeInGCBase);
