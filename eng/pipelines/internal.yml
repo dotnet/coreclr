@@ -90,6 +90,3 @@ stages:
       parameters:
         # Symbol validation is not entirely reliable as of yet, so should be turned off until https://github.com/dotnet/arcade/issues/2871 is resolved.
         enableSymbolValidation: false
-        # Signing validation is disabled since CoreCLR doesn't presently sign the nupkgs.
-        # Once we leverage Arcade to do signing throughout the pipeline, this should be enabled.
-        enableSigningValidation: false
