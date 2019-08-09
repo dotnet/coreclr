@@ -826,7 +826,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
         virtual HRESULT STDMETHODCALLTYPE GetJitHelperFunctionName( 
             CLRDATA_ADDRESS ip,
             unsigned int count,
-            unsigned char *name,
+            char *name,
             unsigned int *pNeeded) = 0;
         
         virtual HRESULT STDMETHODCALLTYPE GetJumpThunkTarget( 

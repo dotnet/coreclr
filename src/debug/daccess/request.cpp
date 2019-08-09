@@ -4313,23 +4313,16 @@ HRESULT ClrDataAccess::GetILForMethod(CLRDATA_ADDRESS methodDesc, int rejitId, C
 
     PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
 
-    if (rejitId == 0)
+    CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+    ILCodeVersion ilVersion = pCodeVersionManager->GetILCodeVersion(pMD, rejitId);
+    if (ilVersion.IsNull())
     {
-        *il = (TADDR)(CLRDATA_ADDRESS)pMD->GetIL();
+        hr = E_INVALIDARG;
     }
     else
     {
-        CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
-        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
-        ILCodeVersion ilVersion = pCodeVersionManager->GetILCodeVersion(pMD, rejitId);
-        if (ilVersion.IsNull())
-        {
-            hr = E_INVALIDARG;
-        }
-        else
-        {
-            *il = (TADDR)(CLRDATA_ADDRESS)ilVersion->GetIL();
-        }
+        *il = dac_cast<TADDR>(ilVersion.GetIL());
     }
     
     SOSDacLeave();
