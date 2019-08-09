@@ -16,8 +16,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <CoreRootProjectFiles Include="$(SourceDir)Common\test_runtime\test_runtime.csproj" />
+    <!-- First wins. We do separate restore, and each subsequent restore only copies files
+         that don't already exist in core_root. we used to do restore in msbuild, appending to itemgroups
+         where last wins. -->
     <CoreRootProjectFiles Include="$(SourceDir)Common\test_dependencies\test_dependencies.csproj" />
+    <CoreRootProjectFiles Include="$(SourceDir)Common\test_runtime\test_runtime.csproj" />
   </ItemGroup>
 
   <ItemGroup>
