@@ -38,8 +38,6 @@ CRITICAL_SECTION g_dacCritSec;
 ClrDataAccess* g_dacImpl;
 HINSTANCE g_thisModule;
 
-extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
-
 EXTERN_C
 #ifdef FEATURE_PAL
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
@@ -86,9 +84,6 @@ BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
         {
             DeleteCriticalSection(&g_dacCritSec);
         }
-#ifndef FEATURE_PAL
-        TLS_FreeMasterSlotIndex();
-#endif
         g_procInitialized = false;
         break;
     }
@@ -469,8 +464,6 @@ MetaEnum::End(void)
     switch(m_kind)
     {
     case mdtTypeDef:
-        m_mdImport->EnumTypeDefClose(&m_enum);
-        break;
     case mdtMethodDef:
     case mdtFieldDef:
         m_mdImport->EnumClose(&m_enum);
@@ -494,7 +487,7 @@ MetaEnum::NextToken(mdToken* token,
     switch(m_kind)
     {
     case mdtTypeDef:
-        if (!m_mdImport->EnumTypeDefNext(&m_enum, token))
+        if (!m_mdImport->EnumNext(&m_enum, token))
         {
             return S_FALSE;
         }

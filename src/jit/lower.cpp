@@ -2015,7 +2015,6 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
         fgArgTabEntry* argTabEntry = comp->gtArgEntryByNode(call, putArgStkNode);
         assert(argTabEntry);
         unsigned callerArgNum = argTabEntry->argNum - calleeNonStandardArgCount;
-        noway_assert(callerArgNum < comp->info.compArgsCount);
 
         unsigned   callerArgLclNum = callerArgNum;
         LclVarDsc* callerArgDsc    = comp->lvaTable + callerArgLclNum;
@@ -3050,7 +3049,7 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
     {
         case IAT_VALUE:
             // Non-virtual direct call to known address
-            if (!IsCallTargetInRange(addr) || call->IsTailCall())
+            if (!IsCallTargetInRange(addr) || call->IsTailCallViaHelper())
             {
                 result = AddrGen(addr);
             }

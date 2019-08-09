@@ -21,7 +21,7 @@ namespace System.Reflection
         internal RuntimeAssembly() { throw new NotSupportedException(); }
 
         #region private data members
-        private event ModuleResolveEventHandler _ModuleResolve;
+        private event ModuleResolveEventHandler? _ModuleResolve;
         private string? m_fullname;
         private object? m_syncRoot;   // Used to keep collectible types alive and as the syncroot for reflection.emit
 #pragma warning disable 169
@@ -50,11 +50,11 @@ namespace System.Reflection
                 {
                     Interlocked.CompareExchange<object?>(ref m_syncRoot, new object(), null);
                 }
-                return m_syncRoot!; // TODO-NULLABLE: Remove ! when compiler specially-recognizes CompareExchange for nullability
+                return m_syncRoot;
             }
         }
 
-        public override event ModuleResolveEventHandler ModuleResolve
+        public override event ModuleResolveEventHandler? ModuleResolve
         {
             add
             {
@@ -65,8 +65,6 @@ namespace System.Reflection
                 _ModuleResolve -= value;
             }
         }
-
-        private const string s_localFilePrefix = "file:";
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetCodeBase(QCallAssembly assembly,
@@ -248,7 +246,7 @@ namespace System.Reflection
             return GetManifestResourceStream(resourceName);
         }
 
-        public unsafe override Stream? GetManifestResourceStream(string name)
+        public override unsafe Stream? GetManifestResourceStream(string name)
         {
             uint length = 0;
             RuntimeAssembly runtimeAssembly = this;
@@ -602,7 +600,7 @@ namespace System.Reflection
         // This method is called by the VM.
         private RuntimeModule? OnModuleResolveEvent(string moduleName)
         {
-            ModuleResolveEventHandler moduleResolve = _ModuleResolve;
+            ModuleResolveEventHandler? moduleResolve = _ModuleResolve;
             if (moduleResolve == null)
                 return null;
 

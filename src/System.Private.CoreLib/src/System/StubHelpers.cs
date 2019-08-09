@@ -21,7 +21,7 @@ namespace System.StubHelpers
     {
         // The length of the returned array is an approximation based on the length of the input string and the system
         // character set. It is only guaranteed to be larger or equal to cbLength, don't depend on the exact value.
-        unsafe internal static byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
+        internal static unsafe byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
         {
             byte[] buffer = new byte[checked((str.Length + 1) * Marshal.SystemMaxDBCSCharSize)];
             fixed (byte* bufferPtr = &buffer[0])
@@ -31,7 +31,7 @@ namespace System.StubHelpers
             return buffer;
         }
 
-        unsafe internal static byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
+        internal static unsafe byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
         {
             int cbAllocLength = (1 + 1) * Marshal.SystemMaxDBCSCharSize;
             byte* bufferPtr = stackalloc byte[cbAllocLength];
@@ -70,7 +70,7 @@ namespace System.StubHelpers
                 // + 1 for the null character from the user.  + 1 for the null character we put in.
                 nb = checked((strManaged.Length + 1) * Marshal.SystemMaxDBCSCharSize + 1);
 
-                // Use the pre-allocated buffer (allocated by localloc IL instruction) if not NULL, 
+                // Use the pre-allocated buffer (allocated by localloc IL instruction) if not NULL,
                 // otherwise fallback to AllocCoTaskMem
                 if (pbNativeBuffer == null)
                 {
@@ -130,7 +130,7 @@ namespace System.StubHelpers
             byte* pbNativeBuffer = (byte*)pNativeBuffer;
 
             // If we are marshaling into a stack buffer allocated by the ILStub
-            // we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.   
+            // we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.
             // else we will allocate the precise native heap memory.
             if (pbNativeBuffer != null)
             {
@@ -138,7 +138,7 @@ namespace System.StubHelpers
                 nb = (strManaged.Length + 1) * MAX_UTF8_CHAR_SIZE;
 
                 // nb is the actual number of bytes written by Encoding.GetBytes.
-                // use nb to de-limit the string since we are allocating more than 
+                // use nb to de-limit the string since we are allocating more than
                 // required on stack
                 nb = strManaged.GetBytesFromEncoding(pbNativeBuffer, nb, Encoding.UTF8);
             }
@@ -182,10 +182,10 @@ namespace System.StubHelpers
                 return IntPtr.Zero;
             }
 
-            // Convert to string first  
+            // Convert to string first
             string strManaged = sb.ToString();
 
-            // Get byte count 
+            // Get byte count
             int nb = Encoding.UTF8.GetByteCount(strManaged);
 
             // EmitConvertSpaceCLRToNative allocates memory
@@ -480,7 +480,7 @@ namespace System.StubHelpers
             long managedUtcTicks = ManagedUtcTicksAtNativeZero + nativeTicks.UniversalTime;
             DateTimeOffset managedUtcDTO = new DateTimeOffset(managedUtcTicks, TimeSpan.Zero);
 
-            // Some Utc times cannot be represented in local time in certain timezones. E.g. 0001-01-01 12:00:00 AM cannot 
+            // Some Utc times cannot be represented in local time in certain timezones. E.g. 0001-01-01 12:00:00 AM cannot
             // be represented in any timezones with a negative offset from Utc. We throw an ArgumentException in that case.
             managedLocalDTO = managedUtcDTO.ToLocalTime(true);
         }
@@ -498,7 +498,7 @@ namespace System.StubHelpers
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
             if (managed == null)
-                throw new ArgumentNullException(); // We don't have enough information to get the argument name 
+                throw new ArgumentNullException(); // We don't have enough information to get the argument name
 
             IntPtr hstring;
             int hrCreate = System.Runtime.InteropServices.WindowsRuntime.UnsafeNativeMethods.WindowsCreateString(managed, managed.Length, &hstring);
@@ -518,7 +518,7 @@ namespace System.StubHelpers
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
             if (managed == null)
-                throw new ArgumentNullException();  // We don't have enough information to get the argument name 
+                throw new ArgumentNullException();  // We don't have enough information to get the argument name
 
             // The string must also be pinned by the caller to ConvertToNativeReference, which also owns
             // the HSTRING_HEADER.
@@ -630,12 +630,14 @@ namespace System.StubHelpers
         // Needs to match exactly with MngdNativeArrayMarshaler in ilmarshalers.h
         internal struct MarshalerState
         {
+#pragma warning disable CA1823 // not used by managed code
             IntPtr m_pElementMT;
             IntPtr m_Array;
             int m_NativeDataValid;
             int m_BestFitMap;
             int m_ThrowOnUnmappableChar;
             short m_vt;
+#pragma warning restore CA1823
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -743,7 +745,7 @@ namespace System.StubHelpers
             }
         }
 
-        internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[]? managedArray, IntPtr pNativeHome) 
+        internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[]? managedArray, IntPtr pNativeHome)
         {
             if (managedArray != null)
             {
@@ -1470,7 +1472,7 @@ namespace System.StubHelpers
                 next = next.m_Next;
             }
         }
-        
+
         public static void AddToCleanupList(ref CleanupWorkListElement list, CleanupWorkListElement newElement)
         {
             if (list == null)
@@ -1485,21 +1487,21 @@ namespace System.StubHelpers
         }
     }
 
-    // Keeps a Delegate instance alive across the full Managed->Native call.
+    // Keeps an object instance alive across the full Managed->Native call.
     // This ensures that users don't have to call GC.KeepAlive after passing a struct or class
     // that has a delegate field to native code.
-    internal sealed class DelegateCleanupWorkListElement : CleanupWorkListElement
+    internal sealed class KeepAliveCleanupWorkListElement : CleanupWorkListElement
     {
-        public DelegateCleanupWorkListElement(Delegate del)
+        public KeepAliveCleanupWorkListElement(object obj)
         {
-            m_del = del;
+            m_obj = obj;
         }
 
-        private Delegate m_del;
+        private object m_obj;
 
         protected override void DestroyCore()
         {
-            GC.KeepAlive(m_del);
+            GC.KeepAlive(m_obj);
         }
     }
 
@@ -1562,9 +1564,9 @@ namespace System.StubHelpers
             return element.AddRef();
         }
 
-        internal static void AddToCleanupList(ref CleanupWorkListElement pCleanupWorkList, Delegate del)
+        internal static void KeepAliveViaCleanupList(ref CleanupWorkListElement pCleanupWorkList, object obj)
         {
-            DelegateCleanupWorkListElement element = new DelegateCleanupWorkListElement(del);
+            KeepAliveCleanupWorkListElement element = new KeepAliveCleanupWorkListElement(obj);
             CleanupWorkListElement.AddToCleanupList(ref pCleanupWorkList, element);
         }
 
@@ -1622,7 +1624,7 @@ namespace System.StubHelpers
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pHandle, ExceptionResource.ArgumentNull_SafeHandle);
             }
 
-            pHandle!.DangerousAddRef(ref success); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            pHandle.DangerousAddRef(ref success);
             return pHandle.DangerousGetHandle();
         }
 
@@ -1636,7 +1638,7 @@ namespace System.StubHelpers
 
             try
             {
-                pHandle!.DangerousRelease(); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                pHandle.DangerousRelease();
             }
             catch
             {
@@ -1740,12 +1742,12 @@ namespace System.StubHelpers
 
 #if FEATURE_ARRAYSTUB_AS_IL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ArrayTypeCheck(object o, Object[] arr);
+        internal static extern void ArrayTypeCheck(object o, object[] arr);
 #endif
 
 #if FEATURE_MULTICASTSTUB_AS_IL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void MulticastDebuggerTraceHelper(object o, Int32 count);
+        internal static extern void MulticastDebuggerTraceHelper(object o, int count);
 #endif
     }  // class StubHelpers
 }

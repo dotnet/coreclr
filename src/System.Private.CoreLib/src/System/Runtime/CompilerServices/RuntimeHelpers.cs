@@ -99,7 +99,7 @@ namespace System.Runtime.CompilerServices
         public static extern int GetHashCode(object o);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public new static extern bool Equals(object? o1, object? o2);
+        public static extern new bool Equals(object? o1, object? o2);
 
         public static int OffsetToStringData
         {
@@ -163,6 +163,12 @@ namespace System.Runtime.CompilerServices
             // See getILIntrinsicImplementationForRuntimeHelpers for how this happens.
             throw new InvalidOperationException();
         }
+
+        internal static ref byte GetRawData(this object obj) =>
+            ref Unsafe.As<RawData>(obj).Data;
+
+        internal static ref byte GetRawSzArrayData(this Array array) =>
+            ref Unsafe.As<RawSzArrayData>(array).Data;
 
         // Returns true iff the object has a component size;
         // i.e., is variable length like System.String or Array.

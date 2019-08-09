@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -18,7 +19,7 @@ using nuint = System.UInt32;
 namespace System
 {
     // Note that we make a T[] (single-dimensional w/ zero as the lower bound) implement both
-    // IList<U> and IReadOnlyList<U>, where T : U dynamically.  See the SZArrayHelper class for details.    
+    // IList<U> and IReadOnlyList<U>, where T : U dynamically.  See the SZArrayHelper class for details.
     public abstract partial class Array : ICloneable, IList, IStructuralComparable, IStructuralEquatable
     {
         // Create instance will create an array
@@ -29,10 +30,10 @@ namespace System
             if (length < 0)
                 ThrowHelper.ThrowLengthArgumentOutOfRange_ArgumentOutOfRange_NeedNonNegNum();
 
-            RuntimeType? t = elementType!.UnderlyingSystemType as RuntimeType; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            RuntimeType? t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
-            return InternalCreate((void*)t!.TypeHandle.Value, 1, &length, null); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            return InternalCreate((void*)t.TypeHandle.Value, 1, &length, null);
         }
 
         public static unsafe Array CreateInstance(Type elementType, int length1, int length2)
@@ -44,13 +45,13 @@ namespace System
             if (length2 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length2, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-            RuntimeType? t = elementType!.UnderlyingSystemType as RuntimeType; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            RuntimeType? t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             int* pLengths = stackalloc int[2];
             pLengths[0] = length1;
             pLengths[1] = length2;
-            return InternalCreate((void*)t!.TypeHandle.Value, 2, pLengths, null); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            return InternalCreate((void*)t.TypeHandle.Value, 2, pLengths, null);
         }
 
         public static unsafe Array CreateInstance(Type elementType, int length1, int length2, int length3)
@@ -64,14 +65,14 @@ namespace System
             if (length3 < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length3, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
-            RuntimeType? t = elementType!.UnderlyingSystemType as RuntimeType; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            RuntimeType? t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
             int* pLengths = stackalloc int[3];
             pLengths[0] = length1;
             pLengths[1] = length2;
             pLengths[2] = length3;
-            return InternalCreate((void*)t!.TypeHandle.Value, 3, pLengths, null); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            return InternalCreate((void*)t.TypeHandle.Value, 3, pLengths, null);
         }
 
         public static unsafe Array CreateInstance(Type elementType, params int[] lengths)
@@ -80,23 +81,23 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.elementType);
             if (lengths == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
-            if (lengths!.Length == 0) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
 
-            RuntimeType? t = elementType!.UnderlyingSystemType as RuntimeType; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            RuntimeType? t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lengths are all positive. Note that we check this here to give
-            // a good exception message if they are not; however we check this again inside the execution 
-            // engine's low level allocation function after having made a copy of the array to prevent a 
-            // malicious caller from mutating the array after this check.           
+            // a good exception message if they are not; however we check this again inside the execution
+            // engine's low level allocation function after having made a copy of the array to prevent a
+            // malicious caller from mutating the array after this check.
             for (int i = 0; i < lengths.Length; i++)
                 if (lengths[i] < 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, i, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
             fixed (int* pLengths = &lengths[0])
-                return InternalCreate((void*)t!.TypeHandle.Value, lengths.Length, pLengths, null); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                return InternalCreate((void*)t.TypeHandle.Value, lengths.Length, pLengths, null);
         }
 
         public static unsafe Array CreateInstance(Type elementType, int[] lengths, int[] lowerBounds)
@@ -107,26 +108,26 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lengths);
             if (lowerBounds == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.lowerBounds);
-            if (lengths!.Length != lowerBounds!.Length) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            if (lengths.Length != lowerBounds!.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RanksAndBounds);
             if (lengths.Length == 0)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_NeedAtLeast1Rank);
 
-            RuntimeType? t = elementType!.UnderlyingSystemType as RuntimeType; // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            RuntimeType? t = elementType.UnderlyingSystemType as RuntimeType;
             if (t == null)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_MustBeType, ExceptionArgument.elementType);
 
             // Check to make sure the lenghts are all positive. Note that we check this here to give
-            // a good exception message if they are not; however we check this again inside the execution 
-            // engine's low level allocation function after having made a copy of the array to prevent a 
-            // malicious caller from mutating the array after this check.           
+            // a good exception message if they are not; however we check this again inside the execution
+            // engine's low level allocation function after having made a copy of the array to prevent a
+            // malicious caller from mutating the array after this check.
             for (int i = 0; i < lengths.Length; i++)
                 if (lengths[i] < 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.lengths, i, ExceptionResource.ArgumentOutOfRange_NeedNonNegNum);
 
             fixed (int* pLengths = &lengths[0])
             fixed (int* pLowerBounds = &lowerBounds[0])
-                return InternalCreate((void*)t!.TypeHandle.Value, lengths.Length, pLengths, pLowerBounds); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+                return InternalCreate((void*)t.TypeHandle.Value, lengths.Length, pLengths, pLowerBounds);
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -142,7 +143,7 @@ namespace System
             if (destinationArray == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.destinationArray);
 
-            Copy(sourceArray!, sourceArray!.GetLowerBound(0), destinationArray!, destinationArray!.GetLowerBound(0), length, false); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            Copy(sourceArray, sourceArray.GetLowerBound(0), destinationArray, destinationArray.GetLowerBound(0), length, false);
         }
 
         // Copies length elements from sourceArray, starting at sourceIndex, to
@@ -153,7 +154,7 @@ namespace System
             Copy(sourceArray, sourceIndex, destinationArray, destinationIndex, length, false);
         }
 
-        // Reliability-wise, this method will either possibly corrupt your 
+        // Reliability-wise, this method will either possibly corrupt your
         // instance & might fail when called from within a CER, or if the
         // reliable flag is true, it will either always succeed or always
         // throw an exception with no side effects.
@@ -162,7 +163,7 @@ namespace System
 
         // Provides a strong exception guarantee - either it succeeds, or
         // it throws an exception with no side effects.  The arrays must be
-        // compatible array types based on the array element type - this 
+        // compatible array types based on the array element type - this
         // method does not support casting, boxing, or primitive widening.
         // It will up-cast, assuming the array types are correct.
         public static void ConstrainedCopy(Array sourceArray, int sourceIndex, Array destinationArray, int destinationIndex, int length)
@@ -178,7 +179,7 @@ namespace System
             if (array == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
 
-            ref byte p = ref GetRawArrayGeometry(array!, out uint numComponents, out uint elementSize, out int lowerBound, out bool containsGCPointers); // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            ref byte p = ref GetRawArrayGeometry(array, out uint numComponents, out uint elementSize, out int lowerBound, out bool containsGCPointers);
 
             int offset = index - lowerBound;
 
@@ -202,7 +203,7 @@ namespace System
         {
             if (indices == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
-            if (Rank != indices!.Length) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
 
             TypedReference elemref = new TypedReference();
@@ -293,7 +294,7 @@ namespace System
         {
             if (indices == null)
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.indices);
-            if (Rank != indices!.Length) // TODO-NULLABLE: Remove ! when [DoesNotReturn] respected
+            if (Rank != indices.Length)
                 ThrowHelper.ThrowArgumentException(ExceptionResource.Arg_RankIndices);
 
             TypedReference elemref = new TypedReference();
@@ -386,7 +387,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool TrySZSort(Array keys, Array? items, int left, int right);
 
-        // if this is an array of value classes and that value class has a default constructor 
+        // if this is an array of value classes and that value class has a default constructor
         // then this calls this default constructor on every element in the value class array.
         // otherwise this is a no-op.  Generally this method is called automatically by the compiler
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -395,12 +396,12 @@ namespace System
 
     //----------------------------------------------------------------------------------------
     // ! READ THIS BEFORE YOU WORK ON THIS CLASS.
-    // 
+    //
     // The methods on this class must be written VERY carefully to avoid introducing security holes.
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not SZArrayHelper objects. Rather, they are of type U[]
     // where U[] is castable to T[]. No actual SZArrayHelper object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" "T[]". 
+    // see a lot of expressions that cast "this" "T[]".
     //
     // This class is needed to allow an SZ array of type T[] to expose IList<T>,
     // IList<T.BaseType>, etc., etc. all the way up to IList<Object>. When the following call is
@@ -410,7 +411,7 @@ namespace System
     //
     // the interface stub dispatcher treats this as a special case, loads up SZArrayHelper,
     // finds the corresponding generic method (matched simply by method name), instantiates
-    // it for type <T> and executes it. 
+    // it for type <T> and executes it.
     //
     // The "T" will reflect the interface used to invoke the method. The actual runtime "this" will be
     // array that is castable to "T[]" (i.e. for primitivs and valuetypes, it will be exactly
