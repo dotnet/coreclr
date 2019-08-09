@@ -34,7 +34,7 @@ namespace ABIStress
                 typeof(S31U), typeof(S32U),
             };
 
-        public CallingConvention[] PInvokeConventions { get; } = { CallingConvention.Cdecl, CallingConvention.StdCall, CallingConvention.ThisCall, };
+        public CallingConvention[] PInvokeConventions { get; } = { CallingConvention.Cdecl, CallingConvention.StdCall, };
 
         public int ApproximateArgStackAreaSize(List<TypeEx> parameters)
         {
