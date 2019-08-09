@@ -1027,9 +1027,6 @@ if [ $__PortableBuild == 0 ]; then
     __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
 fi
 
-# Restore Build Tools
-source $__ProjectRoot/init-tools.sh
-
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests
 elif [ ! -z "$__BuildTestWrappersOnly" ]; then

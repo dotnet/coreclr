@@ -18,7 +18,6 @@ param(
 
 & "$PSScriptRoot\init-tools.cmd"
 & "$PSScriptRoot\dotnet.cmd" msbuild /nologo /verbosity:minimal /clp:Summary /nodeReuse:false `
-    /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll`;LogFile=binclash.log `
     /p:RestoreDefaultOptimizationDataPackage=false `
     /p:PortableBuild=true `
     /p:UsePartialNGENOptimization=false `
