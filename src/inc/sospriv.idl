@@ -375,7 +375,7 @@ interface ISOSDacInterface5 : IUnknown
 ]
 interface ISOSDacInterface6 : IUnknown
 {
-    HRESULT GetMethodTableFieldData(CLRDATA_ADDRESS mt, struct DacpMethodTableFieldData *data);
+    HRESULT GetMethodTableCollectibleData(CLRDATA_ADDRESS mt, struct DacpMethodTableCollectibleData *data);
 };
 
 [
