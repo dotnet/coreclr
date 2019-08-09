@@ -194,8 +194,8 @@ namespace ABIStress
                 return true;
 
             Console.WriteLine("Mismatch in tailcall: expected {0}, got {1}", calleeResult, callerResult);
-            Console.WriteLine(caller);
-            Console.WriteLine(callee.Method);
+            WriteSignature(caller);
+            WriteSignature(callee.Method);
             return false;
         }
 
@@ -288,8 +288,8 @@ namespace ABIStress
 
             if (!allCorrect)
             {
-                Console.WriteLine(caller);
-                Console.WriteLine(callee.Method);
+                WriteSignature(caller);
+                WriteSignature(callee.Method);
             }
 
             return allCorrect;
@@ -388,8 +388,8 @@ namespace ABIStress
 
             if (Config.Verbose)
             {
-                Console.WriteLine(caller);
-                Console.WriteLine(callee);
+                WriteSignature(caller);
+                WriteSignature(callee);
 
                 Console.WriteLine("Invoking caller through reflection with args");
                 for (int j = 0; j < outerArgs.Length; j++)
@@ -437,6 +437,12 @@ namespace ABIStress
             return f();
         }
 
+        private static void WriteSignature(MethodInfo mi)
+        {
+            string ns = typeof(S1P).Namespace;
+            // The normal output will include a bunch of namespaces before types which just clutter things.
+            Console.WriteLine(mi.ToString().Replace(ns + ".", ""));
+        }
 
         private static readonly MethodInfo s_writeString = typeof(Console).GetMethod("Write", new[] { typeof(string) });
         private static readonly MethodInfo s_writeLineString = typeof(Console).GetMethod("WriteLine", new[] { typeof(string) });
