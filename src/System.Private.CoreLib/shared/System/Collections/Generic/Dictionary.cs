@@ -688,6 +688,12 @@ namespace System.Collections.Generic
             int hashsize = siInfo.GetInt32(HashSizeName);
             _comparer = (IEqualityComparer<TKey>)siInfo.GetValue(ComparerName, typeof(IEqualityComparer<TKey>))!; // When serialized if comparer is null, we use the default.
 
+            // "==" would fail since they're different instances
+            if (Equals(_comparer, EqualityComparer<TKey>.Default))
+            {
+                _comparer = null;
+            }
+
             if (hashsize != 0)
             {
                 Initialize(hashsize);
