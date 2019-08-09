@@ -13,6 +13,7 @@ using System.Runtime.Intrinsics;
 
 namespace ABIStress
 {
+    // This class allows us to generate random values of specified types.
     internal static class Gen
     {
         private static unsafe TVec GenConstantVector<TVec, TElem>(Random rand) where TVec : unmanaged where TElem : unmanaged
@@ -60,6 +61,10 @@ namespace ABIStress
             return Activator.CreateInstance(type, fields.Select(fi => GenConstant(fi.FieldType, null, rand)).ToArray());
         }
     }
+
+    // Values are expressions of a specified type. We allow these values access
+    // to incoming arguments and require both that we can compute them and also
+    // that we can emit IL code that loads them on the top of the stack.
     internal abstract class Value
     {
         public Value(TypeEx type)

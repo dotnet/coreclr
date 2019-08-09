@@ -20,7 +20,7 @@ namespace ABIStress
     {
         private static int Main(string[] args)
         {
-            void Usage()
+            static void Usage()
             {
                 Console.WriteLine("Usage: [--verbose] [--caller-index <number>] [--num-calls <number>] [--tailcalls] [--pinvokes] [--no-ctrlc-summary]");
                 Console.WriteLine("Either --caller-index or --num-calls must be specified.");
@@ -62,7 +62,7 @@ namespace ABIStress
                 return 1;
             }
 
-            bool noCtrlCSummary = args.Contains("--no-ctrlc-summary");
+            bool ctrlCSummary = !args.Contains("--no-ctrlc-summary");
 
             if (Config.StressModes.HasFlag(StressModes.TailCalls))
                 Console.WriteLine("Stressing tailcalls");
@@ -80,7 +80,7 @@ namespace ABIStress
             else
             {
                 bool abortLoop = false;
-                if (!noCtrlCSummary)
+                if (ctrlCSummary)
                 {
                     Console.CancelKeyPress += (sender, args) =>
                     {
