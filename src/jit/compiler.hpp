@@ -859,11 +859,6 @@ const char* genES2str(BitVecTraits* traits, EXPSET_TP set);
 const char* refCntWtd2str(unsigned refCntWtd);
 #endif
 
-void* GenTreeStmt::operator new(size_t sz, class Compiler* compiler)
-{
-    return compiler->getAllocator(CMK_ASTNode).allocate<char>(sz);
-}
-
 /*
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
@@ -949,7 +944,7 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
 
 inline GenTreeStmt* Compiler::gtNewStmt(GenTree* expr, IL_OFFSETX offset)
 {
-    GenTreeStmt* stmt = new (this) GenTreeStmt(expr, offset);
+    GenTreeStmt* stmt = new (this->getAllocator(CMK_ASTNode)) GenTreeStmt(expr, offset);
     return stmt;
 }
 

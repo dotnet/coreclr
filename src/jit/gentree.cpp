@@ -11298,7 +11298,7 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
 
 void Compiler::gtDispStmtList(GenTreeStmt* stmts, IndentStack* indentStack /* = nullptr */)
 {
-    for (GenTreeStmt* stmt = stmts; stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (GenTreeStmt* stmt = stmts; stmt != nullptr; stmt = stmt->getNextStmt())
     {
         gtDispTree(stmt->gtStmtExpr, indentStack);
         printf("\n");

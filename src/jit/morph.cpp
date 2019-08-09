@@ -18123,7 +18123,7 @@ public:
 
         WalkTree(&stmt->gtStmtExpr, nullptr);
 
-        // We could have something like STMT(IND(ADDR(LCL_VAR))) so we need to escape
+        // We could have something a statement like IND(ADDR(LCL_VAR)) so we need to escape
         // the location here. This doesn't seem to happen often, if ever. The importer
         // tends to wrap such a tree in a COMMA.
         if (TopValue(0).IsLocation())

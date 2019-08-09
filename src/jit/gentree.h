@@ -4960,21 +4960,6 @@ struct GenTreeStmt
     {
     }
 
-#if DEBUGGABLE_GENTREE
-    GenTreeStmt()
-        : gtStmtExpr(nullptr)
-        , gtStmtList(nullptr)
-        , gtInlineContext(nullptr)
-        , gtStmtILoffsx(BAD_IL_OFFSET)
-        , gtStmtLastILoffs(BAD_IL_OFFSET)
-        , gtNext(nullptr)
-        , gtPrev(nullptr)
-    {
-    }
-#endif
-
-    inline void* operator new(size_t sz, class Compiler*);
-
     bool IsPhiDefnStmt();
 };
 
