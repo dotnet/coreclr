@@ -137,4 +137,35 @@ namespace ABIStress
             return size;
         }
     }
+
+    internal class Arm32Abi : IAbi
+    {
+        // For arm32 everything can be passed by value
+        public Type[] TailCalleeCandidateArgTypes { get; } =
+            new[]
+            {
+                typeof(byte), typeof(short), typeof(int), typeof(long),
+                typeof(float), typeof(double),
+                typeof(S1P), typeof(S2P), typeof(S2U), typeof(S3U),
+                typeof(S4P), typeof(S4U), typeof(S5U), typeof(S6U),
+                typeof(S7U), typeof(S8P), typeof(S8U), typeof(S9U),
+                typeof(S10U), typeof(S11U), typeof(S12U), typeof(S13U),
+                typeof(S14U), typeof(S15U), typeof(S16U), typeof(S17U),
+                typeof(S31U), typeof(S32U),
+                typeof(Hfa1), typeof(Hfa2),
+            };
+
+        public CallingConvention[] PInvokeConventions { get; } = { CallingConvention.Cdecl };
+
+        public int ApproximateArgStackAreaSize(List<TypeEx> parameters)
+        {
+            int size = 0;
+            foreach (TypeEx pm in parameters)
+            {
+                size += (pm.Size + 3) & ~3;
+            }
+
+            return size;
+        }
+    }
 }

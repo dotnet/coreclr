@@ -540,11 +540,15 @@ namespace ABIStress
 
             if (Environment.OSVersion.Platform == PlatformID.Unix)
             {
-                Trace.Assert(IntPtr.Size == 8, "Expected 64-bit process on Unix");
                 if (RuntimeInformation.ProcessArchitecture == Architecture.Arm64)
                 {
-                    Console.WriteLine("Selecting ARM64 ABI");
+                    Console.WriteLine("Selecting arm64 ABI.");
                     return new Arm64Abi();
+                }
+                if (RuntimeInformation.ProcessArchitecture == Architecture.Arm)
+                {
+                    Console.WriteLine("Selecting armhf ABI.");
+                    return new Arm32Abi();
                 }
 
                 Trace.Assert(RuntimeInformation.ProcessArchitecture == Architecture.X64);
