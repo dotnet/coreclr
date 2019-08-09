@@ -4299,5 +4299,40 @@ HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count
 
     SOSDacLeave();
 
-    return hr;;
+    return hr;
+}
+
+HRESULT ClrDataAccess::GetILForMethod(CLRDATA_ADDRESS methodDesc, int rejitId, CLRDATA_ADDRESS *il)
+{
+    if (methodDesc == 0 || rejitId < 0 || il == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+
+    PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
+
+    if (rejitId == 0)
+    {
+        *il = (TADDR)(CLRDATA_ADDRESS)pMD->GetIL();
+    }
+    else
+    {
+        CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+        CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+        ILCodeVersion ilVersion = pCodeVersionManager->GetILCodeVersion(pMD, rejitId);
+        if (ilVersion.IsNull())
+        {
+            hr = E_INVALIDARG;
+        }
+        else
+        {
+            *il = (TADDR)(CLRDATA_ADDRESS)ilVersion->GetIL();
+        }
+    }
+    
+    SOSDacLeave();
+
+    return hr;    
 }
