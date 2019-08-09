@@ -660,8 +660,8 @@ void BasicBlock::MakeLIR(GenTree* firstNode, GenTree* lastNode)
 
 bool BasicBlock::IsLIR()
 {
-    const bool isLIR = (bbFlags & BBF_IS_LIR) != 0;
-    assert((isLIR && bbStmtList == nullptr) || (!isLIR && bbTreeList == nullptr));
+    assert(isValid());
+    const bool isLIR = ((bbFlags & BBF_IS_LIR) != 0);
     return isLIR;
 }
 
@@ -800,6 +800,27 @@ bool BasicBlock::isEmpty()
     }
 
     return true;
+}
+
+//------------------------------------------------------------------------
+// isValid: Checks that the basic block doesn't mix statements and LIR lists.
+//
+// Return Value:
+//    True if it a valid basic block.
+//
+bool BasicBlock::isValid()
+{
+    const bool isLIR = ((bbFlags & BBF_IS_LIR) != 0);
+    if (isLIR)
+    {
+        // Should not have statements in LIR.
+        return (bbStmtList == nullptr);
+    }
+    else
+    {
+        // Should not have tree list before LIR.
+        return (bbTreeList == nullptr);
+    }
 }
 
 GenTreeStmt* BasicBlock::FirstNonPhiDef()

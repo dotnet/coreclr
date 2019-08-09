@@ -4961,6 +4961,16 @@ struct GenTreeStmt
     }
 
     bool IsPhiDefnStmt();
+
+    unsigned char GetCostSz() const
+    {
+        return gtStmtExpr->GetCostSz();
+    }
+
+    unsigned char GetCostEx() const
+    {
+        return gtStmtExpr->GetCostEx();
+    }
 };
 
 /*  NOTE: Any tree nodes that are larger than 8 bytes (two ints or

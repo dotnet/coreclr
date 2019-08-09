@@ -3764,7 +3764,7 @@ void Compiler::compInitDebuggingInfo()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertTreeAtEnd(fgFirstBB, gtNewNothingNode());
+        fgNewStmtAtEnd(fgFirstBB, gtNewNothingNode());
 
         JITDUMP("Debuggable code - Add new %s to perform initialization of variables\n", fgFirstBB->dspToString());
     }
@@ -4747,8 +4747,8 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         {
             for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
-                compSizeEstimate += stmt->gtStmtExpr->GetCostSz();
-                compCycleEstimate += stmt->gtStmtExpr->GetCostEx();
+                compSizeEstimate += stmt->GetCostSz();
+                compCycleEstimate += stmt->GetCostEx();
             }
         }
     }

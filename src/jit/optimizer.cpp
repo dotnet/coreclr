@@ -3698,7 +3698,7 @@ void Compiler::optUnrollLoops()
                     gtSetStmtInfo(stmt);
 
                     /* Update loopCostSz */
-                    loopCostSz += stmt->gtStmtExpr->gtCostSz;
+                    loopCostSz += stmt->GetCostSz();
                 }
 
                 if (block == bottom)
@@ -4246,7 +4246,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     /* Create a statement entry out of the condition and
        append the condition test at the end of 'block' */
 
-    GenTreeStmt* copyOfCondStmt = fgInsertTreeAtEnd(block, condTree);
+    GenTreeStmt* copyOfCondStmt = fgNewStmtAtEnd(block, condTree);
 
     copyOfCondStmt->compilerAdded = true;
 

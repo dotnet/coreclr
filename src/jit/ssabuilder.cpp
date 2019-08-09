@@ -756,7 +756,7 @@ void SsaBuilder::InsertPhiFunctions(BasicBlock** postOrder, int count)
 
                     GenTree* phiAsg = m_pCompiler->gtNewAssignNode(phiLhs, phiRhs);
 
-                    GenTreeStmt* stmt = m_pCompiler->fgInsertTreeAtBeg(bbInDomFront, phiAsg);
+                    GenTreeStmt* stmt = m_pCompiler->fgNewStmtAtBeg(bbInDomFront, phiAsg);
                     m_pCompiler->gtSetStmtInfo(stmt);
                     m_pCompiler->fgSetStmtSeq(stmt);
                 }

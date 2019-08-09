@@ -647,6 +647,8 @@ struct BasicBlock : private LIR::Range
     // trees *except* PHI definitions.
     bool isEmpty();
 
+    bool isValid();
+
     // Returns "true" iff "this" is the first block of a BBJ_CALLFINALLY/BBJ_ALWAYS pair --
     // a block corresponding to an exit from the try of a try/finally.  In the flow graph,
     // this becomes a block that calls the finally, and a second, immediately

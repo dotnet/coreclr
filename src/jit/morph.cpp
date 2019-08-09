@@ -16868,7 +16868,7 @@ void Compiler::fgMorph()
         CORINFO_INITCLASS_USE_HELPER)
     {
         fgEnsureFirstBBisScratch();
-        fgInsertTreeAtBeg(fgFirstBB, fgInitThisClass());
+        fgNewStmtAtBeg(fgFirstBB, fgInitThisClass());
     }
 
 #ifdef DEBUG
@@ -16884,7 +16884,7 @@ void Compiler::fgMorph()
                 op                   = gtNewHelperCallNode(CORINFO_HELP_CHECK_OBJ, TYP_VOID, args);
 
                 fgEnsureFirstBBisScratch();
-                fgInsertTreeAtEnd(fgFirstBB, op);
+                fgNewStmtAtEnd(fgFirstBB, op);
             }
         }
     }
@@ -17518,7 +17518,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                     GenTree* addr   = gtNewLclvNode(lclNum, TYP_BYREF);
                     GenTree* rhs    = gtNewBlockVal(addr, (unsigned)size);
                     GenTree* assign = gtNewAssignNode(lhs, rhs);
-                    fgInsertTreeAtBeg(fgFirstBB, assign);
+                    fgNewStmtAtBeg(fgFirstBB, assign);
                 }
 
                 // Update the locals corresponding to the promoted fields.

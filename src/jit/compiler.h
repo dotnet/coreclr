@@ -5239,15 +5239,14 @@ public:
 
 public:
     GenTreeStmt* fgInsertStmtAtEnd(BasicBlock* block, GenTreeStmt* stmt);
-    GenTreeStmt* fgInsertTreeAtEnd(BasicBlock* block, GenTree* tree);
-
-public: // Used by linear scan register allocation
-    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt);
-    GenTreeStmt* fgInsertTreeNearEnd(BasicBlock* block, GenTree* tree);
+    GenTreeStmt* fgNewStmtAtEnd(BasicBlock* block, GenTree* tree);
 
 private:
+    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgNewStmtNearEnd(BasicBlock* block, GenTree* tree);
+
     GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTreeStmt* stmt);
-    GenTreeStmt* fgInsertTreeAtBeg(BasicBlock* block, GenTree* tree);
+    GenTreeStmt* fgNewStmtAtBeg(BasicBlock* block, GenTree* tree);
 
     GenTreeStmt* fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
 

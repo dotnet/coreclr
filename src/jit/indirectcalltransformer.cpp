@@ -666,7 +666,7 @@ private:
             GenTree*       clonedObj = compiler->gtCloneExpr(origCall->gtCallObjp);
             GenTree*       assign    = compiler->gtNewTempAssign(thisTemp, clonedObj);
             compiler->lvaSetClass(thisTemp, clsHnd, true);
-            compiler->fgInsertTreeAtEnd(thenBlock, assign);
+            compiler->fgNewStmtAtEnd(thenBlock, assign);
 
             // Clone call. Note we must use the special candidate helper.
             GenTreeCall* call = compiler->gtCloneCandidateCall(origCall);
@@ -698,7 +698,7 @@ private:
             call->gtInlineCandidateInfo = inlineInfo;
 
             // Add the call.
-            compiler->fgInsertTreeAtEnd(thenBlock, call);
+            compiler->fgNewStmtAtEnd(thenBlock, call);
 
             // If there was a ret expr for this call, we need to create a new one
             // and append it just after the call.
@@ -720,7 +720,7 @@ private:
                     // We should always have a return temp if we return results by value
                     assert(origCall->TypeGet() == TYP_VOID);
                 }
-                compiler->fgInsertTreeAtEnd(thenBlock, retExpr);
+                compiler->fgNewStmtAtEnd(thenBlock, retExpr);
             }
         }
 
