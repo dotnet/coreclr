@@ -37,10 +37,10 @@
     <RefDestination>$(ProductDestination)\ref</RefDestination>
   </PropertyGroup>
 
-  <Target Name="CopyDependencyToCoreRoot"
-    Inputs="@(CoreRootProjectLockJsonFiles)"
-    Outputs="$(CORE_ROOT)\*.*">
-
+  <Target Name="CopyDependencyToCoreRoot">
+  <!-- TODO: make this incremental again! -->
+  <!-- incrementalism here was breaking it. -->
+  <!-- ensure CORE_ROOT gets output -->
     <MSBuild Projects="@(CoreRootProjectFiles)"
              Targets="CopyDependencyToCoreRoot"
              Properties="Language=C#;RuntimeIdentifier=$(TargetRid)" />
