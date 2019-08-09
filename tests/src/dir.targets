@@ -85,9 +85,6 @@
   <!-- RunOnly projects have a special build for dependent projects -->
   <Import Project="runonly.targets" Condition="'$(CLRTestKind)' == 'RunOnly'" />
 
-  <!-- This used to come from buildtools... -->
-  <Target Name="Build" DependsOnTargets="$(TraversalBuildDependsOn)" />
-
   <Import Project="..\override.targets" Condition="Exists('..\override.targets')"/>
 
   <!-- We enable auto-unification of assembly references after importing the common targets.  Binding redirects are not needed
