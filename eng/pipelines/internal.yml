@@ -40,28 +40,28 @@ stages:
     #
     # Release test builds
     #
-    # - template: /eng/platform-matrix.yml
-    #   parameters:
-    #     jobTemplate: test-job.yml
-    #     buildConfig: release
-    #     platformGroup: all
-    #     helixQueueGroup: all
-    #     jobParameters:
-    #       testGroup: outerloop
+    - template: /eng/platform-matrix.yml
+      parameters:
+        jobTemplate: test-job.yml
+        buildConfig: release
+        platformGroup: all
+        helixQueueGroup: all
+        jobParameters:
+          testGroup: outerloop
 
     #
     # ReadyToRun test builds
     #
-    # - template: /eng/platform-matrix.yml
-    #   parameters:
-    #     jobTemplate: test-job.yml
-    #     buildConfig: release
-    #     platformGroup: all
-    #     helixQueueGroup: all
-    #     jobParameters:
-    #       testGroup: outerloop
-    #       readyToRun: true
-    #       displayNameArgs: R2R
+    - template: /eng/platform-matrix.yml
+      parameters:
+        jobTemplate: test-job.yml
+        buildConfig: release
+        platformGroup: all
+        helixQueueGroup: all
+        jobParameters:
+          testGroup: outerloop
+          readyToRun: true
+          displayNameArgs: R2R
 
     #
     # Publish build information to Build Assets Registry
