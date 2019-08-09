@@ -12766,7 +12766,11 @@ DONE_MORPHING_CHILDREN:
                         oper = (oper == GT_LE) ? GT_EQ : GT_NE;
                         tree->SetOper(oper, GenTree::PRESERVE_VN);
                         tree->gtFlags &= ~GTF_UNSIGNED;
-                        goto CM_EQ_OP;
+
+                        if (op1->OperIs(GT_MOD))
+                        {
+                            goto CM_EQ_OP;
+                        }
                     }
                 }
             }
