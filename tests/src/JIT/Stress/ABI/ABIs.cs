@@ -110,7 +110,8 @@ namespace ABIStress
 
     internal class Arm64Abi : IAbi
     {
-        // For Arm64 everything can be passed everything by value.
+        // For Arm64 structs larger than 16 bytes are passed by-ref and will inhibit tailcalls,
+        // so we exclude those.
         public Type[] TailCalleeCandidateArgTypes { get; } =
             new[]
             {
@@ -121,8 +122,7 @@ namespace ABIStress
                 typeof(S4P), typeof(S4U), typeof(S5U), typeof(S6U),
                 typeof(S7U), typeof(S8P), typeof(S8U), typeof(S9U),
                 typeof(S10U), typeof(S11U), typeof(S12U), typeof(S13U),
-                typeof(S14U), typeof(S15U), typeof(S16U), typeof(S17U),
-                typeof(S31U), typeof(S32U),
+                typeof(S14U), typeof(S15U), typeof(S16U),
                 typeof(Hfa1), typeof(Hfa2),
             };
 
