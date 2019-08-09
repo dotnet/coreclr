@@ -41,7 +41,7 @@ namespace System.Reflection.Emit
         // We capture the creation context so that we can do the checks against the same context,
         // irrespective of when the method gets compiled. Note that the DynamicMethod does not know when
         // it is ready for use since there is not API which indictates that IL generation has completed.
-        private static volatile InternalModuleBuilder s_anonymouslyHostedDynamicMethodsModule;
+        private static volatile InternalModuleBuilder? s_anonymouslyHostedDynamicMethodsModule;
         private static readonly object s_anonymouslyHostedDynamicMethodsModuleLock = new object();
 
         //
@@ -49,8 +49,8 @@ namespace System.Reflection.Emit
         //
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes)
+                             Type? returnType,
+                             Type[]? parameterTypes)
         {
             Init(name,
                 MethodAttributes.Public | MethodAttributes.Static,
@@ -64,8 +64,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              bool restrictedSkipVisibility)
         {
             Init(name,
@@ -80,8 +80,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Module m)
         {
             if (m == null)
@@ -99,8 +99,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Module m,
                              bool skipVisibility)
         {
@@ -121,8 +121,8 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              MethodAttributes attributes,
                              CallingConventions callingConvention,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Module m,
                              bool skipVisibility)
         {
@@ -141,8 +141,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Type owner)
         {
             if (owner == null)
@@ -160,8 +160,8 @@ namespace System.Reflection.Emit
         }
 
         public DynamicMethod(string name,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Type owner,
                              bool skipVisibility)
         {
@@ -182,8 +182,8 @@ namespace System.Reflection.Emit
         public DynamicMethod(string name,
                              MethodAttributes attributes,
                              CallingConventions callingConvention,
-                             Type returnType,
-                             Type[] parameterTypes,
+                             Type? returnType,
+                             Type[]? parameterTypes,
                              Type owner,
                              bool skipVisibility)
         {

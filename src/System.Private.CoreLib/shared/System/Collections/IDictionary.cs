@@ -13,9 +13,8 @@ namespace System.Collections
     public interface IDictionary : ICollection
     {
         // Interfaces are not serializable
-        // The Item property provides methods to read and edit entries 
+        // The Item property provides methods to read and edit entries
         // in the Dictionary.
-        [DisallowNull]
         object? this[object key]
         {
             get;

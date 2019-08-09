@@ -893,7 +893,6 @@ public:
                                                //            even if they have been retyped as SIMD16.
 
 #define GTF_STMT_CMPADD             0x80000000 // GT_STMT -- added by compiler
-#define GTF_STMT_HAS_CSE            0x40000000 // GT_STMT -- CSE def or use was subsituted
 
 //---------------------------------------------------------------------
 //
@@ -4886,6 +4885,29 @@ struct GenTreeRetExpr : public GenTree
 /* gtStmt   -- 'statement expr' (GT_STMT) */
 
 class InlineContext;
+
+struct GenTreeILOffset : public GenTree
+{
+    IL_OFFSETX gtStmtILoffsx; // instr offset (if available)
+#ifdef DEBUG
+    IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
+#endif
+
+    GenTreeILOffset(IL_OFFSETX offset)
+        : GenTree(GT_IL_OFFSET, TYP_VOID)
+        , gtStmtILoffsx(offset)
+#ifdef DEBUG
+        , gtStmtLastILoffs(BAD_IL_OFFSET)
+#endif
+    {
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreeILOffset() : GenTree(GT_IL_OFFSET, TYP_VOID)
+    {
+    }
+#endif
+};
 
 struct GenTreeStmt : public GenTree
 {

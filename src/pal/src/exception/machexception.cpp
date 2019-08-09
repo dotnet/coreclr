@@ -453,16 +453,6 @@ void PAL_DispatchException(DWORD64 dwRDI, DWORD64 dwRSI, DWORD64 dwRDX, DWORD64 
 {
     CPalThread *pThread = InternalGetCurrentThread();
 
-#if FEATURE_PAL_SXS
-    if (!pThread->IsInPal())
-    {
-        // It's now possible to observe system exceptions in code running outside the PAL (as the result of a
-        // p/invoke since we no longer revert our Mach exception ports in this case). In that scenario we need
-        // to re-enter the PAL now as the exception signals the end of the p/invoke.
-        PAL_Reenter(PAL_BoundaryBottom);
-    }
-#endif // FEATURE_PAL_SXS
-
     CONTEXT *contextRecord;
     EXCEPTION_RECORD *exceptionRecord;
     AllocateExceptionRecords(&exceptionRecord, &contextRecord);
@@ -1017,10 +1007,10 @@ Parameters:
     thread - mach thread port
 
 Return value :
-    None
+    KERN_SUCCESS if the suspend succeeded, other code in case of failure
 --*/
 static
-void
+kern_return_t
 SuspendMachThread(thread_act_t thread)
 {
     kern_return_t machret;
@@ -1028,7 +1018,10 @@ SuspendMachThread(thread_act_t thread)
     while (true)
     {
         machret = thread_suspend(thread);
-        CHECK_MACH("thread_suspend", machret);
+        if (machret != KERN_SUCCESS)
+        {
+            break;
+        }
 
         // Ensure that if the thread was running in the kernel, the kernel operation
         // is safely aborted so that it can be restarted later.
@@ -1041,8 +1034,13 @@ SuspendMachThread(thread_act_t thread)
         // The thread was running in the kernel executing a non-atomic operation
         // that cannot be restarted, so we need to resume the thread and retry
         machret = thread_resume(thread);
-        CHECK_MACH("thread_resume", machret);
+        if (machret != KERN_SUCCESS)
+        {
+            break;
+        }
     }
+
+    return machret;
 }
 
 /*++
@@ -1103,7 +1101,8 @@ SEHExceptionThread(void *args)
             thread = sMessage.GetThreadContext(&sContext);
 
             // Suspend the target thread
-            SuspendMachThread(thread);
+            machret = SuspendMachThread(thread);
+            CHECK_MACH("SuspendMachThread", machret);
             
             machret = CONTEXT_SetThreadContextOnPort(thread, &sContext);
             CHECK_MACH("CONTEXT_SetThreadContextOnPort", machret);
@@ -1220,7 +1219,8 @@ SEHExceptionThread(void *args)
             NONPAL_TRACE("ForwardExceptionRequest for thread %08x\n", thread);
 
             // Suspend the faulting thread. 
-            SuspendMachThread(thread);
+            machret = SuspendMachThread(thread);
+            CHECK_MACH("SuspendMachThread", machret);
 
             // Set the context back to the original faulting state.
             MachExceptionInfo *pExceptionInfo = sMessage.GetExceptionInfo();
@@ -1545,7 +1545,8 @@ InjectActivationInternal(CPalThread* pThread)
     PAL_ERROR palError;
 
     mach_port_t threadPort = pThread->GetMachPortSelf();
-    kern_return_t MachRet = thread_suspend(threadPort);
+
+    kern_return_t MachRet = SuspendMachThread(threadPort);
     palError = (MachRet == KERN_SUCCESS) ? NO_ERROR : ERROR_GEN_FAILURE;
 
     if (palError == NO_ERROR)

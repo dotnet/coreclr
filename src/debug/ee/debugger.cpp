@@ -890,15 +890,6 @@ ShutdownTransport()
         g_pDbgTransport = NULL;
     }
 }
-
-void
-AbortTransport()
-{
-    if (g_pDbgTransport != NULL)
-    {
-        g_pDbgTransport->AbortConnection();
-    }
-}
 #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
 
@@ -1895,6 +1886,16 @@ void NotifyDebuggerOfStartup()
 
 #endif // !FEATURE_PAL
 
+void Debugger::CleanupTransportSocket(void)
+{
+#if defined(FEATURE_PAL) && defined(FEATURE_DBGIPC_TRANSPORT_VM)
+    if (g_pDbgTransport != NULL)
+    {
+        g_pDbgTransport->AbortConnection();
+    }
+#endif // FEATURE_PAL && FEATURE_DBGIPC_TRANSPORT_VM
+}
+
 //---------------------------------------------------------------------------------------
 //
 // Initialize Left-Side debugger object
@@ -2047,9 +2048,6 @@ HRESULT Debugger::Startup(void)
             ShutdownTransport();
             ThrowHR(hr);
         }
-    #ifdef FEATURE_PAL
-        PAL_SetShutdownCallback(AbortTransport);
-    #endif // FEATURE_PAL
     #endif // FEATURE_DBGIPC_TRANSPORT_VM
 
         RaiseStartupNotification();
@@ -16156,7 +16154,7 @@ BOOL Debugger::IsThreadContextInvalid(Thread *pThread)
     if (success)
     {
         // Check single-step flag
-        if (IsSSFlagEnabled(reinterpret_cast<DT_CONTEXT *>(&ctx) ARM_ARG(pThread)))
+        if (IsSSFlagEnabled(reinterpret_cast<DT_CONTEXT *>(&ctx) ARM_ARG(pThread) ARM64_ARG(pThread)))
         {
             // Can't hijack a thread whose SS-flag is set. This could lead to races
             // with the thread taking the SS-exception.

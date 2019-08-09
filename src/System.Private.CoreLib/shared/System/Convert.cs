@@ -188,11 +188,13 @@ namespace System
         // object already has the given type code, in which case the object is
         // simply returned. Otherwise, the appropriate ToXXX() is invoked on the
         // object's implementation of IConvertible.
+        [return: NotNullIfNotNull("value")]
         public static object? ChangeType(object? value, TypeCode typeCode)
         {
             return ChangeType(value, typeCode, CultureInfo.CurrentCulture);
         }
 
+        [return: NotNullIfNotNull("value")]
         public static object? ChangeType(object? value, TypeCode typeCode, IFormatProvider? provider)
         {
             if (value == null && (typeCode == TypeCode.Empty || typeCode == TypeCode.String || typeCode == TypeCode.Object))
@@ -307,6 +309,7 @@ namespace System
             throw new InvalidCastException(SR.Format(SR.InvalidCast_FromTo, value.GetType().FullName, targetType.FullName));
         }
 
+        [return: NotNullIfNotNull("value")]
         public static object? ChangeType(object? value, Type conversionType)
         {
             return ChangeType(value, conversionType, CultureInfo.CurrentCulture);
@@ -2597,7 +2600,7 @@ namespace System
 
         private static int ToBase64_CalculateAndValidateOutputLength(int inputLength, bool insertLineBreaks)
         {
-            long outlen = ((long)inputLength) / 3 * 4;          // the base length - we want integer division here. 
+            long outlen = ((long)inputLength) / 3 * 4;          // the base length - we want integer division here.
             outlen += ((inputLength % 3) != 0) ? 4 : 0;         // at most 4 more chars for the remainder
 
             if (outlen == 0)
@@ -2657,7 +2660,7 @@ namespace System
         public static bool TryFromBase64Chars(ReadOnlySpan<char> chars, Span<byte> bytes, out int bytesWritten)
         {
             // This is actually local to one of the nested blocks but is being declared at the top as we don't want multiple stackallocs
-            // for each iteraton of the loop. 
+            // for each iteraton of the loop.
             Span<char> tempBuffer = stackalloc char[4];  // Note: The tempBuffer size could be made larger than 4 but the size must be a multiple of 4.
 
             bytesWritten = 0;
@@ -2698,7 +2701,7 @@ namespace System
                         return false;
                     }
 
-                    // We now loop again to decode the next run of non-space characters. 
+                    // We now loop again to decode the next run of non-space characters.
                 }
                 else
                 {
@@ -2741,7 +2744,7 @@ namespace System
                         return true;
                     }
 
-                    // We now loop again to decode the next run of non-space characters. 
+                    // We now loop again to decode the next run of non-space characters.
                 }
             }
 
@@ -2773,7 +2776,7 @@ namespace System
         private static bool IsSpace(this char c) => c == ' ' || c == '\t' || c == '\r' || c == '\n';
 
         /// <summary>
-        /// Converts the specified range of a Char array, which encodes binary data as Base64 digits, to the equivalent byte array.     
+        /// Converts the specified range of a Char array, which encodes binary data as Base64 digits, to the equivalent byte array.
         /// </summary>
         /// <param name="inArray">Chars representing Base64 encoding characters</param>
         /// <param name="offset">A position within the input array.</param>
@@ -2913,4 +2916,3 @@ namespace System
         }
     }  // class Convert
 }  // namespace
-

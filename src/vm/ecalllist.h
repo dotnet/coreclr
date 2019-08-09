@@ -177,7 +177,6 @@ FCFuncEnd()
 
 FCFuncStart(gExceptionFuncs)
     FCFuncElement("IsImmutableAgileException", ExceptionNative::IsImmutableAgileException)
-    FCFuncElement("nIsTransient", ExceptionNative::IsTransient)
     FCFuncElement("GetMethodFromStackTrace", SystemNative::GetMethodFromStackTrace)
     QCFuncElement("GetMessageFromNativeResources", ExceptionNative::GetMessageFromNativeResources)
     FCFuncElement("PrepareForForeignExceptionRaise", ExceptionNative::PrepareForForeignExceptionRaise)
@@ -1104,6 +1103,7 @@ FCFuncStart(gEventPipeInternalFuncs)
     QCFuncElement("WriteEvent", EventPipeInternal::WriteEvent)
     QCFuncElement("WriteEventData", EventPipeInternal::WriteEventData)
     QCFuncElement("GetNextEvent", EventPipeInternal::GetNextEvent)
+    QCFuncElement("GetWaitHandle", EventPipeInternal::GetWaitHandle)
 FCFuncEnd()
 #endif // FEATURE_PERFTRACING
 

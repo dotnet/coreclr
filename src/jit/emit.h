@@ -15,19 +15,6 @@
 #include "jitgcinfo.h"
 
 /*****************************************************************************/
-#ifdef TRANSLATE_PDB
-#ifndef _ADDRMAP_INCLUDED_
-#include "addrmap.h"
-#endif
-#ifndef _LOCALMAP_INCLUDED_
-#include "localmap.h"
-#endif
-#ifndef _PDBREWRITE_H_
-#include "pdbrewrite.h"
-#endif
-#endif // TRANSLATE_PDB
-
-/*****************************************************************************/
 #ifdef _MSC_VER
 #pragma warning(disable : 4200) // allow arrays of 0 size inside structs
 #endif
@@ -542,13 +529,10 @@ protected:
 
     struct instrDescDebugInfo
     {
-        unsigned idNum;
-        size_t   idSize;       // size of the instruction descriptor
-        unsigned idVarRefOffs; // IL offset for LclVar reference
-        size_t   idMemCookie;  // for display of method name  (also used by switch table)
-#ifdef TRANSLATE_PDB
-        unsigned int idilStart; // instruction descriptor source information for PDB translation
-#endif
+        unsigned          idNum;
+        size_t            idSize;        // size of the instruction descriptor
+        unsigned          idVarRefOffs;  // IL offset for LclVar reference
+        size_t            idMemCookie;   // for display of method name  (also used by switch table)
         bool              idFinallyCall; // Branch instruction is a call to finally
         bool              idCatchRet;    // Instruction is for a catch 'return'
         CORINFO_SIG_INFO* idCallSig;     // Used to report native call site signatures to the EE
@@ -884,6 +868,16 @@ protected:
         }
         void idCodeSize(unsigned sz)
         {
+            if (sz > 15)
+            {
+                // This is a temporary workaround for non-precise instr size
+                // estimator on XARCH. It often overestimates sizes and can
+                // return value more than 15 that doesn't fit in 4 bits _idCodeSize.
+                // If somehow we generate instruction that needs more than 15 bytes we
+                // will fail on another assert in emit.cpp: noway_assert(id->idCodeSize() >= csz).
+                // Issue https://github.com/dotnet/coreclr/issues/25050.
+                sz = 15;
+            }
             assert(sz <= 15); // Intel decoder limit.
             _idCodeSize = sz;
             assert(sz == _idCodeSize);
@@ -1443,36 +1437,6 @@ public:
     void emitEndFuncletEpilog();
 
 #endif // FEATURE_EH_FUNCLETS
-
-/************************************************************************/
-/*           Members and methods used in PDB translation                */
-/************************************************************************/
-
-#ifdef TRANSLATE_PDB
-
-    void MapCode(int ilOffset, BYTE* imgDest);
-    void MapFunc(int                imgOff,
-                 int                procLen,
-                 int                dbgStart,
-                 int                dbgEnd,
-                 short              frameReg,
-                 int                stkAdjust,
-                 int                lvaCount,
-                 OptJit::LclVarDsc* lvaTable,
-                 bool               framePtr);
-
-private:
-    int              emitInstrDescILBase; // code offset of IL that produced this instruction desctriptor
-    int              emitInstrDescILBase; // code offset of IL that produced this instruction desctriptor
-    static AddrMap*  emitPDBOffsetTable;  // translation table for mapping IL addresses to native addresses
-    static LocalMap* emitPDBLocalTable;   // local symbol translation table
-    static bool      emitIsPDBEnabled;    // flag to disable PDB translation code when a PDB is not found
-    static BYTE*     emitILBaseOfCode;    // start of IL .text section
-    static BYTE*     emitILMethodBase;    // beginning of IL method (start of header)
-    static BYTE*     emitILMethodStart;   // beginning of IL method code (right after the header)
-    static BYTE*     emitImgBaseOfCode;   // start of the image .text section
-
-#endif
 
     /************************************************************************/
     /*    Methods to record a code position and later convert to offset     */

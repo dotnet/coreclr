@@ -52,6 +52,9 @@
 // Support for extracting MethodDesc of a delegate.
 #include "comdelegate.h"
 
+#ifdef HAVE_GCCOVER
+#include "gccover.h"
+#endif // HAVE_GCCOVER
 
 #ifndef FEATURE_PAL
 // Windows uses 64kB as the null-reference area
@@ -4387,7 +4390,7 @@ LONG UserBreakpointFilter(EXCEPTION_POINTERS* pEP)
     }
 #endif // DEBUGGING_SUPPORTED
 
-    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_Context, FailFast))
+    if(ETW_EVENT_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PRIVATE_PROVIDER_DOTNET_Context, FailFast))
     {
         // Fire an ETW FailFast event
         FireEtwFailFast(W("StatusBreakpoint"),
@@ -6549,6 +6552,8 @@ DWORD GetGcMarkerExceptionCode(LPVOID ip)
 #if defined(HAVE_GCCOVER)
     WRAPPER_NO_CONTRACT;
 
+    // IsGcCoverageInterrupt(ip) requires "gccover.h"
+    //
     if (GCStress<cfg_any>::IsEnabled() && IsGcCoverageInterrupt(ip))
     {
         return STATUS_CLR_GCCOVER_CODE;
@@ -6648,7 +6653,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
 
 #ifdef DEBUGGING_SUPPORTED
 
-#ifdef _TARGET_ARM_
+#ifdef FEATURE_EMULATE_SINGLESTEP
     // On ARM we don't have any reliable hardware support for single stepping so it is emulated in software.
     // The implementation will end up throwing an EXCEPTION_BREAKPOINT rather than an EXCEPTION_SINGLE_STEP
     // and leaves other aspects of the thread context in an invalid state. Therefore we use this opportunity
@@ -6666,7 +6671,7 @@ IsDebuggerFault(EXCEPTION_RECORD *pExceptionRecord,
         pExceptionRecord->ExceptionCode = EXCEPTION_SINGLE_STEP;
         pExceptionRecord->ExceptionAddress = (PVOID)pContext->Pc;
     }
-#endif // _TARGET_ARM_
+#endif // FEATURE_EMULATE_SINGLESTEP
 
     // Is this exception really meant for the COM+ Debugger? Note: we will let the debugger have a chance if there
     // is a debugger attached to any part of the process. It is incorrect to consider whether or not the debugger
@@ -6710,6 +6715,39 @@ EXTERN_C void JIT_WriteBarrier_Debug_End();
 #ifdef _TARGET_ARM_
 EXTERN_C void FCallMemcpy_End();
 #endif
+
+#ifdef VSD_STUB_CAN_THROW_AV
+//Return TRUE if pContext->Pc is in VirtualStub
+BOOL IsIPinVirtualStub(PCODE f_IP)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    Thread * pThread = GetThread();
+
+    // We may not have a managed thread object. Example is an AV on the helper thread.
+    // (perhaps during StubManager::IsStub)
+    if (pThread == NULL)
+    {
+        return FALSE;
+    }
+
+    VirtualCallStubManager::StubKind sk;
+    VirtualCallStubManager::FindStubManager(f_IP, &sk, FALSE /* usePredictStubKind */);
+
+    if (sk == VirtualCallStubManager::SK_DISPATCH)
+    {
+        return TRUE;
+    }
+    else if (sk == VirtualCallStubManager::SK_RESOLVE)
+    {
+        return TRUE;
+    }
+
+    else {
+        return FALSE;
+    }
+}
+#endif // VSD_STUB_CAN_THROW_AV
 
 // Check if the passed in instruction pointer is in one of the
 // JIT helper functions.
@@ -13169,8 +13207,7 @@ MethodDesc * GetUserMethodForILStub(Thread * pThread, UINT_PTR uStubSP, MethodDe
         // The construction of the COM->CLR path ensures that our corresponding ComMethodFrame
         // should be present further up the stack. Normally, the ComMethodFrame in question is
         // simply the next stack frame; however, there are situations where there may be other
-        // stack frames present (such as an optional ContextTransitionFrame if we switched
-        // AppDomains, or an inlined stack frame from a QCall in the IL stub).
+        // stack frames present (such as an inlined stack frame from a QCall in the IL stub).
         while (pCurFrame->GetVTablePtr() != ComMethodFrame::GetMethodFrameVPtr())
         {
             pCurFrame = pCurFrame->PtrNextFrame();

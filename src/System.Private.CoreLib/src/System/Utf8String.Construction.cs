@@ -34,9 +34,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(ReadOnlySpan<byte> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -49,7 +46,7 @@ namespace System
 
             Utf8String newString = FastAllocate(value.Length);
             Buffer.Memmove(ref newString.DangerousGetMutableReference(), ref MemoryMarshal.GetReference(value), (uint)value.Length);
-            return Utf8Utility.ValidateAndFixupUtf8String(newString)!; // TODO-NULLABLE: Remove ! when nullable attributes are respected
+            return Utf8Utility.ValidateAndFixupUtf8String(newString);
         }
 
         /// <summary>
@@ -62,9 +59,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(byte[]? value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -81,9 +75,6 @@ namespace System
         [CLSCompliant(false)]
         public unsafe extern Utf8String(byte* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -107,9 +98,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(ReadOnlySpan<char> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -137,9 +125,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(char[]? value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -156,9 +141,6 @@ namespace System
         [CLSCompliant(false)]
         public unsafe extern Utf8String(char* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -182,9 +164,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern Utf8String(string? value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif

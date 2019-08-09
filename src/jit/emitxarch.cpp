@@ -7057,7 +7057,7 @@ void emitter::emitIns_Call(EmitCallType          callType,
 
     if (isJump)
     {
-        assert(callType == EC_FUNC_TOKEN || callType == EC_FUNC_TOKEN_INDIR);
+        assert(callType == EC_FUNC_TOKEN || callType == EC_FUNC_TOKEN_INDIR || callType == EC_INDIR_ARD);
         if (callType == EC_FUNC_TOKEN)
         {
             ins = INS_l_jmp;
@@ -7853,9 +7853,9 @@ void emitter::emitDispAddrMode(instrDesc* id, bool noDetail)
                 printf("reloc ");
             }
             printf("J_M%03u_DS%02u", Compiler::s_compMethodsCount, id->idDebugOnlyInfo()->idMemCookie);
-        }
 
-        disp -= id->idDebugOnlyInfo()->idMemCookie;
+            disp -= id->idDebugOnlyInfo()->idMemCookie;
+        }
     }
 
     bool frameRef = false;
@@ -8351,7 +8351,7 @@ void emitter::emitDispIns(
             emitDispAddrMode(id, isNew);
             emitDispShift(ins);
 
-            if (ins == INS_call)
+            if ((ins == INS_call) || (ins == INS_i_jmp))
             {
                 assert(id->idInsFmt() == IF_ARD);
 
@@ -13633,14 +13633,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
         {
             assert(!"JitBreakEmitOutputInstr reached");
         }
-    }
-#endif
-
-#ifdef TRANSLATE_PDB
-    if (*dp != dst)
-    {
-        // only map instruction groups to instruction groups
-        MapCode(id->idDebugOnlyInfo()->idilStart, *dp);
     }
 #endif
 

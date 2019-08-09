@@ -6,7 +6,7 @@
 **
 **
 **
-** Purpose: Exception base class for all errors from Interop or Structured 
+** Purpose: Exception base class for all errors from Interop or Structured
 **          Exception Handling code.
 **
 **
@@ -75,7 +75,7 @@ namespace System.Runtime.InteropServices
             Exception? innerException = InnerException;
             if (innerException != null)
             {
-                s = s + " ---> " + innerException.ToString();
+                s = s + Environment.NewLine + InnerExceptionPrefix + innerException.ToString();
             }
 
             if (StackTrace != null)

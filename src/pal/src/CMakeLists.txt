@@ -123,6 +123,9 @@ if(CMAKE_SYSTEM_NAME STREQUAL Darwin)
   )
 endif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
 
+if (FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION)
+  add_definitions(-DFEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION)
+endif(FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION)
 add_definitions(-DPLATFORM_UNIX)
 add_definitions(-DLP64COMPATIBLE)
 add_definitions(-DFEATURE_PAL)
@@ -186,7 +189,6 @@ set(SOURCES
   cruntime/math.cpp
   cruntime/mbstring.cpp
   cruntime/misc.cpp
-  cruntime/misctls.cpp
   cruntime/path.cpp
   cruntime/printf.cpp
   cruntime/printfcpp.cpp
@@ -280,7 +282,6 @@ set(SOURCES
   thread/process.cpp
   thread/thread.cpp
   thread/threadsusp.cpp
-  thread/tls.cpp
 )
 
 if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)

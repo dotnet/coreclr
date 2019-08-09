@@ -538,7 +538,7 @@ PCODE MethodDesc::GetPrecompiledNgenCode(PrepareCodeConfig* pConfig)
 
 #ifdef HAVE_GCCOVER
         if (GCStress<cfg_instr_ngen>::IsEnabled())
-            SetupGcCoverage(this, (BYTE*)pCode);
+            SetupGcCoverage(pConfig->GetCodeVersion(), (BYTE*)pCode);
 #endif // HAVE_GCCOVER
 
 #ifdef PROFILING_SUPPORTED 
@@ -820,7 +820,7 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
     }
 #endif // PROFILING_SUPPORTED
 
-    if (!ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_Context,
+    if (!ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context,
         TRACE_LEVEL_VERBOSE,
         CLR_JIT_KEYWORD))
     {
@@ -1015,7 +1015,7 @@ PCODE MethodDesc::JitCompileCodeLocked(PrepareCodeConfig* pConfig, JitListLockEn
             return pOtherCode;
         }
 
-        SetupGcCoverage(this, (BYTE*)pCode);
+        SetupGcCoverage(pConfig->GetCodeVersion(), (BYTE*)pCode);
 
         // This thread should always win the publishing race
         // since we're under a lock.
