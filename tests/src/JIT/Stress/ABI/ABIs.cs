@@ -101,7 +101,7 @@ namespace ABIStress
 
     internal class SysVAbi : IAbi
     {
-        // For SysV everything can be passed everything by value.
+        // For SysV everything can be passed by value.
         public Type[] TailCalleeCandidateArgTypes { get; } =
             new[]
             {

@@ -271,6 +271,8 @@ namespace ABIStress
             (object callerResult, object calleeResult) =
                 InvokeCallerCallee(caller, pms, callee.Method, args, rand);
 
+            // The pointers used in the calli instructions are only valid while the delegates are alive,
+            // so keep these alive until we're done executing.
             GC.KeepAlive(delegates);
 
             int[] results = (int[])callerResult;
@@ -329,7 +331,6 @@ namespace ABIStress
 
         private static List<Value> GenCallerToCalleeArgs(List<TypeEx> callerParameters, List<TypeEx> calleeParameters, Random rand)
         {
-            // Now create the args to pass to the callee from the caller.
             List<Value> args = new List<Value>(calleeParameters.Count);
             List<Value> candidates = new List<Value>();
             for (int j = 0; j < args.Capacity; j++)

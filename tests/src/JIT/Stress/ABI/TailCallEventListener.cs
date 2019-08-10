@@ -19,7 +19,7 @@ namespace ABIStress
             if (eventSource.Name != "Microsoft-Windows-DotNETRuntime")
                 return;
 
-            EventKeywords jitTracing = (EventKeywords)0x1000; // JITSymbols | JITTracing
+            EventKeywords jitTracing = (EventKeywords)0x1000; // JITTracing
             EnableEvents(eventSource, EventLevel.Verbose, jitTracing);
         }
 
