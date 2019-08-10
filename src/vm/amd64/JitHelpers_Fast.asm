@@ -955,5 +955,29 @@ endif ; _DEBUG
 
 NESTED_END TailCallHelperStub, _TEXT
 
-        end
+PAGE_SIZE equ 1000h
 
+LEAF_ENTRY JIT_StackProbe, _TEXT
+        ; On entry:
+        ;   r11 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+        ;   rsp - points to some byte on the last probed page
+        ; On exit:
+        ;   rax - is not preserved
+        ;   r11 - is preserved
+        ;
+        ; NOTE: this helper will probe at least one page below the one pointed by rsp.
+
+        lea     rax, [rsp - PAGE_SIZE] ; rax points to some byte on the first unprobed page
+        or      rax, (PAGE_SIZE - 1)   ; rax points to the last byte on the first unprobed page
+
+ProbeLoop:
+        test    dword ptr [rax], eax
+        sub     rax, PAGE_SIZE
+        cmp     rax, r11
+        jge     ProbeLoop
+
+        ret
+
+LEAF_END JIT_StackProbe, _TEXT
+
+        end

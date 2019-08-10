@@ -537,3 +537,34 @@ LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
         jmp     C_FUNC(JIT_WriteBarrier)
 #endif
 LEAF_END JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
+
+#define PAGE_SIZE 0x1000
+
+NESTED_ENTRY JIT_StackProbe, _TEXT, NoHandler
+        // On entry:
+        //   r11 - points to the lowest address on the stack frame being allocated (i.e. [InitialSp - FrameSize])
+        //   rsp - points to some byte on the last probed page
+        // On exit:
+        //   r11 - is preserved
+        //
+        // NOTE: this helper will probe at least one page below the one pointed by rsp.
+
+        push_nonvol_reg rbp
+        mov     rbp, rsp
+        set_cfa_register rbp, 16
+
+    END_PROLOGUE
+
+        sub     rsp, PAGE_SIZE       // rsp points to some byte on the first unprobed page
+        or      rsp, (PAGE_SIZE - 1) // rsp points to the last byte on the first unprobed page
+
+LOCAL_LABEL(ProbeLoop):
+        test    dword ptr [rsp], eax
+        sub     rsp, PAGE_SIZE
+        cmp     rsp, r11
+        jge     LOCAL_LABEL(ProbeLoop)
+
+        RESET_FRAME_WITH_RBP
+        ret
+
+NESTED_END JIT_StackProbe, _TEXT

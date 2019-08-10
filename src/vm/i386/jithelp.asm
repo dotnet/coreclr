@@ -1464,4 +1464,29 @@ JIT_EndCatch PROC stdcall public
 
 JIT_EndCatch ENDP
 
+PAGE_SIZE equ 1000h
+
+_JIT_StackProbe@0 PROC public
+    ; On entry:
+    ;   eax - the lowest address of the stack frame being allocated (i.e. [InitialSp - FrameSize])
+    ;
+    ; NOTE: this helper will probe at least one page below the one pointed by esp.
+    push    ebp
+    mov     ebp, esp
+
+    sub     esp, PAGE_SIZE       ; esp points to some byte on the first unprobed page
+    or      esp, (PAGE_SIZE - 1) ; esp points to the last byte on the first unprobed page
+
+ProbeLoop:
+    test    [esp], eax
+    sub     esp, PAGE_SIZE
+    cmp     esp, eax
+    jge     ProbeLoop
+
+    mov     esp, ebp
+    pop     ebp
+    ret
+
+_JIT_StackProbe@0 ENDP
+
     end
