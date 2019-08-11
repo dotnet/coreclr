@@ -22,7 +22,7 @@ namespace System.Threading
                 if (Environment.IsWindows8OrAbove)
                 {
                     if (!Interop.Kernel32.QueryUnbiasedInterruptTime(out ulong time100ns))
-                        Marshal.ThrowExceptionForHR(Marshal.GetLastWin32Error());
+                        Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
 
                     return (long)(time100ns / 10_000); // convert from 100ns to milliseconds
                 }
