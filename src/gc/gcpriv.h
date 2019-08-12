@@ -2464,7 +2464,8 @@ protected:
                                size_t& n_eph, size_t& n_card_set,
                                size_t& card, size_t& end_card,
                                BOOL& foundp, uint8_t*& start_address,
-                               uint8_t*& limit, size_t& n_cards_cleared);
+                               uint8_t*& limit, size_t& n_cards_cleared,
+                               card_marking_enumerator& card_mark_enumerator, heap_segment* seg);
     PER_HEAP
     void mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_heap* hpt);
 

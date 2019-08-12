@@ -28900,7 +28900,8 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
                                size_t& n_eph, size_t& n_card_set,
                                size_t& card, size_t& end_card,
                                BOOL& foundp, uint8_t*& start_address,
-                               uint8_t*& limit, size_t& n_cards_cleared)
+                               uint8_t*& limit, size_t& n_cards_cleared,
+                               card_marking_enumerator& card_mark_enumerator, heap_segment* seg)
 {
     dprintf (3, ("pointer %Ix past card %Ix", (size_t)po, (size_t)card));
     dprintf (3, ("ct: %Id cg", cg_pointers_found));
@@ -28941,6 +28942,10 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
         // if end_card is still shy of the limit set by card_word_end
         assert(!((card_word(end_card) < card_word_end) &&
             card_set_p(end_card)));
+        if (!foundp)
+        {
+            foundp = find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
+        }
 #else
         // the card bit @ end_card should not be set -
         // find_card is supposed to terminate only when it finds a 0 bit
@@ -29242,13 +29247,8 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                             n_eph, n_card_set,
                             card, end_card,
                             foundp, start_address,
-                            limit, total_cards_cleared);
-#ifdef FEATURE_CARD_MARKING_STEALING
-                        if (passed_end_card_p && !foundp)
-                        {
-                            foundp = find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
-                        }
-#endif // FEATURE_CARD_MARKING_STEALING
+                            limit, total_cards_cleared,
+                            card_mark_enumerator, seg);
                     }
 
                     if ((!passed_end_card_p || foundp) && (card_of (o) == card))
@@ -29286,14 +29286,6 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
 go_through_refs:
 #endif //COLLECTIBLE_CLASS
 
-// helper macro because we can't have #ifdefs in the statement passed to go_through_object
-#ifdef FEATURE_CARD_MARKING_STEALING
-#define FIND_NEXT_CHUNK(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end) \
-        find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end)
-#else // FEATURE_CARD_MARKING_STEALING
-#define FIND_NEXT_CHUNK(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end) (FALSE)
-#endif // FEATURE_CARD_MARKING_STEALING
-
                 if (contain_pointers (o))
                 {
                     dprintf(3,("Going through %Ix start_address: %Ix", (size_t)o, (size_t)start_address));
@@ -29313,12 +29305,8 @@ go_through_refs:
                                             n_eph, n_card_set,
                                             card, end_card,
                                             foundp, start_address,
-                                            limit, total_cards_cleared);
-
-                                     if (passed_end_card_p && !foundp)
-                                     {
-                                         foundp = FIND_NEXT_CHUNK(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
-                                     }
+                                            limit, total_cards_cleared,
+                                            card_mark_enumerator, seg);
                                     
                                      if (passed_end_card_p)
                                      {
@@ -33425,13 +33413,8 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                             n_eph, n_card_set,
                             card, end_card,
                             foundp, start_address,
-                            limit, total_cards_cleared);
-#ifdef FEATURE_CARD_MARKING_STEALING
-                        if (passed_end_card_p && !foundp)
-                        {
-                            foundp = find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
-                        }
-#endif // FEATURE_CARD_MARKING_STEALING
+                            limit, total_cards_cleared,
+                            card_mark_enumerator, seg);
                     }
 
                     if ((!passed_end_card_p || foundp) && (card_of (o) == card))
@@ -33466,14 +33449,6 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
 go_through_refs:
 #endif //COLLECTIBLE_CLASS
 
-// helper macro because we can't have #ifdefs in the statement passed to go_through_object
-#ifdef FEATURE_CARD_MARKING_STEALING
-#define FIND_NEXT_CHUNK(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end) \
-        find_next_chunk(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end)
-#else // FEATURE_CARD_MARKING_STEALING
-#define FIND_NEXT_CHUNK(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end) (FALSE)
-#endif // FEATURE_CARD_MARKING_STEALING
-
                 if (contain_pointers (o))
                 {
                     dprintf(3,("Going through %Ix", (size_t)o));
@@ -33489,12 +33464,8 @@ go_through_refs:
                                         n_eph, n_card_set,
                                         card, end_card,
                                         foundp, start_address,
-                                        limit, total_cards_cleared);
-
-                                if (passed_end_card_p && !foundp)
-                                {
-                                    foundp = FIND_NEXT_CHUNK(card_mark_enumerator, seg, n_card_set, start_address, limit, card, end_card, card_word_end);
-                                }
+                                        limit, total_cards_cleared,
+                                        card_mark_enumerator, seg);
 
                                 if (passed_end_card_p)
                                 {
