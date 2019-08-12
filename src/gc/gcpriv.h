@@ -4669,6 +4669,16 @@ public:
     // move to the next chunk in this segment - return false if no more chunks in this segment
     bool move_next(heap_segment* seg, uint8_t*& low, uint8_t*& high);
 
+    void exhaust_segment(heap_segment* seg)
+    {
+        uint8_t* low;
+        uint8_t* high;
+        // make sure no more chunks in this segment - do this via move_next because we want to keep
+        // incrementing the chunk_index_counter rather than updating it via interlocked compare exchange
+        while (move_next(seg, low, high))
+            ;
+    }
+
     uint8_t* get_chunk_high()
     {
         return chunk_high;

@@ -28995,8 +28995,12 @@ bool card_marking_enumerator::move_next(heap_segment* seg, uint8_t*& low, uint8_
             }
             else
             {
-                // we found the correct segment, but it's not the segment our caller is in,
-                // so keep the chunk index for later
+                // we found the correct segment, but it's not the segment our caller is in
+
+                // our caller should still be in the previous segment
+                assert(heap_segment_next_in_range(seg) == segment);
+
+                // keep the chunk index for later
                 old_chunk_index = chunk_index;
                 return false;
             }
@@ -29162,6 +29166,10 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
             }
             n_eph += cg_pointers_found;
             cg_pointers_found = 0;
+#ifdef FEATURE_CARD_MARKING_STEALING
+            // we have decided to move to the next segment - make sure we exhaust the chunk enumerator for this segment
+            card_mark_enumerator.exhaust_segment(seg);
+#endif // FEATURE_CARD_MARKING_STEALING
             if ((seg = heap_segment_next_in_range (seg)) != 0)
             {
 #ifdef BACKGROUND_GC
@@ -33365,6 +33373,10 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
             }
             n_eph +=cg_pointers_found;
             cg_pointers_found = 0;
+#ifdef FEATURE_CARD_MARKING_STEALING
+            // we have decided to move to the next segment - make sure we exhaust the chunk enumerator for this segment
+            card_mark_enumerator.exhaust_segment(seg);
+#endif // FEATURE_CARD_MARKING_STEALING
             if ((seg = heap_segment_next_rw (seg)) != 0)
             {
 #ifdef BACKGROUND_GC
