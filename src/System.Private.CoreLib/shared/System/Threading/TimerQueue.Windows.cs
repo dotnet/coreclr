@@ -21,9 +21,7 @@ namespace System.Threading
                 // in sleep/hibernate mode.
                 if (Environment.IsWindows8OrAbove)
                 {
-                    if (!Interop.Kernel32.QueryUnbiasedInterruptTime(out ulong time100ns))
-                        Marshal.ThrowExceptionForHR(Marshal.GetHRForLastWin32Error());
-
+                    Interop.Kernel32.QueryUnbiasedInterruptTime(out ulong time100ns);
                     return (long)(time100ns / 10_000); // convert from 100ns to milliseconds
                 }
                 else
