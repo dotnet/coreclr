@@ -10300,7 +10300,7 @@ void gc_heap::adjust_ephemeral_limits ()
     ephemeral_high = heap_segment_reserved (ephemeral_heap_segment);
 
     dprintf (3, ("new ephemeral low: %Ix new ephemeral high: %Ix",
-                 (size_t)ephemeral_low, (size_t)ephemeral_high))
+        (size_t)ephemeral_low, (size_t)ephemeral_high))
 
 #ifndef MULTIPLE_HEAPS
     // This updates the write barrier helpers with the new info.
@@ -20789,11 +20789,10 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             if (!card_mark_done_soh)
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
             {
-                dprintf(3, ("Marking cross generation pointers"));
+                dprintf (3, ("Marking cross generation pointers on heap %d", heap_number));
                 mark_through_cards_for_segments(mark_object_fn, FALSE THIS_ARG);
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
                 card_mark_done_soh = true;
-                STRESS_LOG1(LF_GC, LL_INFO10000, "Done with marking cross generation pointers on heap %d\n", heap_number);
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
             }
 
@@ -20801,11 +20800,10 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
             if (!card_mark_done_loh)
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
             {
-                dprintf(3, ("Marking cross generation pointers for large objects"));
+                dprintf (3, ("Marking cross generation pointers for large objects on heap %d", heap_number));
                 mark_through_cards_for_large_objects(mark_object_fn, FALSE THIS_ARG);
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
                 card_mark_done_loh = true;
-                STRESS_LOG1(LF_GC, LL_INFO10000, "Done with marking cross generation pointers for large objects on heap %d\n", heap_number);
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
             }
 
@@ -20820,7 +20818,6 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                     dprintf(3, ("Marking cross generation pointers on heap %d", hp->heap_number));
                     hp->mark_through_cards_for_segments(mark_object_fn, FALSE THIS_ARG);
                     hp->card_mark_done_soh = true;
-                    STRESS_LOG1(LF_GC, LL_INFO10000, "Done with marking cross generation pointers on heap %d\n", heap_number);
                 }
 
                 if (!hp->card_mark_done_loh)
@@ -20828,7 +20825,6 @@ void gc_heap::mark_phase (int condemned_gen_number, BOOL mark_only_p)
                     dprintf(3, ("Marking cross generation pointers for large objects on heap %d", hp->heap_number));
                     hp->mark_through_cards_for_large_objects(mark_object_fn, FALSE THIS_ARG);
                     hp->card_mark_done_loh = true;
-                    STRESS_LOG1(LF_GC, LL_INFO10000, "Done with marking cross generation pointers for large objects on heap %d\n", heap_number);
                 }
             }
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
@@ -25561,12 +25557,11 @@ void gc_heap::relocate_phase (int condemned_gen_number,
         if (!card_mark_done_soh)
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
         {
-            dprintf(3, ("Relocating cross generation pointers"));
+            dprintf (3, ("Relocating cross generation pointers on heap %d", heap_number));
             mark_through_cards_for_segments(&gc_heap::relocate_address, TRUE THIS_ARG);
             verify_pins_with_post_plug_info("after reloc cards");
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
             card_mark_done_soh = true;
-            STRESS_LOG1(LF_GC, LL_INFO10000, "Done with relocating cross generation pointers on heap %d\n", heap_number);
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
         }
     }
@@ -25576,11 +25571,10 @@ void gc_heap::relocate_phase (int condemned_gen_number,
         if (!card_mark_done_loh)
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
         {
-            dprintf(3, ("Relocating cross generation pointers for large objects"));
+            dprintf (3, ("Relocating cross generation pointers for large objects on heap %d", heap_number));
             mark_through_cards_for_large_objects(&gc_heap::relocate_address, TRUE THIS_ARG);
 #if defined(MULTIPLE_HEAPS) && defined(FEATURE_CARD_MARKING_STEALING)
             card_mark_done_loh = true;
-            STRESS_LOG1(LF_GC, LL_INFO10000, "Done with relocating cross generation pointers for large objects on heap %d\n", heap_number);
 #endif // MULTIPLE_HEAPS && FEATURE_CARD_MARKING_STEALING
         }
     }
@@ -25636,7 +25630,6 @@ void gc_heap::relocate_phase (int condemned_gen_number,
                 dprintf(3, ("Relocating cross generation pointers on heap %d", hp->heap_number));
                 hp->mark_through_cards_for_segments(&gc_heap::relocate_address, TRUE THIS_ARG);
                 hp->card_mark_done_soh = true;
-                STRESS_LOG1(LF_GC, LL_INFO10000, "Done with relocating cross generation pointers on heap %d\n", hp->heap_number);
             }
 
             if (!hp->card_mark_done_loh)
@@ -25644,7 +25637,6 @@ void gc_heap::relocate_phase (int condemned_gen_number,
                 dprintf(3, ("Relocating cross generation pointers for large objects on heap %d", hp->heap_number));
                 hp->mark_through_cards_for_large_objects(&gc_heap::relocate_address, TRUE THIS_ARG);
                 hp->card_mark_done_loh = true;
-                STRESS_LOG1(LF_GC, LL_INFO10000, "Done with relocating cross generation pointers for large objects on heap %d\n", hp->heap_number);
             }
         }
     }
@@ -28336,8 +28328,6 @@ void gc_heap::clear_cards (size_t start_card, size_t end_card)
         dprintf (3,("Cleared cards [%Ix:%Ix, %Ix:%Ix[",
                   start_card, (size_t)card_address (start_card),
                   end_card, (size_t)card_address (end_card)));
-        STRESS_LOG4(LF_GC, LL_INFO1000000, "Cleared cards [%Ix:%Ix, %Ix:%Ix[", start_card, (size_t)card_address(start_card),
-                end_card, (size_t)card_address(end_card));
     }
 }
 
@@ -29030,7 +29020,7 @@ bool gc_heap::find_next_chunk(card_marking_enumerator& card_mark_enumerator, hea
                 (size_t)card, (size_t)start_address,
                 (size_t)card_address(end_card)));
             limit = min(card_mark_enumerator.get_chunk_high(), card_address(end_card));
-            STRESS_LOG3(LF_GC, LL_INFO10000, "New run of cards on heap %d: [%Ix,%Ix[\n", heap_number, (size_t)start_address, (size_t)limit);
+            dprintf (3, ("New run of cards on heap %d: [%Ix,%Ix[", heap_number, (size_t)start_address, (size_t)limit));
             return true;
         }
         // we have exhausted this chunk, get the next one
@@ -29038,12 +29028,12 @@ bool gc_heap::find_next_chunk(card_marking_enumerator& card_mark_enumerator, hea
         uint8_t* chunk_high = nullptr;
         if (!card_mark_enumerator.move_next(seg, chunk_low, chunk_high))
         {
-            STRESS_LOG1(LF_GC, LL_INFO10000, "No more chunks on heap %d\n", heap_number);
+            dprintf (3, ("No more chunks on heap %d\n", heap_number));
             return false;
         }
         card = card_of (chunk_low);
         card_word_end = (card_of(align_on_card_word(chunk_high)) / card_word_width);
-        STRESS_LOG3(LF_GC, LL_INFO10000, "Moved to next chunk on heap %d: [%Ix,%Ix[\n", heap_number, (size_t)chunk_low, (size_t)chunk_high);
+        dprintf (3, ("Moved to next chunk on heap %d: [%Ix,%Ix[", heap_number, (size_t)chunk_low, (size_t)chunk_high));
     }
 }
 #endif // FEATURE_CARD_MARKING_STEALING
