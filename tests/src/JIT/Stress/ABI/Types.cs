@@ -9,6 +9,11 @@ using System.Runtime.InteropServices;
 
 namespace ABIStress
 {
+    // This class wraps around a Type supplying easier access to the correct
+    // order of fields when constructing them. Reflection APIs do not give any
+    // guarantees around the order of fields when using Type.GetFields(), so
+    // this one makes sure we get everything correctly ordered and also caches
+    // the ctor we need to use.
     internal class TypeEx
     {
         public Type Type { get; }
@@ -19,6 +24,8 @@ namespace ABIStress
         public TypeEx(Type t)
         {
             Type = t;
+            // Marshal.SizeOf(Type) overload does not work for generic types so
+            // we use the workaround below.
             Size = Marshal.SizeOf(Activator.CreateInstance(t));
             if (!t.IsOurStructType())
                 return;
@@ -28,8 +35,9 @@ namespace ABIStress
         }
     }
 
-    // U suffix = unpromotable, P suffix = promotable by the JIT.
-    // Note that fields must be named Fi with i sequential.
+    // These structs will be used in generated callers and callees. U suffix =
+    // unpromotable, P suffix = promotable by the JIT. Note that fields must be
+    // named Fi with i sequential.
     internal struct S1P { public byte F0; public S1P(byte f0) => F0 = f0; }
     internal struct S2P { public short F0; public S2P(short f0) => F0 = f0; }
     internal struct S2U { public byte F0, F1; public S2U(byte f0, byte f1) => (F0, F1) = (f0, f1); }

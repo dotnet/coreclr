@@ -8,6 +8,10 @@ using System.Diagnostics.Tracing;
 
 namespace ABIStress
 {
+    // This is an event listener that allows us to track how many tailcalls are
+    // being considered and how many tailcall decisions are succeeding. This
+    // mainly allows us to give some output tracking how "healthy" the test is
+    // (i.e. how much it actually tests tailcalls).
     internal class TailCallEventListener : EventListener
     {
         public int NumCallersSeen { get; set; }
