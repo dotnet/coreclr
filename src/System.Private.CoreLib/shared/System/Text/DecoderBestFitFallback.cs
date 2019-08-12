@@ -158,7 +158,7 @@ namespace System.Text
         }
 
         // This version just counts the fallback and doesn't actually copy anything.
-        internal unsafe override int InternalFallback(byte[] bytes, byte* pBytes)
+        internal override unsafe int InternalFallback(byte[] bytes, byte* pBytes)
         // Right now this has both bytes and bytes[], since we might have extra bytes, hence the
         // array, and we might need the index, hence the byte*
         {
@@ -234,9 +234,8 @@ namespace System.Text
                 }
             }
 
-            // Char wasn't in our table            
+            // Char wasn't in our table
             return '\0';
         }
     }
 }
-

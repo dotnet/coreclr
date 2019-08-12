@@ -2,10 +2,12 @@
   <PropertyGroup>
     <OutputType>exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
+    <DefineConstants>$(DefineConstants);STATIC;ANSIBSTR</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="*.cs" />
+    <Compile Include="../Common/*.cs" />
+    <Compile Include="../Native/StringMarshalingTestNative.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="$(SourceDir)Common/CoreCLRTestLibrary/CoreCLRTestLibrary.csproj" />

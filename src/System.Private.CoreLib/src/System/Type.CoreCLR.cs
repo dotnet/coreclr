@@ -75,9 +75,9 @@ namespace System
         }
 
         ////////////////////////////////////////////////////////////////////////////////
-        // This will return a class based upon the progID.  This is provided for 
-        // COM classic support.  Program ID's are not used in COM+ because they 
-        // have been superceded by namespace.  (This routine is called this instead 
+        // This will return a class based upon the progID.  This is provided for
+        // COM classic support.  Program ID's are not used in COM+ because they
+        // have been superceded by namespace.  (This routine is called this instead
         // of getClass() because of the name conflict with the first method above.)
         //
         //   param progID:     the progID of the class to retrieve
@@ -89,8 +89,8 @@ namespace System
         }
 
         ////////////////////////////////////////////////////////////////////////////////
-        // This will return a class based upon the CLSID.  This is provided for 
-        // COM classic support.  
+        // This will return a class based upon the CLSID.  This is provided for
+        // COM classic support.
         //
         //   param CLSID:      the CLSID of the class to retrieve
         //   returns:          the class object associated to the CLSID
@@ -128,13 +128,13 @@ namespace System
 
 
         // Protected routine to determine if this class represents a Windows Runtime object
-        virtual internal bool IsWindowsRuntimeObjectImpl()
+        internal virtual bool IsWindowsRuntimeObjectImpl()
         {
             throw new NotImplementedException();
         }
 
         // Determines if this type is exported to WinRT (i.e. is an activatable class in a managed .winmd)
-        virtual internal bool IsExportedToWindowsRuntimeImpl()
+        internal virtual bool IsExportedToWindowsRuntimeImpl()
         {
             throw new NotImplementedException();
         }

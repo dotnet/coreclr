@@ -66,8 +66,6 @@ namespace System.Reflection
             }
         }
 
-        private const string s_localFilePrefix = "file:";
-
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetCodeBase(QCallAssembly assembly,
                                                bool copiedName,
@@ -248,7 +246,7 @@ namespace System.Reflection
             return GetManifestResourceStream(resourceName);
         }
 
-        public unsafe override Stream? GetManifestResourceStream(string name)
+        public override unsafe Stream? GetManifestResourceStream(string name)
         {
             uint length = 0;
             RuntimeAssembly runtimeAssembly = this;

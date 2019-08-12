@@ -928,18 +928,18 @@ void Rationalizer::DoPhase()
         comp->compCurBB = block;
         m_block         = block;
 
-        GenTreeStmt* firstStatement = block->firstStmt();
         block->MakeLIR(nullptr, nullptr);
 
         // Establish the first and last nodes for the block. This is necessary in order for the LIR
         // utilities that hang off the BasicBlock type to work correctly.
+        GenTreeStmt* firstStatement = block->firstStmt();
         if (firstStatement == nullptr)
         {
             // No statements in this block; skip it.
             continue;
         }
 
-        for (GenTreeStmt *statement = firstStatement, *nextStatement; statement != nullptr; statement = nextStatement)
+        for (GenTreeStmt* statement = firstStatement; statement != nullptr; statement = statement->getNextStmt())
         {
             assert(statement->gtStmtList != nullptr);
             assert(statement->gtStmtList->gtPrev == nullptr);
@@ -948,23 +948,20 @@ void Rationalizer::DoPhase()
 
             BlockRange().InsertAtEnd(LIR::Range(statement->gtStmtList, statement->gtStmtExpr));
 
-            nextStatement     = statement->getNextStmt();
-            statement->gtNext = nullptr;
-            statement->gtPrev = nullptr;
-
             // If this statement has correct offset information, change it into an IL offset
             // node and insert it into the LIR.
             if (statement->gtStmtILoffsx != BAD_IL_OFFSET)
             {
                 assert(!statement->IsPhiDefnStmt());
-                statement->SetOper(GT_IL_OFFSET);
-
-                BlockRange().InsertBefore(statement->gtStmtList, statement);
+                GenTreeILOffset* ilOffset = new (comp, GT_IL_OFFSET) GenTreeILOffset(statement->gtStmtILoffsx);
+                BlockRange().InsertBefore(statement->gtStmtList, ilOffset);
             }
 
             m_block = block;
             visitor.WalkTree(&statement->gtStmtExpr, nullptr);
         }
+
+        block->bbStmtList = nullptr;
 
         assert(BlockRange().CheckLIR(comp, true));
     }
