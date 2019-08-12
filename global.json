@@ -11,6 +11,6 @@
     "Microsoft.DotNet.Helix.Sdk": "2.0.0-beta.19411.1",
     "Microsoft.Build.NoTargets": "1.0.53",
     "Microsoft.Build.Traversal": "2.0.2",
-    "Microsoft.NET.Sdk.IL": "3.0.0-preview6.19280.1"
+    "Microsoft.NET.Sdk.IL": "3.0.0-preview1-27101-02"
   }
 }
