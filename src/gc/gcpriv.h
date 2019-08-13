@@ -2459,7 +2459,7 @@ protected:
                                     gc_heap* hpt);
 
     PER_HEAP
-    BOOL card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
+    BOOL card_transition (uint8_t* po, uint8_t* end, size_t& card_word_end,
                                size_t& cg_pointers_found, 
                                size_t& n_eph, size_t& n_card_set,
                                size_t& card, size_t& end_card,
