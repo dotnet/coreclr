@@ -16,7 +16,7 @@
     <NETCoreAppMaximumVersion>99.0</NETCoreAppMaximumVersion>
 
     <!-- [ARCADE REMOVE] This line should be removed we use the Arcade Sdk. -->
-    <DeterministicSourcePath>false</DeterministicSourcePath>
+    <DeterministicSourcePaths>false</DeterministicSourcePaths>
   </PropertyGroup>
 
 </Project>
