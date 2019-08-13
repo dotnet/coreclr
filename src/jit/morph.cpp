@@ -7086,7 +7086,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
             *failReason = thisFailReason;
         }
 
-#if DEBUG
+#ifdef DEBUG
         if ((JitConfig.JitReportFastTailCallDecisions()) == 1)
         {
             if (callee->gtCallType != CT_INDIRECT)
@@ -7114,12 +7114,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
                 printf("Will not fast tailcall (%s)", thisFailReason);
             }
 
-            if (callerStackSize != -1)
-            {
-                printf(" (CallerStackSize: %d, CalleeStackSize: %d)", callerStackSize, calleeStackSize);
-            }
-
-            printf("\n\n");
+            printf(" (CallerStackSize: %d, CalleeStackSize: %d)\n\n", callerStackSize, calleeStackSize);
         }
         else
         {
