@@ -700,6 +700,7 @@ namespace System
 
         // These unused variables are used to ensure that this class has the same layout as RuntimeMethodInfo
 #pragma warning disable 414
+#pragma warning disable CA1823
         private object m_a = null!;
         private object m_b = null!;
         private object m_c = null!;
@@ -707,6 +708,7 @@ namespace System
         private object m_e = null!;
         private object m_f = null!;
         private object m_g = null!;
+#pragma warning restore CA1823
 #pragma warning restore 414
 
         public RuntimeMethodHandleInternal m_value;
@@ -1409,10 +1411,10 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private unsafe static extern void GetPEKind(QCallModule handle, int *peKind, int *machine);
+        private static extern unsafe void GetPEKind(QCallModule handle, int *peKind, int *machine);
 
         // making this internal, used by Module.GetPEKind
-        internal unsafe static void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
+        internal static unsafe void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
         {
             int lKind, lMachine;
             GetPEKind(JitHelpers.GetQCallModuleOnStack(ref module), &lKind, &lMachine);

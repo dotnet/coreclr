@@ -16,7 +16,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     /// This map is backed by a sorted array. Thus, split operations are O(1) and enumerations are fast;
     /// however, look-up in the map are O(log n).
     /// </summary>
-    /// <typeparam name="TKey">Type of objects that act as keys.</typeparam>    
+    /// <typeparam name="TKey">Type of objects that act as keys.</typeparam>
     /// <typeparam name="TValue">Type of objects that act as entries / values.</typeparam>
     [DebuggerDisplay("Count = {Count}")]
     internal sealed class ConstantSplittableMap<TKey, TValue> : IMapView<TKey, TValue> where TKey : notnull
@@ -167,9 +167,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         internal struct IKeyValuePairEnumerator : IEnumerator<IKeyValuePair<TKey, TValue>>
         {
-            private KeyValuePair<TKey, TValue>[] _array;
-            private int _start;
-            private int _end;
+            private readonly KeyValuePair<TKey, TValue>[] _array;
+            private readonly int _start;
+            private readonly int _end;
             private int _current;
 
             internal IKeyValuePairEnumerator(KeyValuePair<TKey, TValue>[] items, int first, int end)

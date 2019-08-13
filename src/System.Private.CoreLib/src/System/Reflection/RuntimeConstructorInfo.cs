@@ -19,9 +19,11 @@ namespace System.Reflection
         private string? m_toString;
         private ParameterInfo[]? m_parameters; // Created lazily when GetParameters() is called.
 #pragma warning disable 414
+#pragma warning disable CA1823
         private object _empty1 = null!; // These empties are used to ensure that RuntimeConstructorInfo and RuntimeMethodInfo are have a layout which is sufficiently similar
         private object _empty2 = null!;
         private object _empty3 = null!;
+#pragma warning restore CA1823
 #pragma warning restore 414
         private IntPtr m_handle;
         private MethodAttributes m_methodAttributes;
@@ -40,7 +42,7 @@ namespace System.Reflection
                     Type? declaringType = DeclaringType;
 
                     //
-                    // first take care of all the NO_INVOKE cases. 
+                    // first take care of all the NO_INVOKE cases.
                     if (declaringType == typeof(void) ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
                          ((CallingConvention & CallingConventions.VarArgs) == CallingConventions.VarArgs))
@@ -95,12 +97,7 @@ namespace System.Reflection
 
         internal override bool CacheEquals(object? o)
         {
-            RuntimeConstructorInfo? m = o as RuntimeConstructorInfo;
-
-            if (m is null)
-                return false;
-
-            return m.m_handle == m_handle;
+            return o is RuntimeConstructorInfo m && m.m_handle == m_handle;
         }
 
         private Signature Signature

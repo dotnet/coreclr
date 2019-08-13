@@ -16,7 +16,7 @@ namespace System.Diagnostics.Tracing
         internal IntPtr ProviderID;
         internal uint EventID;
         internal uint ThreadID;
-        internal Int64 TimeStamp;
+        internal long TimeStamp;
         internal Guid ActivityId;
         internal Guid ChildActivityId;
         internal IntPtr Payload;
@@ -26,18 +26,18 @@ namespace System.Diagnostics.Tracing
     [StructLayout(LayoutKind.Sequential)]
     internal struct EventPipeSessionInfo
     {
-        internal Int64 StartTimeAsUTCFileTime;
-        internal Int64 StartTimeStamp;
-        internal Int64 TimeStampFrequency;
+        internal long StartTimeAsUTCFileTime;
+        internal long StartTimeStamp;
+        internal long TimeStampFrequency;
     }
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct EventPipeProviderConfiguration
     {
         [MarshalAs(UnmanagedType.LPWStr)]
-        private string m_providerName;
-        private ulong m_keywords;
-        private uint m_loggingLevel;
+        private readonly string m_providerName;
+        private readonly ulong m_keywords;
+        private readonly uint m_loggingLevel;
 
         [MarshalAs(UnmanagedType.LPWStr)]
         private readonly string? m_filterData;
@@ -90,13 +90,13 @@ namespace System.Diagnostics.Tracing
     {
 
     }
-    
+
     internal sealed class EventPipeConfiguration
     {
-        private string m_outputFile;
-        private EventPipeSerializationFormat m_format;
-        private uint m_circularBufferSizeInMB;
-        private List<EventPipeProviderConfiguration> m_providers;
+        private readonly string m_outputFile;
+        private readonly EventPipeSerializationFormat m_format;
+        private readonly uint m_circularBufferSizeInMB;
+        private readonly List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
 
         internal EventPipeConfiguration(
@@ -178,7 +178,7 @@ namespace System.Diagnostics.Tracing
 
     internal static class EventPipe
     {
-        private static UInt64 s_sessionID = 0;
+        private static ulong s_sessionID = 0;
 
         internal static void Enable(EventPipeConfiguration configuration)
         {
@@ -214,7 +214,7 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used by the configuration APIs to interact with EventPipe.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern UInt64 Enable(
+        internal static extern ulong Enable(
             string? outputFile,
             EventPipeSerializationFormat format,
             uint circularBufferSizeInMB,
@@ -222,7 +222,7 @@ namespace System.Diagnostics.Tracing
             uint numProviders);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void Disable(UInt64 sessionID);
+        internal static extern void Disable(ulong sessionID);
 
         //
         // These PInvokes are used by EventSource to interact with the EventPipe.
@@ -253,13 +253,13 @@ namespace System.Diagnostics.Tracing
         // These PInvokes are used as part of the EventPipeEventDispatcher.
         //
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool GetSessionInfo(UInt64 sessionID, EventPipeSessionInfo* pSessionInfo);
+        internal static extern unsafe bool GetSessionInfo(ulong sessionID, EventPipeSessionInfo* pSessionInfo);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe bool GetNextEvent(UInt64 sessionID, EventPipeEventInstanceData* pInstance);
+        internal static extern unsafe bool GetNextEvent(ulong sessionID, EventPipeEventInstanceData* pInstance);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern unsafe IntPtr GetWaitHandle(UInt64 sessionID);
+        internal static extern unsafe IntPtr GetWaitHandle(ulong sessionID);
     }
 }
 

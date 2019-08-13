@@ -8,8 +8,10 @@
 ** and other miscellaneous stuff.
 **
 **
-** 
+**
 ===========================================================*/
+
+#pragma warning disable CA2007 // Code in this file isn't actually executed; ConfigureAwait doesn't matter (and impacts the types employed, which does matter)
 
 #nullable disable // Code in this file isn't actually executed
 using System;
@@ -32,9 +34,12 @@ using System.Runtime.InteropServices.WindowsRuntime;
 // Add Serviceable attribute to the assembly metadata
 [assembly: AssemblyMetadata("Serviceable", "True")]
 
+// Mark the library as a .NET Framework assembly
+[assembly: AssemblyMetadata(".NETFrameworkAssembly", "")]
+
 namespace System
 {
-    static class CommonlyUsedGenericInstantiations
+    internal static class CommonlyUsedGenericInstantiations
     {
         // This method is purely an aid for NGen to statically deduce which
         // instantiations to save in the ngen image.
@@ -46,13 +51,13 @@ namespace System
         // of keeping the JIT-compiler out for generic instantiations.
 
         // Method marked as NoOptimization as we don't want the JIT to
-        // inline any methods or take any short-circuit paths since the 
-        // instantiation closure process is driven by "fixup" references 
+        // inline any methods or take any short-circuit paths since the
+        // instantiation closure process is driven by "fixup" references
         // left in the final code stream.
         [MethodImplAttribute(MethodImplOptions.NoOptimization)]
         static CommonlyUsedGenericInstantiations()
         {
-            // Make absolutely sure we include some of the most common 
+            // Make absolutely sure we include some of the most common
             // instantiations here in mscorlib's ngen image.
             // Note that reference type instantiations are already included
             // automatically for us.
@@ -221,7 +226,7 @@ namespace System
             WinRT_IEnumerable<float>(null, null, null);
             WinRT_IEnumerable<double>(null, null, null);
 
-            // The underlying WinRT types for shared instantiations have to be referenced explicitly. 
+            // The underlying WinRT types for shared instantiations have to be referenced explicitly.
             // They are not guaranteeed to be created indirectly because of generic code sharing.
             WinRT_IEnumerable<string>(null, null, null); typeof(IIterable<string>).ToString(); typeof(IIterator<string>).ToString();
             WinRT_IEnumerable<object>(null, null, null); typeof(IIterable<object>).ToString(); typeof(IIterator<object>).ToString();

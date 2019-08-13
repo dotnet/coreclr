@@ -40,7 +40,7 @@ namespace System.Reflection
                     Type? declaringType = DeclaringType;
 
                     //
-                    // first take care of all the NO_INVOKE cases. 
+                    // first take care of all the NO_INVOKE cases.
                     if (ContainsGenericParameters ||
                          IsDisallowedByRefType(ReturnType) ||
                          (declaringType != null && declaringType.ContainsGenericParameters) ||
@@ -127,12 +127,7 @@ namespace System.Reflection
         #region Internal Members
         internal override bool CacheEquals(object? o)
         {
-            RuntimeMethodInfo? m = o as RuntimeMethodInfo;
-
-            if (m is null)
-                return false;
-
-            return m.m_handle == m_handle;
+            return o is RuntimeMethodInfo m && m.m_handle == m_handle;
         }
 
         internal Signature Signature
@@ -447,7 +442,7 @@ namespace System.Reflection
             {
                 Type elementType = ReturnType.GetElementType()!;
                 if (elementType.IsByRefLike)
-                    throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);    
+                    throw new NotSupportedException(SR.NotSupported_ByRefToByRefLikeReturn);
                 if (elementType == typeof(void))
                     throw new NotSupportedException(SR.NotSupported_ByRefToVoidReturn);
             }
@@ -482,7 +477,7 @@ namespace System.Reflection
         {
             Signature sig = Signature;
 
-            // get the signature 
+            // get the signature
             int formalCount = sig.Arguments.Length;
             int actualCount = (parameters != null) ? parameters.Length : 0;
 

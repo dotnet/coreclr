@@ -54,7 +54,7 @@ namespace System.Globalization
         private static volatile DateTimeFormatInfo? s_invariantInfo;
 
         // an index which points to a record in Culture Data Table.
-        private CultureData _cultureData;
+        private readonly CultureData _cultureData;
 
         // The culture name used to create this DTFI.
         private string? _name = null;
@@ -1306,10 +1306,6 @@ namespace System.Globalization
             }
         }
 
-        // Whitespaces that we allow in the month names.
-        // U+00a0 is non-breaking space.
-        private static readonly char[] s_monthSpaces = { ' ', '\u00a0' };
-
         internal bool HasSpacesInMonthNames =>(FormatFlags & DateTimeFormatFlags.UseSpacesInMonthNames) != 0;
 
         internal bool HasSpacesInDayNames => (FormatFlags & DateTimeFormatFlags.UseSpacesInDayNames) != 0;
@@ -1320,19 +1316,12 @@ namespace System.Globalization
         /// </summary>
         internal string InternalGetMonthName(int month, MonthNameStyles style, bool abbreviated)
         {
-            string[] monthNamesArray;
-            switch (style)
+            string[] monthNamesArray = style switch
             {
-                case MonthNameStyles.Genitive:
-                    monthNamesArray = InternalGetGenitiveMonthNames(abbreviated);
-                    break;
-                case MonthNameStyles.LeapYear:
-                    monthNamesArray = InternalGetLeapYearMonthNames();
-                    break;
-                default:
-                    monthNamesArray = (abbreviated ? InternalGetAbbreviatedMonthNames() : InternalGetMonthNames());
-                    break;
-            }
+                MonthNameStyles.Genitive => InternalGetGenitiveMonthNames(abbreviated),
+                MonthNameStyles.LeapYear => InternalGetLeapYearMonthNames(),
+                _ => (abbreviated ? InternalGetAbbreviatedMonthNames() : InternalGetMonthNames()),
+            };
 
             // The month range is from 1 ~ m_monthNames.Length
             // (actually is 13 right now for all cases)
@@ -2261,8 +2250,9 @@ namespace System.Globalization
                 // We need to rescan the date words since we're always synthetic
                 DateTimeFormatInfoScanner scanner = new DateTimeFormatInfoScanner();
                 string[]? dateWords = scanner.GetDateWordsOfDTFI(this);
+
                 // Ensure the formatflags is initialized.
-                DateTimeFormatFlags flag = FormatFlags;
+                _ = FormatFlags;
 
                 // For some cultures, the date separator works more like a comma, being allowed before or after any date part.
                 // In these cultures, we do not use normal date separator since we disallow date separator after a date terminal state.

@@ -10,10 +10,10 @@ using System.Diagnostics.CodeAnalysis;
 namespace System.Threading
 {
     /// <summary>
-    /// After much discussion, we decided the Interlocked class doesn't need 
-    /// any HPA's for synchronization or external threading.  They hurt C#'s 
-    /// codegen for the yield keyword, and arguably they didn't protect much.  
-    /// Instead, they penalized people (and compilers) for writing threadsafe 
+    /// After much discussion, we decided the Interlocked class doesn't need
+    /// any HPA's for synchronization or external threading.  They hurt C#'s
+    /// codegen for the yield keyword, and arguably they didn't protect much.
+    /// Instead, they penalized people (and compilers) for writing threadsafe
     /// code.
     /// </summary>
     public static class Interlocked
@@ -91,6 +91,7 @@ namespace System.Threading
         public static extern double CompareExchange(ref double location1, double value, double comparand);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [return: NotNullIfNotNull("location1")]
         public static extern object? CompareExchange(ref object? location1, object? value, object? comparand);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -98,13 +99,14 @@ namespace System.Threading
 
         // Note that getILIntrinsicImplementationForInterlocked() in vm\jitinterface.cpp replaces
         // the body of this method with the the following IL:
-        //     ldarg.0 
+        //     ldarg.0
         //     ldarg.1
         //     ldarg.2
         //     call System.Threading.Interlocked::CompareExchange(ref Object, Object, Object)
         //     ret
         // The workaround is no longer strictly necessary now that we have Unsafe.As but it does
         // have the advantage of being less sensitive to JIT's inliner decisions.
+        [return: NotNullIfNotNull("location1")]
         public static T CompareExchange<T>(ref T location1, T value, T comparand) where T : class?
         {
             return Unsafe.As<T>(CompareExchange(ref Unsafe.As<T, object?>(ref location1), value, comparand));

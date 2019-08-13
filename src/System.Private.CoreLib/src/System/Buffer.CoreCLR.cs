@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -14,10 +15,10 @@ using nuint = System.UInt32;
 
 namespace System
 {
-    partial class Buffer
+    public partial class Buffer
     {
         // Copies from one primitive array to another primitive array without
-        // respecting types.  This calls memmove internally.  The count and 
+        // respecting types.  This calls memmove internally.  The count and
         // offset parameters here are in bytes.  If you want to use traditional
         // array element indices and counts, use Array.Copy.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]

@@ -28,7 +28,7 @@ namespace System
         private const int maxRoundingDigits = 6;
 
         // This table is required for the Round function which can specify the number of digits to round to
-        private static float[] roundPower10Single = new float[] {
+        private static readonly float[] roundPower10Single = new float[] {
             1e0f, 1e1f, 1e2f, 1e3f, 1e4f, 1e5f, 1e6f
         };
 
@@ -381,7 +381,7 @@ namespace System
                     }
                     // Directed rounding: Round up to the next value, toward positive infinity
                     case MidpointRounding.ToPositiveInfinity:
-                    {  
+                    {
                         x = Ceiling(x);
                         break;
                     }
@@ -390,7 +390,7 @@ namespace System
                         throw new ArgumentException(SR.Format(SR.Argument_InvalidEnumValue, mode, nameof(MidpointRounding)), nameof(mode));
                     }
                 }
-                
+
                 x /= power10;
             }
 

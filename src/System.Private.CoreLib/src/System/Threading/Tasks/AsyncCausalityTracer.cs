@@ -33,9 +33,9 @@ namespace System.Threading.Tasks
         //Indicates this information comes from the BCL Library
         private const WFD.CausalitySource s_CausalitySource = WFD.CausalitySource.Library;
 
-        private static WFD.IAsyncCausalityTracerStatics s_TracerFactory = null!;
+        private static readonly WFD.IAsyncCausalityTracerStatics s_TracerFactory = null!;
 
-        // The loggers that this Tracer knows about. 
+        // The loggers that this Tracer knows about.
         [Flags]
         private enum Loggers : byte
         {
@@ -48,7 +48,9 @@ namespace System.Threading.Tasks
         private static Loggers f_LoggingOn; //assumes false by default
 
         // The precise static constructor will run first time somebody attempts to access this class
+#pragma warning disable CA1810
         static AsyncCausalityTracer()
+#pragma warning restore CA1810
         {
             if (!Environment.IsWinRTSupported) return;
 

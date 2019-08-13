@@ -18,7 +18,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // That's because they are invoked with special "this"! The "this" object
     // for all of these methods are not IterableToEnumerableAdapter objects. Rather, they are of type
     // IIterable<T>. No actual IterableToEnumerableAdapter object is ever instantiated. Thus, you will
-    // see a lot of expressions that cast "this" to "IIterable<T>". 
+    // see a lot of expressions that cast "this" to "IIterable<T>".
     internal sealed class IterableToEnumerableAdapter
     {
         private IterableToEnumerableAdapter()
@@ -68,7 +68,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
         private sealed class NonGenericToGenericIterator : IIterator<object?>
         {
-            private IBindableIterator iterator;
+            private readonly IBindableIterator iterator;
 
             public NonGenericToGenericIterator(IBindableIterator iterator)
             { this.iterator = iterator; }
@@ -90,13 +90,13 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     // Adapter class which holds a Windows Runtime IIterator<T>, exposing it as a managed IEnumerator<T>
 
 
-    // There are a few implementation differences between the Iterator and IEnumerator which need to be 
-    // addressed. Iterator starts at index 0 while IEnumerator starts at index -1 as a result of which 
-    // the first call to IEnumerator.Current is correct only after calling MoveNext(). 
+    // There are a few implementation differences between the Iterator and IEnumerator which need to be
+    // addressed. Iterator starts at index 0 while IEnumerator starts at index -1 as a result of which
+    // the first call to IEnumerator.Current is correct only after calling MoveNext().
     // Also IEnumerator throws an exception when we call Current after reaching the end of collection.
     internal sealed class IteratorToEnumeratorAdapter<T> : IEnumerator<T>
     {
-        private IIterator<T> m_iterator;
+        private readonly IIterator<T> m_iterator;
         private bool m_hadCurrent;
         private T m_current = default!;
         private bool m_isInitialized;

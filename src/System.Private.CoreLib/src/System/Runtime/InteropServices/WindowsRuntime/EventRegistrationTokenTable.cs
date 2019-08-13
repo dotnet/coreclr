@@ -14,7 +14,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     public sealed class EventRegistrationTokenTable<T> where T : class
     {
         // Note this dictionary is also used as the synchronization object for this table
-        private Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
+        private readonly Dictionary<EventRegistrationToken, T> m_tokens = new Dictionary<EventRegistrationToken, T>();
 
         // Cached multicast delegate which will invoke all of the currently registered delegates.  This
         // will be accessed frequently in common coding paterns, so we don't want to calculate it repeatedly.
@@ -148,7 +148,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return new EventRegistrationToken(tokenValue);
         }
 
-        // Remove the event handler from the table and 
+        // Remove the event handler from the table and
         // Get the delegate associated with an event registration token if it exists
         // If the event registration token is not registered, returns false
         public bool RemoveEventHandler(EventRegistrationToken token, [NotNullWhen(true)] out T? handler)
