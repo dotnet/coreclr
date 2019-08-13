@@ -1819,7 +1819,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                     // This scenario is disabled with approval from VS because it's not considered to
                     // be a common user scenario.
                     // </NOTE>
-                    return CORDBG_E_CANT_SET_IP_OUT_OF_CATCH_ONBIT64;
+                    return CORDBG_E_CANT_SET_IP_OUT_OF_CATCH_ON_WIN64;
 #endif // !WIN64EXCEPTIONS
                     break;
                 }
@@ -1880,7 +1880,7 @@ HRESULT IsLegalTransition(Thread *pThread,
                     // This scenario is disabled with approval from VS because it's not considered to be a common user
                     // scenario.
                     // </NOTE>
-                    return CORDBG_E_CANT_SET_IP_OUT_OF_FINALLY_ONBIT64;
+                    return CORDBG_E_CANT_SET_IP_OUT_OF_FINALLY_ON_WIN64;
 #endif // WIN64EXCEPTIONS
 
                     break;
