@@ -10,6 +10,7 @@ using System.Text;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -702,7 +703,7 @@ namespace System.Runtime.InteropServices
             }
 
             IntPtr hglobal = AllocHGlobal((IntPtr)nb);
-            
+
             fixed (char* firstChar = s)
             {
                 string.wstrcpy((char*)hglobal, firstChar, s.Length + 1);
