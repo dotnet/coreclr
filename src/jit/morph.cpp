@@ -6883,6 +6883,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //
 // Arguments:
 //    callee - The callee to check
+//    failReason - If this method returns false, the reason why. Can be nullptr.
 //
 // Return Value:
 //    Returns true or false based on whether the callee can be fastTailCalled
@@ -6994,7 +6995,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    caller({ double, double, double, double, double, double }) // 48 byte stack
 //    callee(int, int) -- 2 int registers
 
-bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
+bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
 {
 #if FEATURE_FASTTAILCALL
     // To reach here means that the return types of the caller and callee are tail call compatible.
@@ -7020,65 +7021,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     fgInitArgInfo(callee);
     fgArgInfo* argInfo = callee->fgArgInfo;
 
-    auto reportFastTailCallDecision = [this, callee](const char* msg, size_t callerStackSize, size_t calleeStackSize) {
-#if DEBUG
-        if ((JitConfig.JitReportFastTailCallDecisions()) == 1)
-        {
-            if (callee->gtCallType != CT_INDIRECT)
-            {
-                const char* methodName;
-
-                methodName = eeGetMethodFullName(callee->gtCallMethHnd);
-
-                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: %s -- Decision: ",
-                       info.compFullName, methodName);
-            }
-            else
-            {
-                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: IndirectCall -- "
-                       "Decision: ",
-                       info.compFullName);
-            }
-
-            if (callerStackSize != -1)
-            {
-                printf("%s (CallerStackSize: %d, CalleeStackSize: %d)\n\n", msg, callerStackSize, calleeStackSize);
-            }
-            else
-            {
-                printf("%s\n\n", msg);
-            }
-        }
-        else
-        {
-            JITDUMP("[Fast tailcall decision]: %s\n", msg);
-        }
-#else
-        (void)this;
-        (void)callee;
-#endif // DEBUG
-    };
-
-// Note on vararg methods:
-// If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
-// But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
-// fixed args. Therefore, we can allow a vararg method to fast tail call other methods as long as
-// out-going area required for callee is bounded by caller's fixed argument space.
-//
-// Note that callee being a vararg method is not a problem since we can account the params being passed.
-//
-// We will currently decide to not fast tail call on Windows armarch if the caller or callee is a vararg
-// method. This is due to the ABI differences for native vararg methods for these platforms. There is
-// work required to shuffle arguments to the correct locations.
-
-#if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
-    if (info.compIsVarArgs || callee->IsVarargs())
-    {
-        reportFastTailCallDecision("Fast tail calls with varargs not supported on Windows ARM/ARM64", 0, 0);
-        return false;
-    }
-#endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
-
     // Count user args while tracking whether any of them has a larger than one
     // stack slot sized requirement. This requirement is required to support
     // lowering the fast tail call, which, currently only supports copying
@@ -7093,6 +7035,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     bool   hasNonEnregisterableStructs          = false;
     bool   hasByrefParameter                    = false;
     size_t calleeStackSize                      = 0;
+    size_t callerStackSize                      = info.compArgStackSize;
 
     for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
     {
@@ -7137,19 +7080,97 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         }
     }
 
+    auto reportFastTailCallDecision = [&](const char* thisFailReason) {
+        if (failReason != nullptr)
+        {
+            *failReason = thisFailReason;
+        }
+
+#if DEBUG
+        if ((JitConfig.JitReportFastTailCallDecisions()) == 1)
+        {
+            if (callee->gtCallType != CT_INDIRECT)
+            {
+                const char* methodName;
+
+                methodName = eeGetMethodFullName(callee->gtCallMethHnd);
+
+                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: %s -- Decision: ",
+                       info.compFullName, methodName);
+            }
+            else
+            {
+                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: IndirectCall -- "
+                       "Decision: ",
+                       info.compFullName);
+            }
+
+            if (thisFailReason == nullptr)
+            {
+                printf("Will fast tailcall");
+            }
+            else
+            {
+                printf("Will not fast tailcall (%s)", thisFailReason);
+            }
+
+            if (callerStackSize != -1)
+            {
+                printf(" (CallerStackSize: %d, CalleeStackSize: %d)", callerStackSize, calleeStackSize);
+            }
+
+            printf("\n\n");
+        }
+        else
+        {
+            if (thisFailReason == nullptr)
+            {
+                JITDUMP("[Fast tailcall decision]: Will fast tailcall\n");
+            }
+            else  
+            {
+                JITDUMP("[Fast tailcall decision]: Will not fast tailcall (%s)\n", thisFailReason);
+            }
+        }
+#else
+        (void)this;
+        (void)callee;
+#endif // DEBUG
+    };
+
+// Note on vararg methods:
+// If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
+// But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
+// fixed args. Therefore, we can allow a vararg method to fast tail call other methods as long as
+// out-going area required for callee is bounded by caller's fixed argument space.
+//
+// Note that callee being a vararg method is not a problem since we can account the params being passed.
+//
+// We will currently decide to not fast tail call on Windows armarch if the caller or callee is a vararg
+// method. This is due to the ABI differences for native vararg methods for these platforms. There is
+// work required to shuffle arguments to the correct locations.
+
+#if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
+    if (info.compIsVarArgs || callee->IsVarargs())
+    {
+        reportFastTailCallDecision("Fast tail calls with varargs are not supported");
+        return false;
+    }
+#endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
+
+
     if (callee->HasRetBufArg()) // RetBuf
     {
         // If callee has RetBuf param, caller too must have it.
         // Otherwise go the slow route.
         if (info.compRetBuffArg == BAD_VAR_NUM)
         {
-            reportFastTailCallDecision("Callee has RetBuf but caller does not.", 0, 0);
+            reportFastTailCallDecision("Callee has RetBuf but caller does not.");
             return false;
         }
     }
 
     const unsigned maxRegArgs            = MAX_REG_ARG;
-    size_t         callerStackSize       = info.compArgStackSize;
     hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
 
     bool hasStackArgs = false;
@@ -7160,7 +7181,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
     if (hasByrefParameter)
     {
-        reportFastTailCallDecision("Callee has a byref parameter", 0, 0);
+        reportFastTailCallDecision("Callee has a byref parameter");
         return false;
     }
 
@@ -7177,8 +7198,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // arguments is less than the caller's
     if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision("Not enough incoming arg space");
         return false;
     }
 
@@ -7198,15 +7218,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
     if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize > 0)
     {
-        reportFastTailCallDecision("Will not fastTailCall hasLargerThanOneStackSlotSizedStruct && calleeStackSize",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision("Caller or callee has multi-slot arg and callee takes stack args (unsupported scenario)");
         return false;
     }
 
     if (hasNonEnregisterableStructs)
     {
-        reportFastTailCallDecision("Will not fastTailCall hasNonEnregisterableStructs", callerStackSize,
-                                   calleeStackSize);
+        reportFastTailCallDecision("Callee has non-enregisterable struct arg (unsupported scenario)");
         return false;
     }
 
@@ -7219,8 +7237,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // for more information.
     if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision("Not enough incoming arg space");
         return false;
     }
 
@@ -7230,9 +7247,11 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
 #endif //  WINDOWS_AMD64_ABI
 
-    reportFastTailCallDecision("Will fastTailCall", callerStackSize, calleeStackSize);
+    reportFastTailCallDecision(nullptr);
     return true;
 #else // FEATURE_FASTTAILCALL
+    if (failReason)
+        *failReason = "Fast tailcalls are not supported on this platform";
     return false;
 #endif
 }
@@ -7448,7 +7467,7 @@ void Compiler::fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs)
     // We come this route only for tail prefixed calls that cannot be dispatched as
     // fast tail calls
     assert(!call->IsImplicitTailCall());
-    assert(!fgCanFastTailCall(call));
+    assert(!fgCanFastTailCall(call, nullptr));
 
     // First move the 'this' pointer (if any) onto the regular arg list. We do this because
     // we are going to prepend special arguments onto the argument list (for non-x86 platforms),
@@ -8106,6 +8125,14 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             }
         }
 
+        if (szFailReason == nullptr)
+        {
+            if (!fgCheckStmtAfterTailCall())
+            {
+                szFailReason = "Unexpected statements after the tail call";
+            }
+        }
+
         // If this is an opportunistic tail call and cannot be dispatched as
         // fast tail call, go the non-tail call route.  This is done for perf
         // reason.
@@ -8113,45 +8140,11 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
         // Avoid the cost of determining whether can be dispatched as fast tail
         // call if we already know that tail call cannot be honored for other
         // reasons.
-        bool canFastTailCall = false;
+        bool        canFastTailCall          = false;
+        const char* szFastTailCallFailReason = nullptr;
         if (szFailReason == nullptr)
         {
-            canFastTailCall = fgCanFastTailCall(call);
-            if (!canFastTailCall)
-            {
-                // Implicit or opportunistic tail calls are always dispatched via fast tail call
-                // mechanism and never via tail call helper for perf.
-                if (call->IsImplicitTailCall())
-                {
-                    szFailReason = "Opportunistic tail call cannot be dispatched as epilog+jmp";
-                }
-                else if (!call->IsVirtualStub() && call->HasNonStandardAddedArgs(this))
-                {
-                    // If we are here, it means that the call is an explicitly ".tail" prefixed and cannot be
-                    // dispatched as a fast tail call.
-
-                    // Methods with non-standard args will have indirection cell or cookie param passed
-                    // in callee trash register (e.g. R11). Tail call helper doesn't preserve it before
-                    // tail calling the target method and hence ".tail" prefix on such calls needs to be
-                    // ignored.
-                    //
-                    // Exception to the above rule: although Virtual Stub Dispatch (VSD) calls require
-                    // extra stub param (e.g. in R11 on Amd64), they can still be called via tail call helper.
-                    // This is done by by adding stubAddr as an additional arg before the original list of
-                    // args. For more details see fgMorphTailCall() and CreateTailCallCopyArgsThunk()
-                    // in Stublinkerx86.cpp.
-                    szFailReason = "Method with non-standard args passed in callee trash register cannot be tail "
-                                   "called via helper";
-                }
-#if defined(_TARGET_ARM64_) || defined(_TARGET_UNIX_)
-                else
-                {
-                    // NYI - TAILCALL_RECURSIVE/TAILCALL_HELPER.
-                    // So, bail out if we can't make fast tail call.
-                    szFailReason = "Non-qualified fast tail call";
-                }
-#endif
-            }
+            canFastTailCall = fgCanFastTailCall(call, &szFastTailCallFailReason);
         }
 
         // Clear these flags before calling fgMorphCall() to avoid recursion.
@@ -8161,14 +8154,6 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
 #if FEATURE_TAILCALL_OPT
         call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
 #endif
-
-        if (szFailReason == nullptr)
-        {
-            if (!fgCheckStmtAfterTailCall())
-            {
-                szFailReason = "Unexpected statements after the tail call";
-            }
-        }
 
         void* pfnCopyArgs = nullptr;
 #if !defined(_TARGET_X86_) || defined(_TARGET_UNIX_)
@@ -8187,7 +8172,10 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 }
                 else
                 {
-                    szFailReason = "TailCallCopyArgsThunk not available.";
+                    // If we cannot do helper-based tailcall then the fast
+                    // tailcall decision is more interesting as that is the only
+                    // case where we would otherwise do a tailcall.
+                    szFailReason = szFastTailCallFailReason;
                 }
             }
         }
