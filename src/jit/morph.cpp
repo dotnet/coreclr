@@ -7122,7 +7122,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
             {
                 JITDUMP("[Fast tailcall decision]: Will fast tailcall\n");
             }
-            else  
+            else
             {
                 JITDUMP("[Fast tailcall decision]: Will not fast tailcall (%s)\n", thisFailReason);
             }
@@ -7152,7 +7152,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
         return false;
     }
 #endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
-
 
     if (callee->HasRetBufArg()) // RetBuf
     {
@@ -7213,7 +7212,8 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
     if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize > 0)
     {
-        reportFastTailCallDecision("Caller or callee has multi-slot arg and callee takes stack args (unsupported scenario)");
+        reportFastTailCallDecision(
+            "Caller or callee has multi-slot arg and callee takes stack args (unsupported scenario)");
         return false;
     }
 
