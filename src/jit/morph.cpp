@@ -7255,7 +7255,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 //    potential tailcalls. It will do profitability and legality checks and
 //    classify which kind of tailcall we are able to (or should) do, along with
 //    modifying the call node to set it up to perform that kind of tailcall.
-//    
+//
 bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
 {
     // It should either be an explicit (i.e. tail prefixed) or an implicit tail call
@@ -7266,8 +7266,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
 
     *newNode = call;
 
-    auto failTailCall = [&](const char* reason)
-    {
+    auto failTailCall = [&](const char* reason) {
 #ifdef DEBUG
         if (verbose)
         {
@@ -7505,8 +7504,8 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     // a recursive call into a loop.  Another option is to modify gtIsRecursiveCall() to check that the
     // generic type parameters of both caller and callee generic method are the same.
     if (opts.compTailCallLoopOpt && canFastTailCall && gtIsRecursiveCall(call) && !lvaReportParamTypeArg() &&
-        !lvaKeepAliveAndReportThis() && !call->IsVirtual() && !hasStructParam &&
-        !varTypeIsStruct(call->TypeGet()) && ((info.compClassAttr & CORINFO_FLG_MARSHAL_BYREF) == 0))
+        !lvaKeepAliveAndReportThis() && !call->IsVirtual() && !hasStructParam && !varTypeIsStruct(call->TypeGet()) &&
+        ((info.compClassAttr & CORINFO_FLG_MARSHAL_BYREF) == 0))
     {
         fastTailCallToLoop = true;
     }
@@ -7680,7 +7679,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     // For non-void calls, we return a place holder which will be
     // used by the parent GT_RETURN node of this call.
 
-    GenTree* result    = call;
+    GenTree*  result   = call;
     var_types callType = call->TypeGet();
     if (callType != TYP_VOID && info.compRetType != TYP_VOID)
     {
