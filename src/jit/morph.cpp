@@ -8140,6 +8140,43 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
         if (szFailReason == nullptr)
         {
             canFastTailCall = fgCanFastTailCall(call, &szFastTailCallFailReason);
+
+            // Some tailcalls can (or will) only be done as fast tailcalls.
+            if (!canFastTailCall)
+            {
+                // Implicit or opportunistic tail calls are always dispatched via fast tail call
+                // mechanism and never via tail call helper for perf.
+                if (call->IsImplicitTailCall())
+                {
+                    szFailReason = szFastTailCallFailReason;
+                }
+                else if (!call->IsVirtualStub() && call->HasNonStandardAddedArgs(this))
+                {
+                    // If we are here, it means that the call is an explicitly ".tail" prefixed and cannot be
+                    // dispatched as a fast tail call.
+
+                    // Methods with non-standard args will have indirection cell or cookie param passed
+                    // in callee trash register (e.g. R11). Tail call helper doesn't preserve it before
+                    // tail calling the target method and hence ".tail" prefix on such calls needs to be
+                    // ignored.
+                    //
+                    // Exception to the above rule: although Virtual Stub Dispatch (VSD) calls require
+                    // extra stub param (e.g. in R11 on Amd64), they can still be called via tail call helper.
+                    // This is done by by adding stubAddr as an additional arg before the original list of
+                    // args. For more details see fgMorphTailCall() and CreateTailCallCopyArgsThunk()
+                    // in Stublinkerx86.cpp.
+                    szFailReason = "Method with non-standard args passed in callee trash register cannot be tail "
+                                   "called via helper";
+                }
+#if defined(_TARGET_ARM64_) || defined(_TARGET_UNIX_)
+                else
+                {
+                    // NYI - TAILCALL_RECURSIVE/TAILCALL_HELPER.
+                    // So, bail out if we can't make fast tail call.
+                    szFailReason = szFastTailCallFailReason;
+                }
+#endif
+            }
         }
 
         // Clear these flags before calling fgMorphCall() to avoid recursion.
@@ -8167,10 +8204,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
                 }
                 else
                 {
-                    // If we cannot do helper-based tailcall then the fast
-                    // tailcall decision is more interesting as that is the only
-                    // case where we would otherwise do a tailcall.
-                    szFailReason = szFastTailCallFailReason;
+                    szFailReason = "TailCallCopyArgsThunk not available.";
                 }
             }
         }
