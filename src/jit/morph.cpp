@@ -7246,15 +7246,15 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 //
 // Return Value:
 //    Returns true or false based on whether the call was morphed into a tailcall.
-//    If this function returns true the new node is done being morphed. Otherwise
-//    the new node will be demoted to a regular call and should go through normal
-//    morph.
+//    If this function returns true the call is done being morphed and the new node
+//    should be used. Otherwise the call will be demoted to a regular call and
+//    should go through normal morph.
 //
 // Notes:
 //    This is called only for calls that the importer has already identified as
 //    potential tailcalls. It will do profitability and legality checks and
 //    classify which kind of tailcall we are able to (or should) do, along with
-//    modifying the call node to set it up to perform that kind of tailcall.
+//    modifying the trees to perform that kind of tailcall.
 //
 bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
 {
@@ -7263,8 +7263,6 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
 
     // It cannot be an inline candidate
     assert(!call->IsInlineCandidate());
-
-    *newNode = call;
 
     auto failTailCall = [&](const char* reason) {
 #ifdef DEBUG
@@ -7530,8 +7528,10 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
     if (!canFastTailCall)
         call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_VIA_HELPER;
+#if FEATURE_TAILCALL_OPT
     if (fastTailCallToLoop)
         call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_TO_LOOP;
+#endif
 
     // We might recurse so clear the 'potential' flags.
     call->gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
