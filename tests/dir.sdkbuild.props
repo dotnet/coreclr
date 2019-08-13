@@ -14,6 +14,9 @@
    
     <!-- Force the CLI to allow us to target higher netcoreapp than it may know about -->
     <NETCoreAppMaximumVersion>99.0</NETCoreAppMaximumVersion>
+
+    <!-- TODO: remove this when we use the Arcade Sdk. -->
+    <DeterministicSourcePath>false</DeterministicSourcePath>
   </PropertyGroup>
 
 </Project>
