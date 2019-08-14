@@ -7539,6 +7539,11 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
 #endif
 
+    // Store the call type for later to introduce the correct placeholder.
+    var_types origCallType = call->TypeGet();
+    // Avoid potential extra work for the return (for example, vzeroupper)
+    call->gtType = TYP_VOID;
+
 #ifdef DEBUG
     if (verbose)
     {
@@ -7680,33 +7685,33 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     // used by the parent GT_RETURN node of this call.
 
     GenTree*  result   = call;
-    var_types callType = call->TypeGet();
-    if (callType != TYP_VOID && info.compRetType != TYP_VOID)
+    if (origCallType != TYP_VOID && info.compRetType != TYP_VOID)
     {
+        var_types nodeTy = origCallType;
 #ifdef FEATURE_HFA
         // Return a dummy node, as the return is already removed.
-        if (callType == TYP_STRUCT)
+        if (nodeTy == TYP_STRUCT)
         {
             // This is a HFA, use float 0.
-            callType = TYP_FLOAT;
+            nodeTy = TYP_FLOAT;
         }
 #elif defined(UNIX_AMD64_ABI)
         // Return a dummy node, as the return is already removed.
-        if (varTypeIsStruct(callType))
+        if (varTypeIsStruct(nodeTy))
         {
             // This is a register-returned struct. Return a 0.
             // The actual return registers are hacked in lower and the register allocator.
-            callType = TYP_INT;
+            nodeTy = TYP_INT;
         }
 #endif
 #ifdef FEATURE_SIMD
         // Return a dummy node, as the return is already removed.
-        if (varTypeIsSIMD(callType))
+        if (varTypeIsSIMD(nodeTy))
         {
-            callType = TYP_DOUBLE;
+            nodeTy = TYP_DOUBLE;
         }
 #endif
-        result = gtNewZeroConNode(genActualType(callType));
+        result = gtNewZeroConNode(genActualType(nodeTy));
         result = fgMorphTree(result);
     }
 
