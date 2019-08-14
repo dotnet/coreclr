@@ -230,11 +230,24 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
 
         const COUNT_T BUFFER_SIZE = dstBuffer.GetCount() + 1;
         buffer.AllocThrows(BUFFER_SIZE);
+        BOOL isQuotedValue = false;
+        COUNT_T j = 0;
         for (COUNT_T i = 0; i < BUFFER_SIZE; ++i)
-            buffer[i] = (dstBuffer[i] == '=' || dstBuffer[i] == ';') ? '\0' : dstBuffer[i];
+        {
+            if (dstBuffer[i] == '"')
+            {
+                isQuotedValue = !isQuotedValue;
+                continue;
+            }
+            buffer[j++] = ((dstBuffer[i] == '=' || dstBuffer[i] == ';') && !isQuotedValue) ? '\0' : dstBuffer[i];
+        }
+
+        // In case we skipped over quotes in the filter string, shrink the buffer size accordingly
+        if (j < dstBuffer.GetCount())
+            buffer.Shrink(j + 1);
 
         eventFilterDescriptor.Ptr = reinterpret_cast<ULONGLONG>(buffer.Ptr());
-        eventFilterDescriptor.Size = static_cast<ULONG>(BUFFER_SIZE);
+        eventFilterDescriptor.Size = static_cast<ULONG>(buffer.Size());
         eventFilterDescriptor.Type = 0; // EventProvider.cs: `internal enum ControllerCommand.Update`
         isEventFilterDescriptorInitialized = true;
     }
