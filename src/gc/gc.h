@@ -89,7 +89,8 @@ enum gc_etw_segment_type
 {
     gc_etw_segment_small_object_heap = 0,
     gc_etw_segment_large_object_heap = 1,
-    gc_etw_segment_read_only_heap = 2
+    gc_etw_segment_read_only_heap = 2,
+    gc_etw_segment_pinned_object_heap = 3,
 };
 
 // Types of allocations, emitted by the GCAllocationTick ETW event.
@@ -107,7 +108,28 @@ class IGCHeapInternal;
 
 /* misc defines */
 #define LARGE_OBJECT_SIZE ((size_t)(85000))
-#define max_generation 2
+
+enum generation_num
+{
+    // small object heap includes generations [0-2], which are "generations" in the general sense. 
+    soh_gen0 = 0,
+    soh_gen1 = 1,
+    soh_gen2 = 2,
+
+    // TODO: VS maybe rename "max_soh_generation" ?
+    max_generation = soh_gen2,
+
+    soh_generation_count = soh_gen2 + 1,
+
+    // large object heap, technically not a generation, but it is convenient to represent it as such
+    loh_generation = 3,
+
+    // pinned heap, a separate generation for the same reasons as loh
+    poh_generation = 4,
+
+    // number of all generations 
+    total_generation_count = poh_generation + 1
+};
 
 #ifdef GC_CONFIG_DRIVEN
 #define MAX_GLOBAL_GC_MECHANISMS_COUNT 6

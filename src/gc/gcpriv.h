@@ -1236,10 +1236,11 @@ public:
     void destroy_gc_heap(gc_heap* heap);
 
     static
-    HRESULT initialize_gc  (size_t segment_size,
-                            size_t heap_size
+    HRESULT initialize_gc  (size_t soh_segment_size,
+                            size_t loh_segment_size,
+                            size_t poh_segment_size
 #ifdef MULTIPLE_HEAPS
-                            , unsigned number_of_heaps
+                            , int number_of_heaps
 #endif //MULTIPLE_HEAPS
         );
 
@@ -1269,12 +1270,12 @@ public:
     static
     void balance_heaps (alloc_context* acontext);
     PER_HEAP
-    ptrdiff_t get_balance_heaps_loh_effective_budget ();
+    ptrdiff_t get_balance_heaps_ploh_effective_budget (int generation_num);
+    static 
+    gc_heap* balance_heaps_ploh (alloc_context* acontext, size_t size, int generation_num);
+    // Unlike balance_heaps_ploh, this may return nullptr if we failed to change heaps.
     static
-    gc_heap* balance_heaps_loh (alloc_context* acontext, size_t size);
-    // Unlike balance_heaps_loh, this may return nullptr if we failed to change heaps.
-    static
-    gc_heap* balance_heaps_loh_hard_limit_retry (alloc_context* acontext, size_t size);
+    gc_heap* balance_heaps_ploh_hard_limit_retry (alloc_context* acontext, size_t size, int generation_num);
     static
     void gc_thread_stub (void* arg);
 #endif //MULTIPLE_HEAPS
@@ -1286,6 +1287,15 @@ public:
     // lowest_address and highest_address, which are currently the same accross all heaps.
     PER_HEAP
     CObjectHeader* allocate_large_object (size_t size, uint32_t flags, int64_t& alloc_bytes);
+
+
+    // For POH allocations we only update the alloc_bytes_loh in allocation
+    // context - we don't actually use the ptr/limit from it so I am
+    // making this explicit by not passing in the alloc_context.
+    // Note: This is an instance method, but the heap instance is only used for
+    // lowest_address and highest_address, which are currently the same accross all heaps.
+    PER_HEAP
+    CObjectHeader* allocate_pinned_object (size_t size, uint32_t flags, int64_t& alloc_bytes);
 
 #ifdef FEATURE_STRUCTALIGN
     PER_HEAP
@@ -1577,8 +1587,9 @@ protected:
     PER_HEAP
     BOOL a_fit_free_list_large_p (size_t size,
                                   alloc_context* acontext,
-                                  uint32_t flags,
-                                  int align_const);
+                                  uint32_t flags, 
+                                  int align_const,
+                                  int gen_number);
 
     PER_HEAP
     BOOL a_fit_segment_end_p (int gen_number,
@@ -1597,7 +1608,7 @@ protected:
                                   BOOL* commit_failed_p,
                                   oom_reason* oom_r);
     PER_HEAP
-    BOOL loh_get_new_seg (generation* gen,
+    BOOL ploh_get_new_seg (generation* gen,
                           size_t size,
                           int align_const,
                           BOOL* commit_failed_p,
@@ -1631,8 +1642,8 @@ protected:
                       BOOL* commit_failed_p,
                       BOOL* short_seg_end_p);
     PER_HEAP
-    BOOL loh_try_fit (int gen_number,
-                      size_t size,
+    BOOL ploh_try_fit (int gen_number,
+                      size_t size, 
                       alloc_context* acontext,
                       uint32_t flags,
                       int align_const,
@@ -1769,8 +1780,7 @@ protected:
     PER_HEAP
     void adjust_ephemeral_limits();
     PER_HEAP
-    void make_generation (generation& gen, heap_segment* seg,
-                          uint8_t* start, uint8_t* pointer);
+    void make_generation (int gen_num, heap_segment* seg, uint8_t* start, uint8_t* pointer);
 
 
 #define USE_PADDING_FRONT 1
@@ -2924,7 +2934,7 @@ protected:
     PER_HEAP
     size_t committed_size();
     PER_HEAP
-    size_t committed_size (bool loh_p, size_t* allocated);
+    size_t committed_size (int gen_number, size_t* allocated);
     PER_HEAP
     size_t approximate_new_allocation();
     PER_HEAP
@@ -2946,7 +2956,7 @@ protected:
     PER_HEAP
     void relocate_in_large_objects ();
     PER_HEAP
-    void mark_through_cards_for_large_objects(card_fn fn, BOOL relocating
+    void mark_through_cards_for_large_objects(card_fn fn, int oldest_gen_num, BOOL relocating
                                               CARD_MARKING_STEALING_ARG(gc_heap* hpt));
     PER_HEAP
     void descr_segment (heap_segment* seg);
@@ -3199,8 +3209,9 @@ public:
     BOOL heap_analyze_success;
 
     // The generation table. Must always be last.
+    // TODO: VS +1 for finalizer segment?  why not +2 for critical finalizer?
     PER_HEAP
-    generation generation_table [NUMBERGENERATIONS + 1];
+    generation generation_table [total_generation_count + 1];
 
     // End DAC zone
 
@@ -3298,8 +3309,9 @@ public:
     PER_HEAP
     uint32_t fgn_maxgen_percent;
 
+    //TODO: VS need a separate one for pinned?
     PER_HEAP_ISOLATED
-    uint32_t fgn_loh_percent;
+    uint32_t fgn_ploh_percent;
 
     PER_HEAP_ISOLATED
     VOLATILE(bool) full_gc_approach_event_set;
@@ -3338,7 +3350,7 @@ public:
     uint64_t total_alloc_bytes_soh;
 
     PER_HEAP
-    uint64_t total_alloc_bytes_loh;
+    uint64_t total_alloc_bytes_ploh;
 
     PER_HEAP
     int gc_policy;  //sweep, compact, expand
@@ -3530,6 +3542,9 @@ public:
     size_t min_loh_segment_size;
 
     PER_HEAP_ISOLATED
+    size_t min_poh_segment_size;
+
+    PER_HEAP_ISOLATED
     size_t segment_info_size;
 
     PER_HEAP
@@ -3541,9 +3556,9 @@ public:
     PER_HEAP
     BOOL ephemeral_promotion;
     PER_HEAP
-    uint8_t* saved_ephemeral_plan_start[NUMBERGENERATIONS-1];
+    uint8_t* saved_ephemeral_plan_start[soh_generation_count];
     PER_HEAP
-    size_t saved_ephemeral_plan_start_size[NUMBERGENERATIONS-1];
+    size_t saved_ephemeral_plan_start_size[soh_generation_count];
 
 protected:
 #ifdef MULTIPLE_HEAPS
@@ -3740,6 +3755,9 @@ protected:
     size_t     bgc_begin_loh_size;
     PER_HEAP
     size_t     end_loh_size;
+    //TODO: VS used?
+    PER_HEAP
+    size_t     end_poh_size;
 
 #ifdef BGC_SERVO_TUNING
     PER_HEAP
@@ -3773,9 +3791,8 @@ protected:
     // in free list doesn't increase the heap size.
     PER_HEAP
     size_t     bgc_loh_size_increased;
-
     PER_HEAP
-    size_t     bgc_loh_allocated_in_free;
+    size_t     bgc_poh_size_increased;
 
     PER_HEAP
     size_t     background_soh_alloc_count;
@@ -3912,12 +3929,13 @@ protected:
     BOOL proceed_with_gc_p;
 
 #define youngest_generation (generation_of (0))
-#define large_object_generation (generation_of (max_generation+1))
+#define large_object_generation (generation_of (loh_generation))
+#define pinned_object_generation (generation_of (poh_generation))
 
     // The more_space_lock and gc_lock is used for 3 purposes:
     //
     // 1) to coordinate threads that exceed their quantum (UP & MP) (more_space_lock_soh)
-    // 2) to synchronize allocations of large objects (more_space_lock_loh)
+    // 2) to synchronize allocations of large objects (more_space_lock_ploh)
     // 3) to synchronize the GC itself (gc_lock)
     //
     PER_HEAP_ISOLATED
@@ -3927,7 +3945,7 @@ protected:
     GCSpinLock more_space_lock_soh; //lock while allocating more space for soh
 
     PER_HEAP
-    GCSpinLock more_space_lock_loh;
+    GCSpinLock more_space_lock_ploh;
 
 #ifdef SYNCHRONIZATION_STATS
 
@@ -4000,10 +4018,20 @@ protected:
     PER_HEAP
     alloc_list gen2_alloc_list[NUM_GEN2_ALIST-1];
 
-//------------------------------------------
+#define NUM_POH_ALIST (12)
+#ifdef BIT64
+#define BASE_POH_ALIST (1*256)
+#else
+#define BASE_POH_ALIST (1*128)
+#endif // BIT64
+    PER_HEAP
+    alloc_list poh_alloc_list[NUM_POH_ALIST-1];
+
+//------------------------------------------    
 
     PER_HEAP
-    dynamic_data dynamic_data_table [NUMBERGENERATIONS+1];
+    // TODO: VS why + 1
+    dynamic_data dynamic_data_table [total_generation_count + 1];
 
     PER_HEAP
     gc_history_per_heap gc_data_per_heap;
@@ -4345,12 +4373,12 @@ private:
 
     //adjust the count and add a constant to add a segment
     static const int ExtraSegCount = 2;
-    static const int FinalizerListSeg = NUMBERGENERATIONS+1;
-    static const int CriticalFinalizerListSeg = NUMBERGENERATIONS;
+    static const int FinalizerListSeg = total_generation_count + 1;
+    static const int CriticalFinalizerListSeg = total_generation_count;
     //Does not correspond to a segment
-    static const int FreeList = NUMBERGENERATIONS+ExtraSegCount;
+    static const int FreeList = total_generation_count + ExtraSegCount;
 
-    PTR_PTR_Object m_FillPointers[NUMBERGENERATIONS+ExtraSegCount];
+    PTR_PTR_Object m_FillPointers[total_generation_count + ExtraSegCount];
     PTR_PTR_Object m_Array;
     PTR_PTR_Object m_EndArray;
     size_t   m_PromotedCount;
@@ -4789,6 +4817,9 @@ struct loh_padding_obj
 // for segments whose mark array is only partially committed.
 #define heap_segment_flags_ma_pcommitted 128
 #define heap_segment_flags_loh_delete   256
+
+// TODO: VS reorder, make enum
+#define heap_segment_flags_poh          512
 #endif //BACKGROUND_GC
 
 //need to be careful to keep enough pad items to fit a relocation node
@@ -4875,9 +4906,9 @@ BOOL heap_segment_unmappable_p (heap_segment* inst)
 }
 
 inline
-BOOL heap_segment_loh_p (heap_segment * inst)
+BOOL heap_segment_ploh_p (heap_segment * inst)
 {
-    return !!(inst->flags & heap_segment_flags_loh);
+    return !!(inst->flags & (heap_segment_flags_loh | heap_segment_flags_poh));
 }
 
 #ifdef BACKGROUND_GC
@@ -4928,7 +4959,7 @@ gc_heap*& heap_segment_heap (heap_segment* inst)
 inline
 generation* gc_heap::generation_of (int  n)
 {
-    assert (((n <= max_generation+1) && (n >= 0)));
+    assert (((n < total_generation_count) && (n >= 0)));
     return &generation_table [ n ];
 }
 
