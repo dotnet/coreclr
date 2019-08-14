@@ -35,9 +35,9 @@ namespace System.Diagnostics.Tracing
     internal struct EventPipeProviderConfiguration
     {
         [MarshalAs(UnmanagedType.LPWStr)]
-        private string m_providerName;
-        private ulong m_keywords;
-        private uint m_loggingLevel;
+        private readonly string m_providerName;
+        private readonly ulong m_keywords;
+        private readonly uint m_loggingLevel;
 
         [MarshalAs(UnmanagedType.LPWStr)]
         private readonly string? m_filterData;
@@ -48,11 +48,11 @@ namespace System.Diagnostics.Tracing
             uint loggingLevel,
             string? filterData)
         {
-            if(string.IsNullOrEmpty(providerName))
+            if (string.IsNullOrEmpty(providerName))
             {
                 throw new ArgumentNullException(nameof(providerName));
             }
-            if(loggingLevel > 5) // 5 == Verbose, the highest value in EventPipeLoggingLevel.
+            if (loggingLevel > 5) // 5 == Verbose, the highest value in EventPipeLoggingLevel.
             {
                 throw new ArgumentOutOfRangeException(nameof(loggingLevel));
             }
@@ -93,10 +93,10 @@ namespace System.Diagnostics.Tracing
 
     internal sealed class EventPipeConfiguration
     {
-        private string m_outputFile;
-        private EventPipeSerializationFormat m_format;
-        private uint m_circularBufferSizeInMB;
-        private List<EventPipeProviderConfiguration> m_providers;
+        private readonly string m_outputFile;
+        private readonly EventPipeSerializationFormat m_format;
+        private readonly uint m_circularBufferSizeInMB;
+        private readonly List<EventPipeProviderConfiguration> m_providers;
         private TimeSpan m_minTimeBetweenSamples = TimeSpan.FromMilliseconds(1);
 
         internal EventPipeConfiguration(
@@ -104,11 +104,11 @@ namespace System.Diagnostics.Tracing
             EventPipeSerializationFormat format,
             uint circularBufferSizeInMB)
         {
-            if(string.IsNullOrEmpty(outputFile))
+            if (string.IsNullOrEmpty(outputFile))
             {
                 throw new ArgumentNullException(nameof(outputFile));
             }
-            if(circularBufferSizeInMB == 0)
+            if (circularBufferSizeInMB == 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(circularBufferSizeInMB));
             }
@@ -159,7 +159,7 @@ namespace System.Diagnostics.Tracing
 
         internal void EnableProviderRange(EventPipeProviderConfiguration[] providerConfigs)
         {
-            foreach(EventPipeProviderConfiguration config in providerConfigs)
+            foreach (EventPipeProviderConfiguration config in providerConfigs)
             {
                 EnableProviderConfiguration(config);
             }
@@ -167,7 +167,7 @@ namespace System.Diagnostics.Tracing
 
         internal void SetProfilerSamplingRate(TimeSpan minTimeBetweenSamples)
         {
-            if(minTimeBetweenSamples.Ticks <= 0)
+            if (minTimeBetweenSamples.Ticks <= 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(minTimeBetweenSamples));
             }
@@ -182,12 +182,12 @@ namespace System.Diagnostics.Tracing
 
         internal static void Enable(EventPipeConfiguration configuration)
         {
-            if(configuration == null)
+            if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
-            if(configuration.Providers == null)
+            if (configuration.Providers == null)
             {
                 throw new ArgumentNullException(nameof(configuration.Providers));
             }

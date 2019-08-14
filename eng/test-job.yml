@@ -28,6 +28,9 @@ jobs:
     osIdentifier: ${{ parameters.osIdentifier }}
     helixType: 'build/tests/'
 
+    # Test jobs should continue on error
+    continueOnError: true
+
     # Compute job name from template parameters
     ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
       name: ${{ format('test_{0}_{1}_{2}_{3}', 'p0', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
@@ -140,10 +143,10 @@ jobs:
 
     # Build tests
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg)
+      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg) ci
         displayName: Build tests
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg)
+      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg) ci
         displayName: Build tests
 
 
@@ -338,7 +341,7 @@ jobs:
           ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
             archiveType: zip
             archiveFile: $(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper).zip
-          includeRootFolder: true 
+          includeRootFolder: true
 
     - ${{ if and(eq(parameters.publishTestArtifacts, true), ne(parameters.corefxTests, true)) }}:
       - task: PublishBuildArtifacts@1

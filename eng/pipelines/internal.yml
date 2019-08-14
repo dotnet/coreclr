@@ -20,6 +20,11 @@ schedules:
     - master
   always: true
 
+# See mappings in https://github.com/dotnet/arcade/blob/055bb2951c3107189551ab912b4e5550928b5afb/src/Microsoft.DotNet.Arcade.Sdk/tools/SdkTasks/PublishToPackageFeed.proj#L33-L48
+variables:
+- name: _DotNetArtifactsCategory
+  value: CORECLR
+
 stages:
   - stage: build
     jobs:

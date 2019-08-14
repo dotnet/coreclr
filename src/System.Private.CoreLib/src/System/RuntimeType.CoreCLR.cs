@@ -223,7 +223,7 @@ namespace System
                 private bool m_cacheComplete;
 
                 // This is the strong reference back to the cache
-                private RuntimeTypeCache m_runtimeTypeCache;
+                private readonly RuntimeTypeCache m_runtimeTypeCache;
                 #endregion
 
                 #region Constructor
@@ -1401,14 +1401,14 @@ namespace System
             #endregion
 
             #region Private Data Members
-            private RuntimeType m_runtimeType;
+            private readonly RuntimeType m_runtimeType;
             private RuntimeType? m_enclosingType;
             private TypeCode m_typeCode;
             private string? m_name;
             private string? m_fullname;
             private string? m_toString;
             private string? m_namespace;
-            private bool m_isGlobal;
+            private readonly bool m_isGlobal;
             private bool m_bIsDomainInitialized;
             private MemberInfoCache<RuntimeMethodInfo>? m_methodInfoCache;
             private MemberInfoCache<RuntimeConstructorInfo>? m_constructorInfoCache;
@@ -2354,7 +2354,7 @@ namespace System
         #region Private Data Members
 
 #pragma warning disable CA1823
-        private object m_keepalive; // This will be filled with a LoaderAllocator reference when this RuntimeType represents a collectible type
+        private readonly object m_keepalive; // This will be filled with a LoaderAllocator reference when this RuntimeType represents a collectible type
 #pragma warning restore CA1823
         private IntPtr m_cache;
         internal IntPtr m_handle;
@@ -3131,8 +3131,7 @@ namespace System
         // Reflexive, symmetric, transitive.
         public override bool IsEquivalentTo(Type? other)
         {
-            var otherRtType = other as RuntimeType;
-            if (otherRtType is null)
+            if (!(other is RuntimeType otherRtType))
             {
                 return false;
             }
@@ -3378,7 +3377,7 @@ namespace System
         private const BindingFlags BinderGetSetProperty = BindingFlags.GetProperty | BindingFlags.SetProperty;
         private const BindingFlags BinderGetSetField = BindingFlags.GetField | BindingFlags.SetField;
         private const BindingFlags BinderNonFieldGetSet = (BindingFlags)0x00FFF300;
-        private static RuntimeType s_typedRef = (RuntimeType)typeof(TypedReference);
+        private static readonly RuntimeType s_typedRef = (RuntimeType)typeof(TypedReference);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool CanValueSpecialCast(RuntimeType valueType, RuntimeType targetType);
@@ -4098,8 +4097,7 @@ namespace System
         internal object CreateInstanceDefaultCtor(bool publicOnly, bool skipCheckThis, bool fillCache, bool wrapExceptions)
         {
             // Call the cached
-            ActivatorCache? cacheEntry = GenericCache as ActivatorCache;
-            if (cacheEntry != null)
+            if (GenericCache is ActivatorCache cacheEntry)
             {
                 cacheEntry.EnsureInitialized();
 
@@ -4304,7 +4302,7 @@ namespace System
                     // Wrap each of the elements of the array.
                     for (int currElem = 0; currElem < numElems; currElem++)
                     {
-                        if(isString)
+                        if (isString)
                         {
                             newArray[currElem] = wrapperCons.Invoke(new object?[] {(string?)oldArray.GetValue(currElem)});
                         }
