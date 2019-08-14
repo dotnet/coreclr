@@ -7472,7 +7472,9 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     {
         CorInfoHelperTailCallSpecialHandling handling = CORINFO_TAILCALL_NORMAL;
         if (call->IsVirtualStub())
+        {
             handling = CORINFO_TAILCALL_STUB_DISPATCH_ARG;
+        }
 
         pfnCopyArgs = info.compCompHnd->getTailCallCopyArgsThunk(call->callSig, handling);
         if (pfnCopyArgs == nullptr)
@@ -7512,11 +7514,17 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     // Ok -- now we are committed to performing a tailcall. Report the decision.
     CorInfoTailCall tailCallResult;
     if (fastTailCallToLoop)
+    {
         tailCallResult = TAILCALL_RECURSIVE;
+    }
     else if (canFastTailCall)
+    {
         tailCallResult = TAILCALL_OPTIMIZED;
+    }
     else
+    {
         tailCallResult = TAILCALL_HELPER;
+    }
 
     info.compCompHnd->reportTailCallDecision(nullptr,
                                              (call->gtCallType == CT_USER_FUNC) ? call->gtCallMethHnd : nullptr,
@@ -7527,10 +7535,14 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     // This will prevent inlining this call.
     call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
     if (!canFastTailCall)
+    {
         call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_VIA_HELPER;
+    }
 #if FEATURE_TAILCALL_OPT
     if (fastTailCallToLoop)
+    {
         call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_TO_LOOP;
+    }
 #endif
 
     // We might recurse so clear the 'potential' flags.
@@ -8432,7 +8444,9 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
     {
         GenTree* newNode;
         if (fgMorphPotentialTailCall(call, &newNode))
+        {
             return newNode;
+        }
 
         assert(!call->CanTailCall());
 
