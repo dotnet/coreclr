@@ -411,7 +411,7 @@ namespace ABIStress
                     DumpObject(innerArgs[j]);
                 }
             }
-            object calleeResult = callee.Method.Invoke(null, innerArgs);
+            object calleeResult = callee.Invoke(null, innerArgs);
 
             return (callerResult, calleeResult);
         }
