@@ -224,7 +224,7 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
         // of pairs of null terminated strings. The first member of the pair is
         // the key and the second is the value.
         // To convert to this format we need to convert all '=' and ';'
-        // characters to '\0'.
+        // characters to '\0', except when in a quoted string.
         SString dstBuffer;
         SString(pFilterData).ConvertToUTF8(dstBuffer);
 
@@ -234,6 +234,9 @@ void EventPipeProvider::AddEvent(EventPipeEvent &event)
         COUNT_T j = 0;
         for (COUNT_T i = 0; i < BUFFER_SIZE; ++i)
         {
+            // if a value is a quoted string, leave the quotes out from the destination
+            // and don't replace `=` or `;` characters until leaving the quoted section
+            // e.g., key="a;value=";foo=bar --> { key\0a;value=\0foo\0bar\0 }
             if (dstBuffer[i] == '"')
             {
                 isQuotedValue = !isQuotedValue;
