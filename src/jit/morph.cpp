@@ -7684,7 +7684,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     // For non-void calls, we return a place holder which will be
     // used by the parent GT_RETURN node of this call.
 
-    GenTree*  result   = call;
+    GenTree* result = call;
     if (origCallType != TYP_VOID && info.compRetType != TYP_VOID)
     {
         var_types nodeTy = origCallType;
