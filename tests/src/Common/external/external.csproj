@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <!-- Given that xunit packages bring with them part of the framework, we need to specify a runtime in order to get the assets
          This RID value doesn't really matter, since the assets we are copying are not RID specific, so defaulting to Windows here
@@ -16,11 +15,16 @@
     <IsTestProject>false</IsTestProject>
     <GenerateDependencyFile>false</GenerateDependencyFile>
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
+
+  <Target Name="CreateManifestResourceNames" />
+
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="1.1.1" />
-    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="1.1.1" />
-    <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="1.1.1" />>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="1.3.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="1.3.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="1.1.1" />
     <PackageReference Include="CommandLineParser" Version="2.1.1-beta" />
     <PackageReference Include="xunit.performance.api" Version="$(XunitPerformanceApiPackageVersion)" />
     <PackageReference Include="xunit.performance.core" Version="$(XunitPerformanceApiPackageVersion)" />
@@ -39,8 +43,6 @@
   </PropertyGroup>
   <ItemGroup>
   </ItemGroup>
-
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 
   <PropertyGroup>
     <ProjectAssetsFile>$(SourceDir)Common\external\obj\project.assets.json</ProjectAssetsFile>
@@ -61,4 +63,5 @@
       </ReferenceCopyLocalPaths>
     </ItemGroup>
 </Target>
+
 </Project>
