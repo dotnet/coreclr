@@ -2088,25 +2088,6 @@ void emitter::emitSetFrameRangeGCRs(int offsLo, int offsHi)
     emitGCrFrameOffsCnt = (offsHi - offsLo) / TARGET_POINTER_SIZE;
 }
 
-/*****************************************************************************
- *
- *  The code generator tells us the range of local variables through this
- *  method.
- */
-
-void emitter::emitSetFrameRangeLcls(int offsLo, int offsHi)
-{
-}
-
-/*****************************************************************************
- *
- *  The code generator tells us the range of used arguments through this
- *  method.
- */
-
-void emitter::emitSetFrameRangeArgs(int offsLo, int offsHi)
-{
-}
 
 /*****************************************************************************
  *
