@@ -549,27 +549,16 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThis
                 return false;
             }
         }
-        else
+        else if (varDsc->lvIsRegArg && varDsc->lvTracked)
         {
-            if (!varDsc->lvOnFrame)
-            {
-                /* If this non-enregistered pointer arg is never
-                 * used, we don't need to report it
-                 */
-                assert(varDsc->lvRefCnt() == 0);
-                return false;
-            }
-            else if (varDsc->lvIsRegArg && varDsc->lvTracked)
-            {
-                /* If this register-passed arg is tracked, then
-                 * it has been allocated space near the other
-                 * pointer variables and we have accurate life-
-                 * time info. It will be reported with
-                 * gcVarPtrList in the "tracked-pointer" section
-                 */
+            /* If this register-passed arg is tracked, then
+             * it has been allocated space near the other
+             * pointer variables and we have accurate life-
+             * time info. It will be reported with
+             * gcVarPtrList in the "tracked-pointer" section
+             */
 
-                return false;
-            }
+            return false;
         }
     }
 
