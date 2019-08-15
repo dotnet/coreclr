@@ -7237,6 +7237,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 #endif
 }
 
+//------------------------------------------------------------------------
 // fgMorphPotentialTailCall: Attempt to morph a call that the importer has
 // identified as a potential tailcall to an actual tailcall.
 //
@@ -7327,7 +7328,10 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
 
     // We have to ensure to pass the incoming retValBuf as the
     // outgoing one. Using a temp will not do as this function will
-    // not regain control to do the copy.
+    // not regain control to do the copy. This can happen when inlining
+    // a tailcall which also has a potential tailcall in it: the IL looks
+    // like we can do a tailcall, but the trees generated use a temp for the inlinee's
+    // result. TODO-CQ: Fix this.
     if (info.compRetBuffArg != BAD_VAR_NUM)
     {
         noway_assert(call->TypeGet() == TYP_VOID);
@@ -7545,7 +7549,9 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     }
 #endif
 
-    // We might recurse so clear the 'potential' flags.
+    // Mark that this is no longer a pending tailcall. We need to do this before
+    // we call fgMorphCall again (which happens in the fast tailcall case) to
+    // avoid recursing back into this method.
     call->gtCallMoreFlags &= ~GTF_CALL_M_EXPLICIT_TAILCALL;
 #if FEATURE_TAILCALL_OPT
     call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
