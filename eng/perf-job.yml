@@ -9,9 +9,9 @@ parameters:
   crossrootfsDir: ''
   framework: netcoreapp5.0 # Specify the appropriate framework when running release branches (ie netcoreapp3.0 for release/3.0)
 
-### Test job
+### Perf job
 
-### Each test job depends on a corresponding build job with the same
+### Each perf job depends on a corresponding build job with the same
 ### buildConfig and archType.
 
 jobs:
@@ -19,6 +19,7 @@ jobs:
   parameters:
     # Compute job name from template parameters
     jobName: ${{ format('perfbuild_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    displayName: ${{ format('Performance {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
     pool: 
       # Public Linux Build Pool
       ${{ if and(eq(parameters.osGroup, 'Linux'), eq(variables['System.TeamProject'], 'public')) }}:
@@ -48,20 +49,21 @@ jobs:
     steps:
     # Extra steps that will be passed to the performance template and run before sending the job to helix (all of which is done in the template)
 
-    # Download product build
+    # Download product binaries directory
     - task: DownloadBuildArtifacts@0
       displayName: Download product build
       inputs:
         buildType: current
         downloadType: single
-        artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        artifactName: ${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         downloadPath: $(System.ArtifactsDirectory)
+
 
     # Populate Product directory
     - task: CopyFiles@2
       displayName: Populate Product directory
       inputs:
-        sourceFolder: $(System.ArtifactsDirectory)/${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         contents: '**'
         targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
 
