@@ -46,6 +46,7 @@ jobs:
       extraSetupParameters: --corerootdirectory $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release/Tests/Core_Root --architecture ${{ parameters.archType }} -Framework ${{ parameters.framework }}
 
     steps:
+    # Extra steps that will be passed to the performance template and run before sending the job to helix (all of which is done in the template)
 
     # Download product build
     - task: DownloadBuildArtifacts@0

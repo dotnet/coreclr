@@ -13,6 +13,7 @@ pr: none
     platforms:
     - Linux_x64
     - Windows_NT_x64
+    - Windows_NT_x86
     
 - template: /eng/platform-matrix.yml
   parameters:
@@ -21,3 +22,4 @@ pr: none
     platforms:
     - Linux_x64
     - Windows_NT_x64
+    - Windows_NT_x86
