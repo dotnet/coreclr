@@ -379,18 +379,21 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
+        if (compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
+        {
+            // Field local of a PROMOTION_TYPE_DEPENDENT struct must have been
+            // reported through its parent local
+            continue;
+        }
+
         if (varTypeIsGC(varDsc->TypeGet()))
         {
-            if (compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
-            {
-                // Field local of a PROMOTION_TYPE_DEPENDENT struct must have been
-                // reported through its parent local
-                continue;
-            }
-
             /* Do we have an argument or local variable? */
             if (!varDsc->lvIsParam)
             {
+                // If is pinned, it must be an untracked local.
+                assert(!varDsc->lvPinned || !varDsc->lvTracked);
+
                 if (varDsc->lvTracked || !varDsc->lvOnFrame)
                 {
                     continue;
@@ -404,8 +407,6 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
                  */
 
                 /* Has this argument been fully enregistered? */
-                CLANG_FORMAT_COMMENT_ANCHOR;
-
                 if (!varDsc->lvOnFrame)
                 {
                     /* if a CEE_JMP has been used, then we need to report all the arguments
@@ -454,7 +455,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
                 thisKeptAliveIsInUntracked = true;
                 continue;
             }
-#endif
+#endif // !WIN64EXCEPTIONS
 
 #ifdef DEBUG
             if (compiler->verbose)
@@ -481,6 +482,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
         }
         else if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
+            // A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
             unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
             BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
 

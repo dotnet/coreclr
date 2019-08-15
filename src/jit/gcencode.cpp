@@ -2209,7 +2209,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 /* Do we have an argument or local variable? */
                 if (!varDsc->lvIsParam)
                 {
-                    // If is is pinned, it must be an untracked local
+                    // If is pinned, it must be an untracked local
                     assert(!varDsc->lvPinned || !varDsc->lvTracked);
 
                     if (varDsc->lvTracked || !varDsc->lvOnFrame)
@@ -2222,7 +2222,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                      * pointers" section of the GC info even if lvTracked==true
                      */
 
-                    /* Has this argument been enregistered? */
+                    /* Has this argument been fully enregistered ? */
                     if (!varDsc->lvOnFrame)
                     {
                         /* if a CEE_JMP has been used, then we need to report all the arguments
@@ -2231,7 +2231,9 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                            argument offsets are always fixed up properly even if lvRegister
                            is set */
                         if (!compiler->compJmpOpUsed)
+                        {
                             continue;
+                        }
                     }
                     else
                     {
@@ -2240,7 +2242,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                             /* If this non-enregistered pointer arg is never
                              * used, we don't need to report it
                              */
-                            assert(varDsc->lvRefCnt() == 0); // This assert is currently a known issue for X86-RyuJit
+                            assert(varDsc->lvRefCnt() == 0);
                             continue;
                         }
                         else if (varDsc->lvIsRegArg && varDsc->lvTracked)
@@ -2261,7 +2263,6 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 // For FEATURE_EH_FUNCLETS, "this" must always be in untracked variables
                 // so we cannot have "this" in variable lifetimes
                 if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
-
                 {
                     // Encoding of untracked variables does not support reporting
                     // "this". So report it as a tracked variable with a liveness
@@ -2270,7 +2271,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     thisKeptAliveIsInUntracked = true;
                     continue;
                 }
-#endif
+#endif // !WIN64EXCEPTIONS
 
                 if (pass == 0)
                     count++;
@@ -2318,9 +2319,9 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 }
             }
 
-            // A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
-            if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
+            else if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
             {
+                // A struct will have gcSlots only if it is at least TARGET_POINTER_SIZE.
                 unsigned slots  = compiler->lvaLclSize(varNum) / TARGET_POINTER_SIZE;
                 BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
 
