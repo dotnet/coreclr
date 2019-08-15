@@ -1,9 +1,4 @@
-<Project>
-
-  <Import Project="$([MSBuild]::GetPathOfFileAbove('dependencies.props', '$(MSBuildThisFileDirectory)../'))" />
-  <Import Project="$([MSBuild]::GetPathOfFileAbove('dir.sdkbuild.props', '$(MSBuildThisFileDirectory)../'))" />
-
-  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.props" />
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -13,7 +8,5 @@
   <ItemGroup>
     <Compile Include="CoreclrTestWrapperLib.cs" />
   </ItemGroup>
-
-  <Import Sdk="Microsoft.NET.Sdk" Project="Sdk.targets" />
 
 </Project>
