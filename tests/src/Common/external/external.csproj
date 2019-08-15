@@ -21,7 +21,51 @@
 
   <Target Name="CreateManifestResourceNames" />
 
+  <!-- Some out-of-band packages like System.ComponentModel.Primitives
+       conflict with the versions in other test dependencies files. We
+       don't want to overwrite these versions when creating the
+       coreroot, so we need a filter mechanism. This is a simplified
+       version of the logic in the buildtools depproj targets. -->
+    <!-- Support filtering to a subset of packages or files -->
+  <Target Name="FilterNugetPackages"
+          AfterTargets="ResolveAssemblyReferences"
+          Condition="'@(PackageToInclude)' != ''">
+
+    <ItemGroup>
+      <_nuGetDeploy Include="@(ReferenceCopyLocalPaths)">
+        <OriginalItemSpec>%(Identity)</OriginalItemSpec>
+      </_nuGetDeploy>
+
+      <_nuGetDeployByPackageId Include="@(_nuGetDeploy->'%(NuGetPackageId)')" />
+
+      <_nuGetDeployByPackageIdToRemove Include="@(_nuGetDeployByPackageId)" Exclude="@(PackageToInclude)" Condition="'@(PackageToInclude)' != ''" />
+      <_filteredNuGetDeployByPackageId Include="@(_nuGetDeployByPackageId)" Exclude="@(_nuGetDeployByPackageIdToRemove)" />
+
+      <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" />
+      <ReferenceCopyLocalPaths Include="@(_filteredNuGetDeployByPackageId->'%(OriginalItemSpec)')" />
+    </ItemGroup>
+
+  </Target>
+
   <ItemGroup>
+    <PackageToInclude Include="xunit.abstractions"/>
+    <PackageToInclude Include="xunit.assert"/>
+    <PackageToInclude Include="xunit.extensibility.core"/>
+    <PackageToInclude Include="xunit.extensibility.execution"/>
+    <PackageToInclude Include="xunit.runner.utility"/>
+    <PackageToInclude Include="xunit.performance.api"/>
+    <PackageToInclude Include="xunit.performance.core"/>
+    <PackageToInclude Include="xunit.performance.execution"/>
+    <PackageToInclude Include="xunit.performance.metrics"/>
+    <PackageToInclude Include="Microsoft.Diagnostics.Tracing.TraceEvent"/>
+    <PackageToInclude Include="Newtonsoft.Json"/>
+    <PackageToInclude Include="Microsoft.CodeAnalysis.Analyzers"/>
+    <PackageToInclude Include="Microsoft.CodeAnalysis.Common"/>
+    <PackageToInclude Include="Microsoft.CodeAnalysis.Compilers"/>
+    <PackageToInclude Include="Microsoft.CodeAnalysis.CSharp"/>
+    <PackageToInclude Include="Microsoft.CodeAnalysis.VisualBasic"/>
+    <PackageToInclude Include="CommandLineParser"/>
+
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="1.3.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="1.3.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="1.1.1" />
