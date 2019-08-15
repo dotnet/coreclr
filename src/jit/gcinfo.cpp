@@ -511,6 +511,19 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
     *pVarPtrTableSize = varPtrTableSize;
 }
 
+//------------------------------------------------------------------------
+// gcIsUntrackedLocalOrNonEnregisteredArg: Check if this varNum with GC type
+// corresponds to an untracked local or argument that was not fully enregistered.
+//
+//
+// Arguments:
+//   varNum - the variable number to check;
+//   pThisKeptAliveIsInUntracked - if !WIN64EXCEPTIONS and the argument != nullptr remember if `this` should be
+//   untracked and kept alive.
+//
+// Return value:
+//   true if it an untracked pointer value.
+//
 bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThisKeptAliveIsInUntracked)
 {
     LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
@@ -518,10 +531,10 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThis
     assert(!compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc));
     assert(varTypeIsGC(varDsc->TypeGet()));
 
-    /* Do we have an argument or local variable? */
+    // Do we have an argument or local variable?
     if (!varDsc->lvIsParam)
     {
-        // If is pinned, it must be an untracked local
+        // If is pinned, it must be an untracked local.
         assert(!varDsc->lvPinned || !varDsc->lvTracked);
 
         if (varDsc->lvTracked || !varDsc->lvOnFrame)
@@ -531,19 +544,15 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThis
     }
     else
     {
-        /* Stack-passed arguments which are not enregistered
-         * are always reported in this "untracked stack
-         * pointers" section of the GC info even if lvTracked==true
-         */
+        // Stack-passed arguments which are not enregistered are always reported in this "untracked stack pointers"
+        // section of the GC info even if lvTracked==true.
 
-        /* Has this argument been fully enregistered ? */
+        // Has this argument been fully enregistered?
         if (!varDsc->lvOnFrame)
         {
-            /* if a CEE_JMP has been used, then we need to report all the arguments
-               even if they are enregistered, since we will be using this value
-               in JMP call.  Note that this is subtle as we require that
-               argument offsets are always fixed up properly even if lvRegister
-               is set */
+            // If a CEE_JMP has been used, then we need to report all the arguments even if they are enregistered, since
+            // we will be using this value in JMP call.  Note that this is subtle as we require that argument offsets
+            // are always fixed up properly even if lvRegister is set .
             if (!compiler->compJmpOpUsed)
             {
                 return false;
@@ -551,13 +560,9 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThis
         }
         else if (varDsc->lvIsRegArg && varDsc->lvTracked)
         {
-            /* If this register-passed arg is tracked, then
-             * it has been allocated space near the other
-             * pointer variables and we have accurate life-
-             * time info. It will be reported with
-             * gcVarPtrList in the "tracked-pointer" section
-             */
-
+            // If this register-passed arg is tracked, then it has been allocated space near the other pointer variables
+            // and we have accurate life-time info. It will be reported with gcVarPtrList in the "tracked-pointer"
+            // section.
             return false;
         }
     }
@@ -567,9 +572,8 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThis
     // so we cannot have "this" in variable lifetimes
     if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
     {
-        // Encoding of untracked variables does not support reporting
-        // "this". So report it as a tracked variable with a liveness
-        // extending over the entire method.
+        // Encoding of untracked variables does not support reporting  "this". So report it as a tracked variable with a
+        // liveness extending over the entire method.
 
         if (pThisKeptAliveIsInUntracked != nullptr)
         {
