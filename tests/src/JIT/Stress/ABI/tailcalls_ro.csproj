@@ -8,7 +8,7 @@
   </PropertyGroup>
   <PropertyGroup>
     <DebugType>PdbOnly</DebugType>
-    <Optimize>False</Optimize>
+    <Optimize>True</Optimize>
     <CLRTestExecutionArguments>--tailcalls --num-calls 1000 --no-ctrlc-summary</CLRTestExecutionArguments>
   </PropertyGroup>
   <ItemGroup>
