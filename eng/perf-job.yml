@@ -3,10 +3,7 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
-  readyToRun: true
-  helixQueues: ''
   container: ''
-  crossrootfsDir: ''
   framework: netcoreapp5.0 # Specify the appropriate framework when running release branches (ie netcoreapp3.0 for release/3.0)
 
 ### Perf job
