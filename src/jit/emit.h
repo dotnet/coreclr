@@ -1876,8 +1876,12 @@ private:
     int emitSyncThisObjOffs; // what is the offset of "this" for synchronized methods?
 
 public:
+    void emitSetFrameRangeGCRs();
+
+private:
     void emitSetFrameRangeGCRs(int offsLo, int offsHi);
 
+public:
     static instruction emitJumpKindToIns(emitJumpKind jumpKind);
     static emitJumpKind emitInsToJumpKind(instruction ins);
     static emitJumpKind emitReverseJumpKind(emitJumpKind jumpKind);

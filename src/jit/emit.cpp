@@ -2009,6 +2009,63 @@ void emitter::emitStartExitSeq()
 
 #endif // _TARGET_XARCH_
 
+void emitter::emitSetFrameRangeGCRs()
+{
+    int  GCrefLo  = +INT_MAX;
+    int  GCrefHi  = -INT_MAX;
+    bool hasGCRef = false;
+
+    unsigned   varNum;
+    LclVarDsc* varDsc;
+    for (varNum = 0, varDsc = emitComp->lvaTable; varNum < emitComp->lvaCount; varNum++, varDsc++)
+    {
+        if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
+        {
+            continue;
+        }
+
+        if (varDsc->IsUnused())
+        {
+            continue;
+        }
+
+        signed int loOffs = varDsc->lvStkOffs;
+        signed int hiOffs = varDsc->lvStkOffs + emitComp->lvaLclSize(varNum);
+
+        /* We need to know the offset range of tracked stack GC refs */
+        /* We assume that the GC reference can be anywhere in the TYP_STRUCT */
+
+        if (varDsc->HasGCPtr() && varDsc->lvTrackedNonStruct() && varDsc->lvOnFrame)
+        {
+            // For fields of PROMOTION_TYPE_DEPENDENT type of promotion, they should have been
+            // taken care of by the parent struct.
+            if (!emitComp->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
+            {
+                hasGCRef = true;
+
+                if (loOffs < GCrefLo)
+                {
+                    GCrefLo = loOffs;
+                }
+                if (hiOffs > GCrefHi)
+                {
+                    GCrefHi = hiOffs;
+                }
+            }
+        }
+    }
+
+    if (hasGCRef)
+    {
+        emitSetFrameRangeGCRs(GCrefLo, GCrefHi);
+    }
+    else
+    {
+        assert(GCrefLo == +INT_MAX);
+        assert(GCrefHi == -INT_MAX);
+    }
+}
+
 /*****************************************************************************
  *
  *  The code generator tells us the range of GC ref locals through this
@@ -2087,7 +2144,6 @@ void emitter::emitSetFrameRangeGCRs(int offsLo, int offsHi)
     emitGCrFrameOffsMax = offsHi;
     emitGCrFrameOffsCnt = (offsHi - offsLo) / TARGET_POINTER_SIZE;
 }
-
 
 /*****************************************************************************
  *

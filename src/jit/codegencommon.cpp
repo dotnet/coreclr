@@ -7671,10 +7671,6 @@ void CodeGen::genFnProlog()
     // Note that they may be tracked, but simply not allocated to a register.
     bool hasUntrLcl = false;
 
-    int  GCrefLo  = +INT_MAX;
-    int  GCrefHi  = -INT_MAX;
-    bool hasGCRef = false;
-
     regMaskTP initRegs    = RBM_NONE; // Registers which must be init'ed.
     regMaskTP initFltRegs = RBM_NONE; // FP registers which must be init'ed.
     regMaskTP initDblRegs = RBM_NONE;
@@ -7694,37 +7690,15 @@ void CodeGen::genFnProlog()
             continue;
         }
 
-        signed int loOffs = varDsc->lvStkOffs;
-        signed int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
-
-        /* We need to know the offset range of tracked stack GC refs */
-        /* We assume that the GC reference can be anywhere in the TYP_STRUCT */
-
-        if (varDsc->HasGCPtr() && varDsc->lvTrackedNonStruct() && varDsc->lvOnFrame)
-        {
-            // For fields of PROMOTION_TYPE_DEPENDENT type of promotion, they should have been
-            // taken care of by the parent struct.
-            if (!compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc))
-            {
-                hasGCRef = true;
-
-                if (loOffs < GCrefLo)
-                {
-                    GCrefLo = loOffs;
-                }
-                if (hiOffs > GCrefHi)
-                {
-                    GCrefHi = hiOffs;
-                }
-            }
-        }
-
         /* For lvMustInit vars, gather pertinent info */
 
         if (!varDsc->lvMustInit)
         {
             continue;
         }
+
+        signed int loOffs = varDsc->lvStkOffs;
+        signed int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
 
         if (varDsc->lvIsInReg())
         {
@@ -8269,15 +8243,7 @@ void CodeGen::genFnProlog()
         psiEndProlog();
     }
 
-    if (hasGCRef)
-    {
-        getEmitter()->emitSetFrameRangeGCRs(GCrefLo, GCrefHi);
-    }
-    else
-    {
-        noway_assert(GCrefLo == +INT_MAX);
-        noway_assert(GCrefHi == -INT_MAX);
-    }
+    getEmitter()->emitSetFrameRangeGCRs();
 
 #ifdef DEBUG
     if (compiler->opts.dspCode)
