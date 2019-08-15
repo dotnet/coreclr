@@ -346,6 +346,8 @@ void NativeImagePerfMap::LogDataForModule(Module * pModule)
     PEImageLayout * pLoadedLayout = pModule->GetFile()->GetLoaded();
     _ASSERTE(pLoadedLayout != nullptr);
 
+    SIZE_T baseAddr = (SIZE_T)pLoadedLayout->GetBase();
+
 #ifdef FEATURE_PREJIT
     if (!pLoadedLayout->HasReadyToRunHeader())
     {
@@ -355,7 +357,7 @@ void NativeImagePerfMap::LogDataForModule(Module * pModule)
             MethodDesc *hotDesc = mi.GetMethodDesc();
             hotDesc->CheckRestore();
 
-            LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), pLoadedLayout, nullptr);
+            LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), baseAddr, nullptr);
         }
         return;
     }
@@ -366,17 +368,14 @@ void NativeImagePerfMap::LogDataForModule(Module * pModule)
     {
         MethodDesc* hotDesc = mi.GetMethodDesc();
 
-        LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), pLoadedLayout, "ReadyToRun");
+        LogPreCompiledMethod(hotDesc, mi.GetMethodStartAddress(), baseAddr, "ReadyToRun");
     }
 }
 
 // Log a pre-compiled method to the perfmap.
-void NativeImagePerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode, PEImageLayout * pLoadedLayout, const char *optimizationTier)
+void NativeImagePerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode, SIZE_T baseAddr, const char *optimizationTier)
 {
     STANDARD_VM_CONTRACT;
-
-    _ASSERTE(pLoadedLayout != nullptr);
-    SIZE_T baseAddr = (SIZE_T)pLoadedLayout->GetBase();
 
     // Get information about the NGEN'd method code.
     EECodeInfo codeInfo(pCode);
@@ -389,12 +388,12 @@ void NativeImagePerfMap::LogPreCompiledMethod(MethodDesc * pMethod, PCODE pCode,
     // Emit an entry for each section if it is used.
     if (methodRegionInfo.hotSize > 0)
     {
-        LogMethod(pMethod, pLoadedLayout->RvaToOffset((PCODE)methodRegionInfo.hotStartAddress - baseAddr), methodRegionInfo.hotSize, optimizationTier);
+        LogMethod(pMethod, (PCODE)methodRegionInfo.hotStartAddress - baseAddr, methodRegionInfo.hotSize, optimizationTier);
     }
 
     if (methodRegionInfo.coldSize > 0)
     {
-        LogMethod(pMethod, pLoadedLayout->RvaToOffset((PCODE)methodRegionInfo.coldStartAddress - baseAddr), methodRegionInfo.coldSize, optimizationTier);
+        LogMethod(pMethod, (PCODE)methodRegionInfo.coldStartAddress - baseAddr, methodRegionInfo.coldSize, optimizationTier);
     }
 }
 
