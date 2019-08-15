@@ -951,6 +951,13 @@ public:
     }
 #endif // DEBUG
 
+    bool IsUnused()
+    {
+        bool unused = (!lvIsInReg() && !lvOnFrame);
+        assert(unused == false || lvRefCnt() == 0);
+        return unused;
+    }
+
 }; // class LclVarDsc
 
 /*

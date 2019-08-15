@@ -4469,9 +4469,8 @@ void CodeGen::genCheckUseBlockInit()
             continue;
         }
 
-        if (!varDsc->lvIsInReg() && !varDsc->lvOnFrame)
+        if (varDsc->IsUnused())
         {
-            noway_assert(varDsc->lvRefCnt() == 0);
             continue;
         }
 
@@ -7690,9 +7689,8 @@ void CodeGen::genFnProlog()
             continue;
         }
 
-        if (!varDsc->lvIsInReg() && !varDsc->lvOnFrame)
+        if (varDsc->IsUnused())
         {
-            noway_assert(varDsc->lvRefCnt() == 0);
             continue;
         }
 

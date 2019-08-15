@@ -425,7 +425,7 @@ void Compiler::raMarkStkVars()
         {
             if (!varDsc->lvPromoted && !varDsc->lvIsStructField)
             {
-                noway_assert(varDsc->lvRefCnt() == 0 && !varDsc->lvRegister && !varDsc->lvOnFrame);
+                noway_assert(varDsc->IsUnused());
             }
         }
 #endif
