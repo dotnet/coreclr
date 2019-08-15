@@ -388,74 +388,10 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
 
         if (varTypeIsGC(varDsc->TypeGet()))
         {
-            /* Do we have an argument or local variable? */
-            if (!varDsc->lvIsParam)
+            if (!gcIsUntrackedLocalOrNonEnregisteredArg(varNum, &thisKeptAliveIsInUntracked))
             {
-                // If is pinned, it must be an untracked local.
-                assert(!varDsc->lvPinned || !varDsc->lvTracked);
-
-                if (varDsc->lvTracked || !varDsc->lvOnFrame)
-                {
-                    continue;
-                }
-            }
-            else
-            {
-                /* Stack-passed arguments which are not enregistered
-                 * are always reported in this "untracked stack
-                 * pointers" section of the GC info even if lvTracked==true
-                 */
-
-                /* Has this argument been fully enregistered? */
-                if (!varDsc->lvOnFrame)
-                {
-                    /* if a CEE_JMP has been used, then we need to report all the arguments
-                       even if they are enregistered, since we will be using this value
-                       in JMP call.  Note that this is subtle as we require that
-                       argument offsets are always fixed up properly even if lvRegister
-                       is set */
-                    if (!compiler->compJmpOpUsed)
-                    {
-                        continue;
-                    }
-                }
-                else
-                {
-                    if (!varDsc->lvOnFrame)
-                    {
-                        /* If this non-enregistered pointer arg is never
-                         * used, we don't need to report it
-                         */
-                        assert(varDsc->lvRefCnt() == 0);
-                        continue;
-                    }
-                    else if (varDsc->lvIsRegArg && varDsc->lvTracked)
-                    {
-                        /* If this register-passed arg is tracked, then
-                         * it has been allocated space near the other
-                         * pointer variables and we have accurate life-
-                         * time info. It will be reported with
-                         * gcVarPtrList in the "tracked-pointer" section
-                         */
-
-                        continue;
-                    }
-                }
-            }
-
-#if !(FEATURE_EH_FUNCLETS)
-            // For FEATURE_EH_FUNCLETS, "this" must always be in untracked variables
-            // so we cannot have "this" in variable lifetimes
-            if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
-            {
-                // Encoding of untracked variables does not support reporting
-                // "this". So report it as a tracked variable with a liveness
-                // extending over the entire method.
-
-                thisKeptAliveIsInUntracked = true;
                 continue;
             }
-#endif // !WIN64EXCEPTIONS
 
 #ifdef DEBUG
             if (compiler->verbose)
@@ -575,6 +511,87 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
 #endif
 
     *varPtrTableSize = count;
+}
+
+bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThisKeptAliveIsInUntracked)
+{
+    LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
+
+    assert(!compiler->lvaIsFieldOfDependentlyPromotedStruct(varDsc));
+    assert(varTypeIsGC(varDsc->TypeGet()));
+
+    /* Do we have an argument or local variable? */
+    if (!varDsc->lvIsParam)
+    {
+        // If is pinned, it must be an untracked local
+        assert(!varDsc->lvPinned || !varDsc->lvTracked);
+
+        if (varDsc->lvTracked || !varDsc->lvOnFrame)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        /* Stack-passed arguments which are not enregistered
+         * are always reported in this "untracked stack
+         * pointers" section of the GC info even if lvTracked==true
+         */
+
+        /* Has this argument been fully enregistered ? */
+        if (!varDsc->lvOnFrame)
+        {
+            /* if a CEE_JMP has been used, then we need to report all the arguments
+               even if they are enregistered, since we will be using this value
+               in JMP call.  Note that this is subtle as we require that
+               argument offsets are always fixed up properly even if lvRegister
+               is set */
+            if (!compiler->compJmpOpUsed)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            if (!varDsc->lvOnFrame)
+            {
+                /* If this non-enregistered pointer arg is never
+                 * used, we don't need to report it
+                 */
+                assert(varDsc->lvRefCnt() == 0);
+                return false;
+            }
+            else if (varDsc->lvIsRegArg && varDsc->lvTracked)
+            {
+                /* If this register-passed arg is tracked, then
+                 * it has been allocated space near the other
+                 * pointer variables and we have accurate life-
+                 * time info. It will be reported with
+                 * gcVarPtrList in the "tracked-pointer" section
+                 */
+
+                return false;
+            }
+        }
+    }
+
+#if !defined(FEATURE_EH_FUNCLETS)
+    // For FEATURE_EH_FUNCLETS, "this" must always be in untracked variables
+    // so we cannot have "this" in variable lifetimes
+    if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
+    {
+        // Encoding of untracked variables does not support reporting
+        // "this". So report it as a tracked variable with a liveness
+        // extending over the entire method.
+
+        if (pThisKeptAliveIsInUntracked != nullptr)
+        {
+            *pThisKeptAliveIsInUntracked = true;
+        }
+        return false;
+    }
+#endif // !FEATURE_EH_FUNCLETS
+    return true;
 }
 
 /*****************************************************************************
