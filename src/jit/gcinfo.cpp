@@ -359,6 +359,8 @@ GCInfo::regPtrDsc* GCInfo::gcRegPtrAllocDsc()
     return regPtrNext;
 }
 
+#ifdef JIT32_GCENCODER
+
 /*****************************************************************************
  *
  *  Compute the various counts that get stored in the info block header.
@@ -440,8 +442,8 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
                 }
             }
 
-#if !defined(JIT32_GCENCODER) || !defined(FEATURE_EH_FUNCLETS)
-            // For x86/FEATURE_EH_FUNCLETS, "this" must always be in untracked variables
+#if !(FEATURE_EH_FUNCLETS)
+            // For FEATURE_EH_FUNCLETS, "this" must always be in untracked variables
             // so we cannot have "this" in variable lifetimes
             if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
             {
@@ -573,7 +575,6 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
     *varPtrTableSize = count;
 }
 
-#ifdef JIT32_GCENCODER
 /*****************************************************************************
  *
  *  Shutdown the 'pointer value' register tracking logic and save the necessary
@@ -588,7 +589,8 @@ BYTE* GCInfo::gcPtrTableSave(BYTE* destPtr, const InfoHdr& header, unsigned code
 
     return destPtr + gcMakeRegPtrTable(destPtr, -1, header, codeSize, pArgTabOffset);
 }
-#endif
+
+#endif // JIT32_GCENCODER
 
 /*****************************************************************************
  *
