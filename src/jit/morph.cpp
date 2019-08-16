@@ -7239,17 +7239,17 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
 //------------------------------------------------------------------------
 // fgMorphPotentialTailCall: Attempt to morph a call that the importer has
-// identified as a potential tailcall to an actual tailcall.
+// identified as a potential tailcall to an actual tailcall and return the
+// placeholder node to use in this case.
 //
 // Arguments:
 //    call - The call to morph.
-//    newNode - The new node to use if this function returns true.
 //
 // Return Value:
-//    Returns true or false based on whether the call was morphed into a tailcall.
-//    If this function returns true the call is done being morphed and the new node
-//    should be used. Otherwise the call will be demoted to a regular call and
-//    should go through normal morph.
+//    Returns a node to use if the call was morphed into a tailcall. If this
+//    function returns a node the call is done being morphed and the new node
+//    should be used. Otherwise the call will have been demoted to a regular call
+//    and should go through normal morph.
 //
 // Notes:
 //    This is called only for calls that the importer has already identified as
@@ -7257,7 +7257,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 //    classify which kind of tailcall we are able to (or should) do, along with
 //    modifying the trees to perform that kind of tailcall.
 //
-bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
+GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 {
     // It should either be an explicit (i.e. tail prefixed) or an implicit tail call
     assert(call->IsTailPrefixedCall() ^ call->IsImplicitTailCall());
@@ -7290,19 +7290,19 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     if (call->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC)
     {
         failTailCall("Might turn into an intrinsic");
-        return false;
+        return nullptr;
     }
 
     if (opts.compNeedSecurityCheck)
     {
         failTailCall("Needs security check");
-        return false;
+        return nullptr;
     }
 
     if (compLocallocUsed || compLocallocOptimized)
     {
         failTailCall("Localloc used");
-        return false;
+        return nullptr;
     }
 
 #ifdef _TARGET_AMD64_
@@ -7313,7 +7313,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     if (getNeedsGSSecurityCookie())
     {
         failTailCall("GS Security cookie check");
-        return false;
+        return nullptr;
     }
 #endif
 
@@ -7322,7 +7322,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
     if (opts.compGcChecks)
     {
         failTailCall("GcChecks");
-        return false;
+        return nullptr;
     }
 #endif
 
@@ -7339,7 +7339,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
         if (retValBuf->gtOper != GT_LCL_VAR || retValBuf->gtLclVarCommon.gtLclNum != info.compRetBuffArg)
         {
             failTailCall("Need to copy return buffer");
-            return false;
+            return nullptr;
         }
     }
 
@@ -7376,7 +7376,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
             if (varDsc->lvHasLdAddrOp)
             {
                 failTailCall("Local address taken");
-                return false;
+                return nullptr;
             }
             if (varDsc->lvAddrExposed)
             {
@@ -7399,20 +7399,20 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
                 else
                 {
                     failTailCall("Local address taken");
-                    return false;
+                    return nullptr;
                 }
             }
             if (varDsc->lvPromoted && varDsc->lvIsParam && !lvaIsImplicitByRefLocal(varNum))
             {
                 failTailCall("Has Struct Promoted Param");
-                return false;
+                return nullptr;
             }
             if (varDsc->lvPinned)
             {
                 // A tail call removes the method from the stack, which means the pinning
                 // goes away for the callee.  We can't allow that.
                 failTailCall("Has Pinned Vars");
-                return false;
+                return nullptr;
             }
         }
 
@@ -7433,7 +7433,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
         if (call->IsImplicitTailCall())
         {
             failTailCall("Opportunistic tail call cannot be dispatched as epilog+jmp");
-            return false;
+            return nullptr;
         }
         if (!call->IsVirtualStub() && call->HasNonStandardAddedArgs(this))
         {
@@ -7452,20 +7452,20 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
             // in Stublinkerx86.cpp.
             failTailCall("Method with non-standard args passed in callee trash register cannot be tail "
                          "called via helper");
-            return false;
+            return nullptr;
         }
 #if defined(_TARGET_ARM64_) || defined(_TARGET_UNIX_)
         // NYI - TAILCALL_RECURSIVE/TAILCALL_HELPER.
         // So, bail out if we can't make fast tail call.
         failTailCall("Non-qualified fast tail call");
-        return false;
+        return nullptr;
 #endif
     }
 
     if (!fgCheckStmtAfterTailCall())
     {
         failTailCall("Unexpected statements after the tail call");
-        return false;
+        return nullptr;
     }
 
     // Ok, now we are _almost_ there. If this needs helper then make sure we can
@@ -7486,7 +7486,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
             if (info.compMatchedVM)
             {
                 failTailCall("TailCallCopyArgsThunk not available.");
-                return false;
+                return nullptr;
             }
 
             // If we don't have a matched VM, we won't get valid results when asking for a thunk.
@@ -7733,8 +7733,7 @@ bool Compiler::fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode)
         result = fgMorphTree(result);
     }
 
-    *newNode = result;
-    return true;
+    return result;
 }
 
 /*****************************************************************************
@@ -8448,8 +8447,8 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
     }
     if (call->CanTailCall())
     {
-        GenTree* newNode;
-        if (fgMorphPotentialTailCall(call, &newNode))
+        GenTree* newNode = fgMorphPotentialTailCall(call);
+        if (newNode != nullptr)
         {
             return newNode;
         }

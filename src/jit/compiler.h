@@ -5399,7 +5399,7 @@ private:
     bool fgCanFastTailCall(GenTreeCall* call);
     bool fgCheckStmtAfterTailCall();
     void fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs);
-    bool fgMorphPotentialTailCall(GenTreeCall* call, GenTree** newNode);
+    GenTree* fgMorphPotentialTailCall(GenTreeCall* call);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);
     GenTreeStmt* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
