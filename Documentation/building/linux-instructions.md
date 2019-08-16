@@ -45,6 +45,8 @@ Note that instructions on building the crossrootfs location can be found at http
 Docker Images
 =============
 
+These instructions might fall stale often enough as we change our images as our requirements change. The table below is just a quick refernce view of the images we use in different build scenarios. The ones that we use for our our official builds can be found in [the platform matrix](../../eng/platform-matrix.yml) of our Azure DevOps builds under the `container` key of the platform you plan to build. 
+
 | OS                          | Target Arch     | Image location                                                                                      | crossrootfs location | Clang Version |
 | --------------------------- | --------------- | --------------------------------------------------------------------------------------------------- | -------------------- | ------------- |
 | Ubuntu 16.04                | x64             | `mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-30f6673-20190814211612`                   | -                    | -             |
