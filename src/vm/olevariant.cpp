@@ -839,6 +839,14 @@ MethodTable* OleVariant::GetNativeMethodTableForVarType(VARTYPE vt, MethodTable*
                 return MscorlibBinder::GetClass(CLASS__INTPTR);
             case VT_VARIANT:
                 return MscorlibBinder::GetClass(CLASS__NATIVEVARIANT);
+            case VTHACK_ANSICHAR:
+                return MscorlibBinder::GetClass(CLASS__BYTE);
+            case VT_UI2:
+                // When CharSet = CharSet.Unicode, System.Char arrays are marshaled as VT_UI2.
+                // However, since System.Char itself is CharSet.Ansi, the native size of
+                // System.Char is 1 byte instead of 2. So here we explicitly return System.UInt16's
+                // MethodTable to ensure the correct size.
+                return MscorlibBinder::GetClass(CLASS__UINT16);
             default:
                 PREFIX_ASSUME(pManagedMT != NULL);
                 return pManagedMT;
