@@ -3263,7 +3263,7 @@ void DumpGenericParsCA(mdToken tok, void* GUICookie/*=NULL*/)
                             printLine(GUICookie, szString);
                             return;
                         }
-                        if ((chName > 0) && false)  // todo remove the " && false "
+                        if (chName > 0)
                         {
                             char* sz = (char*)(&wzUniBuf[UNIBUF_SIZE / 2]);
                             WszWideCharToMultiByte(CP_UTF8, 0, wzArgName, -1, sz, UNIBUF_SIZE, NULL, NULL);
