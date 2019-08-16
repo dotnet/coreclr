@@ -2135,17 +2135,11 @@ unsigned PendingArgsStack::pasEnumGCoffs(unsigned iter, unsigned* offs)
 #endif
 size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, unsigned codeSize, size_t* pArgTabOffset)
 {
-    unsigned count;
-
     unsigned   varNum;
     LclVarDsc* varDsc;
 
-    unsigned pass;
-
     size_t   totalSize = 0;
     unsigned lastOffset;
-
-    bool thisKeptAliveIsInUntracked = false;
 
     /* The mask should be all 0's or all 1's */
 
@@ -2171,29 +2165,24 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
     totalSize += sizeof(short);
 #endif
 
-    /**************************************************************************
-     *
-     *                      Untracked ptr variables
-     *
-     **************************************************************************
-     */
+/**************************************************************************
+ *
+ *                      Untracked ptr variables
+ *
+ **************************************************************************
+ */
+#if DEBUG
+    unsigned int untrackedCount = 0, varPtrTableSize = 0;
+    gcCountForHeader(&untrackedCount, &varPtrTableSize);
+    assert(untrackedCount == header.untrackedCnt);
+    assert(varPtrTableSize == header.varPtrTableSize);
+#endif // DEBUG
 
-    count = 0;
-    for (pass = 0; pass < 2; pass++)
+    if (header.untrackedCnt != 0)
     {
-        /* If pass==0, generate the count
-         * If pass==1, write the table of untracked pointer variables.
-         */
+        // Write the table of untracked pointer variables.
 
         int lastoffset = 0;
-        if (pass == 1)
-        {
-            assert(count == header.untrackedCnt);
-            if (header.untrackedCnt == 0)
-                break; // No entries, break exits the loop since pass==1
-        }
-
-        /* Count&Write untracked locals and non-enregistered args */
 
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
         {
@@ -2206,54 +2195,46 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
             if (varTypeIsGC(varDsc->TypeGet()))
             {
-                if (!gcIsUntrackedLocalOrNonEnregisteredArg(varNum, &thisKeptAliveIsInUntracked))
+                if (!gcIsUntrackedLocalOrNonEnregisteredArg(varNum))
                 {
                     continue;
                 }
 
-                if (pass == 0)
-                    count++;
-                else
-                {
-                    int offset;
-                    assert(pass == 1);
-
-                    offset = varDsc->lvStkOffs;
+                int offset = varDsc->lvStkOffs;
 #if DOUBLE_ALIGN
-                    // For genDoubleAlign(), locals are addressed relative to ESP and
-                    // arguments are addressed relative to EBP.
+                // For genDoubleAlign(), locals are addressed relative to ESP and
+                // arguments are addressed relative to EBP.
 
-                    if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
-                        offset += compiler->codeGen->genTotalFrameSize();
+                if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
+                    offset += compiler->codeGen->genTotalFrameSize();
 #endif
 
-                    // The lower bits of the offset encode properties of the stk ptr
+                // The lower bits of the offset encode properties of the stk ptr
 
-                    assert(~OFFSET_MASK % sizeof(offset) == 0);
+                assert(~OFFSET_MASK % sizeof(offset) == 0);
 
-                    if (varDsc->TypeGet() == TYP_BYREF)
-                    {
-                        // Or in byref_OFFSET_FLAG for 'byref' pointer tracking
-                        offset |= byref_OFFSET_FLAG;
-                    }
+                if (varDsc->TypeGet() == TYP_BYREF)
+                {
+                    // Or in byref_OFFSET_FLAG for 'byref' pointer tracking
+                    offset |= byref_OFFSET_FLAG;
+                }
 
-                    if (varDsc->lvPinned)
-                    {
-                        // Or in pinned_OFFSET_FLAG for 'pinned' pointer tracking
-                        offset |= pinned_OFFSET_FLAG;
-                    }
+                if (varDsc->lvPinned)
+                {
+                    // Or in pinned_OFFSET_FLAG for 'pinned' pointer tracking
+                    offset |= pinned_OFFSET_FLAG;
+                }
 
-                    int encodedoffset = lastoffset - offset;
-                    lastoffset        = offset;
+                int encodedoffset = lastoffset - offset;
+                lastoffset        = offset;
 
-                    if (mask == 0)
-                        totalSize += encodeSigned(NULL, encodedoffset);
-                    else
-                    {
-                        unsigned sz = encodeSigned(dest, encodedoffset);
-                        dest += sz;
-                        totalSize += sz;
-                    }
+                if (mask == 0)
+                    totalSize += encodeSigned(NULL, encodedoffset);
+                else
+                {
+                    unsigned sz = encodeSigned(dest, encodedoffset);
+                    dest += sz;
+                    totalSize += sz;
                 }
             }
 
@@ -2269,11 +2250,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     if (gcPtrs[i] == TYPE_GC_NONE) // skip non-gc slots
                         continue;
 
-                    if (pass == 0)
-                        count++;
-                    else
                     {
-                        assert(pass == 1);
 
                         unsigned offset = varDsc->lvStkOffs + i * TARGET_POINTER_SIZE;
 #if DOUBLE_ALIGN
@@ -2310,12 +2287,8 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         {
             if (varTypeIsGC(tempItem->tdTempType()))
             {
-                if (pass == 0)
-                    count++;
-                else
                 {
                     int offset;
-                    assert(pass == 1);
 
                     offset = tempItem->tdTempOffs();
 
@@ -2355,65 +2328,53 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
      *
      *  Generate the table of stack pointer variable lifetimes.
      *
-     *  In the first pass we'll count the lifetime entries and note
-     *  whether there are any that don't fit in a small encoding. In
-     *  the second pass we actually generate the table contents.
-     *
      **************************************************************************
      */
 
+    bool thisKeptAliveIsInUntracked = false;
+
+    if (!compiler->info.compIsStatic)
+    {
+        unsigned thisArgNum = compiler->info.compThisArg;
+        gcIsUntrackedLocalOrNonEnregisteredArg(thisArgNum, &thisKeptAliveIsInUntracked);
+    }
+
     // First we check for the most common case - no lifetimes at all.
 
-    if (header.varPtrTableSize == 0)
-        goto DONE_VLT;
-
-    varPtrDsc* varTmp;
-    count = 0;
-
+    if (header.varPtrTableSize != 0)
+    {
 #ifndef FEATURE_EH_FUNCLETS
-    if (thisKeptAliveIsInUntracked)
-    {
-        count = 1;
-
-        // Encoding of untracked variables does not support reporting
-        // "this". So report it as a tracked variable with a liveness
-        // extending over the entire method.
-
-        assert(compiler->lvaTable[compiler->info.compThisArg].TypeGet() == TYP_REF);
-
-        unsigned varOffs = compiler->lvaTable[compiler->info.compThisArg].lvStkOffs;
-
-        /* For negative stack offsets we must reset the low bits,
-         * take abs and then set them back */
-
-        varOffs = abs(static_cast<int>(varOffs));
-        varOffs |= this_OFFSET_FLAG;
-
-        size_t sz = 0;
-        sz        = encodeUnsigned(mask ? (dest + sz) : NULL, varOffs);
-        sz += encodeUDelta(mask ? (dest + sz) : NULL, 0, 0);
-        sz += encodeUDelta(mask ? (dest + sz) : NULL, codeSize, 0);
-
-        dest += (sz & mask);
-        totalSize += sz;
-    }
-#endif
-
-    for (pass = 0; pass < 2; pass++)
-    {
-        /* If second pass, generate the count */
-
-        if (pass)
+        if (thisKeptAliveIsInUntracked)
         {
-            assert(header.varPtrTableSize > 0);
-            assert(header.varPtrTableSize == count);
+            // Encoding of untracked variables does not support reporting
+            // "this". So report it as a tracked variable with a liveness
+            // extending over the entire method.
+
+            assert(compiler->lvaTable[compiler->info.compThisArg].TypeGet() == TYP_REF);
+
+            unsigned varOffs = compiler->lvaTable[compiler->info.compThisArg].lvStkOffs;
+
+            /* For negative stack offsets we must reset the low bits,
+                * take abs and then set them back */
+
+            varOffs = abs(static_cast<int>(varOffs));
+            varOffs |= this_OFFSET_FLAG;
+
+            size_t sz = 0;
+            sz        = encodeUnsigned(mask ? (dest + sz) : NULL, varOffs);
+            sz += encodeUDelta(mask ? (dest + sz) : NULL, 0, 0);
+            sz += encodeUDelta(mask ? (dest + sz) : NULL, codeSize, 0);
+
+            dest += (sz & mask);
+            totalSize += sz;
         }
+#endif
 
         /* We'll use a delta encoding for the lifetime offsets */
 
         lastOffset = 0;
 
-        for (varTmp = gcVarPtrList; varTmp; varTmp = varTmp->vpdNext)
+        for (varPtrDsc* varTmp = gcVarPtrList; varTmp; varTmp = varTmp->vpdNext)
         {
             unsigned varOffs;
             unsigned lowBits;
@@ -2445,28 +2406,19 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
             /* Are we counting or generating? */
 
-            if (!pass)
-            {
-                count++;
-            }
-            else
-            {
-                size_t sz = 0;
-                sz        = encodeUnsigned(mask ? (dest + sz) : NULL, varOffs);
-                sz += encodeUDelta(mask ? (dest + sz) : NULL, begOffs, lastOffset);
-                sz += encodeUDelta(mask ? (dest + sz) : NULL, endOffs, begOffs);
+            size_t sz = 0;
+            sz        = encodeUnsigned(mask ? (dest + sz) : NULL, varOffs);
+            sz += encodeUDelta(mask ? (dest + sz) : NULL, begOffs, lastOffset);
+            sz += encodeUDelta(mask ? (dest + sz) : NULL, endOffs, begOffs);
 
-                dest += (sz & mask);
-                totalSize += sz;
-            }
+            dest += (sz & mask);
+            totalSize += sz;
 
             /* The next entry will be relative to the one we just processed */
 
             lastOffset = begOffs;
         }
     }
-
-DONE_VLT:
 
     if (pArgTabOffset != NULL)
         *pArgTabOffset = totalSize;
