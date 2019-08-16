@@ -14,14 +14,6 @@
 #include <bundle_runner.h>
 #include <utils.h>
 
-#define EMBED_HASH_HI_PART_UTF8 "c3ab8ff13720e8ad9047dd39466b3c89" // SHA-256 of "foobar" in UTF-8
-#define EMBED_HASH_LO_PART_UTF8 "74e592c2fa383d4a3960714caef0c4f2"
-#define EMBED_HASH_FULL_UTF8    (EMBED_HASH_HI_PART_UTF8 EMBED_HASH_LO_PART_UTF8) // NUL terminated
-
-constexpr int EMBED_SZ = sizeof(EMBED_HASH_FULL_UTF8) / sizeof(EMBED_HASH_FULL_UTF8[0]);
-constexpr int EMBED_MAX = (EMBED_SZ > 1025 ? EMBED_SZ : 1025); // 1024 DLL name length, 1 NUL
-static char embed[EMBED_MAX] = EMBED_HASH_FULL_UTF8;     // series of NULs followed by embed hash string
-
 int main(const int argc, const char* argv[])
 {
     // Make sure we have a full path for argv[0].
@@ -52,8 +44,8 @@ int main(const int argc, const char* argv[])
     std::string app_path(root_dir);
     app_path.push_back(DIR_SEPARATOR);
 
-    std::string binding(&embed[0]);
-    app_path.append(binding.c_str());
+    app_path.append(get_filename(exe_path.c_str()));
+    app_path.append(".dll");
 
     const char** app_argv = nullptr;
     int app_argc = argc - 1;
