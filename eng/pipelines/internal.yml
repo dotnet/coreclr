@@ -2,7 +2,7 @@ trigger:
   batch: true
   branches:
     include:
-    - release/3.0
+    - release/3.*
 
 pr: none
 
