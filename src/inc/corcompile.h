@@ -772,7 +772,7 @@ struct CORCOMPILE_EXCEPTION_CLAUSE
 
 struct CORCOMPILE_COLD_METHOD_ENTRY
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     DWORD       mainFunctionEntryRVA;
 #endif
     // TODO: hotCodeSize should be encoded in GC info

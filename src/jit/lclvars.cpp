@@ -3429,7 +3429,7 @@ void Compiler::lvaSortByRefCount()
         {
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_NoRegVars));
         }
-#if defined(JIT32_GCENCODER) && defined(WIN64EXCEPTIONS)
+#if defined(JIT32_GCENCODER) && defined(FEATURE_EH_FUNCLETS)
         else if (lvaIsOriginalThisArg(lclNum) && (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0)
         {
             // For x86/Linux, we need to track "this".
