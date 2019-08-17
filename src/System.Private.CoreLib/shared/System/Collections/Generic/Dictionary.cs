@@ -80,12 +80,6 @@ namespace System.Collections.Generic
                 _comparer = comparer;
             }
 
-            FixupComparer();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        void FixupComparer()
-        {
             if (typeof(TKey) == typeof(string))
             {
                 if (_comparer == null)
@@ -706,7 +700,6 @@ namespace System.Collections.Generic
             int realVersion = siInfo.GetInt32(VersionName);
             int hashsize = siInfo.GetInt32(HashSizeName);
             _comparer = (IEqualityComparer<TKey>)siInfo.GetValue(ComparerName, typeof(IEqualityComparer<TKey>))!; // When serialized if comparer is null, we use the default.
-            FixupComparer();
 
             if (hashsize != 0)
             {
