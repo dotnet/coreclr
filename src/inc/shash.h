@@ -453,8 +453,8 @@ class SHash : public TRAITS
                     break;
                 }
 
-            } while (!TRAITS::IsDeleted(this->m_table[this->m_index])
-                        && TRAITS::Equals(m_key, TRAITS::GetKey(this->m_table[this->m_index])));
+            } while (TRAITS::IsDeleted(this->m_table[this->m_index])
+                        || !TRAITS::Equals(m_key, TRAITS::GetKey(this->m_table[this->m_index])));
         }
     };
 
