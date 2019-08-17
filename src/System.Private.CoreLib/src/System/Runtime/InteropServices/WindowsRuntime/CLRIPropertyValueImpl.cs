@@ -11,11 +11,11 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 {
     internal class CLRIPropertyValueImpl : IPropertyValue
     {
-        private PropertyType _type;
-        private object _data;
+        private readonly PropertyType _type;
+        private readonly object _data;
 
         // Numeric scalar types which participate in coersion
-        private static volatile Tuple<Type, PropertyType>[] s_numericScalarTypes;
+        private static volatile Tuple<Type, PropertyType>[]? s_numericScalarTypes;
 
         internal CLRIPropertyValueImpl(PropertyType type, object data)
         {
@@ -48,18 +48,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
         }
 
-        public PropertyType Type
-        {
-            get { return _type; }
-        }
+        public PropertyType Type => _type;
 
-        public bool IsNumericScalar
-        {
-            get
-            {
-                return IsNumericScalarImpl(_type, _data);
-            }
-        }
+        public bool IsNumericScalar => IsNumericScalarImpl(_type, _data);
 
         public override string? ToString()
         {
@@ -308,7 +299,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // Make sure we have an array to begin with
             if (!(_data is Array dataArray))
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, this.Type, typeof (T).MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, this.Type, typeof(T).MakeArrayType().Name), HResults.TYPE_E_TYPEMISMATCH);
             }
 
             // Array types are 1024 larger than their equivilent scalar counterpart
@@ -326,7 +317,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 }
                 catch (InvalidCastException elementCastException)
                 {
-                    Exception e = new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueArrayCoersion, this.Type, typeof (T).MakeArrayType().Name, i, elementCastException.Message), elementCastException);
+                    Exception e = new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueArrayCoersion, this.Type, typeof(T).MakeArrayType().Name, i, elementCastException.Message), elementCastException);
                     e.HResult = elementCastException.HResult;
                     throw e;
                 }
@@ -352,7 +343,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // should not attempt coersion, even if the underlying value is technically convertable
             if (!IsCoercable(type, value) && type != PropertyType.Inspectable)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
             }
 
             try
@@ -382,15 +373,15 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             catch (FormatException)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
             }
             catch (InvalidCastException)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
             }
             catch (OverflowException)
             {
-                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueCoersion, type, value, typeof (T).Name), HResults.DISP_E_OVERFLOW);
+                throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueCoersion, type, value, typeof(T).Name), HResults.DISP_E_OVERFLOW);
             }
 
             // If the property type is IInspectable, and we have a nested IPropertyValue, then we need
@@ -440,7 +431,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
 
             // Otherwise, this is an invalid coersion
-            throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof (T).Name), HResults.TYPE_E_TYPEMISMATCH);
+            throw new InvalidCastException(SR.Format(SR.InvalidCast_WinRTIPropertyValueElement, type, typeof(T).Name), HResults.TYPE_E_TYPEMISMATCH);
         }
 
         private static bool IsCoercable(PropertyType type, object data)

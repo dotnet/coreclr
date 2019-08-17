@@ -19,13 +19,7 @@ namespace System.Threading.Tasks
                 f_LoggingOn &= ~Loggers.ETW;
         }
 
-        internal static bool LoggingOn
-        {
-            get
-            {
-                return f_LoggingOn != 0;
-            }
-        }
+        internal static bool LoggingOn => f_LoggingOn != 0;
 
         //s_PlatformId = {4B0171A6-F3D0-41A0-9B33-02550652B995}
         private static readonly Guid s_PlatformId = new Guid(0x4B0171A6, 0xF3D0, 0x41A0, 0x9B, 0x33, 0x02, 0x55, 0x06, 0x52, 0xB9, 0x95);
@@ -33,10 +27,9 @@ namespace System.Threading.Tasks
         //Indicates this information comes from the BCL Library
         private const WFD.CausalitySource s_CausalitySource = WFD.CausalitySource.Library;
 
-        //Lazy initialize the actual factory
-        private static WFD.IAsyncCausalityTracerStatics s_TracerFactory;
+        private static readonly WFD.IAsyncCausalityTracerStatics s_TracerFactory = null!;
 
-        // The loggers that this Tracer knows about. 
+        // The loggers that this Tracer knows about.
         [Flags]
         private enum Loggers : byte
         {
@@ -49,7 +42,9 @@ namespace System.Threading.Tasks
         private static Loggers f_LoggingOn; //assumes false by default
 
         // The precise static constructor will run first time somebody attempts to access this class
+#pragma warning disable CA1810
         static AsyncCausalityTracer()
+#pragma warning restore CA1810
         {
             if (!Environment.IsWinRTSupported) return;
 

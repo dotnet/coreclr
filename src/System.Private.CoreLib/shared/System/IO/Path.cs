@@ -18,7 +18,7 @@ namespace System.IO
 #endif
 {
     // Provides methods for processing file system strings in a cross-platform manner.
-    // Most of the methods don't do a complete parsing (such as examining a UNC hostname), 
+    // Most of the methods don't do a complete parsing (such as examining a UNC hostname),
     // but they will handle most string operations.
     public static partial class Path
     {
@@ -161,7 +161,7 @@ namespace System.IO
         /// <summary>
         /// Returns the extension of the given path.
         /// </summary>
-        /// <remarks> 
+        /// <remarks>
         /// The returned value is an empty ReadOnlySpan if the given path does not include an extension.
         /// </remarks>
         public static ReadOnlySpan<char> GetExtension(ReadOnlySpan<char> path)
@@ -379,7 +379,7 @@ namespace System.IO
                     maxSize += paths[i].Length;
                 }
 
-                char ch = paths[i][paths[i].Length - 1];
+                char ch = paths[i][^1];
                 if (!PathInternal.IsDirectorySeparator(ch))
                     maxSize++;
             }
@@ -484,7 +484,7 @@ namespace System.IO
             {
                 return string.Empty;
             }
-            
+
             int maxSize = 0;
             foreach (string? path in paths)
             {
@@ -904,22 +904,17 @@ namespace System.IO
         }
 
         /// <summary>Returns a comparison that can be used to compare file and directory names for equality.</summary>
-        internal static StringComparison StringComparison
-        {
-            get
-            {
-                return IsCaseSensitive ?
-                    StringComparison.Ordinal :
-                    StringComparison.OrdinalIgnoreCase;
-            }
-        }
+        internal static StringComparison StringComparison =>
+            IsCaseSensitive ?
+                StringComparison.Ordinal :
+                StringComparison.OrdinalIgnoreCase;
 
         /// <summary>
         /// Trims one trailing directory separator beyond the root of the path.
         /// </summary>
         public static string TrimEndingDirectorySeparator(string path) =>
             EndsInDirectorySeparator(path) && !PathInternal.IsRoot(path.AsSpan()) ?
-                path.Substring(0, path.Length - 1) :
+                path[0..^1] :
                 path;
 
         /// <summary>
@@ -940,6 +935,6 @@ namespace System.IO
         /// Returns true if the path ends in a directory separator.
         /// </summary>
         public static bool EndsInDirectorySeparator(string path)
-              => path != null && path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
+              => path != null && path.Length > 0 && PathInternal.IsDirectorySeparator(path[^1]);
     }
 }

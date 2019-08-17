@@ -66,20 +66,11 @@ namespace System.Reflection.Emit
         #endregion
 
         #region MemberInfo Overrides
-        internal int MetadataTokenInternal
-        {
-            get { return m_fieldTok; }
-        }
+        internal int MetadataTokenInternal => m_fieldTok;
 
-        public override Module Module
-        {
-            get { return m_typeBuilder.Module; }
-        }
+        public override Module Module => m_typeBuilder.Module;
 
-        public override string Name
-        {
-            get { return m_fieldName; }
-        }
+        public override string Name => m_fieldName;
 
         public override Type? DeclaringType
         {
@@ -106,14 +97,11 @@ namespace System.Reflection.Emit
         #endregion
 
         #region FieldInfo Overrides
-        public override Type FieldType
-        {
-            get { return m_fieldType; }
-        }
+        public override Type FieldType => m_fieldType;
 
         public override object? GetValue(object? obj)
         {
-            // NOTE!!  If this is implemented, make sure that this throws 
+            // NOTE!!  If this is implemented, make sure that this throws
             // a NotSupportedException for Save-only dynamic assemblies.
             // Otherwise, it could cause the .cctor to be executed.
 
@@ -122,22 +110,16 @@ namespace System.Reflection.Emit
 
         public override void SetValue(object? obj, object? val, BindingFlags invokeAttr, Binder? binder, CultureInfo? culture)
         {
-            // NOTE!!  If this is implemented, make sure that this throws 
+            // NOTE!!  If this is implemented, make sure that this throws
             // a NotSupportedException for Save-only dynamic assemblies.
             // Otherwise, it could cause the .cctor to be executed.
 
             throw new NotSupportedException(SR.NotSupported_DynamicModule);
         }
 
-        public override RuntimeFieldHandle FieldHandle
-        {
-            get { throw new NotSupportedException(SR.NotSupported_DynamicModule); }
-        }
+        public override RuntimeFieldHandle FieldHandle => throw new NotSupportedException(SR.NotSupported_DynamicModule);
 
-        public override FieldAttributes Attributes
-        {
-            get { return m_Attributes; }
-        }
+        public override FieldAttributes Attributes => m_Attributes;
 
         #endregion
 

@@ -53,25 +53,13 @@ namespace System.Diagnostics.Tracing
             set;
         }
 
-        internal int ScratchSize
-        {
-            get { return this.impl.scratchSize; }
-        }
+        internal int ScratchSize => this.impl.scratchSize;
 
-        internal int DataCount
-        {
-            get { return this.impl.dataCount; }
-        }
+        internal int DataCount => this.impl.dataCount;
 
-        internal int PinCount
-        {
-            get { return this.impl.pinCount; }
-        }
+        internal int PinCount => this.impl.pinCount;
 
-        private bool BeginningBufferedArray
-        {
-            get { return this.bufferedArrayFieldCount == 0; }
-        }
+        private bool BeginningBufferedArray => this.bufferedArrayFieldCount == 0;
 
         /// <summary>
         /// Call this method to add a group to the event and to return
@@ -309,7 +297,7 @@ namespace System.Diagnostics.Tracing
 
         internal byte[] GetMetadata()
         {
-            var size = this.impl.Encode(null);
+            int size = this.impl.Encode(null);
             var metadata = new byte[size];
             this.impl.Encode(metadata);
             return metadata;
@@ -379,7 +367,7 @@ namespace System.Diagnostics.Tracing
             {
                 int size = 0;
 
-                foreach (var field in this.fields)
+                foreach (FieldMetadata field in this.fields)
                 {
                     field.Encode(ref size, metadata);
                 }

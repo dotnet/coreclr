@@ -71,6 +71,7 @@ jobs:
     helixQueueGroup: pr
     jobParameters:
       testGroup: innerloop
+      publishTestArtifacts: true
 
 #
 # ReadyToRun test jobs
@@ -89,6 +90,7 @@ jobs:
       testGroup: innerloop
       readyToRun: true
       displayNameArgs: R2R
+      publishTestArtifacts: true
 
 #
 # CoreFX test runs against CoreCLR
@@ -105,6 +107,17 @@ jobs:
       testGroup: innerloop
       corefxTests: true
       displayNameArgs: CoreFX
+
+#
+# Crossgen-comparison jobs
+#
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: crossgen-comparison-job.yml
+    buildConfig: checked
+    platforms:
+    - Linux_arm
+    helixQueueGroup: pr
 
 #
 # Release test builds
@@ -127,3 +140,4 @@ jobs:
     jobTemplate: format-job.yml
     platforms:
     - Linux_x64
+

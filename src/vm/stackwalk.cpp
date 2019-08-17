@@ -261,7 +261,7 @@ PTR_VOID CrawlFrame::GetParamTypeArg()
             return NULL;
         }
 
-#ifdef _WIN64
+#ifdef BIT64
         if (!pFunc->IsSharedByGenericInstantiations() ||
             !(pFunc->RequiresInstMethodTableArg() || pFunc->RequiresInstMethodDescArg()))
         {
@@ -269,7 +269,7 @@ PTR_VOID CrawlFrame::GetParamTypeArg()
             // and actually has a param type arg
             return NULL;
         }
-#endif // _WIN64
+#endif // BIT64
 
         _ASSERTE(pFrame);
         _ASSERTE(pFunc);
@@ -766,6 +766,15 @@ UINT_PTR Thread::VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext)
     // get our caller's PSP, or our caller's caller's SP.
     while (!ExecutionManager::IsManagedCode(uControlPc))
     {
+#ifdef FEATURE_WRITEBARRIER_COPY        
+        if (IsIPInWriteBarrierCodeCopy(uControlPc))
+        {
+            // Pretend we were executing the barrier function at its original location so that the unwinder can unwind the frame
+            uControlPc = AdjustWriteBarrierIP(uControlPc);
+            SetIP(pContext, uControlPc);
+        }
+#endif // FEATURE_WRITEBARRIER_COPY
+
 #ifndef FEATURE_PAL
         uControlPc = VirtualUnwindCallFrame(pContext);
 #else // !FEATURE_PAL
@@ -2773,7 +2782,7 @@ void StackFrameIterator::UpdateRegDisp(void)
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
-    WIN64_ONLY(SyncRegDisplayToCurrentContext(m_crawl.pRD));
+    BIT64_ONLY(SyncRegDisplayToCurrentContext(m_crawl.pRD));
 } // StackFrameIterator::UpdateRegDisp()
 
 //---------------------------------------------------------------------------------------

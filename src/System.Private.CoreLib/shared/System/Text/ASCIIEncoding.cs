@@ -586,7 +586,7 @@ namespace System.Text
         // EncodingNLS, UTF7Encoding, UTF8Encoding, UTF32Encoding, ASCIIEncoding, UnicodeEncoding
 
         [CLSCompliant(false)]
-        public unsafe override int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
+        public override unsafe int GetChars(byte* bytes, int byteCount, char* chars, int charCount)
         {
             // Validate Parameters
 
@@ -869,23 +869,11 @@ namespace System.Text
 
         // True if and only if the encoding only uses single byte code points.  (Ie, ASCII, 1252, etc)
 
-        public override bool IsSingleByte
-        {
-            get
-            {
-                return true;
-            }
-        }
+        public override bool IsSingleByte => true;
 
-        public override Decoder GetDecoder()
-        {
-            return new DecoderNLS(this);
-        }
+        public override Decoder GetDecoder() => new DecoderNLS(this);
 
 
-        public override Encoder GetEncoder()
-        {
-            return new EncoderNLS(this);
-        }
+        public override Encoder GetEncoder() => new EncoderNLS(this);
     }
 }

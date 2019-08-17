@@ -314,7 +314,7 @@ VARTYPE OleVariant::GetVarTypeForTypeHandle(TypeHandle type)
         if(MscorlibBinder::IsClass(pMT, CLASS__DECIMAL))
             return VT_DECIMAL;
 
-#ifdef _WIN64
+#ifdef BIT64
         if (MscorlibBinder::IsClass(pMT, CLASS__INTPTR))
             return VT_I8;
         if (MscorlibBinder::IsClass(pMT, CLASS__UINTPTR))
@@ -792,6 +792,63 @@ UINT OleVariant::GetElementSizeForVarType(VARTYPE vt, MethodTable *pInterfaceMT)
         return 0;
     else
         return map[vt];
+}
+
+//
+// GetElementSizeForVarType returns the a MethodTable* to a type that it blittable to the native
+// element representation, or pManagedMT if vt represents a record (user-defined type).
+//
+
+MethodTable* OleVariant::GetNativeMethodTableForVarType(VARTYPE vt, MethodTable* pManagedMT)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    if (vt & VT_ARRAY)
+    {
+        return MscorlibBinder::GetClass(CLASS__INTPTR);
+    }
+
+    switch (vt)
+    {
+        case VT_DATE:
+            return MscorlibBinder::GetClass(CLASS__DOUBLE);
+        case VT_CY:
+            return MscorlibBinder::GetClass(CLASS__CURRENCY);
+        case VTHACK_WINBOOL:
+            return MscorlibBinder::GetClass(CLASS__INT32);
+        case VT_BOOL:
+            return MscorlibBinder::GetClass(CLASS__INT16);
+        case VTHACK_CBOOL:
+            return MscorlibBinder::GetClass(CLASS__BYTE);
+        case VT_DISPATCH:
+        case VT_UNKNOWN:
+        case VT_LPSTR:
+        case VT_LPWSTR:
+        case VT_BSTR:
+        case VT_USERDEFINED:
+        case VT_SAFEARRAY:
+        case VT_CARRAY:
+            return MscorlibBinder::GetClass(CLASS__INTPTR);
+        case VT_VARIANT:
+            return MscorlibBinder::GetClass(CLASS__NATIVEVARIANT);
+        case VTHACK_ANSICHAR:
+            return MscorlibBinder::GetClass(CLASS__BYTE);
+        case VT_UI2:
+            // When CharSet = CharSet.Unicode, System.Char arrays are marshaled as VT_UI2.
+            // However, since System.Char itself is CharSet.Ansi, the native size of
+            // System.Char is 1 byte instead of 2. So here we explicitly return System.UInt16's
+            // MethodTable to ensure the correct size.
+            return MscorlibBinder::GetClass(CLASS__UINT16);
+        default:
+            PREFIX_ASSUME(pManagedMT != NULL);
+            return pManagedMT;
+    }
 }
 
 //
@@ -3458,11 +3515,11 @@ void OleVariant::MarshalComVariantForOleVariant(VARIANT *pOle, VariantData *pCom
             if (V_ISBYREF(pOle))
             {
                 // Must set ObjectRef field of Variant to a specific instance.
-#ifdef _WIN64
+#ifdef BIT64
                 VariantData::NewVariant(pCom, CV_U8, (INT64)(size_t)V_BYREF(pOle));
-#else // _WIN64
+#else // BIT64
                 VariantData::NewVariant(pCom, CV_U4, (INT32)(size_t)V_BYREF(pOle));
-#endif // _WIN64
+#endif // BIT64
             }
             else
             {

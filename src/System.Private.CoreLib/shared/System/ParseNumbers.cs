@@ -262,7 +262,7 @@ namespace System
             else
             {
                 index = 0;
-                for (int i = 0; i < buffer.Length; i++) // for(...;i<buffer.Length;...) loop instead of do{...}while(l!=0) to help JIT eliminate span bounds checks
+                for (int i = 0; i < buffer.Length; i++) // for (...;i<buffer.Length;...) loop instead of do{...}while(l!=0) to help JIT eliminate span bounds checks
                 {
                     uint div = l / (uint)radix; // TODO https://github.com/dotnet/coreclr/issues/3439
                     uint charVal = l - (div * (uint)radix);
@@ -381,15 +381,15 @@ namespace System
 
             if ((flags & PrintAsI1) != 0)
             {
-                ul = ul & 0xFF;
+                ul &= 0xFF;
             }
             else if ((flags & PrintAsI2) != 0)
             {
-                ul = ul & 0xFFFF;
+                ul &= 0xFFFF;
             }
             else if ((flags & PrintAsI4) != 0)
             {
-                ul = ul & 0xFFFFFFFF;
+                ul &= 0xFFFFFFFF;
             }
 
             //Special case the 0.

@@ -430,7 +430,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, 
 
     /* Store the tree list in the basic block */
 
-    block->bbTreeList = firstStmt;
+    block->bbStmtList = firstStmt;
 
     /* The block should not already be marked as imported */
     assert((block->bbFlags & BBF_IMPORTED) == 0);
@@ -535,7 +535,7 @@ inline void Compiler::impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel)
 
 /*****************************************************************************
  *
- *  Append the given GT_STMT node to the current block's tree list.
+ *  Append the given statement to the current block's tree list.
  *  [0..chkLevel) is the portion of the stack which we will check for
  *    interference with stmt and spill if needed.
  */
@@ -638,7 +638,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
     if (verbose)
     {
         printf("\n\n");
-        gtDispTree(stmt);
+        gtDispTree(stmt->gtStmtExpr);
     }
 #endif
 }
@@ -688,7 +688,7 @@ GenTreeStmt* Compiler::impExtractLastStmt()
 }
 
 //-------------------------------------------------------------------------
-// impInsertStmtBefore: Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore".
+// impInsertStmtBefore: Insert the given "stmt" before "stmtBefore".
 //
 // Arguments:
 //    stmt       - a statement to insert;
@@ -736,7 +736,7 @@ GenTreeStmt* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSET
 
 /*****************************************************************************
  *
- *  Insert the given exression tree before GT_STMT "stmtBefore"
+ *  Insert the given expression tree before "stmtBefore"
  */
 
 void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTreeStmt* stmtBefore)
@@ -2557,11 +2557,11 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
     if ((hndBlk->bbFlags & (BBF_IMPORTED | BBF_INTERNAL | BBF_DONT_REMOVE | BBF_HAS_LABEL | BBF_JMP_TARGET)) ==
         (BBF_IMPORTED | BBF_INTERNAL | BBF_DONT_REMOVE | BBF_HAS_LABEL | BBF_JMP_TARGET))
     {
-        GenTree* tree = hndBlk->bbTreeList;
+        GenTreeStmt* stmt = hndBlk->firstStmt();
 
-        if (tree != nullptr && tree->gtOper == GT_STMT)
+        if (stmt != nullptr)
         {
-            tree = tree->gtStmt.gtStmtExpr;
+            GenTree* tree = stmt->gtStmtExpr;
             assert(tree != nullptr);
 
             if ((tree->gtOper == GT_ASG) && (tree->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
@@ -2609,24 +2609,29 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
         /* Account for the new link we are about to create */
         hndBlk->bbRefs++;
 
-        /* Spill into a temp */
+        // Spill into a temp.
         unsigned tempNum         = lvaGrabTemp(false DEBUGARG("SpillCatchArg"));
         lvaTable[tempNum].lvType = TYP_REF;
-        arg                      = gtNewTempAssign(tempNum, arg);
+        GenTree* argAsg          = gtNewTempAssign(tempNum, arg);
+        arg                      = gtNewLclvNode(tempNum, TYP_REF);
 
         hndBlk->bbStkTempsIn = tempNum;
 
-        /* Report the debug info. impImportBlockCode won't treat
-         * the actual handler as exception block and thus won't do it for us. */
+        GenTreeStmt* argStmt;
+
         if (info.compStmtOffsetsImplicit & ICorDebugInfo::CALL_SITE_BOUNDARIES)
         {
+            // Report the debug info. impImportBlockCode won't treat the actual handler as exception block and thus
+            // won't do it for us.
             impCurStmtOffs = newBlk->bbCodeOffs | IL_OFFSETX_STKBIT;
-            arg            = gtNewStmt(arg, impCurStmtOffs);
+            argStmt        = gtNewStmt(argAsg, impCurStmtOffs);
+        }
+        else
+        {
+            argStmt = gtNewStmt(argAsg);
         }
 
-        fgInsertStmtAtEnd(newBlk, arg);
-
-        arg = gtNewLclvNode(tempNum, TYP_REF);
+        fgInsertStmtAtEnd(newBlk, argStmt);
     }
 
     impPushOnStack(arg, typeInfo(TI_REF, clsHnd));
@@ -9211,10 +9216,10 @@ void Compiler::impImportLeave(BasicBlock* block)
     assert(block->bbJumpKind == BBJ_LEAVE);
     assert(fgBBs == (BasicBlock**)0xCDCD || fgLookupBB(jmpAddr) != NULL); // should be a BB boundary
 
-    BasicBlock* step         = DUMMY_INIT(NULL);
-    unsigned    encFinallies = 0; // Number of enclosing finallies.
-    GenTree*    endCatches   = NULL;
-    GenTree*    endLFin      = NULL; // The statement tree to indicate the end of locally-invoked finally.
+    BasicBlock*  step         = DUMMY_INIT(NULL);
+    unsigned     encFinallies = 0; // Number of enclosing finallies.
+    GenTree*     endCatches   = NULL;
+    GenTreeStmt* endLFinStmt  = NULL; // The statement tree to indicate the end of locally-invoked finally.
 
     unsigned  XTnum;
     EHblkDsc* HBtab;
@@ -9269,7 +9274,8 @@ void Compiler::impImportLeave(BasicBlock* block)
 
             BasicBlock* callBlock;
 
-            assert(!encFinallies == !endLFin); // if we have finallies, we better have an endLFin tree, and vice-versa
+            assert(!encFinallies ==
+                   !endLFinStmt); // if we have finallies, we better have an endLFin tree, and vice-versa
 
             if (encFinallies == 0)
             {
@@ -9316,17 +9322,17 @@ void Compiler::impImportLeave(BasicBlock* block)
 
                 if (endCatches)
                 {
-                    lastStmt         = gtNewStmt(endCatches);
-                    endLFin->gtNext  = lastStmt;
-                    lastStmt->gtPrev = endLFin;
+                    lastStmt            = gtNewStmt(endCatches);
+                    endLFinStmt->gtNext = lastStmt;
+                    lastStmt->gtPrev    = endLFinStmt;
                 }
                 else
                 {
-                    lastStmt = endLFin->AsStmt();
+                    lastStmt = endLFinStmt;
                 }
 
                 // note that this sets BBF_IMPORTED on the block
-                impEndTreeList(callBlock, endLFin->AsStmt(), lastStmt);
+                impEndTreeList(callBlock, endLFinStmt, lastStmt);
             }
 
             step = fgNewBBafter(BBJ_ALWAYS, callBlock, true);
@@ -9346,8 +9352,8 @@ void Compiler::impImportLeave(BasicBlock* block)
             assert(finallyNesting <= compHndBBtabCount);
 
             callBlock->bbJumpDest = HBtab->ebdHndBeg; // This callBlock will call the "finally" handler.
-            endLFin               = new (this, GT_END_LFIN) GenTreeVal(GT_END_LFIN, TYP_VOID, finallyNesting);
-            endLFin               = gtNewStmt(endLFin);
+            GenTree* endLFin      = new (this, GT_END_LFIN) GenTreeVal(GT_END_LFIN, TYP_VOID, finallyNesting);
+            endLFinStmt           = gtNewStmt(endLFin);
             endCatches            = NULL;
 
             encFinallies++;
@@ -9358,7 +9364,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
     /* Append any remaining endCatches, if any */
 
-    assert(!encFinallies == !endLFin);
+    assert(!encFinallies == !endLFinStmt);
 
     if (encFinallies == 0)
     {
@@ -9407,16 +9413,16 @@ void Compiler::impImportLeave(BasicBlock* block)
 
         if (endCatches)
         {
-            lastStmt         = gtNewStmt(endCatches);
-            endLFin->gtNext  = lastStmt;
-            lastStmt->gtPrev = endLFin;
+            lastStmt            = gtNewStmt(endCatches);
+            endLFinStmt->gtNext = lastStmt;
+            lastStmt->gtPrev    = endLFinStmt;
         }
         else
         {
-            lastStmt = endLFin->AsStmt();
+            lastStmt = endLFinStmt;
         }
 
-        impEndTreeList(finalStep, endLFin->AsStmt(), lastStmt);
+        impEndTreeList(finalStep, endLFinStmt, lastStmt);
 
         finalStep->bbJumpDest = leaveTarget; // this is the ultimate destination of the LEAVE
 

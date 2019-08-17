@@ -822,8 +822,8 @@ UINT_PTR ExceptionTracker::FinishSecondPass(
 // unlike its 64bit counterparts.
 EXTERN_C EXCEPTION_DISPOSITION
 ProcessCLRException(IN     PEXCEPTION_RECORD   pExceptionRecord
-          WIN64_ARG(IN     ULONG64             MemoryStackFp)
-      NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+          BIT64_ARG(IN     ULONG64             MemoryStackFp)
+      NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                     IN OUT PCONTEXT            pContextRecord,
                     IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                     )
@@ -4666,6 +4666,15 @@ VOID DECLSPEC_NORETURN UnwindManagedExceptionPass1(PAL_SEHException& ex, CONTEXT
             }
 #endif // VSD_STUB_CAN_THROW_AV
 
+#ifdef FEATURE_WRITEBARRIER_COPY            
+            if (IsIPInWriteBarrierCodeCopy(controlPc))
+            {
+                // Pretend we were executing the barrier function at its original location so that the unwinder can unwind the frame
+                controlPc = AdjustWriteBarrierIP(controlPc);
+                SetIP(frameContext, controlPc);
+            }
+#endif // FEATURE_WRITEBARRIER_COPY
+
             UINT_PTR sp = GetSP(frameContext);
 
             BOOL success = PAL_VirtualUnwind(frameContext, NULL);
@@ -5152,6 +5161,15 @@ BOOL IsSafeToCallExecutionManager()
 BOOL IsSafeToHandleHardwareException(PCONTEXT contextRecord, PEXCEPTION_RECORD exceptionRecord)
 {
     PCODE controlPc = GetIP(contextRecord);
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+    if (IsIPInWriteBarrierCodeCopy(controlPc))
+    {
+        // Pretend we were executing the barrier function at its original location
+        controlPc = AdjustWriteBarrierIP(controlPc);
+    }
+#endif // FEATURE_WRITEBARRIER_COPY
+
     return g_fEEStarted && (
         exceptionRecord->ExceptionCode == STATUS_BREAKPOINT || 
         exceptionRecord->ExceptionCode == STATUS_SINGLE_STEP ||
@@ -5221,6 +5239,16 @@ BOOL HandleHardwareException(PAL_SEHException* ex)
         *((&fef)->GetGSCookiePtr()) = GetProcessGSCookie();
         {
             GCX_COOP();     // Must be cooperative to modify frame chain.
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+            if (IsIPInWriteBarrierCodeCopy(controlPc))
+            {
+                // Pretend we were executing the barrier function at its original location so that the unwinder can unwind the frame
+                controlPc = AdjustWriteBarrierIP(controlPc);
+                SetIP(ex->GetContextRecord(), controlPc);
+            }
+#endif // FEATURE_WRITEBARRIER_COPY
+
             if (IsIPInMarkedJitHelper(controlPc))
             {
                 // For JIT helpers, we need to set the frame to point to the
@@ -5624,8 +5652,8 @@ BOOL FirstCallToHandler (
 
 EXTERN_C EXCEPTION_DISPOSITION
 HijackHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
-    WIN64_ARG(IN     ULONG64             MemoryStackFp)
-NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+    BIT64_ARG(IN     ULONG64             MemoryStackFp)
+NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
               IN OUT PCONTEXT            pContextRecord,
               IN OUT PDISPATCHER_CONTEXT pDispatcherContext
              )
@@ -5688,8 +5716,8 @@ EXTERN_C VOID FixContextForFaultingExceptionFrame (
 
 EXTERN_C EXCEPTION_DISPOSITION
 FixContextHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
-        WIN64_ARG(IN     ULONG64             MemoryStackFp)
-    NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+        BIT64_ARG(IN     ULONG64             MemoryStackFp)
+    NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                   IN OUT PCONTEXT            pContextRecord,
                   IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                  )
@@ -5836,8 +5864,8 @@ UnhandledExceptionHandlerUnix(
 
 EXTERN_C EXCEPTION_DISPOSITION
 UMThunkUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
-                     WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                 NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+                     BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                 NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                                IN OUT PCONTEXT            pContextRecord,
                                IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                               )
@@ -5882,8 +5910,8 @@ UMThunkUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
 EXTERN_C EXCEPTION_DISPOSITION
 UMEntryPrestubUnwindFrameChainHandler(
                 IN     PEXCEPTION_RECORD   pExceptionRecord
-      WIN64_ARG(IN     ULONG64             MemoryStackFp)
-  NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+      BIT64_ARG(IN     ULONG64             MemoryStackFp)
+  NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                 IN OUT PCONTEXT            pContextRecord,
                 IN OUT PDISPATCHER_CONTEXT pDispatcherContext
             )
@@ -5901,8 +5929,8 @@ UMEntryPrestubUnwindFrameChainHandler(
 EXTERN_C EXCEPTION_DISPOSITION
 UMThunkStubUnwindFrameChainHandler(
               IN     PEXCEPTION_RECORD   pExceptionRecord
-    WIN64_ARG(IN     ULONG64             MemoryStackFp)
-NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+    BIT64_ARG(IN     ULONG64             MemoryStackFp)
+NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
               IN OUT PCONTEXT            pContextRecord,
               IN OUT PDISPATCHER_CONTEXT pDispatcherContext
             )
@@ -5937,8 +5965,8 @@ NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
 // managed code.
 EXTERN_C EXCEPTION_DISPOSITION
 CallDescrWorkerUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
-                             WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                         NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+                             BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                         NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                                        IN OUT PCONTEXT            pContextRecord,
                                        IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                                       )
@@ -5987,8 +6015,8 @@ CallDescrWorkerUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionReco
 #ifdef FEATURE_COMINTEROP
 EXTERN_C EXCEPTION_DISPOSITION
 ReverseComUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
-                        WIN64_ARG(IN     ULONG64             MemoryStackFp)
-                    NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+                        BIT64_ARG(IN     ULONG64             MemoryStackFp)
+                    NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                                   IN OUT PCONTEXT            pContextRecord,
                                   IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                                  )
@@ -6005,8 +6033,8 @@ ReverseComUnwindFrameChainHandler(IN     PEXCEPTION_RECORD   pExceptionRecord
 EXTERN_C EXCEPTION_DISPOSITION
 FixRedirectContextHandler(
                   IN     PEXCEPTION_RECORD   pExceptionRecord
-        WIN64_ARG(IN     ULONG64             MemoryStackFp)
-    NOT_WIN64_ARG(IN     ULONG               MemoryStackFp),
+        BIT64_ARG(IN     ULONG64             MemoryStackFp)
+    NOT_BIT64_ARG(IN     ULONG               MemoryStackFp),
                   IN OUT PCONTEXT            pContextRecord,
                   IN OUT PDISPATCHER_CONTEXT pDispatcherContext
                  )

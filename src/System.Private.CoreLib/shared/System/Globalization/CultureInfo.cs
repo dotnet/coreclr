@@ -644,22 +644,14 @@ namespace System.Globalization
             }
         }
 
-        public string IetfLanguageTag
-        {
-            get
-            {
+        public string IetfLanguageTag =>
                 // special case the compatibility cultures
-                switch (this.Name)
+                Name switch
                 {
-                    case "zh-CHT":
-                        return "zh-Hant";
-                    case "zh-CHS":
-                        return "zh-Hans";
-                    default:
-                        return this.Name;
-                }
-            }
-        }
+                    "zh-CHT" => "zh-Hant",
+                    "zh-CHS" => "zh-Hans",
+                    _ => Name,
+                };
 
         /// <summary>
         /// Returns the full name of the CultureInfo in the localized language.
@@ -1103,10 +1095,7 @@ namespace System.Globalization
         /// We perform this check frequently during resource lookup, so adding a property for
         /// improved readability.
         /// </summary>
-        internal bool HasInvariantCultureName
-        {
-            get => Name == CultureInfo.InvariantCulture.Name;
-        }
+        internal bool HasInvariantCultureName => Name == InvariantCulture.Name;
 
         /// <summary>
         /// Helper function overloads of GetCachedReadOnlyCulture.  If lcid is 0, we use the name.

@@ -323,17 +323,12 @@ namespace System.Reflection
             ModuleHandle.GetPEKind(GetNativeHandle(), out peKind, out machine);
         }
 
-        public override int MDStreamVersion
-        {
-            get
-            {
-                return ModuleHandle.GetMDStreamVersion(GetNativeHandle());
-            }
-        }
+        public override int MDStreamVersion => ModuleHandle.GetMDStreamVersion(GetNativeHandle());
         #endregion
 
         #region Data Members
 #pragma warning disable 169
+#pragma warning disable CA1823
         // If you add any data members, you need to update the native declaration ReflectModuleBaseObject.
         private RuntimeType m_runtimeType;
         private RuntimeAssembly m_runtimeAssembly;
@@ -341,6 +336,7 @@ namespace System.Reflection
         private IntPtr m_pData;
         private IntPtr m_pGlobals;
         private IntPtr m_pFields;
+#pragma warning restore CA1823
 #pragma warning restore 169
         #endregion
 
@@ -464,13 +460,7 @@ namespace System.Reflection
             return fullyQualifiedName!;
         }
 
-        public override string FullyQualifiedName
-        {
-            get
-            {
-                return GetFullyQualifiedName();
-            }
-        }
+        public override string FullyQualifiedName => GetFullyQualifiedName();
 
         public override Type[] GetTypes()
         {
@@ -494,13 +484,7 @@ namespace System.Reflection
             }
         }
 
-        public override int MetadataToken
-        {
-            get
-            {
-                return ModuleHandle.GetToken(GetNativeHandle());
-            }
-        }
+        public override int MetadataToken => ModuleHandle.GetToken(GetNativeHandle());
 
         public override bool IsResource()
         {
@@ -510,7 +494,7 @@ namespace System.Reflection
         public override FieldInfo[] GetFields(BindingFlags bindingFlags)
         {
             if (RuntimeType == null)
-                return new FieldInfo[0];
+                return Array.Empty<FieldInfo>();
 
             return RuntimeType.GetFields(bindingFlags);
         }
@@ -529,7 +513,7 @@ namespace System.Reflection
         public override MethodInfo[] GetMethods(BindingFlags bindingFlags)
         {
             if (RuntimeType == null)
-                return new MethodInfo[0];
+                return Array.Empty<MethodInfo>();
 
             return RuntimeType.GetMethods(bindingFlags);
         }
@@ -563,13 +547,7 @@ namespace System.Reflection
             }
         }
 
-        public override Assembly Assembly
-        {
-            get
-            {
-                return GetRuntimeAssembly();
-            }
-        }
+        public override Assembly Assembly => GetRuntimeAssembly();
 
         internal RuntimeAssembly GetRuntimeAssembly()
         {

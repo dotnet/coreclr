@@ -33,7 +33,7 @@ namespace System
 
             IntPtr[] fields = new IntPtr[flds.Length];
             // For proper handling of Nullable<T> don't change GetType() to something like 'IsAssignableFrom'
-            // Currently we can't make a TypedReference to fields of Nullable<T>, which is fine.  
+            // Currently we can't make a TypedReference to fields of Nullable<T>, which is fine.
             RuntimeType targetType = (RuntimeType)target.GetType();
             for (int i = 0; i < flds.Length; i++)
             {
@@ -93,13 +93,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern unsafe object InternalToObject(void* value);
 
-        internal bool IsNull
-        {
-            get
-            {
-                return Value == IntPtr.Zero && Type == IntPtr.Zero;
-            }
-        }
+        internal bool IsNull => Value == IntPtr.Zero && Type == IntPtr.Zero;
 
         public static Type GetTargetType(TypedReference value)
         {

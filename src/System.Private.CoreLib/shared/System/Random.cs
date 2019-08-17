@@ -7,18 +7,17 @@ namespace System
     public class Random
     {
         //
-        // Private Constants 
+        // Private Constants
         //
         private const int MBIG = int.MaxValue;
         private const int MSEED = 161803398;
-        private const int MZ = 0;
 
         //
         // Member Variables
         //
         private int _inext;
         private int _inextp;
-        private int[] _seedArray = new int[56];
+        private readonly int[] _seedArray = new int[56];
 
         //
         // Public Constants
@@ -73,7 +72,6 @@ namespace System
             }
             _inext = 0;
             _inextp = 21;
-            Seed = 1;
         }
 
         //
@@ -116,7 +114,7 @@ namespace System
         }
 
         [ThreadStatic]
-        private static Random t_threadRandom;
+        private static Random? t_threadRandom;
         private static readonly Random s_globalRandom = new Random(GenerateGlobalSeed());
 
         /*=====================================GenerateSeed=====================================
@@ -125,7 +123,7 @@ namespace System
         ========================================================================================*/
         private static int GenerateSeed()
         {
-            Random rnd = t_threadRandom;
+            Random? rnd = t_threadRandom;
             if (rnd == null)
             {
                 int seed;
@@ -152,7 +150,7 @@ namespace System
 
         //
         // Public Instance Methods
-        // 
+        //
 
 
         /*=====================================Next=====================================
@@ -167,7 +165,7 @@ namespace System
 
         private double GetSampleForLargeRange()
         {
-            // The distribution of double value returned by Sample 
+            // The distribution of double value returned by Sample
             // is not distributed well enough for a large range.
             // If we use Sample for a range [int.MinValue..int.MaxValue)
             // We will end up getting even numbers only.

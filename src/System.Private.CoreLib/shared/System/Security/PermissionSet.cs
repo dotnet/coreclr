@@ -9,17 +9,14 @@ using System.Runtime.Serialization;
 
 namespace System.Security
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Runtime.Extensions")]
-#endif
     public partial class PermissionSet : ICollection, IEnumerable, IDeserializationCallback, ISecurityEncodable, IStackWalk
     {
         public PermissionSet(PermissionState state) { }
         public PermissionSet(PermissionSet? permSet) { }
-        public virtual int Count { get { return 0; } }
-        public virtual bool IsReadOnly { get { return false; } }
-        public virtual bool IsSynchronized { get { return false; } }
-        public virtual object SyncRoot { get { return this; } }
+        public virtual int Count => 0;
+        public virtual bool IsReadOnly => false;
+        public virtual bool IsSynchronized => false;
+        public virtual object SyncRoot => this;
         public IPermission? AddPermission(IPermission? perm) { return AddPermissionImpl(perm); }
         protected virtual IPermission? AddPermissionImpl(IPermission? perm) { return default(IPermission); }
         public void Assert() { }

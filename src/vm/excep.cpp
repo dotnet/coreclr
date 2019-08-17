@@ -6792,6 +6792,17 @@ AdjustContextForWriteBarrier(
 {
     WRAPPER_NO_CONTRACT;
 
+    PCODE ip = GetIP(pContext);
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+    if (IsIPInWriteBarrierCodeCopy(ip))
+    {
+        // Pretend we were executing the barrier function at its original location so that the unwinder can unwind the frame
+        ip = AdjustWriteBarrierIP(ip);
+        SetIP(pContext, ip);
+    }
+#endif // FEATURE_WRITEBARRIER_COPY
+
 #ifdef FEATURE_DATABREAKPOINT
 
     // If pExceptionRecord is null, it means it is called from EEDbgInterfaceImpl::AdjustContextForWriteBarrierForDebugger()
@@ -6802,7 +6813,6 @@ AdjustContextForWriteBarrier(
 
     if (pExceptionRecord == nullptr)
     {
-        PCODE ip = GetIP(pContext);
 #if defined(_TARGET_X86_)
         bool withinWriteBarrierGroup = ((ip >= (PCODE) JIT_WriteBarrierGroup) && (ip <= (PCODE) JIT_WriteBarrierGroup_End));
         bool withinPatchedWriteBarrierGroup = ((ip >= (PCODE) JIT_PatchedWriteBarrierGroup) && (ip <= (PCODE) JIT_PatchedWriteBarrierGroup_End));
@@ -8499,9 +8509,9 @@ LONG ReflectionInvocationExceptionFilter(
         PTR_ExceptionTracker pEHTracker = pCurTES->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
         PTR_ExInfo pEHTracker = pCurTES->GetCurrentExceptionTracker();
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
 #ifdef FEATURE_CORRUPTING_EXCEPTIONS
         if (pEHTracker->GetCorruptionSeverity() == ProcessCorrupting)
@@ -8626,7 +8636,7 @@ bool DebugIsEECxxException(EXCEPTION_RECORD* pExceptionRecord)
 //     [1] pExceptionObject : void*
 //     [2] pThrowInfo       : ThrowInfo*
 
-#ifdef _WIN64
+#ifdef BIT64
 #define NUM_CXX_EXCEPTION_PARAMS 4
 #else
 #define NUM_CXX_EXCEPTION_PARAMS 3
@@ -9356,9 +9366,9 @@ PTR_ExInfo GetEHTrackerForPreallocatedException(OBJECTREF oPreAllocThrowable,
     PTR_ExceptionTracker pEHTracker = (pStartingEHTracker != NULL) ? pStartingEHTracker : GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = (pStartingEHTracker != NULL) ? pStartingEHTracker : GetThread()->GetExceptionState()->GetCurrentExceptionTracker();
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
     BOOL fFoundTracker = FALSE;
 
@@ -9441,9 +9451,9 @@ PTR_EHWatsonBucketTracker GetWatsonBucketTrackerForPreallocatedException(OBJECTR
 #elif _TARGET_X86_
         PTR_ExInfo pEHTracker = NULL;
         PTR_ExInfo pPreviousEHTracker = NULL;
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
         if (fStartSearchFromPreviousTracker)
         {
@@ -11431,9 +11441,9 @@ void CEHelper::SetupCorruptionSeverityForActiveException(BOOL fIsRethrownExcepti
     PTR_ExceptionTracker pEHTracker = pCurTES->GetCurrentExceptionTracker();
 #elif _TARGET_X86_
     PTR_ExInfo pEHTracker = pCurTES->GetCurrentExceptionTracker();
-#else // !(_WIN64 || _TARGET_X86_)
+#else // !(BIT64 || _TARGET_X86_)
 #error Unsupported platform
-#endif // _WIN64
+#endif // BIT64
 
     _ASSERTE(pEHTracker != NULL);
 

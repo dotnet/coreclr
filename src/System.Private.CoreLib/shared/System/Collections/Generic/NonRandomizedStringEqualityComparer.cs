@@ -6,9 +6,9 @@ using System.Runtime.Serialization;
 
 namespace System.Collections.Generic
 {
-    // NonRandomizedStringEqualityComparer is the comparer used by default with the Dictionary<string,...> 
-    // We use NonRandomizedStringEqualityComparer as default comparer as it doesnt use the randomized string hashing which 
-    // keeps the performance not affected till we hit collision threshold and then we switch to the comparer which is using 
+    // NonRandomizedStringEqualityComparer is the comparer used by default with the Dictionary<string,...>
+    // We use NonRandomizedStringEqualityComparer as default comparer as it doesnt use the randomized string hashing which
+    // keeps the performance not affected till we hit collision threshold and then we switch to the comparer which is using
     // randomized string hashing.
     [Serializable] // Required for compatibility with .NET Core 2.0 as we exposed the NonRandomizedStringEqualityComparer inside the serialization blob
     // Needs to be public to support binary serialization compatibility
@@ -32,4 +32,4 @@ namespace System.Collections.Generic
 
         public void GetObjectData(SerializationInfo info, StreamingContext context) => throw new InvalidOperationException();
     }
-} 
+}

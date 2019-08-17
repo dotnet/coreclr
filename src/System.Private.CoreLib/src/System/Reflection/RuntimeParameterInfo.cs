@@ -9,15 +9,14 @@ using MdToken = System.Reflection.MetadataToken;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimeParameterInfo : ParameterInfo
+    internal sealed unsafe class RuntimeParameterInfo : ParameterInfo
     {
         #region Static Members
         internal static unsafe ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
-            ParameterInfo? dummy;
-            return GetParameters(method, member, sig, out dummy, false);
+            return GetParameters(method, member, sig, out _, false);
         }
 
         internal static unsafe ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
@@ -40,7 +39,7 @@ namespace System.Reflection
             int cParamDefs = 0;
 
             // Not all methods have tokens. Arrays, pointers and byRef types do not have tokens as they
-            // are generated on the fly by the runtime. 
+            // are generated on the fly by the runtime.
             if (!MdToken.IsNullToken(tkMethodDef))
             {
                 MetadataImport scope = RuntimeTypeHandle.GetMetadataImport(RuntimeMethodHandle.GetDeclaringType(methodHandle));
@@ -50,7 +49,7 @@ namespace System.Reflection
 
                 cParamDefs = tkParamDefs.Length;
 
-                // Not all parameters have tokens. Parameters may have no token 
+                // Not all parameters have tokens. Parameters may have no token
                 // if they have no name and no attributes.
                 if (cParamDefs > sigArgCount + 1 /* return type */)
                     throw new BadImageFormatException(SR.BadImageFormat_ParameterSignatureMismatch);
@@ -131,7 +130,7 @@ namespace System.Reflection
         {
             get
             {
-                MethodBase? result = m_originalMember != null ? m_originalMember : MemberImpl as MethodBase;
+                MethodBase? result = m_originalMember ?? MemberImpl as MethodBase;
                 Debug.Assert(result != null);
                 return result;
             }
@@ -163,7 +162,7 @@ namespace System.Reflection
             // Change ownership
             MemberImpl = member;
 
-            // The original owner should always be a method, because this method is only used to 
+            // The original owner should always be a method, because this method is only used to
             // change the owner from a method to a property.
             m_originalMember = accessor.MemberImpl as MethodBase;
             Debug.Assert(m_originalMember != null);
@@ -274,8 +273,8 @@ namespace System.Reflection
             }
         }
 
-        public override object? DefaultValue { get { return GetDefaultValue(false); } }
-        public override object? RawDefaultValue { get { return GetDefaultValue(true); } }
+        public override object? DefaultValue => GetDefaultValue(false);
+        public override object? RawDefaultValue => GetDefaultValue(true);
 
         private object? GetDefaultValue(bool raw)
         {
@@ -312,10 +311,10 @@ namespace System.Reflection
 
             object? defaultValue = null;
 
-            // Why check the parameter type only for DateTime and only for the ctor arguments? 
+            // Why check the parameter type only for DateTime and only for the ctor arguments?
             // No check on the parameter type is done for named args and for Decimal.
 
-            // We should move this after MdToken.IsNullToken(m_tkParamDef) and combine it 
+            // We should move this after MdToken.IsNullToken(m_tkParamDef) and combine it
             // with the other custom attribute logic. But will that be a breaking change?
             // For a DateTime parameter on which both an md constant and a ca constant are set,
             // which one should win?
@@ -423,7 +422,7 @@ namespace System.Reflection
                 byte sign = (byte)args[1].Value!;
                 byte scale = (byte)args[0].Value!;
 
-                return new System.Decimal(low, mid, hi, (sign != 0), scale);
+                return new decimal(low, mid, hi, (sign != 0), scale);
             }
             else
             {
@@ -434,7 +433,7 @@ namespace System.Reflection
                 byte sign = (byte)args[1].Value!;
                 byte scale = (byte)args[0].Value!;
 
-                return new System.Decimal(low, mid, hi, (sign != 0), scale);
+                return new decimal(low, mid, hi, (sign != 0), scale);
             }
         }
 
@@ -484,13 +483,7 @@ namespace System.Reflection
                 return null;
         }
 
-        public override int MetadataToken
-        {
-            get
-            {
-                return m_tkParamDef;
-            }
-        }
+        public override int MetadataToken => m_tkParamDef;
 
         public override Type[] GetRequiredCustomModifiers()
         {

@@ -349,7 +349,7 @@ function_name() to call the system's implementation
 #undef va_arg
 #endif
 
-#if !defined(_MSC_VER) && defined(_WIN64)
+#if !defined(_MSC_VER) && defined(BIT64)
 #undef _BitScanForward64
 #undef _BitScanReverse64
 #endif 
@@ -421,8 +421,6 @@ function_name() to call the system's implementation
 #undef bsearch
 #undef time
 #undef tm
-#undef localtime
-#undef mktime
 #undef FILE
 #undef fclose
 #undef setbuf
@@ -568,8 +566,6 @@ function_name() to call the system's implementation
 #undef _mm_getcsr
 #undef _mm_setcsr
 #endif // _AMD64_
-
-#undef ctime
 
 #undef min
 #undef max

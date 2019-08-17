@@ -2,11 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#pragma warning disable IDE0060 // implementations provided by the JIT
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.Versioning;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 using nint = System.Int64;
@@ -211,7 +213,7 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Initializes a block of memory at the given location with a given initial value 
+        /// Initializes a block of memory at the given location with a given initial value
         /// without assuming architecture dependent alignment of the address.
         /// </summary>
         [Intrinsic]

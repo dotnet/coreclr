@@ -48,15 +48,15 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// Type handler for simple scalar types.
     /// </summary>
-    sealed class ScalarTypeInfo : TraceLoggingTypeInfo
+    internal sealed class ScalarTypeInfo : TraceLoggingTypeInfo
     {
-        Func<EventFieldFormat, TraceLoggingDataType, TraceLoggingDataType> formatFunc;
-        TraceLoggingDataType nativeFormat;
+        private readonly Func<EventFieldFormat, TraceLoggingDataType, TraceLoggingDataType> formatFunc;
+        private readonly TraceLoggingDataType nativeFormat;
 
         private ScalarTypeInfo(
             Type type,
             Func<EventFieldFormat, TraceLoggingDataType, TraceLoggingDataType> formatFunc,
-            TraceLoggingDataType nativeFormat) 
+            TraceLoggingDataType nativeFormat)
             : base(type)
         {
             this.formatFunc = formatFunc;
@@ -96,15 +96,15 @@ namespace System.Diagnostics.Tracing
     /// </summary>
     internal sealed class ScalarArrayTypeInfo : TraceLoggingTypeInfo
     {
-        Func<EventFieldFormat, TraceLoggingDataType, TraceLoggingDataType> formatFunc;
-        TraceLoggingDataType nativeFormat;
-        int elementSize;
+        private readonly Func<EventFieldFormat, TraceLoggingDataType, TraceLoggingDataType> formatFunc;
+        private readonly TraceLoggingDataType nativeFormat;
+        private readonly int elementSize;
 
         private ScalarArrayTypeInfo(
             Type type,
             Func<EventFieldFormat, TraceLoggingDataType, TraceLoggingDataType> formatFunc,
             TraceLoggingDataType nativeFormat,
-            int elementSize) 
+            int elementSize)
             : base(type)
         {
             this.formatFunc = formatFunc;
@@ -158,14 +158,14 @@ namespace System.Diagnostics.Tracing
         {
             collector.AddNullTerminatedString((string?)value.ReferenceValue);
         }
-        
+
         public override object GetData(object? value)
         {
             if (value == null)
             {
                 return "";
             }
-            
+
             return value;
         }
     }
@@ -207,15 +207,15 @@ namespace System.Diagnostics.Tracing
 
         public override void WriteMetadata(TraceLoggingMetadataCollector collector, string? name, EventFieldFormat format)
         {
-            var group = collector.AddGroup(name);
+            TraceLoggingMetadataCollector group = collector.AddGroup(name);
             group.AddScalar("Ticks", Statics.MakeDataType(TraceLoggingDataType.FileTime, format));
             group.AddScalar("Offset", TraceLoggingDataType.Int64);
         }
 
         public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
         {
-            var dateTimeOffset = value.ScalarValue.AsDateTimeOffset;
-            var ticks = dateTimeOffset.Ticks;
+            DateTimeOffset dateTimeOffset = value.ScalarValue.AsDateTimeOffset;
+            long ticks = dateTimeOffset.Ticks;
             collector.AddScalar(ticks < 504911232000000000 ? 0 : ticks - 504911232000000000);
             collector.AddScalar(dateTimeOffset.Offset.Ticks);
         }
@@ -274,7 +274,7 @@ namespace System.Diagnostics.Tracing
         public NullableTypeInfo(Type type, List<Type> recursionCheck)
             : base(type)
         {
-            var typeArgs = type.GenericTypeArguments;
+            Type[] typeArgs = type.GenericTypeArguments;
             Debug.Assert(typeArgs.Length == 1);
             this.valueInfo = TraceLoggingTypeInfo.GetInstance(typeArgs[0], recursionCheck);
             this.valueGetter = PropertyValue.GetPropertyGetter(type.GetTypeInfo().GetDeclaredProperty("Value")!);
@@ -285,7 +285,7 @@ namespace System.Diagnostics.Tracing
             string? name,
             EventFieldFormat format)
         {
-            var group = collector.AddGroup(name);
+            TraceLoggingMetadataCollector group = collector.AddGroup(name);
             group.AddScalar("HasValue", TraceLoggingDataType.Boolean8);
             this.valueInfo.WriteMetadata(group, "Value", format);
         }
@@ -294,9 +294,9 @@ namespace System.Diagnostics.Tracing
         {
             // It's not currently possible to get the HasValue property of a nullable type through reflection when the
             // value is null. Instead, we simply check that the nullable is not null.
-            var hasValue = value.ReferenceValue != null;
+            bool hasValue = value.ReferenceValue != null;
             collector.AddScalar(hasValue);
-            var val = hasValue ? valueGetter(value) : valueInfo.PropertyValueFactory(Activator.CreateInstance(valueInfo.DataType));
+            PropertyValue val = hasValue ? valueGetter(value) : valueInfo.PropertyValueFactory(Activator.CreateInstance(valueInfo.DataType));
             this.valueInfo.WriteData(collector, val);
         }
     }

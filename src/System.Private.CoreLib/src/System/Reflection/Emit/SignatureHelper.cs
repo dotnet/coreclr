@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
+//
 
 using System.Text;
 using System;
@@ -286,7 +286,7 @@ namespace System.Reflection.Emit
 
         private void AddOneArgTypeHelper(Type clsArgument, Type[]? requiredCustomModifiers, Type[]? optionalCustomModifiers)
         {
-            // This function will not increase the argument count. It only fills in bytes 
+            // This function will not increase the argument count. It only fills in bytes
             // in the signature based on clsArgument. This helper is called for return type.
 
             Debug.Assert(clsArgument != null);
@@ -529,15 +529,15 @@ namespace System.Reflection.Emit
 
             if (rid > 0x3FFFFFF)
             {
-                // token is too big to be compressed    
+                // token is too big to be compressed
                 throw new ArgumentException(SR.Argument_LargeInteger);
             }
 
             rid = (rid << 2);
 
-            // TypeDef is encoded with low bits 00  
-            // TypeRef is encoded with low bits 01  
-            // TypeSpec is encoded with low bits 10    
+            // TypeDef is encoded with low bits 00
+            // TypeRef is encoded with low bits 01
+            // TypeSpec is encoded with low bits 10
             if (type == MetadataTokenType.TypeRef)
             {
                 //if type is mdtTypeRef
@@ -561,7 +561,7 @@ namespace System.Reflection.Emit
 
         private unsafe void InternalAddRuntimeType(Type type)
         {
-            // Add a runtime type into the signature. 
+            // Add a runtime type into the signature.
 
             AddElementType(CorElementType.ELEMENT_TYPE_INTERNAL);
 
@@ -669,13 +669,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        internal int ArgumentCount
-        {
-            get
-            {
-                return m_argCount;
-            }
-        }
+        internal int ArgumentCount => m_argCount;
 
         internal static bool IsSimpleType(CorElementType type)
         {
@@ -702,8 +696,8 @@ namespace System.Reflection.Emit
             {
                 m_sigDone = true;
 
-                // If we have more than 128 variables, we can't just set the length, we need 
-                // to compress it.  Unfortunately, this means that we need to copy the entire 
+                // If we have more than 128 variables, we can't just set the length, we need
+                // to compress it.  Unfortunately, this means that we need to copy the entire
                 // array.
                 SetNumberOfSignatureElements(false);
             }
@@ -788,9 +782,7 @@ namespace System.Reflection.Emit
             {
                 for (int i = 0; i < arguments.Length; i++)
                 {
-                    AddArgument(arguments[i],
-                        requiredCustomModifiers == null ? null : requiredCustomModifiers[i],
-                        optionalCustomModifiers == null ? null : optionalCustomModifiers[i]);
+                    AddArgument(arguments[i], requiredCustomModifiers?[i], optionalCustomModifiers?[i]);
                 }
             }
         }
@@ -807,7 +799,7 @@ namespace System.Reflection.Emit
 
             // Add an argument to the signature. Takes a Type and determines whether it
             // is one of the primitive types of which we have special knowledge or a more
-            // general class.  In the former case, we only add the appropriate short cut encoding, 
+            // general class.  In the former case, we only add the appropriate short cut encoding,
             // otherwise we will calculate proper description for the type.
             AddOneArgTypeHelper(argument, requiredCustomModifiers, optionalCustomModifiers);
         }
@@ -862,7 +854,7 @@ namespace System.Reflection.Emit
 
         internal byte[] GetSignature(bool appendEndOfSig)
         {
-            // Chops the internal signature to the appropriate length.  Adds the 
+            // Chops the internal signature to the appropriate length.  Adds the
             // end token to the signature and marks the signature as finished so that
             // no further tokens can be added. Return the full signature in a trimmed array.
             if (!m_sigDone)
@@ -873,7 +865,7 @@ namespace System.Reflection.Emit
                 m_sigDone = true;
             }
 
-            // This case will only happen if the user got the signature through 
+            // This case will only happen if the user got the signature through
             // InternalGetSignature first and then called GetSignature.
             if (m_signature.Length > m_currSig)
             {
@@ -912,28 +904,3 @@ namespace System.Reflection.Emit
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

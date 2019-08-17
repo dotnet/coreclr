@@ -153,23 +153,15 @@ namespace System.Collections.Generic
             HashHelpers.SerializationInfoTable.Add(this, info);
         }
 
-        public IEqualityComparer<TKey> Comparer
-        {
-            get
+        public IEqualityComparer<TKey> Comparer =>
+            _comparer switch
             {
-                return _comparer switch
-                {
-                    null => EqualityComparer<TKey>.Default,
-                    NonRandomizedStringEqualityComparer nr => Unsafe.As<IEqualityComparer<TKey>>(nr.BackingComparer),
-                    _ => _comparer
-                };
-            }
-        }
+                null => EqualityComparer<TKey>.Default,
+                NonRandomizedStringEqualityComparer nr => Unsafe.As<IEqualityComparer<TKey>>(nr.BackingComparer),
+                _ => _comparer
+            };
 
-        public int Count
-        {
-            get { return _count - _freeCount; }
-        }
+        public int Count => _count - _freeCount;
 
         public KeyCollection Keys
         {
@@ -692,7 +684,7 @@ namespace System.Collections.Generic
 
             if (siInfo == null)
             {
-                // We can return immediately if this function is called twice. 
+                // We can return immediately if this function is called twice.
                 // Note we remove the serialization info from the table at the end of this method.
                 return;
             }
@@ -1012,12 +1004,12 @@ namespace System.Collections.Generic
 
         /// <summary>
         /// Sets the capacity of this dictionary to what it would be if it had been originally initialized with all its entries
-        /// 
-        /// This method can be used to minimize the memory overhead 
-        /// once it is known that no new elements will be added. 
-        /// 
+        ///
+        /// This method can be used to minimize the memory overhead
+        /// once it is known that no new elements will be added.
+        ///
         /// To allocate minimum size storage array, execute the following statements:
-        /// 
+        ///
         /// dictionary.Clear();
         /// dictionary.TrimExcess();
         /// </summary>
@@ -1026,9 +1018,9 @@ namespace System.Collections.Generic
 
         /// <summary>
         /// Sets the capacity of this dictionary to hold up 'capacity' entries without any further expansion of its backing storage
-        /// 
-        /// This method can be used to minimize the memory overhead 
-        /// once it is known that no new elements will be added. 
+        ///
+        /// This method can be used to minimize the memory overhead
+        /// once it is known that no new elements will be added.
         /// </summary>
         public void TrimExcess(int capacity)
         {
@@ -1303,7 +1295,7 @@ namespace System.Collections.Generic
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
-            private Dictionary<TKey, TValue> _dictionary;
+            private readonly Dictionary<TKey, TValue> _dictionary;
 
             public KeyCollection(Dictionary<TKey, TValue> dictionary)
             {
@@ -1486,7 +1478,7 @@ namespace System.Collections.Generic
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
-            private Dictionary<TKey, TValue> _dictionary;
+            private readonly Dictionary<TKey, TValue> _dictionary;
 
             public ValueCollection(Dictionary<TKey, TValue> dictionary)
             {

@@ -15,15 +15,10 @@ namespace Internal.Runtime.InteropServices
 {
     public static class ComponentActivator
     {
-        private static readonly Dictionary<string, IsolatedComponentLoadContext> s_assemblyLoadContexts;
+        private static readonly Dictionary<string, IsolatedComponentLoadContext> s_assemblyLoadContexts = new Dictionary<string, IsolatedComponentLoadContext>(StringComparer.InvariantCulture);
         private static readonly Dictionary<IntPtr, Delegate> s_delegates = new Dictionary<IntPtr, Delegate>();
 
         public delegate int ComponentEntryPoint(IntPtr args, int sizeBytes);
-
-        static ComponentActivator()
-        {
-            s_assemblyLoadContexts = new Dictionary<string, IsolatedComponentLoadContext>(StringComparer.InvariantCulture);
-        }
 
         private static string MarshalToString(IntPtr arg, string argName)
         {
@@ -91,7 +86,7 @@ namespace Internal.Runtime.InteropServices
 
                 IntPtr functionPtr = Marshal.GetFunctionPointerForDelegate(d);
 
-                lock(s_delegates)
+                lock (s_delegates)
                 {
                     // Keep a reference to the delegate to prevent it from being garbage collected
                     s_delegates[functionPtr] = d;

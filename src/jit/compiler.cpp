@@ -3764,7 +3764,7 @@ void Compiler::compInitDebuggingInfo()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, gtNewNothingNode());
+        fgNewStmtAtEnd(fgFirstBB, gtNewNothingNode());
 
         JITDUMP("Debuggable code - Add new %s to perform initialization of variables\n", fgFirstBB->dspToString());
     }
@@ -4878,8 +4878,6 @@ void Compiler::ResetOptAnnotations()
     {
         for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
-            stmt->gtFlags &= ~GTF_STMT_HAS_CSE;
-
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 tree->ClearVN();
@@ -6986,123 +6984,6 @@ void Compiler::TransferTestDataToNode(GenTree* from, GenTree* to)
     }
 }
 
-void Compiler::CopyTestDataToCloneTree(GenTree* from, GenTree* to)
-{
-    if (m_nodeTestData == nullptr)
-    {
-        return;
-    }
-    if (from == nullptr)
-    {
-        assert(to == nullptr);
-        return;
-    }
-    // Otherwise...
-    TestLabelAndNum tlAndN;
-    if (GetNodeTestData()->Lookup(from, &tlAndN))
-    {
-        // We can't currently associate multiple annotations with a single node.
-        // If we need to, we can fix this...
-        TestLabelAndNum tlAndNTo;
-        assert(!GetNodeTestData()->Lookup(to, &tlAndNTo));
-        GetNodeTestData()->Set(to, tlAndN);
-    }
-    // Now recurse, in parallel on both trees.
-
-    genTreeOps oper = from->OperGet();
-    unsigned   kind = from->OperKind();
-    assert(oper == to->OperGet());
-
-    // Cconstant or leaf nodes have no children.
-    if (kind & (GTK_CONST | GTK_LEAF))
-    {
-        return;
-    }
-
-    // Otherwise, is it a 'simple' unary/binary operator?
-
-    if (kind & GTK_SMPOP)
-    {
-        if (from->gtOp.gtOp1 != nullptr)
-        {
-            assert(to->gtOp.gtOp1 != nullptr);
-            CopyTestDataToCloneTree(from->gtOp.gtOp1, to->gtOp.gtOp1);
-        }
-        else
-        {
-            assert(to->gtOp.gtOp1 == nullptr);
-        }
-
-        if (from->gtGetOp2IfPresent() != nullptr)
-        {
-            assert(to->gtGetOp2IfPresent() != nullptr);
-            CopyTestDataToCloneTree(from->gtGetOp2(), to->gtGetOp2());
-        }
-        else
-        {
-            assert(to->gtGetOp2IfPresent() == nullptr);
-        }
-
-        return;
-    }
-
-    // Otherwise, see what kind of a special operator we have here.
-
-    switch (oper)
-    {
-        case GT_STMT:
-            CopyTestDataToCloneTree(from->gtStmt.gtStmtExpr, to->gtStmt.gtStmtExpr);
-            return;
-
-        case GT_CALL:
-            CopyTestDataToCloneTree(from->gtCall.gtCallObjp, to->gtCall.gtCallObjp);
-            CopyTestDataToCloneTree(from->gtCall.gtCallArgs, to->gtCall.gtCallArgs);
-            CopyTestDataToCloneTree(from->gtCall.gtCallLateArgs, to->gtCall.gtCallLateArgs);
-
-            if (from->gtCall.gtCallType == CT_INDIRECT)
-            {
-                CopyTestDataToCloneTree(from->gtCall.gtCallCookie, to->gtCall.gtCallCookie);
-                CopyTestDataToCloneTree(from->gtCall.gtCallAddr, to->gtCall.gtCallAddr);
-            }
-            // The other call types do not have additional GenTree arguments.
-
-            return;
-
-        case GT_FIELD:
-            CopyTestDataToCloneTree(from->gtField.gtFldObj, to->gtField.gtFldObj);
-            return;
-
-        case GT_ARR_ELEM:
-            assert(from->gtArrElem.gtArrRank == to->gtArrElem.gtArrRank);
-            for (unsigned dim = 0; dim < from->gtArrElem.gtArrRank; dim++)
-            {
-                CopyTestDataToCloneTree(from->gtArrElem.gtArrInds[dim], to->gtArrElem.gtArrInds[dim]);
-            }
-            CopyTestDataToCloneTree(from->gtArrElem.gtArrObj, to->gtArrElem.gtArrObj);
-            return;
-
-        case GT_CMPXCHG:
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpLocation, to->gtCmpXchg.gtOpLocation);
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpValue, to->gtCmpXchg.gtOpValue);
-            CopyTestDataToCloneTree(from->gtCmpXchg.gtOpComparand, to->gtCmpXchg.gtOpComparand);
-            return;
-
-        case GT_ARR_BOUNDS_CHECK:
-#ifdef FEATURE_SIMD
-        case GT_SIMD_CHK:
-#endif // FEATURE_SIMD
-#ifdef FEATURE_HW_INTRINSICS
-        case GT_HW_INTRINSIC_CHK:
-#endif // FEATURE_HW_INTRINSICS
-            CopyTestDataToCloneTree(from->gtBoundsChk.gtIndex, to->gtBoundsChk.gtIndex);
-            CopyTestDataToCloneTree(from->gtBoundsChk.gtArrLen, to->gtBoundsChk.gtArrLen);
-            return;
-
-        default:
-            unreached();
-    }
-}
-
 #endif // DEBUG
 
 /*
@@ -8582,7 +8463,7 @@ GenTree* dFindTree(unsigned id)
     {
         for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
-            tree = dFindTree(stmt, id);
+            tree = dFindTree(stmt->gtStmtExpr, id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -8803,7 +8684,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (trees)
             {
-                cTree(comp, stmt);
+                cTree(comp, stmt->gtStmtExpr);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8817,7 +8698,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt);
+                cTreeIR(comp, stmt->gtStmtExpr);
             }
 
             if (!noStmts && !trees)
@@ -9491,19 +9372,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     }
                 }
                 break;
-
-            case GT_STMT:
-
-                if (tree->gtFlags & GTF_STMT_CMPADD)
-                {
-                    chars += printf("[STMT_CMPADD]");
-                }
-                if (tree->gtFlags & GTF_STMT_HAS_CSE)
-                {
-                    chars += printf("[STMT_HAS_CSE]");
-                }
-                break;
-
             default:
 
             {
@@ -10064,13 +9932,13 @@ int cLeafIR(Compiler* comp, GenTree* tree)
 
         case GT_IL_OFFSET:
 
-            if (tree->gtStmt.gtStmtILoffsx == BAD_IL_OFFSET)
+            if (tree->gtILOffset.gtStmtILoffsx == BAD_IL_OFFSET)
             {
                 chars += printf("?");
             }
             else
             {
-                chars += printf("0x%x", jitGetILoffs(tree->gtStmt.gtStmtILoffsx));
+                chars += printf("0x%x", jitGetILoffs(tree->gtILOffset.gtStmtILoffsx));
             }
             break;
 
@@ -10413,24 +10281,6 @@ void cNodeIR(Compiler* comp, GenTree* tree)
         if (foldLists)
         {
             return;
-        }
-    }
-    else if (op == GT_STMT)
-    {
-        if (noStmts)
-        {
-            if (dataflowView)
-            {
-                child = tree->GetChild(0);
-                if (child->gtOper != GT_COMMA)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
         }
     }
     else if (op == GT_COMMA)

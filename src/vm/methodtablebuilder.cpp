@@ -2932,7 +2932,7 @@ MethodTableBuilder::EnumerateClassMethods()
             if (fIsClassInterface
 #if defined(FEATURE_DEFAULT_INTERFACES)
                 // Only fragile crossgen wasn't upgraded to deal with default interface methods.
-                && !IsReadyToRunCompilation()
+                && !IsReadyToRunCompilation() && !IsNgenPDBCompilationProcess()
 #endif
                 )
             {
@@ -11975,7 +11975,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
 
     HRESULT hr;
     ULONG clFlags;
-
     if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
     {
         pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);

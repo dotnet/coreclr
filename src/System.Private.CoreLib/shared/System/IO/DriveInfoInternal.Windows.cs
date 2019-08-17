@@ -19,7 +19,7 @@ namespace System.IO
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             }
 
-            // GetLogicalDrives returns a bitmask starting from 
+            // GetLogicalDrives returns a bitmask starting from
             // position 0 "A" indicating whether a drive is present.
             // Loop over each bit, creating a string for each one
             // that is set.
@@ -71,7 +71,7 @@ namespace System.IO
             // because some Win32 API don't work without it.
             if (name.Length == 2 && name[1] == ':')
             {
-                name = name + "\\";
+                name += "\\";
             }
 
             // Now verify that the drive letter could be a real drive name.

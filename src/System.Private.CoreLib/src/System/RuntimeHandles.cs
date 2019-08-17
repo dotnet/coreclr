@@ -99,13 +99,7 @@ namespace System
             return handle.m_type == m_type;
         }
 
-        public IntPtr Value
-        {
-            get
-            {
-                return m_type != null ? m_type.m_handle : IntPtr.Zero;
-            }
-        }
+        public IntPtr Value => m_type != null ? m_type.m_handle : IntPtr.Zero;
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern IntPtr GetValueInternal(RuntimeTypeHandle handle);
@@ -285,13 +279,7 @@ namespace System
                 return !(_handle.Value == IntPtr.Zero);
             }
 
-            public RuntimeMethodHandleInternal Current
-            {
-                get
-                {
-                    return _handle;
-                }
-            }
+            public RuntimeMethodHandleInternal Current => _handle;
 
             // Glue to make this work nicely with C# foreach statement
             public IntroducedMethodEnumerator GetEnumerator()
@@ -653,26 +641,14 @@ namespace System
     // When in doubt, do not use.
     internal struct RuntimeMethodHandleInternal
     {
-        internal static RuntimeMethodHandleInternal EmptyHandle
-        {
-            get
-            {
-                return new RuntimeMethodHandleInternal();
-            }
-        }
+        internal static RuntimeMethodHandleInternal EmptyHandle => new RuntimeMethodHandleInternal();
 
         internal bool IsNullHandle()
         {
             return m_handle == IntPtr.Zero;
         }
 
-        internal IntPtr Value
-        {
-            get
-            {
-                return m_handle;
-            }
-        }
+        internal IntPtr Value => m_handle;
 
         internal RuntimeMethodHandleInternal(IntPtr value)
         {
@@ -700,6 +676,7 @@ namespace System
 
         // These unused variables are used to ensure that this class has the same layout as RuntimeMethodInfo
 #pragma warning disable 414
+#pragma warning disable CA1823
         private object m_a = null!;
         private object m_b = null!;
         private object m_c = null!;
@@ -707,17 +684,12 @@ namespace System
         private object m_e = null!;
         private object m_f = null!;
         private object m_g = null!;
+#pragma warning restore CA1823
 #pragma warning restore 414
 
         public RuntimeMethodHandleInternal m_value;
 
-        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value
-        {
-            get
-            {
-                return m_value;
-            }
-        }
+        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value => m_value;
     }
 
     internal interface IRuntimeMethodInfo
@@ -762,13 +734,7 @@ namespace System
             throw new PlatformNotSupportedException();
         }
 
-        public IntPtr Value
-        {
-            get
-            {
-                return m_value != null ? m_value.Value.Value : IntPtr.Zero;
-            }
-        }
+        public IntPtr Value => m_value != null ? m_value.Value.Value : IntPtr.Zero;
 
         public override int GetHashCode()
         {
@@ -1030,13 +996,7 @@ namespace System
             return m_handle == IntPtr.Zero;
         }
 
-        internal IntPtr Value
-        {
-            get
-            {
-                return m_handle;
-            }
-        }
+        internal IntPtr Value => m_handle;
 
         internal RuntimeFieldHandleInternal(IntPtr value)
         {
@@ -1067,13 +1027,7 @@ namespace System
         private RuntimeFieldHandleInternal m_fieldHandle;
 #pragma warning restore 414
 
-        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value
-        {
-            get
-            {
-                return m_fieldHandle;
-            }
-        }
+        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => m_fieldHandle;
     }
 
     public unsafe struct RuntimeFieldHandle : ISerializable
@@ -1100,13 +1054,7 @@ namespace System
             return m_ptr;
         }
 
-        public IntPtr Value
-        {
-            get
-            {
-                return m_ptr != null ? m_ptr.Value.Value : IntPtr.Zero;
-            }
-        }
+        public IntPtr Value => m_ptr != null ? m_ptr.Value.Value : IntPtr.Zero;
 
         internal bool IsNullHandle()
         {
@@ -1409,10 +1357,10 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private unsafe static extern void GetPEKind(QCallModule handle, int *peKind, int *machine);
+        private static extern unsafe void GetPEKind(QCallModule handle, int *peKind, int *machine);
 
         // making this internal, used by Module.GetPEKind
-        internal unsafe static void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
+        internal static unsafe void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
         {
             int lKind, lMachine;
             GetPEKind(JitHelpers.GetQCallModuleOnStack(ref module), &lKind, &lMachine);
@@ -1423,10 +1371,7 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern int GetMDStreamVersion(RuntimeModule module);
 
-        public int MDStreamVersion
-        {
-            get { return GetMDStreamVersion(GetRuntimeModule().GetNativeHandle()); }
-        }
+        public int MDStreamVersion => GetMDStreamVersion(GetRuntimeModule().GetNativeHandle());
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern IntPtr _GetMetadataImport(RuntimeModule module);
@@ -1518,10 +1463,10 @@ namespace System
         #endregion
 
         #region Internal Members
-        internal CallingConventions CallingConvention { get { return (CallingConventions)(byte)m_managedCallingConventionAndArgIteratorFlags; } }
-        internal RuntimeType[] Arguments { get { return m_arguments; } }
-        internal RuntimeType ReturnType { get { return m_returnTypeORfieldType; } }
-        internal RuntimeType FieldType { get { return m_returnTypeORfieldType; } }
+        internal CallingConventions CallingConvention => (CallingConventions)(byte)m_managedCallingConventionAndArgIteratorFlags;
+        internal RuntimeType[] Arguments => m_arguments;
+        internal RuntimeType ReturnType => m_returnTypeORfieldType;
+        internal RuntimeType FieldType => m_returnTypeORfieldType;
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool CompareSig(Signature sig1, Signature sig2);
