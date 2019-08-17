@@ -46,8 +46,8 @@ typedef int VCSHeapType;
 cpp_quote("#endif")
     
 
-cpp_quote("typedef enum ModuleMapType { TYPEDEFTOMETHODTABLE, TYPEREFTOMETHODTABLE };")
-cpp_quote("typedef enum VCSHeapType {IndcellHeap, LookupHeap, ResolveHeap, DispatchHeap, CacheEntryHeap};")
+cpp_quote("typedef enum { TYPEDEFTOMETHODTABLE, TYPEREFTOMETHODTABLE } ModuleMapType;")
+cpp_quote("typedef enum {IndcellHeap, LookupHeap, ResolveHeap, DispatchHeap, CacheEntryHeap} VCSHeapType;")
 
 typedef void (*MODULEMAPTRAVERSE)(UINT index, CLRDATA_ADDRESS methodTable,LPVOID token);
 typedef void (*VISITHEAP)(CLRDATA_ADDRESS blockData,size_t blockSize,BOOL blockIsCurrentBlock);

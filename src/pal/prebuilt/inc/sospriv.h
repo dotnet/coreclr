@@ -174,8 +174,8 @@ typedef int ModuleMapType;
 typedef int VCSHeapType;
 
 #endif
-typedef enum ModuleMapType { TYPEDEFTOMETHODTABLE, TYPEREFTOMETHODTABLE };
-typedef enum VCSHeapType {IndcellHeap, LookupHeap, ResolveHeap, DispatchHeap, CacheEntryHeap};
+typedef enum { TYPEDEFTOMETHODTABLE, TYPEREFTOMETHODTABLE } ModuleMapType;
+typedef enum {IndcellHeap, LookupHeap, ResolveHeap, DispatchHeap, CacheEntryHeap} VCSHeapType;
 typedef void ( *MODULEMAPTRAVERSE )( 
     UINT index,
     CLRDATA_ADDRESS methodTable,
