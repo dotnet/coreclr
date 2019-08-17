@@ -443,8 +443,7 @@ class SHash : public TRAITS
         {
             LIMITED_METHOD_CONTRACT;
 
-            while (TRUE)
-            {
+           do {
                 this->m_index += m_increment;
                 if (this->m_index >= this->m_tableSize)
                     this->m_index -= this->m_tableSize;
@@ -455,12 +454,8 @@ class SHash : public TRAITS
                     break;
                 }
 
-                if (!TRAITS::IsDeleted(this->m_table[this->m_index])
-                        && TRAITS::Equals(m_key, TRAITS::GetKey(this->m_table[this->m_index])))
-                {
-                    break;
-                }
-            }
+            } while (!TRAITS::IsDeleted(this->m_table[this->m_index])
+                        && TRAITS::Equals(m_key, TRAITS::GetKey(this->m_table[this->m_index])));
         }
     };
 

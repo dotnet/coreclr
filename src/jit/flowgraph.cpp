@@ -11601,31 +11601,25 @@ bool Compiler::fgRenumberBlocks()
  */
 bool Compiler::fgIsForwardBranch(BasicBlock* bJump, BasicBlock* bSrc /* = NULL */)
 {
-    bool result = false;
-
     if ((bJump->bbJumpKind == BBJ_COND) || (bJump->bbJumpKind == BBJ_ALWAYS))
     {
         BasicBlock* bDest = bJump->bbJumpDest;
         BasicBlock* bTemp = (bSrc == nullptr) ? bJump : bSrc;
 
-        while (true)
+        do
         {
             bTemp = bTemp->bbNext;
 
             if (bTemp == nullptr)
             {
-                break;
+                return false;
             }
 
-            if (bTemp == bDest)
-            {
-                result = true;
-                break;
-            }
-        }
+        } while (bTemp != bDest);
+        return true;
     }
 
-    return result;
+    return false;
 }
 
 /*****************************************************************************
@@ -15727,16 +15721,13 @@ void Compiler::fgReorderBlocks()
                             break;
                         }
                     }
-                    else
+                    else if (bNext->bbWeight <= profHotWeight)
                     {
                         // If we are relocating hot blocks
                         // all blocks moved must be greater than profHotWeight
-                        if (bNext->bbWeight <= profHotWeight)
-                        {
-                            // exit the loop, bEnd2 is now set to the
-                            // last block that we want to relocate
-                            break;
-                        }
+                        // exit the loop, bEnd2 is now set to the
+                        // last block that we want to relocate
+                        break;
                     }
 
                     // Move bEnd2 and bNext forward
@@ -15787,17 +15778,15 @@ void Compiler::fgReorderBlocks()
                 {
                     printf("because of IBC profile data\n");
                 }
+                else if (bPrev->bbFallsThrough())
+                {
+                    printf("since it falls into a rarely run block\n");
+                }
                 else
                 {
-                    if (bPrev->bbFallsThrough())
-                    {
-                        printf("since it falls into a rarely run block\n");
-                    }
-                    else
-                    {
-                        printf("since it is succeeded by a rarely run block\n");
-                    }
+                    printf("since it is succeeded by a rarely run block\n");
                 }
+                
             }
             else
             {
