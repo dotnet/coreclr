@@ -1282,7 +1282,7 @@ EXTERN_C const IID IID_ISOSDacInterface;
             ISOSDacInterface * This,
             CLRDATA_ADDRESS ip,
             unsigned int count,
-            unsigned char *name,
+            char *name,
             unsigned int *pNeeded);
         
         HRESULT ( STDMETHODCALLTYPE *GetJumpThunkTarget )( 
@@ -2392,10 +2392,10 @@ EXTERN_C const IID IID_ISOSDacInterface7;
     ISOSDacInterface7 : public IUnknown
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE GetILForMethod( 
+        virtual HRESULT STDMETHODCALLTYPE GetRejitInformation( 
             CLRDATA_ADDRESS methodDesc,
             int rejitId,
-            CLRDATA_ADDRESS *il) = 0;
+            struct DacpReJitData2 *pRejitData) = 0;
         
     };
     
@@ -2418,11 +2418,11 @@ EXTERN_C const IID IID_ISOSDacInterface7;
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ISOSDacInterface7 * This);
         
-        HRESULT ( STDMETHODCALLTYPE *GetILForMethod )( 
+        HRESULT ( STDMETHODCALLTYPE *GetRejitInformation )( 
             ISOSDacInterface7 * This,
             CLRDATA_ADDRESS methodDesc,
             int rejitId,
-            CLRDATA_ADDRESS *il);
+            struct DacpReJitData2 *pRejitData);
         
         END_INTERFACE
     } ISOSDacInterface7Vtbl;
@@ -2447,8 +2447,8 @@ EXTERN_C const IID IID_ISOSDacInterface7;
     ( (This)->lpVtbl -> Release(This) ) 
 
 
-#define ISOSDacInterface7_GetILForMethod(This,methodDesc,rejitId,il)    \
-    ( (This)->lpVtbl -> GetILForMethod(This,methodDesc,rejitId,il) ) 
+#define ISOSDacInterface7_GetRejitInformation(This,methodDesc,rejitId,pRejitData)   \
+    ( (This)->lpVtbl -> GetRejitInformation(This,methodDesc,rejitId,pRejitData) ) 
 
 #endif /* COBJMACROS */
 

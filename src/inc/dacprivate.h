@@ -527,6 +527,21 @@ struct MSLAYOUT DacpReJitData : ZeroInit<DacpReJitData>
     CLRDATA_ADDRESS                 NativeCodeAddr;
 };
 
+struct MSLAYOUT DacpReJitData2 : ZeroInit<DacpReJitData2>
+{
+    enum Flags
+    {
+        kUnknown,
+        kRequested,
+        kActive,
+        kReverted,
+    };
+
+    CLRDATA_ADDRESS                 rejitID;
+    Flags                           flags;
+    CLRDATA_ADDRESS                 il;
+    CLRDATA_ADDRESS                 ilCodeVersionNodePtr;
+};
 
 struct MSLAYOUT DacpMethodDescData : ZeroInit<DacpMethodDescData>
 {

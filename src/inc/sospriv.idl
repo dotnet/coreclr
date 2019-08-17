@@ -385,5 +385,5 @@ interface ISOSDacInterface6 : IUnknown
 ]
 interface ISOSDacInterface7 : IUnknown
 {
-    HRESULT GetILForMethod(CLRDATA_ADDRESS methodDesc, int rejitId, CLRDATA_ADDRESS *il);
+    HRESULT GetRejitInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pRejitData);
 };

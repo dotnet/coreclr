@@ -4302,9 +4302,9 @@ HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count
     return hr;
 }
 
-HRESULT ClrDataAccess::GetILForMethod(CLRDATA_ADDRESS methodDesc, int rejitId, CLRDATA_ADDRESS *il)
+HRESULT ClrDataAccess::GetRejitInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData)
 {
-    if (methodDesc == 0 || rejitId < 0 || il == NULL)
+    if (methodDesc == 0 || pReJitData < 0 || pReJitData == NULL)
     {
         return E_INVALIDARG;
     }
@@ -4322,7 +4322,26 @@ HRESULT ClrDataAccess::GetILForMethod(CLRDATA_ADDRESS methodDesc, int rejitId, C
     }
     else
     {
-        *il = dac_cast<TADDR>(ilVersion.GetIL());
+        pReJitData->rejitID = rejitId;
+
+        switch (ilVersion.GetRejitState())
+        {
+        default:
+            _ASSERTE(!"Unknown SharedRejitInfo state.  DAC should be updated to understand this new state.");
+            pReJitData->flags = DacpReJitData2::kUnknown;
+            break;
+
+        case ILCodeVersion::kStateRequested:
+            pReJitData->flags = DacpReJitData2::kRequested;
+            break;
+
+        case ILCodeVersion::kStateActive:
+            pReJitData->flags = DacpReJitData2::kActive;
+            break;
+        }
+
+        pReJitData->il = dac_cast<TADDR>(ilVersion.GetIL());
+        pReJitData->ilCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(ilVersion.AsNode()));
     }
     
     SOSDacLeave();
