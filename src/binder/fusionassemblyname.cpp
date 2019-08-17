@@ -101,7 +101,7 @@ HRESULT CPropertyArray::Set(DWORD PropertyId,
         if (!ptr)
         {
             hr = E_OUTOFMEMORY;
-            goto exit;
+            return hr;
         }
         
         if (pItem->cb > sizeof(DWORD))
@@ -125,8 +125,6 @@ HRESULT CPropertyArray::Set(DWORD PropertyId,
 #endif
     }
     pItem->cb = cbProperty;
-
-exit:
     return hr;
 }     
 
