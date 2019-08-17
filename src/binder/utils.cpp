@@ -159,7 +159,7 @@ namespace BINDER_SPACE
             urlOrPath.Delete(i, fileUrlPrefix.GetCount());
 
             i = urlOrPath.Begin() + 1;
-            if (i[0] ==  W(':'))
+            if (i[0] == W(':'))
             {
                 // CLR erroneously passes in file:// prepended to file paths,
                 // so we can't tell the difference between UNC and local file.
