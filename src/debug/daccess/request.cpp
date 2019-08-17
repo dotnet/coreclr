@@ -4304,7 +4304,7 @@ HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count
 
 HRESULT ClrDataAccess::GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData)
 {
-    if (methodDesc == 0 || pReJitData < 0 || pReJitData == NULL)
+    if (methodDesc == 0 || rejitId < 0 || pReJitData == NULL)
     {
         return E_INVALIDARG;
     }
