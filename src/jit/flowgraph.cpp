@@ -15786,6 +15786,7 @@ void Compiler::fgReorderBlocks()
                 {
                     printf("since it is succeeded by a rarely run block\n");
                 }
+                
             }
             else
             {
