@@ -6,7 +6,7 @@
  /* File created by MIDL compiler version 8.01.0622 */
 /* at Mon Jan 18 19:14:07 2038
  */
-/* Compiler settings for C:/git/coreclr/src/inc/sospriv.idl:
+/* Compiler settings for C:/git/diagnostics/src/inc/sospriv.idl:
     Oicf, W1, Zp8, env=Win32 (32b run), target_arch=X86 8.01.0622 
     protocol : dce , ms_ext, c_ext, robust
     error checks: allocation ref bounds_check enum stub_data 
@@ -2392,10 +2392,20 @@ EXTERN_C const IID IID_ISOSDacInterface7;
     ISOSDacInterface7 : public IUnknown
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE GetRejitInformation( 
+        virtual HRESULT STDMETHODCALLTYPE GetReJITInformation( 
             CLRDATA_ADDRESS methodDesc,
             int rejitId,
             struct DacpReJitData2 *pRejitData) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetProfilerModifiedILInformation( 
+            CLRDATA_ADDRESS methodDesc,
+            struct DacpProfilerILData *pILData) = 0;
+        
+        virtual HRESULT STDMETHODCALLTYPE GetMethodsWithProfilerModifiedIL( 
+            CLRDATA_ADDRESS mod,
+            CLRDATA_ADDRESS *methodDescs,
+            int cMethodDescs,
+            int *pcMethodDescs) = 0;
         
     };
     
@@ -2418,11 +2428,23 @@ EXTERN_C const IID IID_ISOSDacInterface7;
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ISOSDacInterface7 * This);
         
-        HRESULT ( STDMETHODCALLTYPE *GetRejitInformation )( 
+        HRESULT ( STDMETHODCALLTYPE *GetReJITInformation )( 
             ISOSDacInterface7 * This,
             CLRDATA_ADDRESS methodDesc,
             int rejitId,
             struct DacpReJitData2 *pRejitData);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetProfilerModifiedILInformation )( 
+            ISOSDacInterface7 * This,
+            CLRDATA_ADDRESS methodDesc,
+            struct DacpProfilerILData *pILData);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetMethodsWithProfilerModifiedIL )( 
+            ISOSDacInterface7 * This,
+            CLRDATA_ADDRESS mod,
+            CLRDATA_ADDRESS *methodDescs,
+            int cMethodDescs,
+            int *pcMethodDescs);
         
         END_INTERFACE
     } ISOSDacInterface7Vtbl;
@@ -2447,8 +2469,14 @@ EXTERN_C const IID IID_ISOSDacInterface7;
     ( (This)->lpVtbl -> Release(This) ) 
 
 
-#define ISOSDacInterface7_GetRejitInformation(This,methodDesc,rejitId,pRejitData)   \
-    ( (This)->lpVtbl -> GetRejitInformation(This,methodDesc,rejitId,pRejitData) ) 
+#define ISOSDacInterface7_GetReJITInformation(This,methodDesc,rejitId,pRejitData)   \
+    ( (This)->lpVtbl -> GetReJITInformation(This,methodDesc,rejitId,pRejitData) ) 
+
+#define ISOSDacInterface7_GetProfilerModifiedILInformation(This,methodDesc,pILData) \
+    ( (This)->lpVtbl -> GetProfilerModifiedILInformation(This,methodDesc,pILData) ) 
+
+#define ISOSDacInterface7_GetMethodsWithProfilerModifiedIL(This,mod,methodDescs,cMethodDescs,pcMethodDescs) \
+    ( (This)->lpVtbl -> GetMethodsWithProfilerModifiedIL(This,mod,methodDescs,cMethodDescs,pcMethodDescs) ) 
 
 #endif /* COBJMACROS */
 

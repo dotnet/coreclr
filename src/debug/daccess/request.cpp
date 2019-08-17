@@ -4302,7 +4302,7 @@ HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count
     return hr;
 }
 
-HRESULT ClrDataAccess::GetRejitInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData)
+HRESULT ClrDataAccess::GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData)
 {
     if (methodDesc == 0 || pReJitData < 0 || pReJitData == NULL)
     {
@@ -4340,11 +4340,92 @@ HRESULT ClrDataAccess::GetRejitInformation(CLRDATA_ADDRESS methodDesc, int rejit
             break;
         }
 
-        pReJitData->il = dac_cast<TADDR>(ilVersion.GetIL());
+        pReJitData->il = TO_CDADDR(PTR_TO_TADDR(ilVersion.GetIL()));
         pReJitData->ilCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(ilVersion.AsNode()));
     }
     
     SOSDacLeave();
 
     return hr;    
+}
+
+
+HRESULT ClrDataAccess::GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDesc, struct DacpProfilerILData *pILData)
+{
+    if (methodDesc == 0 || pILData == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+
+    pILData->type = DacpProfilerILData::Unmodified;
+    pILData->rejitID = 0;
+    pILData->il = NULL;
+    PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
+
+    CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+
+    if (pCodeVersionManager->GetNonDefaultILVersionCount() > 0)
+    {
+        pILData->type = DacpProfilerILData::ReJITModified;
+        pILData->rejitID = static_cast<ULONG>(pCodeVersionManager->GetActiveILCodeVersion(pMD).GetVersionId());
+    }
+
+    TADDR pDynamicIL = pMD->GetModule()->GetDynamicIL(pMD->GetMemberDef(), TRUE);
+    if (pDynamicIL != NULL)
+    {
+        pILData->type = DacpProfilerILData::ILModified;
+        pILData->il = (CLRDATA_ADDRESS)pDynamicIL;
+    }
+
+    SOSDacLeave();
+
+    return hr;
+}
+
+HRESULT ClrDataAccess::GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLRDATA_ADDRESS *methodDescs, int cMethodDescs, int *pcMethodDescs)
+{
+    if (mod == 0 || methodDescs == NULL || cMethodDescs == 0 || pcMethodDescs == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+
+    *pcMethodDescs = 0;
+
+    PTR_Module pModule = PTR_Module(TO_TADDR(mod));
+    CodeVersionManager* pCodeVersionManager = pModule->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+
+    LookupMap<PTR_MethodTable>::Iterator typeIter(&pModule->m_TypeDefToMethodTableMap);
+    for (int i = 0; typeIter.Next(); i++)
+    {
+        if (*pcMethodDescs >= cMethodDescs)
+        {
+            break;
+        }
+
+        if (typeIter.GetElement())
+        {
+            MethodTable* pMT = typeIter.GetElement();
+            for (int i = 0; i < pMT->GetNumMethods(); ++i)
+            {
+                PTR_MethodDesc pMD = dac_Cast<PTR_MethodDesc>(pMT->GetMethodDescForSlot(i));
+
+                TADDR pDynamicIL = pModule->GetDynamicIL(pMD->GetMemberDef(), TRUE);
+                if (pCodeVersionManager->GetNonDefaultILVersionCount() > 0 || pDynamicIL != NULL)
+                {
+                    methodDescs[*pcMethodDescs] = PTR_CDADDR(pMD);
+                    ++(*pcMethodDescs);
+                }
+            }
+        }
+    }
+
+    SOSDacLeave();
+
+    return hr;
 }

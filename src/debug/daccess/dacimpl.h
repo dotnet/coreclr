@@ -1190,7 +1190,9 @@ public:
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableCollectibleData(CLRDATA_ADDRESS mt, struct DacpMethodTableCollectibleData *data);
 
     // ISOSDacInterface7
-    virtual HRESULT STDMETHODCALLTYPE GetRejitInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData);
+    virtual HRESULT STDMETHODCALLTYPE GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData);
+    virtual HRESULT STDMETHODCALLTYPE GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDesc, struct DacpProfilerILData *pILData);
+    virtual HRESULT STDMETHODCALLTYPE GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLRDATA_ADDRESS *methodDescs, int cMethodDescs, int *pcMethodDescs);
 
     //
     // ClrDataAccess.
