@@ -242,19 +242,19 @@ namespace BINDER_SPACE
         BYTE *pByteToken = NULL;
         DWORD dwTokenLen = 0;
 
-        if (!StrongNameTokenFromPublicKey(const_cast<BYTE *>(pByteKey),
+        if (StrongNameTokenFromPublicKey(const_cast<BYTE *>(pByteKey),
                                           dwKeyLen,
                                           &pByteToken,
                                           &dwTokenLen))
         {
-            BINDER_LOG(W("StrongNameTokenFromPublicKey failed!"));
-            IF_FAIL_GO(StrongNameErrorInfo());
-        }
-        else
-        {
             _ASSERTE(pByteToken != NULL);
             publicKeyTokenBLOB.Set(pByteToken, dwTokenLen);
             StrongNameFreeBuffer(pByteToken);
+        }
+        else
+        {
+            BINDER_LOG(W("StrongNameTokenFromPublicKey failed!"));
+            IF_FAIL_GO(StrongNameErrorInfo());
         }
 
     Exit:
