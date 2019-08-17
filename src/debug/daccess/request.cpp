@@ -4366,8 +4366,8 @@ HRESULT ClrDataAccess::GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDe
 
     CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
     CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
-
-    if (pCodeVersionManager->GetNonDefaultILVersionCount() > 0)
+    ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+    if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL())
     {
         pILData->type = DacpProfilerILData::ReJITModified;
         pILData->rejitID = static_cast<ULONG>(pCodeVersionManager->GetActiveILCodeVersion(pMD).GetVersionId());
@@ -4411,15 +4411,21 @@ HRESULT ClrDataAccess::GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLR
         if (typeIter.GetElement())
         {
             MethodTable* pMT = typeIter.GetElement();
-            for (int i = 0; i < pMT->GetNumMethods(); ++i)
+            for (MethodTable::IntroducedMethodIterator itMethods(pMT, FALSE); itMethods.IsValid(); itMethods.Next())
             {
-                PTR_MethodDesc pMD = dac_Cast<PTR_MethodDesc>(pMT->GetMethodDescForSlot(i));
+                PTR_MethodDesc pMD = dac_cast<PTR_MethodDesc>(itMethods.GetMethodDesc());
 
                 TADDR pDynamicIL = pModule->GetDynamicIL(pMD->GetMemberDef(), TRUE);
-                if (pCodeVersionManager->GetNonDefaultILVersionCount() > 0 || pDynamicIL != NULL)
+                ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+                if (ilVersion.GetRejitState() != ILCodeVersion::kStateActive || !ilVersion.HasDefaultIL() || pDynamicIL != NULL)
                 {
                     methodDescs[*pcMethodDescs] = PTR_CDADDR(pMD);
                     ++(*pcMethodDescs);
+                }
+
+                if (*pcMethodDescs >= cMethodDescs)
+                {
+                    break;
                 }
             }
         }
