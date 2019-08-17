@@ -1554,15 +1554,15 @@ def print_platform_specific_environment_vars(coreclr_args, var, value):
     else:
         print("export {}={}".format(var, value))
 
-def download_index(coreclr_args):
-    """ Download the index.json for the collection.
+def list_superpmi_container_via_rest_api(coreclr_args, filter=lambda unused: True):
+    """ List the superpmi using the azure storage rest api
 
     Args:
-        coreclr_args (CoreclrArguments): parsed args
-
+        filter (lambda: string): filter to apply to the list
+    
     Notes:
-        The index.json file includes a dictionary of all of the different
-        collections that were done.
+        This method does not require installing the azure storage python
+        package.
     """
 
     list_superpmi_container_uri = "https://clrjit.blob.core.windows.net/superpmi?restype=container&comp=list"
@@ -1573,8 +1573,32 @@ def download_index(coreclr_args):
     for item in urls_split:
         url = item.split("</Url>")[0].strip()
         
-        if "{}/{}/{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type) in url and "index.json" in url:
+        if "{}/{}/{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type) in url and filter(url):
             urls.append(url)
+
+def download_index(coreclr_args):
+    """ Download the index.json for the collection.
+
+    Args:
+        coreclr_args (CoreclrArguments): parsed args
+
+    Notes:
+        The index.json file includes a dictionary of all of the different
+        collections that were done.
+
+        The index.json file is a simply a dictionary mapping the a name of a
+        collection to the file name that will be stored on disk.
+
+        Example:
+
+        {
+            "frameworks": "Windows_NT.x64.Checked.frameworks.mch", 
+            "default": "Windows_NT.x64.Checked.mch", 
+            "tests": "Windows_NT.x64.Checked.tests.mch"
+        }
+    """
+
+    urls = list_superpmi_container_via_rest_api(coreclr_args, lambda url: "index.json" in url)
 
     assert(len(urls) == 1)
     json_string = urllib.request.urlopen(urls[0]).read().decode('utf-8')
@@ -1595,17 +1619,7 @@ def download_mch(coreclr_args, specific_mch=None, include_baseline_jit=False):
     
     """
 
-    list_superpmi_container_uri = "https://clrjit.blob.core.windows.net/superpmi?restype=container&comp=list"
-
-    contents = urllib.request.urlopen(list_superpmi_container_uri).read().decode('utf-8')
-    urls_split = contents.split("<Url>")[1:]
-    urls = []
-    for item in urls_split:
-        url = item.split("</Url>")[0].strip()
-        
-        if "{}/{}/{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type) in url:
-            urls.append(url)
-
+    urls = list_superpmi_container_via_rest_api(coreclr_args)
     default_mch_dir = os.path.join(coreclr_args.bin_location, "mch", "{}.{}.{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type))
 
     if not os.path.isdir(default_mch_dir):
@@ -1690,7 +1704,11 @@ def upload_mch(coreclr_args):
 
             item_basename = os.path.basename(item)
 
-            json_item[item_basename.split(".")[3]] = os.path.basename(item)
+            collection_name = item_basename.split(".")[3]
+            if collection_name == "mch":
+                collection_name = "default"
+
+            json_item[collection_name] = os.path.basename(item)
 
         file_handle = tempfile.NamedTemporaryFile(delete=False, mode='w')
         try:
@@ -2184,7 +2202,7 @@ def main(args):
         index_count = len(index)
         print("SuperPMI list-collections")
         print("")
-        print("{} difference collections".format(index_count))
+        print("{} different collections".format(index_count))
         print("")
         
         for item in index:
