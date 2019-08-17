@@ -605,6 +605,12 @@ HRESULT EEClass::AddMethod(MethodTable * pMT, mdMethodDef methodDef, RVA newRVA,
 
 
     // Initialize the new MethodDesc
+    // The stacking allocator being passed here as NULL replaces a silent optimization bug that was being masked before here.
+    // This was reported in https://github.com/dotnet/coreclr/issues/26016, and was caused by PR https://github.com/dotnet/coreclr/pull/24177
+    // Previously, &GetThread()->m_MarshalAlloc was being optimized into an offset from a globl thread-static. After the PR, this resulted
+    // in a field access on the thread object, but there's no Thread object as this function gets called on the RC Thread.
+    // This is not a fix, but rather a workaround to get to the state prior to the cusomer scenario regression.
+    // Any case in which the builder requires to use the allocator with AV, which is consistent with the long-existing behavior.
     MethodTableBuilder builder(pMT,
                                pClass,
                                NULL,
