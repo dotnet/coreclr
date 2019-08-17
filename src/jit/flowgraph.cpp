@@ -2178,10 +2178,10 @@ void Compiler::fgComputeReachability()
 }
 
 /** In order to be able to compute dominance, we need to first get a DFS reverse post order sort on the basic flow graph
-  * for the dominance algorithm to operate correctly.  The reason why we need the DFS sort is because
-  * we will build the dominance sets using the partial order induced by the DFS sorting.  With this
-  * precondition not holding true, the algorithm doesn't work properly.
-  */
+ * for the dominance algorithm to operate correctly.  The reason why we need the DFS sort is because
+ * we will build the dominance sets using the partial order induced by the DFS sorting.  With this
+ * precondition not holding true, the algorithm doesn't work properly.
+ */
 void Compiler::fgDfsInvPostOrder()
 {
     // NOTE: This algorithm only pays attention to the actual blocks. It ignores the imaginary entry block.
@@ -2457,8 +2457,8 @@ void Compiler::fgComputeDoms()
     while (changed)
     {
         changed = false;
-        for (unsigned i = 1; i <= fgBBNumMax;
-             ++i) // Process each actual block; don't process the imaginary predecessor block.
+        for (unsigned i = 1; i <= fgBBNumMax; ++i) // Process each actual block; don't process the imaginary predecessor
+                                                   // block.
         {
             flowList*   first   = nullptr;
             BasicBlock* newidom = nullptr;
@@ -3002,8 +3002,8 @@ void Compiler::fgRemoveCheapPred(BasicBlock* block, BasicBlock* blockPred)
 
 void Compiler::fgRemovePreds()
 {
-    C_ASSERT(offsetof(BasicBlock, bbPreds) ==
-             offsetof(BasicBlock, bbCheapPreds)); // bbPreds and bbCheapPreds are at the same place in a union,
+    C_ASSERT(offsetof(BasicBlock, bbPreds) == offsetof(BasicBlock, bbCheapPreds)); // bbPreds and bbCheapPreds are at
+                                                                                   // the same place in a union,
     C_ASSERT(sizeof(((BasicBlock*)nullptr)->bbPreds) ==
              sizeof(((BasicBlock*)nullptr)->bbCheapPreds)); // and are the same size. So, this function removes both.
 
@@ -5243,7 +5243,7 @@ void Compiler::fgLinkBasicBlocks()
                     BADCODE("Fall thru the end of a method");
                 }
 
-            // Fall through, the next block is also reachable
+                // Fall through, the next block is also reachable
 
             case BBJ_NONE:
                 curBBdesc->bbNext->bbRefs++;
@@ -5358,7 +5358,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
                 codeAddr += sizeof(__int8);
                 goto DECODE_OPCODE;
 
-            /* Check to see if we have a jump/return opcode */
+                /* Check to see if we have a jump/return opcode */
 
             case CEE_BRFALSE:
             case CEE_BRFALSE_S:
@@ -5540,7 +5540,7 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
                     // statement in the block.
                     // Otherwise, we will assert at the following line in fgMorphCall()
                     //     noway_assert(fgMorphStmt->gtNext == NULL);
-                    )
+                )
                 {
                     // Neither .tailcall prefix, no tailcall stress. So move on.
                     break;
@@ -5608,18 +5608,18 @@ unsigned Compiler::fgMakeBasicBlocks(const BYTE* codeAddr, IL_OFFSET codeSize, F
                 }
             }
 
-            /* For tail call, we just call CORINFO_HELP_TAILCALL, and it jumps to the
-               target. So we don't need an epilog - just like CORINFO_HELP_THROW.
-               Make the block BBJ_RETURN, but we will change it to BBJ_THROW
-               if the tailness of the call is satisfied.
-               NOTE : The next instruction is guaranteed to be a CEE_RET
-               and it will create another BasicBlock. But there may be an
-               jump directly to that CEE_RET. If we want to avoid creating
-               an unnecessary block, we need to check if the CEE_RETURN is
-               the target of a jump.
-             */
+                /* For tail call, we just call CORINFO_HELP_TAILCALL, and it jumps to the
+                   target. So we don't need an epilog - just like CORINFO_HELP_THROW.
+                   Make the block BBJ_RETURN, but we will change it to BBJ_THROW
+                   if the tailness of the call is satisfied.
+                   NOTE : The next instruction is guaranteed to be a CEE_RET
+                   and it will create another BasicBlock. But there may be an
+                   jump directly to that CEE_RET. If we want to avoid creating
+                   an unnecessary block, we need to check if the CEE_RETURN is
+                   the target of a jump.
+                 */
 
-            // fall-through
+                // fall-through
 
             case CEE_JMP:
             /* These are equivalent to a return from the current method
@@ -6303,11 +6303,11 @@ void Compiler::fgFindBasicBlocks()
 #endif
         }
 
-/*  Init ebdHandlerNestingLevel of current clause, and bump up value for all
- *  enclosed clauses (which have to be before it in the table).
- *  Innermost try-finally blocks must precede outermost
- *  try-finally blocks.
- */
+        /*  Init ebdHandlerNestingLevel of current clause, and bump up value for all
+         *  enclosed clauses (which have to be before it in the table).
+         *  Innermost try-finally blocks must precede outermost
+         *  try-finally blocks.
+         */
 
 #if !defined(FEATURE_EH_FUNCLETS)
         HBtab->ebdHandlerNestingLevel = 0;
@@ -8241,8 +8241,8 @@ void Compiler::fgConvertSyncReturnToLeave(BasicBlock* block)
                                                // try/finally, which must be the last EH region.
 
     EHblkDsc* ehDsc = ehGetDsc(tryIndex);
-    assert(ehDsc->ebdEnclosingTryIndex ==
-           EHblkDsc::NO_ENCLOSING_INDEX); // There are no enclosing regions of the BBJ_RETURN block
+    assert(ehDsc->ebdEnclosingTryIndex == EHblkDsc::NO_ENCLOSING_INDEX); // There are no enclosing regions of the
+                                                                         // BBJ_RETURN block
     assert(ehDsc->ebdEnclosingHndIndex == EHblkDsc::NO_ENCLOSING_INDEX);
 
     // Convert the BBJ_RETURN to BBJ_ALWAYS, jumping to genReturnBB.
@@ -8844,12 +8844,12 @@ private:
         return nullptr;
     }
 };
-}
+} // namespace
 
 /*****************************************************************************
-*
-*  Add any internal blocks/trees we may need
-*/
+ *
+ *  Add any internal blocks/trees we may need
+ */
 
 void Compiler::fgAddInternal()
 {
@@ -8888,7 +8888,7 @@ void Compiler::fgAddInternal()
 #ifndef JIT32_GCENCODER
             lva0CopiedForGenericsCtxt = ((info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0);
 #else  // JIT32_GCENCODER
-            lva0CopiedForGenericsCtxt          = false;
+            lva0CopiedForGenericsCtxt = false;
 #endif // JIT32_GCENCODER
             noway_assert(lva0CopiedForGenericsCtxt || !lvaTable[info.compThisArg].lvAddrExposed);
             noway_assert(!lvaTable[info.compThisArg].lvHasILStoreOp);
@@ -8905,7 +8905,7 @@ void Compiler::fgAddInternal()
 
             tree = gtNewAssignNode(tree,                                     // dst
                                    gtNewLclvNode(info.compThisArg, thisType) // src
-                                   );
+            );
 
             /* Create a new basic block and stick the assignment in it */
 
@@ -9939,7 +9939,7 @@ void Compiler::fgRemoveEmptyBlocks()
             break; // no more entries (we deleted the last one), so exit the loop
         }
 
-/* At this point we know we have a valid try block */
+        /* At this point we know we have a valid try block */
 
 #ifdef DEBUG
         assert(HBtab->ebdTryBeg->bbFlags & BBF_IMPORTED);
@@ -9978,8 +9978,8 @@ void Compiler::fgRemoveStmt(BasicBlock* block, GenTreeStmt* stmt)
     assert(fgOrder == FGOrderTree);
 
 #ifdef DEBUG
-    if (verbose &&
-        stmt->gtStmtExpr->gtOper != GT_NOP) // Don't print if it is a GT_NOP. Too much noise from the inliner.
+    if (verbose && stmt->gtStmtExpr->gtOper != GT_NOP) // Don't print if it is a GT_NOP. Too much noise from the
+                                                       // inliner.
     {
         printf("\nRemoving statement ");
         gtDispTree(stmt->gtStmtExpr);
@@ -10666,7 +10666,7 @@ void Compiler::fgUnreachableBlock(BasicBlock* block)
         return;
     }
 
-/* Removing an unreachable block */
+    /* Removing an unreachable block */
 
 #ifdef DEBUG
     if (verbose)
@@ -12252,8 +12252,8 @@ BasicBlock* Compiler::fgRelocateEHRange(unsigned regionIndex, FG_RELOCATE_TYPE r
     }
     else
     {
-        assert(fgFirstFuncletBB !=
-               insertAfterBlk->bbNext); // We insert at the end, not at the beginning, of the funclet region.
+        assert(fgFirstFuncletBB != insertAfterBlk->bbNext); // We insert at the end, not at the beginning, of the
+                                                            // funclet region.
     }
 
     // These asserts assume we aren't moving try regions (which we might need to do). Only
@@ -12782,7 +12782,7 @@ bool Compiler::fgRelocateEHRegions()
 
     if (fgCanRelocateEHRegions)
     {
-        unsigned  XTnum;
+        unsigned XTnum;
         EHblkDsc* HBtab;
 
         for (XTnum = 0, HBtab = compHndBBtab; XTnum < compHndBBtabCount; XTnum++, HBtab++)
@@ -12805,7 +12805,7 @@ bool Compiler::fgRelocateEHRegions()
                         BasicBlock* bTryLastBB = fgRelocateEHRange(XTnum, FG_RELOCATE_TRY);
                         if (bTryLastBB != NULL)
                         {
-                            result   = true;
+                            result = true;
                             movedTry = true;
                         }
                     }
@@ -14094,8 +14094,8 @@ bool Compiler::fgOptimizeSwitchBranches(BasicBlock* block)
         bNewDest = bDest;
 
         // Do we have a JUMP to an empty unconditional JUMP block?
-        if (bDest->isEmpty() && (bDest->bbJumpKind == BBJ_ALWAYS) &&
-            (bDest != bDest->bbJumpDest)) // special case for self jumps
+        if (bDest->isEmpty() && (bDest->bbJumpKind == BBJ_ALWAYS) && (bDest != bDest->bbJumpDest)) // special case for
+                                                                                                   // self jumps
         {
             bool optimizeJump = true;
 
@@ -15786,7 +15786,6 @@ void Compiler::fgReorderBlocks()
                 {
                     printf("since it is succeeded by a rarely run block\n");
                 }
-                
             }
             else
             {
@@ -16548,11 +16547,11 @@ bool Compiler::fgUpdateFlowGraph(bool doTailDuplication)
                 continue;
             }
 
-        /*  We jump to the REPEAT label if we performed a change involving the current block
-         *  This is in case there are other optimizations that can show up
-         *  (e.g. - compact 3 blocks in a row)
-         *  If nothing happens, we then finish the iteration and move to the next block
-         */
+            /*  We jump to the REPEAT label if we performed a change involving the current block
+             *  This is in case there are other optimizations that can show up
+             *  (e.g. - compact 3 blocks in a row)
+             *  If nothing happens, we then finish the iteration and move to the next block
+             */
 
         REPEAT:;
 
@@ -16938,7 +16937,7 @@ void Compiler::fgDebugCheckUpdate()
             // even if we can prove that the finally block never returns.
             && (prev == NULL || block->bbJumpKind != BBJ_ALWAYS || !prev->isBBCallAlwaysPair())
 #endif // FEATURE_EH_FUNCLETS
-                )
+        )
         {
             noway_assert(!"Unreachable block not removed!");
         }
@@ -17139,7 +17138,7 @@ void Compiler::fgExtendEHRegionBefore(BasicBlock* block)
                            ehGetIndex(HBtab), bFilterLast->bbNum, bPrev->bbNum);
                 }
 #endif // DEBUG
-                // Change the bbJumpDest for bFilterLast from the old first 'block' to the new first 'bPrev'
+       // Change the bbJumpDest for bFilterLast from the old first 'block' to the new first 'bPrev'
                 bFilterLast->bbJumpDest = bPrev;
             }
         }
@@ -17588,8 +17587,8 @@ BasicBlock* Compiler::fgFindInsertPoint(unsigned    regionIndex,
     noway_assert(startBlk != nullptr);
     noway_assert(startBlk != endBlk);
     noway_assert((regionIndex == 0 && putInTryRegion) || // Search in the main method
-                 (putInTryRegion && regionIndex > 0 &&
-                  startBlk->bbTryIndex == regionIndex) || // Search in the specified try     region
+                 (putInTryRegion && regionIndex > 0 && startBlk->bbTryIndex == regionIndex) || // Search in the
+                                                                                               // specified try region
                  (!putInTryRegion && regionIndex > 0 &&
                   startBlk->bbHndIndex == regionIndex)); // Search in the specified handler region
 
@@ -18390,8 +18389,8 @@ BasicBlock* Compiler::fgAddCodeRef(BasicBlock* srcBlk, unsigned refData, Special
             helper = CORINFO_HELP_THROW_ARGUMENTOUTOFRANGEEXCEPTION;
             break;
 
-        // case SCK_PAUSE_EXEC:
-        //     noway_assert(!"add code to pause exec");
+            // case SCK_PAUSE_EXEC:
+            //     noway_assert(!"add code to pause exec");
 
         default:
             noway_assert(!"unexpected code addition kind");
@@ -18802,7 +18801,7 @@ void Compiler::fgSetTreeSeqHelper(GenTree* tree, bool isLIR)
 #ifdef FEATURE_HW_INTRINSICS
         case GT_HW_INTRINSIC_CHK:
 #endif // FEATURE_HW_INTRINSICS
-            // Evaluate the trees left to right
+       // Evaluate the trees left to right
             fgSetTreeSeqHelper(tree->gtBoundsChk.gtIndex, isLIR);
             fgSetTreeSeqHelper(tree->gtBoundsChk.gtArrLen, isLIR);
             break;
@@ -20600,9 +20599,7 @@ void Compiler::fgStress64RsltMul()
 class BBPredsChecker
 {
 public:
-    BBPredsChecker(Compiler* compiler) : comp(compiler)
-    {
-    }
+    BBPredsChecker(Compiler* compiler) : comp(compiler) {}
 
     unsigned CheckBBPreds(BasicBlock* block, unsigned curTraversalStamp);
 
@@ -21644,7 +21641,7 @@ void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
     {
         /* Verify that bbStmtList is threaded correctly */
         /* Note that for the statements list, the gtPrev list is circular. The gtNext list is not: gtNext of the
-        * last statement in a block is nullptr. */
+         * last statement in a block is nullptr. */
 
         noway_assert(stmt->gtPrev);
 
@@ -22239,10 +22236,10 @@ void Compiler::fgAttachStructInlineeToAsg(GenTree* tree, GenTree* child, CORINFO
     }
 
     GenTree* dstAddr = fgGetStructAsStructPtr(tree->gtOp.gtOp1);
-    GenTree* srcAddr = fgGetStructAsStructPtr(
-        (child->gtOper == GT_CALL)
-            ? fgAssignStructInlineeToVar(child, retClsHnd) // Assign to a variable if it is a call.
-            : child);                                      // Just get the address, if not a call.
+    GenTree* srcAddr = fgGetStructAsStructPtr((child->gtOper == GT_CALL)
+                                                  ? fgAssignStructInlineeToVar(child, retClsHnd) // Assign to a variable
+                                                                                                 // if it is a call.
+                                                  : child); // Just get the address, if not a call.
 
     tree->ReplaceWith(gtNewCpObjNode(dstAddr, srcAddr, retClsHnd, false), this);
 }
@@ -23139,7 +23136,7 @@ _Done:
     // Update unmanaged call count
     info.compCallUnmanaged += InlineeCompiler->info.compCallUnmanaged;
 
-// Update optMethodFlags
+    // Update optMethodFlags
 
 #ifdef DEBUG
     unsigned optMethodFlagsBefore = optMethodFlags;
@@ -23169,7 +23166,7 @@ _Done:
             gtDispTree(pInlineInfo->retExpr);
         }
 #endif // DEBUG
-        // Replace the call with the return expression
+       // Replace the call with the return expression
         iciCall->ReplaceWith(pInlineInfo->retExpr, this);
     }
 
