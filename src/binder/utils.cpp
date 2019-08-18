@@ -256,7 +256,6 @@ namespace BINDER_SPACE
             hr = StrongNameErrorInfo(); //whether it fails, it will return the value
         }
 
-    Exit:
         BINDER_LOG_LEAVE_HR(W("GetTokenFromPublicKey"), hr);
         return hr;
     }
