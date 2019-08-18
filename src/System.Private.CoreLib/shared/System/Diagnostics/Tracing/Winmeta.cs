@@ -20,8 +20,6 @@ namespace Microsoft.Diagnostics.Tracing
 namespace System.Diagnostics.Tracing
 #endif
 {
-    using System;
-
     /// <summary>
     /// WindowsEventLevel. Custom values must be in the range from 16 through 255
     /// </summary>

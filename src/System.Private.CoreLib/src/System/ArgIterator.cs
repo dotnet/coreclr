@@ -2,13 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+
 namespace System
 {
-    using System;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-
     // This class will not be marked serializable
     // Note: This type must have the same layout as the CLR's VARARGS type in CLRVarArgs.h.
     // It also contains an inline SigPointer data structure - must keep those fields in sync.

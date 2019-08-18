@@ -2,18 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+// TypedReference is basically only ever seen on the call stack, and in param arrays.
+//  These are blob that must be dealt with by the compiler.
+
+using System;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using CultureInfo = System.Globalization.CultureInfo;
+using FieldInfo = System.Reflection.FieldInfo;
+using System.Runtime.Versioning;
+
 namespace System
 {
-    // TypedReference is basically only ever seen on the call stack, and in param arrays.
-    //  These are blob that must be dealt with by the compiler.
-
-    using System;
-    using System.Reflection;
-    using System.Runtime.CompilerServices;
-    using CultureInfo = System.Globalization.CultureInfo;
-    using FieldInfo = System.Reflection.FieldInfo;
-    using System.Runtime.Versioning;
-
     [CLSCompliant(false)]
     [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
     public ref struct TypedReference

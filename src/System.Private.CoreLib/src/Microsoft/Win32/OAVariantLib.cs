@@ -13,15 +13,15 @@
 **
 ===========================================================*/
 
+using System;
+using System.Diagnostics;
+using System.Reflection;
+using System.Runtime.CompilerServices;
+using System.Runtime.Versioning;
+using CultureInfo = System.Globalization.CultureInfo;
+
 namespace Microsoft.Win32
 {
-    using System;
-    using System.Diagnostics;
-    using System.Reflection;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using CultureInfo = System.Globalization.CultureInfo;
-
     internal static class OAVariantLib
     {
         #region Constants
