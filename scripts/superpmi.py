@@ -1576,6 +1576,8 @@ def list_superpmi_container_via_rest_api(coreclr_args, filter=lambda unused: Tru
         if "{}/{}/{}".format(coreclr_args.host_os, coreclr_args.arch, coreclr_args.build_type) in url and filter(url):
             urls.append(url)
 
+    return urls
+
 def download_index(coreclr_args):
     """ Download the index.json for the collection.
 
