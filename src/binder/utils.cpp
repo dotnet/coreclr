@@ -113,7 +113,7 @@ namespace BINDER_SPACE
 
     HRESULT FileOrDirectoryExists(PathString &path)
     {
-        HRESULT hr;
+        HRESULT hr = S_FALSE;
 
         DWORD dwFileAttributes = WszGetFileAttributes(path.GetUnicode());
         if (dwFileAttributes == INVALID_FILE_ATTRIBUTES)
@@ -253,9 +253,10 @@ namespace BINDER_SPACE
         else
         {
             BINDER_LOG(W("StrongNameTokenFromPublicKey failed!"));
-            hr = (StrongNameErrorInfo());
+            IF_FAIL_GO(StrongNameErrorInfo());
         }
 
+    Exit:
         BINDER_LOG_LEAVE_HR(W("GetTokenFromPublicKey"), hr);
         return hr;
     }
