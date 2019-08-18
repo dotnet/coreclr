@@ -253,7 +253,7 @@ namespace BINDER_SPACE
         else
         {
             BINDER_LOG(W("StrongNameTokenFromPublicKey failed!"));
-            IF_FAIL_GO(StrongNameErrorInfo());
+            hr = StrongNameErrorInfo(); //whether it fails, it will return the value
         }
 
     Exit:
