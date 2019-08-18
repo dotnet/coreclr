@@ -136,11 +136,10 @@ namespace BINDER_SPACE
 
     HRESULT FileOrDirectoryExistsLog(PathString &path)
     {
-        HRESULT hr;
         BINDER_LOG_ENTER(W("Utils::FileOrDirectoryExistsLog"));
         BINDER_LOG_STRING(W("path"), path);
         
-        hr = FileOrDirectoryExists(path);
+        HRESULT hr = FileOrDirectoryExists(path);
         
         BINDER_LOG_LEAVE_HR(W("Utils::FileOrDirectoryExistsLog"), hr);
         return hr;
