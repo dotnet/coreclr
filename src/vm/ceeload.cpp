@@ -13314,7 +13314,7 @@ void Module::ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* p
 
     m_dynamicSlotsHashForTypes.VisitValuesOfKey(pCanonMT, expandPerInstInfos);
 
-    auto updateDependentDicts = [pCanonMT](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTToUpdate)
+    auto updateDependentDicts = [](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTToUpdate)
     {
         if (pMTToUpdate->HasSameTypeDefAs(pMTKey))
             return true;
