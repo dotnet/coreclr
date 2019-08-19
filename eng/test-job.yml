@@ -92,7 +92,9 @@ jobs:
         - name: testhostArg
           value: 'buildtesthostonly'
 
-    condition: ${{ parameters.condition }}
+    # Since the condition is being altered, merge the default with the additional conditions.
+    # See https://docs.microsoft.com/azure/devops/pipelines/process/conditions
+    condition: and(succeeded(), ${{ parameters.condition }})
 
     # Test job depends on the corresponding build job
     dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
