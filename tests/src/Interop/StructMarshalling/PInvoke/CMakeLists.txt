@@ -8,4 +8,4 @@ add_library (MarshalStructAsParam SHARED ${SOURCES})
 target_link_libraries(MarshalStructAsParam ${LINK_LIBRARIES_ADDITIONAL}) 
 
 # add the install targets
-install (TARGETS MarshalStructAsParam DESTINATION bin)
+install (TARGETS MarshalStructAsParam DESTINATION bin/nativeassets)

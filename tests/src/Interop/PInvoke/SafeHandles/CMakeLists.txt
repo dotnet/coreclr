@@ -6,4 +6,4 @@ set(SOURCES
 ) 
 add_library (SafeHandleNative SHARED ${SOURCES}) 
 target_link_libraries(SafeHandleNative ${LINK_LIBRARIES_ADDITIONAL})
-install (TARGETS SafeHandleNative DESTINATION bin) 
+install (TARGETS SafeHandleNative DESTINATION bin/nativeassets) 

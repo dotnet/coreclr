@@ -20,7 +20,4 @@ target_link_libraries(DllImportPath_ExeFile ${LINK_LIBRARIES_ADDITIONAL})
 
 target_compile_definitions(DllImportPath_ExeFile PRIVATE EXE)
 # add the install targets 
-install (TARGETS DllImportPath_Local DESTINATION bin) 
-install (TARGETS DllImportPath.Local DESTINATION bin) 
-install (TARGETS DllImportPath_PathEnv DESTINATION bin) 
-install (TARGETS DllImportPath_Relative DESTINATION bin) 
+install (TARGETS DllImportPath_Local DESTINATION bin/nativeassets)

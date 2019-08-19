@@ -14,4 +14,4 @@ endif(WIN32)
 target_link_libraries(BStrTestNative ${LINK_LIBRARIES_ADDITIONAL}) 
 
 # add the install targets
-install (TARGETS BStrTestNative DESTINATION bin)
+install (TARGETS BStrTestNative DESTINATION bin/nativeassets)
