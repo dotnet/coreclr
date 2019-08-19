@@ -267,10 +267,6 @@ typedef unsigned char   regNumberSmall;
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter,
                                            // filter-handler, fault) and directly execute 'finally' clauses.
 
-#if defined(FEATURE_PAL)
-  #define FEATURE_EH_FUNCLETS
-#endif // FEATURE_PAL
-
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region,
                                            // protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use EBP as a scratch register and must create EBP based
@@ -565,7 +561,6 @@ typedef unsigned char   regNumberSmall;
   #define EMIT_TRACK_STACK_DEPTH   1
   #define TARGET_POINTER_SIZE      8       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
 #ifdef    UNIX_AMD64_ABI
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use EBP as a scratch register and must create EBP based frames for most methods
@@ -936,7 +931,6 @@ typedef unsigned char   regNumberSmall;
                                            // need to track stack depth, but this is currently necessary to get GC information reported at call sites.
   #define TARGET_POINTER_SIZE      4       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS
   #define FEATURE_EH_CALLFINALLY_THUNKS 0  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
@@ -1248,7 +1242,6 @@ typedef unsigned char   regNumberSmall;
                                            // need to track stack depth, but this is currently necessary to get GC information reported at call sites.
   #define TARGET_POINTER_SIZE      8       // equal to sizeof(void*) and the managed pointer size in bytes for this target
   #define FEATURE_EH               1       // To aid platform bring-up, eliminate exceptional EH clauses (catch, filter, filter-handler, fault) and directly execute 'finally' clauses.
-  #define FEATURE_EH_FUNCLETS
   #define FEATURE_EH_CALLFINALLY_THUNKS 1  // Generate call-to-finally code in "thunks" in the enclosing EH region, protected by "cloned finally" clauses.
   #define ETW_EBP_FRAMED           1       // if 1 we cannot use REG_FP as a scratch register and must setup the frame pointer for most methods
   #define CSE_CONSTS               1       // Enable if we want to CSE constants 
