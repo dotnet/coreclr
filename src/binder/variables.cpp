@@ -65,7 +65,7 @@ namespace BINDER_SPACE
         // Nothing to do here
     }
 
-    HRESULT Variables::Init()
+    HRESULT Variables::Init(bool isBundle)
     {
         HRESULT hr = S_OK;
 
@@ -126,6 +126,9 @@ namespace BINDER_SPACE
                 }
             }
 #endif // FEATURE_VERSIONING_LOG
+
+            // Single-file Bundle flag
+            fIsBundle = isBundle;
         }
         EX_CATCH_HRESULT(hr);
 

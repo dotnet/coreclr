@@ -417,7 +417,7 @@ bool TryRun(const int argc, const wchar_t* argv[], Logger &log, const bool verbo
 
     log << W("Starting ICLRRuntimeHost4") << Logger::endl;
 
-    hr = host->Start();
+    hr = host->Start(nullptr);
     if (FAILED(hr)) {
         log << W("Failed to start CoreCLR. ERRORCODE: ") << hr << Logger:: endl;
         return false;

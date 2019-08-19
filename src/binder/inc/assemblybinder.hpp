@@ -35,7 +35,7 @@ namespace BINDER_SPACE
     class AssemblyBinder
     {
     public:
-        static HRESULT Startup();
+        static HRESULT Startup(bool isBundle);
 
         // See code:BINDER_SPACE::AssemblyBinder::GetAssembly for info on fNgenExplicitBind
         // and fExplicitBindToNativeImage, and see code:CEECompileInfo::LoadAssemblyByPath

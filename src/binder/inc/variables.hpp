@@ -25,7 +25,7 @@ namespace BINDER_SPACE
         Variables();
         ~Variables();
 
-        HRESULT Init();
+        HRESULT Init(bool isBundle);
 
         // ApplicationContext string constants
         SString AppBaseURL;
@@ -57,6 +57,7 @@ namespace BINDER_SPACE
         CRITSEC_COOKIE m_logCS;
         HandleHolder m_hDebugLogFile;
 #endif // BINDER_DEBUG_LOG
+        BOOL fIsBundle;
 #endif
     };
 

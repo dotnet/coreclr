@@ -160,6 +160,7 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
+
 extern "C"
 DLLEXPORT
 int coreclr_initialize(
@@ -168,6 +169,7 @@ int coreclr_initialize(
             int propertyCount,
             const char** propertyKeys,
             const char** propertyValues,
+            bool bundleProbe(const char*, int64_t*, int64_t*),
             void** hostHandle,
             unsigned int* domainId)
 {
@@ -214,7 +216,9 @@ int coreclr_initialize(
     hr = host->SetStartupFlags(startupFlags);
     IfFailRet(hr);
 
-    hr = host->Start();
+    static BundleInfo bundleInfo(StringToUnicode(exePath), bundleProbe);
+
+    hr = host->Start((bundleProbe != nullptr) ? &bundleInfo : nullptr);
     IfFailRet(hr);
 
     hr = host->CreateAppDomainWithManager(

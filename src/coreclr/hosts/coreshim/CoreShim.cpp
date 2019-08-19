@@ -390,7 +390,7 @@ HRESULT coreclr::Initialize(
     {
         const std::wstring exePathW = GetExePath();
         const std::string exePath = ConvertWideToUtf8(exePathW);
-        RETURN_IF_FAILED(_initialize(exePath.c_str(), appDomainName, propertyCount, keys, values, &_clrInst, &_appDomainId));
+        RETURN_IF_FAILED(_initialize(exePath.c_str(), appDomainName, propertyCount, keys, values, nullptr, &_clrInst, &_appDomainId));
     }
     catch (const std::bad_alloc&)
     {

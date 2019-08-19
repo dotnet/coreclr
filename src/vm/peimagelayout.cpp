@@ -422,6 +422,8 @@ MappedImageLayout::MappedImageLayout(PEImage* pOwner)
     m_pOwner=pOwner;
 
     HANDLE hFile = pOwner->GetFileHandle();
+    INT64 offset = pOwner->GetOffset();
+    INT64 size = pOwner->GetSize();
 
     // If mapping was requested, try to do SEC_IMAGE mapping
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening OS mapped %S (hFile %p)\n", (LPCWSTR) GetPath(), hFile));
@@ -458,16 +460,19 @@ MappedImageLayout::MappedImageLayout(PEImage* pOwner)
         return;
     }
 
+    DWORD offsetLowPart = (DWORD)offset;
+    DWORD offsetHighPart = (DWORD)(offset >> 32);
+
 #ifdef _DEBUG
     // Force relocs by occuping the preferred base while the actual mapping is performed
     CLRMapViewHolder forceRelocs;
     if (PEDecoder::GetForceRelocs())
     {
-        forceRelocs.Assign(CLRMapViewOfFile(m_FileMap, 0, 0, 0, 0));
+        forceRelocs.Assign(CLRMapViewOfFile(m_FileMap, 0, offsetHighPart, offsetLowPart, size));
     }
 #endif // _DEBUG
 
-    m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, 0, 0, 0));
+    m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, offsetHighPart, offsetLowPart, size));
     if (m_FileView == NULL)
         ThrowLastError();
     IfFailThrow(Init((void *) m_FileView));
@@ -523,7 +528,7 @@ MappedImageLayout::MappedImageLayout(PEImage* pOwner)
 #else //!FEATURE_PAL
 
 #ifndef CROSSGEN_COMPILE
-    m_LoadedFile = PAL_LOADLoadPEFile(hFile);
+    m_LoadedFile = PAL_LOADLoadPEFile(hFile, offset);
 
     if (m_LoadedFile == NULL)
     {
@@ -606,13 +611,19 @@ FlatImageLayout::FlatImageLayout(PEImage* pOwner)
     m_pOwner=pOwner;
 
     HANDLE hFile = pOwner->GetFileHandle();
+    INT64 offset = pOwner->GetOffset();
+    INT64 size = pOwner->GetSize();
 
     LOG((LF_LOADER, LL_INFO100, "PEImage: Opening flat %S\n", (LPCWSTR) GetPath()));
 
-    COUNT_T size = SafeGetFileSize(hFile, NULL);
-    if (size == 0xffffffff && GetLastError() != NOERROR)
+    // If a size is not specified, load the whole file
+    if (size == 0)
     {
-        ThrowLastError();
+        size = SafeGetFileSize(hFile, NULL);
+        if (size == 0xffffffff && GetLastError() != NOERROR)
+        {
+            ThrowLastError();
+        }
     }
 
     // It's okay if resource files are length zero
@@ -622,11 +633,14 @@ FlatImageLayout::FlatImageLayout(PEImage* pOwner)
         if (m_FileMap == NULL)
             ThrowLastError();
 
-        m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_READ, 0, 0, 0));
+        DWORD lowPart = (DWORD) offset;
+        DWORD highPart = (DWORD)(offset >> 32);
+        m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_READ, highPart, lowPart, size));
         if (m_FileView == NULL)
             ThrowLastError();
     }
-    Init(m_FileView, size);
+
+    Init(m_FileView, (COUNT_T) size);
 }
 
 

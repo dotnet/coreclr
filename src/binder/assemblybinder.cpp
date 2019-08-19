@@ -422,14 +422,15 @@ namespace BINDER_SPACE
     };
 
     /* static */
-    HRESULT AssemblyBinder::Startup()
+    HRESULT AssemblyBinder::Startup(bool isBundle)
     {
         HRESULT hr = S_OK;
  
        if (!BINDER_SPACE::fAssemblyBinderInitialized)
         {
+            
             g_BinderVariables = new Variables();
-            IF_FAIL_GO(g_BinderVariables->Init());
+            IF_FAIL_GO(g_BinderVariables->Init(isBundle));
 
             // Setup Debug log
             BINDER_LOG_STARTUP();
@@ -645,19 +646,26 @@ namespace BINDER_SPACE
 
         _ASSERTE(ppSystemAssembly != NULL);
 
-        StackSString sCoreLibDir(systemDirectory);
         ReleaseHolder<Assembly> pSystemAssembly;
-
-        if (!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
-        {
-            sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
-        }
-
         StackSString sCoreLib;
 
-        // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
-        sCoreLib = sCoreLibDir;
+        // For normal runs, corelib is expected to be found in systemDirectory.
+        // For self-contained single-file bundles, corelib is expected within the bundle (systemDirectory is empty)
+
+        if (!systemDirectory.IsEmpty())
+        {
+            StackSString sCoreLibDir(systemDirectory);
+            if (!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
+            {
+                sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
+            }
+
+            sCoreLib = sCoreLibDir;
+        }
+
         sCoreLib.Append(CoreLibName_IL_W);
+
+        // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
         BOOL fExplicitBindToNativeImage = (fBindToNativeImage == true)? TRUE:FALSE;
 #ifdef FEATURE_NI_BIND_FALLBACK
         // Some non-Windows platforms do not automatically generate the NI image as CoreLib.dll.
@@ -1158,13 +1166,48 @@ namespace BINDER_SPACE
                                                                 pBindResult));
             }
         }
-        else
+        else 
         {
-            // Is assembly on TPA list?
+            ReleaseHolder<Assembly> pTPAAssembly;
             SString &simpleName = pRequestedAssemblyName->GetSimpleName();
+
+            // Is assembly in the bundle?
+            // Single-file bundle contents take precedence over TPA.
+            // Bundled assemblies are treated similar to TPAs.
+            if (g_BinderVariables->fIsBundle)
+            {
+                SString candidates[] = { W(".dll"), W(".ni.dll") };
+
+                // Loop through the binding paths looking for a matching assembly
+                for (DWORD i = 0; i < 2; i++)
+                {
+                    SString bundledName(simpleName);
+                    bundledName.Append(candidates[i]);
+
+                    hr = GetAssembly(bundledName,
+                        TRUE,  // fIsInGAC
+                        FALSE, // fExplicitBindToNativeImage
+                        &pTPAAssembly);
+
+                    if (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
+                    {
+                        // Any other error is fatal
+                        IF_FAIL_GO(hr);
+
+                        if (TestCandidateRefMatchesDef(pRequestedAssemblyName, pTPAAssembly->GetAssemblyName(), true /*tpaListAssembly*/))
+                        {
+                            // We have found the requested assembly match in the bundle with validation of the full-qualified name. 
+                            // Bind to it.
+                            pBindResult->SetResult(pTPAAssembly);
+                            GO_WITH_HRESULT(S_OK);
+                        }
+                    }
+                }
+            }
+
+            // Is assembly on TPA list?
             SimpleNameToFileNameMap * tpaMap = pApplicationContext->GetTpaList();
             const SimpleNameToFileNameMapEntry *pTpaEntry = tpaMap->LookupPtr(simpleName.GetUnicode());
-            ReleaseHolder<Assembly> pTPAAssembly;
             if (pTpaEntry != nullptr)
             {
                 if (pTpaEntry->m_wszNIFileName != nullptr)

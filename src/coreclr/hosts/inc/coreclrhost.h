@@ -43,6 +43,7 @@ CORECLR_HOSTING_API(coreclr_initialize,
             int propertyCount,
             const char** propertyKeys,
             const char** propertyValues,
+            bool bundleProbe(const char*, int64_t*, int64_t*),
             void** hostHandle,
             unsigned int* domainId);
 

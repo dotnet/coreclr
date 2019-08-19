@@ -43,6 +43,7 @@ int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
             const char* managedAssemblyAbsolutePath,
+            bool bundleProbe(const char*, int64_t*, int64_t*),
             int managedAssemblyArgc,
             const char** managedAssemblyArgv);
 

@@ -125,9 +125,7 @@ interface IMetaDataAssemblyImport;
 interface IMetaDataEmit;
 interface ICeeGen;
 
-
 typedef UNALIGNED void const *UVCP_CONSTANT;
-
 
 // Constant for connection id and task id
 #define INVALID_CONNECTION_ID   0x0

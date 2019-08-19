@@ -15,6 +15,13 @@
 #include <runner.h>
 #include <utils.h>
 
+static bundle::runner_t bundle_runner;
+
+bool probe_bundle(const pal::char_t* path, int64_t *size, int64_t *offset)
+{
+    return bundle_runner.probe(path, size, offset);
+}
+
 int main(const int argc, const char* argv[])
 {
     // Make sure we have a full path for argv[0].
@@ -31,10 +38,8 @@ int main(const int argc, const char* argv[])
         return -1;
     }
 
-    fprintf(stdout, "Running bundle: %s\n", exe_path.c_str());
-
-    bundle::runner_t bundle_runner(exe_path);
-    StatusCode bundle_status = bundle_runner.extract();	        
+    bundle_runner = bundle::runner_t(exe_path);
+    StatusCode bundle_status = bundle_runner.process();	        
 
     if (bundle_status != StatusCode::Success)
     {
@@ -42,10 +47,8 @@ int main(const int argc, const char* argv[])
         return bundle_status;
     }
 
-    std::string root_dir = bundle_runner.extraction_dir();
+    std::string root_dir = get_directory(exe_path);
     std::string app_path(root_dir);
-    app_path.push_back(DIR_SEPARATOR);
-
     app_path.append(get_filename(exe_path.c_str()));
     app_path.append(".dll");
 
@@ -56,11 +59,11 @@ int main(const int argc, const char* argv[])
         app_argv = &argv[1];
     }
 
-    std::fflush(stdout);
     int exitCode = ExecuteManagedAssembly(
                         exe_path.c_str(),
                         root_dir.c_str(),
                         app_path.c_str(),
+                        probe_bundle,
                         app_argc,
                         app_argv);
 

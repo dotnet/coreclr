@@ -102,7 +102,10 @@ public:
 #endif // !FEATURE_PAL        
     static PTR_PEImage OpenImage(
         LPCWSTR pPath,
-        MDInternalImportFlags flags = MDInternalImport_Default);
+        MDInternalImportFlags flags = MDInternalImport_Default,
+        LPCWSTR pBundlePath = nullptr,
+        INT64 bundleOffset = 0,
+        INT64 fileSize = 0);
 
 
     // clones the image with new flags (this is pretty much about cached / noncached difference)
@@ -148,8 +151,13 @@ public:
 
     // Accessors
     const SString &GetPath();
+    const SString &GetPathToLoad();
+
     BOOL IsFile();
     HANDLE GetFileHandle();
+    INT64 GetOffset() const;
+    INT64 GetSize() const;
+
     void SetFileHandle(HANDLE hFile);
     HRESULT TryOpenFile();    
 
@@ -238,7 +246,7 @@ private:
     // Private routines
     // ------------------------------------------------------------
 
-    void  Init(LPCWSTR pPath);
+    void  Init(LPCWSTR pPath, LPCWSTR pBundlePath, INT64 bundleOffset, INT64 fileSize);
     void  Init(IStream* pStream, UINT64 uStreamAsmId,
                DWORD dwModuleId, BOOL resourceFile);
 
@@ -271,8 +279,14 @@ private:
     // Instance members
     // ------------------------------------------------------------
 
-    SString     m_path;
+    SString     m_path;     
     LONG        m_refCount;
+
+    // The following two fields are only meaningful if this PE Image is 
+    // embedded within a single-file bundle
+    SString     m_bundlePath;    // Path to the bundle containing the PE file.
+    INT64       m_bundleOffset;  // Offset within the bundle where this PE file is found.
+    INT64       m_fileSize;      // Size of the file within the bundle.
 
     // This variable will have the data of module name. 
     // It is only used by DAC to remap fusion loaded modules back to 

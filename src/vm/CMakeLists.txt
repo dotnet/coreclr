@@ -49,6 +49,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     codeversion.cpp
     comdelegate.cpp
     contractimpl.cpp
+    corbundle.cpp
     coreassemblyspec.cpp
     corebindresult.cpp
     corhost.cpp

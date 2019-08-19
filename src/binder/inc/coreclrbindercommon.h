@@ -22,7 +22,7 @@ class CLRPrivBinderCoreCLR;
 class CCoreCLRBinderHelper
 {
 public:
-    static HRESULT Init();
+    static HRESULT Init(bool isBundle);
     
     static HRESULT DefaultBinderSetupContext(DWORD      dwAppDomainId,
                                 CLRPrivBinderCoreCLR **ppTPABinder);

@@ -29,6 +29,9 @@ interface IHostControl;
 cpp_quote("struct ICLRControl;")
 interface ICLRControl;
 
+cpp_quote("class BundleInfo;")
+interface BundleInfo;
+
 // CLSID ComCallUnmarshal2
 cpp_quote("EXTERN_GUID(CLSID_ComCallUnmarshalV4, 0x45fb4600,0xe6e8,0x4928,0xb2,0x5e,0x50,0x47,0x6f,0xf7,0x94,0x25);")
 
@@ -221,7 +224,7 @@ typedef enum
 interface ICLRRuntimeHost : IUnknown
 {
     // Starts the runtime. This is equivalent to CoInitializeCor().
-    HRESULT Start();
+    HRESULT Start(const BundleInfo *bundleInfo);
 
     // Terminates the runtime, This is equivalent CoUninitializeCor();
     HRESULT Stop();

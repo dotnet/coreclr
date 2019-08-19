@@ -4,7 +4,6 @@
 
 #include "file_entry.h"
 #include "trace.h"
-#include "dir_utils.h"
 #include "error_codes.h"
 
 using namespace bundle;
@@ -13,6 +12,22 @@ bool file_entry_t::is_valid() const
 {
     return m_offset > 0 && m_size > 0 &&
         static_cast<file_type_t>(m_type) < file_type_t::__last;
+}
+
+// Fixup a path to have current platform's directory separator.
+void fixup_path_separator(pal::string_t& path)
+{
+    const pal::char_t bundle_dir_separator = '/';
+
+    if (bundle_dir_separator != DIR_SEPARATOR)
+    {
+        for (size_t pos = path.find(bundle_dir_separator);
+            pos != pal::string_t::npos;
+            pos = path.find(bundle_dir_separator, pos))
+        {
+            path[pos] = DIR_SEPARATOR;
+        }
+    }
 }
 
 file_entry_t file_entry_t::read(reader_t &reader)
@@ -29,7 +44,7 @@ file_entry_t file_entry_t::read(reader_t &reader)
     }
 
     reader.read_path_string(entry.m_relative_path);
-    dir_utils_t::fixup_path_separator(entry.m_relative_path);
+    fixup_path_separator(entry.m_relative_path);
 
     return entry;
 }

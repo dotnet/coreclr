@@ -1,4 +1,5 @@
 include_directories(inc)
+include_directories(../../inc)
 
 if(WIN32)
   add_subdirectory(corerun)
