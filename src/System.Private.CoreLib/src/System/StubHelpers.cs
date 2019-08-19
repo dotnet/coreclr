@@ -3,16 +3,12 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Text;
-using Microsoft.Win32;
-using System.Security;
 using System.Collections.Generic;
-using System.Runtime;
 using System.Runtime.InteropServices;
 #if FEATURE_COMINTEROP
 using System.Runtime.InteropServices.WindowsRuntime;
 #endif // FEATURE_COMINTEROP
 using System.Runtime.CompilerServices;
-using System.Runtime.ConstrainedExecution;
 using System.Diagnostics;
 
 namespace System.StubHelpers

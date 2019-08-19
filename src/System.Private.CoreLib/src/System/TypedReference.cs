@@ -5,12 +5,8 @@
 // TypedReference is basically only ever seen on the call stack, and in param arrays.
 //  These are blob that must be dealt with by the compiler.
 
-using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using CultureInfo = System.Globalization.CultureInfo;
-using FieldInfo = System.Reflection.FieldInfo;
-using System.Runtime.Versioning;
 
 namespace System
 {

@@ -10,8 +10,10 @@
 ** environment.
 **
 ============================================================*/
+
 #if ES_BUILD_STANDALONE
 #define FEATURE_MANAGED_ETW_CHANNELS
+using System;
 #endif
 
 #if ES_BUILD_STANDALONE
