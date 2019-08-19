@@ -4047,7 +4047,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
             compiler->lvaGetCallerSPRelativeOffset(compiler->lvaSecurityObject));
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     if (compiler->lvaPSPSym != BAD_VAR_NUM)
     {
 #ifdef _TARGET_AMD64_
