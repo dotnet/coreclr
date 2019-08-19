@@ -7,4 +7,8 @@ add_library (LPStrTestNative SHARED ${SOURCES})
 target_link_libraries(LPStrTestNative ${LINK_LIBRARIES_ADDITIONAL}) 
 
 # add the install targets
-install (TARGETS LPStrTestNative DESTINATION bin)
+install (TARGETS LPStrTestNative DESTINATION bin/nativeassets)
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:LPStrTestNative> DESTINATION bin/nativeassets)
+endif()

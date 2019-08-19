@@ -6,4 +6,8 @@ set(SOURCES
 ) 
 add_library (SafeHandleNative SHARED ${SOURCES}) 
 target_link_libraries(SafeHandleNative ${LINK_LIBRARIES_ADDITIONAL})
-install (TARGETS SafeHandleNative DESTINATION bin) 
+install (TARGETS SafeHandleNative DESTINATION bin/nativeassets) 
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:SafeHandleNative> DESTINATION bin/nativeassets)
+endif()

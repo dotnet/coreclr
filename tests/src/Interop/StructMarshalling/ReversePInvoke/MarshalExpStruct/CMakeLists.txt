@@ -9,4 +9,8 @@ set(SOURCES
 add_library (ReversePInvokeNative SHARED ${SOURCES})
 target_link_libraries(ReversePInvokeNative ${LINK_LIBRARIES_ADDITIONAL})  
 # add the install targets 
-install (TARGETS ReversePInvokeNative DESTINATION bin) 
+install (TARGETS ReversePInvokeNative DESTINATION bin/nativeassets) 
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:ReversePInvokeNative> DESTINATION bin/nativeassets)
+endif()
