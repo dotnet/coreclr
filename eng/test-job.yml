@@ -81,7 +81,15 @@ jobs:
     - ${{ if eq(parameters.archType, 'arm64') }}:
       - name: clangArg
         value: '-clang5.0'
-
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      # Variables used to publish packages to blob feed
+      - name: dotnetfeedUrl
+        value: https://dotnetfeed.blob.core.windows.net/dotnet-coreclr/index.json
+      - name: dotnetfeedPAT
+        value: $(dotnetfeed-storage-access-key-1)
+      # Variables used by arcade to gather asset manifests
+      - name: _DotNetPublishToBlobFeed
+        value: true
     - name: testhostArg
       value: ''
     - ${{ if eq(parameters.corefxTests, true) }}:
@@ -158,7 +166,6 @@ jobs:
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-packages.cmd -BuildArch=$(archType) -BuildType=$(buildConfigUpper) $(officialBuildIdArg) -BuildNativeTestPackage -ci
         displayName: Build native test assets package
-
 
     # Send tests to Helix
     - template: /eng/send-to-helix-step.yml
@@ -366,6 +373,25 @@ jobs:
             artifactName: ${{ format('Tests_r2r_{0}_{1}_{2}_{3}', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
           ${{ if ne(parameters.readyToRun, true) }}:
             artifactName: ${{ format('Tests_{0}_{1}_{2}_{3}',     parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+
+    # Publish native test assets package
+    - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./eng/common/build.sh --ci --restore --publish --configuration $(_BuildConfig) /p:DotNetPublishUsingPipelines=true /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedUrl=$(dotnetfeedUrl) /p:DotNetPublishBlobFeedKey=$(dotnetfeedPAT) /p:__BuildType=$(_BuildConfig) /p:__BuildArch=$(archType) /p:__BuildOS=$(osGroup) /p:OSIdentifier=$(osIdentifier) /bl:"$(Build.SourcesDirectory)/bin/Logs/publish-test-pkgs.binlog" --projects $(Build.SourcesDirectory)/eng/empty.csproj
+          displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)/.packages
+            ${{ if eq(parameters.osGroup, 'FreeBSD') }}:
+              # Arcade uses this SDK instead of trying to restore one.
+              DotNetCoreSdkDir: /usr/local/dotnet
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        # TODO: pass publish feed url and access token in from the internal pipeline
+        - powershell: eng\common\build.ps1 -ci -restore -publish -configuration $(_BuildConfig) /p:DotNetPublishUsingPipelines=true /p:DotNetPublishToBlobFeed=true /p:DotNetPublishBlobFeedUrl=$(dotnetfeedUrl) /p:DotNetPublishBlobFeedKey=$(dotnetfeedPAT) /p:__BuildType=$(_BuildConfig) /p:__BuildArch=$(archType) /p:__BuildOS=$(osGroup) /p:OSIdentifier=$(osIdentifier) /bl:"$(Build.SourcesDirectory)\bin\Logs\publish-test-pkgs.binlog" -projects $(Build.SourcesDirectory)\eng\empty.csproj
+          displayName: Publish packages to blob feed
+          env:
+            # TODO: remove NUGET_PACKAGES once https://github.com/dotnet/arcade/issues/1578 is fixed
+            NUGET_PACKAGES: $(Build.SourcesDirectory)\.packages
 
     # Publish Logs
     - task: PublishBuildArtifacts@1
