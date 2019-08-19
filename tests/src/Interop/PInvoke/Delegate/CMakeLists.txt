@@ -13,3 +13,7 @@ endif()
 add_library (DelegateTestNative SHARED ${SOURCES})
 target_link_libraries(DelegateTestNative ${LINK_LIBRARIES_ADDITIONAL}) 
 install (TARGETS DelegateTestNative DESTINATION bin/nativeassets) 
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:DelegateTestNative> DESTINATION bin/nativeassets/PDB)
+endif()

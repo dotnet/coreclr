@@ -8,3 +8,7 @@ target_link_libraries(LPStrTestNative ${LINK_LIBRARIES_ADDITIONAL})
 
 # add the install targets
 install (TARGETS LPStrTestNative DESTINATION bin/nativeassets)
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:LPStrTestNative> DESTINATION bin/nativeassets/PDB)
+endif()

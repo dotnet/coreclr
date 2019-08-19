@@ -8,3 +8,7 @@ add_library (SeqPInvokeNative SHARED ${SOURCES})
 target_link_libraries(SeqPInvokeNative ${LINK_LIBRARIES_ADDITIONAL}) 
 # add the install targets 
 install (TARGETS SeqPInvokeNative DESTINATION bin/nativeassets) 
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:SeqPInvokeNative> DESTINATION bin/nativeassets/PDB)
+endif()

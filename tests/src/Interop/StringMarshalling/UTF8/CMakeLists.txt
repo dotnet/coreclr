@@ -9,3 +9,7 @@ target_link_libraries(UTF8TestNative ${LINK_LIBRARIES_ADDITIONAL})
 
 # add the install targets
 install (TARGETS UTF8TestNative DESTINATION bin/nativeassets)
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:UTF8TestNative> DESTINATION bin/nativeassets/PDB)
+endif()

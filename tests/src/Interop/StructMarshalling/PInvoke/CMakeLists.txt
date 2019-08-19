@@ -9,3 +9,7 @@ target_link_libraries(MarshalStructAsParam ${LINK_LIBRARIES_ADDITIONAL})
 
 # add the install targets
 install (TARGETS MarshalStructAsParam DESTINATION bin/nativeassets)
+
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:MarshalStructAsParam> DESTINATION bin/nativeassets/PDB)
+endif()

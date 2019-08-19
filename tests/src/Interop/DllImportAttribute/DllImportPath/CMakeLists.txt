@@ -21,3 +21,6 @@ target_link_libraries(DllImportPath_ExeFile ${LINK_LIBRARIES_ADDITIONAL})
 target_compile_definitions(DllImportPath_ExeFile PRIVATE EXE)
 # add the install targets 
 install (TARGETS DllImportPath_Local DESTINATION bin/nativeassets)
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:DllImportPath_Local> DESTINATION bin/nativeassets/PDB)
+endif()

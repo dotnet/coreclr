@@ -9,3 +9,7 @@ target_link_libraries(LayoutClassNative ${LINK_LIBRARIES_ADDITIONAL})
 
 # add the install targets
 install (TARGETS LayoutClassNative DESTINATION bin/nativeassets)
+if (WIN32)
+  install (FILES $<TARGET_PDB_FILE:LayoutClassNative> DESTINATION bin/nativeassets/PDB)
+endif()
+
