@@ -4,7 +4,6 @@
 
 #include "marker.h"
 #include "pal.h"
-#include "trace.h"
 #include "utils.h"
 
 using namespace bundle;
@@ -12,12 +11,12 @@ using namespace bundle;
 int64_t marker_t::header_offset()
 {
     // Contains the bundle_placeholder default value at compile time.
-    // If this is a single-file bundle, the last 8 bytes are replaced
-    // bundle-header replaced by "dotnet publish" with the offset
+    // If this is a single-file bundle, the last 8 bytes are replaced 
+    // bundle-header replaced by "dotnet publish" with the offset 
     // where the bundle_header is located.
-    static volatile uint8_t placeholder[] =
+    static volatile uint8_t placeholder[] = 
     {
-        // 8 bytes represent the bundle header-offset
+        // 8 bytes represent the bundle header-offset 
         // Zero for non-bundle apphosts (default).
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         // 64 bytes represent the bundle signature: SHA-256 for ".net core bundle"

@@ -15,26 +15,13 @@
 #include <cstdint>
 #include <cassert>
 
-#if defined(_WIN32)
-
-#define NOMINMAX
-#include <windows.h>
-
-#define xerr std::wcerr
-#define xout std::wcout
-#define DIR_SEPARATOR L'\\'
-#define PATH_SEPARATOR L';'
-#define PATH_MAX MAX_PATH
-#define _X(s) L ## s
-
-#else
-
 #include <cstdlib>
 #include <unistd.h>
 #include <libgen.h>
 #include <mutex>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 
 #define xerr std::cerr
 #define xout std::cout
@@ -42,9 +29,7 @@
 #define PATH_SEPARATOR ':'
 #define _X(s) s
 
-#endif
-
-#if !defined(PATH_MAX) && !defined(_WIN32)
+#if !defined(PATH_MAX) 
 #define PATH_MAX    4096
 #endif
 
@@ -54,31 +39,6 @@ namespace pal
     typedef std::istreambuf_iterator<ifstream_t::char_type> istreambuf_iterator_t;
     typedef std::basic_istream<char> istream_t;
 
-#if defined(_WIN32)
-
-    typedef wchar_t char_t;
-    typedef std::wstring string_t;
-    typedef std::wstringstream stringstream_t;
-
-    typedef HMODULE dll_t;
-    typedef FARPROC proc_t;
-
-    inline int strcmp(const char_t* str1, const char_t* str2) { return ::wcscmp(str1, str2); }
-    inline int strcasecmp(const char_t* str1, const char_t* str2) { return ::_wcsicmp(str1, str2); }
-
-    inline FILE * file_open(const pal::string_t& path, const char_t* mode) { return ::_wfopen(path.c_str(), mode); }
-    inline int str_vprintf(char_t* buffer, size_t count, const char_t* format, va_list vl) { return ::_vsnwprintf(buffer, count, format, vl); }
-
-    bool clr_palstring(const char* cstr, pal::string_t* out);
-
-    inline bool mkdir(const pal::char_t* dir, int mode) { return CreateDirectoryW(dir, NULL) != 0; }
-    inline bool rmdir (const pal::char_t* path) { return RemoveDirectoryW(path) != 0; }
-    inline int rename(const pal::char_t* old_name, const pal::char_t* new_name) { return ::_wrename(old_name, new_name); }
-    inline int remove(const pal::char_t* path) { return ::_wremove(path); }
-    inline int get_pid() { return GetCurrentProcessId(); }
-    inline void sleep(uint32_t milliseconds) { Sleep(milliseconds); }
-
-#else
     typedef char char_t;
     typedef std::string string_t;
     typedef std::stringstream stringstream_t;
@@ -89,19 +49,18 @@ namespace pal
     inline int strcmp(const char_t* str1, const char_t* str2) { return ::strcmp(str1, str2); }
     inline int strcasecmp(const char_t* str1, const char_t* str2) { return ::strcasecmp(str1, str2); }
 
-    inline FILE * file_open(const pal::string_t& path, const char_t* mode) { return fopen(path.c_str(), mode); }
+    inline FILE * file_open(const string_t& path, const char_t* mode) { return fopen(path.c_str(), mode); }
     inline int str_vprintf(char_t* str, size_t size, const char_t* format, va_list vl) { return ::vsnprintf(str, size, format, vl); }
 
-    inline bool clr_palstring(const char* cstr, pal::string_t* out) { out->assign(cstr); return true; }
+    inline bool clr_palstring(const char* cstr, string_t* out) { out->assign(cstr); return true; }
 
-    inline bool mkdir(const pal::char_t* dir, int mode) { return ::mkdir(dir, mode) == 0; }
-    inline bool rmdir(const pal::char_t* path) { return ::rmdir(path) == 0; }
-    inline int rename(const pal::char_t* old_name, const pal::char_t* new_name) { return ::rename(old_name, new_name); }
-    inline int remove(const pal::char_t* path) { return ::remove(path); }
+    inline bool mkdir(const char_t* dir, int mode) { return ::mkdir(dir, mode) == 0; }
+    inline bool rmdir(const char_t* path) { return ::rmdir(path) == 0; }
+    inline int rename(const char_t* old_name, const char_t* new_name) { return ::rename(old_name, new_name); }
+    inline int remove(const char_t* path) { return ::remove(path); }
     inline int get_pid() { return getpid(); }
+    inline bool unmap_file(void* addr, size_t length) { return munmap(addr, length) == 0; }
     inline void sleep(uint32_t milliseconds) { usleep(milliseconds * 1000); }
-
-#endif
 
     inline int snwprintf(char_t* buffer, size_t count, const char_t* format, ...)
     {
@@ -112,17 +71,18 @@ namespace pal
         return ret;
     }
 
+    void* map_file_readonly(const string_t& path, size_t& length);
     bool realpath(string_t* path, bool skip_error_logging = false);
     bool file_exists(const string_t& path);
     inline bool directory_exists(const string_t& path) { return file_exists(path); }
-    void readdir(const string_t& path, std::vector<pal::string_t>* list);
-    void readdir_onlydirectories(const string_t& path, std::vector<pal::string_t>* list);
+    void readdir(const string_t& path, std::vector<string_t>* list);
+    void readdir_onlydirectories(const string_t& path, std::vector<string_t>* list);
 
     bool getenv(const char_t* name, string_t* recv);
 
     bool is_path_rooted(const string_t& path);
 
-    bool get_temp_directory(pal::string_t& tmp_dir);
+    bool get_temp_directory(string_t& tmp_dir);
 
     bool load_library(const string_t* path, dll_t* dll);
     proc_t get_symbol(dll_t library, const char* name);
