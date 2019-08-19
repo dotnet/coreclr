@@ -156,6 +156,7 @@ namespace System.Runtime.CompilerServices
             return new StackCrawlMarkHandle((IntPtr)Unsafe.AsPointer(ref stackMark));
         }
 
+        [Intrinsic]
         internal static bool EnumEquals<T>(T x, T y) where T : struct, Enum
         {
             // The body of this function will be replaced by the EE with unsafe code
@@ -163,6 +164,7 @@ namespace System.Runtime.CompilerServices
             return x.Equals(y);
         }
 
+        [Intrinsic]
         internal static int EnumCompareTo<T>(T x, T y) where T : struct, Enum
         {
             // The body of this function will be replaced by the EE with unsafe code
