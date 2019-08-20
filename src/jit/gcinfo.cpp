@@ -366,16 +366,15 @@ GCInfo::regPtrDsc* GCInfo::gcRegPtrAllocDsc()
  *  Compute the various counts that get stored in the info block header.
  */
 
-void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED unsigned int* varPtrTableSize)
+void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED unsigned int* pVarPtrTableSize)
 {
     unsigned   varNum;
     LclVarDsc* varDsc;
-    varPtrDsc* varTmp;
 
     bool         thisKeptAliveIsInUntracked = false; // did we track "this" in a synchronized method?
-    unsigned int count                      = 0;
+    unsigned int untrackedCount             = 0;
 
-    /* Count the untracked locals and non-enregistered args */
+    // Count the untracked locals and non-enregistered args.
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
@@ -414,7 +413,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
             }
 #endif
 
-            count++;
+            untrackedCount++;
         }
         else if (varDsc->lvType == TYP_STRUCT && varDsc->lvOnFrame && (varDsc->lvExactSize >= TARGET_POINTER_SIZE))
         {
@@ -427,13 +426,13 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
             {
                 if (gcPtrs[i] != TYPE_GC_NONE)
                 { // count only gc slots
-                    count++;
+                    untrackedCount++;
                 }
             }
         }
     }
 
-    /* Also count spill temps that hold pointers */
+    // Also count spill temps that hold pointers.
 
     assert(regSet->tmpAllFree());
     for (TempDsc* tempThis = regSet->tmpListBeg(); tempThis != nullptr; tempThis = regSet->tmpListNxt(tempThis))
@@ -464,53 +463,52 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* untrackedCount, UNALIGNED 
         }
 #endif
 
-        count++;
+        untrackedCount++;
     }
 
 #ifdef DEBUG
     if (compiler->verbose)
     {
-        printf("GCINFO: untrckVars = %u\n", count);
+        printf("GCINFO: untrckVars = %u\n", untrackedCount);
     }
 #endif
 
-    *untrackedCount = count;
+    *pUntrackedCount = untrackedCount;
 
-    /* Count the number of entries in the table of non-register pointer
-       variable lifetimes. */
+    // Count the number of entries in the table of non-register pointer variable lifetimes.
 
-    count = 0;
+    unsigned int varPtrTableSize = 0;
 
     if (thisKeptAliveIsInUntracked)
     {
-        count++;
+        varPtrTableSize++;
     }
 
-    if (gcVarPtrList)
+    if (gcVarPtrList != nullptr)
     {
-        /* We'll use a delta encoding for the lifetime offsets */
+        // We'll use a delta encoding for the lifetime offsets.
 
-        for (varTmp = gcVarPtrList; varTmp; varTmp = varTmp->vpdNext)
+        for (varPtrDsc* varTmp = gcVarPtrList; varTmp != nullptr; varTmp = varTmp->vpdNext)
         {
-            /* Special case: skip any 0-length lifetimes */
+            // Special case: skip any 0-length lifetimes.
 
             if (varTmp->vpdBegOfs == varTmp->vpdEndOfs)
             {
                 continue;
             }
 
-            count++;
+            varPtrTableSize++;
         }
     }
 
 #ifdef DEBUG
     if (compiler->verbose)
     {
-        printf("GCINFO: trackdLcls = %u\n", count);
+        printf("GCINFO: trackdLcls = %u\n", varPtrTableSize);
     }
 #endif
 
-    *varPtrTableSize = count;
+    *pVarPtrTableSize = varPtrTableSize;
 }
 
 bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThisKeptAliveIsInUntracked)
