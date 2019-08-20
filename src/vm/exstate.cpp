@@ -68,11 +68,11 @@ void ThreadExceptionState::AssertStackTraceInfo(StackTraceInfo *pSTI)
 
     _ASSERTE(pSTI == &(m_pCurrentTracker->m_StackTraceInfo) || pSTI == &(m_OOMTracker.m_StackTraceInfo));
 
-#else  // win64exceptions
+#else  // !FEATURE_EH_FUNCLETS
 
     _ASSERTE(pSTI == &(m_currentExInfo.m_StackTraceInfo));
 
-#endif // win64exceptions
+#endif // !FEATURE_EH_FUNCLETS
 } // void ThreadExceptionState::AssertStackTraceInfo()
 #endif // _debug
 

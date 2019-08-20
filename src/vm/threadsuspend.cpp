@@ -756,7 +756,7 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
         _ASSERTE (countInCatch > 0);
     }
 #endif   // _DEBUG
-#endif   // !WIN64EXCEPTIONS_
+#endif   // !FEATURE_EH_FUNCLETS
     return action;
 }
 
