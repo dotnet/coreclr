@@ -53,11 +53,10 @@ namespace System.Diagnostics.Tracing
         /// </remarks>
         private protected void Publish()
         {
-#if DEBUG
             Debug.Assert(_group is null);
             Debug.Assert(Name != null);
             Debug.Assert(EventSource != null);
-#endif
+
             _group = CounterGroup.GetCounterGroup(EventSource);
             _group.Add(this);
         }
