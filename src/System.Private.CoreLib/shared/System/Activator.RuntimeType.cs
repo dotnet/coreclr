@@ -136,12 +136,12 @@ namespace System
             return o != null ? new ObjectHandle(o) : null;
         }
 
+        [System.Runtime.CompilerServices.Intrinsic]
         public static T CreateInstance<T>()
         {
             return (T)((RuntimeType)typeof(T)).CreateInstanceDefaultCtor(publicOnly: true, skipCheckThis: true, fillCache: true, wrapExceptions: true);
         }
 
-        [System.Runtime.CompilerServices.Intrinsic]
         private static T CreateDefaultInstance<T>() where T: struct => default;
     }
 }
