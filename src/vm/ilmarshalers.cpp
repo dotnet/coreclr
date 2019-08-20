@@ -3703,7 +3703,7 @@ bool ILNativeArrayMarshaler::CanMarshalViaPinning()
 {
     // We can't pin an array if we have a marshaler for the var type
     // or if we can't get a method-table representing the array (how we determine the offset to pin).
-    return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL != m_pargs->m_pMT) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE));
+    return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL != m_pargs->na.m_pArrayMT) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE));
 }
 
 void ILNativeArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
@@ -3746,7 +3746,7 @@ void ILNativeArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
     pslILEmit->EmitCONV_I();
     // Optimize marshalling by emitting the data ptr offset directly into the IL stream
     // instead of doing an FCall to recalulate it each time when possible.
-    pslILEmit->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMT));
+    pslILEmit->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->na.m_pArrayMT));
     pslILEmit->EmitADD();
     EmitStoreNativeValue(pslILEmit);
 
