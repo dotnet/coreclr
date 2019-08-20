@@ -11,7 +11,8 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include <bundle_runner.h>
+#include <marker.h>
+#include <runner.h>
 #include <utils.h>
 
 int main(const int argc, const char* argv[])
@@ -32,15 +33,16 @@ int main(const int argc, const char* argv[])
 
     fprintf(stdout, "Running bundle: %s\n", exe_path.c_str());
 
-    bundle::bundle_runner_t extractor(exe_path);
-    StatusCode bundle_status = extractor.extract();
+    bundle::runner_t bundle_runner(exe_path);
+    StatusCode bundle_status = bundle_runner.extract();	        
+
     if (bundle_status != StatusCode::Success)
     {
         perror("Could not extract contents of the bundle");
         return bundle_status;
     }
 
-    std::string root_dir = extractor.get_extraction_dir();
+    std::string root_dir = bundle_runner.extraction_dir();
     std::string app_path(root_dir);
     app_path.push_back(DIR_SEPARATOR);
 
