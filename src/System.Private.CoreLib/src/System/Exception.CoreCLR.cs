@@ -39,7 +39,7 @@ namespace System
                 // Even if this exception is NOT thrown, things will still work as expected
                 //  because the StackTrace property returns the concatenation of the
                 //  _remoteStackTraceString and the _stackTraceString.
-                _remoteStackTraceString = _remoteStackTraceString + _stackTraceString;
+                _remoteStackTraceString += _stackTraceString;
                 _stackTraceString = null;
             }
         }
@@ -231,7 +231,7 @@ namespace System
         {
             // Make sure that the _source field is initialized if Source is not overriden.
             // We want it to contain the original faulting point.
-            string? source = Source;
+            _ = Source;
 
             string? tmpStackTraceString = StackTrace;
 

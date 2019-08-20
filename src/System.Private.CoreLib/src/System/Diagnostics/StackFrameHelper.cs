@@ -2,18 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Text;
 using System.Threading;
-using System.Security;
-using System.IO;
 using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using System.Globalization;
-using System.Runtime.Versioning;
 
 namespace System.Diagnostics
 {
@@ -180,7 +170,7 @@ namespace System.Diagnostics
 
         public virtual int GetOffset(int i) { return rgiOffset![i]; }
         public virtual int GetILOffset(int i) { return rgiILOffset![i]; }
-        public virtual string? GetFilename(int i) { return rgFilename == null ? null : rgFilename[i]; }
+        public virtual string? GetFilename(int i) { return rgFilename?[i]; }
         public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i]; }
         public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i]; }
 

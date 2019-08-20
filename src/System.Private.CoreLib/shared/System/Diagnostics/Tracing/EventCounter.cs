@@ -2,14 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
 using System.Diagnostics;
-using System.Collections;
-using System.Collections.Generic;
-using System.Threading;
-#if ES_BUILD_PCL
-    using System.Threading.Tasks;
 #endif
+using System.Threading;
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
@@ -174,7 +171,7 @@ namespace System.Diagnostics.Tracing
             Debug.Assert(Monitor.IsEntered(this));
             for (int i = 0; i < _bufferedValues.Length; i++)
             {
-                var value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);
+                double value = Interlocked.Exchange(ref _bufferedValues[i], UnusedBufferSlotValue);
                 if (value != UnusedBufferSlotValue)
                 {
                     OnMetricWritten(value);

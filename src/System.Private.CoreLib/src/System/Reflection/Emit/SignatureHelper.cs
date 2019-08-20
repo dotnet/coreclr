@@ -2,16 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
 using System.Text;
-using System;
 using System.Buffers.Binary;
 using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace System.Reflection.Emit
 {
@@ -669,13 +663,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        internal int ArgumentCount
-        {
-            get
-            {
-                return m_argCount;
-            }
-        }
+        internal int ArgumentCount => m_argCount;
 
         internal static bool IsSimpleType(CorElementType type)
         {
@@ -788,9 +776,7 @@ namespace System.Reflection.Emit
             {
                 for (int i = 0; i < arguments.Length; i++)
                 {
-                    AddArgument(arguments[i],
-                        requiredCustomModifiers == null ? null : requiredCustomModifiers[i],
-                        optionalCustomModifiers == null ? null : optionalCustomModifiers[i]);
+                    AddArgument(arguments[i], requiredCustomModifiers?[i], optionalCustomModifiers?[i]);
                 }
             }
         }

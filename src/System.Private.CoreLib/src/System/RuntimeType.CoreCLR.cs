@@ -1062,7 +1062,7 @@ namespace System
 
                     for (int i = 0; i < tkNestedClasses.Length; i++)
                     {
-                        RuntimeType? nestedType = null;
+                        RuntimeType nestedType;
 
                         try
                         {
@@ -2077,7 +2077,7 @@ namespace System
                     // We set prefixLookup to true if name ends with a "*".
                     // We will also set listType to All so that all members are included in
                     // the candidates which are later filtered by FilterApplyPrefixLookup.
-                    name = name.Substring(0, name.Length - 1);
+                    name = name[0..^1];
                     prefixLookup = true;
                     listType = MemberListType.All;
                 }
@@ -2089,11 +2089,8 @@ namespace System
         }
 
         // Used by the singular GetXXX APIs (Event, Field, Interface, NestedType) where prefixLookup is not supported.
-        private static void FilterHelper(BindingFlags bindingFlags, ref string name, out bool ignoreCase, out MemberListType listType)
-        {
-            bool prefixLookup;
-            FilterHelper(bindingFlags, ref name!, false, out prefixLookup, out ignoreCase, out listType);
-        }
+        private static void FilterHelper(BindingFlags bindingFlags, ref string name, out bool ignoreCase, out MemberListType listType) =>
+            FilterHelper(bindingFlags, ref name!, false, out _, out ignoreCase, out listType);
 
         // Only called by GetXXXCandidates, GetInterfaces, and GetNestedTypes when FilterHelper has set "prefixLookup" to true.
         // Most of the plural GetXXX methods allow prefix lookups while the singular GetXXX methods mostly do not.
@@ -2312,7 +2309,7 @@ namespace System
                         if (shortByMoreThanOneSuppliedArgument)
                             return false;
 
-                        ParameterInfo lastParameter = parameterInfos[parameterInfos.Length - 1];
+                        ParameterInfo lastParameter = parameterInfos[^1];
 
                         if (!lastParameter.ParameterType.IsArray)
                             return false;
@@ -2576,12 +2573,12 @@ namespace System
 
         private ListBuilder<Type> GetNestedTypeCandidates(string? fullname, BindingFlags bindingAttr, bool allowPrefixLookup)
         {
-            bool prefixLookup, ignoreCase;
+            bool prefixLookup;
             bindingAttr &= ~BindingFlags.Static;
             string? name, ns;
             MemberListType listType;
             SplitName(fullname, out name, out ns);
-            FilterHelper(bindingAttr, ref name, allowPrefixLookup, out prefixLookup, out ignoreCase, out listType);
+            FilterHelper(bindingAttr, ref name, allowPrefixLookup, out prefixLookup, out _, out listType);
 
             RuntimeType[] cache = Cache.GetNestedTypeList(listType, name);
 
@@ -3326,10 +3323,8 @@ namespace System
             }
         }
 
-        public override bool ContainsGenericParameters
-        {
-            get => GetRootElementType().GetTypeHandleInternal().ContainsGenericVariables();
-        }
+        public override bool ContainsGenericParameters =>
+            GetRootElementType().GetTypeHandleInternal().ContainsGenericVariables();
 
         public override Type[] GetGenericParameterConstraints()
         {
@@ -3362,10 +3357,7 @@ namespace System
             return new RuntimeTypeHandle(this).MakeArray(rank);
         }
 
-        public override StructLayoutAttribute? StructLayoutAttribute
-        {
-            get => PseudoCustomAttribute.GetStructLayoutCustomAttribute(this);
-        }
+        public override StructLayoutAttribute? StructLayoutAttribute => PseudoCustomAttribute.GetStructLayoutCustomAttribute(this);
 
         #endregion
 
@@ -3764,12 +3756,7 @@ namespace System
                     }
                     else
                     {
-                        if (results == null)
-                        {
-                            results = new List<MethodInfo>(semiFinalists.Length);
-                            results.Add(finalist);
-                        }
-
+                        results ??= new List<MethodInfo>(semiFinalists.Length) { finalist };
                         results.Add(semiFinalist);
                     }
                 }
@@ -3815,12 +3802,7 @@ namespace System
                     }
                     else
                     {
-                        if (results == null)
-                        {
-                            results = new List<MethodInfo>(semiFinalists.Length);
-                            results.Add(finalist);
-                        }
-
+                        results ??= new List<MethodInfo>(semiFinalists.Length) { finalist };
                         results.Add(semiFinalist);
                     }
                 }

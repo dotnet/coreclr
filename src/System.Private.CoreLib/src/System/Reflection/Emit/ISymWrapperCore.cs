@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Security;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.SymbolStore;
@@ -170,8 +168,7 @@ namespace System.Reflection.Emit
                                                                Guid languageVendor,
                                                                Guid documentType)
             {
-                PunkSafeHandle psymUnmanagedDocumentWriter = new PunkSafeHandle();
-
+                PunkSafeHandle psymUnmanagedDocumentWriter;
                 int hr = m_vtable.DefineDocument(m_pWriter, url, ref language, ref languageVendor, ref documentType, out psymUnmanagedDocumentWriter);
                 if (hr < 0)
                 {
@@ -519,10 +516,7 @@ namespace System.Reflection.Emit
             return true;
         }
 
-        public override bool IsInvalid
-        {
-            get { return handle == ((IntPtr)0); }
-        }
+        public override bool IsInvalid => handle == ((IntPtr)0);
 
         private delegate void DRelease(IntPtr punk);         // Delegate type for P/Invoking to coreclr.dll and doing an IUnknown::Release()
         private static DRelease m_Release = (DRelease)Marshal.GetDelegateForFunctionPointer(nGetDReleaseTarget(), typeof(DRelease));
