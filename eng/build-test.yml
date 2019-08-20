@@ -101,17 +101,7 @@ jobs:
     # Note that the containers are defined in platform-matrix.yml
     container: ${{ parameters.container }}
 
-    # "Total" means building tests, waiting for a queue in Helix to become available, and running the tests.
-    # In case test-job.yml gets split into two separate jobs (e.g. build-test-job.yml and run-test.yml)
-    # this number should be adjusted accordingly.
-    ${{ if eq(parameters.testGroup, 'innerloop') }}:
-      timeoutInMinutes: 240
-    ${{ if in(parameters.testGroup, 'outerloop') }}:
-      timeoutInMinutes: 360
-    ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs', 'gcstress0x3-gcstress0xc') }}:
-      timeoutInMinutes: 480
-    ${{ if in(parameters.testGroup, 'jitstress-isas-x86', 'gcstress-extra', 'r2r-extra') }}:
-      timeoutInMinutes: 600
+    timeoutInMinutes: 90
 
     steps:
 
