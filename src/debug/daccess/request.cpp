@@ -4341,7 +4341,8 @@ HRESULT ClrDataAccess::GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejit
         }
 
         pReJitData->il = TO_CDADDR(PTR_TO_TADDR(ilVersion.GetIL()));
-        pReJitData->ilCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(ilVersion.AsNode()));
+        PTR_ILCodeVersionNode nodePtr = ilVersion.IsDefaultVersion() ? NULL : ilVersion.AsNode();
+        pReJitData->ilCodeVersionNodePtr = TO_CDADDR(PTR_TO_TADDR(nodePtr));
     }
     
     SOSDacLeave();
