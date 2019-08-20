@@ -3711,7 +3711,7 @@ void ILNativeArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
     CONTRACTL
     {
         STANDARD_VM_CHECK;
-        PRECONDITION(IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags));
+        PRECONDITION(CanMarshalViaPinning());
     }
     CONTRACTL_END;
 
