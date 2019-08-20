@@ -3703,7 +3703,7 @@ bool ILNativeArrayMarshaler::CanMarshalViaPinning()
 {
     // We can't pin an array if we have a marshaler for the var type
     // or if we can't get a method-table representing the array (how we determine the offset to pin).
-    return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL == m_pargs->m_pMT) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE));
+    return IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL != m_pargs->m_pMT) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE));
 }
 
 void ILNativeArrayMarshaler::EmitMarshalViaPinning(ILCodeStream* pslILEmit)
