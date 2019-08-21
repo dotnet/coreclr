@@ -1,12 +1,15 @@
 project(corebundle)
 
-include_directories(../unixcoreruncommon)
 include_directories(./bundle)
 
 add_compile_options(-fPIE)
 
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+include(configure.cmake)
+
 set(COREBUNDLE_SOURCES
     corebundle.cpp
+    run_coreclr.cpp
     ./bundle/dir_utils.cpp
     ./bundle/extractor.cpp
     ./bundle/file_entry.cpp
@@ -21,6 +24,7 @@ set(COREBUNDLE_SOURCES
 )
 
 set(HEADERS
+    run_coreclr.h
     ./bundle/dir_utils.h
     ./bundle/error_codes.h
     ./bundle/extractor.h
@@ -102,7 +106,6 @@ target_link_libraries(corebundle
     ${LIBGSS}
 
     ${START_LIBRARY_GROUP} # Start group of libraries that have circular references
-    unixcoreruncommon
     coreclr_static
 # This is hacky, but the only way I've found to make the library group here work. Unfortunately, cmake emits all the libraries the coreclr_static depends on
 # right after coreclr_static and the presence of end group after that somehow screws it.

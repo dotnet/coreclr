@@ -291,31 +291,6 @@ const char* GetEnvValueBoolean(const char* envVariable)
     return (std::strcmp(envValue, "1") == 0 || strcasecmp(envValue, "true") == 0) ? "true" : "false";
 }
 
-extern "C"
-int coreclr_initialize(
-            const char* exePath,
-            const char* appDomainFriendlyName,
-            int propertyCount,
-            const char** propertyKeys,
-            const char** propertyValues,
-            void** hostHandle,
-            unsigned int* domainId);
-
-extern "C"
-int coreclr_shutdown_2(
-            void* hostHandle,
-            unsigned int domainId,
-            int* latchedExitCode);
-
-extern "C"
-int coreclr_execute_assembly(
-            void* hostHandle,
-            unsigned int domainId,
-            int argc,
-            const char** argv,
-            const char* managedAssemblyPath,
-            unsigned int* exitCode);
-
 int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
@@ -394,12 +369,12 @@ int ExecuteManagedAssembly(
 
     AddFilesFromDirectoryToTpaList(clrFilesAbsolutePath, tpaList);
 
-    //void* coreclrLib = dlopen(coreClrDllPath.c_str(), RTLD_NOW | RTLD_LOCAL);
-    //if (coreclrLib != nullptr)
+    void* coreclrLib = dlopen(coreClrDllPath.c_str(), RTLD_NOW | RTLD_LOCAL);
+    if (coreclrLib != nullptr)
     {
-        coreclr_initialize_ptr initializeCoreCLR = coreclr_initialize;//(coreclr_initialize_ptr)dlsym(coreclrLib, "coreclr_initialize");
-        coreclr_execute_assembly_ptr executeAssembly = coreclr_execute_assembly;//(coreclr_execute_assembly_ptr)dlsym(coreclrLib, "coreclr_execute_assembly");
-        coreclr_shutdown_2_ptr shutdownCoreCLR = coreclr_shutdown_2;//(coreclr_shutdown_2_ptr)dlsym(coreclrLib, "coreclr_shutdown_2");
+        coreclr_initialize_ptr initializeCoreCLR = (coreclr_initialize_ptr)dlsym(coreclrLib, "coreclr_initialize");
+        coreclr_execute_assembly_ptr executeAssembly = (coreclr_execute_assembly_ptr)dlsym(coreclrLib, "coreclr_execute_assembly");
+        coreclr_shutdown_2_ptr shutdownCoreCLR = (coreclr_shutdown_2_ptr)dlsym(coreclrLib, "coreclr_shutdown_2");
 
         if (initializeCoreCLR == nullptr)
         {
@@ -444,7 +419,6 @@ int ExecuteManagedAssembly(
                 "NATIVE_DLL_SEARCH_DIRECTORIES",
                 "System.GC.Server",
                 "System.Globalization.Invariant",
-                "OVERRIDE_SYSTEM_PATH"
             };
             const char *propertyValues[] = {
                 // TRUSTED_PLATFORM_ASSEMBLIES
@@ -459,7 +433,6 @@ int ExecuteManagedAssembly(
                 useServerGc,
                 // System.Globalization.Invariant
                 globalizationInvariant,
-                clrFilesAbsolutePath
             };
 
             void* hostHandle;
@@ -510,11 +483,11 @@ int ExecuteManagedAssembly(
             }
         }
     }
-    // else
-    // {
-    //     const char* error = dlerror();
-    //     fprintf(stderr, "dlopen failed to open the libcoreclr.so with error %s\n", error);
-    // }
+    else
+    {
+        const char* error = dlerror();
+        fprintf(stderr, "dlopen failed to open the libcoreclr.so with error %s\n", error);
+    }
 
     if (hostpolicyLib)
     {
