@@ -2172,7 +2172,8 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
  **************************************************************************
  */
 #if DEBUG
-    unsigned int untrackedCount = 0, varPtrTableSize = 0;
+    unsigned untrackedCount  = 0;
+    unsigned varPtrTableSize = 0;
     gcCountForHeader(&untrackedCount, &varPtrTableSize);
     assert(untrackedCount == header.untrackedCnt);
     assert(varPtrTableSize == header.varPtrTableSize);
@@ -2331,20 +2332,20 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
      **************************************************************************
      */
 
-    bool thisKeptAliveIsInUntracked = false;
+    bool keepThisAlive = false;
 
     if (!compiler->info.compIsStatic)
     {
         unsigned thisArgNum = compiler->info.compThisArg;
-        gcIsUntrackedLocalOrNonEnregisteredArg(thisArgNum, &thisKeptAliveIsInUntracked);
+        gcIsUntrackedLocalOrNonEnregisteredArg(thisArgNum, &keepThisAlive);
     }
 
     // First we check for the most common case - no lifetimes at all.
 
     if (header.varPtrTableSize != 0)
     {
-#ifndef FEATURE_EH_FUNCLETS
-        if (thisKeptAliveIsInUntracked)
+#if !defined(FEATURE_EH_FUNCLETS)
+        if (keepThisAlive)
         {
             // Encoding of untracked variables does not support reporting
             // "this". So report it as a tracked variable with a liveness
@@ -2368,7 +2369,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
             dest += (sz & mask);
             totalSize += sz;
         }
-#endif
+#endif // !FEATURE_EH_FUNCLETS
 
         /* We'll use a delta encoding for the lifetime offsets */
 
@@ -2739,7 +2740,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
                     dest = gceByrefPrefixI(genRegPtrTemp, dest);
 
-                    if (!thisKeptAliveIsInUntracked && genRegPtrTemp->rpdIsThis)
+                    if (!keepThisAlive && genRegPtrTemp->rpdIsThis)
                     {
                         // Mark with 'this' pointer prefix
                         *dest++ = 0xBC;
@@ -3178,7 +3179,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
             unsigned origCodeDelta = codeDelta;
 #endif
 
-            if (!thisKeptAliveIsInUntracked && genRegPtrTemp->rpdIsThis)
+            if (!keepThisAlive && genRegPtrTemp->rpdIsThis)
             {
                 unsigned tmpMask = genRegPtrTemp->rpdCompiler.rpdAdd;
 

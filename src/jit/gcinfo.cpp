@@ -371,8 +371,8 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
     unsigned   varNum;
     LclVarDsc* varDsc;
 
-    bool         thisKeptAliveIsInUntracked = false; // did we track "this" in a synchronized method?
-    unsigned int untrackedCount             = 0;
+    bool         keepThisAlive  = false; // did we track "this" in a synchronized method?
+    unsigned int untrackedCount = 0;
 
     // Count the untracked locals and non-enregistered args.
 
@@ -387,7 +387,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
 
         if (varTypeIsGC(varDsc->TypeGet()))
         {
-            if (!gcIsUntrackedLocalOrNonEnregisteredArg(varNum, &thisKeptAliveIsInUntracked))
+            if (!gcIsUntrackedLocalOrNonEnregisteredArg(varNum, &keepThisAlive))
             {
                 continue;
             }
@@ -479,7 +479,7 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
 
     unsigned int varPtrTableSize = 0;
 
-    if (thisKeptAliveIsInUntracked)
+    if (keepThisAlive)
     {
         varPtrTableSize++;
     }
@@ -518,13 +518,13 @@ void GCInfo::gcCountForHeader(UNALIGNED unsigned int* pUntrackedCount, UNALIGNED
 //
 // Arguments:
 //   varNum - the variable number to check;
-//   pThisKeptAliveIsInUntracked - if !WIN64EXCEPTIONS and the argument != nullptr remember if `this` should be
-//   untracked and kept alive.
+//   pKeepThisAlive - if !FEATURE_EH_FUNCLETS and the argument != nullptr remember
+//   if `this` should be kept alive and considered tracked.
 //
 // Return value:
 //   true if it an untracked pointer value.
 //
-bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThisKeptAliveIsInUntracked)
+bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pKeepThisAlive)
 {
     LclVarDsc* varDsc = compiler->lvaGetDesc(varNum);
 
@@ -568,16 +568,15 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pThis
     }
 
 #if !defined(FEATURE_EH_FUNCLETS)
-    // For FEATURE_EH_FUNCLETS, "this" must always be in untracked variables
-    // so we cannot have "this" in variable lifetimes
     if (compiler->lvaIsOriginalThisArg(varNum) && compiler->lvaKeepAliveAndReportThis())
     {
-        // Encoding of untracked variables does not support reporting  "this". So report it as a tracked variable with a
-        // liveness extending over the entire method.
+        // "this" is in the untracked variable area, but encoding of untracked variables does not support reporting
+        // "this".
+        // So report it as a tracked variable with a liveness extending over the entire method.
 
-        if (pThisKeptAliveIsInUntracked != nullptr)
+        if (pKeepThisAlive != nullptr)
         {
-            *pThisKeptAliveIsInUntracked = true;
+            *pKeepThisAlive = true;
         }
         return false;
     }
