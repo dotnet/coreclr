@@ -28852,8 +28852,8 @@ inline void
 gc_heap::mark_through_cards_helper (uint8_t** poo, size_t& n_gen,
                                     size_t& cg_pointers_found,
                                     card_fn fn, uint8_t* nhigh,
-                                    uint8_t* next_boundary,
-                                    gc_heap* hpt)
+                                    uint8_t* next_boundary
+                                    CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
 #if defined(FEATURE_CARD_MARKING_STEALING) && defined(MULTIPLE_HEAPS)
     int thread = hpt->heap_number;
@@ -28900,8 +28900,8 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t& card_word_end,
                                size_t& n_eph, size_t& n_card_set,
                                size_t& card, size_t& end_card,
                                BOOL& foundp, uint8_t*& start_address,
-                               uint8_t*& limit, size_t& n_cards_cleared,
-                               card_marking_enumerator& card_mark_enumerator, heap_segment* seg)
+                               uint8_t*& limit, size_t& n_cards_cleared
+                               CARD_MARKING_STEALING_ARG(card_marking_enumerator& card_mark_enumerator) CARD_MARKING_STEALING_ARG(heap_segment* seg))
 {
     dprintf (3, ("pointer %Ix past card %Ix", (size_t)po, (size_t)card));
     dprintf (3, ("ct: %Id cg", cg_pointers_found));
@@ -29043,7 +29043,7 @@ bool gc_heap::find_next_chunk(card_marking_enumerator& card_mark_enumerator, hea
 }
 #endif // FEATURE_CARD_MARKING_STEALING
 
-void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_heap* hpt)
+void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
 #ifdef BACKGROUND_GC
     dprintf (3, ("current_sweep_pos is %Ix, saved_sweep_ephemeral_seg is %Ix(%Ix)",
@@ -29247,8 +29247,8 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                             n_eph, n_card_set,
                             card, end_card,
                             foundp, start_address,
-                            limit, total_cards_cleared,
-                            card_mark_enumerator, seg);
+                            limit, total_cards_cleared
+                            CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg));
                     }
 
                     if ((!passed_end_card_p || foundp) && (card_of (o) == card))
@@ -29263,7 +29263,7 @@ void gc_heap::mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_h
                             uint8_t* class_obj = get_class_object (o);
                             mark_through_cards_helper (&class_obj, n_gen,
                                                        cg_pointers_found, fn,
-                                                       nhigh, next_boundary, hpt);
+                                                       nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                         }
                     }
 
@@ -29305,8 +29305,8 @@ go_through_refs:
                                             n_eph, n_card_set,
                                             card, end_card,
                                             foundp, start_address,
-                                            limit, total_cards_cleared,
-                                            card_mark_enumerator, seg);
+                                            limit, total_cards_cleared
+                                            CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg));
                                     
                                      if (passed_end_card_p)
                                      {
@@ -29332,7 +29332,7 @@ go_through_refs:
 
                                  mark_through_cards_helper (poo, n_gen,
                                                             cg_pointers_found, fn,
-                                                            nhigh, next_boundary, hpt);
+                                                            nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                              }
                             );
                     }
@@ -33249,8 +33249,8 @@ void gc_heap::relocate_in_large_objects ()
 }
 
 void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
-                                                    BOOL relocating,
-                                                    gc_heap* hpt)
+                                                    BOOL relocating
+                                                    CARD_MARKING_STEALING_ARG(gc_heap* hpt))
 {
     uint8_t*      low               = gc_low;
     size_t        end_card          = 0;
@@ -33413,8 +33413,8 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                             n_eph, n_card_set,
                             card, end_card,
                             foundp, start_address,
-                            limit, total_cards_cleared,
-                            card_mark_enumerator, seg);
+                            limit, total_cards_cleared
+                            CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg));
                     }
 
                     if ((!passed_end_card_p || foundp) && (card_of (o) == card))
@@ -33429,7 +33429,7 @@ void gc_heap::mark_through_cards_for_large_objects (card_fn fn,
                             uint8_t* class_obj = get_class_object (o);
                             mark_through_cards_helper (&class_obj, n_gen,
                                                        cg_pointers_found, fn,
-                                                       nhigh, next_boundary, hpt);
+                                                       nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                         }
                     }
 
@@ -33464,8 +33464,8 @@ go_through_refs:
                                         n_eph, n_card_set,
                                         card, end_card,
                                         foundp, start_address,
-                                        limit, total_cards_cleared,
-                                        card_mark_enumerator, seg);
+                                        limit, total_cards_cleared
+                                        CARD_MARKING_STEALING_ARGS(card_mark_enumerator, seg));
 
                                 if (passed_end_card_p)
                                 {
@@ -33488,7 +33488,7 @@ go_through_refs:
 
                            mark_through_cards_helper (poo, n_gen,
                                                       cg_pointers_found, fn,
-                                                      nhigh, next_boundary, hpt);
+                                                      nhigh, next_boundary CARD_MARKING_STEALING_ARG(hpt));
                        }
                         );
                 }

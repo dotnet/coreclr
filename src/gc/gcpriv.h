@@ -364,9 +364,20 @@ class exclusive_sync;
 class recursive_gc_sync;
 #endif //BACKGROUND_GC
 
+#ifdef MULTIPLE_HEAPS
+// card marking stealing only makes sense in server GC
+// but it works and is easier to debug for workstation GC
+// so turn it on for server GC, turn on for workstation GC if necessary
 #define FEATURE_CARD_MARKING_STEALING
+#endif //MULTIPLE_HEAPS
+
 #ifdef FEATURE_CARD_MARKING_STEALING
 class card_marking_enumerator;
+#define CARD_MARKING_STEALING_ARG(a)    ,a
+#define CARD_MARKING_STEALING_ARGS(a,b)    ,a,b
+#else // FEATURE_CARD_MARKING_STEALING
+#define CARD_MARKING_STEALING_ARG(a)
+#define CARD_MARKING_STEALING_ARGS(a,b)
 #endif // FEATURE_CARD_MARKING_STEALING
 
 // The following 2 modes are of the same format as in clr\src\bcl\system\runtime\gcsettings.cs
@@ -2455,19 +2466,19 @@ protected:
     void mark_through_cards_helper (uint8_t** poo, size_t& ngen,
                                     size_t& cg_pointers_found,
                                     card_fn fn, uint8_t* nhigh,
-                                    uint8_t* next_boundary,
-                                    gc_heap* hpt);
+                                    uint8_t* next_boundary
+                                    CARD_MARKING_STEALING_ARG(gc_heap* hpt));
 
     PER_HEAP
     BOOL card_transition (uint8_t* po, uint8_t* end, size_t& card_word_end,
-                               size_t& cg_pointers_found, 
-                               size_t& n_eph, size_t& n_card_set,
-                               size_t& card, size_t& end_card,
-                               BOOL& foundp, uint8_t*& start_address,
-                               uint8_t*& limit, size_t& n_cards_cleared,
-                               card_marking_enumerator& card_mark_enumerator, heap_segment* seg);
+                          size_t& cg_pointers_found, 
+                          size_t& n_eph, size_t& n_card_set,
+                          size_t& card, size_t& end_card,
+                          BOOL& foundp, uint8_t*& start_address,
+                          uint8_t*& limit, size_t& n_cards_cleared
+                          CARD_MARKING_STEALING_ARGS(card_marking_enumerator& card_mark_enumerator, heap_segment* seg));
     PER_HEAP
-    void mark_through_cards_for_segments (card_fn fn, BOOL relocating, gc_heap* hpt);
+    void mark_through_cards_for_segments(card_fn fn, BOOL relocating CARD_MARKING_STEALING_ARG(gc_heap* hpt));
 
     PER_HEAP
     void repair_allocation_in_expanded_heap (generation* gen);
@@ -2659,7 +2670,8 @@ protected:
     PER_HEAP
     void relocate_in_large_objects ();
     PER_HEAP
-    void mark_through_cards_for_large_objects (card_fn fn, BOOL relocating, gc_heap* hpt);
+    void mark_through_cards_for_large_objects(card_fn fn, BOOL relocating
+                                              CARD_MARKING_STEALING_ARG(gc_heap* hpt));
     PER_HEAP
     void descr_segment (heap_segment* seg);
     PER_HEAP
