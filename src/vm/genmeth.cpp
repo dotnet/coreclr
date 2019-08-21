@@ -1188,7 +1188,7 @@ MethodDesc::FindOrCreateAssociatedMethodDesc(MethodDesc* pDefMD,
 #ifndef CROSSGEN_COMPILE
                 if (pInstMD->HasMethodInstantiation())
                 {
-                    SystemDomain::LockHolder lh;
+                    CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
                     pInstMD->GetModule()->RecordMethodForDictionaryExpansion_Locked(pInstMD);
                 }
 #endif

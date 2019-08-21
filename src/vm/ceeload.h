@@ -3241,6 +3241,9 @@ public:
     void SetNativeMetadataAssemblyRefInCache(DWORD rid, PTR_Assembly pAssembly);
 #endif // !defined(DACCESS_COMPILE)
 
+    // For protecting dictionary layout slot additions, and additions to the m_dynamicSlotsHashFor{Types/Methods} below
+    CrstExplicitInit        m_DictionaryCrst;
+
 #ifndef CROSSGEN_COMPILE
 private:
     class DynamicDictSlotsForTypesTrackerHashTraits : public NoRemoveDefaultCrossLoaderAllocatorHashTraits<MethodTable*, MethodTable*> { };

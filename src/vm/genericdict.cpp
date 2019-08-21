@@ -184,7 +184,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
                 return FALSE;
 
             // A lock should be taken by FindToken before being allowed to use an empty slot in the layout
-            _ASSERT(SystemDomain::IsUnderDomainLock());
+            _ASSERT(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
 
             PVOID pResultSignature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, slot);
             *EnsureWritablePages(&(pDictLayout->m_slots[iSlot].m_signature)) = pResultSignature;
@@ -221,7 +221,7 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
     {
         STANDARD_VM_CHECK;
         INJECT_FAULT(ThrowOutOfMemory(););
-        PRECONDITION(SystemDomain::IsUnderDomainLock());
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
         PRECONDITION(CheckPointer(pResult) && CheckPointer(pSlotOut));
     }
     CONTRACTL_END
@@ -279,7 +279,7 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
     if (FindTokenWorker(pAllocator, pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut))
         return TRUE;
 
-    SystemDomain::LockHolder lh;
+    CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
         if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, TRUE))
@@ -336,7 +336,7 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
     if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut))
         return TRUE;
 
-    SystemDomain::LockHolder lh;
+    CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
         if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, TRUE))
@@ -847,7 +847,7 @@ Dictionary::PopulateEntry(
         
 #if _DEBUG
         // Lock is needed because dictionary pointers can get updated during dictionary size expansion
-        SystemDomain::LockHolder lh;
+        CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
 
         // MethodTable is expected to be normalized
         Dictionary* pDictionary = pMT->GetDictionary();
@@ -1331,7 +1331,7 @@ Dictionary::PopulateEntry(
         if ((slotIndex != 0) && !IsCompilationProcess())
         {
             // Lock is needed because dictionary pointers can get updated during dictionary size expansion
-            SystemDomain::LockHolder lh;
+            CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
 
             Dictionary* pDictionary = pMT != NULL ? pMT->GetDictionary() : pMD->GetMethodDictionary();
 

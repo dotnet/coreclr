@@ -1008,8 +1008,9 @@ void ClassLoader::RecordDependenciesForDictionaryExpansion(MethodTable* pMT)
             RETURN;
     }
 
-    SystemDomain::LockHolder lh;
     {
+        CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
+
         // Update all inherited dictionary pointers which we could not embed, in case they got updated by some 
         // other thread during a dictionary expansion before taking this current lock.
         MethodTable* pParentMT = pMT->GetParentMethodTable();

@@ -556,6 +556,7 @@ void Module::Initialize(AllocMemTracker *pamTracker, LPCWSTR szName)
     m_FixupCrst.Init(CrstModuleFixup, (CrstFlags)(CRST_HOST_BREAKABLE|CRST_REENTRANCY));
     m_InstMethodHashTableCrst.Init(CrstInstMethodHashTable, CRST_REENTRANCY);
     m_ISymUnmanagedReaderCrst.Init(CrstISymUnmanagedReader, CRST_DEBUGGER_THREAD);
+    m_DictionaryCrst.Init(CrstDomainLocalBlock);
 
     if (!m_file->HasNativeImage())
     {
@@ -13245,7 +13246,7 @@ void Module::RecordTypeForDictionaryExpansion_Locked(MethodTable* pGenericParent
         GC_TRIGGERS;
         PRECONDITION(CheckPointer(pGenericParentMT) && CheckPointer(pDependencyMT));
         PRECONDITION(pGenericParentMT->HasInstantiation() && pGenericParentMT != pGenericParentMT->GetCanonicalMethodTable());
-        PRECONDITION(SystemDomain::IsUnderDomainLock());
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
 
@@ -13259,7 +13260,7 @@ void Module::RecordMethodForDictionaryExpansion_Locked(MethodDesc* pDependencyMD
     {
         GC_TRIGGERS;
         PRECONDITION(CheckPointer(pDependencyMD) && pDependencyMD->HasMethodInstantiation() && pDependencyMD->IsInstantiatingStub());
-        PRECONDITION(SystemDomain::IsUnderDomainLock());
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
         
@@ -13275,8 +13276,7 @@ void Module::ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* p
         INJECT_FAULT(ThrowOutOfMemory(););
         PRECONDITION(CheckPointer(pOldLayout) && CheckPointer(pNewLayout));
         PRECONDITION(CheckPointer(pMT) && pMT->HasInstantiation() && pMT->GetClass()->GetDictionaryLayout() == pOldLayout);
-        PRECONDITION(SystemDomain::IsUnderDomainLock());
-
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
 
@@ -13348,7 +13348,7 @@ void Module::ExpandMethodDictionaries_Locked(MethodDesc* pMD, DictionaryLayout* 
         PRECONDITION(CheckPointer(pOldLayout) && CheckPointer(pNewLayout));
         PRECONDITION(CheckPointer(pMD));
         PRECONDITION(pMD->HasMethodInstantiation() && pMD->GetDictionaryLayout() == pOldLayout);
-        PRECONDITION(SystemDomain::IsUnderDomainLock());
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
 
