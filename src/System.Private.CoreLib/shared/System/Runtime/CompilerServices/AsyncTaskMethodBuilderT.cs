@@ -575,7 +575,7 @@ namespace System.Runtime.CompilerServices
                 if (typeof(TResult) == typeof(bool)) // only the relevant branches are kept for each value-type generic instantiation
                 {
                     bool value = (bool)(object)result!;
-                    Task<bool> task = value ? AsyncTaskCache.TrueTask : AsyncTaskCache.s_falseTask;
+                    Task<bool> task = value ? AsyncTaskCache.s_trueTask : AsyncTaskCache.s_falseTask;
                     return Unsafe.As<Task<TResult>>(task); // UnsafeCast avoids type check we know will succeed
                 }
                 // For Int32, we cache a range of common values, e.g. [-1,9).
