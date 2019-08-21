@@ -74,6 +74,7 @@ set(VM_CROSSGEN_SOURCES
   ../stubcache.cpp
   ../stubgen.cpp
   ../stublink.cpp
+  ../tailcallhelp.cpp
   ../typectxt.cpp
   ../typedesc.cpp
   ../typeequivalencehash.cpp
@@ -170,6 +171,7 @@ set(VM_CROSSGEN_HEADERS
   ../stubgen.h
   ../stublink.h
   ../stublink.inl
+  ../tailcallhelp.h
   ../typectxt.h
   ../typedesc.h
   ../typedesc.inl

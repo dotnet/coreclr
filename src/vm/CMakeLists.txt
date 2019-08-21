@@ -389,6 +389,7 @@ set(VM_SOURCES_WKS
     syncclean.cpp
     synch.cpp
     synchronizationcontextnative.cpp
+    tailcallhelp.cpp
     threaddebugblockinginfo.cpp
     threadsuspend.cpp
     typeparse.cpp
@@ -509,6 +510,7 @@ set(VM_HEADERS_WKS
     syncclean.hpp
     synch.h
     synchronizationcontextnative.h
+    tailcallhelp.h
     tieredcompilation.h
     threaddebugblockinginfo.h
     threadsuspend.h

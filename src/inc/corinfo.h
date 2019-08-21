@@ -3236,6 +3236,10 @@ public:
                     CorInfoHelperTailCallSpecialHandling flags
                     ) = 0;
 
+    // Obtain store-args stub for a tailcall.
+    virtual CORINFO_METHOD_HANDLE getTailCallStoreArgsStub(CORINFO_SIG_INFO *pSig)
+    { return NULL; }
+
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
     virtual bool convertPInvokeCalliToCall(
                     CORINFO_RESOLVED_TOKEN * pResolvedToken,

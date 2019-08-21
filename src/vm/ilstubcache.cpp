@@ -464,10 +464,6 @@ MethodDesc* ILStubCache::GetStubMethodDesc(
 
     if (!pMD)
     {
-        size_t cbSizeOfBlob = pParams->m_cbSizeOfBlob;
-        AllocMemHolder<ILStubHashBlob> pBlobHolder( m_heap->AllocMem(S_SIZE_T(cbSizeOfBlob)) );
-
-
         //
         // Couldn't find it, let's make a new one.
         //
@@ -491,6 +487,8 @@ MethodDesc* ILStubCache::GetStubMethodDesc(
 
         if (SF_IsSharedStub(dwStubFlags))
         {
+            size_t cbSizeOfBlob = pParams->m_cbSizeOfBlob;
+            AllocMemHolder<ILStubHashBlob> pBlobHolder( m_heap->AllocMem(S_SIZE_T(cbSizeOfBlob)) );
 
             CrstHolder ch(&m_crst);
 

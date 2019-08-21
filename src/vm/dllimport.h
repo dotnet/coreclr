@@ -187,6 +187,7 @@ enum ILStubTypes
     ILSTUB_UNBOXINGILSTUB                = 0x80000020,
     ILSTUB_INSTANTIATINGSTUB             = 0x80000040,
     ILSTUB_SECUREDELEGATE_INVOKE         = 0x80000080,
+    ILSTUB_TAILCALL_STOREARGS            = 0x80000100,
 #endif
 };
 
@@ -220,9 +221,10 @@ inline bool SF_IsMulticastDelegateStub  (DWORD dwStubFlags) { LIMITED_METHOD_CON
 #endif
 
 #ifdef FEATURE_STUBS_AS_IL
-inline bool SF_IsSecureDelegateStub  (DWORD dwStubFlags)    { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_SECUREDELEGATE_INVOKE); }
+inline bool SF_IsSecureDelegateStub     (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_SECUREDELEGATE_INVOKE); }
 inline bool SF_IsUnboxingILStub         (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_UNBOXINGILSTUB); }
 inline bool SF_IsInstantiatingStub      (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_INSTANTIATINGSTUB); }
+inline bool SF_IsTailCallStoreArgsStub  (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return (dwStubFlags == ILSTUB_TAILCALL_STOREARGS); }
 #endif
 
 inline bool SF_IsCOMStub               (DWORD dwStubFlags) { LIMITED_METHOD_CONTRACT; return COM_ONLY(dwStubFlags < NDIRECTSTUB_FL_INVALID && 0 != (dwStubFlags & NDIRECTSTUB_FL_COM)); }
@@ -242,7 +244,8 @@ inline bool SF_IsSharedStub(DWORD dwStubFlags)
 {
     WRAPPER_NO_CONTRACT;
 
-    if (SF_IsWinRTHasRedirection(dwStubFlags))
+    // TODO: Share tailcall store args stubs
+    if (SF_IsWinRTHasRedirection(dwStubFlags) || SF_IsTailCallStoreArgsStub(dwStubFlags))
     {
         // tail-call to a target-specific mscorlib routine is burned into the stub
         return false;

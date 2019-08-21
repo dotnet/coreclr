@@ -66,6 +66,8 @@
 #include "perfmap.h"
 #endif
 
+#include "tailcallhelp.h"
+
 // The Stack Overflow probe takes place in the COOPERATIVE_TRANSITION_BEGIN() macro
 //
 
@@ -13935,6 +13937,31 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
     return ftn;
 }
+
+CORINFO_METHOD_HANDLE CEEInfo::getTailCallStoreArgsStub(CORINFO_SIG_INFO *pSig)
+{
+    CONTRACTL {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_PREEMPTIVE;
+    } CONTRACTL_END;
+
+    CORINFO_METHOD_HANDLE result;
+
+    JIT_TO_EE_TRANSITION();
+
+    SigTypeContext typeCtx;
+    GetTypeContext(&pSig->sigInst, &typeCtx);
+
+    MetaSig msig(pSig->pSig, pSig->cbSig, GetModule(pSig->scope), &typeCtx);
+
+    result = (CORINFO_METHOD_HANDLE)TailCallHelp::CreateStoreArgsStub(m_pMethodBeingCompiled, nullptr, msig);
+
+    EE_TO_JIT_TRANSITION();
+
+    return result;
+}
+
 
 bool CEEInfo::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
 {
