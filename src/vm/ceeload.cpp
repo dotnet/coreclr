@@ -13294,12 +13294,12 @@ void Module::ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* p
     //      allocated one.
     //
 
-    auto expandPerInstInfos = [oldInfoSize, newInfoSize, pCanonMT](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTToUpdate)
+    auto expandPerInstInfos = [oldInfoSize, newInfoSize](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTToUpdate)
     {
         if (!pMTToUpdate->HasSameTypeDefAs(pMTKey))
             return true;
 
-        _ASSERTE(pMTToUpdate != pMTToUpdate->GetCanonicalMethodTable() && pMTToUpdate->GetCanonicalMethodTable() == pMTKey && pMTKey == pCanonMT);
+        _ASSERTE(pMTToUpdate != pMTToUpdate->GetCanonicalMethodTable() && pMTToUpdate->GetCanonicalMethodTable() == pMTKey);
 
         TypeHandle* pInstOrPerInstInfo = (TypeHandle*)(void*)pMTToUpdate->GetLoaderAllocator()->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(newInfoSize));
         ZeroMemory(pInstOrPerInstInfo, newInfoSize);
@@ -13358,10 +13358,10 @@ void Module::ExpandMethodDictionaries_Locked(MethodDesc* pMD, DictionaryLayout* 
     DWORD oldInfoSize = DictionaryLayout::GetFirstDictionaryBucketSize(pMD->GetNumGenericMethodArgs(), pOldLayout);
     DWORD newInfoSize = DictionaryLayout::GetFirstDictionaryBucketSize(pMD->GetNumGenericMethodArgs(), pNewLayout);
 
-    auto lambda = [oldInfoSize, newInfoSize, pCanonMD](OBJECTREF obj, MethodDesc* pMDKey, MethodDesc* pMDToUpdate)
+    auto lambda = [oldInfoSize, newInfoSize](OBJECTREF obj, MethodDesc* pMDKey, MethodDesc* pMDToUpdate)
     {
         // Update m_pPerInstInfo for the pMethodDesc being visited here
-        _ASSERTE(pMDToUpdate->IsInstantiatingStub() && pMDToUpdate->GetWrappedMethodDesc() == pMDKey && pMDKey == pCanonMD);
+        _ASSERTE(pMDToUpdate->IsInstantiatingStub() && pMDToUpdate->GetWrappedMethodDesc() == pMDKey);
 
         InstantiatedMethodDesc* pInstantiatedMD = pMDToUpdate->AsInstantiatedMethodDesc();
 

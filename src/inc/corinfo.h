@@ -1373,9 +1373,6 @@ struct CORINFO_RUNTIME_LOOKUP
     // 1 means that value stored at second offset (offsets[1]) from pointer is offset2, and the next pointer is
     // stored at pointer+offsets[1]+offset2.
     bool                indirectSecondOffset;
-
-    // Dictionary slot index result for a dictionary lookup
-    WORD                slot;
 } ;
 
 // Result of calling embedGenericHandle

@@ -2887,9 +2887,11 @@ void ProcessDynamicDictionaryLookup(TransitionBlock *           pTransitionBlock
     *pDictionaryIndexAndSlot = (pContextMT == NULL ? 0 : pContextMT->GetNumDicts() - 1);
     *pDictionaryIndexAndSlot <<= 16;
     
+    WORD dictionarySlot;
+
     if (kind == ENCODE_DICTIONARY_LOOKUP_METHOD)
     {
-        if (DictionaryLayout::FindToken(pContextMD, pModule->GetLoaderAllocator(), 1, NULL, (BYTE*)pBlobStart, FromReadyToRunImage, pResult))
+        if (DictionaryLayout::FindToken(pContextMD, pModule->GetLoaderAllocator(), 1, NULL, (BYTE*)pBlobStart, FromReadyToRunImage, pResult, &dictionarySlot))
         {
             pResult->testForNull = 1;
 
@@ -2901,14 +2903,14 @@ void ProcessDynamicDictionaryLookup(TransitionBlock *           pTransitionBlock
                 pResult->indirectFirstOffset = 1;
             }
 
-            *pDictionaryIndexAndSlot |= pResult->slot;
+            *pDictionaryIndexAndSlot |= dictionarySlot;
         }
     }
 
     // It's a class dictionary lookup (CORINFO_LOOKUP_CLASSPARAM or CORINFO_LOOKUP_THISOBJ)
     else
     {
-        if (DictionaryLayout::FindToken(pContextMT, pModule->GetLoaderAllocator(), 2, NULL, (BYTE*)pBlobStart, FromReadyToRunImage, pResult))
+        if (DictionaryLayout::FindToken(pContextMT, pModule->GetLoaderAllocator(), 2, NULL, (BYTE*)pBlobStart, FromReadyToRunImage, pResult, &dictionarySlot))
         {
             pResult->testForNull = 1;
 
@@ -2924,7 +2926,7 @@ void ProcessDynamicDictionaryLookup(TransitionBlock *           pTransitionBlock
                 pResult->indirectSecondOffset = 1;
             }
 
-            *pDictionaryIndexAndSlot |= pResult->slot;
+            *pDictionaryIndexAndSlot |= dictionarySlot;
         }
     }
 }

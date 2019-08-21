@@ -115,6 +115,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
                                        int                              nFirstOffset,
                                        DictionaryEntrySignatureSource   signatureSource,
                                        CORINFO_RUNTIME_LOOKUP*          pResult,
+                                       WORD*                            pSlotOut,
                                        BOOL                             useEmptySlotIfFound /* = FALSE */)
 
 {
@@ -123,7 +124,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
         STANDARD_VM_CHECK;
         PRECONDITION(numGenericArgs > 0);
         PRECONDITION(CheckPointer(pDictLayout));
-        PRECONDITION(CheckPointer(pResult));
+        PRECONDITION(CheckPointer(pResult) && CheckPointer(pSlotOut));
         PRECONDITION(CheckPointer(pSig));
         PRECONDITION((pSigBuilder == NULL && cbSig == -1) || (CheckPointer(pSigBuilder) && cbSig > 0));
     }
@@ -172,7 +173,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
                 _ASSERTE(FitsIn<WORD>(nFirstOffset + 1));
                 pResult->indirections = static_cast<WORD>(nFirstOffset + 1);
                 pResult->offsets[nFirstOffset] = slot * sizeof(DictionaryEntry);
-                pResult->slot = slot;
+                *pSlotOut = slot;
                 return TRUE;
             }
         }
@@ -194,7 +195,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
             _ASSERTE(FitsIn<WORD>(nFirstOffset + 1));
             pResult->indirections = static_cast<WORD>(nFirstOffset + 1);
             pResult->offsets[nFirstOffset] = slot * sizeof(DictionaryEntry);
-            pResult->slot = slot;
+            *pSlotOut = slot;
             return TRUE;
         }
 
@@ -213,13 +214,15 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
                                                            BYTE*                            pSig, 
                                                            int                              nFirstOffset, 
                                                            DictionaryEntrySignatureSource   signatureSource, 
-                                                           CORINFO_RUNTIME_LOOKUP*          pResult)
+                                                           CORINFO_RUNTIME_LOOKUP*          pResult,
+                                                           WORD*                            pSlotOut)
 {
     CONTRACTL
     {
         STANDARD_VM_CHECK;
         INJECT_FAULT(ThrowOutOfMemory(););
         PRECONDITION(SystemDomain::IsUnderDomainLock());
+        PRECONDITION(CheckPointer(pResult) && CheckPointer(pSlotOut));
     }
     CONTRACTL_END
         
@@ -245,7 +248,7 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
     _ASSERTE(FitsIn<WORD>(nFirstOffset + 1));
     pResult->indirections = static_cast<WORD>(nFirstOffset + 1);
     pResult->offsets[nFirstOffset] = slot * sizeof(DictionaryEntry);
-    pResult->slot = slot;
+    *pSlotOut = slot;
 
     return pNewDictionaryLayout;
 }
@@ -258,7 +261,8 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
                                  SigBuilder*                        pSigBuilder,
                                  BYTE*                              pSig,
                                  DictionaryEntrySignatureSource     signatureSource,
-                                 CORINFO_RUNTIME_LOOKUP*            pResult)
+                                 CORINFO_RUNTIME_LOOKUP*            pResult,
+                                 WORD*                              pSlotOut)
 {
     CONTRACTL
     {
@@ -272,19 +276,19 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
 
     DWORD cbSig = -1;
     pSig = pSigBuilder != NULL ? (BYTE*)pSigBuilder->GetSignature(&cbSig) : pSig;
-    if (FindTokenWorker(pAllocator, pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult))
+    if (FindTokenWorker(pAllocator, pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut))
         return TRUE;
 
     SystemDomain::LockHolder lh;
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
-        if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, TRUE))
+        if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, TRUE))
             return TRUE;
         
 
 #ifndef CROSSGEN_COMPILE
         DictionaryLayout* pOldLayout = pMT->GetClass()->GetDictionaryLayout();
-        DictionaryLayout* pNewLayout = ExpandDictionaryLayout(pAllocator, pOldLayout, pMT->GetNumGenericArgs(), pSigBuilder, pSig, nFirstOffset, signatureSource, pResult);
+        DictionaryLayout* pNewLayout = ExpandDictionaryLayout(pAllocator, pOldLayout, pMT->GetNumGenericArgs(), pSigBuilder, pSig, nFirstOffset, signatureSource, pResult, pSlotOut);
         if (pNewLayout == NULL)
         {
             pResult->signature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, 0);
@@ -314,7 +318,8 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
                                  SigBuilder*                        pSigBuilder,
                                  BYTE*                              pSig,
                                  DictionaryEntrySignatureSource     signatureSource,
-                                 CORINFO_RUNTIME_LOOKUP*            pResult)
+                                 CORINFO_RUNTIME_LOOKUP*            pResult,
+                                 WORD*                              pSlotOut)
 {
     CONTRACTL
     {
@@ -328,18 +333,18 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
 
     DWORD cbSig = -1;
     pSig = pSigBuilder != NULL ? (BYTE*)pSigBuilder->GetSignature(&cbSig) : pSig;
-    if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult))
+    if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut))
         return TRUE;
 
     SystemDomain::LockHolder lh;
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
-        if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, TRUE))
+        if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, TRUE))
             return TRUE;
 
 #ifndef CROSSGEN_COMPILE
         DictionaryLayout* pOldLayout = pMD->GetDictionaryLayout();
-        DictionaryLayout* pNewLayout = ExpandDictionaryLayout(pAllocator, pOldLayout, pMD->GetNumGenericMethodArgs(), pSigBuilder, pSig, nFirstOffset, signatureSource, pResult);
+        DictionaryLayout* pNewLayout = ExpandDictionaryLayout(pAllocator, pOldLayout, pMD->GetNumGenericMethodArgs(), pSigBuilder, pSig, nFirstOffset, signatureSource, pResult, pSlotOut);
         if (pNewLayout == NULL)
         {
             pResult->signature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, 0);
