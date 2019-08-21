@@ -47,7 +47,7 @@
 
 
     <PropertyGroup>
-      <AssetManifestFilePath>$(ArtifactsLogDir)AssetManifest\$(OSIdentifier)-$(BuildArch)</AssetManifestFilePath>
+      <AssetManifestFilePath>$(ArtifactsLogDir)AssetManifest\$(OSIdentifier)-$(BuildArch).xml</AssetManifestFilePath>
       <!-- Work around an issue where the repo URI is different on
            OSX, causing the manifests to have different headers, which
            makes publishing to BAR fail later when it tries to merge
