@@ -1069,8 +1069,30 @@ restore_optdata
 # Generate event logging infrastructure sources
 generate_event_logging
 
+# Restore packages used for building corebundle
+__CoreBundleCmakeArgs=""
+if [[ $__isMSBuildOnNETCoreSupported == 1 && "$__BuildArch" == "x64" ]]; then
+    echo "Restoring packanges for corebundle."
+
+    __CoreFxPackageVersionOutputFile="${__IntermediatesDir}/corefxversion.txt"
+    "$__ProjectRoot/eng/common/msbuild.sh" $__ArcadeScriptArgs \
+                                            $__ProjectRoot/src/tools/bundle/bundle.csproj \
+                                            /t:Restore /p:RestoreOnly=true /m \
+                                            /p:RuntimeIdentifier=$__DistroRid \
+                                            /p:CoreFxPackageVersionOutputFile=$__CoreFxPackageVersionOutputFile \
+                                            $__CommonMSBuildArgs $__UnprocessedBuildArgs
+    exit_code=$?
+    if [ $exit_code != 0 ]; then
+        echo "${__ErrMsgPrefix}Failed to restore packages for corebundle."
+        exit $exit_code
+    fi
+
+    __CoreFxPackageVersion=$(<"${__CoreFxPackageVersionOutputFile}")
+    __CoreBundleCmakeArgs="-DFEATURE_MERGE_JIT_AND_ENGINE=1 -DCLR_CMAKE_BUILD_COREBUNDLE=1 -DCLR_CMAKE_DISTRORID=$__DistroRid -DCLR_CMAKE_COREFXPACKAGE_VERSION=$__CoreFxPackageVersion"
+fi
+
 # Build the coreclr (native) components.
-__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
+__ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize $__CoreBundleCmakeArgs"
 
 # [TODO] Remove this when the `build-test.sh` script properly builds and deploys test assets.
 if [ $__SkipTests != 1 ]; then

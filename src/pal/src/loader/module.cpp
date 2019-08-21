@@ -1426,17 +1426,17 @@ static NATIVE_LIBRARY_HANDLE LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
     NATIVE_LIBRARY_HANDLE dl_handle;
 
     int nameLength = strlen(libraryNameOrPath);
-    if ((nameLength >= 8 && strcmp(libraryNameOrPath + (nameLength - 8), "/corerun") == 0) ||
+    if ((nameLength >= 6 && strcmp(libraryNameOrPath + (nameLength - 6), "[self]") == 0) ||
         (nameLength >= 16 && strcmp(libraryNameOrPath + (nameLength - 16), "System.Native.so") == 0) ||
         (nameLength >= 30 && strcmp(libraryNameOrPath + (nameLength - 30), "System.Globalization.Native.so") == 0) ||
         (nameLength >= 31 && strcmp(libraryNameOrPath + (nameLength - 31), "System.IO.Compression.Native.so") == 0) ||
-        (nameLength >= 25 && strcmp(libraryNameOrPath + (nameLength - 25), "System.IO.Ports.Native.so") == 0) ||
+        // (nameLength >= 25 && strcmp(libraryNameOrPath + (nameLength - 25), "System.IO.Ports.Native.so") == 0) ||
         (nameLength >= 25 && strcmp(libraryNameOrPath + (nameLength - 25), "System.Net.Http.Native.so") == 0) ||
         (nameLength >= 29 && strcmp(libraryNameOrPath + (nameLength - 29), "System.Net.Security.Native.so") == 0) ||
         (nameLength >= 46 && strcmp(libraryNameOrPath + (nameLength - 46), "System.Security.Cryptography.Native.OpenSsl.so") == 0)
     )
     {
-        printf("Deferring %s to corerun\n", libraryNameOrPath);
+        printf("Deferring %s to current image\n", libraryNameOrPath);
         dl_handle = dlopen(NULL, RTLD_LAZY);
     }
     else
@@ -1768,7 +1768,16 @@ MODSTRUCT *LOADGetPalLibrary()
             }
         }
 
-        pal_module = (MODSTRUCT *)LOADLoadLibrary(info.dli_fname, FALSE);
+        int len = strlen(g_szCoreCLRPath);
+        int suffixLen = strlen(PAL_SHLIB_SUFFIX);
+        if (len > suffixLen && strcmp(g_szCoreCLRPath + len - suffixLen, PAL_SHLIB_SUFFIX) != 0)
+        {
+            pal_module = (MODSTRUCT *)LOADLoadLibrary("[self]", FALSE);
+        }
+        else
+        {
+            pal_module = (MODSTRUCT *)LOADLoadLibrary(info.dli_fname, FALSE);
+        }
     }
 
 exit:

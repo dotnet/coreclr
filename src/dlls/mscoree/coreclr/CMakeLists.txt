@@ -84,17 +84,27 @@ endif(FEATURE_MERGE_JIT_AND_ENGINE)
 # IMPORTANT! Please do not rearrange the order of the libraries. The linker on Linux is
 # order dependent and changing the order can result in undefined symbols in the shared
 # library.
-set(CORECLR_LIBRARIES
+set(PREPEND_CORECLR_LIBRARIES
     utilcode
-    #${START_LIBRARY_GROUP} # Start group of libraries that have circular references
+    ${START_LIBRARY_GROUP} # Start group of libraries that have circular references
     cordbee_wks
     debug-pal
     ${LIB_UNWINDER}
     cee_wks
-    #${END_LIBRARY_GROUP} # End group of libraries that have circular references
+    ${END_LIBRARY_GROUP} # End group of libraries that have circular references
+)
+
+set(PREPEND_CORECLR_LIBRARIES_STATIC
+    utilcode
+    cordbee_wks
+    debug-pal
+    ${LIB_UNWINDER}
+    cee_wks
 
     cordbee_wks
+)
 
+set(CORECLR_LIBRARIES
     mdcompiler_wks
     mdruntime_wks
     mdruntimerw_wks
@@ -159,8 +169,8 @@ if(FEATURE_EVENT_TRACE)
     endif(CLR_CMAKE_PLATFORM_UNIX)
 endif(FEATURE_EVENT_TRACE)
 
-target_link_libraries(coreclr ${CORECLR_LIBRARIES})
-target_link_libraries(coreclr_static ${CORECLR_LIBRARIES})
+target_link_libraries(coreclr ${PREPEND_CORECLR_LIBRARIES} ${CORECLR_LIBRARIES})
+target_link_libraries(coreclr_static ${PREPEND_CORECLR_LIBRARIES_STATIC} ${CORECLR_LIBRARIES})
 
 if(WIN32)
     if (NOT CMAKE_GENERATOR MATCHES "Visual Studio .*")
@@ -216,7 +226,7 @@ endif(WIN32)
 
 # add the install targets
 install_clr(coreclr)
-install_clr(coreclr_static)
+_install(TARGETS coreclr_static DESTINATION .)
 
 # Enable profile guided optimization
 add_pgo(coreclr)

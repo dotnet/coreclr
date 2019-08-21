@@ -444,6 +444,7 @@ int ExecuteManagedAssembly(
                 "NATIVE_DLL_SEARCH_DIRECTORIES",
                 "System.GC.Server",
                 "System.Globalization.Invariant",
+                "OVERRIDE_SYSTEM_PATH"
             };
             const char *propertyValues[] = {
                 // TRUSTED_PLATFORM_ASSEMBLIES
@@ -458,6 +459,7 @@ int ExecuteManagedAssembly(
                 useServerGc,
                 // System.Globalization.Invariant
                 globalizationInvariant,
+                clrFilesAbsolutePath
             };
 
             void* hostHandle;
