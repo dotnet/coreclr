@@ -278,12 +278,13 @@ namespace System.Runtime.CompilerServices
             /// <summary>A delegate to the <see cref="MoveNext()"/> method.</summary>
             private Action? _moveNextAction;
             /// <summary>The state machine itself.</summary>
-            [AllowNull, MaybeNull] public TStateMachine StateMachine = default; // mutable struct; do not make this readonly. SOS DumpAsync command depends on this name.
+            [AllowNull, MaybeNull]
+            public TStateMachine StateMachine = default; // mutable struct; do not make this readonly. SOS DumpAsync command depends on this name.
             /// <summary>Captured ExecutionContext with which to invoke <see cref="MoveNextAction"/>; may be null.</summary>
             public ExecutionContext? Context;
 
             /// <summary>A delegate to the <see cref="MoveNext()"/> method.</summary>
-            public Action MoveNextAction => _moveNextAction ?? (_moveNextAction = new Action(MoveNext));
+            public Action MoveNextAction => _moveNextAction ??= new Action(MoveNext);
 
             internal sealed override void ExecuteFromThreadPool(Thread threadPoolThread) => MoveNext(threadPoolThread);
 
@@ -574,7 +575,7 @@ namespace System.Runtime.CompilerServices
                 if (typeof(TResult) == typeof(bool)) // only the relevant branches are kept for each value-type generic instantiation
                 {
                     bool value = (bool)(object)result!;
-                    Task<bool> task = value ? AsyncTaskCache.TrueTask : AsyncTaskCache.FalseTask;
+                    Task<bool> task = value ? AsyncTaskCache.TrueTask : AsyncTaskCache.s_falseTask;
                     return Unsafe.As<Task<TResult>>(task); // UnsafeCast avoids type check we know will succeed
                 }
                 // For Int32, we cache a range of common values, e.g. [-1,9).
@@ -584,10 +585,10 @@ namespace System.Runtime.CompilerServices
                     // We compare to the upper bound first, as we're more likely to cache miss on the upper side than on the
                     // lower side, due to positive values being more common than negative as return values.
                     int value = (int)(object)result!;
-                    if (value < AsyncTaskCache.EXCLUSIVE_INT32_MAX &&
-                        value >= AsyncTaskCache.INCLUSIVE_INT32_MIN)
+                    if (value < AsyncTaskCache.ExclusiveInt32Max &&
+                        value >= AsyncTaskCache.InclusiveInt32Min)
                     {
-                        Task<int> task = AsyncTaskCache.Int32Tasks[value - AsyncTaskCache.INCLUSIVE_INT32_MIN];
+                        Task<int> task = AsyncTaskCache.s_int32Tasks[value - AsyncTaskCache.InclusiveInt32Min];
                         return Unsafe.As<Task<TResult>>(task); // UnsafeCast avoids a type check we know will succeed
                     }
                 }
