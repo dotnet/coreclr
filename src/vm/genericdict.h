@@ -120,6 +120,7 @@ private:
                                 int                                 nFirstOffset,
                                 DictionaryEntrySignatureSource      signatureSource,
                                 CORINFO_RUNTIME_LOOKUP*             pResult,
+                                WORD*                               pSlotOut,
                                 BOOL                                useEmptySlotIfFound = FALSE);
 
 
@@ -130,7 +131,8 @@ private:
                                                     BYTE*                           pSig,
                                                     int                             nFirstOffset,
                                                     DictionaryEntrySignatureSource  signatureSource,
-                                                    CORINFO_RUNTIME_LOOKUP*         pResult);
+                                                    CORINFO_RUNTIME_LOOKUP*         pResult,
+                                                    WORD*                           pSlotOut);
      
     static PVOID CreateSignatureWithSlotData(SigBuilder* pSigBuilder, LoaderAllocator* pAllocator, WORD slot);
 
@@ -148,7 +150,8 @@ public:
                           SigBuilder*                       pSigBuilder,
                           BYTE*                             pSig,
                           DictionaryEntrySignatureSource    signatureSource,
-                          CORINFO_RUNTIME_LOOKUP*           pResult);
+                          CORINFO_RUNTIME_LOOKUP*           pResult,
+                          WORD*                             pSlotOut);
 
     static BOOL FindToken(MethodDesc*                       pMD,
                           LoaderAllocator*                  pAllocator,
@@ -156,7 +159,8 @@ public:
                           SigBuilder*                       pSigBuilder,
                           BYTE*                             pSig,
                           DictionaryEntrySignatureSource    signatureSource,
-                          CORINFO_RUNTIME_LOOKUP*           pResult);
+                          CORINFO_RUNTIME_LOOKUP*           pResult,
+                          WORD*                             pSlotOut);
 
     DWORD GetMaxSlots();
     DWORD GetNumUsedSlots();
