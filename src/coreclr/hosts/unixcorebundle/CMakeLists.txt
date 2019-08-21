@@ -53,7 +53,34 @@ set(END_WHOLE_ARCHIVE -Wl,--no-whole-archive)
 
 find_package(ZLIB REQUIRED)
 find_package(CURL)
-find_library(LIBGSS NAMES gssapi_krb5) # TODO: this needs to search for various options
+
+check_include_files(
+    GSS/GSS.h
+    HAVE_GSSFW_HEADERS)
+
+option(HeimdalGssApi "use heimdal implementation of GssApi" OFF)
+if (HeimdalGssApi)
+   check_include_files(
+       gssapi/gssapi.h
+       HAVE_HEIMDAL_HEADERS)
+endif()
+
+if (HAVE_GSSFW_HEADERS)
+   find_library(LIBGSS NAMES GSS)
+   if(LIBGSS STREQUAL LIBGSS-NOTFOUND)
+      message(FATAL_ERROR "Cannot find GSS.Framework and System.Net.Security.Native cannot build without it. Try installing GSS.Framework (or the appropriate package for your platform)")
+   endif()
+elseif(HAVE_HEIMDAL_HEADERS)
+   find_library(LIBGSS NAMES gssapi)
+   if(LIBGSS STREQUAL LIBGSS-NOTFOUND)
+      message(FATAL_ERROR "Cannot find libgssapi and System.Net.Security.Native cannot build without it. Try installing heimdal (or the appropriate package for your platform)")
+   endif()
+else()
+   find_library(LIBGSS NAMES gssapi_krb5)
+   if(LIBGSS STREQUAL LIBGSS-NOTFOUND)
+      message(FATAL_ERROR "Cannot find libgssapi_krb5 and System.Net.Security.Native cannot build without it. Try installing libkrb5-dev (or the appropriate package for your platform)")
+   endif()
+endif()
 
 set(NETCOREAPP_NATIVEPACKAGEPATH "${CLR_CMAKE_PACKAGES_DIR}/runtime.${CLR_CMAKE_DISTRORID}.microsoft.private.corefx.netcoreapp")
 set(NETCOREAPP_NATIVEPACKAGEPATH "${NETCOREAPP_NATIVEPACKAGEPATH}/${CLR_CMAKE_COREFXPACKAGE_VERSION}/runtimes/${CLR_CMAKE_DISTRORID}/native")
