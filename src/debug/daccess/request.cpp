@@ -4275,6 +4275,38 @@ HRESULT ClrDataAccess::GetClrNotification(CLRDATA_ADDRESS arguments[], int count
     return hr;
 }
 
+HRESULT ClrDataAccess::GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejitId)
+{
+    if (methodDesc == 0 || pRejitId == NULL)
+    {
+        return E_INVALIDARG;
+    }
+
+    SOSDacEnter();
+    
+    PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
+
+    CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
+    CodeVersionManager::TableLockHolder lock(pCodeVersionManager);
+    ILCodeVersion ilVersion = pCodeVersionManager->GetActiveILCodeVersion(pMD);
+    if (ilVersion.IsNull())
+    {
+        hr = E_INVALIDARG;
+    }
+    else if (ilVersion.GetRejitState() == ILCodeVersion::kStateRequested || ilVersion.GetRejitState() == ILCodeVersion::kStateRequested)
+    {
+        *pRejitId = (int)ilVersion.GetVersionId();
+    }
+    else
+    {
+        hr = S_FALSE;
+    }
+
+    SOSDacLeave();
+
+    return hr;
+}
+
 HRESULT ClrDataAccess::GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData)
 {
     if (methodDesc == 0 || rejitId < 0 || pReJitData == NULL)

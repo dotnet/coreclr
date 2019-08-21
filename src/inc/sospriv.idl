@@ -385,6 +385,7 @@ interface ISOSDacInterface6 : IUnknown
 ]
 interface ISOSDacInterface7 : IUnknown
 {
+    HRESULT GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejitId);
     HRESULT GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pRejitData);
     HRESULT GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDesc, struct DacpProfilerILData *pILData);
     HRESULT GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLRDATA_ADDRESS *methodDescs, int cMethodDescs, int *pcMethodDescs);

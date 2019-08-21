@@ -2392,6 +2392,10 @@ EXTERN_C const IID IID_ISOSDacInterface7;
     ISOSDacInterface7 : public IUnknown
     {
     public:
+        virtual HRESULT STDMETHODCALLTYPE GetPendingReJITID( 
+            CLRDATA_ADDRESS methodDesc,
+            int *pRejitId) = 0;
+        
         virtual HRESULT STDMETHODCALLTYPE GetReJITInformation( 
             CLRDATA_ADDRESS methodDesc,
             int rejitId,
@@ -2427,6 +2431,11 @@ EXTERN_C const IID IID_ISOSDacInterface7;
         
         ULONG ( STDMETHODCALLTYPE *Release )( 
             ISOSDacInterface7 * This);
+        
+        HRESULT ( STDMETHODCALLTYPE *GetPendingReJITID )( 
+            ISOSDacInterface7 * This,
+            CLRDATA_ADDRESS methodDesc,
+            int *pRejitId);
         
         HRESULT ( STDMETHODCALLTYPE *GetReJITInformation )( 
             ISOSDacInterface7 * This,
@@ -2468,6 +2477,9 @@ EXTERN_C const IID IID_ISOSDacInterface7;
 #define ISOSDacInterface7_Release(This) \
     ( (This)->lpVtbl -> Release(This) ) 
 
+
+#define ISOSDacInterface7_GetPendingReJITID(This,methodDesc,pRejitId)   \
+    ( (This)->lpVtbl -> GetPendingReJITID(This,methodDesc,pRejitId) ) 
 
 #define ISOSDacInterface7_GetReJITInformation(This,methodDesc,rejitId,pRejitData)   \
     ( (This)->lpVtbl -> GetReJITInformation(This,methodDesc,rejitId,pRejitData) ) 
