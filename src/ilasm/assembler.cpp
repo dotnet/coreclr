@@ -2508,7 +2508,7 @@ bool Assembler::CheckAddGenericParamConstraint(GenericParamConstraintList* pGPCL
     //
     bool match = false;
     GenericParamConstraintDescriptor *pGPC = nullptr;
-    for (int listIndex = 0; pGPC = pGPCList->PEEK(listIndex); listIndex++)
+    for (int listIndex = 0; (pGPC = pGPCList->PEEK(listIndex)) != nullptr; listIndex++)
     {
         int curParamIndex = pGPC->GetParamIndex();
         if (curParamIndex == index)
@@ -2572,7 +2572,7 @@ void Assembler::EmitGenericParamConstraints(int numTyPars, TyParDescr* pTyPars, 
     // Set all the owner tokens and calculate the number of constraints for each type parameter
     GenericParamConstraintDescriptor *pGPC;
     int listIndex;
-    for (listIndex = 0; pGPC = pGPCL->PEEK(listIndex); listIndex++)
+    for (listIndex = 0; (pGPC = pGPCL->PEEK(listIndex)) != nullptr; listIndex++)
     {
         pGPC->SetOwner(tkOwner);
         paramIndex = pGPC->GetParamIndex();
@@ -2609,7 +2609,7 @@ void Assembler::EmitGenericParamConstraints(int numTyPars, TyParDescr* pTyPars, 
 
     // Iterate the GenericParamConstraints list again and 
     // record the type constraints in the pConstraintsArr[][]
-    for (listIndex = 0; pGPC = pGPCL->PEEK(listIndex); listIndex++)
+    for (listIndex = 0; (pGPC = pGPCL->PEEK(listIndex)) != nullptr; listIndex++)
     {
         paramIndex = pGPC->GetParamIndex();
 
