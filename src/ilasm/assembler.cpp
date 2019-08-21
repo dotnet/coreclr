@@ -471,10 +471,10 @@ void Assembler::StartClass(__in __nullterminated char* name, DWORD attr, TyParLi
 
         if (m_TyParList)
         {
-            //m_pCurClass->m_NumTyPars = m_TyParList->ToArray(&m_pCurClass->m_TyParBounds, &m_pCurClass->m_TyParNames, &m_pCurClass->m_TyParAttrs);
             m_pCurClass->m_NumTyPars = m_TyParList->ToArray(&(m_pCurClass->m_TyPars));
             delete m_TyParList;
             m_TyParList = NULL;
+            RecordTypeConstraints(&m_pCurClass->m_GPCList, m_pCurClass->m_NumTyPars, m_pCurClass->m_TyPars);
         }
         else m_pCurClass->m_NumTyPars = 0;
         m_pCurClass->m_pEncloser = pEnclosingClass;
@@ -769,11 +769,10 @@ void Assembler::StartMethod(__in __nullterminated char* name, BinStr* sig, CorMe
             m_pCurMethod->m_MainScope.dwStart = m_CurPC;
             if (typars)
             {
-                //m_pCurMethod->m_NumTyPars = typars->ToArray(&m_pCurMethod->m_TyParBounds,
-                //&m_pCurMethod->m_TyParNames, NULL);
                 m_pCurMethod->m_NumTyPars = typars->ToArray(&(m_pCurMethod->m_TyPars));
                 delete typars;
                 m_TyParList = NULL;
+                RecordTypeConstraints(&m_pCurMethod->m_GPCList, m_pCurMethod->m_NumTyPars, m_pCurMethod->m_TyPars);
             }
             else m_pCurMethod->m_NumTyPars = 0;
         }
@@ -2433,6 +2432,30 @@ void Assembler::SetSourceFileName(BinStr* pbsName)
     }
 }
 
+void Assembler::RecordTypeConstraints(GenericParamConstraintList* pGPCList, int numTyPars, TyParDescr* tyPars)
+{
+    if (numTyPars > 0)
+    {
+        for (int i = 0; i < numTyPars; i++)
+        {
+            // Decode any type constraints held by tyPars[i].Bounds()
+            BinStr* typeConstraints = tyPars[i].Bounds();
+            _ASSERTE((typeConstraints->length() % 4) == 0);
+            int numConstraints = (typeConstraints->length() / 4) - 1;
+            if (numConstraints > 0)
+            {
+                mdToken* ptk = (mdToken*)typeConstraints->ptr();
+                for (int j = 0; j < numConstraints; j++)
+                {
+                    mdToken tkTypeConstraint = ptk[j];
+                    CheckAddGenericParamConstraint(pGPCList, i, tkTypeConstraint);
+                }
+            }
+        }
+        m_pCustomDescrList = NULL;
+    }
+}
+
 void Assembler::AddGenericParamConstraint(int index, char * pStrGenericParam, mdToken tkTypeConstraint)
 {
     if (!m_pCurClass)
@@ -2453,7 +2476,7 @@ void Assembler::AddGenericParamConstraint(int index, char * pStrGenericParam, md
             return;
         }
         index = index - 1;
-    } 
+    }
     else  // index was 0, so a name must be supplied by pStrGenericParam
     {
         if (pStrGenericParam == 0)
@@ -2468,11 +2491,52 @@ void Assembler::AddGenericParamConstraint(int index, char * pStrGenericParam, md
             return;
         }
     }
+    bool newlyAdded = CheckAddGenericParamConstraint(&m_pCurClass->m_GPCList, index, tkTypeConstraint);
+}
 
-    GenericParamConstraintDescriptor* pNewGPCDescr = new GenericParamConstraintDescriptor();
-    pNewGPCDescr->Init(index, tkTypeConstraint);
-    m_pCurClass->m_GPCList.PUSH(pNewGPCDescr);
-    m_pCustomDescrList = pNewGPCDescr->CAList();
+// returns true if we create a new GenericParamConstraintDescriptor
+// reurns false if we return an already existing GenericParamConstraintDescriptor
+//
+bool Assembler::CheckAddGenericParamConstraint(GenericParamConstraintList* pGPCList, int index, mdToken tkTypeConstraint)
+{
+    _ASSERTE(tkTypeConstraint != 0);
+    _ASSERTE(index >= 0);
+
+    // Look for an existing match in m_pCurClass->m_GPCList
+    //
+    // Iterate the GenericParamConstraints list 
+    //
+    bool match = false;
+    GenericParamConstraintDescriptor *pGPC = nullptr;
+    for (int listIndex = 0; pGPC = pGPCList->PEEK(listIndex); listIndex++)
+    {
+        int curParamIndex = pGPC->GetParamIndex();
+        if (curParamIndex == index)
+        {
+            mdToken curTypeConstraint = pGPC->GetTypeConstraint();
+            if (curTypeConstraint == tkTypeConstraint)
+            {
+                match = true;
+                break;
+            }
+        }
+    }
+
+    if (match)
+    {
+        m_pCustomDescrList = pGPC->CAList();
+        return false;
+    }
+    else
+    {
+        // not found add it to our list
+        //
+        GenericParamConstraintDescriptor* pNewGPCDescr = new GenericParamConstraintDescriptor();
+        pNewGPCDescr->Init(index, tkTypeConstraint);
+        pGPCList->PUSH(pNewGPCDescr);
+        m_pCustomDescrList = pNewGPCDescr->CAList();
+        return true;
+    }
 }
 
 // Emit the proper metadata for the generic parameter type constraints 

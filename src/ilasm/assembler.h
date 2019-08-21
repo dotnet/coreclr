@@ -1268,7 +1268,11 @@ private:
     HRESULT GetCAName(mdToken tkCA, __out LPWSTR *ppszName);
 
 public:
-    void AddGenericParamConstraint(int index, char * tkGenericParam, mdToken tkTypeConstraint);
+    void RecordTypeConstraints(GenericParamConstraintList* pGPCList, int numTyPars, TyParDescr* tyPars);
+
+    void AddGenericParamConstraint(int index, char * pStrGenericParam, mdToken tkTypeConstraint);
+
+    bool CheckAddGenericParamConstraint(GenericParamConstraintList* pGPCList, int index, mdToken tkTypeConstraint);
 
     void EmitGenericParamConstraints(int numTyPars, TyParDescr* pTyPars, mdToken tkOwner, GenericParamConstraintList* pGPCL);
 

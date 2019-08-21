@@ -164,12 +164,9 @@ void Method::AddGenericParamConstraint(int index, char * pStrGenericParam, mdTok
             m_pAssembler->report->error("Type parameter '%s' undefined\n", pStrGenericParam);
             return;
         }
-    }   
-
-    GenericParamConstraintDescriptor* pNewGPCDescr = new GenericParamConstraintDescriptor();
-    pNewGPCDescr->Init(index, tkTypeConstraint);
-    m_GPCList.PUSH(pNewGPCDescr);
-    m_pAssembler->m_pCustomDescrList = pNewGPCDescr->CAList();
+    }
+    m_pAssembler->CheckAddGenericParamConstraint(&m_GPCList, index, tkTypeConstraint);
 }
+
 
 
