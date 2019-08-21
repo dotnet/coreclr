@@ -21,8 +21,8 @@
     <!-- roslyn -->
     <MicrosoftNetCompilersToolsetVersion>3.3.0-beta2-19367-02</MicrosoftNetCompilersToolsetVersion>
     <!-- corefx -->
-    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-preview9.19419.5</MicrosoftPrivateCoreFxNETCoreAppVersion>
-    <MicrosoftNETCorePlatformsVersion>3.0.0-preview9.19419.5</MicrosoftNETCorePlatformsVersion>
+    <MicrosoftPrivateCoreFxNETCoreAppVersion>4.6.0-rc1.19420.10</MicrosoftPrivateCoreFxNETCoreAppVersion>
+    <MicrosoftNETCorePlatformsVersion>3.0.0-rc1.19420.10</MicrosoftNETCorePlatformsVersion>
     <MicrosoftBclAsyncInterfacesVersion>1.0.0-preview7.19326.2</MicrosoftBclAsyncInterfacesVersion>
     <!-- core-setup -->
     <MicrosoftNETCoreAppVersion>3.0.0-preview9-19419-06</MicrosoftNETCoreAppVersion>
