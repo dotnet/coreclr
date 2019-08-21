@@ -91,6 +91,7 @@ MODSTRUCT exe_module;
 MODSTRUCT *pal_module = nullptr;
 
 char * g_szCoreCLRPath = nullptr;
+bool g_running_in_exe = false;
 
 int MaxWCharToAcpLength = 3;
 
@@ -1406,6 +1407,37 @@ static LPWSTR LOADGetModuleFileName(MODSTRUCT *module)
     return module->lib_name;
 }
 
+static bool ShouldRedirectToCurrentLibrary(LPCSTR libraryNameOrPath)
+{
+    if (!g_running_in_exe)
+        return false;
+        
+    if (strcmp(libraryNameOrPath, "[self]") == 0)
+        return true;
+
+    const char *toRedirect[] = {
+        "System.Native.so",
+        "System.Globalization.Native.so",
+        "System.IO.Compression.Native.so",
+        //"System.IO.Ports.Native.so",
+        "System.Net.Http.Native.so",
+        "System.Net.Security.Native.so",
+        "System.Security.Cryptography.Native.OpenSsl.so"
+    };
+
+    int nameLength = strlen(libraryNameOrPath);
+    int count = sizeof(toRedirect) / sizeof(toRedirect[0]);
+    for (int i = 0; i < count; ++i)
+    {
+        const char *match = toRedirect[i];
+        int matchLength = strlen(match);
+        if (nameLength >= matchLength && strcmp(libraryNameOrPath + nameLength - matchLength, match) == 0)
+            return true;
+    }
+
+    return false;
+}
+
 /*
 Function:
     LOADLoadLibraryDirect [internal]
@@ -1425,16 +1457,7 @@ static NATIVE_LIBRARY_HANDLE LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
 
     NATIVE_LIBRARY_HANDLE dl_handle;
 
-    int nameLength = strlen(libraryNameOrPath);
-    if ((nameLength >= 6 && strcmp(libraryNameOrPath + (nameLength - 6), "[self]") == 0) ||
-        (nameLength >= 16 && strcmp(libraryNameOrPath + (nameLength - 16), "System.Native.so") == 0) ||
-        (nameLength >= 30 && strcmp(libraryNameOrPath + (nameLength - 30), "System.Globalization.Native.so") == 0) ||
-        (nameLength >= 31 && strcmp(libraryNameOrPath + (nameLength - 31), "System.IO.Compression.Native.so") == 0) ||
-        // (nameLength >= 25 && strcmp(libraryNameOrPath + (nameLength - 25), "System.IO.Ports.Native.so") == 0) ||
-        (nameLength >= 25 && strcmp(libraryNameOrPath + (nameLength - 25), "System.Net.Http.Native.so") == 0) ||
-        (nameLength >= 29 && strcmp(libraryNameOrPath + (nameLength - 29), "System.Net.Security.Native.so") == 0) ||
-        (nameLength >= 46 && strcmp(libraryNameOrPath + (nameLength - 46), "System.Security.Cryptography.Native.OpenSsl.so") == 0)
-    )
+    if (ShouldRedirectToCurrentLibrary(libraryNameOrPath))
     {
         printf("Deferring %s to current image\n", libraryNameOrPath);
         dl_handle = dlopen(NULL, RTLD_LAZY);
@@ -1772,6 +1795,7 @@ MODSTRUCT *LOADGetPalLibrary()
         int suffixLen = strlen(PAL_SHLIB_SUFFIX);
         if (len > suffixLen && strcmp(g_szCoreCLRPath + len - suffixLen, PAL_SHLIB_SUFFIX) != 0)
         {
+            g_running_in_exe =  true;
             pal_module = (MODSTRUCT *)LOADLoadLibrary("[self]", FALSE);
         }
         else
