@@ -1621,4 +1621,167 @@ void CodeGen::genCodeForMulLong(GenTreeMultiRegOp* node)
     genProduceReg(node);
 }
 
+#ifdef PROFILING_SUPPORTED
+
+//-----------------------------------------------------------------------------------
+// genProfilingEnterCallback: Generate the profiling function enter callback.
+//
+// Arguments:
+//     initReg        - register to use as scratch register
+//     pInitRegZeroed - OUT parameter. *pInitRegZeroed set to 'false' if 'initReg' is
+//                      not zero after this call.
+//
+// Return Value:
+//     None
+//
+void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
+{
+    assert(compiler->compGeneratingProlog);
+
+    // Give profiler a chance to back out of hooking this method
+    if (!compiler->compIsProfilerHookNeeded())
+    {
+        return;
+    }
+
+    unsigned saveStackLvl2 = genStackLevel;
+
+    // On Arm arguments are prespilled on stack, which frees r0-r3.
+    // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
+    // The call target register could be any free register.
+    regNumber argReg     = REG_PROFILER_ENTER_ARG;
+    regMaskTP argRegMask = genRegMask(argReg);
+    assert((regSet.rsMaskPreSpillRegArg & argRegMask) != 0);
+
+    if (compiler->compProfilerMethHndIndirected)
+    {
+        getEmitter()->emitIns_R_AI(INS_ldr, EA_PTR_DSP_RELOC, argReg, (ssize_t)compiler->compProfilerMethHnd);
+        regSet.verifyRegUsed(argReg);
+    }
+    else
+    {
+        instGen_Set_Reg_To_Imm(EA_4BYTE, argReg, (ssize_t)compiler->compProfilerMethHnd);
+    }
+
+    //
+    // Can't have a call until we have enough padding for rejit
+    //
+    genPrologPadForReJit();
+
+    // This will emit either
+    // "call ip-relative 32-bit offset" or
+    // "mov rax, helper addr; call rax"
+    genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER,
+                      0,           // argSize. Again, we have to lie about it
+                      EA_UNKNOWN); // retSize
+
+    if (initReg == argReg)
+    {
+        *pInitRegZeroed = false;
+    }
+
+    /* Restore the stack level */
+
+    SetStackLevel(saveStackLvl2);
+}
+
+//-----------------------------------------------------------------------------------
+// genProfilingLeaveCallback: Generate the profiling function leave or tailcall callback.
+// Technically, this is not part of the epilog; it is called when we are generating code for a GT_RETURN node.
+//
+// Arguments:
+//     helper - which helper to call. Either CORINFO_HELP_PROF_FCN_LEAVE or CORINFO_HELP_PROF_FCN_TAILCALL
+//
+// Return Value:
+//     None
+//
+void CodeGen::genProfilingLeaveCallback(unsigned helper)
+{
+    assert((helper == CORINFO_HELP_PROF_FCN_LEAVE) || (helper == CORINFO_HELP_PROF_FCN_TAILCALL));
+
+    // Only hook if profiler says it's okay.
+    if (!compiler->compIsProfilerHookNeeded())
+    {
+        return;
+    }
+
+    compiler->info.compProfilerCallback = true;
+
+    // Need to save on to the stack level, since the helper call will pop the argument
+    unsigned saveStackLvl2 = genStackLevel;
+
+    //
+    // Push the profilerHandle
+    //
+
+    // Contract between JIT and Profiler Leave callout on arm:
+    // Return size <= 4 bytes: REG_PROFILER_RET_SCRATCH will contain return value
+    // Return size > 4 and <= 8: <REG_PROFILER_RET_SCRATCH,r1> will contain return value.
+    // Floating point or double or HFA return values will be in s0-s15 in case of non-vararg methods.
+    // It is assumed that profiler Leave callback doesn't trash registers r1,REG_PROFILER_RET_SCRATCH and s0-s15.
+    //
+    // In the following cases r0 doesn't contain a return value and hence need not be preserved before emitting Leave
+    // callback.
+    bool     r0Trashed;
+    emitAttr attr = EA_UNKNOWN;
+
+    if (compiler->info.compRetType == TYP_VOID || (!compiler->info.compIsVarArgs && !compiler->opts.compUseSoftFP &&
+                                                   (varTypeIsFloating(compiler->info.compRetType) ||
+                                                    compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))))
+    {
+        r0Trashed = false;
+    }
+    else
+    {
+        // Has a return value and r0 is in use. For emitting Leave profiler callout we would need r0 for passing
+        // profiler handle. Therefore, r0 is moved to REG_PROFILER_RETURN_SCRATCH as per contract.
+        if (RBM_ARG_0 & gcInfo.gcRegGCrefSetCur)
+        {
+            attr = EA_GCREF;
+            gcInfo.gcMarkRegSetGCref(RBM_PROFILER_RET_SCRATCH);
+        }
+        else if (RBM_ARG_0 & gcInfo.gcRegByrefSetCur)
+        {
+            attr = EA_BYREF;
+            gcInfo.gcMarkRegSetByref(RBM_PROFILER_RET_SCRATCH);
+        }
+        else
+        {
+            attr = EA_4BYTE;
+        }
+
+        getEmitter()->emitIns_R_R(INS_mov, attr, REG_PROFILER_RET_SCRATCH, REG_ARG_0);
+        regSet.verifyRegUsed(REG_PROFILER_RET_SCRATCH);
+        gcInfo.gcMarkRegSetNpt(RBM_ARG_0);
+        r0Trashed = true;
+    }
+
+    if (compiler->compProfilerMethHndIndirected)
+    {
+        getEmitter()->emitIns_R_AI(INS_ldr, EA_PTR_DSP_RELOC, REG_ARG_0, (ssize_t)compiler->compProfilerMethHnd);
+        regSet.verifyRegUsed(REG_ARG_0);
+    }
+    else
+    {
+        instGen_Set_Reg_To_Imm(EA_4BYTE, REG_ARG_0, (ssize_t)compiler->compProfilerMethHnd);
+    }
+
+    genEmitHelperCall(CORINFO_HELP_PROF_FCN_LEAVE,
+                      0,           // argSize
+                      EA_UNKNOWN); // retSize
+
+    // Restore state that existed before profiler callback
+    if (r0Trashed)
+    {
+        getEmitter()->emitIns_R_R(INS_mov, attr, REG_ARG_0, REG_PROFILER_RET_SCRATCH);
+        regSet.verifyRegUsed(REG_ARG_0);
+        gcInfo.gcMarkRegSetNpt(RBM_PROFILER_RET_SCRATCH);
+    }
+
+    /* Restore the stack level */
+    SetStackLevel(saveStackLvl2);
+}
+
+#endif // PROFILING_SUPPORTED
+
 #endif // _TARGET_ARM_
