@@ -6814,8 +6814,9 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                 m_valueStack.Reset();
             }
 
-            // We don't visit every block in the loop so once we visited the first block
-            // we need to assume the worst, that not visited blocks have side effects.
+            // Only uncondtionally executed blocks in the loop are visited (see optHoistThisLoop)
+            // so after we're done visiting the first block we need to assume the worst, that the
+            // blocks that are not visisted have side effects.
             m_beforeSideEffect = false;
         }
 
@@ -7038,7 +7039,11 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                 // At this point the stack contains (in top to bottom order):
                 //   - the current node's children
                 //   - the current node
-                //   - previously traversed nodes (descendants of some current node's ancestor)
+                //   - ancestors of the current node and some of their descendants
+                //
+                // The ancestors have not been visited yet in post order so they're not hoistable
+                // (and they cannot become hoistable because the current node is not) but some of
+                // their descendants may have already been traversed and be hoistable.
                 //
                 // The execution order is actually bottom to top so we'll start hoisting from
                 // the bottom of the stack, skipping the current node (which is expected to not
