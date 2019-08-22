@@ -274,7 +274,7 @@ TFp FpRem(TFp dividend, TFp divisor)
 //
 VNFunc GetVNFuncForNode(GenTree* node)
 {
-    static const VNFunc relopFuncs[]{VNF_LT_UN, VNF_LE_UN, VNF_GE_UN, VNF_GT_UN};
+    static const VNFunc relopUnFuncs[]{VNF_LT_UN, VNF_LE_UN, VNF_GE_UN, VNF_GT_UN};
     static_assert_no_msg(GT_LE - GT_LT == 1);
     static_assert_no_msg(GT_GE - GT_LT == 2);
     static_assert_no_msg(GT_GT - GT_LT == 3);
@@ -311,7 +311,7 @@ VNFunc GetVNFuncForNode(GenTree* node)
                 assert(varTypeIsFloating(node->gtGetOp2()));
                 if ((node->gtFlags & GTF_RELOP_NAN_UN) != 0)
                 {
-                    return relopFuncs[node->OperGet() - GT_LT];
+                    return relopUnFuncs[node->OperGet() - GT_LT];
                 }
             }
             else
@@ -320,7 +320,7 @@ VNFunc GetVNFuncForNode(GenTree* node)
                 assert(varTypeIsIntegralOrI(node->gtGetOp2()));
                 if (node->IsUnsigned())
                 {
-                    return relopFuncs[node->OperGet() - GT_LT];
+                    return relopUnFuncs[node->OperGet() - GT_LT];
                 }
             }
             break;
