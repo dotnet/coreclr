@@ -573,7 +573,7 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pKeep
         // "this" is in the untracked variable area, but encoding of untracked variables does not support reporting
         // "this". So report it as a tracked variable with a liveness extending over the entire method.
         //
-        // TODO-x86-Cleanup: the semantic here is not clear, it would be useful to check different cases and 
+        // TODO-x86-Cleanup: the semantic here is not clear, it would be useful to check different cases and
         // add a description where "this" is saved and how it is tracked in each of them:
         // 1) when FEATURE_EH_FUNCLETS defined (x86 Linux);
         // 2) when FEATURE_EH_FUNCLETS not defined, lvaKeepAliveAndReportThis == true, compJmpOpUsed == true;
