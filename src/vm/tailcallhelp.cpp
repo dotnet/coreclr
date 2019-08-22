@@ -5,6 +5,8 @@
 #include "common.h"
 #include "tailcallhelp.h"
 #include "dllimport.h"
+#include <formattype.h>
+#include <sigformat.h>
 
 void TailCallHelp::CreateStoreArgsStubSig(MethodDesc* pCalleeMD, MetaSig& callSiteSig, SigBuilder* sig)
 {
@@ -40,18 +42,67 @@ void TailCallHelp::CreateStoreArgsStubSig(MethodDesc* pCalleeMD, MetaSig& callSi
     }
 
     callSiteSig.Reset();
-    TypeHandle tyHnd;
     CorElementType ty;
-    while ((ty = callSiteSig.NextArgNormalized(&tyHnd)) != ELEMENT_TYPE_END)
+    while (true)
     {
-        if (tyHnd.IsNull())
+        CorElementType ty;
+        if ((ty = callSiteSig.NextArgNormalized()) == ELEMENT_TYPE_END)
+            break;
+
+        TypeHandle tyHnd = callSiteSig.GetLastTypeHandleThrowing();
+        if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
         {
-            sig->AppendElementType(ty);
+            sig->AppendElementType(ELEMENT_TYPE_I);
             continue;
         }
 
-        sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
-        sig->AppendPointer(tyHnd.AsPtr());
+        if (tyHnd.IsByRef())
+        {
+            sig->AppendElementType(ELEMENT_TYPE_BYREF);
+            sig->AppendElementType(ELEMENT_TYPE_U1);
+            continue;
+        }
+
+        if (!tyHnd.IsValueType())
+        {
+            sig->AppendElementType(ELEMENT_TYPE_OBJECT);
+            continue;
+        }
+
+        SigPointer pArg = callSiteSig.GetArgProps();
+        pArg.ConvertToInternalExactlyOne(callSiteSig.GetModule(), callSiteSig.GetSigTypeContext(), sig);
+    }
+
+#ifdef _DEBUG
+    SigFormat incSig(callSiteSig, NULL);
+    DWORD cbSig;
+    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+    SigTypeContext emptyContext;
+    MetaSig outMsig(pSig, cbSig, callSiteSig.GetModule(), &emptyContext);
+    SigFormat outSig(outMsig, NULL);
+    printf("Incoming sig: %s\n", incSig.GetCString());
+    printf("Outgoing sig: %s\n", outSig.GetCString());
+#endif // _DEBUG
+}
+
+namespace
+{
+    template<typename Func>
+    void ProcessArgsAligned(MetaSig& callSiteSig, Func func)
+    {
+        callSiteSig.Reset();
+        UINT offset = 0;
+        CorElementType ty;
+        while ((ty = callSiteSig.NextArg()) != ELEMENT_TYPE_END)
+        {
+            TypeHandle tyHnd = callSiteSig.GetLastTypeHandleThrowing();
+            unsigned int alignment = CEEInfo::getClassAlignmentRequirementStatic(tyHnd);
+            offset = AlignUp(offset, alignment);
+            unsigned int size = tyHnd.GetSize();
+
+            func(tyHnd, offset, size);
+            offset += size;
+        }
     }
 }
 
@@ -63,23 +114,116 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
 
     SigBuilder sigBuilder;
     CreateStoreArgsStubSig(pCalleeMD, callSiteSig, &sigBuilder);
-    SigTypeContext emptyCtx;
 
     DWORD cbSig;
     PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigBuilder.GetSignature(&cbSig);
+    SigTypeContext emptyCtx;
 
-    ILStubCache* stubCache = pCallerMD->GetLoaderModule()->GetILStubCache();
-    AllocMemTracker memTracker;
-    bool bCreatedStub = false;
-    MethodDesc* pStubMD = stubCache->GetStubMethodDesc(
-        nullptr,
-        nullptr,
-        ILSTUB_TAILCALL_STOREARGS,
-        callSiteSig.GetModule(),
-        pSig, cbSig,
-        &memTracker,
-        bCreatedStub,
-        nullptr);
+    MetaSig msig(pSig, cbSig, pCallerMD->GetModule(), &emptyCtx);
 
-    return nullptr;
+    ILStubLinker sl(pCallerMD->GetModule(),
+                    Signature(pSig, cbSig),
+                    &emptyCtx,
+                    NULL,
+                    FALSE,
+                    FALSE);
+
+    ILCodeStream* pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
+
+    DWORD bufferLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+
+    UINT argsSize = 0;
+    bool requiresGCDescriptor = false;
+    ProcessArgsAligned(
+        msig,
+        [&](TypeHandle tyHnd, UINT offset, UINT size)
+        {
+            argsSize = offset + size;
+
+            if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
+                return;
+
+            // Not a value type here means it is either a by-ref or a class type.
+            if (!tyHnd.IsValueType() || tyHnd.GetMethodTable()->ContainsPointers())
+                requiresGCDescriptor = true;
+        });
+
+    _ASSERTE(!requiresGCDescriptor); // TODO
+
+    UINT bufferSize = TARGET_POINTER_SIZE; // call stub
+    if (requiresGCDescriptor)
+        bufferSize += TARGET_POINTER_SIZE; // GC descriptor
+    bufferSize += argsSize; // target address and user args
+
+    pCode->EmitLDC(bufferSize);
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__FETCH_TAILCALL_ARG_BUFFER, 1, 1);
+    pCode->EmitSTLOC(bufferLcl);
+
+    auto emitOffs = [&](UINT offs)
+    {
+        pCode->EmitLDLOC(bufferLcl);
+        if (offs != 0)
+        {
+            pCode->EmitLDC(offs);
+            pCode->EmitADD();
+        }
+    };
+
+    UINT offs = 0;
+    // Call stub
+    emitOffs(offs); offs += TARGET_POINTER_SIZE;
+    pCode->EmitLDC(0x1234); // TODO: should be LDFTN
+    pCode->EmitCONV_I();
+    pCode->EmitSTIND_I();
+
+    if (requiresGCDescriptor)
+    {
+        // GC descriptor
+        emitOffs(offs); offs += TARGET_POINTER_SIZE;
+        pCode->EmitLDC(0x1234); // TODO
+        pCode->EmitCONV_I();
+        pCode->EmitSTIND_I();
+    }
+
+    unsigned argIndex = 0;
+    ProcessArgsAligned(
+        callSiteSig,
+        [&](TypeHandle tyHnd, UINT argOffs, UINT size)
+        {
+            emitOffs(offs + argOffs);
+            pCode->EmitLDARG(argIndex);
+            if (!tyHnd.IsValueType())
+                pCode->EmitSTIND_REF();
+            else
+                pCode->EmitSTOBJ(pCode->GetToken(tyHnd));
+
+            argIndex++;
+        });
+
+    pCode->EmitRET();
+
+    Module* pLoaderModule = pCallerMD->GetLoaderModule();
+    MethodDesc* pStoreArgsMD =
+        ILStubCache::CreateAndLinkNewILStubMethodDesc(
+            pCallerMD->GetLoaderAllocator(),
+            pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
+            ILSTUB_TAILCALL_STOREARGS,
+            pCallerMD->GetModule(),
+            pSig, cbSig,
+            &emptyCtx,
+            &sl);
+
+    return pStoreArgsMD;
+}
+
+char* g_argBuffer;
+void* TailCallHelp::FetchTailCallArgBuffer(INT32 size)
+{
+    // TODO: TLS
+    return size ? (g_argBuffer = new char[size]) : g_argBuffer;
+}
+
+void TailCallHelp::ReleaseTailCallArgBuffer()
+{
+    delete[] g_argBuffer;
 }

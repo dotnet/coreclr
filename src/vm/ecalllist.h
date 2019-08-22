@@ -938,6 +938,8 @@ FCFuncStart(gRuntimeHelpers)
     FCFuncElement("EnsureSufficientExecutionStack", ReflectionInvocation::EnsureSufficientExecutionStack)
     FCFuncElement("TryEnsureSufficientExecutionStack", ReflectionInvocation::TryEnsureSufficientExecutionStack)
     FCFuncElement("GetUninitializedObjectInternal", ReflectionSerialization::GetUninitializedObject)
+    FCFuncElement("FetchTailCallArgBuffer", StubHelpers::FetchTailCallArgBuffer)
+    FCFuncElement("ReleaseTailCallArgBuffer", StubHelpers::ReleaseTailCallArgBuffer)
 FCFuncEnd()
 
 FCFuncStart(gContextSynchronizationFuncs)

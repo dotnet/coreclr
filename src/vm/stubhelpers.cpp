@@ -31,6 +31,8 @@
 #include "winrttypenameconverter.h"
 #endif
 
+#include "tailcallhelp.h"
+
 #ifdef VERIFY_HEAP
 
 CQuickArray<StubHelpers::ByrefValidationEntry> StubHelpers::s_ByrefValidationEntries;
@@ -1753,3 +1755,17 @@ FCIMPL2(void, StubHelpers::MulticastDebuggerTraceHelper, Object* element, INT32 
 }
 FCIMPLEND
 #endif // FEATURE_MULTICASTSTUB_AS_IL
+
+FCIMPL1(void*, StubHelpers::FetchTailCallArgBuffer, INT32 requiredSize)
+{
+    FCALL_CONTRACT;
+    return TailCallHelp::FetchTailCallArgBuffer(requiredSize);
+}
+FCIMPLEND
+
+FCIMPL0(void, StubHelpers::ReleaseTailCallArgBuffer)
+{
+    FCALL_CONTRACT;
+    TailCallHelp::ReleaseTailCallArgBuffer();
+}
+FCIMPLEND
