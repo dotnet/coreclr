@@ -1,15 +1,18 @@
 project(corebundle)
 
 include_directories(./bundle)
+include_directories(../unixcoreruncommon)
 
 add_compile_options(-fPIE)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include(configure.cmake)
+include(../unixcoreruncommon/configure.cmake)
+
+add_definitions(-DCOREBUNDLE_BUILD)
 
 set(COREBUNDLE_SOURCES
     corebundle.cpp
-    run_coreclr.cpp
     ./bundle/dir_utils.cpp
     ./bundle/extractor.cpp
     ./bundle/file_entry.cpp
@@ -21,10 +24,10 @@ set(COREBUNDLE_SOURCES
     ./bundle/runner.cpp
     ./bundle/trace.cpp
     ./bundle/utils.cpp
+    ../unixcoreruncommon/coreruncommon.cpp
 )
 
 set(HEADERS
-    run_coreclr.h
     ./bundle/dir_utils.h
     ./bundle/error_codes.h
     ./bundle/extractor.h
@@ -38,6 +41,7 @@ set(HEADERS
     ./bundle/runner.h
     ./bundle/trace.h
     ./bundle/utils.h
+    ../unixcoreruncommon/coreruncommon.h
 )
 
 _add_executable(corebundle

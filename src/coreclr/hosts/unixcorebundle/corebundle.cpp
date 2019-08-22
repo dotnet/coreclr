@@ -6,7 +6,7 @@
 // A simple CoreCLR host that runs as a single-exe bundle
 //
 
-#include "run_coreclr.h"
+#include <coreruncommon.h>
 #include <string>
 #include <string.h>
 #include <sys/stat.h>
