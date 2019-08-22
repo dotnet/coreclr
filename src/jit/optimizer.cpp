@@ -6780,6 +6780,25 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
         unsigned          m_loopNum;
         LoopHoistContext* m_hoistContext;
 
+        bool IsNodeHoistable(GenTree* node)
+        {
+            // TODO-CQ: This is a more restrictive version of a check that optIsCSEcandidate already does - it allows
+            // a struct typed node if a class handle can be recovered from it.
+            if (node->TypeGet() == TYP_STRUCT)
+            {
+                return false;
+            }
+
+            // Tree must be a suitable CSE candidate for us to be able to hoist it.
+            return m_compiler->optIsCSEcandidate(node);
+        }
+
+        bool IsTreeVNInvariant(GenTree* tree)
+        {
+            return m_compiler->optVNIsLoopInvariant(tree->gtVNPair.GetLiberal(), m_loopNum,
+                                                    &m_hoistContext->m_curLoopVnInvariantCache);
+        }
+
     public:
         enum
         {
@@ -6840,16 +6859,31 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                 bool isInvariant = !user->OperIs(GT_ASG) || (user->AsOp()->gtGetOp1() != tree);
                 // and the variable must be in SSA ...
                 isInvariant = isInvariant && m_compiler->lvaInSsa(lclNum);
-                // and the SSA definition must be outside the loop we're hoisting from.
+                // and the SSA definition must be outside the loop we're hoisting from ...
                 isInvariant = isInvariant &&
                               !m_compiler->optLoopTable[m_loopNum].lpContains(
                                   m_compiler->lvaGetDesc(lclNum)->GetPerSsaData(lclVar->GetSsaNum())->m_defLoc.m_blk);
+                // and the VN of the tree is considered invariant as well.
+                //
+                // TODO-CQ: This VN invariance check should not be necessary and in some cases it is conservative - it
+                // is possible that the SSA def is outside the loop but VN does not understand what the node is doing
+                // (e.g. LCL_FLD-based type reinterpretation) and assigns a "new, unique VN" to the node. This VN is
+                // associated with the block where the node is, a loop block, and thus the VN is considered to not be
+                // invariant.
+                // On the other hand, it is possible for a SSA def to be inside the loop yet the use to be invariant,
+                // if the defining expression is also invariant. In such a case the VN invariance would help but it is
+                // blocked by the SSA invariance check.
+                isInvariant = isInvariant && IsTreeVNInvariant(tree);
 
                 if (isInvariant)
                 {
                     Value& top = m_valueStack.TopRef();
                     assert(top.Node() == tree);
                     top.m_invariant = true;
+                    // In general it doesn't make sense to hoist a local node but there are exceptions, for example
+                    // LCL_FLD nodes (because then the variable cannot be enregistered and the node always turns
+                    // into a memory access).
+                    top.m_hoistable = IsNodeHoistable(tree);
                 }
 
                 return fgWalkResult::WALK_CONTINUE;
@@ -6917,20 +6951,15 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
             //
             if (treeIsInvariant)
             {
-                // Tree must be a suitable CSE candidate for us to be able to hoist it.
-                treeIsHoistable &= m_compiler->optIsCSEcandidate(tree);
-
-                // We cannot hoist an r-value of TYP_STRUCT
-                // as they currently do not carry full descriptors of the struct type
-                if (tree->TypeGet() == TYP_STRUCT)
+                if (treeIsHoistable)
                 {
-                    treeIsHoistable = false;
+                    treeIsHoistable = IsNodeHoistable(tree);
                 }
 
                 // If it's a call, it must be a helper call, and be pure.
                 // Further, if it may run a cctor, it must be labeled as "Hoistable"
                 // (meaning it won't run a cctor because the class is not precise-init).
-                if (tree->OperGet() == GT_CALL)
+                if (treeIsHoistable && tree->IsCall())
                 {
                     GenTreeCall* call = tree->AsCall();
                     if (call->gtCallType != CT_HELPER)
@@ -6969,8 +6998,7 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
                 }
 
                 // Is the value of the whole tree loop invariant?
-                treeIsInvariant = m_compiler->optVNIsLoopInvariant(tree->gtVNPair.GetLiberal(), m_loopNum,
-                                                                   &m_hoistContext->m_curLoopVnInvariantCache);
+                treeIsInvariant = IsTreeVNInvariant(tree);
 
                 // Is the value of the whole tree loop invariant?
                 if (!treeIsInvariant)
