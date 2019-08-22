@@ -16,6 +16,7 @@ namespace Tracing.Tests.Common
 {
     public class Logger
     {
+        public static Logger logger = new Logger();
         private TextWriter _log;
         private Stopwatch _sw;
         public Logger(TextWriter log = null)
@@ -107,8 +108,8 @@ namespace Tracing.Tests.Common
         // and don't care about the number of events sent
         private Dictionary<string, ExpectedEventCount> _expectedEventCounts;
         private Dictionary<string, int> _actualEventCounts = new Dictionary<string, int>();
+        private int _droppedEvents = 0;
         private SessionConfiguration _sessionConfiguration;
-        private static Logger _log = new Logger();
 
         // A function to be called with the EventPipeEventSource _before_
         // the call to `source.Process()`.  The function should return another
@@ -136,33 +137,33 @@ namespace Tracing.Tests.Common
 
         private int Fail(string message = "")
         {
-            _log.Log("Test FAILED!");
-            _log.Log(message);
-            _log.Log("Configuration:");
-            _log.Log("{");
-            _log.Log($"\tbufferSize: {_sessionConfiguration.CircularBufferSizeInMB},");
-            _log.Log("\tproviders: [");
+            Logger.logger.Log("Test FAILED!");
+            Logger.logger.Log(message);
+            Logger.logger.Log("Configuration:");
+            Logger.logger.Log("{");
+            Logger.logger.Log($"\tbufferSize: {_sessionConfiguration.CircularBufferSizeInMB},");
+            Logger.logger.Log("\tproviders: [");
             foreach (var provider in _sessionConfiguration.Providers)
             {
-                _log.Log($"\t\t{provider.ToString()},");
+                Logger.logger.Log($"\t\t{provider.ToString()},");
             }
-            _log.Log("\t]");
-            _log.Log("}\n");
-            _log.Log("Expected:");
-            _log.Log("{");
+            Logger.logger.Log("\t]");
+            Logger.logger.Log("}\n");
+            Logger.logger.Log("Expected:");
+            Logger.logger.Log("{");
             foreach (var (k, v) in _expectedEventCounts)
             {
-                _log.Log($"\t\"{k}\" = {v}");
+                Logger.logger.Log($"\t\"{k}\" = {v}");
             }
-            _log.Log("}\n");
+            Logger.logger.Log("}\n");
 
-            _log.Log("Actual:");
-            _log.Log("{");
+            Logger.logger.Log("Actual:");
+            Logger.logger.Log("{");
             foreach (var (k, v) in _actualEventCounts)
             {
-                _log.Log($"\t\"{k}\" = {v}");
+                Logger.logger.Log($"\t\"{k}\" = {v}");
             }
-            _log.Log("}");
+            Logger.logger.Log("}");
 
             return -1;
         }
@@ -170,14 +171,14 @@ namespace Tracing.Tests.Common
         private int Validate()
         {
             var processId = Process.GetCurrentProcess().Id;
-            _log.Log("Connecting to EventPipe...");
+            Logger.logger.Log("Connecting to EventPipe...");
             var binaryReader = EventPipeClient.CollectTracing(processId, _sessionConfiguration, out var eventpipeSessionId);
             if (eventpipeSessionId == 0)
             {
-                _log.Log("Failed to connect to EventPipe!");
+                Logger.logger.Log("Failed to connect to EventPipe!");
                 return -1;
             }
-            _log.Log($"Connected to EventPipe with sessionID '0x{eventpipeSessionId:x}'");
+            Logger.logger.Log($"Connected to EventPipe with sessionID '0x{eventpipeSessionId:x}'");
             
             // CollectTracing returns before EventPipe::Enable has returned, so the
             // the sources we want to listen for may not have been enabled yet.
@@ -185,12 +186,12 @@ namespace Tracing.Tests.Common
             ManualResetEvent sentinelEventReceived = new ManualResetEvent(false);
             var sentinelTask = new Task(() =>
             {
-                _log.Log("Started sending sentinel events...");
+                Logger.logger.Log("Started sending sentinel events...");
                 while (!sentinelEventReceived.WaitOne(50))
                 {
                     SentinelEventSource.Log.SentinelEvent();
                 }
-                _log.Log("Stopped sending sentinel events");
+                Logger.logger.Log("Stopped sending sentinel events");
             });
             sentinelTask.Start();
 
@@ -198,9 +199,9 @@ namespace Tracing.Tests.Common
             Func<int> optionalTraceValidationCallback = null;
             var readerTask = new Task(() =>
             {
-                _log.Log("Creating EventPipeEventSource...");
+                Logger.logger.Log("Creating EventPipeEventSource...");
                 source = new EventPipeEventSource(binaryReader);
-                _log.Log("EventPipeEventSource created");
+                Logger.logger.Log("EventPipeEventSource created");
 
                 source.Dynamic.All += (eventData) =>
                 {
@@ -209,7 +210,7 @@ namespace Tracing.Tests.Common
                         if (eventData.ProviderName == "SentinelEventSource")
                         {
                             if (!sentinelEventReceived.WaitOne(0))
-                                _log.Log("Saw sentinel event");
+                                Logger.logger.Log("Saw sentinel event");
                             sentinelEventReceived.Set();
                         }
 
@@ -219,42 +220,43 @@ namespace Tracing.Tests.Common
                         }
                         else
                         {
-                            _log.Log($"Saw new provider '{eventData.ProviderName}'");
+                            Logger.logger.Log($"Saw new provider '{eventData.ProviderName}'");
                             _actualEventCounts[eventData.ProviderName] = 1;
                         }
                     }
                     catch (Exception e)
                     {
-                        _log.Log("Exception in Dynamic.All callback " + e.ToString());
+                        Logger.logger.Log("Exception in Dynamic.All callback " + e.ToString());
                     }
                 };
-                _log.Log("Dynamic.All callback registered");
+                Logger.logger.Log("Dynamic.All callback registered");
 
                 if (_optionalTraceValidator != null)
                 {
-                    _log.Log("Running optional trace validator");
+                    Logger.logger.Log("Running optional trace validator");
                     optionalTraceValidationCallback = _optionalTraceValidator(source);
-                    _log.Log("Finished running optional trace validator");
+                    Logger.logger.Log("Finished running optional trace validator");
                 }
 
-                _log.Log("Starting stream processing...");
+                Logger.logger.Log("Starting stream processing...");
                 source.Process();
-                _log.Log("Stopping stream processing");
+                Logger.logger.Log("Stopping stream processing");
+                Logger.logger.Log($"Dropped {source.EventsLost} events");
             });
 
             readerTask.Start();
             sentinelEventReceived.WaitOne();
 
-            _log.Log("Starting event generating action...");
+            Logger.logger.Log("Starting event generating action...");
             _eventGeneratingAction();
-            _log.Log("Stopping event generating action");
+            Logger.logger.Log("Stopping event generating action");
 
-            _log.Log("Sending StopTracing command...");
+            Logger.logger.Log("Sending StopTracing command...");
             EventPipeClient.StopTracing(processId, eventpipeSessionId);
-            _log.Log("Finished StopTracing command");
+            Logger.logger.Log("Finished StopTracing command");
 
             readerTask.Wait();
-            _log.Log("Reader task finished");
+            Logger.logger.Log("Reader task finished");
 
             foreach (var (provider, expectedCount) in _expectedEventCounts)
             {
@@ -273,7 +275,7 @@ namespace Tracing.Tests.Common
 
             if (optionalTraceValidationCallback != null)
             {
-                _log.Log("Validating optional callback...");
+                Logger.logger.Log("Validating optional callback...");
                 return optionalTraceValidationCallback();
             }
             else
@@ -288,19 +290,21 @@ namespace Tracing.Tests.Common
             SessionConfiguration? sessionConfiguration = null,
             Func<EventPipeEventSource, Func<int>> optionalTraceValidator = null)
         {
-            _log.Log("==TEST STARTING==");
+            Logger.logger.Log("==TEST STARTING==");
             var test = new IpcTraceTest(expectedEventCounts, eventGeneratingAction, sessionConfiguration, optionalTraceValidator);
             try
             {
                 var ret = test.Validate();
                 if (ret == 100)
-                    _log.Log("==TEST FINISHED: PASSED!==");
+                    Logger.logger.Log("==TEST FINISHED: PASSED!==");
+                else
+                    Logger.logger.Log("==TEST FINISHED: FAILED!==");
                 return ret;
             }
             catch (Exception e)
             {
-                _log.Log(e.ToString());
-                _log.Log("==TEST FINISHED: FAILED!==");
+                Logger.logger.Log(e.ToString());
+                Logger.logger.Log("==TEST FINISHED: FAILED!==");
                 return -1;
             }
         }
