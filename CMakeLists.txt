@@ -6,6 +6,9 @@ cmake_policy(SET CMP0042 NEW)
 # Set the project name
 project(CoreCLR)
 
+# All code we build should be compiled as position independent
+set(CMAKE_POSITION_INDEPENDENT_CODE 1)
+
 # Include cmake functions
 include(functions.cmake)
 
