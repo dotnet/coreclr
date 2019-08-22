@@ -20,7 +20,7 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: build-test.yml
+- template: build-test-job.yml
   parameters:
     buildConfig:            ${{ parameters.buildConfig }}
     archType:               ${{ parameters.archType }}
@@ -34,7 +34,7 @@ jobs:
     displayNameArgs:        ${{ parameters.displayNameArgs }}
     condition:              ${{ parameters.condition }}
 
-- template: run-test.yml
+- template: run-test-job.yml
   parameters:
     buildConfig:            ${{ parameters.buildConfig }}
     archType:               ${{ parameters.archType }}
@@ -44,7 +44,6 @@ jobs:
     testGroup:              ${{ parameters.testGroup }}
     readyToRun:             ${{ parameters.readyToRun }}
     helixQueues:            ${{ parameters.helixQueues }}
-    crossrootfsDir:         ${{ parameters.crossrootfsDir }}
     corefxTests:            ${{ parameters.coreFxTests }}
     displayNameArgs:        ${{ parameters.displayNameArgs }}
     runInUnloadableContext: ${{ parameters.runInUnloadableContext }}

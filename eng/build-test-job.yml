@@ -18,12 +18,13 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: xplat-job.yml
+- template: xplat-test-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    readyToRun: ${{ parameters.readyToRun }}
 
     # Test jobs should continue on error for internal builds
     ${{ if eq(variables['System.TeamProject'], 'internal') }}:
@@ -49,9 +50,6 @@ jobs:
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     variables:
-    - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
-      - group: DotNet-HelixApi-Access
-
     # Map template parameters to command line arguments
     - name: priorityArg
       value: ''
@@ -138,21 +136,15 @@ jobs:
         displayName: Build tests
 
 
-    # Zip tests
-    - task: ArchiveFiles@2
-      displayName: Zip Tests
-      inputs:
-        rootFolderOrFile:  $(testRootFolderPath)
-        archiveFile:       $(testRootFolderPath)$(archiveExtension)
-        archiveType:       $(archiveType)
-        tarCompression:    $(tarCompression)
+    # Zip and publish tests
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(testRootFolderPath)
         includeRootFolder: false
-
-    - task: PublishBuildArtifacts@1
-      displayName: Publish Test Build
-      inputs:
-        pathtoPublish: $(testRootFolderPath)$(archiveExtension)
-        artifactName:  $(testArtifactName)
+        archiveFile: $(testRootFolderPath)$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(testArtifactName)
 
 
     # Publish Logs

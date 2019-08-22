@@ -18,12 +18,13 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: xplat-job.yml
+- template: xplat-test-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    readyToRun: ${{ parameters.readyToRun }}
     helixType: 'build/tests/'
 
     # Test jobs should continue on error for internal builds
@@ -55,6 +56,7 @@ jobs:
     - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
       - group: DotNet-HelixApi-Access
 
+    # TODO: update these numbers as they were determined long ago
     ${{ if eq(parameters.testGroup, 'innerloop') }}:
       timeoutInMinutes: 150
     ${{ if in(parameters.testGroup, 'outerloop') }}:
@@ -66,22 +68,13 @@ jobs:
 
     steps:
 
-    # Download test binaries
-    - task: DownloadBuildArtifacts@0
-      displayName: Download test binaries
-      inputs:
-        buildType: current
-        downloadType: single
-        downloadPath: '$(binTestsPath)'
-        artifactName: '$(testArtifactName)'
-
-
-    # Unzip test artifacts
-    - task: ExtractFiles@1
-      displayName: Unzip test artifacts
-      inputs:
-        archiveFilePatterns: '$(binTestsPath)/$(testArtifactName)/$(osGroup).$(archType).$(buildConfigUpper)$(archiveExtension)'
-        destinationFolder: '$(testRootFolderPath)'
+    # Download and unzip tests    
+    - template: /eng/download-artifact-step.yml
+      parameters:
+        downloadFolder: $(binTestsPath)
+        unpackFolder: $(testRootFolderPath)
+        artifactFileName: $(osGroup).$(archType).$(buildConfigUpper)$(archiveExtension)
+        artifactName: $(testArtifactName)
 
 
     # Send tests to Helix
