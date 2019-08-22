@@ -83,7 +83,7 @@ set(NETCOREAPP_NATIVEPACKAGEPATH "${CLR_CMAKE_PACKAGES_DIR}/runtime.${CLR_CMAKE_
 set(NETCOREAPP_NATIVEPACKAGEPATH "${NETCOREAPP_NATIVEPACKAGEPATH}/${CLR_CMAKE_COREFXPACKAGE_VERSION}/runtimes/${CLR_CMAKE_DISTRORID}/native")
 string(TOLOWER "${NETCOREAPP_NATIVEPACKAGEPATH}" NETCOREAPP_NATIVEPACKAGEPATH)
 
-# We indetionally do not link in:
+# We intentionally do not link in:
 #   System.IO.Ports.Native.a - not part of netcoreapp
 #   System.Net.Http.Native.a - only for legacy curl HTTP networking
 target_link_libraries(corebundle
