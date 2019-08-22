@@ -14,6 +14,24 @@ using Microsoft.Diagnostics.Tools.RuntimeClient;
 
 namespace Tracing.Tests.Common
 {
+    public class Logger
+    {
+        private TextWriter _log;
+        private Stopwatch _sw;
+        public Logger(TextWriter log = null)
+        {
+            _log = log ?? Console.Out;
+            _sw = new Stopwatch();
+        }
+
+        public void Log(string message)
+        {
+            if (!_sw.IsRunning)
+                _sw.Start();
+            _log.WriteLine($"{_sw.Elapsed.TotalSeconds,5:f1}s: {message}");
+        }
+    }
+
     public class ExpectedEventCount
     {
         // The acceptable percent error on the expected value
@@ -89,7 +107,9 @@ namespace Tracing.Tests.Common
         // and don't care about the number of events sent
         private Dictionary<string, ExpectedEventCount> _expectedEventCounts;
         private Dictionary<string, int> _actualEventCounts = new Dictionary<string, int>();
+        private Dictionary<string, Dictionary<string, List<TraceEvent>>> _events = new Dictionary<string, Dictionary<string, List<TraceEvent>>>();
         private SessionConfiguration _sessionConfiguration;
+        private static Logger _log = new Logger();
 
         // A function to be called with the EventPipeEventSource _before_
         // the call to `source.Process()`.  The function should return another
@@ -108,39 +128,42 @@ namespace Tracing.Tests.Common
             _sessionConfiguration = sessionConfiguration?.InjectSentinel() ?? new SessionConfiguration(
                 circularBufferSizeMB: 1000,
                 format: EventPipeSerializationFormat.NetTrace,
-                providers: new List<Provider> { new Provider("Microsoft-Windows-DotNETRuntime") });
+                providers: new List<Provider> { 
+                    new Provider("Microsoft-Windows-DotNETRuntime"),
+                    new Provider("SentinelEventSource")
+                });
             _optionalTraceValidator = optionalTraceValidator;
         }
 
         private int Fail(string message = "")
         {
-            Console.WriteLine("Test FAILED!");
-            Console.WriteLine(message);
-            Console.WriteLine("Configuration:");
-            Console.WriteLine("{");
-            Console.WriteLine($"\tbufferSize: {_sessionConfiguration.CircularBufferSizeInMB},");
-            Console.WriteLine("\tproviders: [");
+            _log.Log("Test FAILED!");
+            _log.Log(message);
+            _log.Log("Configuration:");
+            _log.Log("{");
+            _log.Log($"\tbufferSize: {_sessionConfiguration.CircularBufferSizeInMB},");
+            _log.Log("\tproviders: [");
             foreach (var provider in _sessionConfiguration.Providers)
             {
-                Console.WriteLine($"\t\t{provider.ToString()},");
+                _log.Log($"\t\t{provider.ToString()},");
             }
-            Console.WriteLine("\t]");
-            Console.WriteLine("}\n");
-            Console.WriteLine("Expected:");
-            Console.WriteLine("{");
+            _log.Log("\t]");
+            _log.Log("}\n");
+            _log.Log("Expected:");
+            _log.Log("{");
             foreach (var (k, v) in _expectedEventCounts)
             {
-                Console.WriteLine($"\t\"{k}\" = {v}");
+                _log.Log($"\t\"{k}\" = {v}");
             }
-            Console.WriteLine("}\n");
+            _log.Log("}\n");
 
-            Console.WriteLine("Actual:");
-            Console.WriteLine("{");
+            _log.Log("Actual:");
+            _log.Log("{");
             foreach (var (k, v) in _actualEventCounts)
             {
-                Console.WriteLine($"\t\"{k}\" = {v}");
+                _log.Log($"\t\"{k}\" = {v}");
             }
-            Console.WriteLine("}");
+            _log.Log("}");
 
             return -1;
         }
@@ -148,9 +171,14 @@ namespace Tracing.Tests.Common
         private int Validate()
         {
             var processId = Process.GetCurrentProcess().Id;
+            _log.Log("Connecting to EventPipe...");
             var binaryReader = EventPipeClient.CollectTracing(processId, _sessionConfiguration, out var eventpipeSessionId);
             if (eventpipeSessionId == 0)
+            {
+                _log.Log("Failed to connect to EventPipe!");
                 return -1;
+            }
+            _log.Log($"Connected to EventPipe with sessionID '0x{eventpipeSessionId:x}'");
             
             // CollectTracing returns before EventPipe::Enable has returned, so the
             // the sources we want to listen for may not have been enabled yet.
@@ -158,10 +186,12 @@ namespace Tracing.Tests.Common
             ManualResetEvent sentinelEventReceived = new ManualResetEvent(false);
             var sentinelTask = new Task(() =>
             {
+                _log.Log("Started sending sentinel events...");
                 while (!sentinelEventReceived.WaitOne(50))
                 {
                     SentinelEventSource.Log.SentinelEvent();
                 }
+                _log.Log("Stopped sending sentinel events");
             });
             sentinelTask.Start();
 
@@ -169,37 +199,63 @@ namespace Tracing.Tests.Common
             Func<int> optionalTraceValidationCallback = null;
             var readerTask = new Task(() =>
             {
+                _log.Log("Creating EventPipeEventSource...");
                 source = new EventPipeEventSource(binaryReader);
+                _log.Log("EventPipeEventSource created");
+
                 source.Dynamic.All += (eventData) =>
                 {
-                    if (eventData.ProviderName == "SentinelEventSource")
+                    try
                     {
-                        sentinelEventReceived.Set();
+                        if (eventData.ProviderName == "SentinelEventSource")
+                        {
+                            if (!sentinelEventReceived.WaitOne(0))
+                                _log.Log("Saw sentinel event");
+                            sentinelEventReceived.Set();
+                        }
+
+                        else if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
+                        {
+                            _actualEventCounts[eventData.ProviderName]++;
+                        }
+                        else
+                        {
+                            _log.Log($"Saw new provider '{eventData.ProviderName}'");
+                            _actualEventCounts[eventData.ProviderName] = 1;
+                        }
                     }
-                    else if (_actualEventCounts.TryGetValue(eventData.ProviderName, out _))
+                    catch (Exception e)
                     {
-                        _actualEventCounts[eventData.ProviderName]++;
-                    }
-                    else
-                    {
-                        _actualEventCounts[eventData.ProviderName] = 1;
+                        _log.Log("Exception in Dynamic.All callback " + e.ToString());
                     }
                 };
+                _log.Log("Dynamic.All callback registered");
 
                 if (_optionalTraceValidator != null)
                 {
+                    _log.Log("Running optional trace validator");
                     optionalTraceValidationCallback = _optionalTraceValidator(source);
+                    _log.Log("Finished running optional trace validator");
                 }
 
+                _log.Log("Starting stream processing...");
                 source.Process();
+                _log.Log("Stopping stream processing");
             });
 
             readerTask.Start();
             sentinelEventReceived.WaitOne();
+
+            _log.Log("Starting event generating action...");
             _eventGeneratingAction();
+            _log.Log("Stopping event generating action");
+
+            _log.Log("Sending StopTracing command...");
             EventPipeClient.StopTracing(processId, eventpipeSessionId);
+            _log.Log("Finished StopTracing command");
 
             readerTask.Wait();
+            _log.Log("Reader task finished");
 
             foreach (var (provider, expectedCount) in _expectedEventCounts)
             {
@@ -218,6 +274,7 @@ namespace Tracing.Tests.Common
 
             if (optionalTraceValidationCallback != null)
             {
+                _log.Log("Validating optional callback...");
                 return optionalTraceValidationCallback();
             }
             else
@@ -232,19 +289,19 @@ namespace Tracing.Tests.Common
             SessionConfiguration? sessionConfiguration = null,
             Func<EventPipeEventSource, Func<int>> optionalTraceValidator = null)
         {
-            Console.WriteLine("TEST STARTING");
+            _log.Log("==TEST STARTING==");
             var test = new IpcTraceTest(expectedEventCounts, eventGeneratingAction, sessionConfiguration, optionalTraceValidator);
             try
             {
                 var ret = test.Validate();
                 if (ret == 100)
-                    Console.WriteLine("TEST PASSED!");
+                    _log.Log("==TEST FINISHED: PASSED!==");
                 return ret;
             }
             catch (Exception e)
             {
-                Console.WriteLine("TEST FAILED!");
-                Console.WriteLine(e);
+                _log.Log(e.ToString());
+                _log.Log("==TEST FINISHED: FAILED!==");
                 return -1;
             }
         }
