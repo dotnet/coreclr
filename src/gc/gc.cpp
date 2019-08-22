@@ -28950,7 +28950,7 @@ BOOL gc_heap::card_transition (uint8_t* po, uint8_t* end, size_t& card_word_end,
         // the card bit @ end_card should not be set -
         // find_card is supposed to terminate only when it finds a 0 bit
         // or the end of the segment
-        assert (!((limit == card_address (end_card))&&
+        assert (!((limit < end) &&
                 card_set_p (end_card)));
 #endif
     }
