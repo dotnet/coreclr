@@ -94,7 +94,11 @@ typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
 
 // Number of slots to initially allocate in a generic method dictionary layout.
 // Also the number of additional slots to add to an existing dictionary layout when expanding its size
-#define NUM_DICTIONARY_SLOTS 8
+#if _DEBUG
+#define NUM_DICTIONARY_SLOTS 1  // Smaller number to stress the dictionary expansion logic
+#else
+#define NUM_DICTIONARY_SLOTS 4
+#endif
 
 // The type of dictionary layouts. We don't include the number of type
 // arguments as this is obtained elsewhere
