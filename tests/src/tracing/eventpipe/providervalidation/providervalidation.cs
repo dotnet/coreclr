@@ -53,14 +53,14 @@ namespace Tracing.Tests.ProviderValidation
 
         private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
         {
-            { "MyEventSource", new ExpectedEventCount(1000, 0.30f) },
+            { "MyEventSource", new ExpectedEventCount(1_000_000, 0.30f) },
             { "Microsoft-Windows-DotNETRuntimeRundown", -1 },
             { "Microsoft-DotNETCore-SampleProfiler", -1 }
         };
 
         private static Action _eventGeneratingAction = () => 
         {
-            foreach (var _ in Enumerable.Range(0,1000))
+            foreach (var _ in Enumerable.Range(0,1_000_000))
             {
                 MyEventSource.Log.MyEvent();
             }

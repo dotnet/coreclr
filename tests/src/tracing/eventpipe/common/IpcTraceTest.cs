@@ -107,7 +107,6 @@ namespace Tracing.Tests.Common
         // and don't care about the number of events sent
         private Dictionary<string, ExpectedEventCount> _expectedEventCounts;
         private Dictionary<string, int> _actualEventCounts = new Dictionary<string, int>();
-        private Dictionary<string, Dictionary<string, List<TraceEvent>>> _events = new Dictionary<string, Dictionary<string, List<TraceEvent>>>();
         private SessionConfiguration _sessionConfiguration;
         private static Logger _log = new Logger();
 
