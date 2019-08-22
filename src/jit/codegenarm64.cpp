@@ -8632,13 +8632,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
 
     compiler->info.compProfilerCallback = true;
 
-    // Need to save on to the stack level, since the helper call will pop the argument
-    unsigned saveStackLvl2 = genStackLevel;
-
     NYI("Emit Profiler Leave callback");
-
-    /* Restore the stack level */
-    SetStackLevel(saveStackLvl2);
 }
 
 #endif // PROFILING_SUPPORTED

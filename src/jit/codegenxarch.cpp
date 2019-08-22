@@ -9148,9 +9148,6 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
 
     compiler->info.compProfilerCallback = true;
 
-    // Need to save on to the stack level, since the helper call will pop the argument
-    unsigned saveStackLvl2 = genStackLevel;
-
 #if !defined(UNIX_AMD64_ABI)
 
     // Since the method needs to make a profiler callback, it should have out-going arg space allocated.
@@ -9263,9 +9260,6 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
     genEmitHelperCall(helper, 0, EA_UNKNOWN, REG_DEFAULT_PROFILER_CALL_TARGET);
 
 #endif // !defined(UNIX_AMD64_ABI)
-
-    /* Restore the stack level */
-    SetStackLevel(saveStackLvl2);
 }
 
 #endif // _TARGET_AMD64_

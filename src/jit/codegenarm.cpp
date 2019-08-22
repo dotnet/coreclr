@@ -1644,8 +1644,6 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
         return;
     }
 
-    unsigned saveStackLvl2 = genStackLevel;
-
     // On Arm arguments are prespilled on stack, which frees r0-r3.
     // For generating Enter callout we would need two registers and one of them has to be r0 to pass profiler handle.
     // The call target register could be any free register.
@@ -1679,10 +1677,6 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     {
         *pInitRegZeroed = false;
     }
-
-    /* Restore the stack level */
-
-    SetStackLevel(saveStackLvl2);
 }
 
 //-----------------------------------------------------------------------------------
@@ -1706,9 +1700,6 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
     }
 
     compiler->info.compProfilerCallback = true;
-
-    // Need to save on to the stack level, since the helper call will pop the argument
-    unsigned saveStackLvl2 = genStackLevel;
 
     //
     // Push the profilerHandle
@@ -1777,9 +1768,6 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
         regSet.verifyRegUsed(REG_ARG_0);
         gcInfo.gcMarkRegSetNpt(RBM_PROFILER_RET_SCRATCH);
     }
-
-    /* Restore the stack level */
-    SetStackLevel(saveStackLvl2);
 }
 
 #endif // PROFILING_SUPPORTED
