@@ -700,6 +700,9 @@ DEFINE_METHOD(RUNTIME_HELPERS,      GET_RAW_SZ_ARRAY_DATA,   GetRawSzArrayData, 
 DEFINE_METHOD(RUNTIME_HELPERS,      ALLOC_TAILCALL_ARG_BUFFER, AllocTailCallArgBuffer, SM_Int_RetIntPtr)
 DEFINE_METHOD(RUNTIME_HELPERS,      GET_TAILCALL_ARG_BUFFER, GetTailCallArgBuffer, SM_RetIntPtr)
 DEFINE_METHOD(RUNTIME_HELPERS,      FREE_TAILCALL_ARG_BUFFER, FreeTailCallArgBuffer, SM_RetVoid)
+DEFINE_METHOD(RUNTIME_HELPERS,      PUSH_NEW_TAILCALL_FRAME, PushNewTailCallFrame, SM_IntPtr_RetVoid)
+DEFINE_METHOD(RUNTIME_HELPERS,      POP_TAILCALL_FRAME,      PopTailCallFrame, SM_RetVoid)
+DEFINE_METHOD(RUNTIME_HELPERS,      TAILCALL_HELPER,         TailCallHelper, GM_RetT)
 
 DEFINE_CLASS(JIT_HELPERS,           CompilerServices,       JitHelpers)
 DEFINE_METHOD(JIT_HELPERS,          ENUM_EQUALS,            EnumEquals, NoSig)
@@ -736,6 +739,11 @@ DEFINE_FIELD(RAW_DATA,              DATA,                   Data)
 DEFINE_CLASS(RAW_SZARRAY_DATA,      CompilerServices,       RawSzArrayData)
 DEFINE_FIELD(RAW_SZARRAY_DATA,      COUNT,                  Count)
 DEFINE_FIELD(RAW_SZARRAY_DATA,      DATA,                   Data)
+
+DEFINE_CLASS(TAIL_CALL_FRAME,       CompilerServices,       TailCallFrame)
+DEFINE_FIELD(TAIL_CALL_FRAME,       NEXT,                   Next)
+DEFINE_FIELD(TAIL_CALL_FRAME,       STACK_POINTER,          StackPointer)
+DEFINE_FIELD(TAIL_CALL_FRAME,       CHAINED_CALL,           ChainedCall)
 
 DEFINE_CLASS(RUNTIME_WRAPPED_EXCEPTION, CompilerServices,   RuntimeWrappedException)
 DEFINE_METHOD(RUNTIME_WRAPPED_EXCEPTION, OBJ_CTOR,          .ctor,                      IM_Obj_RetVoid)

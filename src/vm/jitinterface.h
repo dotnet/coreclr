@@ -161,7 +161,6 @@ EXTERN_C FCDECL_MONHELPER(JIT_MonEnterStatic_Portable, AwareLock *lock);
 EXTERN_C FCDECL_MONHELPER(JIT_MonExitStatic, AwareLock *lock);
 EXTERN_C FCDECL_MONHELPER(JIT_MonExitStatic_Portable, AwareLock *lock);
 
-
 #ifndef JIT_GetSharedGCStaticBase
 #define JIT_GetSharedGCStaticBase JIT_GetSharedGCStaticBase_Portable
 #endif
@@ -253,9 +252,10 @@ EXTERN_C FCDECL_MONHELPER(JITutil_MonSignal, AwareLock* lock);
 EXTERN_C FCDECL_MONHELPER(JITutil_MonContention, AwareLock* awarelock);
 EXTERN_C FCDECL2(void, JITutil_MonReliableContention, AwareLock* awarelock, BYTE* pbLockTaken);
 
-// Slow versions to tail call if the fast version fails
 EXTERN_C FCDECL2(void*, JIT_GetSharedNonGCStaticBase_Helper, DomainLocalModule *pLocalModule, DWORD dwClassDomainID);
 EXTERN_C FCDECL2(void*, JIT_GetSharedGCStaticBase_Helper, DomainLocalModule *pLocalModule, DWORD dwClassDomainID);
+
+EXTERN_C FCDECL0(void, JIT_NewTailCallHelper);
 
 EXTERN_C void DoJITFailFast ();
 EXTERN_C FCDECL0(void, JIT_FailFast);

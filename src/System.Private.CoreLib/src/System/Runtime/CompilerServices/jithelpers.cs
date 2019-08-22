@@ -100,6 +100,15 @@ namespace System.Runtime.CompilerServices
         public byte Data;
     }
 
+    // Helper struct used for tail calls via helper. Must match layout defined
+    // in tailcallhelp.cpp.
+    internal unsafe struct TailCallFrame
+    {
+        public IntPtr Next;
+        public IntPtr StackPointer;
+        public bool ChainedCall;
+    }
+
     internal static unsafe class JitHelpers
     {
         // The special dll name to be used for DllImport of QCalls

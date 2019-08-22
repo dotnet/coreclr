@@ -89,6 +89,8 @@
 #include "eventpipeinternal.h"
 #endif //FEATURE_PERFTRACING
 
+#include "tailcallhelp.h"
+
 #endif // CROSSGEN_MSCORLIB
 
 

@@ -223,5 +223,14 @@ namespace System.Runtime.CompilerServices
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void FreeTailCallArgBuffer();
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void PushNewTailCallFrame(IntPtr ptr);
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void PopTailCallFrame();
+
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern T TailCallHelper<T>();
     }
 }

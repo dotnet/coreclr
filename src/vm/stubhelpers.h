@@ -135,10 +135,6 @@ public:
 #ifdef FEATURE_MULTICASTSTUB_AS_IL
     static FCDECL2(void,            MulticastDebuggerTraceHelper, Object*, INT32);
 #endif
-
-    static FCDECL1(void*,           AllocTailCallArgBuffer, INT32);
-    static FCDECL0(void*,           GetTailCallArgBuffer);
-    static FCDECL0(void,            FreeTailCallArgBuffer);
 };
 
 #endif  // __STUBHELPERS_h__

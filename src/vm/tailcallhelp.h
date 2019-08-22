@@ -5,17 +5,33 @@
 #ifndef TAILCALL_HELP_H
 #define TAILCALL_HELP_H
 
+#include "fcall.h"
+
+struct TailCallInfo;
+struct ArgBufferOrigArg;
+struct ArgBufferLayout;
+struct NewTailCallFrame; // todo; drop new prefix
+
 class TailCallHelp
 {
 private:
-    static void CreateStoreArgsStubSig(MethodDesc* pCalleeMD, MetaSig& callSiteSig, SigBuilder* sig);
+    static bool GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder);
+    static TypeHandle NormalizeSigType(TypeHandle tyHnd);
+    static void LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout);
+    static void AppendConvertedSigType(const MetaSig& msig, SigPointer sigType, SigBuilder* sig);
+    static void CreateStoreArgsStubSig(const TailCallInfo& layout, SigBuilder* sig);
+    static void CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig);
+    static MethodDesc* CreateCallTargetStub(const TailCallInfo& info);
 public:
     static MethodDesc* CreateStoreArgsStub(MethodDesc* pCallerMD,
                                            MethodDesc* pCalleeMD,
                                            MetaSig& callSiteSig);
-    static void* AllocTailCallArgBuffer(INT32 size);
-    static void* GetTailCallArgBuffer();
-    static void FreeTailCallArgBuffer();
+
+    static FCDECL1(void*, AllocTailCallArgBuffer, INT32);
+    static FCDECL0(void*, GetTailCallArgBuffer);
+    static FCDECL0(void,  FreeTailCallArgBuffer);
+    static FCDECL1(void,  PushNewTailCallFrame, NewTailCallFrame*);
+    static FCDECL0(void,  PopTailCallFrame);
 };
 
 #endif

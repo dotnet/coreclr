@@ -537,3 +537,18 @@ LEAF_ENTRY JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
         jmp     C_FUNC(JIT_WriteBarrier)
 #endif
 LEAF_END JIT_Stelem_Ref__ArrayStoreCheck_Helper, _TEXT
+
+LEAF_ENTRY JIT_NewTailCallHelper, _TEXT
+        PREPARE_EXTERNAL_VAR g_curTailCallFrame, rax
+        mov     rax, [rax]
+        cmp     rsp, [rax + 0x8] // Is previous frame a tail call frame?
+        je      LOCAL_LABEL(ChainedTailCall)
+
+        PREPARE_EXTERNAL_VAR g_tailCallArgBuffer, rax
+        mov     rax, [rax]
+        jmp     [rax] // Jump to call target thunk
+
+    LOCAL_LABEL(ChainedTailCall):
+        inc     byte ptr [rax+0x10] // set chained call
+        ret     // allow call thunk to unwind
+LEAF_END JIT_NewTailCallHelper
