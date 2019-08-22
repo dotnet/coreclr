@@ -1412,15 +1412,14 @@ static bool ShouldRedirectToCurrentLibrary(LPCSTR libraryNameOrPath)
     if (!g_running_in_exe)
         return false;
         
-    if (strcmp(libraryNameOrPath, "[self]") == 0)
+    // Getting nullptr as name indicates redirection to current library
+    if (libraryNameOrPath == nullptr)
         return true;
 
     const char *toRedirect[] = {
         "System.Native.so",
         "System.Globalization.Native.so",
         "System.IO.Compression.Native.so",
-        //"System.IO.Ports.Native.so",
-        "System.Net.Http.Native.so",
         "System.Net.Security.Native.so",
         "System.Security.Cryptography.Native.OpenSsl.so"
     };
@@ -1452,18 +1451,16 @@ Return value:
 */
 static NATIVE_LIBRARY_HANDLE LOADLoadLibraryDirect(LPCSTR libraryNameOrPath)
 {
-    _ASSERTE(libraryNameOrPath != nullptr);
-    _ASSERTE(libraryNameOrPath[0] != '\0');
-
     NATIVE_LIBRARY_HANDLE dl_handle;
 
     if (ShouldRedirectToCurrentLibrary(libraryNameOrPath))
     {
-        printf("Deferring %s to current image\n", libraryNameOrPath);
         dl_handle = dlopen(NULL, RTLD_LAZY);
     }
     else
     {
+        _ASSERTE(libraryNameOrPath != nullptr);
+        _ASSERTE(libraryNameOrPath[0] != '\0');
         dl_handle = dlopen(libraryNameOrPath, RTLD_LAZY);
     }
 
@@ -1699,7 +1696,8 @@ static HMODULE LOADLoadLibrary(LPCSTR shortAsciiName, BOOL fDynamic)
     HMODULE module = nullptr;
     NATIVE_LIBRARY_HANDLE dl_handle = nullptr;
 
-    shortAsciiName = FixLibCName(shortAsciiName);
+    if (shortAsciiName != nullptr)
+        shortAsciiName = FixLibCName(shortAsciiName);
 
     LockModuleList();
 
@@ -1796,7 +1794,7 @@ MODSTRUCT *LOADGetPalLibrary()
         if (len > suffixLen && strcmp(g_szCoreCLRPath + len - suffixLen, PAL_SHLIB_SUFFIX) != 0)
         {
             g_running_in_exe =  true;
-            pal_module = (MODSTRUCT *)LOADLoadLibrary("[self]", FALSE);
+            pal_module = (MODSTRUCT *)LOADLoadLibrary(nullptr, FALSE);
         }
         else
         {
