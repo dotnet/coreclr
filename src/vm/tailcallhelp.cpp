@@ -156,7 +156,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
     bufferSize += argsSize; // target address and user args
 
     pCode->EmitLDC(bufferSize);
-    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__FETCH_TAILCALL_ARG_BUFFER, 1, 1);
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__ALLOC_TAILCALL_ARG_BUFFER, 1, 1);
     pCode->EmitSTLOC(bufferLcl);
 
     auto emitOffs = [&](UINT offs)
@@ -192,10 +192,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
         {
             emitOffs(offs + argOffs);
             pCode->EmitLDARG(argIndex);
-            if (!tyHnd.IsValueType())
-                pCode->EmitSTIND_REF();
-            else
-                pCode->EmitSTOBJ(pCode->GetToken(tyHnd));
+            pCode->EmitSTOBJ(pCode->GetToken(tyHnd));
 
             argIndex++;
         });
@@ -217,13 +214,18 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
 }
 
 char* g_argBuffer;
-void* TailCallHelp::FetchTailCallArgBuffer(INT32 size)
+void* TailCallHelp::AllocTailCallArgBuffer(INT32 size)
 {
     // TODO: TLS
-    return size ? (g_argBuffer = new char[size]) : g_argBuffer;
+    return (g_argBuffer = new char[size]);
 }
 
-void TailCallHelp::ReleaseTailCallArgBuffer()
+void* TailCallHelp::GetTailCallArgBuffer()
+{
+    return g_argBuffer;
+}
+
+void TailCallHelp::FreeTailCallArgBuffer()
 {
     delete[] g_argBuffer;
 }

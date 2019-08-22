@@ -87,6 +87,7 @@ LPCUTF8 ILStubResolver::GetStubMethodName()
         case UnboxingILStub:         return "IL_STUB_UnboxingStub";
         case InstantiatingStub:      return "IL_STUB_InstantiatingStub";
         case SecureDelegateStub:     return "IL_STUB_SecureDelegate_Invoke";
+        case TailCallStoreArgsStub:  return "IL_STUB_StoreTailCallArgs";
 #endif
         default:
             UNREACHABLE_MSG("Unknown stub type");

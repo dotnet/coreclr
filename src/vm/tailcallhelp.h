@@ -13,8 +13,9 @@ public:
     static MethodDesc* CreateStoreArgsStub(MethodDesc* pCallerMD,
                                            MethodDesc* pCalleeMD,
                                            MetaSig& callSiteSig);
-    static void* FetchTailCallArgBuffer(INT32 size);
-    static void ReleaseTailCallArgBuffer();
+    static void* AllocTailCallArgBuffer(INT32 size);
+    static void* GetTailCallArgBuffer();
+    static void FreeTailCallArgBuffer();
 };
 
 #endif

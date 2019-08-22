@@ -136,8 +136,9 @@ public:
     static FCDECL2(void,            MulticastDebuggerTraceHelper, Object*, INT32);
 #endif
 
-    static FCDECL1(void*,           FetchTailCallArgBuffer, INT32);
-    static FCDECL0(void,            ReleaseTailCallArgBuffer);
+    static FCDECL1(void*,           AllocTailCallArgBuffer, INT32);
+    static FCDECL0(void*,           GetTailCallArgBuffer);
+    static FCDECL0(void,            FreeTailCallArgBuffer);
 };
 
 #endif  // __STUBHELPERS_h__

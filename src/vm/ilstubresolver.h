@@ -90,6 +90,7 @@ protected:
         SecureDelegateStub,
         UnboxingILStub,
         InstantiatingStub,
+        TailCallStoreArgsStub,
 #endif
     };
 

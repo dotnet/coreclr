@@ -1756,16 +1756,23 @@ FCIMPL2(void, StubHelpers::MulticastDebuggerTraceHelper, Object* element, INT32 
 FCIMPLEND
 #endif // FEATURE_MULTICASTSTUB_AS_IL
 
-FCIMPL1(void*, StubHelpers::FetchTailCallArgBuffer, INT32 requiredSize)
+FCIMPL1(void*, StubHelpers::AllocTailCallArgBuffer, INT32 size)
 {
     FCALL_CONTRACT;
-    return TailCallHelp::FetchTailCallArgBuffer(requiredSize);
+    return TailCallHelp::AllocTailCallArgBuffer(size);
 }
 FCIMPLEND
 
-FCIMPL0(void, StubHelpers::ReleaseTailCallArgBuffer)
+FCIMPL0(void*, StubHelpers::GetTailCallArgBuffer)
 {
     FCALL_CONTRACT;
-    TailCallHelp::ReleaseTailCallArgBuffer();
+    return TailCallHelp::GetTailCallArgBuffer();
+}
+FCIMPLEND
+
+FCIMPL0(void, StubHelpers::FreeTailCallArgBuffer)
+{
+    FCALL_CONTRACT;
+    TailCallHelp::FreeTailCallArgBuffer();
 }
 FCIMPLEND
