@@ -226,7 +226,6 @@ endif(WIN32)
 
 # add the install targets
 install_clr(coreclr)
-_install(TARGETS coreclr_static DESTINATION .)
 
 # Enable profile guided optimization
 add_pgo(coreclr)

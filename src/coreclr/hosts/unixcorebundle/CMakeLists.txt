@@ -58,17 +58,6 @@ set(END_WHOLE_ARCHIVE -Wl,--no-whole-archive)
 find_package(ZLIB REQUIRED)
 find_package(CURL)
 
-check_include_files(
-    GSS/GSS.h
-    HAVE_GSSFW_HEADERS)
-
-option(HeimdalGssApi "use heimdal implementation of GssApi" OFF)
-if (HeimdalGssApi)
-   check_include_files(
-       gssapi/gssapi.h
-       HAVE_HEIMDAL_HEADERS)
-endif()
-
 if (HAVE_GSSFW_HEADERS)
    find_library(LIBGSS NAMES GSS)
    if(LIBGSS STREQUAL LIBGSS-NOTFOUND)
