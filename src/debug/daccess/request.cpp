@@ -4284,6 +4284,7 @@ HRESULT ClrDataAccess::GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejit
 
     SOSDacEnter();
     
+    *pRejitId = -1;
     PTR_MethodDesc pMD = PTR_MethodDesc(TO_TADDR(methodDesc));
 
     CodeVersionManager* pCodeVersionManager = pMD->GetCodeVersionManager();
@@ -4293,7 +4294,7 @@ HRESULT ClrDataAccess::GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejit
     {
         hr = E_INVALIDARG;
     }
-    else if (ilVersion.GetRejitState() == ILCodeVersion::kStateRequested || ilVersion.GetRejitState() == ILCodeVersion::kStateRequested)
+    else if (ilVersion.GetRejitState() == ILCodeVersion::kStateRequested)
     {
         *pRejitId = (int)ilVersion.GetVersionId();
     }
