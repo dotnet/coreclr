@@ -11,4 +11,16 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.HostModel" Version="3.0.0-preview8-28405-07" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(RestoreOnly)' == 'true'">
+    <PackageReference Include="Microsoft.Private.CoreFx.NETCoreApp" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />
+  </ItemGroup>
+
+  <Target Name="DumpCoreFxPackageVersion" Condition="'$(RestoreOnly)' == 'true'" BeforeTargets="Restore">
+    <Error Condition="'$(CoreFxPackageVersionOutputFile)'==''" Text="CoreFxPackageVersionOutputFile must be passed as a property." />
+
+    <Delete Files="$(CoreFxPackageVersionOutputFile)" Condition="Exists('$(CoreFxPackageVersionOutputFile)')" />
+    <WriteLinesToFile File="$(CoreFxPackageVersionOutputFile)" Lines="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" Overwrite="true"/>
+    <Message Text="MicrosoftPrivateCoreFxNETCoreAppVersion: $(MicrosoftPrivateCoreFxNETCoreAppVersion) written to: $(CoreFxPackageVersionOutputFile)" Importance="High" />
+  </Target>
 </Project>

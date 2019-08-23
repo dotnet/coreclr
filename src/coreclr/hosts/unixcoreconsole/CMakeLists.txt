@@ -6,6 +6,7 @@ add_compile_options(-fPIE)
 
 set(CORECONSOLE_SOURCES 
     coreconsole.cpp 
+    ../unixcoreruncommon/coreruncommon.cpp
 )
 
 _add_executable(coreconsole
@@ -21,10 +22,6 @@ endif(NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD AND NOT CMAKE_SYSTEM_NAME STREQUAL 
 
 # Libc turns locks into no-ops if pthread was not loaded into process yet. Loading
 # pthread by the process executable ensures that all locks are initialized properly.
-target_link_libraries(coreconsole
-    unixcoreruncommon
-)
-
 if(NOT CLR_CMAKE_PLATFORM_ANDROID)
   target_link_libraries(coreconsole
     pthread
