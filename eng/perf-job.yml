@@ -94,9 +94,9 @@ jobs:
       - task: CopyFiles@2
         displayName: Move Baseline Core_Root
         inputs:
-          sourceFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
+          sourceFolder: $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release/Tests/Core_Root
           contents: '**'
-          targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release_Baseline
+          targetFolder: $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release_Baseline/Tests/Core_Root
 
     # Download product binaries directory
     - task: DownloadBuildArtifacts@0
