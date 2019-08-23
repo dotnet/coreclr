@@ -59,7 +59,7 @@ jobs:
     steps:
     # Extra steps that will be passed to the performance template and run before sending the job to helix (all of which is done in the template)
 
-    ${{ if eq(parameters.compare, 'true')}}:
+    - ${{ if eq(parameters.compare, 'true')}}:
       # Download product binaries directory
       - task: DownloadBuildArtifacts@0
         displayName: Download product build
