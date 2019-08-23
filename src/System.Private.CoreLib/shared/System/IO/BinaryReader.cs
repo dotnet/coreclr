@@ -398,6 +398,9 @@ namespace System.IO
                     if (decoder == null || decoder.HasState)
                     {
                         numBytes -= 1;
+
+                        // The worst case is charsRemaining = 2 and UTF32Decoder holding onto 3 pending bytes. We need to read just
+                        // one byte in this case.
                         if (_2BytesPerChar && numBytes > 2)
                             numBytes -= 2;
                     }
