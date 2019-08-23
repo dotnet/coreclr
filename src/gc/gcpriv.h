@@ -374,10 +374,10 @@ class recursive_gc_sync;
 #ifdef FEATURE_CARD_MARKING_STEALING
 class card_marking_enumerator;
 #define CARD_MARKING_STEALING_ARG(a)    ,a
-#define CARD_MARKING_STEALING_ARGS(a,b)    ,a,b
+#define CARD_MARKING_STEALING_ARGS(a,b,c)    ,a,b,c
 #else // FEATURE_CARD_MARKING_STEALING
 #define CARD_MARKING_STEALING_ARG(a)
-#define CARD_MARKING_STEALING_ARGS(a,b)
+#define CARD_MARKING_STEALING_ARGS(a,b,c)
 #endif // FEATURE_CARD_MARKING_STEALING
 
 // The following 2 modes are of the same format as in clr\src\bcl\system\runtime\gcsettings.cs
@@ -2470,13 +2470,13 @@ protected:
                                     CARD_MARKING_STEALING_ARG(gc_heap* hpt));
 
     PER_HEAP
-    BOOL card_transition (uint8_t* po, uint8_t* end, size_t& card_word_end,
+    BOOL card_transition (uint8_t* po, uint8_t* end, size_t card_word_end,
                           size_t& cg_pointers_found, 
                           size_t& n_eph, size_t& n_card_set,
                           size_t& card, size_t& end_card,
                           BOOL& foundp, uint8_t*& start_address,
                           uint8_t*& limit, size_t& n_cards_cleared
-                          CARD_MARKING_STEALING_ARGS(card_marking_enumerator& card_mark_enumerator, heap_segment* seg));
+                          CARD_MARKING_STEALING_ARGS(card_marking_enumerator& card_mark_enumerator, heap_segment* seg, size_t& card_word_end_out));
     PER_HEAP
     void mark_through_cards_for_segments(card_fn fn, BOOL relocating CARD_MARKING_STEALING_ARG(gc_heap* hpt));
 
@@ -4659,8 +4659,8 @@ size_t gcard_of (uint8_t* object)
     return (size_t)(object) / card_size;
 }
 #ifdef FEATURE_CARD_MARKING_STEALING
-// make this at least one card bundle bit (256 kB in 64-bit architectures, 128 kB in 32-bit)
-#define CARD_MARKING_STEALING_GRANULARITY (card_size*card_word_width*card_bundle_size)
+// make this 8 card bundle bits (2 MB in 64-bit architectures, 1 MB in 32-bit) - should be at least 1 card bundle bit
+#define CARD_MARKING_STEALING_GRANULARITY (card_size*card_word_width*card_bundle_size*8)
 
 #define THIS_ARG    , __this
 class card_marking_enumerator
