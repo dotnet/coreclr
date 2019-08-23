@@ -14,6 +14,14 @@ jobs:
     buildConfig: release
     platforms:
     - Windows_NT_x64
+
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: build-job.yml
+    buildConfig: release
+    baseline: true
+    platforms:
+    - Windows_NT_x64
     
 # - template: /eng/platform-matrix.yml
 #   parameters:
