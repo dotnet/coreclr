@@ -2558,12 +2558,6 @@ PAL_GetCPUBusyTime(
         {
             return 0;
         }
-
-        UINT cpuLimit;
-        if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < dwNumberOfProcessors)
-        {
-            dwNumberOfProcessors = cpuLimit;
-        }
     }
 
     if (getrusage(RUSAGE_SELF, &resUsage) == -1)
