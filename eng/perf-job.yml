@@ -4,6 +4,7 @@ parameters:
   osGroup: ''
   osIdentifier: ''
   container: ''
+  compare: false
   framework: netcoreapp5.0 # Specify the appropriate framework when running release branches (ie netcoreapp3.0 for release/3.0)
 
 ### Perf job
@@ -28,7 +29,13 @@ jobs:
         queue: BuildPool.Windows.10.Amd64.VS2017.Open
 
     # Test job depends on the corresponding build job
-    dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if eq(parameters.compare, 'true')}}:
+      dependsOn:
+        - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        - ${{ format('build_{0}_{1}_{2}_Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    ${{ if ne(parameters.compare, 'true')}}:
+      dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Run all steps in the container.
     ${{ if ne(parameters.container, '') }}:

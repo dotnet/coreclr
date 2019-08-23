@@ -20,8 +20,13 @@ jobs:
     enableMicrobuild: true
 
     # Compute job name from template parameters
-    name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
-    displayName: ${{ format('Build {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if eq(parameters.baseline, 'true')}}:
+      name: ${{ format('build_{0}_{1}_{2}_baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Build {0} {1} {2} Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    ${{ if ne(parameters.baseline, 'true')}}:
+      name: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      displayName: ${{ format('Build {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Run all steps in the container.
     # Note that the containers are defined in platform-matrix.yml
