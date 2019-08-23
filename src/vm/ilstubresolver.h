@@ -91,6 +91,7 @@ protected:
         UnboxingILStub,
         InstantiatingStub,
         TailCallStoreArgsStub,
+        TailCallCallTargetStub,
 #endif
     };
 

@@ -231,6 +231,6 @@ namespace System.Runtime.CompilerServices
         private static extern void PopTailCallFrame();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern T TailCallHelper<T>();
+        private static extern IntPtr TailCallHelper();
     }
 }

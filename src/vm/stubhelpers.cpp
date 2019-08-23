@@ -31,8 +31,6 @@
 #include "winrttypenameconverter.h"
 #endif
 
-#include "tailcallhelp.h"
-
 #ifdef VERIFY_HEAP
 
 CQuickArray<StubHelpers::ByrefValidationEntry> StubHelpers::s_ByrefValidationEntries;

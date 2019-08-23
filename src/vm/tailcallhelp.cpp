@@ -54,18 +54,21 @@ struct TailCallInfo
     MethodDesc* Caller;
     MethodDesc* Callee;
     MetaSig* CallSiteSig;
+    TypeHandle RetTyHnd;
     ArgBufferLayout ArgBufLayout;
 
-    TailCallInfo(MethodDesc* pCallerMD, MethodDesc* pCalleeMD, MetaSig* callSiteSig)
+    TailCallInfo(MethodDesc* pCallerMD, MethodDesc* pCalleeMD, MetaSig* callSiteSig, TypeHandle retTyHnd)
         : Caller(pCallerMD)
         , Callee(pCalleeMD)
         , CallSiteSig(callSiteSig)
+        , RetTyHnd(retTyHnd)
     {
     }
 };
 
 bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder)
 {
+    bool anyGC = false;
     for (COUNT_T i = 0; i < args.GetCount(); i++)
     {
         TypeHandle tyHnd = args[i].TyHnd;
@@ -75,10 +78,11 @@ bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GC
         if (tyHnd.IsValueType() && !tyHnd.GetMethodTable()->ContainsPointers())
             continue;
 
+        anyGC = true;
         _ASSERTE(!"Requires GC descriptor");
     }
 
-    return true;
+    return anyGC;
 }
 
 TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
@@ -111,7 +115,7 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout
     layout->TargetAddressOffset = offs;
     offs += TARGET_POINTER_SIZE;
 
-    _ASSERT(!callSiteSig.IsGenericMethod()); // TODO
+    _ASSERTE(!callSiteSig.IsGenericMethod()); // TODO
 
     // User args
     if (callSiteSig.HasThis())
@@ -121,6 +125,7 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout
         offs += TARGET_POINTER_SIZE;
     }
 
+    callSiteSig.Reset();
     CorElementType ty;
     while ((ty = callSiteSig.NextArg()) != ELEMENT_TYPE_END)
     {
@@ -200,12 +205,11 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
     printf("Incoming sig: %s\n", incSig.GetCString());
 #endif
 
-    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig);
+    TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
+    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, retTyHnd);
     LayOutArgBuffer(callSiteSig, &info.ArgBufLayout);
 
-    //MethodDesc* callTargetStubMD = CreateCallTargetStub(info);
-    //if (callTargetStubMD == NULL)
-    //    return NULL;
+    MethodDesc* callTargetStubMD = CreateCallTargetStub(info);
 
     SigBuilder sigBuilder;
     CreateStoreArgsStubSig(info, &sigBuilder);
@@ -244,8 +248,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
     _ASSERTE(info.ArgBufLayout.CallStubOffset == 0);
     // Call stub
     emitOffs(info.ArgBufLayout.CallStubOffset);
-    //pCode->EmitLDFTN(pCode->GetToken(callTargetStubMD));
-    pCode->EmitLDC(0);
+    pCode->EmitLDFTN(pCode->GetToken(callTargetStubMD));
     pCode->EmitCONV_I();
     pCode->EmitSTIND_I();
 
@@ -296,7 +299,7 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
 
     // Returns same as original
     sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
-    sig->AppendPointer(NormalizeSigType(info.CallSiteSig->GetRetTypeHandleThrowing()).AsPtr());
+    sig->AppendPointer(info.RetTyHnd.AsPtr());
 
 #ifdef _DEBUG
     DWORD cbSig;
@@ -308,7 +311,7 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
 #endif // _DEBUG
 }
 
-// Note: Layout of this must match with TailCallFrame in jtihelpers.cs
+// Note: Layout of this must match with TailCallFrame in jithelpers.cs
 struct NewTailCallFrame
 {
     NewTailCallFrame* Next;
@@ -336,22 +339,117 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     ILCodeStream* pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
     TypeHandle tailCallFrameTyHnd = MscorlibBinder::GetClass(CLASS__TAIL_CALL_FRAME);
 
-    DWORD tcFramePtrLcl = pCode->NewLocal(LocalDesc(tailCallFrameTyHnd));
+    DWORD tcFrameLcl = pCode->NewLocal(LocalDesc(tailCallFrameTyHnd));
     DWORD tcArgBufferLcl = pCode->NewLocal(ELEMENT_TYPE_I);
 
-    pCode->EmitLDLOCA(tcFramePtrLcl);
+    pCode->EmitLDLOCA(tcFrameLcl);
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__PUSH_NEW_TAILCALL_FRAME, 1, 0);
 
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__GET_TAILCALL_ARG_BUFFER, 0, 1);
     pCode->EmitSTLOC(tcArgBufferLcl);
 
-    StackSArray<DWORD> argLocals;
+    auto emitOffs = [&](UINT offs)
+    {
+        pCode->EmitLDLOC(tcArgBufferLcl);
+        pCode->EmitLDC(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitADD();
+    };
 
-    return NULL;
+    DWORD targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    emitOffs(info.ArgBufLayout.TargetAddressOffset);
+    pCode->EmitLDIND_I();
+    pCode->EmitSTLOC(targetAddrLcl);
+
+    SigBuilder calliSig;
+
+    StackSArray<DWORD> argLocals;
+    if (info.ArgBufLayout.HasThisPointer)
+    {
+        DWORD argLcl = pCode->NewLocal(ELEMENT_TYPE_OBJECT);
+        argLocals.Append(argLcl);
+        emitOffs(info.ArgBufLayout.ThisPointerOffset);
+        pCode->EmitLDIND_REF();
+        pCode->EmitSTLOC(argLcl);
+
+        calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS);
+    }
+    else
+        calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
+
+    // Num params
+    calliSig.AppendData(info.ArgBufLayout.OrigArgs.GetCount());
+    // Return type
+    calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
+    calliSig.AppendPointer(info.RetTyHnd.AsPtr());
+
+    for (COUNT_T i = 0; i < info.ArgBufLayout.OrigArgs.GetCount(); i++)
+    {
+        const ArgBufferOrigArg& arg = info.ArgBufLayout.OrigArgs[i];
+        DWORD argLcl = pCode->NewLocal(LocalDesc(arg.TyHnd));
+        argLocals.Append(argLcl);
+        emitOffs(arg.Offset);
+        pCode->EmitLDOBJ(pCode->GetToken(arg.TyHnd));
+        pCode->EmitSTLOC(argLcl);
+
+        calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
+        calliSig.AppendPointer(arg.TyHnd.AsPtr());
+    }
+
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__FREE_TAILCALL_ARG_BUFFER, 0, 0);
+
+    // TODO: try-finally
+
+    for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
+    {
+        pCode->EmitLDLOC(argLocals[i]);
+    }
+
+    emitOffs(info.ArgBufLayout.TargetAddressOffset);
+    pCode->EmitLDIND_I();
+
+    DWORD retValueLcl = pCode->NewLocal(LocalDesc(info.RetTyHnd));
+    // TODO: Handle void return
+    pCode->EmitCALLI(TOKEN_ILSTUB_TARGET_SIG, argLocals.GetCount(), 1);
+    pCode->EmitSTLOC(retValueLcl);
+
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__POP_TAILCALL_FRAME, 0, 0);
+
+    ILCodeLabel* unchained = pCode->NewCodeLabel();
+    pCode->EmitLDLOC(tcFrameLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__CHAINED_CALL);
+    pCode->EmitBRFALSE(unchained);
+
+    pCode->EmitTAIL();
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__TAILCALL_HELPER, 0, 1);
+    pCode->EmitRET();
+
+    pCode->EmitLabel(unchained);
+    pCode->EmitLDLOC(retValueLcl); // TODO: How to handle bad gc refs in ret value unwind case?
+    pCode->EmitRET();
+
+    Module* pLoaderModule = info.Caller->GetLoaderModule();
+    MethodDesc* pStoreArgsMD =
+        ILStubCache::CreateAndLinkNewILStubMethodDesc(
+            info.Caller->GetLoaderAllocator(),
+            pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
+            ILSTUB_TAILCALL_CALLTARGET,
+            info.Caller->GetModule(),
+            pSig, cbSig,
+            &emptyCtx,
+            &sl);
+
+    ILStubResolver* pResolver = pStoreArgsMD->AsDynamicMethodDesc()->GetILStubResolver();
+
+    DWORD cbCalliSig;
+    PCCOR_SIGNATURE pCalliSig = (PCCOR_SIGNATURE)calliSig.GetSignature(&cbCalliSig);
+    pResolver->SetStubTargetMethodSig(pCalliSig, cbCalliSig);
+
+    return pStoreArgsMD;
 }
 
 #ifndef CROSSGEN_COMPILE
-extern "C" char* g_tailCallArgBuffer;
+// TODO: TLS
+extern "C" char* g_tailCallArgBuffer = NULL;
 
 FCIMPL1(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size)
 {
