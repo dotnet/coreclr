@@ -232,6 +232,9 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Stress/ABI/**/*">
             <Issue>26105</Issue>
         </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/Regression/JitBlue/GitHub_7147/GitHub_7147/*">
+            <Issue>26335</Issue>
+        </ExcludeList>
     </ItemGroup>
 
     <!-- Arm64 All OS -->
