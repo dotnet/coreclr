@@ -52,6 +52,41 @@ jobs:
     steps:
     # Extra steps that will be passed to the performance template and run before sending the job to helix (all of which is done in the template)
 
+    ${{ if eq(parameters.compare, 'true')}}:
+      # Download product binaries directory
+      - task: DownloadBuildArtifacts@0
+        displayName: Download product build
+        inputs:
+          buildType: current
+          downloadType: single
+          artifactName: ${{ format('BinDir_{0}_{1}_{2}_Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          downloadPath: $(System.ArtifactsDirectory)
+      
+      # Populate Product directory
+      - task: CopyFiles@2
+        displayName: Populate Product directory
+        inputs:
+          sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}_{1}_{2}_Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          contents: '**'
+          targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
+
+      # Create Core_Root
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./build-test.sh ${{ parameters.buildConfig }} ${{ parameters.archType }} generatelayoutonly
+          displayName: Create Core_Root
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        # TODO: add generatelayoutonly to build-test.cmd.
+        - script: build-test.cmd ${{ parameters.buildConfig }} ${{ parameters.archType }} skipmanaged skipnative
+          displayName: Create Core_Root
+
+      # Move the baseline directory so that we can do this with the non-baseline
+      - task: CopyFiles@2
+        displayName: Populate Product directory
+        inputs:
+          sourceFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
+          contents: '**'
+          targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release_Baseline
+
     # Download product binaries directory
     - task: DownloadBuildArtifacts@0
       displayName: Download product build
@@ -60,7 +95,6 @@ jobs:
         downloadType: single
         artifactName: ${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         downloadPath: $(System.ArtifactsDirectory)
-
 
     # Populate Product directory
     - task: CopyFiles@2
