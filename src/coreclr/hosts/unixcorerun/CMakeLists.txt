@@ -4,9 +4,6 @@ include_directories(../unixcoreruncommon)
 
 add_compile_options(-fPIE)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
-include(../unixcoreruncommon/configure.cmake)
-
 set(CORERUN_SOURCES 
     corerun.cpp 
     ../unixcoreruncommon/coreruncommon.cpp

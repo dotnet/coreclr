@@ -5,9 +5,7 @@ include_directories(../unixcoreruncommon)
 
 add_compile_options(-fPIE)
 
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include(configure.cmake)
-include(../unixcoreruncommon/configure.cmake)
 
 add_definitions(-DCOREBUNDLE_BUILD)
 
