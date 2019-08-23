@@ -7,137 +7,29 @@ pr:
 - release/3.0
 
 jobs:
-#
-# Debug builds
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: debug
-    platforms:
-    - Windows_NT_x64
-    - Windows_NT_x86
 
-#
-# Checked builds
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_arm
-    - Windows_NT_arm64
-    - Windows_NT_x64
-    - Windows_NT_x86
-
-#
-# Release builds
-#
 - template: /eng/platform-matrix.yml
   parameters:
     jobTemplate: build-job.yml
     buildConfig: release
     platforms:
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_rhel6_x64
-    - Windows_NT_arm
-    - Windows_NT_arm64
     - Windows_NT_x64
 
-#
-# Checked test builds
-#
 - template: /eng/platform-matrix.yml
   parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_arm
-    - Windows_NT_arm64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      publishTestArtifacts: true
-
-#
-# ReadyToRun test jobs
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      readyToRun: true
-      displayNameArgs: R2R
-      publishTestArtifacts: true
-
-#
-# CoreFX test runs against CoreCLR
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - Windows_NT_x64
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      corefxTests: true
-      displayNameArgs: CoreFX
-
-#
-# Crossgen-comparison jobs
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: crossgen-comparison-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm
-    helixQueueGroup: pr
-
-#
-# Release test builds
-#
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
+    jobTemplate: build-job.yml
     buildConfig: release
     platforms:
-    - Linux_musl_x64
-    helixQueueGroup: pr
+    - Windows_NT_x64
     jobParameters:
-      testGroup: innerloop
-
-#
-# Formatting
-#
+      baseline: true
+    
 - template: /eng/platform-matrix.yml
   parameters:
-    jobTemplate: format-job.yml
+    jobTemplate: perf-job.yml
+    buildConfig: release
     platforms:
-    - Linux_x64
-
+    - Windows_NT_x64
+    jobParameters:
+      compare: true
+      

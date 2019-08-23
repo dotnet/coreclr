@@ -4,6 +4,7 @@ parameters:
   osGroup: ''
   osIdentifier: ''
   container: ''
+  compare: false
   framework: netcoreapp5.0 # Specify the appropriate framework when running release branches (ie netcoreapp3.0 for release/3.0)
 
 ### Perf job
@@ -28,7 +29,13 @@ jobs:
         queue: BuildPool.Windows.10.Amd64.VS2017.Open
 
     # Test job depends on the corresponding build job
-    dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if eq(parameters.compare, 'true')}}:
+      dependsOn:
+        - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        - ${{ format('build_{0}_{1}_{2}_Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    ${{ if ne(parameters.compare, 'true')}}:
+      dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Run all steps in the container.
     ${{ if ne(parameters.container, '') }}:
@@ -36,14 +43,60 @@ jobs:
         container: ${{ format('{0}:{1}', 'mcr.microsoft.com/dotnet-buildtools/prereqs', parameters.container.image) }}
       ${{ if ne(parameters.container.registry, 'mcr') }}:
         container: ${{ format('{0}:{1}', parameters.container.registry, parameters.container.image) }}
-      
-    ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupParameters: -CoreRootDirectory $(Build.SourcesDirectory)\bin\tests\${{ parameters.osGroup }}.${{ parameters.archType }}.Release\Tests\Core_Root -Architecture ${{ parameters.archType }} -Framework ${{ parameters.framework }}
-    ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      extraSetupParameters: --corerootdirectory $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release/Tests/Core_Root --architecture ${{ parameters.archType }} -Framework ${{ parameters.framework }}
+
+    ${{ if ne(parameters.compare, 'true')}}:  
+      ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        extraSetupParameters: -CoreRootDirectory $(Build.SourcesDirectory)\bin\tests\${{ parameters.osGroup }}.${{ parameters.archType }}.Release\Tests\Core_Root -Architecture ${{ parameters.archType }}
+      ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        extraSetupParameters: --corerootdirectory $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release/Tests/Core_Root --architecture ${{ parameters.archType }}
+
+    ${{ if eq(parameters.compare, 'true')}}:  
+      ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        extraSetupParameters: -Compare -CoreRootDirectory $(Build.SourcesDirectory)\bin\tests\${{ parameters.osGroup }}.${{ parameters.archType }}.Release\Tests\Core_Root -BaselineCoreRootDirectory $(Build.SourcesDirectory)\bin\tests\${{ parameters.osGroup }}.${{ parameters.archType }}.Release_Baseline\Tests\Core_Root -Architecture ${{ parameters.archType }}
+      ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        extraSetupParameters: --compare --corerootdirectory $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release/Tests/Core_Root --baselinecorerootdirectory $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release_Baseline/Tests/Core_Root --architecture ${{ parameters.archType }}
+
+    frameworks:
+      - ${{ parameters.framework }}
 
     steps:
     # Extra steps that will be passed to the performance template and run before sending the job to helix (all of which is done in the template)
+
+    - ${{ if eq(parameters.compare, 'true')}}:
+      # Download product binaries directory
+      - task: DownloadBuildArtifacts@0
+        displayName: Download Baseline product build
+        inputs:
+          buildType: current
+          downloadType: single
+          artifactName: ${{ format('BinDir_{0}_{1}_{2}_Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          downloadPath: $(System.ArtifactsDirectory)
+      
+      # Populate Product directory
+      - task: CopyFiles@2
+        displayName: Populate Baseline Product directory
+        inputs:
+          sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}_{1}_{2}_Baseline', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+          contents: '**'
+          targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
+          cleanTargetFolder: true
+
+      # Create Core_Root
+      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+        - script: ./build-test.sh ${{ parameters.buildConfig }} ${{ parameters.archType }} generatelayoutonly
+          displayName: Create Baseline Core_Root
+      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+        # TODO: add generatelayoutonly to build-test.cmd.
+        - script: build-test.cmd ${{ parameters.buildConfig }} ${{ parameters.archType }} skipmanaged skipnative
+          displayName: Create Core_Root
+
+      # Move the baseline directory so that we can do this with the non-baseline
+      - task: CopyFiles@2
+        displayName: Move Baseline Core_Root
+        inputs:
+          sourceFolder: $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release/Tests/Core_Root
+          contents: '**'
+          targetFolder: $(Build.SourcesDirectory)/bin/tests/${{ parameters.osGroup }}.${{ parameters.archType }}.Release_Baseline/Tests/Core_Root
 
     # Download product binaries directory
     - task: DownloadBuildArtifacts@0
@@ -54,7 +107,6 @@ jobs:
         artifactName: ${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         downloadPath: $(System.ArtifactsDirectory)
 
-
     # Populate Product directory
     - task: CopyFiles@2
       displayName: Populate Product directory
@@ -62,6 +114,7 @@ jobs:
         sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         contents: '**'
         targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
+        cleanTargetFolder: true
 
     # Create Core_Root
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
