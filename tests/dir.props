@@ -26,7 +26,6 @@
     <ProjectDir>$(MSBuildThisFileDirectory)</ProjectDir>
     <SourceDir>$(ProjectDir)src\</SourceDir>
     <PackagesDir>$(ProjectDir)..\.packages\</PackagesDir>
-    <ToolsDir Condition="'$(ToolsDir)'==''">$(ProjectDir)..\Tools\</ToolsDir>
     <ExcludeSigningImport>true</ExcludeSigningImport>
   </PropertyGroup>
 
@@ -67,6 +66,12 @@
 
   <!-- Provides properties for dependency versions and configures dependency verification/auto-upgrade. -->
   <Import Project="$(ProjectDir)..\dependencies.props" />
+
+  <!-- Properties for il projects -->
+  <PropertyGroup>
+    <ToolsDir>$(ProjectDir)..\Tools\</ToolsDir>
+    <MicrosoftNetCoreIlasmPackageVersion>$(MicrosoftNETCoreILAsmVersion)</MicrosoftNetCoreIlasmPackageVersion>
+  </PropertyGroup>
 
   <!-- Add test-specific package restore sources. -->
   <PropertyGroup>

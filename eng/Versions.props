@@ -27,6 +27,8 @@
     <!-- dotnet-optimization -->
     <optimizationIBCCoreCLRVersion>99.99.99-master-20190716.1</optimizationIBCCoreCLRVersion>
     <optimizationPGOCoreCLRVersion>99.99.99-master-20190716.1</optimizationPGOCoreCLRVersion>
+    <!-- ilasm -->
+    <MicrosoftNETCoreILAsmVersion>3.0.0-preview6.19280.1</MicrosoftNETCoreILAsmVersion>
   </PropertyGroup>
   <!--Package names-->
   <PropertyGroup>

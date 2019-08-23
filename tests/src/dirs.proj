@@ -22,6 +22,7 @@
       <DisabledProjects Include="Loader\classloader\generics\GenericMethods\VSW491668.csproj" /> <!-- issue 5501 -->
       <DisabledProjects Include="reflection\GenericAttribute\GenericAttributeTests.csproj" />
       <DisabledProjects Include="Common\CoreFX\CoreFX.csproj" />
+      <DisabledProjects Include="Common\ilasm\ilasm.ilproj" />
     </ItemGroup>
 
     <ItemGroup>

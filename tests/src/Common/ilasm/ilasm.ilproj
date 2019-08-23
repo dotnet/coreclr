@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.IL">
+
+  <!-- This project exists to restore ilasm, which are needed by the
+       IL SDK. With more recent IL SDKs, we may be able to remove
+       this. -->
+
+  <PropertyGroup>
+    <RuntimeIdentifier>$(TargetRid)</RuntimeIdentifier>
+    <ProjectAssetsFile>$(SourceDir)Common\ilasm\obj\project.assets.json</ProjectAssetsFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETCore.ILAsm" Version="$(MicrosoftNETCoreILAsmVersion)" />
+    <PackageReference Include="Microsoft.NETCore.ILDAsm" Version="$(MicrosoftNETCoreILAsmVersion)" />
+  </ItemGroup>
+
+</Project>
