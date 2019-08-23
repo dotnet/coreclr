@@ -22,12 +22,13 @@ jobs:
     platforms:
     - Windows_NT_x64
     jobParameters:
-        baseline: true
+      baseline: true
     
-# - template: /eng/platform-matrix.yml
-#   parameters:
-#     jobTemplate: perf-job.yml
-#     buildConfig: release
-#     compare: true
-#     platforms:
-#     - Windows_NT_x64
+- template: /eng/platform-matrix.yml
+  parameters:
+    jobTemplate: perf-job.yml
+    buildConfig: release
+    platforms:
+    - Windows_NT_x64
+    jobParameters:
+      compare: true

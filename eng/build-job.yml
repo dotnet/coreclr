@@ -96,6 +96,7 @@ jobs:
     # preinstalled, so we only need this step for OSX and Windows.
     - ${{ if eq(parameters.baseline, 'true') }}:
       - script: git checkout HEAD~1
+        displayName: Checkout previous commit
     - ${{ if eq(parameters.osGroup, 'OSX') }}:
       - script: sh eng/install-native-dependencies.sh $(osGroup)
         displayName: Install native dependencies
