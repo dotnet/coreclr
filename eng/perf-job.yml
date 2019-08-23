@@ -114,6 +114,7 @@ jobs:
         sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         contents: '**'
         targetFolder: $(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.Release
+        cleanTargetFolder: true
 
     # Create Core_Root
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
