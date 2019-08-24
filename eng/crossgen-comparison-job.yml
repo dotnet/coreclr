@@ -25,6 +25,10 @@ jobs:
     name: ${{ format('test_crossgen_comparison_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
     displayName: ${{ format('Test crossgen-comparison {0} {1} {2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
+    # Force arm jobs off for public ci
+    ${{ if eq(variables['System.TeamProject'], 'public'}}:
+      condition: false
+
     crossrootfsDir: ${{ parameters.crossrootfsDir }}
 
     variables:
