@@ -543,7 +543,7 @@ namespace parse_hb_log
 
         static void PrintAllocToAllPassOneFiles()
         {
-            string strAlloc = string.Format("{0,6}", nodeIndexToPrint);
+            string strAlloc = $"{nodeIndexToPrint,6}";
             int procStart = procsPerNode * nodeIndexToPrint;
             int procEnd = procsPerNode * (nodeIndexToPrint + 1);
 
@@ -573,7 +573,7 @@ namespace parse_hb_log
             int procIndexBase = nodeIndexToPrint * procsPerNode;
             for (int procIndex = procIndexBase; procIndex < (procIndexBase + procsPerNode); procIndex++)
             {
-                strAlloc += string.Format("|{0,5}", AllocMB[procIndex]);
+                strAlloc += $"|{AllocMB[procIndex],5}";
             }
             strAlloc += string.Format("|");
             PrintToAllPassOneFiles(strAlloc);
@@ -603,10 +603,10 @@ namespace parse_hb_log
 
             swPassOneFiles[(int)PassOneViewType.Thread].WriteLine("##########Thread view - indices of threads currently running on each proc in between GCs\n");
             swPassOneFiles[(int)PassOneViewType.AllocHeap].WriteLine("##########Alloc heap view - alloc heaps for threads currently running on each proc in between GCs\n");
-            string strHeader = string.Format("{0,6}", "ms");
+            string strHeader = $"{"ms",6}";
             for (int procIndex = procStart; procIndex < procEnd; procIndex++)
             {
-                strHeader += string.Format("|{0,5}", procIndex);
+                strHeader += $"|{procIndex,5}";
             }
             strHeader += string.Format("|");
             PrintToAllPassOneFiles(strHeader);
@@ -704,8 +704,8 @@ namespace parse_hb_log
                         threadsSeenPerTimeUnit.Clear();
 
                     string strCellFormat = "|{0,3}{1,-2}";
-                    string strThread = string.Format("{0,6}", (timeIndex + startTimeMS));
-                    string strAllocHeap = string.Format("{0,6}", (timeIndex + startTimeMS));
+                    string strThread = $"{(timeIndex + startTimeMS),6}";
+                    string strAllocHeap = $"{(timeIndex + startTimeMS),6}";
 
                     for (int procIndex = procStart; procIndex < procEnd; procIndex++)
                     {
@@ -784,16 +784,16 @@ namespace parse_hb_log
         {
             strThreadIndices = _strThreadIndices;
             string[] fields = strThreadIndices.Split(new Char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-            for (int i = 0; i < fields.Length; i++)
+            foreach (string t in fields)
             {
-                threadsToPrint.Add(Int32.Parse(fields[i]));
+                threadsToPrint.Add(Int32.Parse(t));
             }
 
             int len = threadsToPrint.Count;
             Console.WriteLine("getting info for {0} threads", len);
-            for (int i = 0; i < len; i++)
+            foreach (var t in threadsToPrint)
             {
-                Console.WriteLine(threadsToPrint[i]);
+                Console.WriteLine(t);
             }
         }
 

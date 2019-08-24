@@ -381,12 +381,12 @@ namespace System
         // Conversions to Boolean
         public static bool ToBoolean(object? value)
         {
-            return value == null ? false : ((IConvertible)value).ToBoolean(null);
+            return ((IConvertible) value)?.ToBoolean(null) ?? false;
         }
 
         public static bool ToBoolean(object? value, IFormatProvider? provider)
         {
-            return value == null ? false : ((IConvertible)value).ToBoolean(provider);
+            return ((IConvertible) value)?.ToBoolean(provider) ?? false;
         }
 
 
@@ -489,12 +489,12 @@ namespace System
 
         public static char ToChar(object? value)
         {
-            return value == null ? (char)0 : ((IConvertible)value).ToChar(null);
+            return ((IConvertible) value)?.ToChar(null) ?? (char)0;
         }
 
         public static char ToChar(object? value, IFormatProvider? provider)
         {
-            return value == null ? (char)0 : ((IConvertible)value).ToChar(provider);
+            return ((IConvertible) value)?.ToChar(provider) ?? (char)0;
         }
 
         public static char ToChar(bool value)
@@ -612,13 +612,13 @@ namespace System
         [CLSCompliant(false)]
         public static sbyte ToSByte(object? value)
         {
-            return value == null ? (sbyte)0 : ((IConvertible)value).ToSByte(null);
+            return ((IConvertible) value)?.ToSByte(null) ?? (sbyte)0;
         }
 
         [CLSCompliant(false)]
         public static sbyte ToSByte(object? value, IFormatProvider? provider)
         {
-            return value == null ? (sbyte)0 : ((IConvertible)value).ToSByte(provider);
+            return ((IConvertible) value)?.ToSByte(provider) ?? (sbyte)0;
         }
 
         [CLSCompliant(false)]
@@ -734,12 +734,12 @@ namespace System
 
         public static byte ToByte(object? value)
         {
-            return value == null ? (byte)0 : ((IConvertible)value).ToByte(null);
+            return ((IConvertible) value)?.ToByte(null) ?? (byte)0;
         }
 
         public static byte ToByte(object? value, IFormatProvider? provider)
         {
-            return value == null ? (byte)0 : ((IConvertible)value).ToByte(provider);
+            return ((IConvertible) value)?.ToByte(provider) ?? (byte)0;
         }
 
         public static byte ToByte(bool value)
@@ -846,12 +846,12 @@ namespace System
 
         public static short ToInt16(object? value)
         {
-            return value == null ? (short)0 : ((IConvertible)value).ToInt16(null);
+            return ((IConvertible) value)?.ToInt16(null) ?? (short)0;
         }
 
         public static short ToInt16(object? value, IFormatProvider? provider)
         {
-            return value == null ? (short)0 : ((IConvertible)value).ToInt16(provider);
+            return ((IConvertible) value)?.ToInt16(provider) ?? (short)0;
         }
 
         public static short ToInt16(bool value)
@@ -957,13 +957,13 @@ namespace System
         [CLSCompliant(false)]
         public static ushort ToUInt16(object? value)
         {
-            return value == null ? (ushort)0 : ((IConvertible)value).ToUInt16(null);
+            return ((IConvertible) value)?.ToUInt16(null) ?? (ushort)0;
         }
 
         [CLSCompliant(false)]
         public static ushort ToUInt16(object? value, IFormatProvider? provider)
         {
-            return value == null ? (ushort)0 : ((IConvertible)value).ToUInt16(provider);
+            return ((IConvertible) value)?.ToUInt16(provider) ?? (ushort)0;
         }
 
 
@@ -1081,12 +1081,12 @@ namespace System
 
         public static int ToInt32(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt32(null);
+            return ((IConvertible) value)?.ToInt32(null) ?? 0;
         }
 
         public static int ToInt32(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt32(provider);
+            return ((IConvertible) value)?.ToInt32(provider) ?? 0;
         }
 
 
@@ -1210,13 +1210,13 @@ namespace System
         [CLSCompliant(false)]
         public static uint ToUInt32(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt32(null);
+            return ((IConvertible) value)?.ToUInt32(null) ?? 0;
         }
 
         [CLSCompliant(false)]
         public static uint ToUInt32(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt32(provider);
+            return ((IConvertible) value)?.ToUInt32(provider) ?? 0;
         }
 
 
@@ -1339,12 +1339,12 @@ namespace System
 
         public static long ToInt64(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt64(null);
+            return ((IConvertible) value)?.ToInt64(null) ?? 0;
         }
 
         public static long ToInt64(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToInt64(provider);
+            return ((IConvertible) value)?.ToInt64(provider) ?? 0;
         }
 
 
@@ -1446,13 +1446,13 @@ namespace System
         [CLSCompliant(false)]
         public static ulong ToUInt64(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt64(null);
+            return ((IConvertible) value)?.ToUInt64(null) ?? 0;
         }
 
         [CLSCompliant(false)]
         public static ulong ToUInt64(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToUInt64(provider);
+            return ((IConvertible) value)?.ToUInt64(provider) ?? 0;
         }
 
         [CLSCompliant(false)]
@@ -1567,12 +1567,12 @@ namespace System
 
         public static float ToSingle(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToSingle(null);
+            return ((IConvertible) value)?.ToSingle(null) ?? 0;
         }
 
         public static float ToSingle(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToSingle(provider);
+            return ((IConvertible) value)?.ToSingle(provider) ?? 0;
         }
 
         [CLSCompliant(false)]
@@ -1671,12 +1671,12 @@ namespace System
 
         public static double ToDouble(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDouble(null);
+            return ((IConvertible) value)?.ToDouble(null) ?? 0;
         }
 
         public static double ToDouble(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDouble(provider);
+            return ((IConvertible) value)?.ToDouble(provider) ?? 0;
         }
 
 
@@ -1775,12 +1775,12 @@ namespace System
 
         public static decimal ToDecimal(object? value)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDecimal(null);
+            return ((IConvertible) value)?.ToDecimal(null) ?? 0;
         }
 
         public static decimal ToDecimal(object? value, IFormatProvider? provider)
         {
-            return value == null ? 0 : ((IConvertible)value).ToDecimal(provider);
+            return ((IConvertible) value)?.ToDecimal(provider) ?? 0;
         }
 
         [CLSCompliant(false)]
@@ -1883,12 +1883,12 @@ namespace System
 
         public static DateTime ToDateTime(object? value)
         {
-            return value == null ? DateTime.MinValue : ((IConvertible)value).ToDateTime(null);
+            return ((IConvertible) value)?.ToDateTime(null) ?? DateTime.MinValue;
         }
 
         public static DateTime ToDateTime(object? value, IFormatProvider? provider)
         {
-            return value == null ? DateTime.MinValue : ((IConvertible)value).ToDateTime(provider);
+            return ((IConvertible) value)?.ToDateTime(provider) ?? DateTime.MinValue;
         }
 
         public static DateTime ToDateTime(string? value)
