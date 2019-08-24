@@ -153,7 +153,10 @@ void ILStubResolver::ResolveToken(mdToken token, TypeHandle * pTH, MethodDesc **
     {
     case mdtMethodDef:
         {
-            MethodDesc* pMD = m_pCompileTimeState->m_tokenLookupMap.LookupMethodDef(token);
+            MethodDesc* pMD = m_pStubMD;
+            if (token != TOKEN_ILSTUB_METHODDEF)
+                pMD = m_pCompileTimeState->m_tokenLookupMap.LookupMethodDef(token);
+
             _ASSERTE(pMD);
             *ppMD = pMD;
             *pTH = TypeHandle(pMD->GetMethodTable());
@@ -189,9 +192,12 @@ ILStubResolver::ResolveSignature(
     mdToken token)
 {
     STANDARD_VM_CONTRACT;
-    CONSISTENCY_CHECK_MSG(token == TOKEN_ILSTUB_TARGET_SIG, "IL stubs do not support any other signature tokens!");
 
-    return m_pCompileTimeState->m_StubTargetMethodSig;
+    if (token == TOKEN_ILSTUB_TARGET_SIG)
+        return m_pCompileTimeState->m_StubTargetMethodSig;
+    
+    SigPointer sig = m_pCompileTimeState->m_tokenLookupMap.LookupSig(token);
+    return sig;
 }
 
 //---------------------------------------------------------------------------------------

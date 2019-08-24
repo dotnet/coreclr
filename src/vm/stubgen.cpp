@@ -1032,6 +1032,7 @@ void ILCodeStream::EmitBEQ(ILCodeLabel* pCodeLabel)
     Emit(CEE_BEQ, -2, (UINT_PTR)pCodeLabel);
 }
 
+
 void ILCodeStream::EmitBGE(ILCodeLabel* pCodeLabel)
 {
     WRAPPER_NO_CONTRACT;
@@ -1063,6 +1064,11 @@ void ILCodeStream::EmitBLT(ILCodeLabel* pCodeLabel)
 {
     WRAPPER_NO_CONTRACT;
     Emit(CEE_BLT, -2, (UINT_PTR)pCodeLabel);
+}
+void ILCodeStream::EmitBNE_UN(ILCodeLabel* pCodeLabel)
+{
+    WRAPPER_NO_CONTRACT;
+    Emit(CEE_BNE_UN, -2, (UINT_PTR)pCodeLabel);
 }
 void ILCodeStream::EmitBR(ILCodeLabel* pCodeLabel)
 {
@@ -2806,6 +2812,12 @@ int ILStubLinker::GetToken(FieldDesc* pFD)
     return m_tokenMap.GetToken(pFD);
 }
 
+int ILStubLinker::GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig)
+{
+    STANDARD_VM_CONTRACT;
+    return m_tokenMap.GetSigToken(pSig, cbSig);
+}
+
 
 BOOL ILStubLinker::StubHasVoidReturnType()
 {
@@ -2886,6 +2898,11 @@ int ILCodeStream::GetToken(FieldDesc* pFD)
     STANDARD_VM_CONTRACT;
     return m_pOwner->GetToken(pFD);
 } 
+int ILCodeStream::GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig)
+{
+    STANDARD_VM_CONTRACT;
+    return m_pOwner->GetSigToken(pSig, cbSig);
+}
 
 DWORD ILCodeStream::NewLocal(CorElementType typ)
 {

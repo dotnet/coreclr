@@ -100,13 +100,20 @@ namespace System.Runtime.CompilerServices
         public byte Data;
     }
 
-    // Helper struct used for tail calls via helper. Must match layout defined
-    // in tailcallhelp.cpp.
     internal unsafe struct TailCallFrame
     {
-        public IntPtr Next;
+        public TailCallFrame* Prev;
         public IntPtr StackPointer;
-        public bool ChainedCall;
+        public IntPtr NextCall;
+    }
+
+    // Helper struct used for tail calls via helper. Must match layout defined
+    // in tailcallhelp.cpp.
+    internal unsafe struct TailCallTls
+    {
+        public TailCallFrame* Frame;
+        public IntPtr ArgBuffer;
+        public IntPtr ArgBufferGCDesc;
     }
 
     internal static unsafe class JitHelpers

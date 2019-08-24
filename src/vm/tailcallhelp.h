@@ -27,11 +27,9 @@ public:
                                            MethodDesc* pCalleeMD,
                                            MetaSig& callSiteSig);
 
-    static FCDECL1(void*, AllocTailCallArgBuffer, INT32);
-    static FCDECL0(void*, GetTailCallArgBuffer);
+    static FCDECL2(void*, AllocTailCallArgBuffer, INT32, void*);
     static FCDECL0(void,  FreeTailCallArgBuffer);
-    static FCDECL1(void,  PushNewTailCallFrame, NewTailCallFrame*);
-    static FCDECL0(void,  PopTailCallFrame);
+    static FCDECL0(void*, GetTailCallTls);
 };
 
 #endif

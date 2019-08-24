@@ -273,6 +273,15 @@ public:
         size_t size = pSrc->m_qbEntries.Size();
         m_qbEntries.AllocThrows(size);
         memcpy(m_qbEntries.Ptr(), pSrc->m_qbEntries.Ptr(), size);
+
+        m_signatures.Preallocate(pSrc->m_signatures.GetCount());
+        for (COUNT_T i = 0; i < pSrc->m_signatures.GetCount(); i++)
+        {
+            const CQuickBytesSpecifySize<16>& src = pSrc->m_signatures[i];
+            CQuickBytesSpecifySize<16>& dst = *m_signatures.Append();
+            dst.AllocThrows(src.Size());
+            memcpy(dst.Ptr(), src.Ptr(), src.Size());
+        }
     }
     
     TypeHandle LookupTypeDef(mdToken token)
@@ -290,6 +299,11 @@ public:
         WRAPPER_NO_CONTRACT;
         return LookupTokenWorker<mdtFieldDef, FieldDesc*>(token);
     }
+    SigPointer LookupSig(mdToken token)
+    {
+        WRAPPER_NO_CONTRACT;
+        return LookupSigWorker(token);
+    }
 
     mdToken GetToken(TypeHandle pMT)
     {
@@ -305,6 +319,11 @@ public:
     {
         WRAPPER_NO_CONTRACT;
         return GetTokenWorker<mdtFieldDef, FieldDesc*>(pFieldDesc);
+    }
+    mdToken GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig)
+    {
+        WRAPPER_NO_CONTRACT;
+        return GetSigTokenWorker(pSig, cbSig);
     }
 
 protected:
@@ -323,6 +342,25 @@ protected:
         CONTRACTL_END;
         
         return ((HandleType*)m_qbEntries.Ptr())[RidFromToken(token)-1];
+    }
+
+    SigPointer LookupSigWorker(mdToken token)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            MODE_ANY;
+            GC_NOTRIGGER;
+            PRECONDITION(RidFromToken(token)-1 < m_signatures.GetCount());
+            PRECONDITION(RidFromToken(token) != 0);
+            PRECONDITION(TypeFromToken(token) == mdtSignature);
+        }
+        CONTRACTL_END;
+
+        CQuickBytesSpecifySize<16>& sigData = m_signatures[RidFromToken(token)-1];
+        PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigData.Ptr();
+        DWORD cbSig = sigData.Size();
+        return SigPointer(pSig, cbSig);
     }
 
     template<mdToken TokenType, typename HandleType>
@@ -348,9 +386,28 @@ protected:
 
         return token;
     }
+
+    mdToken GetSigTokenWorker(PCCOR_SIGNATURE pSig, DWORD cbSig)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            MODE_ANY;
+            GC_NOTRIGGER;
+            PRECONDITION(handle != NULL);
+        }
+        CONTRACTL_END;
+
+        mdToken token = TokenFromRid(m_signatures.GetCount(), mdtSignature)+1;
+        CQuickBytesSpecifySize<16>& sigData = *m_signatures.Append();
+        sigData.AllocThrows(cbSig);
+        memcpy(sigData.Ptr(), pSig, cbSig);
+        return token;
+    }
     
     unsigned int                                    m_nextAvailableRid;
     CQuickBytesSpecifySize<TOKEN_LOOKUP_MAP_SIZE>   m_qbEntries;
+    InlineSArray<CQuickBytesSpecifySize<16>, 2, 0>  m_signatures;
 };
 
 struct ILStubEHClause
@@ -493,6 +550,7 @@ protected:
     int GetToken(MethodTable* pMT);
     int GetToken(TypeHandle th);
     int GetToken(FieldDesc* pFD);
+    int GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig);
     DWORD NewLocal(CorElementType typ = ELEMENT_TYPE_I);
     DWORD NewLocal(LocalDesc loc);
 
@@ -594,6 +652,7 @@ public:
     void EmitBLE        (ILCodeLabel* pCodeLabel);
     void EmitBLE_UN     (ILCodeLabel* pCodeLabel);
     void EmitBLT        (ILCodeLabel* pCodeLabel);
+    void EmitBNE_UN     (ILCodeLabel* pCodeLabel);
     void EmitBR         (ILCodeLabel* pCodeLabel);
     void EmitBREAK      ();
     void EmitBRFALSE    (ILCodeLabel* pCodeLabel);
@@ -705,6 +764,7 @@ public:
     int GetToken(MethodTable* pMT);
     int GetToken(TypeHandle th);
     int GetToken(FieldDesc* pFD);
+    int GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig);
 
     DWORD NewLocal(CorElementType typ = ELEMENT_TYPE_I);
     DWORD NewLocal(LocalDesc loc);
@@ -772,5 +832,6 @@ protected:
 };
 
 #define TOKEN_ILSTUB_TARGET_SIG (TokenFromRid(0xFFFFFF, mdtSignature))
+#define TOKEN_ILSTUB_METHODDEF (TokenFromRid(0xFFFFFF, mdtMethodDef))
 
 #endif  // __STUBGEN_H__

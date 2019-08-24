@@ -231,7 +231,9 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
     DWORD bufferLcl = pCode->NewLocal(ELEMENT_TYPE_I);
 
     pCode->EmitLDC(info.ArgBufLayout.Size);
-    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__ALLOC_TAILCALL_ARG_BUFFER, 1, 1);
+    pCode->EmitLDC(0);
+    pCode->EmitCONV_I();
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__ALLOC_TAILCALL_ARG_BUFFER, 2, 1);
     pCode->EmitSTLOC(bufferLcl);
 
     auto emitOffs = [&](UINT offs)
@@ -251,8 +253,6 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
     pCode->EmitLDFTN(pCode->GetToken(callTargetStubMD));
     pCode->EmitCONV_I();
     pCode->EmitSTIND_I();
-
-    _ASSERTE(!info.ArgBufLayout.HasGCDescriptor);
 
     unsigned int argIndex = 0;
     emitOffs(info.ArgBufLayout.TargetAddressOffset);
@@ -311,12 +311,19 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
 #endif // _DEBUG
 }
 
-// Note: Layout of this must match with TailCallFrame in jithelpers.cs
+// Note: Layout of this must match similarly named structures in jithelpers.cs
 struct NewTailCallFrame
 {
-    NewTailCallFrame* Next;
+    NewTailCallFrame* Prev;
     void* StackPointer;
-    bool ChainedCall;
+    void* NextCall;
+};
+
+struct TailCallTls
+{
+    NewTailCallFrame* Frame;
+    char* ArgBuffer;
+    void* ArgBufferGCDesc;
 };
 
 MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
@@ -337,25 +344,81 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
                     FALSE);
 
     ILCodeStream* pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
-    TypeHandle tailCallFrameTyHnd = MscorlibBinder::GetClass(CLASS__TAIL_CALL_FRAME);
 
-    DWORD tcFrameLcl = pCode->NewLocal(LocalDesc(tailCallFrameTyHnd));
-    DWORD tcArgBufferLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    DWORD resultLcl = pCode->NewLocal(LocalDesc(info.RetTyHnd));
+    DWORD tlsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    DWORD prevFrameLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    ILCodeLabel* noUnwindLbl = pCode->NewCodeLabel();
+    TypeHandle frameTyHnd = MscorlibBinder::GetClass(CLASS__TAIL_CALL_FRAME);
+    DWORD newFrameEntryLcl = pCode->NewLocal(LocalDesc(frameTyHnd));
+    DWORD argsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    DWORD targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    ILCodeLabel* unchained = pCode->NewCodeLabel();
 
-    pCode->EmitLDLOCA(tcFrameLcl);
-    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__PUSH_NEW_TAILCALL_FRAME, 1, 0);
+    // tls = RuntimeHelpers.GetTailcallTls();
+    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__GET_TAILCALL_TLS, 0, 1);
+    pCode->EmitSTLOC(tlsLcl);
 
-    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__GET_TAILCALL_ARG_BUFFER, 0, 1);
-    pCode->EmitSTLOC(tcArgBufferLcl);
+    // prevFrame = tls.Frame;
+    pCode->EmitLDLOC(tlsLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_TLS__FRAME);
+    pCode->EmitSTLOC(prevFrameLcl);
+
+    // TODO: Check previous frame. Intrinsic?
+    // if (1 == 1) goto noUnwindLbl;
+    pCode->EmitLDC(1);
+    pCode->EmitLDC(1);
+    pCode->EmitBNE_UN(noUnwindLbl);
+
+    // prevFrame->NextCall = &ThisStub;
+    pCode->EmitLDLOC(prevFrameLcl);
+    pCode->EmitLDFTN(TOKEN_ILSTUB_METHODDEF);
+    pCode->EmitCONV_I();
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
+
+    // return result;
+    pCode->EmitLDLOC(resultLcl);
+    pCode->EmitRET();
+
+    // Do actual call
+    pCode->EmitLabel(noUnwindLbl);
+    
+    // newFrameEntry.Prev = prevFrame;
+    pCode->EmitLDLOCA(newFrameEntryLcl);
+    pCode->EmitLDLOC(prevFrameLcl);
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__PREV);
+
+    // newFrameEntry.StackPointer = GetStackPointer();
+    // TODO
+    pCode->EmitLDLOCA(newFrameEntryLcl);
+    pCode->EmitLDC(0);
+    pCode->EmitCONV_I();
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__STACK_POINTER);
+
+    // newFrameEntry.NextCall = 0
+    pCode->EmitLDLOCA(newFrameEntryLcl);
+    pCode->EmitLDC(0);
+    pCode->EmitCONV_I();
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
+
+    // tls->Frame = &newFrameEntry;
+    pCode->EmitLDLOC(tlsLcl);
+    pCode->EmitLDLOCA(newFrameEntryLcl);
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_TLS__FRAME);
+
+    // args = tls->ArgBuffer
+    pCode->EmitLDLOC(tlsLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_TLS__ARG_BUFFER);
+    pCode->EmitSTLOC(argsLcl);
 
     auto emitOffs = [&](UINT offs)
     {
-        pCode->EmitLDLOC(tcArgBufferLcl);
-        pCode->EmitLDC(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitLDLOC(argsLcl);
+        pCode->EmitLDC(offs);
         pCode->EmitADD();
     };
 
-    DWORD targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+    // targetAddr = args->TargetAddress
     emitOffs(info.ArgBufLayout.TargetAddressOffset);
     pCode->EmitLDIND_I();
     pCode->EmitSTLOC(targetAddrLcl);
@@ -367,6 +430,8 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     {
         DWORD argLcl = pCode->NewLocal(ELEMENT_TYPE_OBJECT);
         argLocals.Append(argLcl);
+
+        // arg = args->ThisPointer
         emitOffs(info.ArgBufLayout.ThisPointerOffset);
         pCode->EmitLDIND_REF();
         pCode->EmitSTLOC(argLcl);
@@ -387,6 +452,8 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         const ArgBufferOrigArg& arg = info.ArgBufLayout.OrigArgs[i];
         DWORD argLcl = pCode->NewLocal(LocalDesc(arg.TyHnd));
         argLocals.Append(argLcl);
+
+        // arg = args->Arg_i
         emitOffs(arg.Offset);
         pCode->EmitLDOBJ(pCode->GetToken(arg.TyHnd));
         pCode->EmitSTLOC(argLcl);
@@ -395,36 +462,46 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         calliSig.AppendPointer(arg.TyHnd.AsPtr());
     }
 
+    // RuntimeHelpers.FreeTailCallArgBuf();
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__FREE_TAILCALL_ARG_BUFFER, 0, 0);
 
-    // TODO: try-finally
-
+    // -----
+    // result = Calli(target, args)
     for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
     {
         pCode->EmitLDLOC(argLocals[i]);
     }
 
-    emitOffs(info.ArgBufLayout.TargetAddressOffset);
-    pCode->EmitLDIND_I();
+    pCode->EmitLDLOC(targetAddrLcl);
 
-    DWORD retValueLcl = pCode->NewLocal(LocalDesc(info.RetTyHnd));
-    // TODO: Handle void return
-    pCode->EmitCALLI(TOKEN_ILSTUB_TARGET_SIG, argLocals.GetCount(), 1);
-    pCode->EmitSTLOC(retValueLcl);
+    DWORD cbCalliSig;
+    PCCOR_SIGNATURE pCalliSig = (PCCOR_SIGNATURE)calliSig.GetSignature(&cbCalliSig);
 
-    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__POP_TAILCALL_FRAME, 0, 0);
+    pCode->EmitCALLI(pCode->GetSigToken(pCalliSig, cbCalliSig), argLocals.GetCount(), 1);
+    pCode->EmitSTLOC(resultLcl);
+    // -----
 
-    ILCodeLabel* unchained = pCode->NewCodeLabel();
-    pCode->EmitLDLOC(tcFrameLcl);
-    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__CHAINED_CALL);
+    // tls->Frame = newFrameEntry.Prev
+    pCode->EmitLDLOC(tlsLcl);
+    pCode->EmitLDLOC(newFrameEntryLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__PREV);
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_TLS__FRAME);
+
+    // if (newFrameEntry.NextCall == IntPtr.Zero) return result
+    pCode->EmitLDLOC(newFrameEntryLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
     pCode->EmitBRFALSE(unchained);
 
+    // return newFrameEntry.NextCall();
+    pCode->EmitLDLOC(newFrameEntryLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
     pCode->EmitTAIL();
-    pCode->EmitCALL(METHOD__RUNTIME_HELPERS__TAILCALL_HELPER, 0, 1);
+    pCode->EmitCALLI(pCode->GetSigToken(pSig, cbSig), 0, 1);
     pCode->EmitRET();
 
+    // unchained: return result;
     pCode->EmitLabel(unchained);
-    pCode->EmitLDLOC(retValueLcl); // TODO: How to handle bad gc refs in ret value unwind case?
+    pCode->EmitLDLOC(resultLcl);
     pCode->EmitRET();
 
     Module* pLoaderModule = info.Caller->GetLoaderModule();
@@ -438,61 +515,47 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             &emptyCtx,
             &sl);
 
-    ILStubResolver* pResolver = pStoreArgsMD->AsDynamicMethodDesc()->GetILStubResolver();
-
-    DWORD cbCalliSig;
-    PCCOR_SIGNATURE pCalliSig = (PCCOR_SIGNATURE)calliSig.GetSignature(&cbCalliSig);
-    pResolver->SetStubTargetMethodSig(pCalliSig, cbCalliSig);
+#ifdef _DEBUG
+    // TODO
+    //StackSString ilStub;
+    //sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+    //StackScratchBuffer ssb;
+    //printf("%s\n", ilStub.GetUTF8(ssb));
+#endif
 
     return pStoreArgsMD;
 }
 
-#ifndef CROSSGEN_COMPILE
 // TODO: TLS
-extern "C" char* g_tailCallArgBuffer = NULL;
+static NewTailCallFrame g_sentinelTailCallFrame;
+static TailCallTls g_tailCallTls = { &g_sentinelTailCallFrame, NULL, NULL };
 
-FCIMPL1(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size)
+FCIMPL2(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size, void* gcDesc)
 {
     FCALL_CONTRACT;
-    return (g_tailCallArgBuffer = new char[size]);
-}
-FCIMPLEND
+    g_tailCallTls.ArgBuffer = new char[size];
+    if (gcDesc)
+    {
+        memset(g_tailCallTls.ArgBuffer, 0, size);
+        g_tailCallTls.ArgBufferGCDesc = gcDesc;
+    }
 
-FCIMPL0(void*, TailCallHelp::GetTailCallArgBuffer)
-{
-    FCALL_CONTRACT;
-    return g_tailCallArgBuffer;
+    return g_tailCallTls.ArgBuffer;
 }
 FCIMPLEND
 
 FCIMPL0(void, TailCallHelp::FreeTailCallArgBuffer)
 {
     FCALL_CONTRACT;
-    delete[] g_tailCallArgBuffer;
+    g_tailCallTls.ArgBufferGCDesc = NULL;
+    delete[] g_tailCallTls.ArgBuffer;
+    g_tailCallTls.ArgBuffer = NULL;
 }
 FCIMPLEND
 
-NewTailCallFrame g_sentinelTailCallFrame;
-// TODO: TLS
-extern "C" NewTailCallFrame* g_curTailCallFrame = &g_sentinelTailCallFrame;
-
-FCIMPL1(void, TailCallHelp::PushNewTailCallFrame, NewTailCallFrame* tcFrame)
+FCIMPL0(void*, TailCallHelp::GetTailCallTls)
 {
     FCALL_CONTRACT;
-
-    tcFrame->Next = g_curTailCallFrame;
-    // TODO: This should probably use a helper in the emitted IL instead..
-    tcFrame->StackPointer = (char*)__builtin_frame_address(0) + sizeof(void*);
-    tcFrame->ChainedCall = false;
-    g_curTailCallFrame = tcFrame;
+    return &g_tailCallTls;
 }
 FCIMPLEND
-
-FCIMPL0(void, TailCallHelp::PopTailCallFrame)
-{
-    FCALL_CONTRACT;
-
-    g_curTailCallFrame = g_curTailCallFrame->Next;
-}
-FCIMPLEND
-#endif
