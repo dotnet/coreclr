@@ -392,7 +392,7 @@ namespace Internal.Win32
                             if (nextNull < len)
                             {
                                 Debug.Assert(blob[nextNull] == (char)0, "blob[nextNull] should be 0");
-                                if (nextNull - cur > 0)
+                                if (nextNull > cur)
                                 {
                                     toAdd = new string(blob, cur, nextNull - cur);
                                 }
