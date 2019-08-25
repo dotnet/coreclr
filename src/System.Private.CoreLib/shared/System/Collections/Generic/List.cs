@@ -469,7 +469,7 @@ namespace System.Collections.Generic
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            if (count < 0 || startIndex > _size - count)
+            if ((uint)count > (uint)(_size - startIndex))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
@@ -535,8 +535,7 @@ namespace System.Collections.Generic
                 }
             }
 
-            // 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
-            if (count < 0 || startIndex - count + 1 < 0)
+            if ((uint)count > (uint)(startIndex + 1))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }

@@ -16,7 +16,7 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public abstract partial class Array : ICloneable, IList, IStructuralComparable, IStructuralEquatable
     {
-        // We impose limits on maximum array lenght in each dimension to allow efficient
+        // We impose limits on maximum array length in each dimension to allow efficient
         // implementation of advanced range check elimination in future.
         // Keep in sync with vm\gcscan.cpp and HashHelpers.MaxPrimeArrayLength.
         // The constants are defined in this method: inline SIZE_T MaxArrayLength(SIZE_T componentSize) from gcscan
@@ -663,12 +663,12 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (startIndex < 0 || startIndex > array.Length)
+            if ((uint)startIndex > (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            if (count < 0 || startIndex > array.Length - count)
+            if ((uint)count > (uint)(array.Length - startIndex))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
@@ -752,12 +752,12 @@ namespace System
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
             }
 
-            if (startIndex < 0 || startIndex > array.Length)
+            if ((uint)startIndex > (uint)array.Length)
             {
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            if (count < 0 || startIndex > array.Length - count)
+            if ((uint)count > (uint)(array.Length - startIndex))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
@@ -842,14 +842,13 @@ namespace System
             else
             {
                 // Make sure we're not out of range
-                if (startIndex < 0 || startIndex >= array.Length)
+                if ((uint)startIndex >= (uint)array.Length)
                 {
                     ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
                 }
             }
 
-            // 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
-            if (count < 0 || startIndex - count + 1 < 0)
+            if ((uint)count > (uint)(startIndex + 1))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
@@ -1211,8 +1210,7 @@ namespace System
                 ThrowHelper.ThrowStartIndexArgumentOutOfRange_ArgumentOutOfRange_Index();
             }
 
-            // 2nd have of this also catches when startIndex == MAXINT, so MAXINT - 0 + 1 == -1, which is < 0.
-            if (count < 0 || startIndex - count + 1 < 0)
+            if ((uint)count > (uint)(startIndex + 1))
             {
                 ThrowHelper.ThrowCountArgumentOutOfRange_ArgumentOutOfRange_Count();
             }
