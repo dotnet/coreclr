@@ -61,9 +61,7 @@ namespace System
 
         public override bool Equals(object? other)
         {
-            if (!hasValue) return other == null;
-            if (other == null) return false;
-            return value.Equals(other);
+            return !hasValue ? other == null : other != null && value.Equals(other);
         }
 
         public override int GetHashCode()
