@@ -5201,7 +5201,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
 
             buffer.Append(',');
-            s = Hex(strs[strs.Length - 1]);
+            s = Hex(strs[^1]);
             if (s.Length > maxLineLength || (curLineLength + s.Length + 6) > maxLineLength)
             {
                 buffer.Append(Environment.NewLine);
