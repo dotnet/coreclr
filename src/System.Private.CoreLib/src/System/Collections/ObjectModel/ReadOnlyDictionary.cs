@@ -29,38 +29,14 @@ namespace System.Collections.ObjectModel
 
         public ReadOnlyDictionary(IDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null)
-            {
-                throw new ArgumentNullException(nameof(dictionary));
-            }
-            m_dictionary = dictionary;
+            m_dictionary = dictionary ?? throw new ArgumentNullException(nameof(dictionary));
         }
 
         protected IDictionary<TKey, TValue> Dictionary => m_dictionary;
 
-        public KeyCollection Keys
-        {
-            get
-            {
-                if (m_keys == null)
-                {
-                    m_keys = new KeyCollection(m_dictionary.Keys);
-                }
-                return m_keys;
-            }
-        }
+        public KeyCollection Keys => m_keys ??= new KeyCollection(m_dictionary.Keys);
 
-        public ValueCollection Values
-        {
-            get
-            {
-                if (m_values == null)
-                {
-                    m_values = new ValueCollection(m_dictionary.Values);
-                }
-                return m_values;
-            }
-        }
+        public ValueCollection Values => m_values ??= new ValueCollection(m_dictionary.Values);
 
         #region IDictionary<TKey, TValue> Members
 
