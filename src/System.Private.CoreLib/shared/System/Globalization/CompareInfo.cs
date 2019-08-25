@@ -376,8 +376,8 @@ namespace System.Globalization
 
         public virtual int Compare(string? string1, int offset1, string? string2, int offset2, CompareOptions options)
         {
-            return Compare(string1, offset1, string1 == null ? 0 : string1.Length - offset1,
-                           string2, offset2, string2 == null ? 0 : string2.Length - offset2, options);
+            return Compare(string1, offset1, string1?.Length - offset1 ?? 0,
+                           string2, offset2, string2?.Length - offset2 ?? 0, options);
         }
 
         public virtual int Compare(string? string1, int offset1, string? string2, int offset2)
@@ -406,11 +406,11 @@ namespace System.Globalization
             {
                 throw new ArgumentOutOfRangeException((offset1 < 0) ? nameof(offset1) : nameof(offset2), SR.ArgumentOutOfRange_NeedPosNum);
             }
-            if (offset1 > (string1 == null ? 0 : string1.Length) - length1)
+            if (offset1 > (string1?.Length ?? 0) - length1)
             {
                 throw new ArgumentOutOfRangeException(nameof(string1), SR.ArgumentOutOfRange_OffsetLength);
             }
-            if (offset2 > (string2 == null ? 0 : string2.Length) - length2)
+            if (offset2 > (string2?.Length ?? 0) - length2)
             {
                 throw new ArgumentOutOfRangeException(nameof(string2), SR.ArgumentOutOfRange_OffsetLength);
             }

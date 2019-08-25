@@ -443,7 +443,7 @@ namespace System.Reflection
 
             // get the signature
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters != null) ? parameters.Length : 0;
+            int actualCount = parameters?.Length ?? 0;
 
             INVOCATION_FLAGS invocationFlags = InvocationFlags;
 

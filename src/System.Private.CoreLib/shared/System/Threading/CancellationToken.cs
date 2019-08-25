@@ -273,9 +273,7 @@ namespace System.Threading
                 throw new ArgumentNullException(nameof(callback));
 
             CancellationTokenSource? source = _source;
-            return source != null ?
-                source.InternalRegister(callback, state, useSynchronizationContext ? SynchronizationContext.Current : null, useExecutionContext ? ExecutionContext.Capture() : null) :
-                default; // Nothing to do for tokens than can never reach the canceled state. Give back a dummy registration.
+            return source?.InternalRegister(callback, state, useSynchronizationContext ? SynchronizationContext.Current : null, useExecutionContext ? ExecutionContext.Capture() : null) ?? default; // Nothing to do for tokens than can never reach the canceled state. Give back a dummy registration.
         }
 
         /// <summary>

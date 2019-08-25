@@ -315,7 +315,7 @@ namespace System.Diagnostics.Tracing
                 m_eventOptions = options;
                 m_creator = creator;
                 m_uniqueId = uniqueId;
-                m_level = creator != null ? creator.m_level + 1 : 0;
+                m_level = creator?.m_level + 1 ?? 0;
                 m_activityIdToRestore = activityIDToRestore;
 
                 // Create a nice GUID that encodes the chain of activities that started this one.

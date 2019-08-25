@@ -734,7 +734,7 @@ namespace System
             throw new PlatformNotSupportedException();
         }
 
-        public IntPtr Value => m_value != null ? m_value.Value.Value : IntPtr.Zero;
+        public IntPtr Value => m_value?.Value.Value ?? IntPtr.Zero;
 
         public override int GetHashCode()
         {
@@ -1054,7 +1054,7 @@ namespace System
             return m_ptr;
         }
 
-        public IntPtr Value => m_ptr != null ? m_ptr.Value.Value : IntPtr.Zero;
+        public IntPtr Value => m_ptr?.Value.Value ?? IntPtr.Zero;
 
         internal bool IsNullHandle()
         {

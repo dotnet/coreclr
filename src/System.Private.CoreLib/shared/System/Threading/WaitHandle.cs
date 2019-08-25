@@ -54,7 +54,7 @@ namespace System.Threading
         {
             get
             {
-                return _waitHandle == null ? InvalidHandle : _waitHandle.DangerousGetHandle();
+                return _waitHandle?.DangerousGetHandle() ?? InvalidHandle;
             }
             set
             {
@@ -183,7 +183,7 @@ namespace System.Threading
             // t_safeWaitHandlesForRent can be null when it was not initialized yet or
             // if a re-entrant wait is performed and the array is already rented. In
             // that case we just allocate a new one and reuse it as necessary.
-            int currentLength = (safeWaitHandles != null) ? safeWaitHandles.Length : 0;
+            int currentLength = safeWaitHandles?.Length ?? 0;
             if (currentLength < capacity)
             {
                 safeWaitHandles = new SafeWaitHandle[Math.Max(capacity,

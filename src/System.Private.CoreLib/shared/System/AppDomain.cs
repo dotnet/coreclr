@@ -131,7 +131,7 @@ namespace System
                 parameters: entry.GetParameters().Length > 0 ? new object?[] { args } : null,
                 culture: null);
 
-            return result != null ? (int)result : 0;
+            return (int?) result ?? 0;
         }
 
         public int ExecuteAssemblyByName(AssemblyName assemblyName, params string?[]? args) =>

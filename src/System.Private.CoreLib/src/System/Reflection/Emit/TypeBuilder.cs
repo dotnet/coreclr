@@ -183,7 +183,7 @@ namespace System.Reflection.Emit
             }
 
             DefineCustomAttribute(JitHelpers.GetQCallModuleOnStack(ref module), tkAssociate, tkConstructor,
-                localAttr, (localAttr != null) ? localAttr.Length : 0, toDisk, updateCompilerFlags);
+                localAttr, localAttr?.Length ?? 0, toDisk, updateCompilerFlags);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
@@ -2031,10 +2031,10 @@ namespace System.Reflection.Emit
                 int[]? tokenFixups = meth.GetTokenFixups();
 
                 SetMethodIL(JitHelpers.GetQCallModuleOnStack(ref module), meth.GetToken().Token, meth.InitLocals,
-                    body, (body != null) ? body.Length : 0,
+                    body, body?.Length ?? 0,
                     localSig, sigLength, maxStack,
-                    exceptions, (exceptions != null) ? exceptions.Length : 0,
-                    tokenFixups, (tokenFixups != null) ? tokenFixups.Length : 0);
+                    exceptions, exceptions?.Length ?? 0,
+                    tokenFixups, tokenFixups?.Length ?? 0);
 
                 if (m_module.ContainingAssemblyBuilder._assemblyData._access == AssemblyBuilderAccess.Run)
                 {

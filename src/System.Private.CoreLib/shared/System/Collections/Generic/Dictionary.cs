@@ -89,7 +89,7 @@ namespace System.Collections.Generic
         public Dictionary(IDictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
         public Dictionary(IDictionary<TKey, TValue> dictionary, IEqualityComparer<TKey>? comparer) :
-            this(dictionary != null ? dictionary.Count : 0, comparer)
+            this(dictionary?.Count ?? 0, comparer)
         {
             if (dictionary == null)
             {
@@ -350,7 +350,7 @@ namespace System.Collections.Generic
 
             info.AddValue(VersionName, _version);
             info.AddValue(ComparerName, _comparer ?? EqualityComparer<TKey>.Default, typeof(IEqualityComparer<TKey>));
-            info.AddValue(HashSizeName, _buckets == null ? 0 : _buckets.Length); // This is the length of the bucket array
+            info.AddValue(HashSizeName, _buckets?.Length ?? 0); // This is the length of the bucket array
 
             if (_buckets != null)
             {
@@ -486,7 +486,7 @@ namespace System.Collections.Generic
             Debug.Assert(entries != null, "expected entries to be non-null");
 
             IEqualityComparer<TKey>? comparer = _comparer;
-            uint hashCode = (uint)((comparer == null) ? key.GetHashCode() : comparer.GetHashCode(key));
+            uint hashCode = (uint)(comparer?.GetHashCode(key) ?? key.GetHashCode());
 
             int collisionCount = 0;
             ref int bucket = ref _buckets[hashCode % (uint)_buckets.Length];
@@ -980,7 +980,7 @@ namespace System.Collections.Generic
         {
             if (capacity < 0)
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.capacity);
-            int currentCapacity = _entries == null ? 0 : _entries.Length;
+            int currentCapacity = _entries?.Length ?? 0;
             if (currentCapacity >= capacity)
                 return currentCapacity;
             _version++;
@@ -1018,7 +1018,7 @@ namespace System.Collections.Generic
             int newSize = HashHelpers.GetPrime(capacity);
 
             Entry[]? oldEntries = _entries;
-            int currentCapacity = oldEntries == null ? 0 : oldEntries.Length;
+            int currentCapacity = oldEntries?.Length ?? 0;
             if (newSize >= currentCapacity)
                 return;
 

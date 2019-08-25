@@ -343,7 +343,7 @@ namespace System.Reflection.Emit
                 // Compile the method since accessibility checks are done as part of compilation.
                 GetMethodDescriptor();
                 IRuntimeMethodInfo? methodHandle = m_methodHandle;
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle?.Value ?? RuntimeMethodHandleInternal.EmptyHandle);
                 GC.KeepAlive(methodHandle);
             }
 
@@ -360,7 +360,7 @@ namespace System.Reflection.Emit
                 // Compile the method since accessibility checks are done as part of compilation
                 GetMethodDescriptor();
                 IRuntimeMethodInfo? methodHandle = m_methodHandle;
-                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle != null ? methodHandle.Value : RuntimeMethodHandleInternal.EmptyHandle);
+                System.Runtime.CompilerServices.RuntimeHelpers._CompileMethod(methodHandle?.Value ?? RuntimeMethodHandleInternal.EmptyHandle);
                 GC.KeepAlive(methodHandle);
             }
 
@@ -448,7 +448,7 @@ namespace System.Reflection.Emit
 
             // verify arguments
             int formalCount = sig.Arguments.Length;
-            int actualCount = (parameters != null) ? parameters.Length : 0;
+            int actualCount = parameters?.Length ?? 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 

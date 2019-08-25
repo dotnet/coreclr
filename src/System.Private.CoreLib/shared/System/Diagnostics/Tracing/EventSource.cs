@@ -3178,7 +3178,7 @@ namespace System.Diagnostics.Tracing
             EventManifestOptions flags = EventManifestOptions.None)
         {
             ManifestBuilder? manifest = null;
-            bool bNeedsManifest = source != null ? !source.SelfDescribingEvents : true;
+            bool bNeedsManifest = !source?.SelfDescribingEvents ?? true;
             Exception? exception = null; // exception that might get raised during validation b/c we couldn't/didn't recover from a previous error
             byte[]? res = null;
 
