@@ -53,7 +53,7 @@ namespace System
 
             if (s_dataStore == null)
             {
-                Interlocked.CompareExchange(ref s_dataStore, new Dictionary<string, object>(), null);
+                Interlocked.CompareExchange(ref s_dataStore, new Dictionary<string, object?>(), null);
             }
 
             lock (s_dataStore)
