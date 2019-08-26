@@ -306,7 +306,7 @@ namespace System.Diagnostics.Tracing
 
         private void GrowBuffer(int required)
         {
-            int newSize = buffer?.Length ?? 64;
+            int newSize = this.buffer == null ? 64 : this.buffer.Length;
 
             do
             {

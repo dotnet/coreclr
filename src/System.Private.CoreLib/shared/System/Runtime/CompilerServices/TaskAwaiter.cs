@@ -261,9 +261,9 @@ namespace System.Runtime.CompilerServices
                 Task? continuationTask = AsyncMethodBuilderCore.TryGetContinuationTask(continuation);
                 log.TaskWaitBegin(
                     (currentTaskAtBegin != null ? currentTaskAtBegin.m_taskScheduler!.Id : TaskScheduler.Default.Id),
-                    currentTaskAtBegin?.Id ?? 0,
+                    (currentTaskAtBegin != null ? currentTaskAtBegin.Id : 0),
                     task.Id, TplEventSource.TaskWaitBehavior.Asynchronous,
-                    continuationTask?.Id ?? 0);
+                    (continuationTask != null ? continuationTask.Id : 0));
             }
 
             // Create a continuation action that outputs the end event and then invokes the user
@@ -288,7 +288,7 @@ namespace System.Runtime.CompilerServices
                     Task? currentTaskAtEnd = Task.InternalCurrent;
                     innerEtwLog.TaskWaitEnd(
                         (currentTaskAtEnd != null ? currentTaskAtEnd.m_taskScheduler!.Id : TaskScheduler.Default.Id),
-                        currentTaskAtEnd?.Id ?? 0,
+                        (currentTaskAtEnd != null ? currentTaskAtEnd.Id : 0),
                         innerTask.Id);
 
                     // Ensure the continuation runs under the activity ID of the task that completed for the

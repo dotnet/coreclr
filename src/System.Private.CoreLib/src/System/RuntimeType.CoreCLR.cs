@@ -3553,7 +3553,7 @@ namespace System
                 bool[]? isByRef = modifiers?[0].IsByRefArray;
 
                 // pass LCID_ENGLISH_US if no explicit culture is specified to match the behavior of VB
-                int lcid = culture?.LCID ?? 0x0409;
+                int lcid = (culture == null ? 0x0409 : culture.LCID);
 
                 return InvokeDispMethod(name, bindingFlags, target, providedArgs, isByRef, lcid, namedParams);
             }
@@ -3562,7 +3562,7 @@ namespace System
             if (namedParams != null && Array.IndexOf(namedParams, null!) != -1)
                 throw new ArgumentException(SR.Arg_NamedParamNull, nameof(namedParams));
 
-            int argCnt = providedArgs?.Length ?? 0;
+            int argCnt = (providedArgs != null) ? providedArgs.Length : 0;
 
             if (binder == null)
                 binder = DefaultBinder;

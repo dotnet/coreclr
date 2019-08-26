@@ -113,13 +113,13 @@ namespace System.Diagnostics.Tracing
         /// </param>
         public void AddBinary(string? value)
         {
-            DataCollector.ThreadInstance.AddBinary(value, value?.Length * 2 ?? 0);
+            DataCollector.ThreadInstance.AddBinary(value, value == null ? 0 : value.Length * 2);
         }
 
         public void AddArray(PropertyValue value, int elementSize)
         {
             Array? array = (Array?)value.ReferenceValue;
-            DataCollector.ThreadInstance.AddArray(array, array?.Length ?? 0, elementSize);
+            DataCollector.ThreadInstance.AddArray(array, array == null ? 0 : array.Length, elementSize);
         }
     }
 }

@@ -345,7 +345,7 @@ namespace System.Collections
 
         [Obsolete("Please use Hashtable(IDictionary, float, IEqualityComparer) instead.")]
         public Hashtable(IDictionary d, float loadFactor, IHashCodeProvider? hcp, IComparer? comparer)
-            : this(d?.Count ?? 0, loadFactor, hcp, comparer)
+            : this((d != null ? d.Count : 0), loadFactor, hcp, comparer)
         {
             if (d == null)
                 throw new ArgumentNullException(nameof(d), SR.ArgumentNull_Dictionary);
@@ -356,7 +356,7 @@ namespace System.Collections
         }
 
         public Hashtable(IDictionary d, float loadFactor, IEqualityComparer? equalityComparer)
-            : this(d?.Count ?? 0, loadFactor, equalityComparer)
+            : this((d != null ? d.Count : 0), loadFactor, equalityComparer)
         {
             if (d == null)
                 throw new ArgumentNullException(nameof(d), SR.ArgumentNull_Dictionary);
@@ -821,7 +821,7 @@ namespace System.Collections
 
             if (_keycomparer != null)
                 return _keycomparer.Equals(item, key);
-            return item?.Equals(key) ?? false;
+            return item == null ? false : item.Equals(key);
         }
 
         // Returns a collection representing the keys of this hashtable. The order

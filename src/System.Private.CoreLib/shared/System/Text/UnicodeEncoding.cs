@@ -398,7 +398,7 @@ namespace System.Text
             char ch;
         TryAgain:
 
-            while (((ch = fallbackBuffer?.InternalGetNextChar() ?? (char)0) != 0) || chars < charEnd)
+            while (((ch = (fallbackBuffer == null) ? (char)0 : fallbackBuffer.InternalGetNextChar()) != 0) || chars < charEnd)
             {
                 // First unwind any fallback
                 if (ch == 0)
@@ -685,7 +685,8 @@ namespace System.Text
             }
 
         TryAgain:
-            while (((ch = fallbackBuffer?.InternalGetNextChar() ?? (char)0) != 0) ||
+            while (((ch = (fallbackBuffer == null) ?
+                        (char)0 : fallbackBuffer.InternalGetNextChar()) != 0) ||
                     chars < charEnd)
             {
                 // First unwind any fallback

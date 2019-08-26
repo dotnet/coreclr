@@ -92,7 +92,7 @@ namespace System.Diagnostics.Tracing
                 type,
                 tags,
                 Statics.InTypeCustomCountFlag,
-                checked((ushort)(custom?.Length ?? 0)),
+                checked((ushort)(custom == null ? 0 : custom.Length)),
                 custom)
         {
         }

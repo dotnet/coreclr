@@ -636,7 +636,7 @@ namespace System
 
             // Find all the properties that can be described by type indexes parameter
             int CurIdx = 0;
-            int indexesLength = indexes?.Length ?? 0;
+            int indexesLength = (indexes != null) ? indexes.Length : 0;
             for (i = 0; i < candidates.Length; i++)
             {
                 if (indexes != null)
@@ -822,7 +822,7 @@ namespace System
                 throw new ArgumentNullException(nameof(match));
 
             PropertyInfo? bestMatch = null;
-            int typesLength = types?.Length ?? 0;
+            int typesLength = (types != null) ? types.Length : 0;
             for (int i = 0; i < match.Length; i++)
             {
                 ParameterInfo[] par = match[i].GetIndexParameters();

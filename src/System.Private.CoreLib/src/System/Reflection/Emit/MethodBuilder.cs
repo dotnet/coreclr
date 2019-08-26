@@ -352,7 +352,7 @@ namespace System.Reflection.Emit
             if (m_parameterTypes == null)
                 m_parameterTypes = Array.Empty<Type>();
 
-            m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, m_inst?.Length ?? 0,
+            m_signature = SignatureHelper.GetMethodSigHelper(m_module, m_callingConvention, m_inst != null ? m_inst.Length : 0,
                 m_returnType, m_returnTypeRequiredCustomModifiers, m_returnTypeOptionalCustomModifiers,
                 m_parameterTypes, m_parameterTypeRequiredCustomModifiers, m_parameterTypeOptionalCustomModifiers);
 
@@ -398,7 +398,7 @@ namespace System.Reflection.Emit
             return m_exceptions;
         }
 
-        internal int ExceptionHandlerCount => m_exceptions?.Length ?? 0;
+        internal int ExceptionHandlerCount => m_exceptions != null ? m_exceptions.Length : 0;
 
         internal int CalculateNumberOfExceptions(__ExceptionInfo[]? excp)
         {

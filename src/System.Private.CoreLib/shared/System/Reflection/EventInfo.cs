@@ -117,7 +117,7 @@ namespace System.Reflection
                 return true;
             }
 
-            return left?.Equals(right) ?? false;
+            return (left is null) ? false : left.Equals(right);
         }
 
         public static bool operator !=(EventInfo? left, EventInfo? right) => !(left == right);

@@ -1398,7 +1398,7 @@ namespace System.Reflection
             RuntimeTypeHandle attributeTypeHandle = attributeType.TypeHandle;
 
             bool result = RuntimeMethodHandle.IsCAVisibleFromDecoratedType(JitHelpers.GetQCallTypeHandleOnStack(ref attributeTypeHandle),
-                                                                    ctor?.Value ?? RuntimeMethodHandleInternal.EmptyHandle,
+                                                                    ctor != null ? ctor.Value : RuntimeMethodHandleInternal.EmptyHandle,
                                                                     JitHelpers.GetQCallTypeHandleOnStack(ref parentTypeHandle),
                                                                     JitHelpers.GetQCallModuleOnStack(ref decoratedModule)) != Interop.BOOL.FALSE;
 

@@ -304,7 +304,7 @@ namespace System.Reflection
 
             // get the signature
             int formalCount = sig.Arguments.Length;
-            int actualCount = parameters?.Length ?? 0;
+            int actualCount = (parameters != null) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
@@ -356,7 +356,7 @@ namespace System.Reflection
             Signature sig = Signature;
 
             int formalCount = sig.Arguments.Length;
-            int actualCount = parameters?.Length ?? 0;
+            int actualCount = (parameters != null) ? parameters.Length : 0;
             if (formalCount != actualCount)
                 throw new TargetParameterCountException(SR.Arg_ParmCnt);
 
