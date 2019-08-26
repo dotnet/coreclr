@@ -655,7 +655,7 @@ public class ReliabilityTest
         AssemblyLoadContext.AppendPrivatePath(BasePath);
 
         // Execute the test.
-        if (Assembly.ToLower().IndexOf(".exe") == -1 && Assembly.ToLower().IndexOf(".dll") == -1) // must be a simple name or fullname...
+        if (Assembly.ToLower().IndexOf(".dll") == -1 && Assembly.ToLower().IndexOf(".dll") == -1) // must be a simple name or fullname...
         {
             exitCode = AssemblyLoadContext.ExecuteAssemblyByName(Assembly, GetSplitArguments());
         }

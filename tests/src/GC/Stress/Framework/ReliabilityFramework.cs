@@ -78,7 +78,7 @@ internal class CustomAssemblyResolver : AssemblyLoadContext
         else
         {
             //Console.WriteLine("CustomAssemblyLoader: this looks like a test");
-            strPath = Path.Combine(_testsPath, assemblyName.Name + ".exe");
+            strPath = Path.Combine(_testsPath, assemblyName.Name + ".dll");
         }
 
         //Console.WriteLine("Incoming AssemblyName: {0}", assemblyName.ToString());
