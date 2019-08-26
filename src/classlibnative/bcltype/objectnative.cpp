@@ -20,7 +20,6 @@
 #include "comsynchronizable.h"
 #include "eeconfig.h"
 
-
 /********************************************************************/
 /* gets an object's 'value'.  For normal classes, with reference
    based semantics, this means the object's pointer.  For boxed
@@ -28,7 +27,7 @@
    they are immutable), for other value class, it means returning
    a boxed copy.  */
 
-FCIMPL1(Object*, ObjectNative::GetObjectValue, Object* obj) 
+FCIMPL1(Object *, ObjectNative::GetObjectValue, Object *obj)
 {
     CONTRACTL
     {
@@ -40,32 +39,32 @@ FCIMPL1(Object*, ObjectNative::GetObjectValue, Object* obj)
     VALIDATEOBJECT(obj);
 
     if (obj == 0)
-        return(obj);
+        return (obj);
 
-    MethodTable* pMT = obj->GetMethodTable();
+    MethodTable *pMT = obj->GetMethodTable();
     // optimize for primitive types since GetVerifierCorElementType is slow.
-    if (pMT->IsTruePrimitive() || TypeHandle(pMT).GetVerifierCorElementType() != ELEMENT_TYPE_VALUETYPE) {
-        return(obj);
+    if (pMT->IsTruePrimitive() || TypeHandle(pMT).GetVerifierCorElementType() != ELEMENT_TYPE_VALUETYPE)
+    {
+        return (obj);
     }
 
-    Object* retVal = NULL;
+    Object *retVal = NULL;
     OBJECTREF objRef(obj);
-    HELPER_METHOD_FRAME_BEGIN_RET_1(objRef);    // Set up a frame
-    
+    HELPER_METHOD_FRAME_BEGIN_RET_1(objRef); // Set up a frame
+
     // Technically we could return boxed DateTimes and Decimals without
     // copying them here, but VB realized that this would be a breaking change
-    // for their customers.  So copy them. 
-    // 
+    // for their customers.  So copy them.
+    //
     // MethodTable::Box is a cleaner way to copy value class, but it is slower than following code.
     //
     retVal = OBJECTREFToObject(AllocateObject(pMT));
     CopyValueClass(retVal->GetData(), objRef->GetData(), pMT);
     HELPER_METHOD_FRAME_END();
 
-    return(retVal);
+    return (retVal);
 }
 FCIMPLEND
-
 
 NOINLINE static INT32 GetHashCodeHelper(OBJECTREF objRef)
 {
@@ -73,7 +72,7 @@ NOINLINE static INT32 GetHashCodeHelper(OBJECTREF objRef)
 
     FC_INNER_PROLOG(ObjectNative::GetHashCode);
 
-    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);   
+    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2, objRef);
 
     idx = objRef->GetHashCodeEx();
 
@@ -84,8 +83,9 @@ NOINLINE static INT32 GetHashCodeHelper(OBJECTREF objRef)
 
 // Note that we obtain a sync block index without actually building a sync block.
 // That's because a lot of objects are hashed, without requiring support for
-FCIMPL1(INT32, ObjectNative::GetHashCode, Object* obj) {
-    
+FCIMPL1(INT32, ObjectNative::GetHashCode, Object *obj)
+{
+
     CONTRACTL
     {
         FCALL_CHECK;
@@ -94,7 +94,7 @@ FCIMPL1(INT32, ObjectNative::GetHashCode, Object* obj) {
     CONTRACTL_END;
 
     VALIDATEOBJECT(obj);
-        
+
     if (obj == 0)
         return 0;
 
@@ -108,19 +108,17 @@ FCIMPL1(INT32, ObjectNative::GetHashCode, Object* obj) {
             if (bits & BIT_SBLK_IS_HASHCODE)
             {
                 // Common case: the object already has a hash code
-                return  bits & MASK_HASHCODE;
+                return bits & MASK_HASHCODE;
             }
-            else
+
+            // We have a sync block index. This means if we already have a hash code,
+            // it is in the sync block, otherwise we generate a new one and store it there
+            SyncBlock *psb = objRef->PassiveGetSyncBlock();
+            if (psb != NULL)
             {
-                // We have a sync block index. This means if we already have a hash code,
-                // it is in the sync block, otherwise we generate a new one and store it there
-                SyncBlock *psb = objRef->PassiveGetSyncBlock();
-                if (psb != NULL)
-                {
-                    DWORD hashCode = psb->GetHashCode();
-                    if (hashCode != 0)
-                        return  hashCode;
-                }
+                DWORD hashCode = psb->GetHashCode();
+                if (hashCode != 0)
+                    return hashCode;
             }
         }
     }
@@ -131,7 +129,7 @@ FCIMPLEND
 
 //
 // Compare by ref for normal classes, by value for value types.
-//  
+//
 // <TODO>@todo: it would be nice to customize this method based on the
 // defining class rather than doing a runtime check whether it is
 // a value type.</TODO>
@@ -145,8 +143,8 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
         INJECT_FAULT(FCThrow(kOutOfMemoryException););
     }
     CONTRACTL_END;
-    
-    if (pThisRef == pCompareRef)    
+
+    if (pThisRef == pCompareRef)
         FC_RETURN_BOOL(TRUE);
 
     // Since we are in FCALL, we must handle NULL specially.
@@ -165,12 +163,12 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
 
     // Compare the contents (size - vtable - sync block index).
     DWORD dwBaseSize = pThisRef->GetMethodTable()->GetBaseSize();
-    if(pThisRef->GetMethodTable() == g_pStringClass)
+    if (pThisRef->GetMethodTable() == g_pStringClass)
         dwBaseSize -= sizeof(WCHAR);
     BOOL ret = memcmp(
-        (void *) (pThisRef+1), 
-        (void *) (pCompareRef+1), 
-        dwBaseSize - sizeof(Object) - sizeof(int)) == 0;
+                   (void *)(pThisRef + 1),
+                   (void *)(pCompareRef + 1),
+                   dwBaseSize - sizeof(Object) - sizeof(int)) == 0;
 
     FC_GC_POLL_RET();
 
@@ -178,24 +176,24 @@ FCIMPL2(FC_BOOL_RET, ObjectNative::Equals, Object *pThisRef, Object *pCompareRef
 }
 FCIMPLEND
 
-NOINLINE static Object* GetClassHelper(OBJECTREF objRef)
+NOINLINE static Object *GetClassHelper(OBJECTREF objRef)
 {
     FC_INNER_PROLOG(ObjectNative::GetClass);
     _ASSERTE(objRef != NULL);
     TypeHandle typeHandle = objRef->GetTypeHandle();
     OBJECTREF refType = NULL;
 
-    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH|Frame::FRAME_ATTR_CAPTURE_DEPTH_2, refType);
+    HELPER_METHOD_FRAME_BEGIN_RET_ATTRIB_1(Frame::FRAME_ATTR_EXACT_DEPTH | Frame::FRAME_ATTR_CAPTURE_DEPTH_2, refType);
 
-        refType = typeHandle.GetManagedClassObject();
+    refType = typeHandle.GetManagedClassObject();
 
     HELPER_METHOD_FRAME_END();
     FC_INNER_EPILOG();
     return OBJECTREFToObject(refType);
 }
 
-// This routine is called by the Object.GetType() routine.   It is a major way to get the Sytem.Type 
-FCIMPL1(Object*, ObjectNative::GetClass, Object* pThis)
+// This routine is called by the Object.GetType() routine.   It is a major way to get the Sytem.Type
+FCIMPL1(Object *, ObjectNative::GetClass, Object *pThis)
 {
     CONTRACTL
     {
@@ -204,29 +202,29 @@ FCIMPL1(Object*, ObjectNative::GetClass, Object* pThis)
     }
     CONTRACTL_END;
 
-    OBJECTREF objRef = ObjectToOBJECTREF(pThis);  
-    if (objRef != NULL) 
+    OBJECTREF objRef = ObjectToOBJECTREF(pThis);
+    if (objRef != NULL)
     {
-        MethodTable* pMT = objRef->GetMethodTable();
+        MethodTable *pMT = objRef->GetMethodTable();
         OBJECTREF typePtr = pMT->GetManagedClassObjectIfExists();
         if (typePtr != NULL)
         {
             return OBJECTREFToObject(typePtr);
         }
     }
-    else 
+    else
         FCThrow(kNullReferenceException);
 
-    FC_INNER_RETURN(Object*, GetClassHelper(objRef));
+    FC_INNER_RETURN(Object *, GetClassHelper(objRef));
 }
 FCIMPLEND
 
-FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
+FCIMPL1(Object *, ObjectNative::Clone, Object *pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
     OBJECTREF refClone = NULL;
-    OBJECTREF refThis  = ObjectToOBJECTREF(pThisUNSAFE);
+    OBJECTREF refThis = ObjectToOBJECTREF(pThisUNSAFE);
 
     if (refThis == NULL)
         FCThrow(kNullReferenceException);
@@ -236,7 +234,7 @@ FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
     // ObjectNative::Clone() ensures that the source and destination are always in
     // the same context.
 
-    MethodTable* pMT = refThis->GetMethodTable();    
+    MethodTable *pMT = refThis->GetMethodTable();
 
     // assert that String has overloaded the Clone() method
     _ASSERTE(pMT != g_pStringClass);
@@ -244,9 +242,12 @@ FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
     _ASSERTE(pMT != g_pUtf8StringClass);
 #endif // FEATURE_UTF8STRING
 
-    if (pMT->IsArray()) {
+    if (pMT->IsArray())
+    {
         refClone = DupArrayForCloning((BASEARRAYREF)refThis);
-    } else {
+    }
+    else
+    {
         // We don't need to call the <cinit> because we know
         //  that it has been called....(It was called before this was created)
         refClone = AllocateObject(pMT);
@@ -265,17 +266,17 @@ FCIMPL1(Object*, ObjectNative::Clone, Object* pThisUNSAFE)
     }
 
     HELPER_METHOD_FRAME_END();
-        
+
     return OBJECTREFToObject(refClone);
 }
 FCIMPLEND
 
-FCIMPL3(FC_BOOL_RET, ObjectNative::WaitTimeout, CLR_BOOL exitContext, INT32 Timeout, Object* pThisUNSAFE)
+FCIMPL3(FC_BOOL_RET, ObjectNative::WaitTimeout, CLR_BOOL exitContext, INT32 Timeout, Object *pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
     BOOL retVal = FALSE;
-    OBJECTREF pThis = (OBJECTREF) pThisUNSAFE;
+    OBJECTREF pThis = (OBJECTREF)pThisUNSAFE;
     HELPER_METHOD_FRAME_BEGIN_RET_1(pThis);
 
     if (pThis == NULL)
@@ -291,11 +292,11 @@ FCIMPL3(FC_BOOL_RET, ObjectNative::WaitTimeout, CLR_BOOL exitContext, INT32 Time
 }
 FCIMPLEND
 
-FCIMPL1(void, ObjectNative::Pulse, Object* pThisUNSAFE)
+FCIMPL1(void, ObjectNative::Pulse, Object *pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
-    OBJECTREF pThis = (OBJECTREF) pThisUNSAFE;
+    OBJECTREF pThis = (OBJECTREF)pThisUNSAFE;
     HELPER_METHOD_FRAME_BEGIN_1(pThis);
 
     if (pThis == NULL)
@@ -307,11 +308,11 @@ FCIMPL1(void, ObjectNative::Pulse, Object* pThisUNSAFE)
 }
 FCIMPLEND
 
-FCIMPL1(void, ObjectNative::PulseAll, Object* pThisUNSAFE)
+FCIMPL1(void, ObjectNative::PulseAll, Object *pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
-    OBJECTREF pThis = (OBJECTREF) pThisUNSAFE;
+    OBJECTREF pThis = (OBJECTREF)pThisUNSAFE;
     HELPER_METHOD_FRAME_BEGIN_1(pThis);
 
     if (pThis == NULL)
@@ -323,7 +324,7 @@ FCIMPL1(void, ObjectNative::PulseAll, Object* pThisUNSAFE)
 }
 FCIMPLEND
 
-FCIMPL1(FC_BOOL_RET, ObjectNative::IsLockHeld, Object* pThisUNSAFE)
+FCIMPL1(FC_BOOL_RET, ObjectNative::IsLockHeld, Object *pThisUNSAFE)
 {
     FCALL_CONTRACT;
 
