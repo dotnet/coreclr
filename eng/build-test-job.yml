@@ -98,7 +98,11 @@ jobs:
     # Note that the containers are defined in platform-matrix.yml
     container: ${{ parameters.container }}
 
-    timeoutInMinutes: 90
+    ${{ if eq(parameters.testGroup, 'innerloop') }}:
+      timeoutInMinutes: 90
+
+    ${{ if ne(parameters.testGroup, 'innerloop') }}:
+      timeoutInMinutes: 120
 
     steps:
 
