@@ -58,7 +58,7 @@ void DumpIL_RemoveFullPath(SString &strTokenFormatting)
     }
 }
 
-void DumpIL_FormatToken(TokenLookupMap* pTokenMap, mdToken token, SString &strTokenFormatting, const SString &strStubTargetSig)
+void ILStubLinker::DumpIL_FormatToken(mdToken token, SString &strTokenFormatting)
 {
     void* pvLookupRetVal = (void*)POISONC;
     _ASSERTE(strTokenFormatting.IsEmpty());
@@ -75,7 +75,7 @@ void DumpIL_FormatToken(TokenLookupMap* pTokenMap, mdToken token, SString &strTo
         }
         else if (TypeFromToken(token) == mdtTypeDef)
         {
-            TypeHandle typeHnd = pTokenMap->LookupTypeDef(token);
+            TypeHandle typeHnd = m_tokenMap.LookupTypeDef(token);
             pvLookupRetVal = typeHnd.AsPtr();
             CONSISTENCY_CHECK(!typeHnd.IsNull());
 
@@ -100,7 +100,7 @@ void DumpIL_FormatToken(TokenLookupMap* pTokenMap, mdToken token, SString &strTo
         }
         else if (TypeFromToken(token) == mdtFieldDef)
         {
-            FieldDesc* pFD = pTokenMap->LookupFieldDef(token);
+            FieldDesc* pFD = m_tokenMap.LookupFieldDef(token);
             pvLookupRetVal = pFD;
             CONSISTENCY_CHECK(CheckPointer(pFD));
 
@@ -116,8 +116,29 @@ void DumpIL_FormatToken(TokenLookupMap* pTokenMap, mdToken token, SString &strTo
         }
         else if (TypeFromToken(token) == mdtSignature)
         {
-            CONSISTENCY_CHECK(token == TOKEN_ILSTUB_TARGET_SIG);
-            strTokenFormatting.Set(strStubTargetSig);
+            CQuickBytes qbTargetSigBytes;
+            PCCOR_SIGNATURE pSig;
+            DWORD cbSig;
+
+            if (token == TOKEN_ILSTUB_TARGET_SIG)
+            {
+                // Build the current target sig into the buffer.
+                cbSig = GetStubTargetMethodSigSize();
+                pSig = (PCCOR_SIGNATURE)qbTargetSigBytes.AllocThrows(cbSig);
+
+                GetStubTargetMethodSig((BYTE*)pSig, cbSig);
+            }
+            else
+            {
+                SigPointer sig = m_tokenMap.LookupSig(token);
+                sig.GetSignature(&pSig, &cbSig);
+            }
+
+            IMDInternalImport * pIMDI = MscorlibBinder::GetModule()->GetMDImport();
+            CQuickBytes sigStr;
+            PrettyPrintSig(pSig, cbSig, "", &sigStr, pIMDI, NULL);
+
+            strTokenFormatting.SetUTF8((LPUTF8)sigStr.Ptr());
         }
         else 
         {
@@ -518,34 +539,12 @@ ILStubLinker::LogILInstruction(
             if (pDumpILStubCode == NULL)
                 strArgument.Printf(W("0x%08x"), pInstruction->uArg);
 
-            LPUTF8      pszFormattedStubTargetSig = NULL;
-            CQuickBytes qbTargetSig;
-
-            if (TOKEN_ILSTUB_TARGET_SIG == pInstruction->uArg)
-            {
-                PCCOR_SIGNATURE pTargetSig;
-                ULONG           cTargetSig;
-                CQuickBytes     qbTempTargetSig;
-
-                IMDInternalImport * pIMDI = MscorlibBinder::GetModule()->GetMDImport();
-
-                cTargetSig = GetStubTargetMethodSigSize();
-                pTargetSig = (PCCOR_SIGNATURE)qbTempTargetSig.AllocThrows(cTargetSig);
-
-                GetStubTargetMethodSig((BYTE*)pTargetSig, cTargetSig);
-                PrettyPrintSig(pTargetSig,   cTargetSig,  "",  &qbTargetSig, pIMDI, NULL);
-
-                pszFormattedStubTargetSig = (LPUTF8)qbTargetSig.Ptr();
-            }
-
             // Dump to szTokenNameBuffer if logging, otherwise dump to szArgumentBuffer to avoid an extra space because we are omitting the token
             _ASSERTE(FitsIn<mdToken>(pInstruction->uArg));
-            SString strFormattedStubTargetSig;
-            strFormattedStubTargetSig.SetUTF8(pszFormattedStubTargetSig);
             if (pDumpILStubCode == NULL)
-                DumpIL_FormatToken(&m_tokenMap, static_cast<mdToken>(pInstruction->uArg), strTokenName, strFormattedStubTargetSig);
+                DumpIL_FormatToken(static_cast<mdToken>(pInstruction->uArg), strTokenName);
             else
-                DumpIL_FormatToken(&m_tokenMap, static_cast<mdToken>(pInstruction->uArg), strArgument, strFormattedStubTargetSig);
+                DumpIL_FormatToken(static_cast<mdToken>(pInstruction->uArg), strArgument);
                 
             break;
         }
@@ -2821,6 +2820,12 @@ int ILStubLinker::GetToken(FieldDesc* pFD)
     return m_tokenMap.GetToken(pFD);
 }
 
+int ILStubLinker::GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig)
+{
+    STANDARD_VM_CONTRACT;
+    return m_tokenMap.GetSigToken(pSig, cbSig);
+}
+
 
 BOOL ILStubLinker::StubHasVoidReturnType()
 {
@@ -2901,6 +2906,11 @@ int ILCodeStream::GetToken(FieldDesc* pFD)
     STANDARD_VM_CONTRACT;
     return m_pOwner->GetToken(pFD);
 } 
+int ILCodeStream::GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig)
+{
+    STANDARD_VM_CONTRACT;
+    return m_pOwner->GetSigToken(pSig, cbSig);
+}
 
 DWORD ILCodeStream::NewLocal(CorElementType typ)
 {
