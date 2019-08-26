@@ -67,11 +67,21 @@ void ILStubLinker::DumpIL_FormatToken(mdToken token, SString &strTokenFormatting
     {
         if (TypeFromToken(token) == mdtMethodDef)
         {
-            MethodDesc* pMD = pTokenMap->LookupMethodDef(token);
-            pvLookupRetVal = pMD;
-            CONSISTENCY_CHECK(CheckPointer(pMD));
+            if (token == TOKEN_ILSTUB_METHODDEF)
+            {
+                if (m_pMD != NULL)
+                    m_pMD->GetFullMethodInfo(strTokenFormatting);
+                else
+                    strTokenFormatting.Append(W("ILStub"));
+            }
+            else
+            {
+                MethodDesc* pMD = m_tokenMap.LookupMethodDef(token);
+                pvLookupRetVal = pMD;
+                CONSISTENCY_CHECK(CheckPointer(pMD));
 
-            pMD->GetFullMethodInfo(strTokenFormatting);
+                pMD->GetFullMethodInfo(strTokenFormatting);
+            }
         }
         else if (TypeFromToken(token) == mdtTypeDef)
         {

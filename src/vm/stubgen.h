@@ -834,6 +834,10 @@ protected:
 #endif // BIT64
 };
 
+// Represents the signature of the target method for an IL stub
 #define TOKEN_ILSTUB_TARGET_SIG (TokenFromRid(0xFFFFFF, mdtSignature))
+// Represents the token for the IL stub method, useful for instance for
+// recursive calls.
+#define TOKEN_ILSTUB_METHODDEF (TokenFromRid(0xFFFFFF, mdtMethodDef))
 
 #endif  // __STUBGEN_H__
