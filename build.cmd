@@ -7,12 +7,6 @@ set "__MsgPrefix=BUILD: "
 
 echo %__MsgPrefix%Starting Build at %TIME%
 
-REM Set variables used when running in an Azure DevOps task
-if defined TF_BUILD (
-    set __ArcadeScriptArgs="-ci"
-    set __ErrMsgPrefix=##vso[task.logissue type=error]
-)
-
 set __ThisScriptFull="%~f0"
 set __ThisScriptDir="%~dp0"
 
@@ -137,6 +131,8 @@ if /i "%1" == "-arm64"               (set __BuildArchArm64=1&set processedArgs=!
 if /i "%1" == "-debug"               (set __BuildTypeDebug=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-checked"             (set __BuildTypeChecked=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "-release"             (set __BuildTypeRelease=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+
+if /i "%1" == "-ci"                  (set __ArcadeScriptArgs="-ci"&set __ErrMsgPrefix=##vso[task.logissue type=error]&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 REM TODO these are deprecated remove them eventually
 REM don't add more, use the - syntax instead
@@ -649,7 +645,7 @@ if %__BuildCoreLib% EQU 1 (
         powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
             %__ProjectDir%\src\build.proj -warnAsError:0^
             /nodeReuse:false /p:PortableBuild=true /maxcpucount /p:ArcadeBuild=true^
-            '!__Logging!' %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
+            '!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!' %__CommonMSBuildArgs% !__ExtraBuildArgs! %__UnprocessedBuildArgs%
         if not !errorlevel! == 0 (
             echo %__ErrMsgPrefix%%__MsgPrefix%Error: Managed Product assemblies build failed. Refer to the build log files for details.
             echo     !__BuildLog!

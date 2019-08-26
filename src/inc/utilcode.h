@@ -489,13 +489,6 @@ inline void *__cdecl operator new(size_t, void *_P)
 
 /********************************************************************************/
 /* portability helpers */
-#ifdef _WIN64
-#define IN_WIN64(x)     x
-#define IN_WIN32(x)
-#else
-#define IN_WIN64(x)
-#define IN_WIN32(x)     x
-#endif
 
 #ifdef _TARGET_64BIT_
 #define IN_TARGET_64BIT(x)     x
@@ -5166,18 +5159,6 @@ void EnableTerminationOnHeapCorruption();
 
 namespace Clr { namespace Util
 {
-    // This api returns a pointer to a null-terminated string that contains the local appdata directory
-    // or it returns NULL in the case that the directory could not be found. The return value from this function
-    // is not actually checked for existence. 
-    HRESULT GetLocalAppDataDirectory(LPCWSTR *ppwzLocalAppDataDirectory);
-    HRESULT SetLocalAppDataDirectory(LPCWSTR pwzLocalAppDataDirectory);
-
-namespace Reg
-{
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, SString & ssValue);
-    __success(return == S_OK)
-    HRESULT ReadStringValue(HKEY hKey, LPCWSTR wszSubKey, LPCWSTR wszName, __deref_out __deref_out_z LPWSTR* pwszValue);
-}
 
 #ifdef FEATURE_COMINTEROP
 namespace Com
@@ -5185,29 +5166,6 @@ namespace Com
     HRESULT FindInprocServer32UsingCLSID(REFCLSID rclsid, SString & ssInprocServer32Name);
 }
 #endif // FEATURE_COMINTEROP
-
-namespace Win32
-{
-    static const WCHAR LONG_FILENAME_PREFIX_W[] = W("\\\\?\\");
-    static const CHAR LONG_FILENAME_PREFIX_A[] = "\\\\?\\";
-
-    void GetModuleFileName(
-        HMODULE hModule,
-        SString & ssFileName,
-        bool fAllowLongFileNames = false);
-
-    __success(return == S_OK)
-    HRESULT GetModuleFileName(
-        HMODULE hModule,
-        __deref_out_z LPWSTR * pwszFileName,
-        bool fAllowLongFileNames = false);
-
-    void GetFullPathName(
-        SString const & ssFileName,
-        SString & ssPathName,
-        DWORD * pdwFilePartIdx,
-        bool fAllowLongFileNames = false);
-}
 
 }}
 

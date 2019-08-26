@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Buffers.Binary;
 using System.Diagnostics.SymbolStore;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
@@ -249,7 +248,7 @@ namespace System.Reflection.Emit
                 for (i = 0; i < cParams; i++)
                     sig.AddArgument(parameterTypes[i]);
 
-            // If there is a non-void return type, push one. 
+            // If there is a non-void return type, push one.
             if (returnType != typeof(void))
                 stackchange++;
 
@@ -403,7 +402,7 @@ namespace System.Reflection.Emit
 
         //
         //
-        // debugger related calls. 
+        // debugger related calls.
         //
         //
         public override void UsingNamespace(string ns)
@@ -590,7 +589,7 @@ namespace System.Reflection.Emit
             m_code = dynamicILInfo.Code;
             m_localSignature = dynamicILInfo.LocalSignature;
             m_exceptionHeader = dynamicILInfo.Exceptions;
-            //m_exceptions = dynamicILInfo.Exceptions;
+            // m_exceptions = dynamicILInfo.Exceptions;
             m_scope = dynamicILInfo.DynamicScope;
 
             m_method = dynamicILInfo.DynamicMethod;
@@ -599,18 +598,18 @@ namespace System.Reflection.Emit
 
         //
         // We can destroy the unmanaged part of dynamic method only after the managed part is definitely gone and thus
-        // nobody can call the dynamic method anymore. A call to finalizer alone does not guarantee that the managed 
+        // nobody can call the dynamic method anymore. A call to finalizer alone does not guarantee that the managed
         // part is gone. A malicious code can keep a reference to DynamicMethod in long weak reference that survives finalization,
         // or we can be running during shutdown where everything is finalized.
         //
-        // The unmanaged resolver keeps a reference to the managed resolver in long weak handle. If the long weak handle 
-        // is null, we can be sure that the managed part of the dynamic method is definitely gone and that it is safe to 
-        // destroy the unmanaged part. (Note that the managed finalizer has to be on the same object that the long weak handle 
-        // points to in order for this to work.) Unfortunately, we can not perform the above check when out finalizer 
-        // is called - the long weak handle won't be cleared yet. Instead, we create a helper scout object that will attempt 
+        // The unmanaged resolver keeps a reference to the managed resolver in long weak handle. If the long weak handle
+        // is null, we can be sure that the managed part of the dynamic method is definitely gone and that it is safe to
+        // destroy the unmanaged part. (Note that the managed finalizer has to be on the same object that the long weak handle
+        // points to in order for this to work.) Unfortunately, we can not perform the above check when out finalizer
+        // is called - the long weak handle won't be cleared yet. Instead, we create a helper scout object that will attempt
         // to do the destruction after next GC.
         //
-        // The finalization does not have to be done using CriticalFinalizerObject. We have to go over all DynamicMethodDescs 
+        // The finalization does not have to be done using CriticalFinalizerObject. We have to go over all DynamicMethodDescs
         // during AppDomain shutdown anyway to avoid leaks e.g. if somebody stores reference to DynamicMethod in static.
         //
         ~DynamicResolver()
@@ -888,14 +887,14 @@ namespace System.Reflection.Emit
                 return m_localSignature;
             }
         }
-        internal byte[] Exceptions { get { return m_exceptions; } }
-        internal byte[] Code { get { return m_code; } }
-        internal int MaxStackSize { get { return m_maxStackSize; } }
+        internal byte[] Exceptions => m_exceptions;
+        internal byte[] Code => m_code;
+        internal int MaxStackSize => m_maxStackSize;
         #endregion
 
         #region Public ILGenerator Methods
-        public DynamicMethod DynamicMethod { get { return m_method; } }
-        internal DynamicScope DynamicScope { get { return m_scope; } }
+        public DynamicMethod DynamicMethod => m_method;
+        internal DynamicScope DynamicScope => m_scope;
 
         public void SetCode(byte[]? code, int maxStackSize)
         {
@@ -989,15 +988,7 @@ namespace System.Reflection.Emit
     internal class DynamicScope
     {
         #region Private Data Members
-        internal List<object?> m_tokens;
-        #endregion
-
-        #region Constructor
-        internal DynamicScope()
-        {
-            m_tokens = new List<object?>();
-            m_tokens.Add(null);
-        }
+        internal readonly List<object?> m_tokens = new List<object?> { null };
         #endregion
 
         #region Internal Methods

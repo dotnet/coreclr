@@ -25,7 +25,7 @@ export PYTHON
 
 usage()
 {
-    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-gccx.y] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipcrossarchnative] [-skipmanaged] [-skipmscorlib] [-skiptests] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
+    echo "Usage: $0 [BuildArch] [BuildType] [-verbose] [-coverage] [-cross] [-gccx.y] [-clangx.y] [-ninja] [-configureonly] [-skipconfigure] [-skipnative] [-skipcrossarchnative] [-skipmanaged] [-skipmscorlib] [-stripsymbols] [-ignorewarnings] [-cmakeargs] [-bindir]"
     echo "BuildArch can be: -x64, -x86, -arm, -armel, -arm64"
     echo "BuildType can be: -debug, -checked, -release"
     echo "-coverage - optional argument to enable code coverage build (currently supported only for Linux and OSX)."
@@ -43,7 +43,6 @@ usage()
     echo "-skipcrossarchnative - do not build cross-architecture native components."
     echo "-skipmanaged - do not build managed components."
     echo "-skipmscorlib - do not build mscorlib.dll."
-    echo "-skiptests - skip the tests in the 'tests' subdirectory."
     echo "-skipnuget - skip building nuget packages."
     echo "-skiprestoreoptdata - skip restoring optimization data used by profile-based optimizations."
     echo "-skipcrossgen - skip native image generation"
@@ -347,19 +346,11 @@ isMSBuildOnNETCoreSupported()
         return
     fi
 
+    if [[ ("$__HostOS" == "Linux") && ("$__HostArch" == "x64" || "$__HostArch" == "arm" || "$__HostArch" == "arm64") ]]; then
+         __isMSBuildOnNETCoreSupported=1
+    fi
     if [ "$__HostArch" == "x64" ]; then
-        if [ "$__HostOS" == "Linux" ]; then
-            __isMSBuildOnNETCoreSupported=1
-            # note: the RIDs below can use globbing patterns
-            UNSUPPORTED_RIDS=("ubuntu.17.04-x64")
-            for UNSUPPORTED_RID in "${UNSUPPORTED_RIDS[@]}"
-            do
-                if [[ ${__DistroRid} == $UNSUPPORTED_RID ]]; then
-                    __isMSBuildOnNETCoreSupported=0
-                    break
-                fi
-            done
-        elif [ "$__HostOS" == "OSX" ]; then
+        if [ "$__HostOS" == "OSX" ]; then
             __isMSBuildOnNETCoreSupported=1
         elif [ "$__HostOS" == "FreeBSD" ]; then
             __isMSBuildOnNETCoreSupported=1
@@ -620,12 +611,6 @@ case $OSName in
         ;;
 esac
 
-# Set variables used when running in an Azure DevOps task
-if [[ ! -z $TF_BUILD ]]; then
-  __ArcadeScriptArgs="--ci"
-  __ErrMsgPrefix="##vso[task.logissue type=error]"
-fi
-
 __BuildType=Debug
 __CodeCoverage=
 __IgnoreWarnings=0
@@ -655,7 +640,6 @@ __SkipRestoreOptData=0
 __SkipCrossgen=0
 __CrossgenOnly=0
 __PartialNgen=0
-__SkipTests=0
 __CrossBuild=0
 __ClangMajorVersion=0
 __ClangMinorVersion=0
@@ -731,6 +715,11 @@ while :; do
 
         release|-release)
             __BuildType=Release
+            ;;
+
+        ci|-ci)
+            __ArcadeScriptArgs="--ci"
+            __ErrMsgPrefix="##vso[task.logissue type=error]"
             ;;
 
         coverage|-coverage)
@@ -900,10 +889,6 @@ while :; do
             ;;
         partialngen|-partialngen)
             __PartialNgen=1
-            ;;
-
-        skiptests|-skiptests)
-            __SkipTests=1
             ;;
 
         skipnuget|-skipnuget|skipbuildpackages|-skipbuildpackages)
@@ -1080,12 +1065,6 @@ generate_event_logging
 
 # Build the coreclr (native) components.
 __ExtraCmakeArgs="-DCLR_CMAKE_TARGET_OS=$__BuildOS -DCLR_CMAKE_PACKAGES_DIR=$__PackagesDir -DCLR_CMAKE_PGO_INSTRUMENT=$__PgoInstrument -DCLR_CMAKE_OPTDATA_VERSION=$__PgoOptDataVersion -DCLR_CMAKE_PGO_OPTIMIZE=$__PgoOptimize"
-
-# [TODO] Remove this when the `build-test.sh` script properly builds and deploys test assets.
-if [ $__SkipTests != 1 ]; then
-    echo "Adding CMake flags to build native tests for $__BuildOS.$__BuildArch.$__BuildType"
-    __ExtraCmakeArgs="$__ExtraCmakeArgs -DCLR_CMAKE_BUILD_TESTS=ON"
-fi
 
 build_native $__SkipCoreCLR "$__BuildArch" "$__IntermediatesDir" "$__ExtraCmakeArgs" "CoreCLR component"
 

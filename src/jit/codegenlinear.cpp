@@ -300,7 +300,7 @@ void CodeGen::genCodeForBBlist()
             }
         }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
         genInsertNopForUnwinder(block);
 #endif
 
@@ -371,7 +371,7 @@ void CodeGen::genCodeForBBlist()
 
         bool firstMapping = true;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         if (block->bbFlags & BBF_FUNCLET_BEG)
         {
             genReserveFuncletProlog(block);
@@ -414,7 +414,7 @@ void CodeGen::genCodeForBBlist()
             // Do we have a new IL offset?
             if (node->OperGet() == GT_IL_OFFSET)
             {
-                GenTreeStmt* ilOffset = node->AsStmt();
+                GenTreeILOffset* ilOffset = node->AsILOffset();
                 genEnsureCodeEmitted(currentILOffset);
                 currentILOffset = ilOffset->gtStmtILoffsx;
                 genIPmappingAdd(currentILOffset, firstMapping);
@@ -698,7 +698,7 @@ void CodeGen::genCodeForBBlist()
                 block = genCallFinally(block);
                 break;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
             case BBJ_EHCATCHRET:
                 genEHCatchRet(block);

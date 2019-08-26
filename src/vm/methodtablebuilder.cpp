@@ -6973,6 +6973,20 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
     }
 #endif
 
+#ifdef FEATURE_DEFAULT_INTERFACES
+    if (IsInterface())
+    {
+        DWORD attrs = pMDMethod->GetDeclAttrs();
+        if (!IsMdStatic(attrs) && IsMdVirtual(attrs) && !IsMdAbstract(attrs))
+        {
+            // Default interface method. Since interface methods currently need to have a precode, the native code slot will be
+            // used to retrieve the native code entry point, instead of getting it from the precode, which is not reliable with
+            // debuggers setting breakpoints.
+            return TRUE;
+        }
+    }
+#endif
+
 #if defined(FEATURE_JIT_PITCHING)
     if ((CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitPitchEnabled) != 0) &&
         (CLRConfig::GetConfigValue(CLRConfig::INTERNAL_JitPitchMemThreshold) != 0))
@@ -11975,7 +11989,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
 
     HRESULT hr;
     ULONG clFlags;
-
     if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
     {
         pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);

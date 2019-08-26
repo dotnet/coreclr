@@ -378,7 +378,7 @@ public:
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
 
     unsigned char lvIsParam : 1;           // is this a parameter?
-    unsigned char lvIsRegArg : 1;          // is this a register argument?
+    unsigned char lvIsRegArg : 1;          // is this an argument that was passed by register?
     unsigned char lvFramePointerBased : 1; // 0 = off of REG_SPBASE (e.g., ESP), 1 = off of REG_FPBASE (e.g., EBP)
 
     unsigned char lvStructGcCount : 3; // if struct, how many GC pointer (stop counting at 7). The only use of values >1
@@ -2182,7 +2182,7 @@ public:
 // Exception handling functions
 //
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 
     bool ehNeedsShadowSPslots()
     {
@@ -2297,7 +2297,7 @@ public:
     bool ehCallFinallyInCorrectRegion(BasicBlock* blockCallFinally, unsigned finallyIndex);
 #endif // DEBUG
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // Do we need a PSPSym in the main function? For codegen purposes, we only need one
     // if there is a filter that protects a region with a nested EH clause (such as a
     // try/catch nested in the 'try' body of a try/filter/filter-handler). See
@@ -2373,7 +2373,7 @@ public:
 
     void fgRemoveEHTableEntry(unsigned XTnum);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     EHblkDsc* fgAddEHTableEntry(unsigned XTnum);
 
@@ -2625,6 +2625,12 @@ public:
         return gtCloneExpr(tree, addFlags, varNum, varVal, varNum, varVal);
     }
 
+    GenTreeStmt* gtCloneStmt(GenTreeStmt* stmt)
+    {
+        GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
+        return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
+    }
+
     // Internal helper for cloning a call
     GenTreeCall* gtCloneExprCallHelper(GenTreeCall* call,
                                        unsigned     addFlags   = 0,
@@ -2819,7 +2825,7 @@ public:
     int gtGetLclVarName(unsigned lclNum, char* buf, unsigned buf_remaining);
     char* gtGetLclVarName(unsigned lclNum);
     void gtDispLclVar(unsigned varNum, bool padForBiggestDisp = true);
-    void gtDispTreeList(GenTree* tree, IndentStack* indentStack = nullptr);
+    void gtDispStmtList(GenTreeStmt* stmts, IndentStack* indentStack = nullptr);
     void gtGetArgMsg(GenTreeCall* call, GenTree* arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
     void gtGetLateArgMsg(GenTreeCall* call, GenTree* arg, int argNum, int listCount, char* bufp, unsigned bufLength);
     void gtDispArgList(GenTreeCall* call, IndentStack* indentStack);
@@ -3052,7 +3058,7 @@ public:
 //-------------------------------------------------------------------------
 // All these frame offsets are inter-related and must be kept in sync
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
     // This is used for the callable handlers
     unsigned lvaShadowSPslotsVar; // TYP_BLK variable for all the shadow SP slots
 #endif                            // FEATURE_EH_FUNCLETS
@@ -3387,7 +3393,7 @@ public:
     unsigned lvaSecurityObject;  // variable representing the security object on the stack
     unsigned lvaStubArgumentVar; // variable representing the secret stub argument coming in EAX
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     unsigned lvaPSPSym; // variable representing the PSPSym
 #endif
 
@@ -4101,7 +4107,7 @@ public:
     BasicBlock* fgFirstBB;        // Beginning of the basic block list
     BasicBlock* fgLastBB;         // End of the basic block list
     BasicBlock* fgFirstColdBlock; // First block to be placed in the cold section
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     BasicBlock* fgFirstFuncletBB; // First block of outlined funclets (to allow block insertion before the funclets)
 #endif
     BasicBlock* fgFirstBBScratch;   // Block inserted for initialization stuff. Is nullptr if no such block has been
@@ -4282,7 +4288,7 @@ public:
                                                    // This is derived from the profile data
                                                    // or is BB_UNITY_WEIGHT when we don't have profile data
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     bool fgFuncletsCreated; // true if the funclet creation phase has been run
 #endif                      // FEATURE_EH_FUNCLETS
 
@@ -4327,11 +4333,11 @@ public:
 
     void fgAddFinallyTargetFlags();
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
     bool fgNeedToAddFinallyTargetBits;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
     bool fgRetargetBranchesToCanonicalCallFinally(BasicBlock*      block,
                                                   BasicBlock*      handler,
@@ -4339,7 +4345,7 @@ public:
 
     GenTree* fgGetCritSectOfStaticMethod();
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     void fgAddSyncMethodEnterExit();
 
@@ -4985,7 +4991,7 @@ public:
     };
     BasicBlock* fgRelocateEHRange(unsigned regionIndex, FG_RELOCATE_TYPE relocateType);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 #if defined(_TARGET_ARM_)
     void fgClearFinallyTargetBit(BasicBlock* block);
 #endif // defined(_TARGET_ARM_)
@@ -5232,13 +5238,16 @@ public:
 #endif
 
 public:
-    GenTreeStmt* fgInsertStmtAtEnd(BasicBlock* block, GenTree* node);
-
-public: // Used by linear scan register allocation
-    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTree* node);
+    GenTreeStmt* fgInsertStmtAtEnd(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgNewStmtAtEnd(BasicBlock* block, GenTree* tree);
 
 private:
-    GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTree* node);
+    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgNewStmtNearEnd(BasicBlock* block, GenTree* tree);
+
+    GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTreeStmt* stmt);
+    GenTreeStmt* fgNewStmtAtBeg(BasicBlock* block, GenTree* tree);
+
     GenTreeStmt* fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
 
 public: // Used by linear scan register allocation
@@ -5677,24 +5686,10 @@ protected:
     // Hoist all expressions in "blk" that are invariant in loop "lnum" (an index into the optLoopTable)
     // outside of that loop.  Exempt expressions whose value number is in "m_hoistedInParentLoops"; add VN's of hoisted
     // expressions to "hoistInLoop".
-    void optHoistLoopExprsForBlock(BasicBlock* blk, unsigned lnum, LoopHoistContext* hoistCtxt);
+    void optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blocks, LoopHoistContext* hoistContext);
 
     // Return true if the tree looks profitable to hoist out of loop 'lnum'.
     bool optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum);
-
-    // Hoist all proper sub-expressions of "tree" (which occurs in "stmt", which occurs in "blk")
-    // that are invariant in loop "lnum" (an index into the optLoopTable)
-    // outside of that loop.  Exempt expressions whose value number is in "hoistedInParents"; add VN's of hoisted
-    // expressions to "hoistInLoop".
-    // Returns "true" iff "tree" is loop-invariant (wrt "lnum").
-    // Assumes that the value of "*firstBlockAndBeforeSideEffect" indicates that we're in the first block, and before
-    // any possible globally visible side effects.  Assume is called in evaluation order, and updates this.
-    bool optHoistLoopExprsForTree(GenTree*          tree,
-                                  unsigned          lnum,
-                                  LoopHoistContext* hoistCtxt,
-                                  bool*             firstBlockAndBeforeSideEffect,
-                                  bool*             pHoistable,
-                                  bool*             pCctorDependent);
 
     // Performs the hoisting 'tree' into the PreHeader for loop 'lnum'
     void optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt);
@@ -5703,12 +5698,6 @@ protected:
     //   Constants and init values are always loop invariant.
     //   VNPhi's connect VN's to the SSA definition, so we can know if the SSA def occurs in the loop.
     bool optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* recordedVNs);
-
-    // Returns "true" iff "tree" is valid at the head of loop "lnum", in the context of the hoist substitution
-    // "subst".  If "tree" is a local SSA var, it is valid if its SSA definition occurs outside of the loop, or
-    // if it is in the domain of "subst" (meaning that it's definition has been previously hoisted, with a "standin"
-    // local.)  If tree is a constant, it is valid.  Otherwise, if it is an operator, it is valid iff its children are.
-    bool optTreeIsValidAtLoopHead(GenTree* tree, unsigned lnum);
 
     // If "blk" is the entry block of a natural loop, returns true and sets "*pLnum" to the index of the loop
     // in the loop table.
@@ -7285,7 +7274,7 @@ public:
 
 // Things that MAY belong either in CodeGen or CodeGenContext
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     FuncInfoDsc*   compFuncInfos;
     unsigned short compCurrFuncIdx;
     unsigned short compFuncInfoCount;
@@ -7455,7 +7444,7 @@ public:
     //
 
 private:
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     void unwindGetFuncLocations(FuncInfoDsc*             func,
                                 bool                     getHotSectionData,
                                 /* OUT */ emitLocation** ppStartLoc,
@@ -7465,7 +7454,7 @@ private:
     void unwindReserveFunc(FuncInfoDsc* func);
     void unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
 
-#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && FEATURE_EH_FUNCLETS)
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && defined(FEATURE_EH_FUNCLETS))
 
     void unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode);
     void unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pColdCode, bool isHotCode);
@@ -9833,7 +9822,7 @@ public:
             case GT_START_NONGC:
             case GT_START_PREEMPTGC:
             case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
             case GT_PHI_ARG:

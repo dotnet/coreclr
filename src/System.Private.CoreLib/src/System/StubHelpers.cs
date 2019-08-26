@@ -2,26 +2,22 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+#if FEATURE_COMINTEROP
+using System.Runtime.InteropServices.WindowsRuntime;
+#endif // FEATURE_COMINTEROP
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
+
 namespace System.StubHelpers
 {
-    using System.Text;
-    using Microsoft.Win32;
-    using System.Security;
-    using System.Collections.Generic;
-    using System.Runtime;
-    using System.Runtime.InteropServices;
-#if FEATURE_COMINTEROP
-    using System.Runtime.InteropServices.WindowsRuntime;
-#endif // FEATURE_COMINTEROP
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Diagnostics;
-
     internal static class AnsiCharMarshaler
     {
         // The length of the returned array is an approximation based on the length of the input string and the system
         // character set. It is only guaranteed to be larger or equal to cbLength, don't depend on the exact value.
-        unsafe internal static byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
+        internal static unsafe byte[] DoAnsiConversion(string str, bool fBestFit, bool fThrowOnUnmappableChar, out int cbLength)
         {
             byte[] buffer = new byte[checked((str.Length + 1) * Marshal.SystemMaxDBCSCharSize)];
             fixed (byte* bufferPtr = &buffer[0])
@@ -31,7 +27,7 @@ namespace System.StubHelpers
             return buffer;
         }
 
-        unsafe internal static byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
+        internal static unsafe byte ConvertToNative(char managedChar, bool fBestFit, bool fThrowOnUnmappableChar)
         {
             int cbAllocLength = (1 + 1) * Marshal.SystemMaxDBCSCharSize;
             byte* bufferPtr = stackalloc byte[cbAllocLength];
@@ -70,7 +66,7 @@ namespace System.StubHelpers
                 // + 1 for the null character from the user.  + 1 for the null character we put in.
                 nb = checked((strManaged.Length + 1) * Marshal.SystemMaxDBCSCharSize + 1);
 
-                // Use the pre-allocated buffer (allocated by localloc IL instruction) if not NULL, 
+                // Use the pre-allocated buffer (allocated by localloc IL instruction) if not NULL,
                 // otherwise fallback to AllocCoTaskMem
                 if (pbNativeBuffer == null)
                 {
@@ -130,7 +126,7 @@ namespace System.StubHelpers
             byte* pbNativeBuffer = (byte*)pNativeBuffer;
 
             // If we are marshaling into a stack buffer allocated by the ILStub
-            // we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.   
+            // we will use a "1-pass" mode where we convert the string directly into the unmanaged buffer.
             // else we will allocate the precise native heap memory.
             if (pbNativeBuffer != null)
             {
@@ -138,7 +134,7 @@ namespace System.StubHelpers
                 nb = (strManaged.Length + 1) * MAX_UTF8_CHAR_SIZE;
 
                 // nb is the actual number of bytes written by Encoding.GetBytes.
-                // use nb to de-limit the string since we are allocating more than 
+                // use nb to de-limit the string since we are allocating more than
                 // required on stack
                 nb = strManaged.GetBytesFromEncoding(pbNativeBuffer, nb, Encoding.UTF8);
             }
@@ -182,10 +178,10 @@ namespace System.StubHelpers
                 return IntPtr.Zero;
             }
 
-            // Convert to string first  
+            // Convert to string first
             string strManaged = sb.ToString();
 
-            // Get byte count 
+            // Get byte count
             int nb = Encoding.UTF8.GetByteCount(strManaged);
 
             // EmitConvertSpaceCLRToNative allocates memory
@@ -348,7 +344,7 @@ namespace System.StubHelpers
             pNative = (byte*)Marshal.AllocCoTaskMem(nbytes);
             int* pLength = (int*)pNative;
 
-            pNative = pNative + sizeof(uint);
+            pNative += sizeof(uint);
 
             if (0 == cch)
             {
@@ -461,7 +457,7 @@ namespace System.StubHelpers
     internal struct DateTimeNative
     {
         public long UniversalTime;
-    };
+    }
 
     internal static class DateTimeOffsetMarshaler
     {
@@ -480,7 +476,7 @@ namespace System.StubHelpers
             long managedUtcTicks = ManagedUtcTicksAtNativeZero + nativeTicks.UniversalTime;
             DateTimeOffset managedUtcDTO = new DateTimeOffset(managedUtcTicks, TimeSpan.Zero);
 
-            // Some Utc times cannot be represented in local time in certain timezones. E.g. 0001-01-01 12:00:00 AM cannot 
+            // Some Utc times cannot be represented in local time in certain timezones. E.g. 0001-01-01 12:00:00 AM cannot
             // be represented in any timezones with a negative offset from Utc. We throw an ArgumentException in that case.
             managedLocalDTO = managedUtcDTO.ToLocalTime(true);
         }
@@ -498,7 +494,7 @@ namespace System.StubHelpers
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
             if (managed == null)
-                throw new ArgumentNullException(); // We don't have enough information to get the argument name 
+                throw new ArgumentNullException(); // We don't have enough information to get the argument name
 
             IntPtr hstring;
             int hrCreate = System.Runtime.InteropServices.WindowsRuntime.UnsafeNativeMethods.WindowsCreateString(managed, managed.Length, &hstring);
@@ -518,7 +514,7 @@ namespace System.StubHelpers
             if (!Environment.IsWinRTSupported)
                 throw new PlatformNotSupportedException(SR.PlatformNotSupported_WinRT);
             if (managed == null)
-                throw new ArgumentNullException();  // We don't have enough information to get the argument name 
+                throw new ArgumentNullException();  // We don't have enough information to get the argument name
 
             // The string must also be pinned by the caller to ConvertToNativeReference, which also owns
             // the HSTRING_HEADER.
@@ -630,12 +626,14 @@ namespace System.StubHelpers
         // Needs to match exactly with MngdNativeArrayMarshaler in ilmarshalers.h
         internal struct MarshalerState
         {
-            IntPtr m_pElementMT;
-            IntPtr m_Array;
-            int m_NativeDataValid;
-            int m_BestFitMap;
-            int m_ThrowOnUnmappableChar;
-            short m_vt;
+#pragma warning disable CA1823 // not used by managed code
+            private IntPtr m_pElementMT;
+            private IntPtr m_Array;
+            private int m_NativeDataValid;
+            private int m_BestFitMap;
+            private int m_ThrowOnUnmappableChar;
+            private short m_vt;
+#pragma warning restore CA1823
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -743,7 +741,7 @@ namespace System.StubHelpers
             }
         }
 
-        internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[]? managedArray, IntPtr pNativeHome) 
+        internal static unsafe void ConvertContentsToNative_KeyValuePair<K, V>(ref KeyValuePair<K, V>[]? managedArray, IntPtr pNativeHome)
         {
             if (managedArray != null)
             {
@@ -1128,15 +1126,12 @@ namespace System.StubHelpers
             }
             else
             {
-                string? strValue;
-                StringBuilder? sbValue;
-
-                if ((strValue = pManagedHome as string) != null)
+                if (pManagedHome is string strValue)
                 {
                     // string (LPStr or LPWStr)
                     pNativeHome = ConvertStringToNative(strValue, dwFlags);
                 }
-                else if ((sbValue = pManagedHome as StringBuilder) != null)
+                else if (pManagedHome is StringBuilder sbValue)
                 {
                     // StringBuilder (LPStr or LPWStr)
                     pNativeHome = ConvertStringBuilderToNative(sbValue, dwFlags);
@@ -1276,7 +1271,7 @@ namespace System.StubHelpers
         Primitive,
         Metadata,
         Projection
-    };
+    }
 
     internal static class WinRTTypeNameConverter
     {
@@ -1451,7 +1446,7 @@ namespace System.StubHelpers
         private IntPtr data1;
         private IntPtr data2;
 #else
-        long data1;
+        private long data1;
 #endif
     }  // struct NativeVariant
 
@@ -1470,7 +1465,7 @@ namespace System.StubHelpers
                 next = next.m_Next;
             }
         }
-        
+
         public static void AddToCleanupList(ref CleanupWorkListElement list, CleanupWorkListElement newElement)
         {
             if (list == null)
@@ -1740,12 +1735,12 @@ namespace System.StubHelpers
 
 #if FEATURE_ARRAYSTUB_AS_IL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void ArrayTypeCheck(object o, Object[] arr);
+        internal static extern void ArrayTypeCheck(object o, object[] arr);
 #endif
 
 #if FEATURE_MULTICASTSTUB_AS_IL
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern void MulticastDebuggerTraceHelper(object o, Int32 count);
+        internal static extern void MulticastDebuggerTraceHelper(object o, int count);
 #endif
     }  // class StubHelpers
 }

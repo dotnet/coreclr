@@ -7,11 +7,6 @@ set "__MsgPrefix=BUILDTEST: "
 
 echo %__MsgPrefix%Starting Build at %TIME%
 
-REM Set variables used when running in an Azure DevOps task
-if defined TF_BUILD (
-    set __ArcadeScriptArgs="-ci"
-    set __ErrMsgPrefix=##vso[task.logissue type=error]
-)
 
 set __ThisScriptDir="%~dp0"
 
@@ -86,6 +81,8 @@ if /i "%1" == "arm64"                 (set __BuildArch=arm64&set processedArgs=!
 if /i "%1" == "debug"                 (set __BuildType=Debug&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "release"               (set __BuildType=Release&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "checked"               (set __BuildType=Checked&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+
+if /i "%1" == "ci"                    (set __ArcadeScriptArgs="-ci"&set __ErrMsgPrefix=##vso[task.logissue type=error]&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 
 if /i "%1" == "skipmanaged"           (set __SkipManaged=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "skipnative"            (set __SkipNative=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
@@ -273,14 +270,14 @@ set __BuildErr=%__LogsDir%\%__BuildLogRootName%_%__BuildOS%__%__BuildArch%__%__B
 set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%"
 set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%"
 set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%"
-set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
+set __Logging='!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!'
 
 REM Disable warnAsError - coreclr issue 19922
 powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
   %__ProjectDir%\tests\build.proj -warnAsError:0 /t:BatchRestorePackages /nodeReuse:false^
   /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true^
   /p:UsePartialNGENOptimization=false /maxcpucount^
-  '!__Logging!' %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
+  !__Logging! %__CommonMSBuildArgs% %__PriorityArg% %__UnprocessedBuildArgs%
 
 :SkipRestoreProduct
 
@@ -319,14 +316,14 @@ for /l %%G in (1, 1, %__NumberOfTestGroups%) do (
     set __MsbuildLog=/flp:Verbosity=normal;LogFile="%__BuildLog%";Append=!__AppendToLog!
     set __MsbuildWrn=/flp1:WarningsOnly;LogFile="%__BuildWrn%";Append=!__AppendToLog!
     set __MsbuildErr=/flp2:ErrorsOnly;LogFile="%__BuildErr%";Append=!__AppendToLog!
-    set __Logging=!__MsbuildLog! !__MsbuildWrn! !__MsbuildErr!
+    set __Logging='!__MsbuildLog!' '!__MsbuildWrn!' '!__MsbuildErr!'
 
     set __TestGroupToBuild=%%G
     echo Running: msbuild %__ProjectDir%\tests\build.proj !__MsbuildLog! !__MsbuildWrn! !__MsbuildErr! %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! %__UnprocessedBuildArgs%
 
     REM Disable warnAsError - coreclr issue 19922
     powershell -NoProfile -ExecutionPolicy ByPass -NoLogo -Command "%__ProjectDir%\eng\common\msbuild.ps1" %__ArcadeScriptArgs%^
-        %__ProjectDir%\tests\build.proj -warnAsError:0 '!__Logging!' %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! '%__UnprocessedBuildArgs%'
+        %__ProjectDir%\tests\build.proj -warnAsError:0 !__Logging! %TargetsWindowsMsbuildArg% %__msbuildArgs% !__PriorityArg! %__UnprocessedBuildArgs%
 
     if errorlevel 1 (
         echo %__ErrMsgPrefix%%__MsgPrefix%Error: managed test build failed. Refer to the build log files for details:

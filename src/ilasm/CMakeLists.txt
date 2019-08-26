@@ -9,10 +9,6 @@ add_definitions(-DFEATURE_CORECLR)
 
 include_directories(.)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-  add_compile_options(-fPIE)
-endif(CLR_CMAKE_PLATFORM_UNIX)
-
 set(ILASM_SOURCES
   assem.cpp
   writer.cpp
@@ -76,8 +72,8 @@ _add_executable(ilasm
 set(ILASM_LINK_LIBRARIES
   utilcodestaticnohost
   mscorpe
-  mdhotdata_full
   ${START_LIBRARY_GROUP} # Start group of libraries that have circular references
+  mdhotdata_full
   mdcompiler_wks
   mdruntime_wks
   mdruntimerw_wks

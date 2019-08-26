@@ -9,7 +9,7 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RtFieldInfo : RuntimeFieldInfo, IRuntimeFieldInfo
+    internal sealed unsafe class RtFieldInfo : RuntimeFieldInfo, IRuntimeFieldInfo
     {
         #region Private Data Members
         // aggressive caching
@@ -75,13 +75,7 @@ namespace System.Reflection
         #endregion
 
         #region Private Members
-        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value
-        {
-            get
-            {
-                return new RuntimeFieldHandleInternal(m_fieldHandle);
-            }
-        }
+        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => new RuntimeFieldHandleInternal(m_fieldHandle);
 
         #endregion
 
@@ -110,12 +104,7 @@ namespace System.Reflection
 
         internal override bool CacheEquals(object? o)
         {
-            RtFieldInfo? m = o as RtFieldInfo;
-
-            if (m is null)
-                return false;
-
-            return m.m_fieldHandle == m_fieldHandle;
+            return o is RtFieldInfo m && m.m_fieldHandle == m_fieldHandle;
         }
 
         #endregion
@@ -132,18 +121,9 @@ namespace System.Reflection
             }
         }
 
-        internal string FullName
-        {
-            get
-            {
-                return DeclaringType!.FullName + "." + Name;
-            }
-        }
+        internal string FullName => DeclaringType!.FullName + "." + Name;
 
-        public override int MetadataToken
-        {
-            get { return RuntimeFieldHandle.GetToken(this); }
-        }
+        public override int MetadataToken => RuntimeFieldHandle.GetToken(this);
 
         internal override RuntimeModule GetRuntimeModule()
         {
@@ -249,26 +229,14 @@ namespace System.Reflection
             }
         }
 
-        public override RuntimeFieldHandle FieldHandle
-        {
-            get
-            {
-                return new RuntimeFieldHandle(this);
-            }
-        }
+        public override RuntimeFieldHandle FieldHandle => new RuntimeFieldHandle(this);
 
         internal IntPtr GetFieldHandle()
         {
             return m_fieldHandle;
         }
 
-        public override FieldAttributes Attributes
-        {
-            get
-            {
-                return m_fieldAttributes;
-            }
-        }
+        public override FieldAttributes Attributes => m_fieldAttributes;
 
         public override Type FieldType
         {

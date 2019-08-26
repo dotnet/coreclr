@@ -460,7 +460,7 @@ public:
 
     bool IsJitVerificationDisabled(void)    const {LIMITED_METHOD_CONTRACT;  return fJitVerificationDisable; }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     bool SuppressLockViolationsOnReentryFromOS() const {LIMITED_METHOD_CONTRACT;  return fSuppressLockViolationsOnReentryFromOS; }
 #endif
 
@@ -625,7 +625,7 @@ public:
 #ifdef FEATURE_CONSERVATIVE_GC
     bool    GetGCConservative()             const {LIMITED_METHOD_CONTRACT; return iGCConservative;}
 #endif
-#ifdef _WIN64
+#ifdef BIT64
     bool    GetGCAllowVeryLargeObjects()    const {LIMITED_METHOD_CONTRACT; return iGCAllowVeryLargeObjects;}
 #endif
 #ifdef _DEBUG
@@ -871,7 +871,7 @@ private: //----------------------------------------------------------------
     // Verifier
     bool fVerifierOff;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     bool fSuppressLockViolationsOnReentryFromOS;
 #endif
 
@@ -931,9 +931,9 @@ private: //----------------------------------------------------------------
 #ifdef FEATURE_CONSERVATIVE_GC
     bool iGCConservative;
 #endif // FEATURE_CONSERVATIVE_GC
-#ifdef _WIN64
+#ifdef BIT64
     bool iGCAllowVeryLargeObjects;
-#endif // _WIN64
+#endif // BIT64
 
     bool fGCBreakOnOOM;
 

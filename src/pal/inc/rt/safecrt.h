@@ -116,7 +116,7 @@ typedef unsigned short WCHAR;
 /* size_t */
 #if defined (SAFECRT_INCLUDE_REDEFINES)
 #if !defined(_SIZE_T_DEFINED)
-#if defined(_WIN64)
+#if defined(BIT64)
 typedef unsigned __int64    size_t;
 #else
 typedef _W64 unsigned int   size_t;
@@ -127,7 +127,7 @@ typedef _W64 unsigned int   size_t;
 
 /* uintptr_t */
 #if !defined(_UINTPTR_T_DEFINED)
-#if defined(_WIN64)
+#if defined(BIT64)
 typedef unsigned __int64    uintptr_t;
 #else
 typedef _W64 unsigned int   uintptr_t;
@@ -413,7 +413,6 @@ void __cdecl _invalid_parameter(const WCHAR *_Message, const WCHAR *_FunctionNam
 #define _vsntprintf_s   _vsnprintf_s
 #define _tscanf_s       scanf_s
 #define _tsscanf_s      sscanf_s
-#define _tsnscanf_s     _snscanf_s
 
 #elif defined(_UNICODE) || defined(UNICODE)
 
@@ -430,7 +429,6 @@ void __cdecl _invalid_parameter(const WCHAR *_Message, const WCHAR *_FunctionNam
 #define _vsntprintf_s   _vsnwprintf_s
 #define _tscanf_s       wscanf_s
 #define _tsscanf_s      swscanf_s
-#define _tsnscanf_s     _swnscanf_s
 
 #elif defined(_MBCS)
 
@@ -447,7 +445,6 @@ void __cdecl _invalid_parameter(const WCHAR *_Message, const WCHAR *_FunctionNam
 #define _sntprintf_s    _snprintf_s
 #define _tscanf_s       scanf_s
 #define _tsscanf_s      sscanf_s
-#define _tsnscanf_s     _snscanf_s
 
 #else
 
@@ -3348,14 +3345,6 @@ int __cdecl swscanf_s(const WCHAR *_String, const WCHAR *_Format, ...);
 /* no C++ overload for swscanf_s */
 
 /* no inline version of swscanf_s */
-
-/* _snscanf_s */
-_SAFECRT__EXTERN_C
-int __cdecl _snscanf_s(const char *_String, size_t _Count, const char *_Format, ...);
-
-/* no C++ overload for snscanf_s */
-
-/* no inline version of snscanf_s */
 
 /* _swnscanf_s */
 _SAFECRT__EXTERN_C

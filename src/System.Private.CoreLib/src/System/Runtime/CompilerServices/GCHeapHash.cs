@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Runtime.InteropServices;
 
 namespace System.Runtime.CompilerServices
@@ -14,8 +13,8 @@ namespace System.Runtime.CompilerServices
     [StructLayout(LayoutKind.Sequential)]
     internal class GCHeapHash
     {
-        Array _data = null!;
-        int _count;
-        int _deletedCount;
+        private Array _data = null!;
+        private int _count;
+        private int _deletedCount;
     }
 }
