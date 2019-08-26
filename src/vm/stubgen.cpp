@@ -1064,6 +1064,11 @@ void ILCodeStream::EmitBLT(ILCodeLabel* pCodeLabel)
     WRAPPER_NO_CONTRACT;
     Emit(CEE_BLT, -2, (UINT_PTR)pCodeLabel);
 }
+void ILCodeStream::EmitBNE_UN(ILCodeLabel* pCodeLabel)
+{
+    WRAPPER_NO_CONTRACT;
+    Emit(CEE_BNE_UN, -2, (UINT_PTR)pCodeLabel);
+}
 void ILCodeStream::EmitBR(ILCodeLabel* pCodeLabel)
 {
     WRAPPER_NO_CONTRACT;
@@ -1328,6 +1333,11 @@ void ILCodeStream::EmitLDFLD(int token)
 {
     WRAPPER_NO_CONTRACT;
     Emit(CEE_LDFLD, 0, token);
+}
+void ILCodeStream::EmitLDFLD(BinderFieldID id)
+{
+    STANDARD_VM_CONTRACT;
+    Emit(CEE_LDFLD, 0, GetToken(MscorlibBinder::GetField(id)));
 }
 void ILCodeStream::EmitLDFLDA(int token)
 {
@@ -1645,6 +1655,11 @@ void ILCodeStream::EmitSTFLD(int token)
     WRAPPER_NO_CONTRACT;
     Emit(CEE_STFLD, -2, token);
 }
+void ILCodeStream::EmitSTFLD(BinderFieldID id)
+{
+    STANDARD_VM_CONTRACT;
+    Emit(CEE_STFLD, 0, GetToken(MscorlibBinder::GetField(id)));
+}
 void ILCodeStream::EmitSTLOC(DWORD dwLocalNum)
 {
     WRAPPER_NO_CONTRACT;
@@ -1664,6 +1679,11 @@ void ILCodeStream::EmitSUB()
 {
     WRAPPER_NO_CONTRACT;
     Emit(CEE_SUB, -1, 0);
+}
+void ILCodeStream::EmitTAIL()
+{
+    WRAPPER_NO_CONTRACT;
+    Emit(CEE_TAILCALL, 0, 0);
 }
 void ILCodeStream::EmitTHROW()
 {

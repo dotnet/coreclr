@@ -594,6 +594,7 @@ public:
     void EmitBLE        (ILCodeLabel* pCodeLabel);
     void EmitBLE_UN     (ILCodeLabel* pCodeLabel);
     void EmitBLT        (ILCodeLabel* pCodeLabel);
+    void EmitBNE_UN     (ILCodeLabel* pCodeLabel);
     void EmitBR         (ILCodeLabel* pCodeLabel);
     void EmitBREAK      ();
     void EmitBRFALSE    (ILCodeLabel* pCodeLabel);
@@ -634,6 +635,7 @@ public:
     void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
+    void EmitLDFLD      (BinderFieldID id);
     void EmitLDFLDA     (int token);
     void EmitLDFTN      (int token);
     void EmitLDIND_I    ();
@@ -677,10 +679,12 @@ public:
     void EmitSTIND_REF  ();
     void EmitSTIND_T    (LocalDesc* pType);
     void EmitSTFLD      (int token);
+    void EmitSTFLD      (BinderFieldID id);
     void EmitSTLOC      (DWORD dwLocalNum);
     void EmitSTOBJ      (int token);
     void EmitSTSFLD     (int token);
     void EmitSUB        ();
+    void EmitTAIL       ();
     void EmitTHROW      ();
 
     // Overloads to simplify common usage patterns
