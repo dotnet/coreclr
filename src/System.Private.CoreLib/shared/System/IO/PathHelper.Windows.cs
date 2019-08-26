@@ -178,11 +178,10 @@ namespace System.IO
             bool success = false;
             int foundIndex = inputBuilder.Length - 1;
 
-            do
+            while (!success)
             {
                 uint result = Interop.Kernel32.GetLongPathNameW(
-                    ref inputBuilder.GetPinnableReference(terminate: true), ref outputBuilder.GetPinnableReference(),
-                    (uint)outputBuilder.Capacity);
+                    ref inputBuilder.GetPinnableReference(terminate: true), ref outputBuilder.GetPinnableReference(), (uint)outputBuilder.Capacity);
 
                 // Replace any temporary null we added
                 if (inputBuilder[foundIndex] == '\0') inputBuilder[foundIndex] = '\\';
@@ -228,7 +227,7 @@ namespace System.IO
                         outputBuilder.Append(inputBuilder.AsSpan(foundIndex, inputBuilder.Length - foundIndex));
                     }
                 }
-            } while (!success);
+            }
 
             // If we were able to expand the path, use it, otherwise use the original full path result
             ref ValueStringBuilder builderToUse = ref (success ? ref outputBuilder : ref inputBuilder);
