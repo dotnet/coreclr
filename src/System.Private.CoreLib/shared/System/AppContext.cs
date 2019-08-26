@@ -15,7 +15,7 @@ namespace System
 {
     public static partial class AppContext
     {
-        private static Dictionary<string, object?> s_dataStore;
+        private static Dictionary<string, object?>? s_dataStore;
         private static Dictionary<string, bool>? s_switches;
         private static string? s_defaultBaseDirectory;
 
@@ -34,7 +34,7 @@ namespace System
         {
             if (name == null)
                 throw new ArgumentNullException(nameof(name));
-            
+
             if (s_dataStore == null)
                 return null;
 
