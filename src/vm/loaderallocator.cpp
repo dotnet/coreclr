@@ -1042,6 +1042,41 @@ void LoaderAllocator::ActivateManagedTracking()
     LOADERALLOCATORREF loaderAllocator = (LOADERALLOCATORREF)ObjectFromHandle(m_hLoaderAllocatorObjectHandle);
     loaderAllocator->SetNativeLoaderAllocator(this);
 }
+
+REFLECTMETHODREF LoaderAllocator::GetStubMethodInfoForMethodDesc(MethodDesc* pMT)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
+        MODE_COOPERATIVE;
+    }
+    CONTRACTL_END;
+
+    CrstHolder holder(&m_stubMethodInfoCacheCrst);
+
+    UPTR value = m_stubMethodInfoCache.Gethash((UPTR)pMT);
+
+    if (value != INVALIDENTRY)
+    {
+        return (REFLECTMETHODREF)GetHandleValue((LOADERHANDLE)value);
+    }
+    
+    REFLECTMETHODREF retVal;
+    REFLECTMETHODREF methodRef = (REFLECTMETHODREF)AllocateObject(MscorlibBinder::GetClass(CLASS__STUBMETHODINFO));
+    GCPROTECT_BEGIN(methodRef);
+
+    methodRef->SetMethod(pMT);
+    if (IsCollectible())
+        methodRef->SetKeepAlive(GetExposedObject());
+
+    m_stubMethodInfoCache.InsertValue((UPTR)pMT, (UPTR)AllocateHandle(methodRef));
+    retVal = methodRef;
+    GCPROTECT_END();
+
+    return retVal;
+}
 #endif // !CROSSGEN_COMPILE
 
 
@@ -1061,6 +1096,7 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
 
     m_crstLoaderAllocator.Init(CrstLoaderAllocator, (CrstFlags)CRST_UNSAFE_COOPGC);
     m_InteropDataCrst.Init(CrstInteropData, CRST_REENTRANCY);
+    m_stubMethodInfoCacheCrst.Init(CrstStubMethodInfoCache);
 #ifdef FEATURE_COMINTEROP
     m_ComCallWrapperCrst.Init(CrstCOMCallWrapper);
 #endif
@@ -1219,6 +1255,12 @@ void LoaderAllocator::Init(BaseDomain *pDomain, BYTE *pExecutableHeapMemory)
         m_interopDataHash.Init(0, NULL, false, &lock);
     }
 #endif // FEATURE_COMINTEROP
+
+    // Init the StubMethodInfo Cache
+    {
+        LockOwner lock = { &m_stubMethodInfoCacheCrst, IsOwnerOfCrst };
+        m_stubMethodInfoCache.Init(0, (CompareFnPtr)nullptr, false, &lock);
+    }
 }
 
 
@@ -1330,6 +1372,7 @@ void LoaderAllocator::Terminate()
     m_ComCallWrapperCrst.Destroy();
     m_InteropDataCrst.Destroy();
 #endif
+    m_stubMethodInfoCacheCrst.Destroy();
     m_LoaderAllocatorReferences.RemoveAll();
 
     // In collectible types we merge the low frequency and high frequency heaps

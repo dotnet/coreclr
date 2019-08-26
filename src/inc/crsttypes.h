@@ -144,32 +144,33 @@ enum CrstType
     CrstStrongName = 125,
     CrstStubCache = 126,
     CrstStubDispatchCache = 127,
-    CrstStubUnwindInfoHeapSegments = 128,
-    CrstSyncBlockCache = 129,
-    CrstSyncHashLock = 130,
-    CrstSystemBaseDomain = 131,
-    CrstSystemDomain = 132,
-    CrstSystemDomainDelayedUnloadList = 133,
-    CrstThreadIdDispenser = 134,
-    CrstThreadpoolEventCache = 135,
-    CrstThreadpoolTimerQueue = 136,
-    CrstThreadpoolWaitThreads = 137,
-    CrstThreadpoolWorker = 138,
-    CrstThreadStaticDataHashTable = 139,
-    CrstThreadStore = 140,
-    CrstTieredCompilation = 141,
-    CrstTPMethodTable = 142,
-    CrstTypeEquivalenceMap = 143,
-    CrstTypeIDMap = 144,
-    CrstUMEntryThunkCache = 145,
-    CrstUMThunkHash = 146,
-    CrstUniqueStack = 147,
-    CrstUnresolvedClassLock = 148,
-    CrstUnwindInfoTableLock = 149,
-    CrstVSDIndirectionCellLock = 150,
-    CrstWinRTFactoryCache = 151,
-    CrstWrapperTemplate = 152,
-    kNumberOfCrstTypes = 153
+    CrstStubMethodInfoCache = 128,
+    CrstStubUnwindInfoHeapSegments = 129,
+    CrstSyncBlockCache = 130,
+    CrstSyncHashLock = 131,
+    CrstSystemBaseDomain = 132,
+    CrstSystemDomain = 133,
+    CrstSystemDomainDelayedUnloadList = 134,
+    CrstThreadIdDispenser = 135,
+    CrstThreadpoolEventCache = 136,
+    CrstThreadpoolTimerQueue = 137,
+    CrstThreadpoolWaitThreads = 138,
+    CrstThreadpoolWorker = 139,
+    CrstThreadStaticDataHashTable = 140,
+    CrstThreadStore = 141,
+    CrstTieredCompilation = 142,
+    CrstTPMethodTable = 143,
+    CrstTypeEquivalenceMap = 144,
+    CrstTypeIDMap = 145,
+    CrstUMEntryThunkCache = 146,
+    CrstUMThunkHash = 147,
+    CrstUniqueStack = 148,
+    CrstUnresolvedClassLock = 149,
+    CrstUnwindInfoTableLock = 150,
+    CrstVSDIndirectionCellLock = 151,
+    CrstWinRTFactoryCache = 152,
+    CrstWrapperTemplate = 153,
+    kNumberOfCrstTypes = 154
 };
 
 #endif // __CRST_TYPES_INCLUDED
@@ -308,6 +309,7 @@ int g_rgCrstLevelMap[] =
     0,          // CrstStrongName
     5,          // CrstStubCache
     0,          // CrstStubDispatchCache
+    15,         // CrstStubMethodInfoCache
     4,          // CrstStubUnwindInfoHeapSegments
     3,          // CrstSyncBlockCache
     0,          // CrstSyncHashLock
@@ -466,6 +468,7 @@ LPCSTR g_rgCrstNameMap[] =
     "CrstStrongName",
     "CrstStubCache",
     "CrstStubDispatchCache",
+    "CrstStubMethodInfoCache",
     "CrstStubUnwindInfoHeapSegments",
     "CrstSyncBlockCache",
     "CrstSyncHashLock",

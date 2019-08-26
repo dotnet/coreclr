@@ -273,6 +273,10 @@ private:
     CrstExplicitInit m_InteropDataCrst;
     EEMarshalingData* m_pMarshalingData;
 
+    // Used for synchronizing access to m_stubMethodInfoCache.
+    CrstExplicitInit m_stubMethodInfoCacheCrst;
+    HashMap m_stubMethodInfoCache;
+
 #ifdef FEATURE_TIERED_COMPILATION
     CallCounter m_callCounter;
 #endif
@@ -491,6 +495,8 @@ public:
     } while (0)
 
     OBJECTREF GetHandleValue(LOADERHANDLE handle);
+
+    REFLECTMETHODREF GetStubMethodInfoForMethodDesc(MethodDesc* pMD);
 
     LoaderAllocator();
     virtual ~LoaderAllocator();

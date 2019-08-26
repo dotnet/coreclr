@@ -5574,28 +5574,9 @@ PTR_LoaderAllocator MethodDesc::GetLoaderAllocator()
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 REFLECTMETHODREF MethodDesc::GetStubMethodInfo()
 {
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        INJECT_FAULT(COMPlusThrowOM());
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
+    WRAPPER_NO_CONTRACT;
 
-    REFLECTMETHODREF retVal;
-    REFLECTMETHODREF methodRef = (REFLECTMETHODREF)AllocateObject(MscorlibBinder::GetClass(CLASS__STUBMETHODINFO));
-    GCPROTECT_BEGIN(methodRef);
-
-    methodRef->SetMethod(this);
-    LoaderAllocator *pLoaderAllocatorOfMethod = this->GetLoaderAllocator();
-    if (pLoaderAllocatorOfMethod->IsCollectible())
-        methodRef->SetKeepAlive(pLoaderAllocatorOfMethod->GetExposedObject());
-
-    retVal = methodRef;
-    GCPROTECT_END();
-
-    return retVal;
+    return GetLoaderAllocator()->GetStubMethodInfoForMethodDesc(this);
 }
 #endif // !DACCESS_COMPILE && CROSSGEN_COMPILE
 
