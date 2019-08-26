@@ -633,7 +633,7 @@ namespace System.IO
         {
             Debug.Assert(first.Length > 0 && second.Length > 0, "should have dealt with empty paths");
 
-            bool hasSeparator = PathInternal.IsDirectorySeparator(first[^1])
+            bool hasSeparator = PathInternal.IsDirectorySeparator(first[first.Length - 1])
                 || PathInternal.IsDirectorySeparator(second[0]);
 
             fixed (char* f = &MemoryMarshal.GetReference(first), s = &MemoryMarshal.GetReference(second))
@@ -659,9 +659,9 @@ namespace System.IO
         {
             Debug.Assert(first.Length > 0 && second.Length > 0 && third.Length > 0, "should have dealt with empty paths");
 
-            bool firstHasSeparator = PathInternal.IsDirectorySeparator(first[^1])
+            bool firstHasSeparator = PathInternal.IsDirectorySeparator(first[first.Length - 1])
                 || PathInternal.IsDirectorySeparator(second[0]);
-            bool thirdHasSeparator = PathInternal.IsDirectorySeparator(second[^1])
+            bool thirdHasSeparator = PathInternal.IsDirectorySeparator(second[second.Length - 1])
                 || PathInternal.IsDirectorySeparator(third[0]);
 
             fixed (char* f = &MemoryMarshal.GetReference(first), s = &MemoryMarshal.GetReference(second), t = &MemoryMarshal.GetReference(third))
@@ -691,11 +691,11 @@ namespace System.IO
         {
             Debug.Assert(first.Length > 0 && second.Length > 0 && third.Length > 0 && fourth.Length > 0, "should have dealt with empty paths");
 
-            bool firstHasSeparator = PathInternal.IsDirectorySeparator(first[^1])
+            bool firstHasSeparator = PathInternal.IsDirectorySeparator(first[first.Length - 1])
                 || PathInternal.IsDirectorySeparator(second[0]);
-            bool thirdHasSeparator = PathInternal.IsDirectorySeparator(second[^1])
+            bool thirdHasSeparator = PathInternal.IsDirectorySeparator(second[second.Length - 1])
                 || PathInternal.IsDirectorySeparator(third[0]);
-            bool fourthHasSeparator = PathInternal.IsDirectorySeparator(third[^1])
+            bool fourthHasSeparator = PathInternal.IsDirectorySeparator(third[third.Length - 1])
                 || PathInternal.IsDirectorySeparator(fourth[0]);
 
             fixed (char* f = &MemoryMarshal.GetReference(first), s = &MemoryMarshal.GetReference(second), t = &MemoryMarshal.GetReference(third), u = &MemoryMarshal.GetReference(fourth))

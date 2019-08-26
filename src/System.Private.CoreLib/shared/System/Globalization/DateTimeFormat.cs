@@ -530,7 +530,7 @@ namespace System
                                 else
                                 {
                                     // No fraction to emit, so see if we should remove decimal also.
-                                    if (result.Length > 0 && result[^1] == '.')
+                                    if (result.Length > 0 && result[result.Length - 1] == '.')
                                     {
                                         result.Remove(result.Length - 1, 1);
                                     }
