@@ -171,12 +171,12 @@ namespace System.Diagnostics
         public virtual int GetOffset(int i) { return rgiOffset![i]; }
         public virtual int GetILOffset(int i) { return rgiILOffset![i]; }
         public virtual string? GetFilename(int i) { return rgFilename?[i]; }
-        public virtual int GetLineNumber(int i) { return rgiLineNumber?[i] ?? 0; }
-        public virtual int GetColumnNumber(int i) { return rgiColumnNumber?[i] ?? 0; }
+        public virtual int GetLineNumber(int i) { return rgiLineNumber == null ? 0 : rgiLineNumber[i]; }
+        public virtual int GetColumnNumber(int i) { return rgiColumnNumber == null ? 0 : rgiColumnNumber[i]; }
 
         public virtual bool IsLastFrameFromForeignExceptionStackTrace(int i)
         {
-            return rgiLastFrameFromForeignExceptionStackTrace?[i] ?? false;
+            return (rgiLastFrameFromForeignExceptionStackTrace == null) ? false : rgiLastFrameFromForeignExceptionStackTrace[i];
         }
 
         public virtual int GetNumberOfFrames() { return iFrameCount; }
