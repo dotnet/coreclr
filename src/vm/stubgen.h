@@ -515,6 +515,7 @@ public:
 
     void LogILStub(CORJIT_FLAGS jitFlags, SString *pDumpILStubCode = NULL);
 protected:
+    void DumpIL_FormatToken(mdToken token, SString &strTokenFormatting);
     void LogILStubWorker(ILInstruction* pInstrBuffer, UINT numInstr, size_t* pcbCode, INT* piCurStack, SString *pDumpILStubCode = NULL);
     void LogILInstruction(size_t curOffset, bool isLabeled, INT iCurStack, ILInstruction* pInstruction, SString *pDumpILStubCode = NULL);
     
