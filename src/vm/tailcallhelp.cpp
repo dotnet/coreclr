@@ -29,7 +29,6 @@ struct ArgBufferOrigArg
 
 struct ArgBufferLayout
 {
-    unsigned int CallStubOffset;
     unsigned int TargetAddressOffset;
     bool HasThisPointer;
     unsigned int ThisPointerOffset;
@@ -39,8 +38,7 @@ struct ArgBufferLayout
     unsigned int Size;
 
     ArgBufferLayout()
-        : CallStubOffset(0)
-        , TargetAddressOffset(0)
+        : TargetAddressOffset(0)
         , HasThisPointer(false)
         , ThisPointerOffset(0)
         , HasGCDescriptor(false)
@@ -109,8 +107,6 @@ TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
 void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
-    layout->CallStubOffset = offs;
-    offs += TARGET_POINTER_SIZE;
 
     layout->TargetAddressOffset = offs;
     offs += TARGET_POINTER_SIZE;
@@ -140,9 +136,6 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout
     }
 
     layout->HasGCDescriptor = GenerateGCDescriptor(layout->OrigArgs, &layout->GCRefMapBuilder);
-    // Should GC descriptor go in arg buffer (in which case it should probably
-    // be at the beginning) or be passed as an arg to AllocTailCallArgBuffer?
-
     layout->Size = offs;
 }
 
@@ -246,14 +239,6 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
         }
     };
 
-    // Tail call helper requires the call stub offset to be 0.
-    _ASSERTE(info.ArgBufLayout.CallStubOffset == 0);
-    // Call stub
-    emitOffs(info.ArgBufLayout.CallStubOffset);
-    pCode->EmitLDFTN(pCode->GetToken(callTargetStubMD));
-    pCode->EmitCONV_I();
-    pCode->EmitSTIND_I();
-
     unsigned int argIndex = 0;
     emitOffs(info.ArgBufLayout.TargetAddressOffset);
     pCode->EmitLDARG(argIndex++);
@@ -286,6 +271,13 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
             pSig, cbSig,
             &emptyCtx,
             &sl);
+
+#ifdef _DEBUG
+    StackSString ilStub;
+    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+    StackScratchBuffer ssb;
+    printf("%s\n", ilStub.GetUTF8(ssb));
+#endif
 
     return pStoreArgsMD;
 }
@@ -365,7 +357,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitSTLOC(prevFrameLcl);
 
     // TODO: Check previous frame. Intrinsic?
-    // if (1 == 1) goto noUnwindLbl;
+    // if (1 != 1) goto noUnwindLbl;
     pCode->EmitLDC(1);
     pCode->EmitLDC(1);
     pCode->EmitBNE_UN(noUnwindLbl);
@@ -516,11 +508,10 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             &sl);
 
 #ifdef _DEBUG
-    // TODO
-    //StackSString ilStub;
-    //sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-    //StackScratchBuffer ssb;
-    //printf("%s\n", ilStub.GetUTF8(ssb));
+    StackSString ilStub;
+    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+    StackScratchBuffer ssb;
+    printf("%s\n", ilStub.GetUTF8(ssb));
 #endif
 
     return pStoreArgsMD;
