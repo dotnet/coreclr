@@ -694,6 +694,7 @@ public:
     void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
+    void EmitLDFLD      (BinderFieldID id);
     void EmitLDFLDA     (int token);
     void EmitLDFTN      (int token);
     void EmitLDIND_I    ();
@@ -737,6 +738,7 @@ public:
     void EmitSTIND_REF  ();
     void EmitSTIND_T    (LocalDesc* pType);
     void EmitSTFLD      (int token);
+    void EmitSTFLD      (BinderFieldID id);
     void EmitSTLOC      (DWORD dwLocalNum);
     void EmitSTOBJ      (int token);
     void EmitSTSFLD     (int token);
@@ -832,7 +834,10 @@ protected:
 #endif // BIT64
 };
 
+// Represents the signature of the target method for an IL stub
 #define TOKEN_ILSTUB_TARGET_SIG (TokenFromRid(0xFFFFFF, mdtSignature))
+// Represents the token for the IL stub method, useful for instance for
+// recursive calls.
 #define TOKEN_ILSTUB_METHODDEF (TokenFromRid(0xFFFFFF, mdtMethodDef))
 
 #endif  // __STUBGEN_H__
