@@ -17,7 +17,7 @@ namespace System.IO
 {
     public static partial class Path
     {
-        public static char[] GetInvalidFileNameChars() => new[]
+        public static char[] GetInvalidFileNameChars() => new char[]
         {
             '\"', '<', '>', '|', '\0',
             (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
@@ -26,7 +26,7 @@ namespace System.IO
             (char)31, ':', '*', '?', '\\', '/'
         };
 
-        public static char[] GetInvalidPathChars() => new[]
+        public static char[] GetInvalidPathChars() => new char[]
         {
             '|', '\0',
             (char)1, (char)2, (char)3, (char)4, (char)5, (char)6, (char)7, (char)8, (char)9, (char)10,
@@ -264,7 +264,7 @@ namespace System.IO
             }
 
             ReadOnlySpan<char> pathToTrim = root.Slice(startOffset);
-            return EndsInDirectorySeparator(pathToTrim) ? pathToTrim.Slice(0, pathToTrim.Length - 1) : pathToTrim;
+            return Path.EndsInDirectorySeparator(pathToTrim) ? pathToTrim.Slice(0, pathToTrim.Length - 1) : pathToTrim;
         }
 
         /// <summary>
@@ -278,9 +278,9 @@ namespace System.IO
 
             if (!isDevice && path.Slice(0, 2).EqualsOrdinal(@"\\".AsSpan()))
                 return 2;
-            if (isDevice && path.Length >= 8
-                         && (path.Slice(0, 8).EqualsOrdinal(PathInternal.UncExtendedPathPrefix.AsSpan())
-                             || path.Slice(5, 4).EqualsOrdinal(@"UNC\".AsSpan())))
+            else if (isDevice && path.Length >= 8
+                && (path.Slice(0, 8).EqualsOrdinal(PathInternal.UncExtendedPathPrefix.AsSpan())
+                || path.Slice(5, 4).EqualsOrdinal(@"UNC\".AsSpan())))
                 return 8;
 
             return -1;

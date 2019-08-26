@@ -152,7 +152,10 @@ namespace System.IO
         [return: NotNullIfNotNull("path")]
         public static string? GetExtension(string? path)
         {
-            return path == null ? null : GetExtension(path.AsSpan()).ToString();
+            if (path == null)
+                return null;
+
+            return GetExtension(path.AsSpan()).ToString();
         }
 
         /// <summary>
@@ -193,7 +196,10 @@ namespace System.IO
                 return null;
 
             ReadOnlySpan<char> result = GetFileName(path.AsSpan());
-            return path.Length == result.Length ? path : result.ToString();
+            if (path.Length == result.Length)
+                return path;
+
+            return result.ToString();
         }
 
         /// <summary>
@@ -222,7 +228,10 @@ namespace System.IO
                 return null;
 
             ReadOnlySpan<char> result = GetFileNameWithoutExtension(path.AsSpan());
-            return path.Length == result.Length ? path : result.ToString();
+            if (path.Length == result.Length)
+                return path;
+
+            return result.ToString();
         }
 
         /// <summary>
@@ -289,7 +298,11 @@ namespace System.IO
         /// </summary>
         public static bool HasExtension(string? path)
         {
-            return path != null && HasExtension(path.AsSpan());
+            if (path != null)
+            {
+                return HasExtension(path.AsSpan());
+            }
+            return false;
         }
 
         public static bool HasExtension(ReadOnlySpan<char> path)
@@ -388,7 +401,7 @@ namespace System.IO
                 }
                 else
                 {
-                    char ch = builder[^1];
+                    char ch = builder[builder.Length - 1];
                     if (!PathInternal.IsDirectorySeparator(ch))
                     {
                         builder.Append(PathInternal.DirectorySeparatorChar);
@@ -486,7 +499,7 @@ namespace System.IO
             for (int i = 0; i < paths.Length; i++)
             {
                 string? path = paths[i];
-                if (string.IsNullOrEmpty(path))
+                if (path == null || path.Length == 0)
                 {
                     continue;
                 }
@@ -497,7 +510,7 @@ namespace System.IO
                 }
                 else
                 {
-                    if (!(PathInternal.IsDirectorySeparator(builder[^1]) || PathInternal.IsDirectorySeparator(path[0])))
+                    if (!PathInternal.IsDirectorySeparator(builder[builder.Length - 1]) && !PathInternal.IsDirectorySeparator(path[0]))
                     {
                         builder.Append(PathInternal.DirectorySeparatorChar);
                     }
@@ -916,12 +929,12 @@ namespace System.IO
         /// Returns true if the path ends in a directory separator.
         /// </summary>
         public static bool EndsInDirectorySeparator(ReadOnlySpan<char> path)
-            => path.Length > 0 && PathInternal.IsDirectorySeparator(path[^1]);
+            => path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
 
         /// <summary>
         /// Returns true if the path ends in a directory separator.
         /// </summary>
         public static bool EndsInDirectorySeparator(string path)
-              => !string.IsNullOrEmpty(path) && PathInternal.IsDirectorySeparator(path[^1]);
+              => path != null && path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
     }
 }
