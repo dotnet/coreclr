@@ -8,7 +8,55 @@
 #include "formattype.h"
 #include "sigformat.h"
 #include "gcrefmap.h"
-#include "intrin.h" // TODO: we use this for _AddressOfReturnAddress
+
+// Note: Layout of this must match similarly named structures in jithelpers.cs
+struct NewTailCallFrame
+{
+    NewTailCallFrame* Prev;
+    void* StackPointer;
+    void* NextCall;
+};
+
+struct TailCallTls
+{
+    NewTailCallFrame* Frame;
+    char* ArgBuffer;
+    void* ArgBufferGCDesc;
+};
+
+// TODO: TLS
+static NewTailCallFrame g_sentinelTailCallFrame;
+static TailCallTls g_tailCallTls = { &g_sentinelTailCallFrame, NULL, NULL };
+
+FCIMPL2(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size, void* gcDesc)
+{
+    FCALL_CONTRACT;
+    g_tailCallTls.ArgBuffer = new char[size];
+    if (gcDesc)
+    {
+        memset(g_tailCallTls.ArgBuffer, 0, size);
+        g_tailCallTls.ArgBufferGCDesc = gcDesc;
+    }
+
+    return g_tailCallTls.ArgBuffer;
+}
+FCIMPLEND
+
+FCIMPL0(void, TailCallHelp::FreeTailCallArgBuffer)
+{
+    FCALL_CONTRACT;
+    g_tailCallTls.ArgBufferGCDesc = NULL;
+    delete[] g_tailCallTls.ArgBuffer;
+    g_tailCallTls.ArgBuffer = NULL;
+}
+FCIMPLEND
+
+FCIMPL0(void*, TailCallHelp::GetTailCallTls)
+{
+    FCALL_CONTRACT;
+    return &g_tailCallTls;
+}
+FCIMPLEND
 
 struct ArgBufferOrigArg
 {
@@ -64,46 +112,6 @@ struct TailCallInfo
     }
 };
 
-bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder)
-{
-    bool anyGC = false;
-    for (COUNT_T i = 0; i < args.GetCount(); i++)
-    {
-        TypeHandle tyHnd = args[i].TyHnd;
-        if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
-            continue;
-
-        if (tyHnd.IsValueType() && !tyHnd.GetMethodTable()->ContainsPointers())
-            continue;
-
-        anyGC = true;
-        _ASSERTE(!"Requires GC descriptor");
-    }
-
-    return anyGC;
-}
-
-TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
-{
-    if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
-    {
-        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
-    }
-
-    if (tyHnd.IsByRef())
-    {
-        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))
-               .MakeByRef();
-    }
-    if (!tyHnd.IsValueType())
-    {
-        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_OBJECT));
-    }
-
-    // Value type -- retain it to preserve its size
-    return tyHnd;
-}
-
 void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
@@ -139,52 +147,44 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout
     layout->Size = offs;
 }
 
-void TailCallHelp::CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* sig)
+TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
 {
-    // The store-args stub will be different from the target signature.
-    // Specifically we insert the following things at the beginning of the
-    // signature:
-    // * Call target address
-    // * This pointer
-    // * Generic context
-
-    // See MethodDefSig in ECMA-335 for the format.
-    sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
-
-    ULONG paramCount = 1; // Target address
-    paramCount += info.ArgBufLayout.OrigArgs.GetCount(); // user args
-    if (info.ArgBufLayout.HasThisPointer)
-        paramCount++;
-    
-    sig->AppendData(paramCount);
-
-    // Returns void always
-    sig->AppendElementType(ELEMENT_TYPE_VOID);
-
-    // First arg is the target pointer
-    sig->AppendElementType(ELEMENT_TYPE_I);
-
-    if (info.ArgBufLayout.HasThisPointer)
+    if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
     {
-        // TODO: Handle value type (this pointer should be a by-ref)
-        _ASSERTE(info.Callee == nullptr || !info.Callee->GetCanonicalMethodTable()->IsValueType());
-        sig->AppendElementType(ELEMENT_TYPE_OBJECT);
+        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
     }
 
-    for (COUNT_T i = 0; i < info.ArgBufLayout.OrigArgs.GetCount(); i++)
+    if (tyHnd.IsByRef())
     {
-        sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
-        sig->AppendPointer(info.ArgBufLayout.OrigArgs[i].TyHnd.AsPtr());
+        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))
+               .MakeByRef();
+    }
+    if (!tyHnd.IsValueType())
+    {
+        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_OBJECT));
     }
 
-#ifdef _DEBUG
-    DWORD cbSig;
-    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
-    SigTypeContext emptyContext;
-    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
-    SigFormat outSig(outMsig, NULL);
-    printf("StoreArgs sig: %s\n", outSig.GetCString());
-#endif // _DEBUG
+    // Value type -- retain it to preserve its size
+    return tyHnd;
+}
+
+bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder)
+{
+    bool anyGC = false;
+    for (COUNT_T i = 0; i < args.GetCount(); i++)
+    {
+        TypeHandle tyHnd = args[i].TyHnd;
+        if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
+            continue;
+
+        if (tyHnd.IsValueType() && !tyHnd.GetMethodTable()->ContainsPointers())
+            continue;
+
+        anyGC = true;
+        _ASSERTE(!"Requires GC descriptor");
+    }
+
+    return anyGC;
 }
 
 MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
@@ -282,6 +282,54 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
     return pStoreArgsMD;
 }
 
+void TailCallHelp::CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* sig)
+{
+    // The store-args stub will be different from the target signature.
+    // Specifically we insert the following things at the beginning of the
+    // signature:
+    // * Call target address
+    // * This pointer
+    // * Generic context
+
+    // See MethodDefSig in ECMA-335 for the format.
+    sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
+
+    ULONG paramCount = 1; // Target address
+    paramCount += info.ArgBufLayout.OrigArgs.GetCount(); // user args
+    if (info.ArgBufLayout.HasThisPointer)
+        paramCount++;
+    
+    sig->AppendData(paramCount);
+
+    // Returns void always
+    sig->AppendElementType(ELEMENT_TYPE_VOID);
+
+    // First arg is the target pointer
+    sig->AppendElementType(ELEMENT_TYPE_I);
+
+    if (info.ArgBufLayout.HasThisPointer)
+    {
+        // TODO: Handle value type (this pointer should be a by-ref)
+        _ASSERTE(info.Callee == nullptr || !info.Callee->GetCanonicalMethodTable()->IsValueType());
+        sig->AppendElementType(ELEMENT_TYPE_OBJECT);
+    }
+
+    for (COUNT_T i = 0; i < info.ArgBufLayout.OrigArgs.GetCount(); i++)
+    {
+        sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
+        sig->AppendPointer(info.ArgBufLayout.OrigArgs[i].TyHnd.AsPtr());
+    }
+
+#ifdef _DEBUG
+    DWORD cbSig;
+    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+    SigTypeContext emptyContext;
+    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
+    SigFormat outSig(outMsig, NULL);
+    printf("StoreArgs sig: %s\n", outSig.GetCString());
+#endif // _DEBUG
+}
+
 void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig)
 {
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
@@ -302,21 +350,6 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
     printf("CallTarget sig: %s\n", outSig.GetCString());
 #endif // _DEBUG
 }
-
-// Note: Layout of this must match similarly named structures in jithelpers.cs
-struct NewTailCallFrame
-{
-    NewTailCallFrame* Prev;
-    void* StackPointer;
-    void* NextCall;
-};
-
-struct TailCallTls
-{
-    NewTailCallFrame* Frame;
-    char* ArgBuffer;
-    void* ArgBufferGCDesc;
-};
 
 MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 {
@@ -516,37 +549,3 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
     return pStoreArgsMD;
 }
-
-// TODO: TLS
-static NewTailCallFrame g_sentinelTailCallFrame;
-static TailCallTls g_tailCallTls = { &g_sentinelTailCallFrame, NULL, NULL };
-
-FCIMPL2(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size, void* gcDesc)
-{
-    FCALL_CONTRACT;
-    g_tailCallTls.ArgBuffer = new char[size];
-    if (gcDesc)
-    {
-        memset(g_tailCallTls.ArgBuffer, 0, size);
-        g_tailCallTls.ArgBufferGCDesc = gcDesc;
-    }
-
-    return g_tailCallTls.ArgBuffer;
-}
-FCIMPLEND
-
-FCIMPL0(void, TailCallHelp::FreeTailCallArgBuffer)
-{
-    FCALL_CONTRACT;
-    g_tailCallTls.ArgBufferGCDesc = NULL;
-    delete[] g_tailCallTls.ArgBuffer;
-    g_tailCallTls.ArgBuffer = NULL;
-}
-FCIMPLEND
-
-FCIMPL0(void*, TailCallHelp::GetTailCallTls)
-{
-    FCALL_CONTRACT;
-    return &g_tailCallTls;
-}
-FCIMPLEND
