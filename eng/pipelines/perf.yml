@@ -15,8 +15,6 @@ jobs:
     - Linux_x64
     - Windows_NT_x64
     - Windows_NT_x86
-    jobParameters:
-      perfBuild: true
     
 - template: /eng/platform-matrix.yml
   parameters:
