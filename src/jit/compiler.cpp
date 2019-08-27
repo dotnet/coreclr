@@ -4106,8 +4106,8 @@ _SetMinOpts:
     opts.SetMinOpts(theMinOptsValue);
 
     // Notify the VM if MinOpts is being used when not requested
-    if (theMinOptsValue && !compIsForInlining() && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) &&
-        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) && !opts.compDbgCode)
+    if (theMinOptsValue && !(compIsForInlining() || opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER0) ||
+        opts.jitFlags->IsSet(JitFlags::JIT_FLAG_MIN_OPT) || opts.compDbgCode))
     {
         info.compCompHnd->setMethodAttribs(info.compMethodHnd, CORINFO_FLG_SWITCHED_TO_MIN_OPT);
         compSwitchedToMinOpts = true;
@@ -9750,8 +9750,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
-                                    break;
+                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
                                 default:
                                     break;
                             }
@@ -9770,8 +9769,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
-                                break;
+                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));
                             default:
                                 break;
                         }
@@ -9814,8 +9812,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                             switch (tree->GetRegTag())
                             {
                                 case GenTree::GT_REGTAG_REG:
-                                    chars += printf(":%s", comp->compRegVarName(tree->GetRegNum()));
-                                    break;
+                                    chars += printf(":%s", comp->compRegVarName(tree->gtRegNum));
                                 default:
                                     break;
                             }
@@ -9834,8 +9831,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
                         switch (tree->GetRegTag())
                         {
                             case GenTree::GT_REGTAG_REG:
-                                chars += printf("(%s)", comp->compRegVarName(tree->GetRegNum()));
-                                break;
+                                chars += printf("(%s)", comp->compRegVarName(tree->gtRegNum));;
                             default:
                                 break;
                         }
@@ -10011,7 +10007,6 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             methodName = comp->eeGetMethodName((CORINFO_METHOD_HANDLE)tree->AsVal()->gtVal1, &className);
             chars += printf(" %s.%s", className, methodName);
         }
-        break;
 
         case GT_NO_OP:
         case GT_START_NONGC:
@@ -10613,8 +10608,6 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
     switch (op)
     {
-        default:
-            break;
         case GT_FIELD:
 
         {
@@ -10682,7 +10675,8 @@ void cNodeIR(Compiler* comp, GenTree* tree)
                 chars += printf("%d", offset);
             }
             chars += printf("]");
-            break;
+            default:
+                break;
     }
 
     // Dump operands.
@@ -10692,11 +10686,10 @@ void cNodeIR(Compiler* comp, GenTree* tree)
         chars += printf(" ");
         chars += cLeafIR(comp, tree);
     }
-    else if (op == GT_LEA)
+    else if !(op == GT_LEA) // Already dumped GT_LEA above.
     {
         // Already dumped it above.
-    }
-    else if (op == GT_PHI)
+   if (op == GT_PHI)
     {
         bool first = true;
         for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
@@ -10742,8 +10735,8 @@ void cNodeIR(Compiler* comp, GenTree* tree)
                 chars += printf(",");
             }
 
-            bool isList = (child->gtOper == GT_LIST);
-            if (!isList || !foldLists)
+            const bool isList = (child->gtOper == GT_LIST);
+            if (!(isList && foldLists))
             {
                 if (foldLeafs && (child->gtOper == GT_ARGPLACE))
                 {
@@ -10784,6 +10777,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
             }
             chars += printf(")");
         }
+    }
     }
 
     // Dump kinds, flags, costs
@@ -10841,21 +10835,16 @@ void cTreeIR(Compiler* comp, GenTree* tree)
 
     // Recurse and dump trees that this node depends on.
 
-    if (tree->OperIsLeaf())
+    if (!tree->OperIsLeaf())
     {
-    }
-    else if (tree->OperIsBinary() && tree->IsReverseOp())
+    if (tree->OperIsBinary() && tree->IsReverseOp())
     {
         child = tree->GetChild(1);
         cTreeIR(comp, child);
         child = tree->GetChild(0);
         cTreeIR(comp, child);
     }
-    else if (op == GT_PHI)
-    {
-        // Don't recurse.
-    }
-    else
+    else if !(op == GT_PHI) // Don't recurse if op == GT_PHI
     {
         assert(!tree->IsReverseOp());
         for (unsigned childIndex = 0; childIndex < childCount; childIndex++)
@@ -10866,6 +10855,7 @@ void cTreeIR(Compiler* comp, GenTree* tree)
                 cTreeIR(comp, child);
             }
         }
+    }
     }
 
     cNodeIR(comp, tree);
