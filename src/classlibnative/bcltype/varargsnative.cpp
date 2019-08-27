@@ -132,7 +132,7 @@ void AdvanceArgPtr(VARARGS *data)
     } CONTRACTL_END;
 
     // Advance to the first optional arg.
-    while (data->RemainingArgs > 0 && !(data->SigPtr.AtSentinel())))
+    while (data->RemainingArgs > 0 && !(data->SigPtr.AtSentinel())
     {
 
         SigTypeContext      typeContext; // This is an empty type context.  This is OK because the vararg methods may not be generic
