@@ -5469,16 +5469,15 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     {
         /* Cleanup  */
 
-        if (compIsForInlining())
+        if (!compIsForInlining())
         {
-            goto DoneCleanUp;
-        }
+        
 
         /* Tell the emitter that we're done with this function */
 
-        GetEmitter()->emitEndCG();
+        genEmitter->emitEndCG();
+        }
 
-    DoneCleanUp:
         compDone();
     }
     endErrorTrap() // ERROR TRAP: End
