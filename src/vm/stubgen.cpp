@@ -1344,11 +1344,6 @@ void ILCodeStream::EmitLDFLD(int token)
     WRAPPER_NO_CONTRACT;
     Emit(CEE_LDFLD, 0, token);
 }
-void ILCodeStream::EmitLDFLD(BinderFieldID id)
-{
-    STANDARD_VM_CONTRACT;
-    Emit(CEE_LDFLD, 0, GetToken(MscorlibBinder::GetField(id)));
-}
 void ILCodeStream::EmitLDFLDA(int token)
 {
     WRAPPER_NO_CONTRACT;
@@ -1665,11 +1660,6 @@ void ILCodeStream::EmitSTFLD(int token)
     WRAPPER_NO_CONTRACT;
     Emit(CEE_STFLD, -2, token);
 }
-void ILCodeStream::EmitSTFLD(BinderFieldID id)
-{
-    STANDARD_VM_CONTRACT;
-    Emit(CEE_STFLD, 0, GetToken(MscorlibBinder::GetField(id)));
-}
 void ILCodeStream::EmitSTLOC(DWORD dwLocalNum)
 {
     WRAPPER_NO_CONTRACT;
@@ -1712,6 +1702,16 @@ void ILCodeStream::EmitCALL(BinderMethodID id, int numInArgs, int numRetArgs)
 {
     STANDARD_VM_CONTRACT;
     EmitCALL(GetToken(MscorlibBinder::GetMethod(id)), numInArgs, numRetArgs);
+}
+void ILCodeStream::EmitLDFLD(BinderFieldID id)
+{
+    STANDARD_VM_CONTRACT;
+    EmitLDFLD(GetToken(MscorlibBinder::GetField(id)));
+}
+void ILCodeStream::EmitSTFLD(BinderFieldID id)
+{
+    STANDARD_VM_CONTRACT;
+    EmitSTFLD(GetToken(MscorlibBinder::GetField(id)));
 }
 
 void ILStubLinker::SetHasThis (bool fHasThis)
