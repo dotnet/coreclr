@@ -302,7 +302,7 @@ public:
         //
         // In particular, methods versionable with vtable slot backpatch should not have a precode (in the sense HasPrecode()
         // must return false) even if they will not have native code.
-        bool result = IsVersionableWithoutJumpStamp() ? IsVersionableWithPrecode() : !MayHaveNativeCode();
+        bool result = IsVersionableWithPrecode() ? true : !MayHaveNativeCode();
         _ASSERTE(!result || !IsVersionableWithVtableSlotBackpatch());
         return result;
     }
@@ -1168,19 +1168,7 @@ public:
     bool IsVersionable()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithoutJumpStamp() || IsVersionableWithJumpStamp();
-    }
-
-    // True iff this method's code may be versioned using a technique other than JumpStamp
-    bool IsVersionableWithoutJumpStamp()
-    {
-        WRAPPER_NO_CONTRACT;
-
-#ifdef FEATURE_CODE_VERSIONING
-        return IsEligibleForTieredCompilation();
-#else
-        return false;
-#endif
+        return IsVersionableWithPrecode() || IsVersionableWithVtableSlotBackpatch();
     }
 
     // True iff all calls to the method should funnel through a Precode which can be updated to point to the current method
@@ -1189,7 +1177,7 @@ public:
     bool IsVersionableWithPrecode()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithoutJumpStamp() && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+        return (IsEligibleForTieredCompilation() || IsEligibleForReJIT()) && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
     // True iff all calls to the method should go through a backpatchable vtable slot or through a FuncPtrStub. This versioning
@@ -1198,33 +1186,19 @@ public:
     bool IsVersionableWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithoutJumpStamp() && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+        return (IsEligibleForTieredCompilation() || IsEligibleForReJIT()) && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
-    // True iff All calls to the method go to the default code and the prologue of that code will be overwritten with a jmp to
-    // other code if necessary. This is the only technique that can handle NGEN'ed code that embeds untracked direct calls
-    // between methods. It has much higher update overhead than other approaches because it needs runtime suspension to evacuate
-    // all threads from method prologues before a prologue can be patched. The patching is also not compatible with a debugger
-    // that may be trying to rewrite the same code bytes to add/remove a breakpoint.
-    bool IsVersionableWithJumpStamp()
+    bool IsEligibleForReJIT()
     {
         WRAPPER_NO_CONTRACT;
 
-#if defined(FEATURE_CODE_VERSIONING) && defined(FEATURE_JUMPSTAMP)
+#if defined(FEATURE_CODE_VERSIONING)
         return
-            // Functional requirement / policy - Only one versioning technique may be used for a method, and versioning without
-            // a jump stamp is preferred
-            !IsVersionableWithoutJumpStamp() &&
-
-            // Functional requirement - If we aren't doing tiered compilation, ReJIT is currently the only other reason to make
-            // methods versionable. ReJIT is required to work even in NGEN images where the other versioning techniques aren't
-            // supported. If both ReJIT and tiered compilation are enabled then we prefer using the Precode or
-            // EntryPointSlotBackpatch techniques because they offer lower overhead method update performance and don't
-            // interfere with the debugger.
             ReJitManager::IsReJITEnabled() &&
 
-            // Functional requirement - We must be able to evacuate the prolog and the prolog must be big enough, both of which
-            // are only designed to work on jitted code
+            // Previously we didn't support these methods because of functional requirementes for
+            // jumpstamps, keeping this in for back compat.
             (IsIL() || IsNoMetadata()) &&
             !IsWrapperStub() &&
 
@@ -1259,7 +1233,6 @@ private:
     bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(IsVersionableWithoutJumpStamp());
         _ASSERTE(IsIL() || IsDynamicMethod());
 
 #if defined(FEATURE_CODE_VERSIONING) && !defined(CROSSGEN_COMPILE)
@@ -1346,8 +1319,6 @@ public:
         // point slots that need to be backpatched on entry point change, and in such cases the conditions here may be changed.
         bool result = IsVersionableWithVtableSlotBackpatch();
 
-        // Cases where this function returns true are not expected to need to handle JumpStamp versioning in the future
-        _ASSERTE(!result || !IsVersionableWithJumpStamp());
         return result;
 #else
         // Entry point slot backpatch is disabled for CrossGen
@@ -1470,7 +1441,7 @@ public:
             return false;
 #endif
 
-        return !IsVersionableWithoutJumpStamp() && !IsEnCMethod();
+        return IsVersionableWithPrecode() && !IsEnCMethod();
     }
 
     //Is this method currently pointing to native code that will never change?
