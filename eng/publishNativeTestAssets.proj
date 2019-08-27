@@ -21,7 +21,7 @@
     <AssetManifestFileName>coreclr-native-test-assets.$(BuildOS).$(BuildArch).xml</AssetManifestFileName>
     <!-- Create a temporary directory to store the generated asset manifest by the task -->
     <TempWorkingDirectory>$(ArtifactsLogDir)\..\AssetsTmpDir\$([System.Guid]::NewGuid())</TempWorkingDirectory>
-    <NativeAssetsZipPath>$(TempWorkingDirectory)/zip/coreclr-native-test-assets.$(BuildOS).$(BuildArch).zip</NativeAssetsZipPath>
+    <NativeAssetsZipPath>$(TempWorkingDirectory)/zip/coreclr-native-test-assets.$(OSGroup).$(BuildArch).zip</NativeAssetsZipPath>
     <AssetManifestPath>$(TempWorkingDirectory)\$(AssetManifestFileName)</AssetManifestPath>
   </PropertyGroup>
 
@@ -31,11 +31,10 @@
 
     <PropertyGroup>
       <_TestAssetVersion>$(PackageVersion)-$(VersionSuffix)</_TestAssetVersion>
-      <_FileRelativePathBase>coreclr-native-test-assets/$(_TestAssetVersion)/$(OSGroup).$(ArchGroup)/</_FileRelativePathBase>
+      <_FileRelativePathBase>coreclr-native-test-assets/$(_TestAssetVersion)/</_FileRelativePathBase>
     </PropertyGroup>
 
     <ItemGroup>
-      <NativeTestAssets Remove="@(NativeTestAssets)" />
       <NativeTestAssets Include="$(FilesToPublishPattern)" />
     </ItemGroup>
 
@@ -50,6 +49,7 @@
     <ZipDirectory SourceDirectory="$(TempWorkingDirectory)/nativeassets" DestinationFile="$(NativeAssetsZipPath)" />
 
     <ItemGroup>
+      <ItemsToPush Remove="@(ItemsToPush)" />
       <ItemsToPush Include="$(NativeAssetsZipPath)">
         <RelativeBlobPath>$(_FileRelativePathBase)%(Filename)%(Extension)</RelativeBlobPath>
       </ItemsToPush>

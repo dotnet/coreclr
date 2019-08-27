@@ -839,7 +839,8 @@ class ClrDataAccess
       public ISOSDacInterface3,
       public ISOSDacInterface4,
       public ISOSDacInterface5,
-      public ISOSDacInterface6
+      public ISOSDacInterface6,
+      public ISOSDacInterface7
 {
 public:
     ClrDataAccess(ICorDebugDataTarget * pTarget, ICLRDataTarget * pLegacyTarget=0);
@@ -1187,6 +1188,12 @@ public:
 
     // ISOSDacInterface6
     virtual HRESULT STDMETHODCALLTYPE GetMethodTableCollectibleData(CLRDATA_ADDRESS mt, struct DacpMethodTableCollectibleData *data);
+
+    // ISOSDacInterface7
+    virtual HRESULT STDMETHODCALLTYPE GetPendingReJITID(CLRDATA_ADDRESS methodDesc, int *pRejitId);
+    virtual HRESULT STDMETHODCALLTYPE GetReJITInformation(CLRDATA_ADDRESS methodDesc, int rejitId, struct DacpReJitData2 *pReJitData);
+    virtual HRESULT STDMETHODCALLTYPE GetProfilerModifiedILInformation(CLRDATA_ADDRESS methodDesc, struct DacpProfilerILData *pILData);
+    virtual HRESULT STDMETHODCALLTYPE GetMethodsWithProfilerModifiedIL(CLRDATA_ADDRESS mod, CLRDATA_ADDRESS *methodDescs, int cMethodDescs, int *pcMethodDescs);
 
     //
     // ClrDataAccess.
@@ -1986,9 +1993,9 @@ private:
         
         // Walk the stack, set mEnumerated to true to ensure we don't do it again.
         unsigned int flagsStackWalk = ALLOW_INVALID_OBJECTS|ALLOW_ASYNC_STACK_WALK|SKIP_GSCOOKIE_CHECK;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
         flagsStackWalk |= GC_FUNCLET_REFERENCE_REPORTING;
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
         mEnumerated = true;
         mThread->StackWalkFrames(DacStackReferenceWalker::Callback, &gcctx, flagsStackWalk);
@@ -3493,11 +3500,11 @@ private:
 //
 //----------------------------------------------------------------------------
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
 typedef ExceptionTracker ClrDataExStateType;
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
 typedef ExInfo ClrDataExStateType;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 
 class ClrDataExceptionState : public IXCLRDataExceptionState

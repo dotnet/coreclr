@@ -133,14 +133,11 @@ namespace System.Resources
         // 5) ResourceSet type name for this file (bytelength-prefixed UTF8 String)
         public static readonly int HeaderVersionNumber = 1;
 
-        //
-        //It would be better if we could use _neutralCulture instead of calling
-        //CultureInfo.InvariantCulture everywhere, but we run into problems with the .cctor.  CultureInfo
-        //initializes assembly, which initializes ResourceManager, which tries to get a CultureInfo which isn't
-        //there yet because CultureInfo's class initializer hasn't finished.  If we move SystemResMgr off of
-        //Assembly (or at least make it an internal property) we should be able to circumvent this problem.
-        //
-        //      private static CultureInfo _neutralCulture = null;
+        // It would be better if we could use a _neutralCulture instead of calling
+        // CultureInfo.InvariantCulture everywhere, but we run into problems with the .cctor.  CultureInfo
+        // initializes assembly, which initializes ResourceManager, which tries to get a CultureInfo which isn't
+        // there yet because CultureInfo's class initializer hasn't finished.  If we move SystemResMgr off of
+        // Assembly (or at least make it an internal property) we should be able to circumvent this problem.
 
         // This is our min required ResourceSet type.
         private static readonly Type s_minResourceSet = typeof(ResourceSet);
@@ -257,10 +254,7 @@ namespace System.Resources
         }
 
         // Gets the base name for the ResourceManager.
-        public virtual string BaseName
-        {
-            get { return BaseNameField; }
-        }
+        public virtual string BaseName => BaseNameField;
 
         // Whether we should ignore the capitalization of resources when calling
         // GetString or GetObject.
@@ -272,10 +266,7 @@ namespace System.Resources
 
         // Returns the Type of the ResourceSet the ResourceManager uses
         // to construct ResourceSets.
-        public virtual Type ResourceSetType
-        {
-            get { return (_userResourceSet == null) ? typeof(RuntimeResourceSet) : _userResourceSet; }
-        }
+        public virtual Type ResourceSetType => _userResourceSet ?? typeof(RuntimeResourceSet);
 
         protected UltimateResourceFallbackLocation FallbackLocation
         {
@@ -773,26 +764,14 @@ namespace System.Resources
             }
 
             // NEEDED ONLY BY FILE-BASED
-            internal string? ModuleDir
-            {
-                get { return _rm._moduleDir; }
-            }
+            internal string? ModuleDir => _rm._moduleDir;
 
             // NEEDED BOTH BY FILE-BASED  AND ASSEMBLY-BASED
-            internal Type? LocationInfo
-            {
-                get { return _rm._locationInfo; }
-            }
+            internal Type? LocationInfo => _rm._locationInfo;
 
-            internal Type? UserResourceSet
-            {
-                get { return _rm._userResourceSet; }
-            }
+            internal Type? UserResourceSet => _rm._userResourceSet;
 
-            internal string? BaseNameField
-            {
-                get { return _rm.BaseNameField; }
-            }
+            internal string? BaseNameField => _rm.BaseNameField;
 
             internal CultureInfo? NeutralResourcesCulture
             {
@@ -829,17 +808,11 @@ namespace System.Resources
                 set { _rm._fallbackLoc = value; }
             }
 
-            internal Assembly? MainAssembly
-            {
-                get { return _rm.MainAssembly; }
-            }
+            internal Assembly? MainAssembly => _rm.MainAssembly;
 
             // this is weird because we have BaseNameField accessor above, but we're sticking
             // with it for compat.
-            internal string BaseName
-            {
-                get { return _rm.BaseName; }
-            }
+            internal string BaseName => _rm.BaseName;
         }
     }
 }

@@ -14,22 +14,15 @@
 **
 ===========================================================*/
 
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Diagnostics;
+
 namespace System.Resources
 {
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Globalization;
-    using System.IO;
-    using System.Reflection;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Text;
-    using System.Threading;
-    using System.Diagnostics;
-    using Microsoft.Win32;
-
     //
     // Note: this type is integral to the construction of exception objects,
     // and sometimes this has to be done in low memory situtations (OOM) or
@@ -146,7 +139,7 @@ namespace System.Resources
         {
             Debug.Assert(a != null, "assembly != null");
 
-            var attr = a.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
+            NeutralResourcesLanguageAttribute? attr = a.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
             if (attr == null)
             {
                 fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
@@ -288,7 +281,7 @@ namespace System.Resources
 
             if (_mediator.UserResourceSet == null)
             {
-                return new RuntimeResourceSet(store, permitDeserialization:true);
+                return new RuntimeResourceSet(store, permitDeserialization: true);
             }
             else
             {
@@ -470,7 +463,7 @@ namespace System.Resources
             try
             {
                 string postfix = "\"";
-                string [] resourceSetNames = assembly.GetManifestResourceNames();
+                string[] resourceSetNames = assembly.GetManifestResourceNames();
 
                 // If we have more than 10 resource sets, we just print the first 10 for the sake of the exception message readability.
                 if (resourceSetNames.Length > 10)

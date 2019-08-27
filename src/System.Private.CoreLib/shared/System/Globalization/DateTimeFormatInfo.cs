@@ -1306,7 +1306,7 @@ namespace System.Globalization
             }
         }
 
-        internal bool HasSpacesInMonthNames =>(FormatFlags & DateTimeFormatFlags.UseSpacesInMonthNames) != 0;
+        internal bool HasSpacesInMonthNames => (FormatFlags & DateTimeFormatFlags.UseSpacesInMonthNames) != 0;
 
         internal bool HasSpacesInDayNames => (FormatFlags & DateTimeFormatFlags.UseSpacesInDayNames) != 0;
 
@@ -1338,7 +1338,7 @@ namespace System.Globalization
 
         /// <summary>
         /// Retrieve the array which contains the month names in genitive form.
-        /// If this culture does not use the gentive form, the normal month name is returned.
+        /// If this culture does not use the genitive form, the normal month name is returned.
         /// </summary>
         private string[] InternalGetGenitiveMonthNames(bool abbreviated)
         {
@@ -1768,13 +1768,7 @@ namespace System.Globalization
         /// DateTimeFormatInfo dtfi = new CultureInfo("ja-JP", false).DateTimeFormat.Calendar = new GregorianCalendar(GregorianCalendarTypes.Localized);
         /// String nativeName = dtfi.NativeCalendarName; // Get the Japanese name for the Gregorian calendar.
         /// </summary>
-        public string NativeCalendarName
-        {
-            get
-            {
-                return _cultureData.CalendarName(Calendar.ID);
-            }
-        }
+        public string NativeCalendarName => _cultureData.CalendarName(Calendar.ID);
 
         /// <summary>
         /// Used by custom cultures and others to set the list of available formats. Note that none of them are
@@ -2029,10 +2023,7 @@ namespace System.Globalization
         /// <summary>
         /// Returns whether the YearMonthAdjustment function has any fix-up work to do for this culture/calendar.
         /// </summary>
-        internal bool HasYearMonthAdjustment
-        {
-            get => (FormatFlags & DateTimeFormatFlags.UseHebrewRule) != 0;
-        }
+        internal bool HasYearMonthAdjustment => (FormatFlags & DateTimeFormatFlags.UseHebrewRule) != 0;
 
         /// <summary>
         /// This is a callback that the parser can make back into the DTFI to let it fiddle with special
@@ -2310,14 +2301,15 @@ namespace System.Globalization
                     InsertHash(temp, GetAbbreviatedMonthName(i), TokenType.MonthToken, i);
                 }
 
-
                 if ((FormatFlags & DateTimeFormatFlags.UseGenitiveMonth) != 0)
                 {
+                    string [] genitiveMonthNames = InternalGetGenitiveMonthNames(abbreviated: false);
+                    string [] abbreviatedGenitiveMonthNames = InternalGetGenitiveMonthNames(abbreviated: true);
+
                     for (int i = 1; i <= 13; i++)
                     {
-                        string str;
-                        str = InternalGetMonthName(i, MonthNameStyles.Genitive, false);
-                        InsertHash(temp, str, TokenType.MonthToken, i);
+                        InsertHash(temp, genitiveMonthNames[i - 1], TokenType.MonthToken, i);
+                        InsertHash(temp, abbreviatedGenitiveMonthNames[i - 1], TokenType.MonthToken, i);
                     }
                 }
 
@@ -2333,7 +2325,6 @@ namespace System.Globalization
 
                 for (int i = 0; i < 7; i++)
                 {
-                    //String str = GetDayOfWeekNames()[i];
                     // We have to call public methods here to work with inherited DTFI.
                     string str = GetDayName((DayOfWeek)i);
                     InsertHash(temp, str, TokenType.DayOfWeekToken, i);
@@ -2432,7 +2423,6 @@ namespace System.Globalization
         {
             for (int i = 1; i <= 13; i++)
             {
-                //str = internalGetMonthName(i, MonthNameStyles.Regular, false);
                 // We have to call public methods here to work with inherited DTFI.
                 // Insert the month name first, so that they are at the front of abbreviated
                 // month names.
@@ -2646,7 +2636,7 @@ namespace System.Globalization
             TokenHashValue previousNode = hashTable[hashcode];
 
             // Insert the new node into the current slot.
-            hashTable[hashcode] = new TokenHashValue(str, tokenType, tokenValue); ;
+            hashTable[hashcode] = new TokenHashValue(str, tokenType, tokenValue);
 
             while (++pos < TOKEN_HASH_SIZE)
             {
@@ -2667,7 +2657,7 @@ namespace System.Globalization
                     return;
                 }
                 previousNode = temp;
-            };
+            }
             Debug.Fail("The hashtable is full.  This should not happen.");
         }
 
@@ -2682,7 +2672,7 @@ namespace System.Globalization
             int i = 0;
             // If there is whitespace characters in the beginning and end of the string, trim them since whitespaces are skipped by
             // DateTime.Parse().
-            if (char.IsWhiteSpace(str[0]) || char.IsWhiteSpace(str[str.Length - 1]))
+            if (char.IsWhiteSpace(str[0]) || char.IsWhiteSpace(str[^1]))
             {
                 str = str.Trim(null);   // Trim white space characters.
                 // Could have space for separators

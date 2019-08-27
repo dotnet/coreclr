@@ -109,7 +109,7 @@ struct IndentStack
         for (unsigned i = 0; i < indentCount; i++)
         {
             unsigned index = indentCount - 1 - i;
-            switch (stack.Index(index))
+            switch (stack.Top(index))
             {
                 case Compiler::IndentInfo::IINone:
                     printf("   ");
@@ -4704,7 +4704,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_START_NONGC:
         case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
@@ -7005,7 +7005,7 @@ GenTree* Compiler::gtCloneExpr(
                 copy = new (this, oper) GenTree(oper, tree->gtType);
                 goto DONE;
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
             case GT_JMP:
@@ -8164,7 +8164,6 @@ unsigned GenTree::NumChildren()
 GenTree* GenTree::GetChild(unsigned childNum)
 {
     assert(childNum < NumChildren()); // Precondition.
-    assert(NumChildren() <= MAX_CHILDREN);
     assert(!(OperIsConst() || OperIsLeaf()));
     if (OperIsUnary())
     {
@@ -8390,7 +8389,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_START_NONGC:
         case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
@@ -9860,7 +9859,7 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
                 ilName = "PromotedStructScratch";
             }
 #endif // _TARGET_ARM_
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             else if (lclNum == lvaShadowSPslotsVar)
             {
                 ilName = "EHSlots";
@@ -9872,7 +9871,7 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
                 ilName = "LocAllocSP";
             }
 #endif // JIT32_GCENCODER
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             else if (lclNum == lvaPSPSym)
             {
                 ilName = "PSPSym";
@@ -10355,7 +10354,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
         }
         break;
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
             printf(" endNstLvl=%d", tree->gtVal.gtVal1);
             break;
@@ -15159,7 +15158,7 @@ bool Compiler::gtHasCatchArg(GenTree* tree)
 {
     for (int i = 0; i < parentStack->Height(); i++)
     {
-        GenTree* node = parentStack->Index(i);
+        GenTree* node = parentStack->Top(i);
         if (node->OperGet() == GT_CALL)
         {
             return true;
