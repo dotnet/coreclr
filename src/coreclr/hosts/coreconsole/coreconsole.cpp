@@ -241,11 +241,10 @@ public:
                         // users the opportunity to override Framework assemblies by placing dlls in %CORE_LIBRARIES%
 
                         // ToLower for case-insensitive comparisons
-                        wchar_t* fileNameChar = data.cFileName;
-                        while (*fileNameChar)
+                        
+                        for (wchar_t* fileNameChar = data.cFileName; *fileNameChar; fileNameChar++)
                         {
                             *fileNameChar = towlower(*fileNameChar);
-                            fileNameChar++;
                         }
 
                         // Remove extension

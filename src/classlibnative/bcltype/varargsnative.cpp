@@ -37,8 +37,7 @@ static void AdjustArgPtrForAlignment(VARARGS *pData, size_t cbArg)
     {
         return;
     }
-    else
-    if (et == ELEMENT_TYPE_VALUETYPE)
+    else if (et == ELEMENT_TYPE_VALUETYPE)
     {
         SigPointer tempSig(pData->SigPtr);
         TypeHandle valueType = tempSig.GetTypeHandleThrowing(pData->ArgCookie->pModule, &typeContext);
@@ -133,10 +132,8 @@ void AdvanceArgPtr(VARARGS *data)
     } CONTRACTL_END;
 
     // Advance to the first optional arg.
-    while (data->RemainingArgs > 0)
+    while (data->RemainingArgs > 0 && !(data->SigPtr.AtSentinel())))
     {
-        if (data->SigPtr.AtSentinel())
-            break;
 
         SigTypeContext      typeContext; // This is an empty type context.  This is OK because the vararg methods may not be generic
         SIZE_T cbRaw = data->SigPtr.SizeOf(data->ArgCookie->pModule, &typeContext); 
