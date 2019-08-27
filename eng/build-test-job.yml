@@ -23,6 +23,7 @@ jobs:
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
+    testBuildOsGroup: ${{ parameters.osGroup }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
     readyToRun: ${{ parameters.readyToRun }}

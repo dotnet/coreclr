@@ -25,7 +25,10 @@ jobs:
   parameters:
     buildConfig:                 ${{ parameters.buildConfig }}
     archType:                    ${{ parameters.archType }}
-    osGroup:                     ${{ parameters.osGroup }}
+    ${{ eq(parameters.osGroup, 'Windows_NT') }}:
+      osGroup:                   'Windows_NT'
+    ${{ ne(parameters.osGroup, 'Windows_NT') }}:
+      osGroup:                   'OSX'
     osIdentifier:                ${{ parameters.osIdentifier }}
     container:                   ${{ parameters.container }}
     testGroup:                   ${{ parameters.testGroup }}
@@ -40,6 +43,10 @@ jobs:
   parameters:
     buildConfig:            ${{ parameters.buildConfig }}
     archType:               ${{ parameters.archType }}
+    ${{ eq(parameters.osGroup, 'Windows_NT') }}:
+      testBuildOsGroup:     'Windows_NT'
+    ${{ ne(parameters.osGroup, 'Windows_NT') }}:
+      testBuildOsGroup:     'OSX'
     osGroup:                ${{ parameters.osGroup }}
     osIdentifier:           ${{ parameters.osIdentifier }}
     container:              ${{ parameters.container }}
