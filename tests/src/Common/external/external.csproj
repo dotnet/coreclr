@@ -4,10 +4,6 @@
          This RID value doesn't really matter, since the assets we are copying are not RID specific, so defaulting to Windows here
     -->
     <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
-    <Language>C#</Language>
-    <NugetTargetMoniker>.NETCoreApp,Version=v1.1</NugetTargetMoniker>
-    <NugetTargetMonikerShort>netcoreapp1.1</NugetTargetMonikerShort>
-    <NugetRuntimeIdentifier>win7-x64</NugetRuntimeIdentifier>
     <OutputPath>$(TargetingPackPath)</OutputPath>
     <XUnitRunnerPackageId>xunit.runner.console</XUnitRunnerPackageId>
     <XUnitRunnerTargetFramework>netcoreapp2.0</XUnitRunnerTargetFramework>
@@ -81,8 +77,7 @@
     <PackageReference Include="xunit.runner.utility" Version="$(XunitPackageVersion)" />
   </ItemGroup>
   <PropertyGroup>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
-    <PackageTargetFallback>$(PackageTargetFallback);dnxcore50;portable-net45+win8</PackageTargetFallback>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
     <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
   </PropertyGroup>
   <ItemGroup>
