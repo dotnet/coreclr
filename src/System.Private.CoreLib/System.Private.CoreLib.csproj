@@ -14,6 +14,7 @@
     <GenerateResxSourceOmitGetResourceString>true</GenerateResxSourceOmitGetResourceString>
     <GenerateNeutralResourcesLanguageAttribute>false</GenerateNeutralResourcesLanguageAttribute>
     <EnsureRuntimePackageDependencies>false</EnsureRuntimePackageDependencies>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
 
     <OutputType>Library</OutputType>
     <TargetFramework>netcoreapp2.1</TargetFramework>
