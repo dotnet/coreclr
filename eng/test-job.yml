@@ -367,10 +367,18 @@ jobs:
     # Publish test native assets
     # Native assets are identical between normal and ReadyToRun test builds, so we don't need to upload native test artifacts on R2R test builds.
     - ${{ if and(and(ne(parameters.readyToRun, true), ne(parameters.corefxTests, true)), and(eq(variables['System.TeamProject'], 'internal'), ne(variables['Build.Reason'], 'PullRequest'))) }}:
+    
+      - task: AzureKeyVault@1
+        inputs:
+          azureSubscription: 'DotNet-Engineering-Services_KeyVault'
+          KeyVaultName: EngKeyVault
+          SecretsFilter: 'dotnetfeed-storage-access-key-1'
+
       - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
         - script: ./eng/common/build.sh /p:DotNetPublishToBlobFeed=true --ci --restore --projects $(Build.SourcesDirectory)/eng/empty.csproj
           displayName: Restore blob feed tasks
         - script: ./eng/common/msbuild.sh --ci eng/publishNativeTestAssets.proj
+                      /p:AccountKey=$(dotnetfeed-storage-access-key-1)
                       /p:FilesToPublishPattern=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/bin/nativeassets/*
                       /p:ExpectedFeedUrl=$(dotnetfeedUrl)
                       /p:OSGroup=$(osGroup)
@@ -382,6 +390,7 @@ jobs:
         - script: eng\common\build.ps1 /p:DotNetPublishToBlobFeed=true -ci -restore -projects $(Build.SourcesDirectory)/eng/empty.csproj
           displayName: Restore blob feed tasks
         - script: eng\common\msbuild.ps1 -ci eng/publishNativeTestAssets.proj
+                      /p:AccountKey=$(dotnetfeed-storage-access-key-1)
                       /p:FilesToPublishPattern=$(Build.SourcesDirectory)/bin/tests/$(osGroup).$(archType).$(buildConfigUpper)/bin/nativeassets/*
                       /p:ExpectedFeedUrl=$(dotnetfeedUrl)
                       /p:OSGroup=$(osGroup)

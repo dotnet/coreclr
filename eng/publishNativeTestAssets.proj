@@ -55,20 +55,37 @@
       </ItemsToPush>
     </ItemGroup>
 
-    <PushToAzureDevOpsArtifacts
-      AssetsTemporaryDirectory="$(TempWorkingDirectory)"
+    <PushToBlobFeed
+      AccountKey="$(AccountKey)"
       ItemsToPush="@(ItemsToPush)"
-      ManifestBuildData="Location=$(ExpectedFeedUrl)"
+      ExpectedFeedUrl="$(ExpectedFeedUrl)"
       ManifestRepoUri="$(BUILD_REPOSITORY_URI)"
       ManifestBranch="$(BUILD_SOURCEBRANCH)"
       ManifestBuildId="$(BUILD_BUILDNUMBER)"
       ManifestCommit="$(BUILD_SOURCEVERSION)"
       PublishFlatContainer="true"
       AssetManifestPath="$(AssetManifestPath)"
+      Overwrite="true"
     />
 
-    <Message
-      Text="##vso[artifact.upload containerfolder=AssetManifests;artifactname=AssetManifests]$(AssetManifestPath)"
-      Importance="high" />
+    <ItemGroup>
+      <ManifestToPush Remove="@(ManifestToPush)" />
+      <ManifestToPush Include="$(AssetManifestFilePath)">
+        <RelativeBlobPath>$(_FileRelativePathBase)$(AssetManifestFileName)</RelativeBlobPath>
+      </ManifestToPush>
+    </ItemGroup>
+
+    <Message Importance="High" Text="PublishTestAssets: $(_FileRelativePathBase)$(AssetManifestFileName)" />
+
+    <PushToBlobFeed ExpectedFeedUrl="$(ExpectedFeedUrl)"
+                    AccountKey="$(AccountKey)"
+                    ItemsToPush="@(ManifestToPush)"
+                    PublishFlatContainer="true"
+                    ManifestRepoUri="$(BUILD_REPOSITORY_URI)"
+                    ManifestBranch="$(BUILD_SOURCEBRANCH)"
+                    ManifestBuildId="$(BUILD_BUILDNUMBER)"
+                    ManifestCommit="$(BUILD_SOURCEVERSION)"
+                    AssetManifestPath="$(AssetManifestDir)ManifestUpload.xml"
+                    Overwrite="true" />
   </Target>
 </Project>
