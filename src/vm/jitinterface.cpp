@@ -13938,15 +13938,17 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
     return ftn;
 }
 
-CORINFO_METHOD_HANDLE CEEInfo::getTailCallStoreArgsStub(CORINFO_SIG_INFO *pSig)
+bool CEEInfo::getTailCallHelperStubs(
+    CORINFO_METHOD_HANDLE callee,
+    CORINFO_SIG_INFO *pSig,
+    CORINFO_METHOD_HANDLE *storeArgs,
+    CORINFO_METHOD_HANDLE *callTarget)
 {
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
-
-    CORINFO_METHOD_HANDLE result;
 
     JIT_TO_EE_TRANSITION();
 
@@ -13955,13 +13957,21 @@ CORINFO_METHOD_HANDLE CEEInfo::getTailCallStoreArgsStub(CORINFO_SIG_INFO *pSig)
 
     MetaSig msig(pSig->pSig, pSig->cbSig, GetModule(pSig->scope), &typeCtx);
 
-    result = (CORINFO_METHOD_HANDLE)TailCallHelp::CreateStoreArgsStub(m_pMethodBeingCompiled, nullptr, msig);
+    MethodDesc* pStoreArgsMD;
+    MethodDesc* pCallTargetMD;
+
+    TailCallHelp::CreateTailCallHelperStubs(
+        m_pMethodBeingCompiled, (MethodDesc*)callee,
+        msig,
+        &pStoreArgsMD, &pCallTargetMD);
+
+    *storeArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
+    *callTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
 
     EE_TO_JIT_TRANSITION();
 
-    return result;
+    return true;
 }
-
 
 bool CEEInfo::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
 {

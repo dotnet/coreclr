@@ -5398,7 +5398,10 @@ private:
     GenTree* fgMorphField(GenTree* tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
     bool fgCheckStmtAfterTailCall();
-    void fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_METHOD_HANDLE storeArgsHnd);
+    void fgMorphTailCallViaHelper(
+        GenTreeCall* call,
+        CORINFO_METHOD_HANDLE storeArgsStubHnd,
+        CORINFO_METHOD_HANDLE callTargetStubHnd);
     GenTree* fgMorphPotentialTailCall(GenTreeCall* call);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);

@@ -7443,12 +7443,15 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     // Ok, now we are _almost_ there. If this needs helper then make sure we can
     // get the store args stub. Do this last as the runtime will likely be
     // required to generate these.
-    CORINFO_METHOD_HANDLE storeArgsHnd = nullptr;
+    CORINFO_METHOD_HANDLE storeArgsStubHnd = nullptr;
+    CORINFO_METHOD_HANDLE callTargetStubHnd = nullptr;
     if (!canFastTailCall)
     {
         assert(call->IsTailPrefixedCall());
-        storeArgsHnd = info.compCompHnd->getTailCallStoreArgsStub(call->callSig);
-        if (storeArgsHnd == nullptr)
+
+        if (!info.compCompHnd->getTailCallHelperStubs(
+            nullptr, call->callSig,
+            &storeArgsStubHnd, &callTargetStubHnd))
         {
             failTailCall("StoreArgsStub not available");
             return nullptr;
@@ -7554,7 +7557,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     // fast calls.
     if (call->IsTailCallViaHelper())
     {
-        fgMorphTailCallViaHelper(call, storeArgsHnd);
+        fgMorphTailCallViaHelper(call, storeArgsStubHnd, callTargetStubHnd);
 
         // Force re-evaluating the argInfo. fgMorphTailCallViaHelper will modify the
         // argument list, invalidating the argInfo.
@@ -7700,7 +7703,10 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  *
  *  Transform the given GT_CALL tree for tail call code generation.
  */
-void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_METHOD_HANDLE storeArgsHnd)
+void Compiler::fgMorphTailCallViaHelper(
+    GenTreeCall* call,
+    CORINFO_METHOD_HANDLE storeArgsStubHnd,
+    CORINFO_METHOD_HANDLE callTargetStubHnd)
 {
     JITDUMP("fgMorphTailCallViaHelper (before):\n");
     DISPTREE(call);
@@ -7716,7 +7722,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_METHOD_HANDLE
     assert(!fgCanFastTailCall(call));
 
     // TODO: instance methods
-    assert(call->gtCallObjp);
+    assert(!call->gtCallObjp);
 
     NYI("Tailcall via helper unsupported");
 

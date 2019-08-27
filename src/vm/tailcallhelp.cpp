@@ -112,6 +112,26 @@ struct TailCallInfo
     }
 };
 
+void TailCallHelp::CreateTailCallHelperStubs(
+    MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
+    MetaSig& callSiteSig,
+    MethodDesc** storeArgsStub, MethodDesc** callTargetStub)
+{
+    STANDARD_VM_CONTRACT;
+
+#ifdef _DEBUG
+    SigFormat incSig(callSiteSig, NULL);
+    printf("Incoming sig: %s\n", incSig.GetCString());
+#endif
+
+    TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
+    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, retTyHnd);
+    LayOutArgBuffer(callSiteSig, &info.ArgBufLayout);
+
+    *storeArgsStub = CreateStoreArgsStub(info);
+    *callTargetStub = CreateCallTargetStub(info);
+}
+
 void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
@@ -187,23 +207,8 @@ bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GC
     return anyGC;
 }
 
-MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
-                                              MethodDesc* pCalleeMD,
-                                              MetaSig& callSiteSig)
+MethodDesc* TailCallHelp::CreateStoreArgsStub(const TailCallInfo& info)
 {
-    STANDARD_VM_CONTRACT;
-
-#ifdef _DEBUG
-    SigFormat incSig(callSiteSig, NULL);
-    printf("Incoming sig: %s\n", incSig.GetCString());
-#endif
-
-    TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
-    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, retTyHnd);
-    LayOutArgBuffer(callSiteSig, &info.ArgBufLayout);
-
-    MethodDesc* callTargetStubMD = CreateCallTargetStub(info);
-
     SigBuilder sigBuilder;
     CreateStoreArgsStubSig(info, &sigBuilder);
 
@@ -212,7 +217,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
 
     SigTypeContext emptyCtx;
 
-    ILStubLinker sl(pCallerMD->GetModule(),
+    ILStubLinker sl(info.Caller->GetModule(),
                     Signature(pSig, cbSig),
                     &emptyCtx,
                     NULL,
@@ -261,13 +266,13 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(MethodDesc* pCallerMD,
 
     pCode->EmitRET();
 
-    Module* pLoaderModule = pCallerMD->GetLoaderModule();
+    Module* pLoaderModule = info.Caller->GetLoaderModule();
     MethodDesc* pStoreArgsMD =
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
-            pCallerMD->GetLoaderAllocator(),
+            info.Caller->GetLoaderAllocator(),
             pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
             ILSTUB_TAILCALL_STOREARGS,
-            pCallerMD->GetModule(),
+            info.Caller->GetModule(),
             pSig, cbSig,
             &emptyCtx,
             &sl);
@@ -439,8 +444,11 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     auto emitOffs = [&](UINT offs)
     {
         pCode->EmitLDLOC(argsLcl);
-        pCode->EmitLDC(offs);
-        pCode->EmitADD();
+        if (offs != 0)
+        {
+            pCode->EmitLDC(offs);
+            pCode->EmitADD();
+        }
     };
 
     // targetAddr = args->TargetAddress

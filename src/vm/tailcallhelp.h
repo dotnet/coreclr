@@ -19,16 +19,17 @@ public:
     static FCDECL0(void,  FreeTailCallArgBuffer);
     static FCDECL0(void*, GetTailCallTls);
 
-    static MethodDesc* CreateStoreArgsStub(MethodDesc* pCallerMD,
-                                           MethodDesc* pCalleeMD,
-                                           MetaSig& callSiteSig);
-
+    static void CreateTailCallHelperStubs(
+        MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
+        MetaSig& callSiteSig,
+        MethodDesc** storeArgsStub, MethodDesc** callTargetStub);
 private:
     static void LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout);
     static TypeHandle NormalizeSigType(TypeHandle tyHnd);
     static bool GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder);
 
-    static void CreateStoreArgsStubSig(const TailCallInfo& layout, SigBuilder* sig);
+    static MethodDesc* CreateStoreArgsStub(const TailCallInfo& info);
+    static void CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* sig);
 
     static MethodDesc* CreateCallTargetStub(const TailCallInfo& info);
     static void CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig);
