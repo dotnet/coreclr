@@ -135,14 +135,9 @@
   <PropertyGroup>
     <ZapRequire Condition="'$(ZapRequire)' == ''">2</ZapRequire>
   </PropertyGroup>
-  
+
   <PropertyGroup>
     <RestoreOutputPath>$(MSBuildProjectDirectory)\obj</RestoreOutputPath>
-
-    <!-- Specify the target framework of the common test dependency project.json. -->
-    <NuGetTargetMoniker>.NETCoreApp,Version=v5.0</NuGetTargetMoniker>
-    <NuGetTargetMonikerShort>netcoreapp5.0</NuGetTargetMonikerShort>
-    <PrereleaseResolveNuGetPackages>true</PrereleaseResolveNuGetPackages>
   </PropertyGroup>
 
 </Project>
