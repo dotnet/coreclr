@@ -440,6 +440,7 @@ public:
     void GenerateCode(BYTE* pbBuffer, size_t cbBufferSize);
     void ClearCode();
 
+    void SetStubMethodDesc(MethodDesc *pMD);
 protected:
 
     void DeleteCodeLabels();

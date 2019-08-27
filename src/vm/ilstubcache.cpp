@@ -105,6 +105,8 @@ MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllo
 
     amTracker.SuppressRelease(); 
 
+    pStubLinker->SetStubMethodDesc(pStubMD);
+
     ILStubResolver *pResolver = pStubMD->AsDynamicMethodDesc()->GetILStubResolver();
 
     pResolver->SetStubMethodDesc(pStubMD);

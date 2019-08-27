@@ -2858,6 +2858,11 @@ void ILStubLinker::ClearCode()
     ClearCodeStreams();
 }
 
+void ILStubLinker::SetStubMethodDesc(MethodDesc* pMD)
+{
+    m_pMD = pMD;
+}
+
 // static
 ILCodeStream* ILStubLinker::FindLastCodeStream(ILCodeStream* pList)
 {
