@@ -13,7 +13,7 @@
 struct NewTailCallFrame
 {
     NewTailCallFrame* Prev;
-    void* StackPointer;
+    void* ReturnAddress;
     void* NextCall;
 };
 
@@ -284,6 +284,10 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(const TailCallInfo& info)
     printf("%s\n", ilStub.GetUTF8(ssb));
 #endif
 
+#ifndef CROSSGEN_COMPILE
+    JitILStub(pStoreArgsMD);
+#endif
+
     return pStoreArgsMD;
 }
 
@@ -394,10 +398,10 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitLDFLD(FIELD__TAIL_CALL_TLS__FRAME);
     pCode->EmitSTLOC(prevFrameLcl);
 
-    // TODO: Check previous frame. Intrinsic?
-    // if (1 != 1) goto noUnwindLbl;
-    pCode->EmitLDC(1);
-    pCode->EmitLDC(1);
+    // if (prevFrame.ReturnAddress != ReturnAddress()) goto noUnwindLbl;
+    pCode->EmitLDLOC(prevFrameLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
+    pCode->EmitCALL(METHOD__STUBHELPERS__RETURN_ADDRESS, 0, 1);
     pCode->EmitBNE_UN(noUnwindLbl);
 
     // prevFrame->NextCall = &ThisStub;
@@ -417,13 +421,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitLDLOCA(newFrameEntryLcl);
     pCode->EmitLDLOC(prevFrameLcl);
     pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__PREV);
-
-    // newFrameEntry.StackPointer = GetStackPointer();
-    // TODO
-    pCode->EmitLDLOCA(newFrameEntryLcl);
-    pCode->EmitLDC(0);
-    pCode->EmitCONV_I();
-    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__STACK_POINTER);
 
     // newFrameEntry.NextCall = 0
     pCode->EmitLDLOCA(newFrameEntryLcl);
@@ -498,7 +495,11 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     // RuntimeHelpers.FreeTailCallArgBuf();
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__FREE_TAILCALL_ARG_BUFFER, 0, 0);
 
-    // -----
+    // newFrameEntry.ReturnAddress = NextCallReturnAddress();
+    pCode->EmitLDLOCA(newFrameEntryLcl);
+    pCode->EmitCALL(METHOD__STUBHELPERS__NEXT_CALL_RETURN_ADDRESS, 0, 1);
+    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
+
     // result = Calli(target, args)
     for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
     {
@@ -538,7 +539,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitRET();
 
     Module* pLoaderModule = info.Caller->GetLoaderModule();
-    MethodDesc* pStoreArgsMD =
+    MethodDesc* pCallTargetMD =
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
             info.Caller->GetLoaderAllocator(),
             pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
@@ -555,5 +556,9 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     printf("%s\n", ilStub.GetUTF8(ssb));
 #endif
 
-    return pStoreArgsMD;
+#ifndef CROSSGEN_COMPILE
+    JitILStub(pCallTargetMD);
+#endif
+
+    return pCallTargetMD;
 }

@@ -739,7 +739,7 @@ DEFINE_FIELD(RAW_SZARRAY_DATA,      DATA,                   Data)
 
 DEFINE_CLASS(TAIL_CALL_FRAME,       CompilerServices,       TailCallFrame)
 DEFINE_FIELD(TAIL_CALL_FRAME,       PREV,                   Prev)
-DEFINE_FIELD(TAIL_CALL_FRAME,       STACK_POINTER,          StackPointer)
+DEFINE_FIELD(TAIL_CALL_FRAME,       RETURN_ADDRESS,         ReturnAddress)
 DEFINE_FIELD(TAIL_CALL_FRAME,       NEXT_CALL,              NextCall)
 
 DEFINE_CLASS(TAIL_CALL_TLS,         CompilerServices,       TailCallTls)
