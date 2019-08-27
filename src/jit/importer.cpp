@@ -3539,6 +3539,22 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
     assert(intrinsicID != CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr);
 #endif
 
+    if (intrinsicID == CORINFO_INTRINSIC_StubHelpers_ReturnAddress)
+    {
+        if (lvaRetAddrVar == BAD_VAR_NUM)
+        {
+            lvaRetAddrVar = lvaGrabTemp(false DEBUGARG("Return address"));
+            lvaTable[lvaRetAddrVar].lvType = TYP_I_IMPL;
+        }
+
+        return gtNewLclvNode(lvaRetAddrVar, TYP_I_IMPL);
+    }
+
+    if (intrinsicID == CORINFO_INTRINSIC_StubHelpers_NextCallReturnAddress)
+    {
+        return new (this, GT_LABEL) GenTree(GT_LABEL, TYP_I_IMPL);
+    }
+
     GenTree* retNode = nullptr;
 
     // Under debug and minopts, only expand what is required.

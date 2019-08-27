@@ -1753,3 +1753,17 @@ FCIMPL2(void, StubHelpers::MulticastDebuggerTraceHelper, Object* element, INT32 
 }
 FCIMPLEND
 #endif // FEATURE_MULTICASTSTUB_AS_IL
+
+FCIMPL0(void*, StubHelpers::ReturnAddress)
+{
+    FCALL_CONTRACT;
+    UNREACHABLE_MSG("This is a JIT intrinsic!");
+}
+FCIMPLEND
+
+FCIMPL0(void*, StubHelpers::NextCallReturnAddress)
+{
+    FCALL_CONTRACT;
+    UNREACHABLE_MSG("This is a JIT intrinsic!");
+}
+FCIMPLEND

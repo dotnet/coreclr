@@ -961,6 +961,8 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_StubHelpers_GetStubContext,
     CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr,
     CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget,
+    CORINFO_INTRINSIC_StubHelpers_ReturnAddress,
+    CORINFO_INTRINSIC_StubHelpers_NextCallReturnAddress,
     CORINFO_INTRINSIC_InterlockedAdd32,
     CORINFO_INTRINSIC_InterlockedAdd64,
     CORINFO_INTRINSIC_InterlockedXAdd32,

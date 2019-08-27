@@ -70,6 +70,7 @@ void Compiler::lvaInit()
     lvaStubArgumentVar  = BAD_VAR_NUM;
     lvaArg0Var          = BAD_VAR_NUM;
     lvaMonAcquired      = BAD_VAR_NUM;
+    lvaRetAddrVar       = BAD_VAR_NUM;
 
     lvaInlineeReturnSpillTemp = BAD_VAR_NUM;
 
@@ -5698,6 +5699,8 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 #ifdef _TARGET_XARCH_
     // On x86/amd64, the return address has already been pushed by the call instruction in the caller.
     stkOffs -= TARGET_POINTER_SIZE; // return address;
+    if (lvaRetAddrVar != BAD_VAR_NUM)
+        lvaTable[lvaRetAddrVar].lvStkOffs = stkOffs;
 
     // TODO-AMD64-CQ: for X64 eventually this should be pushed with all the other
     // calleeregs.  When you fix this, you'll also need to fix
@@ -5706,6 +5709,8 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     {
         stkOffs -= REGSIZE_BYTES;
     }
+#else
+    noway_assert(lvaRetAddrVar == BAD_VAR_NUM);
 #endif //_TARGET_XARCH_
 
     int  preSpillSize    = 0;
@@ -6060,7 +6065,8 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 #ifdef JIT32_GCENCODER
                 lclNum == lvaLocAllocSPvar ||
 #endif // JIT32_GCENCODER
-                lclNum == lvaSecurityObject)
+                lclNum == lvaSecurityObject ||
+                lclNum == lvaRetAddrVar)
             {
                 assert(varDsc->lvStkOffs != BAD_STK_OFFS);
                 continue;
