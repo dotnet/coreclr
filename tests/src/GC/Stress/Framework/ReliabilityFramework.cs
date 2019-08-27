@@ -149,7 +149,7 @@ public class ReliabilityFramework
 
     // support for running in automation
     internal static bool IsRunningAsUnitTest = false;
-    internal static bool IsRunningAsReliabilityTest = false;
+    internal static bool IsRunningLongGCTests = false;
 
     /// <summary>
     /// Our main execution routine for the reliability framework.  Here we create an instance of the framework & run the reliability tests
@@ -209,9 +209,7 @@ public class ReliabilityFramework
             }
         }
 
-        //UNDONE: (vsadov) propagate an appropriate env var to light up the config. 
-        //        also need to set timeout to 15hr, perhaps just 1hr initially. 
-        IsRunningAsReliabilityTest = System.Environment.GetEnvironmentVariable("__LongGCTests") == "1";
+        IsRunningLongGCTests = System.Environment.GetEnvironmentVariable("RunningLongGCTests") == "1";
 
         // if no config file specified, check for [something]_gc.config in the current folder.
         if (configFile == null)

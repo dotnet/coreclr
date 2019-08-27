@@ -382,7 +382,7 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                 _curTestSet = new ReliabilityTestSet();
 
                                 // when running as an ordinary test, limit run time to 1 min.
-                                bool limitTime = ReliabilityFramework.IsRunningAsUnitTest && !ReliabilityFramework.IsRunningAsReliabilityTest;
+                                bool limitTime = ReliabilityFramework.IsRunningAsUnitTest && !ReliabilityFramework.IsRunningLongGCTests;
 
                                 if (limitTime)
                                 {
@@ -403,7 +403,7 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                             // when running as an ordinary test, ignore the time limit from config.
                                             if (!limitTime)
                                             {
-                                                _curTestSet.MaximumTime = 5;
+                                                _curTestSet.MaximumTime = 10;
                                                 // _curTestSet.MaximumTime = ConvertTimeValueToTestRunTime(timeValue);
                                             }
 
