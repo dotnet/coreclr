@@ -116,6 +116,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
                                        DictionaryEntrySignatureSource   signatureSource,
                                        CORINFO_RUNTIME_LOOKUP*          pResult,
                                        WORD*                            pSlotOut,
+                                       DWORD                            scanFromSlot /* = 0 */,
                                        BOOL                             useEmptySlotIfFound /* = FALSE */)
 
 {
@@ -123,6 +124,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
     {
         STANDARD_VM_CHECK;
         PRECONDITION(numGenericArgs > 0);
+        PRECONDITION(scanFromSlot >= 0 && scanFromSlot < pDictLayout->m_numSlots);
         PRECONDITION(CheckPointer(pDictLayout));
         PRECONDITION(CheckPointer(pResult) && CheckPointer(pSlotOut));
         PRECONDITION(CheckPointer(pSig));
@@ -131,10 +133,40 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
     CONTRACTL_END
 
     // First slots contain the type parameters
-    _ASSERTE(FitsIn<WORD>(numGenericArgs));
-    WORD slot = static_cast<WORD>(numGenericArgs);
+    _ASSERTE(FitsIn<WORD>(numGenericArgs + scanFromSlot));
+    WORD slot = static_cast<WORD>(numGenericArgs + scanFromSlot);
 
-    for (DWORD iSlot = 0; iSlot < pDictLayout->m_numSlots; iSlot++)
+#if _DEBUG
+    if (scanFromSlot > 0)
+    {
+        _ASSERT(useEmptySlotIfFound);
+
+        for (DWORD iSlot = 0; iSlot < scanFromSlot; iSlot++)
+        {
+            // Verify that no entry before scanFromSlot matches the entry we're searching for
+            BYTE* pCandidate = (BYTE*)pDictLayout->m_slots[iSlot].m_signature;
+            if (pSigBuilder != NULL)
+            {
+                if (pDictLayout->m_slots[iSlot].m_signatureSource != FromReadyToRunImage)
+                {
+                    DWORD j;
+                    for (j = 0; j < cbSig; j++)
+                    {
+                        if (pCandidate[j] != pSig[j])
+                            break;
+                    }
+                    _ASSERT(j != cbSig);
+                }
+            }
+            else
+            {
+                _ASSERT(pCandidate != pSig);
+            }
+        }
+    }
+#endif
+
+    for (DWORD iSlot = scanFromSlot; iSlot < pDictLayout->m_numSlots; iSlot++)
     {
         BYTE* pCandidate = (BYTE*)pDictLayout->m_slots[iSlot].m_signature;
         if (pCandidate != NULL)
@@ -181,7 +213,10 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
         else
         {
             if (!useEmptySlotIfFound)
+            {
+                *pSlotOut = static_cast<WORD>(iSlot);
                 return FALSE;
+            }
 
             // A lock should be taken by FindToken before being allowed to use an empty slot in the layout
             _ASSERT(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
@@ -282,7 +317,7 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
     CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
-        if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, TRUE))
+        if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, *pSlotOut, TRUE))
             return TRUE;
         
 
@@ -339,7 +374,7 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
     CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
-        if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, TRUE))
+        if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, *pSlotOut, TRUE))
             return TRUE;
 
 #ifndef CROSSGEN_COMPILE
