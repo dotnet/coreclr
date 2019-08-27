@@ -8157,7 +8157,7 @@ private:
                 // tries hard to make sure the frame size means RSP will be
                 // 16-byte aligned, but for leaf functions without locals (i.e.
                 // frameSize = 0) it will not be.
-                int frameSize = codeGen->genTotalFrameSize();
+                const int frameSize = codeGen->genTotalFrameSize();
                 return ((8 - frameSize + off) % alignment) == 0;
             }
         }
