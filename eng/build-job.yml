@@ -6,7 +6,7 @@ parameters:
   container: ''
   crossrootfsDir: ''
   timeoutInMinutes: ''
-  perfBuild: ''
+  perfBuild: false
 
 ### Product build
 jobs:
