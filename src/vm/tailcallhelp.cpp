@@ -213,7 +213,8 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(const TailCallInfo& info)
     CreateStoreArgsStubSig(info, &sigBuilder);
 
     DWORD cbSig;
-    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigBuilder.GetSignature(&cbSig);
+    PCCOR_SIGNATURE pSig = AllocateSignature(
+        info.Caller->GetLoaderAllocator(), sigBuilder, &cbSig);
 
     SigTypeContext emptyCtx;
 
@@ -366,7 +367,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     CreateCallTargetStubSig(info, &sigBuilder);
 
     DWORD cbSig;
-    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigBuilder.GetSignature(&cbSig);
+    PCCOR_SIGNATURE pSig = AllocateSignature(info.Caller->GetLoaderAllocator(), sigBuilder, &cbSig);
 
     SigTypeContext emptyCtx;
 
@@ -513,7 +514,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
     pCode->EmitCALLI(pCode->GetSigToken(pCalliSig, cbCalliSig), argLocals.GetCount(), 1);
     pCode->EmitSTLOC(resultLcl);
-    // -----
 
     // tls->Frame = newFrameEntry.Prev
     pCode->EmitLDLOC(tlsLcl);
@@ -561,4 +561,16 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 #endif
 
     return pCallTargetMD;
+}
+
+PCCOR_SIGNATURE TailCallHelp::AllocateSignature(LoaderAllocator* alloc, SigBuilder& sig, DWORD* sigLen)
+{
+    PCCOR_SIGNATURE pBuilderSig = (PCCOR_SIGNATURE)sig.GetSignature(sigLen);
+
+    AllocMemTracker pamTracker;
+    PVOID pNewSig = pamTracker.Track(alloc->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(*sigLen)));
+    memcpy(pNewSig, pBuilderSig, *sigLen);
+
+    pamTracker.SuppressRelease();
+    return (PCCOR_SIGNATURE)pNewSig;
 }
