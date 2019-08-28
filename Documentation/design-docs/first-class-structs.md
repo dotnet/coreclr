@@ -72,6 +72,8 @@ Current Representation of Struct Values
 These struct-typed nodes are created by the importer, but transformed in morph, and so are not
 encountered by most phases of the JIT:
 * `GT_INDEX`: This is transformed to a `GT_IND`
+  * Currently, the IND is marked with `GTF_IND_ARR_INDEX` and the node pointer of the `GT_IND` acts as a key
+    into the array info map.
 * `GT_FIELD`: This is transformed to a `GT_LCL_FLD` or a `GT_IND`
 * `GT_MKREFANY`: This produces a "known" struct type, which is currently obtained by
   calling `impGetRefAnyClass()` which is a call over the JIT/EE interface. This node is always
@@ -91,13 +93,14 @@ encountered by most phases of the JIT:
     * These have no struct handle, resulting in some pessimization or even incorrect
       code when the appropriate struct handle can't be determined.
     * These never represent lvalues of structs that contain GC references.
-    * Proposed: Like `GT_OBJ`, these would have an index into the `ClassLayout` cache.
+    * Proposed: Like `GT_OBJ`, these would contain a pointer to the `ClassLayout`.
   * `GT_STORE_OBJ` and `GT_STORE_BLK` have the same structure as `GT_OBJ` and `GT_BLK`, respectively
     * `Data()` is op2
   * `GT_DYN_BLK` and `GT_STORE_DYN_BLK` (GenTreeDynBlk extends GenTreeBlk)
     * Additional child `gtDynamicSize`
     * Note that these aren't really struct types; they represent dynamically sized blocks
       of arbitrary data.
+  * For `GT_LCL_FLD` nodes, the shape information is obtained via an index into the `ClassLayout` cache.
   * For `GT_LCL_VAR` nodes, the shape information is obtained via the `LclVarDsc`
 
 ### Struct “objects” as rvalues
@@ -120,10 +123,9 @@ After morph, a struct-typed value on the RHS of assignment is one of:
 * `GT_IND`: in this case the LHS is expected to provide the struct handle
   * Proposed: `GT_IND` would no longer be used for struct types
 * `GT_CALL`
-* `GT_RET_EXPR`
 * `GT_LCL_VAR`
 * `GT_LCL_FLD`
-  * Proposed: These would only be used for actual fields.
+  * Proposed: `GT_LCL_FLD` would never be used to represent a reference to the full struct (e.g. as a different type).
 * `GT_SIMD`
 * `GT_OBJ` nodes can also be used as rvalues when they are call arguments
   * Proposed: `GT_OBJ` nodes can be used in any context where a struct rvalue or lvalue might occur,
@@ -136,8 +138,8 @@ There are three phases in the JIT that make changes to the representation of str
 
 * Importer
   * Vector types are normalized to the appropriate `TYP_SIMD*` type. Other struct nodes have `TYP_STRUCT`.
-  * Proposed: all struct-valued nodes that are created with a class handle will retain an index into
-    the `ClassLayout` cache.
+  * Proposed: all struct-valued nodes that are created with a class handle will retain either a `ClassLayout`
+    pointer or an index into the `ClassLayout` cache.
   * Proposed: Also normalize to new types `TYP_STRUCT1`, etc.
 
 * Struct promotion
@@ -152,14 +154,12 @@ There are three phases in the JIT that make changes to the representation of str
       * This includes removing unnecessary pessimizations of block copies. See [Improve and Simplify Block Assignment Morphing](#Block-Assignments).
 
   * Call args 
-    * If the struct has been promoted
-      * It is morphed to `GT_FIELD_LIST` if it is passed on the stack, or if it is passed
+    * If the struct has been promoted it is morphed to `GT_FIELD_LIST`
+      * Currently this is done only if it is passed on the stack, or if it is passed
         in registers that exactly match the types of its fields.
-        * Proposed: This transformation would be made even if it is passed in non-matching
-          registers. The necessary transformations for correct code generation would be
-          made in `Lowering`.
-      * If it is passed by reference, a copy is made, and that copy is passed according to
-        the appropriate rule below
+      * Proposed: This transformation would be made even if it is passed in non-matching
+        registers. The necessary transformations for correct code generation would be
+        made in `Lowering`.
 
     * If it is passed in a single register, it is morphed into a `GT_LCL_FLD` node of the appropriate
       type.
@@ -173,7 +173,10 @@ There are three phases in the JIT that make changes to the representation of str
         to a `GT_FIELD_LIST` with the appropriate load, assemble or extraction code as needed.
 
     * Otherwise, if it is passed by reference or on the stack, it is kept as `GT_OBJ` or `GT_LCL_VAR`
-      * If passed by reference, the value is either forced to the stack or copied.
+      * Currently, if passed by reference, the value is either forced to the stack or copied.
+      * Proposed: This transformation would also be deferred until `Lowering`, at which time the
+        liveness information can provide `lastUse` information to allow a dead struct to be passed
+        directly by reference instead of being copied.
 
 It is proposed to add the following transformations in `Lowering`:
 * Transform struct values that are passed to or returned from calls by creating one or more of the following:
@@ -181,6 +184,7 @@ It is proposed to add the following transformations in `Lowering`:
     registers.
   * `GT_BITCAST` when a promoted floating point field of a single-field struct is passed in an integer register.
   * A sequence of nodes to assemble or extract promoted fields
+* Introduce copies as needed for non-last-use struct values that are passed by reference.
 
 Work Items
 ----------
@@ -261,15 +265,21 @@ systems). They would be normalized in the importer just like the SIMD types.
    This would complicate type analysis when copied, passed or returned, but would avoid unnecessarily expanding
    the lclVar data structures.
 
-### <a name="Block-Assignments"/>Improve and Simplify Block Assignment Morphing
+### <a name="Block-Assignments"/>Improve and Simplify Block and Block Assignment Morphing
 
 * `fgMorphOneAsgBlockOp` should probably be eliminated, and its functionality either moved to
   `Lowering` or simply subsumed by the combination of the addition of fixed-size struct types and
-  the full enablement of struct optimizations.
+  the full enablement of struct optimizations. Doing so would also involve improving code generation
+  for block copies. See [\#21711 Improve init/copy block codegen](https://github.com/dotnet/coreclr/pull/21711).
 
 * This also includes cleanup of the block morphing methods such that block nodes needn't be visited multiple
   times, such as `fgMorphBlkToInd` (may be simply unneeded), `fgMorphBlkNode` and `fgMorphBlkOperand`.
   These methods were introduced to preserve old behavior, but should be simplified.
+
+* Somewhat related is the handling of struct-typed array elements. Currently, after the `GT_INDEX` is transformed
+  into a `GT_IND`, that node must be retained as the key into the `ArrayInfoMap`. For structs, this is then
+  wrapped in `OBJ(ADDR(...))`. We should be able to change the IND to OBJ and avoid wrapping, and should also be
+  able to remove the class handle from the array info map and instead used the one provided by the `GT_OBJ`.
 
 Struct-Related Issues in RyuJIT
 -------------------------------
