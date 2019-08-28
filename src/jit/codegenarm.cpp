@@ -1666,9 +1666,6 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     //
     genPrologPadForReJit();
 
-    // This will emit either
-    // "call ip-relative 32-bit offset" or
-    // "mov rax, helper addr; call rax"
     genEmitHelperCall(CORINFO_HELP_PROF_FCN_ENTER,
                       0,           // argSize. Again, we have to lie about it
                       EA_UNKNOWN); // retSize
