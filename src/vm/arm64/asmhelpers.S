@@ -1378,3 +1378,12 @@ LEAF_ENTRY  JIT_Stelem_DoWrite, _TEXT
     // single or multi-proc code based on the current CPU
     b       C_FUNC(JIT_WriteBarrier)
 LEAF_END JIT_Stelem_DoWrite, _TEXT
+
+#ifdef PROFILING_SUPPORTED
+
+// ------------------------------------------------------------------
+LEAF_ENTRY JIT_ProfilerEnterLeaveTailcallStub, _TEXT
+    ret     lr
+LEAF_END JIT_ProfilerEnterLeaveTailcallStub, _TEXT
+
+#endif

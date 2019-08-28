@@ -1600,7 +1600,17 @@ DoWrite
     ; Branch to the write barrier (which is already correctly overwritten with
     ; single or multi-proc code based on the current CPU
     b       JIT_WriteBarrier
-    LEAF_END 
-	
+    LEAF_END
+
+#ifdef PROFILING_SUPPORTED
+
+; ------------------------------------------------------------------
+; void JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
+   LEAF_ENTRY  JIT_ProfilerEnterLeaveTailcallStub
+   ret      lr
+   LEAF_END
+
+#endif
+
 ; Must be at very end of file
     END

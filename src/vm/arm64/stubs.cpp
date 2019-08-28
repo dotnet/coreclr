@@ -1070,12 +1070,6 @@ void emitCOMStubCall (ComCallMethodDesc *pCOMMethod, PCODE target)
 }
 #endif // FEATURE_COMINTEROP
 
-
-void STDMETHODCALLTYPE JIT_ProfilerEnterLeaveTailcallStub(UINT_PTR ProfilerHandle)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
 void JIT_TailCall() 
 {
     _ASSERTE(!"ARM64:NYI");
