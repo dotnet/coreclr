@@ -1716,13 +1716,20 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
     bool     r0Trashed;
     emitAttr attr = EA_UNKNOWN;
 
-    if (compiler->info.compRetType == TYP_VOID || (!compiler->info.compIsVarArgs && !compiler->opts.compUseSoftFP &&
-                                                   (varTypeIsFloating(compiler->info.compRetType) ||
-                                                    compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))))
+    if (compiler->info.compRetType == TYP_VOID)
     {
         r0Trashed = false;
     }
+    else if (varTypeIsFloating(compiler->info.compRetType) || compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))
+    {
+        r0Trashed = !compiler->info.compIsVarArgs && !compiler->opts.compUseSoftFP;
+    }
     else
+    {
+        r0Trashed = true;
+    }
+
+    if (r0Trashed)
     {
         // Has a return value and r0 is in use. For emitting Leave profiler callout we would need r0 for passing
         // profiler handle. Therefore, r0 is moved to REG_PROFILER_RETURN_SCRATCH as per contract.
@@ -1744,7 +1751,6 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
         getEmitter()->emitIns_R_R(INS_mov, attr, REG_PROFILER_RET_SCRATCH, REG_ARG_0);
         regSet.verifyRegUsed(REG_PROFILER_RET_SCRATCH);
         gcInfo.gcMarkRegSetNpt(RBM_ARG_0);
-        r0Trashed = true;
     }
 
     if (compiler->compProfilerMethHndIndirected)
