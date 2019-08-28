@@ -24,21 +24,31 @@ struct TailCallTls
     void* ArgBufferGCDesc;
 };
 
-// TODO: TLS
 static NewTailCallFrame g_sentinelTailCallFrame;
-static TailCallTls g_tailCallTls = { &g_sentinelTailCallFrame, NULL, NULL };
+// TODO: This should maybe be on Thread instead.
+static __thread TailCallTls g_tailCallTls = { &g_sentinelTailCallFrame, NULL, NULL };
+static INT32 g_argBufferSize;
 
 FCIMPL2(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size, void* gcDesc)
 {
     FCALL_CONTRACT;
-    g_tailCallTls.ArgBuffer = new char[size];
-    if (gcDesc)
+
+    TailCallTls* tls = &g_tailCallTls;
+
+    if (size > g_argBufferSize)
     {
-        memset(g_tailCallTls.ArgBuffer, 0, size);
-        g_tailCallTls.ArgBufferGCDesc = gcDesc;
+        delete[] tls->ArgBuffer;
+        tls->ArgBuffer = new char[size];
+        g_argBufferSize = size;
     }
 
-    return g_tailCallTls.ArgBuffer;
+    if (gcDesc)
+    {
+        memset(tls->ArgBuffer, 0, g_argBufferSize);
+        tls->ArgBufferGCDesc = gcDesc;
+    }
+
+    return tls->ArgBuffer;
 }
 FCIMPLEND
 
@@ -46,8 +56,6 @@ FCIMPL0(void, TailCallHelp::FreeTailCallArgBuffer)
 {
     FCALL_CONTRACT;
     g_tailCallTls.ArgBufferGCDesc = NULL;
-    delete[] g_tailCallTls.ArgBuffer;
-    g_tailCallTls.ArgBuffer = NULL;
 }
 FCIMPLEND
 
