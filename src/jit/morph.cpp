@@ -7552,18 +7552,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         compCurBB->bbJumpKind = BBJ_RETURN;
     }
 
-    // Do some target-specific transformations (before we process the args, etc.)
-    // This is needed only for tail prefixed calls that cannot be dispatched as
-    // fast calls.
-    if (call->IsTailCallViaHelper())
-    {
-        fgMorphTailCallViaHelper(call, storeArgsStubHnd, callTargetStubHnd);
-
-        // Force re-evaluating the argInfo. fgMorphTailCallViaHelper will modify the
-        // argument list, invalidating the argInfo.
-        call->fgArgInfo = nullptr;
-    }
-
     GenTree* stmtExpr = fgMorphStmt->gtStmtExpr;
 
 #ifdef DEBUG
@@ -7608,6 +7596,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(treeWithCall == call);
     }
 #endif
+
     GenTreeStmt* nextMorphStmt = fgMorphStmt->gtNextStmt;
     // Remove all stmts after the call.
     while (nextMorphStmt != nullptr)
@@ -7619,52 +7608,25 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 
     fgMorphStmt->gtStmtExpr = call;
 
-    // Tail call via helper: The VM can't use return address hijacking if we're
-    // not going to return and the helper doesn't have enough info to safely poll,
-    // so we poll before the tail call, if the block isn't already safe.  Since
-    // tail call via helper is a slow mechanism it doen't matter whether we emit
-    // GC poll.  This is done to be in parity with Jit64. Also this avoids GC info
-    // size increase if all most all methods are expected to be tail calls (e.g. F#).
-    //
-    // Note that we can avoid emitting GC-poll if we know that the current BB is
-    // dominated by a Gc-SafePoint block.  But we don't have dominator info at this
-    // point.  One option is to just add a place holder node for GC-poll (e.g. GT_GCPOLL)
-    // here and remove it in lowering if the block is dominated by a GC-SafePoint.  For
-    // now it not clear whether optimizing slow tail calls is worth the effort.  As a
-    // low cost check, we check whether the first and current basic blocks are
-    // GC-SafePoints.
-    //
-    // Fast Tail call as epilog+jmp - No need to insert GC-poll. Instead, fgSetBlockOrder()
-    // is going to mark the method as fully interruptible if the block containing this tail
-    // call is reachable without executing any call.
-    if (canFastTailCall || (fgFirstBB->bbFlags & BBF_GC_SAFE_POINT) || (compCurBB->bbFlags & BBF_GC_SAFE_POINT) ||
-        !fgCreateGCPoll(GCPOLL_INLINE, compCurBB))
+    // For helper-based tailcalls we transform into multiple calls where the
+    // last call is a fast tailcall. This will modify fgMorphStmt.
+    if (call->IsTailCallViaHelper())
     {
-        // We didn't insert a poll block, so we need to morph the call now
-        // (Normally it will get morphed when we get to the split poll block)
-        GenTree* temp = fgMorphCall(call);
-        noway_assert(temp == call);
-    }
-
-    // Tail call via helper: we just call CORINFO_HELP_TAILCALL, and it jumps to
-    // the target. So we don't need an epilog - just like CORINFO_HELP_THROW.
-    //
-    // Fast tail call: in case of fast tail calls, we need a jmp epilog and
-    // hence mark it as BBJ_RETURN with BBF_JMP flag set.
-    noway_assert(compCurBB->bbJumpKind == BBJ_RETURN);
-
-    if (canFastTailCall)
-    {
-        compCurBB->bbFlags |= BBF_HAS_JMP;
+        fgMorphTailCallViaHelper(call, storeArgsStubHnd, callTargetStubHnd);
     }
     else
     {
-        compCurBB->bbJumpKind = BBJ_THROW;
+        fgMorphCall(call);
     }
 
-    // For non-void calls, we return a place holder which will be
-    // used by the parent GT_RETURN node of this call.
+    // Fast tail call: in case of fast tail calls, we need a jmp epilog and
+    // hence mark it as BBJ_RETURN with BBF_JMP flag set.
+    noway_assert(compCurBB->bbJumpKind == BBJ_RETURN);
+    compCurBB->bbFlags |= BBF_HAS_JMP;
 
+    // For non-void calls, we return a place holder which will be used by the
+    // parent GT_RETURN node of this call (note that we have already removed
+    // this return above).
     GenTree* result = call;
     if (origCallType != TYP_VOID && info.compRetType != TYP_VOID)
     {
@@ -7724,10 +7686,39 @@ void Compiler::fgMorphTailCallViaHelper(
     // TODO: instance methods
     assert(!call->gtCallObjp);
 
-    NYI("Tailcall via helper unsupported");
+    // We wish to transform
+    // tail foo(a, b)
+    // into
+    // StoreArgs(&foo, a, b)
+    // tail CallTarget().
+    // We will morph to
+    // foo(&StoreArgs, a, b)
+    // tail CallTarget()
+    // (notice swapped foo and StoreArgs). This hack will let us calculate the
+    // target address as normal after which let Lowering::LowerTailCallViaHelper
+    // deals with swapping the first arg and target.
+
+    GenTree* storeArgs    = gtNewIconHandleNode((size_t)storeArgsStubHnd, GTF_ICON_METHOD_HDL);
+    call->gtCallArgs      = gtNewListNode(storeArgs, call->gtCallArgs);
+    call->fgArgInfo       = nullptr;
+
+    GenTree* temp = fgMorphCall(call);
+    noway_assert(temp == call);
+
+    // Add the tailcall
+    GenTreeCall* callTarget = gtNewCallNode(
+        CT_USER_FUNC, callTargetStubHnd, call->TypeGet(), nullptr, fgMorphStmt->gtStmtILoffsx);
+
+    temp = fgMorphCall(callTarget);
+    noway_assert(temp == callTarget);
+    callTarget->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
+
+    GenTreeStmt* callTargetStmt = fgNewStmtFromTree(callTarget, fgMorphStmt->gtStmtILoffsx);
+    fgInsertStmtAtEnd(compCurBB, callTargetStmt);
 
     JITDUMP("fgMorphTailCallViaHelper (after):\n");
     DISPTREE(call);
+    DISPTREE(callTarget);
 }
 
 //------------------------------------------------------------------------
@@ -15361,41 +15352,13 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             morph = stmt->gtStmtExpr;
             noway_assert(compTailCallUsed);
             noway_assert((morph->gtOper == GT_CALL) && morph->AsCall()->IsTailCall());
-            noway_assert(stmt->gtNextStmt == nullptr);
 
-            GenTreeCall* call = morph->AsCall();
-            // Could either be
-            //   - a tail call dispatched via helper in which case block will be ending with BBJ_THROW or
-            //   - a fast call made as jmp in which case block will be ending with BBJ_RETURN and marked as containing
-            //     a jmp.
-            noway_assert((call->IsTailCallViaHelper() && (compCurBB->bbJumpKind == BBJ_THROW)) ||
-                         (call->IsFastTailCall() && (compCurBB->bbJumpKind == BBJ_RETURN) &&
-                          (compCurBB->bbFlags & BBF_HAS_JMP)));
-        }
-        else if (block != compCurBB)
-        {
-            /* This must be a tail call that caused a GCPoll to get
-               injected.  We haven't actually morphed the call yet
-               but the flag still got set, clear it here...  */
-            CLANG_FORMAT_COMMENT_ANCHOR;
+            // Slow tailcalls are transformed into storage of args + a fast
+            // tailcall and fast tailcalls always end with BBJ_RETURN.
+            noway_assert((compCurBB->bbJumpKind == BBJ_RETURN) &&
+                         (compCurBB->bbFlags & BBF_HAS_JMP));
 
-#ifdef DEBUG
-            tree->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
-#endif
-
-            noway_assert(compTailCallUsed);
-            noway_assert((tree->gtOper == GT_CALL) && tree->AsCall()->IsTailCall());
-            noway_assert(stmt->gtNextStmt == nullptr);
-
-            GenTreeCall* call = morph->AsCall();
-
-            // Could either be
-            //   - a tail call dispatched via helper in which case block will be ending with BBJ_THROW or
-            //   - a fast call made as jmp in which case block will be ending with BBJ_RETURN and marked as containing
-            //     a jmp.
-            noway_assert((call->IsTailCallViaHelper() && (compCurBB->bbJumpKind == BBJ_THROW)) ||
-                         (call->IsFastTailCall() && (compCurBB->bbJumpKind == BBJ_RETURN) &&
-                          (compCurBB->bbFlags & BBF_HAS_JMP)));
+            continue;
         }
 
 #ifdef DEBUG

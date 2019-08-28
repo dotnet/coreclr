@@ -2193,105 +2193,34 @@ GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget
     // The callTarget tree needs to be sequenced.
     LIR::Range callTargetRange = LIR::SeqTree(comp, callTarget);
 
-#if defined(_TARGET_AMD64_) || defined(_TARGET_ARM_)
-
-    // For ARM32 and AMD64, first argument is CopyRoutine and second argument is a place holder node.
+    // First argument will be the 'actual' target.
     fgArgTabEntry* argEntry;
 
-#ifdef DEBUG
+    // First arg at this point will be the 'store args' stub. Swap it so we call
+    // it passing the target as the first arg instead.
     argEntry = comp->gtArgEntryByArgNum(call, 0);
     assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_REG);
     GenTree* firstArg = argEntry->node->gtOp.gtOp1;
-    assert(firstArg->gtOper == GT_CNS_INT);
-#endif
-
-    // Replace second arg by callTarget.
-    argEntry = comp->gtArgEntryByArgNum(call, 1);
-    assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_REG);
-    GenTree* secondArg = argEntry->node->gtOp.gtOp1;
+    assert(firstArg->IsIntegralConst());
+    CORINFO_METHOD_HANDLE storeArgs = (CORINFO_METHOD_HANDLE)firstArg->AsIntConCommon()->IconValue();
 
     ContainCheckRange(callTargetRange);
-    BlockRange().InsertAfter(secondArg, std::move(callTargetRange));
+    BlockRange().InsertAfter(firstArg, std::move(callTargetRange));
 
     bool               isClosed;
-    LIR::ReadOnlyRange secondArgRange = BlockRange().GetTreeRange(secondArg, &isClosed);
+    LIR::ReadOnlyRange firstArgRange = BlockRange().GetTreeRange(firstArg, &isClosed);
     assert(isClosed);
 
-    BlockRange().Remove(std::move(secondArgRange));
+    BlockRange().Remove(std::move(firstArgRange));
 
     argEntry->node->gtOp.gtOp1 = callTarget;
-
-#elif defined(_TARGET_X86_)
-
-    // Verify the special args are what we expect, and replace the dummy args with real values.
-    // We need to figure out the size of the outgoing stack arguments, not including the special args.
-    // The number of 4-byte words is passed to the helper for the incoming and outgoing argument sizes.
-    // This number is exactly the next slot number in the call's argument info struct.
-    unsigned nNewStkArgsWords = call->fgArgInfo->GetNextSlotNum();
-    assert(nNewStkArgsWords >= 4); // There must be at least the four special stack args.
-    nNewStkArgsWords -= 4;
-
-    unsigned numArgs = call->fgArgInfo->ArgCount();
-
-    fgArgTabEntry* argEntry;
-
-    // arg 0 == callTarget.
-    argEntry = comp->gtArgEntryByArgNum(call, numArgs - 1);
-    assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg0 = argEntry->node->gtOp.gtOp1;
-
-    ContainCheckRange(callTargetRange);
-    BlockRange().InsertAfter(arg0, std::move(callTargetRange));
-
-    bool               isClosed;
-    LIR::ReadOnlyRange secondArgRange = BlockRange().GetTreeRange(arg0, &isClosed);
-    assert(isClosed);
-    BlockRange().Remove(std::move(secondArgRange));
-
-    argEntry->node->gtOp.gtOp1 = callTarget;
-
-    // arg 1 == flags
-    argEntry = comp->gtArgEntryByArgNum(call, numArgs - 2);
-    assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg1 = argEntry->node->gtOp.gtOp1;
-    assert(arg1->gtOper == GT_CNS_INT);
-
-    ssize_t tailCallHelperFlags = 1 |                                  // always restore EDI,ESI,EBX
-                                  (call->IsVirtualStub() ? 0x2 : 0x0); // Stub dispatch flag
-    arg1->gtIntCon.gtIconVal = tailCallHelperFlags;
-
-    // arg 2 == numberOfNewStackArgsWords
-    argEntry = comp->gtArgEntryByArgNum(call, numArgs - 3);
-    assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg2 = argEntry->node->gtOp.gtOp1;
-    assert(arg2->gtOper == GT_CNS_INT);
-
-    arg2->gtIntCon.gtIconVal = nNewStkArgsWords;
-
-#ifdef DEBUG
-    // arg 3 == numberOfOldStackArgsWords
-    argEntry = comp->gtArgEntryByArgNum(call, numArgs - 4);
-    assert(argEntry != nullptr);
-    assert(argEntry->node->gtOper == GT_PUTARG_STK);
-    GenTree* arg3 = argEntry->node->gtOp.gtOp1;
-    assert(arg3->gtOper == GT_CNS_INT);
-#endif // DEBUG
-
-#else
-    NYI("LowerTailCallViaHelper");
-#endif // _TARGET_*
 
     // Transform this call node into a call to Jit tail call helper.
-    call->gtCallType    = CT_HELPER;
-    call->gtCallMethHnd = comp->eeFindHelper(CORINFO_HELP_TAILCALL);
+    call->gtCallType    = CT_USER_FUNC;
+    call->gtCallMethHnd = storeArgs;
     call->gtFlags &= ~GTF_CALL_VIRT_KIND_MASK;
 
-    // Lower this as if it were a pure helper call.
+    // Lower this as if it were a normal call.
     call->gtCallMoreFlags &= ~(GTF_CALL_M_TAILCALL | GTF_CALL_M_TAILCALL_VIA_HELPER);
     GenTree* result = LowerDirectCall(call);
 
@@ -3049,6 +2978,8 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
     {
         case IAT_VALUE:
             // Non-virtual direct call to known address
+            // For helper based tailcall the target address is passed as an
+            // arg to the store args stub so we want a node for it.
             if (!IsCallTargetInRange(addr) || call->IsTailCallViaHelper())
             {
                 result = AddrGen(addr);
