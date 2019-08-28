@@ -338,6 +338,9 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
         // can start using newly added dictionary layout slots on types where the PerInstInfo hasn't expanded yet, and cause runtime failures.
         pMT->GetClass()->SetDictionaryLayout(pNewLayout);
 
+        // Ensure no other thread uses old dictionary pointers
+        FlushProcessWriteBuffers();
+
         return TRUE;
 #else
         pResult->signature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, 0);
@@ -393,6 +396,9 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
         // DictionaryLayout::FindToken can use this. It is important to update the dictionary layout at the very last step, otherwise some other threads
         // can start using newly added dictionary layout slots on methods where the PerInstInfo hasn't expanded yet, and cause runtime failures.
         pMD->AsInstantiatedMethodDesc()->IMD_SetDictionaryLayout(pNewLayout);
+
+        // Ensure no other thread uses old dictionary pointers
+        FlushProcessWriteBuffers();
 
         return TRUE;
 #else
