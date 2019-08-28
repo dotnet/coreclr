@@ -8,7 +8,7 @@
 #include "fcall.h"
 
 struct TailCallInfo;
-struct ArgBufferOrigArg;
+struct ArgBufferValue;
 struct ArgBufferLayout;
 struct NewTailCallFrame; // todo; drop new prefix
 
@@ -26,7 +26,7 @@ public:
 private:
     static void LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout);
     static TypeHandle NormalizeSigType(TypeHandle tyHnd);
-    static bool GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder);
+    static bool GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GCRefMapBuilder* builder);
 
     static MethodDesc* CreateStoreArgsStub(const TailCallInfo& info);
     static void CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* sig);

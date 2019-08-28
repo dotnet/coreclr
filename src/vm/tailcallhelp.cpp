@@ -66,18 +66,13 @@ FCIMPL0(void*, TailCallHelp::GetTailCallTls)
 }
 FCIMPLEND
 
-struct ArgBufferOrigArg
+struct ArgBufferValue
 {
     TypeHandle TyHnd;
-    SigPointer SigProps;
     unsigned int Offset;
 
-    ArgBufferOrigArg(
-        TypeHandle tyHnd = TypeHandle(),
-        SigPointer sigProps = SigPointer(),
-        unsigned int offset = 0)
+    ArgBufferValue(TypeHandle tyHnd = TypeHandle(), unsigned int offset = 0)
         : TyHnd(tyHnd)
-        , SigProps(sigProps)
         , Offset(offset)
     {
     }
@@ -86,17 +81,13 @@ struct ArgBufferOrigArg
 struct ArgBufferLayout
 {
     unsigned int TargetAddressOffset;
-    bool HasThisPointer;
-    unsigned int ThisPointerOffset;
-    InlineSArray<ArgBufferOrigArg, 8> OrigArgs;
+    InlineSArray<ArgBufferValue, 8> Values;
     bool HasGCDescriptor;
     GCRefMapBuilder GCRefMapBuilder;
     unsigned int Size;
 
     ArgBufferLayout()
         : TargetAddressOffset(0)
-        , HasThisPointer(false)
-        , ThisPointerOffset(0)
         , HasGCDescriptor(false)
         , Size(0)
     {
@@ -152,8 +143,8 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout
     // User args
     if (callSiteSig.HasThis())
     {
-        layout->HasThisPointer = true;
-        layout->ThisPointerOffset = offs;
+        TypeHandle objHnd = TypeHandle(g_pObjectClass);
+        layout->Values.Append(ArgBufferValue(objHnd, offs));
         offs += TARGET_POINTER_SIZE;
     }
 
@@ -166,12 +157,12 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout
         unsigned int alignment = CEEInfo::getClassAlignmentRequirementStatic(tyHnd);
         offs = AlignUp(offs, alignment);
 
-        layout->OrigArgs.Append(ArgBufferOrigArg(tyHnd, callSiteSig.GetArgProps(), offs));
+        layout->Values.Append(ArgBufferValue(tyHnd, offs));
 
         offs += tyHnd.GetSize();
     }
 
-    layout->HasGCDescriptor = GenerateGCDescriptor(layout->OrigArgs, &layout->GCRefMapBuilder);
+    layout->HasGCDescriptor = GenerateGCDescriptor(layout->Values, &layout->GCRefMapBuilder);
     layout->Size = offs;
 }
 
@@ -196,12 +187,12 @@ TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
     return tyHnd;
 }
 
-bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferOrigArg>& args, GCRefMapBuilder* builder)
+bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GCRefMapBuilder* builder)
 {
     bool anyGC = false;
-    for (COUNT_T i = 0; i < args.GetCount(); i++)
+    for (COUNT_T i = 0; i < values.GetCount(); i++)
     {
-        TypeHandle tyHnd = args[i].TyHnd;
+        TypeHandle tyHnd = values[i].TyHnd;
         if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
             continue;
 
@@ -258,16 +249,9 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(const TailCallInfo& info)
     pCode->EmitLDARG(argIndex++);
     pCode->EmitSTIND_I();
 
-    if (info.ArgBufLayout.HasThisPointer)
+    for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
-        emitOffs(info.ArgBufLayout.ThisPointerOffset);
-        pCode->EmitLDARG(argIndex++);
-        pCode->EmitSTIND_I();
-    }
-
-    for (COUNT_T i = 0; i < info.ArgBufLayout.OrigArgs.GetCount(); i++)
-    {
-        const ArgBufferOrigArg& arg = info.ArgBufLayout.OrigArgs[i];
+        const ArgBufferValue& arg = info.ArgBufLayout.Values[i];
         emitOffs(arg.Offset);
         pCode->EmitLDARG(argIndex++);
         pCode->EmitSTOBJ(pCode->GetToken(arg.TyHnd));
@@ -313,9 +297,7 @@ void TailCallHelp::CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* 
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
     ULONG paramCount = 1; // Target address
-    paramCount += info.ArgBufLayout.OrigArgs.GetCount(); // user args
-    if (info.ArgBufLayout.HasThisPointer)
-        paramCount++;
+    paramCount += info.ArgBufLayout.Values.GetCount(); // user args including 'this'
     
     sig->AppendData(paramCount);
 
@@ -325,17 +307,10 @@ void TailCallHelp::CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* 
     // First arg is the target pointer
     sig->AppendElementType(ELEMENT_TYPE_I);
 
-    if (info.ArgBufLayout.HasThisPointer)
-    {
-        // TODO: Handle value type (this pointer should be a by-ref)
-        _ASSERTE(info.Callee == nullptr || !info.Callee->GetCanonicalMethodTable()->IsValueType());
-        sig->AppendElementType(ELEMENT_TYPE_OBJECT);
-    }
-
-    for (COUNT_T i = 0; i < info.ArgBufLayout.OrigArgs.GetCount(); i++)
+    for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
         sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
-        sig->AppendPointer(info.ArgBufLayout.OrigArgs[i].TyHnd.AsPtr());
+        sig->AppendPointer(info.ArgBufLayout.Values[i].TyHnd.AsPtr());
     }
 
 #ifdef _DEBUG
@@ -464,31 +439,27 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
     SigBuilder calliSig;
 
-    StackSArray<DWORD> argLocals;
-    if (info.ArgBufLayout.HasThisPointer)
+    if (info.CallSiteSig->HasThis())
     {
-        DWORD argLcl = pCode->NewLocal(ELEMENT_TYPE_OBJECT);
-        argLocals.Append(argLcl);
-
-        // arg = args->ThisPointer
-        emitOffs(info.ArgBufLayout.ThisPointerOffset);
-        pCode->EmitLDIND_REF();
-        pCode->EmitSTLOC(argLcl);
+        _ASSERTE(info.ArgBufLayout.Values.GetCount() > 0);
 
         calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS);
+        calliSig.AppendData(info.ArgBufLayout.Values.GetCount() - 1);
     }
     else
+    {
         calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
+        calliSig.AppendData(info.ArgBufLayout.Values.GetCount());
+    }
 
-    // Num params
-    calliSig.AppendData(info.ArgBufLayout.OrigArgs.GetCount());
     // Return type
     calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
     calliSig.AppendPointer(info.RetTyHnd.AsPtr());
 
-    for (COUNT_T i = 0; i < info.ArgBufLayout.OrigArgs.GetCount(); i++)
+    StackSArray<DWORD> argLocals;
+    for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
-        const ArgBufferOrigArg& arg = info.ArgBufLayout.OrigArgs[i];
+        const ArgBufferValue& arg = info.ArgBufLayout.Values[i];
         DWORD argLcl = pCode->NewLocal(LocalDesc(arg.TyHnd));
         argLocals.Append(argLcl);
 
