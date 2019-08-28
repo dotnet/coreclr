@@ -338,10 +338,11 @@ NativeImagePerfMap::NativeImagePerfMap(Assembly * pAssembly, BSTR pDestPath)
     OpenFile(sDestPerfMapPath);
 
     // Determine whether to emit RVAs or file offsets based on the specified configuration.
+    m_EmitRVAs = true;
     CLRConfigStringHolder wszFormat(CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_NativeImagePerfMapFormat));
-    if(wszFormat != NULL && (wcsncmp(wszFormat, strRVA, wcslen(strRVA)) == 0))
+    if(wszFormat != NULL && (wcsncmp(wszFormat, strOFFSET, wcslen(strOFFSET)) == 0))
     {
-        m_EmitRVAs = true;
+        m_EmitRVAs = false;
     }
 }
 

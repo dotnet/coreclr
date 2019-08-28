@@ -81,7 +81,7 @@ public:
 class NativeImagePerfMap : PerfMap
 {
 private:
-    const WCHAR *strRVA = W("RVA");
+    const WCHAR *strOFFSET = W("OFFSET");
 
     // Specify the address format since it's now possible for 'perf script' to output file offsets or RVAs.
     bool m_EmitRVAs;
