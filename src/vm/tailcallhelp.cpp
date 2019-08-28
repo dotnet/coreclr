@@ -261,6 +261,9 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
         const ArgBufferValue& arg = info.ArgBufLayout.Values[i];
         emitOffs(arg.Offset);
         pCode->EmitLDARG(argIndex++);
+        // TODO: We should be able to avoid write barriers as we are always
+        // writing into TLS which needs special GC treatment anyway. However JIT
+        // currently asserts if we use CPBLK or similar.
         pCode->EmitSTOBJ(pCode->GetToken(arg.TyHnd));
     }
 
