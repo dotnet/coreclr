@@ -200,13 +200,12 @@ bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GC
             continue;
 
         anyGC = true;
-        _ASSERTE(!"Requires GC descriptor");
     }
 
     return anyGC;
 }
 
-MethodDesc* TailCallHelp::CreateStoreArgsStub(const TailCallInfo& info)
+MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
 {
     SigBuilder sigBuilder;
     CreateStoreArgsStubSig(info, &sigBuilder);
@@ -228,8 +227,16 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(const TailCallInfo& info)
 
     DWORD bufferLcl = pCode->NewLocal(ELEMENT_TYPE_I);
 
+    void* pGcDesc = NULL;
+    if (info.ArgBufLayout.HasGCDescriptor)
+    {
+        DWORD gcDescLen;
+        PVOID gcDesc = info.ArgBufLayout.GCRefMapBuilder.GetBlob(&gcDescLen);
+        pGcDesc = AllocateBlob(info.Caller->GetLoaderAllocator(), gcDesc, gcDescLen);
+    }
+
     pCode->EmitLDC(info.ArgBufLayout.Size);
-    pCode->EmitLDC(0);
+    pCode->EmitLDC(DWORD_PTR(pGcDesc));
     pCode->EmitCONV_I();
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__ALLOC_TAILCALL_ARG_BUFFER, 2, 1);
     pCode->EmitSTLOC(bufferLcl);
@@ -545,11 +552,15 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 PCCOR_SIGNATURE TailCallHelp::AllocateSignature(LoaderAllocator* alloc, SigBuilder& sig, DWORD* sigLen)
 {
     PCCOR_SIGNATURE pBuilderSig = (PCCOR_SIGNATURE)sig.GetSignature(sigLen);
+    return (PCCOR_SIGNATURE)AllocateBlob(alloc, pBuilderSig, *sigLen);
+}
 
+void* TailCallHelp::AllocateBlob(LoaderAllocator* alloc, const void* blob, size_t blobLen)
+{
     AllocMemTracker pamTracker;
-    PVOID pNewSig = pamTracker.Track(alloc->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(*sigLen)));
-    memcpy(pNewSig, pBuilderSig, *sigLen);
+    PVOID newBlob = pamTracker.Track(alloc->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(blobLen)));
+    memcpy(newBlob, blob, blobLen);
 
     pamTracker.SuppressRelease();
-    return (PCCOR_SIGNATURE)pNewSig;
+    return newBlob;
 }

@@ -28,13 +28,14 @@ private:
     static TypeHandle NormalizeSigType(TypeHandle tyHnd);
     static bool GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GCRefMapBuilder* builder);
 
-    static MethodDesc* CreateStoreArgsStub(const TailCallInfo& info);
+    static MethodDesc* CreateStoreArgsStub(TailCallInfo& info);
     static void CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* sig);
 
     static MethodDesc* CreateCallTargetStub(const TailCallInfo& info);
     static void CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig);
 
     static PCCOR_SIGNATURE AllocateSignature(LoaderAllocator* alloc, SigBuilder& sig, DWORD* sigLen);
+    static void* AllocateBlob(LoaderAllocator* alloc, const void* blob, size_t blobLen);
 };
 
 #endif
