@@ -7683,23 +7683,92 @@ void Compiler::fgMorphTailCallViaHelper(
     assert(!call->IsImplicitTailCall());
     assert(!fgCanFastTailCall(call));
 
-    // TODO: instance methods
-    assert(!call->gtCallObjp);
-
     // We wish to transform
-    // tail foo(a, b)
+    // tail obj.foo(a, b)
     // into
-    // StoreArgs(&foo, a, b)
+    // StoreArgs(&foo, obj, a, b)
     // tail CallTarget().
     // We will morph to
-    // foo(&StoreArgs, a, b)
+    // foo(&StoreArgs, obj, a, b)
     // tail CallTarget()
     // (notice swapped foo and StoreArgs). This hack will let us calculate the
-    // target address as normal after which let Lowering::LowerTailCallViaHelper
-    // deals with swapping the first arg and target.
+    // target address as normal after which we let
+    // Lowering::LowerTailCallViaHelper deals with swapping the first arg and
+    // target.
+
+    assert(!call->IsVirtual());
+
+    // Put 'this' in normal param list
+    if (call->gtCallObjp)
+    {
+        GenTree* thisPtr = nullptr;
+        GenTree* objp    = call->gtCallObjp;
+        call->gtCallObjp = nullptr;
+
+#ifdef _TARGET_X86_
+        if ((call->IsDelegateInvoke() || call->IsVirtualVtable()) && !objp->IsLocal())
+        {
+            // tmp = "this"
+            unsigned lclNum = lvaGrabTemp(true DEBUGARG("tail call thisptr"));
+            GenTree* asg    = gtNewTempAssign(lclNum, objp);
+
+            // COMMA(tmp = "this", tmp)
+            var_types vt  = objp->TypeGet();
+            GenTree*  tmp = gtNewLclvNode(lclNum, vt);
+            thisPtr       = gtNewOperNode(GT_COMMA, vt, asg, tmp);
+
+            objp = thisPtr;
+        }
+#endif // _TARGET_X86_
+
+        if (call->NeedsNullCheck())
+        {
+            // clone "this" if "this" has no side effects.
+            if ((thisPtr == nullptr) && !(objp->gtFlags & GTF_SIDE_EFFECT))
+            {
+                thisPtr = gtClone(objp, true);
+            }
+
+            var_types vt = objp->TypeGet();
+            if (thisPtr == nullptr)
+            {
+                // create a temp if either "this" has side effects or "this" is too complex to clone.
+
+                // tmp = "this"
+                unsigned lclNum = lvaGrabTemp(true DEBUGARG("tail call thisptr"));
+                GenTree* asg    = gtNewTempAssign(lclNum, objp);
+
+                // COMMA(tmp = "this", deref(tmp))
+                GenTree* tmp = gtNewLclvNode(lclNum, vt);
+                GenTree* ind = gtNewOperNode(GT_IND, TYP_INT, tmp);
+                asg          = gtNewOperNode(GT_COMMA, TYP_VOID, asg, ind);
+
+                // COMMA(COMMA(tmp = "this", deref(tmp)), tmp)
+                thisPtr = gtNewOperNode(GT_COMMA, vt, asg, gtNewLclvNode(lclNum, vt));
+            }
+            else
+            {
+                // thisPtr = COMMA(deref("this"), "this")
+                GenTree* ind = gtNewOperNode(GT_IND, TYP_INT, thisPtr);
+                thisPtr      = gtNewOperNode(GT_COMMA, vt, ind, gtClone(objp, true));
+            }
+
+            call->gtFlags &= ~GTF_CALL_NULLCHECK;
+        }
+        else
+        {
+            thisPtr = objp;
+        }
+
+        // During rationalization tmp="this" and null check will
+        // materialize as embedded stmts in right execution order.
+        assert(thisPtr != nullptr);
+        call->gtCallArgs = gtNewListNode(thisPtr, call->gtCallArgs);
+    }
 
     GenTree* storeArgs    = gtNewIconHandleNode((size_t)storeArgsStubHnd, GTF_ICON_METHOD_HDL);
     call->gtCallArgs      = gtNewListNode(storeArgs, call->gtCallArgs);
+
     call->fgArgInfo       = nullptr;
 
     GenTree* temp = fgMorphCall(call);
