@@ -128,7 +128,8 @@ void CodeGen::genHWIntrinsic(GenTreeHWIntrinsic* node)
                         if ((category == HW_Category_SIMDScalar) && HWIntrinsicInfo::CopiesUpperBits(intrinsicId))
                         {
                             assert(!op1->isContained());
-                            emit->emitIns_SIMD_R_R_R_I(ins, simdSize, targetReg, op1Reg, op1Reg, static_cast<int8_t>(ival));
+                            emit->emitIns_SIMD_R_R_R_I(ins, simdSize, targetReg, op1Reg, op1Reg,
+                                                       static_cast<int8_t>(ival));
                         }
                         else
                         {
