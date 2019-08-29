@@ -2728,7 +2728,7 @@ heap_segment* gc_heap::ephemeral_heap_segment = 0;
 
 BOOL        gc_heap::blocking_collection = FALSE;
 
-heap_segment* gc_heap::freeable_large_heap_segment = 0;
+heap_segment* gc_heap::freeable_ploh_segment = 0;
 
 size_t      gc_heap::time_bgc_last = 0;
 
@@ -9957,17 +9957,17 @@ void gc_heap::rearrange_small_heap_segments()
 }
 #endif //BACKGROUND_GC
 
-void gc_heap::rearrange_large_heap_segments()
+void gc_heap::rearrange_ploh_segments()
 {
     dprintf (2, ("deleting empty large segments"));
-    heap_segment* seg = freeable_large_heap_segment;
+    heap_segment* seg = freeable_ploh_segment;
     while (seg)
     {
         heap_segment* next_seg = heap_segment_next (seg);
         delete_heap_segment (seg, GCConfig::GetRetainVM());
         seg = next_seg;
     }
-    freeable_large_heap_segment = 0;
+    freeable_ploh_segment = 0;
 }
 
 void gc_heap::rearrange_heap_segments(BOOL compacting)
@@ -11124,7 +11124,7 @@ gc_heap::init_gc_heap (int  h_number)
 
     oomhist_index_per_heap = 0;
 
-    freeable_large_heap_segment = 0;
+    freeable_ploh_segment = 0;
 
     condemned_generation_num = 0;
 
@@ -17225,7 +17225,7 @@ void gc_heap::gc1()
             {
                 gc_heap* hp = gc_heap::g_heaps[i];
                 hp->decommit_ephemeral_segment_pages();
-                hp->rearrange_large_heap_segments();
+                hp->rearrange_ploh_segments();
 #ifdef FEATURE_LOH_COMPACTION
                 all_heaps_compacted_p &= hp->loh_compacted_p;
 #endif //FEATURE_LOH_COMPACTION
@@ -17269,7 +17269,7 @@ void gc_heap::gc1()
 
     if (!(settings.concurrent))
     {
-        rearrange_large_heap_segments();
+        rearrange_ploh_segments();
         do_post_gc();
     }
 
@@ -18135,7 +18135,7 @@ void gc_heap::garbage_collect (int n)
             if (g_gc_card_table != hp->card_table)
                 hp->copy_brick_card_table();
 
-            hp->rearrange_large_heap_segments();
+            hp->rearrange_ploh_segments();
 #ifdef BACKGROUND_GC
             hp->background_delay_delete_loh_segments();
             if (!recursive_gc_sync::background_running_p())
@@ -18146,7 +18146,7 @@ void gc_heap::garbage_collect (int n)
         if (g_gc_card_table != card_table)
             copy_brick_card_table();
 
-        rearrange_large_heap_segments();
+        rearrange_ploh_segments();
 #ifdef BACKGROUND_GC
         background_delay_delete_loh_segments();
         if (!recursive_gc_sync::background_running_p())
@@ -22718,8 +22718,8 @@ void gc_heap::compact_loh()
                 dprintf (3, ("Preparing empty large segment %Ix", (size_t)seg));
                 assert (prev_seg);
                 heap_segment_next (prev_seg) = next_seg;
-                heap_segment_next (seg) = freeable_large_heap_segment;
-                freeable_large_heap_segment = seg;
+                heap_segment_next (seg) = freeable_ploh_segment;
+                freeable_ploh_segment = seg;
             }
             else
             {
@@ -24085,8 +24085,10 @@ void gc_heap::plan_phase (int condemned_gen_number)
 #endif //FEATURE_LOH_COMPACTION
         {
             GCToEEInterface::DiagWalkLOHSurvivors(__this);
-            sweep_large_objects();
+            sweep_ploh_objects(loh_generation);
         }
+
+        sweep_ploh_objects(poh_generation);
     }
     else
     {
@@ -24114,7 +24116,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
         {
             for (int i = 0; i < n_heaps; i++)
             {
-                g_heaps [i]->rearrange_large_heap_segments ();
+                g_heaps [i]->rearrange_ploh_segments ();
             }
         }
 
@@ -24228,7 +24230,7 @@ void gc_heap::plan_phase (int condemned_gen_number)
     //safe place to delete large heap segments
     if (condemned_gen_number == max_generation)
     {
-        rearrange_large_heap_segments ();
+        rearrange_ploh_segments ();
     }
 
     if (maxgen_size_inc_p && provisional_mode_triggered)
@@ -26105,8 +26107,10 @@ void gc_heap::relocate_phase (int condemned_gen_number,
         else
 #endif //FEATURE_LOH_COMPACTION
         {
-            relocate_in_large_objects ();
+            relocate_in_ploh_objects (loh_generation);
         }
+
+        relocate_in_ploh_objects (poh_generation);
     }
 #ifndef FEATURE_CARD_MARKING_STEALING
     // moved this code *before* we scan the older generations via mark_through_cards_xxx
@@ -34039,8 +34043,8 @@ void gc_heap::generation_delete_heap_segment (generation* gen,
     {
         dprintf (3, ("Preparing empty large segment %Ix for deletion", (size_t)seg));
 
-        // We cannot thread segs in here onto freeable_large_heap_segment because
-        // grow_brick_card_tables could be committing mark array which needs to read
+        // We cannot thread segs in here onto freeable_ploh_segment because 
+        // grow_brick_card_tables could be committing mark array which needs to read 
         // the seg list. So we delay it till next time we suspend EE.
         seg->flags |= heap_segment_flags_loh_delete;
         // Since we will be decommitting the seg, we need to prevent heap verification
@@ -34817,12 +34821,12 @@ void gc_heap::background_sweep()
 }
 #endif //BACKGROUND_GC
 
-void gc_heap::sweep_large_objects ()
+void gc_heap::sweep_ploh_objects (generation_num gen_num)
 {
     //this min value is for the sake of the dynamic tuning.
     //so we know that we are not starting even if we have no
     //survivors.
-    generation* gen        = large_object_generation;
+    generation* gen        = generation_of(gen_num);
     heap_segment* start_seg = heap_segment_rw (generation_start_segment (gen));
 
     PREFIX_ASSUME(start_seg != NULL);
@@ -34843,8 +34847,8 @@ void gc_heap::sweep_large_objects ()
     generation_free_obj_space (gen) = 0;
 
 
-    dprintf (3, ("sweeping large objects"));
-    dprintf (3, ("seg: %Ix, [%Ix, %Ix[, starting from %Ix",
+    dprintf (3, ("sweeping ploh objects"));
+    dprintf (3, ("seg: %Ix, [%Ix, %Ix[, starting from %Ix", 
                  (size_t)seg,
                  (size_t)heap_segment_mem (seg),
                  (size_t)heap_segment_allocated (seg),
@@ -34863,8 +34867,8 @@ void gc_heap::sweep_large_objects ()
                 dprintf (3, ("Preparing empty large segment %Ix", (size_t)seg));
                 assert (prev_seg);
                 heap_segment_next (prev_seg) = next_seg;
-                heap_segment_next (seg) = freeable_large_heap_segment;
-                freeable_large_heap_segment = seg;
+                heap_segment_next (seg) = freeable_ploh_segment;
+                freeable_ploh_segment = seg;
             }
             else
             {
@@ -34921,14 +34925,14 @@ void gc_heap::sweep_large_objects ()
     PREFIX_ASSUME(generation_allocation_segment(gen) != NULL);
 }
 
-void gc_heap::relocate_in_large_objects ()
+void gc_heap::relocate_in_ploh_objects (generation_num gen_num)
 {
     relocate_args args;
     args.low = gc_low;
     args.high = gc_high;
     args.last_plug = 0;
 
-    generation* gen = large_object_generation;
+    generation* gen = generation_of(gen_num);
 
     heap_segment* seg = heap_segment_rw (generation_start_segment (gen));
 
