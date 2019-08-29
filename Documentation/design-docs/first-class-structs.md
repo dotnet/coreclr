@@ -74,6 +74,8 @@ encountered by most phases of the JIT:
 * `GT_INDEX`: This is transformed to a `GT_IND`
   * Currently, the IND is marked with `GTF_IND_ARR_INDEX` and the node pointer of the `GT_IND` acts as a key
     into the array info map.
+  * Proposed: This should be transformed into a `GT_OBJ` when it represents a struct type, and then the
+    class handle would no longer need to be obtained from the array info map.
 * `GT_FIELD`: This is transformed to a `GT_LCL_FLD` or a `GT_IND`
 * `GT_MKREFANY`: This produces a "known" struct type, which is currently obtained by
   calling `impGetRefAnyClass()` which is a call over the JIT/EE interface. This node is always
