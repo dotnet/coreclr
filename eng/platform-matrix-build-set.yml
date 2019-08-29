@@ -1,0 +1,59 @@
+parameters:
+  jobTemplate: ''
+  buildConfig: ''
+  platforms: []
+  # platformGroup is a named collection of platforms. Allowed values:
+  # 'all' - all platforms
+  # 'gcstress' - platforms that support running under GCStress0x3 and GCStress0xC scenarios
+  platformGroup: ''
+  # helixQueueGroup is a named collection of Helix Queues. If specified, it determines which Helix queues are
+  # used, instead of the usual criteria. Allowed values:
+  # 'pr' - the queues used for a pull request for the platform. Typically a small set.
+  # 'ci' - the queues used for a CI (post-merge) test run.
+  # 'all' - the queues used for non-PR, non-CI test runs, e.g., Manual or Scheduled runs. Typically this is all available queues.
+  # 'corefx' - the queues used for a corefx test run.
+  helixQueueGroup: 'pr'
+  ignoreDependencyOnBuildJobs: false
+  jobParameters: {}
+
+  # Platform aggregation parameters calculated in platform-matrix
+  buildLinuxArm: false
+  buildLinuxArm64: false
+  buildLinuxMuslX64: false
+  buildLinuxMuslArm64: false
+  buildLinuxRHel6X64: false
+  buildLinuxX64: false
+  buildOSXX64: false
+  buildWindowsX64: false
+  buildWindowsX86: false
+  buildWindowsArm: false
+  buildWindowsArm64: false
+
+jobs:
+  - template: platform-matrix-build-os-per-arch.yml
+    parameters:
+      jobTemplate: ${{ parameters.jobTemplate }}
+      buildConfig: ${{ parameters.buildConfig }}
+      platforms: ${{ parameters.platforms }}
+      platformGroup: ${{ parameters.platformGroup }}
+      helixQueueGroup: ${{ parameters.helixQueueGroup }}
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      jobParameters: ${{ parameters.jobParameters }}
+
+      # Individual build jobs
+      buildLinuxArm:       ${{ parameters.buildLinuxArm }}
+      buildLinuxArm64:     ${{ parameters.buildLinuxArm64 }}
+      buildLinuxMuslX64:   ${{ parameters.buildLinuxMuslX64 }}
+      buildLinuxMuslArm64: ${{ parameters.buildLinuxMuslArm64 }}
+      buildLinuxRHel6X64:  ${{ parameters.buildLinuxRHel6X64 }}
+      buildLinuxX64:       ${{ parameters.buildLinuxX64 }}
+      buildOSXX64:         ${{ parameters.buildOSXX64 }}
+      buildWindowsX64:     ${{ parameters.buildWindowsX64 }}
+      buildWindowsX86:     ${{ parameters.buildWindowsX86 }}
+      buildWindowsArm:     ${{ parameters.buildWindowsArm }}
+      buildWindowsArm64:   ${{ parameters.buildWindowsArm64 }}
+
+      managedBuildOsIdentifierForUnixX86: ${{ parameters.osIdentifier }}
+      managedBuildOsIdentifierForUnixX64: ${{ parameters.osIdentifier }}
+      managedBuildOsIdentifierForUnixArm: ${{ parameters.osIdentifier }}
+      managedBuildOsIdentifierForUnixArm64: ${{ parameters.osIdentifier }}

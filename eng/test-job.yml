@@ -3,6 +3,7 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
+  managedBuildOsIdentifier: ''
   container: ''
   testGroup: ''
   readyToRun: false
@@ -21,38 +22,36 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: build-test-job.yml
-  parameters:
-    buildConfig:                 ${{ parameters.buildConfig }}
-    archType:                    ${{ parameters.archType }}
-    ${{ eq(parameters.osGroup, 'Windows_NT') }}:
-      osGroup:                   'Windows_NT'
-    ${{ ne(parameters.osGroup, 'Windows_NT') }}:
-      osGroup:                   'OSX'
-    osIdentifier:                ${{ parameters.osIdentifier }}
-    container:                   ${{ parameters.container }}
-    testGroup:                   ${{ parameters.testGroup }}
-    readyToRun:                  ${{ parameters.readyToRun }}
-    crossrootfsDir:              ${{ parameters.crossrootfsDir }}
-    corefxTests:                 ${{ parameters.coreFxTests }}
-    displayNameArgs:             ${{ parameters.displayNameArgs }}
-    condition:                   ${{ parameters.condition }}
-    ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+- ${{ eq(parameters.osIdentifier, parameters.managedBuildOsIdentifier) }}:
+  - template: build-test-job.yml
+    parameters:
+      buildConfig:                 ${{ parameters.buildConfig }}
+      archType:                    ${{ parameters.archType }}
+      osGroup:                     ${{ parameters.osGroup }}
+      osIdentifier:                ${{ parameters.managedBuildOsIdentifier }}
+      container:                   ${{ parameters.container }}
+      testGroup:                   ${{ parameters.testGroup }}
+      readyToRun:                  ${{ parameters.readyToRun }}
+      crossrootfsDir:              ${{ parameters.crossrootfsDir }}
+      corefxTests:                 ${{ parameters.coreFxTests }}
+      displayNameArgs:             ${{ parameters.displayNameArgs }}
+      condition:                   ${{ parameters.condition }}
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
 
 - template: run-test-job.yml
   parameters:
-    buildConfig:            ${{ parameters.buildConfig }}
-    archType:               ${{ parameters.archType }}
-    ${{ eq(parameters.osGroup, 'Windows_NT') }}:
-      testBuildOsGroup:     'Windows_NT'
-    ${{ ne(parameters.osGroup, 'Windows_NT') }}:
-      testBuildOsGroup:     'OSX'
-    osGroup:                ${{ parameters.osGroup }}
-    osIdentifier:           ${{ parameters.osIdentifier }}
-    container:              ${{ parameters.container }}
-    testGroup:              ${{ parameters.testGroup }}
-    readyToRun:             ${{ parameters.readyToRun }}
-    helixQueues:            ${{ parameters.helixQueues }}
-    corefxTests:            ${{ parameters.coreFxTests }}
-    displayNameArgs:        ${{ parameters.displayNameArgs }}
-    runInUnloadableContext: ${{ parameters.runInUnloadableContext }}
+    buildConfig:                 ${{ parameters.buildConfig }}
+    archType:                    ${{ parameters.archType }}
+    osGroup:                     ${{ parameters.osGroup }}
+    osIdentifier:                ${{ parameters.osIdentifier }}
+    managedBuildOsIdentifier:    ${{ parameters.managedBuildOsIdentifier }}
+    container:                   ${{ parameters.container }}
+    testGroup:                   ${{ parameters.testGroup }}
+    readyToRun:                  ${{ parameters.readyToRun }}
+    helixQueues:                 ${{ parameters.helixQueues }}
+    crossrootfsDir:              ${{ parameters.crossrootfsDir }}
+    corefxTests:                 ${{ parameters.coreFxTests }}
+    displayNameArgs:             ${{ parameters.displayNameArgs }}
+    runInUnloadableContext:      ${{ parameters.runInUnloadableContext }}
+    condition:                   ${{ parameters.condition }}
+    ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}

@@ -84,6 +84,24 @@ jobs:
       - name: enforcePgoArg
         value: '-enforcepgo'
 
+    - name: testNativeArtifactRootName
+      value: ${{ parameters.osGroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}
+
+    - ${{ if ne(parameters.testGroup, '') }}:
+      - name: testNativeArtifactRootName
+        value: ${{ parameters.osGroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}_${{ parameters.testGroup }}
+
+    - name: testNativeArtifactName
+      value: Tests_$(testArtifactRootName)_native
+
+    - ${{ if eq(parameters.readyToRun, true) }}:
+      - name: testNativeArtifactName
+        value: Tests_r2r_$(testArtifactRootName)_native
+
+    - name: testNativeRootFolderPath
+      value: bin/tests/obj/$(osGroup).$(archType).$(buildConfigUpper)/Native
+
+
     steps:
 
     # Install native dependencies
@@ -126,6 +144,14 @@ jobs:
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -ci -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
 
+    # Build native test components
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh -skipmanaged $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg) ci
+        displayName: Build native test components
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: build-test.cmd -skipmanaged $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg) ci
+        displayName: Build native test components
+
     # Sign on Windows
     - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(parameters.signBinaries, 'true')) }}:
       - powershell: eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(_BuildConfig) /p:DotNetSignType=$env:_SignType -projects $(Build.SourcesDirectory)\eng\empty.csproj
@@ -146,6 +172,16 @@ jobs:
       inputs:
         pathtoPublish: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(_BuildConfig)
         artifactName: ${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+
+    # Publish test native components for consumption by test execution.
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        rootFolder: $(testNativeRootFolderPath)
+        includeRootFolder: false
+        archiveFile: $(testNativeRootFolderPath)_native$(archiveExtension)
+        archiveType: $(archiveType)
+        tarCompression: $(tarCompression)
+        artifactName: $(testNativeArtifactName)
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:

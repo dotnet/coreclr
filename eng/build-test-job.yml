@@ -13,19 +13,22 @@ parameters:
   condition: true
   ignoreDependencyOnBuildJobs: false
 
-### Test build job
+### Build managed test components (native components are getting built as part
+### of the the product build job).
 
-### Each test build job depends on a corresponding build job with the same
-### buildConfig and archType.
+### TODO: As of today, build of managed test components requires the product build
+### as a prerequisite due to dependency on System.Private.Corelib. After switching
+### over to its reference assembly we should be able to remove this dependency and
+### run managed test builds in parallel with the product build job.
 
 jobs:
 - template: xplat-test-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
-    testBuildOsGroup: ${{ parameters.osGroup }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    managedBuildOsIdentifier: ${{ parameters.osIdentifier }}
     readyToRun: ${{ parameters.readyToRun }}
     corefxTests: ${{ parameters.corefxTests }}
 
@@ -94,7 +97,9 @@ jobs:
     # See https://docs.microsoft.com/azure/devops/pipelines/process/conditions
     condition: and(succeeded(), ${{ parameters.condition }})
 
-    # Test job depends on the corresponding build job
+    # TODO: Build of managed test components currently depends on the corresponding build job
+    # because it needs System.Private.Corelib; we should be able to remove this dependency
+    # by switching over to using reference assembly.
     ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
       dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
@@ -135,13 +140,13 @@ jobs:
         targetFolder: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
 
 
-    # Build tests
+    # Build managed test components
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg) ci
-        displayName: Build tests
+      - script: ./build-test.sh -skipnative $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(crossgenArg) $(clangArg) $(testhostArg) ci
+        displayName: Build managed test components
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg) ci
-        displayName: Build tests
+      - script: build-test.cmd -skipnative $(buildConfig) $(archType) $(priorityArg) $(crossgenArg) $(testhostArg) ci
+        displayName: Build managed test components
 
 
     # Zip and publish tests
