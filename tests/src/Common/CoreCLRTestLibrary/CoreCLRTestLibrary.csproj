@@ -12,7 +12,7 @@
     <DefineConstants>$(DefineConstants);$([System.String]::Copy('$(BuildArch)').ToUpper())</DefineConstants>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateRunScript>false</GenerateRunScript>
-    <ProjectAssetsFile>$(SourceDir)Common\CoreclrTestLibrary\obj\project.assets.json</ProjectAssetsFile>
+    <ProjectAssetsFile>$(SourceDir)Common\CoreCLRTestLibrary\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
   <!-- Default configurations to help VS understand the configurations -->
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
