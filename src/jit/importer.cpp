@@ -1512,7 +1512,7 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
 }
 
 //------------------------------------------------------------------------
-// impNormStructType: Given a (known to be) struct class handle structHnd and normalize its type.
+// impNormStructType: Normalize the type of a (known to be) struct class handle.
 //
 // Arguments:
 //    structHnd       - The class handle for the struct type of interest.
