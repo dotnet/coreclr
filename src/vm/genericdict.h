@@ -125,8 +125,8 @@ private:
                                 DictionaryEntrySignatureSource      signatureSource,
                                 CORINFO_RUNTIME_LOOKUP*             pResult,
                                 WORD*                               pSlotOut,
-                                DWORD                               scanFromSlot = 0,
-                                BOOL                                useEmptySlotIfFound = FALSE);
+                                DWORD                               scanFromSlot,
+                                BOOL                                useEmptySlotIfFound);
 
 
     static DictionaryLayout* ExpandDictionaryLayout(LoaderAllocator*                pAllocator,
