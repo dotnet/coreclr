@@ -12,7 +12,7 @@ namespace System.Resources
 {
     public partial class ResourceManager
     {
-        private WindowsRuntimeResourceManagerBase? _WinRTResourceManager;
+        private IWindowsRuntimeResourceManager? _WinRTResourceManager;
         private PRIExceptionInfo? _PRIExceptionInfo;
         private bool _PRIInitialized;
         private bool _useUapResourceManagement;
@@ -57,15 +57,16 @@ namespace System.Resources
         // Since we can't directly reference System.Runtime.WindowsRuntime from System.Private.CoreLib, we have to get the type via reflection.
         // It would be better if we could just implement WindowsRuntimeResourceManager in System.Private.CoreLib, but we can't, because
         // we can do very little with WinRT in System.Private.CoreLib.
-        internal static WindowsRuntimeResourceManagerBase GetWinRTResourceManager()
+        internal static IWindowsRuntimeResourceManager GetWinRTResourceManager()
         {
 #if FEATURE_APPX
             Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, System.Runtime.WindowsRuntime", throwOnError: true)!;
+            return new WrappedWindowsRuntimeResourceManager(Activator.CreateInstance(WinRTResourceManagerType, nonPublic: true)!);
 #else // ENABLE_WINRT
             Assembly hiddenScopeAssembly = Assembly.Load(Internal.Runtime.Augments.RuntimeAugments.HiddenScopeAssemblyName);
             Type WinRTResourceManagerType = hiddenScopeAssembly.GetType("System.Resources.WindowsRuntimeResourceManager", true);
+            return (IWindowsRuntimeResourceManager)Activator.CreateInstance(WinRTResourceManagerType, nonPublic: true)!;
 #endif
-            return (WindowsRuntimeResourceManagerBase)Activator.CreateInstance(WinRTResourceManagerType, nonPublic: true)!;
         }
 
         // CoreCLR: When running under AppX, the following rules apply for resource lookup:
@@ -169,7 +170,19 @@ namespace System.Resources
 
             try
             {
-                _PRIInitialized = _WinRTResourceManager.Initialize(MainAssembly.Location, reswFilename, out _PRIExceptionInfo);
+                _PRIInitialized = _WinRTResourceManager.Initialize(MainAssembly.Location, reswFilename, out string? packageSimpleName, out string? encodedResWFilename);
+                if (packageSimpleName is null && encodedResWFilename is null)
+                {
+                    _PRIExceptionInfo = null;
+                }
+                else
+                {
+                    _PRIExceptionInfo = new PRIExceptionInfo
+                    {
+                        PackageSimpleName = packageSimpleName,
+                        ResWFile = encodedResWFilename
+                    };
+                }
                 // Note that _PRIExceptionInfo might be null - this is OK.
                 // In that case we will just throw the generic
                 // MissingManifestResource_NoPRIresources exception.

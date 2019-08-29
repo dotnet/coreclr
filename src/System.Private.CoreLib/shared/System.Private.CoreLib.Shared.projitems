@@ -1213,7 +1213,9 @@
   </ItemGroup>
   <ItemGroup Condition="'$(FeatureAppX)' == 'true' or '$(EnableWinRT)' == 'true'">
     <Compile Include="$(MSBuildThisFileDirectory)Internal\Resources\PRIExceptionInfo.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)Internal\Resources\WindowsRuntimeResourceManagerBase.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Internal\Resources\IWindowsRuntimeResourceManager.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)Internal\Resources\WindowsRuntimeResourceManagerBase.cs" Condition="'$(EnableWinRT)' == 'true'" />
+    <Compile Include="$(MSBuildThisFileDirectory)Internal\Resources\WrappedWindowsRuntimeResourceManager.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)System\Resources\ResourceManager.Uap.cs" />
   </ItemGroup>
   <ItemGroup Condition="$(TargetsUnix)">
