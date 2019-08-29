@@ -4000,7 +4000,7 @@ void Compiler::compSetOptimizationLevel()
     // TIER1 is typically done in the background and it's typically ok to spend some extra time/resources to JIT the
     // method.
     if (!theMinOptsValue && !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PREJIT) &&
-        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1) && (info.compFlags & CORINFO_FLG_AGGRESSIVE_OPT) == 0 &&
+        !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1) && ((info.compFlags & CORINFO_FLG_AGGRESSIVE_OPT) == 0) &&
         ((DEFAULT_MIN_OPTS_CODE_SIZE < info.compILCodeSize) || (DEFAULT_MIN_OPTS_INSTR_COUNT < opts.instrCount) ||
          (DEFAULT_MIN_OPTS_BB_COUNT < fgBBcount) || (DEFAULT_MIN_OPTS_LV_NUM_COUNT < lvaCount) ||
          (DEFAULT_MIN_OPTS_LV_REF_COUNT < opts.lvRefCount)))
