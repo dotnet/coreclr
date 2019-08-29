@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Runtime.InteropServices;
+
 namespace System.Diagnostics.Tracing
 {
     internal sealed class RuntimeEventSourceHelper
@@ -44,6 +46,21 @@ namespace System.Diagnostics.Tracing
             prevSystemKernelTime = systemKernelTime;
 
             return cpuUsage;
+        }
+
+        internal static long GetWorkingSet()
+        {
+
+            Interop.PROCESS_MEMORY_COUNTERS memoryCounters;
+            memoryCounters.cb = (uint)(Marshal.SizeOf(typeof(Interop.PROCESS_MEMORY_COUNTERS)));
+            
+            // Returns the current processs' WorkingSet
+            if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
+            {
+                Debug.WriteLine("Failed: GetProcessMemoryInfo returned false");
+                return 0;
+            }
+            return (long)memoryCounters.WorkingSetSize;
         }
     }
 }

@@ -20,6 +20,9 @@ namespace System.Diagnostics.Tracing
         private IncrementingPollingCounter? _exceptionCounter;
         private PollingCounter? _cpuTimeCounter;
         private PollingCounter? _workingSetCounter;
+
+        private PollingCounter? _eworkingSetCounter;
+
         private PollingCounter? _threadPoolThreadCounter;
         private IncrementingPollingCounter? _monitorContentionCounter;
         private PollingCounter? _threadPoolQueueCounter;
@@ -52,7 +55,9 @@ namespace System.Diagnostics.Tracing
 
                 // On disable, PollingCounters will stop polling for values so it should be fine to leave them around.
                 _cpuTimeCounter = _cpuTimeCounter ?? new PollingCounter("cpu-usage", this, () => RuntimeEventSourceHelper.GetCpuUsage()) { DisplayName = "CPU Usage", DisplayUnits = "%" };
-                _workingSetCounter = _workingSetCounter ?? new PollingCounter("working-set", this, () => (double)(Environment.WorkingSet / 1000000)) { DisplayName = "Working Set", DisplayUnits = "MB" };
+                _workingSetCounter = _workingSetCounter ?? new PollingCounter("working-set", this, () => (double)(RuntimeEventSourceHelper.GetWorkingSet())) { DisplayName = "Working Set", DisplayUnits = "MB" };
+                _eworkingSetCounter = _eworkingSetCounter ?? new PollingCounter("e-working-set", this, () => (double)(Environment.WorkingSet)) { DisplayName = "Env Working Set", DisplayUnits = "MB" };
+
                 _gcHeapSizeCounter = _gcHeapSizeCounter ?? new PollingCounter("gc-heap-size", this, () => (double)(GC.GetTotalMemory(false) / 1000000)) { DisplayName = "GC Heap Size", DisplayUnits = "MB" };
                 _gen0GCCounter = _gen0GCCounter ?? new IncrementingPollingCounter("gen-0-gc-count", this, () => GC.CollectionCount(0)) { DisplayName = "Gen 0 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
                 _gen1GCCounter = _gen1GCCounter ?? new IncrementingPollingCounter("gen-1-gc-count", this, () => GC.CollectionCount(1)) { DisplayName = "Gen 1 GC Count", DisplayRateTimeScale = new TimeSpan(0, 1, 0) };
