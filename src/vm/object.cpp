@@ -625,7 +625,9 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
         // we skip checking noRangeChecks since if skipping
         // is enabled bSmallObjectHeapPtr will always be false.
         if (bSmallObjectHeapPtr) {
-            CHECK_AND_TEAR_DOWN(!GCHeapUtilities::GetGCHeap()->IsObjectInFixedHeap(this));
+
+//TODO: VS, undo this. Lowered LOH limit temporarily to test POH
+//            CHECK_AND_TEAR_DOWN(!GCHeapUtilities::GetGCHeap()->IsObjectInFixedHeap(this));
         }
 
         lastTest = 6;

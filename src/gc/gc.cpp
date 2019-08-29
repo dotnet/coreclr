@@ -23456,8 +23456,9 @@ void gc_heap::plan_phase (int condemned_gen_number)
 
                     dprintf(4, ("+%Ix+", (size_t)xl));
                     assert ((size (xl) > 0));
-                    assert ((size (xl) <= loh_size_threshold));
 
+                    //TODO: VS undo this (changed temporarily to test POH with reduced LOH limit)
+                    // assert ((size (xl) <= loh_size_threshold));
                     last_object_in_plug = xl;
 
                     xl = xl + Align (size (xl));

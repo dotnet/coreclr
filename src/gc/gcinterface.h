@@ -177,7 +177,8 @@ struct segment_info
 #define GC_PROFILING       //Turn on profiling
 #endif // PROFILING_SUPPORTED
 
-#define LARGE_OBJECT_SIZE ((size_t)(85000))
+//TODO: VS, undo this. Lowered limit temporarily to test POH
+#define LARGE_OBJECT_SIZE ((size_t)(512))
 
 // The minimum size of an object is three pointers wide: one for the syncblock,
 // one for the object header, and one for the first field in the object.
