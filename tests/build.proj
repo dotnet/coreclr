@@ -31,6 +31,7 @@
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\JIT\config\benchmark+intrinsic\benchmark+intrinsic.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\performance\performance.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\CoreCLRTestLibrary\CoreCLRTestLibrary.csproj" />
+    <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.csproj" />
     <RestoreProjects Include="$(MSBuildThisFileDirectory)src\Common\ilasm\ilasm.ilproj" />
   </ItemGroup>
 
