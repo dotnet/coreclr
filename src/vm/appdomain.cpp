@@ -3986,10 +3986,18 @@ DomainAssembly *AppDomain::LoadDomainAssemblyInternal(AssemblySpec* pIdentity,
         ThrowHR(COR_E_ASSEMBLYEXPECTED);
     }
 
-    // Cache result in all cases, since found pFile could be from a different AssemblyRef than pIdentity
-    // Do not cache WindowsRuntime assemblies, they are cached in code:CLRPrivTypeCacheWinRT
-    if ((pIdentity != NULL) && (pIdentity->CanUseWithBindingCache()) && (result->CanUseWithBindingCache()))
+    if (pIdentity == NULL)
+    {
+        AssemblySpec spec;
+        spec.InitializeSpec(result->GetFile());
+        GetAppDomain()->AddAssemblyToCache(&spec, result);
+    }
+    else if ((pIdentity != NULL) && (pIdentity->CanUseWithBindingCache()) && (result->CanUseWithBindingCache()))
+    {
+        // Cache result in all cases, since found pFile could be from a different AssemblyRef than pIdentity
+        // Do not cache WindowsRuntime assemblies, they are cached in code:CLRPrivTypeCacheWinRT
         GetAppDomain()->AddAssemblyToCache(pIdentity, result);
+    }
     
     RETURN result;
 } // AppDomain::LoadDomainAssembly
