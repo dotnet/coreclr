@@ -17,19 +17,9 @@
 
   <!-- Switch RuntimeIdentifier according to currently targeted OSGroup -->
   <PropertyGroup>
-      <RuntimeIdentifier Condition="'$(OSGroup)' == 'Windows_NT'">win-$(Platform)</RuntimeIdentifier>
-      <RuntimeIdentifier Condition="'$(OSGroup)' == 'Linux'">linux-$(Platform)</RuntimeIdentifier>
-      <RuntimeIdentifier Condition="'$(OSGroup)' == 'OSX'">osx-$(Platform)</RuntimeIdentifier>
-      <NugetRuntimeIdentifier>$(RuntimeIdentifier)</NugetRuntimeIdentifier>
-
-      <!-- Set AdditionalRestoreArgs so the _DnuRestoreCommandFull in Tools\packageresolve.targets
-           passes these on to 'dotnet restore'. This is needed so all the various dirs.props files
-           set up the target architecture correctly, so $(Platform) above gets set correctly, among
-           other things. (Note that _DnuRestoreCommandFull doesn't properly set
-           TargetGroup/ConfigurationGroup/ArchGroup, and even if they are set, it isn't used by
-           the various dirs.props files.)
-      -->
-      <AdditionalRestoreArgs>/p:__BuildOS=$(__BuildOS) /p:__BuildType=$(__BuildType) /p:__BuildArch=$(__BuildArch)</AdditionalRestoreArgs>
+    <RuntimeIdentifier Condition="'$(OSGroup)' == 'Windows_NT'">win-$(Platform)</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(OSGroup)' == 'Linux'">linux-$(Platform)</RuntimeIdentifier>
+    <RuntimeIdentifier Condition="'$(OSGroup)' == 'OSX'">osx-$(Platform)</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
