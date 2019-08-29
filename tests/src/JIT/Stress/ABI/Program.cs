@@ -22,7 +22,7 @@ namespace ABIStress
         {
             static void Usage()
             {
-                Console.WriteLine("Usage: [--verbose] [--caller-index <number>] [--num-calls <number>] [--tailcalls] [--pinvokes] [--no-ctrlc-summary]");
+                Console.WriteLine("Usage: [--verbose] [--caller-index <number>] [--num-calls <number>] [--tailcalls] [--pinvokes] [--max-params <number>] [--no-ctrlc-summary]");
                 Console.WriteLine("Either --caller-index or --num-calls must be specified.");
                 Console.WriteLine("Example: --num-calls 100");
                 Console.WriteLine("  Stress first 100 tailcalls and pinvokes");
@@ -30,6 +30,8 @@ namespace ABIStress
                 Console.WriteLine("  Stress tailcaller 37, verbose output");
                 Console.WriteLine("Example: --pinvokes --num-calls 1000");
                 Console.WriteLine("  Stress first 1000 pinvokes");
+                Console.WriteLine("Example: --tailcalls --num-calls 100 --max-params 2");
+                Console.WriteLine("  Stress 100 tailcalls with either 1 or 2 parameters");
             }
 
             if (args.Contains("-help") || args.Contains("--help") || args.Contains("-h"))
@@ -55,6 +57,8 @@ namespace ABIStress
                 callerIndex = int.Parse(args[argIndex + 1]);
             if ((argIndex = Array.IndexOf(args, "--num-calls")) != -1)
                 numCalls = int.Parse(args[argIndex + 1]);
+            if ((argIndex = Array.IndexOf(args, "--max-params")) != -1)
+                Config.MaxParams = int.Parse(args[argIndex + 1]);
 
             if ((callerIndex == -1) == (numCalls == -1))
             {
@@ -316,7 +320,7 @@ namespace ABIStress
 
         private static List<TypeEx> RandomParameters(TypeEx[] candidateParamTypes, Random rand)
         {
-            List<TypeEx> pms = new List<TypeEx>(rand.Next(Config.MinParams, Config.MaxParams));
+            List<TypeEx> pms = new List<TypeEx>(rand.Next(Config.MinParams, Config.MaxParams + 1));
             for (int j = 0; j < pms.Capacity; j++)
                 pms.Add(candidateParamTypes[rand.Next(candidateParamTypes.Length)]);
 
@@ -394,8 +398,7 @@ namespace ABIStress
                 }
             }
 
-            //object callerResult = caller.Invoke(null, outerArgs);
-            object callerResult = InvokeMethodDynamicallyButWithoutReflection(caller, outerArgs);
+            object callerResult = caller.Invoke(null, outerArgs);
 
             if (Config.Verbose)
             {
@@ -406,30 +409,9 @@ namespace ABIStress
                     DumpObject(innerArgs[j]);
                 }
             }
-            //object calleeResult = callee.Method.Invoke(null, innerArgs);
-            object calleeResult = InvokeMethodDynamicallyButWithoutReflection(callee, innerArgs);
+            object calleeResult = callee.Invoke(null, innerArgs);
 
             return (callerResult, calleeResult);
-        }
-
-        // This function works around a reflection bug on ARM64:
-        // https://github.com/dotnet/coreclr/issues/25993
-        private static object InvokeMethodDynamicallyButWithoutReflection(MethodInfo mi, object[] args)
-        {
-            DynamicMethod dynCaller = new DynamicMethod(
-                $"DynCaller", typeof(object), new Type[0], typeof(Program).Module);
-
-            ILGenerator g = dynCaller.GetILGenerator();
-            foreach (var arg in args)
-                new ConstantValue(new TypeEx(arg.GetType()), arg).Emit(g);
-
-            g.Emit(OpCodes.Call, mi);
-            if (mi.ReturnType.IsValueType)
-                g.Emit(OpCodes.Box, mi.ReturnType);
-            g.Emit(OpCodes.Ret);
-
-            Func<object> f = (Func<object>)dynCaller.CreateDelegate(typeof(Func<object>));
-            return f();
         }
 
         private static void WriteSignature(MethodInfo mi)
@@ -623,7 +605,7 @@ namespace ABIStress
 
                 if (s_delegateTypesModule == null)
                 {
-                    AssemblyBuilder delegates = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("ABIStress_Delegates"), AssemblyBuilderAccess.Run);
+                    AssemblyBuilder delegates = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("ABIStress_Delegates"), AssemblyBuilderAccess.RunAndCollect);
                     s_delegateTypesModule = delegates.DefineDynamicModule("ABIStress_Delegates");
                 }
 

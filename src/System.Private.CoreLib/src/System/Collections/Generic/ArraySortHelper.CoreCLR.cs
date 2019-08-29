@@ -2,10 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Diagnostics;
-using System.Runtime.Versioning;
 
 namespace System.Collections.Generic
 {
@@ -21,13 +18,7 @@ namespace System.Collections.Generic
     {
         private static readonly IArraySortHelper<T> s_defaultArraySortHelper = CreateArraySortHelper();
 
-        public static IArraySortHelper<T> Default
-        {
-            get
-            {
-                return s_defaultArraySortHelper;
-            }
-        }
+        public static IArraySortHelper<T> Default => s_defaultArraySortHelper;
 
         private static IArraySortHelper<T> CreateArraySortHelper()
         {
@@ -61,13 +52,7 @@ namespace System.Collections.Generic
     {
         private static readonly IArraySortHelper<TKey, TValue> s_defaultArraySortHelper = CreateArraySortHelper();
 
-        public static IArraySortHelper<TKey, TValue> Default
-        {
-            get
-            {
-                return s_defaultArraySortHelper;
-            }
-        }
+        public static IArraySortHelper<TKey, TValue> Default => s_defaultArraySortHelper;
 
         private static IArraySortHelper<TKey, TValue> CreateArraySortHelper()
         {

@@ -64,11 +64,11 @@ namespace System.Diagnostics.Tracing
                 // EventPipe metadata is provided via the EventPipeEventProvider.DefineEventHandle.
                 if (eventDescriptor.Channel == 11)
                 {
-                    userData = userData + 3;
-                    userDataCount = userDataCount - 3;
+                    userData += 3;
+                    userDataCount -= 3;
                     Debug.Assert(userDataCount >= 0);
                 }
-                EventPipeInternal.WriteEventData(eventHandle, eventID, userData, (uint) userDataCount, activityId, relatedActivityId);
+                EventPipeInternal.WriteEventData(eventHandle, eventID, userData, (uint)userDataCount, activityId, relatedActivityId);
             }
             return EventProvider.WriteEventErrorCode.NoError;
         }
@@ -80,7 +80,7 @@ namespace System.Diagnostics.Tracing
         }
 
         // Define an EventPipeEvent handle.
-        unsafe IntPtr IEventProvider.DefineEventHandle(uint eventID, string eventName, long keywords, uint eventVersion, uint level, byte *pMetadata, uint metadataLength)
+        unsafe IntPtr IEventProvider.DefineEventHandle(uint eventID, string eventName, long keywords, uint eventVersion, uint level, byte* pMetadata, uint metadataLength)
         {
             IntPtr eventHandlePtr = EventPipeInternal.DefineEvent(m_provHandle, eventID, keywords, eventVersion, level, pMetadata, metadataLength);
             return eventHandlePtr;

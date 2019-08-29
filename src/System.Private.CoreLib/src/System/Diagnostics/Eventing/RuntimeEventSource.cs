@@ -9,7 +9,7 @@ namespace System.Diagnostics.Tracing
     /// <summary>
     /// RuntimeEventSource is an EventSource that represents events emitted by the managed runtime.
     /// </summary>
-    [EventSource(Guid="49592C0F-5A05-516D-AA4B-A64E02026C89", Name = "System.Runtime")]
+    [EventSource(Guid = "49592C0F-5A05-516D-AA4B-A64E02026C89", Name = "System.Runtime")]
     internal sealed class RuntimeEventSource : EventSource
     {
         private static RuntimeEventSource? s_RuntimeEventSource;
@@ -41,7 +41,7 @@ namespace System.Diagnostics.Tracing
             s_RuntimeEventSource = new RuntimeEventSource();
         }
 
-        private RuntimeEventSource(): base(new Guid(0x49592C0F, 0x5A05, 0x516D, 0xAA, 0x4B, 0xA6, 0x4E, 0x02, 0x02, 0x6C, 0x89), "System.Runtime", EventSourceSettings.EtwSelfDescribingEventFormat)
+        private RuntimeEventSource() : base(new Guid(0x49592C0F, 0x5A05, 0x516D, 0xAA, 0x4B, 0xA6, 0x4E, 0x02, 0x02, 0x6C, 0x89), "System.Runtime", EventSourceSettings.EtwSelfDescribingEventFormat)
         {
         }
 
@@ -75,6 +75,7 @@ namespace System.Diagnostics.Tracing
                 _allocRateCounter = _allocRateCounter ?? new IncrementingPollingCounter("alloc-rate", this, () => GC.GetTotalAllocatedBytes()) { DisplayName = "Allocation Rate", DisplayUnits="B", DisplayRateTimeScale = new TimeSpan(0, 0, 1) };
                 _assemblyCounter = _assemblyCounter ?? new PollingCounter("assembly-count", this, () => System.Reflection.Assembly.GetAssemblyCount()) { DisplayName = "Number of Assemblies Loaded" };
                 _timerCounter = _timerCounter ?? new PollingCounter("active-timer-count", this, () => Timer.ActiveCount) { DisplayName = "Number of Active Timers" };
+
             }
         }
     }

@@ -2699,7 +2699,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         {
             for (int i = 0; i < args.Height(); i++)
             {
-                if (node == args.Index(i).node)
+                if (node == args.Top(i).node)
                 {
                     return i;
                 }
@@ -2725,7 +2725,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         {
             for (int i = 0; i < args.Height(); i++)
             {
-                NonStandardArg& nsa = args.IndexRef(i);
+                NonStandardArg& nsa = args.TopRef(i);
                 if (node == nsa.node)
                 {
                     *pReg = nsa.reg;
@@ -2749,7 +2749,7 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         //
         void Replace(int index, GenTree* node)
         {
-            args.IndexRef(index).node = node;
+            args.TopRef(index).node = node;
         }
 
     } nonStandardArgs(getAllocator(CMK_ArrayStack));
@@ -14935,6 +14935,15 @@ GenTree* Compiler::fgMorphTree(GenTree* tree, MorphAddrContext* mac)
             }
             break;
 
+        case GT_PHI:
+            tree->gtFlags &= ~GTF_ALL_EFFECT;
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                use.SetNode(fgMorphTree(use.GetNode()));
+                tree->gtFlags |= use.GetNode()->gtFlags & GTF_ALL_EFFECT;
+            }
+            break;
+
         case GT_CMPXCHG:
             tree->gtCmpXchg.gtOpLocation  = fgMorphTree(tree->gtCmpXchg.gtOpLocation);
             tree->gtCmpXchg.gtOpValue     = fgMorphTree(tree->gtCmpXchg.gtOpValue);
@@ -17007,14 +17016,14 @@ void Compiler::fgMorph()
     DBEXEC(VERBOSE, fgDispBasicBlocks(true));
 #endif
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (fgNeedToAddFinallyTargetBits)
     {
         // We previously wiped out the BBF_FINALLY_TARGET bits due to some morphing; add them back.
         fgAddFinallyTargetFlags();
         fgNeedToAddFinallyTargetBits = false;
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
     /* Decide the kind of code we want to generate */
 
@@ -18309,7 +18318,7 @@ private:
 
     Value& TopValue(unsigned index)
     {
-        return m_valueStack.IndexRef(index);
+        return m_valueStack.TopRef(index);
     }
 
     void PopValue()

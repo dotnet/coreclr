@@ -75,7 +75,6 @@
   <Rules AnalyzerId="StyleCop.Analyzers" RuleNamespace="StyleCop.Analyzers">
     <Rule Id="AD0001" Action="None" /> <!-- Analyzer threw an exception -->
     <Rule Id="SA0001" Action="None" /> <!-- XML comments -->
-    <Rule Id="SA1001" Action="None" /> <!-- Commas should be followed by whitespace -->
     <Rule Id="SA1002" Action="None" /> <!-- Semicolons should not be preceded by a space -->
     <Rule Id="SA1003" Action="None" /> <!-- Operator should not appear at the end of a line -->
     <Rule Id="SA1004" Action="None" /> <!-- Documentation line should begin with a space -->
@@ -197,7 +196,6 @@
     <Rule Id="SA1649" Action="None" /> <!-- File name should match first type name -->
   </Rules>
   <Rules AnalyzerId="xunit.analyzers" RuleNamespace="xunit.analyzers">
-    <Rule Id="xUnit1019" Action="None" /> <!-- MemberData must reference a member providing a valid data type -->
     <Rule Id="xUnit1024" Action="None" /> <!-- Test methods cannot have overloads -->
     <Rule Id="xUnit2013" Action="None" /> <!-- Do not use equality check to check for collection size. -->
     <Rule Id="xUnit2017" Action="None" /> <!-- Do not use Contains() to check if a value exists in a collection -->

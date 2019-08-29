@@ -258,7 +258,7 @@ GTNODE(START_PREEMPTGC  , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))   // sta
 GTNODE(PROF_HOOK        , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))   // profiler Enter/Leave/TailCall hook
 
 GTNODE(RETFILT          , GenTreeOp          ,0,(GTK_UNOP|GTK_NOVALUE))   // end filter with TYP_I_IMPL return value
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 GTNODE(END_LFIN         , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // end locally-invoked finally
 #endif // !FEATURE_EH_FUNCLETS
 
@@ -266,7 +266,7 @@ GTNODE(END_LFIN         , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // end
 //  Nodes used for optimizations.
 //-----------------------------------------------------------------------------
 
-GTNODE(PHI              , GenTreeOp          ,0,GTK_UNOP)               // phi node for ssa.
+GTNODE(PHI              , GenTreePhi         ,0,GTK_SPECIAL)              // phi node for ssa.
 GTNODE(PHI_ARG          , GenTreePhiArg      ,0,(GTK_LEAF|GTK_LOCAL))     // phi(phiarg, phiarg, phiarg)
 
 //-----------------------------------------------------------------------------

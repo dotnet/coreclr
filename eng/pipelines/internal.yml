@@ -3,6 +3,7 @@ trigger:
   branches:
     include:
     - release/3.0
+    - release/3.1
 
 pr: none
 
@@ -41,32 +42,8 @@ stages:
           # due to waiting for an exclusive lock on the feed.
           # See https://github.com/dotnet/arcade/blob/master/Documentation/CorePackages/AsyncPublishing.md
           timeoutInMinutes: 120
-
-    #
-    # Release test builds
-    #
-    - template: /eng/platform-matrix.yml
-      parameters:
-        jobTemplate: test-job.yml
-        buildConfig: release
-        platformGroup: all
-        helixQueueGroup: all
-        jobParameters:
-          testGroup: outerloop
-
-    #
-    # ReadyToRun test builds
-    #
-    - template: /eng/platform-matrix.yml
-      parameters:
-        jobTemplate: test-job.yml
-        buildConfig: release
-        platformGroup: all
-        helixQueueGroup: all
-        jobParameters:
-          testGroup: outerloop
-          readyToRun: true
-          displayNameArgs: R2R
+          signBinaries: true
+          publishToBlobFeed: true
 
     #
     # Publish build information to Build Assets Registry
@@ -95,3 +72,38 @@ stages:
       parameters:
         # Symbol validation is not entirely reliable as of yet, so should be turned off until https://github.com/dotnet/arcade/issues/2871 is resolved.
         enableSymbolValidation: false
+
+  - stage: test
+    displayName: Test
+    dependsOn: build
+    jobs:
+    #
+    # Release test builds
+    #
+    - template: /eng/platform-matrix.yml
+      parameters:
+        jobTemplate: test-job.yml
+        buildConfig: release
+        platformGroup: all
+        helixQueueGroup: all
+        ignoreDependencyOnBuildJobs: true
+        jobParameters:
+          testGroup: outerloop
+          condition: ne(variables['_BypassTesting'], 'true')
+
+    #
+    # ReadyToRun test builds
+    #
+    - template: /eng/platform-matrix.yml
+      parameters:
+        jobTemplate: test-job.yml
+        buildConfig: release
+        platformGroup: all
+        helixQueueGroup: all
+        ignoreDependencyOnBuildJobs: true
+        jobParameters:
+          testGroup: outerloop
+          readyToRun: true
+          displayNameArgs: R2R
+          condition: ne(variables['_BypassTesting'], 'true')
+          

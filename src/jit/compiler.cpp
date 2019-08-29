@@ -4530,7 +4530,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     fgComputeBlockAndEdgeWeights();
     EndPhase(PHASE_COMPUTE_EDGE_WEIGHTS);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     /* Create funclets from the EH handlers. */
 
@@ -10590,20 +10590,17 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_PHI)
     {
-        if (tree->gtOp.gtOp1 != nullptr)
+        bool first = true;
+        for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
         {
-            bool first = true;
-            for (GenTreeArgList* args = tree->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+            child = use.GetNode();
+            if (!first)
             {
-                child = args->Current();
-                if (!first)
-                {
-                    chars += printf(",");
-                }
-                first = false;
-                chars += printf(" ");
-                chars += cOperandIR(comp, child);
+                chars += printf(",");
             }
+            first = false;
+            chars += printf(" ");
+            chars += cOperandIR(comp, child);
         }
     }
     else

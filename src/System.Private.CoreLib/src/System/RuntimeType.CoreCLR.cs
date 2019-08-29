@@ -1062,7 +1062,7 @@ namespace System
 
                     for (int i = 0; i < tkNestedClasses.Length; i++)
                     {
-                        RuntimeType? nestedType = null;
+                        RuntimeType nestedType;
 
                         try
                         {
@@ -2077,7 +2077,7 @@ namespace System
                     // We set prefixLookup to true if name ends with a "*".
                     // We will also set listType to All so that all members are included in
                     // the candidates which are later filtered by FilterApplyPrefixLookup.
-                    name = name.Substring(0, name.Length - 1);
+                    name = name[0..^1];
                     prefixLookup = true;
                     listType = MemberListType.All;
                 }
@@ -2089,11 +2089,8 @@ namespace System
         }
 
         // Used by the singular GetXXX APIs (Event, Field, Interface, NestedType) where prefixLookup is not supported.
-        private static void FilterHelper(BindingFlags bindingFlags, ref string name, out bool ignoreCase, out MemberListType listType)
-        {
-            bool prefixLookup;
-            FilterHelper(bindingFlags, ref name!, false, out prefixLookup, out ignoreCase, out listType);
-        }
+        private static void FilterHelper(BindingFlags bindingFlags, ref string name, out bool ignoreCase, out MemberListType listType) =>
+            FilterHelper(bindingFlags, ref name!, false, out _, out ignoreCase, out listType);
 
         // Only called by GetXXXCandidates, GetInterfaces, and GetNestedTypes when FilterHelper has set "prefixLookup" to true.
         // Most of the plural GetXXX methods allow prefix lookups while the singular GetXXX methods mostly do not.
@@ -2312,7 +2309,7 @@ namespace System
                         if (shortByMoreThanOneSuppliedArgument)
                             return false;
 
-                        ParameterInfo lastParameter = parameterInfos[parameterInfos.Length - 1];
+                        ParameterInfo lastParameter = parameterInfos[^1];
 
                         if (!lastParameter.ParameterType.IsArray)
                             return false;
@@ -2576,12 +2573,12 @@ namespace System
 
         private ListBuilder<Type> GetNestedTypeCandidates(string? fullname, BindingFlags bindingAttr, bool allowPrefixLookup)
         {
-            bool prefixLookup, ignoreCase;
+            bool prefixLookup;
             bindingAttr &= ~BindingFlags.Static;
             string? name, ns;
             MemberListType listType;
             SplitName(fullname, out name, out ns);
-            FilterHelper(bindingAttr, ref name, allowPrefixLookup, out prefixLookup, out ignoreCase, out listType);
+            FilterHelper(bindingAttr, ref name, allowPrefixLookup, out prefixLookup, out _, out listType);
 
             RuntimeType[] cache = Cache.GetNestedTypeList(listType, name);
 
@@ -3326,10 +3323,8 @@ namespace System
             }
         }
 
-        public override bool ContainsGenericParameters
-        {
-            get => GetRootElementType().GetTypeHandleInternal().ContainsGenericVariables();
-        }
+        public override bool ContainsGenericParameters =>
+            GetRootElementType().GetTypeHandleInternal().ContainsGenericVariables();
 
         public override Type[] GetGenericParameterConstraints()
         {
@@ -3362,10 +3357,7 @@ namespace System
             return new RuntimeTypeHandle(this).MakeArray(rank);
         }
 
-        public override StructLayoutAttribute? StructLayoutAttribute
-        {
-            get => PseudoCustomAttribute.GetStructLayoutCustomAttribute(this);
-        }
+        public override StructLayoutAttribute? StructLayoutAttribute => PseudoCustomAttribute.GetStructLayoutCustomAttribute(this);
 
         #endregion
 
@@ -3764,12 +3756,7 @@ namespace System
                     }
                     else
                     {
-                        if (results == null)
-                        {
-                            results = new List<MethodInfo>(semiFinalists.Length);
-                            results.Add(finalist);
-                        }
-
+                        results ??= new List<MethodInfo>(semiFinalists.Length) { finalist };
                         results.Add(semiFinalist);
                     }
                 }
@@ -3815,12 +3802,7 @@ namespace System
                     }
                     else
                     {
-                        if (results == null)
-                        {
-                            results = new List<MethodInfo>(semiFinalists.Length);
-                            results.Add(finalist);
-                        }
-
+                        results ??= new List<MethodInfo>(semiFinalists.Length) { finalist };
                         results.Add(semiFinalist);
                     }
                 }
@@ -3881,35 +3863,6 @@ namespace System
         #region MemberInfo Overrides
 
         public override string Name => GetCachedName(TypeNameKind.Name)!;
-
-        // This is used by the ToString() overrides of all reflection types. The legacy behavior has the following problems:
-        //  1. Use only Name for nested types, which can be confused with global types and generic parameters of the same name.
-        //  2. Use only Name for generic parameters, which can be confused with nested types and global types of the same name.
-        //  3. Remove the namespace ("System") for all primitive types, which is not language neutral.
-        //  4. MethodBase.ToString() use "ByRef" for byref parameters which is different than Type.ToString().
-        //  5. ConstructorInfo.ToString() outputs "Void" as the return type. Why Void?
-        internal override string FormatTypeName()
-        {
-            Type elementType = GetRootElementType();
-
-            // Legacy: this doesn't make sense, why use only Name for nested types but otherwise
-            // ToString() which contains namespace.
-            if (elementType.IsNested)
-                return Name;
-
-            string typeName = ToString();
-
-            // Legacy: why removing "System"? Is it just because C# has keywords for these types?
-            // If so why don't we change it to lower case to match the C# keyword casing?
-            if (elementType.IsPrimitive ||
-                elementType == typeof(void) ||
-                elementType == typeof(TypedReference))
-            {
-                typeName = typeName.Substring(@"System.".Length);
-            }
-
-            return typeName;
-        }
 
         // This method looks like an attractive inline but expands to two calls,
         // neither of which can be inlined or optimized further. So block it
@@ -4292,11 +4245,11 @@ namespace System
                     ConstructorInfo wrapperCons;
                     if (isString)
                     {
-                         wrapperCons = wrapperType.GetConstructor(new Type[] {typeof(string) })!;
+                        wrapperCons = wrapperType.GetConstructor(new Type[] { typeof(string) })!;
                     }
                     else
                     {
-                         wrapperCons = wrapperType.GetConstructor(new Type[] {typeof(object) })!;
+                        wrapperCons = wrapperType.GetConstructor(new Type[] { typeof(object) })!;
                     }
 
                     // Wrap each of the elements of the array.
@@ -4304,11 +4257,11 @@ namespace System
                     {
                         if (isString)
                         {
-                            newArray[currElem] = wrapperCons.Invoke(new object?[] {(string?)oldArray.GetValue(currElem)});
+                            newArray[currElem] = wrapperCons.Invoke(new object?[] { (string?)oldArray.GetValue(currElem) });
                         }
                         else
                         {
-                            newArray[currElem] = wrapperCons.Invoke(new object?[] {oldArray.GetValue(currElem)});
+                            newArray[currElem] = wrapperCons.Invoke(new object?[] { oldArray.GetValue(currElem) });
                         }
                     }
 
@@ -4353,13 +4306,13 @@ namespace System
         private enum DispatchWrapperType : int
         {
             // This enum must stay in sync with the DispatchWrapperType enum defined in MLInfo.h
-            Unknown         = 0x00000001,
-            Dispatch        = 0x00000002,
+            Unknown = 0x00000001,
+            Dispatch = 0x00000002,
             // Record          = 0x00000004,
-            Error           = 0x00000008,
-            Currency        = 0x00000010,
-            BStr            = 0x00000020,
-            SafeArray       = 0x00010000
+            Error = 0x00000008,
+            Currency = 0x00000010,
+            BStr = 0x00000020,
+            SafeArray = 0x00010000
         }
 
 #endif // FEATURE_COMINTEROP

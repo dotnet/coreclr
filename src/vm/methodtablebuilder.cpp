@@ -6047,11 +6047,6 @@ MethodTableBuilder::InitMethodDesc(
     if (IsMdStatic(dwMemberAttrs))
         pNewMD->SetStatic();
 
-    // Set suppress unmanaged code access permission attribute
-
-    if (pNewMD->IsNDirect())
-        pNewMD->ComputeSuppressUnmanagedCodeAccessAttr(pIMDII);
-
 #ifdef _DEBUG 
     // Mark as many methods as synchronized as possible.
     //
@@ -6970,6 +6965,20 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
         return TRUE;
+    }
+#endif
+
+#ifdef FEATURE_DEFAULT_INTERFACES
+    if (IsInterface())
+    {
+        DWORD attrs = pMDMethod->GetDeclAttrs();
+        if (!IsMdStatic(attrs) && IsMdVirtual(attrs) && !IsMdAbstract(attrs))
+        {
+            // Default interface method. Since interface methods currently need to have a precode, the native code slot will be
+            // used to retrieve the native code entry point, instead of getting it from the precode, which is not reliable with
+            // debuggers setting breakpoints.
+            return TRUE;
+        }
     }
 #endif
 

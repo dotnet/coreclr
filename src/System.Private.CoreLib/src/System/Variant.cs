@@ -11,21 +11,17 @@
 **
 ===========================================================*/
 
-using System;
-using System.Reflection;
-using System.Threading;
-using System.Runtime.InteropServices;
+using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.Versioning;
-using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 namespace System
 {
     internal struct Variant
     {
-        //Do Not change the order of these fields.
-        //They are mapped to the native VariantData * data structure.
+        // Do Not change the order of these fields.
+        // They are mapped to the native VariantData * data structure.
         private object? _objref;
         private long _data;
         private int _flags;
@@ -37,7 +33,7 @@ namespace System
         // bits 24-31   - Optional VT code (for roundtrip VT preservation)
 
 
-        //What are the consequences of making this an enum?
+        // What are the consequences of making this an enum?
         ///////////////////////////////////////////////////////////////////////
         // If you update this, update the corresponding stuff in OAVariantLib.cs,
         // COMOAVariant.cpp (2 tables, forwards and reverse), and perhaps OleVariant.h
@@ -316,15 +312,9 @@ namespace System
                 _flags |= ((int)vt << VTBitShift);
         }
 
-        //This is a family-only accessor for the CVType.
-        //This is never to be exposed externally.
-        internal int CVType
-        {
-            get
-            {
-                return (_flags & TypeCodeBitMask);
-            }
-        }
+        // This is a family-only accessor for the CVType.
+        // This is never to be exposed externally.
+        internal int CVType => (_flags & TypeCodeBitMask);
 
         public object? ToObject()
         {

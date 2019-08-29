@@ -2,21 +2,17 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Text;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+#if FEATURE_COMINTEROP
+using System.Runtime.InteropServices.WindowsRuntime;
+#endif // FEATURE_COMINTEROP
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
+
 namespace System.StubHelpers
 {
-    using System.Text;
-    using Microsoft.Win32;
-    using System.Security;
-    using System.Collections.Generic;
-    using System.Runtime;
-    using System.Runtime.InteropServices;
-#if FEATURE_COMINTEROP
-    using System.Runtime.InteropServices.WindowsRuntime;
-#endif // FEATURE_COMINTEROP
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Diagnostics;
-
     internal static class AnsiCharMarshaler
     {
         // The length of the returned array is an approximation based on the length of the input string and the system
@@ -348,7 +344,7 @@ namespace System.StubHelpers
             pNative = (byte*)Marshal.AllocCoTaskMem(nbytes);
             int* pLength = (int*)pNative;
 
-            pNative = pNative + sizeof(uint);
+            pNative += sizeof(uint);
 
             if (0 == cch)
             {
@@ -461,7 +457,7 @@ namespace System.StubHelpers
     internal struct DateTimeNative
     {
         public long UniversalTime;
-    };
+    }
 
     internal static class DateTimeOffsetMarshaler
     {
@@ -1275,7 +1271,7 @@ namespace System.StubHelpers
         Primitive,
         Metadata,
         Projection
-    };
+    }
 
     internal static class WinRTTypeNameConverter
     {
