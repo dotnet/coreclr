@@ -10569,7 +10569,8 @@ HRESULT gc_heap::initialize_gc (size_t soh_segment_size,
 #ifdef BACKGROUND_GC
     if (can_use_write_watch_for_gc_heap() && GCConfig::GetConcurrentGC())
     {
-        gc_can_use_concurrent = true;
+        //TODO: VS undo this when background supports POH
+        gc_can_use_concurrent = false;
 #ifndef FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
         virtual_alloc_hardware_write_watch = true;
 #endif // !FEATURE_USE_SOFTWARE_WRITE_WATCH_FOR_GC_HEAP
