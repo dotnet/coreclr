@@ -198,7 +198,7 @@ bool TieredCompilationManager::OnMethodCodeVersionCalledSubsequently(MethodDesc*
         // This is to prevent a race where the method get recorded below, the delay timer callback resets the method's entry
         // point to begin call counting, and then the method's entry point is set by this thread to the tier 0 entry point. In
         // that case the method would not be counted or tiered-up anymore. So, stop call counting only when the delay timer will
-        // be extended, the extra delay makes the issue near-impossible to occur. This is a great solution and is temporary,
+        // be extended, the extra delay makes the issue near-impossible to occur. This is not a great solution and is temporary,
         // once the call counting scheme is changed this code and issue will disappear.
         return false;
     }
