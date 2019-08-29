@@ -124,7 +124,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
     {
         STANDARD_VM_CHECK;
         PRECONDITION(numGenericArgs > 0);
-        PRECONDITION(scanFromSlot >= 0 && scanFromSlot < pDictLayout->m_numSlots);
+        PRECONDITION(scanFromSlot >= 0 && scanFromSlot <= pDictLayout->m_numSlots);
         PRECONDITION(CheckPointer(pDictLayout));
         PRECONDITION(CheckPointer(pResult) && CheckPointer(pSlotOut));
         PRECONDITION(CheckPointer(pSig));
@@ -237,6 +237,7 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
         slot++;
     }
 
+    *pSlotOut = pDictLayout->m_numSlots;
     return FALSE;
 }
 
