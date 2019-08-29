@@ -65,7 +65,7 @@ public:
     static count_t Hash(key_t k)
     {
         LIMITED_METHOD_CONTRACT;
-        return (count_t)(dac_cast<TADDR>(k) >> POINTER_HASH_SHIFT);
+        return (count_t)dac_cast<TADDR>(k);
     }
 
     static const element_t Null() { LIMITED_METHOD_CONTRACT; return element_t(PTR_NULL, 0); }
@@ -95,7 +95,7 @@ public:
     void DisableCallCounting(MethodDesc* pMethodDesc);
 #endif
 
-    static bool OnMethodCalledSubsequently(NativeCodeVersion nativeCodeVersion, bool *doPublishRef);
+    static bool OnMethodCodeVersionCalledSubsequently(NativeCodeVersion nativeCodeVersion, bool *doPublishRef);
     bool IncrementCount(MethodDesc* pMethodDesc);
 
 private:

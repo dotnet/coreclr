@@ -2370,10 +2370,18 @@ PCODE CodeVersionManager::PublishNonJumpStampVersionableCodeIfNecessary(
                     !config->ShouldCountCalls() ||
                     activeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0);
                 if (shouldCountCalls &&
-                    config->ShouldCountCalls() && // the generated code was at a tier that is call-counted
-                    activeVersion.IsDefaultVersion()) // this is the first call to the method
+                    config->ShouldCountCalls()) // the generated code was at a tier that is call-counted
                 {
-                    if (!GetAppDomain()->GetTieredCompilationManager()->OnMethodCalledFirstTime(pMethodDesc))
+                    // This is the first call to a call-counted code version of the method
+                    // - It is possible that this is not the first call to the method, for example after the method is called a
+                    //   few times, a profiler may activate a new IL code version. When the method is called again, it would
+                    //   reach this path. It will initiate the tiering delay, which is appropriate when running new IL for the
+                    //   first time in the foreground, as it is similar to the method being called for the first time and would
+                    //   have to go through the normal flow of tier transitions again.
+                    // - Currently, there is only one call-counted tier in the normal flow of tier transitions for a method. In
+                    //   the future there may be more call-counted tiers. Those code versions should be jitted and activated in
+                    //   the background and would not reach this path.
+                    if (!GetAppDomain()->GetTieredCompilationManager()->OnMethodCodeVersionCalledFirstTime(pMethodDesc))
                     {
                         doPublish = false;
                     }
@@ -2391,7 +2399,7 @@ PCODE CodeVersionManager::PublishNonJumpStampVersionableCodeIfNecessary(
             }
         }
     #ifdef FEATURE_TIERED_COMPILATION
-        else if (shouldCountCalls && CallCounter::OnMethodCalledSubsequently(activeVersion, &doPublish))
+        else if (shouldCountCalls && CallCounter::OnMethodCodeVersionCalledSubsequently(activeVersion, &doPublish))
         {
             shouldCountCalls = false;
         }

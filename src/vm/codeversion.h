@@ -527,7 +527,7 @@ public:
     static count_t Hash(key_t k)
     {
         LIMITED_METHOD_CONTRACT;
-        return (count_t)(dac_cast<TADDR>(k) >> POINTER_HASH_SHIFT);
+        return (count_t)dac_cast<TADDR>(k);
     }
 
     static element_t Null() { LIMITED_METHOD_CONTRACT; return dac_cast<PTR_MethodDescVersioningState>(nullptr); }

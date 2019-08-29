@@ -1979,8 +1979,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     // See if the addr of code has changed from the pre-stub
 
 #ifdef FEATURE_CODE_VERSIONING
-    bool isVersionableWithoutJumpStamp = IsVersionableWithoutJumpStamp();
-    if (isVersionableWithoutJumpStamp)
+    if (IsVersionableWithoutJumpStamp())
     {
         bool doBackpatch = true;
         bool doFullBackpatch = false;
@@ -1995,13 +1994,13 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
         _ASSERTE(!doFullBackpatch);
         RETURN pCode;
     }
-    else
 #endif
+
     if (!IsPointingToPrestub())
     {
         bool doFullBackpatch = true;
     #ifdef FEATURE_CODE_VERSIONING
-        if (!isVersionableWithoutJumpStamp && IsVersionableWithJumpStamp())
+        if (IsVersionableWithJumpStamp())
         {
             _ASSERTE(IsVersionableWithJumpStamp());
             pCode = GetCodeVersionManager()->PublishJumpStampVersionableCodeIfNecessary(this);

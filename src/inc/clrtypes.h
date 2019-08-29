@@ -25,10 +25,8 @@
 
 #if BIT64
     #define POINTER_BITS (64)
-    #define POINTER_HASH_SHIFT (3)
 #else
     #define POINTER_BITS (32)
-    #define POINTER_HASH_SHIFT (2)
 #endif
 
 // ================================================================================

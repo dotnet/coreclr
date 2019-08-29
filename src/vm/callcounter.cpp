@@ -80,7 +80,7 @@ void CallCounter::DisableCallCounting(MethodDesc* pMethodDesc)
     m_methodToCallCount.Add(CallCounterEntry::CreateWithCallCountingDisabled(pMethodDesc));
 }
 
-NOINLINE bool CallCounter::OnMethodCalledSubsequently(NativeCodeVersion nativeCodeVersion, bool *doPublishRef)
+NOINLINE bool CallCounter::OnMethodCodeVersionCalledSubsequently(NativeCodeVersion nativeCodeVersion, bool *doPublishRef)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(!nativeCodeVersion.IsNull());
@@ -96,7 +96,7 @@ NOINLINE bool CallCounter::OnMethodCalledSubsequently(NativeCodeVersion nativeCo
     }
 
     TieredCompilationManager *tieredCompilationManager = GetAppDomain()->GetTieredCompilationManager();
-    if (tieredCompilationManager->OnMethodCalledSubsequently(methodDesc))
+    if (tieredCompilationManager->OnMethodCodeVersionCalledSubsequently(methodDesc))
     {
         return true;
     }

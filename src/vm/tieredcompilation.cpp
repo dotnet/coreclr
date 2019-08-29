@@ -120,7 +120,7 @@ NativeCodeVersion::OptimizationTier TieredCompilationManager::GetInitialOptimiza
 
 #if defined(FEATURE_TIERED_COMPILATION) && !defined(DACCESS_COMPILE)
 
-bool TieredCompilationManager::OnMethodCalledFirstTime(MethodDesc* pMethodDesc)
+bool TieredCompilationManager::OnMethodCodeVersionCalledFirstTime(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);
@@ -180,7 +180,7 @@ bool TieredCompilationManager::OnMethodCalledFirstTime(MethodDesc* pMethodDesc)
     }
 }
 
-bool TieredCompilationManager::OnMethodCalledSubsequently(MethodDesc* pMethodDesc)
+bool TieredCompilationManager::OnMethodCodeVersionCalledSubsequently(MethodDesc* pMethodDesc)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(pMethodDesc != nullptr);

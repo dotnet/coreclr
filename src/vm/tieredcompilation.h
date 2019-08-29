@@ -34,8 +34,8 @@ public:
 #ifdef FEATURE_TIERED_COMPILATION
 
 public:
-    bool OnMethodCalledFirstTime(MethodDesc* pMethodDesc);
-    bool OnMethodCalledSubsequently(MethodDesc* pMethodDesc);
+    bool OnMethodCodeVersionCalledFirstTime(MethodDesc* pMethodDesc);
+    bool OnMethodCodeVersionCalledSubsequently(MethodDesc* pMethodDesc);
     void AsyncPromoteMethodToTier1(MethodDesc* pMethodDesc);
     void Shutdown();
     static CORJIT_FLAGS GetJitFlags(NativeCodeVersion nativeCodeVersion);
