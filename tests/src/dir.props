@@ -121,6 +121,13 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <!-- The IL SDK adds a packagereference to the native ilasm
+         package, but does not detect linux-musl, so we set the RID
+         ourselves. -->
+    <MicrosoftNetCoreIlasmPackageRuntimeId>$(TargetRid)</MicrosoftNetCoreIlasmPackageRuntimeId>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <TargetsUnknownUnix Condition="'$(TargetsUnix)' == 'true' AND '$(OSGroup)' != 'FreeBSD' AND '$(OSGroup)' != 'Linux' AND '$(OSGroup)' != 'OSX'">true</TargetsUnknownUnix>
     <Language Condition="'$(Language)' == '' and  '$(MSBuildProjectExtension)' == '.csproj'">C#</Language>
     <Language Condition="'$(Language)' == '' and  '$(MSBuildProjectExtension)' == '.ilproj'">IL</Language>
