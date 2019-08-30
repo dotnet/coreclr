@@ -9,6 +9,8 @@ include(configure.cmake)
 
 add_definitions(-DCOREBUNDLE_BUILD)
 
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+
 set(COREBUNDLE_SOURCES
     corebundle.cpp
     ./bundle/dir_utils.cpp
