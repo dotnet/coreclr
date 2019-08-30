@@ -584,6 +584,8 @@ usage()
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "priority1 - include priority=1 tests in the build"
+    echo "copynativeonly: Only copy the native test binaries to the managed output. Do not build the native or managed tests."
+    echo "skipgeneratelayout: Do not generate the Core_Root layout or the CoreFX testhost."
     exit 1
 }
 

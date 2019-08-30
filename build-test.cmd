@@ -563,6 +563,8 @@ echo     ubuntu.16.10-x64: Builds overlay for Ubuntu 16.10
 echo     win-x64: Builds overlay for portable Windows
 echo     win7-x64: Builds overlay for Windows 7
 echo crossgen: Precompiles the framework managed assemblies
+echo copynativeonly: Only copy the native test binaries to the managed output. Do not build the native or managed tests.
+echo skipgeneratelayout: Do not generate the Core_Root layout or the CoreFX testhost.
 echo targetsNonWindows:
 echo Exclude- Optional parameter - specify location of default exclusion file ^(defaults to tests\issues.targets if not specified^)
 echo     Set to "" to disable default exclusion file.
