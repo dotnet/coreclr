@@ -88,6 +88,7 @@ bool NearDiffer::InitAsmDiff()
 
         const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
         ::wcscpy_s(ptr, &coreCLRLoadedPath[MAX_LONGPATH] - ptr, coreDisToolsLibrary);
+        const wchar_t* coreDisToolsLibraryPath = coreCLRLoadedPath;
 
 #else
         const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
