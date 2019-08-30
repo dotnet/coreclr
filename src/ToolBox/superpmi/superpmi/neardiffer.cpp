@@ -83,6 +83,9 @@ bool NearDiffer::InitAsmDiff()
 
         wchar_t* ptr = ::wcsrchr(coreCLRLoadedPath, '/');
 
+        // Move past the / character.
+        ptr = ptr + 1;
+
         const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
         ::wcscpy_s(ptr, &coreCLRLoadedPath[MAX_LONGPATH] - ptr, coreDisToolsLibrary);
 
