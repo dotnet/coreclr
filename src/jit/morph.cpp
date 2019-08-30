@@ -7688,15 +7688,56 @@ void Compiler::fgMorphTailCallViaHelper(
     // into
     // StoreArgs(&foo, obj, a, b)
     // tail CallTarget().
-    // We will morph to
-    // foo(&StoreArgs, obj, a, b)
-    // tail CallTarget()
-    // (notice swapped foo and StoreArgs). This hack will let us calculate the
-    // target address as normal after which we let
-    // Lowering::LowerTailCallViaHelper deals with swapping the first arg and
-    // target.
+    // We will morph the call node to the StoreArgs call and insert another call
+    // to CallTarget.
+    // To do so we will instead morph to
+    // obj.foo(&StoreArgs, obj, a, b)
+    // (notice swapped foo and StoreArgs). This is slightly hacky, but allows us
+    // to reuse the address calculation of the target function that lowering
+    // does. Lowering::LowerTailCallViaHelper will then swap the "call target"
+    // and first arg.
 
     assert(!call->IsVirtual());
+
+    // First we add the tailcall.
+    GenTreeCall* callTarget = gtNewCallNode(
+        CT_USER_FUNC, callTargetStubHnd,
+        (var_types)call->gtReturnType, nullptr,
+        fgMorphStmt->gtStmtILoffsx);
+
+    callTarget->gtRetClsHnd = call->gtRetClsHnd;
+#if FEATURE_MULTIREG_RET
+    callTarget->gtReturnTypeDesc = call->gtReturnTypeDesc;
+#endif
+
+    // Transfer retbuf from call to CallTarget.
+    if (call->HasRetBufArg())
+    {
+        GenTree* retBufArg = call->gtCallArgs->Current();
+        assert((info.compRetBuffArg != BAD_VAR_NUM) &&
+               retBufArg->OperIsLocal() &&
+               (retBufArg->AsLclVarCommon()->GetLclNum() == info.compRetBuffArg));
+
+        callTarget->gtCallArgs = gtNewListNode(retBufArg, callTarget->gtCallArgs);
+        callTarget->gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
+
+        call->gtCallArgs = call->gtCallArgs->Rest();
+        call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
+    }
+
+    callTarget->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
+
+    GenTreeStmt* callTargetStmt = fgNewStmtFromTree(callTarget, fgMorphStmt->gtStmtILoffsx);
+    fgInsertStmtAtEnd(compCurBB, callTargetStmt);
+    // No need to morph it here as we inserted it in the block and will get
+    // around to it soon.
+
+    if (call->HasRetBufArg())
+    {
+        // Get rid of the ret buf arg as this will be void returning now.
+        call->gtCallArgs = call->gtCallArgs->Rest();
+        call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
+    }
 
     // Put 'this' in normal param list
     if (call->gtCallObjp)
@@ -7769,21 +7810,16 @@ void Compiler::fgMorphTailCallViaHelper(
     GenTree* storeArgs    = gtNewIconHandleNode((size_t)storeArgsStubHnd, GTF_ICON_METHOD_HDL);
     call->gtCallArgs      = gtNewListNode(storeArgs, call->gtCallArgs);
 
+    // We changed args so recompute info next time.
     call->fgArgInfo       = nullptr;
+
+    // The store-args stub returns no value.
+    call->gtRetClsHnd = nullptr;
+    call->gtType = TYP_VOID;
+    call->gtReturnType = TYP_VOID;
 
     GenTree* temp = fgMorphCall(call);
     noway_assert(temp == call);
-
-    // Add the tailcall
-    GenTreeCall* callTarget = gtNewCallNode(
-        CT_USER_FUNC, callTargetStubHnd, call->TypeGet(), nullptr, fgMorphStmt->gtStmtILoffsx);
-
-    temp = fgMorphCall(callTarget);
-    noway_assert(temp == callTarget);
-    callTarget->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
-
-    GenTreeStmt* callTargetStmt = fgNewStmtFromTree(callTarget, fgMorphStmt->gtStmtILoffsx);
-    fgInsertStmtAtEnd(compCurBB, callTargetStmt);
 
     JITDUMP("fgMorphTailCallViaHelper (after):\n");
     DISPTREE(call);
