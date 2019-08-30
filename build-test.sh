@@ -930,6 +930,7 @@ while :; do
             __SkipNative=1
             __SkipManaged=1
             __CopyNativeTestBinaries=1
+            __SkipRestorePackages=1
             ;;
 
         skipgeneratelayout)

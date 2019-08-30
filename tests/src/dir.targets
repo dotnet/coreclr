@@ -4,7 +4,6 @@
     <CLRTestKind Condition="'$(CLRTestKind)' == '' and '$(OutputType)' == 'Library'">SharedLibrary</CLRTestKind>
     <CLRTestKind Condition="'$(CLRTestKind)' == ''">BuildAndRun</CLRTestKind>
     <CLRTestPriority Condition="'$(CLRTestPriority)' == ''">0</CLRTestPriority>
-    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == ''">true</CopyNativeProjectBinaries>
   </PropertyGroup>
 
   <!-- All CLRTests need to be of a certain "kind". These kinds are enumerated below.
@@ -77,6 +76,11 @@
     <_WillCLRTestProjectBuild Condition="'$(_WillCLRTestProjectBuild)' == ''">false</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != 'true'">true</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != 'true' And '$(BuildAllProjects)' == 'true' And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == '' And '$(_WillCLRTestProjectBuild)' == 'true' And '$(DisableProjectBuild)' != 'true'">true</CopyNativeProjectBinaries>
+    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == '' And ('$(_WillCLRTestProjectBuild)' == 'false' Or '$(DisableProjectBuild)' == 'true')">false</CopyNativeProjectBinaries>
   </PropertyGroup>
     
   <!-- if we have determined that there is nothing to build, overwrite the build targets so that nothing happens -->
