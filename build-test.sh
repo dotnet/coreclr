@@ -349,15 +349,28 @@ build_Tests()
         fi
 
         echo "Managed tests build success!"
+
+        build_test_wrappers
     fi
 
-    build_test_wrappers
+    if [ $__CopyNativeTestBinaries == 1 ]; then
+        echo "Copying native test binaries to output..."
+
+        build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "/t:CopyAllNativeProjectReferenceBinaries"
+
+        if [ $? -ne 0 ]; then
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Error: copying native test binaries failed. Refer to the build log files for details (above)"
+            exit 1
+        fi
+    fi
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up="/t:UpdateInvalidPackageVersions"
     fi
 
-    generate_layout
+    if [ $__SkipGenerateLayout != 1 ]; then
+        generate_layout
+    fi
 }
 
 build_MSBuild_projects()
@@ -699,6 +712,8 @@ __GenerateTestHostOnly=
 __priority1=
 __BuildTestWrappersOnly=
 __DoCrossgen=0
+__CopyNativeTestBinaries=0
+__SkipGenerateLayout=0
 CORE_ROOT=
 
 while :; do
@@ -909,6 +924,16 @@ while :; do
         priority1)
             __priority1=1
             __UnprocessedBuildArgs+=("/p:CLRTestPriorityToBuild=1")
+            ;;
+
+        copynativeonly)
+            __SkipNative=1
+            __SkipManaged=1
+            __CopyNativeTestBinaries=1
+            ;;
+
+        skipgeneratelayout)
+            __SkipGenerateLayout=1
             ;;
 
         *)
