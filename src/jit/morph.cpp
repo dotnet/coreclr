@@ -7697,7 +7697,7 @@ void Compiler::fgMorphTailCallViaHelper(
     // does. Lowering::LowerTailCallViaHelper will then swap the "call target"
     // and first arg.
 
-    assert(!call->IsVirtual());
+    assert(!call->IsVirtualStub());
 
     // First we add the tailcall.
     GenTreeCall* callTarget = gtNewCallNode(
@@ -7732,35 +7732,12 @@ void Compiler::fgMorphTailCallViaHelper(
     // No need to morph it here as we inserted it in the block and will get
     // around to it soon.
 
-    if (call->HasRetBufArg())
-    {
-        // Get rid of the ret buf arg as this will be void returning now.
-        call->gtCallArgs = call->gtCallArgs->Rest();
-        call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
-    }
-
     // Put 'this' in normal param list
     if (call->gtCallObjp)
     {
         GenTree* thisPtr = nullptr;
         GenTree* objp    = call->gtCallObjp;
         call->gtCallObjp = nullptr;
-
-#ifdef _TARGET_X86_
-        if ((call->IsDelegateInvoke() || call->IsVirtualVtable()) && !objp->IsLocal())
-        {
-            // tmp = "this"
-            unsigned lclNum = lvaGrabTemp(true DEBUGARG("tail call thisptr"));
-            GenTree* asg    = gtNewTempAssign(lclNum, objp);
-
-            // COMMA(tmp = "this", tmp)
-            var_types vt  = objp->TypeGet();
-            GenTree*  tmp = gtNewLclvNode(lclNum, vt);
-            thisPtr       = gtNewOperNode(GT_COMMA, vt, asg, tmp);
-
-            objp = thisPtr;
-        }
-#endif // _TARGET_X86_
 
         if (call->NeedsNullCheck())
         {

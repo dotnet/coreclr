@@ -3041,13 +3041,9 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     GenTree* thisArgNode;
     if (call->IsTailCallViaHelper())
     {
-#ifdef _TARGET_X86_ // x86 tailcall via helper follows normal calling convention, but with extra stack args.
-        const unsigned argNum = 0;
-#else  // !_TARGET_X86_
-        // In case of helper dispatched tail calls, "thisptr" will be the third arg.
-        // The first two args are: real call target and addr of args copy routine.
-        const unsigned argNum  = 2;
-#endif // !_TARGET_X86_
+        // In case of helper dispatched tail calls, "thisptr" will be the second arg.
+        // The first arg is: real call target.
+        const unsigned argNum  = 1;
 
         fgArgTabEntry* thisArgTabEntry = comp->gtArgEntryByArgNum(call, argNum);
         thisArgNode                    = thisArgTabEntry->node;
@@ -3063,30 +3059,13 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
 
     // We're going to use the 'this' expression multiple times, so make a local to copy it.
 
-    unsigned lclNum;
+    unsigned delegateInvokeTmp = comp->lvaGrabTemp(true DEBUGARG("delegate invoke call"));
 
-#ifdef _TARGET_X86_
-    if (call->IsTailCallViaHelper() && originalThisExpr->IsLocal())
-    {
-        // For ordering purposes for the special tailcall arguments on x86, we forced the
-        // 'this' pointer in this case to a local in Compiler::fgMorphTailCall().
-        // We could possibly use this case to remove copies for all architectures and non-tailcall
-        // calls by creating a new lcl var or lcl field reference, as is done in the
-        // LowerVirtualVtableCall() code.
-        assert(originalThisExpr->OperGet() == GT_LCL_VAR);
-        lclNum = originalThisExpr->AsLclVarCommon()->GetLclNum();
-    }
-    else
-#endif // _TARGET_X86_
-    {
-        unsigned delegateInvokeTmp = comp->lvaGrabTemp(true DEBUGARG("delegate invoke call"));
+    LIR::Use thisExprUse(BlockRange(), &thisArgNode->gtOp.gtOp1, thisArgNode);
+    ReplaceWithLclVar(thisExprUse, delegateInvokeTmp);
 
-        LIR::Use thisExprUse(BlockRange(), &thisArgNode->gtOp.gtOp1, thisArgNode);
-        ReplaceWithLclVar(thisExprUse, delegateInvokeTmp);
-
-        thisExpr = thisExprUse.Def(); // it's changed; reload it.
-        lclNum   = delegateInvokeTmp;
-    }
+    thisExpr = thisExprUse.Def(); // it's changed; reload it.
+    unsigned lclNum   = delegateInvokeTmp;
 
     // replace original expression feeding into thisPtr with
     // [originalThis + offsetOfDelegateInstance]
@@ -3831,18 +3810,16 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
 {
     noway_assert(call->gtCallType == CT_USER_FUNC);
 
-    // If this is a tail call via helper, thisPtr will be the third argument.
+    // If this is a tail call via helper, thisPtr will be the second argument.
     int       thisPtrArgNum;
     regNumber thisPtrArgReg;
 
-#ifndef _TARGET_X86_ // x86 tailcall via helper follows normal calling convention, but with extra stack args.
     if (call->IsTailCallViaHelper())
     {
-        thisPtrArgNum = 2;
-        thisPtrArgReg = REG_ARG_2;
+        thisPtrArgNum = 1;
+        thisPtrArgReg = REG_ARG_1;
     }
     else
-#endif // !_TARGET_X86_
     {
         thisPtrArgNum = 0;
         thisPtrArgReg = comp->codeGen->genGetThisArgReg(call);
