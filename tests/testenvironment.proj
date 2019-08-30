@@ -11,6 +11,7 @@
     <COMPlusVariables>
       COMPlus_TieredCompilation;
       COMPlus_DbgEnableMiniDump;
+      COMPlus_DbgMiniDumpName;
       COMPlus_EnableAES;
       COMPlus_EnableAVX;
       COMPlus_EnableAVX2;
@@ -50,6 +51,7 @@
     <TestEnvironment>
       <TieredCompilation>0</TieredCompilation>
       <DbgEnableMiniDump>1</DbgEnableMiniDump> <!-- Enable minidumps for all scenarios -->
+      <DbgMiniDumpName Condition="'$(TargetsWindows)' != 'true'">$HELIX_WORKITEM_UPLOAD_ROOT/coredump.%d.dmp</DbgMiniDumpName>
     </TestEnvironment>
   </ItemDefinitionGroup>
 
