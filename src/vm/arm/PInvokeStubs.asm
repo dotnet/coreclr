@@ -134,6 +134,7 @@ __PInvokeGenStubFuncName SETS "$__PInvokeGenStubFuncName":CC:"_RetBuffArg"
             str     r1, [r0]
 
             mov     r1, 0
+            str     r1, [r0, #Frame__m_WasUnwound]
             str     r1, [r0, #InlinedCallFrame__m_Datum]
         
             str     sp, [r0, #InlinedCallFrame__m_pCallSiteSP]

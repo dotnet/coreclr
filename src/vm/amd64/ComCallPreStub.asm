@@ -33,6 +33,7 @@ NESTED_ENTRY ComCallPreStub, _TEXT
 ; rcx
 ; ComPrestubMethodFrame::m_ReturnAddress
 ; ComPrestubMethodFrame::m_pFuncDesc
+; Frame::m_WasUnwound
 ; Frame::m_Next
 ; __VFN_table                                   <-- rsp + ComCallPreStub_ComPrestubMethodFrame_OFFSET
 ; gsCookie
@@ -67,7 +68,7 @@ ComCallPreStub_STACK_FRAME_SIZE = ComCallPreStub_STACK_FRAME_SIZE + 8
 ComCallPreStub_ERRORRETVAL_NEGOFFSET = ComCallPreStub_STACK_FRAME_SIZE
 
 ; Ensure that the offset of the XMM save area will be 16-byte aligned.
-if ((ComCallPreStub_STACK_FRAME_SIZE + SIZEOF__Frame + 8) mod 16) ne 0
+if ((ComCallPreStub_STACK_FRAME_SIZE + 8) mod 16) ne 0
 ComCallPreStub_STACK_FRAME_SIZE = ComCallPreStub_STACK_FRAME_SIZE + 8
 endif
 

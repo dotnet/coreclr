@@ -109,7 +109,7 @@ ASMCONSTANTS_C_ASSERT(PtrArray__m_Array == offsetof(PtrArray, m_Array));
 #define SIZEOF__GSCookie              0x4
 ASMCONSTANTS_C_ASSERT(SIZEOF__GSCookie == sizeof(GSCookie));
 
-#define SIZEOF__Frame                 0x8
+#define SIZEOF__Frame                 0xC
 ASMCONSTANTS_C_ASSERT(SIZEOF__Frame == sizeof(Frame));
 
 #define SIZEOF__CONTEXT               0x1a0
@@ -151,10 +151,10 @@ ASMCONSTANTS_C_ASSERT(MethodDesc__mcComInterop == mcComInterop)
 #define Stub__m_pCode DBG_FRE(0x10, 0x0c)
 ASMCONSTANTS_C_ASSERT(Stub__m_pCode == sizeof(Stub))
 
-#define SIZEOF__ComMethodFrame 0x24
+#define SIZEOF__ComMethodFrame 0x28
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame == sizeof(ComMethodFrame))
 
-#define UnmanagedToManagedFrame__m_pvDatum 0x08
+#define UnmanagedToManagedFrame__m_pvDatum 0x0C
 ASMCONSTANTS_C_ASSERT(UnmanagedToManagedFrame__m_pvDatum == offsetof(UnmanagedToManagedFrame, m_pvDatum))
 
 // In ComCallPreStub and GenericComPlusCallStub, we setup R12 to contain address of ComCallMethodDesc after doing the following:
@@ -215,7 +215,7 @@ ASMCONSTANTS_C_ASSERT(CallDescrData__fpReturnSize         == offsetof(CallDescrD
 ASMCONSTANTS_C_ASSERT(CallDescrData__pTarget              == offsetof(CallDescrData, pTarget))
 ASMCONSTANTS_C_ASSERT(CallDescrData__returnValue          == offsetof(CallDescrData, returnValue))
 
-#define SIZEOF__FaultingExceptionFrame                  (SIZEOF__Frame + 0x8 + SIZEOF__CONTEXT)
+#define SIZEOF__FaultingExceptionFrame                  (SIZEOF__Frame + 0xC + SIZEOF__CONTEXT)
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame))
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted))
@@ -224,22 +224,25 @@ ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(Faul
 #define               Frame__m_Next 0x04
 ASMCONSTANTS_C_ASSERT(Frame__m_Next == offsetof(Frame, m_Next))
 
-#define               InlinedCallFrame__m_Datum 0x08
+#define               Frame__m_WasUnwound 0x08
+ASMCONSTANTS_C_ASSERT(Frame__m_WasUnwound == offsetof(Frame, m_WasUnwound));
+
+#define               InlinedCallFrame__m_Datum 0x0C
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_Datum == offsetof(InlinedCallFrame, m_Datum))
 
-#define               InlinedCallFrame__m_pCallSiteSP 0x0C
+#define               InlinedCallFrame__m_pCallSiteSP 0x10
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallSiteSP == offsetof(InlinedCallFrame, m_pCallSiteSP))
 
-#define               InlinedCallFrame__m_pCallerReturnAddress 0x10
+#define               InlinedCallFrame__m_pCallerReturnAddress 0x14
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallerReturnAddress == offsetof(InlinedCallFrame, m_pCallerReturnAddress))
 
-#define               InlinedCallFrame__m_pCalleeSavedFP 0x14
+#define               InlinedCallFrame__m_pCalleeSavedFP 0x18
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCalleeSavedFP == offsetof(InlinedCallFrame, m_pCalleeSavedFP))
 
-#define               InlinedCallFrame__m_pThread 0x18
+#define               InlinedCallFrame__m_pThread 0x1C
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pThread == offsetof(InlinedCallFrame, m_pThread))
 
-#define               InlinedCallFrame__m_pSPAfterProlog 0x1C
+#define               InlinedCallFrame__m_pSPAfterProlog 0x20
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pSPAfterProlog == offsetof(InlinedCallFrame, m_pSPAfterProlog))
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT

@@ -1667,7 +1667,7 @@ _ComCallPreStub@0 proc public
     push        edi
 
     push        eax         ; ComCallMethodDesc*
-    sub         esp, 5*4    ; next, vtable, gscookie, 64-bit error return
+    sub         esp, SIZEOF__Frame + 4 + 8    ; Frame, gscookie, 64-bit error return
 
     lea     edi, [esp]
     lea     esi, [esp+3*4]
@@ -1680,7 +1680,7 @@ _ComCallPreStub@0 proc public
     cmp eax, 0
     je nostub                   ; oops we could not create a stub
 
-    add     esp, 6*4
+    add     esp, 4 + SIZEOF__Frame + 4 + 8    ; ComCallMethodDesc*, Frame, gscookie, 64-bit error return
 
     ; pop CalleeSavedRegisters
     pop edi
@@ -1703,7 +1703,7 @@ nostub:
     mov     eax, [edi]
     mov     edx, [edi+4]
 
-    add     esp, 6*4
+    add     esp, 4 + SIZEOF__Frame + 4 + 8; ComCallMethodDesc*, Frame, gscookie, 64-bit error return
 
     ; pop CalleeSavedRegisters
     pop edi

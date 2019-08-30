@@ -444,6 +444,9 @@ public:
     {
         // Nothing to do here.
         LIMITED_METHOD_CONTRACT;
+        m_WasUnwound = TRUE;
+        // Verify that the frame is on the thread frame chain
+        _ASSERTE(m_Next != NULL);
     }
 #endif
 
@@ -738,9 +741,17 @@ private:
 
 protected:
     PTR_Frame m_Next;        // offset +4
+    BOOL m_WasUnwound;
+#ifdef BIT64
+    // Clang and GCC has a different rule for packing members of child classes than Visual C++
+    // This padding ensures that the members of classes derived from Frame start at the same
+    // offset on Unix and Windows
+    INT32 m_padding;
+#endif
 
 public:
     PTR_Frame PtrNextFrame() { return m_Next; }
+    BOOL WasUnwound() { return m_WasUnwound; }
 
 private:
     // Because JIT-method activations cannot be expressed as Frames,
@@ -785,7 +796,8 @@ protected:
     // Frame is considered an abstract class: this protected constructor
     // causes any attempt to instantiate one to fail at compile-time.
     Frame()
-    : m_Next(dac_cast<PTR_Frame>(nullptr))
+    : m_Next(dac_cast<PTR_Frame>(nullptr)),
+      m_WasUnwound(FALSE)
     { 
         LIMITED_METHOD_CONTRACT;
     }
@@ -1937,9 +1949,6 @@ public:
     //------------------------------------------------------------------------
     // Performs cleanup on an exception unwind
     //------------------------------------------------------------------------
-#ifndef DACCESS_COMPILE
-    virtual void ExceptionUnwind();
-#endif
 
 protected:
     TADDR           m_pvDatum;        // type depends on the sub class
@@ -2453,10 +2462,6 @@ public:
         return TT_NONE;
     }
 
-    virtual void ExceptionUnwind()
-    {
-    }
-
 private:
     // Keep as last entry in class
     DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ComPrestubMethodFrame)
@@ -2530,7 +2535,11 @@ private:
     BOOL          m_MaybeInterior;
 
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_DTOR(GCFrame)
+    DEFINE_VTABLE_GETTER(GCFrame)
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+    ~GCFrame();
+#endif
 };
 
 #ifdef FEATURE_INTERPRETER
@@ -3123,6 +3132,8 @@ bool isRetAddr(TADDR retAddr, TADDR* whereCalled);
 
 class TailCallFrame : public Frame
 {
+    friend class CheckAsmOffsets;
+
     VPTR_VTABLE_CLASS(TailCallFrame, Frame)
 
 #if defined(_TARGET_X86_)
@@ -3131,7 +3142,6 @@ class TailCallFrame : public Frame
     TADDR           m_ReturnAddress;    // the return address of the tailcall
 #elif defined(_TARGET_AMD64_)
     TADDR                 m_pGCLayout;
-    TADDR                 m_padding;    // code:StubLinkerCPU::CreateTailCallCopyArgsThunk expects the size of TailCallFrame to be 16-byte aligned
     CalleeSavedRegisters  m_calleeSavedRegisters;
     TADDR                 m_ReturnAddress;
 #elif defined(_TARGET_ARM_)
@@ -3260,11 +3270,16 @@ public:
             *m_pShadowSP |= ICodeManager::SHADOW_SP_FILTER_DONE;
         }
     }
+
+#ifndef CROSSGEN_COMPILE
+    ~ExceptionFilterFrame();
+#endif
+
 #endif
 
 private:
     // Keep as last entry in class
-    DEFINE_VTABLE_GETTER_AND_CTOR_AND_DTOR(ExceptionFilterFrame)
+    DEFINE_VTABLE_GETTER_AND_CTOR(ExceptionFilterFrame)
 };
 
 #ifdef _DEBUG
@@ -3582,7 +3597,7 @@ public:
 
 #define GCPROTECT_END()                                                 \
                 DEBUG_ASSURE_NO_RETURN_END(GCPROTECT) }                 \
-                __gcframe.Pop(); } while(0)
+                } while(0)
 
 
 #else // #ifndef DACCESS_COMPILE

@@ -3042,6 +3042,8 @@ void RedirectedThreadFrame::ExceptionUnwind()
 
     STRESS_LOG1(LF_SYNC, LL_INFO1000, "In RedirectedThreadFrame::ExceptionUnwind pFrame = %p\n", this);
 
+    Frame::ExceptionUnwind();
+
     Thread* pThread = GetThread();
 
     if (pThread->GetSavedRedirectContext())

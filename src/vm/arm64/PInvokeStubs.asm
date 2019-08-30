@@ -134,6 +134,7 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
             ldr     x9, =$InlinedCallFrame_vftable
             str     x9, [x10]
 
+            str     wzr, [x10, #Frame__m_WasUnwound]
             str     xzr, [x10, #InlinedCallFrame__m_Datum]
         
             mov     x9, sp

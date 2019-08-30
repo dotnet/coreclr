@@ -117,7 +117,7 @@ ASMCONSTANTS_C_ASSERT(DelegateObject___target == offsetof(DelegateObject, _targe
 #define SIZEOF__GSCookie 0x8
 ASMCONSTANTS_C_ASSERT(SIZEOF__GSCookie == sizeof(GSCookie));
 
-#define SIZEOF__Frame                 0x10
+#define SIZEOF__Frame                 0x18
 ASMCONSTANTS_C_ASSERT(SIZEOF__Frame == sizeof(Frame));
 
 #define SIZEOF__CONTEXT               0x390
@@ -148,10 +148,10 @@ ASMCONSTANTS_C_ASSERT(PtrArray__m_Array == offsetof(PtrArray, m_Array));
 
 #ifdef FEATURE_COMINTEROP
 
-#define SIZEOF__ComMethodFrame 0x70
+#define SIZEOF__ComMethodFrame 0x78
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame == sizeof(ComMethodFrame));
 
-#define UnmanagedToManagedFrame__m_pvDatum 0x10
+#define UnmanagedToManagedFrame__m_pvDatum 0x18
 ASMCONSTANTS_C_ASSERT(UnmanagedToManagedFrame__m_pvDatum == offsetof(UnmanagedToManagedFrame, m_pvDatum));
 
 #endif // FEATURE_COMINTEROP
@@ -171,7 +171,7 @@ ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbActualArgSize == offsetof(UMThunkMar
 #define CONTEXT_Pc 0x108
 ASMCONSTANTS_C_ASSERT(CONTEXT_Pc == offsetof(T_CONTEXT,Pc))
 
-#define SIZEOF__FaultingExceptionFrame                  (SIZEOF__Frame + 0x10 + SIZEOF__CONTEXT)
+#define SIZEOF__FaultingExceptionFrame                  (SIZEOF__Frame + 0x18 + SIZEOF__CONTEXT)
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
 ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
@@ -206,19 +206,22 @@ ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pGCStatics == offsetof(DomainLocalMod
 #define               Frame__m_Next 0x08
 ASMCONSTANTS_C_ASSERT(Frame__m_Next == offsetof(Frame, m_Next))
 
-#define               InlinedCallFrame__m_Datum 0x10
+#define               Frame__m_WasUnwound 0x10
+ASMCONSTANTS_C_ASSERT(Frame__m_WasUnwound == offsetof(Frame, m_WasUnwound));
+
+#define               InlinedCallFrame__m_Datum 0x18
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_Datum == offsetof(InlinedCallFrame, m_Datum))
 
-#define               InlinedCallFrame__m_pCallSiteSP 0x20
+#define               InlinedCallFrame__m_pCallSiteSP 0x28
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallSiteSP == offsetof(InlinedCallFrame, m_pCallSiteSP))
 
-#define               InlinedCallFrame__m_pCallerReturnAddress 0x28
+#define               InlinedCallFrame__m_pCallerReturnAddress 0x30
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallerReturnAddress == offsetof(InlinedCallFrame, m_pCallerReturnAddress))
 
-#define               InlinedCallFrame__m_pCalleeSavedFP 0x30
+#define               InlinedCallFrame__m_pCalleeSavedFP 0x38
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCalleeSavedFP == offsetof(InlinedCallFrame, m_pCalleeSavedFP))
 
-#define               InlinedCallFrame__m_pThread 0x38
+#define               InlinedCallFrame__m_pThread 0x40
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pThread == offsetof(InlinedCallFrame, m_pThread))
 
 

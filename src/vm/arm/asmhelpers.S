@@ -181,25 +181,25 @@ LOCAL_LABEL(LReturnDone):
         // like the C++ helper does before calling RtlRestoreContext
         //
         // Allocate space for the rest of the frame and GSCookie.
-        // PROLOG_STACK_ALLOC  0x0C
+        // PROLOG_STACK_ALLOC  SIZEOF__Frame + SIZEOF__GSCookie
         //
         // Set r11 for frame chain
         //add     r11, r7, 0x1C 
         //
         // Set the vtable for TailCallFrame
         //bl      TCF_GETMETHODFRAMEVPTR
-        //str     r0, [r7, #-8]
+        //str     r0, [r7, #-SIZEOF__Frame]
         //
         // Initialize the GSCookie within the Frame
         //ldr     r0, =s_gsCookie
-        //str     r0, [r7, #-0x0C]
+        //str     r0, [r7, #-SIZEOF__Frame - SIZEOF__GSCookie]
         //
         // Link the TailCallFrameinto the Frame chain
         // and initialize r5 & r6 for unlinking later
         //CALL_GETTHREAD
         //mov     r6, r0
         //ldr     r5, [r6, #Thread__m_pFrame]        
-        //str     r5, [r7, #-4]
+        //str     r5, [r7, #-SIZEOF__Frame + Frame__m_Next]
         //sub     r0, r7, 8
         //str     r0, [r6, #Thread__m_pFrame]
         //
@@ -226,7 +226,7 @@ C_FUNC(JIT_TailCallHelperStub_ReturnAddress):
 #ifdef _DEBUG
         ldr     r3, =s_gsCookie
         ldr     r3, [r3]
-        ldr     r2, [r7, #-0x0C]
+        ldr     r2, [r7, #-SIZEOF__Frame - SIZEOF__GSCookie]
         cmp     r2, r3
         beq     LOCAL_LABEL(GoodGSCookie)
         bl      C_FUNC(DoJITFailFast)

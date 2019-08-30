@@ -17,14 +17,13 @@ extern s_gsCookie:qword
 
 
 OFFSETOF_SECRET_PARAMS              equ 0h
+SIZEOF_SECRET_PARAMS                equ 3 * 8h
 OFFSETOF_GSCOOKIE                   equ OFFSETOF_SECRET_PARAMS + \
-                                        18h + 8h ; +8 for stack alignment padding
+                                        SIZEOF_SECRET_PARAMS
 OFFSETOF_FRAME                      equ OFFSETOF_GSCOOKIE + \
-                                        8h
-OFFSETOF_FRAME_REGISTERS            equ OFFSETOF_FRAME + \
-                                        SIZEOF__Frame
-SIZEOF_FIXED_FRAME                  equ OFFSETOF_FRAME_REGISTERS + \
-                                        SIZEOF_CalleeSavedRegisters + 8h ; +8 for return address
+                                        SIZEOF_GSCookie
+OFFSETOF_FRAME_REGISTERS            equ OFFSETOF_FRAME + OFFSETOF__StubHelperFrame__m_TransitionBlock + OFFSETOF__TransitionBlock__m_calleeSavedRegisters;
+SIZEOF_FIXED_FRAME                  equ OFFSETOF_FRAME + SIZEOF__StubHelperFrame
 
 .errnz SIZEOF_FIXED_FRAME mod 16, SIZEOF_FIXED_FRAME not aligned
 
@@ -59,12 +58,13 @@ SIZEOF_FIXED_FRAME                  equ OFFSETOF_FRAME_REGISTERS + \
 ; +20h      gsCookie
 ; +28h      __VFN_table
 ; +30h      m_Next
-; +38h      m_calleeSavedRegisters
-; +98h      m_ReturnAddress
-; +a0h  rcx home
-; +a8h  rdx home
-; +b0h  r8 home
-; +b8h  r9 home
+; +38h      m_WasUnwound
+; +40h      m_calleeSavedRegisters
+; +a0h      m_ReturnAddress
+; +a8h  rcx home
+; +b0h  rdx home
+; +b8h  r8 home
+; +c0h  r9 home
 ; 
 NESTED_ENTRY InstantiatingMethodStubWorker, _TEXT
         .allocstack             SIZEOF_FIXED_FRAME - 8h     ; -8 for return address
@@ -75,8 +75,6 @@ NESTED_ENTRY InstantiatingMethodStubWorker, _TEXT
 
         set_frame               rbp, 0
     END_PROLOGUE
-
-        sub     rsp, SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES
 
         ;
         ; fully initialize the StubHelperFrame
@@ -95,8 +93,6 @@ NESTED_ENTRY InstantiatingMethodStubWorker, _TEXT
         mov     [rbp + OFFSETOF_FRAME + OFFSETOF__Frame__m_Next], rdx
         lea     rcx, [rbp + OFFSETOF_FRAME]
         mov     [r12 + OFFSETOF__Thread__m_pFrame], rcx
-
-        add     rsp, SIZEOF_MAX_OUTGOING_ARGUMENT_HOMES
 
         mov     rcx, [rbp + OFFSETOF_SECRET_PARAMS + 0h]        ; nStackSlots (includes padding for stack alignment)
 

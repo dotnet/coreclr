@@ -95,7 +95,6 @@ public:
 
         m_sfCurrentEstablisherFrame.Clear();
         m_sfLastUnwoundEstablisherFrame.Clear();
-        m_pInitialExplicitFrame = NULL;
         m_pLimitFrame = NULL;
         m_csfEHClauseOfCollapsedTracker.Clear();
 
@@ -155,7 +154,6 @@ public:
 
         m_sfCurrentEstablisherFrame.Clear();
         m_sfLastUnwoundEstablisherFrame.Clear();
-        m_pInitialExplicitFrame = NULL;
         m_csfEHClauseOfCollapsedTracker.Clear();
 
 #ifdef FEATURE_PAL
@@ -292,20 +290,12 @@ public:
         return m_sfLastUnwoundEstablisherFrame;
     }
 
-    PTR_Frame GetInitialExplicitFrame()
-    {
-        LIMITED_METHOD_CONTRACT;
-
-        return m_pInitialExplicitFrame;
-    }
-
 #ifdef FEATURE_PAL
     // Reset the range of explicit frames, the limit frame and the scanned
     // stack range before unwinding a sequence of native frames. These frames
     // will be in the unwound part of the stack.
     void CleanupBeforeNativeFramesUnwind()
     {
-        m_pInitialExplicitFrame = NULL;
         m_pLimitFrame = NULL;
         m_ScannedStackRange.Reset();
     }
@@ -768,7 +758,6 @@ private: ;
 
     StackFrame              m_sfCurrentEstablisherFrame;
     StackFrame              m_sfLastUnwoundEstablisherFrame;
-    PTR_Frame               m_pInitialExplicitFrame;
     CallerStackFrame        m_csfEHClauseOfCollapsedTracker;
     EnclosingClauseInfo     m_EnclosingClauseInfoOfCollapsedTracker;
 };

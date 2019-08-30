@@ -46,8 +46,8 @@ _JIT_PInvokeBegin@4 PROC public
         lea             eax,[??_7InlinedCallFrame@@6B@]
         mov             dword ptr [ecx], eax
 
+        mov             dword ptr [ecx + Frame__m_WasUnwound], 0
         mov             dword ptr [ecx + InlinedCallFrame__m_Datum], 0
-
         
         mov             eax, esp
         add             eax, 4

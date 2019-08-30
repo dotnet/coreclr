@@ -2580,6 +2580,9 @@ void StubLinkerCPU::EmitComMethodStubProlog(TADDR pFrameVptr,
     // push eax ; datum
     X86EmitPushReg(kEAX);
 
+    // push edx ;leave room for m_WasUnwound (edx is an arbitrary choice)
+    X86EmitPushReg(kEDX);
+
     // push edx ;leave room for m_next (edx is an arbitrary choice)
     X86EmitPushReg(kEDX);
 
@@ -2962,6 +2965,9 @@ VOID StubLinkerCPU::EmitMethodStubProlog(TADDR pFrameVptr, int transitionBlockOf
     // Push m_datum
     X86EmitPushReg(SCRATCH_REGISTER_X86REG);
 
+    // push edx ;leave room for m_WasUnwound (edx is an arbitrary choice)
+    X86EmitPushReg(kEDX);
+
     // push edx ;leave room for m_next (edx is an arbitrary choice)
     X86EmitPushReg(kEDX);
 
@@ -3005,6 +3011,9 @@ VOID StubLinkerCPU::EmitMethodStubProlog(TADDR pFrameVptr, int transitionBlockOf
 
     // Push m_datum
     X86EmitPushReg(kEAX);
+
+    // push edx ;leave room for m_WasUnwound (edx is an arbitrary choice)
+    X86EmitPushReg(kEDX);
 
     // push edx ;leave room for m_next (edx is an arbitrary choice)
     X86EmitPushReg(kEDX);

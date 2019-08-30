@@ -894,7 +894,8 @@ VSDHelperLabel:
 ; m_ReturnAddress
 ; m_regs
 ; m_CallerAddress
-; m_pThread
+; m_WasUnwound
+; m_Next
 ; vtbl
 ; GSCookie
 ; &VSDHelperLabel
@@ -910,11 +911,11 @@ ifdef _DEBUG
     TailCallFrameGSCookieIsValid:
 endif
         ; remove the padding frame from the chain
-        mov     esi, dword ptr [esp+OffsetOfTailCallFrame+4]    ; esi = TailCallFrame::m_Next
+        mov     esi, dword ptr [esp+OffsetOfTailCallFrame+Frame__m_Next]    ; esi = TailCallFrame::m_Next
         mov     dword ptr [ebx + Thread_m_pFrame], esi
 
         ; skip the frame
-        add     esp, 20     ; &VSDHelperLabel, GSCookie, vtbl, m_Next, m_CallerAddress
+        add     esp, 4 + SIZEOF_GSCookie + SIZEOF__Frame + 4     ; &VSDHelperLabel, GSCookie, vtbl, m_Next, m_WasUnwound, m_CallerAddress
 
         pop     edi         ; restore callee saved registers
         pop     esi
@@ -1131,24 +1132,24 @@ VSDSpaceForFrameChecked:
         mov     eax, _g_TailCallFrameVptr       ; vptr
         mov     edx, dword ptr [esp+OrigRetAddr]        ; orig return address
         mov     dword ptr [edi+SIZEOF_GSCookie], eax            ; TailCallFrame::vptr
-        mov     dword ptr [edi+SIZEOF_GSCookie+28], edx         ; TailCallFrame::m_ReturnAddress
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_ReturnAddress], edx                     ; TailCallFrame::m_ReturnAddress
 
         mov     eax, dword ptr [esp+CallersEdi]         ; restored edi
         mov     edx, dword ptr [esp+CallersEsi]         ; restored esi
-        mov     dword ptr [edi+SIZEOF_GSCookie+12], eax         ; TailCallFrame::m_regs::edi
-        mov     dword ptr [edi+SIZEOF_GSCookie+16], edx         ; TailCallFrame::m_regs::esi
-        mov     dword ptr [edi+SIZEOF_GSCookie+20], ebx         ; TailCallFrame::m_regs::ebx
-        mov     dword ptr [edi+SIZEOF_GSCookie+24], ebp         ; TailCallFrame::m_regs::ebp
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_regs + CalleeSavedRegisters__edi], eax  ; TailCallFrame::m_regs::edi
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_regs + CalleeSavedRegisters__esi], edx  ; TailCallFrame::m_regs::esi
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_regs + CalleeSavedRegisters__ebx], ebx  ; TailCallFrame::m_regs::ebx
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_regs + CalleeSavedRegisters__ebp], ebp  ; TailCallFrame::m_regs::ebp
 
         mov     ebx, dword ptr [esp+pThread]            ; ebx = pThread
 
         mov     eax, dword ptr [ebx+Thread_m_pFrame]
         lea     edx, [edi+SIZEOF_GSCookie]
-        mov     dword ptr [edi+SIZEOF_GSCookie+4], eax          ; TailCallFrame::m_pNext
+        mov     dword ptr [edi+SIZEOF_GSCookie+Frame__m_Next], eax          ; TailCallFrame::m_pNext
         mov     dword ptr [ebx+Thread_m_pFrame], edx    ; hook the new frame into the chain
 
         ; setup ebp chain
-        lea     ebp, [edi+SIZEOF_GSCookie+24]                   ; TailCallFrame::m_regs::ebp
+        lea     ebp, [edi+SIZEOF_GSCookie+TailCallFrame__m_regs + CalleeSavedRegisters__ebp]            ; TailCallFrame::m_regs::ebp
 
         ; Do not copy arguments again if they are in place already
         ; Otherwise, we will need to slide the new arguments up the stack
@@ -1159,7 +1160,7 @@ VSDSpaceForFrameChecked:
         ; or the TailCallFrame is a perfect fit
         ; set the caller address
         mov     edx, dword ptr [esp+ExtraSpace+RetAddr] ; caller address
-        mov     dword ptr [edi+SIZEOF_GSCookie+8], edx         ; TailCallFrame::m_CallerAddress
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_CallerAddress], edx                     ; TailCallFrame::m_CallerAddress
 
         ; adjust edi as it would by copying
         neg     ecx
@@ -1170,7 +1171,7 @@ VSDSpaceForFrameChecked:
 VSDTailCallFrameInserted_DoSlideUpArgs:
         ; set the caller address
         mov     edx, dword ptr [esp+ExtraSpace+RetAddr] ; caller address
-        mov     dword ptr [edi+SIZEOF_GSCookie+8], edx          ; TailCallFrame::m_CallerAddress
+        mov     dword ptr [edi+SIZEOF_GSCookie+TailCallFrame__m_CallerAddress], edx                     ; TailCallFrame::m_CallerAddress
 
         ; copy the arguments to the final destination
         test    ecx, ecx

@@ -88,14 +88,30 @@ ASMCONSTANTS_C_ASSERT(SIZEOF_GSCookie == sizeof(GSCookie));
 ASMCONSTANTS_C_ASSERT(OFFSETOF__Frame__m_Next
                     == offsetof(Frame, m_Next));
 
-#define               SIZEOF__Frame                 0x10
+#define               OFFSETOF__Frame__m_WasUnwound 0x10
+ASMCONSTANTS_C_ASSERT(OFFSETOF__Frame__m_WasUnwound
+                    == offsetof(Frame, m_WasUnwound));
+
+#define               SIZEOF__Frame                 0x18
+ASMCONSTANTS_C_ASSERT(SIZEOF__Frame == sizeof(Frame));
+
+#ifndef UNIX_AMD64_ABI
+#define OFFSETOF__StubHelperFrame__m_TransitionBlock 0x18
+ASMCONSTANTS_C_ASSERT(OFFSETOF__StubHelperFrame__m_TransitionBlock == offsetof(StubHelperFrame, m_TransitionBlock));
+#define SIZEOF__StubHelperFrame 0x60
+ASMCONSTANTS_C_ASSERT(SIZEOF__StubHelperFrame == sizeof(StubHelperFrame));
+#define OFFSETOF__TransitionBlock__m_calleeSavedRegisters 0
+ASMCONSTANTS_C_ASSERT(OFFSETOF__TransitionBlock__m_calleeSavedRegisters == offsetof(TransitionBlock, m_calleeSavedRegisters));
+#define SIZEOF__TransitionBlock 0x48
+ASMCONSTANTS_C_ASSERT(SIZEOF__TransitionBlock == sizeof(TransitionBlock));
+#endif
 
 #ifdef FEATURE_COMINTEROP
-#define               SIZEOF__ComPrestubMethodFrame                 0x20
+#define               SIZEOF__ComPrestubMethodFrame                 0x28
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComPrestubMethodFrame
                     == sizeof(ComPrestubMethodFrame));
 
-#define               SIZEOF__ComMethodFrame                        0x20
+#define               SIZEOF__ComMethodFrame                        0x28
 ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame
                     == sizeof(ComMethodFrame));
 #endif // FEATURE_COMINTEROP
@@ -473,11 +489,11 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__CONTEXT__Xmm14
 ASMCONSTANTS_C_ASSERT(OFFSETOF__CONTEXT__Xmm15
                     == offsetof(CONTEXT, Xmm15));
 
-#define               SIZEOF__FaultingExceptionFrame  (0x20 + SIZEOF__CONTEXT)
+#define               SIZEOF__FaultingExceptionFrame  (0x30 + SIZEOF__CONTEXT)
 ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame 
                     == sizeof(FaultingExceptionFrame));
 
-#define               OFFSETOF__FaultingExceptionFrame__m_fFilterExecuted 0x10
+#define               OFFSETOF__FaultingExceptionFrame__m_fFilterExecuted 0x18
 ASMCONSTANTS_C_ASSERT(OFFSETOF__FaultingExceptionFrame__m_fFilterExecuted 
                     == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
 
@@ -537,23 +553,23 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__ArrayTypeDesc__m_Arg
                     == offsetof(ArrayTypeDesc, m_Arg));
 
 // For JIT_PInvokeBegin and JIT_PInvokeEnd helpers
-#define               OFFSETOF__InlinedCallFrame__m_Datum 0x10
+#define               OFFSETOF__InlinedCallFrame__m_Datum 0x18
 ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_Datum
                     == offsetof(InlinedCallFrame, m_Datum));
 
-#define               OFFSETOF__InlinedCallFrame__m_pCallSiteSP 0x20
+#define               OFFSETOF__InlinedCallFrame__m_pCallSiteSP 0x28
 ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCallSiteSP
                     == offsetof(InlinedCallFrame, m_pCallSiteSP));
 
-#define               OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress 0x28
+#define               OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress 0x30
 ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress
                     == offsetof(InlinedCallFrame, m_pCallerReturnAddress));
 
-#define               OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP 0x30
+#define               OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP 0x38
 ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP
                     == offsetof(InlinedCallFrame, m_pCalleeSavedFP));
 
-#define               OFFSETOF__InlinedCallFrame__m_pThread 0x38
+#define               OFFSETOF__InlinedCallFrame__m_pThread 0x40
 ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pThread
                     == offsetof(InlinedCallFrame, m_pThread));
 

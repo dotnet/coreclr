@@ -156,6 +156,7 @@ LEAF_ENTRY JIT_PInvokeBegin, _TEXT
         lea             rax,[??_7InlinedCallFrame@@6B@]
         mov             qword ptr [rcx], rax
 
+        mov             dword ptr [rcx + OFFSETOF__Frame__m_WasUnwound], 0
         mov             qword ptr [rcx + OFFSETOF__InlinedCallFrame__m_Datum], 0
 
         mov             rax, rsp

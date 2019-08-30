@@ -1890,13 +1890,6 @@ CLRUnwindStatus ExceptionTracker::ProcessOSExceptionNotification(
                 // notify Frame of unwind
                 //
                 pFrame->ExceptionUnwind();
-
-                // If we have not yet set the initial explicit frame processed by this tracker, then 
-                // set it now.
-                if (m_pInitialExplicitFrame == NULL)
-                {
-                    m_pInitialExplicitFrame = pFrame;
-                }
             }
 
             pFrame = pFrame->Next();
@@ -6347,7 +6340,7 @@ bool ExceptionTracker::IsInStackRegionUnwoundByCurrentException(CrawlFrame * pCF
 // Currently, the following fields are used below:
 //
 // m_ExceptionFlags, m_ScannedStackRange, m_sfCurrentEstablisherFrame, m_sfLastUnwoundEstablisherFrame, 
-// m_pInitialExplicitFrame, m_pLimitFrame, m_pPrevNestedInfo.
+// m_pLimitFrame, m_pPrevNestedInfo.
 //
 bool ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(CrawlFrame * pCF)
 {
@@ -6355,81 +6348,74 @@ bool ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(CrawlFrame * pCF)
 
     _ASSERTE(pCF != NULL);
 
-    // Enumerate all (nested) exception trackers and see if any of them has unwound the
-    // specified CrawlFrame.
-    Thread * pTargetThread = pCF->pThread;
-    PTR_ExceptionTracker pTopTracker = pTargetThread->GetExceptionState()->GetCurrentExceptionTracker();
-    PTR_ExceptionTracker pCurrentTracker = pTopTracker;
-    
     bool fHasFrameBeenUnwound = false;
 
-    while (pCurrentTracker != NULL)
+    if (pCF->IsFrameless())
     {
-        bool fSkipCurrentTracker = false;
+        // Enumerate all (nested) exception trackers and see if any of them has unwound the
+        // specified CrawlFrame.
+        Thread * pTargetThread = pCF->pThread;
+        PTR_ExceptionTracker pTopTracker = pTargetThread->GetExceptionState()->GetCurrentExceptionTracker();
+        PTR_ExceptionTracker pCurrentTracker = pTopTracker;
 
-        // The tracker must be in the second pass, and its stack range must not be empty.
-        if (pCurrentTracker->IsInFirstPass() ||
-            pCurrentTracker->m_ScannedStackRange.IsEmpty())
+        while (pCurrentTracker != NULL)
         {
-            fSkipCurrentTracker = true;
-        }
+            bool fSkipCurrentTracker = false;
 
-        if (!fSkipCurrentTracker)
-        {
-            CallerStackFrame csfToCheck;
-            bool fFrameless = false;
-            if (pCF->IsFrameless())
+            // The tracker must be in the second pass, and its stack range must not be empty.
+            if (pCurrentTracker->IsInFirstPass() ||
+                pCurrentTracker->m_ScannedStackRange.IsEmpty())
             {
+                fSkipCurrentTracker = true;
+            }
+
+            if (!fSkipCurrentTracker)
+            {
+                CallerStackFrame csfToCheck;
+                bool fFrameless = false;
                 csfToCheck = CallerStackFrame::FromRegDisplay(pCF->GetRegisterSet());
                 fFrameless = true;
-            }
-            else
-            {
-                csfToCheck = CallerStackFrame((UINT_PTR)pCF->GetFrame());
-            }
 
-            STRESS_LOG4(LF_EH|LF_GCROOTS, LL_INFO100, "CrawlFrame (%p): Frameless: %s %s: %p\n",
-                        pCF, fFrameless ? "Yes" : "No", fFrameless ? "CallerSP" : "Address", csfToCheck.SP);
+                STRESS_LOG2(LF_EH|LF_GCROOTS, LL_INFO100, "CrawlFrame (%p): Frameless: Yes, CallerSP: %p\n",
+                            pCF, csfToCheck.SP);
 
-            StackFrame sfLowerBound = pCurrentTracker->m_ScannedStackRange.GetLowerBound();
-            StackFrame sfUpperBound = pCurrentTracker->m_ScannedStackRange.GetUpperBound();
-            StackFrame sfCurrentEstablisherFrame = pCurrentTracker->GetCurrentEstablisherFrame();
-            StackFrame sfLastUnwoundEstablisherFrame = pCurrentTracker->GetLastUnwoundEstablisherFrame();
+                StackFrame sfLowerBound = pCurrentTracker->m_ScannedStackRange.GetLowerBound();
+                StackFrame sfUpperBound = pCurrentTracker->m_ScannedStackRange.GetUpperBound();
+                StackFrame sfCurrentEstablisherFrame = pCurrentTracker->GetCurrentEstablisherFrame();
+                StackFrame sfLastUnwoundEstablisherFrame = pCurrentTracker->GetLastUnwoundEstablisherFrame();
 
-            STRESS_LOG4(LF_EH|LF_GCROOTS, LL_INFO100, "LowerBound/UpperBound/CurrentEstablisherFrame/LastUnwoundManagedFrame: %p/%p/%p/%p\n",
-                        sfLowerBound.SP, sfUpperBound.SP, sfCurrentEstablisherFrame.SP, sfLastUnwoundEstablisherFrame.SP);
+                STRESS_LOG4(LF_EH|LF_GCROOTS, LL_INFO100, "LowerBound/UpperBound/CurrentEstablisherFrame/LastUnwoundManagedFrame: %p/%p/%p/%p\n",
+                            sfLowerBound.SP, sfUpperBound.SP, sfCurrentEstablisherFrame.SP, sfLastUnwoundEstablisherFrame.SP);
 
-            // Refer to the detailed comment in ExceptionTracker::IsInStackRegionUnwoundBySpecifiedException on the nature
-            // of this check.
-            //
-#ifndef STACK_RANGE_BOUNDS_ARE_CALLER_SP
-            if ((sfLowerBound < csfToCheck) && (csfToCheck <= sfUpperBound))
-#else // !STACK_RANGE_BOUNDS_ARE_CALLER_SP
-            if ((sfLowerBound <= csfToCheck) && (csfToCheck < sfUpperBound))
-#endif // STACK_RANGE_BOUNDS_ARE_CALLER_SP
-            {
-                fHasFrameBeenUnwound = true;
-                break;
-            }
+                // Refer to the detailed comment in ExceptionTracker::IsInStackRegionUnwoundBySpecifiedException on the nature
+                // of this check.
+                //
+    #ifndef STACK_RANGE_BOUNDS_ARE_CALLER_SP
+                if ((sfLowerBound < csfToCheck) && (csfToCheck <= sfUpperBound))
+    #else // !STACK_RANGE_BOUNDS_ARE_CALLER_SP
+                if ((sfLowerBound <= csfToCheck) && (csfToCheck < sfUpperBound))
+    #endif // STACK_RANGE_BOUNDS_ARE_CALLER_SP
+                {
+                    fHasFrameBeenUnwound = true;
+                    break;
+                }
 
-            //
-            // The frame in question was not found to be covered by the scanned stack range of the exception tracker.
-            // If the frame is managed, then it is possible that it forms the upper bound of the scanned stack range.
-            // 
-            // The scanned stack range is updated by our personality routine once ExceptionTracker::ProcessOSExceptionNotification is invoked.
-            // However, it is possible that we have unwound a frame and returned back to the OS (in preemptive mode) and:
-            //
-            // 1) Either our personality routine has been invoked for the subsequent upstack managed frame but it has not yet got a chance to update
-            //     the scanned stack range, OR
-            // 2) We have simply returned to the kernel exception dispatch and yet to be invoked for a subsequent frame.
-            //
-            // In such a window, if we have been asked to check if the frame forming the upper bound of the scanned stack range has been unwound, or not,
-            // then do the needful validations. 
-            //
-            // This is applicable to managed frames only.
-            if (fFrameless)
-            {
-#ifndef STACK_RANGE_BOUNDS_ARE_CALLER_SP
+                //
+                // The frame in question was not found to be covered by the scanned stack range of the exception tracker.
+                // If the frame is managed, then it is possible that it forms the upper bound of the scanned stack range.
+                //
+                // The scanned stack range is updated by our personality routine once ExceptionTracker::ProcessOSExceptionNotification is invoked.
+                // However, it is possible that we have unwound a frame and returned back to the OS (in preemptive mode) and:
+                //
+                // 1) Either our personality routine has been invoked for the subsequent upstack managed frame but it has not yet got a chance to update
+                //     the scanned stack range, OR
+                // 2) We have simply returned to the kernel exception dispatch and yet to be invoked for a subsequent frame.
+                //
+                // In such a window, if we have been asked to check if the frame forming the upper bound of the scanned stack range has been unwound, or not,
+                // then do the needful validations. 
+                //
+                // This is applicable to managed frames only.
+    #ifndef STACK_RANGE_BOUNDS_ARE_CALLER_SP
                 // On X64, if the SP of the managed frame indicates that the frame is forming the upper bound,
                 // then:
                 //
@@ -6454,7 +6440,7 @@ bool ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(CrawlFrame * pCF)
                         break;
                     }
                 }
-#else // !STACK_RANGE_BOUNDS_ARE_CALLER_SP
+    #else // !STACK_RANGE_BOUNDS_ARE_CALLER_SP
                 // On ARM, if the callerSP of the managed frame is the same as upper bound, then:
                 // 
                 // For case (1), sfCurrentEstablisherFrame will be above the callerSP of the managed frame (since EstablisherFrame is the caller SP for a given frame on ARM)
@@ -6474,82 +6460,24 @@ bool ExceptionTracker::HasFrameBeenUnwoundByAnyActiveException(CrawlFrame * pCF)
                         break;
                     }
                 }
-#endif // STACK_RANGE_BOUNDS_ARE_CALLER_SP
+    #endif // STACK_RANGE_BOUNDS_ARE_CALLER_SP
             }
 
-            // The frame in question does not appear in the current tracker's scanned stack range (of managed frames).
-            // If the frame is an explicit frame, then check if it equal to (or greater) than the initial explicit frame
-            // of the tracker. We can do this equality comparison because explicit frames are stack allocated.
-            //
-            // Do keep in mind that InitialExplicitFrame is only set in the 2nd (unwind) pass, which works
-            // fine for the purpose of this method since it operates on exception trackers in the second pass only.
-            if (!fFrameless)
-            {
-                PTR_Frame pInitialExplicitFrame = pCurrentTracker->GetInitialExplicitFrame();
-                PTR_Frame pLimitFrame = pCurrentTracker->GetLimitFrame();
-
-#if !defined(DACCESS_COMPILE)                
-                STRESS_LOG2(LF_EH|LF_GCROOTS, LL_INFO100, "InitialExplicitFrame: %p, LimitFrame: %p\n", pInitialExplicitFrame, pLimitFrame);
-#endif // !defined(DACCESS_COMPILE)
-
-                // Ideally, we would like to perform a comparison check to determine if the
-                // frame has been unwound. This, however, is based upon the premise that
-                // each explicit frame that is added to the frame chain is at a lower
-                // address than this predecessor. 
-                //
-                // This works for frames across function calls but if we have multiple
-                // explicit frames in the same function, then the compiler is free to
-                // assign an address it deems fit. Thus, its totally possible for a
-                // frame at the head of the frame chain to be at a higher address than
-                // its predecessor. This has been observed to be true with VC++ compiler
-                // in the CLR ret build.
-                //
-                // To address this, we loop starting from the InitialExplicitFrame until we reach
-                // the LimitFrame. Since all frames starting from the InitialExplicitFrame, and prior 
-                // to the LimitFrame, have been unwound, we break out of the loop if we find
-                // the frame we are looking for, setting a flag indicating that the frame in question
-                // was unwound.
-                
-                /*if ((sfInitialExplicitFrame <= csfToCheck) && (csfToCheck < sfLimitFrame))
-                {
-                    // The explicit frame falls in the range of explicit frames unwound by this tracker.
-                    fHasFrameBeenUnwound = true;
-                    break;
-                }*/
-
-                // The pInitialExplicitFrame can be NULL on Unix right after we've unwound a sequence
-                // of native frames in the second pass of exception unwinding, since the pInitialExplicitFrame
-                // is cleared to make sure that it doesn't point to a frame that was destroyed during the 
-                // native frames unwinding. At that point, the csfToCheck could not have been unwound, 
-                // so we don't need to do any check.
-                if (pInitialExplicitFrame != NULL)
-                {
-                    PTR_Frame pFrameToCheck = (PTR_Frame)csfToCheck.SP;
-                    PTR_Frame pCurrentFrame = pInitialExplicitFrame;
-                    
-                    {
-                        while((pCurrentFrame != FRAME_TOP) && (pCurrentFrame != pLimitFrame))
-                        {
-                            if (pCurrentFrame == pFrameToCheck)
-                            {
-                                fHasFrameBeenUnwound = true;
-                                break;
-                            }
-                        
-                            pCurrentFrame = pCurrentFrame->PtrNextFrame();
-                        }
-                    }
-                    
-                    if (fHasFrameBeenUnwound == true)
-                    {
-                        break;
-                    }
-                }
-            }
+            // Move to the next (previous) tracker
+            pCurrentTracker = pCurrentTracker->GetPreviousExceptionTracker();
         }
+    }
+    else
+    {
+        // If the frame is an explicit frame, then ask it if it has been already unwound
+        CallerStackFrame csfToCheck((UINT_PTR)pCF->GetFrame());
+        PTR_Frame pFrameToCheck = (PTR_Frame)csfToCheck.SP;
+        STRESS_LOG3(LF_EH|LF_GCROOTS, LL_INFO100, "CrawlFrame (%p): Frameless: No, Address: %p, FrameVtable = %pV\n",
+                    pCF, (Frame*)pFrameToCheck, *(void**)(Frame*)pFrameToCheck);
 
-        // Move to the next (previous) tracker
-        pCurrentTracker = pCurrentTracker->GetPreviousExceptionTracker();
+        // Verify that the frame to check was not popped off the chain
+        _ASSERTE(pFrameToCheck->PtrNextFrame() != NULL);
+        fHasFrameBeenUnwound = pFrameToCheck->WasUnwound();
     }
 
     if (fHasFrameBeenUnwound)

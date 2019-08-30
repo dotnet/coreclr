@@ -149,6 +149,7 @@ NESTED_ENTRY JIT_PInvokeBegin, _TEXT, NoHandler
         add             rax, 0x10
         mov             qword ptr [rdi], rax
 
+        mov             dword ptr [rdi + OFFSETOF__Frame__m_WasUnwound], 0
         mov             qword ptr [rdi + OFFSETOF__InlinedCallFrame__m_Datum], 0
 
         lea             rax, [rsp + 0x10]

@@ -97,6 +97,7 @@
         str     r1, [r4]
 
         mov     r1, 0
+        str     r1, [r4, #Frame__m_WasUnwound]
         str     r1, [r4, #InlinedCallFrame__m_Datum]
     
         add     r1, sp, 8

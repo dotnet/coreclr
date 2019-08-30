@@ -35,6 +35,7 @@ NESTED_ENTRY GenericComCallStub, _TEXT, ReverseComUnwindFrameChainHandler
 ; rcx
 ; UnmanagedToManagedFrame::m_ReturnAddress
 ; UnmanagedToManagedFrame::m_Datum
+; Frame::m_WasUnwound
 ; Frame::m_Next
 ; __VFN_table                                   <-- rsp + GenericComCallStub_ComMethodFrame_OFFSET
 ; GSCookie

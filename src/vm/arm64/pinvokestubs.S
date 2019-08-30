@@ -109,6 +109,7 @@ LOCAL_LABEL(\__PInvokeStubFuncName\()_0):
         add     x9, x9, 16
         str     x9, [x19]
 
+        str     wzr, [x19, #Frame__m_WasUnwound]
         str     xzr, [x19, #InlinedCallFrame__m_Datum]
     
         add     x9, sp, 32

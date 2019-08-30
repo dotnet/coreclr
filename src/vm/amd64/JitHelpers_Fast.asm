@@ -873,8 +873,8 @@ OFFSETOF_FRAME                      equ OFFSETOF_GSCOOKIE + \
 ; r13-> gsCookie
 ; + 8h      __VFN_table
 ; +10h      m_Next
-; +18h      m_pGCLayout
-; +20h      m_padding
+; +18h      m_WasUnwound
+; +20h      m_pGCLayout
 ; +28h      m_rdi
 ; +30h      m_rsi
 ; +38h      m_rbx
@@ -892,7 +892,7 @@ OFFSETOF_FRAME                      equ OFFSETOF_GSCOOKIE + \
 NESTED_ENTRY TailCallHelperStub, _TEXT
         PUSH_CALLEE_SAVED_REGISTERS
 
-        alloc_stack             48h     ; m_padding, m_pGCLayout, m_Next, __VFN_table, gsCookie, outgoing shadow area
+        alloc_stack             48h     ; m_pGCLayout, m_WasUnwound, m_Next, __VFN_table, gsCookie, outgoing shadow area
 
         set_frame               r13, 20h
     END_PROLOGUE

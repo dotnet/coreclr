@@ -5629,6 +5629,7 @@ Thread * __stdcall JIT_InitPInvokeFrame(InlinedCallFrame *pFrame, PTR_VOID StubS
     pFrame->Init();
     pFrame->m_StubSecretArg = StubSecretArg;
     pFrame->m_Next = pThread->GetFrame();
+    pFrame->m_WasUnwound = FALSE;
 
     return pThread;
 }

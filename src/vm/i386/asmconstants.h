@@ -143,7 +143,7 @@ ASMCONSTANTS_C_ASSERT(LazyMachState_captureEip == offsetof(LazyMachState, captur
 #define VASigCookie__StubOffset 4
 ASMCONSTANTS_C_ASSERT(VASigCookie__StubOffset == offsetof(VASigCookie, pNDirectILStub))
 
-#define SIZEOF_TailCallFrame 32
+#define SIZEOF_TailCallFrame 36
 ASMCONSTANTS_C_ASSERT(SIZEOF_TailCallFrame == sizeof(TailCallFrame))
 
 #define SIZEOF_GSCookie 4
@@ -308,21 +308,48 @@ ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbActualArgSize == offsetof(UMThunkMar
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_cbRetPop == offsetof(UMThunkMarshInfo, m_cbRetPop))
 #endif //FEATURE_STUBS_AS_IL
 
+#define SIZEOF__Frame                 0x0C
+ASMCONSTANTS_C_ASSERT(SIZEOF__Frame == sizeof(Frame));
+
 // For JIT_PInvokeBegin and JIT_PInvokeEnd helpers
 #define               Frame__m_Next 0x04
 ASMCONSTANTS_C_ASSERT(Frame__m_Next == offsetof(Frame, m_Next));
 
-#define               InlinedCallFrame__m_Datum 0x08
+#define               Frame__m_WasUnwound 0x08
+ASMCONSTANTS_C_ASSERT(Frame__m_WasUnwound == offsetof(Frame, m_WasUnwound));
+
+#define               InlinedCallFrame__m_Datum 0x0C
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_Datum == offsetof(InlinedCallFrame, m_Datum));
 
-#define               InlinedCallFrame__m_pCallSiteSP 0x0C
+#define               InlinedCallFrame__m_pCallSiteSP 0x10
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallSiteSP == offsetof(InlinedCallFrame, m_pCallSiteSP));
 
-#define               InlinedCallFrame__m_pCallerReturnAddress 0x10
+#define               InlinedCallFrame__m_pCallerReturnAddress 0x14
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallerReturnAddress == offsetof(InlinedCallFrame, m_pCallerReturnAddress));
 
-#define               InlinedCallFrame__m_pCalleeSavedFP 0x14
+#define               InlinedCallFrame__m_pCalleeSavedFP 0x18
 ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCalleeSavedFP == offsetof(InlinedCallFrame, m_pCalleeSavedFP));
+
+#define TailCallFrame__m_CallerAddress 0x0c
+ASMCONSTANTS_C_ASSERT(TailCallFrame__m_CallerAddress == offsetof(TailCallFrame, m_CallerAddress));
+
+#define TailCallFrame__m_regs 0x10
+ASMCONSTANTS_C_ASSERT(TailCallFrame__m_regs == offsetof(TailCallFrame, m_regs));
+
+#define CalleeSavedRegisters__edi 0x00
+ASMCONSTANTS_C_ASSERT(CalleeSavedRegisters__edi == offsetof(CalleeSavedRegisters, Edi));
+
+#define CalleeSavedRegisters__esi 0x04
+ASMCONSTANTS_C_ASSERT(CalleeSavedRegisters__esi == offsetof(CalleeSavedRegisters, Esi));
+
+#define CalleeSavedRegisters__ebx 0x08
+ASMCONSTANTS_C_ASSERT(CalleeSavedRegisters__ebx == offsetof(CalleeSavedRegisters, Ebx));
+
+#define CalleeSavedRegisters__ebp 0x0c
+ASMCONSTANTS_C_ASSERT(CalleeSavedRegisters__ebp == offsetof(CalleeSavedRegisters, Ebp));
+
+#define TailCallFrame__m_ReturnAddress 0x20
+ASMCONSTANTS_C_ASSERT(TailCallFrame__m_ReturnAddress == offsetof(TailCallFrame, m_ReturnAddress));
 
 #ifdef FEATURE_STUBS_AS_IL
 // DelegateObject from src/vm/object.h
