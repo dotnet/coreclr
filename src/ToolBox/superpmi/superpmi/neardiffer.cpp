@@ -67,6 +67,7 @@ bool NearDiffer::InitAsmDiff()
 
     if (UseCoreDisTools)
     {
+        const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
 #ifdef PLATFORM_UNIX
         // Unix will require the full path to coredistools. Assume that the
         // location is next to the full path to the superpmi.so.
@@ -86,15 +87,12 @@ bool NearDiffer::InitAsmDiff()
         // Move past the / character.
         ptr = ptr + 1;
 
-        const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
-        ::wcscpy_s(ptr, &coreCLRLoadedPath[MAX_LONGPATH] - ptr, coreDisToolsLibrary);
-        const wchar_t* coreDisToolsLibraryPath = coreCLRLoadedPath;
+        const wchar_t* coreDisToolsLibraryName = MAKEDLLNAME_W("coredistools");
+        ::wcscpy_s(ptr, &coreCLRLoadedPath[MAX_LONGPATH] - ptr, coreDisToolsLibraryName);
+        coreDisToolsLibrary = coreCLRLoadedPath;
+#endif // PLATFORM_UNIX
 
-#else
-        const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
-#endif // !PLATFORM_UNIX
-
-        HMODULE hCoreDisToolsLib = ::LoadLibraryW(coreCLRLoadedPath);
+        HMODULE hCoreDisToolsLib = ::LoadLibraryW(coreDisToolsLibrary);
         if (hCoreDisToolsLib == 0)
         {
             LogError("LoadLibrary(%s) failed (0x%08x)", ::GetLastError());
