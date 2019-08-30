@@ -81,18 +81,14 @@ bool NearDiffer::InitAsmDiff()
             return false;
         }
 
-        wchar_t* ptr;
-        for (ptr = coreCLRLoadedPath + ::wcsnlen(coreCLRLoadedPath, MAX_LONGPATH) - 1; ptr != coreCLRLoadedPath; --ptr)
-        {
-            if (*ptr == '/')
-            {
-                ++ptr;
-                break;
-            }
-        }
+        wchar_t* ptr = ::wcsrchr(coreCLRLoadedPath, '/');
 
         const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
-        ::wcscpy_s(ptr, ::wcsnlen(coreDisToolsLibrary, MAX_LONGPATH) + 1, coreDisToolsLibrary);
+        ::wcscpy_s(ptr, &coreCLRLoadedPath[MAX_LONGPATH] - ptr, coreDisToolsLibrary);
+
+#else
+        const wchar_t* coreDisToolsLibrary = MAKEDLLNAME_W("coredistools");
+#endif // !PLATFORM_UNIX
 
         HMODULE hCoreDisToolsLib = ::LoadLibraryW(coreCLRLoadedPath);
         if (hCoreDisToolsLib == 0)
@@ -100,17 +96,6 @@ bool NearDiffer::InitAsmDiff()
             LogError("LoadLibrary(%s) failed (0x%08x)", ::GetLastError());
             return false;
         }
-
-#else
-        const char* coreDisToolsLibrary = MAKEDLLNAME_A("coredistools");
-        HMODULE hCoreDisToolsLib = ::LoadLibraryA(coreDisToolsLibrary);
-        if (hCoreDisToolsLib == 0)
-        {
-            LogError("LoadLibrary(%s) failed (0x%08x)", coreDisToolsLibrary, ::GetLastError());
-            return false;
-        }
-
-#endif // PLATFORM_UNIX
         
         g_PtrNewDiffer = (NewDiffer_t*)::GetProcAddress(hCoreDisToolsLib, "NewDiffer");
         if (g_PtrNewDiffer == nullptr)
