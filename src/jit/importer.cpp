@@ -7398,9 +7398,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #ifdef DEBUG
         // We cannot lazily obtain the signature of a CALLI call because it has no method
         // handle that we can use, so we need to save its full call signature here.
-        assert(call->gtCall.callSig == nullptr);
-        call->gtCall.callSig  = new (this, CMK_CorSig) CORINFO_SIG_INFO;
-        *call->gtCall.callSig = calliSig;
+        assert(call->gtCall.callInfo == nullptr);
+        call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+        *call->gtCall.callInfo = *callInfo;
 #endif // DEBUG
 
         if (IsTargetAbi(CORINFO_CORERT_ABI))
@@ -7895,14 +7895,6 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
     }
 #endif // !FEATURE_VARARG
 
-#ifdef UNIX_X86_ABI
-    if (call->gtCall.callSig == nullptr)
-    {
-        call->gtCall.callSig  = new (this, CMK_CorSig) CORINFO_SIG_INFO;
-        *call->gtCall.callSig = *sig;
-    }
-#endif // UNIX_X86_ABI
-
     if ((sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_VARARG ||
         (sig->callConv & CORINFO_CALLCONV_MASK) == CORINFO_CALLCONV_NATIVEVARARG)
     {
@@ -7941,9 +7933,9 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #ifdef DEBUG
             // We cannot lazily obtain the signature of a vararg call because using its method
             // handle will give us only the declared argument list, not the full argument list.
-            assert(call->gtCall.callSig == nullptr);
-            call->gtCall.callSig  = new (this, CMK_CorSig) CORINFO_SIG_INFO;
-            *call->gtCall.callSig = *sig;
+            assert(call->gtCall.callInfo == nullptr);
+            call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+            *call->gtCall.callInfo = *callInfo;
 #endif
 
             // For vararg calls we must be sure to load the return type of the
@@ -8537,14 +8529,14 @@ DONE:
         //
 
         assert(call->gtOper == GT_CALL);
-        assert(sig != nullptr);
+        assert(callInfo != nullptr);
 
-        // Tail calls require us to save the call site's sig info so we can obtain an argument
-        // copying thunk from the EE later on.
-        if (call->gtCall.callSig == nullptr)
+        // Tail calls require us to save the call site's call info so we can
+        // obtain tailcall helpers later.
+        if (call->gtCall.callInfo == nullptr)
         {
-            call->gtCall.callSig  = new (this, CMK_CorSig) CORINFO_SIG_INFO;
-            *call->gtCall.callSig = *sig;
+            call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+            *call->gtCall.callInfo = *callInfo;
         }
 
         if (compIsForInlining() && opcode == CEE_CALLVIRT)

@@ -3328,7 +3328,7 @@ struct GenTreeCall final : public GenTree
 
     // TODO-Throughput: Revisit this (this used to be only defined if
     // FEATURE_FIXED_OUT_ARGS was enabled, so this makes GenTreeCall 4 bytes bigger on x86).
-    CORINFO_SIG_INFO* callSig; // Used by tail calls and to register callsites with the EE
+    CORINFO_CALL_INFO* callInfo; // Used by tail calls and to register callsites with the EE
 
 #if FEATURE_MULTIREG_RET
 

@@ -5485,7 +5485,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // native call sites with the signatures they were generated from.
     if (callType != CT_HELPER)
     {
-        sigInfo = call->callSig;
+        sigInfo = &call->callInfo->sig;
     }
 #endif // DEBUG
 
@@ -5573,9 +5573,9 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     {
         CorInfoCallConv callConv = CORINFO_CALLCONV_DEFAULT;
 
-        if ((callType != CT_HELPER) && call->callSig)
+        if ((callType != CT_HELPER) && call->callInfo)
         {
-            callConv = call->callSig->callConv;
+            callConv = call->callInfo->sig.callConv;
         }
 
         fCallerPop |= IsCallerPop(callConv);

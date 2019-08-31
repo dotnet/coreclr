@@ -5861,7 +5861,7 @@ GenTreeCall* Compiler::gtNewCallNode(
     node->gtCallArgs      = args;
     node->gtCallObjp      = nullptr;
     node->fgArgInfo       = nullptr;
-    node->callSig         = nullptr;
+    node->callInfo        = nullptr;
     node->gtRetClsHnd     = nullptr;
     node->gtControlExpr   = nullptr;
     node->gtCallMoreFlags = 0;
@@ -7541,7 +7541,7 @@ GenTreeCall* Compiler::gtCloneExprCallHelper(GenTreeCall* tree, unsigned addFlag
     // we only really need one physical copy of it. Therefore a shallow pointer copy will suffice.
     // (Note that this still holds even if the tree we are cloning was created by an inlinee compiler,
     // because the inlinee still uses the inliner's memory allocator anyway.)
-    copy->callSig = tree->callSig;
+    copy->callInfo = tree->callInfo;
 
     copy->gtCallType    = tree->gtCallType;
     copy->gtReturnType  = tree->gtReturnType;

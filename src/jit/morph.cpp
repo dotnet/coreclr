@@ -7000,18 +7000,18 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // To reach here means that the return types of the caller and callee are tail call compatible.
     // In the case of structs that can be returned in a register, compRetNativeType is set to the actual return type.
     //
-    // In an implicit tail call case callSig may not be available but it is guaranteed to be available
-    // for explicit tail call cases.  The reason implicit tail case callSig may not be available is that
+    // In an implicit tail call case callInfo may not be available but it is guaranteed to be available
+    // for explicit tail call cases.  The reason implicit tail case callInfo may not be available is that
     // a call node might be marked as an in-line candidate and could fail to be in-lined. In which case
     // fgInline() will replace return value place holder with call node using gtCloneExpr() which is
-    // currently not copying/setting callSig.
+    // currently not copying/setting callInfo.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
 #ifdef DEBUG
     if (callee->IsTailPrefixedCall())
     {
         assert(impTailCallRetTypeCompatible(info.compRetNativeType, info.compMethodInfo->args.retTypeClass,
-                                            (var_types)callee->gtReturnType, callee->callSig->retTypeClass));
+                                            (var_types)callee->gtReturnType, callee->callInfo->sig.retTypeClass));
     }
 #endif
 
@@ -7450,7 +7450,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(call->IsTailPrefixedCall());
 
         if (!info.compCompHnd->getTailCallHelperStubs(
-            nullptr, call->callSig,
+            nullptr, &call->callInfo->sig,
             &storeArgsStubHnd, &callTargetStubHnd))
         {
             failTailCall("StoreArgsStub not available");

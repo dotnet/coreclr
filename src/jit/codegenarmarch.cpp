@@ -2398,7 +2398,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // native call sites with the signatures they were generated from.
     if (callType != CT_HELPER)
     {
-        sigInfo = call->callSig;
+        sigInfo = &call->callInfo->sig;
     }
 #endif // DEBUG
 
