@@ -9,6 +9,9 @@ jobs:
     buildConfig: release
     platforms:
     - Linux_x64
+    - Linux_arm
+    - Linux_arm64
+    - Windows_NT_x86
     - Windows_NT_x64
 
 - template: /eng/platform-matrix.yml
@@ -17,6 +20,9 @@ jobs:
     buildConfig: release
     platforms:
     - Linux_x64
+    - Linux_arm
+    - Linux_arm64
+    - Windows_NT_x86
     - Windows_NT_x64
     helixQueueGroup: ci
     jobParameters:
