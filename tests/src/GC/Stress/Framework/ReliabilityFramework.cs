@@ -58,35 +58,35 @@ internal class CustomAssemblyResolver : AssemblyLoadContext
             _frameworkPath = Directory.GetCurrentDirectory();
         }
 
-        //Console.WriteLine("CustomAssemblyResolver: looking for framework libraries at path: {0}", _frameworkPath);
+        Console.WriteLine("CustomAssemblyResolver: looking for framework libraries at path: {0}", _frameworkPath);
         string stressFrameworkDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-        //Console.WriteLine("CustomAssemblyResolver: currently executing assembly is at path: {0}", stressFrameworkDir);
+        Console.WriteLine("CustomAssemblyResolver: currently executing assembly is at path: {0}", stressFrameworkDir);
         _testsPath = Path.Combine(stressFrameworkDir, "Tests");
-        //Console.WriteLine("CustomAssemblyResolver: looking for tests in dir: {0}", _testsPath);
+        Console.WriteLine("CustomAssemblyResolver: looking for tests in dir: {0}", _testsPath);
     }
 
     protected override Assembly Load(AssemblyName assemblyName)
     {
-        //Console.WriteLine("CustomAssemblyLoader: Got request to load {0}", assemblyName.ToString());
+        Console.WriteLine("CustomAssemblyLoader: Got request to load {0}", assemblyName.ToString());
 
         string strPath;
         if (assemblyName.Name.StartsWith("System."))
         {
-            //Console.WriteLine("CustomAssemblyLoader: this looks like a framework assembly");
+            Console.WriteLine("CustomAssemblyLoader: this looks like a framework assembly");
             strPath = Path.Combine(_frameworkPath, assemblyName.Name + ".dll");
         }
         else
         {
-            //Console.WriteLine("CustomAssemblyLoader: this looks like a test");
+            Console.WriteLine("CustomAssemblyLoader: this looks like a test");
             strPath = Path.Combine(_testsPath, assemblyName.Name + ".dll");
         }
 
-        //Console.WriteLine("Incoming AssemblyName: {0}", assemblyName.ToString());
-        //Console.WriteLine("Trying to Load: {0}", strPath);
-        //Console.WriteLine("Computed AssemblyName: {0}", GetAssemblyName(strPath).ToString());
+        Console.WriteLine("Incoming AssemblyName: {0}", assemblyName.ToString());
+        Console.WriteLine("Trying to Load: {0}", strPath);
+        Console.WriteLine("Computed AssemblyName: {0}", GetAssemblyName(strPath).ToString());
         Assembly asmLoaded = LoadFromAssemblyPath(strPath);
 
-        //Console.WriteLine("Loaded {0} from {1}", asmLoaded.FullName, asmLoaded.Location);
+        Console.WriteLine("Loaded {0} from {1}", asmLoaded.FullName, asmLoaded.Location);
 
         return asmLoaded;
     }
