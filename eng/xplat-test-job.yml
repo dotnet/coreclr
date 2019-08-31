@@ -57,16 +57,16 @@ jobs:
     - name: testRootFolderPath
       value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
 
-    ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
+    - ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
       - name: testArtifactName
         value: Tests_r2r_corefx_$(testArtifactRootName)
-    ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
+    - ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
       - name: testArtifactName
         value: Tests_corefx_$(testArtifactRootName)
-    ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
+    - ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
       - name: testArtifactName
         value: Tests_r2r_$(testArtifactRootName)
-    ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
+    - ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
       - name: testArtifactName
         value: Tests_$(testArtifactRootName)
 
