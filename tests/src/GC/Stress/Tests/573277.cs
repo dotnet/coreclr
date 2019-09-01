@@ -36,8 +36,6 @@ public class Test
             return 0;
         }
 
-        throw null;
-
         Console.WriteLine("Test Passed");
         return 100;
     }
