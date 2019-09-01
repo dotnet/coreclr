@@ -130,8 +130,8 @@ jobs:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 10          
         ${{ if in(parameters.testGroup, 'gc-reliability') }}:
-          timeoutPerTestCollectionInMinutes: 240
-          timeoutPerTestInMinutes: 60
+          timeoutPerTestCollectionInMinutes: 270
+          timeoutPerTestInMinutes: 90
         ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstress-isas-x86', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs' ) }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30

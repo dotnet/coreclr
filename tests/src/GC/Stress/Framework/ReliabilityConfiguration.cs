@@ -403,7 +403,8 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                             // when running as an ordinary test, ignore the time limit from config.
                                             if (!limitTime)
                                             {
-                                                _curTestSet.MaximumTime = 10;
+                                                //TODO: constrain run time to 1 hour for now
+                                                _curTestSet.MaximumTime = 60;
                                                 // _curTestSet.MaximumTime = ConvertTimeValueToTestRunTime(timeValue);
                                             }
 
