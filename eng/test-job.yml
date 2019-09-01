@@ -3,6 +3,8 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
+  managedBuildOsGroup: ''
+  managedBuildOsIdentifier: ''
   container: ''
   testGroup: ''
   readyToRun: false
@@ -21,31 +23,35 @@ parameters:
 ### buildConfig and archType.
 
 jobs:
-- template: build-test-job.yml
+- ${{ if eq(parameters.osIdentifier, parameters.managedBuildOsIdentifier) }}:
+  - template: build-test-job.yml
+    parameters:
+      buildConfig:                 ${{ parameters.buildConfig }}
+      archType:                    ${{ parameters.archType }}
+      osGroup:                     ${{ parameters.managedBuildOsGroup }}
+      osIdentifier:                ${{ parameters.managedBuildOsIdentifier }}
+      container:                   ${{ parameters.container }}
+      testGroup:                   ${{ parameters.testGroup }}
+      readyToRun:                  ${{ parameters.readyToRun }}
+      crossrootfsDir:              ${{ parameters.crossrootfsDir }}
+      corefxTests:                 ${{ parameters.coreFxTests }}
+      displayNameArgs:             ${{ parameters.displayNameArgs }}
+      condition:                   ${{ parameters.condition }}
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+
+- template: run-test-job.yml
   parameters:
     buildConfig:                 ${{ parameters.buildConfig }}
     archType:                    ${{ parameters.archType }}
     osGroup:                     ${{ parameters.osGroup }}
     osIdentifier:                ${{ parameters.osIdentifier }}
+    managedBuildOsGroup:         ${{ parameters.managedBuildOsGroup }}
+    managedBuildOsIdentifier:    ${{ parameters.managedBuildOsIdentifier }}
     container:                   ${{ parameters.container }}
     testGroup:                   ${{ parameters.testGroup }}
     readyToRun:                  ${{ parameters.readyToRun }}
-    crossrootfsDir:              ${{ parameters.crossrootfsDir }}
+    helixQueues:                 ${{ parameters.helixQueues }}
     corefxTests:                 ${{ parameters.coreFxTests }}
     displayNameArgs:             ${{ parameters.displayNameArgs }}
-    condition:                   ${{ parameters.condition }}
+    runInUnloadableContext:      ${{ parameters.runInUnloadableContext }}
     ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
-
-- template: run-test-job.yml
-  parameters:
-    buildConfig:            ${{ parameters.buildConfig }}
-    archType:               ${{ parameters.archType }}
-    osGroup:                ${{ parameters.osGroup }}
-    osIdentifier:           ${{ parameters.osIdentifier }}
-    container:              ${{ parameters.container }}
-    testGroup:              ${{ parameters.testGroup }}
-    readyToRun:             ${{ parameters.readyToRun }}
-    helixQueues:            ${{ parameters.helixQueues }}
-    corefxTests:            ${{ parameters.coreFxTests }}
-    displayNameArgs:        ${{ parameters.displayNameArgs }}
-    runInUnloadableContext: ${{ parameters.runInUnloadableContext }}

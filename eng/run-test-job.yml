@@ -3,6 +3,8 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
+  managedBuildOsGroup: ''
+  managedBuildOsIdentifier: ''
   container: ''
   testGroup: ''
   readyToRun: false
@@ -11,6 +13,7 @@ parameters:
   corefxTests: false
   displayNameArgs: ''
   runInUnloadableContext: false
+  ignoreDependencyOnBuildJobs: false
 
 ### Test run job
 
@@ -24,6 +27,8 @@ jobs:
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
+    managedBuildOsGroup: ${{ parameters.managedBuildOsGroup }}
+    managedBuildOsIdentifier: ${{ parameters.managedBuildOsIdentifier }}
     readyToRun: ${{ parameters.readyToRun }}
     corefxTests: ${{ parameters.corefxTests }}
     helixType: 'build/tests/'
@@ -35,22 +40,34 @@ jobs:
     # Compute job name from template parameters
     ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p0_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p0_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      dependsOn:
+      - 'build_test_p0_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'
+      - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
+        - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: 'Run Test Pri0 ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p1_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p1_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      dependsOn:
+      - 'build_test_p1_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
+        - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: 'Run Test Pri1 ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(eq(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      dependsOn:
+      - 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
+        - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: 'Run Test Pri0 ${{ parameters.displayNameArgs }} ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(ne(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      dependsOn:
+      - 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
+        - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
       displayName: 'Run Test Pri1 ${{ parameters.displayNameArgs }} ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     variables:
@@ -69,13 +86,36 @@ jobs:
 
     steps:
 
-    # Download and unzip tests    
+    # Download and unzip managed test artifacts
     - template: /eng/download-artifact-step.yml
       parameters:
         downloadFolder: $(binTestsPath)
         unpackFolder: $(testRootFolderPath)
-        artifactFileName: $(osGroup).$(archType).$(buildConfigUpper)$(archiveExtension)
+        artifactFileName: ${{ parameters.managedBuildOsIdentifier }}.$(archType).$(buildConfigUpper)$(archiveExtension)
         artifactName: $(testArtifactName)
+        displayName: 'managed test artifacts (built on ${{ parameters.managedBuildOsIdentifier }})'
+
+
+    # Download and unzip native test artifacts
+    - template: /eng/download-artifact-step.yml
+      parameters:
+        downloadFolder: $(binTestsPath)/tmp
+        unpackFolder: $(nativeRootFolderPath)
+        cleanUnpackFolder: false
+        artifactFileName: 'NativeTestComponents-$(osIdentifier)-$(archType)-$(buildConfig)$(archiveExtension)'
+        artifactName: 'NativeTestComponents-$(osIdentifier)-$(archType)-$(buildConfig)'
+        displayName: 'native test artifacts'
+
+
+    # Download and unzip test core root
+    - template: /eng/download-artifact-step.yml
+      parameters:
+        downloadFolder: $(binTestsPath)/tmp
+        unpackFolder: $(nativeRootFolderPath)/Tests/Core_Root
+        cleanUnpackFolder: false
+        artifactFileName: 'TestCoreRoot-$(osIdentifier)-$(archType)-$(buildConfig)$(archiveExtension)'
+        artifactName: 'TestCoreRoot-$(osIdentifier)-$(archType)-$(buildConfig)'
+        displayName: 'Core_Root'
 
 
     # Send tests to Helix

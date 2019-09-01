@@ -3,6 +3,7 @@ parameters:
   archType: ''
   osGroup: ''
   osIdentifier: ''
+  managedBuildOsIdentifier: ''
   name: ''
   helixType: '(unspecified)'
   container: ''
@@ -45,16 +46,22 @@ jobs:
     variables:
     - ${{ if ne(parameters.testGroup, '') }}:
       - name: testArtifactRootName
-        value: ${{ parameters.osIdentifier}}_${{ parameters.archType }}_${{ parameters.buildConfig }}_${{ parameters.testGroup }}
+        value: ${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}_${{ parameters.testGroup }}
 
     - ${{ if eq(parameters.testGroup, '') }}:
       - name: testArtifactRootName
-        value: ${{ parameters.osIdentifier}}_${{ parameters.archType }}_${{ parameters.buildConfig }}
+        value: ${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}
+
+    - name: binTestsPath
+      value: $(Build.SourcesDirectory)/bin/tests
 
     - name: binTestsPath
       value: $(Build.SourcesDirectory)/bin/tests
 
     - name: testRootFolderPath
+      value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
+
+    - name: nativeRootFolderPath
       value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
 
     - ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:

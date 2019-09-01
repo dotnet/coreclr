@@ -421,6 +421,7 @@ build_MSBuild_projects()
             buildArgs+=("${extraBuildParameters[@]}")
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
+            buildArgs+=("\"/p:CopyNativeProjectBinaries=${__CopyNativeProjectsAfterCombinedTestBuild}\"");
 
             # Disable warnAsError - coreclr issue 19922
             nextCommand="\"$__ProjectRoot/eng/common/msbuild.sh\" $__ArcadeScriptArgs --warnAsError false ${buildArgs[@]}"
@@ -715,6 +716,7 @@ __priority1=
 __BuildTestWrappersOnly=
 __DoCrossgen=0
 __CopyNativeTestBinaries=0
+__CopyNativeProjectsAfterCombinedTestBuild=true
 __SkipGenerateLayout=0
 CORE_ROOT=
 
@@ -876,6 +878,7 @@ while :; do
 
         skipnative|-skipnative)
             __SkipNative=1
+            __CopyNativeProjectsAfterCombinedTestBuild=false
             ;;
 
         skipmanaged|-skipmanaged)
