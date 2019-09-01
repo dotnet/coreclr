@@ -38,34 +38,22 @@ jobs:
     # Compute job name from template parameters
     ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p0_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn:
-        - 'build_test_p0_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-        - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
-          - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      dependsOn: 'build_test_p0_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
       displayName: 'Run Test Pri0 ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p1_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn:
-        - 'build_test_p1_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-        - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
-          - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      dependsOn: 'build_test_p1_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
       displayName: 'Run Test Pri1 ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(eq(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn:
-        - 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-        - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
-          - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      dependsOn: 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
       displayName: 'Run Test Pri0 ${{ parameters.displayNameArgs }} ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(ne(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
       name: 'run_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn:
-        - 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-        - ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
-          - ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+      dependsOn: 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.managedBuildOsIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
       displayName: 'Run Test Pri1 ${{ parameters.displayNameArgs }} ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     variables:
