@@ -42,20 +42,6 @@ DLLEXPORT int32_t GlobalizationNative_IndexOfOrdinalIgnoreCase(const UChar* lpTa
                                                                int32_t cwSourceLength,
                                                                int32_t findLast);
 
-DLLEXPORT int32_t GlobalizationNative_StartsWith(SortHandle* pSortHandle,
-                                                 const UChar* lpTarget,
-                                                 int32_t cwTargetLength,
-                                                 const UChar* lpSource,
-                                                 int32_t cwSourceLength,
-                                                 int32_t options);
-
-DLLEXPORT int32_t GlobalizationNative_EndsWith(SortHandle* pSortHandle,
-                                               const UChar* lpTarget,
-                                               int32_t cwTargetLength,
-                                               const UChar* lpSource,
-                                               int32_t cwSourceLength,
-                                               int32_t options);
-
 DLLEXPORT int32_t GlobalizationNative_GetSortKey(SortHandle* pSortHandle,
                                                  const UChar* lpStr,
                                                  int32_t cwStrLength,
