@@ -4275,8 +4275,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
             {
                 lvl2 = gtSetEvalOrder(use.GetNode());
-                // PHI args should always have cost 0 and level 1
-                assert(lvl2 == 1);
+                // PHI args should always have cost 0 and level 0
+                assert(lvl2 == 0);
                 assert(use.GetNode()->gtCostEx == 0);
                 assert(use.GetNode()->gtCostSz == 0);
             }
@@ -16563,9 +16563,6 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
             case GT_INDEX:
                 structHnd = tree->gtIndex.gtStructElemClass;
                 break;
-            case GT_INDEX_ADDR:
-                structHnd = tree->AsIndexAddr()->gtStructElemClass;
-                break;
             case GT_FIELD:
                 info.compCompHnd->getFieldType(tree->gtField.gtFldHnd, &structHnd);
                 break;
@@ -16606,7 +16603,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                     ArrayInfo arrInfo;
                     if (TryGetArrayInfo(tree->AsIndir(), &arrInfo))
                     {
-                        structHnd = EncodeElemType(arrInfo.m_elemType, arrInfo.m_elemStructType);
+                        structHnd = arrInfo.m_elemStructType;
                     }
                     else
                     {
