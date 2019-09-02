@@ -30,6 +30,11 @@ stages:
   - stage: build
     jobs:
     #
+    # Checkout repository
+    #
+    - template: /eng/checkout-job.yml
+
+    #
     # Release builds
     #
     - template: /eng/platform-matrix.yml

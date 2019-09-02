@@ -1,0 +1,60 @@
+### Check out job pulls down the GIT repository and packs its contents
+### into an Azure artifact for reuse by the subsequent build and test execution phases.
+jobs:
+- job: 'checkout_windows'
+  displayName: 'Checkout (Windows)'
+
+  variables:
+    use_open_queue: ${{ eq(variables['System.TeamProject'], 'public') }}
+
+  pool:
+    # Public Windows Build Pool
+    ${{ if variables.use_open_queue }}:
+      name: NetCorePublic-Pool
+      queue: BuildPool.Windows.10.Amd64.VS2017.Open
+
+    # Private Windows Build Pool
+    ${{ if not(variables.use_open_queue) }}:
+      name: NetCoreInternal-Pool
+      queue: BuildPool.Windows.10.Amd64.VS2017
+  
+  steps:
+  ### Zip up downloaded repo and publish to Helix
+  - template: /eng/upload-artifact-step.yml
+    parameters:
+      displayName: 'GIT repository'
+      rootFolder: $(Build.SourcesDirectory)
+      includeRootFolder: false
+      archiveFile: $(Build.StagingDirectory)/repo_windows.zip
+      archiveType: 'zip'
+      tarCompression: ''
+      artifactName: repo_windows
+
+- job: 'checkout_unix'
+  displayName: 'Checkout (Unix)'
+
+  variables:
+    use_open_queue: ${{ eq(variables['System.TeamProject'], 'public') }}
+
+  pool:
+    # Public Linux Build Pool
+    ${{ if variables.use_open_queue }}:
+      name:  NetCorePublic-Pool
+      queue: BuildPool.Ubuntu.1604.Amd64.Open
+
+    # Private Linux Build Pool
+    ${{ if not(variables.use_open_queue) }}:
+      name: NetCoreInternal-Pool
+      queue: BuildPool.Ubuntu.1604.Amd64
+
+  steps:
+  ### Zip up downloaded repo and publish to Helix
+  - template: /eng/upload-artifact-step.yml
+    parameters:
+      displayName: 'GIT repository'
+      rootFolder: $(Build.SourcesDirectory)
+      includeRootFolder: false
+      archiveFile: $(Build.StagingDirectory)/repo_unix.tar.gz
+      archiveType: 'tar'
+      tarCompression: 'gz'
+      artifactName: repo_unix
