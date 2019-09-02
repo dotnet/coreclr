@@ -73,6 +73,8 @@ public:
     BOOL IsOpened();
     BOOL HasLoadedLayout();
 
+    static void CleanAllReadOnlyPages();
+
 public:
     // ------------------------------------------------------------
     // Public API

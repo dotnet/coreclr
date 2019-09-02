@@ -101,6 +101,20 @@ extern "C"
         returns TRUE if successful, FALSE otherwise
     --*/
     BOOL MAPMarkSectionAsNotNeeded(LPCVOID lpAddress);
+
+    /*++
+        MAPMarkDontNeedCleanPages - try to mark clean pages from range as not needed
+
+    Parameters:
+        IN lpBase - base address of pe image
+        IN lpAddress - start address of range
+        IN size - size of range in bytes
+
+    Return value:
+        TRUE - success
+        FALSE - failure
+    --*/
+    BOOL MAPMarkDontNeedCleanPages(LPCVOID lpBase, LPCVOID lpAddress, SIZE_T size);
 }
 
 namespace CorUnix

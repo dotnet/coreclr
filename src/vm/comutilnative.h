@@ -216,4 +216,9 @@ public:
     static FCDECL1(FC_BOOL_RET, HasOverriddenBeginEndWrite, Object *stream);
 };
 
+class ImageInterface {
+public:
+    static FCDECL0(void, FlushPECaches);
+};
+
 #endif // _COMUTILNATIVE_H_

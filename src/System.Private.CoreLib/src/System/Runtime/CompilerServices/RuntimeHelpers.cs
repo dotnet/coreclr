@@ -12,6 +12,9 @@ namespace System.Runtime.CompilerServices
     public static partial class RuntimeHelpers
     {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        public static extern void FlushPECaches();
+
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void InitializeArray(Array array, RuntimeFieldHandle fldHandle);
 
         // GetObjectValue is intended to allow value classes to be manipulated as 'Object'

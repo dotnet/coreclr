@@ -2706,6 +2706,25 @@ BOOL
 PALAPI
 PAL_LOADMarkSectionAsNotNeeded(void * ptr);
 
+/*++
+    PAL_LOADMarkDontNeedCleanPages
+
+    Try to mark clean pages from range as not needed.
+
+Parameters:
+    IN base - base address of pe image
+    IN ptr - start address of range
+    IN size - size of range in bytes
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+PALIMPORT
+BOOL
+PALAPI
+PAL_LOADMarkDontNeedCleanPages(PVOID base, PVOID ptr, SIZE_T size);
+
 #ifdef UNICODE
 #define LoadLibrary LoadLibraryW
 #define LoadLibraryEx LoadLibraryExW

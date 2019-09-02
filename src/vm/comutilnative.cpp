@@ -2450,3 +2450,9 @@ FCIMPL1(FC_BOOL_RET, StreamNative::HasOverriddenBeginEndWrite, Object *stream)
     FC_RETURN_BOOL(HasOverriddenStreamMethod(pMT, g_slotBeginWrite) || HasOverriddenStreamMethod(pMT, g_slotEndWrite));
 }
 FCIMPLEND
+
+FCIMPL0(void, ImageInterface::FlushPECaches)
+{
+    PEImage::CleanAllReadOnlyPages();
+}
+FCIMPLEND

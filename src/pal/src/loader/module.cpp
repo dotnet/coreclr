@@ -858,6 +858,40 @@ PAL_LOADMarkSectionAsNotNeeded(void * ptr)
 }
 
 /*++
+    PAL_LOADMarkDontNeedCleanPages
+
+    Try to mark clean pages from range as not needed.
+
+Parameters:
+    IN base - base address of pe image
+    IN ptr - start address of range
+    IN size - size of range in bytes
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+BOOL
+PALAPI
+PAL_LOADMarkDontNeedCleanPages(PVOID base, PVOID ptr, SIZE_T size)
+{
+    BOOL retval = FALSE;
+    ENTRY("PAL_LOADMarkDontNeedCleanPages (base=%p, ptr=%p)\n", base, ptr);
+
+    if (nullptr == ptr || size == 0)
+    {
+        ERROR( "Invalid pointer value or invalid size\n" );
+    }
+    else
+    {
+        retval = MAPMarkDontNeedCleanPages(base, ptr, size);
+    }
+
+    LOGEXIT("PAL_LOADMarkDontNeedCleanPages returns %d\n", retval);
+    return retval;
+}
+
+/*++
     PAL_GetSymbolModuleBase
 
     Get base address of the module containing a given symbol

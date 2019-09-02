@@ -925,6 +925,7 @@ FCFuncStart(gOverlappedFuncs)
 FCFuncEnd()
 
 FCFuncStart(gRuntimeHelpers)
+    FCFuncElement("FlushPECaches", ImageInterface::FlushPECaches)
     FCFuncElement("GetObjectValue", ObjectNative::GetObjectValue)
     FCIntrinsic("InitializeArray", ArrayNative::InitializeArray, CORINFO_INTRINSIC_InitializeArray)
     FCFuncElement("_RunClassConstructor", ReflectionInvocation::RunClassConstructor)

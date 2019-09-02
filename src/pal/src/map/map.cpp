@@ -2724,3 +2724,101 @@ BOOL MAPMarkSectionAsNotNeeded(LPCVOID lpAddress)
     TRACE_(LOADER)("MAPMarkSectionAsNotNeeded returning %d\n", retval);
     return retval;
 }
+
+/*++
+    MAPMarkDontNeedCleanPages - try to mark clean pages from range as not needed
+
+Parameters:
+    IN lpBase - base address of pe image
+    IN lpAddress - start address of range
+    IN size - size of range in bytes
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+BOOL MAPMarkDontNeedCleanPages(LPCVOID lpBase, LPCVOID lpAddress, SIZE_T size)
+{
+    TRACE_(LOADER)("MAPMarkDontNeedCleanPages(lpBase=%p, lpAddress=%p)\n", lpAddress, lpBase);
+
+    if ( NULL == lpAddress || size == 0)
+    {
+        ERROR_(LOADER)( "lpAddress cannot be NULL, size cannot be zero\n" );
+        return FALSE;
+    }
+
+    BOOL retval = TRUE;
+    CPalThread * pThread = InternalGetCurrentThread();
+    InternalEnterCriticalSection(pThread, &mapping_critsec);
+    PLIST_ENTRY pLink, pLinkNext;
+
+    for(pLink = MappedViewList.Flink;
+        pLink != &MappedViewList;
+        pLink = pLinkNext)
+    {
+        pLinkNext = pLink->Flink;
+        PMAPPED_VIEW_LIST pView = CONTAINING_RECORD(pLink, MAPPED_VIEW_LIST, Link);
+
+        // madvise for read only pages of PE files
+        if (pView->dwDesiredAccess != FILE_MAP_READ)
+        {
+            continue;
+        }
+
+        LPVOID lpStart = nullptr;
+        SIZE_T curSize = 0;
+
+        BYTE *pViewStart = (BYTE *)pView->lpAddress;
+        BYTE *pViewEnd = pViewStart + pView->NumberOfBytesToMap;
+        BYTE *pRangeStart = (BYTE *)lpAddress;
+        BYTE *pRangeEnd = pRangeStart + size;
+
+        if (pViewEnd <= pRangeStart || pRangeEnd <= pViewStart)
+        {
+            continue;
+        }
+        else if (pViewStart <= pRangeStart)
+        {
+            lpStart = (LPVOID)pRangeStart;
+
+            if (pRangeEnd <= pViewEnd)
+            {
+                curSize = size;
+            }
+            else
+            {
+                curSize = (SIZE_T)(pViewEnd - pRangeStart);
+            }
+        }
+        else
+        {
+            lpStart = (LPVOID)pViewStart;
+
+            if (pRangeEnd <= pViewEnd)
+            {
+                curSize = (SIZE_T)(pRangeEnd - pViewStart);
+            }
+            else
+            {
+                curSize = pView->NumberOfBytesToMap;
+            }
+        }
+
+        _ASSERTE(pView->lpPEBaseAddress == lpBase || (pView->lpPEBaseAddress == 0 && pView->lpAddress == lpBase && pView->NumberOfBytesToMap == size));
+
+        if (lpStart != nullptr && curSize > 0)
+        {
+            if (-1 == madvise(lpStart, curSize, MADV_DONTNEED))
+            {
+                ERROR_(LOADER)("Unable to mark the section as NotNeeded.\n");
+                retval = FALSE;
+                break;
+            }
+        }
+    }
+
+    InternalLeaveCriticalSection(pThread, &mapping_critsec);
+
+    TRACE_(LOADER)("MAPMarkDontNeedCleanPages returning %d\n", retval);
+    return retval;
+}

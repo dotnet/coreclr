@@ -155,6 +155,29 @@ void PEImage::GetAll(SArray<PEImage*> &images)
     }
 }
 
+void PEImage::CleanAllReadOnlyPages()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    CrstHolder holder(&s_hashLock);
+
+    for (PtrHashMap::PtrIterator i = s_Images->begin(); !i.end(); ++i)
+    {
+        PEImage *image = (PEImage*) i.GetValue();
+        PEImageLayoutHolder pLayout(image->GetLayout(PEImageLayout::LAYOUT_ANY, 0));
+        if ((PEImageLayout*)pLayout != NULL)
+        {
+            pLayout->CleanAllReadOnlyPages();
+        }
+    }
+}
+
 PEImage::~PEImage()
 {
     CONTRACTL

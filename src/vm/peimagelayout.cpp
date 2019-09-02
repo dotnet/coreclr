@@ -296,6 +296,74 @@ void PEImageLayout::ApplyBaseRelocations()
     }
 }
 
+void PEImageLayout::CleanAllReadOnlyPages()
+{
+    STANDARD_VM_CONTRACT;
+
+#ifdef FEATURE_PAL
+    SSIZE_T delta = (SIZE_T) GetBase() - (SIZE_T) GetPreferredBase();
+    PTR_VOID pBase = GetBase();
+    SIZE_T totalSize;
+
+    if (IsMapped())
+    {
+        totalSize = GetVirtualSize();
+    }
+    else
+    {
+        totalSize = GetSize();
+    }
+
+    if ((!HasNativeHeader() && !HasReadyToRunHeader())
+        || delta == 0)
+    {
+        PAL_LOADMarkDontNeedCleanPages(pBase, pBase, totalSize);
+        return;
+    }
+
+    LOG((LF_LOADER, LL_INFO100, "PEImage: cleaning read only pages\n"));
+
+    COUNT_T dirSize;
+    TADDR dir = GetDirectoryEntryData(IMAGE_DIRECTORY_ENTRY_BASERELOC, &dirSize);
+
+    BYTE * pCleanRegion = (BYTE *) pBase;
+    // The page size of PE file relocs is always 4096 bytes
+    const SIZE_T cbPageSize = 4096;
+
+    COUNT_T dirPos = 0;
+    while (dirPos < dirSize)
+    {
+        PIMAGE_BASE_RELOCATION r = (PIMAGE_BASE_RELOCATION)(dir + dirPos);
+
+        COUNT_T fixupsSize = VAL32(r->SizeOfBlock);
+
+        _ASSERTE(fixupsSize > sizeof(IMAGE_BASE_RELOCATION));
+        _ASSERTE((fixupsSize - sizeof(IMAGE_BASE_RELOCATION)) % 2 == 0);
+
+        DWORD rva = VAL32(r->VirtualAddress);
+
+        BYTE * pageAddress = (BYTE *) pBase + rva;
+
+        SIZE_T size = (SIZE_T) (pageAddress - pCleanRegion);
+
+        if (size > 0)
+        {
+            PAL_LOADMarkDontNeedCleanPages(pBase, pCleanRegion, size);
+        }
+
+        pCleanRegion = pageAddress + cbPageSize;
+
+        dirPos += fixupsSize;
+    }
+    _ASSERTE(dirSize == dirPos);
+
+    SIZE_T size = totalSize - ((SIZE_T) (pCleanRegion - (BYTE*)pBase));
+    if (size > 0)
+    {
+        PAL_LOADMarkDontNeedCleanPages(pBase, pCleanRegion, size);
+    }
+#endif
+}
 
 RawImageLayout::RawImageLayout(const void *flat, COUNT_T size, PEImage* pOwner)
 {

@@ -70,6 +70,8 @@ public:
 
     void ApplyBaseRelocations();
 
+    void CleanAllReadOnlyPages();
+
 public:
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);

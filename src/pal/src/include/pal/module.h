@@ -167,6 +167,22 @@ Return value:
 BOOL PAL_LOADUnloadPEFile(void * ptr);
 
 /*++
+    PAL_LOADMarkDontNeedCleanPages
+
+    Try to mark clean pages from range as not needed.
+
+Parameters:
+    IN base - base address of pe image
+    IN ptr - start address of range
+    IN size - size of range in bytes
+
+Return value:
+    TRUE - success
+    FALSE - failure
+--*/
+BOOL PAL_LOADMarkDontNeedCleanPages(PVOID base, PVOID ptr, SIZE_T size);
+
+/*++
     LOADInitializeCoreCLRModule
 
     Run the initialization methods for CoreCLR module.
