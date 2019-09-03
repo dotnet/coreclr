@@ -186,6 +186,8 @@
     <HelixPreCommand Include="set CLRCustomTestLauncher=%HELIX_CORRELATION_PAYLOAD%\runincontext.cmd" Condition=" '$(RunInUnloadableContext)' == 'true' " />
     <HelixPreCommand Include="set __TestEnv=%HELIX_WORKITEM_PAYLOAD%\$(TestEnvFileName)" />
     <HelixPreCommand Include="set __TestTimeout=$(TimeoutPerTestInMilliseconds)" Condition=" '$(TimeoutPerTestInMilliseconds)' != '' " />
+    <HelixPreCommand Include="set __CollectDumps=1" />
+    <HelixPreCommand Include="set __CrashDumpFolder=%HELIX_WORKITEM_UPLOAD_ROOT%" />
     <HelixPreCommand Include="type %__TestEnv%" />
   </ItemGroup>
 
