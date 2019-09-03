@@ -7401,6 +7401,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         assert(call->gtCall.callInfo == nullptr);
         call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
         *call->gtCall.callInfo = *callInfo;
+        call->gtCall.callInfo->sig = calliSig;
 #endif // DEBUG
 
         if (IsTargetAbi(CORINFO_CORERT_ABI))
@@ -7936,6 +7937,7 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             assert(call->gtCall.callInfo == nullptr);
             call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
             *call->gtCall.callInfo = *callInfo;
+            call->gtCall.callInfo->sig = *sig;
 #endif
 
             // For vararg calls we must be sure to load the return type of the
@@ -8537,6 +8539,7 @@ DONE:
         {
             call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
             *call->gtCall.callInfo = *callInfo;
+            call->gtCall.callInfo->sig = *sig;
         }
 
         if (compIsForInlining() && opcode == CEE_CALLVIRT)

@@ -7682,8 +7682,6 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // CallTarget(). We will morph the call node to the StoreArgs call and
     // insert another call to CallTarget.
 
-    assert(!(help.flags & CORINFO_TAILCALL_STORE_TARGET));
-
     // First we add the tailcall after this call.
     GenTreeCall* callTarget = gtNewCallNode(
         CT_USER_FUNC, help.hCallTarget,
@@ -7785,6 +7783,16 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         call->fgArgInfo = nullptr;
     }
 
+    // We may need to pass the target address, for instance for calli.
+    if (help.flags & CORINFO_TAILCALL_STORE_TARGET)
+    {
+        noway_assert(call->gtCallType == CT_INDIRECT && call->gtCallAddr != nullptr);
+        GenTree* target = call->gtCallAddr;
+        // TODO: This should be evaluated last. How?
+        call->gtCallArgs = gtNewListNode(target, call->gtCallArgs);
+        call->fgArgInfo = nullptr;
+    }
+
     // This is now a direct call to the store args stub and not a tailcall.
     call->gtCallType    = CT_USER_FUNC;
     call->gtCallMethHnd = help.hStoreArgs;
@@ -7800,7 +7808,12 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     noway_assert(temp == call);
 
     JITDUMP("fgMorphTailCallViaHelper (after):\n");
-    INDEBUG(gtDispStmtList(fgMorphStmt));
+#ifdef DEBUG
+    if (verbose)
+    {
+        gtDispStmtList(fgMorphStmt);
+    }
+#endif
 }
 
 //------------------------------------------------------------------------

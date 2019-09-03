@@ -322,14 +322,15 @@ void TailCallHelp::CreateStoreArgsStubSig(
     // * This pointer (for instance calls)
     // * Generic context (for generic calls requiring context)
 
-    // See MethodDefSig in ECMA-335 for the format.
+    // See MethodRefSig in ECMA-335 for the format.
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
-    ULONG paramCount = info.ArgBufLayout.Values.GetCount();
+    ULONG paramCount = 0; 
     if (info.ArgBufLayout.HasTargetAddress)
     {
         paramCount++;
     }
+    paramCount += info.ArgBufLayout.Values.GetCount();
     
     sig->AppendData(paramCount);
 
@@ -464,6 +465,16 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         }
     };
 
+    DWORD targetAddrLcl;
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+
+        emitOffs(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitLDIND_I();
+        pCode->EmitSTLOC(targetAddrLcl);
+    }
+
     StackSArray<DWORD> argLocals;
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
@@ -540,7 +551,9 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
         calliSig.AppendPointer(info.RetTyHnd.AsPtr());
 
-        for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
+        COUNT_T firstSigArg = info.CallSiteSig->HasThis() ? 1 : 0;
+
+        for (COUNT_T i = firstSigArg; i < argLocals.GetCount(); i++)
         {
             calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
             calliSig.AppendPointer(info.ArgBufLayout.Values[i].TyHnd.AsPtr());
@@ -554,8 +567,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             pCode->EmitLDLOC(argLocals[i]);
         }
 
-        emitOffs(info.ArgBufLayout.TargetAddressOffset);
-        pCode->EmitLDIND_I();
+        pCode->EmitLDLOC(targetAddrLcl);
 
         pCode->EmitCALLI(
             pCode->GetSigToken(pCalliSig, cbCalliSig),
