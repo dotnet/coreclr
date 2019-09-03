@@ -103,10 +103,20 @@ namespace CoreclrTestLib
 
         static bool CollectCrashDump(Process process, string path)
         {
-            using (var crashDump = File.OpenWrite(path))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
-                var flags = DbgHelp.MiniDumpType.MiniDumpWithFullMemory | DbgHelp.MiniDumpType.MiniDumpIgnoreInaccessibleMemory;
-                return DbgHelp.MiniDumpWriteDump(process.Handle, process.Id, crashDump.SafeFileHandle, flags, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                using (var crashDump = File.OpenWrite(path))
+                {
+                    var flags = DbgHelp.MiniDumpType.MiniDumpWithFullMemory | DbgHelp.MiniDumpType.MiniDumpIgnoreInaccessibleMemory;
+                    return DbgHelp.MiniDumpWriteDump(process.Handle, process.Id, crashDump.SafeFileHandle, flags, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
+                }
+            }
+            else
+            {
+                ProcessStartInfo createdumpInfo = new ProcessStartInfo("createdump");
+                createdumpInfo.Arguments = $"--name \"{path}\" {process.Id} -h";
+                Process createdump = Process.Start(createdumpInfo);
+                return createdump.WaitForExit(DEFAULT_TIMEOUT) && createdump.ExitCode == 0;
             }
         }
 
@@ -168,10 +178,9 @@ namespace CoreclrTestLib
 
             // Check if we are running in Windows
             string operatingSystem = System.Environment.GetEnvironmentVariable("OS");
-            bool runningInWindows = (operatingSystem != null && operatingSystem.StartsWith("Windows"));
 
             // We can't yet take crash dumps on non-Windows OSs for timed-out tests
-            bool collectCrashDumps = runningInWindows && Environment.GetEnvironmentVariable(COLLECT_DUMPS_ENVIRONMENT_VAR) != null;
+            bool collectCrashDumps = Environment.GetEnvironmentVariable(COLLECT_DUMPS_ENVIRONMENT_VAR) != null;
 
             var outputStream = new FileStream(outputFile, FileMode.Create);
             var errorStream = new FileStream(errorFile, FileMode.Create);
@@ -181,7 +190,7 @@ namespace CoreclrTestLib
             using (Process process = new Process())
             {
                 // Windows can run the executable implicitly
-                if (runningInWindows)
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     process.StartInfo.FileName = executable;
                 }
