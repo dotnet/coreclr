@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 #include "common.h"
+#include "corpriv.h"
 #include "tailcallhelp.h"
 #include "dllimport.h"
 #include "formattype.h"
@@ -343,8 +344,7 @@ void TailCallHelp::CreateStoreArgsStubSig(
 
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
-        sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
-        sig->AppendPointer(info.ArgBufLayout.Values[i].TyHnd.AsPtr());
+        AppendElementType(*sig, info.ArgBufLayout.Values[i].TyHnd);
     }
 
 #ifdef _DEBUG
@@ -354,27 +354,6 @@ void TailCallHelp::CreateStoreArgsStubSig(
     MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
     SigFormat outSig(outMsig, NULL);
     printf("StoreArgs sig: %s\n", outSig.GetCString());
-#endif // _DEBUG
-}
-
-void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig)
-{
-    sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
-
-    // No parameters
-    sig->AppendData(0);
-
-    // Returns same as original
-    sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
-    sig->AppendPointer(info.RetTyHnd.AsPtr());
-
-#ifdef _DEBUG
-    DWORD cbSig;
-    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
-    SigTypeContext emptyContext;
-    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
-    SigFormat outSig(outMsig, NULL);
-    printf("CallTarget sig: %s\n", outSig.GetCString());
 #endif // _DEBUG
 }
 
@@ -397,7 +376,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
     ILCodeStream* pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
 
-    DWORD resultLcl = pCode->NewLocal(LocalDesc(info.RetTyHnd));
+    DWORD resultLcl;
     DWORD tlsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     DWORD prevFrameLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     ILCodeLabel* noUnwindLbl = pCode->NewCodeLabel();
@@ -405,6 +384,11 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     DWORD newFrameEntryLcl = pCode->NewLocal(LocalDesc(frameTyHnd));
     DWORD argsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     ILCodeLabel* unchained = pCode->NewCodeLabel();
+
+    if (!info.CallSiteSig->IsReturnTypeVoid())
+    {
+        resultLcl = pCode->NewLocal(LocalDesc(info.RetTyHnd));
+    }
 
     // tls = RuntimeHelpers.GetTailcallTls();
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__GET_TAILCALL_TLS, 0, 1);
@@ -428,7 +412,10 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
 
     // return result;
-    pCode->EmitLDLOC(resultLcl);
+    if (!info.CallSiteSig->IsReturnTypeVoid())
+    {
+        pCode->EmitLDLOC(resultLcl);
+    }
     pCode->EmitRET();
 
     // Do actual call
@@ -496,6 +483,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitCALL(METHOD__STUBHELPERS__NEXT_CALL_RETURN_ADDRESS, 0, 1);
     pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
 
+    int numRetVals = info.CallSiteSig->IsReturnTypeVoid() ? 0 : 1;
     // Normally there will not be any target and we just emit a normal
     // call/callvirt.
     if (!info.ArgBufLayout.HasTargetAddress)
@@ -515,14 +503,14 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             pCode->EmitCALLVIRT(
                 pCode->GetToken(info.Callee),
                 static_cast<int>(argLocals.GetCount()),
-                1);
+                numRetVals);
         }
         else
         {
             pCode->EmitCALL(
                 pCode->GetToken(info.Callee),
                 static_cast<int>(argLocals.GetCount()),
-                1);
+                numRetVals);
         }
     }
     else
@@ -548,15 +536,13 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         }
 
         // Return type
-        calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
-        calliSig.AppendPointer(info.RetTyHnd.AsPtr());
+        AppendElementType(calliSig, info.RetTyHnd);
 
         COUNT_T firstSigArg = info.CallSiteSig->HasThis() ? 1 : 0;
 
         for (COUNT_T i = firstSigArg; i < argLocals.GetCount(); i++)
         {
-            calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
-            calliSig.AppendPointer(info.ArgBufLayout.Values[i].TyHnd.AsPtr());
+            AppendElementType(calliSig, info.ArgBufLayout.Values[i].TyHnd);
         }
 
         DWORD cbCalliSig;
@@ -571,10 +557,14 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
         pCode->EmitCALLI(
             pCode->GetSigToken(pCalliSig, cbCalliSig),
-            static_cast<int>(argLocals.GetCount()), 1);
+            static_cast<int>(argLocals.GetCount()),
+            numRetVals);
     }
 
-    pCode->EmitSTLOC(resultLcl);
+    if (!info.CallSiteSig->IsReturnTypeVoid())
+    {
+        pCode->EmitSTLOC(resultLcl);
+    }
 
     // tls->Frame = newFrameEntry.Prev
     pCode->EmitLDLOC(tlsLcl);
@@ -591,12 +581,15 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitLDLOC(newFrameEntryLcl);
     pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
     pCode->EmitTAIL();
-    pCode->EmitCALLI(pCode->GetSigToken(pSig, cbSig), 0, 1);
+    pCode->EmitCALLI(pCode->GetSigToken(pSig, cbSig), 0, numRetVals);
     pCode->EmitRET();
 
     // unchained: return result;
     pCode->EmitLabel(unchained);
-    pCode->EmitLDLOC(resultLcl);
+    if (!info.CallSiteSig->IsReturnTypeVoid())
+    {
+        pCode->EmitLDLOC(resultLcl);
+    }
     pCode->EmitRET();
 
     Module* pLoaderModule = info.Caller->GetLoaderModule();
@@ -622,6 +615,39 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 #endif
 
     return pCallTargetMD;
+}
+
+void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig)
+{
+    sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
+
+    // No parameters
+    sig->AppendData(0);
+
+    // Returns same as original
+    AppendElementType(*sig, info.RetTyHnd);
+
+#ifdef _DEBUG
+    DWORD cbSig;
+    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+    SigTypeContext emptyContext;
+    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
+    SigFormat outSig(outMsig, NULL);
+    printf("CallTarget sig: %s\n", outSig.GetCString());
+#endif // _DEBUG
+}
+
+void TailCallHelp::AppendElementType(SigBuilder& builder, TypeHandle th)
+{
+    CorElementType ty = th.GetSignatureCorElementType();
+    if (CorIsPrimitiveType(ty))
+    {
+        builder.AppendElementType(ty);
+        return;
+    }
+
+    builder.AppendElementType(ELEMENT_TYPE_INTERNAL);
+    builder.AppendPointer(th.AsPtr());
 }
 
 PCCOR_SIGNATURE TailCallHelp::AllocateSignature(LoaderAllocator* alloc, SigBuilder& sig, DWORD* sigLen)

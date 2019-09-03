@@ -35,6 +35,8 @@ private:
     static MethodDesc* CreateCallTargetStub(const TailCallInfo& info);
     static void CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig);
 
+    static void AppendElementType(SigBuilder& builder, TypeHandle th);
+
     static PCCOR_SIGNATURE AllocateSignature(LoaderAllocator* alloc, SigBuilder& sig, DWORD* sigLen);
     static void* AllocateBlob(LoaderAllocator* alloc, const void* blob, size_t blobLen);
 };
