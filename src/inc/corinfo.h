@@ -1661,7 +1661,7 @@ struct CORINFO_CALL_INFO
 
     unsigned                classFlags;         //flags for CORINFO_RESOLVED_TOKEN::hClass
 
-    CORINFO_SIG_INFO       sig;
+    CORINFO_SIG_INFO        sig;
 
     //Verification information
     unsigned                verMethodFlags;     // flags for CORINFO_RESOLVED_TOKEN::hMethod
@@ -1855,6 +1855,20 @@ struct CORINFO_EE_INFO
     unsigned    osMajor;
     unsigned    osMinor;
     unsigned    osBuild;
+};
+
+enum CORINFO_TAILCALL_FLAGS
+{
+    // The StoreArgs stub needs to be passed the target function pointer as the
+    // first argument.
+    CORINFO_TAILCALL_STORE_TARGET = 0x00000001,
+};
+
+struct CORINFO_TAILCALL_HELP
+{
+    unsigned               flags;
+    CORINFO_METHOD_HANDLE  hStoreArgs;
+    CORINFO_METHOD_HANDLE  hCallTarget;
 };
 
 // This is used to indicate that a finally has been called 
@@ -3239,11 +3253,9 @@ public:
                     ) = 0;
 
     // Obtain store-args stub for a tailcall.
-    virtual bool getTailCallHelperStubs(
-        CORINFO_METHOD_HANDLE callee,
-        CORINFO_SIG_INFO *pSig,
-        CORINFO_METHOD_HANDLE *storeArgsStub,
-        CORINFO_METHOD_HANDLE *callTargetStub)
+    virtual bool getTailCallHelp(
+        CORINFO_CALL_INFO* callInfo,
+        CORINFO_TAILCALL_HELP* pResult)
     { return false; }
 
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.

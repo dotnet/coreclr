@@ -5401,8 +5401,7 @@ private:
     bool fgCheckStmtAfterTailCall();
     void fgMorphTailCallViaHelper(
         GenTreeCall* call,
-        CORINFO_METHOD_HANDLE storeArgsStubHnd,
-        CORINFO_METHOD_HANDLE callTargetStubHnd);
+        CORINFO_TAILCALL_HELP& help);
     GenTree* fgMorphPotentialTailCall(GenTreeCall* call);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);

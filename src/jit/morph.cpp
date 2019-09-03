@@ -7443,17 +7443,15 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     // Ok, now we are _almost_ there. If this needs helper then make sure we can
     // get the store args stub. Do this last as the runtime will likely be
     // required to generate these.
-    CORINFO_METHOD_HANDLE storeArgsStubHnd = nullptr;
-    CORINFO_METHOD_HANDLE callTargetStubHnd = nullptr;
+    CORINFO_TAILCALL_HELP tailcallHelp;
     if (!canFastTailCall)
     {
         assert(call->IsTailPrefixedCall());
+        assert(call->callInfo != nullptr);
 
-        if (!info.compCompHnd->getTailCallHelperStubs(
-            nullptr, &call->callInfo->sig,
-            &storeArgsStubHnd, &callTargetStubHnd))
+        if (!info.compCompHnd->getTailCallHelp(call->callInfo, &tailcallHelp))
         {
-            failTailCall("StoreArgsStub not available");
+            failTailCall("Tail call help not available");
             return nullptr;
         }
     }
@@ -7612,7 +7610,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     // last call is a fast tailcall. This will modify fgMorphStmt.
     if (call->IsTailCallViaHelper())
     {
-        fgMorphTailCallViaHelper(call, storeArgsStubHnd, callTargetStubHnd);
+        fgMorphTailCallViaHelper(call, tailcallHelp);
     }
     else
     {
@@ -7665,10 +7663,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  *
  *  Transform the given GT_CALL tree for tail call code generation.
  */
-void Compiler::fgMorphTailCallViaHelper(
-    GenTreeCall* call,
-    CORINFO_METHOD_HANDLE storeArgsStubHnd,
-    CORINFO_METHOD_HANDLE callTargetStubHnd)
+void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help)
 {
     JITDUMP("fgMorphTailCallViaHelper (before):\n");
     DISPTREE(call);
@@ -7683,25 +7678,15 @@ void Compiler::fgMorphTailCallViaHelper(
     assert(!call->IsImplicitTailCall());
     assert(!fgCanFastTailCall(call));
 
-    // We wish to transform
-    // tail obj.foo(a, b)
-    // into
-    // StoreArgs(&foo, obj, a, b)
-    // tail CallTarget().
-    // We will morph the call node to the StoreArgs call and insert another call
-    // to CallTarget.
-    // To do so we will instead morph to
-    // obj.foo(&StoreArgs, obj, a, b)
-    // (notice swapped foo and StoreArgs). This is slightly hacky, but allows us
-    // to reuse the address calculation of the target function that lowering
-    // does. Lowering::LowerTailCallViaHelper will then swap the "call target"
-    // and first arg.
+    // We wish to transform tail obj.foo(a, b) into StoreArgs(obj, a, b); tail
+    // CallTarget(). We will morph the call node to the StoreArgs call and
+    // insert another call to CallTarget.
 
-    assert(!call->IsVirtualStub());
+    assert(!(help.flags & CORINFO_TAILCALL_STORE_TARGET));
 
-    // First we add the tailcall.
+    // First we add the tailcall after this call.
     GenTreeCall* callTarget = gtNewCallNode(
-        CT_USER_FUNC, callTargetStubHnd,
+        CT_USER_FUNC, help.hCallTarget,
         (var_types)call->gtReturnType, nullptr,
         fgMorphStmt->gtStmtILoffsx);
 
@@ -7709,6 +7694,17 @@ void Compiler::fgMorphTailCallViaHelper(
 #if FEATURE_MULTIREG_RET
     callTarget->gtReturnTypeDesc = call->gtReturnTypeDesc;
 #endif
+
+    // If VSD then get rid of arg to VSD since we turn this into a direct call.
+    // The extra arg will be the first arg so this needs to be done before we
+    // handle the retbuf below.
+    if (call->IsVirtualStub())
+    {
+        call->gtCallArgs = call->gtCallArgs->Rest();
+        call->gtFlags &= ~GTF_CALL_VIRT_STUB;
+
+        call->fgArgInfo = nullptr;
+    }
 
     // Transfer retbuf from call to CallTarget.
     if (call->HasRetBufArg())
@@ -7723,6 +7719,9 @@ void Compiler::fgMorphTailCallViaHelper(
 
         call->gtCallArgs = call->gtCallArgs->Rest();
         call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
+
+        // We changed args so recompute info.
+        call->fgArgInfo = nullptr;
     }
 
     callTarget->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
@@ -7782,13 +7781,15 @@ void Compiler::fgMorphTailCallViaHelper(
         // materialize as embedded stmts in right execution order.
         assert(thisPtr != nullptr);
         call->gtCallArgs = gtNewListNode(thisPtr, call->gtCallArgs);
+        // We changed args so recompute info.
+        call->fgArgInfo = nullptr;
     }
 
-    GenTree* storeArgs    = gtNewIconHandleNode((size_t)storeArgsStubHnd, GTF_ICON_METHOD_HDL);
-    call->gtCallArgs      = gtNewListNode(storeArgs, call->gtCallArgs);
-
-    // We changed args so recompute info next time.
-    call->fgArgInfo       = nullptr;
+    // This is now a direct call to the store args stub and not a tailcall.
+    call->gtCallType    = CT_USER_FUNC;
+    call->gtCallMethHnd = help.hStoreArgs;
+    call->gtFlags &= ~GTF_CALL_VIRT_KIND_MASK;
+    call->gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
 
     // The store-args stub returns no value.
     call->gtRetClsHnd = nullptr;
@@ -7799,8 +7800,7 @@ void Compiler::fgMorphTailCallViaHelper(
     noway_assert(temp == call);
 
     JITDUMP("fgMorphTailCallViaHelper (after):\n");
-    DISPTREE(call);
-    DISPTREE(callTarget);
+    INDEBUG(gtDispStmtList(fgMorphStmt));
 }
 
 //------------------------------------------------------------------------
@@ -15433,14 +15433,19 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
             morph = stmt->gtStmtExpr;
             noway_assert(compTailCallUsed);
-            noway_assert((morph->gtOper == GT_CALL) && morph->AsCall()->IsTailCall());
+            noway_assert(morph->gtOper == GT_CALL);
+            // A fast tail call jumps directly to the target func and a
+            // helper-based one calls a store-args stub and then tailcalls to a
+            // CallTarget func.
+            noway_assert(morph->AsCall()->IsFastTailCall() ||
+                         (stmt->gtNextStmt != nullptr &&
+                          stmt->gtNextStmt->gtStmtExpr->gtOper == GT_CALL &&
+                          stmt->gtNextStmt->gtStmtExpr->AsCall()->IsFastTailCall()));
 
             // Slow tailcalls are transformed into storage of args + a fast
             // tailcall and fast tailcalls always end with BBJ_RETURN.
             noway_assert((compCurBB->bbJumpKind == BBJ_RETURN) &&
                          (compCurBB->bbFlags & BBF_HAS_JMP));
-
-            continue;
         }
 
 #ifdef DEBUG

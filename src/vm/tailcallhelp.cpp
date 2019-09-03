@@ -80,6 +80,7 @@ struct ArgBufferValue
 
 struct ArgBufferLayout
 {
+    bool HasTargetAddress;
     unsigned int TargetAddressOffset;
     InlineSArray<ArgBufferValue, 8> Values;
     bool HasGCDescriptor;
@@ -87,7 +88,8 @@ struct ArgBufferLayout
     unsigned int Size;
 
     ArgBufferLayout()
-        : TargetAddressOffset(0)
+        : HasTargetAddress(false)
+        , TargetAddressOffset(0)
         , HasGCDescriptor(false)
         , Size(0)
     {
@@ -99,13 +101,18 @@ struct TailCallInfo
     MethodDesc* Caller;
     MethodDesc* Callee;
     MetaSig* CallSiteSig;
+    bool CallSiteIsVirtual;
     TypeHandle RetTyHnd;
     ArgBufferLayout ArgBufLayout;
 
-    TailCallInfo(MethodDesc* pCallerMD, MethodDesc* pCalleeMD, MetaSig* callSiteSig, TypeHandle retTyHnd)
+    TailCallInfo(
+        MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
+        MetaSig* callSiteSig, bool callSiteIsVirtual,
+        TypeHandle retTyHnd)
         : Caller(pCallerMD)
         , Callee(pCalleeMD)
         , CallSiteSig(callSiteSig)
+        , CallSiteIsVirtual(callSiteIsVirtual)
         , RetTyHnd(retTyHnd)
     {
     }
@@ -113,8 +120,9 @@ struct TailCallInfo
 
 void TailCallHelp::CreateTailCallHelperStubs(
     MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
-    MetaSig& callSiteSig,
-    MethodDesc** storeArgsStub, MethodDesc** callTargetStub)
+    MetaSig& callSiteSig, bool virt,
+    MethodDesc** storeArgsStub, bool* storeArgsNeedsTarget,
+    MethodDesc** callTargetStub)
 {
     STANDARD_VM_CONTRACT;
 
@@ -123,20 +131,28 @@ void TailCallHelp::CreateTailCallHelperStubs(
     printf("Incoming sig: %s\n", incSig.GetCString());
 #endif
 
+    // If we don't know a target MD, i.e. if this is a calli, then we need to be
+    // passed the target address from the tail call site.
+    *storeArgsNeedsTarget = pCalleeMD == NULL;
+
     TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
-    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, retTyHnd);
-    LayOutArgBuffer(callSiteSig, &info.ArgBufLayout);
+    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, virt, retTyHnd);
+    LayOutArgBuffer(callSiteSig, *storeArgsNeedsTarget, &info.ArgBufLayout);
 
     *storeArgsStub = CreateStoreArgsStub(info);
     *callTargetStub = CreateCallTargetStub(info);
 }
 
-void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, ArgBufferLayout* layout)
+void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, bool storeTarget, ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
 
-    layout->TargetAddressOffset = offs;
-    offs += TARGET_POINTER_SIZE;
+    if (storeTarget)
+    {
+        layout->TargetAddressOffset = offs;
+        layout->HasTargetAddress = true;
+        offs += TARGET_POINTER_SIZE;
+    }
 
     _ASSERTE(!callSiteSig.IsGenericMethod()); // TODO
 
@@ -252,9 +268,12 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     };
 
     unsigned int argIndex = 0;
-    emitOffs(info.ArgBufLayout.TargetAddressOffset);
-    pCode->EmitLDARG(argIndex++);
-    pCode->EmitSTIND_I();
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        emitOffs(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitLDARG(argIndex++);
+        pCode->EmitSTIND_I();
+    }
 
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
@@ -294,28 +313,32 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     return pStoreArgsMD;
 }
 
-void TailCallHelp::CreateStoreArgsStubSig(const TailCallInfo& info, SigBuilder* sig)
+void TailCallHelp::CreateStoreArgsStubSig(
+    const TailCallInfo& info, SigBuilder* sig)
 {
-    // The store-args stub will be different from the target signature.
-    // Specifically we insert the following things at the beginning of the
-    // signature:
-    // * Call target address
-    // * This pointer
-    // * Generic context
+    // The store-args stub will be different depending on the tailcall site.
+    // Specifically the following things might be conditionally inserted:
+    // * Call target address (for calli or generic calls resolved at tailcall site)
+    // * This pointer (for instance calls)
+    // * Generic context (for generic calls requiring context)
 
     // See MethodDefSig in ECMA-335 for the format.
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
-    ULONG paramCount = 1; // Target address
-    paramCount += info.ArgBufLayout.Values.GetCount(); // user args including 'this'
+    ULONG paramCount = info.ArgBufLayout.Values.GetCount();
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        paramCount++;
+    }
     
     sig->AppendData(paramCount);
 
-    // Returns void always
     sig->AppendElementType(ELEMENT_TYPE_VOID);
 
-    // First arg is the target pointer
-    sig->AppendElementType(ELEMENT_TYPE_I);
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        sig->AppendElementType(ELEMENT_TYPE_I);
+    }
 
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
@@ -338,7 +361,7 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
     // No parameters
-    sig->AppendData(0); 
+    sig->AppendData(0);
 
     // Returns same as original
     sig->AppendElementType(ELEMENT_TYPE_INTERNAL);
@@ -380,7 +403,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     TypeHandle frameTyHnd = MscorlibBinder::GetClass(CLASS__TAIL_CALL_FRAME);
     DWORD newFrameEntryLcl = pCode->NewLocal(LocalDesc(frameTyHnd));
     DWORD argsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
-    DWORD targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     ILCodeLabel* unchained = pCode->NewCodeLabel();
 
     // tls = RuntimeHelpers.GetTailcallTls();
@@ -442,30 +464,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         }
     };
 
-    // targetAddr = args->TargetAddress
-    emitOffs(info.ArgBufLayout.TargetAddressOffset);
-    pCode->EmitLDIND_I();
-    pCode->EmitSTLOC(targetAddrLcl);
-
-    SigBuilder calliSig;
-
-    if (info.CallSiteSig->HasThis())
-    {
-        _ASSERTE(info.ArgBufLayout.Values.GetCount() > 0);
-
-        calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS);
-        calliSig.AppendData(info.ArgBufLayout.Values.GetCount() - 1);
-    }
-    else
-    {
-        calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
-        calliSig.AppendData(info.ArgBufLayout.Values.GetCount());
-    }
-
-    // Return type
-    calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
-    calliSig.AppendPointer(info.RetTyHnd.AsPtr());
-
     StackSArray<DWORD> argLocals;
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
@@ -477,9 +475,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         emitOffs(arg.Offset);
         pCode->EmitLDOBJ(pCode->GetToken(arg.TyHnd));
         pCode->EmitSTLOC(argLcl);
-
-        calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
-        calliSig.AppendPointer(arg.TyHnd.AsPtr());
     }
 
     // RuntimeHelpers.FreeTailCallArgBuf();
@@ -490,18 +485,83 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitCALL(METHOD__STUBHELPERS__NEXT_CALL_RETURN_ADDRESS, 0, 1);
     pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
 
-    // result = Calli(target, args)
-    for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
+    // Normally there will not be any target and we just emit a normal
+    // call/callvirt.
+    if (!info.ArgBufLayout.HasTargetAddress)
     {
-        pCode->EmitLDLOC(argLocals[i]);
+        _ASSERTE(info.Callee != NULL);
+        // TODO: enable for varargs. We need to fix the TokenLookupMap to build
+        // the proper MethodRef.
+        _ASSERTE(!info.CallSiteSig->IsVarArg());
+
+        for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
+        {
+            pCode->EmitLDLOC(argLocals[i]);
+        }
+
+        if (info.CallSiteIsVirtual)
+        {
+            pCode->EmitCALLVIRT(
+                pCode->GetToken(info.Callee),
+                static_cast<int>(argLocals.GetCount()),
+                1);
+        }
+        else
+        {
+            pCode->EmitCALL(
+                pCode->GetToken(info.Callee),
+                static_cast<int>(argLocals.GetCount()),
+                1);
+        }
+    }
+    else
+    {
+        // Otherwise we need to emit a calli. If the original tailcall site was
+        // a calli then the target cannot be generic as we do not support
+        // generics in standalone method signatures.
+        _ASSERTE(!info.CallSiteSig->IsGenericMethod());
+
+        SigBuilder calliSig;
+
+        if (info.CallSiteSig->HasThis())
+        {
+            _ASSERTE(info.ArgBufLayout.Values.GetCount() > 0);
+
+            calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT_HASTHIS);
+            calliSig.AppendData(info.ArgBufLayout.Values.GetCount() - 1);
+        }
+        else
+        {
+            calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
+            calliSig.AppendData(info.ArgBufLayout.Values.GetCount());
+        }
+
+        // Return type
+        calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
+        calliSig.AppendPointer(info.RetTyHnd.AsPtr());
+
+        for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
+        {
+            calliSig.AppendElementType(ELEMENT_TYPE_INTERNAL);
+            calliSig.AppendPointer(info.ArgBufLayout.Values[i].TyHnd.AsPtr());
+        }
+
+        DWORD cbCalliSig;
+        PCCOR_SIGNATURE pCalliSig = (PCCOR_SIGNATURE)calliSig.GetSignature(&cbCalliSig);
+
+        for (COUNT_T i = 0; i < argLocals.GetCount(); i++)
+        {
+            pCode->EmitLDLOC(argLocals[i]);
+        }
+
+        emitOffs(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitLDIND_I();
+
+        pCode->EmitCALLI(
+            pCode->GetSigToken(pCalliSig, cbCalliSig),
+            static_cast<int>(argLocals.GetCount()), 1);
     }
 
-    pCode->EmitLDLOC(targetAddrLcl);
-
-    DWORD cbCalliSig;
-    PCCOR_SIGNATURE pCalliSig = (PCCOR_SIGNATURE)calliSig.GetSignature(&cbCalliSig);
-
-    pCode->EmitCALLI(pCode->GetSigToken(pCalliSig, cbCalliSig), argLocals.GetCount(), 1);
     pCode->EmitSTLOC(resultLcl);
 
     // tls->Frame = newFrameEntry.Prev

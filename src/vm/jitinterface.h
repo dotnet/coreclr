@@ -971,10 +971,9 @@ public:
     void* getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
                                    CorInfoHelperTailCallSpecialHandling flags);
 
-    bool getTailCallHelperStubs(CORINFO_METHOD_HANDLE callee,
-                                CORINFO_SIG_INFO *pSig,
-                                CORINFO_METHOD_HANDLE *storeArgs,
-                                CORINFO_METHOD_HANDLE *callTarget);
+    bool getTailCallHelp(CORINFO_CALL_INFO *pCallInfo,
+                         CORINFO_TAILCALL_HELP* pResult);
+                                
 
     bool convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken,
                                    bool fMustConvert);
