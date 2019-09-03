@@ -1966,33 +1966,34 @@ AssertionInfo Compiler::optAssertionGenJtrue(GenTree* tree)
 
     GenTreeCall* call = op1->AsCall();
 
-    if (call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE) &&
-        call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY) &&
-        call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS) &&
-        call->gtCallMethHnd != eeFindHelper(CORINFO_HELP_ISINSTANCEOFANY))
+    if ((call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFINTERFACE)) ||
+        (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFARRAY)) ||
+        (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFCLASS)) ||
+        (call->gtCallMethHnd == eeFindHelper(CORINFO_HELP_ISINSTANCEOFANY)))
     {
-        return NO_ASSERTION_INDEX;
-    }
+        // TODO-Cleanup: Arg nodes should be retrieved by other means (e.g. GetArgNode)
+        // that do not involve gtCallLateArgs directly. The helper parameter order is
+        // actually (methodTable, object) but the method table tends to end up last in
+        // gtCallLateArgs because it is usually a constant.
+        GenTree* objectNode      = call->gtCallLateArgs->GetNode();
+        GenTree* methodTableNode = call->gtCallLateArgs->GetNext()->GetNode();
 
-    op1 = call->gtCallLateArgs->GetNode();
-    op2 = call->gtCallLateArgs->GetNext()->GetNode();
+        // Swap the nodes if they're not ordered as expected.
+        if (objectNode->TypeGet() == TYP_I_IMPL)
+        {
+            jitstd::swap(objectNode, methodTableNode);
+        }
 
-    // For the assertion, ensure op1 is the object being tested.
-    // Morph may have swizzled the operand order.
-    if (op1->TypeGet() == TYP_I_IMPL)
-    {
-        jitstd::swap(op1, op2);
-    }
+        assert(objectNode->TypeGet() == TYP_REF);
 
-    assert(op1->TypeGet() == TYP_REF);
+        // Reverse the assertion
+        assert((assertionKind == OAK_EQUAL) || (assertionKind == OAK_NOT_EQUAL));
+        assertionKind = (assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
 
-    // Reverse the assertion
-    assert((assertionKind == OAK_EQUAL) || (assertionKind == OAK_NOT_EQUAL));
-    assertionKind = (assertionKind == OAK_EQUAL) ? OAK_NOT_EQUAL : OAK_EQUAL;
-
-    if (op1->OperIs(GT_LCL_VAR))
-    {
-        return optCreateJtrueAssertions(op1, op2, assertionKind, true);
+        if (objectNode->OperIs(GT_LCL_VAR))
+        {
+            return optCreateJtrueAssertions(objectNode, methodTableNode, assertionKind, /* helperCallArgs */ true);
+        }
     }
 
     return NO_ASSERTION_INDEX;
