@@ -113,8 +113,8 @@ namespace CoreclrTestLib
             }
             else
             {
-                ProcessStartInfo createdumpInfo = new ProcessStartInfo("createdump");
-                createdumpInfo.Arguments = $"--name \"{path}\" {process.Id} -h";
+                ProcessStartInfo createdumpInfo = new ProcessStartInfo("sudo");
+                createdumpInfo.Arguments = $"createdump --name \"{path}\" {process.Id} -h";
                 Process createdump = Process.Start(createdumpInfo);
                 return createdump.WaitForExit(DEFAULT_TIMEOUT) && createdump.ExitCode == 0;
             }
