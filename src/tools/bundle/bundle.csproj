@@ -9,7 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.NET.HostModel" Version="3.0.0-preview8-28405-07" />
+    <PackageReference Include="Microsoft.NET.HostModel" Version="5.0.0-alpha1.19453.5" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(RestoreOnly)' == 'true'">
