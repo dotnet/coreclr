@@ -86,7 +86,7 @@ To make sure the disassembler attempts to disassemble every instruction,
 we need to make sure the preceding instruction is always valid and terminates
 at our desired instruction boundary.
 
-Through examination of the `Primary` opcode map, it is obsereved that
+Through examination of the `Primary` opcode map, it is observed that
 0x50-0x5f are all 1 byte instructions.  These become convenient padding.
 
 After each necessary instruction we insert enough padding bytes to fill
