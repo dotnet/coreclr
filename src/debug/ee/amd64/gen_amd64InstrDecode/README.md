@@ -54,7 +54,7 @@ sample instruction disassembly.
 The process entails
 - Generating a necessary set of instructions
 - Generating parsable disassembly for the instructions
-- Parsing the disassambly
+- Parsing the disassembly
 
 ### Generating a necessary set of instructions
 
