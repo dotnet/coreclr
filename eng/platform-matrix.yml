@@ -279,6 +279,9 @@ jobs:
       osGroup: Windows_NT
       osIdentifier: Windows_NT
       helixQueues:
+      # TODO: UNDO the following two lines before merging. This is just to verify that tests can run on Win/ARM64. 
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'ci', 'corefx')) }}:
+        - Windows.10.Arm64.Open
       # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - Windows.10.Arm64
