@@ -80,7 +80,7 @@ We will iterate through all the necessary set. Many of these combinations
 will lead to invalid/undefined encodings.  This will cause the disassembler
 to give up and mark the disassemble as bad.
 
-The disassemble will then resume trying to diassemble at teh next boundary.
+The disassemble will then resume trying to diassemble at the next boundary.
 
 To make sure the disassembler attempts to disassemble every instruction,
 we need to make sure the preceding instruction is always valid and terminates
