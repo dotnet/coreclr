@@ -193,7 +193,7 @@ Windows disassembler may also work.  Not attempted.
 # Parse disassembly and generate code
 cat opcodes.intel | dotnet run > ../amd64InstrDecode.h
 ```
-#### Finding releavant disassembly lines
+#### Finding relevant disassembly lines
 
 We are not interested in all lines in the disassembly. The disassembler
 stray comments, recovery and our padding introduce lines we need to ignore.
