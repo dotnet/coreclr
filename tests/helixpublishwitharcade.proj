@@ -204,7 +204,7 @@
 
     <!-- Setup coredumps for linux. Core Dumps are currently not supported   -->
     <!-- on OSX                                                              -->
-    <HelixPreCommand Include="sudo bash -c 'echo /home/helixbot/dotnetbuild/dumps/core.%u.%p > /proc/sys/kernel/core_pattern'" Condition=" '$(BuildOS)' != 'OSX' " />
+    <HelixPreCommand Include="sudo bash -c 'echo $HELIX_WORKITEM_UPLOAD_ROOT/core.%u.%p > /proc/sys/kernel/core_pattern'" Condition=" '$(BuildOS)' != 'OSX' " />
   </ItemGroup>
 
   <PropertyGroup>
