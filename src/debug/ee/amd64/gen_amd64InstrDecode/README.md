@@ -323,7 +323,7 @@ respective descriptions.
 
 ## Limitations
 
-The approach of using a single object file as the source of disassebly
+The approach of using a single object file as the source of disassembly
 samples, is restricted to a max compilation/link unit size. Early drafts
 were generating more instructions, and couldn't be compiled.
 
