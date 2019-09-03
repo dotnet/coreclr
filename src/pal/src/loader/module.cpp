@@ -1557,8 +1557,7 @@ Return value:
 static MODSTRUCT *LOADAddModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryNameOrPath)
 {
     _ASSERTE(dl_handle != nullptr);
-    _ASSERTE(libraryNameOrPath != nullptr);
-    _ASSERTE(libraryNameOrPath[0] != '\0');
+    _ASSERTE(g_running_in_exe || (libraryNameOrPath != nullptr && libraryNameOrPath[0] != '\0'));
 
 #if !RETURNS_NEW_HANDLES_ON_REPEAT_DLOPEN
     /* search module list for a match. */
@@ -1582,6 +1581,8 @@ static MODSTRUCT *LOADAddModule(NATIVE_LIBRARY_HANDLE dl_handle, LPCSTR libraryN
 
     } while (module != &exe_module);
 #endif
+
+    _ASSERTE(!g_running_in_exe);
 
     TRACE("Module doesn't exist : creating %s.\n", libraryNameOrPath);
 
