@@ -275,7 +275,7 @@ For a few other instructions the `L`, `W`, `vvvv` value may the instruction
 change behavior. Usually these do not change mnemonic.
 
 The set of instructions is therefore usually grouped by the opcode map and
-`opCodeExt` generated above.  For thes a change in `opCodeExt` or `map`
+`opCodeExt` generated above.  For these a change in `opCodeExt` or `map`
 will start a new group.
 
 For select problematic groups of `modrm.reg` sensitive instructions, a
