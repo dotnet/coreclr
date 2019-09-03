@@ -15,7 +15,6 @@ namespace Tracing.Tests.GCEEStartStop
     {
         public static int Main(string[] args)
         {
-            Console.WriteLine("EventPipe validation test");
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
@@ -23,7 +22,6 @@ namespace Tracing.Tests.GCEEStartStop
             };
             
             var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
-            Console.WriteLine("Validation method: RunAndValidateEventCounts");
             return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesTraceContainEvents);
         }
 
@@ -36,27 +34,26 @@ namespace Tracing.Tests.GCEEStartStop
 
         private static Action _eventGeneratingAction = () => 
         {
-            Console.WriteLine("Event generating method: _eventGeneratingAction start");
             for (int i = 0; i < 1000; i++)
             {
+                if (i % 100 == 0)
+                    Logger.logger.Log($"Called GC.Collect() {i} times...");
                 ProviderValidation providerValidation = new ProviderValidation();
                 providerValidation = null;
                 GC.Collect();
             }
-            Console.WriteLine("Event generating method: _eventGeneratingAction end");
         };
 
         private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainEvents = (source) => 
         {
-            Console.WriteLine("Callback method: _DoesTraceContainEvents");
             int GCRestartEEStartEvents =0;
             int GCRestartEEStopEvents =0;           
             source.Clr.GCRestartEEStart += (eventData) => GCRestartEEStartEvents +=1;
             source.Clr.GCRestartEEStop += (eventData) => GCRestartEEStopEvents +=1; 
             return () => {
-                Console.WriteLine("Event counts validation");
-                Console.WriteLine("GCRestartEEStartEvents: " + GCRestartEEStartEvents);
-                Console.WriteLine("GCRestartEEStopEvents: " + GCRestartEEStopEvents);
+                Logger.logger.Log("Event counts validation");
+                Logger.logger.Log("GCRestartEEStartEvents: " + GCRestartEEStartEvents);
+                Logger.logger.Log("GCRestartEEStopEvents: " + GCRestartEEStopEvents);
                 return GCRestartEEStartEvents >= 1000 && GCRestartEEStopEvents >= 1000 && GCRestartEEStartEvents == GCRestartEEStopEvents ? 100 : -1;
             };
         };

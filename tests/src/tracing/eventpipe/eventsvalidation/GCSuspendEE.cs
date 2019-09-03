@@ -15,7 +15,6 @@ namespace Tracing.Tests.GCSuspendEE
     {
         public static int Main(string[] args)
         {
-            Console.WriteLine("EventPipe validation test");
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
@@ -23,7 +22,6 @@ namespace Tracing.Tests.GCSuspendEE
             };
             
             var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
-            Console.WriteLine("Validation method: RunAndValidateEventCounts");
             return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesTraceContainEvents);
         }
 
@@ -36,33 +34,25 @@ namespace Tracing.Tests.GCSuspendEE
 
         private static Action _eventGeneratingAction = () => 
         {
-            Console.WriteLine("Event generating method: _eventGeneratingAction start");
             for (int i = 0; i < 1000; i++)
             {
+                if (i % 100 == 0)
+                    Logger.logger.Log($"Called GC.Collect() {i} times...");
                 ProviderValidation providerValidation = new ProviderValidation();
-                providerValidation.Temp();
+                GC.Collect();
             }
-            Console.WriteLine("Event generating method: _eventGeneratingAction end");
         };
-
-        private void Temp()
-        {            
-            GC.SuppressFinalize(this);
-        }
 
         private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainEvents = (source) => 
         {
-            Console.WriteLine("Callback method: _DoesTraceContainEvents");
             int GCSuspendEEEvents =0;
             source.Clr.GCSuspendEEStart += (eventData) => GCSuspendEEEvents += 1;
-            
             int GCSuspendEEEndEvents =0;
             source.Clr.GCSuspendEEStop += (eventData) => GCSuspendEEEndEvents += 1;
-
             return () => {
-                Console.WriteLine("Event counts validation");
-                Console.WriteLine("GCSuspendEEEvents: " + GCSuspendEEEvents);
-                Console.WriteLine("GCSuspendEEEndEvents: " + GCSuspendEEEndEvents);
+                Logger.logger.Log("Event counts validation");
+                Logger.logger.Log("GCSuspendEEEvents: " + GCSuspendEEEvents);
+                Logger.logger.Log("GCSuspendEEEndEvents: " + GCSuspendEEEndEvents);
                 return GCSuspendEEEvents >= 1000 && GCSuspendEEEndEvents >= 1000 && GCSuspendEEEvents==GCSuspendEEEndEvents ? 100 : -1;
             };
         };

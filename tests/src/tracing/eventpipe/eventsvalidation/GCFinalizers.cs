@@ -15,7 +15,6 @@ namespace Tracing.Tests.GCFinalizers
     {
         public static int Main(string[] args)
         {
-            Console.WriteLine("EventPipe validation test");
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
@@ -23,7 +22,6 @@ namespace Tracing.Tests.GCFinalizers
             };
             
             var configuration = new SessionConfiguration(circularBufferSizeMB: 1024, format: EventPipeSerializationFormat.NetTrace,  providers: providers);
-            Console.WriteLine("Validation method: RunAndValidateEventCounts");
             return IpcTraceTest.RunAndValidateEventCounts(_expectedEventCounts, _eventGeneratingAction, configuration, _DoesTraceContainEvents);
         }
 
@@ -36,30 +34,27 @@ namespace Tracing.Tests.GCFinalizers
 
         private static Action _eventGeneratingAction = () => 
         {
-            Console.WriteLine("Event generating method: _eventGeneratingAction start");
             for (int i = 0; i < 1000; i++)
             {
+                if (i % 100 == 0)
+                    Logger.logger.Log($"Called GC.WaitForPendingFinalizers() {i} times...");
                 ProviderValidation providerValidation = new ProviderValidation();
                 providerValidation = null;
                 GC.WaitForPendingFinalizers();
             }
-            Console.WriteLine("Event generating method: _eventGeneratingAction end");
         };
 
         private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainEvents = (source) => 
         {
-            Console.WriteLine("Callback method: _DoesTraceContainEvents");
             int GCFinalizersEndEvents =0;
             source.Clr.GCFinalizersStop += (eventData) => GCFinalizersEndEvents += 1;
-            
             int GCFinalizersStartEvents =0;
             source.Clr.GCFinalizersStart += (eventData) => GCFinalizersStartEvents += 1;
-
             return () => {
-                Console.WriteLine("Event counts validation");
-                Console.WriteLine("GCFinalizersEndEvents: " + GCFinalizersEndEvents);
-                Console.WriteLine("GCFinalizersStartEvents: " + GCFinalizersStartEvents);
-                return GCFinalizersEndEvents >= 1000 && GCFinalizersStartEvents >= 1000 && GCFinalizersEndEvents==GCFinalizersStartEvents ? 100 : -1;
+                Logger.logger.Log("Event counts validation");
+                Logger.logger.Log("GCFinalizersEndEvents: " + GCFinalizersEndEvents);
+                Logger.logger.Log("GCFinalizersStartEvents: " + GCFinalizersStartEvents);
+                return GCFinalizersEndEvents >= 1000 && GCFinalizersStartEvents >= 1000 ? 100 : -1;
             };
         };
     }
