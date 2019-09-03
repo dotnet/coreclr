@@ -381,12 +381,12 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
 
                                 _curTestSet = new ReliabilityTestSet();
 
-                                // when running as an ordinary test, limit run time to 1 min.
+                                // when running as an ordinary test, limit run time to 10 min.
                                 bool limitTime = ReliabilityFramework.IsRunningAsUnitTest && !ReliabilityFramework.IsRunningLongGCTests;
 
                                 if (limitTime)
                                 {
-                                    _curTestSet.MaximumTime = 1;
+                                    _curTestSet.MaximumTime = 10;
                                 }
 
                                     while (currentXML.MoveToNextAttribute())
@@ -400,12 +400,9 @@ public class ReliabilityConfig : IEnumerable, IEnumerator
                                         case "maximumExecutionTime":
                                             string timeValue = currentXML.Value;
 
-                                            // when running as an ordinary test, ignore the time limit from config.
                                             if (!limitTime)
                                             {
-                                                //TODO: constrain run time to 1 hour for now
-                                                _curTestSet.MaximumTime = 60;
-                                                // _curTestSet.MaximumTime = ConvertTimeValueToTestRunTime(timeValue);
+                                                _curTestSet.MaximumTime = ConvertTimeValueToTestRunTime(timeValue);
                                             }
 
                                             break;

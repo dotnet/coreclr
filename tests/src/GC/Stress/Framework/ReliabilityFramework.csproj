@@ -21,6 +21,9 @@
     <Content Include="..\testmix_gc.config">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="..\testmix_gc_ci.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <StressTests Include="..\Tests\*.csproj" />

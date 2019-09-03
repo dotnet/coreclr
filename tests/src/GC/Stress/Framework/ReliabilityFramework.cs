@@ -214,7 +214,11 @@ public class ReliabilityFramework
         // if no config file specified, check for [something]_gc.config in the current folder.
         if (configFile == null)
         {
-            configFile = Directory.GetFiles(Environment.CurrentDirectory, "*_gc.config").SingleOrDefault();
+            var config = IsRunningAsUnitTest ? 
+                "*_gc_ci.config" : 
+                "*_gc.config";
+
+            configFile = Directory.GetFiles(Environment.CurrentDirectory, config).SingleOrDefault();
         }
 
         if (configFile == null)
