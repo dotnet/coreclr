@@ -609,7 +609,7 @@ int32_t GlobalizationNative_StartsWith(
 
         if (U_SUCCESS(err))
         {
-            idx = usearch_first(pSearch, &err);
+            idx = usearch_preceding(pSearch, 1, &err);
             if (idx != USEARCH_DONE)
             {
                 if (idx == 0)
