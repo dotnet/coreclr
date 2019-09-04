@@ -9,7 +9,7 @@ using Microsoft.Diagnostics.Tools.RuntimeClient;
 using Microsoft.Diagnostics.Tracing;
 using Tracing.Tests.Common;
 
-namespace Tracing.Tests.GCSuspendEE
+namespace Tracing.Tests.GCEvents
 {
     public class ProviderValidation
     {
@@ -18,6 +18,7 @@ namespace Tracing.Tests.GCSuspendEE
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
+                //GCKeyword (0x1): 0b1
                 new Provider("Microsoft-Windows-DotNETRuntime", 0b1, EventLevel.Informational)
             };
             
@@ -39,21 +40,47 @@ namespace Tracing.Tests.GCSuspendEE
                 if (i % 100 == 0)
                     Logger.logger.Log($"Called GC.Collect() {i} times...");
                 ProviderValidation providerValidation = new ProviderValidation();
+                providerValidation = null;
                 GC.Collect();
             }
         };
 
         private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainEvents = (source) => 
         {
-            int GCSuspendEEEvents =0;
+            int GCStartEvents = 0;
+            int GCEndEvents = 0;
+            source.Clr.GCStart += (eventData) => GCStartEvents += 1;
+            source.Clr.GCStop += (eventData) => GCEndEvents += 1;
+
+            int GCRestartEEStartEvents = 0;
+            int GCRestartEEStopEvents = 0;           
+            source.Clr.GCRestartEEStart += (eventData) => GCRestartEEStartEvents += 1;
+            source.Clr.GCRestartEEStop += (eventData) => GCRestartEEStopEvents += 1; 
+
+            int GCSuspendEEEvents = 0;
+            int GCSuspendEEEndEvents = 0;
             source.Clr.GCSuspendEEStart += (eventData) => GCSuspendEEEvents += 1;
-            int GCSuspendEEEndEvents =0;
             source.Clr.GCSuspendEEStop += (eventData) => GCSuspendEEEndEvents += 1;
+
             return () => {
                 Logger.logger.Log("Event counts validation");
+
+                Logger.logger.Log("GCStartEvents: " + GCStartEvents);
+                Logger.logger.Log("GCEndEvents: " + GCEndEvents);
+                bool GCStartStopResult = GCStartEvents >= 1000 && GCEndEvents >= 1000 && GCStartEvents == GCEndEvents;
+                Logger.logger.Log("GCStartStopResult check: " + GCStartStopResult);
+
+                Logger.logger.Log("GCRestartEEStartEvents: " + GCRestartEEStartEvents);
+                Logger.logger.Log("GCRestartEEStopEvents: " + GCRestartEEStopEvents);
+                bool GCRestartEEStartStopResult = GCRestartEEStartEvents >= 1000 && GCRestartEEStopEvents >= 1000;
+                Logger.logger.Log("GCRestartEEStartStopResult check: " + GCRestartEEStartStopResult);
+
                 Logger.logger.Log("GCSuspendEEEvents: " + GCSuspendEEEvents);
                 Logger.logger.Log("GCSuspendEEEndEvents: " + GCSuspendEEEndEvents);
-                return GCSuspendEEEvents >= 1000 && GCSuspendEEEndEvents >= 1000 && GCSuspendEEEvents==GCSuspendEEEndEvents ? 100 : -1;
+                bool GCSuspendEEStartStopResult = GCSuspendEEEvents >= 1000 && GCSuspendEEEndEvents >= 1000;
+                Logger.logger.Log("GCSuspendEEStartStopResult check: " + GCSuspendEEStartStopResult);
+
+                return GCStartStopResult && GCRestartEEStartStopResult && GCSuspendEEStartStopResult ? 100 : -1;
             };
         };
     }

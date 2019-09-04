@@ -18,6 +18,7 @@ namespace Tracing.Tests.GCFinalizers
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
+                //GCKeyword (0x1): 0b1
                 new Provider("Microsoft-Windows-DotNETRuntime", 0b1, EventLevel.Informational)
             };
             
@@ -42,13 +43,16 @@ namespace Tracing.Tests.GCFinalizers
                 providerValidation = null;
                 GC.WaitForPendingFinalizers();
             }
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
         };
 
         private static Func<EventPipeEventSource, Func<int>> _DoesTraceContainEvents = (source) => 
         {
-            int GCFinalizersEndEvents =0;
+            int GCFinalizersEndEvents = 0;
             source.Clr.GCFinalizersStop += (eventData) => GCFinalizersEndEvents += 1;
-            int GCFinalizersStartEvents =0;
+            int GCFinalizersStartEvents = 0;
             source.Clr.GCFinalizersStart += (eventData) => GCFinalizersStartEvents += 1;
             return () => {
                 Logger.logger.Log("Event counts validation");
