@@ -3252,7 +3252,7 @@ public:
                     CorInfoHelperTailCallSpecialHandling flags
                     ) = 0;
 
-    // Obtain store-args stub for a tailcall.
+    // Obtain tailcall help for the specified call site.
     virtual bool getTailCallHelp(
         CORINFO_CALL_INFO* callInfo,
         CORINFO_TAILCALL_HELP* pResult)

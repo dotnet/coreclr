@@ -100,6 +100,8 @@ namespace System.Runtime.CompilerServices
         public byte Data;
     }
 
+    // Helper structs used for tail calls via helper. Must match layout defined
+    // in tailcallhelp.cpp.
     internal unsafe struct TailCallFrame
     {
         public TailCallFrame* Prev;
@@ -107,8 +109,6 @@ namespace System.Runtime.CompilerServices
         public IntPtr NextCall;
     }
 
-    // Helper struct used for tail calls via helper. Must match layout defined
-    // in tailcallhelp.cpp.
     internal unsafe struct TailCallTls
     {
         public TailCallFrame* Frame;
