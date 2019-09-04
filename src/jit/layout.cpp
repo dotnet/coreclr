@@ -193,24 +193,7 @@ private:
 
     ClassLayout* CreateObjLayout(Compiler* compiler, CORINFO_CLASS_HANDLE classHandle)
     {
-        bool     isValueClass = compiler->info.compCompHnd->isValueClass(classHandle);
-        unsigned size;
-
-        if (isValueClass)
-        {
-            size = compiler->info.compCompHnd->getClassSize(classHandle);
-        }
-        else
-        {
-            size = compiler->info.compCompHnd->getHeapClassSize(classHandle);
-        }
-
-        INDEBUG(const char* className = compiler->info.compCompHnd->getClassName(classHandle);)
-
-        ClassLayout* layout =
-            new (compiler, CMK_ClassLayout) ClassLayout(classHandle, isValueClass, size DEBUGARG(className));
-        layout->InitializeGCPtrs(compiler);
-        return layout;
+        return ClassLayout::Create(compiler, classHandle);
     }
 
     unsigned AddObjLayout(Compiler* compiler, ClassLayout* layout)
@@ -332,6 +315,28 @@ unsigned Compiler::typGetObjLayoutNum(CORINFO_CLASS_HANDLE classHandle)
 ClassLayout* Compiler::typGetObjLayout(CORINFO_CLASS_HANDLE classHandle)
 {
     return typGetClassLayoutTable()->GetObjLayout(this, classHandle);
+}
+
+ClassLayout* ClassLayout::Create(Compiler* compiler, CORINFO_CLASS_HANDLE classHandle)
+{
+    bool     isValueClass = compiler->info.compCompHnd->isValueClass(classHandle);
+    unsigned size;
+
+    if (isValueClass)
+    {
+        size = compiler->info.compCompHnd->getClassSize(classHandle);
+    }
+    else
+    {
+        size = compiler->info.compCompHnd->getHeapClassSize(classHandle);
+    }
+
+    INDEBUG(const char* className = compiler->info.compCompHnd->getClassName(classHandle);)
+
+    ClassLayout* layout =
+        new (compiler, CMK_ClassLayout) ClassLayout(classHandle, isValueClass, size DEBUGARG(className));
+    layout->InitializeGCPtrs(compiler);
+    return layout;
 }
 
 void ClassLayout::InitializeGCPtrs(Compiler* compiler)
