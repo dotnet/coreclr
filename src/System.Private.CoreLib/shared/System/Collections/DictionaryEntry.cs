@@ -26,14 +26,12 @@ namespace System.Collections
         public object Key
         {
             get => _key;
-
             set => _key = value;
         }
 
         public object? Value
         {
             get => _value;
-
             set => _value = value;
         }
 

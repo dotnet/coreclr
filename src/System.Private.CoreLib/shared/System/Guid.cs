@@ -940,7 +940,6 @@ namespace System
         }
 
         public static bool operator ==(Guid a, Guid b) =>
-            // Now compare each of the elements
             a._a == b._a &&
                 Unsafe.Add(ref a._a, 1) == Unsafe.Add(ref b._a, 1) &&
                 Unsafe.Add(ref a._a, 2) == Unsafe.Add(ref b._a, 2) &&

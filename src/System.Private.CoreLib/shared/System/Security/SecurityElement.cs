@@ -81,7 +81,6 @@ namespace System.Security
         public string Tag
         {
             get => _tag;
-
             set
             {
                 if (value == null)
@@ -152,7 +151,6 @@ namespace System.Security
         public string? Text
         {
             get => Unescape(_text);
-
             set
             {
                 if (value == null)

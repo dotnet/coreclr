@@ -100,7 +100,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         object? IList.this[int index]
         {
             get => _list[index];
-
             set => _list[index] = value;
         }
 

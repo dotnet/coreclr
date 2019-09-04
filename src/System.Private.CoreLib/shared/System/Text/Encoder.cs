@@ -32,7 +32,6 @@ namespace System.Text
         public EncoderFallback? Fallback
         {
             get => _fallback;
-
             set
             {
                 if (value == null)

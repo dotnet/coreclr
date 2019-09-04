@@ -461,7 +461,6 @@ namespace System.Text
         public EncoderFallback EncoderFallback
         {
             get => encoderFallback;
-
             set
             {
                 if (this.IsReadOnly)
@@ -478,7 +477,6 @@ namespace System.Text
         public DecoderFallback DecoderFallback
         {
             get => decoderFallback;
-
             set
             {
                 if (this.IsReadOnly)

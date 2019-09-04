@@ -26,7 +26,6 @@ namespace Microsoft.Win32.SafeHandles
         internal bool? IsAsync
         {
             get => _isAsync;
-
             set => _isAsync = value;
         }
 

@@ -39,7 +39,6 @@ namespace System.Diagnostics.Tracing
         public EventLevel Level
         {
             get => (EventLevel)this.level;
-
             set
             {
                 this.level = checked((byte)value);
@@ -54,7 +53,6 @@ namespace System.Diagnostics.Tracing
         public EventOpcode Opcode
         {
             get => (EventOpcode)this.opcode;
-
             set
             {
                 this.opcode = checked((byte)value);
@@ -71,7 +69,6 @@ namespace System.Diagnostics.Tracing
         public EventKeywords Keywords
         {
             get => this.keywords;
-
             set
             {
                 this.keywords = value;
@@ -86,7 +83,6 @@ namespace System.Diagnostics.Tracing
         public EventTags Tags
         {
             get => this.tags;
-
             set
             {
                 this.tags = value;
