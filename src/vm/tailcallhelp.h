@@ -21,11 +21,12 @@ public:
 
     static void CreateTailCallHelperStubs(
         MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
-        MetaSig& callSiteSig, bool virt,
+        MetaSig& callSiteSig, bool virt, bool hasGenericContext,
         MethodDesc** storeArgsStub, bool* storeArgsNeedsTarget,
         MethodDesc** callTargetStub);
 private:
-    static void LayOutArgBuffer(MetaSig& callSiteSig, bool storeTarget, ArgBufferLayout* layout);
+    static void LayOutArgBuffer(
+        MetaSig& callSiteSig, bool storeTarget, bool hasGenericContext, ArgBufferLayout* layout);
     static TypeHandle NormalizeSigType(TypeHandle tyHnd);
     static bool GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GCRefMapBuilder* builder);
 

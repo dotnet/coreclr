@@ -121,30 +121,35 @@ struct TailCallInfo
 
 void TailCallHelp::CreateTailCallHelperStubs(
     MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
-    MetaSig& callSiteSig, bool virt,
+    MetaSig& callSiteSig, bool virt, bool hasGenericContext,
     MethodDesc** storeArgsStub, bool* storeArgsNeedsTarget,
     MethodDesc** callTargetStub)
 {
     STANDARD_VM_CONTRACT;
 
-#ifdef _DEBUG
-    SigFormat incSig(callSiteSig, NULL);
-    printf("Incoming sig: %s\n", incSig.GetCString());
-#endif
+//#ifdef _DEBUG
+//    SigFormat incSig(callSiteSig, NULL);
+//    printf("Incoming sig: %s\n", incSig.GetCString());
+//#endif
 
-    // If we don't know a target MD, i.e. if this is a calli, then we need to be
-    // passed the target address from the tail call site.
-    *storeArgsNeedsTarget = pCalleeMD == NULL;
+    // There are two cases where we will need the tailcalling site to pass us the target:
+    // * It was a calli, for obvious reasons
+    // * The target is generic. Since the CallTarget stub is non-generic we
+    // cannot express a call to it in IL.
+    *storeArgsNeedsTarget = pCalleeMD == NULL || callSiteSig.IsGenericMethod();
+
+    assert(!hasGenericContext || callSiteSig.IsGenericMethod());
 
     TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
     TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, virt, retTyHnd);
-    LayOutArgBuffer(callSiteSig, *storeArgsNeedsTarget, &info.ArgBufLayout);
+    LayOutArgBuffer(callSiteSig, *storeArgsNeedsTarget, hasGenericContext, &info.ArgBufLayout);
 
     *storeArgsStub = CreateStoreArgsStub(info);
     *callTargetStub = CreateCallTargetStub(info);
 }
 
-void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, bool storeTarget, ArgBufferLayout* layout)
+void TailCallHelp::LayOutArgBuffer(
+    MetaSig& callSiteSig, bool storeTarget, bool hasGenericContext, ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
 
@@ -155,8 +160,6 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, bool storeTarget, ArgBu
         offs += TARGET_POINTER_SIZE;
     }
 
-    _ASSERTE(!callSiteSig.IsGenericMethod()); // TODO
-
     // User args
     if (callSiteSig.HasThis())
     {
@@ -164,6 +167,21 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, bool storeTarget, ArgBu
         layout->Values.Append(ArgBufferValue(objHnd, offs));
         offs += TARGET_POINTER_SIZE;
     }
+
+    auto addGenCtx = [&]()
+    {
+        if (hasGenericContext)
+        {
+            TypeHandle nativeIntHnd = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
+            layout->Values.Append(ArgBufferValue(nativeIntHnd, offs));
+            offs += TARGET_POINTER_SIZE;
+        }
+    };
+
+    // Generic context comes before args on all platforms except X86.
+#ifndef _TARGET_X86_
+    addGenCtx();
+#endif
 
     callSiteSig.Reset();
     CorElementType ty;
@@ -178,6 +196,10 @@ void TailCallHelp::LayOutArgBuffer(MetaSig& callSiteSig, bool storeTarget, ArgBu
 
         offs += tyHnd.GetSize();
     }
+
+#ifdef _TARGET_X86_
+    addGenCtx();
+#endif
 
     layout->HasGCDescriptor = GenerateGCDescriptor(layout->Values, &layout->GCRefMapBuilder);
     layout->Size = offs;
@@ -300,12 +322,12 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
             &emptyCtx,
             &sl);
 
-#ifdef _DEBUG
-    StackSString ilStub;
-    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-    StackScratchBuffer ssb;
-    printf("%s\n", ilStub.GetUTF8(ssb));
-#endif
+//#ifdef _DEBUG
+//    StackSString ilStub;
+//    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+//    StackScratchBuffer ssb;
+//    printf("%s\n", ilStub.GetUTF8(ssb));
+//#endif
 
 #ifndef CROSSGEN_COMPILE
     JitILStub(pStoreArgsMD);
@@ -347,14 +369,14 @@ void TailCallHelp::CreateStoreArgsStubSig(
         AppendElementType(*sig, info.ArgBufLayout.Values[i].TyHnd);
     }
 
-#ifdef _DEBUG
-    DWORD cbSig;
-    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
-    SigTypeContext emptyContext;
-    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
-    SigFormat outSig(outMsig, NULL);
-    printf("StoreArgs sig: %s\n", outSig.GetCString());
-#endif // _DEBUG
+//#ifdef _DEBUG
+//    DWORD cbSig;
+//    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+//    SigTypeContext emptyContext;
+//    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
+//    SigFormat outSig(outMsig, NULL);
+//    printf("StoreArgs sig: %s\n", outSig.GetCString());
+//#endif // _DEBUG
 }
 
 MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
@@ -517,11 +539,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     }
     else
     {
-        // Otherwise we need to emit a calli. If the original tailcall site was
-        // a calli then the target cannot be generic as we do not support
-        // generics in standalone method signatures.
-        _ASSERTE(!info.CallSiteSig->IsGenericMethod());
-
         SigBuilder calliSig;
 
         if (info.CallSiteSig->HasThis())
@@ -617,12 +634,12 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             &emptyCtx,
             &sl);
 
-#ifdef _DEBUG
-    StackSString ilStub;
-    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-    StackScratchBuffer ssb;
-    printf("%s\n", ilStub.GetUTF8(ssb));
-#endif
+//#ifdef _DEBUG
+//    StackSString ilStub;
+//    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+//    StackScratchBuffer ssb;
+//    printf("%s\n", ilStub.GetUTF8(ssb));
+//#endif
 
 #ifndef CROSSGEN_COMPILE
     JitILStub(pCallTargetMD);
@@ -641,14 +658,14 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
     // Returns same as original
     AppendElementType(*sig, info.RetTyHnd);
 
-#ifdef _DEBUG
-    DWORD cbSig;
-    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
-    SigTypeContext emptyContext;
-    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
-    SigFormat outSig(outMsig, NULL);
-    printf("CallTarget sig: %s\n", outSig.GetCString());
-#endif // _DEBUG
+//#ifdef _DEBUG
+//    DWORD cbSig;
+//    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+//    SigTypeContext emptyContext;
+//    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
+//    SigFormat outSig(outMsig, NULL);
+//    printf("CallTarget sig: %s\n", outSig.GetCString());
+//#endif // _DEBUG
 }
 
 void TailCallHelp::AppendElementType(SigBuilder& builder, TypeHandle th)

@@ -13972,7 +13972,7 @@ bool CEEInfo::getTailCallHelp(
 
     TailCallHelp::CreateTailCallHelperStubs(
         m_pMethodBeingCompiled, (MethodDesc*)callInfo->hMethod,
-        msig, isVirtualCall,
+        msig, isVirtualCall, callInfo->sig.hasTypeArg(),
         &pStoreArgsMD, &needsTarget,
         &pCallTargetMD);
 

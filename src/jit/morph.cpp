@@ -7787,9 +7787,28 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // We may need to pass the target address, for instance for calli.
     if (help.flags & CORINFO_TAILCALL_STORE_TARGET)
     {
-        noway_assert(call->gtCallType == CT_INDIRECT && call->gtCallAddr != nullptr);
-        GenTree* target = call->gtCallAddr;
-        // TODO: This should be evaluated last. How?
+        // The runtime should not ask us to store the target for a call through
+        // virtual stubs as it can always generate proper callvirt for the cases
+        // where we would use VSD. We do not want this situation to occur as,
+        // for VSD, the target will point to a stub that is not callable through
+        // calli for the runtime.
+        noway_assert(!call->IsVirtualStub());
+
+        GenTree* target;
+        if (call->gtCallType == CT_INDIRECT)
+        {
+            noway_assert(call->gtCallAddr != nullptr);
+
+            // TODO: This should be evaluated last. How?
+            target = call->gtCallAddr;
+            call->gtCallAddr = nullptr;
+        }
+        else
+        {
+            noway_assert(call->gtCallType == CT_USER_FUNC && call->gtCallMethHnd != nullptr);
+            target = fgGetDirectCallTargetAddress(call);
+        }
+
         call->gtCallArgs = gtNewListNode(target, call->gtCallArgs);
         call->fgArgInfo = nullptr;
     }
@@ -7815,6 +7834,54 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         gtDispStmtList(fgMorphStmt);
     }
 #endif
+}
+
+GenTree* Compiler::fgGetDirectCallTargetAddress(GenTreeCall* call)
+{
+    CORINFO_ACCESS_FLAGS aflags = CORINFO_ACCESS_ANY;
+
+    if (call->IsSameThis())
+    {
+        aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_THIS);
+    }
+
+    if (!call->NeedsNullCheck())
+    {
+        aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_NONNULL);
+    }
+
+    CORINFO_CONST_LOOKUP addrInfo;
+    info.compCompHnd->getFunctionEntryPoint(call->gtCallMethHnd, &addrInfo, aflags);
+
+    GenTree* result = nullptr;
+    switch (addrInfo.accessType)
+    {
+        case IAT_VALUE:
+            result = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
+            break;
+        case IAT_PVALUE:
+            result = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
+            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
+            break;
+        case IAT_PPVALUE:
+            result = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
+            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
+            result = gtNewOperNode(GT_IND, TYP_I_IMPL, result);
+            break;
+        case IAT_RELPVALUE:
+        {
+            GenTree* offsetPtr = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
+            GenTree* offset = gtNewOperNode(GT_IND, TYP_I_IMPL, offsetPtr);
+            GenTree* cellAddr = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
+            result = gtNewOperNode(GT_ADD, TYP_I_IMPL, offset, cellAddr);
+            break;
+        }
+        default:
+            noway_assert(!"Bad accessType");
+            break;
+    }
+
+    return result;
 }
 
 //------------------------------------------------------------------------
