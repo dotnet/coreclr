@@ -15,19 +15,7 @@ parameters:
   helixQueueGroup: 'pr'
   ignoreDependencyOnBuildJobs: false
   jobParameters: {}
-
-  # Platform aggregation parameters calculated in platform-matrix
-  buildLinuxArm: false
-  buildLinuxArm64: false
-  buildLinuxMuslX64: false
-  buildLinuxMuslArm64: false
-  buildLinuxRHel6X64: false
-  buildLinuxX64: false
-  buildOSXX64: false
-  buildWindowsX64: false
-  buildWindowsX86: false
-  buildWindowsArm: false
-  buildWindowsArm64: false
+  osArchCombos: {}
 
 jobs:
 - template: /eng/platform-matrix-build-os-per-arch.yml
@@ -39,47 +27,50 @@ jobs:
     helixQueueGroup: ${{ parameters.helixQueueGroup }}
     ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
     jobParameters: ${{ parameters.jobParameters }}
+    osArchCombos: ${{ parameters.osArchCombos }}
 
-    # Individual build jobs to generate
-    buildLinuxArm:       ${{ parameters.buildLinuxArm }}
-    buildLinuxArm64:     ${{ parameters.buildLinuxArm64 }}
-    buildLinuxMuslX64:   ${{ parameters.buildLinuxMuslX64 }}
-    buildLinuxMuslArm64: ${{ parameters.buildLinuxMuslArm64 }}
-    buildLinuxRHel6X64:  ${{ parameters.buildLinuxRHel6X64 }}
-    buildLinuxX64:       ${{ parameters.buildLinuxX64 }}
-    buildOSXX64:         ${{ parameters.buildOSXX64 }}
-    buildWindowsX64:     ${{ parameters.buildWindowsX64 }}
-    buildWindowsX86:     ${{ parameters.buildWindowsX86 }}
-    buildWindowsArm:     ${{ parameters.buildWindowsArm }}
-    buildWindowsArm64:   ${{ parameters.buildWindowsArm64 }}
+    # OS to build managed test artifacts on for each architecture
+    managedBuildOSPerArch:
+      # Currently we only build X86 on Windows
+      x86:
+        group: ''
+        id: ''
 
-    # Currently we only build X86 on Windows
-    managedBuildOsGroupForUnixX86: ''
-    managedBuildOsIdentifierForUnixX86: ''
+      # Identify OS to use for building managed components of X64 *nix tests
+      x64:
+        ${{ if eq(parameters.osArchCombos['osxX64'], true) }}:
+          group: 'OSX'
+          id: 'OSX'
+        ${{ if and(ne(parameters.osArchCombos['osxX64'], true), eq(parameters.osArchCombos['linuxX64'], true)) }}:
+          group: 'Linux'
+          id: 'Linux'
+        ${{ if and(ne(parameters.osArchCombos['osxX64'], true), ne(parameters.osArchCombos['linuxX64'], true), eq(parameters.osArchCombos['linuxMuslX64'], true)) }}:
+          group: 'Linux'
+          id: 'Linux_musl'
+        ${{ if and(ne(parameters.osArchCombos['osxX64'], true), ne(parameters.osArchCombos['linuxX64'], true), ne(parameters.osArchCombos['linuxMuslX64'], true), eq(parameters.osArchCombos['linuxMuslX64'], true)) }}:
+          group: 'Linux'
+          id: 'Linux_rhel6'
+        ${{ if and(ne(parameters.osArchCombos['osxX64'], true), ne(parameters.osArchCombos['linuxX64'], true), ne(parameters.osArchCombos['linuxMuslX64'], true), ne(parameters.osArchCombos['linuxMuslX64'], true)) }}:
+          group: ''
+          id: ''
 
-    # Identify OS to use for building managed components of X64 *nix tests
-    ${{ if eq(parameters.buildOSXX64, true) }}:
-      managedBuildOsGroupForUnixX64: 'OSX'
-      managedBuildOsIdentifierForUnixX64: 'OSX'
-    ${{ if and(ne(parameters.buildOSXX64, true), eq(parameters.buildLinuxX64, true)) }}:
-      managedBuildOsGroupForUnixX64: 'Linux'
-      managedBuildOsIdentifierForUnixX64: 'Linux'
-    ${{ if and(ne(parameters.buildOSXX64, true), ne(parameters.buildLinuxX64, true), eq(parameters.buildLinuxMuslX64, true)) }}:
-      managedBuildOsGroupForUnixX64: 'Linux'
-      managedBuildOsIdentifierForUnixX64: 'Linux_musl'
-    ${{ if and(ne(parameters.buildOSXX64, true), ne(parameters.buildLinuxX64, true), ne(parameters.buildLinuxMuslX64, true), eq(parameters.buildLinuxRHel6X64, true)) }}:
-      managedBuildOsGroupForUnixX64: 'Linux'
-      managedBuildOsIdentifierForUnixX64: 'Linux_rhel6'
+      # Identify OS to use for building managed components of ARM32 *nix tests
+      arm:
+        ${{ if eq(parameters.buildLinuxArm, true) }}:
+          group: 'Linux'
+          id: 'Linux'
+        ${{ if ne(parameters.buildLinuxArm, true) }}:
+          group: ''
+          id: ''
 
-    # Identify OS to use for building managed components of ARM32 *nix tests
-    ${{ if eq(parameters.buildLinuxArm, true) }}:
-      managedBuildOsGroupForUnixArm: 'Linux'
-      managedBuildOsIdentifierForUnixArm: 'Linux'
-
-    # Identify OS to use for building managed components of ARM64 *nix tests
-    ${{ if eq(parameters.buildLinuxArm64, true) }}:
-      managedBuildOsGroupForUnixArm64: 'Linux'
-      managedBuildOsIdentifierForUnixArm64: 'Linux'
-    ${{ if and(ne(parameters.buildLinuxArm64, true), eq(parameters.buildLinuxMuslArm64, true)) }}:
-      managedBuildOsGroupForUnixArm64: 'Linux'
-      managedBuildOsIdentifierForUnixArm64: 'Linux_musl'
+      # Identify OS to use for building managed components of ARM64 *nix tests
+      arm64:
+        ${{ if eq(parameters.osArchCombos['linuxArm64'], true) }}:
+          group: 'Linux'
+          id: 'Linux'
+        ${{ if and(ne(parameters.osArchCombos['linuxArm64'], true), eq(parameters.osArchCombos['linuxMuslArm64'], true)) }}:
+          group: 'Linux'
+          id: 'Linux_musl'
+        ${{ if and(ne(parameters.osArchCombos['linuxArm64'], true), ne(parameters.osArchCombos['linuxMuslArm64'], true)) }}:
+          group: ''
+          id: ''

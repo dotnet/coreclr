@@ -100,7 +100,7 @@ jobs:
     - template: /eng/download-artifact-step.yml
       parameters:
         downloadFolder: $(binTestsPath)/tmp
-        unpackFolder: $(binTestsPath)/obj/$(osGroup).$(archType).$(buildConfig)/Native/src
+        unpackFolder: $(binTestsPath)/obj/$(osGroup).$(archType).$(buildConfigUpper)/Native/src
         cleanUnpackFolder: true
         artifactFileName: 'NativeTestComponents-$(osIdentifier)-$(archType)-$(buildConfig)$(archiveExtension)'
         artifactName: 'NativeTestComponents-$(osIdentifier)-$(archType)-$(buildConfig)'

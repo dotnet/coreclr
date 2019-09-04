@@ -26,16 +26,16 @@ jobs:
     helixQueueGroup: ${{ parameters.helixQueueGroup }}
     ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
     jobParameters: ${{ parameters.jobParameters }}
-
     # Individual OS/architecture job combos to generate
-    buildLinuxArm:       ${{ or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-    buildLinuxArm64:     ${{ or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-    buildLinuxMuslX64:   ${{ or(containsValue(parameters.platforms, 'Linux_musl_x64'), in(parameters.platformGroup, 'all')) }}
-    buildLinuxMuslArm64: ${{ or(containsValue(parameters.platforms, 'Linux_musl_arm64'), in(parameters.platformGroup, 'all')) }}
-    buildLinuxRHel6X64:  ${{ or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), in(parameters.platformGroup, 'all')) }}
-    buildLinuxX64:       ${{ or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-    buildOSXX64:         ${{ or(containsValue(parameters.platforms, 'OSX_x64'), in(parameters.platformGroup, 'all')) }}
-    buildWindowsX64:     ${{ or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-    buildWindowsX86:     ${{ or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-    buildWindowsArm:     ${{ or(containsValue(parameters.platforms, 'Windows_NT_arm'), in(parameters.platformGroup, 'all')) }}
-    buildWindowsArm64:   ${{ or(containsValue(parameters.platforms, 'Windows_NT_arm64'), in(parameters.platformGroup, 'all')) }}
+    osArchCombos:
+      linuxArm:       ${{ or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      linuxArm64:     ${{ or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      linuxMuslX64:   ${{ or(containsValue(parameters.platforms, 'Linux_musl_x64'), in(parameters.platformGroup, 'all')) }}
+      linuxMuslArm64: ${{ or(containsValue(parameters.platforms, 'Linux_musl_arm64'), in(parameters.platformGroup, 'all')) }}
+      linuxRHel6X64:  ${{ or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), in(parameters.platformGroup, 'all')) }}
+      linuxX64:       ${{ or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      osxX64:         ${{ or(containsValue(parameters.platforms, 'OSX_x64'), in(parameters.platformGroup, 'all')) }}
+      windowsX64:     ${{ or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      windowsX86:     ${{ or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      windowsArm:     ${{ or(containsValue(parameters.platforms, 'Windows_NT_arm'), in(parameters.platformGroup, 'all')) }}
+      windowsArm64:   ${{ or(containsValue(parameters.platforms, 'Windows_NT_arm64'), in(parameters.platformGroup, 'all')) }}
