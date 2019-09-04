@@ -171,7 +171,7 @@ namespace System
             const long signMask
                 = unchecked((long)0b_1000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000);
 
-            if (Sse.IsSupported)
+            if (Sse.X64.IsSupported)
             {
                 // Create vectors of the elements, and make them float to allow using SSE rather than SSE2 instructions
                 var xvec = Vector128.CreateScalarUnsafe(x).AsSingle();
