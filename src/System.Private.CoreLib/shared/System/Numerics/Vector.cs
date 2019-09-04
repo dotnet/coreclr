@@ -71,10 +71,7 @@ namespace System.Numerics
         public static Vector<T> Zero
         {
             [Intrinsic]
-            get
-            {
-                return s_zero;
-            }
+            get => s_zero;
         }
         private static readonly Vector<T> s_zero = new Vector<T>();
 
@@ -84,20 +81,14 @@ namespace System.Numerics
         public static Vector<T> One
         {
             [Intrinsic]
-            get
-            {
-                return s_one;
-            }
+            get => s_one;
         }
         private static readonly Vector<T> s_one = new Vector<T>(GetOneValue());
 
         internal static Vector<T> AllOnes
         {
             [Intrinsic]
-            get
-            {
-                return s_allOnes;
-            }
+            get => s_allOnes;
         }
         private static readonly Vector<T> s_allOnes = new Vector<T>(GetAllBitsSetValue());
         #endregion Static Members

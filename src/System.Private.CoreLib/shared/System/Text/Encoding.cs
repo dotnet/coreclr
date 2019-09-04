@@ -460,10 +460,7 @@ namespace System.Text
 
         public EncoderFallback EncoderFallback
         {
-            get
-            {
-                return encoderFallback;
-            }
+            get => encoderFallback;
 
             set
             {
@@ -480,10 +477,7 @@ namespace System.Text
 
         public DecoderFallback DecoderFallback
         {
-            get
-            {
-                return decoderFallback;
-            }
+            get => decoderFallback;
 
             set
             {
@@ -509,14 +503,8 @@ namespace System.Text
 
         public bool IsReadOnly
         {
-            get
-            {
-                return (_isReadOnly);
-            }
-            private protected set
-            {
-                _isReadOnly = value;
-            }
+            get => (_isReadOnly);
+            private protected set => _isReadOnly = value;
         }
 
         // Returns an encoding for the ASCII character set. The returned encoding

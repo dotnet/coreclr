@@ -38,10 +38,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventLevel Level
         {
-            get
-            {
-                return (EventLevel)this.level;
-            }
+            get => (EventLevel)this.level;
 
             set
             {
@@ -56,10 +53,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventOpcode Opcode
         {
-            get
-            {
-                return (EventOpcode)this.opcode;
-            }
+            get => (EventOpcode)this.opcode;
 
             set
             {
@@ -76,10 +70,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventKeywords Keywords
         {
-            get
-            {
-                return this.keywords;
-            }
+            get => this.keywords;
 
             set
             {
@@ -94,10 +85,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventTags Tags
         {
-            get
-            {
-                return this.tags;
-            }
+            get => this.tags;
 
             set
             {
@@ -112,10 +100,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         public EventActivityOptions ActivityOptions
         {
-            get
-            {
-                return this.activityOptions;
-            }
+            get => this.activityOptions;
             set
             {
                 this.activityOptions = value;

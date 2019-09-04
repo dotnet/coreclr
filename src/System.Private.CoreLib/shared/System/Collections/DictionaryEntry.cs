@@ -25,28 +25,16 @@ namespace System.Collections
 
         public object Key
         {
-            get
-            {
-                return _key;
-            }
+            get => _key;
 
-            set
-            {
-                _key = value;
-            }
+            set => _key = value;
         }
 
         public object? Value
         {
-            get
-            {
-                return _value;
-            }
+            get => _value;
 
-            set
-            {
-                _value = value;
-            }
+            set => _value = value;
         }
 
         [EditorBrowsable(EditorBrowsableState.Never)]
