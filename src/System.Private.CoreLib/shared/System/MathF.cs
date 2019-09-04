@@ -90,22 +90,38 @@ namespace System
 
         public static unsafe float CopySign(float x, float y)
         {
-            // This method is required to work for all inputs,
-            // including NaN, so we operate on the raw bits.
+            const int signMask = unchecked((int)0b_1000_0000__0000_0000__0000_0000__0000_0000);
 
-            int xbits = BitConverter.SingleToInt32Bits(x);
-            int ybits = BitConverter.SingleToInt32Bits(y);
-
-            // If the sign bits of x and y are not the same,
-            // flip the sign bit of x and return the new value;
-            // otherwise, just return x
-
-            if ((xbits ^ ybits) < 0)
+            if (Sse.IsSupported)
             {
-                return BitConverter.Int32BitsToSingle(xbits ^ int.MinValue);
-            }
+                // Create vectors of the elements, and make them float to allow using SSE rather than SSE instructions
+                var xvec = Vector128.CreateScalarUnsafe(x);
+                var yvec = Vector128.CreateScalarUnsafe(y);
 
-            return x;
+                // Remove the sign from x, and remove everything but the sign from y
+                // Creating from a 'const long' is better than from the correct 'const float/double'
+                xvec = Sse.And(xvec, Vector128.CreateScalarUnsafe(~signMask).AsSingle());
+                yvec = Sse.And(yvec, Vector128.CreateScalarUnsafe(signMask).AsSingle());
+
+                // Simply OR them to get the correct sign
+                return Sse.Or(xvec, yvec).ToScalar();
+            }
+            else
+            {
+                // This method is required to work for all inputs,
+                // including NaN, so we operate on the raw bits.
+
+                int xbits = BitConverter.SingleToInt32Bits(x);
+                int ybits = BitConverter.SingleToInt32Bits(y);
+
+                // Remove the sign from x, and remove everything but the sign from y
+
+                xbits &= ~signMask;
+                ybits &= signMask;
+
+                // Simply OR them to get the correct sign
+                return BitConverter.Int32BitsToSingle(xbits | ybits);
+            }
         }
 
         public static float IEEERemainder(float x, float y)
