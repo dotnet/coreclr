@@ -112,7 +112,7 @@ jobs:
       - script: ./build-test.sh copynativeonly skipgeneratelayout $(buildConfig) $(archType) $(priorityArg) ci
         displayName: Copy native components to test output folder
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd skipnative skipgeneratelayout $(buildConfig) $(archType) $(priorityArg) ci
+      - script: build-test.cmd copynativeonly skipgeneratelayout $(buildConfig) $(archType) $(priorityArg) ci
         displayName: Copy native components to test output folder
 
 
