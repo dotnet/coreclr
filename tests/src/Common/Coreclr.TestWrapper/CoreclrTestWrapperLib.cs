@@ -122,6 +122,20 @@ namespace CoreclrTestLib
 
         static unsafe bool TryFindChildProcessByName(Process process, string childName, out Process child)
         {
+            child = null;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return TryFindChildProcessByNameWindows(process, childName, out child);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                return TryFindChildProcessByNameLinux(process, childName, out child);
+            }
+            return false;
+        }
+
+        static unsafe bool TryFindChildProcessByNameWindows(Process process, string childName, out Process child)
+        {
             IntPtr snapshot = Kernel32.CreateToolhelp32Snapshot(Kernel32.Toolhelp32Flags.TH32CS_SNAPPROCESS, 0);
             if (snapshot == IntPtr.Zero)
             {
@@ -163,6 +177,44 @@ namespace CoreclrTestLib
             {
                 Kernel32.CloseHandle(snapshot);
             }
+        }
+
+        static unsafe bool TryFindChildProcessByNameLinux(Process process, string childName, out Process child)
+        {
+            Queue<string> childrenFilesToCheck = new Queue<string>();
+
+            childrenFilesToCheck.Enqueue($"/proc/{process.Id}/task/{process.Id}/children");
+
+            while (childrenFilesToCheck.Count != 0)
+            {
+                string childrenFile = childrenFilesToCheck.Dequeue();
+
+                try
+                {
+                    string[] childrenPidAsStrings = File.ReadAllText(childrenFile).Split(' ');
+                    foreach (var childPidAsString in childrenPidAsStrings)
+                    {
+                        int childPid = int.Parse(childPidAsString);
+                        Process childProcess = Process.GetProcessById(childPid);
+                        if (childProcess.ProcessName.Equals(childName, StringComparison.Ordinal))
+                        {
+                            child = childProcess;
+                            return true;
+                        }
+                        else
+                        {
+                            childrenFilesToCheck.Enqueue($"/proc/{childPid}/task/{childPid}/children");
+                        }
+                    }
+                }
+                catch (IOException)
+                {
+                    // Ignore failure to read process children data, the process may have exited.
+                }
+            }
+
+            child = null;
+            return false;
         }
 
         public int RunTest(string executable, string outputFile, string errorFile)
