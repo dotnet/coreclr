@@ -176,8 +176,9 @@ namespace System
 
                 // Remove the sign from x, and remove everything but the sign from y
                 // Creating from a 'const long' is better than from the correct 'const float/double'
-                xvec = Sse.And(xvec, Vector128.CreateScalarUnsafe(~signMask).AsSingle());
-                yvec = Sse.And(yvec, Vector128.CreateScalarUnsafe(signMask).AsSingle());
+                var mask = Vector128.CreateScalarUnsafe(signMask).AsSingle();
+                xvec = Sse.AndNot(mask, xvec);
+                yvec = Sse.And(mask, yvec);
 
                 // Simply OR them to get the correct sign
                 return Sse.Or(xvec, yvec).AsDouble().ToScalar();
