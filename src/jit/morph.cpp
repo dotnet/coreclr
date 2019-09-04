@@ -7471,7 +7471,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             // This is done by by adding stubAddr as an additional arg before the original list of
             // args. For more details see fgMorphTailCallViaHelper() and CreateTailCallCopyArgsThunk()
             // in Stublinkerx86.cpp.
-            failTailCall("Method with non-standard args passed in callee trash register cannot be tail called via helper");
+            failTailCall(
+                "Method with non-standard args passed in callee trash register cannot be tail called via helper");
             return nullptr;
         }
 
