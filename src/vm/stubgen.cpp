@@ -811,6 +811,8 @@ size_t ILStubLinker::Link(UINT* puMaxStack)
 
     while (pCurrentStream)
     {
+        _ASSERTE(pCurrentStream->m_buildingEHClauses.GetCount() == 0);
+
         if (pCurrentStream->m_pqbILInstructions)
         {
             ILInstruction* pInstrBuffer = (ILInstruction*)pCurrentStream->m_pqbILInstructions->Ptr();
@@ -848,6 +850,56 @@ size_t ILStubLinker::Link(UINT* puMaxStack)
 
     *puMaxStack = uMaxStack;
     return cbCode;
+}
+
+size_t ILStubLinker::GetNumEHClauses()
+{
+    size_t result = 0;
+    for (ILCodeStream* stream = m_pCodeStreamList; stream; stream = stream->m_pNextStream)
+    {
+        result += stream->m_finishedEHClauses.GetCount();
+    }
+
+    return result;
+}
+
+void ILStubLinker::WriteEHClauses(COR_ILMETHOD_SECT_EH* pSect)
+{
+    unsigned int clauseIndex = 0;
+    for (ILCodeStream* stream = m_pCodeStreamList; stream; stream = stream->m_pNextStream)
+    {
+        const SArray<ILStubEHClauseBuilder>& clauses = stream->m_finishedEHClauses;
+        for (COUNT_T i = 0; i < clauses.GetCount(); i++)
+        {
+            const ILStubEHClauseBuilder& builder = clauses[i];
+
+            CorExceptionFlag flags;
+            switch (builder.kind)
+            {
+            case ILStubEHClause::kTypedCatch: flags = COR_ILEXCEPTION_CLAUSE_NONE; break;
+            case ILStubEHClause::kFinally: flags = COR_ILEXCEPTION_CLAUSE_FINALLY; break;
+            default: UNREACHABLE_MSG("unexpected EH clause kind");
+            }
+            
+            size_t tryBegin = builder.tryBeginLabel->GetCodeOffset();
+            size_t tryEnd = builder.tryEndLabel->GetCodeOffset();
+            size_t handlerBegin = builder.handlerBeginLabel->GetCodeOffset();
+            size_t handlerEnd = builder.handlerEndLabel->GetCodeOffset();
+
+            IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_FAT& clause = pSect->Fat.Clauses[clauseIndex];
+            clause.Flags = flags;
+            clause.TryOffset = tryBegin;
+            clause.TryLength = tryEnd - tryBegin;
+            clause.HandlerOffset = handlerBegin;
+            clause.HandlerLength = handlerEnd - handlerBegin;
+            clause.ClassToken = builder.typeToken;
+
+            clauseIndex++;
+        }
+    }
+
+    pSect->Fat.Kind = CorILMethod_Sect_EHTable | CorILMethod_Sect_FatFormat;
+    pSect->Fat.DataSize = COR_ILMETHOD_SECT_EH_FAT::Size(clauseIndex);
 }
 
 #ifdef _DEBUG
@@ -1012,6 +1064,76 @@ LPCSTR ILCodeStream::GetStreamDescription(ILStubLinker::CodeStreamType streamTyp
 #endif // _DEBUG
     
     return lpszDescriptions[streamType];
+}
+
+void ILCodeStream::BeginTryBlock()
+{
+    ILStubEHClauseBuilder& clause = *m_buildingEHClauses.Append();
+    memset(&clause, 0, sizeof(ILStubEHClauseBuilder));
+    clause.kind = ILStubEHClause::kNone;
+    clause.tryBeginLabel = NewCodeLabel();
+    EmitLabel(clause.tryBeginLabel);
+}
+
+void ILCodeStream::EndTryBlock()
+{
+    _ASSERTE(m_buildingEHClauses.GetCount() > 0);
+    ILStubEHClauseBuilder& clause = m_buildingEHClauses[m_buildingEHClauses.GetCount() - 1];
+
+    _ASSERTE(clause.tryBeginLabel != NULL && clause.tryEndLabel == NULL);
+    clause.tryEndLabel = NewCodeLabel();
+    EmitLabel(clause.tryEndLabel);
+}
+
+void ILCodeStream::BeginHandler(DWORD kind, DWORD typeToken)
+{
+    _ASSERTE(m_buildingEHClauses.GetCount() > 0);
+    ILStubEHClauseBuilder& clause = m_buildingEHClauses[m_buildingEHClauses.GetCount() - 1];
+
+    _ASSERTE(clause.tryBeginLabel != NULL && clause.tryEndLabel != NULL &&
+             clause.handlerBeginLabel == NULL && clause.kind == ILStubEHClause::kNone);
+
+    clause.kind = kind;
+    clause.typeToken = typeToken;
+    clause.handlerBeginLabel = NewCodeLabel();
+    EmitLabel(clause.handlerBeginLabel);
+}
+
+void ILCodeStream::EndHandler(DWORD kind)
+{
+    _ASSERTE(m_buildingEHClauses.GetCount() > 0);
+    ILStubEHClauseBuilder& clause = m_buildingEHClauses[m_buildingEHClauses.GetCount() - 1];
+
+    _ASSERTE(clause.tryBeginLabel != NULL && clause.tryEndLabel != NULL &&
+             clause.handlerBeginLabel != NULL && clause.handlerEndLabel == NULL &&
+             clause.kind == kind);
+
+    clause.handlerEndLabel = NewCodeLabel();
+    EmitLabel(clause.handlerEndLabel);
+
+    m_finishedEHClauses.Append(clause);
+    m_buildingEHClauses.SetCount(m_buildingEHClauses.GetCount() - 1);
+
+}
+
+void ILCodeStream::BeginCatchBlock(int token)
+{
+    BeginHandler(ILStubEHClause::kTypedCatch, static_cast<DWORD>(token));
+}
+
+void ILCodeStream::EndCatchBlock()
+{
+    EndHandler(ILStubEHClause::kTypedCatch);
+}
+
+void ILCodeStream::BeginFinallyBlock()
+{
+    BeginHandler(ILStubEHClause::kFinally, 0);
+}
+
+void ILCodeStream::EndFinallyBlock()
+{
+    EndHandler(ILStubEHClause::kFinally);
 }
 
 void ILCodeStream::EmitADD()

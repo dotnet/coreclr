@@ -114,18 +114,19 @@ MethodDesc* ILStubCache::CreateAndLinkNewILStubMethodDesc(LoaderAllocator* pAllo
 
     {
         UINT   maxStack;
-        size_t cbCode;
-        DWORD  cbSig;
-        BYTE * pbBuffer;
-        BYTE * pbLocalSig;
-
-        cbCode = pStubLinker->Link(&maxStack);
-        cbSig = pStubLinker->GetLocalSigSize();
+        size_t cbCode = pStubLinker->Link(&maxStack);
+        DWORD cbSig = pStubLinker->GetLocalSigSize();
 
         COR_ILMETHOD_DECODER * pILHeader = pResolver->AllocGeneratedIL(cbCode, cbSig, maxStack);
-        pbBuffer   = (BYTE *)pILHeader->Code;
-        pbLocalSig = (BYTE *)pILHeader->LocalVarSig;
+        BYTE * pbBuffer   = (BYTE *)pILHeader->Code;
+        BYTE * pbLocalSig = (BYTE *)pILHeader->LocalVarSig;
         _ASSERTE(cbSig == pILHeader->cbLocalVarSig);
+
+        size_t numEH = pStubLinker->GetNumEHClauses();
+        if (numEH > 0)
+        {
+            pStubLinker->WriteEHClauses(pResolver->AllocEHSect(numEH));
+        }
 
         pStubLinker->GenerateCode(pbBuffer, cbCode);
         pStubLinker->GetLocalSig(pbLocalSig, cbSig);

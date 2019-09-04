@@ -410,6 +410,9 @@ protected:
     InlineSArray<CQuickBytesSpecifySize<16>, 2, 0>  m_signatures;
 };
 
+class ILCodeLabel;
+class ILCodeStream;
+
 struct ILStubEHClause
 {
     enum Kind { kNone, kTypedCatch, kFinally };
@@ -422,8 +425,16 @@ struct ILStubEHClause
     DWORD dwTypeToken;
 };
 
-class ILCodeLabel;
-class ILCodeStream;
+struct ILStubEHClauseBuilder
+{
+    DWORD kind;
+    ILCodeLabel* tryBeginLabel;
+    ILCodeLabel* tryEndLabel;
+    ILCodeLabel* handlerBeginLabel;
+    ILCodeLabel* handlerEndLabel;
+    DWORD typeToken;
+};
+
 //---------------------------------------------------------------------------------------
 // 
 class ILStubLinker
@@ -492,6 +503,9 @@ public:
 
     size_t  Link(UINT* puMaxStack);
 
+    size_t GetNumEHClauses();
+    // Write out EH clauses. Number of items written out will be GetNumEHCLauses().
+    void WriteEHClauses(COR_ILMETHOD_SECT_EH* sect);
 
     TokenLookupMap* GetTokenLookupMap() { LIMITED_METHOD_CONTRACT; return &m_tokenMap; }
 
@@ -642,7 +656,16 @@ private:
     }
 
 
+    void BeginHandler   (DWORD kind, DWORD typeToken);
+    void EndHandler     (DWORD kind);
 public:
+    void BeginTryBlock  ();
+    void EndTryBlock    ();
+    void BeginCatchBlock(int token);
+    void EndCatchBlock  ();
+    void BeginFinallyBlock();
+    void EndFinallyBlock();
+
     void EmitADD        ();
     void EmitADD_OVF    ();
     void EmitAND        ();
@@ -825,11 +848,13 @@ protected:
 
     typedef CQuickBytesSpecifySize<INITIAL_IL_INSTRUCTION_BUFFER_SIZE> ILCodeStreamBuffer;
 
-    ILCodeStream*       m_pNextStream;
-    ILStubLinker*       m_pOwner;
-    ILCodeStreamBuffer* m_pqbILInstructions;
-    UINT                m_uCurInstrIdx;
-    ILStubLinker::CodeStreamType      m_codeStreamType;       // Type of the ILCodeStream
+    ILCodeStream*                 m_pNextStream;
+    ILStubLinker*                 m_pOwner;
+    ILCodeStreamBuffer*           m_pqbILInstructions;
+    UINT                          m_uCurInstrIdx;
+    ILStubLinker::CodeStreamType  m_codeStreamType;       // Type of the ILCodeStream
+    SArray<ILStubEHClauseBuilder> m_buildingEHClauses;
+    SArray<ILStubEHClauseBuilder> m_finishedEHClauses;
 
 #ifndef BIT64
     const static UINT32 SPECIAL_VALUE_NAN_64_ON_32 = 0xFFFFFFFF;
