@@ -640,9 +640,9 @@ public class Managed
                     unsafe
                     {
                         FixedBufferClassificationTest str = new FixedBufferClassificationTest();
-                        str.arr[0] = 123456;
-                        str.arr[1] = 78910;
-                        str.arr[2] = 1234;
+                        str.arr[0] = true;
+                        str.arr[1] = true;
+                        str.arr[2] = true;
                         str.f = new NonBlittableFloat(56.789f);
                         if (!MarshalStructAsParam_AsSeqByValFixedBufferClassificationTest(str, str.f.F))
                         {
