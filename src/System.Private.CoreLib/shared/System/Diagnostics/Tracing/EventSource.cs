@@ -5241,31 +5241,21 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        public static SessionMask operator |(SessionMask m1, SessionMask m2)
-        {
-            return new SessionMask(m1.m_mask | m2.m_mask);
-        }
+        public static SessionMask operator |(SessionMask m1, SessionMask m2) =>
+            new SessionMask(m1.m_mask | m2.m_mask);
 
-        public static SessionMask operator &(SessionMask m1, SessionMask m2)
-        {
-            return new SessionMask(m1.m_mask & m2.m_mask);
-        }
+        public static SessionMask operator &(SessionMask m1, SessionMask m2) =>
+            new SessionMask(m1.m_mask & m2.m_mask);
 
-        public static SessionMask operator ^(SessionMask m1, SessionMask m2)
-        {
-            return new SessionMask(m1.m_mask ^ m2.m_mask);
-        }
+        public static SessionMask operator ^(SessionMask m1, SessionMask m2) =>
+            new SessionMask(m1.m_mask ^ m2.m_mask);
 
-        public static SessionMask operator ~(SessionMask m)
-        {
-            return new SessionMask(MASK & ~(m.m_mask));
-        }
+        public static SessionMask operator ~(SessionMask m) =>
+            new SessionMask(MASK & ~(m.m_mask));
 
-        public static explicit operator ulong(SessionMask m)
-        { return m.m_mask; }
+        public static explicit operator ulong(SessionMask m) => m.m_mask;
 
-        public static explicit operator uint(SessionMask m)
-        { return m.m_mask; }
+        public static explicit operator uint(SessionMask m) => m.m_mask;
 
         private uint m_mask;
 

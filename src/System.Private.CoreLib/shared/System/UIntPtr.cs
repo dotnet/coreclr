@@ -128,14 +128,13 @@ namespace System
 
         [Intrinsic]
         [NonVersionable]
-        public static unsafe explicit operator uint(UIntPtr value)
-        {
+        public static unsafe explicit operator uint(UIntPtr value) =>
 #if BIT64
-            return checked((uint)value._value);
+            checked((uint)value._value);
 #else
-            return (uint)value._value;
+            (uint)value._value;
 #endif
-        }
+
 
         [Intrinsic]
         [NonVersionable]

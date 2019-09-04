@@ -349,7 +349,7 @@ namespace System.Diagnostics.Tracing
             get => (EventLevel)m_level;
             set => m_level = (byte)value;
         }
-        
+
         protected EventKeywords MatchAnyKeyword
         {
             get => (EventKeywords)m_anyKeywordMask;
