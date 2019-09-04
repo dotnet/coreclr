@@ -7454,7 +7454,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         if (call->IsImplicitTailCall())
         {
             failTailCall(failReason);
-            return false;
+            return nullptr;
         }
 
         // Call is tail. prefixed and cannot be dispatched as a fast tail call.
@@ -7472,14 +7472,14 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             // args. For more details see fgMorphTailCallViaHelper() and CreateTailCallCopyArgsThunk()
             // in Stublinkerx86.cpp.
             failTailCall("Method with non-standard args passed in callee trash register cannot be tail called via helper");
-            return false;
+            return nullptr;
         }
 
 #if defined(_TARGET_ARM64_) || defined(_TARGET_UNIX_)
         // NYI - TAILCALL_RECURSIVE/TAILCALL_HELPER.
         // So, bail out if we can't make fast tail call.
-        failTailCall(fastTailCallFailReason);
-        return false;
+        failTailCall(failReason);
+        return nullptr;
 #elif !defined(_TARGET_X86_)
         // Ok, now we are _almost_ there. Since this needs helper make sure we
         // can get the required copy thunk.
