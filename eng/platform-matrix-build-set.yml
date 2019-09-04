@@ -56,10 +56,10 @@ jobs:
 
       # Identify OS to use for building managed components of ARM32 *nix tests
       arm:
-        ${{ if eq(parameters.buildLinuxArm, true) }}:
+        ${{ if eq(parameters.osArchCombos['linuxArm'], true) }}:
           group: 'Linux'
           id: 'Linux'
-        ${{ if ne(parameters.buildLinuxArm, true) }}:
+        ${{ if ne(parameters.osArchCombos['linuxArm'], true) }}:
           group: ''
           id: ''
 
