@@ -29,6 +29,8 @@ jobs:
     osIdentifier: ${{ parameters.osIdentifier }}
     managedBuildOsGroup: ${{ parameters.managedBuildOsGroup }}
     managedBuildOsIdentifier: ${{ parameters.managedBuildOsIdentifier }}
+    container: ${{ parameters.container }}
+    testGroup: ${{ parameters.testGroup }}
     readyToRun: ${{ parameters.readyToRun }}
     corefxTests: ${{ parameters.corefxTests }}
     helixType: 'build/tests/'
