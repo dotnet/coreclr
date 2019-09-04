@@ -170,7 +170,7 @@ namespace System
 
             if (Sse.IsSupported)
             {
-                // Create vectors of the elements, and make them float to allow using SSE rather than SSE instructions
+                // Create vectors of the elements, and make them float to allow using SSE rather than SSE2 instructions
                 var xvec = Vector128.CreateScalarUnsafe(x).AsSingle();
                 var yvec = Vector128.CreateScalarUnsafe(y).AsSingle();
 
