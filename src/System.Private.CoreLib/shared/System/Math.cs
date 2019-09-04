@@ -165,6 +165,7 @@ namespace System
             return BitConverter.Int64BitsToDouble(bits);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe double CopySign(double x, double y)
         {
             const long signMask
@@ -187,6 +188,14 @@ namespace System
             }
             else
             {
+                return SoftwareFallback(x, y);
+            }
+
+            static double SoftwareFallback(double x, double y)
+            {
+                const long signMask
+                                = unchecked((long)0b_1000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000);
+
                 // This method is required to work for all inputs,
                 // including NaN, so we operate on the raw bits.
 

@@ -90,6 +90,7 @@ namespace System
             return BitConverter.Int32BitsToSingle(bits);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static unsafe float CopySign(float x, float y)
         {
             const int signMask = unchecked((int)0b_1000_0000__0000_0000__0000_0000__0000_0000);
@@ -110,6 +111,13 @@ namespace System
             }
             else
             {
+                return SoftwareFallback(x, y);
+            }
+
+            static float SoftwareFallback(float x, float y)
+            {
+                const int signMask = unchecked((int)0b_1000_0000__0000_0000__0000_0000__0000_0000);
+
                 // This method is required to work for all inputs,
                 // including NaN, so we operate on the raw bits.
 
