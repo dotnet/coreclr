@@ -63,7 +63,7 @@ jobs:
     ${{ if in(parameters.testGroup, 'outerloop') }}:
       timeoutInMinutes: 270
     ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
-      timeoutInMinutes: 360
+      timeoutInMinutes: 480
     ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs', 'gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 390
     ${{ if in(parameters.testGroup, 'jitstress-isas-x86', 'gcstress-extra', 'r2r-extra') }}:
@@ -131,8 +131,9 @@ jobs:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 10          
         ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
-          timeoutPerTestCollectionInMinutes: 270
-          timeoutPerTestInMinutes: 90
+          timeoutPerTestCollectionInMinutes: 360
+          # gc reliability may take up to 2 hours to shutdown. Some scenarios have very long iteration times.
+          timeoutPerTestInMinutes: 240
         ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstress-isas-x86', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs' ) }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
