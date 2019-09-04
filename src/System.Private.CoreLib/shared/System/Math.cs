@@ -167,7 +167,7 @@ namespace System
 
         public static unsafe double CopySign(double x, double y)
         {
-            const long signMask 
+            const long signMask
                 = unchecked((long)0b_1000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000__0000_0000);
 
             if (Sse.IsSupported)
