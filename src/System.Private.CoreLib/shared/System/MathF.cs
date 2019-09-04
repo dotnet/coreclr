@@ -94,7 +94,6 @@ namespace System
 
             if (Sse.IsSupported)
             {
-                // Create vectors of the elements, and make them float to allow using SSE rather than SSE instructions
                 var xvec = Vector128.CreateScalarUnsafe(x);
                 var yvec = Vector128.CreateScalarUnsafe(y);
 
