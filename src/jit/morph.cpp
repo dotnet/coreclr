@@ -7425,27 +7425,28 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         }
     }
 
-    bool canFastTailCall = fgCanFastTailCall(call);
-    if (!canFastTailCall && call->IsImplicitTailCall())
-    {
-        // Implicit or opportunistic tail calls are always dispatched via fast tail call
-        // mechanism and never via tail call helper for perf.
-        failTailCall("Opportunistic tail call cannot be dispatched as epilog+jmp");
-        return nullptr;
-    }
-
     if (!fgCheckStmtAfterTailCall())
     {
         failTailCall("Unexpected statements after the tail call");
         return nullptr;
     }
 
-    // Ok, now we are _almost_ there. If this needs helper then make sure we can
-    // get the store args stub. Do this last as the runtime will likely be
-    // required to generate these.
+    bool canFastTailCall = fgCanFastTailCall(call);
+
     CORINFO_TAILCALL_HELP tailcallHelp;
     if (!canFastTailCall)
     {
+        if (call->IsImplicitTailCall())
+        {
+            // Implicit or opportunistic tail calls are always dispatched via fast tail call
+            // mechanism and never via tail call helper for perf.
+            failTailCall("Opportunistic tail call cannot be dispatched as epilog+jmp");
+            return nullptr;
+        }
+
+        // If this needs helper then make sure we can
+        // get the store args stub. Do this last as the runtime will likely be
+        // required to generate these.
         assert(call->IsTailPrefixedCall());
         assert(call->callInfo != nullptr);
 
