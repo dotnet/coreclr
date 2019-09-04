@@ -1336,6 +1336,18 @@ namespace System.Threading
 
         public object? DequeueAny(ref bool missedSteal, LocalQueue localQueue)
         {
+            // We come here after Pop failed.
+            // We look at the global queue and then do a sweep through all local queues for any work remaining.
+            //
+            // However, in a rare case when local queue has multiple segments, do a local Dequeue first
+            // to ensure that continuously nonempty global queue does not delay retirement of old segments.
+            if (localQueue._enqSegment != localQueue._deqSegment)
+            {
+                object? locallyDequeued = localQueue.Dequeue(ref missedSteal);
+                if (locallyDequeued != null)
+                    return locallyDequeued;
+            }
+
             object? callback = _globalQueue.Dequeue(localQueue);
             if (callback == null)
             {
