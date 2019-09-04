@@ -483,6 +483,8 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     pCode->EmitCALL(METHOD__STUBHELPERS__NEXT_CALL_RETURN_ADDRESS, 0, 1);
     pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
 
+    pCode->BeginTryBlock();
+
     int numRetVals = info.CallSiteSig->IsReturnTypeVoid() ? 0 : 1;
     // Normally there will not be any target and we just emit a normal
     // call/callvirt.
@@ -566,11 +568,23 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         pCode->EmitSTLOC(resultLcl);
     }
 
+    ILCodeLabel* afterCall = pCode->NewCodeLabel();
+    pCode->EmitLEAVE(afterCall);
+
+    pCode->EndTryBlock();
+    pCode->BeginFinallyBlock();
+
     // tls->Frame = newFrameEntry.Prev
     pCode->EmitLDLOC(tlsLcl);
     pCode->EmitLDLOC(newFrameEntryLcl);
     pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__PREV);
     pCode->EmitSTFLD(FIELD__TAIL_CALL_TLS__FRAME);
+    pCode->EmitENDFINALLY();
+
+    pCode->EndFinallyBlock();
+
+    // afterCall:
+    pCode->EmitLabel(afterCall);
 
     // if (newFrameEntry.NextCall == IntPtr.Zero) return result
     pCode->EmitLDLOC(newFrameEntryLcl);
