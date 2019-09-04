@@ -82,45 +82,21 @@ namespace System
             _ticks = (long)totalMilliSeconds * TicksPerMillisecond;
         }
 
-        public long Ticks
-        {
-            get { return _ticks; }
-        }
+        public long Ticks => _ticks;
 
-        public int Days
-        {
-            get { return (int)(_ticks / TicksPerDay); }
-        }
+        public int Days => (int)(_ticks / TicksPerDay);
 
-        public int Hours
-        {
-            get { return (int)((_ticks / TicksPerHour) % 24); }
-        }
+        public int Hours => (int)((_ticks / TicksPerHour) % 24);
 
-        public int Milliseconds
-        {
-            get { return (int)((_ticks / TicksPerMillisecond) % 1000); }
-        }
+        public int Milliseconds => (int)((_ticks / TicksPerMillisecond) % 1000);
 
-        public int Minutes
-        {
-            get { return (int)((_ticks / TicksPerMinute) % 60); }
-        }
+        public int Minutes => (int)((_ticks / TicksPerMinute) % 60);
 
-        public int Seconds
-        {
-            get { return (int)((_ticks / TicksPerSecond) % 60); }
-        }
+        public int Seconds => (int)((_ticks / TicksPerSecond) % 60);
 
-        public double TotalDays
-        {
-            get { return ((double)_ticks) * DaysPerTick; }
-        }
+        public double TotalDays => ((double)_ticks) * DaysPerTick;
 
-        public double TotalHours
-        {
-            get { return (double)_ticks * HoursPerTick; }
-        }
+        public double TotalHours => (double)_ticks * HoursPerTick;
 
         public double TotalMilliseconds
         {
@@ -137,15 +113,9 @@ namespace System
             }
         }
 
-        public double TotalMinutes
-        {
-            get { return (double)_ticks * MinutesPerTick; }
-        }
+        public double TotalMinutes => (double)_ticks * MinutesPerTick;
 
-        public double TotalSeconds
-        {
-            get { return (double)_ticks * SecondsPerTick; }
-        }
+        public double TotalSeconds => (double)_ticks * SecondsPerTick;
 
         public TimeSpan Add(TimeSpan ts)
         {
@@ -466,20 +436,11 @@ namespace System
             return new TimeSpan(-t._ticks);
         }
 
-        public static TimeSpan operator -(TimeSpan t1, TimeSpan t2)
-        {
-            return t1.Subtract(t2);
-        }
+        public static TimeSpan operator -(TimeSpan t1, TimeSpan t2) => t1.Subtract(t2);
 
-        public static TimeSpan operator +(TimeSpan t)
-        {
-            return t;
-        }
+        public static TimeSpan operator +(TimeSpan t) => t;
 
-        public static TimeSpan operator +(TimeSpan t1, TimeSpan t2)
-        {
-            return t1.Add(t2);
-        }
+        public static TimeSpan operator +(TimeSpan t1, TimeSpan t2) => t1.Add(t2);
 
         public static TimeSpan operator *(TimeSpan timeSpan, double factor)
         {
@@ -523,34 +484,16 @@ namespace System
         // is perhaps less useful, but no less useful than an exception.
         public static double operator /(TimeSpan t1, TimeSpan t2) => t1.Ticks / (double)t2.Ticks;
 
-        public static bool operator ==(TimeSpan t1, TimeSpan t2)
-        {
-            return t1._ticks == t2._ticks;
-        }
+        public static bool operator ==(TimeSpan t1, TimeSpan t2) => t1._ticks == t2._ticks;
 
-        public static bool operator !=(TimeSpan t1, TimeSpan t2)
-        {
-            return t1._ticks != t2._ticks;
-        }
+        public static bool operator !=(TimeSpan t1, TimeSpan t2) => t1._ticks != t2._ticks;
 
-        public static bool operator <(TimeSpan t1, TimeSpan t2)
-        {
-            return t1._ticks < t2._ticks;
-        }
+        public static bool operator <(TimeSpan t1, TimeSpan t2) => t1._ticks < t2._ticks;
 
-        public static bool operator <=(TimeSpan t1, TimeSpan t2)
-        {
-            return t1._ticks <= t2._ticks;
-        }
+        public static bool operator <=(TimeSpan t1, TimeSpan t2) => t1._ticks <= t2._ticks;
 
-        public static bool operator >(TimeSpan t1, TimeSpan t2)
-        {
-            return t1._ticks > t2._ticks;
-        }
+        public static bool operator >(TimeSpan t1, TimeSpan t2) => t1._ticks > t2._ticks;
 
-        public static bool operator >=(TimeSpan t1, TimeSpan t2)
-        {
-            return t1._ticks >= t2._ticks;
-        }
+        public static bool operator >=(TimeSpan t1, TimeSpan t2) => t1._ticks >= t2._ticks;
     }
 }

@@ -6,10 +6,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Loader;
 
 namespace Internal.Runtime.InteropServices
 {
@@ -59,8 +57,8 @@ namespace Internal.Runtime.InteropServices
             try
             {
                 string assemblyPath = MarshalToString(assemblyPathNative, nameof(assemblyPathNative));
-                string typeName     = MarshalToString(typeNameNative, nameof(typeNameNative));
-                string methodName   = MarshalToString(methodNameNative, nameof(methodNameNative));
+                string typeName = MarshalToString(typeNameNative, nameof(typeNameNative));
+                string methodName = MarshalToString(methodNameNative, nameof(methodNameNative));
 
                 string delegateType;
                 if (delegateTypeNative == IntPtr.Zero)
@@ -86,7 +84,7 @@ namespace Internal.Runtime.InteropServices
 
                 IntPtr functionPtr = Marshal.GetFunctionPointerForDelegate(d);
 
-                lock(s_delegates)
+                lock (s_delegates)
                 {
                     // Keep a reference to the delegate to prevent it from being garbage collected
                     s_delegates[functionPtr] = d;
@@ -107,7 +105,7 @@ namespace Internal.Runtime.InteropServices
             // Throws
             IsolatedComponentLoadContext alc = GetIsolatedComponentLoadContext(assemblyPath);
 
-            Func<AssemblyName,Assembly> resolver = name => alc.LoadFromAssemblyName(name);
+            Func<AssemblyName, Assembly> resolver = name => alc.LoadFromAssemblyName(name);
 
             // Throws
             Type type = Type.GetType(typeName, resolver, null, throwOnError: true)!;

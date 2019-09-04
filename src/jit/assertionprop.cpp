@@ -376,7 +376,7 @@ void Compiler::optAddCopies()
 
                 if (block->bbFlags & BBF_KEEP_BBJ_ALWAYS)
                 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
                     // With funclets, this is only used for BBJ_CALLFINALLY/BBJ_ALWAYS pairs. For x86, it is also used
                     // as the "final step" block for leaving finallys.
                     assert((block->bbPrev != nullptr) && block->bbPrev->isBBCallAlwaysPair());
@@ -2021,13 +2021,11 @@ AssertionIndex Compiler::optAssertionGenPhiDefn(GenTree* tree)
         return NO_ASSERTION_INDEX;
     }
 
-    GenTree* phi = tree->gtOp.gtOp2;
-
     // Try to find if all phi arguments are known to be non-null.
     bool isNonNull = true;
-    for (GenTreeArgList* args = phi->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+    for (GenTreePhi::Use& use : tree->AsOp()->gtGetOp2()->AsPhi()->Uses())
     {
-        if (!vnStore->IsKnownNonNull(args->Current()->gtVNPair.GetConservative()))
+        if (!vnStore->IsKnownNonNull(use.GetNode()->gtVNPair.GetConservative()))
         {
             isNonNull = false;
             break;

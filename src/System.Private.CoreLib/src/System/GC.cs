@@ -17,7 +17,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 using System.Collections.Generic;
+#if !DEBUG
 using Internal.Runtime.CompilerServices;
+#endif
 
 namespace System
 {
@@ -169,7 +171,7 @@ namespace System
         //
         public static void Collect()
         {
-            //-1 says to GC all generations.
+            // -1 says to GC all generations.
             _Collect(-1, (int)InternalGCCollectionMode.Blocking);
         }
 
@@ -278,10 +280,7 @@ namespace System
 
         // Returns the maximum GC generation.  Currently assumes only 1 heap.
         //
-        public static int MaxGeneration
-        {
-            get { return GetMaxGeneration(); }
-        }
+        public static int MaxGeneration => GetMaxGeneration();
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void _WaitForPendingFinalizers();
@@ -627,7 +626,7 @@ namespace System
 
             lock (s_notifications)
             {
-                s_notifications.Add (new MemoryLoadChangeNotification(lowMemoryPercent, highMemoryPercent, notification));
+                s_notifications.Add(new MemoryLoadChangeNotification(lowMemoryPercent, highMemoryPercent, notification));
 
                 if (s_notifications.Count == 1)
                 {

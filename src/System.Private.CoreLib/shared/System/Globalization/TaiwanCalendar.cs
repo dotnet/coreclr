@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace System.Globalization
 {
     /// <summary>
@@ -27,7 +25,7 @@ namespace System.Globalization
         //  So yearOffset = 1911
         private static readonly EraInfo[] s_taiwanEraInfo = new EraInfo[]
         {
-            new EraInfo( 1, 1912, 1, 1, 1911, 1, GregorianCalendar.MaxYear - 1911)    // era #, start year/month/day, yearOffset, minEraYear
+            new EraInfo(1, 1912, 1, 1, 1911, 1, GregorianCalendar.MaxYear - 1911)    // era #, start year/month/day, yearOffset, minEraYear
         };
 
         private static volatile Calendar? s_defaultInstance;

@@ -440,10 +440,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     _key = key;
                 }
 
-                internal EventCacheKey Key
-                {
-                    get { return _key; }
-                }
+                internal EventCacheKey Key => _key;
 
                 internal void Inc()
                 {
@@ -852,7 +849,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void AcquireReaderLock(int millisecondsTimeout)
                 {
                     EnterMyLock();
-                    for (;;)
+                    while (true)
                     {
                         // We can enter a read lock if there are only read-locks have been given out
                         // and a writer is not trying to get in.
@@ -878,7 +875,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 internal void AcquireWriterLock(int millisecondsTimeout)
                 {
                     EnterMyLock();
-                    for (;;)
+                    while (true)
                     {
                         if (owners == 0)
                         {
@@ -1013,7 +1010,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     Debug.Assert(myLock != 0, "Exiting spin lock that is not held");
                     myLock = 0;
                 }
-            };
+            }
         }
 
         //
@@ -1073,7 +1070,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             }
             else
             {
-                string? message = (messageResource != null ? SR.GetResourceString(messageResource): null);
+                string? message = messageResource != null ? SR.GetResourceString(messageResource) : null;
                 e = new Exception(message);
             }
 

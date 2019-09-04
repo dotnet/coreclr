@@ -22,8 +22,8 @@ namespace System
             throw new NotImplementedException();
         }
 
-        //Determines whether or not this instance of WeakReference still refers to an object
-        //that has not been collected.
+        // Determines whether or not this instance of WeakReference still refers to an object
+        // that has not been collected.
         //
         public extern virtual bool IsAlive
         {
@@ -31,16 +31,12 @@ namespace System
             get;
         }
 
-        //Returns a boolean indicating whether or not we're tracking objects until they're collected (true)
-        //or just until they're finalized (false).
+        // Returns a boolean indicating whether or not we're tracking objects until they're collected (true)
+        // or just until they're finalized (false).
         //
-        public virtual bool TrackResurrection
-        {
-            // We need to call IsTrackResurrection non-virtually in GetObjectData, and so the virtual property cannot be FCall directly
-            get { return IsTrackResurrection(); }
-        }
+        public virtual bool TrackResurrection => IsTrackResurrection();
 
-        //Gets the Object stored in the handle if it's accessible.
+        // Gets the Object stored in the handle if it's accessible.
         // Or sets it.
         //
         public extern virtual object? Target

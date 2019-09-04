@@ -100,15 +100,9 @@ namespace System.Reflection.Emit
             throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
         }
 
-        public override string Location
-        {
-            get => throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
-        }
+        public override string Location => throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
 
-        public override string? CodeBase
-        {
-            get => throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
-        }
+        public override string? CodeBase => throw new NotSupportedException(SR.NotSupported_DynamicAssembly);
 
         public override Type[] GetExportedTypes()
         {
@@ -291,32 +285,24 @@ namespace System.Reflection.Emit
         [DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public ModuleBuilder DefineDynamicModule(string name)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return DefineDynamicModuleInternal(name, false, ref stackMark);
+            return DefineDynamicModuleInternal(name, emitSymbolInfo: false);
         }
 
         [DynamicSecurityMethod] // Methods containing StackCrawlMark local var has to be marked DynamicSecurityMethod.
         public ModuleBuilder DefineDynamicModule(string name, bool emitSymbolInfo)
         {
-            StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            return DefineDynamicModuleInternal(name, emitSymbolInfo, ref stackMark);
+            return DefineDynamicModuleInternal(name, emitSymbolInfo);
         }
 
-        private ModuleBuilder DefineDynamicModuleInternal(
-            string name,
-            bool emitSymbolInfo,         // specify if emit symbol info or not
-            ref StackCrawlMark stackMark)
+        private ModuleBuilder DefineDynamicModuleInternal(string name, bool emitSymbolInfo)
         {
             lock (SyncRoot)
             {
-                return DefineDynamicModuleInternalNoLock(name, emitSymbolInfo, ref stackMark);
+                return DefineDynamicModuleInternalNoLock(name, emitSymbolInfo);
             }
         }
 
-        private ModuleBuilder DefineDynamicModuleInternalNoLock(
-            string name,
-            bool emitSymbolInfo,         // specify if emit symbol info or not
-            ref StackCrawlMark stackMark)
+        private ModuleBuilder DefineDynamicModuleInternalNoLock(string name, bool emitSymbolInfo)
         {
             if (name == null)
             {

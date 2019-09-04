@@ -114,6 +114,13 @@
     <StrongNameKeyId>SilverlightPlatform</StrongNameKeyId>
   </PropertyGroup>
 
+  <!-- SourceLink -->
+  <PropertyGroup>
+    <!-- This is needed to embed build-time generated sources such as eventing and resource files to sourcelink PDBs. -->
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <CoreCompileDependsOn>$(CoreCompileDependsOn);AddUntrackedResourcesForSourceLink</CoreCompileDependsOn>
+  </PropertyGroup>
+
   <!--
     Helper Paths
   -->
@@ -140,7 +147,6 @@
     <Compile Include="$(BclSourcesRoot)\Internal\Runtime\InteropServices\ComponentActivator.cs" />
     <Compile Include="$(BclSourcesRoot)\Microsoft\Win32\UnsafeNativeMethods.cs" />
     <Compile Include="$(BclSourcesRoot)\System\__Canon.cs" />
-    <Compile Include="$(BclSourcesRoot)\System\AppContext.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\ArgIterator.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Array.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Attribute.CoreCLR.cs" />
@@ -442,12 +448,22 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.FxCopAnalyzers" Version="2.9.4" PrivateAssets="all" />
-    <PackageReference Include="StyleCop.Analyzers" Version="1.1.118" PrivateAssets="all" />
+    <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.66" PrivateAssets="all" />
   </ItemGroup>
 
   <Import Project="CreateRuntimeRootILLinkDescriptorFile.targets" />
 
   <Target Name="CreateRuntimeRootIlLinkDescFile" BeforeTargets="CoreCompile" DependsOnTargets="_CreateILLinkRuntimeRootDescriptorFile">
+  </Target>
+
+  <!-- This is working around dotnet/coreclr#26371 until dotnet/sourcelink#392 gets solved -->
+  <Target Name="AddUntrackedResourcesForSourceLink"
+    BeforeTargets="CoreCompile"
+    DependsOnTargets="SetEmbeddedFilesFromSourceControlManagerUntrackedFiles;
+                      _GenerateResxSource" >
+    <ItemGroup>
+      <EmbeddedFiles Include="@(GeneratedResxSource)" />
+    </ItemGroup>
   </Target>
 
   <ItemGroup>

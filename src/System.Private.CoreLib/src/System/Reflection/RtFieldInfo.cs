@@ -23,11 +23,8 @@ namespace System.Reflection
         internal INVOCATION_FLAGS InvocationFlags
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return (m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) != 0 ?
+            get => (m_invocationFlags & INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED) != 0 ?
                     m_invocationFlags : InitializeInvocationFlags();
-            }
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -75,13 +72,7 @@ namespace System.Reflection
         #endregion
 
         #region Private Members
-        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value
-        {
-            get
-            {
-                return new RuntimeFieldHandleInternal(m_fieldHandle);
-            }
-        }
+        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => new RuntimeFieldHandleInternal(m_fieldHandle);
 
         #endregion
 
@@ -127,18 +118,9 @@ namespace System.Reflection
             }
         }
 
-        internal string FullName
-        {
-            get
-            {
-                return DeclaringType!.FullName + "." + Name;
-            }
-        }
+        internal string FullName => DeclaringType!.FullName + "." + Name;
 
-        public override int MetadataToken
-        {
-            get { return RuntimeFieldHandle.GetToken(this); }
-        }
+        public override int MetadataToken => RuntimeFieldHandle.GetToken(this);
 
         internal override RuntimeModule GetRuntimeModule()
         {
@@ -244,34 +226,19 @@ namespace System.Reflection
             }
         }
 
-        public override RuntimeFieldHandle FieldHandle
-        {
-            get
-            {
-                return new RuntimeFieldHandle(this);
-            }
-        }
+        public override RuntimeFieldHandle FieldHandle => new RuntimeFieldHandle(this);
 
         internal IntPtr GetFieldHandle()
         {
             return m_fieldHandle;
         }
 
-        public override FieldAttributes Attributes
-        {
-            get
-            {
-                return m_fieldAttributes;
-            }
-        }
+        public override FieldAttributes Attributes => m_fieldAttributes;
 
         public override Type FieldType
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                return m_fieldType ?? InitializeFieldType();
-            }
+            get => m_fieldType ?? InitializeFieldType();
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]

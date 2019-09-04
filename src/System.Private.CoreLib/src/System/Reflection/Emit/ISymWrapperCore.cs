@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-using System.Security;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using System.Diagnostics.SymbolStore;
@@ -69,10 +67,10 @@ namespace System.Reflection.Emit
             }
 
 
-            //=========================================================================================
+            // =========================================================================================
             // Public interface methods start here. (Well actually, they're all NotSupported
             // stubs since that's what they are on the real ISymWrapper.dll.)
-            //=========================================================================================
+            // =========================================================================================
 
             //------------------------------------------------------------------------------
             // SetSource() wrapper
@@ -170,8 +168,7 @@ namespace System.Reflection.Emit
                                                                Guid languageVendor,
                                                                Guid documentType)
             {
-                PunkSafeHandle psymUnmanagedDocumentWriter = new PunkSafeHandle();
-
+                PunkSafeHandle psymUnmanagedDocumentWriter;
                 int hr = m_vtable.DefineDocument(m_pWriter, url, ref language, ref languageVendor, ref documentType, out psymUnmanagedDocumentWriter);
                 if (hr < 0)
                 {
@@ -365,9 +362,9 @@ namespace System.Reflection.Emit
             // Define delegates for the unmanaged COM methods we invoke.
             //------------------------------------------------------------------------------
             private delegate int DInitialize(ISymUnmanagedWriter* pthis,
-                                             IntPtr emitter,  //IUnknown*
-                                             [MarshalAs(UnmanagedType.LPWStr)] string filename, //WCHAR*
-                                             IntPtr pIStream, //IStream*
+                                             IntPtr emitter,  // IUnknown*
+                                             [MarshalAs(UnmanagedType.LPWStr)] string filename, // WCHAR*
+                                             IntPtr pIStream, // IStream*
                                              [MarshalAs(UnmanagedType.Bool)] bool fFullBuild
                                              );
 
@@ -491,7 +488,7 @@ namespace System.Reflection.Emit
             //------------------------------------------------------------------------------
             private ISymUnmanagedWriterVTable m_vtable;
         } // class SymWriter
-    } //class SymWrapperCore
+    } // class SymWrapperCore
 
 
 
@@ -519,10 +516,7 @@ namespace System.Reflection.Emit
             return true;
         }
 
-        public override bool IsInvalid
-        {
-            get { return handle == ((IntPtr)0); }
-        }
+        public override bool IsInvalid => handle == ((IntPtr)0);
 
         private delegate void DRelease(IntPtr punk);         // Delegate type for P/Invoking to coreclr.dll and doing an IUnknown::Release()
         private static DRelease m_Release = (DRelease)Marshal.GetDelegateForFunctionPointer(nGetDReleaseTarget(), typeof(DRelease));
@@ -535,4 +529,4 @@ namespace System.Reflection.Emit
             m_Release((IntPtr)0); // make one call to make sure the delegate is fully prepped before we're in the critical finalizer situation.
         }
     } // PunkSafeHandle
-} //namespace System.Reflection.Emit
+} // namespace System.Reflection.Emit

@@ -9190,7 +9190,7 @@ REDO_RETURN_NODE:
    After this function, the BBJ_LEAVE block has been converted to a different type.
  */
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 
 void Compiler::impImportLeave(BasicBlock* block)
 {
@@ -9905,7 +9905,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
 void Compiler::impResetLeaveBlock(BasicBlock* block, unsigned jmpAddr)
 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // With EH Funclets, while importing leave opcode we create another block ending with BBJ_ALWAYS (call it B1)
     // and the block containing leave (say B0) is marked as BBJ_CALLFINALLY.   Say for some reason we reimport B0,
     // it is reset (in this routine) by marking as ending with BBJ_LEAVE and further down when B0 is reimported, we
@@ -10363,9 +10363,10 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
                 // Check the class attributes.
                 DWORD flags = info.compCompHnd->getClassAttribs(pResolvedToken->hClass);
 
-                // If the class is final and is not marshal byref or
+                // If the class is final and is not marshal byref, variant or
                 // contextful, the jit can expand the IsInst check inline.
-                DWORD flagsMask = CORINFO_FLG_FINAL | CORINFO_FLG_MARSHAL_BYREF | CORINFO_FLG_CONTEXTFUL;
+                DWORD flagsMask =
+                    CORINFO_FLG_FINAL | CORINFO_FLG_MARSHAL_BYREF | CORINFO_FLG_VARIANCE | CORINFO_FLG_CONTEXTFUL;
                 canExpandInline = ((flags & flagsMask) == CORINFO_FLG_FINAL);
             }
         }
@@ -20459,7 +20460,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
         // First, cons up a suitable resolved token.
         CORINFO_RESOLVED_TOKEN derivedResolvedToken = {};
 
-        derivedResolvedToken.tokenScope   = info.compScopeHnd;
+        derivedResolvedToken.tokenScope   = info.compCompHnd->getMethodModule(derivedMethod);
         derivedResolvedToken.tokenContext = *contextHandle;
         derivedResolvedToken.token        = info.compCompHnd->getMethodDefFromMethod(derivedMethod);
         derivedResolvedToken.tokenType    = CORINFO_TOKENKIND_Method;
