@@ -255,7 +255,7 @@ namespace System.Diagnostics.Tracing
             EventPipeProviderConfiguration[] providers)
         {
             Span<EventPipeProviderConfigurationNative> providersNative = new Span<EventPipeProviderConfigurationNative>((void*)Marshal.AllocCoTaskMem(sizeof(EventPipeProviderConfigurationNative) * providers.Length), providers.Length);
-            providersNative.Fill(default);
+            providersNative.Clear();
 
             try
             {
