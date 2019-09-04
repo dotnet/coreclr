@@ -1113,7 +1113,6 @@ void ILCodeStream::EndHandler(DWORD kind)
 
     m_finishedEHClauses.Append(clause);
     m_buildingEHClauses.SetCount(m_buildingEHClauses.GetCount() - 1);
-
 }
 
 void ILCodeStream::BeginCatchBlock(int token)
