@@ -47,17 +47,5 @@ namespace System.Diagnostics.Tracing
 
             return cpuUsage;
         }
-
-        internal static long GetWorkingSet()
-        {
-            Interop.ProcessMemoryCounters memoryCounters;
-            memoryCounters.cb = (uint)(Marshal.SizeOf(typeof(Interop.ProcessMemoryCounters)));
-
-            if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
-            {
-                return 0;
-            }
-            return (long)memoryCounters.WorkingSetSize;
-        }
     }
 }

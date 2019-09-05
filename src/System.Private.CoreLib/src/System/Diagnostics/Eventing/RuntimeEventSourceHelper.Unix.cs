@@ -14,10 +14,5 @@ namespace System.Diagnostics.Tracing
         {
             return Interop.Sys.GetCpuUtilization(ref cpuInfo);
         }
-
-        internal static long GetWorkingSet()
-        {
-            return Environment.WorkingSet;
-        }
     }
 }

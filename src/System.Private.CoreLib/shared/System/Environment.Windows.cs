@@ -119,5 +119,20 @@ namespace System
                 return builder.ToString();
             }
         }
+
+        public static unsafe long WorkingSet
+        {
+            get
+            {
+                Interop.ProcessMemoryCounters memoryCounters;
+                memoryCounters.cb = (uint)(sizeof(Interop.ProcessMemoryCounters));
+
+                if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
+                {
+                    return 0;
+                }
+                return (long)memoryCounters.WorkingSetSize;
+            }
+        }
     }
 }
