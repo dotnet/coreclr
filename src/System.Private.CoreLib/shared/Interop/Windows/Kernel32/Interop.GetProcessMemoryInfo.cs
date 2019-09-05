@@ -8,23 +8,23 @@ using System.Runtime.InteropServices;
 internal partial class Interop
 {
     [StructLayout(LayoutKind.Sequential)]
-    internal struct ProcessMemoryCounters
+    internal struct PROCESS_MEMORY_COUNTERS
     {
         public uint cb;
         public uint PageFaultCount;
-        public ulong PeakWorkingSetSize;
-        public ulong WorkingSetSize;
-        public ulong QuotaPeakPagedPoolUsage;
-        public ulong QuotaPagedPoolUsage;
-        public ulong QuotaPeakNonPagedPoolUsage;
-        public ulong QuotaNonPagedPoolUsage;
-        public ulong PagefileUsage;
-        public ulong PeakPagefileUsage;
+        public UIntPtr PeakWorkingSetSize;
+        public UIntPtr WorkingSetSize;
+        public UIntPtr QuotaPeakPagedPoolUsage;
+        public UIntPtr QuotaPagedPoolUsage;
+        public UIntPtr QuotaPeakNonPagedPoolUsage;
+        public UIntPtr QuotaNonPagedPoolUsage;
+        public UIntPtr PagefileUsage;
+        public UIntPtr PeakPagefileUsage;
     }
 
     internal partial class Kernel32
     {
-        [DllImport(Libraries.Kernel32, SetLastError = true)]
-        internal static extern bool K32GetProcessMemoryInfo(IntPtr handleProcess, out ProcessMemoryCounters pmCounter, uint cb);
+        [DllImport(Libraries.Kernel32)]
+        internal static extern bool K32GetProcessMemoryInfo(IntPtr Process, ref PROCESS_MEMORY_COUNTERS ppsmemCounters, uint cb);
     }
 }
