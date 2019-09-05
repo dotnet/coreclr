@@ -7452,13 +7452,16 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 
         CORINFO_METHOD_HANDLE targetMethHnd = call->callInfo->hMethod;
         CORINFO_SIG_INFO* callSiteSig = &call->callInfo->sig;
-        bool isCallvirt = 
-            (call->callInfo->kind == CORINFO_VIRTUALCALL_VTABLE) ||
+        unsigned flags = 0;
+        if ((call->callInfo->kind == CORINFO_VIRTUALCALL_VTABLE) ||
             (call->callInfo->kind == CORINFO_VIRTUALCALL_STUB) ||
-            (call->callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN);
+            (call->callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN))
+        {
+            flags |= CORINFO_TAILCALL_IS_CALLVIRT;
+        }
 
         if (!info.compCompHnd->getTailCallHelp(
-            targetMethHnd, callSiteSig, isCallvirt, &tailCallHelp))
+            targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELP_FLAGS)flags, &tailCallHelp))
         {
             failTailCall("Tail call help not available");
             return nullptr;

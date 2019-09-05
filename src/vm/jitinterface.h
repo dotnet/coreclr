@@ -974,7 +974,7 @@ public:
     bool getTailCallHelp(
         CORINFO_METHOD_HANDLE hTarget,
         CORINFO_SIG_INFO* callSiteSig,
-        bool isCallvirt,
+        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
         CORINFO_TAILCALL_HELP* pResult);
 
     bool convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken,

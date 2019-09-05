@@ -13941,7 +13941,7 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 bool CEEInfo::getTailCallHelp(
     CORINFO_METHOD_HANDLE hTarget,
     CORINFO_SIG_INFO* callSiteSig,
-    bool isCallvirt,
+    CORINFO_GET_TAILCALL_HELP_FLAGS flags,
     CORINFO_TAILCALL_HELP* pResult)
 {
     CONTRACTL {
@@ -13957,6 +13957,8 @@ bool CEEInfo::getTailCallHelp(
 
     MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
 
+    bool isCallvirt = (flags & CORINFO_TAILCALL_IS_CALLVIRT) != 0;
+
     MethodDesc* pStoreArgsMD;
     MethodDesc* pCallTargetMD;
     bool needsTarget;
@@ -13967,14 +13969,15 @@ bool CEEInfo::getTailCallHelp(
         &pStoreArgsMD, &needsTarget,
         &pCallTargetMD);
 
-    pResult->flags = 0;
-    pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
-    pResult->hCallTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
-
+    unsigned outFlags = 0;
     if (needsTarget)
     {
-        pResult->flags |= CORINFO_TAILCALL_STORE_TARGET;
+        outFlags |= CORINFO_TAILCALL_STORE_TARGET;
     }
+
+    pResult->flags = (CORINFO_TAILCALL_HELP_FLAGS)outFlags;
+    pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
+    pResult->hCallTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
 
     EE_TO_JIT_TRANSITION();
 

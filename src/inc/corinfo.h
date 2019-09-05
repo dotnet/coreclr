@@ -1857,7 +1857,15 @@ struct CORINFO_EE_INFO
     unsigned    osBuild;
 };
 
-enum CORINFO_TAILCALL_FLAGS
+// Flags passed from JIT to runtime.
+enum CORINFO_GET_TAILCALL_HELP_FLAGS
+{
+    // The callsite is a callvirt instruction.
+    CORINFO_TAILCALL_IS_CALLVIRT = 0x00000001,
+};
+
+// Flags passed from runtime to JIT.
+enum CORINFO_TAILCALL_HELP_FLAGS
 {
     // The StoreArgs stub needs to be passed the target function pointer as the
     // first argument.
@@ -1866,9 +1874,9 @@ enum CORINFO_TAILCALL_FLAGS
 
 struct CORINFO_TAILCALL_HELP
 {
-    unsigned               flags;
-    CORINFO_METHOD_HANDLE  hStoreArgs;
-    CORINFO_METHOD_HANDLE  hCallTarget;
+    CORINFO_TAILCALL_HELP_FLAGS flags;
+    CORINFO_METHOD_HANDLE       hStoreArgs;
+    CORINFO_METHOD_HANDLE       hCallTarget;
 };
 
 // This is used to indicate that a finally has been called 
@@ -3261,8 +3269,8 @@ public:
         // Call site signature. Necessary for calli and varargs.
         CORINFO_SIG_INFO* callSiteSig,
 
-        // Whether callsite is a 'callvirt' instruction.
-        bool isCallvirt,
+        // Flags for the tailcall site.
+        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
 
         // The resulting help.
         CORINFO_TAILCALL_HELP* pResult)
