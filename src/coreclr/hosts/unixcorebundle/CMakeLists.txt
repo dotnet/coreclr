@@ -9,6 +9,8 @@ include(configure.cmake)
 
 add_definitions(-DCOREBUNDLE_BUILD)
 
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
+
 set(COREBUNDLE_SOURCES
     corebundle.cpp
     ./bundle/dir_utils.cpp
@@ -47,6 +49,11 @@ _add_executable(corebundle
 )
 
 set_property(TARGET corebundle APPEND_STRING PROPERTY LINK_FLAGS " -Wl,--export-dynamic") # Necessary to get symbols exported from executable
+
+if (HAVE_LTO)
+   target_compile_options(corebundle PRIVATE -flto)
+   set_property(TARGET corebundle APPEND_STRING PROPERTY LINK_FLAGS " -flto")
+endif()
 
 # The following linked options can be inserted into the linker libraries list to
 # ensure proper resolving of circular references between a subset of the libraries.
