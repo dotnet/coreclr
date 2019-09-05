@@ -193,8 +193,6 @@ NamedIntrinsic HWIntrinsicInfo::lookupId(Compiler*   comp,
 
     if (isa == InstructionSet_ILLEGAL)
     {
-        // There are several platform-agnostic intrinsics (e.g., Vector64) that
-        // are not supported in x86, so early return NI_Illegal
         return NI_Illegal;
     }
 
@@ -358,7 +356,7 @@ GenTree* HWIntrinsicInfo::lookupLastOp(const GenTreeHWIntrinsic* node)
 }
 
 //------------------------------------------------------------------------
-// isImmOp: Gets a value that indicates whether the HWIntrinsic node has an imm operand
+// isImmOp: Checks whether the HWIntrinsic node has an imm operand
 //
 // Arguments:
 //    id -- The NamedIntrinsic associated with the HWIntrinsic to lookup
@@ -387,14 +385,14 @@ bool HWIntrinsicInfo::isImmOp(NamedIntrinsic id, const GenTree* op)
 }
 
 //------------------------------------------------------------------------
-// getArgForHWIntrinsic: get the argument from the stack and match  the signature
+// // getArgForHWIntrinsic: pop an argument from the stack and validate its type
 //
 // Arguments:
 //    argType   -- the required type of argument
 //    argClass  -- the class handle of argType
 //
 // Return Value:
-//     get the argument at the given index from the stack and match  the signature
+//     the validated argument
 //
 GenTree* Compiler::getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE argClass)
 {
@@ -423,58 +421,56 @@ GenTree* Compiler::getArgForHWIntrinsic(var_types argType, CORINFO_CLASS_HANDLE 
 //
 // Arguments:
 //    intrinsic  -- intrinsic ID
-//    lastOp     -- the last operand of the intrinsic that points to the imm-arg
+//    immOP      -- the last operand of the intrinsic that points to the imm-arg
 //    mustExpand -- true if the compiler is compiling the fallback(GT_CALL) of this intrinsics
 //
 // Return Value:
 //     add a GT_HW_INTRINSIC_CHK node for non-full-range imm-intrinsic, which would throw ArgumentOutOfRangeException
 //     when the imm-argument is not in the valid range
 //
-GenTree* Compiler::addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* lastOp, bool mustExpand)
+GenTree* Compiler::addRangeCheckIfNeeded(NamedIntrinsic intrinsic, GenTree* immOp, bool mustExpand)
 {
-    assert(lastOp != nullptr);
+    assert(immOp != nullptr);
     // Full-range imm-intrinsics do not need the range-check
     // because the imm-parameter of the intrinsic method is a byte.
     // AVX2 Gather intrinsics no not need the range-check
     // because their imm-parameter have discrete valid values that are handle by managed code
-    if (mustExpand && !HWIntrinsicInfo::HasFullRangeImm(intrinsic) && HWIntrinsicInfo::isImmOp(intrinsic, lastOp)
+    if (mustExpand && !HWIntrinsicInfo::HasFullRangeImm(intrinsic) && HWIntrinsicInfo::isImmOp(intrinsic, immOp)
 #ifdef _TARGET_XARCH_
         && !HWIntrinsicInfo::isAVX2GatherIntrinsic(intrinsic)
 #endif
             )
     {
-        assert(!lastOp->IsCnsIntOrI());
+        assert(!immOp->IsCnsIntOrI());
         GenTree* upperBoundNode = gtNewIconNode(HWIntrinsicInfo::lookupImmUpperBound(intrinsic), TYP_INT);
         GenTree* index          = nullptr;
-        if ((lastOp->gtFlags & GTF_SIDE_EFFECT) != 0)
+        if ((immOp->gtFlags & GTF_SIDE_EFFECT) != 0)
         {
-            index = fgInsertCommaFormTemp(&lastOp);
+            index = fgInsertCommaFormTemp(&immOp);
         }
         else
         {
-            index = gtCloneExpr(lastOp);
+            index = gtCloneExpr(immOp);
         }
         GenTreeBoundsChk* hwIntrinsicChk = new (this, GT_HW_INTRINSIC_CHK)
             GenTreeBoundsChk(GT_HW_INTRINSIC_CHK, TYP_VOID, index, upperBoundNode, SCK_RNGCHK_FAIL);
         hwIntrinsicChk->gtThrowKind = SCK_ARG_RNG_EXCPN;
-        return gtNewOperNode(GT_COMMA, lastOp->TypeGet(), hwIntrinsicChk, lastOp);
+        return gtNewOperNode(GT_COMMA, immOp->TypeGet(), hwIntrinsicChk, immOp);
     }
     else
     {
-        return lastOp;
+        return immOp;
     }
 }
 
 //------------------------------------------------------------------------
-// compSupportsHWIntrinsic: compiler support of hardware intrinsics
+// compSupportsHWIntrinsic: check whether a given instruction set is supported
 //
 // Arguments:
 //    isa - Instruction set
+//
 // Return Value:
-//    true if EnableHWIntrinsic=true and
-//    - isa is a scalar ISA
-//    - isa is a SIMD ISA and featureSIMD=true
-//    - isa is fully implemented or EnableIncompleteISAClass=true
+//    true iff the given instruction set is supported in the current compilation.
 bool Compiler::compSupportsHWIntrinsic(InstructionSet isa)
 {
     return JitConfig.EnableHWIntrinsic() && (featureSIMD || HWIntrinsicInfo::isScalarIsa(isa)) &&
@@ -496,14 +492,12 @@ bool Compiler::compSupportsHWIntrinsic(InstructionSet isa)
 //
 static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicCategory category)
 {
-    // HW_Flag_NoCodeGen implies this intrinsic should be manually morphed in the importer.
     return (category != HW_Category_Special) && (category != HW_Category_Scalar) &&
            HWIntrinsicInfo::RequiresCodegen(intrinsicId) && !HWIntrinsicInfo::HasSpecialImport(intrinsicId);
 }
 
 //------------------------------------------------------------------------
-// impHWIntrinsic: dispatch hardware intrinsics to their own implementation
-// function
+// impHWIntrinsic: Import a hardware intrinsic as a GT_HWIntrinsic node if possible
 //
 // Arguments:
 //    intrinsic -- id of the intrinsic function.
@@ -511,7 +505,7 @@ static bool impIsTableDrivenHWIntrinsic(NamedIntrinsic intrinsicId, HWIntrinsicC
 //    sig       -- signature of the intrinsic call
 //
 // Return Value:
-//    the expanded intrinsic.
+//    The GT_HWIntrinsic node, or nullptr if not a supported intrinsic
 //
 GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                                   CORINFO_CLASS_HANDLE  clsHnd,
@@ -533,7 +527,8 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
         assert(sizeBytes != 0);
     }
 
-    // Avoid checking stacktop for 0-op intrinsics
+    // NOTE: The following code assumes that for all intrinsics
+    // taking an immediate operand, that operand will be last.
     if (sig->numArgs > 0 && HWIntrinsicInfo::isImmOp(intrinsic, impStackTop().val))
     {
         GenTree* lastOp = impStackTop().val;
@@ -568,7 +563,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
 
     if (HWIntrinsicInfo::IsFloatingPointUsed(intrinsic))
     {
-        // Set `compFloatingPointUsed` to cover the scenario where an intrinsic is being on SIMD fields, but
+        // Set `compFloatingPointUsed` to cover the scenario where an intrinsic is operating on SIMD fields, but
         // where no SIMD local vars are in use. This is the same logic as is used for FEATURE_SIMD.
         compFloatingPointUsed = true;
     }
@@ -675,15 +670,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                 argType = JITtype2varType(strip(info.compCompHnd->getArgType(sig, arg2, &argClass)));
                 op2     = getArgForHWIntrinsic(argType, argClass);
 
-#ifdef _TARGET_XARCH_
-                var_types op2Type = TYP_UNDEF;
-
-                if (intrinsic == NI_AVX2_GatherVector128 || intrinsic == NI_AVX2_GatherVector256)
-                {
-                    assert(varTypeIsSIMD(op2->TypeGet()));
-                    op2Type = getBaseTypeOfSIMDType(argClass);
-                }
-#endif
+                CORINFO_CLASS_HANDLE op2ArgClass = argClass;
 
                 argType = JITtype2varType(strip(info.compCompHnd->getArgType(sig, argList, &argClass)));
                 op1     = getArgForHWIntrinsic(argType, argClass);
@@ -694,7 +681,7 @@ GenTree* Compiler::impHWIntrinsic(NamedIntrinsic        intrinsic,
                 if (intrinsic == NI_AVX2_GatherVector128 || intrinsic == NI_AVX2_GatherVector256)
                 {
                     assert(varTypeIsSIMD(op2->TypeGet()));
-                    retNode->AsHWIntrinsic()->gtIndexBaseType = op2Type;
+                    retNode->AsHWIntrinsic()->gtIndexBaseType = getBaseTypeOfSIMDType(op2ArgClass);
                 }
 #endif
                 break;

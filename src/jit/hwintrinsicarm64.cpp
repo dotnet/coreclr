@@ -195,13 +195,12 @@ bool HWIntrinsicInfo::isScalarIsa(InstructionSet isa)
 }
 
 //------------------------------------------------------------------------
-// impNonConstFallback: convert certain shift intrinsic to its semantic alternative when the imm-arg is
-// not a compile-time constant
+// impNonConstFallback: generate alternate code when the imm-arg is not a compile-time constant
 //
 // Arguments:
 //    intrinsic  -- intrinsic ID
 //    simdType   -- Vector type
-//    baseType   -- base type of the Vector128/256<T>
+//    baseType   -- base type of the Vector64/128<T>
 //
 // Return Value:
 //     return the IR of semantic alternative on non-const imm-arg
@@ -212,7 +211,7 @@ GenTree* Compiler::impNonConstFallback(NamedIntrinsic intrinsic, var_types simdT
 }
 
 //------------------------------------------------------------------------
-// impSpecialIntrinsic: dispatch intrinsics to their own implementation
+// impSpecialIntrinsic: Import a hardware intrinsic that requires special handling as a GT_HWIntrinsic node if possible
 //
 // Arguments:
 //    intrinsic  -- id of the intrinsic function.
@@ -221,7 +220,7 @@ GenTree* Compiler::impNonConstFallback(NamedIntrinsic intrinsic, var_types simdT
 //    mustExpand -- true if the compiler is compiling the fallback(GT_CALL) of this intrinsics
 //
 // Return Value:
-//    the expanded intrinsic.
+//    The GT_HWIntrinsic node, or nullptr if not a supported intrinsic
 //
 GenTree* Compiler::impSpecialIntrinsic(NamedIntrinsic        intrinsic,
                                        CORINFO_CLASS_HANDLE  clsHnd,
