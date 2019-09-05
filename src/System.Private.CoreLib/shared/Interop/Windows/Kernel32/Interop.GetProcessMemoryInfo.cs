@@ -24,7 +24,7 @@ internal partial class Interop
 
     internal partial class Kernel32
     {
-        [DllImport("psapi.dll", SetLastError = true)]
-        internal static extern bool GetProcessMemoryInfo(IntPtr handleProcess, out ProcessMemoryCounters pmCounter, uint cb);
+        [DllImport(Libraries.Kernel32, SetLastError = true)]
+        internal static extern bool K32GetProcessMemoryInfo(IntPtr handleProcess, out ProcessMemoryCounters pmCounter, uint cb);
     }
 }

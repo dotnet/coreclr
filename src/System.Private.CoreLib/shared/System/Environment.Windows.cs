@@ -127,7 +127,7 @@ namespace System
                 Interop.ProcessMemoryCounters memoryCounters;
                 memoryCounters.cb = (uint)(sizeof(Interop.ProcessMemoryCounters));
 
-                if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
+                if (!Interop.Kernel32.K32GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
                 {
                     return 0;
                 }
