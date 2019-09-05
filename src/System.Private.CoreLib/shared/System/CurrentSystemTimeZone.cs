@@ -29,9 +29,9 @@ namespace System
         // no daylight saving is in used.
         // E.g. the offset for PST (Pacific Standard time) should be -8 * 60 * 60 * 1000 * 10000.
         // (1 millisecond = 10000 ticks)
-        private long m_ticksOffset;
-        private string m_standardName;
-        private string m_daylightName;
+        private readonly long m_ticksOffset;
+        private readonly string m_standardName;
+        private readonly string m_daylightName;
 
         internal CurrentSystemTimeZone()
         {
@@ -42,21 +42,9 @@ namespace System
             m_daylightName = local.DaylightName;
         }
 
-        public override string StandardName
-        {
-            get
-            {
-                return m_standardName;
-            }
-        }
+        public override string StandardName => m_standardName;
 
-        public override string DaylightName
-        {
-            get
-            {
-                return m_daylightName;
-            }
-        }
+        public override string DaylightName => m_daylightName;
 
         internal long GetUtcOffsetFromUniversalTime(DateTime time, ref bool isAmbiguousLocalDst)
         {
@@ -89,7 +77,7 @@ namespace System
                 ambiguousEnd = startTime - daylightTime.Delta;
             }
 
-            bool isDst = false;
+            bool isDst;
             if (startTime > endTime)
             {
                 // In southern hemisphere, the daylight saving time starts later in the year, and ends in the beginning of next year.
@@ -156,7 +144,7 @@ namespace System
                 DateTime end;
                 TimeSpan delta;
 
-                foreach (var rule in TimeZoneInfo.Local.GetAdjustmentRules())
+                foreach (TimeZoneInfo.AdjustmentRule rule in TimeZoneInfo.Local.GetAdjustmentRules())
                 {
                     if (rule.DateStart.Year <= year && rule.DateEnd.Year >= year && rule.DaylightDelta != TimeSpan.Zero)
                     {

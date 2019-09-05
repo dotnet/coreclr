@@ -10,6 +10,7 @@ using System.Text;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -661,7 +662,7 @@ namespace System.Runtime.InteropServices
                 throw new ArgumentNullException(nameof(s));
             }
 
-            return s.MarshalToString(globalAlloc: true, unicode: true); ;
+            return s.MarshalToString(globalAlloc: true, unicode: true);
         }
 
         public static unsafe IntPtr StringToHGlobalAnsi(string? s)

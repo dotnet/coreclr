@@ -6,7 +6,6 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace System.Collections.Generic
 {
@@ -28,7 +27,9 @@ namespace System.Collections.Generic
         private int _size; // Do not rename (binary serialization)
         private int _version; // Do not rename (binary serialization)
 
+#pragma warning disable CA1825 // avoid the extra generic instantiation for Array.Empty<T>()
         private static readonly T[] s_emptyArray = new T[0];
+#pragma warning restore CA1825
 
         // Constructs a List. The list is initially empty and has a capacity
         // of zero. Upon adding the first element to the list the capacity is
@@ -97,10 +98,7 @@ namespace System.Collections.Generic
         //
         public int Capacity
         {
-            get
-            {
-                return _items.Length;
-            }
+            get => _items.Length;
             set
             {
                 if (value < _size)
@@ -176,10 +174,7 @@ namespace System.Collections.Generic
 
         object? IList.this[int index]
         {
-            get
-            {
-                return this[index];
-            }
+            get => this[index];
             set
             {
                 ThrowHelper.IfNullAndNullsAreIllegalThenThrow<T>(value, ExceptionArgument.value);
@@ -429,7 +424,7 @@ namespace System.Collections.Generic
 
             for (int i = 0; i < _size; i++)
             {
-                if (match!(_items[i]))
+                if (match(_items[i]))
                 {
                     return _items[i];
                 }
@@ -481,7 +476,7 @@ namespace System.Collections.Generic
             int endIndex = startIndex + count;
             for (int i = startIndex; i < endIndex; i++)
             {
-                if (match!(_items[i])) return i;
+                if (match(_items[i])) return i;
             }
             return -1;
         }
@@ -496,7 +491,7 @@ namespace System.Collections.Generic
 
             for (int i = _size - 1; i >= 0; i--)
             {
-                if (match!(_items[i]))
+                if (match(_items[i]))
                 {
                     return _items[i];
                 }
@@ -566,7 +561,7 @@ namespace System.Collections.Generic
                 {
                     break;
                 }
-                action!(_items[i]);
+                action(_items[i]);
             }
 
             if (version != _version)
@@ -874,7 +869,7 @@ namespace System.Collections.Generic
             while (current < _size)
             {
                 // Find the first item which needs to be kept.
-                while (current < _size && match!(_items[current])) current++;
+                while (current < _size && match(_items[current])) current++;
 
                 if (current < _size)
                 {
@@ -1072,7 +1067,7 @@ namespace System.Collections.Generic
 
             for (int i = 0; i < _size; i++)
             {
-                if (!match!(_items[i]))
+                if (!match(_items[i]))
                 {
                     return false;
                 }

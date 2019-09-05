@@ -13,7 +13,6 @@
 ===========================================================*/
 
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.Serialization;
 using System.Threading;
 
@@ -171,9 +170,8 @@ namespace System.Collections
             }
             set
             {
-                if (_keycomparer is CompatibleComparer)
+                if (_keycomparer is CompatibleComparer keyComparer)
                 {
-                    CompatibleComparer keyComparer = (CompatibleComparer)_keycomparer;
                     _keycomparer = new CompatibleComparer(value, keyComparer.Comparer);
                 }
                 else if (_keycomparer == null)
@@ -207,9 +205,8 @@ namespace System.Collections
             }
             set
             {
-                if (_keycomparer is CompatibleComparer)
+                if (_keycomparer is CompatibleComparer keyComparer)
                 {
-                    CompatibleComparer keyComparer = (CompatibleComparer)_keycomparer;
                     _keycomparer = new CompatibleComparer(keyComparer.HashCodeProvider, value);
                 }
                 else if (_keycomparer == null)
@@ -224,13 +221,7 @@ namespace System.Collections
         }
 
 
-        protected IEqualityComparer? EqualityComparer
-        {
-            get
-            {
-                return _keycomparer;
-            }
-        }
+        protected IEqualityComparer? EqualityComparer => _keycomparer;
 
         // Note: this constructor is a bogus constructor that does nothing
         // and is for use only with SyncHashtable.
@@ -377,9 +368,9 @@ namespace System.Collections
 
         protected Hashtable(SerializationInfo info, StreamingContext context)
         {
-            //We can't do anything with the keys and values until the entire graph has been deserialized
-            //and we have a reasonable estimate that GetHashCode is not going to fail.  For the time being,
-            //we'll just cache this.  The graph is not valid until OnDeserialization has been called.
+            // We can't do anything with the keys and values until the entire graph has been deserialized
+            // and we have a reasonable estimate that GetHashCode is not going to fail.  For the time being,
+            // we'll just cache this.  The graph is not valid until OnDeserialization has been called.
             HashHelpers.SerializationInfoTable.Add(this, info);
         }
 
@@ -667,7 +658,7 @@ namespace System.Collections
                 {
                     int currentversion;
 
-                    //     A read operation on hashtable has three steps:
+                    // A read operation on hashtable has three steps:
                     //        (1) calculate the hash and find the slot number.
                     //        (2) compare the hashcode, if equal, go to step 3. Otherwise end.
                     //        (3) compare the key, if equal, go to step 4. Otherwise end.
@@ -708,10 +699,7 @@ namespace System.Collections
                 return null;
             }
 
-            set
-            {
-                Insert(key, value, false);
-            }
+            set => Insert(key, value, false);
         }
 
         // Increases the bucket count of this hashtable. This method is called from
@@ -806,21 +794,12 @@ namespace System.Collections
         }
 
         // Is this Hashtable read-only?
-        public virtual bool IsReadOnly
-        {
-            get { return false; }
-        }
+        public virtual bool IsReadOnly => false;
 
-        public virtual bool IsFixedSize
-        {
-            get { return false; }
-        }
+        public virtual bool IsFixedSize => false;
 
         // Is this Hashtable synchronized?  See SyncRoot property
-        public virtual bool IsSynchronized
-        {
-            get { return false; }
-        }
+        public virtual bool IsSynchronized => false;
 
         // Internal method to compare two keys.  If you have provided an IComparer
         // instance in the constructor, this method will call comparer.Compare(item, key).
@@ -915,7 +894,7 @@ namespace System.Collections
                 // that once contained an entry and also has had a collision.
                 // We need to search this entire collision chain because we have to ensure that there are no
                 // duplicate entries in the table.
-                if (emptySlotNumber == -1 && (_buckets[bucketNumber].key == _buckets) && (_buckets[bucketNumber].hash_coll < 0))//(((buckets[bucketNumber].hash_coll & unchecked(0x80000000))!=0)))
+                if (emptySlotNumber == -1 && (_buckets[bucketNumber].key == _buckets) && (_buckets[bucketNumber].hash_coll < 0))// (((buckets[bucketNumber].hash_coll & unchecked(0x80000000))!=0)))
                     emptySlotNumber = bucketNumber;
 
                 // Insert the key/value pair into this bucket if this bucket is empty and has never contained an entry
@@ -1076,10 +1055,7 @@ namespace System.Collections
 
         // Returns the number of associations in this hashtable.
         //
-        public virtual int Count
-        {
-            get { return _count; }
-        }
+        public virtual int Count => _count;
 
         // Returns a thread-safe wrapper for a Hashtable.
         //
@@ -1133,7 +1109,7 @@ namespace System.Collections
                 }
 #pragma warning restore 618
 
-                info.AddValue(HashSizeName, _buckets.Length); //This is the length of the bucket array.
+                info.AddValue(HashSizeName, _buckets.Length); // This is the length of the bucket array.
                 object[] serKeys = new object[_count];
                 object[] serValues = new object[_count];
                 CopyKeys(serKeys, 0);
@@ -1251,7 +1227,7 @@ namespace System.Collections
         // class is created by the GetKeys method of a hashtable.
         private class KeyCollection : ICollection
         {
-            private Hashtable _hashtable;
+            private readonly Hashtable _hashtable;
 
             internal KeyCollection(Hashtable hashtable)
             {
@@ -1276,27 +1252,18 @@ namespace System.Collections
                 return new HashtableEnumerator(_hashtable, HashtableEnumerator.Keys);
             }
 
-            public virtual bool IsSynchronized
-            {
-                get { return _hashtable.IsSynchronized; }
-            }
+            public virtual bool IsSynchronized => _hashtable.IsSynchronized;
 
-            public virtual object SyncRoot
-            {
-                get { return _hashtable.SyncRoot; }
-            }
+            public virtual object SyncRoot => _hashtable.SyncRoot;
 
-            public virtual int Count
-            {
-                get { return _hashtable._count; }
-            }
+            public virtual int Count => _hashtable._count;
         }
 
         // Implements a Collection for the values of a hashtable. An instance of
         // this class is created by the GetValues method of a hashtable.
         private class ValueCollection : ICollection
         {
-            private Hashtable _hashtable;
+            private readonly Hashtable _hashtable;
 
             internal ValueCollection(Hashtable hashtable)
             {
@@ -1321,20 +1288,11 @@ namespace System.Collections
                 return new HashtableEnumerator(_hashtable, HashtableEnumerator.Values);
             }
 
-            public virtual bool IsSynchronized
-            {
-                get { return _hashtable.IsSynchronized; }
-            }
+            public virtual bool IsSynchronized => _hashtable.IsSynchronized;
 
-            public virtual object SyncRoot
-            {
-                get { return _hashtable.SyncRoot; }
-            }
+            public virtual object SyncRoot => _hashtable.SyncRoot;
 
-            public virtual int Count
-            {
-                get { return _hashtable._count; }
-            }
+            public virtual int Count => _hashtable._count;
         }
 
         // Synchronized wrapper for hashtable
@@ -1357,32 +1315,17 @@ namespace System.Collections
                 throw new PlatformNotSupportedException();
             }
 
-            public override int Count
-            {
-                get { return _table.Count; }
-            }
+            public override int Count => _table.Count;
 
-            public override bool IsReadOnly
-            {
-                get { return _table.IsReadOnly; }
-            }
+            public override bool IsReadOnly => _table.IsReadOnly;
 
-            public override bool IsFixedSize
-            {
-                get { return _table.IsFixedSize; }
-            }
+            public override bool IsFixedSize => _table.IsFixedSize;
 
-            public override bool IsSynchronized
-            {
-                get { return true; }
-            }
+            public override bool IsSynchronized => true;
 
             public override object? this[object key]
             {
-                get
-                {
-                    return _table[key];
-                }
+                get => _table[key];
                 set
                 {
                     lock (_table.SyncRoot)
@@ -1392,10 +1335,7 @@ namespace System.Collections
                 }
             }
 
-            public override object SyncRoot
-            {
-                get { return _table.SyncRoot; }
-            }
+            public override object SyncRoot => _table.SyncRoot;
 
             public override void Add(object key, object? value)
             {
@@ -1510,11 +1450,11 @@ namespace System.Collections
         // are made to the hashtable while an enumeration is in progress.
         private class HashtableEnumerator : IDictionaryEnumerator, ICloneable
         {
-            private Hashtable _hashtable;
+            private readonly Hashtable _hashtable;
             private int _bucket;
-            private int _version;
+            private readonly int _version;
             private bool _current;
-            private int _getObjectRetType;   // What should GetObject return?
+            private readonly int _getObjectRetType;   // What should GetObject return?
             private object? _currentKey;
             private object? _currentValue;
 
@@ -1614,7 +1554,7 @@ namespace System.Collections
         // internal debug view class for hashtable
         internal class HashtableDebugView
         {
-            private Hashtable _hashtable;
+            private readonly Hashtable _hashtable;
 
             public HashtableDebugView(Hashtable hashtable)
             {
@@ -1627,13 +1567,7 @@ namespace System.Collections
             }
 
             [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-            public KeyValuePairs[] Items
-            {
-                get
-                {
-                    return _hashtable.ToKeyValuePairsArray();
-                }
-            }
+            public KeyValuePairs[] Items => _hashtable.ToKeyValuePairsArray();
         }
     }
 }

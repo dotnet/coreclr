@@ -430,7 +430,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, 
 
     /* Store the tree list in the basic block */
 
-    block->bbTreeList = firstStmt;
+    block->bbStmtList = firstStmt;
 
     /* The block should not already be marked as imported */
     assert((block->bbFlags & BBF_IMPORTED) == 0);
@@ -535,7 +535,7 @@ inline void Compiler::impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel)
 
 /*****************************************************************************
  *
- *  Append the given GT_STMT node to the current block's tree list.
+ *  Append the given statement to the current block's tree list.
  *  [0..chkLevel) is the portion of the stack which we will check for
  *    interference with stmt and spill if needed.
  */
@@ -638,7 +638,7 @@ inline void Compiler::impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel)
     if (verbose)
     {
         printf("\n\n");
-        gtDispTree(stmt);
+        gtDispTree(stmt->gtStmtExpr);
     }
 #endif
 }
@@ -688,7 +688,7 @@ GenTreeStmt* Compiler::impExtractLastStmt()
 }
 
 //-------------------------------------------------------------------------
-// impInsertStmtBefore: Insert the given GT_STMT "stmt" before GT_STMT "stmtBefore".
+// impInsertStmtBefore: Insert the given "stmt" before "stmtBefore".
 //
 // Arguments:
 //    stmt       - a statement to insert;
@@ -736,7 +736,7 @@ GenTreeStmt* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSET
 
 /*****************************************************************************
  *
- *  Insert the given exression tree before GT_STMT "stmtBefore"
+ *  Insert the given expression tree before "stmtBefore"
  */
 
 void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTreeStmt* stmtBefore)
@@ -2609,24 +2609,29 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
         /* Account for the new link we are about to create */
         hndBlk->bbRefs++;
 
-        /* Spill into a temp */
+        // Spill into a temp.
         unsigned tempNum         = lvaGrabTemp(false DEBUGARG("SpillCatchArg"));
         lvaTable[tempNum].lvType = TYP_REF;
-        arg                      = gtNewTempAssign(tempNum, arg);
+        GenTree* argAsg          = gtNewTempAssign(tempNum, arg);
+        arg                      = gtNewLclvNode(tempNum, TYP_REF);
 
         hndBlk->bbStkTempsIn = tempNum;
 
-        /* Report the debug info. impImportBlockCode won't treat
-         * the actual handler as exception block and thus won't do it for us. */
+        GenTreeStmt* argStmt;
+
         if (info.compStmtOffsetsImplicit & ICorDebugInfo::CALL_SITE_BOUNDARIES)
         {
+            // Report the debug info. impImportBlockCode won't treat the actual handler as exception block and thus
+            // won't do it for us.
             impCurStmtOffs = newBlk->bbCodeOffs | IL_OFFSETX_STKBIT;
-            arg            = gtNewStmt(arg, impCurStmtOffs);
+            argStmt        = gtNewStmt(argAsg, impCurStmtOffs);
+        }
+        else
+        {
+            argStmt = gtNewStmt(argAsg);
         }
 
-        fgInsertStmtAtEnd(newBlk, arg);
-
-        arg = gtNewLclvNode(tempNum, TYP_REF);
+        fgInsertStmtAtEnd(newBlk, argStmt);
     }
 
     impPushOnStack(arg, typeInfo(TI_REF, clsHnd));
@@ -9185,7 +9190,7 @@ REDO_RETURN_NODE:
    After this function, the BBJ_LEAVE block has been converted to a different type.
  */
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 
 void Compiler::impImportLeave(BasicBlock* block)
 {
@@ -9900,7 +9905,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
 void Compiler::impResetLeaveBlock(BasicBlock* block, unsigned jmpAddr)
 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // With EH Funclets, while importing leave opcode we create another block ending with BBJ_ALWAYS (call it B1)
     // and the block containing leave (say B0) is marked as BBJ_CALLFINALLY.   Say for some reason we reimport B0,
     // it is reset (in this routine) by marking as ending with BBJ_LEAVE and further down when B0 is reimported, we
@@ -10358,9 +10363,10 @@ GenTree* Compiler::impCastClassOrIsInstToTree(GenTree*                op1,
                 // Check the class attributes.
                 DWORD flags = info.compCompHnd->getClassAttribs(pResolvedToken->hClass);
 
-                // If the class is final and is not marshal byref or
+                // If the class is final and is not marshal byref, variant or
                 // contextful, the jit can expand the IsInst check inline.
-                DWORD flagsMask = CORINFO_FLG_FINAL | CORINFO_FLG_MARSHAL_BYREF | CORINFO_FLG_CONTEXTFUL;
+                DWORD flagsMask =
+                    CORINFO_FLG_FINAL | CORINFO_FLG_MARSHAL_BYREF | CORINFO_FLG_VARIANCE | CORINFO_FLG_CONTEXTFUL;
                 canExpandInline = ((flags & flagsMask) == CORINFO_FLG_FINAL);
             }
         }
@@ -20454,7 +20460,7 @@ void Compiler::impDevirtualizeCall(GenTreeCall*            call,
         // First, cons up a suitable resolved token.
         CORINFO_RESOLVED_TOKEN derivedResolvedToken = {};
 
-        derivedResolvedToken.tokenScope   = info.compScopeHnd;
+        derivedResolvedToken.tokenScope   = info.compCompHnd->getMethodModule(derivedMethod);
         derivedResolvedToken.tokenContext = *contextHandle;
         derivedResolvedToken.token        = info.compCompHnd->getMethodDefFromMethod(derivedMethod);
         derivedResolvedToken.tokenType    = CORINFO_TOKENKIND_Method;

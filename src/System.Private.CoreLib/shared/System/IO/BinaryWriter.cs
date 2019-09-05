@@ -22,7 +22,7 @@ namespace System.IO
         private readonly Encoding _encoding;
         private readonly Encoder _encoder;
 
-        private bool _leaveOpen;
+        private readonly bool _leaveOpen;
 
         // Perf optimization stuff
         private byte[]? _largeByteBuffer;  // temp space for writing chars.
@@ -193,7 +193,7 @@ namespace System.IO
         // advanced by two.
         // Note this method cannot handle surrogates properly in UTF-8.
         //
-        public unsafe virtual void Write(char ch)
+        public virtual unsafe void Write(char ch)
         {
             if (char.IsSurrogate(ch))
                 throw new ArgumentException(SR.Arg_SurrogatesNotAllowedAsSingleChar);
@@ -236,7 +236,7 @@ namespace System.IO
         // Writes a double to this stream. The current position of the stream is
         // advanced by eight.
         //
-        public unsafe virtual void Write(double value)
+        public virtual unsafe void Write(double value)
         {
             ulong TmpValue = *(ulong*)&value;
             _buffer[0] = (byte)TmpValue;
@@ -338,7 +338,7 @@ namespace System.IO
         // Writes a float to this stream. The current position of the stream is
         // advanced by four.
         //
-        public unsafe virtual void Write(float value)
+        public virtual unsafe void Write(float value)
         {
             uint TmpValue = *(uint*)&value;
             _buffer[0] = (byte)TmpValue;
@@ -354,7 +354,7 @@ namespace System.IO
         // a four-byte unsigned integer, and then writes that many characters
         // to the stream.
         //
-        public unsafe virtual void Write(string value)
+        public virtual unsafe void Write(string value)
         {
             if (value == null)
                 throw new ArgumentNullException(nameof(value));
@@ -370,7 +370,6 @@ namespace System.IO
 
             if (len <= _largeByteBuffer.Length)
             {
-                //Debug.Assert(len == _encoding.GetBytes(chars, 0, chars.Length, _largeByteBuffer, 0), "encoding's GetByteCount & GetBytes gave different answers!  encoding type: "+_encoding.GetType().Name);
                 _encoding.GetBytes(value, 0, value.Length, _largeByteBuffer, 0);
                 OutStream.Write(_largeByteBuffer, 0, len);
             }

@@ -210,7 +210,7 @@ class MethodDesc
 
 public:
 
-#ifdef _WIN64
+#ifdef BIT64
     static const int ALIGNMENT_SHIFT = 3;
 #else
     static const int ALIGNMENT_SHIFT = 2;
@@ -668,7 +668,6 @@ public:
         return GetMethodTable()->IsInterface();
     }
 
-    void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
     BOOL HasNativeCallableAttribute();
 
 #ifdef FEATURE_COMINTEROP 
@@ -1405,27 +1404,40 @@ private:
     void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType, PCODE currentEntryPoint);
 
 public:
+    bool TryBackpatchEntryPointSlotsFromPrestub(PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        return TryBackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */, true /* onlyFromPrestubEntryPoint */);
+    }
+
     void BackpatchEntryPointSlots(PCODE entryPoint)
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(entryPoint != GetPrestubEntryPointToBackpatch());
-        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
-
         BackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */);
     }
 
     void BackpatchToResetEntryPointSlots()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
-
         BackpatchEntryPointSlots(GetPrestubEntryPointToBackpatch(), true /* isPrestubEntryPoint */);
     }
 
 private:
-    void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint);
+    void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifdef _DEBUG // workaround for release build unused variable error
+        bool success =
+#endif
+            TryBackpatchEntryPointSlots(entryPoint, isPrestubEntryPoint, false /* onlyFromPrestubEntryPoint */);
+        _ASSERTE(success);
+    }
+
+    bool TryBackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint, bool onlyFromPrestubEntryPoint);
 
 public:
+    void TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
     void SetCodeEntryPoint(PCODE entryPoint);
     void ResetCodeEntryPoint();
 
@@ -2022,7 +2034,6 @@ public:
 #ifndef DACCESS_COMPILE
 public:
     PCODE PrepareInitialCode();
-    PCODE PrepareCode(NativeCodeVersion codeVersion);
     PCODE PrepareCode(PrepareCodeConfig* pConfig);
 
 private:
@@ -2066,6 +2077,54 @@ public:
     BOOL ReadyToRunRejectedPrecompiledCode();
     void SetProfilerRejectedPrecompiledCode();
     void SetReadyToRunRejectedPrecompiledCode();
+
+#ifdef FEATURE_CODE_VERSIONING
+public:
+    bool ProfilerMayHaveActivatedNonDefaultCodeVersion() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_profilerMayHaveActivatedNonDefaultCodeVersion;
+    }
+
+    void SetProfilerMayHaveActivatedNonDefaultCodeVersion()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_profilerMayHaveActivatedNonDefaultCodeVersion);
+
+        m_profilerMayHaveActivatedNonDefaultCodeVersion = true;
+    }
+
+    bool GeneratedOrLoadedNewCode() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_generatedOrLoadedNewCode;
+    }
+
+    void SetGeneratedOrLoadedNewCode()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_generatedOrLoadedNewCode);
+
+        m_generatedOrLoadedNewCode = true;
+    }
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+public:
+    bool ShouldCountCalls() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_shouldCountCalls;
+    }
+
+    void SetShouldCountCalls()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_shouldCountCalls);
+
+        m_shouldCountCalls = true;
+    }
+#endif
 
 #ifndef CROSSGEN_COMPILE
 public:
@@ -2142,6 +2201,17 @@ protected:
     BOOL m_ProfilerRejectedPrecompiledCode;
     BOOL m_ReadyToRunRejectedPrecompiledCode;
 
+#ifdef FEATURE_CODE_VERSIONING
+private:
+    bool m_profilerMayHaveActivatedNonDefaultCodeVersion;
+    bool m_generatedOrLoadedNewCode;
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+private:
+    bool m_shouldCountCalls;
+#endif
+
 #ifndef CROSSGEN_COMPILE
 private:
     bool m_jitSwitchedToMinOpt; // when it wasn't requested
@@ -2165,6 +2235,25 @@ public:
     virtual CORJIT_FLAGS GetJitCompilationFlags();
 private:
     ILCodeVersion m_ilCodeVersion;
+};
+
+class PrepareCodeConfigBuffer
+{
+private:
+    UINT8 m_buffer[sizeof(VersionedPrepareCodeConfig)];
+
+public:
+    PrepareCodeConfigBuffer(NativeCodeVersion codeVersion);
+
+public:
+    PrepareCodeConfig *GetConfig() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return (PrepareCodeConfig *)m_buffer;
+    }
+
+    PrepareCodeConfigBuffer(const PrepareCodeConfigBuffer &) = delete;
+    PrepareCodeConfigBuffer &operator =(const PrepareCodeConfigBuffer &) = delete;
 };
 #endif // FEATURE_CODE_VERSIONING
 #endif // DACCESS_COMPILE
@@ -2437,7 +2526,7 @@ class StoredSigMethodDesc : public MethodDesc
 
     RelativePointer<TADDR>           m_pSig;
     DWORD           m_cSig;
-#ifdef _WIN64 
+#ifdef BIT64 
     // m_dwExtendedFlags is not used by StoredSigMethodDesc itself.
     // It is used by child classes. We allocate the space here to get
     // optimal layout.
@@ -2496,7 +2585,7 @@ class FCallMethodDesc : public MethodDesc
 #endif
 
     DWORD   m_dwECallID;
-#ifdef _WIN64 
+#ifdef BIT64 
     DWORD   m_padding;
 #endif
 
@@ -2536,7 +2625,7 @@ protected:
     RelativePointer<PTR_CUTF8>           m_pszMethodName;
     PTR_DynamicResolver m_pResolver;
 
-#ifndef _WIN64
+#ifndef BIT64
     // We use m_dwExtendedFlags from StoredSigMethodDesc on WIN64
     DWORD               m_dwExtendedFlags;   // see DynamicMethodDesc::ExtendedFlags enum
 #endif

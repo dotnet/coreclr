@@ -67,7 +67,7 @@ namespace System.IO
         // The intent of this field is to leave open the underlying stream when
         // disposing of this StreamReader.  A name like _leaveOpen is better,
         // but this type is serializable, and this field's name was _closable.
-        private bool _closable;  // Whether to close the underlying stream.
+        private readonly bool _closable;  // Whether to close the underlying stream.
 
         // We don't guarantee thread safety on StreamReader, but we should at
         // least prevent users from trying to read anything while an Async
@@ -250,15 +250,9 @@ namespace System.IO
             }
         }
 
-        public virtual Encoding CurrentEncoding
-        {
-            get { return _encoding; }
-        }
+        public virtual Encoding CurrentEncoding => _encoding;
 
-        public virtual Stream BaseStream
-        {
-            get { return _stream; }
-        }
+        public virtual Stream BaseStream => _stream;
 
         // DiscardBufferedData tells StreamReader to throw away its internal
         // buffer contents.  This is useful if the user needs to seek on the
@@ -641,7 +635,6 @@ namespace System.IO
 
                 _charLen += _decoder.GetChars(_byteBuffer, 0, _byteLen, _charBuffer, _charLen);
             } while (_charLen == 0);
-            //Console.WriteLine("ReadBuffer called.  chars: "+charLen);
             return _charLen;
         }
 
@@ -751,7 +744,7 @@ namespace System.IO
                 _charPos = 0;
                 if (readToUserBuffer)
                 {
-                    charsRead += _decoder.GetChars(new ReadOnlySpan<byte>(_byteBuffer, 0, _byteLen), userBuffer.Slice(charsRead), flush:false);
+                    charsRead += _decoder.GetChars(new ReadOnlySpan<byte>(_byteBuffer, 0, _byteLen), userBuffer.Slice(charsRead), flush: false);
                     _charLen = 0;  // StreamReader's buffer is empty.
                 }
                 else
@@ -763,7 +756,6 @@ namespace System.IO
 
             _isBlocked &= charsRead < userBuffer.Length;
 
-            //Console.WriteLine("ReadBuffer: charsRead: "+charsRead+"  readToUserBuffer: "+readToUserBuffer);
             return charsRead;
         }
 
@@ -1321,10 +1313,7 @@ namespace System.IO
         // Note this class is threadsafe.
         private sealed class NullStreamReader : StreamReader
         {
-            public override Encoding CurrentEncoding
-            {
-                get { return Encoding.Unicode; }
-            }
+            public override Encoding CurrentEncoding => Encoding.Unicode;
 
             protected override void Dispose(bool disposing)
             {

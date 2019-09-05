@@ -8,16 +8,19 @@
 ** and other miscellaneous stuff.
 **
 **
-** 
+**
 ===========================================================*/
 
-#nullable disable // Code in this file isn't actually executed
+// Code in this file isn't actually executed
+#nullable disable
+#pragma warning disable CA2007 // ConfigureAwait
+#pragma warning disable IDE0060 // unused parameters
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
-using System.Security;
 using System.StubHelpers;
 using System.Threading.Tasks;
 
@@ -37,7 +40,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace System
 {
-    static class CommonlyUsedGenericInstantiations
+    internal static class CommonlyUsedGenericInstantiations
     {
         // This method is purely an aid for NGen to statically deduce which
         // instantiations to save in the ngen image.
@@ -49,13 +52,13 @@ namespace System
         // of keeping the JIT-compiler out for generic instantiations.
 
         // Method marked as NoOptimization as we don't want the JIT to
-        // inline any methods or take any short-circuit paths since the 
-        // instantiation closure process is driven by "fixup" references 
+        // inline any methods or take any short-circuit paths since the
+        // instantiation closure process is driven by "fixup" references
         // left in the final code stream.
         [MethodImplAttribute(MethodImplOptions.NoOptimization)]
         static CommonlyUsedGenericInstantiations()
         {
-            // Make absolutely sure we include some of the most common 
+            // Make absolutely sure we include some of the most common
             // instantiations here in mscorlib's ngen image.
             // Note that reference type instantiations are already included
             // automatically for us.
@@ -224,7 +227,7 @@ namespace System
             WinRT_IEnumerable<float>(null, null, null);
             WinRT_IEnumerable<double>(null, null, null);
 
-            // The underlying WinRT types for shared instantiations have to be referenced explicitly. 
+            // The underlying WinRT types for shared instantiations have to be referenced explicitly.
             // They are not guaranteeed to be created indirectly because of generic code sharing.
             WinRT_IEnumerable<string>(null, null, null); typeof(IIterable<string>).ToString(); typeof(IIterator<string>).ToString();
             WinRT_IEnumerable<object>(null, null, null); typeof(IIterable<object>).ToString(); typeof(IIterator<object>).ToString();
@@ -314,13 +317,12 @@ namespace System
             WinRT_IEnumerable<KeyValuePair<K, V>>(null, null, null);
 
             // instantiate stubs for commonly used methods on IDictionary<K, V> and ICollection<KeyValuePair<K, V>>
-            V dummy;
             mapToDictionaryAdapter.Indexer_Get<K, V>(default);
             mapToDictionaryAdapter.Indexer_Set<K, V>(default, default);
             mapToDictionaryAdapter.ContainsKey<K, V>(default);
             mapToDictionaryAdapter.Add<K, V>(default, default);
             mapToDictionaryAdapter.Remove<K, V>(default);
-            mapToDictionaryAdapter.TryGetValue<K, V>(default, out dummy);
+            mapToDictionaryAdapter.TryGetValue<K, V>(default, out _);
             mapToCollectionAdapter.Count<K, V>();
             mapToCollectionAdapter.Add<K, V>(new KeyValuePair<K, V>(default, default));
             mapToCollectionAdapter.Clear<K, V>();
@@ -340,10 +342,9 @@ namespace System
             WinRT_IReadOnlyCollection<KeyValuePair<K, V>>(null);
 
             // instantiate stubs for commonly used methods on IReadOnlyDictionary<K, V>
-            V dummy;
             mapToDictionaryAdapter.Indexer_Get<K, V>(default);
             mapToDictionaryAdapter.ContainsKey<K, V>(default);
-            mapToDictionaryAdapter.TryGetValue<K, V>(default, out dummy);
+            mapToDictionaryAdapter.TryGetValue<K, V>(default, out _);
 
             // instantiate stubs for commonly used methods in IReadOnlyCollection<T>
             mapViewToReadOnlyCollectionAdapter.Count<K, V>();

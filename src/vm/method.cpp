@@ -1022,6 +1022,7 @@ PCODE MethodDesc::GetNativeCode()
 {
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
+    _ASSERTE(!IsDefaultInterfaceMethod() || HasNativeCodeSlot());
 
     g_IBCLogger.LogMethodDescAccess(this);
 
@@ -1328,11 +1329,11 @@ ReturnKind MethodDesc::ParseReturnKindFromSig(INDEBUG(bool supportStringConstruc
 
 ReturnKind MethodDesc::GetReturnKind(INDEBUG(bool supportStringConstructors))
 {
-#ifdef _WIN64
+#ifdef BIT64
     // For simplicity, we don't hijack in funclets, but if you ever change that, 
     // be sure to choose the OnHijack... callback type to match that of the FUNCLET
     // not the main method (it would probably be Scalar).
-#endif // _WIN64
+#endif // BIT64
 
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
     // Mark that we are performing a stackwalker like operation on the current thread.
@@ -2528,7 +2529,7 @@ BOOL MethodDesc::MayHaveNativeCode()
 
     _ASSERTE(IsIL());
 
-    if ((IsInterface() && !IsStatic() && IsVirtual() && IsAbstract()) || IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
+    if (IsWrapperStub() || ContainsGenericVariables() || IsAbstract())
     {
         return FALSE;
     }
@@ -4938,21 +4939,31 @@ void MethodDesc::RecordAndBackpatchEntryPointSlot_Locked(
     backpatchTracker->AddSlotAndPatch_Locked(this, slotLoaderAllocator, slot, slotType, currentEntryPoint);
 }
 
-void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+FORCEINLINE bool MethodDesc::TryBackpatchEntryPointSlots(
+    PCODE entryPoint,
+    bool isPrestubEntryPoint,
+    bool onlyFromPrestubEntryPoint)
 {
     WRAPPER_NO_CONTRACT;
-    _ASSERTE(entryPoint != NULL);
     _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
+    _ASSERTE(entryPoint != NULL);
     _ASSERTE(isPrestubEntryPoint == (entryPoint == GetPrestubEntryPointToBackpatch()));
+    _ASSERTE(!isPrestubEntryPoint || !onlyFromPrestubEntryPoint);
     _ASSERTE(MethodDescBackpatchInfoTracker::IsLockedByCurrentThread());
 
     LoaderAllocator *mdLoaderAllocator = GetLoaderAllocator();
     MethodDescBackpatchInfoTracker *backpatchInfoTracker = mdLoaderAllocator->GetMethodDescBackpatchInfoTracker();
 
     // Get the entry point to backpatch inside the lock to synchronize with backpatching in MethodDesc::DoBackpatch()
-    if (GetEntryPointToBackpatch_Locked() == entryPoint)
+    PCODE previousEntryPoint = GetEntryPointToBackpatch_Locked();
+    if (previousEntryPoint == entryPoint)
     {
-        return;
+        return true;
+    }
+
+    if (onlyFromPrestubEntryPoint && previousEntryPoint != GetPrestubEntryPointToBackpatch())
+    {
+        return false;
     }
 
     if (IsVersionableWithVtableSlotBackpatch())
@@ -4982,6 +4993,27 @@ void MethodDesc::BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryP
     // it last in case there are exceptions above, as setting the entry point indicates that all recorded slots have been
     // backpatched
     SetEntryPointToBackpatch_Locked(entryPoint);
+    return true;
+}
+
+void MethodDesc::TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(
+    PCODE entryPoint,
+    bool mayHaveEntryPointSlotsToBackpatch)
+{
+    WRAPPER_NO_CONTRACT;
+    _ASSERTE(entryPoint != NULL);
+    _ASSERTE(IsVersionableWithoutJumpStamp());
+    _ASSERTE(mayHaveEntryPointSlotsToBackpatch == MayHaveEntryPointSlotsToBackpatch());
+
+    if (mayHaveEntryPointSlotsToBackpatch)
+    {
+        TryBackpatchEntryPointSlotsFromPrestub(entryPoint);
+    }
+    else
+    {
+        _ASSERTE(IsVersionableWithPrecode());
+        GetOrCreatePrecode()->SetTargetInterlocked(entryPoint, TRUE /* fOnlyRedirectFromPrestub */);
+    }
 }
 
 void MethodDesc::SetCodeEntryPoint(PCODE entryPoint)
@@ -5024,7 +5056,10 @@ void MethodDesc::ResetCodeEntryPoint()
     }
 
     _ASSERTE(IsVersionableWithPrecode());
-    GetPrecode()->ResetTargetInterlocked();
+    if (HasPrecode())
+    {
+        GetPrecode()->ResetTargetInterlocked();
+    }
 }
 
 #endif // !CROSSGEN_COMPILE
@@ -5036,6 +5071,8 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
         THROWS;
         GC_NOTRIGGER;
     } CONTRACTL_END;
+
+    _ASSERTE(!IsDefaultInterfaceMethod() || HasNativeCodeSlot());
 
     if (HasNativeCodeSlot())
     {
@@ -5060,11 +5097,6 @@ BOOL MethodDesc::SetNativeCodeInterlocked(PCODE addr, PCODE pExpected /*=NULL*/)
             (TADDR&)value, (TADDR&)expected) == (TADDR&)expected;
     }
     
-    if (IsDefaultInterfaceMethod() && HasPrecode())
-    {        
-        return GetPrecode()->SetTargetInterlocked(addr);
-    }
-
     _ASSERTE(pExpected == NULL);
     return SetStableEntryPointInterlocked(addr);
 }
@@ -5325,19 +5357,6 @@ void NDirectMethodDesc::InitEarlyBoundNDirectTarget()
     SetNDirectTarget((LPVOID)target);
 }
 #endif // !CROSSGEN_COMPILE
-
-//*******************************************************************************
-void MethodDesc::ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        FORBID_FAULT;
-    }
-    CONTRACTL_END;
-
-}
 
 //*******************************************************************************
 BOOL MethodDesc::HasNativeCallableAttribute()

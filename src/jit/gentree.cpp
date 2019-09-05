@@ -109,7 +109,7 @@ struct IndentStack
         for (unsigned i = 0; i < indentCount; i++)
         {
             unsigned index = indentCount - 1 - i;
-            switch (stack.Index(index))
+            switch (stack.Top(index))
             {
                 case Compiler::IndentInfo::IINone:
                     printf("   ");
@@ -260,7 +260,6 @@ void GenTree::InitNodeSize()
     GenTree::s_gtNodeSizes[GT_RET_EXPR]         = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_OBJ]              = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_FIELD]            = TREE_NODE_SZ_LARGE;
-    GenTree::s_gtNodeSizes[GT_STMT]             = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_CMPXCHG]          = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_QMARK]            = TREE_NODE_SZ_LARGE;
     GenTree::s_gtNodeSizes[GT_LEA]              = TREE_NODE_SZ_LARGE;
@@ -1126,9 +1125,6 @@ AGAIN:
         return true;
     }
 
-    assert(op1->gtOper != GT_STMT);
-    assert(op2->gtOper != GT_STMT);
-
     oper = op1->OperGet();
 
     /* The operators must be equal */
@@ -1487,6 +1483,9 @@ AGAIN:
                     Compare(op1->gtArrOffs.gtIndex, op2->gtArrOffs.gtIndex) &&
                     Compare(op1->gtArrOffs.gtArrObj, op2->gtArrOffs.gtArrObj));
 
+        case GT_PHI:
+            return GenTreePhi::Equals(op1->AsPhi(), op2->AsPhi());
+
         case GT_CMPXCHG:
             return Compare(op1->gtCmpXchg.gtOpLocation, op2->gtCmpXchg.gtOpLocation) &&
                    Compare(op1->gtCmpXchg.gtOpValue, op2->gtCmpXchg.gtOpValue) &&
@@ -1532,8 +1531,6 @@ AGAIN:
 
     oper = tree->OperGet();
     kind = tree->OperKind();
-
-    assert(oper != GT_STMT);
 
     /* Is this a constant node? */
 
@@ -1706,6 +1703,16 @@ AGAIN:
             }
             break;
 
+        case GT_PHI:
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                if (gtHasRef(use.GetNode(), lclNum, defOnly))
+                {
+                    return true;
+                }
+            }
+            break;
+
         case GT_CMPXCHG:
             if (gtHasRef(tree->gtCmpXchg.gtOpLocation, lclNum, defOnly))
             {
@@ -1843,7 +1850,6 @@ unsigned Compiler::gtHashValue(GenTree* tree)
 
 AGAIN:
     assert(tree);
-    assert(tree->gtOper != GT_STMT);
 
     /* Figure out what kind of a node we have */
 
@@ -2130,6 +2136,13 @@ AGAIN:
                 temp = tree->gtCall.gtCallLateArgs;
                 assert(temp);
                 hash = genTreeHashAdd(hash, gtHashValue(temp));
+            }
+            break;
+
+        case GT_PHI:
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                hash = genTreeHashAdd(hash, gtHashValue(use.GetNode()));
             }
             break;
 
@@ -3063,7 +3076,6 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
 unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 {
     assert(tree);
-    assert(tree->gtOper != GT_STMT);
 
 #ifdef DEBUG
     /* Clear the GTF_DEBUG_NODE_MORPHED flag as well */
@@ -4259,6 +4271,23 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             costSz += tree->gtArrOffs.gtArrObj->gtCostSz;
             break;
 
+        case GT_PHI:
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                lvl2 = gtSetEvalOrder(use.GetNode());
+                // PHI args should always have cost 0 and level 0
+                assert(lvl2 == 0);
+                assert(use.GetNode()->gtCostEx == 0);
+                assert(use.GetNode()->gtCostSz == 0);
+            }
+            // Give it a level of 2, just to be sure that it's greater than the LHS of
+            // the parent assignment and the PHI gets evaluated first in linear order.
+            // See also SsaBuilder::InsertPhi and SsaBuilder::AddPhiArg.
+            level  = 2;
+            costEx = 0;
+            costSz = 0;
+            break;
+
         case GT_CMPXCHG:
 
             level  = gtSetEvalOrder(tree->gtCmpXchg.gtOpLocation);
@@ -4555,6 +4584,16 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
             }
             break;
 
+        case GT_PHI:
+            for (GenTreePhi::Use& use : parent->AsPhi()->Uses())
+            {
+                if (use.GetNode() == this)
+                {
+                    return &use.NodeRef();
+                }
+            }
+            break;
+
         case GT_CMPXCHG:
             if (this == parent->gtCmpXchg.gtOpLocation)
             {
@@ -4679,10 +4718,6 @@ GenTree** GenTree::gtGetChildPointer(GenTree* parent) const
             }
         }
         break;
-
-        case GT_STMT:
-            noway_assert(!"Illegal node for gtGetChildPointer()");
-            unreached();
     }
 
     return nullptr;
@@ -4716,7 +4751,7 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
         case GT_START_NONGC:
         case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
@@ -4770,10 +4805,6 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
             return false;
 
         // Variadic nodes
-        case GT_PHI:
-            assert(this->AsUnOp()->gtOp1 != nullptr);
-            return this->AsUnOp()->gtOp1->TryGetUseList(def, use);
-
         case GT_FIELD_LIST:
             return TryGetUseList(def, use);
 
@@ -4813,6 +4844,17 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
 #endif // FEATURE_HW_INTRINSICS
 
         // Special nodes
+        case GT_PHI:
+            for (GenTreePhi::Use& phiUse : AsPhi()->Uses())
+            {
+                if (phiUse.GetNode() == def)
+                {
+                    *use = &phiUse.NodeRef();
+                    return true;
+                }
+            }
+            return false;
+
         case GT_CMPXCHG:
         {
             GenTreeCmpXchg* const cmpXchg = this->AsCmpXchg();
@@ -4860,14 +4902,6 @@ bool GenTree::TryGetUse(GenTree* def, GenTree*** use)
             if (def == this->AsField()->gtFldObj)
             {
                 *use = &this->AsField()->gtFldObj;
-                return true;
-            }
-            return false;
-
-        case GT_STMT:
-            if (def == this->AsStmt()->gtStmtExpr)
-            {
-                *use = &this->AsStmt()->gtStmtExpr;
                 return true;
             }
             return false;
@@ -7025,7 +7059,7 @@ GenTree* Compiler::gtCloneExpr(
                 copy = new (this, oper) GenTree(oper, tree->gtType);
                 goto DONE;
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
             case GT_JMP:
@@ -7310,10 +7344,6 @@ GenTree* Compiler::gtCloneExpr(
 
     switch (oper)
     {
-        case GT_STMT:
-            NO_WAY("Use gtCloneStmt instead");
-            goto DONE;
-
         case GT_CALL:
 
             // We can't safely clone calls that have GT_RET_EXPRs via gtCloneExpr.
@@ -7361,6 +7391,19 @@ GenTree* Compiler::gtCloneExpr(
                                gtCloneExpr(tree->gtArrOffs.gtIndex, addFlags, deepVarNum, deepVarVal),
                                gtCloneExpr(tree->gtArrOffs.gtArrObj, addFlags, deepVarNum, deepVarVal),
                                tree->gtArrOffs.gtCurrDim, tree->gtArrOffs.gtArrRank, tree->gtArrOffs.gtArrElemType);
+        }
+        break;
+
+        case GT_PHI:
+        {
+            copy                      = new (this, GT_PHI) GenTreePhi(tree->TypeGet());
+            GenTreePhi::Use** prevUse = &copy->AsPhi()->gtUses;
+            for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+            {
+                *prevUse = new (this, CMK_ASTNode)
+                    GenTreePhi::Use(gtCloneExpr(use.GetNode(), addFlags, deepVarNum, deepVarVal), *prevUse);
+                prevUse = &((*prevUse)->NextRef());
+            }
         }
         break;
 
@@ -8118,6 +8161,16 @@ unsigned GenTree::NumChildren()
         // Special
         switch (OperGet())
         {
+            case GT_PHI:
+            {
+                unsigned count = 0;
+                for (GenTreePhi::Use& use : AsPhi()->Uses())
+                {
+                    count++;
+                }
+                return count;
+            }
+
             case GT_CMPXCHG:
                 return 3;
 
@@ -8131,7 +8184,6 @@ unsigned GenTree::NumChildren()
                 return 2;
 
             case GT_FIELD:
-            case GT_STMT:
                 return 1;
 
             case GT_ARR_ELEM:
@@ -8189,7 +8241,6 @@ unsigned GenTree::NumChildren()
 GenTree* GenTree::GetChild(unsigned childNum)
 {
     assert(childNum < NumChildren()); // Precondition.
-    assert(NumChildren() <= MAX_CHILDREN);
     assert(!(OperIsConst() || OperIsLeaf()));
     if (OperIsUnary())
     {
@@ -8233,6 +8284,17 @@ GenTree* GenTree::GetChild(unsigned childNum)
         // Special
         switch (OperGet())
         {
+            case GT_PHI:
+                for (GenTreePhi::Use& use : AsPhi()->Uses())
+                {
+                    if (childNum == 0)
+                    {
+                        return use.GetNode();
+                    }
+                    childNum--;
+                }
+                unreached();
+
             case GT_CMPXCHG:
                 switch (childNum)
                 {
@@ -8287,9 +8349,6 @@ GenTree* GenTree::GetChild(unsigned childNum)
 
             case GT_FIELD:
                 return AsField()->gtFldObj;
-
-            case GT_STMT:
-                return AsStmt()->gtStmtExpr;
 
             case GT_ARR_ELEM:
                 if (childNum == 0)
@@ -8384,12 +8443,12 @@ GenTree* GenTree::GetChild(unsigned childNum)
 }
 
 GenTreeUseEdgeIterator::GenTreeUseEdgeIterator()
-    : m_advance(nullptr), m_node(nullptr), m_edge(nullptr), m_argList(nullptr), m_state(-1)
+    : m_advance(nullptr), m_node(nullptr), m_edge(nullptr), m_statePtr(nullptr), m_state(-1)
 {
 }
 
 GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
-    : m_advance(nullptr), m_node(node), m_edge(nullptr), m_argList(nullptr), m_state(0)
+    : m_advance(nullptr), m_node(node), m_edge(nullptr), m_statePtr(nullptr), m_state(0)
 {
     assert(m_node != nullptr);
 
@@ -8418,7 +8477,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
         case GT_START_NONGC:
         case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
@@ -8487,19 +8546,15 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 
         // Variadic nodes
-        case GT_PHI:
-            SetEntryStateForList(m_node->AsUnOp()->gtOp1);
-            return;
-
         case GT_FIELD_LIST:
-            SetEntryStateForList(m_node);
+            SetEntryStateForList(m_node->AsArgList());
             return;
 
 #ifdef FEATURE_SIMD
         case GT_SIMD:
             if (m_node->AsSIMD()->gtSIMDIntrinsicID == SIMDIntrinsicInitN)
             {
-                SetEntryStateForList(m_node->AsSIMD()->gtOp1);
+                SetEntryStateForList(m_node->AsSIMD()->gtOp1->AsArgList());
             }
             else
             {
@@ -8517,7 +8572,7 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             }
             else if (m_node->AsHWIntrinsic()->gtOp1->OperIsList())
             {
-                SetEntryStateForList(m_node->AsHWIntrinsic()->gtOp1);
+                SetEntryStateForList(m_node->AsHWIntrinsic()->gtOp1->AsArgList());
             }
             else
             {
@@ -8540,6 +8595,12 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             return;
 
         // Special nodes
+        case GT_PHI:
+            m_statePtr = m_node->AsPhi()->gtUses;
+            m_advance  = &GenTreeUseEdgeIterator::AdvancePhi;
+            AdvancePhi();
+            return;
+
         case GT_CMPXCHG:
             m_edge = &m_node->AsCmpXchg()->gtOpLocation;
             assert(*m_edge != nullptr);
@@ -8566,18 +8627,6 @@ GenTreeUseEdgeIterator::GenTreeUseEdgeIterator(GenTree* node)
             else
             {
                 m_edge    = &m_node->AsField()->gtFldObj;
-                m_advance = &GenTreeUseEdgeIterator::Terminate;
-            }
-            return;
-
-        case GT_STMT:
-            if (m_node->AsStmt()->gtStmtExpr == nullptr)
-            {
-                m_state = -1;
-            }
-            else
-            {
-                m_edge    = &m_node->AsStmt()->gtStmtExpr;
                 m_advance = &GenTreeUseEdgeIterator::Terminate;
             }
             return;
@@ -8763,6 +8812,25 @@ void GenTreeUseEdgeIterator::AdvanceStoreDynBlk()
 }
 
 //------------------------------------------------------------------------
+// GenTreeUseEdgeIterator::AdvancePhi: produces the next operand of a Phi node and advances the state.
+//
+void GenTreeUseEdgeIterator::AdvancePhi()
+{
+    assert(m_state == 0);
+
+    if (m_statePtr == nullptr)
+    {
+        m_state = -1;
+    }
+    else
+    {
+        GenTreePhi::Use* currentUse = static_cast<GenTreePhi::Use*>(m_statePtr);
+        m_edge                      = &currentUse->NodeRef();
+        m_statePtr                  = currentUse->GetNext();
+    }
+}
+
+//------------------------------------------------------------------------
 // GenTreeUseEdgeIterator::AdvanceBinOp: produces the next operand of a binary node and advances the state.
 //
 // This function must be instantiated s.t. `ReverseOperands` is `true` iff the node is marked with the
@@ -8818,25 +8886,25 @@ void GenTreeUseEdgeIterator::AdvanceList()
 {
     assert(m_state == 0);
 
-    if (m_argList == nullptr)
+    if (m_statePtr == nullptr)
     {
         m_state = -1;
     }
     else
     {
-        GenTreeArgList* listNode = m_argList->AsArgList();
+        GenTreeArgList* listNode = static_cast<GenTreeArgList*>(m_statePtr);
         m_edge                   = &listNode->gtOp1;
-        m_argList                = listNode->Rest();
+        m_statePtr               = listNode->Rest();
     }
 }
 
 //------------------------------------------------------------------------
 // GenTreeUseEdgeIterator::SetEntryStateForList: produces the first operand of a list node.
 //
-void GenTreeUseEdgeIterator::SetEntryStateForList(GenTree* list)
+void GenTreeUseEdgeIterator::SetEntryStateForList(GenTreeArgList* list)
 {
-    m_argList = list;
-    m_advance = &GenTreeUseEdgeIterator::AdvanceList;
+    m_statePtr = list;
+    m_advance  = &GenTreeUseEdgeIterator::AdvanceList;
     AdvanceList();
 }
 
@@ -8860,8 +8928,8 @@ void          GenTreeUseEdgeIterator::AdvanceCall()
     switch (state)
     {
         case CALL_INSTANCE:
-            m_argList = call->gtCallArgs;
-            m_advance = &GenTreeUseEdgeIterator::AdvanceCall<CALL_ARGS>;
+            m_statePtr = call->gtCallArgs;
+            m_advance  = &GenTreeUseEdgeIterator::AdvanceCall<CALL_ARGS>;
             if (call->gtCallObjp != nullptr)
             {
                 m_edge = &call->gtCallObjp;
@@ -8870,23 +8938,23 @@ void          GenTreeUseEdgeIterator::AdvanceCall()
             __fallthrough;
 
         case CALL_ARGS:
-            if (m_argList != nullptr)
+            if (m_statePtr != nullptr)
             {
-                GenTreeArgList* argNode = m_argList->AsArgList();
+                GenTreeArgList* argNode = static_cast<GenTreeArgList*>(m_statePtr);
                 m_edge                  = &argNode->gtOp1;
-                m_argList               = argNode->Rest();
+                m_statePtr              = argNode->Rest();
                 return;
             }
-            m_argList = call->gtCallLateArgs;
-            m_advance = &GenTreeUseEdgeIterator::AdvanceCall<CALL_LATE_ARGS>;
+            m_statePtr = call->gtCallLateArgs;
+            m_advance  = &GenTreeUseEdgeIterator::AdvanceCall<CALL_LATE_ARGS>;
             __fallthrough;
 
         case CALL_LATE_ARGS:
-            if (m_argList != nullptr)
+            if (m_statePtr != nullptr)
             {
-                GenTreeArgList* argNode = m_argList->AsArgList();
+                GenTreeArgList* argNode = static_cast<GenTreeArgList*>(m_statePtr);
                 m_edge                  = &argNode->gtOp1;
-                m_argList               = argNode->Rest();
+                m_statePtr              = argNode->Rest();
                 return;
             }
             m_advance = &GenTreeUseEdgeIterator::AdvanceCall<CALL_CONTROL_EXPR>;
@@ -9314,14 +9382,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
     }
     else
     {
-        if (tree->gtOper == GT_STMT)
-        {
-            prev = tree->gtStmt.gtStmtExpr;
-        }
-        else
-        {
-            prev = tree;
-        }
+        prev = tree;
 
         bool     hasSeqNum = true;
         unsigned dotNum    = 0;
@@ -9341,7 +9402,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
 
         // If we have an indent stack, don't add additional characters,
         // as it will mess up the alignment.
-        bool displayDotNum = tree->gtOper != GT_STMT && hasSeqNum && (indentStack == nullptr);
+        bool displayDotNum = hasSeqNum && (indentStack == nullptr);
         if (displayDotNum)
         {
             printf("N%03u.%02u ", prev->gtSeqNum, dotNum);
@@ -9735,35 +9796,6 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
                 }
             }
 
-            if (tree->gtOper == GT_STMT)
-            {
-                if (opts.compDbgInfo)
-                {
-                    GenTreeStmt* stmt  = tree->AsStmt();
-                    IL_OFFSET    endIL = stmt->gtStmtLastILoffs;
-
-                    printf("(IL ");
-                    if (stmt->gtStmtILoffsx == BAD_IL_OFFSET)
-                    {
-                        printf("  ???");
-                    }
-                    else
-                    {
-                        printf("0x%03X", jitGetILoffs(stmt->gtStmtILoffsx));
-                    }
-                    printf("...");
-                    if (endIL == BAD_IL_OFFSET)
-                    {
-                        printf("  ???");
-                    }
-                    else
-                    {
-                        printf("0x%03X", endIL);
-                    }
-                    printf(")");
-                }
-            }
-
             if (tree->IsArgPlaceHolderNode() && (tree->gtArgPlace.gtArgPlaceClsHnd != nullptr))
             {
                 printf(" => [clsHnd=%08X]", dspPtr(tree->gtArgPlace.gtArgPlaceClsHnd));
@@ -9936,7 +9968,7 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
                 ilName = "PromotedStructScratch";
             }
 #endif // _TARGET_ARM_
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             else if (lclNum == lvaShadowSPslotsVar)
             {
                 ilName = "EHSlots";
@@ -9948,7 +9980,7 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
                 ilName = "LocAllocSP";
             }
 #endif // JIT32_GCENCODER
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             else if (lclNum == lvaPSPSym)
             {
                 ilName = "PSPSym";
@@ -10431,7 +10463,7 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
         }
         break;
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
             printf(" endNstLvl=%d", tree->gtVal.gtVal1);
             break;
@@ -10872,6 +10904,20 @@ void Compiler::gtDispTree(GenTree*     tree,
 
     switch (tree->gtOper)
     {
+        case GT_PHI:
+            gtDispCommonEndLine(tree);
+
+            if (!topOnly)
+            {
+                for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
+                {
+                    char block[32];
+                    sprintf_s(block, sizeof(block), "pred " FMT_BB, use.GetNode()->AsPhiArg()->gtPredBB->bbNum);
+                    gtDispChild(use.GetNode(), indentStack, (use.GetNext() == nullptr) ? IIArcBottom : IIArc, block);
+                }
+            }
+            break;
+
         case GT_FIELD:
             if (FieldSeqStore::IsPseudoField(tree->gtField.gtFldHnd))
             {
@@ -10983,15 +11029,6 @@ void Compiler::gtDispTree(GenTree*     tree,
             }
         }
         break;
-
-        case GT_STMT:
-            printf("\n");
-
-            if (!topOnly)
-            {
-                gtDispChild(tree->gtStmt.gtStmtExpr, indentStack, IIArcBottom);
-            }
-            break;
 
         case GT_ARR_ELEM:
             gtDispCommonEndLine(tree);
@@ -11381,11 +11418,11 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
 // Assumptions:
 //    'tree' must be a GT_LIST node
 
-void Compiler::gtDispTreeList(GenTree* tree, IndentStack* indentStack /* = nullptr */)
+void Compiler::gtDispStmtList(GenTreeStmt* stmts, IndentStack* indentStack /* = nullptr */)
 {
-    for (/*--*/; tree != nullptr; tree = tree->gtNext)
+    for (GenTreeStmt* stmt = stmts; stmt != nullptr; stmt = stmt->getNextStmt())
     {
-        gtDispTree(tree, indentStack);
+        gtDispTree(stmt->gtStmtExpr, indentStack);
         printf("\n");
     }
 }
@@ -12280,14 +12317,57 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
 
     val = cons->gtIntConCommon.IconValue();
 
-    /* Here op is the non-constant operand, val is the constant,
-       first is true if the constant is op1 */
+    // Transforms that would drop op cannot be performed if op has side effects
+    bool opHasSideEffects = (op->gtFlags & GTF_SIDE_EFFECT) != 0;
+
+    // Helper function that creates a new IntCon node and morphs it, if required
+    auto NewMorphedIntConNode = [&](int value) -> GenTreeIntCon* {
+        GenTreeIntCon* icon = gtNewIconNode(value);
+        if (fgGlobalMorph)
+        {
+            fgMorphTreeDone(icon);
+        }
+        return icon;
+    };
+
+    // Here `op` is the non-constant operand, `cons` is the constant operand
+    // and `val` is the constant value.
 
     switch (oper)
     {
+        case GT_LE:
+            if (tree->IsUnsigned() && (val == 0) && (op1 == cons) && !opHasSideEffects)
+            {
+                // unsigned (0 <= x) is always true
+                return NewMorphedIntConNode(1);
+            }
+            break;
+
+        case GT_GE:
+            if (tree->IsUnsigned() && (val == 0) && (op2 == cons) && !opHasSideEffects)
+            {
+                // unsigned (x >= 0) is always true
+                return NewMorphedIntConNode(1);
+            }
+            break;
+
+        case GT_LT:
+            if (tree->IsUnsigned() && (val == 0) && (op2 == cons) && !opHasSideEffects)
+            {
+                // unsigned (x < 0) is always false
+                return NewMorphedIntConNode(0);
+            }
+            break;
+
+        case GT_GT:
+            if (tree->IsUnsigned() && (val == 0) && (op1 == cons) && !opHasSideEffects)
+            {
+                // unsigned (0 > x) is always false
+                return NewMorphedIntConNode(0);
+            }
+            __fallthrough;
         case GT_EQ:
         case GT_NE:
-        case GT_GT:
 
             // Optimize boxed value classes; these are always false.  This IL is
             // generated when a generic value is tested against null:
@@ -12342,19 +12422,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
                         JITDUMP("\nSuccess: replacing BOX(valueType) %s null with %d\n", GenTree::OpName(oper),
                                 compareResult);
 
-                        op = gtNewIconNode(compareResult);
-
-                        if (fgGlobalMorph)
-                        {
-                            fgMorphTreeDone(op);
-                        }
-                        else
-                        {
-                            op->gtNext = tree->gtNext;
-                            op->gtPrev = tree->gtPrev;
-                        }
-
-                        return op;
+                        return NewMorphedIntConNode(compareResult);
                     }
                 }
             }
@@ -12376,7 +12444,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
             else if (val == 0)
             {
                 /* Multiply by zero - return the 'zero' node, but not if side effects */
-                if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12404,7 +12472,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
             {
                 /* AND with zero - return the 'zero' node, but not if side effects */
 
-                if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12440,7 +12508,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
 
                 /* OR with one - return the 'one' node, but not if side effects */
 
-                if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12459,7 +12527,7 @@ GenTree* Compiler::gtFoldExprSpecial(GenTree* tree)
                 {
                     goto DONE_FOLD;
                 }
-                else if (!(op->gtFlags & GTF_SIDE_EFFECT))
+                else if (!opHasSideEffects)
                 {
                     op = cons;
                     goto DONE_FOLD;
@@ -12515,9 +12583,6 @@ DONE_FOLD:
 
         op->gtFlags &= ~(GTF_VAR_USEASG | GTF_VAR_DEF);
     }
-
-    op->gtNext = tree->gtNext;
-    op->gtPrev = tree->gtPrev;
 
     return op;
 }
@@ -12577,7 +12642,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
             " [%06u] (assign/newobj [%06u] copy [%06u])\n",
             (options == BR_DONT_REMOVE) ? "checking if it is possible" : "attempting",
             (options == BR_MAKE_LOCAL_COPY) ? "make local unboxed version" : "remove side effects", dspTreeID(op),
-            dspTreeID(asgStmt), dspTreeID(copyStmt));
+            dspTreeID(asgStmt->gtStmtExpr), dspTreeID(copyStmt->gtStmtExpr));
 
     // If we don't recognize the form of the assign, bail.
     GenTree* asg = asgStmt->gtStmtExpr;
@@ -15019,8 +15084,6 @@ void Compiler::gtExtractSideEffList(GenTree*  expr,
         }
     };
 
-    assert(!expr->OperIs(GT_STMT));
-
     SideEffectExtractor extractor(this, flags);
 
     if (ignoreRoot)
@@ -15218,7 +15281,7 @@ bool Compiler::gtHasCatchArg(GenTree* tree)
 {
     for (int i = 0; i < parentStack->Height(); i++)
     {
-        GenTree* node = parentStack->Index(i);
+        GenTree* node = parentStack->Top(i);
         if (node->OperGet() == GT_CALL)
         {
             return true;
@@ -15399,13 +15462,9 @@ bool GenTree::IsPhiDefn()
     return res;
 }
 
-bool GenTree::IsPhiDefnStmt()
+bool GenTreeStmt::IsPhiDefnStmt()
 {
-    if (OperGet() != GT_STMT)
-    {
-        return false;
-    }
-    GenTree* asg = gtStmt.gtStmtExpr;
+    GenTree* asg = gtStmtExpr;
     return asg->IsPhiDefn();
 }
 
@@ -16504,9 +16563,6 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
             case GT_INDEX:
                 structHnd = tree->gtIndex.gtStructElemClass;
                 break;
-            case GT_INDEX_ADDR:
-                structHnd = tree->AsIndexAddr()->gtStructElemClass;
-                break;
             case GT_FIELD:
                 info.compCompHnd->getFieldType(tree->gtField.gtFldHnd, &structHnd);
                 break;
@@ -16547,7 +16603,7 @@ CORINFO_CLASS_HANDLE Compiler::gtGetStructHandleIfPresent(GenTree* tree)
                     ArrayInfo arrInfo;
                     if (TryGetArrayInfo(tree->AsIndir(), &arrInfo))
                     {
-                        structHnd = EncodeElemType(arrInfo.m_elemType, arrInfo.m_elemStructType);
+                        structHnd = arrInfo.m_elemStructType;
                     }
                     else
                     {

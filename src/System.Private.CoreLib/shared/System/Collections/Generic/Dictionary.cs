@@ -145,18 +145,12 @@ namespace System.Collections.Generic
             HashHelpers.SerializationInfoTable.Add(this, info);
         }
 
-        public IEqualityComparer<TKey> Comparer
-        {
-            get
-            {
-                return (_comparer == null || _comparer is NonRandomizedStringEqualityComparer) ? EqualityComparer<TKey>.Default : _comparer;
-            }
-        }
+        public IEqualityComparer<TKey> Comparer =>
+            (_comparer == null || _comparer is NonRandomizedStringEqualityComparer) ?
+                EqualityComparer<TKey>.Default :
+                _comparer;
 
-        public int Count
-        {
-            get { return _count - _freeCount; }
-        }
+        public int Count => _count - _freeCount;
 
         public KeyCollection Keys
         {
@@ -1290,7 +1284,7 @@ namespace System.Collections.Generic
         [DebuggerDisplay("Count = {Count}")]
         public sealed class KeyCollection : ICollection<TKey>, ICollection, IReadOnlyCollection<TKey>
         {
-            private Dictionary<TKey, TValue> _dictionary;
+            private readonly Dictionary<TKey, TValue> _dictionary;
 
             public KeyCollection(Dictionary<TKey, TValue> dictionary)
             {
@@ -1473,7 +1467,7 @@ namespace System.Collections.Generic
         [DebuggerDisplay("Count = {Count}")]
         public sealed class ValueCollection : ICollection<TValue>, ICollection, IReadOnlyCollection<TValue>
         {
-            private Dictionary<TKey, TValue> _dictionary;
+            private readonly Dictionary<TKey, TValue> _dictionary;
 
             public ValueCollection(Dictionary<TKey, TValue> dictionary)
             {

@@ -16,18 +16,14 @@ namespace System.Reflection.Emit
         internal ConstructorBuilder(string name, MethodAttributes attributes, CallingConventions callingConvention,
             Type[]? parameterTypes, Type[][]? requiredCustomModifiers, Type[][]? optionalCustomModifiers, ModuleBuilder mod, TypeBuilder type)
         {
-            int sigLength;
-            byte[] sigBytes;
-            MethodToken token;
-
             m_methodBuilder = new MethodBuilder(name, attributes, callingConvention, null, null, null,
                 parameterTypes, requiredCustomModifiers, optionalCustomModifiers, mod, type, false);
 
             type.m_listMethods.Add(m_methodBuilder);
 
-            sigBytes = m_methodBuilder.GetMethodSignature().InternalGetSignature(out sigLength);
+            m_methodBuilder.GetMethodSignature().InternalGetSignature(out _);
 
-            token = m_methodBuilder.GetToken();
+            m_methodBuilder.GetToken();
         }
 
         internal ConstructorBuilder(string name, MethodAttributes attributes, CallingConventions callingConvention,
@@ -59,30 +55,15 @@ namespace System.Reflection.Emit
         #endregion
 
         #region MemberInfo Overrides
-        internal int MetadataTokenInternal
-        {
-            get { return m_methodBuilder.MetadataTokenInternal; }
-        }
+        internal int MetadataTokenInternal => m_methodBuilder.MetadataTokenInternal;
 
-        public override Module Module
-        {
-            get { return m_methodBuilder.Module; }
-        }
+        public override Module Module => m_methodBuilder.Module;
 
-        public override Type? ReflectedType
-        {
-            get { return m_methodBuilder.ReflectedType; }
-        }
+        public override Type? ReflectedType => m_methodBuilder.ReflectedType;
 
-        public override Type? DeclaringType
-        {
-            get { return m_methodBuilder.DeclaringType; }
-        }
+        public override Type? DeclaringType => m_methodBuilder.DeclaringType;
 
-        public override string Name
-        {
-            get { return m_methodBuilder.Name; }
-        }
+        public override string Name => m_methodBuilder.Name;
 
         #endregion
 
@@ -98,20 +79,14 @@ namespace System.Reflection.Emit
             return rci.GetParameters();
         }
 
-        public override MethodAttributes Attributes
-        {
-            get { return m_methodBuilder.Attributes; }
-        }
+        public override MethodAttributes Attributes => m_methodBuilder.Attributes;
 
         public override MethodImplAttributes GetMethodImplementationFlags()
         {
             return m_methodBuilder.GetMethodImplementationFlags();
         }
 
-        public override RuntimeMethodHandle MethodHandle
-        {
-            get { return m_methodBuilder.MethodHandle; }
-        }
+        public override RuntimeMethodHandle MethodHandle => m_methodBuilder.MethodHandle;
 
         #endregion
 
@@ -149,12 +124,12 @@ namespace System.Reflection.Emit
 
         public ParameterBuilder DefineParameter(int iSequence, ParameterAttributes attributes, string? strParamName)
         {
-            // Theoretically we shouldn't allow iSequence to be 0 because in reflection ctors don't have 
-            // return parameters. But we'll allow it for backward compatibility with V2. The attributes 
+            // Theoretically we shouldn't allow iSequence to be 0 because in reflection ctors don't have
+            // return parameters. But we'll allow it for backward compatibility with V2. The attributes
             // defined on the return parameters won't be very useful but won't do much harm either.
 
             // MD will assert if we try to set the reserved bits explicitly
-            attributes = attributes & ~ParameterAttributes.ReservedMask;
+            attributes &= ~ParameterAttributes.ReservedMask;
             return m_methodBuilder.DefineParameter(iSequence, attributes, strParamName);
         }
 
@@ -195,10 +170,7 @@ namespace System.Reflection.Emit
             return m_methodBuilder.ReturnType;
         }
 
-        public string Signature
-        {
-            get { return m_methodBuilder.Signature; }
-        }
+        public string Signature => m_methodBuilder.Signature;
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {
@@ -217,11 +189,10 @@ namespace System.Reflection.Emit
 
         public bool InitLocals
         {
-            get { return m_methodBuilder.InitLocals; }
-            set { m_methodBuilder.InitLocals = value; }
+            get => m_methodBuilder.InitLocals;
+            set => m_methodBuilder.InitLocals = value;
         }
 
         #endregion
     }
 }
-

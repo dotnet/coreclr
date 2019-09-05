@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Threading;
 using System.Runtime.CompilerServices;
 using System.Reflection;
 
@@ -19,7 +18,7 @@ namespace System.Diagnostics
             const string PackageName = "System.Diagnostics";
 
             // Check if this method is part of the System.Diagnostics
-            // package. If so, increment counter keeping track of 
+            // package. If so, increment counter keeping track of
             // System.Diagnostics functions
             for (int i = 0; i < iNumFrames; i++)
             {

@@ -1526,6 +1526,12 @@ MethodTableBuilder::BuildMethodTableThrowing(
             {
                 // Disable AOT compiling for managed implementation of hardware intrinsics.
                 // We specially treat them here to ensure correct ISA features are set during compilation
+                //
+                // When a hardware intrinsic is not supported, the JIT can generate a PlatformNotSupportedException
+                // at runtime. We cannot do the same in AOT. AOT generated ones would cause illegal instruction traps.
+                //
+                // To avoid it, one must make sure all usages are protected under IsSupported. We can guarantee this for 
+                // CoreLib. That's why we can allow these to AOT compile in CoreLib:
                 COMPlusThrow(kTypeLoadException, IDS_EE_HWINTRINSIC_NGEN_DISALLOWED);
             }
 #endif // defined(CROSSGEN_COMPILE)
@@ -6047,11 +6053,6 @@ MethodTableBuilder::InitMethodDesc(
     if (IsMdStatic(dwMemberAttrs))
         pNewMD->SetStatic();
 
-    // Set suppress unmanaged code access permission attribute
-
-    if (pNewMD->IsNDirect())
-        pNewMD->ComputeSuppressUnmanagedCodeAccessAttr(pIMDII);
-
 #ifdef _DEBUG 
     // Mark as many methods as synchronized as possible.
     //
@@ -6970,6 +6971,20 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
         (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
     {
         return TRUE;
+    }
+#endif
+
+#ifdef FEATURE_DEFAULT_INTERFACES
+    if (IsInterface())
+    {
+        DWORD attrs = pMDMethod->GetDeclAttrs();
+        if (!IsMdStatic(attrs) && IsMdVirtual(attrs) && !IsMdAbstract(attrs))
+        {
+            // Default interface method. Since interface methods currently need to have a precode, the native code slot will be
+            // used to retrieve the native code entry point, instead of getting it from the precode, which is not reliable with
+            // debuggers setting breakpoints.
+            return TRUE;
+        }
     }
 #endif
 
@@ -11975,7 +11990,6 @@ BOOL HasLayoutMetadata(Assembly* pAssembly, IMDInternalImport* pInternalImport, 
 
     HRESULT hr;
     ULONG clFlags;
-
     if (FAILED(pInternalImport->GetTypeDefProps(cl, &clFlags, NULL)))
     {
         pAssembly->ThrowTypeLoadException(pInternalImport, cl, IDS_CLASSLOAD_BADFORMAT);

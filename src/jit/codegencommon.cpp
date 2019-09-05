@@ -1766,7 +1766,7 @@ void CodeGen::genExitCode(BasicBlock* block)
 void CodeGen::genJumpToThrowHlpBlk(emitJumpKind jumpKind, SpecialCodeKind codeKind, BasicBlock* failBlk)
 {
     bool useThrowHlpBlk = compiler->fgUseThrowHelperBlocks();
-#if defined(UNIX_X86_ABI) && FEATURE_EH_FUNCLETS
+#if defined(UNIX_X86_ABI) && defined(FEATURE_EH_FUNCLETS)
     // Inline exception-throwing code in funclet to make it possible to unwind funclet frames.
     useThrowHlpBlk = useThrowHlpBlk && (compiler->funCurrentFunc()->funKind == FUNC_ROOT);
 #endif // UNIX_X86_ABI && FEATURE_EH_FUNCLETS
@@ -1886,7 +1886,7 @@ void CodeGen::genCheckOverflow(GenTree* tree)
     genJumpToThrowHlpBlk(jumpKind, SCK_OVERFLOW);
 }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 /*****************************************************************************
  *
@@ -2448,7 +2448,7 @@ void CodeGen::genReportEH()
 
     unsigned EHCount = compiler->compHndBBtabCount;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // Count duplicated clauses. This uses the same logic as below, where we actually generate them for reporting to the
     // VM.
     unsigned duplicateClauseCount = 0;
@@ -2510,7 +2510,7 @@ void CodeGen::genReportEH()
 #ifdef DEBUG
     if (compiler->opts.dspEHTable)
     {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 #if FEATURE_EH_CALLFINALLY_THUNKS
         printf("%d EH table entries, %d duplicate clauses, %d cloned finallys, %d total EH entries reported to VM\n",
                compiler->compHndBBtabCount, duplicateClauseCount, clonedFinallyCount, EHCount);
@@ -2592,7 +2592,7 @@ void CodeGen::genReportEH()
         ++XTnum;
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // Now output duplicated clauses.
     //
     // If a funclet has been created by moving a handler out of a try region that it was originally nested
@@ -4493,7 +4493,7 @@ void CodeGen::genCheckUseBlockInit()
         }
 #endif
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         // There's no need to force 0-initialization of the PSPSym, it will be
         // initialized with a real value in the prolog
         if (varNum == compiler->lvaPSPSym)
@@ -4611,16 +4611,12 @@ void CodeGen::genCheckUseBlockInit()
     }
 
     /* Don't forget about spill temps that hold pointers */
-
-    if (!TRACK_GC_TEMP_LIFETIMES)
+    assert(regSet.tmpAllFree());
+    for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
     {
-        assert(regSet.tmpAllFree());
-        for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
+        if (varTypeIsGC(tempThis->tdTempType()))
         {
-            if (varTypeIsGC(tempThis->tdTempType()))
-            {
-                initStkLclCnt++;
-            }
+            initStkLclCnt++;
         }
     }
 
@@ -6375,20 +6371,17 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             }
         }
 
-        if (!TRACK_GC_TEMP_LIFETIMES)
+        assert(regSet.tmpAllFree());
+        for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
         {
-            assert(regSet.tmpAllFree());
-            for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
+            if (!varTypeIsGC(tempThis->tdTempType()))
             {
-                if (!varTypeIsGC(tempThis->tdTempType()))
-                {
-                    continue;
-                }
-
-                // printf("initialize untracked spillTmp [EBP-%04X]\n", stkOffs);
-
-                inst_ST_RV(ins_Store(TYP_I_IMPL), tempThis, 0, genGetZeroReg(initReg, pInitRegZeroed), TYP_I_IMPL);
+                continue;
             }
+
+            // printf("initialize untracked spillTmp [EBP-%04X]\n", stkOffs);
+
+            inst_ST_RV(ins_Store(TYP_I_IMPL), tempThis, 0, genGetZeroReg(initReg, pInitRegZeroed), TYP_I_IMPL);
         }
     }
 }
@@ -7167,7 +7160,7 @@ void CodeGen::genPrologPadForReJit()
         return;
     }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     // No need to generate pad (nops) for funclets.
     // When compiling the main function (and not a funclet)
@@ -7247,7 +7240,7 @@ void CodeGen::genReserveEpilog(BasicBlock* block)
     getEmitter()->emitCreatePlaceholderIG(IGPT_EPILOG, block, gcrefVarsArg, gcrefRegsArg, byrefRegsArg, last);
 }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 /*****************************************************************************
  *
@@ -7646,7 +7639,7 @@ void CodeGen::genFnProlog()
     }
 #endif // DEBUG
 
-#if FEATURE_EH_FUNCLETS && defined(DEBUG)
+#if defined(FEATURE_EH_FUNCLETS) && defined(DEBUG)
 
     // We cannot force 0-initialization of the PSPSym
     // as it will overwrite the real value
@@ -7783,41 +7776,38 @@ void CodeGen::genFnProlog()
 
     /* Don't forget about spill temps that hold pointers */
 
-    if (!TRACK_GC_TEMP_LIFETIMES)
+    assert(regSet.tmpAllFree());
+    for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
     {
-        assert(regSet.tmpAllFree());
-        for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
+        if (!varTypeIsGC(tempThis->tdTempType()))
         {
-            if (!varTypeIsGC(tempThis->tdTempType()))
-            {
-                continue;
-            }
+            continue;
+        }
 
-            signed int loOffs = tempThis->tdTempOffs();
-            signed int hiOffs = loOffs + TARGET_POINTER_SIZE;
+        signed int loOffs = tempThis->tdTempOffs();
+        signed int hiOffs = loOffs + TARGET_POINTER_SIZE;
 
-            // If there is a frame pointer used, due to frame pointer chaining it will point to the stored value of the
-            // previous frame pointer. Thus, stkOffs can't be zero.
-            CLANG_FORMAT_COMMENT_ANCHOR;
+        // If there is a frame pointer used, due to frame pointer chaining it will point to the stored value of the
+        // previous frame pointer. Thus, stkOffs can't be zero.
+        CLANG_FORMAT_COMMENT_ANCHOR;
 
 #if !defined(_TARGET_AMD64_)
-            // However, on amd64 there is no requirement to chain frame pointers.
+        // However, on amd64 there is no requirement to chain frame pointers.
 
-            noway_assert(!isFramePointerUsed() || loOffs != 0);
+        noway_assert(!isFramePointerUsed() || loOffs != 0);
 #endif // !defined(_TARGET_AMD64_)
 
-            // printf("    Untracked tmp at [EBP-%04X]\n", -stkOffs);
+        // printf("    Untracked tmp at [EBP-%04X]\n", -stkOffs);
 
-            hasUntrLcl = true;
+        hasUntrLcl = true;
 
-            if (loOffs < untrLclLo)
-            {
-                untrLclLo = loOffs;
-            }
-            if (hiOffs > untrLclHi)
-            {
-                untrLclHi = hiOffs;
-            }
+        if (loOffs < untrLclLo)
+        {
+            untrLclLo = loOffs;
+        }
+        if (hiOffs > untrLclHi)
+        {
+            untrLclHi = hiOffs;
         }
     }
 
@@ -8091,7 +8081,7 @@ void CodeGen::genFnProlog()
 
     genZeroInitFrame(untrLclHi, untrLclLo, initReg, &initRegZeroed);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     genSetPSPSym(initReg, &initRegZeroed);
 
@@ -9073,7 +9063,7 @@ void CodeGen::genFnEpilog(BasicBlock* block)
 #error Unsupported or unset target architecture
 #endif // _TARGET_*
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 #ifdef _TARGET_ARM_
 
@@ -9983,7 +9973,7 @@ void CodeGen::genGeneratePrologsAndEpilogs()
     // Generate all the prologs and epilogs.
     CLANG_FORMAT_COMMENT_ANCHOR;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     // Capture the data we're going to use in the funclet prolog and epilog generation. This is
     // information computed during codegen, or during function prolog generation, like
@@ -11702,7 +11692,7 @@ void CodeGen::genReturn(GenTree* treeNode)
 #if defined(DEBUG) && defined(_TARGET_XARCH_)
     bool doStackPointerCheck = compiler->opts.compStackCheckOnRet;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // Don't do stack pointer check at the return from a funclet; only for the main function.
     if (compiler->funCurrentFunc()->funKind != FUNC_ROOT)
     {

@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#pragma warning disable SA1141 // explicitly not using tuple syntax in tuple implementation
+
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -656,15 +658,12 @@ namespace System
         {
             get
             {
-                switch (index)
+                return index switch
                 {
-                    case 0:
-                        return Item1;
-                    case 1:
-                        return Item2;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
+                    0 => Item1,
+                    1 => Item2,
+                    _ => throw new IndexOutOfRangeException(),
+                };
             }
         }
     }
@@ -862,17 +861,13 @@ namespace System
         {
             get
             {
-                switch (index)
+                return index switch
                 {
-                    case 0:
-                        return Item1;
-                    case 1:
-                        return Item2;
-                    case 2:
-                        return Item3;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
+                    0 => Item1,
+                    1 => Item2,
+                    2 => Item3,
+                    _ => throw new IndexOutOfRangeException(),
+                };
             }
         }
     }
@@ -1087,19 +1082,14 @@ namespace System
         {
             get
             {
-                switch (index)
+                return index switch
                 {
-                    case 0:
-                        return Item1;
-                    case 1:
-                        return Item2;
-                    case 2:
-                        return Item3;
-                    case 3:
-                        return Item4;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
+                    0 => Item1,
+                    1 => Item2,
+                    2 => Item3,
+                    3 => Item4,
+                    _ => throw new IndexOutOfRangeException(),
+                };
             }
         }
     }
@@ -1331,21 +1321,15 @@ namespace System
         {
             get
             {
-                switch (index)
+                return index switch
                 {
-                    case 0:
-                        return Item1;
-                    case 1:
-                        return Item2;
-                    case 2:
-                        return Item3;
-                    case 3:
-                        return Item4;
-                    case 4:
-                        return Item5;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
+                    0 => Item1,
+                    1 => Item2,
+                    2 => Item3,
+                    3 => Item4,
+                    4 => Item5,
+                    _ => throw new IndexOutOfRangeException(),
+                };
             }
         }
     }
@@ -1594,23 +1578,16 @@ namespace System
         {
             get
             {
-                switch (index)
+                return index switch
                 {
-                    case 0:
-                        return Item1;
-                    case 1:
-                        return Item2;
-                    case 2:
-                        return Item3;
-                    case 3:
-                        return Item4;
-                    case 4:
-                        return Item5;
-                    case 5:
-                        return Item6;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
+                    0 => Item1,
+                    1 => Item2,
+                    2 => Item3,
+                    3 => Item4,
+                    4 => Item5,
+                    5 => Item6,
+                    _ => throw new IndexOutOfRangeException(),
+                };
             }
         }
     }
@@ -1876,25 +1853,17 @@ namespace System
         {
             get
             {
-                switch (index)
+                return index switch
                 {
-                    case 0:
-                        return Item1;
-                    case 1:
-                        return Item2;
-                    case 2:
-                        return Item3;
-                    case 3:
-                        return Item4;
-                    case 4:
-                        return Item5;
-                    case 5:
-                        return Item6;
-                    case 6:
-                        return Item7;
-                    default:
-                        throw new IndexOutOfRangeException();
-                }
+                    0 => Item1,
+                    1 => Item2,
+                    2 => Item3,
+                    3 => Item4,
+                    4 => Item5,
+                    5 => Item6,
+                    6 => Item7,
+                    _ => throw new IndexOutOfRangeException(),
+                };
             }
         }
     }
@@ -2122,8 +2091,7 @@ namespace System
         public override int GetHashCode()
         {
             // We want to have a limited hash in this case.  We'll use the last 8 elements of the tuple
-            IValueTupleInternal? rest = Rest as IValueTupleInternal;
-            if (rest == null)
+            if (!(Rest is IValueTupleInternal rest))
             {
                 return ValueTuple.CombineHashCodes(Item1?.GetHashCode() ?? 0,
                                                    Item2?.GetHashCode() ?? 0,
@@ -2198,8 +2166,7 @@ namespace System
         private int GetHashCodeCore(IEqualityComparer comparer)
         {
             // We want to have a limited hash in this case.  We'll use the last 8 elements of the tuple
-            IValueTupleInternal? rest = Rest as IValueTupleInternal;
-            if (rest == null)
+            if (!(Rest is IValueTupleInternal rest))
             {
                 return ValueTuple.CombineHashCodes(comparer.GetHashCode(Item1!), comparer.GetHashCode(Item2!), comparer.GetHashCode(Item3!),
                                                    comparer.GetHashCode(Item4!), comparer.GetHashCode(Item5!), comparer.GetHashCode(Item6!),
@@ -2256,41 +2223,28 @@ namespace System
         /// </remarks>
         public override string ToString()
         {
-            IValueTupleInternal? rest = Rest as IValueTupleInternal;
-            if (rest == null)
-            {
-                return "(" + Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + Rest.ToString() + ")";
-            }
-            else
+            if (Rest is IValueTupleInternal rest)
             {
                 return "(" + Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + rest.ToStringEnd();
             }
+
+            return "(" + Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + Rest.ToString() + ")";
         }
 
         string IValueTupleInternal.ToStringEnd()
         {
-            IValueTupleInternal? rest = Rest as IValueTupleInternal;
-            if (rest == null)
-            {
-                return Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + Rest.ToString() + ")";
-            }
-            else
+            if (Rest is IValueTupleInternal rest)
             {
                 return Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + rest.ToStringEnd();
             }
+
+            return Item1?.ToString() + ", " + Item2?.ToString() + ", " + Item3?.ToString() + ", " + Item4?.ToString() + ", " + Item5?.ToString() + ", " + Item6?.ToString() + ", " + Item7?.ToString() + ", " + Rest.ToString() + ")";
         }
 
         /// <summary>
         /// The number of positions in this data structure.
         /// </summary>
-        int ITuple.Length
-        {
-            get
-            {
-                IValueTupleInternal? rest = Rest as IValueTupleInternal;
-                return rest == null ? 8 : 7 + rest.Length;
-            }
-        }
+        int ITuple.Length => Rest is IValueTupleInternal rest ? 7 + rest.Length : 8;
 
         /// <summary>
         /// Get the element at position <param name="index"/>.
@@ -2317,16 +2271,18 @@ namespace System
                         return Item7;
                 }
 
-                IValueTupleInternal? rest = Rest as IValueTupleInternal;
-                if (rest == null)
+                if (Rest is IValueTupleInternal rest)
                 {
-                    if (index == 7)
-                    {
-                        return Rest;
-                    }
-                    throw new IndexOutOfRangeException();
+                    return rest[index - 7];
                 }
-                return rest[index - 7];
+
+
+                if (index == 7)
+                {
+                    return Rest;
+                }
+
+                throw new IndexOutOfRangeException();
             }
         }
     }

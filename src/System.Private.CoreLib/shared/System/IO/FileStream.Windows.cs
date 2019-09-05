@@ -202,16 +202,18 @@ namespace System.IO
 
         private unsafe long GetLengthInternal()
         {
-            Interop.Kernel32.FILE_STANDARD_INFO info = new Interop.Kernel32.FILE_STANDARD_INFO();
+            Interop.Kernel32.FILE_STANDARD_INFO info;
 
             if (!Interop.Kernel32.GetFileInformationByHandleEx(_fileHandle, Interop.Kernel32.FILE_INFO_BY_HANDLE_CLASS.FileStandardInfo, out info, (uint)sizeof(Interop.Kernel32.FILE_STANDARD_INFO)))
                 throw Win32Marshal.GetExceptionForLastWin32Error(_path);
             long len = info.EndOfFile;
+
             // If we're writing near the end of the file, we must include our
             // internal buffer in our Length calculation.  Don't flush because
             // we use the length of the file in our async write method.
             if (_writePos > 0 && _filePosition + _writePos > len)
                 len = _writePos + _filePosition;
+
             return len;
         }
 
@@ -1151,15 +1153,8 @@ namespace System.IO
 
         // Windows API definitions, from winbase.h and others
 
-        private const int FILE_ATTRIBUTE_NORMAL = 0x00000080;
-        private const int FILE_ATTRIBUTE_ENCRYPTED = 0x00004000;
-        private const int FILE_FLAG_OVERLAPPED = 0x40000000;
         internal const int GENERIC_READ = unchecked((int)0x80000000);
         private const int GENERIC_WRITE = 0x40000000;
-
-        private const int FILE_BEGIN = 0;
-        private const int FILE_CURRENT = 1;
-        private const int FILE_END = 2;
 
         // Error codes (not HRESULTS), from winerror.h
         internal const int ERROR_BROKEN_PIPE = 109;

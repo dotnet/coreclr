@@ -376,7 +376,7 @@ void Compiler::optAddCopies()
 
                 if (block->bbFlags & BBF_KEEP_BBJ_ALWAYS)
                 {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
                     // With funclets, this is only used for BBJ_CALLFINALLY/BBJ_ALWAYS pairs. For x86, it is also used
                     // as the "final step" block for leaving finallys.
                     assert((block->bbPrev != nullptr) && block->bbPrev->isBBCallAlwaysPair());
@@ -425,11 +425,11 @@ void Compiler::optAddCopies()
             if (BlockSetOps::IsEmpty(this, paramImportantUseDom) ||
                 BlockSetOps::IsMember(this, varDsc->lvRefBlks, bestBlock->bbNum))
             {
-                stmt = fgInsertStmtAtBeg(bestBlock, copyAsgn);
+                stmt = fgNewStmtAtBeg(bestBlock, copyAsgn);
             }
             else
             {
-                stmt = fgInsertStmtNearEnd(bestBlock, copyAsgn);
+                stmt = fgNewStmtNearEnd(bestBlock, copyAsgn);
             }
         }
         else
@@ -2021,13 +2021,11 @@ AssertionIndex Compiler::optAssertionGenPhiDefn(GenTree* tree)
         return NO_ASSERTION_INDEX;
     }
 
-    GenTree* phi = tree->gtOp.gtOp2;
-
     // Try to find if all phi arguments are known to be non-null.
     bool isNonNull = true;
-    for (GenTreeArgList* args = phi->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+    for (GenTreePhi::Use& use : tree->AsOp()->gtGetOp2()->AsPhi()->Uses())
     {
-        if (!vnStore->IsKnownNonNull(args->Current()->gtVNPair.GetConservative()))
+        if (!vnStore->IsKnownNonNull(use.GetNode()->gtVNPair.GetConservative()))
         {
             isNonNull = false;
             break;
@@ -4777,12 +4775,12 @@ GenTree* Compiler::optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test)
         GenTreeStmt* newStmt;
         if (sideEffList->OperGet() == GT_COMMA)
         {
-            newStmt     = fgInsertStmtNearEnd(block, sideEffList->gtGetOp1());
+            newStmt     = fgNewStmtNearEnd(block, sideEffList->gtGetOp1());
             sideEffList = sideEffList->gtGetOp2();
         }
         else
         {
-            newStmt     = fgInsertStmtNearEnd(block, sideEffList);
+            newStmt     = fgNewStmtNearEnd(block, sideEffList);
             sideEffList = nullptr;
         }
         // fgMorphBlockStmt could potentially affect stmts after the current one,
@@ -4898,7 +4896,7 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Gen
     optAssertionProp_Update(newTree, tree, stmt);
 
     JITDUMP("After constant propagation on [%06u]:\n", tree->gtTreeID);
-    DBEXEC(VERBOSE, gtDispTree(stmt));
+    DBEXEC(VERBOSE, gtDispTree(stmt->gtStmtExpr));
 
     return WALK_SKIP_SUBTREES;
 }
@@ -5168,8 +5166,8 @@ void Compiler::optAssertionPropMain()
                 }
 
                 JITDUMP("Propagating %s assertions for " FMT_BB ", stmt [%06d], tree [%06d], tree -> %d\n",
-                        BitVecOps::ToString(apTraits, assertions), block->bbNum, dspTreeID(stmt), dspTreeID(tree),
-                        tree->GetAssertionInfo().GetAssertionIndex());
+                        BitVecOps::ToString(apTraits, assertions), block->bbNum, dspTreeID(stmt->gtStmtExpr),
+                        dspTreeID(tree), tree->GetAssertionInfo().GetAssertionIndex());
 
                 GenTree* newTree = optAssertionProp(assertions, tree, stmt);
                 if (newTree)
@@ -5193,7 +5191,7 @@ void Compiler::optAssertionPropMain()
                 if (verbose)
                 {
                     printf("Re-morphing this stmt:\n");
-                    gtDispTree(stmt);
+                    gtDispTree(stmt->gtStmtExpr);
                     printf("\n");
                 }
 #endif

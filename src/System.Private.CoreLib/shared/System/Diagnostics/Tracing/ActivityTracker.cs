@@ -2,20 +2,18 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+
+#if ES_BUILD_STANDALONE
 using System;
 using System.Diagnostics;
-using System.Threading;
-using System.Runtime.CompilerServices;
-#if !ES_BUILD_AGAINST_DOTNET_V35
-using Contract = System.Diagnostics.Contracts.Contract;
 #else
-using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
+using System.Threading.Tasks;
 #endif
+using System.Threading;
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
 #else
-using System.Threading.Tasks;
 namespace System.Diagnostics.Tracing
 #endif
 {
@@ -75,10 +73,10 @@ namespace System.Diagnostics.Tracing
 
             Debug.Assert((options & EventActivityOptions.Disable) == 0);
 
-            var currentActivity = m_current.Value;
-            var fullActivityName = NormalizeActivityName(providerName, activityName, task);
+            ActivityInfo? currentActivity = m_current.Value;
+            string fullActivityName = NormalizeActivityName(providerName, activityName, task);
 
-            var log = TplEventSource.Log;
+            TplEventSource log = TplEventSource.Log;
             if (log.Debug)
             {
                 log.DebugFacilityMessage("OnStartEnter", fullActivityName);
@@ -143,16 +141,16 @@ namespace System.Diagnostics.Tracing
             if (m_current == null)        // We are not enabled
                 return;
 
-            var fullActivityName = NormalizeActivityName(providerName, activityName, task);
+            string fullActivityName = NormalizeActivityName(providerName, activityName, task);
 
-            var log = TplEventSource.Log;
+            TplEventSource log = TplEventSource.Log;
             if (log.Debug)
             {
                 log.DebugFacilityMessage("OnStopEnter", fullActivityName);
                 log.DebugFacilityMessage("OnStopEnterActivityState", ActivityInfo.LiveActivities(m_current.Value));
             }
 
-            for (; ; ) // This is a retry loop.
+            while (true) // This is a retry loop.
             {
                 ActivityInfo? currentActivity = m_current.Value;
                 ActivityInfo? newCurrentActivity = null;               // if we have seen any live activities (orphans), at he first one we have seen.
@@ -231,8 +229,9 @@ namespace System.Diagnostics.Tracing
                 {
                     m_current = new AsyncLocal<ActivityInfo?>(ActivityChanging);
                 }
-                catch (NotImplementedException) {
-#if (!ES_BUILD_PCL && ! ES_BUILD_PN)
+                catch (NotImplementedException)
+                {
+#if (!ES_BUILD_PCL && !ES_BUILD_PN)
                     // send message to debugger without delay
                     System.Diagnostics.Debugger.Log(0, null, "Activity Enabled() called but AsyncLocals Not Supported (pre V4.6).  Ignoring Enable");
 #endif
@@ -243,7 +242,7 @@ namespace System.Diagnostics.Tracing
         /// <summary>
         /// An activity tracker is a singleton, this is how you get the one and only instance.
         /// </summary>
-        public static ActivityTracker Instance { get { return s_activityTrackerInstance; } }
+        public static ActivityTracker Instance => s_activityTrackerInstance;
 
 
         #region private
@@ -323,13 +322,7 @@ namespace System.Diagnostics.Tracing
                 CreateActivityPathGuid(out m_guid, out m_activityPathGuidOffset);
             }
 
-            public Guid ActivityId
-            {
-                get
-                {
-                    return m_guid;
-                }
-            }
+            public Guid ActivityId => m_guid;
 
             public static string Path(ActivityInfo? activityInfo)
             {
@@ -440,7 +433,7 @@ namespace System.Diagnostics.Tracing
             /// the value is either encoded into nibble itself or it can spill over into the
             /// bytes that follow.
             /// </summary>
-            enum NumberListCodes : byte
+            private enum NumberListCodes : byte
             {
                 End = 0x0,             // ends the list.   No valid value has this prefix.
                 LastImmediateValue = 0xA,
@@ -565,7 +558,7 @@ namespace System.Diagnostics.Tracing
         // This callback is used to initialize the m_current AsyncLocal Variable.
         // Its job is to keep the ETW Activity ID (part of thread local storage) in sync
         // with m_current.ActivityID
-        void ActivityChanging(AsyncLocalValueChangedArgs<ActivityInfo?> args)
+        private void ActivityChanging(AsyncLocalValueChangedArgs<ActivityInfo?> args)
         {
             ActivityInfo? cur = args.CurrentValue;
             ActivityInfo? prev = args.PreviousValue;
@@ -609,14 +602,14 @@ namespace System.Diagnostics.Tracing
         ///
         /// This variable points to a linked list that represents all Activities that have started but have not stopped.
         /// </summary>
-        AsyncLocal<ActivityInfo?>? m_current;
-        bool m_checkedForEnable;
+        private AsyncLocal<ActivityInfo?>? m_current;
+        private bool m_checkedForEnable;
 
         // Singleton
-        private static ActivityTracker s_activityTrackerInstance = new ActivityTracker();
+        private static readonly ActivityTracker s_activityTrackerInstance = new ActivityTracker();
 
         // Used to create unique IDs at the top level.  Not used for nested Ids (each activity has its own id generator)
-        static long m_nextId = 0;
+        private static long m_nextId = 0;
         private const ushort MAX_ACTIVITY_DEPTH = 100;            // Limit maximum depth of activities to be tracked at 100.
                                                                   // This will avoid leaking memory in case of activities that are never stopped.
 

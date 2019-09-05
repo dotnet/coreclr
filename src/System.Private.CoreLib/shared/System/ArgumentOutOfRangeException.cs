@@ -11,7 +11,6 @@
 **
 =============================================================================*/
 
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace System
@@ -22,7 +21,7 @@ namespace System
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
     public class ArgumentOutOfRangeException : ArgumentException
     {
-        private object? _actualValue;
+        private readonly object? _actualValue;
 
         // Creates a new ArgumentOutOfRangeException with its message
         // string set to a default message explaining an argument was out of range.
@@ -92,9 +91,6 @@ namespace System
         // Note - we don't set this anywhere in the class libraries in
         // version 1, but it might come in handy for other developers who
         // want to avoid sticking printf's in their code.
-        public virtual object? ActualValue
-        {
-            get { return _actualValue; }
-        }
+        public virtual object? ActualValue => _actualValue;
     }
 }

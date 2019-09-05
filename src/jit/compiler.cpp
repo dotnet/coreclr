@@ -3764,7 +3764,7 @@ void Compiler::compInitDebuggingInfo()
 
         fgEnsureFirstBBisScratch();
 
-        fgInsertStmtAtEnd(fgFirstBB, gtNewNothingNode());
+        fgNewStmtAtEnd(fgFirstBB, gtNewNothingNode());
 
         JITDUMP("Debuggable code - Add new %s to perform initialization of variables\n", fgFirstBB->dspToString());
     }
@@ -4530,7 +4530,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     fgComputeBlockAndEdgeWeights();
     EndPhase(PHASE_COMPUTE_EDGE_WEIGHTS);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     /* Create funclets from the EH handlers. */
 
@@ -8463,7 +8463,7 @@ GenTree* dFindTree(unsigned id)
     {
         for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
-            tree = dFindTree(stmt, id);
+            tree = dFindTree(stmt->gtStmtExpr, id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -8684,7 +8684,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (trees)
             {
-                cTree(comp, stmt);
+                cTree(comp, stmt->gtStmtExpr);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8698,7 +8698,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt);
+                cTreeIR(comp, stmt->gtStmtExpr);
             }
 
             if (!noStmts && !trees)
@@ -9372,15 +9372,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     }
                 }
                 break;
-
-            case GT_STMT:
-
-                if (tree->gtFlags & GTF_STMT_CMPADD)
-                {
-                    chars += printf("[STMT_CMPADD]");
-                }
-                break;
-
             default:
 
             {
@@ -10292,24 +10283,6 @@ void cNodeIR(Compiler* comp, GenTree* tree)
             return;
         }
     }
-    else if (op == GT_STMT)
-    {
-        if (noStmts)
-        {
-            if (dataflowView)
-            {
-                child = tree->GetChild(0);
-                if (child->gtOper != GT_COMMA)
-                {
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
-        }
-    }
     else if (op == GT_COMMA)
     {
         if (dataflowView)
@@ -10617,20 +10590,17 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
     else if (op == GT_PHI)
     {
-        if (tree->gtOp.gtOp1 != nullptr)
+        bool first = true;
+        for (GenTreePhi::Use& use : tree->AsPhi()->Uses())
         {
-            bool first = true;
-            for (GenTreeArgList* args = tree->gtOp.gtOp1->AsArgList(); args != nullptr; args = args->Rest())
+            child = use.GetNode();
+            if (!first)
             {
-                child = args->Current();
-                if (!first)
-                {
-                    chars += printf(",");
-                }
-                first = false;
-                chars += printf(" ");
-                chars += cOperandIR(comp, child);
+                chars += printf(",");
             }
+            first = false;
+            chars += printf(" ");
+            chars += cOperandIR(comp, child);
         }
     }
     else

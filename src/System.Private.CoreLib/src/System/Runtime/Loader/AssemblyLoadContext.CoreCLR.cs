@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Collections.Generic;
-using System.IO;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -52,7 +50,7 @@ namespace System.Runtime.Loader
 
             return loadedAssembly!;
         }
-        
+
 #if !FEATURE_PAL
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr LoadFromInMemoryModuleInternal(IntPtr ptrNativeAssemblyLoadContext, IntPtr hModule, ObjectHandleOnStack retAssembly);
@@ -109,7 +107,7 @@ namespace System.Runtime.Loader
             if (dllResolveHandler != null)
             {
                 // Loop through the event subscribers and return the first non-null native library handle
-                foreach (Func<Assembly, string, IntPtr>  handler in dllResolveHandler.GetInvocationList())
+                foreach (Func<Assembly, string, IntPtr> handler in dllResolveHandler.GetInvocationList())
                 {
                     resolvedDll = handler(assembly, unmanagedDllName);
                     if (resolvedDll != IntPtr.Zero)
@@ -121,7 +119,7 @@ namespace System.Runtime.Loader
 
             return IntPtr.Zero;
         }
-        
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void LoadTypeForWinRTTypeNameInContextInternal(IntPtr ptrNativeAssemblyLoadContext, string typeName, ObjectHandleOnStack loadedType);
 
@@ -141,7 +139,7 @@ namespace System.Runtime.Loader
                 return type!;
             }
         }
-        
+
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern IntPtr GetLoadContextForAssembly(QCallAssembly assembly);
 
@@ -188,48 +186,6 @@ namespace System.Runtime.Loader
         public void StartProfileOptimization(string profile)
         {
             InternalStartProfile(profile, _nativeAssemblyLoadContext);
-        }
-
-        // This method is called by the VM.
-        private static void OnAssemblyLoad(RuntimeAssembly assembly)
-        {
-            AssemblyLoad?.Invoke(AppDomain.CurrentDomain, new AssemblyLoadEventArgs(assembly));
-        }
-
-        // This method is called by the VM.
-        private static RuntimeAssembly? OnResourceResolve(RuntimeAssembly assembly, string resourceName)
-        {
-            return InvokeResolveEvent(ResourceResolve, assembly, resourceName);
-        }
-
-        // This method is called by the VM
-        private static RuntimeAssembly? OnTypeResolve(RuntimeAssembly assembly, string typeName)
-        {
-            return InvokeResolveEvent(TypeResolve, assembly, typeName);
-        }
-
-        // This method is called by the VM.
-        private static RuntimeAssembly? OnAssemblyResolve(RuntimeAssembly assembly, string assemblyFullName)
-        {
-            return InvokeResolveEvent(AssemblyResolve, assembly, assemblyFullName);
-        }
-
-        private static RuntimeAssembly? InvokeResolveEvent(ResolveEventHandler? eventHandler, RuntimeAssembly assembly, string name)
-        {
-            if (eventHandler == null)
-                return null;
-
-            var args = new ResolveEventArgs(name, assembly);
-
-            foreach (ResolveEventHandler handler in eventHandler.GetInvocationList())
-            {
-                Assembly? asm = handler(AppDomain.CurrentDomain, args);
-                RuntimeAssembly? ret = GetRuntimeAssembly(asm);
-                if (ret != null)
-                    return ret;
-            }
-
-            return null;
         }
 
         private static RuntimeAssembly? GetRuntimeAssembly(Assembly? asm)

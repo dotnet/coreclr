@@ -57,7 +57,7 @@ struct CallDescrData
 
 extern "C" void STDCALL CallDescrWorkerInternal(CallDescrData * pCallDescrData);
 
-#if !defined(_WIN64) && defined(_DEBUG)
+#if !defined(BIT64) && defined(_DEBUG)
 void CallDescrWorker(CallDescrData * pCallDescrData);
 #else
 #define CallDescrWorker(pCallDescrData) CallDescrWorkerInternal(pCallDescrData)
@@ -66,14 +66,6 @@ void CallDescrWorker(CallDescrData * pCallDescrData);
 void CallDescrWorkerWithHandler(
                 CallDescrData *   pCallDescrData,
                 BOOL              fCriticalCall = FALSE);
-
-void DispatchCall(
-                CallDescrData *   pCallDescrData,
-                OBJECTREF *             pRefException
-#ifdef FEATURE_CORRUPTING_EXCEPTIONS
-                , CorruptionSeverity *  pSeverity = NULL
-#endif // FEATURE_CORRUPTING_EXCEPTIONS
-                );
 
 // Helper for VM->managed calls with simple signatures.
 void * DispatchCallSimple(

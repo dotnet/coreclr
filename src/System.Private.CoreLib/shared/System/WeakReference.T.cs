@@ -24,14 +24,14 @@ namespace System
         {
         }
 
-        //Creates a new WeakReference that keeps track of target.
+        // Creates a new WeakReference that keeps track of target.
         //
         public WeakReference(T target, bool trackResurrection)
         {
             Create(target, trackResurrection);
         }
 
-        internal WeakReference(SerializationInfo info, StreamingContext context)
+        private WeakReference(SerializationInfo info, StreamingContext context)
         {
             if (info == null)
             {

@@ -29,7 +29,7 @@ GTNODE(STORE_LCL_FLD    , GenTreeLclFld      ,0,(GTK_UNOP|GTK_LOCAL|GTK_NOVALUE)
 GTNODE(CATCH_ARG        , GenTree            ,0,GTK_LEAF)               // Exception object in a catch block
 GTNODE(LABEL            , GenTree            ,0,GTK_LEAF)               // Jump-target
 GTNODE(FTN_ADDR         , GenTreeFptrVal     ,0,GTK_LEAF)               // Address of a function
-GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF)               // Place holder for the return expression from an inline candidate
+GTNODE(RET_EXPR         , GenTreeRetExpr     ,0,GTK_LEAF|GTK_NOTLIR)    // Place holder for the return expression from an inline candidate
 
 //-----------------------------------------------------------------------------
 //  Constant nodes:
@@ -158,7 +158,7 @@ GTNODE(INDEX            , GenTreeIndex       ,0,(GTK_BINOP|GTK_EXOP|GTK_NOTLIR))
 GTNODE(INDEX_ADDR       , GenTreeIndexAddr   ,0,(GTK_BINOP|GTK_EXOP)) // addr of SZ-array-element; 
                                                                       // used when aiming to minimize compile times.
 
-GTNODE(MKREFANY         , GenTreeOp          ,0,GTK_BINOP)
+GTNODE(MKREFANY         , GenTreeOp          ,0,GTK_BINOP|GTK_NOTLIR)
 
 GTNODE(LEA              , GenTreeAddrMode    ,0,(GTK_BINOP|GTK_EXOP))
 
@@ -258,7 +258,7 @@ GTNODE(START_PREEMPTGC  , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))   // sta
 GTNODE(PROF_HOOK        , GenTree            ,0,(GTK_LEAF|GTK_NOVALUE))   // profiler Enter/Leave/TailCall hook
 
 GTNODE(RETFILT          , GenTreeOp          ,0,(GTK_UNOP|GTK_NOVALUE))   // end filter with TYP_I_IMPL return value
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 GTNODE(END_LFIN         , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // end locally-invoked finally
 #endif // !FEATURE_EH_FUNCLETS
 
@@ -266,7 +266,7 @@ GTNODE(END_LFIN         , GenTreeVal         ,0,(GTK_LEAF|GTK_NOVALUE))   // end
 //  Nodes used for optimizations.
 //-----------------------------------------------------------------------------
 
-GTNODE(PHI              , GenTreeOp          ,0,GTK_UNOP)               // phi node for ssa.
+GTNODE(PHI              , GenTreePhi         ,0,GTK_SPECIAL)              // phi node for ssa.
 GTNODE(PHI_ARG          , GenTreePhiArg      ,0,(GTK_LEAF|GTK_LOCAL))     // phi(phiarg, phiarg, phiarg)
 
 //-----------------------------------------------------------------------------
