@@ -15,10 +15,8 @@ namespace System.Diagnostics.Tracing
             return Interop.Sys.GetCpuUtilization(ref cpuInfo);
         }
 
-
         internal static long GetWorkingSet()
         {
-            // Returns the current processs' WorkingSet
             return Environment.WorkingSet;
         }
     }

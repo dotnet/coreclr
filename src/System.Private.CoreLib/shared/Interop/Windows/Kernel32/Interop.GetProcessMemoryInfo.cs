@@ -9,7 +9,7 @@ internal partial class Interop
 {
     // Used for retrieving working set information directly via pinvoke.
     [StructLayout(LayoutKind.Sequential, Size=72)]
-    internal struct PROCESS_MEMORY_COUNTERS
+    internal struct ProcessMemoryCounters
     {
         public uint cb;
         public uint PageFaultCount;
@@ -26,6 +26,6 @@ internal partial class Interop
     internal partial class Kernel32
     {
         [DllImport("psapi.dll", SetLastError = true)]
-        internal static extern bool GetProcessMemoryInfo(IntPtr handleProcess, out PROCESS_MEMORY_COUNTERS pmCounter, uint cb);
+        internal static extern bool GetProcessMemoryInfo(IntPtr handleProcess, out ProcessMemoryCounters pmCounter, uint cb);
     }
 }

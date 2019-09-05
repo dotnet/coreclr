@@ -50,14 +50,11 @@ namespace System.Diagnostics.Tracing
 
         internal static long GetWorkingSet()
         {
+            Interop.ProcessMemoryCounters memoryCounters;
+            memoryCounters.cb = (uint)(Marshal.SizeOf(typeof(Interop.ProcessMemoryCounters)));
 
-            Interop.PROCESS_MEMORY_COUNTERS memoryCounters;
-            memoryCounters.cb = (uint)(Marshal.SizeOf(typeof(Interop.PROCESS_MEMORY_COUNTERS)));
-
-            // Returns the current processs' WorkingSet
             if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
             {
-                Debug.WriteLine("Failed: GetProcessMemoryInfo returned false");
                 return 0;
             }
             return (long)memoryCounters.WorkingSetSize;
