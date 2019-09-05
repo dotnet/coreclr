@@ -19,7 +19,7 @@ namespace System.Diagnostics.Tracing
         internal static long GetWorkingSet()
         {
             // Returns the current processs' WorkingSet
-            return 0;
+            return Environment.WorkingSet;
         }
     }
 }
