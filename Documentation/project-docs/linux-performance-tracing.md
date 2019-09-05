@@ -44,6 +44,14 @@ Follow these steps to prepare your machine to collect a performance trace.
 	> sudo ./perfcollect install
 	> ```
 
+If you get an error like this
+
+```bash
+ERROR: Unable to find a perf package to install.
+```
+
+Try running `sudo apt update` first.
+
 ## Collecting a Trace ##
 1. Have two shell windows available - one for controlling tracing, referred to as **[Trace]**, and one for running the application, referred to as **[App]**.
 2. **[App]** Setup the application shell - this enables tracing configuration inside of CoreCLR.
