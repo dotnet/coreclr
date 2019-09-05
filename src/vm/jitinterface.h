@@ -506,6 +506,7 @@ public:
     BOOL checkMethodModifier(CORINFO_METHOD_HANDLE hMethod, LPCSTR modifier, BOOL fOptional);
 
     unsigned getClassGClayout (CORINFO_CLASS_HANDLE cls, BYTE* gcPtrs); /* really GCType* gcPtrs */
+    static unsigned getClassGClayoutStatic(TypeHandle th, BYTE* gcPtrs);
     unsigned getClassNumInstanceFields(CORINFO_CLASS_HANDLE cls);
 
     // returns the enregister info for a struct based on type of fields, alignment, etc.

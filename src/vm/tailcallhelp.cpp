@@ -72,7 +72,9 @@ struct ArgBufferValue
     TypeHandle TyHnd;
     unsigned int Offset;
 
-    ArgBufferValue(TypeHandle tyHnd = TypeHandle(), unsigned int offset = 0)
+    ArgBufferValue(
+        TypeHandle tyHnd = TypeHandle(),
+        unsigned int offset = 0)
         : TyHnd(tyHnd)
         , Offset(offset)
     {
@@ -132,10 +134,10 @@ void TailCallHelp::CreateTailCallHelperStubs(
 {
     STANDARD_VM_CONTRACT;
 
-//#ifdef _DEBUG
-//    SigFormat incSig(callSiteSig, NULL);
-//    printf("Incoming sig: %s\n", incSig.GetCString());
-//#endif
+#ifdef _DEBUG
+    SigFormat incSig(callSiteSig, NULL);
+    LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: Incoming sig %s\n", incSig.GetCString()));
+#endif
 
     // There are two cases where we will need the tailcalling site to pass us the target:
     // * It was a calli, for obvious reasons
@@ -222,6 +224,15 @@ void TailCallHelp::LayOutArgBuffer(
 
 TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
 {
+    CorElementType ety = tyHnd.GetSignatureCorElementType();
+    if (CorTypeInfo::IsPrimitiveType(ety))
+    {
+        return tyHnd;
+    }
+    if (CorTypeInfo::IsObjRef(ety))
+    {
+        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_OBJECT));
+    }
     if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
     {
         return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
@@ -232,11 +243,8 @@ TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
         return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))
                .MakeByRef();
     }
-    if (!tyHnd.IsValueType())
-    {
-        return TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_OBJECT));
-    }
 
+    _ASSERTE(ety == ELEMENT_TYPE_VALUETYPE && tyHnd.IsValueType());
     // Value type -- retain it to preserve its size
     return tyHnd;
 }
@@ -244,25 +252,67 @@ TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
 bool TailCallHelp::GenerateGCDescriptor(
     MethodDesc* pTargetMD, const ArgBufferLayout& layout, GCRefMapBuilder* builder)
 {
-    bool anyGC = false;
+    auto writeToken = [&](unsigned int offset, int token)
+    {
+        _ASSERTE(offset % TARGET_POINTER_SIZE == 0);
+        builder->WriteToken(offset / TARGET_POINTER_SIZE, token);
+    };
+
+    auto writeGCType = [&](unsigned int offset, CorInfoGCType type)
+    {
+        switch (type)
+        {
+            case TYPE_GC_REF: writeToken(offset, GCREFMAP_REF); break;
+            case TYPE_GC_BYREF: writeToken(offset, GCREFMAP_INTERIOR); break;
+            case TYPE_GC_NONE: break;
+            default: UNREACHABLE_MSG("Invalid type"); break;
+        }
+    };
+
+    CQuickBytes gcPtrs;
     for (COUNT_T i = 0; i < layout.Values.GetCount(); i++)
     {
-        TypeHandle tyHnd = layout.Values[i].TyHnd;
-        if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
-            continue;
+        const ArgBufferValue& val = layout.Values[i];
 
-        if (tyHnd.IsValueType() && !tyHnd.GetMethodTable()->ContainsPointers())
-            continue;
+        if (static_cast<int>(i) == layout.GenericContextIndex)
+        {
+            if (pTargetMD->RequiresInstMethodDescArg())
+            {
+                writeToken(val.Offset, GCREFMAP_METHOD_PARAM);
+            }
+            else
+            {
+                _ASSERTE(pTargetMD->RequiresInstMethodTableArg());
+                writeToken(val.Offset, GCREFMAP_TYPE_PARAM);
+            }
 
-        anyGC = true;
+            continue;
+        }
+
+        TypeHandle tyHnd = val.TyHnd;
+        if (tyHnd.IsValueType())
+        {
+            if (!tyHnd.GetMethodTable()->ContainsPointers())
+                continue;
+
+            size_t numSlots = (tyHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE;
+            BYTE* ptr = static_cast<BYTE*>(gcPtrs.AllocThrows(numSlots));
+            CEEInfo::getClassGClayoutStatic(tyHnd, ptr);
+            for (size_t i = 0; i < numSlots; i++)
+            {
+                writeGCType(val.Offset + i * TARGET_POINTER_SIZE, (CorInfoGCType)ptr[i]);
+            }
+
+            continue;
+        }
+
+        CorElementType ety = tyHnd.GetSignatureCorElementType();
+        CorInfoGCType gc = CorTypeInfo::GetGCType(ety);
+
+        writeGCType(val.Offset, gc);
     }
 
-    //methInfo->options = (CorInfoOptions)(((UINT32)methInfo->options) | 
-    //                        ((ftn->AcquiresInstMethodTableFromThis() ? CORINFO_GENERICS_CTXT_FROM_THIS : 0) |
-    //                         (ftn->RequiresInstMethodTableArg() ? CORINFO_GENERICS_CTXT_FROM_METHODTABLE : 0) |
-    //                         (ftn->RequiresInstMethodDescArg() ? CORINFO_GENERICS_CTXT_FROM_METHODDESC : 0)));
-
-    return anyGC;
+    return builder->GetBlobLength() > 0;
 }
 
 MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
@@ -322,12 +372,11 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
         const ArgBufferValue& arg = info.ArgBufLayout.Values[i];
+        CorElementType ty = arg.TyHnd.GetSignatureCorElementType();
+
         emitOffs(arg.Offset);
         pCode->EmitLDARG(argIndex++);
-        // TODO: We should be able to avoid write barriers as we are always
-        // writing into TLS which needs special GC treatment anyway. However JIT
-        // currently asserts if we use CPBLK or similar.
-        pCode->EmitSTOBJ(pCode->GetToken(arg.TyHnd));
+        EmitLoadStoreArgBuffer(pCode, arg.TyHnd, false);
     }
 
     pCode->EmitRET();
@@ -343,12 +392,13 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
             &emptyCtx,
             &sl);
 
-//#ifdef _DEBUG
-//    StackSString ilStub;
-//    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-//    StackScratchBuffer ssb;
-//    printf("%s\n", ilStub.GetUTF8(ssb));
-//#endif
+#ifdef _DEBUG
+    StackSString ilStub;
+    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+    StackScratchBuffer ssb;
+    LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: StoreArgs IL created\n"));
+    LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
+#endif
 
 #ifndef CROSSGEN_COMPILE
     JitILStub(pStoreArgsMD);
@@ -387,17 +437,18 @@ void TailCallHelp::CreateStoreArgsStubSig(
 
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
-        AppendElementType(*sig, info.ArgBufLayout.Values[i].TyHnd);
+        const ArgBufferValue& val = info.ArgBufLayout.Values[i];
+        AppendTypeHandle(*sig, val.TyHnd);
     }
 
-//#ifdef _DEBUG
-//    DWORD cbSig;
-//    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
-//    SigTypeContext emptyContext;
-//    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
-//    SigFormat outSig(outMsig, NULL);
-//    printf("StoreArgs sig: %s\n", outSig.GetCString());
-//#endif // _DEBUG
+#ifdef _DEBUG
+    DWORD cbSig;
+    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+    SigTypeContext emptyContext;
+    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
+    SigFormat outSig(outMsig, NULL);
+    LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: StoreArgs sig: %s\n", outSig.GetCString()));
+#endif // _DEBUG
 }
 
 MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
@@ -514,7 +565,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
         // arg = args->Arg_i
         emitOffs(arg.Offset);
-        pCode->EmitLDOBJ(pCode->GetToken(arg.TyHnd));
+        EmitLoadStoreArgBuffer(pCode, arg.TyHnd, true);
         pCode->EmitSTLOC(argLcl);
     }
 
@@ -576,13 +627,14 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         }
 
         // Return type
-        AppendElementType(calliSig, info.RetTyHnd);
+        AppendTypeHandle(calliSig, info.RetTyHnd);
 
         COUNT_T firstSigArg = info.CallSiteSig->HasThis() ? 1 : 0;
 
         for (COUNT_T i = firstSigArg; i < argLocals.GetCount(); i++)
         {
-            AppendElementType(calliSig, info.ArgBufLayout.Values[i].TyHnd);
+            const ArgBufferValue& val = info.ArgBufLayout.Values[i];
+            AppendTypeHandle(calliSig, val.TyHnd);
         }
 
         DWORD cbCalliSig;
@@ -655,12 +707,13 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             &emptyCtx,
             &sl);
 
-//#ifdef _DEBUG
-//    StackSString ilStub;
-//    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-//    StackScratchBuffer ssb;
-//    printf("%s\n", ilStub.GetUTF8(ssb));
-//#endif
+#ifdef _DEBUG
+    StackSString ilStub;
+    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
+    StackScratchBuffer ssb;
+    LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: CallTarget IL created\n"));
+    LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
+#endif
 
 #ifndef CROSSGEN_COMPILE
     JitILStub(pCallTargetMD);
@@ -677,27 +730,55 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
     sig->AppendData(0);
 
     // Returns same as original
-    AppendElementType(*sig, info.RetTyHnd);
+    AppendTypeHandle(*sig, info.RetTyHnd);
 
-//#ifdef _DEBUG
-//    DWORD cbSig;
-//    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
-//    SigTypeContext emptyContext;
-//    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
-//    SigFormat outSig(outMsig, NULL);
-//    printf("CallTarget sig: %s\n", outSig.GetCString());
-//#endif // _DEBUG
+#ifdef _DEBUG
+    DWORD cbSig;
+    PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sig->GetSignature(&cbSig);
+    SigTypeContext emptyContext;
+    MetaSig outMsig(pSig, cbSig, info.CallSiteSig->GetModule(), &emptyContext);
+    SigFormat outSig(outMsig, NULL);
+    LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: CallTarget sig: %s\n", outSig.GetCString()));
+#endif // _DEBUG
 }
 
-void TailCallHelp::AppendElementType(SigBuilder& builder, TypeHandle th)
+void TailCallHelp::EmitLoadStoreArgBuffer(ILCodeStream* stream, TypeHandle tyHnd, bool isLoad)
 {
+    CorElementType ty = tyHnd.GetSignatureCorElementType();
+    if (tyHnd.IsByRef())
+    {
+        if (isLoad)
+            stream->EmitLDIND_I();
+        else
+            stream->EmitSTIND_I();
+    }
+    else
+    {
+        int token = stream->GetToken(tyHnd);
+        if (isLoad)
+            stream->EmitLDOBJ(token);
+        else
+            stream->EmitSTOBJ(token);
+    }
+}
+
+void TailCallHelp::AppendTypeHandle(SigBuilder& builder, TypeHandle th)
+{
+    if (th.IsByRef())
+    {
+        builder.AppendElementType(ELEMENT_TYPE_BYREF);
+        th = th.AsTypeDesc()->GetBaseTypeParam();
+    }
+
     CorElementType ty = th.GetSignatureCorElementType();
-    if (CorIsPrimitiveType(ty))
+    if (CorTypeInfo::IsPrimitiveType(ty) ||
+        ty == ELEMENT_TYPE_OBJECT || ty == ELEMENT_TYPE_STRING)
     {
         builder.AppendElementType(ty);
         return;
     }
 
+    _ASSERTE(ty == ELEMENT_TYPE_VALUETYPE || ty == ELEMENT_TYPE_CLASS);
     builder.AppendElementType(ELEMENT_TYPE_INTERNAL);
     builder.AppendPointer(th.AsPtr());
 }

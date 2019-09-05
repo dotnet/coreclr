@@ -2214,20 +2214,29 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-    unsigned result = 0;
+    unsigned result;
 
     JIT_TO_EE_TRANSITION();
 
     TypeHandle VMClsHnd(clsHnd);
+    result = getClassGClayoutStatic(VMClsHnd, gcPtrs);
 
-    MethodTable* pMT = VMClsHnd.GetMethodTable();
+    EE_TO_JIT_TRANSITION();
 
-    if (VMClsHnd.IsNativeValueType())
+    return result;
+}
+
+unsigned CEEInfo::getClassGClayoutStatic(TypeHandle th, BYTE* gcPtrs)
+{
+    unsigned result = 0;
+    MethodTable* pMT = th.GetMethodTable();
+
+    if (th.IsNativeValueType())
     {
         // native value types have no GC pointers
         result = 0;
         memset(gcPtrs, TYPE_GC_NONE,
-               (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
+               (th.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
     }
     else if (pMT->IsByRefLike())
     {
@@ -2242,11 +2251,11 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
         else
         {
             memset(gcPtrs, TYPE_GC_NONE,
-                (VMClsHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
+                (th.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE);
             // Note: This case is more complicated than the TypedReference case
             // due to ByRefLike structs being included as fields in other value 
             // types (TypedReference can not be.)
-            result = ComputeGCLayout(VMClsHnd.AsMethodTable(), gcPtrs);
+            result = ComputeGCLayout(th.AsMethodTable(), gcPtrs);
         }
     }
     else
@@ -2259,7 +2268,7 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
         _ASSERTE(isValueClass || !IsReadyToRunCompilation() || pMT->IsInheritanceChainLayoutFixedInCurrentVersionBubble());
 #endif
 
-        unsigned int size = isValueClass ? VMClsHnd.GetSize() : pMT->GetNumInstanceFieldBytes() + OBJECT_SIZE;
+        unsigned int size = isValueClass ? th.GetSize() : pMT->GetNumInstanceFieldBytes() + OBJECT_SIZE;
 
         // assume no GC pointers at first
         result = 0;
@@ -2289,8 +2298,6 @@ unsigned CEEInfo::getClassGClayout (CORINFO_CLASS_HANDLE clsHnd, BYTE* gcPtrs)
             }
         }
     }
-
-    EE_TO_JIT_TRANSITION();
 
     return result;
 }
