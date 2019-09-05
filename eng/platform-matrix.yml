@@ -32,7 +32,7 @@ jobs:
       value: ${{ in(parameters.platformGroup, 'all') }}
 
     - name: groupAllOrGcStress
-      value: ${{ in(parameters.platformGroup, 'all', 'gcstress')) }}
+      value: ${{ in(parameters.platformGroup, 'all', 'gcstress') }}
 
     # Boolean flags defining which OS / architecture combos to generate
 
@@ -42,16 +42,16 @@ jobs:
     - name: linuxArm64
       value: ${{ or(containsValue(parameters.platforms, 'Linux_arm64'), variables.groupAll) }}
 
-    - name: linuxMuslX64:
+    - name: linuxMuslX64
       value: ${{ or(containsValue(parameters.platforms, 'Linux_musl_x64'), variables.groupAll) }}
 
     - name: linuxMuslArm64
       value: ${{ or(containsValue(parameters.platforms, 'Linux_musl_arm64'), variables.groupAll) }}
 
-    - name: linuxRHel6X64:
+    - name: linuxRHel6X64
       value: ${{ or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), variables.groupAll) }}
 
-    - name: linuxX64:
+    - name: linuxX64
       value: ${{ or(containsValue(parameters.platforms, 'Linux_x64'), variables.groupAllOrGcStress) }}
 
     - name: osxX64
