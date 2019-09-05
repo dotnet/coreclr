@@ -8,7 +8,7 @@ using System.Runtime.InteropServices;
 internal partial class Interop
 {
     // Used for retrieving working set information directly via pinvoke.
-    [StructLayout(LayoutKind.Sequential, Size=72)]
+    [StructLayout(LayoutKind.Sequential)]
     internal struct ProcessMemoryCounters
     {
         public uint cb;
