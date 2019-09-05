@@ -6108,6 +6108,12 @@ GenTreeCall::Use* Compiler::gtPrependNewCallArg(GenTree* node, GenTreeCall::Use*
     return new (this, CMK_ASTNode) GenTreeCall::Use(node, args);
 }
 
+GenTreeCall::Use* Compiler::gtInsertNewCallArgAfter(GenTree* node, GenTreeCall::Use* after)
+{
+    after->SetNext(new (this, CMK_ASTNode) GenTreeCall::Use(node, after->GetNext()));
+    return after->GetNext();
+}
+
 GenTreeCall::Use* Compiler::gtNewCallArgs(GenTree* node)
 {
     return new (this, CMK_ASTNode) GenTreeCall::Use(node);
