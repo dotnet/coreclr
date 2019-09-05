@@ -3580,6 +3580,8 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
         case CORINFO_INTRINSIC_Ceiling:
         case CORINFO_INTRINSIC_Floor:
             retNode = impMathIntrinsic(method, sig, callType, intrinsicID, tailCall);
+            // Can be optimized during morph
+            isSpecial = intrinsicID == CORINFO_INTRINSIC_Pow;
             break;
 
 #if defined(_TARGET_XARCH_) || defined(_TARGET_ARM64_)

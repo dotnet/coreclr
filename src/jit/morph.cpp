@@ -8698,20 +8698,36 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
         }
     }
 
-    if (call->fgArgInfo->ArgCount() == 2)
+    // Optimize Math.Pow(x, c)
+    if ((call->gtCallMoreFlags & GTF_CALL_M_SPECIAL_INTRINSIC) &&
+        info.compCompHnd->getIntrinsicID(call->gtCallMethHnd) == CORINFO_INTRINSIC_Pow)
     {
-        GenTree* arg0 = gtArgEntryByArgNum(call, 0)->node;
-        GenTree* arg1 = gtArgEntryByArgNum(call, 1)->node;
-        if (arg1->OperIs(GT_CNS_DBL))
+        noway_assert(call->fgArgInfo->ArgCount() == 2);
+        GenTree*       arg     = gtArgEntryByArgNum(call, 0)->node;
+        GenTreeDblCon* dblCon  = gtArgEntryByArgNum(call, 1)->node->AsDblCon();
+        GenTree*       newNode = nullptr;
+
+        if (dblCon->gtDconVal == 2.0)
         {
-            GenTreeDblCon* dblCon = arg1->AsDblCon();
-            if (dblCon->gtDconVal == 2.0)
-            {
-                GenTree* result = gtNewOperNode(GT_MUL, TYP_DOUBLE, arg0, gtNewLclvNode(arg0->gtLclVar.gtLclNum, arg0->TypeGet()));
-                INDEBUG(result->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED);
-                DEBUG_DESTROY_NODE(call);
-                return result;
-            }
+            // Math.Pow(x, 2) -> x*x
+            newNode = gtNewOperNode(GT_MUL, dblCon->TypeGet(), arg, gtNewLclvNode(arg->gtLclVar.gtLclNum, arg->TypeGet()));
+        }
+        else if (dblCon->gtDconVal == 1.0)
+        {
+            // Math.Pow(x, 1) -> x
+            newNode = arg;
+        }
+        else if (dblCon->gtDconVal == -1.0)
+        {
+            // Math.Pow(x, -1) -> 1/x
+            newNode = gtNewOperNode(GT_DIV, dblCon->TypeGet(), gtNewDconNode(1, dblCon->TypeGet()), arg);
+        }
+
+        if (newNode != nullptr)
+        {
+            INDEBUG(newNode->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED);
+            DEBUG_DESTROY_NODE(call);
+            return newNode;
         }
     }
 
