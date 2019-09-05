@@ -123,7 +123,6 @@
     PER_FUNCTION_BLOCK(ures_open, libicuuc) \
     PER_FUNCTION_BLOCK(usearch_close, libicui18n) \
     PER_FUNCTION_BLOCK(usearch_first, libicui18n) \
-    PER_FUNCTION_BLOCK(usearch_preceding, libicui18n) \
     PER_FUNCTION_BLOCK(usearch_getMatchedLength, libicui18n) \
     PER_FUNCTION_BLOCK(usearch_last, libicui18n) \
     PER_FUNCTION_BLOCK(usearch_openFromCollator, libicui18n)
@@ -236,7 +235,6 @@ FOR_ALL_ICU_FUNCTIONS
 #define ures_open(...) ures_open_ptr(__VA_ARGS__)
 #define usearch_close(...) usearch_close_ptr(__VA_ARGS__)
 #define usearch_first(...) usearch_first_ptr(__VA_ARGS__)
-#define usearch_preceding(...) usearch_preceding_ptr(__VA_ARGS__)
 #define usearch_getMatchedLength(...) usearch_getMatchedLength_ptr(__VA_ARGS__)
 #define usearch_last(...) usearch_last_ptr(__VA_ARGS__)
 #define usearch_openFromCollator(...) usearch_openFromCollator_ptr(__VA_ARGS__)

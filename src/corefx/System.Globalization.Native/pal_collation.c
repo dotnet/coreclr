@@ -604,12 +604,13 @@ int32_t GlobalizationNative_StartsWith(
 
     if (U_SUCCESS(err))
     {
-        UStringSearch* pSearch = usearch_openFromCollator(lpTarget, cwTargetLength, lpSource, cwSourceLength, pColl, NULL, &err);
+        int32_t searchedTextLength = cwTargetLength < cwSourceLength ? cwTargetLength : cwSourceLength;
+        UStringSearch* pSearch = usearch_openFromCollator(lpTarget, cwTargetLength, lpSource, searchedTextLength, pColl, NULL, &err);
         int32_t idx = USEARCH_DONE;
 
         if (U_SUCCESS(err))
         {
-            idx = usearch_preceding(pSearch, 1, &err);
+            idx = usearch_first(pSearch, &err);
             if (idx != USEARCH_DONE)
             {
                 if (idx == 0)
