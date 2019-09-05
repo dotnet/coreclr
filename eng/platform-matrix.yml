@@ -17,7 +17,7 @@ parameters:
   jobParameters: {}
 
 jobs:
-- template: /eng/platform-matrix-build-os-per-arch.yml
+- template: /eng/platform-matrix-inner.yml
   parameters:
     jobTemplate: ${{ parameters.jobTemplate }}
     buildConfig: ${{ parameters.buildConfig }}

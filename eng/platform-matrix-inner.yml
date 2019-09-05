@@ -15,6 +15,7 @@ parameters:
   helixQueueGroup: 'pr'
   ignoreDependencyOnBuildJobs: false
   jobParameters: {}
+  variables: {}
 
 jobs:
 
