@@ -5,6 +5,10 @@
     -->
     <RestoreOutputPath>$(MSBuildThisFileDirectory)obj</RestoreOutputPath>
     <OutputPath>$(TargetingPackPath)</OutputPath>
+    <TargetFramework>netcoreapp3.0</TargetFramework>
+    <NuGetTargetMoniker>.NETCoreApp,Version=v3.0</NuGetTargetMoniker>
+    <NuGetTargetMonikerShort>netcoreapp3.0</NuGetTargetMonikerShort>
+    <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
     <XUnitRunnerPackageId>xunit.runner.console</XUnitRunnerPackageId>
     <XUnitRunnerTargetFramework>netcoreapp2.0</XUnitRunnerTargetFramework>
     <CLRTestKind>SharedLibrary</CLRTestKind>
@@ -13,6 +17,7 @@
     <GenerateRuntimeConfigurationFiles>false</GenerateRuntimeConfigurationFiles>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoWarn>$(NoWarn);NU1701</NoWarn>
   </PropertyGroup>
 
   <Target Name="CreateManifestResourceNames" />
@@ -62,8 +67,6 @@
     <PackageToInclude Include="Microsoft.CodeAnalysis.VisualBasic"/>
     <PackageToInclude Include="CommandLineParser"/>
 
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="1.3.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.VisualBasic" Version="1.3.0" />
     <PackageReference Include="Microsoft.CodeAnalysis.Compilers" Version="1.1.1" />
     <PackageReference Include="CommandLineParser" Version="2.1.1-beta" />
     <PackageReference Include="xunit.performance.api" Version="$(XunitPerformanceApiPackageVersion)" />
@@ -75,12 +78,6 @@
     <PackageReference Include="xunit" Version="$(XunitPackageVersion)" />
     <PackageReference Include="$(XUnitRunnerPackageId)" Version="$(XunitPackageVersion)" />
     <PackageReference Include="xunit.runner.utility" Version="$(XunitPackageVersion)" />
-  </ItemGroup>
-  <PropertyGroup>
-    <TargetFramework>netcoreapp3.0</TargetFramework>
-    <RuntimeIdentifiers>win7-x86;win7-x64</RuntimeIdentifiers>
-  </PropertyGroup>
-  <ItemGroup>
   </ItemGroup>
 
   <PropertyGroup>
