@@ -3254,7 +3254,17 @@ public:
 
     // Obtain tailcall help for the specified call site.
     virtual bool getTailCallHelp(
-        CORINFO_CALL_INFO* callInfo,
+
+        // Target method being called. Can be null if this is calli.
+        CORINFO_METHOD_HANDLE hTarget,
+
+        // Call site signature. Necessary for calli and varargs.
+        CORINFO_SIG_INFO* callSiteSig,
+
+        // Whether callsite is a 'callvirt' instruction.
+        bool isCallvirt,
+
+        // The resulting help.
         CORINFO_TAILCALL_HELP* pResult)
     { return false; }
 

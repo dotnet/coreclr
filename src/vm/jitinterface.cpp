@@ -13939,8 +13939,10 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 }
 
 bool CEEInfo::getTailCallHelp(
-    CORINFO_CALL_INFO *callInfo,
-    CORINFO_TAILCALL_HELP *pResult)
+    CORINFO_METHOD_HANDLE hTarget,
+    CORINFO_SIG_INFO* callSiteSig,
+    bool isCallvirt,
+    CORINFO_TAILCALL_HELP* pResult)
 {
     CONTRACTL {
         THROWS;
@@ -13950,29 +13952,18 @@ bool CEEInfo::getTailCallHelp(
 
     JIT_TO_EE_TRANSITION();
 
-    CORINFO_SIG_INFO* pSig = &callInfo->sig;
-
     SigTypeContext typeCtx;
-    GetTypeContext(&pSig->sigInst, &typeCtx);
+    GetTypeContext(&callSiteSig->sigInst, &typeCtx);
 
-    MetaSig msig(pSig->pSig, pSig->cbSig, GetModule(pSig->scope), &typeCtx);
+    MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
 
     MethodDesc* pStoreArgsMD;
     MethodDesc* pCallTargetMD;
     bool needsTarget;
 
-    bool isVirtualCall = false;
-    if (callInfo->hMethod != NULL)
-    {
-        isVirtualCall =
-            callInfo->kind == CORINFO_VIRTUALCALL_STUB ||
-            callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN ||
-            callInfo->kind == CORINFO_VIRTUALCALL_VTABLE;
-    }
-
     TailCallHelp::CreateTailCallHelperStubs(
-        m_pMethodBeingCompiled, (MethodDesc*)callInfo->hMethod,
-        msig, isVirtualCall, callInfo->sig.hasTypeArg(),
+        m_pMethodBeingCompiled, (MethodDesc*)hTarget,
+        msig, isCallvirt, callSiteSig->hasTypeArg(),
         &pStoreArgsMD, &needsTarget,
         &pCallTargetMD);
 

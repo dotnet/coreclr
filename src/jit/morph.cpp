@@ -7433,7 +7433,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 
     bool canFastTailCall = fgCanFastTailCall(call);
 
-    CORINFO_TAILCALL_HELP tailcallHelp;
+    CORINFO_TAILCALL_HELP tailCallHelp;
     if (!canFastTailCall)
     {
         if (call->IsImplicitTailCall())
@@ -7450,7 +7450,15 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(call->IsTailPrefixedCall());
         assert(call->callInfo != nullptr);
 
-        if (!info.compCompHnd->getTailCallHelp(call->callInfo, &tailcallHelp))
+        CORINFO_METHOD_HANDLE targetMethHnd = call->callInfo->hMethod;
+        CORINFO_SIG_INFO* callSiteSig = &call->callInfo->sig;
+        bool isCallvirt = 
+            (call->callInfo->kind == CORINFO_VIRTUALCALL_VTABLE) ||
+            (call->callInfo->kind == CORINFO_VIRTUALCALL_STUB) ||
+            (call->callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN);
+
+        if (!info.compCompHnd->getTailCallHelp(
+            targetMethHnd, callSiteSig, isCallvirt, &tailCallHelp))
         {
             failTailCall("Tail call help not available");
             return nullptr;
@@ -7611,7 +7619,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     // last call is a fast tailcall. This will modify fgMorphStmt.
     if (call->IsTailCallViaHelper())
     {
-        fgMorphTailCallViaHelper(call, tailcallHelp);
+        fgMorphTailCallViaHelper(call, tailCallHelp);
     }
     else
     {
