@@ -18,13 +18,13 @@
       <Uri>https://github.com/dotnet/arcade</Uri>
       <Sha>6e94f0da0f12c7663ab39ce5bd6a67c4ab58b5ee</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-rc1.19453.4">
+    <Dependency Name="Microsoft.Private.CoreFx.NETCoreApp" Version="4.6.0-rc1.19454.13">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>ae488157a419935918d3364e843cf1632a2b4299</Sha>
+      <Sha>5f2c2771e077f98c097ecc1b9202bee22ef50aed</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-rc1.19453.4">
+    <Dependency Name="Microsoft.NETCore.Platforms" Version="3.0.0-rc1.19454.13">
       <Uri>https://github.com/dotnet/corefx</Uri>
-      <Sha>ae488157a419935918d3364e843cf1632a2b4299</Sha>
+      <Sha>5f2c2771e077f98c097ecc1b9202bee22ef50aed</Sha>
     </Dependency>
     <Dependency Name="Microsoft.NETCore.App" Version="3.0.0-rc1-19453-06">
       <Uri>https://github.com/dotnet/core-setup</Uri>
