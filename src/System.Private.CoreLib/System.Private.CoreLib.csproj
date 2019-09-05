@@ -226,6 +226,8 @@
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\TypeBuilder.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\TypeBuilderInstantiation.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\Emit\XXXOnTypeBuilderInstantiation.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldAccessor.cs" />
+    <Compile Include="$(BclSourcesRoot)\System\Reflection\ReadOnlyFieldAccessor.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\FieldInfo.CoreCLR.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\INVOCATION_FLAGS.cs" />
     <Compile Include="$(BclSourcesRoot)\System\Reflection\LoaderAllocator.cs" />

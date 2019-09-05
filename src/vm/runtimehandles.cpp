@@ -521,6 +521,19 @@ FCIMPL1(FC_BOOL_RET, RuntimeFieldHandle::AcquiresContextFromThis, FieldDesc *pFi
 }
 FCIMPLEND
 
+FCIMPL1(UINT32, RuntimeFieldHandle::GetFieldOffset, FieldDesc* pField)
+{
+    CONTRACTL{
+        FCALL_CHECK;
+        PRECONDITION(CheckPointer(pField));
+    }
+    CONTRACTL_END;
+
+    return pField->GetOffset();
+
+}
+FCIMPLEND
+
 FCIMPL1(ReflectModuleBaseObject*, RuntimeTypeHandle::GetModule, ReflectClassBaseObject *pTypeUNSAFE) {
     CONTRACTL {
         FCALL_CHECK;

@@ -358,6 +358,7 @@ FCFuncStart(gCOMFieldHandleNewFuncs)
     FCFuncElement("GetToken", RuntimeFieldHandle::GetToken)
     FCFuncElement("GetStaticFieldForGenericType", RuntimeFieldHandle::GetStaticFieldForGenericType)
     FCFuncElement("AcquiresContextFromThis", RuntimeFieldHandle::AcquiresContextFromThis)
+    FCFuncElement("GetFieldOffset", RuntimeFieldHandle::GetFieldOffset)
 FCFuncEnd()
 
 

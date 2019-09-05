@@ -104,6 +104,12 @@ namespace System.Reflection
             return o is RtFieldInfo m && m.m_fieldHandle == m_fieldHandle;
         }
 
+        // Returns the offset (in bytes) from the first field of the object to the data represented by this field.
+        // The object's first field is at offset 0; the object's method table is at offset -IntPtr.Size.
+        internal IntPtr GetOffsetInBytes()
+        {
+            return (IntPtr)(byte*)RuntimeFieldHandle.GetFieldOffset(new RuntimeFieldHandleInternal(m_fieldHandle));
+        }
         #endregion
 
         #region MemberInfo Overrides

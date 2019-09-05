@@ -1124,6 +1124,9 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern bool AcquiresContextFromThis(RuntimeFieldHandleInternal field);
 
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        internal static extern uint GetFieldOffset(RuntimeFieldHandleInternal field);
+
         // ISerializable interface
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
