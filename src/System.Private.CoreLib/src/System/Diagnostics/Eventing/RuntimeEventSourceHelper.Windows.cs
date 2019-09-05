@@ -53,7 +53,7 @@ namespace System.Diagnostics.Tracing
 
             Interop.PROCESS_MEMORY_COUNTERS memoryCounters;
             memoryCounters.cb = (uint)(Marshal.SizeOf(typeof(Interop.PROCESS_MEMORY_COUNTERS)));
-            
+
             // Returns the current processs' WorkingSet
             if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), out memoryCounters, memoryCounters.cb))
             {

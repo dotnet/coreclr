@@ -7,21 +7,21 @@ using System.Runtime.InteropServices;
 
 internal partial class Interop
 {
-	// Used for retrieving working set information directly via pinvoke.
-	[StructLayout(LayoutKind.Sequential, Size=72)]
-	internal struct PROCESS_MEMORY_COUNTERS
-	{
-	    public uint cb;
-	    public uint PageFaultCount;
-	    public UInt64 PeakWorkingSetSize;
-	    public UInt64 WorkingSetSize;
-	    public UInt64 QuotaPeakPagedPoolUsage;
-	    public UInt64 QuotaPagedPoolUsage;
-	    public UInt64 QuotaPeakNonPagedPoolUsage;
-	    public UInt64 QuotaNonPagedPoolUsage;
-	    public UInt64 PagefileUsage;
-	    public UInt64 PeakPagefileUsage;
-	}
+    // Used for retrieving working set information directly via pinvoke.
+    [StructLayout(LayoutKind.Sequential, Size=72)]
+    internal struct PROCESS_MEMORY_COUNTERS
+    {
+        public uint cb;
+        public uint PageFaultCount;
+        public ulong PeakWorkingSetSize;
+        public ulong WorkingSetSize;
+        public ulong QuotaPeakPagedPoolUsage;
+        public ulong QuotaPagedPoolUsage;
+        public ulong QuotaPeakNonPagedPoolUsage;
+        public ulong QuotaNonPagedPoolUsage;
+        public ulong PagefileUsage;
+        public ulong PeakPagefileUsage;
+    }
 
     internal partial class Kernel32
     {
