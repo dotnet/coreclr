@@ -98,35 +98,15 @@ jobs:
         displayName: 'managed test artifacts (built on ${{ parameters.managedBuildOsIdentifier }})'
 
 
-    # Download and unzip native test artifacts into the obj folder
+    # Download and unzip native test artifacts
     - template: /eng/download-artifact-step.yml
       parameters:
         downloadFolder: $(binTestsPath)/tmp
-        unpackFolder: $(binTestsPath)/obj/$(osGroup).$(archType).$(buildConfigUpper)/Native/src
-        cleanUnpackFolder: true
+        unpackFolder: $(nativeRootFolderPath)
+        cleanUnpackFolder: false
         artifactFileName: 'NativeTestComponents-$(osIdentifier)-$(archType)-$(buildConfig)$(archiveExtension)'
         artifactName: 'NativeTestComponents-$(osIdentifier)-$(archType)-$(buildConfig)'
         displayName: 'native test artifacts'
-
-
-    # Copy native components to the test output folder
-    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh copynativeonly skipgeneratelayout $(buildConfig) $(archType) $(priorityArg) ci
-        displayName: Copy native components to test output folder
-    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd copynativeonly skipgeneratelayout $(buildConfig) $(archType) $(priorityArg) ci
-        displayName: Copy native components to test output folder
-
-
-    # Download and unzip test core root
-    - template: /eng/download-artifact-step.yml
-      parameters:
-        downloadFolder: $(binTestsPath)/tmp
-        unpackFolder: $(nativeRootFolderPath)/Tests/Core_Root
-        cleanUnpackFolder: false
-        artifactFileName: 'TestCoreRoot-$(osIdentifier)-$(archType)-$(buildConfig)$(archiveExtension)'
-        artifactName: 'TestCoreRoot-$(osIdentifier)-$(archType)-$(buildConfig)'
-        displayName: 'Core_Root'
 
 
     # Send tests to Helix

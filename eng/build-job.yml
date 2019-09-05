@@ -97,7 +97,7 @@ jobs:
       value: bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
 
     - name: nativeRootFolderPath
-      value: bin/tests/obj/$(osGroup).$(archType).$(buildConfigUpper)
+      value: bin/tests/$(osGroup).$(archType).$(buildConfigUpper)
 
     - name: archiveExtension
       value: '.tar.gz'
@@ -174,6 +174,14 @@ jobs:
       - script: build-test.cmd skipmanaged $(buildConfig) $(archType) $(priorityArg)
         displayName: Build native test components
 
+    # Publish native test components to test output folder
+    - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+      - script: ./build-test.sh copynativeonly $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
+        displayName: Build native test components
+    - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+      - script: build-test.cmd copynativeonly $(buildConfig) $(archType) $(priorityArg)
+        displayName: Build native test components
+
     # Sign on Windows
     - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(parameters.signBinaries, 'true')) }}:
       - powershell: eng\common\build.ps1 -ci -sign -restore -configuration:$(buildConfig) -warnaserror:0 /p:ArcadeBuild=true /p:OfficialBuild=true /p:BuildOS=$(osGroup) /p:BuildArch=$(archType) /p:BuildType=$(_BuildConfig) /p:DotNetSignType=$env:_SignType -projects $(Build.SourcesDirectory)\eng\empty.csproj
@@ -195,27 +203,16 @@ jobs:
         pathtoPublish: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(_BuildConfig)
         artifactName: ${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
-    # Publish test native components for consumption by test execution.
+    # Publish test native components and Core_Root for consumption by test execution.
     - template: /eng/upload-artifact-step.yml
       parameters:
-        rootFolder: $(nativeRootFolderPath)/Native/src
+        rootFolder: $(nativeRootFolderPath)
         includeRootFolder: false
         archiveFile: $(nativeRootFolderPath)/$(testNativeArtifactName)$(archiveExtension)
         archiveType: $(archiveType)
         tarCompression: $(tarCompression)
         artifactName: $(testNativeArtifactName)
         displayName: 'native test components'
-
-    # Publish test core root for consumption by subsequent test executions
-    - template: /eng/upload-artifact-step.yml
-      parameters:
-        rootFolder: $(testRootFolderPath)/Tests/Core_Root
-        includeRootFolder: true
-        archiveFile: $(testRootFolderPath)/$(testCoreRootArtifactName)$(archiveExtension)
-        archiveType: $(archiveType)
-        tarCompression: $(tarCompression)
-        artifactName: $(testCoreRootArtifactName)
-        displayName: 'Core_Root'
 
     # Get key vault secrets for publishing
     - ${{ if and(ne(variables['System.TeamProject'], 'public'), ne(variables['Build.Reason'], 'PullRequest')) }}:
