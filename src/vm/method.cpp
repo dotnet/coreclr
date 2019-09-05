@@ -4984,13 +4984,13 @@ FORCEINLINE bool MethodDesc::TryBackpatchEntryPointSlots(
     return true;
 }
 
-void MethodDesc::TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(
+void MethodDesc::TrySetInitialCodeEntryPointForVersionableMethod(
     PCODE entryPoint,
     bool mayHaveEntryPointSlotsToBackpatch)
 {
     WRAPPER_NO_CONTRACT;
     _ASSERTE(entryPoint != NULL);
-    _ASSERTE(IsVersionableWithoutJumpStamp());
+    _ASSERTE(IsVersionable());
     _ASSERTE(mayHaveEntryPointSlotsToBackpatch == MayHaveEntryPointSlotsToBackpatch());
 
     if (mayHaveEntryPointSlotsToBackpatch)

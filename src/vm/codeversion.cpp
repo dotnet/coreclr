@@ -1736,14 +1736,14 @@ HRESULT CodeVersionManager::AddNativeCodeVersion(
     return S_OK;
 }
 
-PCODE CodeVersionManager::PublishNonJumpStampVersionableCodeIfNecessary(
+PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(
     MethodDesc* pMethodDesc,
     bool *doBackpatchRef,
     bool *doFullBackpatchRef)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(!LockOwnedByCurrentThread());
-    _ASSERTE(pMethodDesc->IsVersionableWithoutJumpStamp());
+    _ASSERTE(pMethodDesc->IsVersionable());
     _ASSERTE(doBackpatchRef != nullptr);
     _ASSERTE(*doBackpatchRef);
     _ASSERTE(doFullBackpatchRef != nullptr);
@@ -1864,7 +1864,7 @@ PCODE CodeVersionManager::PublishNonJumpStampVersionableCodeIfNecessary(
         {
             if (doPublish)
             {
-                pMethodDesc->TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(pCode, mayHaveEntryPointSlotsToBackpatch);
+                pMethodDesc->TrySetInitialCodeEntryPointForVersionableMethod(pCode, mayHaveEntryPointSlotsToBackpatch);
             }
             else
             {
@@ -2353,3 +2353,5 @@ void CodeVersionManager::ReportCodePublishError(Module* pModule, mdMethodDef met
 #endif
 }
 #endif // DACCESS_COMPILE
+
+#endif // FEATURE_CODE_VERSIONING

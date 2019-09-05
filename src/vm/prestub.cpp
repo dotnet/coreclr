@@ -1962,11 +1962,11 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     bool fIsVersionable = false;
 #ifdef FEATURE_CODE_VERSIONING
     fIsVersionable = IsVersionable();
-    if (IsVersionableWithoutJumpStamp())
+    if (IsVersionable())
     {
         bool doBackpatch = true;
         bool doFullBackpatch = false;
-        pCode = GetCodeVersionManager()->PublishNonJumpStampVersionableCodeIfNecessary(this, &doBackpatch, &doFullBackpatch);
+        pCode = GetCodeVersionManager()->PublishVersionableCodeIfNecessary(this, &doBackpatch, &doFullBackpatch);
 
         if (doBackpatch)
         {
@@ -1981,28 +1981,13 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
 
     if (!IsPointingToPrestub())
     {
-        bool doFullBackpatch = true;
-    #ifdef FEATURE_CODE_VERSIONING
-        if (IsVersionableWithJumpStamp())
-        {
-            _ASSERTE(IsVersionableWithJumpStamp());
-            pCode = GetCodeVersionManager()->PublishJumpStampVersionableCodeIfNecessary(this);
-            if (pCode == NULL)
-            {
-                doFullBackpatch = false;
-            }
-        }
-    #endif
-
-        if (doFullBackpatch)
-        {
-            LOG((LF_CLASSLOADER, LL_INFO10000,
-                "    In PreStubWorker, method already jitted, backpatching call point\n"));
+        LOG((LF_CLASSLOADER, LL_INFO10000,
+            "    In PreStubWorker, method already jitted, backpatching call point\n"));
         #if defined(FEATURE_JIT_PITCHING)
             MarkMethodNotPitchingCandidate(this);
         #endif
-            RETURN DoBackpatch(pMT, pDispatchingMT, TRUE);
-        }
+
+        RETURN DoBackpatch(pMT, pDispatchingMT, TRUE);
     }
 
     /**************************   CODE CREATION  *************************/

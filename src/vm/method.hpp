@@ -1197,7 +1197,7 @@ public:
         return
             ReJitManager::IsReJITEnabled() &&
 
-            // Previously we didn't support these methods because of functional requirementes for
+            // Previously we didn't support these methods because of functional requirements for
             // jumpstamps, keeping this in for back compat.
             (IsIL() || IsNoMetadata()) &&
             !IsWrapperStub() &&
@@ -1408,7 +1408,7 @@ private:
     bool TryBackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint, bool onlyFromPrestubEntryPoint);
 
 public:
-    void TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
+    void TrySetInitialCodeEntryPointForVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
     void SetCodeEntryPoint(PCODE entryPoint);
     void ResetCodeEntryPoint();
 

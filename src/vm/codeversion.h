@@ -452,7 +452,6 @@ private:
 
     enum MethodDescVersioningStateFlags
     {
-        JumpStampMask = 0x3,
         IsDefaultVersionActiveChildFlag = 0x4
     };
     BYTE m_flags;
@@ -599,9 +598,7 @@ public:
 
     HRESULT AddILCodeVersion(Module* pModule, mdMethodDef methodDef, ReJITID rejitId, ILCodeVersion* pILCodeVersion);
     HRESULT AddNativeCodeVersion(ILCodeVersion ilCodeVersion, MethodDesc* pClosedMethodDesc, NativeCodeVersion::OptimizationTier optimizationTier, NativeCodeVersion* pNativeCodeVersion);
-    HRESULT DoJumpStampIfNecessary(MethodDesc* pMD, PCODE pCode);
-    PCODE PublishNonJumpStampVersionableCodeIfNecessary(MethodDesc* pMethodDesc, bool *doBackpatchRef, bool *doFullBackpatchRef);
-    PCODE PublishJumpStampVersionableCodeIfNecessary(MethodDesc* pMethodDesc);
+    PCODE PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, bool *doBackpatchRef, bool *doFullBackpatchRef);
     HRESULT PublishNativeCodeVersion(MethodDesc* pMethodDesc, NativeCodeVersion nativeCodeVersion, BOOL fEESuspended);
     HRESULT GetOrCreateMethodDescVersioningState(MethodDesc* pMethod, MethodDescVersioningState** ppMethodDescVersioningState);
     HRESULT GetOrCreateILCodeVersioningState(Module* pModule, mdMethodDef methodDef, ILCodeVersioningState** ppILCodeVersioningState);

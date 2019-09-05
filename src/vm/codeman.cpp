@@ -2570,8 +2570,7 @@ CodeHeader* EEJitManager::allocCode(MethodDesc* pMD, size_t blockSize, size_t re
     // 8-byte interlocked operation to atomically poke the top most bytes (e.g., to
     // redirect the rejit jmp-stamp at the top of the method from the prestub to the
     // rejitted code, or to reinstate original code on a revert).
-    else if ((g_pConfig->GenOptimizeType() != OPT_SIZE) ||
-        pMD->IsVersionableWithJumpStamp())
+    else if ((g_pConfig->GenOptimizeType() != OPT_SIZE))
     {
         alignment = max(alignment, 8);
     }
