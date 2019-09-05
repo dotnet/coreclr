@@ -11,9 +11,6 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <EnableDefaultItems>false</EnableDefaultItems>
     <Platform>$(BuildArch)</Platform>
-   
-    <!-- Force the CLI to allow us to target higher netcoreapp than it may know about -->
-    <NETCoreAppMaximumVersion>99.0</NETCoreAppMaximumVersion>
 
     <!-- [ARCADE REMOVE] This line should be removed we use the Arcade Sdk. -->
     <DeterministicSourcePaths>false</DeterministicSourcePaths>
