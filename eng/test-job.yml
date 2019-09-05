@@ -12,6 +12,7 @@ parameters:
   corefxTests: false
   displayNameArgs: ''
   runInUnloadableContext: false
+  ignoreDependencyOnBuildJobs: false
 
 ### Test job
 
@@ -26,6 +27,10 @@ jobs:
     osGroup: ${{ parameters.osGroup }}
     osIdentifier: ${{ parameters.osIdentifier }}
     helixType: 'build/tests/'
+
+    # Test jobs should continue on error for internal builds
+    ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+      continueOnError: true
 
     # Compute job name from template parameters
     ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
@@ -92,7 +97,8 @@ jobs:
       condition: false
 
     # Test job depends on the corresponding build job
-    dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+    ${{ if ne(parameters.ignoreDependencyOnBuildJobs, true) }}:
+      dependsOn: ${{ format('build_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
 
     # Run all steps in the container.
     # Note that the containers are defined in platform-matrix.yml
@@ -118,13 +124,13 @@ jobs:
         displayName: Install native dependencies
 
 
-    # Download product build
+    # Download product binaries directory
     - task: DownloadBuildArtifacts@0
       displayName: Download product build
       inputs:
         buildType: current
         downloadType: single
-        artifactName: ${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        artifactName: ${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         downloadPath: $(System.ArtifactsDirectory)
 
 
@@ -132,7 +138,7 @@ jobs:
     - task: CopyFiles@2
       displayName: Populate Product directory
       inputs:
-        sourceFolder: $(System.ArtifactsDirectory)/${{ format('{0}_{1}_{2}_build', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
+        sourceFolder: $(System.ArtifactsDirectory)/${{ format('BinDir_{0}_{1}_{2}', parameters.osIdentifier, parameters.archType, parameters.buildConfig) }}
         contents: '**'
         targetFolder: $(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)
 
@@ -323,19 +329,18 @@ jobs:
           - forcerelocs
           - gcstress15
 
-
     # Publish Logs
     - task: PublishBuildArtifacts@1
       displayName: Publish Logs
       inputs:
         pathtoPublish: $(Build.SourcesDirectory)/bin/Logs
         ${{ if and(eq(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r_corefx', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+          artifactName: ${{ format('TestLogs_r2r_corefx_{0}_{1}_{2}_{3}', parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(eq(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_corefx',     parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+          artifactName: ${{ format('TestLogs_corefx_{0}_{1}_{2}_{3}',     parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(ne(parameters.corefxTests, true), eq(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '_r2r',        parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+          artifactName: ${{ format('TestLogs_r2r_{0}_{1}_{2}_{3}',        parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
         ${{ if and(ne(parameters.corefxTests, true), ne(parameters.readyToRun, true)) }}:
-          artifactName: ${{ format('test{0}_{1}_{2}_{3}_{4}_Logs', '',            parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
+          artifactName: ${{ format('TestLogs_{0}_{1}_{2}_{3}',            parameters.osIdentifier, parameters.archType, parameters.buildConfig, parameters.testGroup) }}
       continueOnError: true
       condition: always()
