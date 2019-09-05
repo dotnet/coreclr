@@ -19400,19 +19400,28 @@ BOOL Compiler::impInlineIsThis(GenTree* tree, InlArgInfo* inlArgInfo)
 }
 
 //-----------------------------------------------------------------------------
-// This function checks if a dereference in the inlinee can guarantee that
-// the "this" is non-NULL.
-// If we haven't hit a branch or a side effect, and we are dereferencing
-// from 'this' to access a field or make GTF_CALL_NULLCHECK call,
-// then we can avoid a separate null pointer check.
+// impInlineIsGuaranteedThisDerefBeforeAnySideEffects: Check if a dereference in
+// the inlinee can guarantee that the "this" pointer is non-NULL.
 //
-// "additionalTreesToBeEvaluatedBefore"
-// is the set of pending trees that have not yet been added to the statement list,
-// and which have been removed from verCurrentState.esStack[]
-
-BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*          additionalTreeToBeEvaluatedBefore,
-                                                                  GenTreeCall::Use* argList,
-                                                                  GenTree*          variableBeingDereferenced,
+// Arguments:
+//    additionalTree - a tree to check for side effects
+//    additionalCallArgs - a list of call args to check for side effects
+//    dereferencedAddress - address expression being dereferenced
+//    inlArgInfo - inlinee argument information
+//
+// Notes:
+//    If we haven't hit a branch or a side effect, and we are dereferencing
+//    from 'this' to access a field or make GTF_CALL_NULLCHECK call,
+//    then we can avoid a separate null pointer check.
+//
+//    The importer stack and current statement list are searched for side effects.
+//    Trees that have been popped of the stack but haven't been appended to the
+//    statement list and have to be checked for side effects may be provided via
+//    additionalTree and additionalCallArgs.
+//
+BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*          additionalTree,
+                                                                  GenTreeCall::Use* additionalCallArgs,
+                                                                  GenTree*          dereferencedAddress,
                                                                   InlArgInfo*       inlArgInfo)
 {
     assert(compIsForInlining());
@@ -19425,18 +19434,17 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*      
         return FALSE;
     }
 
-    if (!impInlineIsThis(variableBeingDereferenced, inlArgInfo))
+    if (!impInlineIsThis(dereferencedAddress, inlArgInfo))
     {
         return FALSE;
     }
 
-    if ((additionalTreeToBeEvaluatedBefore != nullptr) &&
-        GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(additionalTreeToBeEvaluatedBefore->gtFlags))
+    if ((additionalTree != nullptr) && GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(additionalTree->gtFlags))
     {
         return FALSE;
     }
 
-    for (GenTreeCall::Use& use : GenTreeCall::UseList(argList))
+    for (GenTreeCall::Use& use : GenTreeCall::UseList(additionalCallArgs))
     {
         if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(use.GetNode()->gtFlags))
         {

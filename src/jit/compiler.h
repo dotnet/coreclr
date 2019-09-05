@@ -4084,9 +4084,9 @@ private:
 
     BOOL impInlineIsThis(GenTree* tree, InlArgInfo* inlArgInfo);
 
-    BOOL impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*          additionalTreesToBeEvaluatedBefore,
-                                                            GenTreeCall::Use* args,
-                                                            GenTree*          variableBeingDereferenced,
+    BOOL impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*          additionalTree,
+                                                            GenTreeCall::Use* additionalCallArgs,
+                                                            GenTree*          dereferencedAddress,
                                                             InlArgInfo*       inlArgInfo);
 
     void impMarkInlineCandidate(GenTree*               call,
