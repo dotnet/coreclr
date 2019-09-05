@@ -802,51 +802,37 @@ Compiler::AssertionDsc* Compiler::optGetAssertion(AssertionIndex assertIndex)
     return assertion;
 }
 
-/*****************************************************************************
- *
- * A simple helper routine so not all callers need to supply a AssertionDsc*
- * if they don't care about it. Refer overloaded method optCreateAssertion.
- *
- */
+//------------------------------------------------------------------------
+// optCreateAssertion: Create an (op1 assertionKind op2) assertion.
+//
+// Arguments:
+//    op1 - the first assertion operand
+//    op2 - the second assertion operand
+//    assertionKind - the assertion kind
+//    helperCallArgs - when true this indicates that the assertion operands
+//                     are the arguments of a type cast helper call such as
+//                     CORINFO_HELP_ISINSTANCEOFCLASS
+// Return Value:
+//    The new assertion index or NO_ASSERTION_INDEX if a new assertion
+//    was not created.
+//
+// Notes:
+//    Assertion creation may fail either because the provided assertion
+//    operands aren't supported or because the assertion table is full.
+//
 AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                                             GenTree*         op2,
                                             optAssertionKind assertionKind,
                                             bool             helperCallArgs)
 {
-    AssertionDsc assertionDsc;
-    return optCreateAssertion(op1, op2, assertionKind, &assertionDsc, helperCallArgs);
-}
-
-/*****************************************************************************
- *
- *  We attempt to create the following assertion:
- *
- *     op1 assertionKind op2
- *
- *  If we can create the assertion then update 'assertion' if we are
- *  unsuccessful assertion->assertionKind will be OAK_INVALID. If we are
- *  successful in creating the assertion we call optAddAssertion which adds
- *  the assertion to our assertion table.
- *
- *  If we are able to create the assertion the return value is the
- *  assertionIndex for this assertion otherwise the return value is
- *  NO_ASSERTION_INDEX and we could not create the assertion.
- *
- */
-AssertionIndex Compiler::optCreateAssertion(
-    GenTree* op1, GenTree* op2, optAssertionKind assertionKind, AssertionDsc* assertion, bool helperCallArgs)
-{
     assert((op1 != nullptr) && !op1->OperIs(GT_LIST));
     assert((op2 == nullptr) || !op2->OperIs(GT_LIST));
     assert(!helperCallArgs || (op2 != nullptr));
 
-    memset(assertion, 0, sizeof(AssertionDsc));
-    //
-    // If we cannot create an assertion using op1 and op2 then the assertionKind
-    // must be OAK_INVALID, so we initialize it to OAK_INVALID and only change it
-    // to a valid assertion when everything is good.
-    //
-    assertion->assertionKind = OAK_INVALID;
+    AssertionDsc assertion;
+    memset(&assertion, 0, sizeof(AssertionDsc));
+    assert(assertion.assertionKind == OAK_INVALID);
+
     var_types toType;
 
     if (op1->gtOper == GT_ARR_BOUNDS_CHECK)
@@ -854,10 +840,10 @@ AssertionIndex Compiler::optCreateAssertion(
         if (assertionKind == OAK_NO_THROW)
         {
             GenTreeBoundsChk* arrBndsChk = op1->AsBoundsChk();
-            assertion->assertionKind     = assertionKind;
-            assertion->op1.kind          = O1K_ARR_BND;
-            assertion->op1.bnd.vnIdx     = vnStore->VNConservativeNormalValue(arrBndsChk->gtIndex->gtVNPair);
-            assertion->op1.bnd.vnLen     = vnStore->VNConservativeNormalValue(arrBndsChk->gtArrLen->gtVNPair);
+            assertion.assertionKind      = assertionKind;
+            assertion.op1.kind           = O1K_ARR_BND;
+            assertion.op1.bnd.vnIdx      = vnStore->VNConservativeNormalValue(arrBndsChk->gtIndex->gtVNPair);
+            assertion.op1.bnd.vnLen      = vnStore->VNConservativeNormalValue(arrBndsChk->gtArrLen->gtVNPair);
             goto DONE_ASSERTION;
         }
     }
@@ -948,7 +934,7 @@ AssertionIndex Compiler::optCreateAssertion(
                 goto DONE_ASSERTION; // Don't make an assertion
             }
 
-            assertion->op1.kind = O1K_VALUE_NUMBER;
+            assertion.op1.kind = O1K_VALUE_NUMBER;
         }
         else
         {
@@ -958,21 +944,21 @@ AssertionIndex Compiler::optCreateAssertion(
                 goto DONE_ASSERTION; // Don't make an assertion
             }
 
-            assertion->op1.kind       = O1K_LCLVAR;
-            assertion->op1.lcl.lclNum = lclNum;
-            assertion->op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
-            vn                        = vnStore->VNConservativeNormalValue(op1->gtVNPair);
+            assertion.op1.kind       = O1K_LCLVAR;
+            assertion.op1.lcl.lclNum = lclNum;
+            assertion.op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
+            vn                       = vnStore->VNConservativeNormalValue(op1->gtVNPair);
         }
 
-        assertion->op1.vn           = vn;
-        assertion->assertionKind    = assertionKind;
-        assertion->op2.kind         = O2K_CONST_INT;
-        assertion->op2.vn           = ValueNumStore::VNForNull();
-        assertion->op2.u1.iconVal   = 0;
-        assertion->op2.u1.iconFlags = 0;
+        assertion.op1.vn           = vn;
+        assertion.assertionKind    = assertionKind;
+        assertion.op2.kind         = O2K_CONST_INT;
+        assertion.op2.vn           = ValueNumStore::VNForNull();
+        assertion.op2.u1.iconVal   = 0;
+        assertion.op2.u1.iconFlags = 0;
 #ifdef _TARGET_64BIT_
-        assertion->op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
-#endif                                    // _TARGET_64BIT_
+        assertion.op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
+#endif                                   // _TARGET_64BIT_
     }
     //
     // Are we making an assertion about a local variable?
@@ -1001,12 +987,12 @@ AssertionIndex Compiler::optCreateAssertion(
 
             if (op2->gtOper == GT_IND)
             {
-                op2                 = op2->gtOp.gtOp1;
-                assertion->op2.kind = O2K_IND_CNS_INT;
+                op2                = op2->gtOp.gtOp1;
+                assertion.op2.kind = O2K_IND_CNS_INT;
             }
             else
             {
-                assertion->op2.kind = O2K_CONST_INT;
+                assertion.op2.kind = O2K_CONST_INT;
             }
 
             if (op2->gtOper != GT_CNS_INT)
@@ -1020,20 +1006,20 @@ AssertionIndex Compiler::optCreateAssertion(
             //          where a class can be sealed, but they don't behave as exact types because casts to
             //          non-base types sometimes still succeed.
             //
-            assertion->op1.kind         = O1K_SUBTYPE;
-            assertion->op1.lcl.lclNum   = lclNum;
-            assertion->op1.vn           = vnStore->VNConservativeNormalValue(op1->gtVNPair);
-            assertion->op1.lcl.ssaNum   = op1->AsLclVarCommon()->GetSsaNum();
-            assertion->op2.u1.iconVal   = op2->gtIntCon.gtIconVal;
-            assertion->op2.vn           = vnStore->VNConservativeNormalValue(op2->gtVNPair);
-            assertion->op2.u1.iconFlags = op2->GetIconHandleFlag();
+            assertion.op1.kind         = O1K_SUBTYPE;
+            assertion.op1.lcl.lclNum   = lclNum;
+            assertion.op1.vn           = vnStore->VNConservativeNormalValue(op1->gtVNPair);
+            assertion.op1.lcl.ssaNum   = op1->AsLclVarCommon()->GetSsaNum();
+            assertion.op2.u1.iconVal   = op2->gtIntCon.gtIconVal;
+            assertion.op2.vn           = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+            assertion.op2.u1.iconFlags = op2->GetIconHandleFlag();
 
             //
             // Ok everything has been set and the assertion looks good
             //
-            assertion->assertionKind = assertionKind;
+            assertion.assertionKind = assertionKind;
         }
-        else // !haveArgs
+        else // !helperCallArgs
         {
             /* Skip over a GT_COMMA node(s), if necessary */
             while (op2->gtOper == GT_COMMA)
@@ -1041,10 +1027,10 @@ AssertionIndex Compiler::optCreateAssertion(
                 op2 = op2->gtOp.gtOp2;
             }
 
-            assertion->op1.kind       = O1K_LCLVAR;
-            assertion->op1.lcl.lclNum = lclNum;
-            assertion->op1.vn         = vnStore->VNConservativeNormalValue(op1->gtVNPair);
-            assertion->op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
+            assertion.op1.kind       = O1K_LCLVAR;
+            assertion.op1.lcl.lclNum = lclNum;
+            assertion.op1.vn         = vnStore->VNConservativeNormalValue(op1->gtVNPair);
+            assertion.op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
 
             switch (op2->gtOper)
             {
@@ -1088,9 +1074,9 @@ AssertionIndex Compiler::optCreateAssertion(
                         goto DONE_ASSERTION; // Don't make an assertion
                     }
 
-                    assertion->op2.kind    = op2Kind;
-                    assertion->op2.lconVal = 0;
-                    assertion->op2.vn      = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+                    assertion.op2.kind    = op2Kind;
+                    assertion.op2.lconVal = 0;
+                    assertion.op2.vn      = vnStore->VNConservativeNormalValue(op2->gtVNPair);
 
                     if (op2->gtOper == GT_CNS_INT)
                     {
@@ -1108,18 +1094,18 @@ AssertionIndex Compiler::optCreateAssertion(
                             goto DONE_ASSERTION; // Don't make an assertion
                         }
 #endif // _TARGET_ARM_
-                        assertion->op2.u1.iconVal   = op2->gtIntCon.gtIconVal;
-                        assertion->op2.u1.iconFlags = op2->GetIconHandleFlag();
+                        assertion.op2.u1.iconVal   = op2->gtIntCon.gtIconVal;
+                        assertion.op2.u1.iconFlags = op2->GetIconHandleFlag();
 #ifdef _TARGET_64BIT_
                         if (op2->TypeGet() == TYP_LONG || op2->TypeGet() == TYP_BYREF)
                         {
-                            assertion->op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
+                            assertion.op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
                         }
 #endif // _TARGET_64BIT_
                     }
                     else if (op2->gtOper == GT_CNS_LNG)
                     {
-                        assertion->op2.lconVal = op2->gtLngCon.gtLconVal;
+                        assertion.op2.lconVal = op2->gtLngCon.gtLconVal;
                     }
                     else
                     {
@@ -1129,13 +1115,13 @@ AssertionIndex Compiler::optCreateAssertion(
                         {
                             goto DONE_ASSERTION; // Don't make an assertion
                         }
-                        assertion->op2.dconVal = op2->gtDblCon.gtDconVal;
+                        assertion.op2.dconVal = op2->gtDblCon.gtDconVal;
                     }
 
                     //
                     // Ok everything has been set and the assertion looks good
                     //
-                    assertion->assertionKind = assertionKind;
+                    assertion.assertionKind = assertionKind;
                 }
                 break;
 
@@ -1181,15 +1167,15 @@ AssertionIndex Compiler::optCreateAssertion(
                         goto DONE_ASSERTION; // Don't make an assertion
                     }
 
-                    assertion->op2.kind       = O2K_LCLVAR_COPY;
-                    assertion->op2.lcl.lclNum = lclNum2;
-                    assertion->op2.vn         = vnStore->VNConservativeNormalValue(op2->gtVNPair);
-                    assertion->op2.lcl.ssaNum = op2->AsLclVarCommon()->GetSsaNum();
+                    assertion.op2.kind       = O2K_LCLVAR_COPY;
+                    assertion.op2.lcl.lclNum = lclNum2;
+                    assertion.op2.vn         = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+                    assertion.op2.lcl.ssaNum = op2->AsLclVarCommon()->GetSsaNum();
 
                     //
                     // Ok everything has been set and the assertion looks good
                     //
-                    assertion->assertionKind = assertionKind;
+                    assertion.assertionKind = assertionKind;
                 }
                 break;
 
@@ -1266,19 +1252,19 @@ AssertionIndex Compiler::optCreateAssertion(
                         case TYP_UINT:
                         case TYP_INT:
 #endif // _TARGET_64BIT_
-                            assertion->op2.u2.loBound = AssertionDsc::GetLowerBoundForIntegralType(toType);
-                            assertion->op2.u2.hiBound = AssertionDsc::GetUpperBoundForIntegralType(toType);
+                            assertion.op2.u2.loBound = AssertionDsc::GetLowerBoundForIntegralType(toType);
+                            assertion.op2.u2.hiBound = AssertionDsc::GetUpperBoundForIntegralType(toType);
                             break;
 
                         default:
                             goto DONE_ASSERTION; // Don't make an assertion
                     }
-                    assertion->op2.kind      = O2K_SUBRANGE;
-                    assertion->assertionKind = OAK_SUBRANGE;
+                    assertion.op2.kind      = O2K_SUBRANGE;
+                    assertion.assertionKind = OAK_SUBRANGE;
                 }
                 break;
             }
-        } // else // !haveArgs
+        } // else // !helperCallArgs
     }     // if (op1->gtOper == GT_LCL_VAR)
 
     //
@@ -1309,15 +1295,15 @@ AssertionIndex Compiler::optCreateAssertion(
                 goto DONE_ASSERTION; // Don't make an assertion
             }
 
-            assertion->op1.kind       = O1K_EXACT_TYPE;
-            assertion->op1.lcl.lclNum = lclNum;
-            assertion->op1.vn         = vnStore->VNConservativeNormalValue(op1->gtVNPair);
-            assertion->op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
+            assertion.op1.kind       = O1K_EXACT_TYPE;
+            assertion.op1.lcl.lclNum = lclNum;
+            assertion.op1.vn         = vnStore->VNConservativeNormalValue(op1->gtVNPair);
+            assertion.op1.lcl.ssaNum = op1->AsLclVarCommon()->GetSsaNum();
 
-            assert(assertion->op1.lcl.ssaNum == SsaConfig::RESERVED_SSA_NUM ||
-                   assertion->op1.vn ==
-                       vnStore->VNConservativeNormalValue(
-                           lvaTable[lclNum].GetPerSsaData(assertion->op1.lcl.ssaNum)->m_vnPair));
+            assert((assertion.op1.lcl.ssaNum == SsaConfig::RESERVED_SSA_NUM) ||
+                   (assertion.op1.vn ==
+                    vnStore->VNConservativeNormalValue(
+                        lvaTable[lclNum].GetPerSsaData(assertion.op1.lcl.ssaNum)->m_vnPair)));
 
             ssize_t  cnsValue  = 0;
             unsigned iconFlags = 0;
@@ -1329,36 +1315,36 @@ AssertionIndex Compiler::optCreateAssertion(
                     goto DONE_ASSERTION; // Don't make an assertion
                 }
 
-                assertion->assertionKind  = assertionKind;
-                assertion->op2.kind       = O2K_IND_CNS_INT;
-                assertion->op2.u1.iconVal = cnsValue;
-                assertion->op2.vn         = vnStore->VNConservativeNormalValue(op2->gtOp.gtOp1->gtVNPair);
+                assertion.assertionKind  = assertionKind;
+                assertion.op2.kind       = O2K_IND_CNS_INT;
+                assertion.op2.u1.iconVal = cnsValue;
+                assertion.op2.vn         = vnStore->VNConservativeNormalValue(op2->gtOp.gtOp1->gtVNPair);
 
                 /* iconFlags should only contain bits in GTF_ICON_HDL_MASK */
                 assert((iconFlags & ~GTF_ICON_HDL_MASK) == 0);
-                assertion->op2.u1.iconFlags = iconFlags;
+                assertion.op2.u1.iconFlags = iconFlags;
 #ifdef _TARGET_64BIT_
                 if (op2->gtOp.gtOp1->TypeGet() == TYP_LONG)
                 {
-                    assertion->op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
+                    assertion.op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
                 }
 #endif // _TARGET_64BIT_
             }
             // JIT case
             else if (optIsTreeKnownIntValue(!optLocalAssertionProp, op2, &cnsValue, &iconFlags))
             {
-                assertion->assertionKind  = assertionKind;
-                assertion->op2.kind       = O2K_IND_CNS_INT;
-                assertion->op2.u1.iconVal = cnsValue;
-                assertion->op2.vn         = vnStore->VNConservativeNormalValue(op2->gtVNPair);
+                assertion.assertionKind  = assertionKind;
+                assertion.op2.kind       = O2K_IND_CNS_INT;
+                assertion.op2.u1.iconVal = cnsValue;
+                assertion.op2.vn         = vnStore->VNConservativeNormalValue(op2->gtVNPair);
 
                 /* iconFlags should only contain bits in GTF_ICON_HDL_MASK */
                 assert((iconFlags & ~GTF_ICON_HDL_MASK) == 0);
-                assertion->op2.u1.iconFlags = iconFlags;
+                assertion.op2.u1.iconFlags = iconFlags;
 #ifdef _TARGET_64BIT_
                 if (op2->TypeGet() == TYP_LONG)
                 {
-                    assertion->op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
+                    assertion.op2.u1.iconFlags |= 1; // Signify that this is really TYP_LONG
                 }
 #endif // _TARGET_64BIT_
             }
@@ -1370,30 +1356,30 @@ AssertionIndex Compiler::optCreateAssertion(
     }
 
 DONE_ASSERTION:
-    if (assertion->assertionKind == OAK_INVALID)
+    if (assertion.assertionKind == OAK_INVALID)
     {
         return NO_ASSERTION_INDEX;
     }
 
     if (!optLocalAssertionProp)
     {
-        if ((assertion->op1.vn == ValueNumStore::NoVN) || (assertion->op2.vn == ValueNumStore::NoVN) ||
-            (assertion->op1.vn == ValueNumStore::VNForVoid()) || (assertion->op2.vn == ValueNumStore::VNForVoid()))
+        if ((assertion.op1.vn == ValueNumStore::NoVN) || (assertion.op2.vn == ValueNumStore::NoVN) ||
+            (assertion.op1.vn == ValueNumStore::VNForVoid()) || (assertion.op2.vn == ValueNumStore::VNForVoid()))
         {
             return NO_ASSERTION_INDEX;
         }
 
         // TODO: only copy assertions rely on valid SSA number so we could generate more assertions here
-        if ((assertion->op1.kind != O1K_VALUE_NUMBER) && (assertion->op1.lcl.ssaNum == SsaConfig::RESERVED_SSA_NUM))
+        if ((assertion.op1.kind != O1K_VALUE_NUMBER) && (assertion.op1.lcl.ssaNum == SsaConfig::RESERVED_SSA_NUM))
         {
             return NO_ASSERTION_INDEX;
         }
     }
 
     // Now add the assertion to our assertion table
-    noway_assert(assertion->op1.kind != O1K_INVALID);
-    noway_assert(assertion->op1.kind == O1K_ARR_BND || assertion->op2.kind != O2K_INVALID);
-    return optAddAssertion(assertion);
+    noway_assert(assertion.op1.kind != O1K_INVALID);
+    noway_assert((assertion.op1.kind == O1K_ARR_BND) || (assertion.op2.kind != O2K_INVALID));
+    return optAddAssertion(&assertion);
 }
 
 /*****************************************************************************
@@ -1682,14 +1668,22 @@ void Compiler::optDebugCheckAssertions(AssertionIndex index)
 }
 #endif
 
-/*****************************************************************************
- *
- * Given a "candidateAssertion", and the assertion operands op1 and op2,
- * create a complementary assertion and add it to the assertion table,
- * which can be retrieved using optFindComplementary(index)
- *
- */
-
+//------------------------------------------------------------------------
+// optCreateComplementaryAssertion: Create an assertion that is the complementary
+//     of the specified assertion.
+//
+// Arguments:
+//    assertionIndex - the index of the assertion
+//    op1 - the first assertion operand
+//    op2 - the second assertion operand
+//    helperCallArgs - when true this indicates that the assertion operands
+//                     are the arguments of a type cast helper call such as
+//                     CORINFO_HELP_ISINSTANCEOFCLASS
+//
+// Notes:
+//    The created complementary assertion is associated with the original
+//    assertion such that it can be found by optFindComplementary.
+//
 void Compiler::optCreateComplementaryAssertion(AssertionIndex assertionIndex,
                                                GenTree*       op1,
                                                GenTree*       op2,
@@ -1728,20 +1722,33 @@ void Compiler::optCreateComplementaryAssertion(AssertionIndex assertionIndex,
     }
 }
 
-/*****************************************************************************
- *
- * Create assertions for jtrue operands. Given operands "op1" and "op2" that
- * are used in a conditional evaluation of a jtrue stmt, create assertions
- * for the operands.
- */
-
+//------------------------------------------------------------------------
+// optCreateJtrueAssertions: Create assertions about a JTRUE's relop operands.
+//
+// Arguments:
+//    op1 - the first assertion operand
+//    op2 - the second assertion operand
+//    assertionKind - the assertion kind
+//    helperCallArgs - when true this indicates that the assertion operands
+//                     are the arguments of a type cast helper call such as
+//                     CORINFO_HELP_ISINSTANCEOFCLASS
+// Return Value:
+//    The new assertion index or NO_ASSERTION_INDEX if a new assertion
+//    was not created.
+//
+// Notes:
+//    Assertion creation may fail either because the provided assertion
+//    operands aren't supported or because the assertion table is full.
+//    If an assertion is created succesfully then an attempt is made to also
+//    create a second, complementary assertion. This may too fail, for the
+//    same reasons as the first one.
+//
 AssertionIndex Compiler::optCreateJtrueAssertions(GenTree*                   op1,
                                                   GenTree*                   op2,
                                                   Compiler::optAssertionKind assertionKind,
                                                   bool                       helperCallArgs)
 {
-    AssertionDsc   candidateAssertion;
-    AssertionIndex assertionIndex = optCreateAssertion(op1, op2, assertionKind, &candidateAssertion, helperCallArgs);
+    AssertionIndex assertionIndex = optCreateAssertion(op1, op2, assertionKind, helperCallArgs);
     // Don't bother if we don't have an assertion on the JTrue False path. Current implementation
     // allows for a complementary only if there is an assertion on the False path (tree->HasAssertion()).
     if (assertionIndex != NO_ASSERTION_INDEX)
