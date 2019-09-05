@@ -84,14 +84,13 @@ struct ArgBufferLayout
     bool HasTargetAddress;
     unsigned int TargetAddressOffset;
     InlineSArray<ArgBufferValue, 8> Values;
-    bool HasGCDescriptor;
-    GCRefMapBuilder GCRefMapBuilder;
+    int GenericContextIndex;
     unsigned int Size;
 
     ArgBufferLayout()
         : HasTargetAddress(false)
         , TargetAddressOffset(0)
-        , HasGCDescriptor(false)
+        , GenericContextIndex(-1)
         , Size(0)
     {
     }
@@ -101,27 +100,33 @@ struct TailCallInfo
 {
     MethodDesc* Caller;
     MethodDesc* Callee;
+    LoaderAllocator* LoaderAlloc;
     MetaSig* CallSiteSig;
     bool CallSiteIsVirtual;
     TypeHandle RetTyHnd;
     ArgBufferLayout ArgBufLayout;
+    bool HasGCDescriptor;
+    GCRefMapBuilder GCRefMapBuilder;
 
     TailCallInfo(
         MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
+        LoaderAllocator* loaderAlloc,
         MetaSig* callSiteSig, bool callSiteIsVirtual,
         TypeHandle retTyHnd)
         : Caller(pCallerMD)
         , Callee(pCalleeMD)
+        , LoaderAlloc(loaderAlloc)
         , CallSiteSig(callSiteSig)
         , CallSiteIsVirtual(callSiteIsVirtual)
         , RetTyHnd(retTyHnd)
+        , HasGCDescriptor(false)
     {
     }
 };
 
 void TailCallHelp::CreateTailCallHelperStubs(
     MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
-    MetaSig& callSiteSig, bool virt, bool hasGenericContext,
+    MetaSig& callSiteSig, bool virt,
     MethodDesc** storeArgsStub, bool* storeArgsNeedsTarget,
     MethodDesc** callTargetStub)
 {
@@ -138,11 +143,20 @@ void TailCallHelp::CreateTailCallHelperStubs(
     // cannot express a call to it in IL.
     *storeArgsNeedsTarget = pCalleeMD == NULL || callSiteSig.IsGenericMethod();
 
-    assert(!hasGenericContext || callSiteSig.IsGenericMethod());
+    // We 'attach' the tailcall stub to the target method except for the case of
+    // calli (where the callee MD will be null). We do not reuse stubs for calli
+    // tailcalls as those are presumably very rare and not worth the trouble.
+    LoaderAllocator* loaderAlloc =
+        pCalleeMD == NULL
+        ? pCallerMD->GetLoaderAllocator()
+        : pCalleeMD->GetLoaderAllocator();
 
     TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
-    TailCallInfo info(pCallerMD, pCalleeMD, &callSiteSig, virt, retTyHnd);
+    TailCallInfo info(pCallerMD, pCalleeMD, loaderAlloc, &callSiteSig, virt, retTyHnd);
+
+    bool hasGenericContext = pCalleeMD != NULL && pCalleeMD->RequiresInstArg();
     LayOutArgBuffer(callSiteSig, *storeArgsNeedsTarget, hasGenericContext, &info.ArgBufLayout);
+    info.HasGCDescriptor = GenerateGCDescriptor(pCalleeMD, info.ArgBufLayout, &info.GCRefMapBuilder);
 
     *storeArgsStub = CreateStoreArgsStub(info);
     *callTargetStub = CreateCallTargetStub(info);
@@ -170,12 +184,14 @@ void TailCallHelp::LayOutArgBuffer(
 
     auto addGenCtx = [&]()
     {
-        if (hasGenericContext)
-        {
-            TypeHandle nativeIntHnd = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
-            layout->Values.Append(ArgBufferValue(nativeIntHnd, offs));
-            offs += TARGET_POINTER_SIZE;
-        }
+        if (!hasGenericContext)
+            return;
+
+        layout->GenericContextIndex = static_cast<int>(layout->Values.GetCount());
+
+        TypeHandle nativeIntHnd = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
+        layout->Values.Append(ArgBufferValue(nativeIntHnd, offs));
+        offs += TARGET_POINTER_SIZE;
     };
 
     // Generic context comes before args on all platforms except X86.
@@ -201,7 +217,6 @@ void TailCallHelp::LayOutArgBuffer(
     addGenCtx();
 #endif
 
-    layout->HasGCDescriptor = GenerateGCDescriptor(layout->Values, &layout->GCRefMapBuilder);
     layout->Size = offs;
 }
 
@@ -226,12 +241,13 @@ TypeHandle TailCallHelp::NormalizeSigType(TypeHandle tyHnd)
     return tyHnd;
 }
 
-bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GCRefMapBuilder* builder)
+bool TailCallHelp::GenerateGCDescriptor(
+    MethodDesc* pTargetMD, const ArgBufferLayout& layout, GCRefMapBuilder* builder)
 {
     bool anyGC = false;
-    for (COUNT_T i = 0; i < values.GetCount(); i++)
+    for (COUNT_T i = 0; i < layout.Values.GetCount(); i++)
     {
-        TypeHandle tyHnd = values[i].TyHnd;
+        TypeHandle tyHnd = layout.Values[i].TyHnd;
         if (tyHnd.IsPointer() || tyHnd.IsFnPtrType())
             continue;
 
@@ -240,6 +256,11 @@ bool TailCallHelp::GenerateGCDescriptor(const SArray<ArgBufferValue>& values, GC
 
         anyGC = true;
     }
+
+    //methInfo->options = (CorInfoOptions)(((UINT32)methInfo->options) | 
+    //                        ((ftn->AcquiresInstMethodTableFromThis() ? CORINFO_GENERICS_CTXT_FROM_THIS : 0) |
+    //                         (ftn->RequiresInstMethodTableArg() ? CORINFO_GENERICS_CTXT_FROM_METHODTABLE : 0) |
+    //                         (ftn->RequiresInstMethodDescArg() ? CORINFO_GENERICS_CTXT_FROM_METHODDESC : 0)));
 
     return anyGC;
 }
@@ -251,7 +272,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
 
     DWORD cbSig;
     PCCOR_SIGNATURE pSig = AllocateSignature(
-        info.Caller->GetLoaderAllocator(), sigBuilder, &cbSig);
+        info.LoaderAlloc, sigBuilder, &cbSig);
 
     SigTypeContext emptyCtx;
 
@@ -267,11 +288,11 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     DWORD bufferLcl = pCode->NewLocal(ELEMENT_TYPE_I);
 
     void* pGcDesc = NULL;
-    if (info.ArgBufLayout.HasGCDescriptor)
+    if (info.HasGCDescriptor)
     {
         DWORD gcDescLen;
-        PVOID gcDesc = info.ArgBufLayout.GCRefMapBuilder.GetBlob(&gcDescLen);
-        pGcDesc = AllocateBlob(info.Caller->GetLoaderAllocator(), gcDesc, gcDescLen);
+        PVOID gcDesc = info.GCRefMapBuilder.GetBlob(&gcDescLen);
+        pGcDesc = AllocateBlob(info.LoaderAlloc, gcDesc, gcDescLen);
     }
 
     pCode->EmitLDC(info.ArgBufLayout.Size);
@@ -314,7 +335,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     Module* pLoaderModule = info.Caller->GetLoaderModule();
     MethodDesc* pStoreArgsMD =
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
-            info.Caller->GetLoaderAllocator(),
+            info.LoaderAlloc,
             pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
             ILSTUB_TAILCALL_STOREARGS,
             info.Caller->GetModule(),
@@ -385,7 +406,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     CreateCallTargetStubSig(info, &sigBuilder);
 
     DWORD cbSig;
-    PCCOR_SIGNATURE pSig = AllocateSignature(info.Caller->GetLoaderAllocator(), sigBuilder, &cbSig);
+    PCCOR_SIGNATURE pSig = AllocateSignature(info.LoaderAlloc, sigBuilder, &cbSig);
 
     SigTypeContext emptyCtx;
 
@@ -626,7 +647,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     Module* pLoaderModule = info.Caller->GetLoaderModule();
     MethodDesc* pCallTargetMD =
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
-            info.Caller->GetLoaderAllocator(),
+            info.LoaderAlloc,
             pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
             ILSTUB_TAILCALL_CALLTARGET,
             info.Caller->GetModule(),

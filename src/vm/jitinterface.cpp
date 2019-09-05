@@ -13957,6 +13957,9 @@ bool CEEInfo::getTailCallHelp(
 
     MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
 
+    _ASSERTE(callSiteSig->hasTypeArg() ==
+             (hTarget != nullptr && ((MethodDesc*)hTarget)->RequiresInstArg()));
+
     bool isCallvirt = (flags & CORINFO_TAILCALL_IS_CALLVIRT) != 0;
 
     MethodDesc* pStoreArgsMD;
@@ -13965,7 +13968,7 @@ bool CEEInfo::getTailCallHelp(
 
     TailCallHelp::CreateTailCallHelperStubs(
         m_pMethodBeingCompiled, (MethodDesc*)hTarget,
-        msig, isCallvirt, callSiteSig->hasTypeArg(),
+        msig, isCallvirt,
         &pStoreArgsMD, &needsTarget,
         &pCallTargetMD);
 
