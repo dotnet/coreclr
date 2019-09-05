@@ -936,6 +936,7 @@ while :; do
             __SkipManaged=1
             __CopyNativeTestBinaries=1
             __SkipRestorePackages=1
+            __CopyNativeProjectsAfterCombinedTestBuild=false
             ;;
 
         skipgeneratelayout)

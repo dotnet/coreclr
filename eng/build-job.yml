@@ -177,10 +177,10 @@ jobs:
     # Publish native test components to test output folder
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
       - script: ./build-test.sh copynativeonly $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
-        displayName: Build native test components
+        displayName: Copy native test components to test output folder
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - script: build-test.cmd copynativeonly $(buildConfig) $(archType) $(priorityArg)
-        displayName: Build native test components
+        displayName: Copy native test components to test output folder
 
     # Sign on Windows
     - ${{ if and(eq(parameters.osGroup, 'Windows_NT'), eq(parameters.signBinaries, 'true')) }}:
