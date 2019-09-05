@@ -9,11 +9,8 @@
       <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
       <OutputType>Exe</OutputType>
       <ProjectDepsFileName>Microsoft.NETCore.App.deps.json</ProjectDepsFileName>
+      <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="Program.cs" />
-  </ItemGroup>
 
   <!-- Switch RuntimeIdentifier according to currently targeted OSGroup -->
   <PropertyGroup>
@@ -44,13 +41,7 @@
        compile phase.
   -->
 
-  <Target Name="CreateManifestResourceNames" />
-  <Target Name="CoreCompile" />
-
   <Target Name="SetupTestingHost" DependsOnTargets="ResolveAssemblyReferences">
-    <MSBuild Projects="@(MSBuildProjectFile)"
-             Targets="Publish"
-             Properties="RuntimeIdentifier=$(RuntimeIdentifier);PublishDir=$(NETCoreAppTestSharedFrameworkPath)" />
 
     <Error Condition="'$(CORE_ROOT)' == ''"
            Text="CORE_ROOT variable is not set." />
@@ -70,7 +61,6 @@
       <HostPolicyFileName>libhostpolicy</HostPolicyFileName>
       <HostPolicyExtension>$(HostFxrFileExtension)</HostPolicyExtension>
       <DotnetExecutableName>dotnet</DotnetExecutableName>
-      <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     </PropertyGroup>
 
     <ItemGroup>
@@ -108,7 +98,6 @@
       <DotnetExe Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == 'dotnet'" />
       <HostPolicyFile Include="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.Filename)' == '$(HostPolicyFileName)'" />
     </ItemGroup>
-
 
     <Copy SourceFiles="@(HostFxFile)"
           DestinationFolder="$(NETCoreAppTestHostFxrPath)"

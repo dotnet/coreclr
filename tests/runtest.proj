@@ -392,7 +392,7 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
   <!-- After we copied all the framework libraries we need to generate a deps.json file for the shared test framework -->
   <Target Name="GenerateTestSharedFrameworkDepsFile">
     <ItemGroup>
-      <!-- This is for HostPolicy, CoreCLR and Jit dependencies to continue to remain inside of the dep.json -->
+      <!-- This is for HostPolicy, CoreCLR and Jit dependencies to continue to remain inside of the deps.json -->
       <ExceptionForDepsJson Include="microsoft.netcore.app" />
 
       <!-- TODO: We should see about generating this from scratch instead of relying on a previous deps file as a template -->
