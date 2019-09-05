@@ -232,7 +232,7 @@ static int GetThreadUICultureId(__out LocaleIDValue* pLocale);  // TODO: This sh
 static HRESULT GetThreadUICultureNames(__inout StringArrayList* pCultureNames);
 #endif // !CROSSGEN_COMPILE
 
-HRESULT EEStartup(COINITIEE fFlags, const BundleInfo *bundleInfo);
+HRESULT EEStartup(COINITIEE fFlags);
 
 
 #ifndef CROSSGEN_COMPILE
@@ -270,14 +270,14 @@ static CLREvent * g_pEEShutDownEvent;
 
 static DangerousNonHostedSpinLock g_EEStartupLock;
 
-HRESULT InitializeEE(COINITIEE flags, const BundleInfo* bundleInfo)
+HRESULT InitializeEE(COINITIEE flags)
 {
     WRAPPER_NO_CONTRACT;
 #ifdef FEATURE_EVENT_TRACE
-    if(!g_fEEComActivatedStartup)
+    if (!g_fEEComActivatedStartup)
         g_fEEOtherStartup = TRUE;
 #endif // FEATURE_EVENT_TRACE
-    return EnsureEEStarted(flags, bundleInfo);
+    return EnsureEEStarted(flags);
 }
 
 // ---------------------------------------------------------------------------
@@ -285,7 +285,7 @@ HRESULT InitializeEE(COINITIEE flags, const BundleInfo* bundleInfo)
 //
 // Description: Ensure the CLR is started.
 // ---------------------------------------------------------------------------
-HRESULT EnsureEEStarted(COINITIEE flags, const BundleInfo *bundleInfo)
+HRESULT EnsureEEStarted(COINITIEE flags)
 {
     CONTRACTL
     {
@@ -339,7 +339,7 @@ HRESULT EnsureEEStarted(COINITIEE flags, const BundleInfo *bundleInfo)
             {
                 g_dwStartupThreadId = GetCurrentThreadId();
 
-                EEStartup(flags, bundleInfo);
+                EEStartup(flags);
                 bStarted=g_fEEStarted;
                 hr = g_EEStartupStatus;
 
@@ -633,7 +633,7 @@ void EESocketCleanupHelper()
 #endif // FEATURE_PAL
 #endif // CROSSGEN_COMPILE
 
-void EEStartupHelper(COINITIEE fFlags, const BundleInfo* bundleInfo)
+void EEStartupHelper(COINITIEE fFlags)
 {
     CONTRACTL
     {
@@ -751,7 +751,7 @@ void EEStartupHelper(COINITIEE fFlags, const BundleInfo* bundleInfo)
 
         // Fusion
         // Initialize the general Assembly Binder infrastructure
-        IfFailGoLog(CCoreCLRBinderHelper::Init(/*IsBundle?*/ bundleInfo != nullptr));
+        IfFailGoLog(CCoreCLRBinderHelper::Init());
 
         if (g_pConfig != NULL)
         {
@@ -870,11 +870,6 @@ void EEStartupHelper(COINITIEE fFlags, const BundleInfo* bundleInfo)
         PEAssembly::Attach();
         BaseDomain::Attach();
         SystemDomain::Attach();
-
-        // Fill in the Bundle Info, if any. This step must be done before
-        // SystemDomain::Init() -- so that the location of corelib is available.
-
-        SystemDomain::System()->DefaultDomain()->m_BundleInfo = bundleInfo;
 
         // Start up the EE intializing all the global variables
         ECall::Init();
@@ -1137,21 +1132,14 @@ LONG FilterStartupException(PEXCEPTION_POINTERS p, PVOID pv)
 // see code:EEStartup#TableOfContents for more on the runtime in general. 
 // see code:#EEShutdown for a analagous routine run during shutdown. 
 // 
-
-HRESULT EEStartup(COINITIEE fFlags, const BundleInfo* bundleInfo)
+HRESULT EEStartup(COINITIEE fFlags)
 {
     // Cannot use normal contracts here because of the PAL_TRY.
     STATIC_CONTRACT_NOTHROW;
 
     _ASSERTE(!g_fEEStarted && !g_fEEInit && SUCCEEDED (g_EEStartupStatus));
 
-    struct EEStartupParams
-    {
-        COINITIEE Flags;
-        const BundleInfo* Info;
-    } eeParams = { fFlags, bundleInfo };
-
-    PAL_TRY(EEStartupParams*, params, &eeParams)
+    PAL_TRY(COINITIEE*, pfFlags, &fFlags)
     {
 #ifndef CROSSGEN_COMPILE
         InitializeClrNotifications();
@@ -1161,7 +1149,7 @@ HRESULT EEStartup(COINITIEE fFlags, const BundleInfo* bundleInfo)
 #endif
 #endif // CROSSGEN_COMPILE
 
-        EEStartupHelper(params->Flags, params->Info);
+        EEStartupHelper(*pfFlags);
     }
     PAL_EXCEPT_FILTER (FilterStartupException)
     {

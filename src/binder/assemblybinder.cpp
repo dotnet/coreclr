@@ -14,7 +14,6 @@
 
 #include "assemblybinder.hpp"
 #include "assemblyname.hpp"
-
 #include "assembly.hpp"
 #include "applicationcontext.hpp"
 #include "loadcontext.hpp"
@@ -422,15 +421,14 @@ namespace BINDER_SPACE
     };
 
     /* static */
-    HRESULT AssemblyBinder::Startup(bool isBundle)
+    HRESULT AssemblyBinder::Startup()
     {
         HRESULT hr = S_OK;
  
        if (!BINDER_SPACE::fAssemblyBinderInitialized)
         {
-            
             g_BinderVariables = new Variables();
-            IF_FAIL_GO(g_BinderVariables->Init(isBundle));
+            IF_FAIL_GO(g_BinderVariables->Init());
 
             // Setup Debug log
             BINDER_LOG_STARTUP();
@@ -652,17 +650,13 @@ namespace BINDER_SPACE
         // For normal runs, corelib is expected to be found in systemDirectory.
         // For self-contained single-file bundles, corelib is expected within the bundle (systemDirectory is empty)
 
-        if (!systemDirectory.IsEmpty())
+        StackSString sCoreLibDir(systemDirectory);
+        if (!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
         {
-            StackSString sCoreLibDir(systemDirectory);
-            if (!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
-            {
-                sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
-            }
-
-            sCoreLib = sCoreLibDir;
+            sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
         }
 
+        sCoreLib = sCoreLibDir;
         sCoreLib.Append(CoreLibName_IL_W);
 
         // At run-time, System.Private.CoreLib.dll is expected to be the NI image.
@@ -675,7 +669,9 @@ namespace BINDER_SPACE
         IF_FAIL_GO(AssemblyBinder::GetAssembly(sCoreLib,
                                                TRUE /* fIsInGAC */,
                                                fExplicitBindToNativeImage,
-                                               &pSystemAssembly));
+                                               &pSystemAssembly,
+                                               NULL /* szMDAssemblyPath */,
+                                               Bundle::ProbeAppBundle(CoreLibName_IL_W, /* pathIsBundleRelative */ true)));
         
         *ppSystemAssembly = pSystemAssembly.Extract();
 
@@ -716,7 +712,9 @@ namespace BINDER_SPACE
         IF_FAIL_GO(AssemblyBinder::GetAssembly(sMscorlibSatellite,
                                                TRUE /* fIsInGAC */,
                                                FALSE /* fExplicitBindToNativeImage */,
-                                               &pSystemAssembly));
+                                               &pSystemAssembly,
+                                               NULL /* szMDAssemblyPath */,
+                                               Bundle::ProbeAppBundle(sMscorlibSatellite)));
 
         *ppSystemAssembly = pSystemAssembly.Extract();
 
@@ -881,7 +879,9 @@ namespace BINDER_SPACE
                                // specified.  Generally only NGEN PDB generation has
                                // this TRUE.
                                fExplicitBindToNativeImage,
-                               &pAssembly));
+                               &pAssembly,
+                               NULL /* szMDAssemblyPath */,
+                               Bundle::ProbeAppBundle(assemblyPath)));
 #ifdef FEATURE_VERSIONING_LOG
         IF_FAIL_GO(LogAssemblyNameWhereRef(pApplicationContext, pAssembly));
 #endif // FEATURE_VERSIONING_LOG
@@ -1114,6 +1114,13 @@ namespace BINDER_SPACE
     
     /*
      * BindByTpaList is the entry-point for the custom binding algorithm in CoreCLR.
+     * 
+     * The search for assemblies will proceed in the following order:
+     * 
+     * If this application is a single-file bundle, the meta-data contained in the bundle 
+     * will be probed to find the requested assembly. If the assembly is not found, 
+     * The list of platform assemblies (TPAs) are considered next.
+     *
      * Platform assemblies are specified as a list of files.  This list is the only set of
      * assemblies that we will load as platform.  They can be specified as IL or NIs.
      *
@@ -1173,21 +1180,28 @@ namespace BINDER_SPACE
 
             // Is assembly in the bundle?
             // Single-file bundle contents take precedence over TPA.
-            // Bundled assemblies are treated similar to TPAs.
-            if (g_BinderVariables->fIsBundle)
+            // The list of bundled assemblies is contained in the bundle manifest, and NOT in the TPA.
+            // Therefore the bundle is first probed using the assembly's simple name.
+            // If found, the assembly is loaded from the bundle.  
+            if (Bundle::AppIsBundle())
             {
                 SString candidates[] = { W(".dll"), W(".ni.dll") };
 
                 // Loop through the binding paths looking for a matching assembly
                 for (DWORD i = 0; i < 2; i++)
                 {
-                    SString bundledName(simpleName);
-                    bundledName.Append(candidates[i]);
+                    SString assemblyFileName(simpleName);
+                    assemblyFileName.Append(candidates[i]);
 
-                    hr = GetAssembly(bundledName,
-                        TRUE,  // fIsInGAC
-                        FALSE, // fExplicitBindToNativeImage
-                        &pTPAAssembly);
+                    SString assemblyFilePath(Bundle::AppBundle->BasePath());
+                    assemblyFilePath.Append(assemblyFileName);
+
+                    hr = GetAssembly(assemblyFilePath,
+                                     TRUE,  // fIsInGAC
+                                     FALSE, // fExplicitBindToNativeImage
+                                     &pTPAAssembly,
+                                     NULL,  // szMDAssemblyPath
+                                     Bundle::ProbeAppBundle(assemblyFileName, /* pathIsBundleRelative */ true));
 
                     if (hr != HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND))
                     {
@@ -1393,20 +1407,21 @@ namespace BINDER_SPACE
     }
     
     /* static */
-    HRESULT AssemblyBinder::GetAssembly(SString     &assemblyPath,
-                                        BOOL         fIsInGAC,
+    HRESULT AssemblyBinder::GetAssembly(SString   &assemblyPath,
+                                        BOOL       fIsInGAC,
                                         
                                         // When binding to the native image, should we
                                         // assume assemblyPath explicitly specifies that
                                         // NI?  (If not, infer the path to the NI
                                         // implicitly.)
-                                        BOOL         fExplicitBindToNativeImage,
+                                        BOOL       fExplicitBindToNativeImage,
                                         
-                                        Assembly   **ppAssembly,
+                                        Assembly **ppAssembly,
 
                                         // If assemblyPath refers to a native image without metadata,
                                         // szMDAssemblyPath gives the alternative file to get metadata.
-                                        LPCTSTR      szMDAssemblyPath)
+                                        LPCTSTR    szMDAssemblyPath,
+                                        BundleLoc  bundleLoc)
     {
         HRESULT hr = S_OK;
 
@@ -1430,7 +1445,7 @@ namespace BINDER_SPACE
             LPCTSTR szAssemblyPath = const_cast<LPCTSTR>(assemblyPath.GetUnicode());
 
             BINDER_LOG_ENTER(W("BinderAcquirePEImage"));
-            hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, fExplicitBindToNativeImage);
+            hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, fExplicitBindToNativeImage, bundleLoc);
             BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImage"), hr);
             IF_FAIL_GO(hr);
 
@@ -1447,7 +1462,7 @@ namespace BINDER_SPACE
                     BinderReleasePEImage(pNativePEImage);
 
                     BINDER_LOG_ENTER(W("BinderAcquirePEImageIL"));
-                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false);
+                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false, bundleLoc);
                     BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImageIL"), hr);
                     IF_FAIL_GO(hr);
                 }
@@ -1477,7 +1492,7 @@ namespace BINDER_SPACE
                 else
                 {
                     BINDER_LOG_ENTER(W("BinderAcquirePEImage"));
-                    hr = BinderAcquirePEImage(szMDAssemblyPath, &pPEImage, NULL, FALSE);
+                    hr = BinderAcquirePEImage(szMDAssemblyPath, &pPEImage, NULL, FALSE, bundleLoc);
                     BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImage"), hr);
                     IF_FAIL_GO(hr);
 

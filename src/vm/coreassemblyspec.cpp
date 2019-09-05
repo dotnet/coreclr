@@ -19,7 +19,7 @@
 #include "domainfile.h"
 #include "holder.h"
 #include "../binder/inc/assemblybinder.hpp"
-
+#include "bundle.h"
 #ifdef FEATURE_PREJIT
 #include "compile.h"
 #endif
@@ -197,10 +197,11 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
 }
 
 
-STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
-                            PEImage **ppPEImage,
-                            PEImage **ppNativeImage,
-                            BOOL      fExplicitBindToNativeImage)
+STDAPI BinderAcquirePEImage(LPCWSTR    wszAssemblyPath,
+                            PEImage  **ppPEImage,
+                            PEImage  **ppNativeImage,
+                            BOOL       fExplicitBindToNativeImage,
+                            BundleLoc  bundleLoc)
 {
     HRESULT hr = S_OK;
 
@@ -212,23 +213,12 @@ STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
         PEImageHolder pNativeImage = NULL;
 
         AppDomain* pDomain = ::GetAppDomain();
-        LPCWSTR bundlePath = wszAssemblyPath;
-        INT64 bundleOffset = 0;
-        INT64 bundleSize = 0;
-
-        if (pDomain->HasBundle())
-        {
-            if (pDomain->BundleInfo()->Probe(wszAssemblyPath, &bundleSize, &bundleOffset))
-            {
-                bundlePath = pDomain->BundleInfo()->Path();
-            }
-        }
 
 #ifdef FEATURE_PREJIT
         // fExplicitBindToNativeImage is set on Phone when we bind to a list of native images and have no IL on device for an assembly
         if (fExplicitBindToNativeImage)
         {
-            pNativeImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_TrustedNativeImage, bundlePath, bundleOffset, bundleSize);
+            pNativeImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_TrustedNativeImage, bundleLoc);
 
             // Make sure that the IL image can be opened if the native image is not available.
             hr=pNativeImage->TryOpenFile();
@@ -240,7 +230,7 @@ STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
         else
 #endif
         {
-            pImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_Default, bundlePath, bundleOffset, bundleSize);
+            pImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_Default, bundleLoc);
 
             // Make sure that the IL image can be opened if the native image is not available.
             hr=pImage->TryOpenFile();

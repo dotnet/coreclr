@@ -33,11 +33,24 @@ inline const SString &PEImage::GetPath()
     return m_path;
 }
 
-inline const SString& PEImage::GetPathToLoad()
+inline const SString PEImage::GetPathToLoad()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return (m_bundleOffset != 0) ? m_bundlePath : m_path;
+    return m_bundleLoc.IsValid() ? (SString)m_bundleLoc.Path() : m_path;
+}
+
+inline INT64 PEImage::GetOffset() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_bundleLoc.Offset;
+}
+
+inline INT64 PEImage::GetSize() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_bundleLoc.Size;
 }
 
 inline void PEImage::SetModuleFileNameHintForDAC()
@@ -426,7 +439,7 @@ inline CHECK PEImage::CheckFormat()
     CHECK_OK;
 }
 
-inline void  PEImage::Init(LPCWSTR pPath, LPCWSTR pBundlePath, INT64 bundleOffset, INT64 fileSize)
+inline void  PEImage::Init(LPCWSTR pPath, BundleLoc bundleLoc)
 {
     CONTRACTL
     {
@@ -435,11 +448,10 @@ inline void  PEImage::Init(LPCWSTR pPath, LPCWSTR pBundlePath, INT64 bundleOffse
         MODE_ANY;
     }
     CONTRACTL_END;
+
     m_path = pPath;
-    m_bundlePath = pBundlePath;
-    m_bundleOffset = bundleOffset;
-    m_fileSize = fileSize;
     m_path.Normalize();
+    m_bundleLoc = bundleLoc;
     SetModuleFileNameHintForDAC();
 }
 #ifndef DACCESS_COMPILE
@@ -471,14 +483,14 @@ inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
 }
 
 /* static */
-inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags /* = MDInternalImport_Default */, LPCWSTR pBundlePath, INT64 bundleOffset, INT64 fileSize)
+inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags /* = MDInternalImport_Default */, BundleLoc bundleLoc)
 {
     BOOL fUseCache = !((flags & MDInternalImport_NoCache) == MDInternalImport_NoCache);
 
     if (!fUseCache)
     {
         PEImageHolder pImage(new PEImage);
-        pImage->Init(pPath, pBundlePath, bundleOffset, fileSize);
+        pImage->Init(pPath, bundleLoc);
         return dac_cast<PTR_PEImage>(pImage.Extract());
     }
 
@@ -499,7 +511,7 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
         if (flags &  MDInternalImport_TrustedNativeImage)
             pImage->SetIsTrustedNativeImage();
 #endif        
-        pImage->Init(pPath, pBundlePath, bundleOffset, fileSize);
+        pImage->Init(pPath, bundleLoc);
 
         pImage->AddToHashMap();
         return dac_cast<PTR_PEImage>(pImage.Extract());
@@ -536,9 +548,6 @@ inline void PEImage::AddToHashMap()
 }
 
 #endif
-
-
-
 
 inline BOOL PEImage::Has32BitNTHeaders()
 {

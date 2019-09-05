@@ -19,6 +19,7 @@
 #include "peimagelayout.h"
 #include "sstring.h"
 #include "holder.h"
+#include <bundle.h>
 
 class SimpleRWLock;
 // --------------------------------------------------------------------------------
@@ -86,8 +87,6 @@ public:
     // DO NOT USE these unless you want a private copy-on-write mapping of
     // the file.
 
-
-
 public:
     ~PEImage();
     PEImage();
@@ -103,10 +102,7 @@ public:
     static PTR_PEImage OpenImage(
         LPCWSTR pPath,
         MDInternalImportFlags flags = MDInternalImport_Default,
-        LPCWSTR pBundlePath = nullptr,
-        INT64 bundleOffset = 0,
-        INT64 fileSize = 0);
-
+        BundleLoc bundleLoc = BundleLoc::Invalid());
 
     // clones the image with new flags (this is pretty much about cached / noncached difference)
     void Clone(MDInternalImportFlags flags, PTR_PEImage* ppImage)
@@ -151,7 +147,7 @@ public:
 
     // Accessors
     const SString &GetPath();
-    const SString &GetPathToLoad();
+    const SString GetPathToLoad();
 
     BOOL IsFile();
     HANDLE GetFileHandle();
@@ -246,7 +242,7 @@ private:
     // Private routines
     // ------------------------------------------------------------
 
-    void  Init(LPCWSTR pPath, LPCWSTR pBundlePath, INT64 bundleOffset, INT64 fileSize);
+    void  Init(LPCWSTR pPath, BundleLoc bundleLoc);
     void  Init(IStream* pStream, UINT64 uStreamAsmId,
                DWORD dwModuleId, BOOL resourceFile);
 
@@ -279,14 +275,12 @@ private:
     // Instance members
     // ------------------------------------------------------------
 
-    SString     m_path;     
+    SString     m_path;
     LONG        m_refCount;
 
-    // The following two fields are only meaningful if this PE Image is 
-    // embedded within a single-file bundle
-    SString     m_bundlePath;    // Path to the bundle containing the PE file.
-    INT64       m_bundleOffset;  // Offset within the bundle where this PE file is found.
-    INT64       m_fileSize;      // Size of the file within the bundle.
+    BundleLoc m_bundleLoc; // If this image is located within a single-file bundle, 
+                           // the location within the bundle. If m_bundleLoc is vaild, 
+                           // it takes precedence over m_path for loading.
 
     // This variable will have the data of module name. 
     // It is only used by DAC to remap fusion loaded modules back to 

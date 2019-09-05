@@ -1401,18 +1401,6 @@ void PEImage::SetFileHandle(HANDLE hFile)
     }
 }
 
-INT64 PEImage::GetOffset() const
-{
-    LIMITED_METHOD_CONTRACT; 
-    return m_bundleOffset;
-}
-
-INT64 PEImage::GetSize() const
-{
-    LIMITED_METHOD_CONTRACT;
-    return m_fileSize;
-}
-
 HRESULT PEImage::TryOpenFile()
 {
     STANDARD_VM_CONTRACT;

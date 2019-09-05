@@ -767,7 +767,7 @@ PVOID
 PALAPI
 PAL_LOADLoadPEFile(HANDLE hFile, size_t offset)
 {
-    ENTRY("PAL_LOADLoadPEFile (hFile=%p, offset=%x)\n", hFile, offset);
+    ENTRY("PAL_LOADLoadPEFile (hFile=%p, offset=%zx)\n", hFile, offset);
 
     void * loadedBase = MAPMapPEFile(hFile, offset);
 

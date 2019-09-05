@@ -1088,7 +1088,7 @@ CorUnix::InternalMapViewOfFile(
     CFileMappingImmutableData *pImmutableData = NULL;
     CFileMappingProcessLocalData *pProcessLocalData = NULL;
     IDataLock *pProcessLocalDataLock = NULL;
-    INT64 offset = (INT64)dwFileOffsetHigh | (INT64)dwFileOffsetLow;
+    INT64 offset = ((INT64)dwFileOffsetHigh << 32) | (INT64)dwFileOffsetLow;
 
 #if ONE_SHARED_MAPPING_PER_FILEREGION_PER_PROCESS
     PMAPPED_VIEW_LIST pReusedMapping = NULL;
@@ -2234,7 +2234,7 @@ void * MAPMapPEFile(HANDLE hFile, off_t offset)
     char* envVar;
 #endif
 
-    ENTRY("MAPMapPEFile (hFile=%p offset=%x)\n", hFile, offset);
+    ENTRY("MAPMapPEFile (hFile=%p offset=%zx)\n", hFile, offset);
 
     //Step 0: Verify values, find internal pal data structures.
     if (INVALID_HANDLE_VALUE == hFile)

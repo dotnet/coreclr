@@ -79,8 +79,6 @@ struct IHostControl;
 
 struct ICLRControl;
 
-class BundleInfo;
-
 EXTERN_GUID(CLSID_ComCallUnmarshalV4, 0x45fb4600,0xe6e8,0x4928,0xb2,0x5e,0x50,0x47,0x6f,0xf7,0x94,0x25);
 EXTERN_GUID(IID_ICLRRuntimeHost, 0x90F1A06C, 0x7712, 0x4762, 0x86, 0xB5, 0x7A, 0x5E, 0xBA, 0x6B, 0xDB, 0x02);
 EXTERN_GUID(IID_ICLRRuntimeHost2, 0x712AB73F, 0x2C22, 0x4807, 0xAD, 0x7E, 0xF5, 0x01, 0xD7, 0xb7, 0x2C, 0x2D);
@@ -254,7 +252,7 @@ EXTERN_C const IID IID_ICLRRuntimeHost;
     ICLRRuntimeHost : public IUnknown
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE Start(const BundleInfo *bundleInfo) = 0;
+        virtual HRESULT STDMETHODCALLTYPE Start() = 0;
         
         virtual HRESULT STDMETHODCALLTYPE Stop( void) = 0;
         

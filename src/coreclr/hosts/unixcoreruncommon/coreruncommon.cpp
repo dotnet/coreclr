@@ -448,7 +448,12 @@ int ExecuteManagedAssembly(
     // NATIVE_DLL_SEARCH_DIRECTORIES
     // - The list of paths that will be probed for native DLLs called by PInvoke
     //
+    // BUNDLE_PROBE
+    // -  If this application is a single-file bundle, the bundle-probe callback 
+    //    is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
+
     const char *propertyKeys[] = {
+        "BUNDLE_PROBE",
         "TRUSTED_PLATFORM_ASSEMBLIES",
         "APP_PATHS",
         "APP_NI_PATHS",
@@ -460,6 +465,8 @@ int ExecuteManagedAssembly(
 #endif
     };
     const char *propertyValues[] = {
+        // BUNDLE_PROBE
+        (const char*)bundleProbe,
         // TRUSTED_PLATFORM_ASSEMBLIES
         tpaList.c_str(),
         // APP_PATHS
@@ -486,7 +493,6 @@ int ExecuteManagedAssembly(
                 sizeof(propertyKeys) / sizeof(propertyKeys[0]), 
                 propertyKeys, 
                 propertyValues, 
-                bundleProbe,
                 &hostHandle, 
                 &domainId);
 

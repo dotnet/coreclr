@@ -15,6 +15,8 @@
 #include <utilcode.h>
 #include <corhost.h>
 #include <configuration.h>
+#include "bundle.h"
+
 #ifdef FEATURE_GDBJIT
 #include "../../vm/gdbjithelpers.h"
 #endif // FEATURE_GDBJIT
@@ -128,7 +130,7 @@ static void ConvertConfigPropertiesToUnicode(
     for (int propertyIndex = 0; propertyIndex < propertyCount; ++propertyIndex)
     {
         propertyKeysW[propertyIndex] = StringToUnicode(propertyKeys[propertyIndex]);
-        propertyValuesW[propertyIndex] = StringToUnicode(propertyValues[propertyIndex]);
+        propertyValuesW[propertyIndex] = propertyValues[propertyIndex] != nullptr ? StringToUnicode(propertyValues[propertyIndex]) : nullptr;
     }
 
     *propertyKeysWRef = propertyKeysW;
@@ -169,7 +171,6 @@ int coreclr_initialize(
             int propertyCount,
             const char** propertyKeys,
             const char** propertyValues,
-            bool bundleProbe(const char*, int64_t*, int64_t*),
             void** hostHandle,
             unsigned int* domainId)
 {
@@ -190,6 +191,24 @@ int coreclr_initialize(
 
     hr = CorHost2::CreateObject(IID_ICLRRuntimeHost4, (void**)&host);
     IfFailRet(hr);
+
+    // If this application is a single-file bundle, the bundle-probe callback 
+    // is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
+    // Therefore obtain the value before converting property keys/values to unicode.
+    for (int i = 0; i < propertyCount; i++)
+    {
+        if (strcmp(propertyKeys[i], "BUNDLE_PROBE") == 0)
+        {
+            BundleProbe* bundleProbe = (BundleProbe*)propertyValues[i];
+
+            if (bundleProbe != nullptr)
+            {
+                static Bundle bundle(StringToUnicode(exePath), bundleProbe);
+                Bundle::AppBundle = &bundle;
+            }
+            break;
+        }
+    }
 
     ConstWStringHolder appDomainFriendlyNameW = StringToUnicode(appDomainFriendlyName);
 
@@ -216,9 +235,7 @@ int coreclr_initialize(
     hr = host->SetStartupFlags(startupFlags);
     IfFailRet(hr);
 
-    static BundleInfo bundleInfo(StringToUnicode(exePath), bundleProbe);
-
-    hr = host->Start((bundleProbe != nullptr) ? &bundleInfo : nullptr);
+    hr = host->Start();
     IfFailRet(hr);
 
     hr = host->CreateAppDomainWithManager(

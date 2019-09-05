@@ -90,7 +90,7 @@ CorHost2::CorHost2() : m_fFirstToLoadCLR(FALSE), m_fStarted(FALSE), m_fAppDomain
 
 static DangerousNonHostedSpinLock lockOnlyOneToInvokeStart;
 
-STDMETHODIMP CorHost2::Start(const BundleInfo *bundleInfo)
+STDMETHODIMP CorHost2::Start()
 {
     CONTRACTL
     {
@@ -149,7 +149,7 @@ STDMETHODIMP CorHost2::Start(const BundleInfo *bundleInfo)
             g_fHostConfig |= CLRHOSTED;
         }
 
-        hr = CorRuntimeHostBase::Start(bundleInfo);
+        hr = CorRuntimeHostBase::Start();
         if (SUCCEEDED(hr))
         {
             // Set our flag that this host invoked the Start method.
@@ -173,7 +173,7 @@ STDMETHODIMP CorHost2::Start(const BundleInfo *bundleInfo)
 }
 
 // Starts the runtime. This is equivalent to CoInitializeEE();
-HRESULT CorRuntimeHostBase::Start(const BundleInfo *bundleInfo)
+HRESULT CorRuntimeHostBase::Start()
 {
     CONTRACTL
     {
@@ -191,7 +191,7 @@ HRESULT CorRuntimeHostBase::Start(const BundleInfo *bundleInfo)
 #ifdef FEATURE_EVENT_TRACE
         g_fEEHostedStartup = TRUE;
 #endif // FEATURE_EVENT_TRACE
-        hr = InitializeEE(COINITEE_DEFAULT, bundleInfo);
+        hr = InitializeEE(COINITEE_DEFAULT);
     }
     END_ENTRYPOINT_NOTHROW;
 

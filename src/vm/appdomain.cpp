@@ -32,7 +32,6 @@
 #include "comdelegate.h"
 #include "siginfo.hpp"
 #include "typekey.h"
-
 #include "caparser.h"
 #include "ecall.h"
 #include "finalizerthread.h"
@@ -1820,7 +1819,7 @@ void SystemDomain::Init()
         sizeof(MethodDesc),
         sizeof(FieldDesc),
         sizeof(Module)
-        ));
+    ));
 #endif // _DEBUG
 
     // The base domain is initialized in SystemDomain::Attach()
@@ -1838,10 +1837,14 @@ void SystemDomain::Init()
     DWORD size = 0;
     AppDomain* pAppDomain = ::GetAppDomain();
 
-    // If we are running from a self-contained single-file bundle, the 
-    // runtime is contained within the bundle.
-    // So, skip computing the systemDirectory, and leave it set to empty-string.
-    if (!pAppDomain->HasBundle())
+    if (Bundle::AppIsBundle())
+    {
+        // If we are running from a self-contained single-file bundle, the 
+        // runtime is contained within the bundle.
+        m_SystemDirectory.Set(Bundle::AppBundle->BasePath());
+        m_SystemDirectory.Normalize();
+    }
+    else
     {
         // Get the install directory so we can find mscorlib
         hr = GetInternalSystemDirectory(NULL, &size);
@@ -1855,12 +1858,12 @@ void SystemDomain::Init()
         m_SystemDirectory.Normalize();
 
         // At this point m_SystemDirectory should already be canonicalized
+    }
 
-        m_BaseLibrary.Append(m_SystemDirectory);
-        if (!m_BaseLibrary.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
-        {
-            m_BaseLibrary.Append(DIRECTORY_SEPARATOR_CHAR_W);
-        }
+    m_BaseLibrary.Append(m_SystemDirectory);
+    if (!m_BaseLibrary.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
+    {
+        m_BaseLibrary.Append(DIRECTORY_SEPARATOR_CHAR_W);
     }
 
     m_BaseLibrary.Append(g_pwBaseLibrary);

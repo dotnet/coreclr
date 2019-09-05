@@ -26,13 +26,13 @@ using namespace BINDER_SPACE;
 namespace BinderInterface
 {
 
-    HRESULT Init(bool isBundle)
+    HRESULT Init()
     {
         HRESULT hr = S_OK;
         
         EX_TRY
         {
-            hr = AssemblyBinder::Startup(isBundle);
+            hr = AssemblyBinder::Startup();
         }
         EX_CATCH_HRESULT(hr);
 

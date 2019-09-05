@@ -27,7 +27,7 @@ namespace BINDER_SPACE
 
 namespace BinderInterface
 {
-    HRESULT Init(bool isBundle);
+    HRESULT Init();
 
     HRESULT SetupContext(/* in */  LPCWSTR    wszApplicationBase,
                          /* in */  DWORD      dwAppDomainId,

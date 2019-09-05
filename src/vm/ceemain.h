@@ -16,15 +16,14 @@
 #define CEEMain_H
 
 #include <windef.h> // for HFILE, HANDLE, HMODULE
-#include <corbundle.h>
 
 class EEDbgInterfaceImpl;
 
 // Ensure the EE is started up.
-HRESULT EnsureEEStarted(COINITIEE flags, const BundleInfo* bundleInfo);
+HRESULT EnsureEEStarted(COINITIEE flags);
 
 // Wrapper around EnsureEEStarted which also sets startup mode.
-HRESULT InitializeEE(COINITIEE flags, const BundleInfo *bundleInfo);
+HRESULT InitializeEE(COINITIEE flags);
 
 // Enum to control what happens at the end of EE shutdown. There are two options:
 // 1. Call ::ExitProcess to cause the process to terminate gracefully. This is how

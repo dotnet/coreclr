@@ -8,6 +8,7 @@
 #include "coreclrbindercommon.h"
 #include "clrprivbindercoreclr.h"
 #include "clrprivbinderutil.h"
+#include "bundle.h"
 
 using namespace BINDER_SPACE;
 
@@ -15,13 +16,13 @@ using namespace BINDER_SPACE;
 // Init code
 //-----------------------------------------------------------------------------
 /* static */
-HRESULT CCoreCLRBinderHelper::Init(bool isBundle)
+HRESULT CCoreCLRBinderHelper::Init()
 {
     STANDARD_VM_CONTRACT;
     HRESULT hr = S_OK;
     EX_TRY
     {
-        hr = AssemblyBinder::Startup(isBundle);
+        hr = AssemblyBinder::Startup();
     }
     EX_CATCH_HRESULT(hr);
 
@@ -126,8 +127,7 @@ HRESULT CCoreCLRBinderHelper::BindToSystemSatellite(SString            &systemPa
                                                     ICLRPrivAssembly **ppSystemAssembly)
 {
     HRESULT hr = S_OK;
-    VALIDATE_ARG_RET(ppSystemAssembly != NULL && 
-        (SystemDomain::System()->DefaultDomain()->HasBundle() || !systemPath.IsEmpty()));
+    VALIDATE_ARG_RET(ppSystemAssembly != NULL && !systemPath.IsEmpty());
     
     EX_TRY
     {
@@ -162,7 +162,7 @@ HRESULT CCoreCLRBinderHelper::GetAssemblyFromImage(PEImage           *pPEImage,
         }
     }
     EX_CATCH_HRESULT(hr);
-     
+
     return hr;
 }
 
@@ -178,5 +178,7 @@ HRESULT CCoreCLRBinderHelper::GetAssembly(/* in */  SString     &assemblyPath,
     return AssemblyBinder::GetAssembly(assemblyPath,
                                        fIsInGAC,
                                        fExplicitBindToNativeImage,
-                                       ppAssembly);
+                                       ppAssembly,
+                                       NULL /* szMDAssemblyPath */,
+                                       Bundle::ProbeAppBundle(assemblyPath));
 }
