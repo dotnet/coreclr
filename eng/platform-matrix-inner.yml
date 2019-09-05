@@ -16,6 +16,7 @@ parameters:
   ignoreDependencyOnBuildJobs: false
   jobParameters: {}
   variables: {}
+  testVar: ''
 
 jobs:
 
@@ -24,7 +25,7 @@ jobs:
 
 # Linux arm
 
-- ${{ if eq(parameters.variables.linuxArm, true) }}:
+- ${{ if eq(parameters.combos['linuxArm'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -32,8 +33,8 @@ jobs:
       archType: arm
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: ${{ parameters.variables.armUnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.armUnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['armUnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['armUnixManagedBuildOSIdentifier'] }}
       container:
         image: ubuntu-16.04-cross-14.04-23cacb0-20190528233931
         registry: mcr
@@ -49,7 +50,7 @@ jobs:
 
 # Linux arm64
 
-- ${{ if eq(parameters.variables.linuxArm64, true) }}:
+- ${{ if eq(parameters.combos['linuxArm64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -57,8 +58,8 @@ jobs:
       archType: arm64
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: ${{ parameters.variables.arm64UnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.arm64UnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['arm64UnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['arm64UnixManagedBuildOSIdentifier'] }}
       container:
         image: ubuntu-16.04-cross-arm64-cfdd435-20190520220848
         registry: mcr
@@ -75,7 +76,7 @@ jobs:
 
 # Linux musl x64
 
-- ${{ if eq(parameters.variables.linuxMuslX64, true) }}:
+- ${{ if eq(parameters.combos['linuxMuslX64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -83,8 +84,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux_musl
-      managedBuildOsGroup: ${{ parameters.variables.x64UnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.x64UnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['x64UnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['x64UnixManagedBuildOSIdentifier'] }}
       container:
         image: alpine-3.6-WithNode-cfdd435-20190521001804
         registry: mcr
@@ -98,7 +99,7 @@ jobs:
 
 # Linux musl arm64
 
-- ${{ if eq(parameters.variables.linuxMuslArm64, true) }}:
+- ${{ if eq(parameters.combos['linuxMuslArm64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -106,8 +107,8 @@ jobs:
       archType: arm64
       osGroup: Linux
       osIdentifier: Linux_musl
-      managedBuildOsGroup: ${{ parameters.variables.arm64UnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.arm64UnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['arm64UnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['arm64UnixManagedBuildOSIdentifier'] }}
       container:
         image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
         registry: mcr
@@ -121,7 +122,7 @@ jobs:
 
 # Linux rhel6 x64
 
-- ${{ if eq(parameters.variables.linuxRHel6X64, true) }}:
+- ${{ if eq(parameters.combos['linuxRHel6X64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -129,8 +130,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux_rhel6
-      managedBuildOsGroup: ${{ parameters.variables.x64UnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.x64UnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['x64UnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['x64UnixManagedBuildOSIdentifier'] }}
       container:
         image: centos-6-3e800f1-20190501005338
         registry: mcr
@@ -142,7 +143,7 @@ jobs:
 
 # Linux x64
 
-- ${{ if eq(parameters.variables.linuxX64, true) }}:
+- ${{ if eq(parameters.combos['linuxX64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -150,8 +151,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: ${{ parameters.variables.x64UnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.x64UnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['x64UnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['x64UnixManagedBuildOSIdentifier'] }}
       container:
         image: centos-7-3e800f1-20190501005343
         registry: mcr
@@ -192,7 +193,7 @@ jobs:
 
 # macOS x64
 
-- ${{ if eq(parameters.variables.osxX64, true) }}:
+- ${{ if eq(parameters.combos['osxX64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -200,8 +201,8 @@ jobs:
       archType: x64
       osGroup: OSX
       osIdentifier: OSX
-      managedBuildOsGroup: ${{ parameters.variables.x64UnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ parameters.variables.x64UnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: ${{ parameters.combos['x64UnixManagedBuildOSGroup'] }}
+      managedBuildOsIdentifier: ${{ parameters.combos['x64UnixManagedBuildOSIdentifier'] }}
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - OSX.1013.Amd64.Open
@@ -215,11 +216,11 @@ jobs:
 
 # Windows x64
 
-- ${{ if eq(parameters.variables.windowsX64, true) }}:
+- ${{ if eq(true, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
-      buildConfig: ${{ parameters.buildConfig }}
+      buildConfig: ${{ parameters.variables.testVar }}
       archType: x64
       osGroup: Windows_NT
       osIdentifier: Windows_NT
@@ -243,7 +244,7 @@ jobs:
 
 # Windows x86
 
-- ${{ if eq(parameters.variables.windowsX86, true) }}:
+- ${{ if eq(parameters.combos['windowsX86'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -269,7 +270,7 @@ jobs:
 
 # Windows arm
 
-- ${{ if eq(parameters.variables.windowsArm, true) }}:
+- ${{ if eq(parameters.combos['windowsArm'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -291,7 +292,7 @@ jobs:
 
 # Windows arm64
 
-- ${{ if eq(parameters.variables.windowsArm64, true) }}:
+- ${{ if eq(parameters.combos['windowsArm64'], true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}

@@ -1,0 +1,9 @@
+parameters:
+  platforms: []
+  # platformGroup is a named collection of platforms. Allowed values:
+  # 'all' - all platforms
+  # 'gcstress' - platforms that support running under GCStress0x3 and GCStress0xC scenarios
+  platformGroup: ''
+
+variables:
+  testVar: 'testValue'
