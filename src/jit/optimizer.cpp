@@ -4252,7 +4252,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
 
     if (opts.compDbgInfo)
     {
-        copyOfCondStmt->gtStmtILoffsx = condStmt->gtStmtILoffsx;
+        copyOfCondStmt->m_ILoffsx = condStmt->m_ILoffsx;
     }
 
     // Flag the block that received the copy as potentially having an array/vtable

@@ -948,11 +948,11 @@ void Rationalizer::DoPhase()
 
             // If this statement has correct offset information, change it into an IL offset
             // node and insert it into the LIR.
-            if (statement->gtStmtILoffsx != BAD_IL_OFFSET)
+            if (statement->m_ILoffsx != BAD_IL_OFFSET)
             {
                 assert(!statement->IsPhiDefnStmt());
                 GenTreeILOffset* ilOffset = new (comp, GT_IL_OFFSET)
-                    GenTreeILOffset(statement->gtStmtILoffsx DEBUGARG(statement->gtStmtLastILoffs));
+                    GenTreeILOffset(statement->m_ILoffsx DEBUGARG(statement->gtStmtLastILoffs));
                 BlockRange().InsertBefore(statement->m_treeList, ilOffset);
             }
 
