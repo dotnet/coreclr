@@ -4,6 +4,8 @@
     <AssemblyName>LinkBench</AssemblyName>
     <OutputType>exe</OutputType>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
+    <NugetTargetMoniker>.NETStandard,Version=v1.6</NugetTargetMoniker>
+    <NugetTargetMonikerShort>netstandard1.6</NugetTargetMonikerShort>
     <TargetFramework>netstandard1.6</TargetFramework>
   </PropertyGroup>
   <PropertyGroup>

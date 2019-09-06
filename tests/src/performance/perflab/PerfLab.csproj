@@ -2,11 +2,12 @@
   <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
   <PropertyGroup>
     <AssemblyName>PerfLab</AssemblyName>
-    <ProjectGuid>{507E3CC2-5D95-414D-9F01-2A106FC177DC}</ProjectGuid>
     <OutputType>Library</OutputType>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">..\..\</SolutionDir>
     <DefineConstants>$(DefineConstants);STATIC</DefineConstants>
     <TargetFramework>netstandard1.6</TargetFramework>
+    <NuGetTargetMoniker>.NETStandard,Version=v1.6</NuGetTargetMoniker>
+    <NuGetTargetMonikerShort>netstandard1.6</NuGetTargetMonikerShort>
   </PropertyGroup>
   <PropertyGroup>
     <RestoreOutputPath>..\obj</RestoreOutputPath>
