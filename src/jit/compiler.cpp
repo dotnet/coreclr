@@ -8391,7 +8391,7 @@ GenTree* dFindTree(unsigned id)
     {
         for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
-            tree = dFindTree(stmt->gtStmtExpr, id);
+            tree = dFindTree(stmt->m_rootTree, id);
             if (tree != nullptr)
             {
                 dbTreeBlock = block;
@@ -8612,7 +8612,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (trees)
             {
-                cTree(comp, stmt->gtStmtExpr);
+                cTree(comp, stmt->m_rootTree);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8626,7 +8626,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt->gtStmtExpr);
+                cTreeIR(comp, stmt->m_rootTree);
             }
 
             if (!noStmts && !trees)

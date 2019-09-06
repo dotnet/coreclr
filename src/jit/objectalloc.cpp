@@ -214,7 +214,7 @@ void ObjectAllocator::MarkEscapingVarsAndBuildConnGraph()
         for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             BuildConnGraphVisitor buildConnGraphVisitor(this);
-            buildConnGraphVisitor.WalkTree(&stmt->gtStmtExpr, nullptr);
+            buildConnGraphVisitor.WalkTree(&stmt->m_rootTree, nullptr);
         }
     }
 }
@@ -349,7 +349,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
 
         for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
-            GenTree* stmtExpr = stmt->gtStmtExpr;
+            GenTree* stmtExpr = stmt->m_rootTree;
             GenTree* op2      = nullptr;
 
             bool canonicalAllocObjFound = false;
@@ -399,7 +399,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
                     // definitely-stack-pointing pointers. All definitely-stack-pointing pointers are in both sets.
                     MarkLclVarAsDefinitelyStackPointing(lclNum);
                     MarkLclVarAsPossiblyStackPointing(lclNum);
-                    stmt->gtStmtExpr->gtBashToNOP();
+                    stmt->m_rootTree->gtBashToNOP();
                     comp->optMethodFlags |= OMF_HAS_OBJSTACKALLOC;
                     didStackAllocate = true;
                 }
@@ -423,7 +423,7 @@ bool ObjectAllocator::MorphAllocObjNodes()
             {
                 // We assume that GT_ALLOCOBJ nodes are always present in the
                 // canonical form.
-                comp->fgWalkTreePre(&stmt->gtStmtExpr, AssertWhenAllocObjFoundVisitor);
+                comp->fgWalkTreePre(&stmt->m_rootTree, AssertWhenAllocObjFoundVisitor);
             }
 #endif // DEBUG
         }
@@ -911,7 +911,7 @@ void ObjectAllocator::RewriteUses()
         for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             RewriteUsesVisitor rewriteUsesVisitor(this);
-            rewriteUsesVisitor.WalkTree(&stmt->gtStmtExpr, nullptr);
+            rewriteUsesVisitor.WalkTree(&stmt->m_rootTree, nullptr);
         }
     }
 }

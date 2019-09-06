@@ -131,7 +131,7 @@ private:
     //
     bool ContainsFatCalli(Statement* stmt)
     {
-        GenTree* fatPointerCandidate = stmt->gtStmtExpr;
+        GenTree* fatPointerCandidate = stmt->m_rootTree;
         if (fatPointerCandidate->OperIs(GT_ASG))
         {
             fatPointerCandidate = fatPointerCandidate->gtGetOp2();
@@ -150,7 +150,7 @@ private:
     //    calls are hoisted to top level ... (we hope)
     bool ContainsGuardedDevirtualizationCandidate(Statement* stmt)
     {
-        GenTree* candidate = stmt->gtStmtExpr;
+        GenTree* candidate = stmt->m_rootTree;
         return candidate->IsCall() && candidate->AsCall()->IsGuardedDevirtualizationCandidate();
     }
 
@@ -177,7 +177,7 @@ private:
 
         void Transform()
         {
-            JITDUMP("*** %s: transforming [%06u]\n", Name(), compiler->dspTreeID(stmt->gtStmtExpr));
+            JITDUMP("*** %s: transforming [%06u]\n", Name(), compiler->dspTreeID(stmt->m_rootTree));
             FixupRetExpr();
             ClearFlag();
             CreateRemainder();
@@ -279,7 +279,7 @@ private:
         FatPointerCallTransformer(Compiler* compiler, BasicBlock* block, Statement* stmt)
             : Transformer(compiler, block, stmt)
         {
-            doesReturnValue = stmt->gtStmtExpr->OperIs(GT_ASG);
+            doesReturnValue = stmt->m_rootTree->OperIs(GT_ASG);
             origCall        = GetCall(stmt);
             fptrAddress     = origCall->gtCallAddr;
             pointerType     = fptrAddress->TypeGet();
@@ -301,7 +301,7 @@ private:
         //    call tree node pointer.
         virtual GenTreeCall* GetCall(Statement* callStmt)
         {
-            GenTree*     tree = callStmt->gtStmtExpr;
+            GenTree*     tree = callStmt->m_rootTree;
             GenTreeCall* call = nullptr;
             if (doesReturnValue)
             {
@@ -412,7 +412,7 @@ private:
         Statement* CreateFatCallStmt(GenTree* actualCallAddress, GenTree* hiddenArgument)
         {
             Statement*   fatStmt = compiler->gtCloneStmt(stmt);
-            GenTree*     fatTree = fatStmt->gtStmtExpr;
+            GenTree*     fatTree = fatStmt->m_rootTree;
             GenTreeCall* fatCall = GetCall(fatStmt);
             fatCall->gtCallAddr  = actualCallAddress;
             AddHiddenArgument(fatCall, hiddenArgument);
@@ -531,7 +531,7 @@ private:
         //    call tree node pointer.
         virtual GenTreeCall* GetCall(Statement* callStmt)
         {
-            GenTree* tree = callStmt->gtStmtExpr;
+            GenTree* tree = callStmt->m_rootTree;
             assert(tree->IsCall());
             GenTreeCall* call = tree->AsCall();
             return call;
@@ -735,7 +735,7 @@ private:
             if (returnTemp != BAD_VAR_NUM)
             {
                 GenTree* assign     = compiler->gtNewTempAssign(returnTemp, call);
-                newStmt->gtStmtExpr = assign;
+                newStmt->m_rootTree = assign;
             }
 
             // For stub calls, restore the stub address. For everything else,
@@ -753,7 +753,7 @@ private:
             compiler->fgInsertStmtAtEnd(elseBlock, newStmt);
 
             // Set the original statement to a nop.
-            stmt->gtStmtExpr = compiler->gtNewNothingNode();
+            stmt->m_rootTree = compiler->gtNewNothingNode();
         }
 
     private:
@@ -794,7 +794,7 @@ void Compiler::CheckNoTransformableIndirectCallsRemain()
     {
         for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
-            fgWalkTreePre(&stmt->gtStmtExpr, fgDebugCheckForTransformableIndirectCalls);
+            fgWalkTreePre(&stmt->m_rootTree, fgDebugCheckForTransformableIndirectCalls);
         }
     }
 }

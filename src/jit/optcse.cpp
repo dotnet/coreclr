@@ -2376,12 +2376,12 @@ public:
             if (link == nullptr)
             {
                 printf("\ngtFindLink failed: stm=");
-                Compiler::printTreeID(stmt->gtStmtExpr);
+                Compiler::printTreeID(stmt->m_rootTree);
                 printf(", exp=");
                 Compiler::printTreeID(exp);
                 printf("\n");
                 printf("stm =");
-                m_pCompiler->gtDispTree(stmt->gtStmtExpr);
+                m_pCompiler->gtDispTree(stmt->m_rootTree);
                 printf("\n");
                 printf("exp =");
                 m_pCompiler->gtDispTree(exp);
@@ -2892,7 +2892,7 @@ void Compiler::optCleanupCSEs()
         for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
         {
             // We must clear the gtCSEnum field.
-            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->m_rootTree; tree; tree = tree->gtPrev)
             {
                 tree->gtCSEnum = NO_CSE;
             }
@@ -2919,7 +2919,7 @@ void Compiler::optEnsureClearCSEInfo()
         // Walk the statement trees in this basic block
         for (; stmt != nullptr; stmt = stmt->m_next)
         {
-            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->m_rootTree; tree; tree = tree->gtPrev)
             {
                 assert(tree->gtCSEnum == NO_CSE);
             }

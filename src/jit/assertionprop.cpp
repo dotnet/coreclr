@@ -442,7 +442,7 @@ void Compiler::optAddCopies()
             optAddCopyLclNum   = lclNum;  // in
             optAddCopyAsgnNode = nullptr; // out
 
-            fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optAddCopiesCallback, (void*)this, false);
+            fgWalkTreePre(&stmt->m_rootTree, Compiler::optAddCopiesCallback, (void*)this, false);
 
             noway_assert(optAddCopyAsgnNode);
 
@@ -476,7 +476,7 @@ void Compiler::optAddCopies()
         if (verbose)
         {
             printf("\nIntroducing a new copy for V%02u\n", lclNum);
-            gtDispTree(stmt->gtStmtExpr);
+            gtDispTree(stmt->m_rootTree);
             printf("\n");
         }
 #endif
@@ -3930,8 +3930,8 @@ GenTree* Compiler::optAssertionProp_Update(GenTree* newTree, GenTree* tree, Stat
             {
                 // If there's no parent, the tree being replaced is the root of the
                 // statement.
-                assert((stmt->gtStmtExpr == tree) && (&stmt->gtStmtExpr == useEdge));
-                stmt->gtStmtExpr = newTree;
+                assert((stmt->m_rootTree == tree) && (&stmt->m_rootTree == useEdge));
+                stmt->m_rootTree = newTree;
             }
 
             // We only need to ensure that the gtNext field is set as it is used to traverse
@@ -4894,7 +4894,7 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Sta
     optAssertionProp_Update(newTree, tree, stmt);
 
     JITDUMP("After constant propagation on [%06u]:\n", tree->gtTreeID);
-    DBEXEC(VERBOSE, gtDispTree(stmt->gtStmtExpr));
+    DBEXEC(VERBOSE, gtDispTree(stmt->m_rootTree));
 
     return WALK_SKIP_SUBTREES;
 }
@@ -4990,7 +4990,7 @@ Statement* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, Statement* stm
     optAssertionPropagatedCurrentStmt = false;
 
     VNAssertionPropVisitorInfo data(this, block, stmt);
-    fgWalkTreePre(&stmt->gtStmtExpr, Compiler::optVNAssertionPropCurStmtVisitor, &data);
+    fgWalkTreePre(&stmt->m_rootTree, Compiler::optVNAssertionPropCurStmtVisitor, &data);
 
     if (optAssertionPropagatedCurrentStmt)
     {
@@ -5164,7 +5164,7 @@ void Compiler::optAssertionPropMain()
                 }
 
                 JITDUMP("Propagating %s assertions for " FMT_BB ", stmt [%06d], tree [%06d], tree -> %d\n",
-                        BitVecOps::ToString(apTraits, assertions), block->bbNum, dspTreeID(stmt->gtStmtExpr),
+                        BitVecOps::ToString(apTraits, assertions), block->bbNum, dspTreeID(stmt->m_rootTree),
                         dspTreeID(tree), tree->GetAssertionInfo().GetAssertionIndex());
 
                 GenTree* newTree = optAssertionProp(assertions, tree, stmt);
@@ -5189,7 +5189,7 @@ void Compiler::optAssertionPropMain()
                 if (verbose)
                 {
                     printf("Re-morphing this stmt:\n");
-                    gtDispTree(stmt->gtStmtExpr);
+                    gtDispTree(stmt->m_rootTree);
                     printf("\n");
                 }
 #endif

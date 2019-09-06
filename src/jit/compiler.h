@@ -2655,7 +2655,7 @@ public:
 
     Statement* gtCloneStmt(Statement* stmt)
     {
-        GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
+        GenTree* exprClone = gtCloneExpr(stmt->m_rootTree);
         return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
     }
 

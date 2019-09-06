@@ -494,7 +494,7 @@ void Compiler::gsParamsToShadows()
         for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             ReplaceShadowParamsVisitor replaceShadowParamsVisitor(this);
-            replaceShadowParamsVisitor.WalkTree(&stmt->gtStmtExpr, nullptr);
+            replaceShadowParamsVisitor.WalkTree(&stmt->m_rootTree, nullptr);
         }
     }
 

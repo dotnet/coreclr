@@ -508,7 +508,7 @@ void RangeCheck::SetDef(UINT64 hash, Location* loc)
     if (m_pDefTable->Lookup(hash, &loc2))
     {
         JITDUMP("Already have " FMT_BB ", [%06d], [%06d] for hash => %0I64X", loc2->block->bbNum,
-                Compiler::dspTreeID(loc2->stmt->gtStmtExpr), Compiler::dspTreeID(loc2->tree), hash);
+                Compiler::dspTreeID(loc2->stmt->m_rootTree), Compiler::dspTreeID(loc2->tree), hash);
         assert(false);
     }
 #endif
@@ -1287,7 +1287,7 @@ void RangeCheck::MapMethodDefs()
         for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             MapMethodDefsData data(this, block, stmt);
-            m_pCompiler->fgWalkTreePre(&stmt->gtStmtExpr, MapMethodDefsVisitor, &data, false, true);
+            m_pCompiler->fgWalkTreePre(&stmt->m_rootTree, MapMethodDefsVisitor, &data, false, true);
         }
     }
     m_fMappedDefs = true;

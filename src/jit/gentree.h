@@ -5131,7 +5131,7 @@ struct GenTreeILOffset : public GenTree
 
 struct Statement
 {
-    GenTree*       gtStmtExpr;      // root of the expression tree
+    GenTree*       m_rootTree;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
     InlineContext* gtInlineContext; // The inline context for this statement.
     IL_OFFSETX     gtStmtILoffsx;   // instr offset (if available)
@@ -5146,7 +5146,7 @@ struct Statement
     bool compilerAdded;
 
     Statement(GenTree* expr, IL_OFFSETX offset)
-        : gtStmtExpr(expr)
+        : m_rootTree(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
@@ -5163,12 +5163,12 @@ struct Statement
 
     unsigned char GetCostSz() const
     {
-        return gtStmtExpr->GetCostSz();
+        return m_rootTree->GetCostSz();
     }
 
     unsigned char GetCostEx() const
     {
-        return gtStmtExpr->GetCostEx();
+        return m_rootTree->GetCostEx();
     }
 };
 

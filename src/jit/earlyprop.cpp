@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->gtStmtExpr == tree)
+            if (compCurStmt->m_rootTree == tree)
             {
                 return nullptr;
             }
@@ -336,7 +336,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("optEarlyProp Rewriting " FMT_BB "\n", compCurBB->bbNum);
-            gtDispTree(compCurStmt->gtStmtExpr);
+            gtDispTree(compCurStmt->m_rootTree);
             printf("\n");
         }
 #endif
@@ -368,7 +368,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("to\n");
-            gtDispTree(compCurStmt->gtStmtExpr);
+            gtDispTree(compCurStmt->m_rootTree);
             printf("\n");
         }
 #endif
@@ -608,7 +608,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
                                                 Statement* curStmt = compCurStmt->m_prev;
-                                                currentTree        = curStmt->gtStmtExpr;
+                                                currentTree        = curStmt->m_rootTree;
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
                                                     if ((nodesWalked++ > maxNodesWalked) ||
@@ -620,7 +620,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     {
                                                         curStmt = curStmt->m_prev;
                                                         assert(curStmt != nullptr);
-                                                        currentTree = curStmt->gtStmtExpr;
+                                                        currentTree = curStmt->m_rootTree;
                                                     }
                                                 }
 

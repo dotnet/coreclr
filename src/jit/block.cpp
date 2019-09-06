@@ -633,7 +633,7 @@ bool BasicBlock::CloneBlockState(
 
     for (Statement* fromStmt = from->firstStmt(); fromStmt != nullptr; fromStmt = fromStmt->m_next)
     {
-        auto newExpr = compiler->gtCloneExpr(fromStmt->gtStmtExpr, 0, varNum, varVal);
+        auto newExpr = compiler->gtCloneExpr(fromStmt->m_rootTree, 0, varNum, varVal);
         if (!newExpr)
         {
             // gtCloneExpr doesn't handle all opcodes, so may fail to clone a statement.
@@ -705,7 +705,7 @@ Statement* BasicBlock::lastStmt() const
 //
 GenTree* BasicBlock::firstNode()
 {
-    return IsLIR() ? bbTreeList : Compiler::fgGetFirstNode(firstStmt()->gtStmtExpr);
+    return IsLIR() ? bbTreeList : Compiler::fgGetFirstNode(firstStmt()->m_rootTree);
 }
 
 //------------------------------------------------------------------------
@@ -713,7 +713,7 @@ GenTree* BasicBlock::firstNode()
 //
 GenTree* BasicBlock::lastNode()
 {
-    return IsLIR() ? m_lastNode : lastStmt()->gtStmtExpr;
+    return IsLIR() ? m_lastNode : lastStmt()->m_rootTree;
 }
 
 //------------------------------------------------------------------------
@@ -830,7 +830,7 @@ Statement* BasicBlock::FirstNonPhiDef()
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmtExpr;
+    GenTree* tree = stmt->m_rootTree;
     while ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_PHI) ||
            (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_PHI))
     {
@@ -839,7 +839,7 @@ Statement* BasicBlock::FirstNonPhiDef()
         {
             return nullptr;
         }
-        tree = stmt->gtStmtExpr;
+        tree = stmt->m_rootTree;
     }
     return stmt;
 }
@@ -851,7 +851,7 @@ Statement* BasicBlock::FirstNonPhiDefOrCatchArgAsg()
     {
         return nullptr;
     }
-    GenTree* tree = stmt->gtStmtExpr;
+    GenTree* tree = stmt->m_rootTree;
     if ((tree->OperGet() == GT_ASG && tree->gtOp.gtOp2->OperGet() == GT_CATCH_ARG) ||
         (tree->OperGet() == GT_STORE_LCL_VAR && tree->gtOp.gtOp1->OperGet() == GT_CATCH_ARG))
     {

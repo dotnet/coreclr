@@ -571,7 +571,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
     {
         for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
-            fgWalkTreePre(&stmt->gtStmtExpr, visitor, pCallBackData);
+            fgWalkTreePre(&stmt->m_rootTree, visitor, pCallBackData);
         }
     }
 }
@@ -3674,7 +3674,7 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                                 // under a struct assignment would not be considered for addressing modes.
                                 if (compCurStmt != nullptr)
                                 {
-                                    GenTree* expr = compCurStmt->gtStmtExpr;
+                                    GenTree* expr = compCurStmt->m_rootTree;
                                     if ((expr->OperGet() == GT_ASG) &&
                                         ((expr->gtGetOp1() == tree) || (expr->gtGetOp2() == tree)))
                                     {
@@ -7738,14 +7738,14 @@ GenTree* Compiler::gtReplaceTree(Statement* stmt, GenTree* tree, GenTree* replac
     GenTree** treePtr    = nullptr;
     GenTree*  treeParent = tree->gtGetParent(&treePtr);
 
-    assert(treeParent != nullptr || tree == stmt->gtStmtExpr);
+    assert(treeParent != nullptr || tree == stmt->m_rootTree);
 
     if (treePtr == nullptr)
     {
         // Replace the stmt expr and rebuild the linear order for "stmt".
         assert(treeParent == nullptr);
         assert(fgOrder != FGOrderLinear);
-        stmt->gtStmtExpr = tree;
+        stmt->m_rootTree = tree;
         fgSetStmtSeq(stmt);
     }
     else
@@ -7854,7 +7854,7 @@ void Compiler::gtUpdateTreeAncestorsSideEffects(GenTree* tree)
 
 void Compiler::gtUpdateStmtSideEffects(Statement* stmt)
 {
-    fgWalkTree(&stmt->gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
+    fgWalkTree(&stmt->m_rootTree, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
 }
 
 //------------------------------------------------------------------------
@@ -11485,7 +11485,7 @@ void Compiler::gtDispStmtList(Statement* stmts, IndentStack* indentStack /* = nu
 {
     for (Statement* stmt = stmts; stmt != nullptr; stmt = stmt->m_next)
     {
-        gtDispTree(stmt->gtStmtExpr, indentStack);
+        gtDispTree(stmt->m_rootTree, indentStack);
         printf("\n");
     }
 }
@@ -12705,10 +12705,10 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
             " [%06u] (assign/newobj [%06u] copy [%06u])\n",
             (options == BR_DONT_REMOVE) ? "checking if it is possible" : "attempting",
             (options == BR_MAKE_LOCAL_COPY) ? "make local unboxed version" : "remove side effects", dspTreeID(op),
-            dspTreeID(asgStmt->gtStmtExpr), dspTreeID(copyStmt->gtStmtExpr));
+            dspTreeID(asgStmt->m_rootTree), dspTreeID(copyStmt->m_rootTree));
 
     // If we don't recognize the form of the assign, bail.
-    GenTree* asg = asgStmt->gtStmtExpr;
+    GenTree* asg = asgStmt->m_rootTree;
     if (asg->gtOper != GT_ASG)
     {
         JITDUMP(" bailing; unexpected assignment op %s\n", GenTree::OpName(asg->gtOper));
@@ -12755,7 +12755,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     }
 
     // If we don't recognize the form of the copy, bail.
-    GenTree* copy = copyStmt->gtStmtExpr;
+    GenTree* copy = copyStmt->m_rootTree;
     if (copy->gtOper != GT_ASG)
     {
         // GT_RET_EXPR is a tolerable temporary failure.
@@ -12910,7 +12910,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         // value as the copy is fairly cheap and likely
         // the optimizer can trim things down to just the
         // minimal side effect parts.
-        copyStmt->gtStmtExpr = copySrc;
+        copyStmt->m_rootTree = copySrc;
         JITDUMP(" to scalar read via [%06u]\n", dspTreeID(copySrc));
     }
     else
@@ -12919,7 +12919,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
         // source struct; there's no need to read the
         // entire thing, and no place to put it.
         assert(copySrc->gtOper == GT_OBJ || copySrc->gtOper == GT_IND || copySrc->gtOper == GT_FIELD);
-        copyStmt->gtStmtExpr = copySrc;
+        copyStmt->m_rootTree = copySrc;
 
         if (options == BR_REMOVE_AND_NARROW || options == BR_REMOVE_AND_NARROW_WANT_TYPE_HANDLE)
         {
@@ -13086,7 +13086,7 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
         const unsigned thisTmp     = lvaGrabTemp(true DEBUGARG("Enum:HasFlag this temp"));
         GenTree*       thisAsg     = gtNewTempAssign(thisTmp, thisVal);
         Statement*     thisAsgStmt = thisOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
-        thisAsgStmt->gtStmtExpr    = thisAsg;
+        thisAsgStmt->m_rootTree    = thisAsg;
         thisValOpt                 = gtNewLclvNode(thisTmp, type);
     }
 
@@ -13102,7 +13102,7 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
         const unsigned flagTmp     = lvaGrabTemp(true DEBUGARG("Enum:HasFlag flag temp"));
         GenTree*       flagAsg     = gtNewTempAssign(flagTmp, flagVal);
         Statement*     flagAsgStmt = flagOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
-        flagAsgStmt->gtStmtExpr    = flagAsg;
+        flagAsgStmt->m_rootTree    = flagAsg;
         flagValOpt                 = gtNewLclvNode(flagTmp, type);
         flagValOptCopy             = gtNewLclvNode(flagTmp, type);
     }
@@ -15289,7 +15289,7 @@ Compiler::FindLinkData Compiler::gtFindLink(Statement* stmt, GenTree* node)
 {
     FindLinkData data = {node, nullptr, nullptr};
 
-    fgWalkResult result = fgWalkTreePre(&stmt->gtStmtExpr, gtFindLinkCB, &data);
+    fgWalkResult result = fgWalkTreePre(&stmt->m_rootTree, gtFindLinkCB, &data);
 
     if (result == WALK_ABORT)
     {
@@ -15523,7 +15523,7 @@ bool GenTree::IsPhiDefn()
 
 bool Statement::IsPhiDefnStmt()
 {
-    GenTree* asg = gtStmtExpr;
+    GenTree* asg = m_rootTree;
     return asg->IsPhiDefn();
 }
 

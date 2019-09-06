@@ -1799,7 +1799,7 @@ void Compiler::fgComputeLife(VARSET_TP&       life,
     VARSET_TP keepAliveVars(VarSetOps::Union(this, volatileVars, compCurBB->bbScope));
 
     noway_assert(VarSetOps::IsSubset(this, keepAliveVars, life));
-    noway_assert(endNode || (startNode == compCurStmt->gtStmtExpr));
+    noway_assert(endNode || (startNode == compCurStmt->m_rootTree));
 
     // NOTE: Live variable analysis will not work if you try
     // to use the result of an assignment node directly!
@@ -2275,7 +2275,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
         {
             // This is a "NORMAL" statement with the assignment node hanging from the statement.
 
-            noway_assert(compCurStmt->gtStmtExpr == asgNode);
+            noway_assert(compCurStmt->m_rootTree == asgNode);
             JITDUMP("top level assign\n");
 
             if (sideEffList != nullptr)
@@ -2292,7 +2292,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 
                 // Replace the assignment statement with the list of side effects
 
-                *pTree = compCurStmt->gtStmtExpr = sideEffList;
+                *pTree = compCurStmt->m_rootTree = sideEffList;
 #ifdef DEBUG
                 *treeModf = true;
 #endif // DEBUG
@@ -2621,7 +2621,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 /* Compute the liveness for each tree node in the statement */
                 bool stmtInfoDirty = false;
 
-                fgComputeLife(life, compCurStmt->gtStmtExpr, nullptr, volatileVars, &stmtInfoDirty DEBUGARG(&treeModf));
+                fgComputeLife(life, compCurStmt->m_rootTree, nullptr, volatileVars, &stmtInfoDirty DEBUGARG(&treeModf));
 
                 if (stmtInfoDirty)
                 {
@@ -2634,7 +2634,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 if (verbose && treeModf)
                 {
                     printf("\nfgComputeLife modified tree:\n");
-                    gtDispTree(compCurStmt->gtStmtExpr);
+                    gtDispTree(compCurStmt->m_rootTree);
                     printf("\n");
                 }
 #endif // DEBUG

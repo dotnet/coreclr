@@ -661,7 +661,7 @@ static GenTree* GetPhiNode(BasicBlock* block, unsigned lclNum)
             break;
         }
 
-        GenTree* tree = stmt->gtStmtExpr;
+        GenTree* tree = stmt->m_rootTree;
 
         GenTree* phiLhs = tree->gtOp.gtOp1;
         assert(phiLhs->OperGet() == GT_LCL_VAR);
@@ -1075,7 +1075,7 @@ void SsaBuilder::AddDefToHandlerPhis(BasicBlock* block, unsigned lclNum, unsigne
                         break;
                     }
 
-                    GenTree* tree = stmt->gtStmtExpr;
+                    GenTree* tree = stmt->m_rootTree;
 
                     assert(tree->IsPhiDefn());
 
@@ -1295,7 +1295,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
         // Walk the statements for phi nodes.
         for (Statement* stmt = succ->firstStmt(); stmt != nullptr && stmt->IsPhiDefnStmt(); stmt = stmt->m_next)
         {
-            GenTree* tree = stmt->gtStmtExpr;
+            GenTree* tree = stmt->m_rootTree;
             assert(tree->IsPhiDefn());
 
             GenTreePhi* phi = tree->gtGetOp2()->AsPhi();
@@ -1421,7 +1421,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
 
                 for (Statement* stmt = handlerStart->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
                 {
-                    GenTree* tree = stmt->gtStmtExpr;
+                    GenTree* tree = stmt->m_rootTree;
 
                     // Check if the first n of the statements are phi nodes. If not, exit.
                     if (tree->OperGet() != GT_ASG || tree->gtOp.gtOp2 == nullptr ||
