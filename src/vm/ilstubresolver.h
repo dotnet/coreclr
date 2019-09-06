@@ -90,9 +90,9 @@ protected:
         SecureDelegateStub,
         UnboxingILStub,
         InstantiatingStub,
+#endif
         TailCallStoreArgsStub,
         TailCallCallTargetStub,
-#endif
     };
 
     enum CompileTimeStatePtrSpecialValues

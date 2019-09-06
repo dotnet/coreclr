@@ -7700,6 +7700,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         (var_types)call->gtReturnType, nullptr,
         fgMorphStmt->gtStmtILoffsx);
 
+    callTarget->gtType = call->gtType;
     callTarget->gtRetClsHnd = call->gtRetClsHnd;
 #if FEATURE_MULTIREG_RET
     callTarget->gtReturnTypeDesc = call->gtReturnTypeDesc;
