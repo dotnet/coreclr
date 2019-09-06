@@ -5143,7 +5143,7 @@ struct Statement
     Statement* m_next;
     Statement* m_prev;
 
-    bool compilerAdded;
+    bool m_compilerAdded;
 
     Statement(GenTree* expr, IL_OFFSETX offset)
         : m_rootTree(expr)
@@ -5155,7 +5155,7 @@ struct Statement
 #endif
         , m_next(nullptr)
         , m_prev(nullptr)
-        , compilerAdded(false)
+        , m_compilerAdded(false)
     {
     }
 
