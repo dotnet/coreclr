@@ -2,7 +2,8 @@
   <PropertyGroup>
       <RestoreOutputPath>$(SourceDir)Common\CoreFX\obj</RestoreOutputPath>
       <Language>C#</Language>
-      <TargetFramework>netcoreapp5.0</TargetFramework>
+      <TargetFramework>netcoreapp3.0</TargetFramework>
+      <TargetFramework Condition="'$(SetTFMForRestore)'=='true'">netcoreapp5.0</TargetFramework>
       <CLRTestKind>SharedLibrary</CLRTestKind>
       <IsTestProject>false</IsTestProject>
       <MicrosoftDiagnosticsRuntimePackageVersion>1.0.5</MicrosoftDiagnosticsRuntimePackageVersion>

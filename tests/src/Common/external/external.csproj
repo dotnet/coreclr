@@ -103,6 +103,10 @@
 
   <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
 
-  <Target Name="CoreCompile" />
+  <Target Name="CoreCompile">
+    <ItemGroup>
+      <IntermediateAssembly Remove="@(IntermediateAssembly)" />
+    </ItemGroup>
+  </Target>
 
 </Project>
