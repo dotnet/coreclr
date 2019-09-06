@@ -6012,7 +6012,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
             printf("\n***** " FMT_BB ", stmt %d (after)\n", blk->bbNum, compCurStmtNum);
             gtDispTree(stmt->gtStmtExpr);
             printf("\n");
-            if (stmt->gtNext)
+            if (stmt->m_next)
             {
                 printf("---------\n");
             }

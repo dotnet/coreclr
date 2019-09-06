@@ -426,7 +426,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block, Statement* firstStmt, St
 {
     /* Make the list circular, so that we can easily walk it backwards */
 
-    firstStmt->gtPrev = lastStmt;
+    firstStmt->m_prev = lastStmt;
 
     /* Store the tree list in the basic block */
 
@@ -659,8 +659,8 @@ inline void Compiler::impAppendStmt(Statement* stmt)
     else
     {
         // Append the expression statement to the existing list.
-        impLastStmt->gtNext = stmt;
-        stmt->gtPrev        = impLastStmt;
+        impLastStmt->m_next = stmt;
+        stmt->m_prev        = impLastStmt;
     }
     impLastStmt = stmt;
 }
@@ -706,11 +706,11 @@ inline void Compiler::impInsertStmtBefore(Statement* stmt, Statement* stmtBefore
     else
     {
         Statement* stmtPrev = stmtBefore->getPrevStmt();
-        stmt->gtPrev        = stmtPrev;
-        stmtPrev->gtNext    = stmt;
+        stmt->m_prev        = stmtPrev;
+        stmtPrev->m_next    = stmt;
     }
-    stmt->gtNext       = stmtBefore;
-    stmtBefore->gtPrev = stmt;
+    stmt->m_next       = stmtBefore;
+    stmtBefore->m_prev = stmt;
 }
 
 /*****************************************************************************
@@ -9285,8 +9285,8 @@ void Compiler::impImportLeave(BasicBlock* block)
                 if (endCatches)
                 {
                     lastStmt            = gtNewStmt(endCatches);
-                    endLFinStmt->gtNext = lastStmt;
-                    lastStmt->gtPrev    = endLFinStmt;
+                    endLFinStmt->m_next = lastStmt;
+                    lastStmt->m_prev    = endLFinStmt;
                 }
                 else
                 {
@@ -9376,8 +9376,8 @@ void Compiler::impImportLeave(BasicBlock* block)
         if (endCatches)
         {
             lastStmt            = gtNewStmt(endCatches);
-            endLFinStmt->gtNext = lastStmt;
-            lastStmt->gtPrev    = endLFinStmt;
+            endLFinStmt->m_next = lastStmt;
+            lastStmt->m_prev    = endLFinStmt;
         }
         else
         {

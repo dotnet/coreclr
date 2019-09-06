@@ -5144,32 +5144,32 @@ struct Statement
 
     __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
 
-    Statement* gtNext;
-    Statement* gtPrev;
+    Statement* m_next;
+    Statement* m_prev;
 
     bool compilerAdded;
 
     Statement* getNextStmt()
     {
-        if (gtNext == nullptr)
+        if (m_next == nullptr)
         {
             return nullptr;
         }
         else
         {
-            return gtNext;
+            return m_next;
         }
     }
 
     Statement* getPrevStmt()
     {
-        if (gtPrev == nullptr)
+        if (m_prev == nullptr)
         {
             return nullptr;
         }
         else
         {
-            return gtPrev;
+            return m_prev;
         }
     }
 
@@ -5181,8 +5181,8 @@ struct Statement
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)
 #endif
-        , gtNext(nullptr)
-        , gtPrev(nullptr)
+        , m_next(nullptr)
+        , m_prev(nullptr)
         , compilerAdded(false)
     {
     }

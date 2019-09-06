@@ -696,7 +696,7 @@ Statement* BasicBlock::lastStmt() const
     }
 
     Statement* result = bbStmtList->gtPrevStmt;
-    assert(result != nullptr && result->gtNext == nullptr);
+    assert(result != nullptr && result->m_next == nullptr);
     return result;
 }
 

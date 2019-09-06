@@ -103,7 +103,7 @@ void Compiler::fgResetForSsa()
             blk->bbStmtList = blk->FirstNonPhiDef();
             if (blk->bbStmtList != nullptr)
             {
-                blk->bbStmtList->gtPrev = last;
+                blk->bbStmtList->m_prev = last;
             }
         }
 

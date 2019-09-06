@@ -1032,7 +1032,7 @@ bool Compiler::optExtractInitTestIncr(
     // and the loop termination test.
     noway_assert(bottom->bbStmtList != nullptr);
     Statement* testStmt = bottom->lastStmt();
-    noway_assert(testStmt != nullptr && testStmt->gtNext == nullptr);
+    noway_assert(testStmt != nullptr && testStmt->m_next == nullptr);
 
     Statement* newTestStmt;
     if (optIsLoopTestEvalIntoTemp(testStmt, &newTestStmt))
@@ -1045,7 +1045,7 @@ bool Compiler::optExtractInitTestIncr(
     Statement* incrStmt = testStmt->getPrevStmt();
     if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->gtStmtExpr) == BAD_VAR_NUM)
     {
-        if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->gtPrev == nullptr)
+        if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->m_prev == nullptr)
         {
             return false;
         }
@@ -1073,7 +1073,7 @@ bool Compiler::optExtractInitTestIncr(
     }
 
     Statement* initStmt = phdrStmt->getPrevStmt();
-    noway_assert(initStmt != nullptr && (initStmt->gtNext == nullptr));
+    noway_assert(initStmt != nullptr && (initStmt->m_next == nullptr));
 
     // If it is a duplicated loop condition, skip it.
     if (initStmt->compilerAdded)
@@ -1084,7 +1084,7 @@ bool Compiler::optExtractInitTestIncr(
         {
             // Previous optimization passes may have inserted compiler-generated
             // statements other than duplicated loop conditions.
-            doGetPrev = (initStmt->gtPrev != nullptr);
+            doGetPrev = (initStmt->m_prev != nullptr);
         }
         else
         {
@@ -3606,10 +3606,10 @@ void Compiler::optUnrollLoops()
 
         // Locate/initialize the increment/test statements.
         Statement* initStmt = head->lastStmt();
-        noway_assert((initStmt != nullptr) && (initStmt->gtNext == nullptr));
+        noway_assert((initStmt != nullptr) && (initStmt->m_next == nullptr));
 
         Statement* testStmt = bottom->lastStmt();
-        noway_assert((testStmt != nullptr) && (testStmt->gtNext == nullptr));
+        noway_assert((testStmt != nullptr) && (testStmt->m_next == nullptr));
         Statement* incrStmt = testStmt->gtPrevStmt;
         noway_assert(incrStmt != nullptr);
 
@@ -3854,14 +3854,14 @@ void Compiler::optUnrollLoops()
                 noway_assert(preHeaderStmt != nullptr);
                 testStmt = preHeaderStmt->gtPrevStmt;
 
-                noway_assert((testStmt != nullptr) && (testStmt->gtNext == nullptr));
+                noway_assert((testStmt != nullptr) && (testStmt->m_next == nullptr));
                 noway_assert(testStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
                 initStmt = testStmt->gtPrevStmt;
-                noway_assert((initStmt != nullptr) && (initStmt->gtNext == testStmt));
+                noway_assert((initStmt != nullptr) && (initStmt->m_next == testStmt));
 
-                initStmt->gtNext      = nullptr;
-                preHeaderStmt->gtPrev = initStmt;
+                initStmt->m_next      = nullptr;
+                preHeaderStmt->m_prev = initStmt;
                 head->bbJumpKind      = BBJ_NONE;
                 head->bbFlags &= ~BBF_NEEDS_GCPOLL;
             }
@@ -4014,7 +4014,7 @@ static Statement* optFindLoopTermTest(BasicBlock* bottom)
     Statement* result = testStmt->getPrevStmt();
 
 #ifdef DEBUG
-    while (testStmt->gtNext != nullptr)
+    while (testStmt->m_next != nullptr)
     {
         testStmt = testStmt->getNextStmt();
     }
@@ -6227,21 +6227,21 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
         /* append after last statement */
 
         Statement* lastStmt = preHead->lastStmt();
-        assert(lastStmt->gtNext == nullptr);
+        assert(lastStmt->m_next == nullptr);
 
-        lastStmt->gtNext  = hoistStmt;
-        hoistStmt->gtPrev = lastStmt;
-        firstStmt->gtPrev = hoistStmt;
+        lastStmt->m_next  = hoistStmt;
+        hoistStmt->m_prev = lastStmt;
+        firstStmt->m_prev = hoistStmt;
     }
     else
     {
         /* Empty pre-header - store the single statement in the block */
 
         preHead->bbStmtList = hoistStmt;
-        hoistStmt->gtPrev   = hoistStmt;
+        hoistStmt->m_prev   = hoistStmt;
     }
 
-    hoistStmt->gtNext = nullptr;
+    hoistStmt->m_next = nullptr;
 
 #ifdef DEBUG
     if (verbose)
@@ -8835,7 +8835,7 @@ void Compiler::optOptimizeBools()
             /* The second block must contain a single statement */
 
             Statement* s2 = b2->firstStmt();
-            if (s2->gtPrev != s2)
+            if (s2->m_prev != s2)
             {
                 continue;
             }
