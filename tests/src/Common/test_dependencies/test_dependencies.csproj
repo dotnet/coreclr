@@ -18,11 +18,9 @@
     <PackageReference Include="Microsoft.Diagnostics.Tools.RuntimeClient" Version="$(MicrosoftDiagnosticsToolsRuntimeClientVersion)" />
   </ItemGroup>
 
-  <!-- This used to come from buildtools... -->
   <Target Name="Build" DependsOnTargets="$(TraversalBuildDependsOn)" />
 
   <PropertyGroup>
-    <!-- Workaround: currently, dir.props sets RestoreOutputPath, even though the new SDK targets place the assets file in a separate directory. -->
     <ProjectAssetsFile>$(SourceDir)Common\test_dependencies\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
 
