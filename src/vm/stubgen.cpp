@@ -888,9 +888,9 @@ void ILStubLinker::WriteEHClauses(COR_ILMETHOD_SECT_EH* pSect)
 
             IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_FAT& clause = pSect->Fat.Clauses[clauseIndex];
             clause.Flags = flags;
-            clause.TryOffset = tryBegin;
+            clause.TryOffset = static_cast<DWORD>(tryBegin);
             clause.TryLength = static_cast<DWORD>(tryEnd - tryBegin);
-            clause.HandlerOffset = handlerBegin;
+            clause.HandlerOffset = static_cast<DWORD>(handlerBegin);
             clause.HandlerLength = static_cast<DWORD>(handlerEnd - handlerBegin);
             clause.ClassToken = builder.typeToken;
 

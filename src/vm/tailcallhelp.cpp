@@ -239,7 +239,9 @@ bool TailCallHelp::GenerateGCDescriptor(
     auto writeToken = [&](unsigned int offset, int token)
     {
         _ASSERTE(offset % TARGET_POINTER_SIZE == 0);
-        builder->WriteToken(offset / TARGET_POINTER_SIZE, token);
+        builder->WriteToken(
+            static_cast<int>(offset / TARGET_POINTER_SIZE),
+            token);
     };
 
     auto writeGCType = [&](unsigned int offset, CorInfoGCType type)
@@ -279,10 +281,10 @@ bool TailCallHelp::GenerateGCDescriptor(
             if (!tyHnd.GetMethodTable()->ContainsPointers())
                 continue;
 
-            size_t numSlots = (tyHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE;
+            unsigned int numSlots = (tyHnd.GetSize() + TARGET_POINTER_SIZE - 1) / TARGET_POINTER_SIZE;
             BYTE* ptr = static_cast<BYTE*>(gcPtrs.AllocThrows(numSlots));
             CEEInfo::getClassGClayoutStatic(tyHnd, ptr);
-            for (size_t i = 0; i < numSlots; i++)
+            for (unsigned int i = 0; i < numSlots; i++)
             {
                 writeGCType(val.Offset + i * TARGET_POINTER_SIZE, (CorInfoGCType)ptr[i]);
             }
