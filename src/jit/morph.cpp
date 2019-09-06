@@ -8712,10 +8712,18 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             noway_assert(arg0->TypeGet() == arg1->TypeGet());
             GenTreeDblCon* powerCon = arg1->AsDblCon();
 
-            if ((arg0->OperIs(GT_IND) || arg0->OperIs(GT_LCL_VAR)) && (powerCon->gtDconVal == 2.0))
+            if ((powerCon->gtDconVal == 2.0))
             {
-                // Math.Pow(x, 2) -> x*x where x is a local variable or a field
-                newNode = gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0, gtCloneExpr(arg0));
+                if (arg0->OperIs(GT_LCL_VAR))
+                {
+                    // Math.Pow(x, 2) -> x*x where x is a local variable
+                    newNode = gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0, gtCloneExpr(arg0));
+                }
+                else if (arg0->OperIs(GT_IND) && arg0->AsIndir()->Addr()->gtGetOp1()->OperIs(GT_LCL_VAR))
+                {
+                    // Math.Pow(x, 2) -> x*x where x is a field
+                    newNode = gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0, gtCloneExpr(arg0));
+                }
             }
             else if (powerCon->gtDconVal == 1.0)
             {
