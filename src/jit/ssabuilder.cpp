@@ -113,7 +113,7 @@ void Compiler::fgResetForSsa()
         blk->bbPostOrderNum = 0;
         for (Statement* stmt = blk->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
-            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->m_treeList; tree != nullptr; tree = tree->gtNext)
             {
                 if (tree->IsLocal())
                 {
@@ -698,7 +698,7 @@ void SsaBuilder::InsertPhi(BasicBlock* block, unsigned lclNum)
 
     // Create the statement and chain everything in linear order - PHI, LCL_VAR, ASG
     Statement* stmt  = m_pCompiler->gtNewStmt(asg);
-    stmt->gtStmtList = phi;
+    stmt->m_treeList = phi;
     phi->gtNext      = lhs;
     lhs->gtPrev      = phi;
     lhs->gtNext      = asg;
@@ -706,7 +706,7 @@ void SsaBuilder::InsertPhi(BasicBlock* block, unsigned lclNum)
 
 #ifdef DEBUG
     unsigned seqNum = 1;
-    for (GenTree* node = stmt->gtStmtList; node != nullptr; node = node->gtNext)
+    for (GenTree* node = stmt->m_treeList; node != nullptr; node = node->gtNext)
     {
         node->gtSeqNum = seqNum++;
     }
@@ -748,15 +748,15 @@ void SsaBuilder::AddPhiArg(
     // will be first in linear order as well.
     phi->gtUses = new (m_pCompiler, CMK_ASTNode) GenTreePhi::Use(phiArg, phi->gtUses);
 
-    GenTree* head = stmt->gtStmtList;
+    GenTree* head = stmt->m_treeList;
     assert(head->OperIs(GT_PHI, GT_PHI_ARG));
-    stmt->gtStmtList = phiArg;
+    stmt->m_treeList = phiArg;
     phiArg->gtNext   = head;
     head->gtPrev     = phiArg;
 
 #ifdef DEBUG
     unsigned seqNum = 1;
-    for (GenTree* node = stmt->gtStmtList; node != nullptr; node = node->gtNext)
+    for (GenTree* node = stmt->m_treeList; node != nullptr; node = node->gtNext)
     {
         node->gtSeqNum = seqNum++;
     }
@@ -1235,7 +1235,7 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
             isPhiDefn = false;
         }
 
-        for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
+        for (GenTree* tree = stmt->m_treeList; tree; tree = tree->gtNext)
         {
             TreeRenameVariables(tree, block, pRenameState, isPhiDefn);
         }

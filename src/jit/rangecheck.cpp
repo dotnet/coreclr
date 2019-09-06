@@ -1315,7 +1315,7 @@ void RangeCheck::OptimizeRangeChecks()
     {
         for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
-            for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = stmt->m_treeList; tree; tree = tree->gtNext)
             {
                 if (IsOverBudget())
                 {

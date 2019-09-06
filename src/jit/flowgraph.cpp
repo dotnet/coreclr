@@ -19044,7 +19044,7 @@ void Compiler::fgSetStmtSeq(Statement* stmt)
 
     /* Record the address of the first node */
 
-    stmt->gtStmtList = fgTreeSeqBeg;
+    stmt->m_treeList = fgTreeSeqBeg;
 
 #ifdef DEBUG
 
@@ -21516,14 +21516,14 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
 
     assert(fgStmtListThreaded);
 
-    noway_assert(stmt->gtStmtList);
+    noway_assert(stmt->m_treeList);
 
     // The first node's gtPrev must be nullptr (the gtPrev list is not circular).
     // The last node's gtNext must be nullptr (the gtNext list is not circular). This is tested if the loop below
     // terminates.
-    assert(stmt->gtStmtList->gtPrev == nullptr);
+    assert(stmt->m_treeList->gtPrev == nullptr);
 
-    for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+    for (GenTree* tree = stmt->m_treeList; tree != nullptr; tree = tree->gtNext)
     {
         if (tree->gtPrev)
         {
@@ -21531,7 +21531,7 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
         }
         else
         {
-            noway_assert(tree == stmt->gtStmtList);
+            noway_assert(tree == stmt->m_treeList);
         }
 
         if (tree->gtNext)
@@ -21555,7 +21555,7 @@ void Compiler::fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt)
                 noway_assert(tree->gtFlags & GTF_ORDER_SIDEEFF);
                 // The GT_CATCH_ARG has to be the first thing evaluated
                 noway_assert(stmt == block->FirstNonPhiDef());
-                noway_assert(stmt->gtStmtList->gtOper == GT_CATCH_ARG);
+                noway_assert(stmt->m_treeList->gtOper == GT_CATCH_ARG);
                 // The root of the tree should have GTF_ORDER_SIDEEFF set
                 noway_assert(stmt->m_rootTree->gtFlags & GTF_ORDER_SIDEEFF);
             }
@@ -21706,7 +21706,7 @@ void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
             }
         }
 
-        // For each statement check that the nodes are threaded correctly - gtStmtList.
+        // For each statement check that the nodes are threaded correctly - m_treeList.
         if (fgStmtListThreaded)
         {
             fgDebugCheckNodeLinks(block, stmt);
