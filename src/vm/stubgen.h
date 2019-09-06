@@ -394,7 +394,7 @@ protected:
             THROWS;
             MODE_ANY;
             GC_NOTRIGGER;
-            PRECONDITION(handle != NULL);
+            PRECONDITION(pSig != NULL);
         }
         CONTRACTL_END;
 
