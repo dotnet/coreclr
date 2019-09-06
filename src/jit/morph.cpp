@@ -8713,8 +8713,8 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             if (powerCon->gtDconVal == 2.0) // or should I compare int64 with 0x4000000000000000 ?
             {
                 // Math.Pow(x, 2) -> x*x
-                newNode =
-                    gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0, gtNewLclvNode(arg0->gtLclVar.gtLclNum, arg0->TypeGet()));
+                newNode = gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0,
+                                        gtNewLclvNode(arg0->gtLclVar.gtLclNum, arg0->TypeGet()));
             }
             else if (powerCon->gtDconVal == 1.0)
             {
