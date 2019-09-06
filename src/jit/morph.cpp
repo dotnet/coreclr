@@ -8707,15 +8707,15 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
         GenTree* arg1    = gtArgEntryByArgNum(call, 1)->node;
         GenTree* newNode = nullptr;
 
-        if (arg0->OperIs(GT_LCL_VAR) && arg1->IsCnsFltOrDbl())
+        if (arg1->IsCnsFltOrDbl())
         {
             noway_assert(arg0->TypeGet() == arg1->TypeGet());
             GenTreeDblCon* powerCon = arg1->AsDblCon();
-            if (powerCon->gtDconVal == 2.0) // or should I compare int64 with 0x4000000000000000 ?
+
+            if ((arg0->OperIs(GT_IND) || arg0->OperIs(GT_LCL_VAR)) && (powerCon->gtDconVal == 2.0))
             {
-                // Math.Pow(x, 2) -> x*x
-                newNode = gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0,
-                                        gtNewLclvNode(arg0->gtLclVar.gtLclNum, arg0->TypeGet()));
+                // Math.Pow(x, 2) -> x*x where x is a local variable or a field
+                newNode = gtNewOperNode(GT_MUL, powerCon->TypeGet(), arg0, gtCloneExpr(arg0));
             }
             else if (powerCon->gtDconVal == 1.0)
             {
