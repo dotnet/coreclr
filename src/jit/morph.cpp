@@ -8709,8 +8709,8 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
 
         if (arg1->IsCnsFltOrDbl())
         {
-            GenTreeDblCon* powerCon = gtArgEntryByArgNum(call, 1)->node->AsDblCon();
-            if (powerCon->gtDconVal == 2.0)
+            GenTreeDblCon* powerCon = arg1->AsDblCon();
+            if (powerCon->gtDconVal == 2.0) // or should I compare int64 with 0x4000000000000000 ?
             {
                 // Math.Pow(x, 2) -> x*x
                 newNode =
