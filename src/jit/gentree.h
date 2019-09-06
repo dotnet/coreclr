@@ -5137,7 +5137,7 @@ struct Statement
     IL_OFFSETX     m_ILoffsx;       // instr offset (if available)
 
 #ifdef DEBUG
-    IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
+    IL_OFFSET m_LastILoffs; // instr offset at end of stmt
 #endif
 
     Statement* m_next;
@@ -5151,7 +5151,7 @@ struct Statement
         , m_inlineContext(nullptr)
         , m_ILoffsx(offset)
 #ifdef DEBUG
-        , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_LastILoffs(BAD_IL_OFFSET)
 #endif
         , m_next(nullptr)
         , m_prev(nullptr)

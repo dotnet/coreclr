@@ -462,8 +462,8 @@ inline void Compiler::impEndTreeList(BasicBlock* block)
 #ifdef DEBUG
     if (impLastILoffsStmt != nullptr)
     {
-        impLastILoffsStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
-        impLastILoffsStmt                   = nullptr;
+        impLastILoffsStmt->m_LastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impLastILoffsStmt               = nullptr;
     }
 #endif
     impStmtList = impLastStmt = nullptr;
@@ -2695,11 +2695,11 @@ bool Compiler::impCanSpillNow(OPCODE prevOpcode)
  *
  *  Remember the instr offset for the statements
  *
- *  When we do impAppendTree(tree), we can't set tree->gtStmtLastILoffs to
+ *  When we do impAppendTree(tree), we can't set stmt->m_LastILoffs to
  *  impCurOpcOffs, if the append was done because of a partial stack spill,
  *  as some of the trees corresponding to code up to impCurOpcOffs might
  *  still be sitting on the stack.
- *  So we delay marking of gtStmtLastILoffs until impNoteLastILoffs().
+ *  So we delay marking of m_LastILoffs until impNoteLastILoffs().
  *  This should be called when an opcode finally/explicitly causes
  *  impAppendTree(tree) to be called (as opposed to being called because of
  *  a spill caused by the opcode)
@@ -2716,12 +2716,12 @@ void Compiler::impNoteLastILoffs()
 
         assert(impLastStmt);
 
-        impLastStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impLastStmt->m_LastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
     }
     else
     {
-        impLastILoffsStmt->gtStmtLastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
-        impLastILoffsStmt                   = nullptr;
+        impLastILoffsStmt->m_LastILoffs = compIsForInlining() ? BAD_IL_OFFSET : impCurOpcOffs;
+        impLastILoffsStmt               = nullptr;
     }
 }
 

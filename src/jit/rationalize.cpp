@@ -951,8 +951,8 @@ void Rationalizer::DoPhase()
             if (statement->m_ILoffsx != BAD_IL_OFFSET)
             {
                 assert(!statement->IsPhiDefnStmt());
-                GenTreeILOffset* ilOffset = new (comp, GT_IL_OFFSET)
-                    GenTreeILOffset(statement->m_ILoffsx DEBUGARG(statement->gtStmtLastILoffs));
+                GenTreeILOffset* ilOffset =
+                    new (comp, GT_IL_OFFSET) GenTreeILOffset(statement->m_ILoffsx DEBUGARG(statement->m_LastILoffs));
                 BlockRange().InsertBefore(statement->m_treeList, ilOffset);
             }
 

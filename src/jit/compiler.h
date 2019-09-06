@@ -3814,7 +3814,7 @@ private:
     bool        impNestedStackSpill;
 
     // For displaying instrs with generated native code (-n:B)
-    Statement* impLastILoffsStmt; // oldest stmt added for which we did not gtStmtLastILoffs
+    Statement* impLastILoffsStmt; // oldest stmt added for which we did not m_LastILoffs
     void       impNoteLastILoffs();
 #endif
 
