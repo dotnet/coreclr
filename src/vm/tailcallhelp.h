@@ -25,7 +25,9 @@ public:
         MethodDesc** callTargetStub);
 private:
     static void LayOutArgBuffer(
-        MetaSig& callSiteSig, bool storeTarget, bool hasGenericContext, ArgBufferLayout* layout);
+        MetaSig& callSiteSig, MethodDesc* calleeMD,
+        bool storeTarget, bool hasGenericContext,
+        ArgBufferLayout* layout);
     static TypeHandle NormalizeSigType(TypeHandle tyHnd);
     static bool GenerateGCDescriptor(MethodDesc* pTargetMD, const ArgBufferLayout& values, GCRefMapBuilder* builder);
 

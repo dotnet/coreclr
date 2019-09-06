@@ -129,7 +129,7 @@ void TailCallHelp::CreateTailCallHelperStubs(
     TailCallInfo info(pCallerMD, pCalleeMD, loaderAlloc, &callSiteSig, virt, retTyHnd);
 
     bool hasGenericContext = pCalleeMD != NULL && pCalleeMD->RequiresInstArg();
-    LayOutArgBuffer(callSiteSig, *storeArgsNeedsTarget, hasGenericContext, &info.ArgBufLayout);
+    LayOutArgBuffer(callSiteSig, pCalleeMD, *storeArgsNeedsTarget, hasGenericContext, &info.ArgBufLayout);
     info.HasGCDescriptor = GenerateGCDescriptor(pCalleeMD, info.ArgBufLayout, &info.GCRefMapBuilder);
 
     *storeArgsStub = CreateStoreArgsStub(info);
@@ -137,7 +137,9 @@ void TailCallHelp::CreateTailCallHelperStubs(
 }
 
 void TailCallHelp::LayOutArgBuffer(
-    MetaSig& callSiteSig, bool storeTarget, bool hasGenericContext, ArgBufferLayout* layout)
+    MetaSig& callSiteSig, MethodDesc* calleeMD,
+    bool storeTarget, bool hasGenericContext,
+    ArgBufferLayout* layout)
 {
     unsigned int offs = 0;
 
@@ -151,8 +153,18 @@ void TailCallHelp::LayOutArgBuffer(
     // User args
     if (callSiteSig.HasThis())
     {
-        TypeHandle objHnd = TypeHandle(g_pObjectClass);
-        layout->Values.Append(ArgBufferValue(objHnd, offs));
+        TypeHandle thisHnd;
+        if (calleeMD != NULL && calleeMD->GetMethodTable()->IsValueType())
+        {
+            thisHnd = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_U1))
+                      .MakeByRef();
+        }
+        else
+        {
+            thisHnd = TypeHandle(g_pObjectClass);
+        }
+
+        layout->Values.Append(ArgBufferValue(thisHnd, offs));
         offs += TARGET_POINTER_SIZE;
     }
 
