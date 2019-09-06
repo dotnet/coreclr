@@ -745,6 +745,7 @@ DEFINE_FIELD(TAIL_CALL_FRAME,       NEXT_CALL,              NextCall)
 DEFINE_CLASS(TAIL_CALL_TLS,         CompilerServices,       TailCallTls)
 DEFINE_FIELD(TAIL_CALL_TLS,         FRAME,                  Frame)
 DEFINE_FIELD(TAIL_CALL_TLS,         ARG_BUFFER,             ArgBuffer)
+DEFINE_FIELD(TAIL_CALL_TLS,         ARG_BUFFER_SIZE,        ArgBufferSize)
 DEFINE_FIELD(TAIL_CALL_TLS,         ARG_BUFFER_GC_DESC,     ArgBufferGCDesc)
 
 DEFINE_CLASS(RUNTIME_WRAPPED_EXCEPTION, CompilerServices,   RuntimeWrappedException)
