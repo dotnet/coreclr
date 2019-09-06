@@ -8712,7 +8712,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             noway_assert(arg0->TypeGet() == arg1->TypeGet());
             GenTreeDblCon* powerCon = arg1->AsDblCon();
 
-            if ((powerCon->gtDconVal == 2.0))
+            if (powerCon->gtDconVal == 2.0)
             {
                 if (arg0->OperIs(GT_LCL_VAR))
                 {
