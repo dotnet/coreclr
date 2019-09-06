@@ -134,8 +134,8 @@ namespace System.Globalization
             s_currentThreadUICulture = args.CurrentValue;
         }
 
-        private static Dictionary<string, CultureInfo>? s_cachedCulturesByName;
-        private static Dictionary<int, CultureInfo>? s_cachedCulturesByLcid;
+        private static volatile Dictionary<string, CultureInfo>? s_cachedCulturesByName;
+        private static volatile Dictionary<int, CultureInfo>? s_cachedCulturesByLcid;
 
         // The parent culture.
         private CultureInfo? _parent;
@@ -867,8 +867,8 @@ namespace System.Globalization
             TimeZone.ResetTimeZone();
 #pragma warning restore 0618
             TimeZoneInfo.ClearCachedData();
-            Volatile.Write(ref s_cachedCulturesByLcid, null);
-            Volatile.Write(ref s_cachedCulturesByName, null);
+            s_cachedCulturesByLcid = null;
+            s_cachedCulturesByName = null;
 
             CultureData.ClearCachedData();
         }
@@ -1205,7 +1205,7 @@ namespace System.Globalization
             }
             catch (ArgumentException)
             {
-                throw new CultureNotFoundException("name or altName", SR.Format(SR.Argument_OneOfCulturesNotSupported, name, altName));
+                throw new CultureNotFoundException("name/altName", SR.Format(SR.Argument_OneOfCulturesNotSupported, name, altName));
             }
 
             lock (nameTable)
@@ -1216,11 +1216,35 @@ namespace System.Globalization
             return result;
         }
 
-        private static Dictionary<string, CultureInfo> CachedCulturesByName =>
-            LazyInitializer.EnsureInitialized(ref s_cachedCulturesByName, () => new Dictionary<string, CultureInfo>());
+        private static Dictionary<string, CultureInfo> CachedCulturesByName
+        {
+            get
+            {
+                Dictionary<string, CultureInfo>? cache = s_cachedCulturesByName;
+                if (cache is null)
+                {
+                    cache = new Dictionary<string, CultureInfo>();
+                    cache = Interlocked.CompareExchange(ref s_cachedCulturesByName, cache, null) ?? cache;
+                }
 
-        private static Dictionary<int, CultureInfo> CachedCulturesByLcid =>
-            LazyInitializer.EnsureInitialized(ref s_cachedCulturesByLcid, () => new Dictionary<int, CultureInfo>());
+                return cache;
+            }
+        }
+
+        private static Dictionary<int, CultureInfo> CachedCulturesByLcid
+        {
+            get
+            {
+                Dictionary<int, CultureInfo>? cache = s_cachedCulturesByLcid;
+                if (cache is null)
+                {
+                    cache = new Dictionary<int, CultureInfo>();
+                    cache = Interlocked.CompareExchange(ref s_cachedCulturesByLcid, cache, null) ?? cache;
+                }
+
+                return cache;
+            }
+        }
 
         public static CultureInfo GetCultureInfoByIetfLanguageTag(string name)
         {
