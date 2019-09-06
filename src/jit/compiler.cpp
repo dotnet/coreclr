@@ -4692,7 +4692,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         compCycleEstimate = 0;
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
             {
                 compSizeEstimate += stmt->GetCostSz();
                 compCycleEstimate += stmt->GetCostEx();
@@ -4823,7 +4823,7 @@ void Compiler::ResetOptAnnotations()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -6856,7 +6856,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -6987,7 +6987,7 @@ void Compiler::compCallArgStats()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
         {
             for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
             {
@@ -8341,10 +8341,10 @@ void dBlockList(BasicBlockList* list)
 // Trees, Stmts, and/or Blocks using id or bbNum.
 // That can be used in watch window or as a way to get address of fields for data break points.
 
-GenTree*     dbTree;
-GenTreeStmt* dbStmt;
-BasicBlock*  dbTreeBlock;
-BasicBlock*  dbBlock;
+GenTree*    dbTree;
+Statement*  dbStmt;
+BasicBlock* dbTreeBlock;
+BasicBlock* dbBlock;
 
 // Debug APIs for finding Trees, Stmts, and/or Blocks.
 // As a side effect, they set the debug variables above.
@@ -8389,7 +8389,7 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
             tree = dFindTree(stmt->gtStmtExpr, id);
             if (tree != nullptr)
@@ -8403,7 +8403,7 @@ GenTree* dFindTree(unsigned id)
     return nullptr;
 }
 
-GenTreeStmt* dFindStmt(unsigned id)
+Statement* dFindStmt(unsigned id)
 {
     Compiler*   comp = JitTls::GetCompiler();
     BasicBlock* block;
@@ -8413,7 +8413,7 @@ GenTreeStmt* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
             stmtId++;
             if (stmtId == id)
@@ -8606,7 +8606,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
         {
             // Print current stmt.
 
