@@ -622,7 +622,7 @@ unsigned Compiler::optValnumCSE_Locate()
         noway_assert((block->bbFlags & (BBF_VISITED | BBF_MARKED)) == 0);
 
         /* Walk the statement trees in this basic block */
-        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
         {
             /* We walk the tree in the forwards direction (bottom up) */
             bool stmtHasArrLenCandidate = false;
@@ -1007,7 +1007,7 @@ void Compiler::optValnumCSE_Availablity()
 
         // Walk the statement trees in this basic block
 
-        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
         {
             // We walk the tree in the forwards direction (bottom up)
 
@@ -2889,7 +2889,7 @@ void Compiler::optCleanupCSEs()
         block->bbFlags &= ~(BBF_VISITED | BBF_MARKED);
 
         // Walk the statement trees in this basic block.
-        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
         {
             // We must clear the gtCSEnum field.
             for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
@@ -2917,7 +2917,7 @@ void Compiler::optEnsureClearCSEInfo()
         // Initialize 'stmt' to the first non-Phi statement
         Statement* stmt = block->FirstNonPhiDef();
         // Walk the statement trees in this basic block
-        for (; stmt != nullptr; stmt = stmt->getNextStmt())
+        for (; stmt != nullptr; stmt = stmt->m_next)
         {
             for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
             {

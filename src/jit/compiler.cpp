@@ -4692,7 +4692,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         compCycleEstimate = 0;
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
             {
                 compSizeEstimate += stmt->GetCostSz();
                 compCycleEstimate += stmt->GetCostEx();
@@ -4823,7 +4823,7 @@ void Compiler::ResetOptAnnotations()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -6856,7 +6856,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -6987,7 +6987,7 @@ void Compiler::compCallArgStats()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
             {
@@ -8389,7 +8389,7 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             tree = dFindTree(stmt->gtStmtExpr, id);
             if (tree != nullptr)
@@ -8413,7 +8413,7 @@ Statement* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             stmtId++;
             if (stmtId == id)
@@ -8606,7 +8606,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             // Print current stmt.
 

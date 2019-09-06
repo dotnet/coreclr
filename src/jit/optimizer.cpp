@@ -960,7 +960,7 @@ bool Compiler::optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTes
     {
         // Get the previous statement to get the def (rhs) of Vtmp to see
         // if the "test" is evaluated into Vtmp.
-        Statement* prevStmt = testStmt->getPrevStmt();
+        Statement* prevStmt = testStmt->m_prev;
         if (prevStmt == nullptr)
         {
             return false;
@@ -1042,7 +1042,7 @@ bool Compiler::optExtractInitTestIncr(
 
     // Check if we have the incr stmt before the test stmt, if we don't,
     // check if incr is part of the loop "top".
-    Statement* incrStmt = testStmt->getPrevStmt();
+    Statement* incrStmt = testStmt->m_prev;
     if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->gtStmtExpr) == BAD_VAR_NUM)
     {
         if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->m_prev == nullptr)
@@ -1072,7 +1072,7 @@ bool Compiler::optExtractInitTestIncr(
         return false;
     }
 
-    Statement* initStmt = phdrStmt->getPrevStmt();
+    Statement* initStmt = phdrStmt->m_prev;
     noway_assert(initStmt != nullptr && (initStmt->m_next == nullptr));
 
     // If it is a duplicated loop condition, skip it.
@@ -1094,7 +1094,7 @@ bool Compiler::optExtractInitTestIncr(
 #endif // DEBUG
         if (doGetPrev)
         {
-            initStmt = initStmt->getPrevStmt();
+            initStmt = initStmt->m_prev;
         }
         noway_assert(initStmt != nullptr);
     }
@@ -1302,7 +1302,7 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
             do
             {
                 block = block->bbNext;
-                for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+                for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
                 {
                     if (stmt->gtStmtExpr == incr)
                     {
@@ -3610,7 +3610,7 @@ void Compiler::optUnrollLoops()
 
         Statement* testStmt = bottom->lastStmt();
         noway_assert((testStmt != nullptr) && (testStmt->m_next == nullptr));
-        Statement* incrStmt = testStmt->gtPrevStmt;
+        Statement* incrStmt = testStmt->m_prev;
         noway_assert(incrStmt != nullptr);
 
         if (initStmt->compilerAdded)
@@ -3619,7 +3619,7 @@ void Compiler::optUnrollLoops()
             noway_assert(initStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
             dupCond  = true;
-            initStmt = initStmt->gtPrevStmt;
+            initStmt = initStmt->m_prev;
             noway_assert(initStmt != nullptr);
         }
         else
@@ -3692,7 +3692,7 @@ void Compiler::optUnrollLoops()
 
                 // Visit all the statements in the block.
 
-                for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+                for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
                 {
                     /* Calculate gtCostSz */
                     gtSetStmtInfo(stmt);
@@ -3852,12 +3852,12 @@ void Compiler::optUnrollLoops()
             {
                 Statement* preHeaderStmt = head->firstStmt();
                 noway_assert(preHeaderStmt != nullptr);
-                testStmt = preHeaderStmt->gtPrevStmt;
+                testStmt = preHeaderStmt->m_prev;
 
                 noway_assert((testStmt != nullptr) && (testStmt->m_next == nullptr));
                 noway_assert(testStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
-                initStmt = testStmt->gtPrevStmt;
+                initStmt = testStmt->m_prev;
                 noway_assert((initStmt != nullptr) && (initStmt->m_next == testStmt));
 
                 initStmt->m_next      = nullptr;
@@ -4011,12 +4011,12 @@ static Statement* optFindLoopTermTest(BasicBlock* bottom)
 
     assert(testStmt != nullptr);
 
-    Statement* result = testStmt->getPrevStmt();
+    Statement* result = testStmt->m_prev;
 
 #ifdef DEBUG
     while (testStmt->m_next != nullptr)
     {
-        testStmt = testStmt->getNextStmt();
+        testStmt = testStmt->m_next;
     }
 
     assert(testStmt == result);
@@ -6018,7 +6018,7 @@ bool Compiler::optIsVarAssigned(BasicBlock* beg, BasicBlock* end, GenTree* skip,
     {
         noway_assert(beg != nullptr);
 
-        for (Statement* stmt = beg->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = beg->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             if (fgWalkTreePre(&stmt->gtStmtExpr, optIsVarAssgCB, &desc))
             {
@@ -6082,7 +6082,7 @@ int Compiler::optIsSetAssgLoop(unsigned lnum, ALLVARSET_VALARG_TP vars, varRefKi
         {
             noway_assert(beg);
 
-            for (Statement* stmt = beg->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt = beg->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
             {
                 fgWalkTreePre(&stmt->gtStmtExpr, optIsVarAssgCB, &desc);
 
@@ -6820,7 +6820,7 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
 
         void HoistBlock(BasicBlock* block)
         {
-            for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
             {
                 WalkTree(&stmt->gtStmtExpr, nullptr);
                 assert(m_valueStack.TopRef().Node() == stmt->gtStmtExpr);
@@ -7382,7 +7382,7 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
     // into the phi via the loop header block will now flow through the preheader
     // block from the header block.
 
-    for (Statement* stmt = top->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt = top->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
     {
         GenTree* tree = stmt->gtStmtExpr;
         if (tree->OperGet() != GT_ASG)
@@ -7622,7 +7622,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
     MemoryKindSet memoryHavoc = emptyMemoryKindSet;
 
     // Now iterate over the remaining statements, and their trees.
-    for (Statement* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
     {
         for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
@@ -8155,7 +8155,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
     for (BasicBlock* block = beg; block != end->bbNext; block = block->bbNext)
     {
         compCurBB = block;
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             info.stmt               = stmt;
             const bool lclVarsOnly  = false;

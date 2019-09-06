@@ -7587,12 +7587,12 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(treeWithCall == call);
     }
 #endif
-    Statement* nextMorphStmt = fgMorphStmt->gtNextStmt;
+    Statement* nextMorphStmt = fgMorphStmt->m_next;
     // Remove all stmts after the call.
     while (nextMorphStmt != nullptr)
     {
         Statement* stmtToRemove = nextMorphStmt;
-        nextMorphStmt           = stmtToRemove->gtNextStmt;
+        nextMorphStmt           = stmtToRemove->m_next;
         fgRemoveStmt(compCurBB, stmtToRemove);
     }
 
@@ -15557,7 +15557,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(cons
     }
 
     // Or this is the last statement of a conditional branch that was just folded?
-    if (!removedStmt && (stmt->getNextStmt() == nullptr) && !fgRemoveRestOfBlock)
+    if (!removedStmt && (stmt->m_next == nullptr) && !fgRemoveRestOfBlock)
     {
         if (fgFoldConditional(block))
         {
@@ -15589,7 +15589,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(cons
     if (fgRemoveRestOfBlock)
     {
         // Remove the rest of the stmts in the block
-        for (stmt = stmt->getNextStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (stmt = stmt->m_next; stmt != nullptr; stmt = stmt->m_next)
         {
             fgRemoveStmt(block, stmt);
         }
@@ -15640,7 +15640,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
     Statement* stmt = block->firstStmt();
     GenTree*   prev = nullptr;
-    for (; stmt != nullptr; prev = stmt->gtStmtExpr, stmt = stmt->gtNextStmt)
+    for (; stmt != nullptr; prev = stmt->gtStmtExpr, stmt = stmt->m_next)
     {
         if (fgRemoveRestOfBlock)
         {
@@ -15693,7 +15693,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             morph = stmt->gtStmtExpr;
             noway_assert(compTailCallUsed);
             noway_assert((morph->gtOper == GT_CALL) && morph->AsCall()->IsTailCall());
-            noway_assert(stmt->gtNextStmt == nullptr);
+            noway_assert(stmt->m_next == nullptr);
 
             GenTreeCall* call = morph->AsCall();
             // Could either be
@@ -15717,7 +15717,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
             noway_assert(compTailCallUsed);
             noway_assert((tree->gtOper == GT_CALL) && tree->AsCall()->IsTailCall());
-            noway_assert(stmt->gtNextStmt == nullptr);
+            noway_assert(stmt->m_next == nullptr);
 
             GenTreeCall* call = morph->AsCall();
 
@@ -15984,7 +15984,7 @@ void Compiler::fgMorphBlocks()
 
                         // This block must be ending with a GT_RETURN
                         noway_assert(lastStmt != nullptr);
-                        noway_assert(lastStmt->getNextStmt() == nullptr);
+                        noway_assert(lastStmt->m_next == nullptr);
                         noway_assert(ret != nullptr);
 
                         // GT_RETURN must have non-null operand as the method is returning the value assigned to
@@ -16019,7 +16019,7 @@ void Compiler::fgMorphBlocks()
                     {
                         // This block ends with a GT_RETURN
                         noway_assert(lastStmt != nullptr);
-                        noway_assert(lastStmt->getNextStmt() == nullptr);
+                        noway_assert(lastStmt->m_next == nullptr);
 
                         // Must be a void GT_RETURN with null operand; delete it as this block branches to oneReturn
                         // block
@@ -16767,7 +16767,7 @@ void Compiler::fgExpandQmarkNodes()
     {
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
             {
                 GenTree* expr = stmt->gtStmtExpr;
 #ifdef DEBUG
@@ -16793,7 +16793,7 @@ void Compiler::fgPostExpandQmarkChecks()
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             GenTree* expr = stmt->gtStmtExpr;
             fgWalkTreePre(&expr, Compiler::fgAssertNoQmark, nullptr);
@@ -18713,7 +18713,7 @@ void Compiler::fgMarkAddressExposedLocals()
         // Make the current basic block address available globally
         compCurBB = block;
 
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             visitor.VisitStmt(stmt);
         }
@@ -18760,7 +18760,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
     var_types  simdType             = getSIMDTypeForSize(simdSize);
     int        assignmentsCount     = simdSize / genTypeSize(baseType) - 1;
     int        remainingAssignments = assignmentsCount;
-    Statement* curStmt              = stmt->getNextStmt();
+    Statement* curStmt              = stmt->m_next;
     Statement* lastStmt             = stmt;
 
     while (curStmt != nullptr && remainingAssignments > 0)
@@ -18783,7 +18783,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
         prevRHS = curRHS;
 
         lastStmt = curStmt;
-        curStmt  = curStmt->getNextStmt();
+        curStmt  = curStmt->m_next;
     }
 
     if (remainingAssignments > 0)
@@ -18807,7 +18807,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
 
     for (int i = 0; i < assignmentsCount; i++)
     {
-        fgRemoveStmt(block, stmt->getNextStmt());
+        fgRemoveStmt(block, stmt->m_next);
     }
 
     GenTree* copyBlkDst = createAddressNodeForSIMDInit(originalLHS, simdSize);
@@ -18876,7 +18876,7 @@ Statement* SkipNopStmts(Statement* stmt)
 {
     while ((stmt != nullptr) && !stmt->IsNothingNode())
     {
-        stmt = stmt->gtNextStmt;
+        stmt = stmt->m_next;
     }
     return stmt;
 }
@@ -18901,7 +18901,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
     // the call.
     Statement* callStmt = fgMorphStmt;
 
-    Statement* nextMorphStmt = callStmt->gtNextStmt;
+    Statement* nextMorphStmt = callStmt->m_next;
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
     // Legacy Jit64 Compat:
@@ -18943,7 +18943,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
             }
             noway_assert(isSideEffectFree);
 
-            nextMorphStmt = popStmt->gtNextStmt;
+            nextMorphStmt = popStmt->m_next;
         }
 
         // Next skip any GT_NOP nodes after the pop
@@ -18966,7 +18966,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
             GenTree*   retExpr = retStmt->gtStmtExpr;
             noway_assert(retExpr->gtOper == GT_RETURN);
 
-            nextMorphStmt = retStmt->gtNextStmt;
+            nextMorphStmt = retStmt->m_next;
         }
         else
         {
@@ -18988,7 +18988,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
                 unsigned dstLclNum  = moveExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum;
                 callResultLclNumber = dstLclNum;
 
-                nextMorphStmt = moveStmt->gtNextStmt;
+                nextMorphStmt = moveStmt->m_next;
             }
             if (nextMorphStmt != nullptr)
 #endif
@@ -19006,7 +19006,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
 
                 noway_assert(callResultLclNumber == treeWithLcl->AsLclVarCommon()->gtLclNum);
 
-                nextMorphStmt = retStmt->gtNextStmt;
+                nextMorphStmt = retStmt->m_next;
             }
         }
     }

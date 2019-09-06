@@ -569,7 +569,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             fgWalkTreePre(&stmt->gtStmtExpr, visitor, pCallBackData);
         }
@@ -11483,7 +11483,7 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
 
 void Compiler::gtDispStmtList(Statement* stmts, IndentStack* indentStack /* = nullptr */)
 {
-    for (Statement* stmt = stmts; stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt = stmts; stmt != nullptr; stmt = stmt->m_next)
     {
         gtDispTree(stmt->gtStmtExpr, indentStack);
         printf("\n");

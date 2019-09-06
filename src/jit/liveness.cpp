@@ -494,7 +494,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
         }
         else
         {
-            for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
             {
                 compCurStmt = stmt;
                 for (GenTree* node = stmt->gtStmtList; node != nullptr; node = node->gtNext)
@@ -2616,7 +2616,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 noway_assert(nextStmt != nullptr);
 
                 compCurStmt = nextStmt;
-                nextStmt    = nextStmt->getPrevStmt();
+                nextStmt    = nextStmt->m_prev;
 
                 /* Compute the liveness for each tree node in the statement */
                 bool stmtInfoDirty = false;

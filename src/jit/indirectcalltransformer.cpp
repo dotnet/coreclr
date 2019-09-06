@@ -101,7 +101,7 @@ private:
     {
         int count = 0;
 
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             if (ContainsFatCalli(stmt))
             {
@@ -792,7 +792,7 @@ void Compiler::CheckNoTransformableIndirectCallsRemain()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             fgWalkTreePre(&stmt->gtStmtExpr, fgDebugCheckForTransformableIndirectCalls);
         }

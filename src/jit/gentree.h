@@ -5140,38 +5140,10 @@ struct Statement
     IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
 #endif
 
-    __declspec(property(get = getNextStmt)) Statement* gtNextStmt;
-
-    __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
-
     Statement* m_next;
     Statement* m_prev;
 
     bool compilerAdded;
-
-    Statement* getNextStmt()
-    {
-        if (m_next == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return m_next;
-        }
-    }
-
-    Statement* getPrevStmt()
-    {
-        if (m_prev == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return m_prev;
-        }
-    }
 
     Statement(GenTree* expr, IL_OFFSETX offset)
         : gtStmtExpr(expr)

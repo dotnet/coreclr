@@ -1284,7 +1284,7 @@ void RangeCheck::MapMethodDefs()
     // First, gather where all definitions occur in the program and store it in a map.
     for (BasicBlock* block = m_pCompiler->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             MapMethodDefsData data(this, block, stmt);
             m_pCompiler->fgWalkTreePre(&stmt->gtStmtExpr, MapMethodDefsVisitor, &data, false, true);
@@ -1313,7 +1313,7 @@ void RangeCheck::OptimizeRangeChecks()
     // Walk through trees looking for arrBndsChk node and check if it can be optimized.
     for (BasicBlock* block = m_pCompiler->fgFirstBB; block; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             for (GenTree* tree = stmt->gtStmtList; tree; tree = tree->gtNext)
             {

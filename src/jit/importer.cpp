@@ -679,7 +679,7 @@ Statement* Compiler::impExtractLastStmt()
     assert(impLastStmt != nullptr);
 
     Statement* stmt = impLastStmt;
-    impLastStmt     = impLastStmt->gtPrevStmt;
+    impLastStmt     = impLastStmt->m_prev;
     if (impLastStmt == nullptr)
     {
         impStmtList = nullptr;
@@ -705,7 +705,7 @@ inline void Compiler::impInsertStmtBefore(Statement* stmt, Statement* stmtBefore
     }
     else
     {
-        Statement* stmtPrev = stmtBefore->getPrevStmt();
+        Statement* stmtPrev = stmtBefore->m_prev;
         stmt->m_prev        = stmtPrev;
         stmtPrev->m_next    = stmt;
     }
@@ -1497,7 +1497,7 @@ GenTree* Compiler::impGetStructAddr(GenTree*             structVal,
             else
             {
                 // Insert after the oldLastStmt before the first inserted for op2.
-                beforeStmt = oldLastStmt->getNextStmt();
+                beforeStmt = oldLastStmt->m_next;
             }
 
             impInsertTreeBefore(structVal->gtOp.gtOp1, impCurStmtOffs, beforeStmt);
@@ -19452,7 +19452,7 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*      
         }
     }
 
-    for (Statement* stmt = impStmtList; stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (Statement* stmt = impStmtList; stmt != nullptr; stmt = stmt->m_next)
     {
         GenTree* expr = stmt->gtStmtExpr;
         if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))

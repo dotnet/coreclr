@@ -576,7 +576,7 @@ Statement* Compiler::fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt)
     if (firstStmt != nullptr)
     {
         // There is at least one statement already.
-        Statement* lastStmt = firstStmt->getPrevStmt();
+        Statement* lastStmt = firstStmt->m_prev;
         noway_assert(lastStmt != nullptr && lastStmt->m_next == nullptr);
 
         // Insert the statement in front of the first one.
@@ -614,8 +614,8 @@ Statement* Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
     if (firstStmt != nullptr)
     {
         // There is at least one statement already.
-        Statement* lastStmt = firstStmt->getPrevStmt();
-        noway_assert(lastStmt != nullptr && lastStmt->getNextStmt() == nullptr);
+        Statement* lastStmt = firstStmt->m_prev;
+        noway_assert(lastStmt != nullptr && lastStmt->m_next == nullptr);
 
         // Append the statement after the last one.
         lastStmt->m_next  = stmt;
@@ -798,11 +798,11 @@ Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block,     // the block w
     noway_assert(stmtAfter);
     noway_assert(stmtList);
 
-    Statement* stmtLast = stmtList->getPrevStmt(); // Last statement in a non-empty list, circular in the m_prev list.
+    Statement* stmtLast = stmtList->m_prev; // Last statement in a non-empty list, circular in the m_prev list.
     noway_assert(stmtLast);
     noway_assert(stmtLast->m_next == nullptr);
 
-    Statement* stmtNext = stmtAfter->getNextStmt();
+    Statement* stmtNext = stmtAfter->m_next;
 
     if (stmtNext == nullptr)
     {
@@ -3867,7 +3867,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             //
             //  More formally, if control flow targets an instruction, that instruction must be the
             //  start of a new sequence point.
-            Statement* nextStmt = newStmt->getNextStmt();
+            Statement* nextStmt = newStmt->m_next;
             if (nextStmt != nullptr)
             {
                 // Is it possible for m_next to be NULL?
@@ -3926,7 +3926,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             Statement* stmt = top->firstStmt();
             while (stmt->m_next)
             {
-                stmt = stmt->gtNextStmt;
+                stmt = stmt->m_next;
             }
             fgRemoveStmt(top, stmt);
             fgInsertStmtAtEnd(bottom, stmt);
@@ -9288,7 +9288,7 @@ IL_OFFSET Compiler::fgFindBlockILOffset(BasicBlock* block)
     // could have a similar function for LIR that searches for GT_IL_OFFSET nodes.
     assert(!block->IsLIR());
 
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
     {
         if (stmt->gtStmtILoffsx != BAD_IL_OFFSET)
         {
@@ -9396,7 +9396,7 @@ BasicBlock* Compiler::fgSplitBlockAfterStatement(BasicBlock* curr, Statement* st
 
     if (stmt != nullptr)
     {
-        newBlock->bbStmtList = stmt->gtNextStmt;
+        newBlock->bbStmtList = stmt->m_next;
         if (newBlock->bbStmtList != nullptr)
         {
             newBlock->bbStmtList->m_prev = curr->bbStmtList->m_prev;
@@ -9620,7 +9620,7 @@ void Compiler::fgFindOperOrder()
     for (block = fgFirstBB; block; block = block->bbNext)
     {
         compCurBB = block;
-        for (stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             /* Recursively process the statement */
 
@@ -10005,7 +10005,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         }
         else
         {
-            block->bbStmtList         = firstStmt->gtNextStmt;
+            block->bbStmtList         = firstStmt->m_next;
             block->bbStmtList->m_prev = firstStmt->m_prev;
         }
     }
@@ -10016,9 +10016,9 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
     }
     else // The statement is in the middle.
     {
-        assert(stmt->gtPrevStmt != nullptr && stmt->m_next != nullptr);
+        assert(stmt->m_prev != nullptr && stmt->m_next != nullptr);
 
-        Statement* prev = stmt->gtPrevStmt;
+        Statement* prev = stmt->m_prev;
 
         prev->m_next         = stmt->m_next;
         stmt->m_next->m_prev = prev;
@@ -10283,7 +10283,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
         // Does the second have any phis?
         if (bNextFirst != nullptr && bNextFirst != bNextNonPhi1)
         {
-            Statement* bNextLast = bNextFirst->gtPrevStmt;
+            Statement* bNextLast = bNextFirst->m_prev;
             assert(bNextLast->m_next == nullptr);
 
             // Does "blk" have phis?
@@ -10295,11 +10295,11 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 Statement* blkLastPhi;
                 if (blkNonPhi1 != nullptr)
                 {
-                    blkLastPhi = blkNonPhi1->gtPrevStmt;
+                    blkLastPhi = blkNonPhi1->m_prev;
                 }
                 else
                 {
-                    blkLastPhi = blkFirst->gtPrevStmt;
+                    blkLastPhi = blkFirst->m_prev;
                 }
 
                 blkLastPhi->m_next = bNextFirst;
@@ -10309,11 +10309,11 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 Statement* bNextLastPhi = nullptr;
                 if (bNextNonPhi1 != nullptr)
                 {
-                    bNextLastPhi = bNextNonPhi1->gtPrevStmt;
+                    bNextLastPhi = bNextNonPhi1->m_prev;
                 }
                 else
                 {
-                    bNextLastPhi = bNextFirst->gtPrevStmt;
+                    bNextLastPhi = bNextFirst->m_prev;
                 }
 
                 bNextLastPhi->m_next = blkNonPhi1;
@@ -10339,19 +10339,19 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 if (blkFirst != nullptr) // If "block" has no statements, fusion will work fine...
                 {
                     // First, bNextPhis at start of block.
-                    Statement* blkLast = blkFirst->gtPrevStmt;
+                    Statement* blkLast = blkFirst->m_prev;
                     block->bbStmtList  = bNextFirst;
                     // Now, rest of "block" (if it exists) after last phi of "bNext".
                     Statement* bNextLastPhi = nullptr;
                     if (bNextNonPhi1 != nullptr)
                     {
                         // There is a first non phi, so the last phi is before it.
-                        bNextLastPhi = bNextNonPhi1->gtPrevStmt;
+                        bNextLastPhi = bNextNonPhi1->m_prev;
                     }
                     else
                     {
                         // All the statements are phi defns, so the last one is the prev of the first.
-                        bNextLastPhi = bNextFirst->gtPrevStmt;
+                        bNextLastPhi = bNextFirst->m_prev;
                     }
                     bNextFirst->m_prev   = blkLast;
                     bNextLastPhi->m_next = blkFirst;
@@ -10709,7 +10709,7 @@ void Compiler::fgUnreachableBlock(BasicBlock* block)
             block->bbStmtList = firstNonPhi;
         }
 
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             fgRemoveStmt(block, stmt);
         }
@@ -14787,7 +14787,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     assert(!bDest->IsLIR());
 
     unsigned estDupCostSz = 0;
-    for (Statement* stmt = bDest->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (Statement* stmt = bDest->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
     {
         GenTree* expr = stmt->gtStmtExpr;
 
@@ -14893,7 +14893,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
 
     /* Visit all the statements in bDest */
 
-    for (Statement* curStmt = bDest->firstStmt(); curStmt != nullptr; curStmt = curStmt->getNextStmt())
+    for (Statement* curStmt = bDest->firstStmt(); curStmt != nullptr; curStmt = curStmt->m_next)
     {
         // Clone/substitute the expression.
         Statement* stmt = gtCloneStmt(curStmt);
@@ -15015,7 +15015,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     {
         // Dump out the newStmtList that we created
         printf("\nfgOptimizeBranch added these statements(s) at the end of " FMT_BB ":\n", bJump->bbNum);
-        for (Statement* stmt = newStmtList; stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = newStmtList; stmt != nullptr; stmt = stmt->m_next)
         {
             gtDispTree(stmt->gtStmtExpr);
         }
@@ -19114,7 +19114,7 @@ void Compiler::fgSetStmtSeq(Statement* stmt)
 
 void Compiler::fgSetBlockOrder(BasicBlock* block)
 {
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
     {
         fgSetStmtSeq(stmt);
 
@@ -19212,7 +19212,7 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
             break;
     }
 
-    for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
     {
         unsigned char cost = stmt->GetCostSz();
         if (cost < MAX_COST)
@@ -20514,7 +20514,7 @@ void Compiler::fgDumpBlock(BasicBlock* block)
     if (!block->IsLIR())
     {
         Statement* firstStmt = block->firstStmt();
-        for (Statement* stmt = firstStmt; stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = firstStmt; stmt != nullptr; stmt = stmt->m_next)
         {
             fgDumpStmtTree(stmt, block->bbNum);
             if (stmt == firstStmt)
@@ -21655,7 +21655,7 @@ void Compiler::fgDebugCheckLinks(bool morphTrees)
 
 void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
 {
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
     {
         /* Verify that bbStmtList is threaded correctly */
         /* Note that for the statements list, the m_prev list is circular. The m_next list is not: m_next of the
@@ -21832,7 +21832,7 @@ void Compiler::fgDebugCheckNodesUniqueness()
         }
         else
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
             {
                 GenTree* root = stmt->gtStmtExpr;
                 fgWalkTreePre(&root, UniquenessCheckWalker::MarkTreeId, &walker);
@@ -21920,7 +21920,7 @@ void Compiler::fgInline()
 
     for (; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             stmt->gtInlineContext = rootContext;
         }
@@ -21934,7 +21934,7 @@ void Compiler::fgInline()
         // Make the current basic block address available globally
         compCurBB = block;
 
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
 
 #ifdef DEBUG
@@ -22022,7 +22022,7 @@ void Compiler::fgInline()
     {
         Statement* stmt;
 
-        for (stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             // Call Compiler::fgDebugCheckInlineCandidates on each node
             fgWalkTreePre(&stmt->gtStmtExpr, fgDebugCheckInlineCandidates);
@@ -22896,7 +22896,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 
     for (block = InlineeCompiler->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
             stmt->gtInlineContext = calleeContext;
         }
@@ -22948,7 +22948,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
                 {
                     do
                     {
-                        currentDumpStmt = currentDumpStmt->getNextStmt();
+                        currentDumpStmt = currentDumpStmt->m_next;
 
                         printf("\n");
 
@@ -22989,7 +22989,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
     // Split statements between topBlock and bottomBlock.
     // First figure out bottomBlock_Begin
     Statement* bottomBlock_Begin;
-    bottomBlock_Begin = stmtAfter->gtNextStmt;
+    bottomBlock_Begin = stmtAfter->m_next;
 
     if (topBlock->bbStmtList == nullptr)
     {
@@ -23027,7 +23027,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         // This is the normal case where both blocks should contain at least one statement.
         Statement* topBlock_Begin = topBlock->firstStmt();
         noway_assert(topBlock_Begin != nullptr);
-        Statement* topBlock_End = bottomBlock_Begin->gtPrevStmt;
+        Statement* topBlock_End = bottomBlock_Begin->m_prev;
         noway_assert(topBlock_End != nullptr);
         Statement* bottomBlock_End = topBlock->lastStmt();
         noway_assert(bottomBlock_End != nullptr);
@@ -23222,7 +23222,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     BasicBlock*  block        = inlineInfo->iciBlock;
     Statement*   callStmt     = inlineInfo->iciStmt;
     IL_OFFSETX   callILOffset = callStmt->gtStmtILoffsx;
-    Statement*   postStmt     = callStmt->gtNextStmt;
+    Statement*   postStmt     = callStmt->m_next;
     Statement*   afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
     Statement*   newStmt      = nullptr;
     GenTreeCall* call         = inlineInfo->iciCall->AsCall();
@@ -23574,7 +23574,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     // Update any newly added statements with the appropriate context.
     InlineContext* context = callStmt->gtInlineContext;
     assert(context != nullptr);
-    for (Statement* addedStmt = callStmt->gtNextStmt; addedStmt != postStmt; addedStmt = addedStmt->gtNextStmt)
+    for (Statement* addedStmt = callStmt->m_next; addedStmt != postStmt; addedStmt = addedStmt->m_next)
     {
         assert(addedStmt->gtInlineContext == nullptr);
         addedStmt->gtInlineContext = context;
@@ -23893,7 +23893,7 @@ void Compiler::fgRemoveEmptyFinally()
         // Limit for now to finallys that contain only a GT_RETFILT.
         bool isEmpty = true;
 
-        for (Statement* stmt = firstBlock->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt = firstBlock->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
         {
             GenTree* stmtExpr = stmt->gtStmtExpr;
 
@@ -24340,7 +24340,7 @@ void Compiler::fgRemoveEmptyTry()
             // If we're in a non-funclet model, decrement the nesting
             // level of any GT_END_LFIN we find in the handler region,
             // since we're removing the enclosing handler.
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
             {
                 GenTree* expr = stmt->gtStmtExpr;
                 if (expr->gtOper == GT_END_LFIN)
@@ -24545,7 +24545,7 @@ void Compiler::fgCloneFinally()
 
             // Should we compute statement cost here, or is it
             // premature...? For now just count statements I guess.
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
             {
                 regionStmtCount++;
             }
@@ -25205,7 +25205,7 @@ void Compiler::fgCleanupContinuation(BasicBlock* continuation)
     // Remove the GT_END_LFIN from the continuation,
     // Note we only expect to see one such statement.
     bool foundEndLFin = false;
-    for (Statement* stmt = continuation->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+    for (Statement* stmt = continuation->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
     {
         GenTree* expr = stmt->gtStmtExpr;
         if (expr->gtOper == GT_END_LFIN)
@@ -25594,7 +25594,7 @@ unsigned Compiler::fgMeasureIR()
     {
         if (!block->IsLIR())
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
             {
                 fgWalkTreePre(&stmt->gtStmtExpr,
                               [](GenTree** slot, fgWalkData* data) -> Compiler::fgWalkResult {
