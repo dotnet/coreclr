@@ -973,7 +973,28 @@ EXTERN_C void STDCALL OnHijackWorker(HijackArgs * pArgs);
 
 #ifdef DACCESS_COMPILE
 class BaseStackGuard;
+
 #endif
+
+// Note: Layout of this must match similarly named structures in jithelpers.cs.
+// TODO: Drop 'new' prefix
+struct NewTailCallFrame
+{
+    NewTailCallFrame* Prev;
+    void* ReturnAddress;
+    void* NextCall;
+};
+
+// First field of this structure must be the frame.
+struct TailCallTls
+{
+    NewTailCallFrame* Frame;
+    char* ArgBuffer;
+    size_t ArgBufferSize;
+    void* ArgBufferGCDesc;
+
+    TailCallTls();
+};
 
 // #ThreadClass
 // 
@@ -4344,6 +4365,16 @@ private:
     // Called during Thread death to clean up all structures
     // associated with thread statics
     void DeleteThreadStaticData();
+
+private:
+    TailCallTls m_tailCallTls;
+    char m_inlineTailCallArgBuffer[64];
+
+public:
+    TailCallTls* GetTailCallTls() { return &m_tailCallTls; }
+    void* AllocTailCallArgBuffer(size_t size, void* gcDesc);
+    void FreeTailCallArgBuffer();
+
 
 #ifdef _DEBUG
 private:

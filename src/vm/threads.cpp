@@ -54,6 +54,16 @@
 #include "eventpipebuffermanager.h"
 #endif // FEATURE_PERFTRACING
 
+static NewTailCallFrame g_sentinelTailCallFrame = { NULL, NULL, NULL };
+
+TailCallTls::TailCallTls()
+    : Frame(&g_sentinelTailCallFrame)
+    , ArgBuffer(NULL)
+    , ArgBufferSize(0)
+    , ArgBufferGCDesc(NULL)
+{
+}
+
 uint64_t Thread::dead_threads_non_alloc_bytes = 0;
 
 SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
@@ -1303,7 +1313,6 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
 }
 
 #endif  // TRACK_SYNC
-
 
 static  DWORD dwHashCodeSeed = 123456789;
 
@@ -5180,7 +5189,6 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
 }
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-
 //----------------------------------------------------------------------------
 //
 //    ThreadStore Implementation
@@ -7940,6 +7948,31 @@ void Thread::DeleteThreadStaticData()
 void Thread::DeleteThreadStaticData(ModuleIndex index)
 {
     m_ThreadLocalBlock.FreeTLM(index.m_dwIndex, FALSE /* isThreadShuttingDown */);
+}
+
+void* Thread::AllocTailCallArgBuffer(size_t size, void* gcDesc)
+{
+    m_tailCallTls.ArgBufferSize = size;
+
+    if (size > sizeof(m_inlineTailCallArgBuffer))
+        m_tailCallTls.ArgBuffer = new char[size];
+    else
+        m_tailCallTls.ArgBuffer = m_inlineTailCallArgBuffer;
+
+    if (gcDesc != NULL)
+    {
+        memset(m_tailCallTls.ArgBuffer, 0, size);
+        m_tailCallTls.ArgBufferGCDesc = gcDesc;
+    }
+
+    return m_tailCallTls.ArgBuffer;
+}
+
+void Thread::FreeTailCallArgBuffer()
+{
+    m_tailCallTls.ArgBufferGCDesc = NULL;
+    if (m_tailCallTls.ArgBufferSize > sizeof(m_inlineTailCallArgBuffer))
+        delete[] m_tailCallTls.ArgBuffer;
 }
 
 OBJECTREF Thread::GetCulture(BOOL bUICulture)

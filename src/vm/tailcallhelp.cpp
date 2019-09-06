@@ -9,63 +9,35 @@
 #include "formattype.h"
 #include "sigformat.h"
 #include "gcrefmap.h"
+#include "threads.h"
 
-// Note: Layout of this must match similarly named structures in jithelpers.cs
-struct NewTailCallFrame
-{
-    NewTailCallFrame* Prev;
-    void* ReturnAddress;
-    void* NextCall;
-};
-
-struct TailCallTls
-{
-    NewTailCallFrame* Frame;
-    char* ArgBuffer;
-    void* ArgBufferGCDesc;
-};
-
-static NewTailCallFrame g_sentinelTailCallFrame;
-// TODO: This should maybe be on Thread instead.
-static __thread TailCallTls g_tailCallTls = { &g_sentinelTailCallFrame, NULL, NULL };
-static INT32 g_argBufferSize;
+#ifndef CROSSGEN_COMPILE
 
 FCIMPL2(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size, void* gcDesc)
 {
     FCALL_CONTRACT;
 
-    TailCallTls* tls = &g_tailCallTls;
+    _ASSERTE(size >= 0);
 
-    if (size > g_argBufferSize)
-    {
-        delete[] tls->ArgBuffer;
-        tls->ArgBuffer = new char[size];
-        g_argBufferSize = size;
-    }
-
-    if (gcDesc)
-    {
-        memset(tls->ArgBuffer, 0, g_argBufferSize);
-        tls->ArgBufferGCDesc = gcDesc;
-    }
-
-    return tls->ArgBuffer;
+    return GetThread()->AllocTailCallArgBuffer(static_cast<size_t>(size), gcDesc);
 }
 FCIMPLEND
 
 FCIMPL0(void, TailCallHelp::FreeTailCallArgBuffer)
 {
     FCALL_CONTRACT;
-    g_tailCallTls.ArgBufferGCDesc = NULL;
+    GetThread()->FreeTailCallArgBuffer();
 }
 FCIMPLEND
 
 FCIMPL0(void*, TailCallHelp::GetTailCallTls)
 {
     FCALL_CONTRACT;
-    return &g_tailCallTls;
+    return GetThread()->GetTailCallTls();
 }
 FCIMPLEND
+
+#endif
 
 struct ArgBufferValue
 {
@@ -311,6 +283,8 @@ bool TailCallHelp::GenerateGCDescriptor(
 
         writeGCType(val.Offset, gc);
     }
+
+    builder->Flush();
 
     return builder->GetBlobLength() > 0;
 }

@@ -10,7 +10,6 @@
 struct TailCallInfo;
 struct ArgBufferValue;
 struct ArgBufferLayout;
-struct NewTailCallFrame; // todo; drop new prefix
 
 class TailCallHelp
 {

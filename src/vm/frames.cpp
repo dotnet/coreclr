@@ -1331,7 +1331,6 @@ void TransitionFrame::PromoteCallerStackUsingGCRefMap(promote_func* fn, ScanCont
 #endif
 
         PTR_TADDR ppObj = dac_cast<PTR_TADDR>(pTransitionBlock + ofs);
-
         switch (token)
         {
         case GCREFMAP_SKIP:

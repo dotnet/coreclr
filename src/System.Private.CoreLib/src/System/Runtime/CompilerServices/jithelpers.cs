@@ -113,6 +113,7 @@ namespace System.Runtime.CompilerServices
     {
         public TailCallFrame* Frame;
         public IntPtr ArgBuffer;
+        public IntPtr ArgBufferSize;
         public IntPtr ArgBufferGCDesc;
     }
 
