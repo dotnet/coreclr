@@ -357,9 +357,9 @@ protected:
         }
         CONTRACTL_END;
 
-        CQuickBytesSpecifySize<16>& sigData = m_signatures[RidFromToken(token)-1];
+        CQuickBytesSpecifySize<16>& sigData = m_signatures[static_cast<COUNT_T>(RidFromToken(token)-1)];
         PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigData.Ptr();
-        DWORD cbSig = sigData.Size();
+        DWORD cbSig = static_cast<DWORD>(sigData.Size());
         return SigPointer(pSig, cbSig);
     }
 
