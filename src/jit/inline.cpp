@@ -589,7 +589,7 @@ InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, Statement* stm
     // Pass along some optional information to the policy.
     if (stmt != nullptr)
     {
-        m_InlineContext = stmt->gtInlineContext;
+        m_InlineContext = stmt->m_inlineContext;
         m_Policy->NoteContext(m_InlineContext);
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -1200,7 +1200,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
     Statement*     stmt          = inlineInfo->iciStmt;
     BYTE*          calleeIL      = inlineInfo->inlineCandidateInfo->methInfo.ILCode;
     unsigned       calleeILSize  = inlineInfo->inlineCandidateInfo->methInfo.ILCodeSize;
-    InlineContext* parentContext = stmt->gtInlineContext;
+    InlineContext* parentContext = stmt->m_inlineContext;
     GenTreeCall*   originalCall  = inlineInfo->inlineResult->GetCall();
 
     noway_assert(parentContext != nullptr);
@@ -1263,7 +1263,7 @@ InlineContext* InlineStrategy::NewFailure(Statement* stmt, InlineResult* inlineR
 {
     // Check for a parent context first. We should now have a parent
     // context for all statements.
-    InlineContext* parentContext = stmt->gtInlineContext;
+    InlineContext* parentContext = stmt->m_inlineContext;
     assert(parentContext != nullptr);
     InlineContext* failedContext = new (m_Compiler, CMK_Inlining) InlineContext(this);
     GenTreeCall*   originalCall  = inlineResult->GetCall();

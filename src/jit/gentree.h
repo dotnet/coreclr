@@ -5133,7 +5133,7 @@ struct Statement
 {
     GenTree*       m_rootTree;      // root of the expression tree
     GenTree*       m_treeList;      // first node (for forward walks)
-    InlineContext* gtInlineContext; // The inline context for this statement.
+    InlineContext* m_inlineContext; // The inline context for this statement.
     IL_OFFSETX     gtStmtILoffsx;   // instr offset (if available)
 
 #ifdef DEBUG
@@ -5148,7 +5148,7 @@ struct Statement
     Statement(GenTree* expr, IL_OFFSETX offset)
         : m_rootTree(expr)
         , m_treeList(nullptr)
-        , gtInlineContext(nullptr)
+        , m_inlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)

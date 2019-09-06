@@ -21863,7 +21863,7 @@ void Compiler::fgDebugCheckNodesUniqueness()
 unsigned Compiler::fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo)
 {
     BYTE*          candidateCode = inlineInfo->inlineCandidateInfo->methInfo.ILCode;
-    InlineContext* inlineContext = inlineInfo->iciStmt->gtInlineContext;
+    InlineContext* inlineContext = inlineInfo->iciStmt->m_inlineContext;
     InlineResult*  inlineResult  = inlineInfo->inlineResult;
 
     // There should be a context for all candidates.
@@ -21922,7 +21922,7 @@ void Compiler::fgInline()
     {
         for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
-            stmt->gtInlineContext = rootContext;
+            stmt->m_inlineContext = rootContext;
         }
     }
 
@@ -22898,7 +22898,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
     {
         for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
         {
-            stmt->gtInlineContext = calleeContext;
+            stmt->m_inlineContext = calleeContext;
         }
     }
 
@@ -23572,12 +23572,12 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     }
 
     // Update any newly added statements with the appropriate context.
-    InlineContext* context = callStmt->gtInlineContext;
+    InlineContext* context = callStmt->m_inlineContext;
     assert(context != nullptr);
     for (Statement* addedStmt = callStmt->m_next; addedStmt != postStmt; addedStmt = addedStmt->m_next)
     {
-        assert(addedStmt->gtInlineContext == nullptr);
-        addedStmt->gtInlineContext = context;
+        assert(addedStmt->m_inlineContext == nullptr);
+        addedStmt->m_inlineContext = context;
     }
 
     return afterStmt;
