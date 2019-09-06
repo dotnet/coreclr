@@ -252,11 +252,8 @@ namespace System.Globalization
                 throw new ArgumentNullException(nameof(cultureName), SR.ArgumentNull_String);
             }
 
-            CultureData? cultureData = CultureData.GetCultureData(cultureName, false);
-            if (cultureData == null)
-            {
+            CultureData? cultureData = CultureData.GetCultureData(cultureName, false) ??
                 throw new CultureNotFoundException(nameof(cultureName), cultureName, SR.Argument_CultureNotSupported);
-            }
 
             _cultureData = cultureData;
 
@@ -1139,7 +1136,7 @@ namespace System.Globalization
         public static CultureInfo GetCultureInfo(string name)
         {
             // Make sure we have a valid, non-zero length string as name
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
@@ -1156,14 +1153,9 @@ namespace System.Globalization
                 }
             }
 
-            try
-            {
-                result = new CultureInfo(name, useUserOverride: false) { _isReadOnly = true };
-            }
-            catch (ArgumentException)
-            {
+            result = CreateCultureInfoNoThrow(name, useUserOverride: false) ??
                 throw new CultureNotFoundException(nameof(name), name, SR.Argument_CultureNotSupported);
-            }
+            result._isReadOnly = true;
 
             // Remember our name as constructed.  Do NOT use alternate sort name versions because
             // we have internal state representing the sort (so someone would get the wrong cached version).
@@ -1183,11 +1175,11 @@ namespace System.Globalization
         /// </summary>
         public static CultureInfo GetCultureInfo(string name, string altName)
         {
-            if (name == null)
+            if (name is null)
             {
                 throw new ArgumentNullException(nameof(name));
             }
-            if (altName == null)
+            if (altName is null)
             {
                 throw new ArgumentNullException(nameof(altName));
             }
