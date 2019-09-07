@@ -23,6 +23,7 @@ namespace System
             private readonly T _separator;
             private readonly bool _removeEmpty;
             private bool _started;
+            private bool _ended;
             private Range _current;
 
             /// <summary>
@@ -36,9 +37,9 @@ namespace System
             public bool MoveNext()
             {
                 int start = _started ? _current.End.Value + 1 : 0;
+                int end = start;
                 _started = true;
 
-                int end = start;
                 for (; end < _span.Length; end++)
                 {
                     if (_span[end].Equals(_separator))
@@ -52,11 +53,12 @@ namespace System
 
                         goto found;
                     }
+                }
 
-                    if (end == _span.Length - 1)
-                    {
-                        goto found;
-                    }
+                _ended = true;
+                if (end == _span.Length)
+                {
+                    goto found;
                 }
 
                 return false;
@@ -73,7 +75,7 @@ namespace System
             {
                 get
                 {
-                    if (!_started)
+                    if (!_started || _ended)
                     {
                         ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
                     }
@@ -88,6 +90,7 @@ namespace System
                 _separator = separator;
                 _removeEmpty = (options & StringSplitOptions.RemoveEmptyEntries) != 0;
                 _started = false;
+                _ended = false;
                 _current = default;
             }
         }
