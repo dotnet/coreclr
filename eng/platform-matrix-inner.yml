@@ -220,7 +220,7 @@ jobs:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
-      buildConfig: ${{ parameters.testVar }}
+      buildConfig: ${{ parameters.combos.testVar }}
       archType: x64
       osGroup: Windows_NT
       osIdentifier: Windows_NT
