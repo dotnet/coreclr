@@ -125,6 +125,8 @@
       </Project>
     </ItemGroup>
 
+    <Message Importance="High" Text="Script: $(MSBuildThisFileFullPath)" />
+
   </Target>
 
   <Import Project="..\dir.traversal.targets" />
