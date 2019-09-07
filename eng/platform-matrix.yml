@@ -28,5 +28,4 @@ jobs:
     jobParameters: ${{ parameters.jobParameters }}
     testVar: varValue
     combos:
-    - name: testVar
-      value: comboValue
+      testVar: comboValue
