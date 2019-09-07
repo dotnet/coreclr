@@ -26,6 +26,15 @@ jobs:
     helixQueueGroup: ${{ parameters.helixQueueGroup }}
     ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
     jobParameters: ${{ parameters.jobParameters }}
-    testVar: varValue
     combos:
-      testVar: comboValue
+      linuxArm: ${{ if or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      linuxArm64: ${{ if or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      linuxMuslX64: ${{ if or(containsValue(parameters.platforms, 'Linux_musl_x64'), eq(parameters.platformGroup, 'all')) }}
+      linuxMuslArm64: ${{ if or(containsValue(parameters.platforms, 'Linux_musl_arm64'), eq(parameters.platformGroup, 'all')) }}
+      linuxRhel6X64: ${{ if or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), eq(parameters.platformGroup, 'all')) }}
+      linuxX64: ${{ if or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      osxX64: ${{ if or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all')) }}
+      windowsX64: ${{ or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      windowsX86: ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}
+      windowsArm: ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm'), eq(parameters.platformGroup, 'all')) }}
+      windowsArm64: ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all')) }}

@@ -1,3 +1,48 @@
+parameters:
+  combos: {}
+
 variables:
-- name: testVar
-  value: 'testValue'
+# Determine OS for building x86 managed test artifacts for *nix platforms
+# Currently no-op as we're only running x86 tests on Windows
+- name: x86UnixManagedBuildOSGroup
+  value: ''
+
+# Determine OS for building x64 managed test artifacts for *nix platforms
+- name: x64UnixManagedBuildOSGroup
+  value: ''
+
+- ${{ if combos.linuxRhel6X64 }}:
+  - name: x64UnixManagedBuildOSGroup
+    value: 'Linux_rhel6'
+
+- ${{ if combos.linuxMuslX64 }}:
+  - name: x64UnixManagedBuildOSGroup
+    value: 'Linux_musl'
+
+- ${{ if combos.linuxX64 }}:
+  - name: x64UnixManagedBuildOSGroup
+    value: 'Linux'
+
+- ${{ if combos.osxX64 }}:
+  - name: x64UnixManagedBuildOSGroup
+    value: 'OSX'
+
+# Determine OS for building arm managed test artifacts for *nix platforms
+- name: armUnixManagedBuildOSGroup
+  value: ''
+
+- ${{ if combos.linuxArm }}:
+  - name: armUnixManagedBuildOSGroup
+    value: 'Linux'
+
+# Determine OS for building arm64 managed test artifacts for *nix platforms
+- name: arm64UnixManagedBuildOSGroup
+  value: ''
+
+- ${{ if combos.linuxMuslArm64 }}:
+  - name: arm64UnixManagedBuildOSGroup
+    value: 'Linux_musl'
+
+- ${{ if combos.linuxArm64 }}:
+  - name: arm64UnixManagedBuildOSGroup
+    value: 'Linux'
