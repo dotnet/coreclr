@@ -10,9 +10,7 @@ namespace System
 #nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
             where T : IEquatable<T>
 #nullable restore
-        {
-            return new SpanSplitEnumerator<T>(span, separator, options);
-        }
+            => new SpanSplitEnumerator<T>(span, separator, options);
 
         public ref struct SpanSplitEnumerator<T>
 #nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
@@ -24,6 +22,7 @@ namespace System
             private readonly bool _removeEmpty;
             private bool _started;
             private bool _ended;
+            private int _start;
             private Range _current;
 
             /// <summary>
@@ -36,36 +35,40 @@ namespace System
             /// </summary>
             public bool MoveNext()
             {
-                int start = _started ? _current.End.Value + 1 : 0;
-                int end = start;
                 _started = true;
 
-                for (; end < _span.Length; end++)
+                while (true)
                 {
-                    if (_span[end].Equals(_separator))
+                    if (_start > _span.Length)
                     {
-                        if (_removeEmpty
-                            && end - start == 0)
-                        {
-                            start = end + 1;
-                            continue;
-                        }
-
-                        goto found;
+                        _ended = true;
+                        return false;
                     }
+
+                    ReadOnlySpan<T> slice = _start == 0 ? _span : _span.Slice(_start);
+                    int index = slice.IndexOf(_separator);
+
+                    switch (index)
+                    {
+                        case -1:
+                            index = slice.Length;
+                            break;
+
+                        case 0:
+                            if (_removeEmpty)
+                            {
+                                _start++;
+                                continue;
+                            }
+                            break;
+                    }
+
+                    int end = _start + index;
+                    _current = new Range(_start, end);
+                    _start = end + 1;
+
+                    return true;
                 }
-
-                _ended = true;
-                if (end == _span.Length)
-                {
-                    goto found;
-                }
-
-                return false;
-
-            found:
-                _current = new Range(new Index(start), new Index(end));
-                return true;
             }
 
             /// <summary>
@@ -91,6 +94,7 @@ namespace System
                 _removeEmpty = (options & StringSplitOptions.RemoveEmptyEntries) != 0;
                 _started = false;
                 _ended = false;
+                _start = 0;
                 _current = default;
             }
         }
