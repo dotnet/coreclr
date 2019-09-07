@@ -128,3 +128,34 @@ jobs:
         - (Alpine.38.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-a45aeeb-20190620184035
       crossrootfsDir: '/crossrootfs/arm64'
       ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Linux rhel6 x64
+
+- ${{ if parameters.combos.linuxRhel6X64 }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: Linux
+      osIdentifier: Linux_rhel6
+      ${{ if parameters.combos.osxX64 }}:
+        managedBuildOsGroup: OSX
+        managedBuildOsIdentifier: OSX
+      ${{ if and(not(parameters.combos.osxX64), parameters.combos.linuxX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux
+      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64), parameters.combos.linuxMuslX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux_musl
+      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64), not(parameters.combos.linuxMuslX64)) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux_rhel6
+      container:
+        image: centos-6-3e800f1-20190501005338
+        registry: mcr
+      helixQueues:
+      # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - RedHat.6.Amd64
+      ${{ insert }}: ${{ parameters.jobParameters }}
