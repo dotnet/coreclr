@@ -86,10 +86,10 @@ jobs:
       ${{ if parameters.combos.osxX64 }}:
         managedBuildOsGroup: OSX
         managedBuildOsIdentifier: OSX
-      ${{ if and(!parameters.combos.osxX64, parameters.combos.linuxX64) }}:
+      ${{ if and(not(parameters.combos.osxX64), parameters.combos.linuxX64) }}:
         managedBuildOsGroup: Linux
         managedBuildOsIdentifier: Linux
-      ${{ if and(!parameters.combos.osxX64, !parameters.combos.linuxX64) }}:
+      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64)) }}:
         managedBuildOsGroup: Linux
         managedBuildOsIdentifier: Linux_musl
       container:
@@ -116,7 +116,7 @@ jobs:
       managedBuildOsGroup: Linux
       ${{ if parameters.combos.linuxArm64 }}:
         managedBuildOsIdentifier: Linux
-      ${{ if !parameters.combos.linuxArm64 }}:
+      ${{ if not(parameters.combos.linuxArm64) }}:
         managedBuildOsIdentifier: Linux_musl
       container:
         image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
@@ -142,13 +142,13 @@ jobs:
       ${{ if parameters.combos.osxX64 }}:
         managedBuildOsGroup: OSX
         managedBuildOsIdentifier: OSX
-      ${{ if and(!parameters.combos.osxX64, parameters.combos.linuxX64) }}:
+      ${{ if and(not(parameters.combos.osxX64), parameters.combos.linuxX64) }}:
         managedBuildOsGroup: Linux
         managedBuildOsIdentifier: Linux
-      ${{ if and(!parameters.combos.osxX64, !parameters.combos.linuxX64, parameters.combos.linuxMuslX64) }}:
+      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64), parameters.combos.linuxMuslX64) }}:
         managedBuildOsGroup: Linux
         managedBuildOsIdentifier: Linux_musl
-      ${{ if and(!parameters.combos.osxX64, !parameters.combos.linuxX64, !parameters.combos.linuxMuslX64) }}:
+      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64), not(parameters.combos.linuxMuslX64)) }}:
         managedBuildOsGroup: Linux
         managedBuildOsIdentifier: Linux_rhel6
       container:
@@ -173,7 +173,7 @@ jobs:
       ${{ if parameters.combos.osxX64 }}:
         managedBuildOsGroup: OSX
         managedBuildOsIdentifier: OSX
-      ${{ if !parameters.combos.osxX64 }}:
+      ${{ if not(parameters.combos.osxX64) }}:
         managedBuildOsGroup: Linux
         managedBuildOsIdentifier: Linux
       container:
