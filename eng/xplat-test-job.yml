@@ -2,7 +2,7 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osIdentifier: ''
+  osSubgroup: ''
   name: ''
   helixType: '(unspecified)'
   container: ''
@@ -27,7 +27,7 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osIdentifier: ${{ parameters.osIdentifier }}
+    osSubgroup: ${{ parameters.osSubgroup }}
     name: ${{ parameters.name }}
     helixType: ${{ parameters.helixType }}
     container: ${{ parameters.container }}

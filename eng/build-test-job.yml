@@ -2,7 +2,7 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osIdentifier: ''
+  osSubgroup: ''
   container: ''
   testGroup: ''
   readyToRun: false
@@ -24,7 +24,7 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osIdentifier: ${{ parameters.osIdentifier }}
+    osSubgroup: ${{ parameters.osSubgroup }}
     readyToRun: ${{ parameters.readyToRun }}
     corefxTests: ${{ parameters.corefxTests }}
 

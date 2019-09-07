@@ -2,7 +2,7 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osIdentifier: ''
+  osSubgroup: ''
   container: ''
   crossrootfsDir: ''
   timeoutInMinutes: ''
@@ -16,7 +16,7 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osIdentifier: ${{ parameters.osIdentifier }}
+    osSubgroup: ${{ parameters.osSubgroup }}
     helixType: 'build/product/'
     enableMicrobuild: true
 
