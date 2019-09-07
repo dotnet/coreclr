@@ -37,7 +37,7 @@ namespace System
             {
                 _started = true;
 
-                while (true)
+                while (true) // Used for RemoveEmptyEntries
                 {
                     if (_start > _span.Length)
                     {
@@ -45,25 +45,28 @@ namespace System
                         return false;
                     }
 
-                    ReadOnlySpan<T> slice = _start == 0 ? _span : _span.Slice(_start);
-                    int index = slice.IndexOf(_separator);
+                    ReadOnlySpan<T> slice = _start == 0
+                        ? _span
+                        : _span.Slice(_start);
 
-                    switch (index)
+                    int end = _start;
+                    if (slice.Length > 0)
                     {
-                        case -1:
-                            index = slice.Length;
-                            break;
+                        int index = slice.IndexOf(_separator);
 
-                        case 0:
-                            if (_removeEmpty)
-                            {
-                                _start++;
-                                continue;
-                            }
-                            break;
+                        if (index == -1)
+                        {
+                            index = slice.Length;
+                        }
+                        else if (index == 0 && _removeEmpty)
+                        {
+                            _start++;
+                            continue; // Loop
+                        }
+
+                        end += index;
                     }
 
-                    int end = _start + index;
                     _current = new Range(_start, end);
                     _start = end + 1;
 
