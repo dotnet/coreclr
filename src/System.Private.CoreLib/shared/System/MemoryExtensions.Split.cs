@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
-
 namespace System
 {
     public static partial class MemoryExtensions
@@ -13,7 +11,7 @@ namespace System
             where T : IEquatable<T>
 #nullable restore
         {
-            return new SpanSplitEnumerator<T>();
+            return new SpanSplitEnumerator<T>(span, separator, options);
         }
 
         public ref struct SpanSplitEnumerator<T>
@@ -21,11 +19,77 @@ namespace System
             where T : IEquatable<T>
 #nullable restore
         {
-            public SpanSplitEnumerator<T> GetEnumerator() { return this; }
+            private readonly ReadOnlySpan<T> _span;
+            private readonly T _separator;
+            private readonly bool _removeEmpty;
+            private bool _started;
+            private Range _current;
 
-            public bool MoveNext() => true;
+            /// <summary>
+            /// Implements the IEnumerator pattern.
+            /// </summary>
+            public SpanSplitEnumerator<T> GetEnumerator() => this;
 
-            public Range Current => default;
+            /// <summary>
+            /// Implements the IEnumerator pattern.
+            /// </summary>
+            public bool MoveNext()
+            {
+                int start = _started ? _current.End.Value + 1 : 0;
+                _started = true;
+
+                int end = start;
+                for (; end < _span.Length; end++)
+                {
+                    if (_span[end].Equals(_separator))
+                    {
+                        if (_removeEmpty
+                            && end - start == 0)
+                        {
+                            start = end + 1;
+                            continue;
+                        }
+
+                        goto found;
+                    }
+
+                    if (end == _span.Length - 1)
+                    {
+                        goto found;
+                    }
+                }
+
+                return false;
+
+            found:
+                _current = new Range(new Index(start), new Index(end));
+                return true;
+            }
+
+            /// <summary>
+            /// Implements the IEnumerator pattern.
+            /// </summary>
+            public Range Current
+            {
+                get
+                {
+                    if (!_started)
+                    {
+                        ThrowHelper.ThrowInvalidOperationException_InvalidOperation_EnumOpCantHappen();
+                    }
+
+                    return _current;
+                }
+            }
+
+            internal SpanSplitEnumerator(ReadOnlySpan<T> span, T separator, StringSplitOptions options)
+            {
+                _span = span;
+                _separator = separator;
+                _removeEmpty = (options & StringSplitOptions.RemoveEmptyEntries) != 0;
+                _started = false;
+                _current = default;
+            }
         }
     }
 }
