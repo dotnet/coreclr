@@ -18,9 +18,6 @@ parameters:
 
 jobs:
 
-# TODO: simplify osIdentifier by adding osGroup and osSubGroup. See
-# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
-
 # Linux arm
 
 - ${{ if or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
