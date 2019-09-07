@@ -24,7 +24,7 @@ jobs:
 
 # Linux arm
 
-- ${{ if eq(parameters.combos.linuxArm, true) }}:
+- ${{ if parameters.combos.linuxArm }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -32,8 +32,8 @@ jobs:
       archType: arm
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: ${{ variables.armUnixManagedBuildOSGroup }}
-      managedBuildOsIdentifier: ${{ variables.armUnixManagedBuildOSIdentifier }}
+      managedBuildOsGroup: Linux
+      managedBuildOsIdentifier: Linux
       container:
         image: ubuntu-16.04-cross-14.04-23cacb0-20190528233931
         registry: mcr
@@ -45,15 +45,11 @@ jobs:
         - (Ubuntu.1604.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-16.04-helix-arm32v7-30f6673-20190814153219
         - (Ubuntu.1804.Arm32)Ubuntu.1604.Arm32@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm32v7-30f6673-20190814153226
       crossrootfsDir: '/crossrootfs/arm'
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux arm64
 
-- ${{ if eq(parameters.combos.linuxArm64, true) }}:
+- ${{ if parameters.combos.linuxArm64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -61,8 +57,8 @@ jobs:
       archType: arm64
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: $(arm64UnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(arm64UnixManagedBuildOSIdentifier)
+      managedBuildOsGroup: Linux
+      managedBuildOsIdentifier: Linux
       container:
         image: ubuntu-16.04-cross-arm64-cfdd435-20190520220848
         registry: mcr
@@ -75,15 +71,11 @@ jobs:
         - (Debian.9.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:debian-9-helix-arm64v8-74c9941-20190620155840
         - (Ubuntu.1804.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:ubuntu-18.04-helix-arm64v8-a45aeeb-20190620155855
       crossrootfsDir: '/crossrootfs/arm64'
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux musl x64
 
-- ${{ if eq(parameters.combos.linuxMuslX64, true) }}:
+- ${{ if parameters.combos.linuxMuslX64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -91,8 +83,15 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux_musl
-      managedBuildOsGroup: $(x64UnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(x64UnixManagedBuildOSIdentifier)
+      ${{ if parameters.combos.osxX64 }}:
+        managedBuildOsGroup: OSX
+        managedBuildOsIdentifier: OSX
+      ${{ if and(!parameters.combos.osxX64, parameters.combos.linuxX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux
+      ${{ if and(!parameters.combos.osxX64, !parameters.combos.linuxX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux_musl
       container:
         image: alpine-3.6-WithNode-cfdd435-20190521001804
         registry: mcr
@@ -102,15 +101,11 @@ jobs:
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - (Alpine.38.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
         - (Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux musl arm64
 
-- ${{ if eq(parameters.combos.linuxMuslArm64, true) }}:
+- ${{ if parameters.combos.linuxMuslArm64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -118,8 +113,11 @@ jobs:
       archType: arm64
       osGroup: Linux
       osIdentifier: Linux_musl
-      managedBuildOsGroup: $(arm64UnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(arm64UnixManagedBuildOSIdentifier)
+      managedBuildOsGroup: Linux
+      ${{ if parameters.combos.linuxArm64 }}:
+        managedBuildOsIdentifier: Linux
+      ${{ if !parameters.combos.linuxArm64 }}:
+        managedBuildOsIdentifier: Linux_musl
       container:
         image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
         registry: mcr
@@ -129,15 +127,11 @@ jobs:
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - (Alpine.38.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-a45aeeb-20190620184035
       crossrootfsDir: '/crossrootfs/arm64'
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux rhel6 x64
 
-- ${{ if eq(parameters.combos.linuxRhel6X64, true) }}:
+- ${{ if parameters.combos.linuxRhel6X64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -145,8 +139,18 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux_rhel6
-      managedBuildOsGroup: $(x64UnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(x64UnixManagedBuildOSIdentifier)
+      ${{ if parameters.combos.osxX64 }}:
+        managedBuildOsGroup: OSX
+        managedBuildOsIdentifier: OSX
+      ${{ if and(!parameters.combos.osxX64, parameters.combos.linuxX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux
+      ${{ if and(!parameters.combos.osxX64, !parameters.combos.linuxX64, parameters.combos.linuxMuslX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux_musl
+      ${{ if and(!parameters.combos.osxX64, !parameters.combos.linuxX64, !parameters.combos.linuxMuslX64) }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux_rhel6
       container:
         image: centos-6-3e800f1-20190501005338
         registry: mcr
@@ -154,15 +158,11 @@ jobs:
       # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - RedHat.6.Amd64
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Linux x64
 
-- ${{ if eq(parameters.combos.linuxX64, true) }}:
+- ${{ if parameters.combos.linuxX64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -170,8 +170,12 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: $(x64UnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(x64UnixManagedBuildOSIdentifier)
+      ${{ if parameters.combos.osxX64 }}:
+        managedBuildOsGroup: OSX
+        managedBuildOsIdentifier: OSX
+      ${{ if !parameters.combos.osxX64 }}:
+        managedBuildOsGroup: Linux
+        managedBuildOsIdentifier: Linux
       container:
         image: centos-7-3e800f1-20190501005343
         registry: mcr
@@ -191,10 +195,6 @@ jobs:
         - Centos.7.Amd64
         - (Fedora.28.Amd64)Ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:fedora-28-helix-09ca40b-20190508143249
         - RedHat.7.Amd64
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # FreeBSD
@@ -216,7 +216,7 @@ jobs:
 
 # macOS x64
 
-- ${{ if eq(parameters.combos.osxX64, true) }}:
+- ${{ if parameters.combos.osxX64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -224,8 +224,8 @@ jobs:
       archType: x64
       osGroup: OSX
       osIdentifier: OSX
-      managedBuildOsGroup: $(x64UnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(x64UnixManagedBuildOSIdentifier)
+      managedBuildOsGroup: OSX
+      managedBuildOsIdentifier: OSX
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - OSX.1013.Amd64.Open
@@ -235,15 +235,11 @@ jobs:
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
         - OSX.1013.Amd64
         - OSX.1014.Amd64
-      variables:
-      - template: /eng/platform-matrix-vars.yml
-        parameters:
-          combos: ${{ parameters.combos }}
       ${{ insert }}: ${{ parameters.jobParameters }}
 
 # Windows x64
 
-- ${{ if eq(parameters.combos.windowsX64, true) }}:
+- ${{ if parameters.combos.windowsX64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -271,7 +267,7 @@ jobs:
 
 # Windows x86
 
-- ${{ if eq(parameters.combos.windowsX86, true) }}:
+- ${{ if parameters.combos.windowsX86 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -297,7 +293,7 @@ jobs:
 
 # Windows arm
 
-- ${{ if eq(parameters.combos.windowsArm, true) }}:
+- ${{ if parameters.combos.windowsArm }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -319,7 +315,7 @@ jobs:
 
 # Windows arm64
 
-- ${{ if eq(parameters.combos.windowsArm64, true) }}:
+- ${{ if parameters.combos.windowsArm64 }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
