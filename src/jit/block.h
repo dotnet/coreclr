@@ -1063,6 +1063,11 @@ struct BasicBlock : private LIR::Range
     Statement* firstStmt() const;
     Statement* lastStmt() const;
 
+    StatementList Statements() const
+    {
+        return StatementList(firstStmt());
+    }
+
     GenTree* firstNode();
     GenTree* lastNode();
 

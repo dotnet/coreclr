@@ -569,7 +569,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             fgWalkTreePre(&stmt->gtStmtExpr, visitor, pCallBackData);
         }
@@ -11468,24 +11468,11 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
     }
 }
 
-//------------------------------------------------------------------------
-// gtDispArgList: Dump the tree for a call arg list
-//
-// Arguments:
-//    tree         - The call for which 'arg' is an argument
-//    indentStack  - the specification for the current level of indentation & arcs
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'tree' must be a GT_LIST node
-
-void Compiler::gtDispStmtList(Statement* stmts, IndentStack* indentStack /* = nullptr */)
+void Compiler::gtDispBlockStmts(BasicBlock* block)
 {
-    for (Statement* stmt = stmts; stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : block->Statements())
     {
-        gtDispTree(stmt->gtStmtExpr, indentStack);
+        gtDispTree(stmt->gtStmtExpr);
         printf("\n");
     }
 }

@@ -15589,9 +15589,9 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(cons
     if (fgRemoveRestOfBlock)
     {
         // Remove the rest of the stmts in the block
-        for (stmt = stmt->getNextStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* removeStmt : StatementList(stmt->gtNext))
         {
-            fgRemoveStmt(block, stmt);
+            fgRemoveStmt(block, removeStmt);
         }
 
         // The rest of block has been removed and we will always throw an exception.
@@ -16767,7 +16767,7 @@ void Compiler::fgExpandQmarkNodes()
     {
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt : block->Statements())
             {
                 GenTree* expr = stmt->gtStmtExpr;
 #ifdef DEBUG
@@ -16793,7 +16793,7 @@ void Compiler::fgPostExpandQmarkChecks()
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             GenTree* expr = stmt->gtStmtExpr;
             fgWalkTreePre(&expr, Compiler::fgAssertNoQmark, nullptr);
@@ -18713,7 +18713,7 @@ void Compiler::fgMarkAddressExposedLocals()
         // Make the current basic block address available globally
         compCurBB = block;
 
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             visitor.VisitStmt(stmt);
         }

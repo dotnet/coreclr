@@ -111,7 +111,7 @@ void Compiler::fgResetForSsa()
         // but only for reachable code, so clear them to avoid analysis getting confused
         // by stale annotations in unreachable code.
         blk->bbPostOrderNum = 0;
-        for (Statement* stmt = blk->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : blk->Statements())
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -652,7 +652,7 @@ void SsaBuilder::ComputeIteratedDominanceFrontier(BasicBlock* b, const BlkToBlkV
 static GenTree* GetPhiNode(BasicBlock* block, unsigned lclNum)
 {
     // Walk the statements for phi nodes.
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : block->Statements())
     {
         // A prefix of the statements of the block are phi definition nodes. If we complete processing
         // that prefix, exit.
@@ -1067,7 +1067,7 @@ void SsaBuilder::AddDefToHandlerPhis(BasicBlock* block, unsigned lclNum, unsigne
                 bool phiFound = false;
 #endif
                 // A prefix of blocks statements will be SSA definitions.  Search those for "lclNum".
-                for (Statement* stmt = handler->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+                for (Statement* stmt : handler->Statements())
                 {
                     // If the tree is not an SSA def, break out of the loop: we're done.
                     if (!stmt->IsPhiDefnStmt())
@@ -1228,7 +1228,7 @@ void SsaBuilder::BlockRenameVariables(BasicBlock* block, SsaRenameState* pRename
     // Statements are phi defns until they aren't.
     bool       isPhiDefn   = true;
     Statement* firstNonPhi = block->FirstNonPhiDef();
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : block->Statements())
     {
         if (stmt == firstNonPhi)
         {
@@ -1293,12 +1293,17 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
     for (BasicBlock* succ : block->GetAllSuccs(m_pCompiler))
     {
         // Walk the statements for phi nodes.
-        for (Statement* stmt = succ->firstStmt(); stmt != nullptr && stmt->IsPhiDefnStmt(); stmt = stmt->getNextStmt())
+        for (Statement* stmt : succ->Statements())
         {
-            GenTree* tree = stmt->gtStmtExpr;
-            assert(tree->IsPhiDefn());
+            // A prefix of the statements of the block are phi definition nodes. If we complete processing
+            // that prefix, exit.
+            if (!stmt->IsPhiDefnStmt())
+            {
+                break;
+            }
 
-            GenTreePhi* phi = tree->gtGetOp2()->AsPhi();
+            GenTree*    tree = stmt->gtStmtExpr;
+            GenTreePhi* phi  = tree->gtGetOp2()->AsPhi();
 
             unsigned lclNum = tree->gtOp.gtOp1->gtLclVar.gtLclNum;
             unsigned ssaNum = pRenameState->Top(lclNum);
@@ -1419,7 +1424,7 @@ void SsaBuilder::AssignPhiNodeRhsVariables(BasicBlock* block, SsaRenameState* pR
                 // For a filter, we consider the filter to be the "real" handler.
                 BasicBlock* handlerStart = succTry->ExFlowBlock();
 
-                for (Statement* stmt = handlerStart->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+                for (Statement* stmt : handlerStart->Statements())
                 {
                     GenTree* tree = stmt->gtStmtExpr;
 
@@ -1662,7 +1667,7 @@ void SsaBuilder::Print(BasicBlock** postOrder, int count)
     for (int i = count - 1; i >= 0; --i)
     {
         printf("After SSA " FMT_BB ":\n", postOrder[i]->bbNum);
-        m_pCompiler->gtDispStmtList(postOrder[i]->bbStmtList);
+        m_pCompiler->gtDispBlockStmts(postOrder[i]);
     }
 }
 #endif // DEBUG

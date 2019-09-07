@@ -5203,6 +5203,52 @@ struct Statement
     }
 };
 
+class StatementIterator
+{
+    Statement* m_stmt;
+
+public:
+    StatementIterator(Statement* stmt) : m_stmt(stmt)
+    {
+    }
+
+    Statement* operator*() const
+    {
+        return m_stmt;
+    }
+
+    StatementIterator& operator++()
+    {
+        m_stmt = m_stmt->gtNext;
+        return *this;
+    }
+
+    bool operator!=(const StatementIterator& i) const
+    {
+        return m_stmt != i.m_stmt;
+    }
+};
+
+class StatementList
+{
+    Statement* m_stmts;
+
+public:
+    StatementList(Statement* stmts) : m_stmts(stmts)
+    {
+    }
+
+    StatementIterator begin() const
+    {
+        return StatementIterator(m_stmts);
+    }
+
+    StatementIterator end() const
+    {
+        return StatementIterator(nullptr);
+    }
+};
+
 /*  NOTE: Any tree nodes that are larger than 8 bytes (two ints or
     pointers) must be flagged as 'large' in GenTree::InitNodeSize().
  */

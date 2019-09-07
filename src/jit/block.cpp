@@ -631,7 +631,7 @@ bool BasicBlock::CloneBlockState(
     to->bbTgtStkDepth = from->bbTgtStkDepth;
 #endif // DEBUG
 
-    for (Statement* fromStmt = from->firstStmt(); fromStmt != nullptr; fromStmt = fromStmt->getNextStmt())
+    for (Statement* fromStmt : from->Statements())
     {
         auto newExpr = compiler->gtCloneExpr(fromStmt->gtStmtExpr, 0, varNum, varVal);
         if (!newExpr)

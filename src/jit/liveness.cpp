@@ -494,7 +494,7 @@ void Compiler::fgPerBlockLocalVarLiveness()
         }
         else
         {
-            for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
             {
                 compCurStmt = stmt;
                 for (GenTree* node = stmt->gtStmtList; node != nullptr; node = node->gtNext)

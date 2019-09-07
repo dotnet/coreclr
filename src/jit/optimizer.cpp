@@ -1302,7 +1302,7 @@ bool Compiler::optRecordLoop(BasicBlock*   head,
             do
             {
                 block = block->bbNext;
-                for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+                for (Statement* stmt : block->Statements())
                 {
                     if (stmt->gtStmtExpr == incr)
                     {
@@ -3692,7 +3692,7 @@ void Compiler::optUnrollLoops()
 
                 // Visit all the statements in the block.
 
-                for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+                for (Statement* stmt : block->Statements())
                 {
                     /* Calculate gtCostSz */
                     gtSetStmtInfo(stmt);
@@ -6018,7 +6018,7 @@ bool Compiler::optIsVarAssigned(BasicBlock* beg, BasicBlock* end, GenTree* skip,
     {
         noway_assert(beg != nullptr);
 
-        for (Statement* stmt = beg->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : beg->Statements())
         {
             if (fgWalkTreePre(&stmt->gtStmtExpr, optIsVarAssgCB, &desc))
             {
@@ -6082,7 +6082,7 @@ int Compiler::optIsSetAssgLoop(unsigned lnum, ALLVARSET_VALARG_TP vars, varRefKi
         {
             noway_assert(beg);
 
-            for (Statement* stmt = beg->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt : StatementList(beg->FirstNonPhiDef()))
             {
                 fgWalkTreePre(&stmt->gtStmtExpr, optIsVarAssgCB, &desc);
 
@@ -6820,7 +6820,7 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
 
         void HoistBlock(BasicBlock* block)
         {
-            for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
+            for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
             {
                 WalkTree(&stmt->gtStmtExpr, nullptr);
                 assert(m_valueStack.TopRef().Node() == stmt->gtStmtExpr);
@@ -7382,7 +7382,7 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
     // into the phi via the loop header block will now flow through the preheader
     // block from the header block.
 
-    for (Statement* stmt = top->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : top->Statements())
     {
         GenTree* tree = stmt->gtStmtExpr;
         if (tree->OperGet() != GT_ASG)
@@ -7622,7 +7622,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
     MemoryKindSet memoryHavoc = emptyMemoryKindSet;
 
     // Now iterate over the remaining statements, and their trees.
-    for (Statement* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : StatementList(blk->FirstNonPhiDef()))
     {
         for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
         {
@@ -8155,7 +8155,7 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
     for (BasicBlock* block = beg; block != end->bbNext; block = block->bbNext)
     {
         compCurBB = block;
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             info.stmt               = stmt;
             const bool lclVarsOnly  = false;
