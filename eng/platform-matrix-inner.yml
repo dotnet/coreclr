@@ -32,8 +32,8 @@ jobs:
       archType: arm
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: $(armUnixManagedBuildOSGroup)
-      managedBuildOsIdentifier: $(armUnixManagedBuildOSIdentifier)
+      managedBuildOsGroup: ${{ variables.armUnixManagedBuildOSGroup }}
+      managedBuildOsIdentifier: ${{ variables.armUnixManagedBuildOSIdentifier }}
       container:
         image: ubuntu-16.04-cross-14.04-23cacb0-20190528233931
         registry: mcr
