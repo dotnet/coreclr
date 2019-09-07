@@ -501,6 +501,9 @@ void IBCLogger::LogMethodAccessHelper(const MethodDesc* pMD, ULONG flagNum)
         PRECONDITION(g_IBCLogger.InstrEnabled());
     }
     CONTRACTL_END;
+#ifdef FEATURE_READYTORUN
+    static DWORD s_logGenericMethodAccess = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_ZapBBInstrR2RGenerics);
+#endif  // FEATURE_READYTORUN 
 
     {   
         // Don't set the ReadMethodCode flag for EE implemented methods such as Invoke
@@ -558,12 +561,19 @@ void IBCLogger::LogMethodAccessHelper(const MethodDesc* pMD, ULONG flagNum)
 
 #ifdef FEATURE_PREJIT
                 Module *pPZModule = Module::GetPreferredZapModuleForMethodDesc(pMD);
-                token = pPZModule->LogInstantiatedMethod(pMD, flagNum);
-                if (!IsNilToken(token))
-                {
-                    pPZModule->LogTokenAccess(token, MethodProfilingData, flagNum);
-                }
+#else
+                Module *pPZModule = pMD->GetModule();
+#ifdef FEATURE_READYTORUN
+                if (s_logGenericMethodAccess != 0)
+#endif  // FEATURE_READYTORUN 
 #endif
+                {
+                    token = pPZModule->LogInstantiatedMethod(pMD, flagNum);
+                    if (!IsNilToken(token))
+                    {
+                        pPZModule->LogTokenAccess(token, MethodProfilingData, flagNum);
+                    }
+                }
             }
             else
             {
