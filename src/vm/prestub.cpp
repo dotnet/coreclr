@@ -572,6 +572,18 @@ PCODE MethodDesc::GetPrecompiledR2RCode(PrepareCodeConfig* pConfig)
     {
         pCode = pModule->GetReadyToRunInfo()->GetEntryPoint(this, pConfig, TRUE /* fFixups */);
     }
+
+    // Lookup in the entry point assembly for a R2R entrypoint (generics with large version bubble enabled)
+    if (pCode == NULL && HasClassOrMethodInstantiation() && SystemDomain::System()->DefaultDomain()->GetRootAssembly() != NULL)
+    {
+        pModule = SystemDomain::System()->DefaultDomain()->GetRootAssembly()->GetManifestModule();
+        _ASSERT(pModule != NULL);
+
+        if (pModule->IsReadyToRun())
+        {
+            pCode = pModule->GetReadyToRunInfo()->GetEntryPoint(this, pConfig, TRUE /* fFixups */);
+        }
+    }
 #endif
     return pCode;
 }
