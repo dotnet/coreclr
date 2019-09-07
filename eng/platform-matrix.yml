@@ -28,6 +28,3 @@ jobs:
     jobParameters: ${{ parameters.jobParameters }}
     variables:
     - template: /eng/platform-matrix-vars.yml
-      parameters:
-        platforms: ${{ parameters.platforms }}
-        platformGroup: ${{ parameters.platformGroup }}
