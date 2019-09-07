@@ -6,11 +6,14 @@ namespace System
 {
     public static partial class MemoryExtensions
     {
-        public static SpanSplitEnumerator<T> Split<T>(this ReadOnlySpan<T> span, T separator, StringSplitOptions options = StringSplitOptions.None)
-#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
-            where T : IEquatable<T>
-#nullable restore
-            => new SpanSplitEnumerator<T>(span, separator, options);
+        public static SpanSplitEnumerator<char> Split(this ReadOnlySpan<char> span)
+            => new SpanSplitEnumerator<char>(span, ' '); // TODO: split on char.IsWhiteSpace
+
+        public static SpanSplitEnumerator<char> Split(this ReadOnlySpan<char> span, char separator)
+            => new SpanSplitEnumerator<char>(span, separator);
+
+        public static SpanSplitEnumerator<char> Split(this ReadOnlySpan<char> span, string separator)
+            => new SpanSplitEnumerator<char>(span, separator[0]); // TODO: Fix impl
 
         public ref struct SpanSplitEnumerator<T>
 #nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
@@ -19,7 +22,6 @@ namespace System
         {
             private readonly ReadOnlySpan<T> _span;
             private readonly T _separator;
-            private readonly bool _removeEmpty;
             private bool _started;
             private bool _ended;
             private int _start;
@@ -37,41 +39,33 @@ namespace System
             {
                 _started = true;
 
-                while (true) // Used for RemoveEmptyEntries
+                if (_start > _span.Length)
                 {
-                    if (_start > _span.Length)
-                    {
-                        _ended = true;
-                        return false;
-                    }
-
-                    ReadOnlySpan<T> slice = _start == 0
-                        ? _span
-                        : _span.Slice(_start);
-
-                    int end = _start;
-                    if (slice.Length > 0)
-                    {
-                        int index = slice.IndexOf(_separator);
-
-                        if (index == -1)
-                        {
-                            index = slice.Length;
-                        }
-                        else if (index == 0 && _removeEmpty)
-                        {
-                            _start++;
-                            continue; // Loop
-                        }
-
-                        end += index;
-                    }
-
-                    _current = new Range(_start, end);
-                    _start = end + 1;
-
-                    return true;
+                    _ended = true;
+                    return false;
                 }
+
+                ReadOnlySpan<T> slice = _start == 0
+                    ? _span
+                    : _span.Slice(_start);
+
+                int end = _start;
+                if (slice.Length > 0)
+                {
+                    int index = slice.IndexOf(_separator);
+
+                    if (index == -1)
+                    {
+                        index = slice.Length;
+                    }
+
+                    end += index;
+                }
+
+                _current = new Range(_start, end);
+                _start = end + 1;
+
+                return true;
             }
 
             /// <summary>
@@ -90,11 +84,10 @@ namespace System
                 }
             }
 
-            internal SpanSplitEnumerator(ReadOnlySpan<T> span, T separator, StringSplitOptions options)
+            internal SpanSplitEnumerator(ReadOnlySpan<T> span, T separator)
             {
                 _span = span;
                 _separator = separator;
-                _removeEmpty = (options & StringSplitOptions.RemoveEmptyEntries) != 0;
                 _started = false;
                 _ended = false;
                 _start = 0;
