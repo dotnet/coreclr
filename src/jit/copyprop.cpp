@@ -29,7 +29,7 @@
  */
 void Compiler::optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName)
 {
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+    for (Statement* stmt : block->Statements())
     {
         for (GenTree* tree = stmt->m_treeList; tree != nullptr; tree = tree->gtNext)
         {
@@ -326,7 +326,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
     // There are no definitions at the start of the block. So clear it.
     compCurLifeTree = nullptr;
     VarSetOps::Assign(this, compCurLife, block->bbLiveIn);
-    for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+    for (Statement* stmt : block->Statements())
     {
         VarSetOps::ClearD(this, optCopyPropKillSet);
 

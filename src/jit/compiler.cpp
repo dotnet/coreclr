@@ -4692,7 +4692,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         compCycleEstimate = 0;
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+            for (Statement* stmt : block->Statements())
             {
                 compSizeEstimate += stmt->GetCostSz();
                 compCycleEstimate += stmt->GetCostEx();
@@ -4823,7 +4823,7 @@ void Compiler::ResetOptAnnotations()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             for (GenTree* tree = stmt->m_treeList; tree != nullptr; tree = tree->gtNext)
             {
@@ -6987,7 +6987,7 @@ void Compiler::compCallArgStats()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             for (GenTree* call = stmt->m_treeList; call != nullptr; call = call->gtNext)
             {
@@ -8389,7 +8389,7 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             tree = dFindTree(stmt->m_rootTree, id);
             if (tree != nullptr)
@@ -8413,7 +8413,7 @@ Statement* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             stmtId++;
             if (stmtId == id)
@@ -8606,7 +8606,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (Statement* stmt = block->firstStmt(); stmt; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             // Print current stmt.
 

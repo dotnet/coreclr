@@ -240,7 +240,7 @@ void Rationalizer::SanityCheck()
     BasicBlock* block;
     foreach_block(comp, block)
     {
-        for (Statement* statement = block->firstStmt(); statement != nullptr; statement = statement->m_next)
+        for (Statement* statement : block->Statements())
         {
             ValidateStatement(statement, block);
 

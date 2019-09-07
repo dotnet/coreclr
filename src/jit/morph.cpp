@@ -16767,7 +16767,7 @@ void Compiler::fgExpandQmarkNodes()
     {
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+            for (Statement* stmt : block->Statements())
             {
                 GenTree* expr = stmt->m_rootTree;
 #ifdef DEBUG
@@ -16793,7 +16793,7 @@ void Compiler::fgPostExpandQmarkChecks()
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             GenTree* expr = stmt->m_rootTree;
             fgWalkTreePre(&expr, Compiler::fgAssertNoQmark, nullptr);
@@ -18713,7 +18713,7 @@ void Compiler::fgMarkAddressExposedLocals()
         // Make the current basic block address available globally
         compCurBB = block;
 
-        for (Statement* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             visitor.VisitStmt(stmt);
         }
