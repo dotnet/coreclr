@@ -27,14 +27,53 @@ jobs:
     ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
     jobParameters: ${{ parameters.jobParameters }}
     combos:
-      linuxArm: ${{ or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-      linuxArm64: ${{ or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-      linuxMuslX64: ${{ or(containsValue(parameters.platforms, 'Linux_musl_x64'), eq(parameters.platformGroup, 'all')) }}
-      linuxMuslArm64: ${{ or(containsValue(parameters.platforms, 'Linux_musl_arm64'), eq(parameters.platformGroup, 'all')) }}
-      linuxRhel6X64: ${{ or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), eq(parameters.platformGroup, 'all')) }}
-      linuxX64: ${{ or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-      osxX64: ${{ or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all')) }}
-      windowsX64: ${{ or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-      windowsX86: ${{ or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}
-      windowsArm: ${{ or(containsValue(parameters.platforms, 'Windows_NT_arm'), eq(parameters.platformGroup, 'all')) }}
-      windowsArm64: ${{ or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all')) }}
+      ${{ if or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+        linuxArm: true
+        osGroupArm: Linux
+        osIdentifierArm: Linux
+
+      ${{ if or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+        linuxArm64: true
+        osGroupArm64: Linux
+        osIdentifierArm64: Linux
+
+      ${{ if or(containsValue(parameters.platforms, 'Linux_musl_x64'), eq(parameters.platformGroup, 'all')) }}:
+        linuxMuslX64: true
+        ${{ if and(not(or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all'))), not(or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')))) }}:
+          osGroupX64: Linux
+          osIdentifierX64: Linux_musl
+
+      ${{ if or(containsValue(parameters.platforms, 'Linux_musl_arm64'), eq(parameters.platformGroup, 'all')) }}:
+        linuxMuslArm64: true
+        ${{ if not(or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress'))) }}:
+          osGroupArm64: Linux
+          osIdentifierArm64: Linux_musl
+
+      ${{ if or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), eq(parameters.platformGroup, 'all')) }}:
+        linuxRhel6X64: true
+        ${{ if and(not(or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all'))), not(or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress'))), not(or(containsValue(parameters.platforms, 'Linux_musl_x64'), eq(parameters.platformGroup, 'all')))) }}:
+          osGroupX64: Linux
+          osIdentifierX64: Linux_rhel6
+
+      ${{ if or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+        linuxX64: true
+        ${{ if not(or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all'))) }}:
+          osGroupX64: Linux
+          osIdentifierX64: Linux
+
+      ${{ if or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all')) }}:
+        osxX64: true
+        osGroupX64: OSX
+        osIdentifierX64: OSX
+    
+      ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+        windowsX64: true
+
+      ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
+        windowsX86: true
+
+      ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm'), eq(parameters.platformGroup, 'all')) }}:
+        windowsArm: true
+
+      ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all')) }}:
+        windowsArm64: true

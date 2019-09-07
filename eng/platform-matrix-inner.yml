@@ -24,7 +24,7 @@ jobs:
 
 # Linux arm
 
-- ${{ if parameters.combos.linuxArm }}:
+- ${{ if eq(parameters.combos.linuxArm, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -32,8 +32,8 @@ jobs:
       archType: arm
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: Linux
-      managedBuildOsIdentifier: Linux
+      managedBuildOsGroup: ${{ parameters.combos.osGroupArm }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierArm }}
       container:
         image: ubuntu-16.04-cross-14.04-23cacb0-20190528233931
         registry: mcr
@@ -49,7 +49,7 @@ jobs:
 
 # Linux arm64
 
-- ${{ if parameters.combos.linuxArm64 }}:
+- ${{ if eq(parameters.combos.linuxArm64, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -57,8 +57,8 @@ jobs:
       archType: arm64
       osGroup: Linux
       osIdentifier: Linux
-      managedBuildOsGroup: Linux
-      managedBuildOsIdentifier: Linux
+      managedBuildOsGroup: ${{ parameters.combos.osGroupArm64 }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierArm64 }}
       container:
         image: ubuntu-16.04-cross-arm64-cfdd435-20190520220848
         registry: mcr
@@ -75,7 +75,7 @@ jobs:
 
 # Linux musl x64
 
-- ${{ if parameters.combos.linuxMuslX64 }}:
+- ${{ if eq(parameters.combos.linuxMuslX64, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -83,15 +83,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux_musl
-      ${{ if parameters.combos.osxX64 }}:
-        managedBuildOsGroup: OSX
-        managedBuildOsIdentifier: OSX
-      ${{ if and(not(parameters.combos.osxX64), parameters.combos.linuxX64) }}:
-        managedBuildOsGroup: Linux
-        managedBuildOsIdentifier: Linux
-      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64)) }}:
-        managedBuildOsGroup: Linux
-        managedBuildOsIdentifier: Linux_musl
+      managedBuildOsGroup: ${{ parameters.combos.osGroupX64 }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierX64 }}
       container:
         image: alpine-3.6-WithNode-cfdd435-20190521001804
         registry: mcr
@@ -105,7 +98,7 @@ jobs:
 
 # Linux musl arm64
 
-- ${{ if parameters.combos.linuxMuslArm64 }}:
+- ${{ if eq(parameters.combos.linuxMuslArm64, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -113,11 +106,8 @@ jobs:
       archType: arm64
       osGroup: Linux
       osIdentifier: Linux_musl
-      managedBuildOsGroup: Linux
-      ${{ if parameters.combos.linuxArm64 }}:
-        managedBuildOsIdentifier: Linux
-      ${{ if not(parameters.combos.linuxArm64) }}:
-        managedBuildOsIdentifier: Linux_musl
+      managedBuildOsGroup: ${{ parameters.combos.osGroupArm64 }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierArm64 }}
       container:
         image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
         registry: mcr
@@ -131,7 +121,7 @@ jobs:
 
 # Linux rhel6 x64
 
-- ${{ if parameters.combos.linuxRhel6X64 }}:
+- ${{ if eq(parameters.combos.linuxRhel6X64, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -139,18 +129,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux_rhel6
-      ${{ if parameters.combos.osxX64 }}:
-        managedBuildOsGroup: OSX
-        managedBuildOsIdentifier: OSX
-      ${{ if and(not(parameters.combos.osxX64), parameters.combos.linuxX64) }}:
-        managedBuildOsGroup: Linux
-        managedBuildOsIdentifier: Linux
-      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64), parameters.combos.linuxMuslX64) }}:
-        managedBuildOsGroup: Linux
-        managedBuildOsIdentifier: Linux_musl
-      ${{ if and(not(parameters.combos.osxX64), not(parameters.combos.linuxX64), not(parameters.combos.linuxMuslX64)) }}:
-        managedBuildOsGroup: Linux
-        managedBuildOsIdentifier: Linux_rhel6
+      managedBuildOsGroup: ${{ parameters.combos.osGroupX64 }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierX64 }}
       container:
         image: centos-6-3e800f1-20190501005338
         registry: mcr
@@ -162,7 +142,7 @@ jobs:
 
 # Linux x64
 
-- ${{ if parameters.combos.linuxX64 }}:
+- ${{ if eq(parameters.combos.linuxX64, true) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
@@ -170,12 +150,8 @@ jobs:
       archType: x64
       osGroup: Linux
       osIdentifier: Linux
-      ${{ if parameters.combos.osxX64 }}:
-        managedBuildOsGroup: OSX
-        managedBuildOsIdentifier: OSX
-      ${{ if not(parameters.combos.osxX64) }}:
-        managedBuildOsGroup: Linux
-        managedBuildOsIdentifier: Linux
+      managedBuildOsGroup: ${{ parameters.combos.osGroupX64 }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierX64 }}
       container:
         image: centos-7-3e800f1-20190501005343
         registry: mcr
@@ -195,4 +171,138 @@ jobs:
         - Centos.7.Amd64
         - (Fedora.28.Amd64)Ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:fedora-28-helix-09ca40b-20190508143249
         - RedHat.7.Amd64
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# FreeBSD
+
+# FreeBSD machines are currenrly offline. Re-enable in the official build when
+# the machines are healthy.
+
+# - template: ${{ parameters.jobTemplate }}
+#   parameters:
+#     buildConfig: ${{ parameters.buildConfig }}
+#     archType: x64
+#     osGroup: FreeBSD
+#     osIdentifier: FreeBSD
+#     # There are no FreeBSD helix queues, so we don't run tests at the moment.
+#     helixQueues:
+#       asString: ''
+#       asArray: []
+#     ${{ insert }}: ${{ parameters.jobParameters }}
+
+# macOS x64
+
+- ${{ if eq(parameters.combos.osxX64, true) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: OSX
+      osIdentifier: OSX
+      managedBuildOsGroup: ${{ parameters.combos.osGroupX64 }}
+      managedBuildOsIdentifier: ${{ parameters.combos.osIdentifierX64 }}
+      helixQueues:
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        - OSX.1013.Amd64.Open
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        - OSX.1013.Amd64.Open
+        - OSX.1014.Amd64.Open
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - OSX.1013.Amd64
+        - OSX.1014.Amd64
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Windows x64
+
+- ${{ if eq(parameters.combos.windowsX64, true) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x64
+      osGroup: Windows_NT
+      osIdentifier: Windows_NT
+      managedBuildOsGroup: Windows_NT
+      managedBuildOsIdentifier: Windows_NT
+      helixQueues:
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        - Windows.10.Amd64.Open
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        # TODO: add Windows.10.Nano.Amd64.Open once https://github.com/dotnet/coreclr/issues/21693 has been resolved
+        - Windows.7.Amd64.Open
+        - Windows.81.Amd64.Open
+        - Windows.10.Amd64.Open
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - Windows.7.Amd64
+        - Windows.81.Amd64
+        - Windows.10.Amd64
+        - Windows.10.Amd64.Core
+        - (Windows.Nano.1803.Amd64)windows.10.amd64.serverrs4@mcr.microsoft.com/dotnet-buildtools/prereqs:nanoserver-1803-helix-amd64-05227e1-20190509225944
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Windows x86
+
+- ${{ if eq(parameters.combos.windowsX86, true) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: x86
+      osGroup: Windows_NT
+      osIdentifier: Windows_NT
+      managedBuildOsGroup: Windows_NT
+      managedBuildOsIdentifier: Windows_NT
+      helixQueues:
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        - Windows.10.Amd64.Open
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
+        - Windows.7.Amd64.Open
+        - Windows.81.Amd64.Open
+        - Windows.10.Amd64.Open
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - Windows.7.Amd64
+        - Windows.81.Amd64
+        - Windows.10.Amd64
+        - Windows.10.Amd64.Core
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Windows arm
+
+- ${{ if eq(parameters.combos.windowsArm, true) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: arm
+      osGroup: Windows_NT
+      osIdentifier: Windows_NT
+      managedBuildOsGroup: Windows_NT
+      managedBuildOsIdentifier: Windows_NT
+      helixQueues:
+      # NOTE: there are no queues specified for Windows_NT_arm public with helixQueueGroup='pr'. This means that specifying
+      # Windows_NT_arm for a PR job causes a build, but no test run. If the test build and test runs were separate jobs,
+      # this could be more explicit (and less subtle).
+      - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'ci', 'corefx')) }}:
+        - Windows.10.Arm64.Open
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - Windows.10.Arm64
+      ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Windows arm64
+
+- ${{ if eq(parameters.combos.windowsArm64, true) }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: arm64
+      osGroup: Windows_NT
+      osIdentifier: Windows_NT
+      managedBuildOsGroup: Windows_NT
+      managedBuildOsIdentifier: Windows_NT
+      helixQueues:
+      # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - Windows.10.Arm64
       ${{ insert }}: ${{ parameters.jobParameters }}
