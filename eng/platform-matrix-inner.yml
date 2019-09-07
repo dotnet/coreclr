@@ -15,7 +15,7 @@ parameters:
   helixQueueGroup: 'pr'
   ignoreDependencyOnBuildJobs: false
   jobParameters: {}
-  variables: {}
+  combos: {}
   testVar: ''
 
 jobs:
@@ -220,7 +220,7 @@ jobs:
   - template: ${{ parameters.jobTemplate }}
     parameters:
       ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
-      buildConfig: ${{ parameters.variables.testVar }}
+      buildConfig: ${{ parameters.testVar }}
       archType: x64
       osGroup: Windows_NT
       osIdentifier: Windows_NT

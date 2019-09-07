@@ -26,5 +26,7 @@ jobs:
     helixQueueGroup: ${{ parameters.helixQueueGroup }}
     ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
     jobParameters: ${{ parameters.jobParameters }}
-    variables:
-    - template: /eng/platform-matrix-vars.yml
+    testVar: varValue
+    combos:
+    - name: testVar
+      value: comboValue
