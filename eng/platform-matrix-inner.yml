@@ -102,3 +102,29 @@ jobs:
         - (Alpine.38.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-09ca40b-20190508143246
         - (Alpine.39.Amd64)ubuntu.1604.amd64@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.9-helix-09ca40b-20190508143246
       ${{ insert }}: ${{ parameters.jobParameters }}
+
+# Linux musl arm64
+
+- ${{ if parameters.combos.linuxMuslArm64 }}:
+  - template: ${{ parameters.jobTemplate }}
+    parameters:
+      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      buildConfig: ${{ parameters.buildConfig }}
+      archType: arm64
+      osGroup: Linux
+      osIdentifier: Linux_musl
+      managedBuildOsGroup: Linux
+      ${{ if parameters.combos.linuxArm64 }}:
+        managedBuildOsIdentifier: Linux
+      ${{ if not(parameters.combos.linuxArm64) }}:
+        managedBuildOsIdentifier: Linux_musl
+      container:
+        image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
+        registry: mcr
+      helixQueues:
+      - ${{ if eq(variables['System.TeamProject'], 'public') }}:
+        - (Alpine.38.Arm64.Open)Ubuntu.1604.Arm64.Docker.Open@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-a45aeeb-20190620184035
+      - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
+        - (Alpine.38.Arm64)Ubuntu.1604.Arm64.Docker@mcr.microsoft.com/dotnet-buildtools/prereqs:alpine-3.8-helix-arm64v8-a45aeeb-20190620184035
+      crossrootfsDir: '/crossrootfs/arm64'
+      ${{ insert }}: ${{ parameters.jobParameters }}
