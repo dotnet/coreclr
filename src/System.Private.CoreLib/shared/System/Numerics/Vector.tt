@@ -7,15 +7,13 @@
 <#@ import namespace="System.Runtime.InteropServices" #>
 <#@ include file="GenerationConfig.ttinclude" #><# GenerateCopyrightHeader(); #>
 
-#nullable enable
-#if netcoreapp
-using Internal.Runtime.CompilerServices;
-#endif
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Numerics.Hashing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
+
+using Internal.Runtime.CompilerServices;
 
 namespace System.Numerics
 {
@@ -75,10 +73,7 @@ namespace System.Numerics
         public static Vector<T> Zero
         {
             [Intrinsic]
-            get
-            {
-                return s_zero;
-            }
+            get => s_zero;
         }
         private static readonly Vector<T> s_zero = new Vector<T>();
 
@@ -88,20 +83,14 @@ namespace System.Numerics
         public static Vector<T> One
         {
             [Intrinsic]
-            get
-            {
-                return s_one;
-            }
+            get => s_one;
         }
         private static readonly Vector<T> s_one = new Vector<T>(GetOneValue());
 
         internal static Vector<T> AllOnes
         {
             [Intrinsic]
-            get
-            {
-                return s_allOnes;
-            }
+            get => s_allOnes;
         }
         private static readonly Vector<T> s_allOnes = new Vector<T>(GetAllBitsSetValue());
         #endregion Static Members
@@ -169,7 +158,6 @@ namespace System.Numerics
         /// </summary>
         [Intrinsic]
         public unsafe Vector(T[] values, int index)
-            : this()
         {
             if (values == null)
             {
@@ -180,100 +168,25 @@ namespace System.Numerics
             {
                 throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
             }
+            this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref values[index]));
+        }
 
-            if (Vector.IsHardwareAccelerated)
-            {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
-                {
-                    fixed (<#=typeAliases[type]#>* basePtr = &this.<#=GetRegisterFieldName(type, 0)#>)
-                    {
-                        for (int g = 0; g < Count; g++)
-                        {
-                            *(basePtr + g) = (<#=typeAliases[type]#>)(object)values[g + index];
-                        }
-                    }
-                }
-<#
-    }
-#>
-            }
-            else
-            {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
-                {
-                    fixed (<#=typeAliases[type]#>* basePtr = &this.<#=GetRegisterFieldName(type, 0)#>)
-                    {
-<#
-        for (int g = 0; g < GetNumFields(type, totalSize); g++)
+        internal unsafe Vector(void* dataPointer)
         {
-#>
-                        *(basePtr + <#=g#>) = (<#=typeAliases[type]#>)(object)values[<#=g#> + index];
-<#
+            ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
+            this = Unsafe.ReadUnaligned<Vector<T>>(ref *(byte*)dataPointer);
         }
-#>
-                    }
-                }
-<#
-    }
-#>
-            }
-        }
-
-#pragma warning disable 3001 // void* is not a CLS-Compliant argument type
-        internal unsafe Vector(void* dataPointer) : this(dataPointer, 0) { }
-#pragma warning restore 3001 // void* is not a CLS-Compliant argument type
-
-#pragma warning disable 3001 // void* is not a CLS-Compliant argument type
-        // Implemented with offset if this API ever becomes public; an offset of 0 is used internally.
-        internal unsafe Vector(void* dataPointer, int offset)
-            : this()
-        {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-            <#=GenerateIfStatementHeader(type)#>
-            {
-                <#=typeAliases[type]#>* castedPtr = (<#=typeAliases[type]#>*)dataPointer;
-                castedPtr += offset;
-                fixed (<#=typeAliases[type]#>* registerBase = &this.<#=GetRegisterFieldName(type, 0)#>)
-                {
-                    for (int g = 0; g < Count; g++)
-                    {
-                        registerBase[g] = castedPtr[g];
-                    }
-                }
-            }
-<#
-    }
-#>
-            else
-            {
-                throw new NotSupportedException(SR.Arg_TypeNotSupported);
-            }
-        }
-#pragma warning restore 3001 // void* is not a CLS-Compliant argument type
 
         private Vector(ref Register existingRegister)
         {
             this.register = existingRegister;
         }
 
-#if netcoreapp
         /// <summary>
         /// Constructs a vector from the given <see cref="ReadOnlySpan{Byte}"/>. The span must contain at least <see cref="Vector{Byte}.Count"/> elements.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector(ReadOnlySpan<byte> values)
-            : this()
         {
             ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
             if (values.Length < Vector<byte>.Count)
@@ -282,13 +195,12 @@ namespace System.Numerics
             }
             this = Unsafe.ReadUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(values));
         }
-        
+
         /// <summary>
         /// Constructs a vector from the given <see cref="ReadOnlySpan{T}"/>. The span must contain at least <see cref="Vector{T}.Count"/> elements.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector(ReadOnlySpan<T> values)
-            : this()
         {
             if (values.Length < Count)
             {
@@ -302,7 +214,6 @@ namespace System.Numerics
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Vector(Span<T> values)
-            : this()
         {
             if (values.Length < Count)
             {
@@ -310,7 +221,6 @@ namespace System.Numerics
             }
             this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref MemoryMarshal.GetReference(values)));
         }
-#endif
         #endregion Constructors
 
         #region Public Instance Methods
@@ -351,7 +261,7 @@ namespace System.Numerics
         /// <exception cref="ArgumentNullException">If the destination array is null</exception>
         /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination array</exception>
         [Intrinsic]
-        public unsafe readonly void CopyTo(T[] destination)
+        public readonly void CopyTo(T[] destination)
         {
             CopyTo(destination, 0);
         }
@@ -365,7 +275,7 @@ namespace System.Numerics
         /// <exception cref="ArgumentOutOfRangeException">If index is greater than end of the array or index is less than zero</exception>
         /// <exception cref="ArgumentException">If number of elements in source vector is greater than those available in destination array</exception>
         [Intrinsic]
-        public unsafe readonly void CopyTo(T[] destination, int startIndex)
+        public readonly unsafe void CopyTo(T[] destination, int startIndex)
         {
             if (destination == null)
             {
@@ -381,58 +291,13 @@ namespace System.Numerics
                 throw new ArgumentException(SR.Format(SR.Arg_ElementsInSourceIsGreaterThanDestination, startIndex));
             }
 
-            if (Vector.IsHardwareAccelerated)
-            {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
-                {
-                    <#=typeAliases[type]#>[] <#=type.Name.ToLowerInvariant()#>Array = (<#=typeAliases[type]#>[])(object)destination;
-                    fixed (<#=typeAliases[type]#>* destinationBase = <#=type.Name.ToLowerInvariant()#>Array)
-                    {
-                        for (int g = 0; g < Count; g++)
-                        {
-                            destinationBase[startIndex + g] = (<#=typeAliases[type]#>)(object)this[g];
-                        }
-                    }
-                }
-<#
-    }
-#>
-            }
-            else
-            {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
-                {
-                    <#=typeAliases[type]#>[] <#=type.Name.ToLowerInvariant()#>Array = (<#=typeAliases[type]#>[])(object)destination;
-                    fixed (<#=typeAliases[type]#>* destinationBase = <#=type.Name.ToLowerInvariant()#>Array)
-                    {
-<#
-        for (int g = 0; g < GetNumFields(type, totalSize); g++)
-        {
-#>
-                        destinationBase[startIndex + <#=g#>] = this.<#=GetRegisterFieldName(type, g)#>;
-<#
-        }
-#>
-                    }
-                }
-<#
-    }
-#>
-            }
+            Unsafe.WriteUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref destination[startIndex]), this);
         }
 
         /// <summary>
         /// Returns the element at the given index.
         /// </summary>
-        public unsafe readonly T this[int index]
+        public readonly unsafe T this[int index]
         {
             [Intrinsic]
             get
@@ -441,24 +306,8 @@ namespace System.Numerics
                 {
                     throw new IndexOutOfRangeException(SR.Format(SR.Arg_ArgumentOutOfRangeException, index));
                 }
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
-                {
-                    fixed (<#=typeAliases[type]#>* basePtr = &this.<#=GetRegisterFieldName(type, 0)#>)
-                    {
-                        return (T)(object)*(basePtr + index);
-                    }
-                }
-<#
-    }
-#>
-                else
-                {
-                    throw new NotSupportedException(SR.Arg_TypeNotSupported);
-                }
+
+                return Unsafe.Add(ref Unsafe.As<Vector<T>, T>(ref Unsafe.AsRef<Vector<T>>(in this)), index);
             }
         }
 
@@ -547,21 +396,43 @@ namespace System.Numerics
 
             if (Vector.IsHardwareAccelerated)
             {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
+                if (typeof(T) == typeof(byte) ||
+                    typeof(T) == typeof(sbyte) ||
+                    typeof(T) == typeof(ushort) ||
+                    typeof(T) == typeof(short) ||
+                    typeof(T) == typeof(int) ||
+                    typeof(T) == typeof(uint))
                 {
-                    for (int g = 0; g < Count; g++)
+                    for (int g = 0; g < Unsafe.SizeOf<Vector<T>>() / sizeof(int); g++)
                     {
-                        hash = HashHelpers.Combine(hash, ((<#=typeAliases[type]#>)(object)this[g]).GetHashCode());
+                        hash = HashCode.Combine(hash, Unsafe.Add(ref Unsafe.As<Vector<T>, int>(ref Unsafe.AsRef<Vector<T>>(in this)), g).GetHashCode());
                     }
                     return hash;
                 }
-<#
-    }
-#>
+                else if (typeof(T) == typeof(long) || typeof(T) == typeof(ulong))
+                {
+                    for (int g = 0; g < Unsafe.SizeOf<Vector<T>>() / sizeof(long); g++)
+                    {
+                        hash = HashCode.Combine(hash, Unsafe.Add(ref Unsafe.As<Vector<T>, long>(ref Unsafe.AsRef<Vector<T>>(in this)), g).GetHashCode());
+                    }
+                    return hash;
+                }
+                else if (typeof(T) == typeof(float))
+                {
+                    for (int g = 0; g < Count; g++)
+                    {
+                        hash = HashCode.Combine(hash, ((float)(object)this[g]).GetHashCode());
+                    }
+                    return hash;
+                }
+                else if (typeof(T) == typeof(double))
+                {
+                    for (int g = 0; g < Count; g++)
+                    {
+                        hash = HashCode.Combine(hash, ((double)(object)this[g]).GetHashCode());
+                    }
+                    return hash;
+                }
                 else
                 {
                     throw new NotSupportedException(SR.Arg_TypeNotSupported);
@@ -569,25 +440,39 @@ namespace System.Numerics
             }
             else
             {
-<#
-    foreach (Type type in supportedTypes)
-    {
-#>
-                <#=GenerateIfStatementHeader(type)#>
+                if (typeof(T) == typeof(byte) ||
+                    typeof(T) == typeof(sbyte) ||
+                    typeof(T) == typeof(ushort) ||
+                    typeof(T) == typeof(short) ||
+                    typeof(T) == typeof(int) ||
+                    typeof(T) == typeof(uint))
                 {
-<#
-        for (int g = 0; g < GetNumFields(type, totalSize); g++)
-        {
-#>
-                    hash = HashHelpers.Combine(hash, this.<#=GetRegisterFieldName(type, g)#>.GetHashCode());
-<#
-        }
-#>
+                    return HashCode.Combine(
+                        this.register.int32_0.GetHashCode(),
+                        this.register.int32_1.GetHashCode(),
+                        this.register.int32_2.GetHashCode(),
+                        this.register.int32_3.GetHashCode());
+                }
+                else if (typeof(T) == typeof(long) || typeof(T) == typeof(ulong))
+                {
+                    return HashCode.Combine(
+                        this.register.int64_0.GetHashCode(),
+                        this.register.int64_1.GetHashCode());
+                }
+                else if (typeof(T) == typeof(float))
+                {
+                    hash = HashCode.Combine(hash, this.register.single_0.GetHashCode());
+                    hash = HashCode.Combine(hash, this.register.single_1.GetHashCode());
+                    hash = HashCode.Combine(hash, this.register.single_2.GetHashCode());
+                    hash = HashCode.Combine(hash, this.register.single_3.GetHashCode());
                     return hash;
                 }
-<#
-    }
-#>
+                else if (typeof(T) == typeof(double))
+                {
+                    hash = HashCode.Combine(hash, this.register.double_0.GetHashCode());
+                    hash = HashCode.Combine(hash, this.register.double_1.GetHashCode());
+                    return hash;
+                }
                 else
                 {
                     throw new NotSupportedException(SR.Arg_TypeNotSupported);
@@ -863,10 +748,8 @@ namespace System.Numerics
         /// <param name="factor">The scalar value.</param>
         /// <returns>The scaled vector.</returns>
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        public static Vector<T> operator *(Vector<T> value, T factor)
-        {
-            return new Vector<T>(factor) * value;
-        }
+        public static Vector<T> operator *(Vector<T> value, T factor) =>
+            new Vector<T>(factor) * value;
 
         /// <summary>
         /// Multiplies a vector by the given scalar.
@@ -875,10 +758,8 @@ namespace System.Numerics
         /// <param name="value">The source vector.</param>
         /// <returns>The scaled vector.</returns>
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        public static Vector<T> operator *(T factor, Vector<T> value)
-        {
-            return new Vector<T>(factor) * value;
-        }
+        public static Vector<T> operator *(T factor, Vector<T> value) =>
+            new Vector<T>(factor) * value;
 
         // This method is intrinsic only for certain types. It cannot access fields directly unless we are sure the context is unaccelerated.
         /// <summary>
@@ -946,10 +827,7 @@ namespace System.Numerics
         /// </summary>
         /// <param name="value">The source vector.</param>
         /// <returns>The negated vector.</returns>
-        public static Vector<T> operator -(Vector<T> value)
-        {
-            return Zero - value;
-        }
+        public static Vector<T> operator -(Vector<T> value) => Zero - value;
         #endregion Arithmetic Operators
 
         #region Bitwise Operators
@@ -1052,10 +930,8 @@ namespace System.Numerics
         /// <param name="value">The source vector.</param>
         /// <returns>The one's complement vector.</returns>
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        public static Vector<T> operator ~(Vector<T> value)
-        {
-            return s_allOnes ^ value;
-        }
+        public static Vector<T> operator ~(Vector<T> value) =>
+            s_allOnes ^ value;
         #endregion Bitwise Operators
 
         #region Logical Operators
@@ -1067,10 +943,8 @@ namespace System.Numerics
         /// <returns>True if all elements are equal; False otherwise.</returns>
         [Intrinsic]
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(Vector<T> left, Vector<T> right)
-        {
-            return left.Equals(right);
-        }
+        public static bool operator ==(Vector<T> left, Vector<T> right) =>
+            left.Equals(right);
 
         /// <summary>
         /// Returns a boolean indicating whether any single pair of elements in the given vectors are not equal.
@@ -1080,10 +954,7 @@ namespace System.Numerics
         /// <returns>True if left and right are not equal; False otherwise.</returns>
         [Intrinsic]
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
-        public static bool operator !=(Vector<T> left, Vector<T> right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(Vector<T> left, Vector<T> right) => !(left == right);
         #endregion Logical Operators
 
         #region Conversions
@@ -1105,10 +976,8 @@ namespace System.Numerics
         }
 #>
         [Intrinsic]
-        public static explicit operator Vector<<#=typeAliases[type]#>>(Vector<T> value)
-        {
-            return new Vector<<#=typeAliases[type]#>>(ref value.register);
-        }
+        public static explicit operator Vector<<#=typeAliases[type]#>>(Vector<T> value) =>
+            new Vector<<#=typeAliases[type]#>>(ref value.register);
 
 <#
     }
