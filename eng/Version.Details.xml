@@ -26,9 +26,9 @@
       <Uri>https://github.com/dotnet/corefx</Uri>
       <Sha>961b953eb77922d3906506ee15a58068abfa3284</Sha>
     </Dependency>
-    <Dependency Name="Microsoft.NETCore.App" Version="3.1.0-preview1.19457.10">
+    <Dependency Name="Microsoft.NETCore.App" Version="3.1.0-preview1.19458.7">
       <Uri>https://github.com/dotnet/core-setup</Uri>
-      <Sha>e82ca592278b19fa8359c30ecbbc80cf0ae9e4ac</Sha>
+      <Sha>604ef7a61aea16bc63a402dfcb2bbe5e6b7c5971</Sha>
     </Dependency>
     <Dependency Name="optimization.IBC.CoreCLR" Version="99.99.99-master-20190807.1">
       <Uri>https://dev.azure.com/dnceng/internal/_git/dotnet-optimization</Uri>
