@@ -113,8 +113,9 @@ namespace CoreclrTestLib
             }
             else
             {
+                string coreRoot = Environment.GetEnvironmentVariable("CORE_ROOT");
                 ProcessStartInfo createdumpInfo = new ProcessStartInfo("sudo");
-                createdumpInfo.Arguments = $"createdump --name \"{path}\" {process.Id} -h";
+                createdumpInfo.Arguments = $"{Path.Combine(coreRoot, "createdump")} --name \"{path}\" {process.Id} -h";
                 Process createdump = Process.Start(createdumpInfo);
                 return createdump.WaitForExit(DEFAULT_TIMEOUT) && createdump.ExitCode == 0;
             }
@@ -227,11 +228,6 @@ namespace CoreclrTestLib
             // timeout.
             string environmentVar = Environment.GetEnvironmentVariable(TIMEOUT_ENVIRONMENT_VAR);
             int timeout = environmentVar != null ? int.Parse(environmentVar) : DEFAULT_TIMEOUT;
-
-            // Check if we are running in Windows
-            string operatingSystem = System.Environment.GetEnvironmentVariable("OS");
-
-            // We can't yet take crash dumps on non-Windows OSs for timed-out tests
             bool collectCrashDumps = Environment.GetEnvironmentVariable(COLLECT_DUMPS_ENVIRONMENT_VAR) != null;
 
             var outputStream = new FileStream(outputFile, FileMode.Create);
