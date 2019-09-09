@@ -126,8 +126,13 @@ namespace System.Runtime.CompilerServices
         // If there is not enough stack, then it throws System.InsufficientExecutionStackException.
         // Note: this method is not part of the CER support, and is not to be confused with ProbeForSufficientStack
         // below.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void EnsureSufficientExecutionStack();
+        public static void EnsureSufficientExecutionStack()
+        {
+            if (!TryEnsureSufficientExecutionStack())
+            {
+                ThrowInsufficientExecutionStackException();
+            }
+        }
 
         // This method ensures that there is sufficient stack to execute the average Framework function.
         // If there is not enough stack, then it return false.
@@ -135,6 +140,9 @@ namespace System.Runtime.CompilerServices
         // below.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern bool TryEnsureSufficientExecutionStack();
+
+        private static void ThrowInsufficientExecutionStackException() =>
+            throw new InsufficientExecutionStackException();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object? userData);

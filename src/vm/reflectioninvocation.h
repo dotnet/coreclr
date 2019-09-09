@@ -55,7 +55,6 @@ public:
     static FCDECL1(void, PrepareDelegate, Object* delegateUNSAFE);
     static FCDECL1(void, PrepareContractedDelegate, Object* delegateUNSAFE);
     static FCDECL0(void, ProbeForSufficientStack);    
-    static FCDECL0(void, EnsureSufficientExecutionStack);
     static FCDECL0(FC_BOOL_RET, TryEnsureSufficientExecutionStack);
     static FCDECL3(void, ExecuteCodeWithGuaranteedCleanup, Object* pCodeDelegateUNSAFE, Object* pBackoutDelegateUNSAFE, Object* pUserDataUNSAFE);
 
