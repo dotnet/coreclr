@@ -561,6 +561,7 @@ void GcScanRootsForProfilerAndETW(promote_func* fn, int condemned, int max_gen, 
         sc->dwEtwRootKind = kEtwGCRootKindStack;
 #endif // FEATURE_EVENT_TRACE
         ScanStackRoots(pThread, fn, sc);
+        ScanTailCallArgBufferRoots(pThread, fn, sc);
 #ifdef FEATURE_EVENT_TRACE
         sc->dwEtwRootKind = kEtwGCRootKindOther;
 #endif // FEATURE_EVENT_TRACE
