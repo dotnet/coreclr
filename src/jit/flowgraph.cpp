@@ -783,16 +783,18 @@ Statement* Compiler::fgInsertStmtBefore(BasicBlock* block, Statement* insertionP
     return stmt;
 }
 
-/*****************************************************************************
- *
- *  Insert the list of statements stmtList after the stmtAfter in block.
- *  Return the last statement stmtList.
- */
-
-Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block,     // the block where stmtAfter is in.
-                                           Statement*  stmtAfter, // the statement where stmtList should be inserted
-                                                                  // after.
-                                           Statement* stmtList)
+//------------------------------------------------------------------------
+// fgInsertStmtListAfter: Insert the list of statements stmtList after the stmtAfter in block.
+//
+// Arguments:
+//   block - the block where stmtAfter is in;
+//   stmtAfter - the statement where stmtList should be inserted after;
+//   stmtList - the statement list to insert.
+//
+// Return value:
+//   the last statement in the united list.
+//
+Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAfter, Statement* stmtList)
 {
     // Currently we can handle when stmtAfter and stmtList are non-NULL. This makes everything easy.
     noway_assert(stmtAfter);
@@ -809,16 +811,15 @@ Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block,     // the block w
         stmtAfter->m_next         = stmtList;
         stmtList->m_prev          = stmtAfter;
         block->bbStmtList->m_prev = stmtLast;
-        goto _Done;
     }
+    else
+    {
+        stmtAfter->m_next = stmtList;
+        stmtList->m_prev  = stmtAfter;
 
-    stmtAfter->m_next = stmtList;
-    stmtList->m_prev  = stmtAfter;
-
-    stmtLast->m_next = stmtNext;
-    stmtNext->m_prev = stmtLast;
-
-_Done:
+        stmtLast->m_next = stmtNext;
+        stmtNext->m_prev = stmtLast;
+    }
 
     noway_assert(block->bbStmtList == nullptr || block->bbStmtList->m_prev->m_next == nullptr);
 
