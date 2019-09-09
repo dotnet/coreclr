@@ -3,8 +3,6 @@ parameters:
   symbolPublishingAdditionalParameters: ''
   artifactsPublishingAdditionalParameters: ''
   publishInstallersAndChecksums: false
-  publishToAzureDevOpsFeeds: false
-  azureDevOpsToolsFeed: 'https://pkgs.dev.azure.com/dnceng/public/_packaging/dotnet-tools/nuget/v3/index.json'
 
 stages:
 - stage: NetCore_Tools_Latest_Publish
@@ -95,26 +93,21 @@ stages:
             /p:RepositoryName=$(Build.Repository.Name)
             /p:CommitSha=$(Build.SourceVersion)
             /p:NugetPath=$(Agent.BuildDirectory)\Nuget\NuGet.exe
-            /p:AzdoTargetFeedPAT='$(dn-bot-dnceng-unviersal-packages-rw)'
-            /p:TargetFeedPAT='$(dn-bot-dnceng-unviersal-packages-rw)'
-            /p:AzureStorageTargetFeedPAT='$(dotnetfeed-storage-access-key-1)'
-            /p:BARBuildId=$(BARBuildId)
-            /p:MaestroApiEndpoint='$(MaestroApiEndPoint)'
-            /p:BuildAssetRegistryToken='$(MaestroApiAccessToken)'
-            /p:ManifestsBasePath='$(Build.ArtifactStagingDirectory)/AssetManifests/'
-            /p:BlobBasePath='$(Build.ArtifactStagingDirectory)/BlobArtifacts/'
-            /p:PackageBasePath='$(Build.ArtifactStagingDirectory)/PackageArtifacts/'
+            /p:AzdoTargetFeedPAT='$(dn-bot-dnceng-unviersal-packages-rw)' 
+            /p:TargetFeedPAT='$(dn-bot-dnceng-unviersal-packages-rw)' 
+            /p:AzureStorageTargetFeedPAT='$(dotnetfeed-storage-access-key-1)' 
+            /p:BARBuildId=$(BARBuildId) 
+            /p:MaestroApiEndpoint='$(MaestroApiEndPoint)' 
+            /p:BuildAssetRegistryToken='$(MaestroApiAccessToken)' 
+            /p:ManifestsBasePath='$(Build.ArtifactStagingDirectory)/AssetManifests/' 
+            /p:BlobBasePath='$(Build.ArtifactStagingDirectory)/BlobArtifacts/' 
+            /p:PackageBasePath='$(Build.ArtifactStagingDirectory)/PackageArtifacts/' 
             /p:Configuration=Release
             /p:InstallersTargetStaticFeed=$(InstallersBlobFeedUrl)
             /p:PublishInstallersAndChecksums=${{ parameters.publishInstallersAndChecksums }}
             /p:InstallersAzureAccountKey=$(dotnetcli-storage-key)
             /p:ChecksumsTargetStaticFeed=$(ChecksumsBlobFeedUrl)
             /p:ChecksumsAzureAccountKey=$(dotnetclichecksums-storage-key)
-            /p:PublishToAzureDevOpsNuGetFeeds=${{ parameters.publishToAzureDevOpsFeeds }}
-            /p:AzureDevOpsStaticShippingFeed=${{ parameters.azureDevOpsToolsFeed }}
-            /p:AzureDevOpsStaticShippingFeedKey='$(dn-bot-dnceng-artifact-feeds-rw)'
-            /p:AzureDevOpsStaticTransportFeed=${{ parameters.azureDevOpsToolsFeed }}
-            /p:AzureDevOpsStaticTransportFeedKey='$(dn-bot-dnceng-artifact-feeds-rw)
             ${{ parameters.artifactsPublishingAdditionalParameters }}
 
       - task: NuGetCommand@2
