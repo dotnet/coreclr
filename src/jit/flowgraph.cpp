@@ -645,14 +645,15 @@ Statement* Compiler::fgNewStmtAtEnd(BasicBlock* block, GenTree* tree)
     return fgInsertStmtAtEnd(block, stmt);
 }
 
-/*****************************************************************************
- *
- *  Insert the given tree or statement at the end of the given basic block, but before
- *  the GT_JTRUE, if present.
- *  Returns the (potentially) new statement.
- */
-
-Statement* Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
+//------------------------------------------------------------------------
+// fgInsertStmtNearEnd: Insert the given statement at the end of the given basic block,
+//   but before the GT_JTRUE, if present.
+//
+// Arguments:
+//   block - the block into which 'stmt' will be inserted;
+//   stmt  - the statement to be inserted.
+//
+void Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
 {
     // This routine can only be used when in tree order.
     assert(fgOrder == FGOrderTree);
@@ -704,19 +705,29 @@ Statement* Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
             insertionPoint->m_next = stmt;
             stmt->m_prev           = insertionPoint;
         }
-
-        return stmt;
     }
     else
     {
-        return fgInsertStmtAtEnd(block, stmt);
+        fgInsertStmtAtEnd(block, stmt);
     }
 }
 
+//------------------------------------------------------------------------
+// fgNewStmtNearEnd: Insert the given tree as a new statement at the end of the given basic block,
+//   but before the GT_JTRUE, if present.
+//
+// Arguments:
+//   block - the block into which 'stmt' will be inserted;
+//   tree  - the tree to be inserted.
+//
+// Return Value:
+//    The new created statement with `tree` inserted into `block`.
+//
 Statement* Compiler::fgNewStmtNearEnd(BasicBlock* block, GenTree* tree)
 {
     Statement* stmt = gtNewStmt(tree);
-    return fgInsertStmtNearEnd(block, stmt);
+    fgInsertStmtNearEnd(block, stmt);
+    return stmt;
 }
 
 //------------------------------------------------------------------------
