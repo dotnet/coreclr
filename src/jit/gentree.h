@@ -5187,7 +5187,10 @@ struct Statement
     {
     }
 
-    bool IsPhiDefnStmt();
+    bool IsPhiDefnStmt()
+    {
+        return gtStmtExpr->IsPhiDefn();
+    }
 
     unsigned char GetCostSz() const
     {
