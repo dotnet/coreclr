@@ -5,12 +5,38 @@
 using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 
 namespace System.Globalization
 {
     public partial class CompareInfo
     {
-        private unsafe void InitSort(CultureInfo culture)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static unsafe IntPtr GetSortHandle(string cultureName)
+        {
+            const uint LCMAP_SORTHANDLE = 0x20000000;
+            const uint LCMAP_HASH = 0x00040000;
+
+            IntPtr handle;
+            int ret = Interop.Kernel32.LCMapStringEx(cultureName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
+            if (ret > 0)
+            {
+                // Even if we can get the sort handle, it is not gauranteed to work when Windows compatibility shim is applied
+                // e.g. Windows 7 compatibility mode. We need to ensure it is working before using it.
+                // otherwise the whole framework app will not start.
+                int hashValue = 0;
+                char a = 'a';
+                ret = Interop.Kernel32.LCMapStringEx(null, LCMAP_HASH, &a, 1, &hashValue, sizeof(int), null, null, handle);
+                if (ret > 1)
+                {
+                    return handle;
+                }
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private void InitSort(CultureInfo culture)
         {
             _sortName = culture.SortName;
 
@@ -20,11 +46,7 @@ namespace System.Globalization
             }
             else
             {
-                const uint LCMAP_SORTHANDLE = 0x20000000;
-
-                IntPtr handle;
-                int ret = Interop.Kernel32.LCMapStringEx(_sortName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
-                _sortHandle = ret > 0 ? handle : IntPtr.Zero;
+                _sortHandle = GetSortHandle(_sortName);
             }
         }
 
