@@ -15521,12 +15521,6 @@ bool GenTree::IsPhiDefn()
     return res;
 }
 
-bool Statement::IsPhiDefnStmt()
-{
-    GenTree* asg = m_rootTree;
-    return asg->IsPhiDefn();
-}
-
 // IsPartialLclFld: Check for a GT_LCL_FLD whose type is a different size than the lclVar.
 //
 // Arguments:

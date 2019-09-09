@@ -5159,7 +5159,11 @@ struct Statement
     {
     }
 
-    bool IsPhiDefnStmt();
+    bool IsPhiDefnStmt()
+    {
+        GenTree* asg = m_rootTree;
+        return asg->IsPhiDefn();
+    }
 
     unsigned char GetCostSz() const
     {
