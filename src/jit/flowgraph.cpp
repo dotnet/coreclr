@@ -535,67 +535,74 @@ bool Compiler::fgBlockContainsStatementBounded(BasicBlock* block,
 #endif // DEBUG
 
 //------------------------------------------------------------------------
-// fgInsertStmtAtBeg: Insert the given tree or statement at the start of the given basic block.
+// fgInsertStmtAtBeg: Insert the given statement at the start of the given basic block.
 //
 // Arguments:
-//    block     - The block into which 'stmt' will be inserted.
-//    node      - The node to be inserted.
-//
-// Return Value:
-//    Returns the new (potentially) statement.
+//   block - the block into which 'stmt' will be inserted;
+//   stmt  - the statement to be inserted.
 //
 // Notes:
-//    If 'stmt' is not already a statement, a new statement is created from it.
 //    We always insert phi statements at the beginning.
 //    In other cases, if there are any phi assignments and/or an assignment of
 //    the GT_CATCH_ARG, we insert after those.
-
-Statement* Compiler::fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt)
+//
+void Compiler::fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt)
 {
     Statement* firstStmt = block->firstStmt();
 
-    if (!stmt->IsPhiDefnStmt())
+    if (stmt->IsPhiDefnStmt())
+    {
+        // The new tree will now be the first one of the block.
+        block->bbStmtList = stmt;
+        stmt->m_next      = firstStmt;
+
+        // Are there any statements in the block?
+        if (firstStmt != nullptr)
+        {
+            // There is at least one statement already.
+            Statement* lastStmt = firstStmt->m_prev;
+            noway_assert(lastStmt != nullptr && lastStmt->m_next == nullptr);
+
+            // Insert the statement in front of the first one.
+            firstStmt->m_prev = stmt;
+            stmt->m_prev      = lastStmt;
+        }
+        else
+        {
+            // The block was completely empty.
+            stmt->m_prev = stmt;
+        }
+    }
+    else
     {
         Statement* insertBeforeStmt = block->FirstNonPhiDefOrCatchArgAsg();
         if (insertBeforeStmt != nullptr)
         {
-            return fgInsertStmtBefore(block, insertBeforeStmt, stmt);
+            fgInsertStmtBefore(block, insertBeforeStmt, stmt);
         }
-        else if (firstStmt != nullptr)
+        else
         {
-            return fgInsertStmtAtEnd(block, stmt);
+            // There were no non-phi/non-catch arg statements, insert `stmt` at the end.
+            fgInsertStmtAtEnd(block, stmt);
         }
-        // Otherwise, we will simply insert at the beginning, below.
     }
-
-    // The new tree will now be the first one of the block.
-    block->bbStmtList = stmt;
-    stmt->m_next      = firstStmt;
-
-    // Are there any statements in the block?
-    if (firstStmt != nullptr)
-    {
-        // There is at least one statement already.
-        Statement* lastStmt = firstStmt->m_prev;
-        noway_assert(lastStmt != nullptr && lastStmt->m_next == nullptr);
-
-        // Insert the statement in front of the first one.
-        firstStmt->m_prev = stmt;
-        stmt->m_prev      = lastStmt;
-    }
-    else
-    {
-        // The block was completely empty.
-        stmt->m_prev = stmt;
-    }
-
-    return stmt;
 }
 
+//------------------------------------------------------------------------
+// fgNewStmtAtBeg: Insert the given tree as a new statement at the start of the given basic block.
+//
+// Arguments:
+//   block - the block into which 'tree' will be inserted;
+//   tree  - the tree to be inserted.
+//
+// Return Value:
+//    The new created statement with `tree` inserted into `block`.
+//
 Statement* Compiler::fgNewStmtAtBeg(BasicBlock* block, GenTree* tree)
 {
     Statement* stmt = gtNewStmt(tree);
-    return fgInsertStmtAtBeg(block, stmt);
+    fgInsertStmtAtBeg(block, stmt);
+    return stmt;
 }
 
 /*****************************************************************************
@@ -23697,12 +23704,13 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
 
         if (stmtAfter == nullptr)
         {
-            stmtAfter = fgInsertStmtAtBeg(block, nullStmt);
+            fgInsertStmtAtBeg(block, nullStmt);
         }
         else
         {
-            stmtAfter = fgInsertStmtAfter(block, stmtAfter, nullStmt);
+            fgInsertStmtAfter(block, stmtAfter, nullStmt);
         }
+        stmtAfter = nullStmt;
 
 #ifdef DEBUG
         if (verbose)

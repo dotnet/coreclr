@@ -5265,7 +5265,7 @@ private:
     Statement* fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt);
     Statement* fgNewStmtNearEnd(BasicBlock* block, GenTree* tree);
 
-    Statement* fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt);
+    void fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt);
     Statement* fgNewStmtAtBeg(BasicBlock* block, GenTree* tree);
 
     Statement* fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
