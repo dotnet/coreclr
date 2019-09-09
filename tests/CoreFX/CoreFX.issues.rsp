@@ -79,3 +79,6 @@
 
 # Test failure: https://github.com/dotnet/corefx/issues/39223
 -nomethod System.ComponentModel.TypeConverterTests.FontConverterTest.TestConvertFrom
+
+# Test failure: https://github.com/dotnet/coreclr/pull/26570
+-nomethod System.Tests.StringComparerTests.CreateCultureOptions_InvalidArguments_Throws
