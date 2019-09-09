@@ -191,7 +191,7 @@ namespace CoreclrTestLib
 
                 try
                 {
-                    string[] childrenPidAsStrings = File.ReadAllText(childrenFile).Split(' ');
+                    string[] childrenPidAsStrings = File.ReadAllText(childrenFile).Split(' ', StringSplitOptions.RemoveEmptyEntries);
                     foreach (var childPidAsString in childrenPidAsStrings)
                     {
                         int childPid = int.Parse(childPidAsString);
