@@ -5262,7 +5262,7 @@ public:
     Statement* fgNewStmtAtEnd(BasicBlock* block, GenTree* tree);
 
 private:
-    Statement* fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt);
+    void fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt);
     Statement* fgNewStmtNearEnd(BasicBlock* block, GenTree* tree);
 
     void fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt);
