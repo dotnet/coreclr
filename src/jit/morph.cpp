@@ -7711,6 +7711,13 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // handle the retbuf below.
     if (call->IsVirtualStub())
     {
+        // The runtime should not ask us to store the target for a call through
+        // virtual stubs as it can always generate proper callvirt for the cases
+        // where we would use VSD. We do not want this situation to occur as,
+        // for VSD, the target will point to a stub that is not callable through
+        // calli for the runtime.
+        noway_assert(!(help.flags & CORINFO_TAILCALL_STORE_TARGET));
+
         call->gtCallArgs = call->gtCallArgs->Rest();
         call->gtFlags &= ~GTF_CALL_VIRT_STUB;
 
@@ -7799,13 +7806,6 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // We may need to pass the target address, for instance for calli.
     if (help.flags & CORINFO_TAILCALL_STORE_TARGET)
     {
-        // The runtime should not ask us to store the target for a call through
-        // virtual stubs as it can always generate proper callvirt for the cases
-        // where we would use VSD. We do not want this situation to occur as,
-        // for VSD, the target will point to a stub that is not callable through
-        // calli for the runtime.
-        noway_assert(!call->IsVirtualStub());
-
         GenTree* target;
         if (call->gtCallType == CT_INDIRECT)
         {
