@@ -12650,6 +12650,14 @@ void Module::LogTokenAccess(mdToken token, ULONG flagNum)
 
     if (IsNilToken(token))
     {
+#ifdef FEATURE_READYTORUN
+        // When log generic method access has the second lowest bit set, record non-found assembly references as a reference to the MaxRid token
+        // the compiler shall decode these and attempt to find the assembly without using a known token
+        static DWORD s_logGenericMethodAccess = CLRConfig::GetConfigValue(CLRConfig::UNSUPPORTED_ZapBBInstrR2RGenerics);
+        if (s_logGenericMethodAccess & 2)
+            return 0xFFFFFF;
+        else
+#endif  // FEATURE_READYTORUN 
         return ENCODE_MODULE_FAILED;
     }
 

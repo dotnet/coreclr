@@ -675,6 +675,7 @@ RETAIL_CONFIG_DWORD_INFO(INTERNAL_DisableWatsonForManagedExceptions, W("DisableW
 ///
 RETAIL_CONFIG_STRING_INFO_EX(INTERNAL_ZapBBInstr, W("ZapBBInstr"), "", CLRConfig::REGUTIL_default)
 RETAIL_CONFIG_STRING_INFO(EXTERNAL_ZapBBInstrDir, W("ZapBBInstrDir"), "")
+RETAIL_CONFIG_DWORD_INFO(UNSUPPORTED_ZapBBInstrR2RGenerics, W("ZapBBInstrR2RGenerics"), 0, "")
 RETAIL_CONFIG_DWORD_INFO(EXTERNAL_ZapDisable, W("ZapDisable"), 0, "")
 CONFIG_STRING_INFO_EX(INTERNAL_ZapExclude, W("ZapExclude"), "", CLRConfig::REGUTIL_default)
 CONFIG_STRING_INFO_EX(INTERNAL_ZapOnly, W("ZapOnly"), "", CLRConfig::REGUTIL_default)
