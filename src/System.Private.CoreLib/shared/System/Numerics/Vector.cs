@@ -1406,97 +1406,24 @@ namespace System.Numerics
             }
             else
             {
-                if (typeof(T) == typeof(byte))
+                if (typeof(T) == typeof(byte) ||
+                    typeof(T) == typeof(sbyte) ||
+                    typeof(T) == typeof(ushort) ||
+                    typeof(T) == typeof(short) ||
+                    typeof(T) == typeof(int) ||
+                    typeof(T) == typeof(uint))
                 {
-                    hash = HashCode.Combine(hash, this.register.byte_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_3.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_4.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_5.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_6.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_7.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_8.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_9.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_10.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_11.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_12.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_13.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_14.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.byte_15.GetHashCode());
-                    return hash;
+                    return HashCode.Combine(
+                        this.register.int32_0.GetHashCode(),
+                        this.register.int32_1.GetHashCode(),
+                        this.register.int32_2.GetHashCode(),
+                        this.register.int32_3.GetHashCode());
                 }
-                else if (typeof(T) == typeof(sbyte))
+                else if (typeof(T) == typeof(long) || typeof(T) == typeof(ulong))
                 {
-                    hash = HashCode.Combine(hash, this.register.sbyte_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_3.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_4.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_5.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_6.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_7.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_8.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_9.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_10.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_11.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_12.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_13.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_14.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.sbyte_15.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(ushort))
-                {
-                    hash = HashCode.Combine(hash, this.register.uint16_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_3.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_4.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_5.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_6.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint16_7.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(short))
-                {
-                    hash = HashCode.Combine(hash, this.register.int16_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_3.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_4.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_5.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_6.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int16_7.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(uint))
-                {
-                    hash = HashCode.Combine(hash, this.register.uint32_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint32_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint32_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint32_3.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(int))
-                {
-                    hash = HashCode.Combine(hash, this.register.int32_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int32_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int32_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int32_3.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(ulong))
-                {
-                    hash = HashCode.Combine(hash, this.register.uint64_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.uint64_1.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(long))
-                {
-                    hash = HashCode.Combine(hash, this.register.int64_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.int64_1.GetHashCode());
-                    return hash;
+                    return HashCode.Combine(
+                        this.register.int64_0.GetHashCode(),
+                        this.register.int64_1.GetHashCode());
                 }
                 else if (typeof(T) == typeof(float))
                 {
