@@ -719,14 +719,18 @@ Statement* Compiler::fgNewStmtNearEnd(BasicBlock* block, GenTree* tree)
     return fgInsertStmtNearEnd(block, stmt);
 }
 
-/*****************************************************************************
- *
- *  Insert the given statement "stmt" after "insertionPoint" statement.
- *  Returns the newly inserted statement.
- *  Note that the m_prev list of statement nodes is circular, but the m_next list is not.
- */
-
-Statement* Compiler::fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, Statement* stmt)
+//------------------------------------------------------------------------
+// fgInsertStmtAfter: Insert the given statement after the insertion point in the given basic block.
+//
+// Arguments:
+//   block - the block into which 'stmt' will be inserted;
+//   insertionPoint - the statement after which `stmt` will be inserted;
+//   stmt  - the statement to be inserted.
+//
+// Note:
+//   `block` is needed to update the last statement pointer and for debugging checks.
+//
+void Compiler::fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, Statement* stmt)
 {
     assert(block->bbStmtList != nullptr);
     assert(fgBlockContainsStatementBounded(block, insertionPoint));
@@ -753,14 +757,20 @@ Statement* Compiler::fgInsertStmtAfter(BasicBlock* block, Statement* insertionPo
         insertionPoint->m_next->m_prev = stmt;
         insertionPoint->m_next         = stmt;
     }
-
-    return stmt;
 }
 
-//  Insert the given tree or statement before "insertionPoint" statement.
-//  Returns the newly inserted statement.
-
-Statement* Compiler::fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, Statement* stmt)
+//------------------------------------------------------------------------
+// fgInsertStmtBefore: Insert the given statement before the insertion point in the given basic block.
+//
+// Arguments:
+//   block - the block into which 'stmt' will be inserted;
+//   insertionPoint - the statement before which `stmt` will be inserted;
+//   stmt  - the statement to be inserted.
+//
+// Note:
+//   `block` is needed to update the first statement pointer and for debugging checks.
+//
+void Compiler::fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, Statement* stmt)
 {
     assert(block->bbStmtList != nullptr);
     assert(fgBlockContainsStatementBounded(block, insertionPoint));
@@ -786,8 +796,6 @@ Statement* Compiler::fgInsertStmtBefore(BasicBlock* block, Statement* insertionP
         insertionPoint->m_prev->m_next = stmt;
         insertionPoint->m_prev         = stmt;
     }
-
-    return stmt;
 }
 
 //------------------------------------------------------------------------
@@ -23458,7 +23466,8 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                             newStmt = gtNewStmt(gtUnusedValNode(argNode), callILOffset);
                         }
 
-                        afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
+                        fgInsertStmtAfter(block, afterStmt, newStmt);
+                        afterStmt = newStmt;
 #ifdef DEBUG
                         if (verbose)
                         {
@@ -23498,16 +23507,18 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                 CORINFO_METHOD_HANDLE((SIZE_T)exactContext & ~CORINFO_CONTEXTFLAGS_MASK));
         }
 
-        tree      = fgGetSharedCCtor(exactClass);
-        newStmt   = gtNewStmt(tree, callILOffset);
-        afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
+        tree    = fgGetSharedCCtor(exactClass);
+        newStmt = gtNewStmt(tree, callILOffset);
+        fgInsertStmtAfter(block, afterStmt, newStmt);
+        afterStmt = newStmt;
     }
 
     // Insert the nullcheck statement now.
     if (nullcheck)
     {
-        newStmt   = gtNewStmt(nullcheck, callILOffset);
-        afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
+        newStmt = gtNewStmt(nullcheck, callILOffset);
+        fgInsertStmtAfter(block, afterStmt, newStmt);
+        afterStmt = newStmt;
     }
 
     //
@@ -23559,8 +23570,9 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                                               false,                                      // isVolatile
                                               false);                                     // not copyBlock
 
-                        newStmt   = gtNewStmt(tree, callILOffset);
-                        afterStmt = fgInsertStmtAfter(block, afterStmt, newStmt);
+                        newStmt = gtNewStmt(tree, callILOffset);
+                        fgInsertStmtAfter(block, afterStmt, newStmt);
+                        afterStmt = newStmt;
                     }
                 }
 
