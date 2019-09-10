@@ -5763,7 +5763,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // if it was a pinvoke or intrinsic we may have needed to get the address of a label
     if (genPendingCallLabel)
     {
-        genDefineTempLabel(genPendingCallLabel);
+        genDefineInlineTempLabel(genPendingCallLabel);
         genPendingCallLabel = nullptr;
     }
 

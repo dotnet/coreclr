@@ -970,18 +970,28 @@ BasicBlock* CodeGen::genCreateTempLabel()
     return block;
 }
 
-// inline
-void CodeGen::genDefineTempLabel(BasicBlock* label)
+void CodeGen::genLogLabel(BasicBlock* bb)
 {
 #ifdef DEBUG
     if (compiler->opts.dspCode)
     {
-        printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, label->bbNum);
+        printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, bb->bbNum);
     }
 #endif
+}
 
+// inline
+void CodeGen::genDefineTempLabel(BasicBlock* label)
+{
+    genLogLabel(label);
     label->bbEmitCookie =
         getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur, gcInfo.gcRegByrefSetCur);
+}
+
+void CodeGen::genDefineInlineTempLabel(BasicBlock* label)
+{
+    genLogLabel(label);
+    label->bbEmitCookie = getEmitter()->emitAddInlineLabel();
 }
 
 /*****************************************************************************

@@ -315,12 +315,7 @@ void CodeGen::genCodeForBBlist()
         }
 #endif
 
-#ifdef DEBUG
-        if (compiler->opts.dspCode)
-        {
-            printf("\n      L_M%03u_" FMT_BB ":\n", Compiler::s_compMethodsCount, block->bbNum);
-        }
-#endif
+        genLogLabel(block);
 
         block->bbEmitCookie = nullptr;
 

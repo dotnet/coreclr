@@ -2552,8 +2552,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     // if it was a pinvoke we may have needed to get the address of a label
     if (genPendingCallLabel)
     {
-        assert(call->IsUnmanaged());
-        genDefineTempLabel(genPendingCallLabel);
+        genDefineInlineTempLabel(genPendingCallLabel);
         genPendingCallLabel = nullptr;
     }
 

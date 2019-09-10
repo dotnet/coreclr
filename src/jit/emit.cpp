@@ -134,7 +134,7 @@ unsigned emitter::emitTotalIGptrs;
 unsigned emitter::emitTotalIGicnt;
 size_t   emitter::emitTotalIGsize;
 unsigned emitter::emitTotalIGmcnt;
-unsigned emitter::emitTotalIGEmitAdd;
+unsigned emitter::emitTotalIGextend;
 
 unsigned emitter::emitTotalIDescSmallCnt;
 unsigned emitter::emitTotalIDescCnt;
@@ -323,7 +323,7 @@ void emitterStats(FILE* fout)
         fprintf(fout, "Total of %8u methods\n", emitter::emitTotalIGmcnt);
         fprintf(fout, "Total of %8u insGroup\n", emitter::emitTotalIGcnt);
         fprintf(fout, "Total of %8u insPlaceholderGroupData\n", emitter::emitTotalPhIGcnt);
-        fprintf(fout, "Total of %8u emitAdd insGroup\n", emitter::emitTotalIGEmitAdd);
+        fprintf(fout, "Total of %8u extend insGroup\n", emitter::emitTotalIGextend);
         fprintf(fout, "Total of %8u instructions\n", emitter::emitTotalIGicnt);
         fprintf(fout, "Total of %8u jumps\n", emitter::emitTotalIGjmps);
         fprintf(fout, "Total of %8u GC livesets\n", emitter::emitTotalIGptrs);
@@ -335,8 +335,8 @@ void emitterStats(FILE* fout)
                 (double)emitter::emitTotalIGcnt / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf insPhGroup   per method\n",
                 (double)emitter::emitTotalPhIGcnt / emitter::emitTotalIGmcnt);
-        fprintf(fout, "Average of %8.1lf emitAdd IG   per method\n",
-                (double)emitter::emitTotalIGEmitAdd / emitter::emitTotalIGmcnt);
+        fprintf(fout, "Average of %8.1lf extend IG   per method\n",
+                (double)emitter::emitTotalIGExtend / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf instructions per method\n",
                 (double)emitter::emitTotalIGicnt / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf desc.  bytes per method\n",
@@ -679,7 +679,7 @@ insGroup* emitter::emitSavIG(bool emitAdd)
 
     /* Do we need space for GC? */
 
-    if (!(ig->igFlags & IGF_EMIT_ADD))
+    if (!(ig->igFlags & IGF_EXTEND))
     {
         /* Is the initial set of live GC vars different from the previous one? */
 
@@ -783,9 +783,10 @@ insGroup* emitter::emitSavIG(bool emitAdd)
 
     // printf("Group [%08X]%3u has %2u instructions (%4u bytes at %08X)\n", ig, ig->igNum, emitCurIGinsCnt, sz, id);
 
-    /* Record the live GC register set - if and only if it is not an emitter added block */
+    /* Record the live GC register set - if and only if it is not an extension block,
+       in which case the GC register sets are inherited from the previous block. */
 
-    if (!(ig->igFlags & IGF_EMIT_ADD))
+    if (!(ig->igFlags & IGF_EXTEND))
     {
         ig->igGCregs = (regMaskSmall)emitInitGCrefRegs;
     }
@@ -1468,7 +1469,7 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
 {
     assert(igBB != nullptr);
 
-    bool emitAdd = false;
+    bool extend = false;
 
     if (igType == IGPT_EPILOG
 #if defined(FEATURE_EH_FUNCLETS)
@@ -1480,17 +1481,17 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
         emitOutputPreEpilogNOP();
 #endif // _TARGET_AMD64_
 
-        emitAdd = true;
+        extend = true;
     }
 
     if (emitCurIGnonEmpty())
     {
-        emitNxtIG(emitAdd);
+        emitNxtIG(extend);
     }
 
     /* Update GC tracking for the beginning of the placeholder IG */
 
-    if (!emitAdd)
+    if (!extend)
     {
         VarSetOps::Assign(emitComp, emitThisGCrefVars, GCvars);
         VarSetOps::Assign(emitComp, emitInitGCrefVars, GCvars);
@@ -2336,6 +2337,16 @@ void* emitter::emitAddLabel(VARSET_VALARG_TP GCvars, regMaskTP gcrefRegs, regMas
     return emitCurIG;
 }
 
+void* emitter::emitAddInlineLabel()
+{
+    if (emitCurIGnonEmpty())
+    {
+        emitNxtIG(true);
+    }
+
+    return emitCurIG;
+}
+
 #ifdef _TARGET_ARMARCH_
 
 // Does the argument location point to an IG at the end of a function or funclet?
@@ -3105,9 +3116,9 @@ void emitter::emitDispIGflags(unsigned flags)
     {
         printf(", isz");
     }
-    if (flags & IGF_EMIT_ADD)
+    if (flags & IGF_EXTEND)
     {
-        printf(", emitadd");
+        printf(", extend");
     }
 }
 
@@ -3214,7 +3225,7 @@ void emitter::emitDispIG(insGroup* ig, insGroup* igPrev, bool verbose)
             dumpConvertedVarSet(emitComp, ig->igGCvars());
         }
 
-        if (!(ig->igFlags & IGF_EMIT_ADD))
+        if (!(ig->igFlags & IGF_EXTEND))
         {
             printf(", gcrefRegs=");
             printRegMaskInt(ig->igGCregs);
@@ -4802,9 +4813,9 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
 #endif
 
-        /* Update current GC information for non-overflow IG (not added implicitly by the emitter) */
+        /* Update current GC information for IG's that do not extend the previous IG */
 
-        if (!(ig->igFlags & IGF_EMIT_ADD))
+        if (!(ig->igFlags & IGF_EXTEND))
         {
             /* Is there a new set of live GC ref variables? */
 
@@ -6821,7 +6832,7 @@ void emitter::emitInsertIGAfter(insGroup* insertAfterIG, insGroup* ig)
  *  Save the current IG and start a new one.
  */
 
-void emitter::emitNxtIG(bool emitAdd)
+void emitter::emitNxtIG(bool extend)
 {
     /* Right now we don't allow multi-IG prologs */
 
@@ -6829,12 +6840,12 @@ void emitter::emitNxtIG(bool emitAdd)
 
     /* First save the current group */
 
-    emitSavIG(emitAdd);
+    emitSavIG(extend);
 
     /* Update the GC live sets for the group's start
-     * Do it only if not an emitter added block */
+     * Do it only if not an extension block */
 
-    if (!emitAdd)
+    if (!extend)
     {
         VarSetOps::Assign(emitComp, emitInitGCrefVars, emitThisGCrefVars);
         emitInitGCrefRegs = emitThisGCrefRegs;
@@ -6847,12 +6858,12 @@ void emitter::emitNxtIG(bool emitAdd)
 
     /* If this is an emitter added block, flag it */
 
-    if (emitAdd)
+    if (extend)
     {
-        emitCurIG->igFlags |= IGF_EMIT_ADD;
+        emitCurIG->igFlags |= IGF_EXTEND;
 
 #if EMITTER_STATS
-        emitTotalIGEmitAdd++;
+        emitTotalIGExtend++;
 #endif // EMITTER_STATS
     }
 
