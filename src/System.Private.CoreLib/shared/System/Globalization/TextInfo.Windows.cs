@@ -10,12 +10,6 @@ namespace System.Globalization
     {
         private unsafe void FinishInitialization()
         {
-            if (GlobalizationMode.Invariant)
-            {
-                _sortHandle = IntPtr.Zero;
-                return;
-            }
-
             _sortHandle = CompareInfo.GetSortHandle(_textInfoName);
         }
 

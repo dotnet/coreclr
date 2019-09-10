@@ -12,6 +12,11 @@ namespace System.Globalization
     {
         internal static unsafe IntPtr GetSortHandle(string cultureName)
         {
+            if (GlobalizationMode.Invariant)
+            {
+                return IntPtr.Zero;
+            }
+
             IntPtr handle;
             int ret = Interop.Kernel32.LCMapStringEx(cultureName, Interop.Kernel32.LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
             if (ret > 0)
@@ -34,15 +39,7 @@ namespace System.Globalization
         private void InitSort(CultureInfo culture)
         {
             _sortName = culture.SortName;
-
-            if (GlobalizationMode.Invariant)
-            {
-                _sortHandle = IntPtr.Zero;
-            }
-            else
-            {
-                _sortHandle = GetSortHandle(_sortName);
-            }
+            _sortHandle = GetSortHandle(_sortName);
         }
 
         private static unsafe int FindStringOrdinal(
