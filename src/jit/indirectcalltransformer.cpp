@@ -177,7 +177,7 @@ private:
 
         void Transform()
         {
-            JITDUMP("*** %s: transforming [%06u]\n", Name(), compiler->dspTreeID(stmt));
+            JITDUMP("*** %s: transforming [%06u]\n", Name(), compiler->dspTreeID(stmt->gtStmtExpr));
             FixupRetExpr();
             ClearFlag();
             CreateRemainder();
@@ -428,25 +428,19 @@ private:
         //
         void AddHiddenArgument(GenTreeCall* fatCall, GenTree* hiddenArgument)
         {
-            GenTreeArgList* oldArgs = fatCall->gtCallArgs;
-            GenTreeArgList* newArgs;
 #if USER_ARGS_COME_LAST
             if (fatCall->HasRetBufArg())
             {
-                GenTree*        retBuffer = oldArgs->Current();
-                GenTreeArgList* rest      = oldArgs->Rest();
-                newArgs                   = compiler->gtNewListNode(hiddenArgument, rest);
-                newArgs                   = compiler->gtNewListNode(retBuffer, newArgs);
+                GenTreeCall::Use* retBufArg = fatCall->gtCallArgs;
+                compiler->gtInsertNewCallArgAfter(hiddenArgument, retBufArg);
             }
             else
             {
-                newArgs = compiler->gtNewListNode(hiddenArgument, oldArgs);
+                fatCall->gtCallArgs = compiler->gtPrependNewCallArg(hiddenArgument, fatCall->gtCallArgs);
             }
 #else
-            newArgs = oldArgs;
-            AddArgumentToTail(newArgs, hiddenArgument);
+            AddArgumentToTail(fatCall->gtCallArgs, hiddenArgument);
 #endif
-            fatCall->gtCallArgs = newArgs;
         }
 
         //------------------------------------------------------------------------
@@ -456,14 +450,14 @@ private:
         //    argList - fat call node
         //    hiddenArgument - generic context hidden argument
         //
-        void AddArgumentToTail(GenTreeArgList* argList, GenTree* hiddenArgument)
+        void AddArgumentToTail(GenTreeCall::Use* argList, GenTree* hiddenArgument)
         {
-            GenTreeArgList* iterator = argList;
-            while (iterator->Rest() != nullptr)
+            GenTreeCall::Use* iterator = argList;
+            while (iterator->GetNext() != nullptr)
             {
-                iterator = iterator->Rest();
+                iterator = iterator->GetNext();
             }
-            iterator->Rest() = compiler->gtNewArgList(hiddenArgument);
+            iterator->SetNext(compiler->gtNewCallArgs(hiddenArgument));
         }
 
     private:
@@ -666,8 +660,7 @@ private:
             GenTree*       clonedObj = compiler->gtCloneExpr(origCall->gtCallObjp);
             GenTree*       assign    = compiler->gtNewTempAssign(thisTemp, clonedObj);
             compiler->lvaSetClass(thisTemp, clsHnd, true);
-            GenTreeStmt* assignStmt = compiler->gtNewStmt(assign);
-            compiler->fgInsertStmtAtEnd(thenBlock, assignStmt);
+            compiler->fgNewStmtAtEnd(thenBlock, assign);
 
             // Clone call. Note we must use the special candidate helper.
             GenTreeCall* call = compiler->gtCloneCandidateCall(origCall);
@@ -698,9 +691,8 @@ private:
             inlineInfo->exactContextHnd = context;
             call->gtInlineCandidateInfo = inlineInfo;
 
-            // Add the call
-            GenTreeStmt* callStmt = compiler->gtNewStmt(call);
-            compiler->fgInsertStmtAtEnd(thenBlock, callStmt);
+            // Add the call.
+            compiler->fgNewStmtAtEnd(thenBlock, call);
 
             // If there was a ret expr for this call, we need to create a new one
             // and append it just after the call.
@@ -722,9 +714,7 @@ private:
                     // We should always have a return temp if we return results by value
                     assert(origCall->TypeGet() == TYP_VOID);
                 }
-
-                GenTreeStmt* resultStmt = compiler->gtNewStmt(retExpr);
-                compiler->fgInsertStmtAtEnd(thenBlock, resultStmt);
+                compiler->fgNewStmtAtEnd(thenBlock, retExpr);
             }
         }
 
@@ -802,7 +792,7 @@ void Compiler::CheckNoTransformableIndirectCallsRemain()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = fgFirstBB->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
+        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->gtNextStmt)
         {
             fgWalkTreePre(&stmt->gtStmtExpr, fgDebugCheckForTransformableIndirectCalls);
         }

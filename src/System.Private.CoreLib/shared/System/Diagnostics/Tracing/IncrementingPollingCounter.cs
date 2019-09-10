@@ -2,13 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
-using System.Diagnostics;
-using System.Collections;
-using System.Collections.Generic;
-using System.Threading;
-#if ES_BUILD_PCL
-    using System.Threading.Tasks;
 #endif
 
 #if ES_BUILD_STANDALONE
@@ -40,6 +35,7 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(totalValueProvider));
 
             _totalValueProvider = totalValueProvider;
+            Publish();
         }
 
         public override string ToString() => $"IncrementingPollingCounter '{Name}' Increment {_increment}";
@@ -47,7 +43,7 @@ namespace System.Diagnostics.Tracing
         public TimeSpan DisplayRateTimeScale { get; set; }
         private double _increment;
         private double _prevIncrement;
-        private Func<double> _totalValueProvider;
+        private readonly Func<double> _totalValueProvider;
 
         /// <summary>
         /// Calls "_totalValueProvider" to enqueue the counter value to the queue.
@@ -93,7 +89,7 @@ namespace System.Diagnostics.Tracing
     /// This is the payload that is sent in the with EventSource.Write
     /// </summary>
     [EventData]
-    class IncrementingPollingCounterPayloadType
+    internal class IncrementingPollingCounterPayloadType
     {
         public IncrementingPollingCounterPayloadType(IncrementingCounterPayload payload) { Payload = payload; }
         public IncrementingCounterPayload Payload { get; set; }

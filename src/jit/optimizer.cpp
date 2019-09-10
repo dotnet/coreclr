@@ -1030,7 +1030,7 @@ bool Compiler::optExtractInitTestIncr(
 
     // Check if last two statements in the loop body are the increment of the iterator
     // and the loop termination test.
-    noway_assert(bottom->bbTreeList != nullptr);
+    noway_assert(bottom->bbStmtList != nullptr);
     GenTreeStmt* testStmt = bottom->lastStmt();
     noway_assert(testStmt != nullptr && testStmt->gtNext == nullptr);
 
@@ -1045,7 +1045,7 @@ bool Compiler::optExtractInitTestIncr(
     GenTreeStmt* incrStmt = testStmt->getPrevStmt();
     if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->gtStmtExpr) == BAD_VAR_NUM)
     {
-        if (top == nullptr || top->bbTreeList == nullptr || top->bbTreeList->gtPrev == nullptr)
+        if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->gtPrev == nullptr)
         {
             return false;
         }
@@ -1076,7 +1076,7 @@ bool Compiler::optExtractInitTestIncr(
     noway_assert(initStmt != nullptr && (initStmt->gtNext == nullptr));
 
     // If it is a duplicated loop condition, skip it.
-    if (initStmt->gtFlags & GTF_STMT_CMPADD)
+    if (initStmt->compilerAdded)
     {
         bool doGetPrev = true;
 #ifdef DEBUG
@@ -1751,7 +1751,7 @@ public:
             return false;
         }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
         // Disqualify loops where the first block of the loop is a finally target.
         // The main problem is when multiple loops share a 'first' block that is a finally
         // target and we canonicalize the loops by adding a new loop head. In that case, we
@@ -1766,7 +1766,7 @@ public:
             JITDUMP("Loop 'first' " FMT_BB " is a finally target. Rejecting loop.\n", first->bbNum);
             return false;
         }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
         // Compact the loop (sweep through it and move out any blocks that aren't part of the
         // flow cycle), and find the exits.
@@ -2884,7 +2884,7 @@ bool Compiler::optCanonicalizeLoop(unsigned char loopInd)
     {
         newT->bbJumpKind = BBJ_ALWAYS;
         newT->bbJumpDest = t;
-        newT->bbTreeList = nullptr;
+        newT->bbStmtList = nullptr;
         fgInsertStmtAtEnd(newT, fgNewStmtFromTree(gtNewOperNode(GT_NOP, TYP_VOID, nullptr)));
     }
 
@@ -2913,7 +2913,7 @@ bool Compiler::optCanonicalizeLoop(unsigned char loopInd)
         BasicBlock* h2               = fgNewBBafter(BBJ_ALWAYS, h, /*extendRegion*/ true);
         optLoopTable[loopInd].lpHead = h2;
         h2->bbJumpDest               = optLoopTable[loopInd].lpEntry;
-        h2->bbTreeList               = nullptr;
+        h2->bbStmtList               = nullptr;
         fgInsertStmtAtEnd(h2, fgNewStmtFromTree(gtNewOperNode(GT_NOP, TYP_VOID, nullptr)));
     }
 
@@ -3613,7 +3613,7 @@ void Compiler::optUnrollLoops()
         GenTreeStmt* incrStmt = testStmt->gtPrevStmt;
         noway_assert(incrStmt != nullptr);
 
-        if ((initStmt->gtFlags & GTF_STMT_CMPADD) != 0)
+        if (initStmt->compilerAdded)
         {
             /* Must be a duplicated loop condition */
             noway_assert(initStmt->gtStmtExpr->gtOper == GT_JTRUE);
@@ -3698,7 +3698,7 @@ void Compiler::optUnrollLoops()
                     gtSetStmtInfo(stmt);
 
                     /* Update loopCostSz */
-                    loopCostSz += stmt->gtCostSz;
+                    loopCostSz += stmt->GetCostSz();
                 }
 
                 if (block == bottom)
@@ -3832,7 +3832,7 @@ void Compiler::optUnrollLoops()
             // Gut the old loop body
             for (block = head->bbNext;; block = block->bbNext)
             {
-                block->bbTreeList = nullptr;
+                block->bbStmtList = nullptr;
                 block->bbJumpKind = BBJ_NONE;
                 block->bbFlags &= ~(BBF_NEEDS_GCPOLL | BBF_LOOP_HEAD);
                 if (block->bbJumpDest != nullptr)
@@ -4119,7 +4119,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     // the conditional, so any other statements will not get cloned
     //  TODO-CQ: consider cloning the whole bTest block as inserting it after block.
     //
-    if (bTest->bbTreeList != condStmt)
+    if (bTest->bbStmtList != condStmt)
     {
         return;
     }
@@ -4246,9 +4246,9 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
     /* Create a statement entry out of the condition and
        append the condition test at the end of 'block' */
 
-    GenTreeStmt* copyOfCondStmt = fgInsertStmtAtEnd(block, condTree);
+    GenTreeStmt* copyOfCondStmt = fgNewStmtAtEnd(block, condTree);
 
-    copyOfCondStmt->gtFlags |= GTF_STMT_CMPADD;
+    copyOfCondStmt->compilerAdded = true;
 
     if (opts.compDbgInfo)
     {
@@ -4326,7 +4326,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
                block->bbNext->bbNum, bTest->bbNum);
         printf("\nEstimated code size expansion is %d\n ", estDupCostSz);
 
-        gtDispTree(copyOfCondStmt);
+        gtDispTree(copyOfCondStmt->gtStmtExpr);
     }
 
 #endif
@@ -6215,8 +6215,8 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
     compCurBB = preHead;
     hoist     = fgMorphTree(hoist);
 
-    GenTreeStmt* hoistStmt = gtNewStmt(hoist);
-    hoistStmt->gtFlags |= GTF_STMT_CMPADD;
+    GenTreeStmt* hoistStmt   = gtNewStmt(hoist);
+    hoistStmt->compilerAdded = true;
 
     /* simply append the statement at the end of the preHead's list */
 
@@ -6237,7 +6237,7 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
     {
         /* Empty pre-header - store the single statement in the block */
 
-        preHead->bbTreeList = hoistStmt;
+        preHead->bbStmtList = hoistStmt;
         hoistStmt->gtPrev   = hoistStmt;
     }
 
@@ -6616,7 +6616,7 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
     // Find the set of definitely-executed blocks.
     // Ideally, the definitely-executed blocks are the ones that post-dominate the entry block.
     // Until we have post-dominators, we'll special-case for single-exit blocks.
-    JitExpandArrayStack<BasicBlock*> defExec(getAllocatorLoopHoist());
+    ArrayStack<BasicBlock*> defExec(getAllocatorLoopHoist());
     if (pLoopDsc->lpFlags & LPFLG_ONE_EXIT)
     {
         assert(pLoopDsc->lpExit != nullptr);
@@ -6641,54 +6641,7 @@ void Compiler::optHoistThisLoop(unsigned lnum, LoopHoistContext* hoistCtxt)
         defExec.Push(pLoopDsc->lpEntry);
     }
 
-    while (defExec.Size() > 0)
-    {
-        // Consider in reverse order: dominator before dominatee.
-        BasicBlock* blk = defExec.Pop();
-        optHoistLoopExprsForBlock(blk, lnum, hoistCtxt);
-    }
-}
-
-// Hoist any expressions in "blk" that are invariant in loop "lnum" outside of "blk" and into a PreHead for loop "lnum".
-void Compiler::optHoistLoopExprsForBlock(BasicBlock* blk, unsigned lnum, LoopHoistContext* hoistCtxt)
-{
-    LoopDsc* pLoopDsc                      = &optLoopTable[lnum];
-    bool     firstBlockAndBeforeSideEffect = (blk == pLoopDsc->lpEntry);
-    unsigned blkWeight                     = blk->getBBWeight(this);
-
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("    optHoistLoopExprsForBlock " FMT_BB " (weight=%6s) of loop L%02u <" FMT_BB ".." FMT_BB
-               ">, firstBlock is %s\n",
-               blk->bbNum, refCntWtd2str(blkWeight), lnum, pLoopDsc->lpFirst->bbNum, pLoopDsc->lpBottom->bbNum,
-               firstBlockAndBeforeSideEffect ? "true" : "false");
-        if (blkWeight < (BB_UNITY_WEIGHT / 10))
-        {
-            printf("      block weight is too small to perform hoisting.\n");
-        }
-    }
-#endif
-
-    if (blkWeight < (BB_UNITY_WEIGHT / 10))
-    {
-        // Block weight is too small to perform hoisting.
-        return;
-    }
-
-    for (GenTreeStmt* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
-    {
-        GenTree* stmtTree = stmt->gtStmtExpr;
-        bool     hoistable;
-        bool     cctorDependent;
-        (void)optHoistLoopExprsForTree(stmtTree, lnum, hoistCtxt, &firstBlockAndBeforeSideEffect, &hoistable,
-                                       &cctorDependent);
-        if (hoistable)
-        {
-            // we will try to hoist the top-level stmtTree
-            optHoistCandidate(stmtTree, lnum, hoistCtxt);
-        }
-    }
+    optHoistLoopBlocks(lnum, &defExec, hoistCtxt);
 }
 
 bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
@@ -6786,254 +6739,409 @@ bool Compiler::optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum)
     return true;
 }
 
+//------------------------------------------------------------------------
+// optHoistLoopBlocks: Hoist invariant expression out of the loop.
 //
-//  This function returns true if 'tree' is a loop invariant expression.
-//  It also sets '*pHoistable' to true if 'tree' can be hoisted into a loop PreHeader block,
-//  and sets '*pCctorDependent' if 'tree' is a function of a static field that must not be
-//  hoisted (even if '*pHoistable' is true) unless a preceding corresponding cctor init helper
-//  call is also hoisted.
+// Arguments:
+//    loopNum - The number of the loop
+//    blocks - A stack of blocks belonging to the loop
+//    hoistContext - The loop hoist context
 //
-bool Compiler::optHoistLoopExprsForTree(GenTree*          tree,
-                                        unsigned          lnum,
-                                        LoopHoistContext* hoistCtxt,
-                                        bool*             pFirstBlockAndBeforeSideEffect,
-                                        bool*             pHoistable,
-                                        bool*             pCctorDependent)
+// Assumptions:
+//    The `blocks` stack contains the definitely-executed blocks in
+//    the loop, in the execution order, starting with the loop entry
+//    block on top of the stack.
+//
+void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blocks, LoopHoistContext* hoistContext)
 {
-    // First do the children.
-    // We must keep track of whether each child node was hoistable or not
-    //
-    unsigned nChildren = tree->NumChildren();
-    bool     childrenHoistable[GenTree::MAX_CHILDREN];
-    bool     childrenCctorDependent[GenTree::MAX_CHILDREN];
-
-    // Initialize the array elements for childrenHoistable[] to false
-    for (unsigned i = 0; i < nChildren; i++)
+    class HoistVisitor : public GenTreeVisitor<HoistVisitor>
     {
-        childrenHoistable[i]      = false;
-        childrenCctorDependent[i] = false;
-    }
-
-    // Initclass CLS_VARs and IconHandles are the base cases of cctor dependent trees.
-    // In the IconHandle case, it's of course the dereference, rather than the constant itself, that is
-    // truly dependent on the cctor.  So a more precise approach would be to separately propagate
-    // isCctorDependent and isAddressWhoseDereferenceWouldBeCctorDependent, but we don't for simplicity/throughput;
-    // the constant itself would be considered non-hoistable anyway, since optIsCSEcandidate returns
-    // false for constants.
-    bool treeIsCctorDependent = ((tree->OperIs(GT_CLS_VAR) && ((tree->gtFlags & GTF_CLS_VAR_INITCLASS) != 0)) ||
-                                 (tree->OperIs(GT_CNS_INT) && ((tree->gtFlags & GTF_ICON_INITCLASS) != 0)));
-    bool treeIsInvariant = true;
-    for (unsigned childNum = 0; childNum < nChildren; childNum++)
-    {
-        if (!optHoistLoopExprsForTree(tree->GetChild(childNum), lnum, hoistCtxt, pFirstBlockAndBeforeSideEffect,
-                                      &childrenHoistable[childNum], &childrenCctorDependent[childNum]))
+        class Value
         {
-            treeIsInvariant = false;
-        }
+            GenTree* m_node;
 
-        if (childrenCctorDependent[childNum])
-        {
-            // Normally, a parent of a cctor-dependent tree is also cctor-dependent.
-            treeIsCctorDependent = true;
+        public:
+            bool m_hoistable;
+            bool m_cctorDependent;
+            bool m_invariant;
 
-            // Check for the case where we can stop propagating cctor-dependent upwards.
-            if (tree->OperIs(GT_COMMA) && (childNum == 1))
+            Value(GenTree* node) : m_node(node), m_hoistable(false), m_cctorDependent(false), m_invariant(false)
             {
-                GenTree* op1 = tree->gtGetOp1();
-                if (op1->OperIs(GT_CALL))
-                {
-                    GenTreeCall* call = op1->AsCall();
-                    if ((call->gtCallType == CT_HELPER) &&
-                        s_helperCallProperties.MayRunCctor(eeGetHelperNum(call->gtCallMethHnd)))
-                    {
-                        // Hoisting the comma is ok because it would hoist the initialization along
-                        // with the static field reference.
-                        treeIsCctorDependent = false;
-                        // Hoisting the static field without hoisting the initialization would be
-                        // incorrect, make sure we consider the field (which we flagged as
-                        // cctor-dependent) non-hoistable.
-                        noway_assert(!childrenHoistable[childNum]);
-                    }
-                }
-            }
-        }
-    }
-
-    // If all the children of "tree" are hoistable, then "tree" itself can be hoisted,
-    // unless it has a static var reference that can't be hoisted past its cctor call.
-    bool treeIsHoistable = treeIsInvariant && !treeIsCctorDependent;
-
-    // But we must see if anything else prevents "tree" from being hoisted.
-    //
-    if (treeIsInvariant)
-    {
-        // Tree must be a suitable CSE candidate for us to be able to hoist it.
-        treeIsHoistable &= optIsCSEcandidate(tree);
-
-        if (treeIsHoistable)
-        {
-            // We cannot hoist an r-value of TYP_STRUCT
-            // as they currently do not carry full descriptors of the struct type
-            if (tree->TypeGet() == TYP_STRUCT)
-            {
-                treeIsHoistable = false;
             }
 
-            // If it's a call, it must be a helper call, and be pure.
-            // Further, if it may run a cctor, it must be labeled as "Hoistable"
-            // (meaning it won't run a cctor because the class is not precise-init).
-            if (tree->OperGet() == GT_CALL)
+            GenTree* Node()
             {
-                GenTreeCall* call = tree->AsCall();
-                if (call->gtCallType != CT_HELPER)
-                {
-                    treeIsHoistable = false;
-                }
-                else
-                {
-                    CorInfoHelpFunc helpFunc = eeGetHelperNum(call->gtCallMethHnd);
-                    if (!s_helperCallProperties.IsPure(helpFunc))
-                    {
-                        treeIsHoistable = false;
-                    }
-                    else if (s_helperCallProperties.MayRunCctor(helpFunc) && (call->gtFlags & GTF_CALL_HOISTABLE) == 0)
-                    {
-                        treeIsHoistable = false;
-                    }
-                }
+                return m_node;
             }
+        };
+
+        ArrayStack<Value> m_valueStack;
+        bool              m_beforeSideEffect;
+        unsigned          m_loopNum;
+        LoopHoistContext* m_hoistContext;
+
+        bool IsNodeHoistable(GenTree* node)
+        {
+            // TODO-CQ: This is a more restrictive version of a check that optIsCSEcandidate already does - it allows
+            // a struct typed node if a class handle can be recovered from it.
+            if (node->TypeGet() == TYP_STRUCT)
+            {
+                return false;
+            }
+
+            // Tree must be a suitable CSE candidate for us to be able to hoist it.
+            return m_compiler->optIsCSEcandidate(node);
         }
 
-        if (treeIsHoistable)
+        bool IsTreeVNInvariant(GenTree* tree)
         {
-            if (!(*pFirstBlockAndBeforeSideEffect))
+            return m_compiler->optVNIsLoopInvariant(tree->gtVNPair.GetLiberal(), m_loopNum,
+                                                    &m_hoistContext->m_curLoopVnInvariantCache);
+        }
+
+    public:
+        enum
+        {
+            ComputeStack      = false,
+            DoPreOrder        = true,
+            DoPostOrder       = true,
+            DoLclVarsOnly     = false,
+            UseExecutionOrder = true,
+        };
+
+        HoistVisitor(Compiler* compiler, unsigned loopNum, LoopHoistContext* hoistContext)
+            : GenTreeVisitor(compiler)
+            , m_valueStack(compiler->getAllocator(CMK_LoopHoist))
+            , m_beforeSideEffect(true)
+            , m_loopNum(loopNum)
+            , m_hoistContext(hoistContext)
+        {
+        }
+
+        void HoistBlock(BasicBlock* block)
+        {
+            for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->gtNextStmt)
             {
-                // For now, we give up on an expression that might raise an exception if it is after the
-                // first possible global side effect (and we assume we're after that if we're not in the first block).
-                // TODO-CQ: this is when we might do loop cloning.
+                WalkTree(&stmt->gtStmtExpr, nullptr);
+                assert(m_valueStack.TopRef().Node() == stmt->gtStmtExpr);
+
+                if (m_valueStack.TopRef().m_hoistable)
+                {
+                    m_compiler->optHoistCandidate(stmt->gtStmtExpr, m_loopNum, m_hoistContext);
+                }
+
+                m_valueStack.Reset();
+            }
+
+            // Only uncondtionally executed blocks in the loop are visited (see optHoistThisLoop)
+            // so after we're done visiting the first block we need to assume the worst, that the
+            // blocks that are not visisted have side effects.
+            m_beforeSideEffect = false;
+        }
+
+        fgWalkResult PreOrderVisit(GenTree** use, GenTree* user)
+        {
+            GenTree* node = *use;
+            m_valueStack.Emplace(node);
+            return fgWalkResult::WALK_CONTINUE;
+        }
+
+        fgWalkResult PostOrderVisit(GenTree** use, GenTree* user)
+        {
+            GenTree* tree = *use;
+
+            if (tree->OperIsLocal())
+            {
+                GenTreeLclVarCommon* lclVar = tree->AsLclVarCommon();
+                unsigned             lclNum = lclVar->GetLclNum();
+
+                // To be invariant a LclVar node must not be the LHS of an assignment ...
+                bool isInvariant = !user->OperIs(GT_ASG) || (user->AsOp()->gtGetOp1() != tree);
+                // and the variable must be in SSA ...
+                isInvariant = isInvariant && m_compiler->lvaInSsa(lclNum);
+                // and the SSA definition must be outside the loop we're hoisting from ...
+                isInvariant = isInvariant &&
+                              !m_compiler->optLoopTable[m_loopNum].lpContains(
+                                  m_compiler->lvaGetDesc(lclNum)->GetPerSsaData(lclVar->GetSsaNum())->m_defLoc.m_blk);
+                // and the VN of the tree is considered invariant as well.
                 //
-                if ((tree->gtFlags & GTF_EXCEPT) != 0)
+                // TODO-CQ: This VN invariance check should not be necessary and in some cases it is conservative - it
+                // is possible that the SSA def is outside the loop but VN does not understand what the node is doing
+                // (e.g. LCL_FLD-based type reinterpretation) and assigns a "new, unique VN" to the node. This VN is
+                // associated with the block where the node is, a loop block, and thus the VN is considered to not be
+                // invariant.
+                // On the other hand, it is possible for a SSA def to be inside the loop yet the use to be invariant,
+                // if the defining expression is also invariant. In such a case the VN invariance would help but it is
+                // blocked by the SSA invariance check.
+                isInvariant = isInvariant && IsTreeVNInvariant(tree);
+
+                if (isInvariant)
+                {
+                    Value& top = m_valueStack.TopRef();
+                    assert(top.Node() == tree);
+                    top.m_invariant = true;
+                    // In general it doesn't make sense to hoist a local node but there are exceptions, for example
+                    // LCL_FLD nodes (because then the variable cannot be enregistered and the node always turns
+                    // into a memory access).
+                    top.m_hoistable = IsNodeHoistable(tree);
+                }
+
+                return fgWalkResult::WALK_CONTINUE;
+            }
+
+            // Initclass CLS_VARs and IconHandles are the base cases of cctor dependent trees.
+            // In the IconHandle case, it's of course the dereference, rather than the constant itself, that is
+            // truly dependent on the cctor.  So a more precise approach would be to separately propagate
+            // isCctorDependent and isAddressWhoseDereferenceWouldBeCctorDependent, but we don't for
+            // simplicity/throughput; the constant itself would be considered non-hoistable anyway, since
+            // optIsCSEcandidate returns false for constants.
+            bool treeIsCctorDependent = ((tree->OperIs(GT_CLS_VAR) && ((tree->gtFlags & GTF_CLS_VAR_INITCLASS) != 0)) ||
+                                         (tree->OperIs(GT_CNS_INT) && ((tree->gtFlags & GTF_ICON_INITCLASS) != 0)));
+            bool treeIsInvariant          = true;
+            bool treeHasHoistableChildren = false;
+            int  childCount;
+
+            for (childCount = 0; m_valueStack.TopRef(childCount).Node() != tree; childCount++)
+            {
+                Value& child = m_valueStack.TopRef(childCount);
+
+                if (child.m_hoistable)
+                {
+                    treeHasHoistableChildren = true;
+                }
+
+                if (!child.m_invariant)
+                {
+                    treeIsInvariant = false;
+                }
+
+                if (child.m_cctorDependent)
+                {
+                    // Normally, a parent of a cctor-dependent tree is also cctor-dependent.
+                    treeIsCctorDependent = true;
+
+                    // Check for the case where we can stop propagating cctor-dependent upwards.
+                    if (tree->OperIs(GT_COMMA) && (child.Node() == tree->gtGetOp2()))
+                    {
+                        GenTree* op1 = tree->gtGetOp1();
+                        if (op1->OperIs(GT_CALL))
+                        {
+                            GenTreeCall* call = op1->AsCall();
+                            if ((call->gtCallType == CT_HELPER) &&
+                                s_helperCallProperties.MayRunCctor(eeGetHelperNum(call->gtCallMethHnd)))
+                            {
+                                // Hoisting the comma is ok because it would hoist the initialization along
+                                // with the static field reference.
+                                treeIsCctorDependent = false;
+                                // Hoisting the static field without hoisting the initialization would be
+                                // incorrect, make sure we consider the field (which we flagged as
+                                // cctor-dependent) non-hoistable.
+                                noway_assert(!child.m_hoistable);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // If all the children of "tree" are hoistable, then "tree" itself can be hoisted,
+            // unless it has a static var reference that can't be hoisted past its cctor call.
+            bool treeIsHoistable = treeIsInvariant && !treeIsCctorDependent;
+
+            // But we must see if anything else prevents "tree" from being hoisted.
+            //
+            if (treeIsInvariant)
+            {
+                if (treeIsHoistable)
+                {
+                    treeIsHoistable = IsNodeHoistable(tree);
+                }
+
+                // If it's a call, it must be a helper call, and be pure.
+                // Further, if it may run a cctor, it must be labeled as "Hoistable"
+                // (meaning it won't run a cctor because the class is not precise-init).
+                if (treeIsHoistable && tree->IsCall())
+                {
+                    GenTreeCall* call = tree->AsCall();
+                    if (call->gtCallType != CT_HELPER)
+                    {
+                        treeIsHoistable = false;
+                    }
+                    else
+                    {
+                        CorInfoHelpFunc helpFunc = eeGetHelperNum(call->gtCallMethHnd);
+                        if (!s_helperCallProperties.IsPure(helpFunc))
+                        {
+                            treeIsHoistable = false;
+                        }
+                        else if (s_helperCallProperties.MayRunCctor(helpFunc) &&
+                                 ((call->gtFlags & GTF_CALL_HOISTABLE) == 0))
+                        {
+                            treeIsHoistable = false;
+                        }
+                    }
+                }
+
+                if (treeIsHoistable)
+                {
+                    if (!m_beforeSideEffect)
+                    {
+                        // For now, we give up on an expression that might raise an exception if it is after the
+                        // first possible global side effect (and we assume we're after that if we're not in the first
+                        // block).
+                        // TODO-CQ: this is when we might do loop cloning.
+                        //
+                        if ((tree->gtFlags & GTF_EXCEPT) != 0)
+                        {
+                            treeIsHoistable = false;
+                        }
+                    }
+                }
+
+                // Is the value of the whole tree loop invariant?
+                treeIsInvariant = IsTreeVNInvariant(tree);
+
+                // Is the value of the whole tree loop invariant?
+                if (!treeIsInvariant)
                 {
                     treeIsHoistable = false;
                 }
             }
+
+            // Check if we need to set 'm_beforeSideEffect' to false.
+            // If we encounter a tree with a call in it
+            //  or if we see an assignment to global we set it to false.
+            //
+            // If we are already set to false then we can skip these checks
+            //
+            if (m_beforeSideEffect)
+            {
+                // For this purpose, we only care about memory side effects.  We assume that expressions will
+                // be hoisted so that they are evaluated in the same order as they would have been in the loop,
+                // and therefore throw exceptions in the same order.  (So we don't use GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS
+                // here, since that includes exceptions.)
+                if (tree->IsCall())
+                {
+                    // If it's a call, it must be a helper call that does not mutate the heap.
+                    // Further, if it may run a cctor, it must be labeled as "Hoistable"
+                    // (meaning it won't run a cctor because the class is not precise-init).
+                    GenTreeCall* call = tree->AsCall();
+                    if (call->gtCallType != CT_HELPER)
+                    {
+                        m_beforeSideEffect = false;
+                    }
+                    else
+                    {
+                        CorInfoHelpFunc helpFunc = eeGetHelperNum(call->gtCallMethHnd);
+                        if (s_helperCallProperties.MutatesHeap(helpFunc))
+                        {
+                            m_beforeSideEffect = false;
+                        }
+                        else if (s_helperCallProperties.MayRunCctor(helpFunc) &&
+                                 (call->gtFlags & GTF_CALL_HOISTABLE) == 0)
+                        {
+                            m_beforeSideEffect = false;
+                        }
+                    }
+                }
+                else if (tree->OperIs(GT_ASG))
+                {
+                    // If the LHS of the assignment has a global reference, then assume it's a global side effect.
+                    GenTree* lhs = tree->gtOp.gtOp1;
+                    if (lhs->gtFlags & GTF_GLOB_REF)
+                    {
+                        m_beforeSideEffect = false;
+                    }
+                }
+            }
+
+            // If this 'tree' is hoistable then we return and the caller will
+            // decide to hoist it as part of larger hoistable expression.
+            //
+            if (!treeIsHoistable && treeHasHoistableChildren)
+            {
+                // The current tree is not hoistable but it has hoistable children that we need
+                // to hoist now.
+                //
+                // In order to preserve the original execution order, we also need to hoist any
+                // other hoistable trees that we encountered so far.
+                // At this point the stack contains (in top to bottom order):
+                //   - the current node's children
+                //   - the current node
+                //   - ancestors of the current node and some of their descendants
+                //
+                // The ancestors have not been visited yet in post order so they're not hoistable
+                // (and they cannot become hoistable because the current node is not) but some of
+                // their descendants may have already been traversed and be hoistable.
+                //
+                // The execution order is actually bottom to top so we'll start hoisting from
+                // the bottom of the stack, skipping the current node (which is expected to not
+                // be hoistable).
+                //
+                // Note that the treeHasHoistableChildren check avoids unnecessary stack traversing
+                // and also prevents hoisting trees too early. If the current tree is not hoistable
+                // and it doesn't have any hoistable children then there's no point in hoisting any
+                // other trees. Doing so would interfere with the cctor dependent case, where the
+                // cctor dependent node is initially not hoistable and may become hoistable later,
+                // when its parent comma node is visited.
+                //
+                for (int i = 0; i < m_valueStack.Height(); i++)
+                {
+                    Value& value = m_valueStack.BottomRef(i);
+
+                    if (value.m_hoistable)
+                    {
+                        assert(value.Node() != tree);
+
+                        // Don't hoist this tree again.
+                        value.m_hoistable = false;
+                        value.m_invariant = false;
+
+                        m_compiler->optHoistCandidate(value.Node(), m_loopNum, m_hoistContext);
+                    }
+                }
+            }
+
+            m_valueStack.Pop(childCount);
+
+            Value& top = m_valueStack.TopRef();
+            assert(top.Node() == tree);
+            top.m_hoistable      = treeIsHoistable;
+            top.m_cctorDependent = treeIsCctorDependent;
+            top.m_invariant      = treeIsInvariant;
+
+            return fgWalkResult::WALK_CONTINUE;
         }
+    };
 
-        // Is the value of the whole tree loop invariant?
-        treeIsInvariant =
-            optVNIsLoopInvariant(tree->gtVNPair.GetLiberal(), lnum, &hoistCtxt->m_curLoopVnInvariantCache);
+    LoopDsc* loopDsc = &optLoopTable[loopNum];
+    assert(blocks->Top() == loopDsc->lpEntry);
 
-        // Is the value of the whole tree loop invariant?
-        if (!treeIsInvariant)
-        {
-            treeIsHoistable = false;
-        }
-    }
+    HoistVisitor visitor(this, loopNum, hoistContext);
 
-    // Check if we need to set '*pFirstBlockAndBeforeSideEffect' to false.
-    // If we encounter a tree with a call in it
-    //  or if we see an assignment to global we set it to false.
-    //
-    // If we are already set to false then we can skip these checks
-    //
-    if (*pFirstBlockAndBeforeSideEffect)
+    while (!blocks->Empty())
     {
-        // For this purpose, we only care about memory side effects.  We assume that expressions will
-        // be hoisted so that they are evaluated in the same order as they would have been in the loop,
-        // and therefore throw exceptions in the same order.  (So we don't use GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS
-        // here, since that includes exceptions.)
-        if (tree->IsCall())
+        BasicBlock* block       = blocks->Pop();
+        unsigned    blockWeight = block->getBBWeight(this);
+
+        JITDUMP("    optHoistLoopBlocks " FMT_BB " (weight=%6s) of loop L%02u <" FMT_BB ".." FMT_BB
+                ">, firstBlock is %s\n",
+                block->bbNum, refCntWtd2str(blockWeight), loopNum, loopDsc->lpFirst->bbNum, loopDsc->lpBottom->bbNum,
+                (block == loopDsc->lpEntry) ? "true" : "false");
+
+        if (blockWeight < (BB_UNITY_WEIGHT / 10))
         {
-            // If it's a call, it must be a helper call that does not mutate the heap.
-            // Further, if it may run a cctor, it must be labeled as "Hoistable"
-            // (meaning it won't run a cctor because the class is not precise-init).
-            GenTreeCall* call = tree->AsCall();
-            if (call->gtCallType != CT_HELPER)
-            {
-                *pFirstBlockAndBeforeSideEffect = false;
-            }
-            else
-            {
-                CorInfoHelpFunc helpFunc = eeGetHelperNum(call->gtCallMethHnd);
-                if (s_helperCallProperties.MutatesHeap(helpFunc))
-                {
-                    *pFirstBlockAndBeforeSideEffect = false;
-                }
-                else if (s_helperCallProperties.MayRunCctor(helpFunc) && (call->gtFlags & GTF_CALL_HOISTABLE) == 0)
-                {
-                    *pFirstBlockAndBeforeSideEffect = false;
-                }
-            }
+            JITDUMP("      block weight is too small to perform hoisting.\n");
+            continue;
         }
-        else if (tree->OperIs(GT_ASG))
-        {
-            // If the LHS of the assignment has a global reference, then assume it's a global side effect.
-            GenTree* lhs = tree->gtOp.gtOp1;
-            if (lhs->gtFlags & GTF_GLOB_REF)
-            {
-                *pFirstBlockAndBeforeSideEffect = false;
-            }
-        }
-        else if (tree->OperIsCopyBlkOp())
-        {
-            GenTree* args = tree->gtOp.gtOp1;
-            assert(args->OperGet() == GT_LIST);
-            if (args->gtOp.gtOp1->gtFlags & GTF_GLOB_REF)
-            {
-                *pFirstBlockAndBeforeSideEffect = false;
-            }
-        }
+
+        visitor.HoistBlock(block);
     }
-
-    // If this 'tree' is hoistable then we return and the caller will
-    // decide to hoist it as part of larger hoistable expression.
-    //
-    if (!treeIsHoistable)
-    {
-        // We are not hoistable so we will now hoist any hoistable children.
-        //
-        for (unsigned childNum = 0; childNum < nChildren; childNum++)
-        {
-            if (childrenHoistable[childNum])
-            {
-                // We can't hoist the LHS of an assignment, isn't a real use.
-                if ((childNum == 0) && tree->OperIs(GT_ASG))
-                {
-                    continue;
-                }
-
-                GenTree* child = tree->GetChild(childNum);
-
-                // We try to hoist this 'child' tree
-                optHoistCandidate(child, lnum, hoistCtxt);
-            }
-        }
-    }
-
-    *pHoistable      = treeIsHoistable;
-    *pCctorDependent = treeIsCctorDependent;
-    return treeIsInvariant;
 }
 
 void Compiler::optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt)
 {
-    if (lnum == BasicBlock::NOT_IN_LOOP)
-    {
-        // The hoisted expression isn't valid at any loop head so don't hoist this expression.
-        return;
-    }
-
-    // The outer loop also must be suitable for hoisting...
-    if ((optLoopTable[lnum].lpFlags & LPFLG_HOISTABLE) == 0)
-    {
-        return;
-    }
-
-    // If the hoisted expression isn't valid at this loop head then break
-    if (!optTreeIsValidAtLoopHead(tree, lnum))
-    {
-        return;
-    }
+    assert(lnum != BasicBlock::NOT_IN_LOOP);
+    assert((optLoopTable[lnum].lpFlags & LPFLG_HOISTABLE) != 0);
 
     // It must pass the hoistable profitablity tests for this loop level
     if (!optIsProfitableToHoistableTree(tree, lnum))
@@ -7105,23 +7213,11 @@ bool Compiler::optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* loo
     {
         if (funcApp.m_func == VNF_PhiDef)
         {
-            // First, make sure it's a "proper" phi -- the definition is a Phi application.
-            VNFuncApp phiDefValFuncApp;
-            if (!vnStore->GetVNFunc(funcApp.m_args[2], &phiDefValFuncApp) || phiDefValFuncApp.m_func != VNF_Phi)
-            {
-                // It's not *really* a definition, rather a pass-through of some other VN.
-                // (This could occur, say if both sides of an if-then-else diamond made the
-                // same assignment to a variable.)
-                res = optVNIsLoopInvariant(funcApp.m_args[2], lnum, loopVnInvariantCache);
-            }
-            else
-            {
-                // Is the definition within the loop?  If so, is not loop-invariant.
-                unsigned      lclNum = funcApp.m_args[0];
-                unsigned      ssaNum = funcApp.m_args[1];
-                LclSsaVarDsc* ssaDef = lvaTable[lclNum].GetPerSsaData(ssaNum);
-                res                  = !optLoopContains(lnum, ssaDef->m_defLoc.m_blk->bbNatLoopNum);
-            }
+            // Is the definition within the loop?  If so, is not loop-invariant.
+            unsigned      lclNum = funcApp.m_args[0];
+            unsigned      ssaNum = funcApp.m_args[1];
+            LclSsaVarDsc* ssaDef = lvaTable[lclNum].GetPerSsaData(ssaNum);
+            res                  = !optLoopContains(lnum, ssaDef->m_defLoc.m_blk->bbNatLoopNum);
         }
         else if (funcApp.m_func == VNF_PhiMemoryDef)
         {
@@ -7161,44 +7257,6 @@ bool Compiler::optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* loo
 
     loopVnInvariantCache->Set(vn, res);
     return res;
-}
-
-bool Compiler::optTreeIsValidAtLoopHead(GenTree* tree, unsigned lnum)
-{
-    if (tree->OperIsLocal())
-    {
-        GenTreeLclVarCommon* lclVar = tree->AsLclVarCommon();
-        unsigned             lclNum = lclVar->gtLclNum;
-
-        // The lvlVar must be have an Ssa tracked lifetime
-        if (!lvaInSsa(lclNum))
-        {
-            return false;
-        }
-
-        // If the loop does not contains the SSA def we can hoist it.
-        if (!optLoopTable[lnum].lpContains(lvaTable[lclNum].GetPerSsaData(lclVar->GetSsaNum())->m_defLoc.m_blk))
-        {
-            return true;
-        }
-    }
-    else if (tree->OperIsConst())
-    {
-        return true;
-    }
-    else // If every one of the children nodes are valid at this Loop's Head.
-    {
-        unsigned nChildren = tree->NumChildren();
-        for (unsigned childNum = 0; childNum < nChildren; childNum++)
-        {
-            if (!optTreeIsValidAtLoopHead(tree->GetChild(childNum), lnum))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-    return false;
 }
 
 /*****************************************************************************
@@ -7336,15 +7394,13 @@ void Compiler::fgCreateLoopPreHeader(unsigned lnum)
         {
             break;
         }
-        GenTreeArgList* args = op2->gtGetOp1()->AsArgList();
-        while (args != nullptr)
+        for (GenTreePhi::Use& use : op2->AsPhi()->Uses())
         {
-            GenTreePhiArg* phiArg = args->Current()->AsPhiArg();
+            GenTreePhiArg* phiArg = use.GetNode()->AsPhiArg();
             if (phiArg->gtPredBB == head)
             {
                 phiArg->gtPredBB = preHead;
             }
-            args = args->Rest();
         }
     }
 
@@ -9042,7 +9098,7 @@ void Compiler::optOptimizeBools()
             {
                 printf("Folded %sboolean conditions of " FMT_BB " and " FMT_BB " to :\n",
                        c2->OperIsLeaf() ? "" : "non-leaf ", b1->bbNum, b2->bbNum);
-                gtDispTree(s1);
+                gtDispTree(s1->gtStmtExpr);
                 printf("\n");
             }
 #endif

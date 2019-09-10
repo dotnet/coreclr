@@ -67,8 +67,7 @@ namespace System.Threading.Tasks
             Task? task;
 
             // If the IAsyncResult is our task-wrapping IAsyncResult, extract the Task.
-            var twar = asyncResult as TaskWrapperAsyncResult;
-            if (twar != null)
+            if (asyncResult is TaskWrapperAsyncResult twar)
             {
                 task = twar.Task;
                 Debug.Assert(task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
@@ -95,8 +94,7 @@ namespace System.Threading.Tasks
             Task<TResult>? task;
 
             // If the IAsyncResult is our task-wrapping IAsyncResult, extract the Task.
-            var twar = asyncResult as TaskWrapperAsyncResult;
-            if (twar != null)
+            if (asyncResult is TaskWrapperAsyncResult twar)
             {
                 task = twar.Task as Task<TResult>;
                 Debug.Assert(twar.Task != null, "TaskWrapperAsyncResult should never wrap a null Task.");
@@ -181,10 +179,10 @@ namespace System.Threading.Tasks
             // - IsCompleted and AsyncWaitHandle just pass through to the Task.
             // - AsyncState and CompletedSynchronously return the corresponding values stored in this object.
 
-            object? IAsyncResult.AsyncState { get { return _state; } }
-            bool IAsyncResult.CompletedSynchronously { get { return _completedSynchronously; } }
-            bool IAsyncResult.IsCompleted { get { return this.Task.IsCompleted; } }
-            WaitHandle IAsyncResult.AsyncWaitHandle { get { return ((IAsyncResult)this.Task).AsyncWaitHandle; } }
+            object? IAsyncResult.AsyncState => _state;
+            bool IAsyncResult.CompletedSynchronously => _completedSynchronously;
+            bool IAsyncResult.IsCompleted => this.Task.IsCompleted;
+            WaitHandle IAsyncResult.AsyncWaitHandle => ((IAsyncResult)this.Task).AsyncWaitHandle;
         }
     }
 }

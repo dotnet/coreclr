@@ -18,10 +18,7 @@
 **
 ============================================================*/
 
-using System;
-using System.Text;
 using System.Threading;
-using System.Collections;
 using System.Globalization;
 
 namespace System
@@ -55,27 +52,25 @@ namespace System
         {
             get
             {
-                //Grabbing the cached value is required at the top of this function so that
-                //we don't incur a race condition with the ResetTimeZone method below.
+                // Grabbing the cached value is required at the top of this function so that
+                // we don't incur a race condition with the ResetTimeZone method below.
                 TimeZone? tz = currentTimeZone;
                 if (tz == null)
                 {
                     lock (InternalSyncObject)
                     {
-                        if (currentTimeZone == null)
-                        {
-                            currentTimeZone = new CurrentSystemTimeZone();
-                        }
+                        currentTimeZone ??= new CurrentSystemTimeZone();
                         tz = currentTimeZone;
                     }
                 }
-                return (tz);
+
+                return tz;
             }
         }
 
-        //This method is called by CultureInfo.ClearCachedData in response to control panel
-        //change events.  It must be synchronized because otherwise there is a race condition
-        //with the CurrentTimeZone property above.
+        // This method is called by CultureInfo.ClearCachedData in response to control panel
+        // change events.  It must be synchronized because otherwise there is a race condition
+        // with the CurrentTimeZone property above.
         internal static void ResetTimeZone()
         {
             if (currentTimeZone != null)

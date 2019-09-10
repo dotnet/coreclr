@@ -99,15 +99,14 @@ namespace System.Runtime.CompilerServices
         public static extern int GetHashCode(object o);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public new static extern bool Equals(object? o1, object? o2);
+        public static extern new bool Equals(object? o1, object? o2);
 
         public static int OffsetToStringData
         {
             // This offset is baked in by string indexer intrinsic, so there is no harm
             // in getting it baked in here as well.
             [System.Runtime.Versioning.NonVersionable]
-            get
-            {
+            get =>
                 // Number of bytes from the address pointed to by a reference to
                 // a String to the first 16-bit character in the String.  Skip
                 // over the MethodTable pointer, & String
@@ -116,11 +115,11 @@ namespace System.Runtime.CompilerServices
                 // This property allows C#'s fixed statement to work on Strings.
                 // On 64 bit platforms, this should be 12 (8+4) and on 32 bit 8 (4+4).
 #if BIT64
-                return 12;
+                12;
 #else // 32
-                return 8;
+                8;
 #endif // BIT64
-            }
+
         }
 
         // This method ensures that there is sufficient stack to execute the average Framework function.
@@ -146,6 +145,7 @@ namespace System.Runtime.CompilerServices
         }
 
         /// <returns>true if given type is reference type or value type that contains references</returns>
+        [Intrinsic]
         public static bool IsReferenceOrContainsReferences<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
@@ -157,6 +157,7 @@ namespace System.Runtime.CompilerServices
         /// <remarks>
         /// Only use the result of this for Equals() comparison, not for CompareTo() comparison.
         /// </remarks>
+        [Intrinsic]
         internal static bool IsBitwiseEquatable<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
@@ -167,6 +168,7 @@ namespace System.Runtime.CompilerServices
         internal static ref byte GetRawData(this object obj) =>
             ref Unsafe.As<RawData>(obj).Data;
 
+        [Intrinsic]
         internal static ref byte GetRawSzArrayData(this Array array) =>
             ref Unsafe.As<RawSzArrayData>(array).Data;
 

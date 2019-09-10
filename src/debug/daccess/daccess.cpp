@@ -859,7 +859,10 @@ SplitName::FindType(IMDInternalImport* mdInternal)
 
     ULONG32 length;
     WCHAR   wszName[MAX_CLASS_NAME];
-    ConvertUtf8(m_typeName, MAX_CLASS_NAME, &length, wszName);
+    if (ConvertUtf8(m_typeName, MAX_CLASS_NAME, &length, wszName) != S_OK)
+    {
+        return false;
+    }
 
     WCHAR *pHead;
 
@@ -3277,6 +3280,10 @@ ClrDataAccess::QueryInterface(THIS_
     else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface6)))
     {
         ifaceRet = static_cast<ISOSDacInterface6*>(this);
+    }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface7)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface7*>(this);
     }
     else
     {
@@ -8470,12 +8477,12 @@ StackWalkAction DacStackReferenceWalker::Callback(CrawlFrame *pCF, VOID *pData)
     gcctx->cf = pCF;
 
     bool fReportGCReferences = true;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // On Win64 and ARM, we may have unwound this crawlFrame and thus, shouldn't report the invalid
     // references it may contain.
     // todo.
     fReportGCReferences = pCF->ShouldCrawlframeReportGCReferences();
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     Frame *pFrame = ((DacScanContext*)gcctx->sc)->pFrame = pCF->GetFrame();
 

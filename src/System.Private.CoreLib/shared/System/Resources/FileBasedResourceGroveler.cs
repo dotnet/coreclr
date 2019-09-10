@@ -15,7 +15,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
-using System.Threading;
 
 using Internal.IO;
 
@@ -23,7 +22,7 @@ namespace System.Resources
 {
     internal class FileBasedResourceGroveler : IResourceGroveler
     {
-        private ResourceManager.ResourceManagerMediator _mediator;
+        private readonly ResourceManager.ResourceManagerMediator _mediator;
 
         public FileBasedResourceGroveler(ResourceManager.ResourceManagerMediator mediator)
         {

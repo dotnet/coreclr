@@ -28,6 +28,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 #include "jithashtable.h"
 #include "simd.h"
 #include "namedintrinsiclist.h"
+#include "layout.h"
 
 // Debugging GenTree is much easier if we add a magic virtual function to make the debugger able to figure out what type
 // it's got. This is enabled by default in DEBUG. To enable it in RET builds (temporarily!), you need to change the
@@ -303,6 +304,8 @@ public:
 class GenTreeUseEdgeIterator;
 class GenTreeOperandIterator;
 
+struct GenTreeStmt;
+
 /*****************************************************************************/
 
 // Forward declarations of the subtypes
@@ -402,7 +405,7 @@ struct GenTree
     unsigned char gtLIRFlags; // Used for nodes that are in LIR. See LIR::Flags in lir.h for the various flags.
 
 #if ASSERTION_PROP
-    AssertionInfo gtAssertionInfo; // valid only for non-GT_STMT nodes
+    AssertionInfo gtAssertionInfo;
 
     bool GeneratesAssertion() const
     {
@@ -891,8 +894,6 @@ public:
 
 #define GTF_SIMD12_OP               0x80000000 // GT_SIMD -- Indicates that the operands need to be handled as SIMD12
                                                //            even if they have been retyped as SIMD16.
-
-#define GTF_STMT_CMPADD             0x80000000 // GT_STMT -- added by compiler
 
 //---------------------------------------------------------------------
 //
@@ -1574,7 +1575,6 @@ public:
         assert(OperIsSimple(gtOper));
         switch (gtOper)
         {
-            case GT_PHI:
             case GT_LEA:
             case GT_RETFILT:
             case GT_NOP:
@@ -2022,10 +2022,6 @@ public:
     {
         return OperGet() == GT_CALL;
     }
-    bool IsStatement() const
-    {
-        return OperGet() == GT_STMT;
-    }
     inline bool IsHelperCall();
 
     bool gtOverflow() const;
@@ -2049,7 +2045,6 @@ public:
     bool IsPhiDefn();
 
     // Returns "true" iff "*this" is a statement containing an assignment that defines an SSA name (lcl = phi(...));
-    bool IsPhiDefnStmt();
 
     // Because of the fact that we hid the assignment operator of "BitSet" (in DEBUG),
     // we can't synthesize an assignment operator.
@@ -2118,9 +2113,6 @@ private:
 public:
     bool Precedes(GenTree* other);
 
-    // The maximum possible # of children of any node.
-    static const int MAX_CHILDREN = 6;
-
     bool IsReuseRegVal() const
     {
         // This can be extended to non-constant nodes, but not to local or indir nodes.
@@ -2182,6 +2174,177 @@ public:
     inline GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode = false));
 };
 
+// Represents a GT_PHI node - a variable sized list of GT_PHI_ARG nodes.
+// All PHI_ARG nodes must represent uses of the same local variable and
+// the PHI node's type must be the same as the local variable's type.
+//
+// The PHI node does not represent a definition by itself, it is always
+// the RHS of a GT_ASG node. The LHS of the ASG node is always a GT_LCL_VAR
+// node, that is a definition for the same local variable referenced by
+// all the used PHI_ARG nodes:
+//
+//   ASG(LCL_VAR(lcl7), PHI(PHI_ARG(lcl7), PHI_ARG(lcl7), PHI_ARG(lcl7)))
+//
+// PHI nodes are also present in LIR, where GT_STORE_LCL_VAR replaces the
+// ASG node.
+//
+// The order of the PHI_ARG uses is not currently relevant and it may be
+// the same or not as the order of the predecessor blocks.
+//
+struct GenTreePhi final : public GenTree
+{
+    class Use
+    {
+        GenTree* m_node;
+        Use*     m_next;
+
+    public:
+        Use(GenTree* node, Use* next = nullptr) : m_node(node), m_next(next)
+        {
+            assert(node->OperIs(GT_PHI_ARG));
+        }
+
+        GenTree*& NodeRef()
+        {
+            return m_node;
+        }
+
+        GenTree* GetNode() const
+        {
+            assert(m_node->OperIs(GT_PHI_ARG));
+            return m_node;
+        }
+
+        void SetNode(GenTree* node)
+        {
+            assert(node->OperIs(GT_PHI_ARG));
+            m_node = node;
+        }
+
+        Use*& NextRef()
+        {
+            return m_next;
+        }
+
+        Use* GetNext() const
+        {
+            return m_next;
+        }
+    };
+
+    class UseIterator
+    {
+        Use* m_use;
+
+    public:
+        UseIterator(Use* use) : m_use(use)
+        {
+        }
+
+        Use& operator*() const
+        {
+            return *m_use;
+        }
+
+        Use* operator->() const
+        {
+            return m_use;
+        }
+
+        UseIterator& operator++()
+        {
+            m_use = m_use->GetNext();
+            return *this;
+        }
+
+        bool operator==(const UseIterator& i) const
+        {
+            return m_use == i.m_use;
+        }
+
+        bool operator!=(const UseIterator& i) const
+        {
+            return m_use != i.m_use;
+        }
+    };
+
+    class UseList
+    {
+        Use* m_uses;
+
+    public:
+        UseList(Use* uses) : m_uses(uses)
+        {
+        }
+
+        UseIterator begin() const
+        {
+            return UseIterator(m_uses);
+        }
+
+        UseIterator end() const
+        {
+            return UseIterator(nullptr);
+        }
+    };
+
+    Use* gtUses;
+
+    GenTreePhi(var_types type) : GenTree(GT_PHI, type), gtUses(nullptr)
+    {
+    }
+
+    UseList Uses()
+    {
+        return UseList(gtUses);
+    }
+
+    //--------------------------------------------------------------------------
+    // Equals: Checks if 2 PHI nodes are equal.
+    //
+    // Arguments:
+    //    phi1 - The first PHI node
+    //    phi2 - The second PHI node
+    //
+    // Return Value:
+    //    true if the 2 PHI nodes have the same type, number of uses, and the
+    //    uses are equal.
+    //
+    // Notes:
+    //    The order of uses must be the same for equality, even if the
+    //    order is not usually relevant and is not guaranteed to reflect
+    //    a particular order of the predecessor blocks.
+    //
+    static bool Equals(GenTreePhi* phi1, GenTreePhi* phi2)
+    {
+        if (phi1->TypeGet() != phi2->TypeGet())
+        {
+            return false;
+        }
+
+        GenTreePhi::UseIterator i1   = phi1->Uses().begin();
+        GenTreePhi::UseIterator end1 = phi1->Uses().end();
+        GenTreePhi::UseIterator i2   = phi2->Uses().begin();
+        GenTreePhi::UseIterator end2 = phi2->Uses().end();
+
+        for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
+        {
+            if (!Compare(i1->GetNode(), i2->GetNode()))
+            {
+                return false;
+            }
+        }
+
+        return (i1 == end1) && (i2 == end2);
+    }
+
+#if DEBUGGABLE_GENTREE
+    GenTreePhi() : GenTree()
+    {
+    }
+#endif
+};
+
 //------------------------------------------------------------------------
 // GenTreeUseEdgeIterator: an iterator that will produce each use edge of a GenTree node in the order in which
 //                         they are used.
@@ -2222,8 +2385,10 @@ class GenTreeUseEdgeIterator final
     AdvanceFn m_advance;
     GenTree*  m_node;
     GenTree** m_edge;
-    GenTree*  m_argList;
-    int       m_state;
+    // Pointer sized state storage, GenTreeArgList* or GenTreePhi::Use* or GenTreeCall::Use* currently.
+    void* m_statePtr;
+    // Integer sized state storage, usually the operand index for non-list based nodes.
+    int m_state;
 
     GenTreeUseEdgeIterator(GenTree* node);
 
@@ -2234,6 +2399,7 @@ class GenTreeUseEdgeIterator final
     void AdvanceArrOffset();
     void AdvanceDynBlk();
     void AdvanceStoreDynBlk();
+    void AdvancePhi();
 
     template <bool ReverseOperands>
     void           AdvanceBinOp();
@@ -2241,7 +2407,7 @@ class GenTreeUseEdgeIterator final
 
     // An advance function for list-like nodes (Phi, SIMDIntrinsicInitN, FieldList)
     void AdvanceList();
-    void SetEntryStateForList(GenTree* list);
+    void SetEntryStateForList(GenTreeArgList* list);
 
     // The advance function for call nodes
     template <int state>
@@ -2271,7 +2437,7 @@ public:
             return m_state == other.m_state;
         }
 
-        return (m_node == other.m_node) && (m_edge == other.m_edge) && (m_argList == other.m_argList) &&
+        return (m_node == other.m_node) && (m_edge == other.m_edge) && (m_statePtr == other.m_statePtr) &&
                (m_state == other.m_state);
     }
 
@@ -3149,12 +3315,120 @@ class fgArgInfo;
 
 struct GenTreeCall final : public GenTree
 {
-    GenTree*        gtCallObjp;     // The instance argument ('this' pointer)
-    GenTreeArgList* gtCallArgs;     // The list of arguments in original evaluation order
-    GenTreeArgList* gtCallLateArgs; // On x86:     The register arguments in an optimal order
-                                    // On ARM/x64: - also includes any outgoing arg space arguments
-                                    //             - that were evaluated into a temp LclVar
+    class Use
+    {
+        GenTree* m_node;
+        Use*     m_next;
+
+    public:
+        Use(GenTree* node, Use* next = nullptr) : m_node(node), m_next(next)
+        {
+        }
+
+        GenTree*& NodeRef()
+        {
+            return m_node;
+        }
+
+        GenTree* GetNode() const
+        {
+            return m_node;
+        }
+
+        void SetNode(GenTree* node)
+        {
+            assert(node != nullptr);
+            m_node = node;
+        }
+
+        Use*& NextRef()
+        {
+            return m_next;
+        }
+
+        Use* GetNext() const
+        {
+            return m_next;
+        }
+
+        void SetNext(Use* next)
+        {
+            m_next = next;
+        }
+    };
+
+    class UseIterator
+    {
+        Use* m_use;
+
+    public:
+        UseIterator(Use* use) : m_use(use)
+        {
+        }
+
+        Use& operator*() const
+        {
+            return *m_use;
+        }
+
+        Use* operator->() const
+        {
+            return m_use;
+        }
+
+        UseIterator& operator++()
+        {
+            m_use = m_use->GetNext();
+            return *this;
+        }
+
+        bool operator==(const UseIterator& i) const
+        {
+            return m_use == i.m_use;
+        }
+
+        bool operator!=(const UseIterator& i) const
+        {
+            return m_use != i.m_use;
+        }
+    };
+
+    class UseList
+    {
+        Use* m_uses;
+
+    public:
+        UseList(Use* uses) : m_uses(uses)
+        {
+        }
+
+        UseIterator begin() const
+        {
+            return UseIterator(m_uses);
+        }
+
+        UseIterator end() const
+        {
+            return UseIterator(nullptr);
+        }
+    };
+
+    GenTree* gtCallObjp;     // The instance argument ('this' pointer)
+    Use*     gtCallArgs;     // The list of arguments in original evaluation order
+    Use*     gtCallLateArgs; // On x86:     The register arguments in an optimal order
+                             // On ARM/x64: - also includes any outgoing arg space arguments
+                             //             - that were evaluated into a temp LclVar
     fgArgInfo* fgArgInfo;
+
+    UseList Args()
+    {
+        return UseList(gtCallArgs);
+    }
+
+    UseList LateArgs()
+    {
+        return UseList(gtCallLateArgs);
+    }
 
 #if !FEATURE_FIXED_OUT_ARGS
     int     regArgListCount;
@@ -4573,7 +4847,21 @@ protected:
 
 struct GenTreeBlk : public GenTreeIndir
 {
+private:
+    ClassLayout* m_layout;
+
 public:
+    ClassLayout* GetLayout() const
+    {
+        return m_layout;
+    }
+
+    void SetLayout(ClassLayout* layout)
+    {
+        assert((layout != nullptr) || OperIs(GT_DYN_BLK, GT_STORE_DYN_BLK));
+        m_layout = layout;
+    }
+
     // The data to be stored (null for GT_BLK)
     GenTree*& Data()
     {
@@ -4587,13 +4875,9 @@ public:
     // The size of the buffer to be copied.
     unsigned Size() const
     {
-        return gtBlkSize;
+        assert((m_layout != nullptr) || OperIs(GT_DYN_BLK, GT_STORE_DYN_BLK));
+        return (m_layout != nullptr) ? m_layout->GetSize() : 0;
     }
-
-    unsigned gtBlkSize;
-
-    // Return true iff the object being copied contains one or more GC pointers.
-    bool HasGCPtr();
 
     // True if this BlkOpNode is a volatile memory operation.
     bool IsVolatile() const
@@ -4619,20 +4903,22 @@ public:
 
     bool gtBlkOpGcUnsafe;
 
-    GenTreeBlk(genTreeOps oper, var_types type, GenTree* addr, unsigned size)
+    GenTreeBlk(genTreeOps oper, var_types type, GenTree* addr, ClassLayout* layout)
         : GenTreeIndir(oper, type, addr, nullptr)
-        , gtBlkSize(size)
+        , m_layout(layout)
         , gtBlkOpKind(BlkOpKindInvalid)
         , gtBlkOpGcUnsafe(false)
     {
         assert(OperIsBlk(oper));
+        assert((layout != nullptr) || OperIs(GT_DYN_BLK, GT_STORE_DYN_BLK));
         gtFlags |= (addr->gtFlags & GTF_ALL_EFFECT);
     }
 
-    GenTreeBlk(genTreeOps oper, var_types type, GenTree* addr, GenTree* data, unsigned size)
-        : GenTreeIndir(oper, type, addr, data), gtBlkSize(size), gtBlkOpKind(BlkOpKindInvalid), gtBlkOpGcUnsafe(false)
+    GenTreeBlk(genTreeOps oper, var_types type, GenTree* addr, GenTree* data, ClassLayout* layout)
+        : GenTreeIndir(oper, type, addr, data), m_layout(layout), gtBlkOpKind(BlkOpKindInvalid), gtBlkOpGcUnsafe(false)
     {
         assert(OperIsBlk(oper));
+        assert((layout != nullptr) || OperIs(GT_DYN_BLK, GT_STORE_DYN_BLK));
         gtFlags |= (addr->gtFlags & GTF_ALL_EFFECT);
         gtFlags |= (data->gtFlags & GTF_ALL_EFFECT);
     }
@@ -4652,68 +4938,6 @@ protected:
 
 struct GenTreeObj : public GenTreeBlk
 {
-    CORINFO_CLASS_HANDLE gtClass; // the class of the object
-
-    // If non-null, this array represents the gc-layout of the class.
-    // This may be simply copied when cloning this node, because it is not changed once computed.
-    BYTE* gtGcPtrs;
-
-    // If non-zero, this is the number of slots in the class layout that
-    // contain gc-pointers.
-    __declspec(property(get = GetGcPtrCount)) unsigned gtGcPtrCount;
-    unsigned GetGcPtrCount() const
-    {
-        assert(_gtGcPtrCount != UINT32_MAX);
-        return _gtGcPtrCount;
-    }
-    unsigned _gtGcPtrCount;
-
-    // If non-zero, the number of pointer-sized slots that constitutes the class token.
-    unsigned gtSlots;
-
-    bool IsGCInfoInitialized()
-    {
-        return (_gtGcPtrCount != UINT32_MAX);
-    }
-
-    void SetGCInfo(BYTE* gcPtrs, unsigned gcPtrCount, unsigned slots)
-    {
-        gtGcPtrs      = gcPtrs;
-        _gtGcPtrCount = gcPtrCount;
-        gtSlots       = slots;
-        if (gtGcPtrCount != 0)
-        {
-            // We assume that we cannot have a struct with GC pointers that is not a multiple
-            // of the register size.
-            // The EE currently does not allow this, but it could change.
-            // Let's assert it just to be safe.
-            noway_assert(roundUp(gtBlkSize, REGSIZE_BYTES) == gtBlkSize);
-        }
-        else
-        {
-            genTreeOps newOper = GT_BLK;
-            if (gtOper == GT_STORE_OBJ)
-            {
-                newOper = GT_STORE_BLK;
-            }
-            else
-            {
-                assert(gtOper == GT_OBJ);
-            }
-            SetOper(newOper);
-        }
-    }
-
-    void CopyGCInfo(GenTreeObj* srcObj)
-    {
-        if (srcObj->IsGCInfoInitialized())
-        {
-            gtGcPtrs      = srcObj->gtGcPtrs;
-            _gtGcPtrCount = srcObj->gtGcPtrCount;
-            gtSlots       = srcObj->gtSlots;
-        }
-    }
-
     void Init()
     {
         // By default, an OBJ is assumed to be a global reference, unless it is local.
@@ -4722,18 +4946,16 @@ struct GenTreeObj : public GenTreeBlk
         {
             gtFlags |= GTF_GLOB_REF;
         }
-        noway_assert(gtClass != NO_CLASS_HANDLE);
-        _gtGcPtrCount = UINT32_MAX;
+        noway_assert(GetLayout()->GetClassHandle() != NO_CLASS_HANDLE);
     }
 
-    GenTreeObj(var_types type, GenTree* addr, CORINFO_CLASS_HANDLE cls, unsigned size)
-        : GenTreeBlk(GT_OBJ, type, addr, size), gtClass(cls)
+    GenTreeObj(var_types type, GenTree* addr, ClassLayout* layout) : GenTreeBlk(GT_OBJ, type, addr, layout)
     {
         Init();
     }
 
-    GenTreeObj(var_types type, GenTree* addr, GenTree* data, CORINFO_CLASS_HANDLE cls, unsigned size)
-        : GenTreeBlk(GT_STORE_OBJ, type, addr, data, size), gtClass(cls)
+    GenTreeObj(var_types type, GenTree* addr, GenTree* data, ClassLayout* layout)
+        : GenTreeBlk(GT_STORE_OBJ, type, addr, data, layout)
     {
         Init();
     }
@@ -4757,7 +4979,7 @@ public:
     bool     gtEvalSizeFirst;
 
     GenTreeDynBlk(GenTree* addr, GenTree* dynamicSize)
-        : GenTreeBlk(GT_DYN_BLK, TYP_STRUCT, addr, 0), gtDynamicSize(dynamicSize), gtEvalSizeFirst(false)
+        : GenTreeBlk(GT_DYN_BLK, TYP_STRUCT, addr, nullptr), gtDynamicSize(dynamicSize), gtEvalSizeFirst(false)
     {
         // Conservatively the 'addr' could be null or point into the global heap.
         gtFlags |= GTF_EXCEPT | GTF_GLOB_REF;
@@ -4882,8 +5104,6 @@ struct GenTreeRetExpr : public GenTree
 #endif
 };
 
-/* gtStmt   -- 'statement expr' (GT_STMT) */
-
 class InlineContext;
 
 struct GenTreeILOffset : public GenTree
@@ -4909,7 +5129,7 @@ struct GenTreeILOffset : public GenTree
 #endif
 };
 
-struct GenTreeStmt : public GenTree
+struct GenTreeStmt
 {
     GenTree*       gtStmtExpr;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
@@ -4924,6 +5144,11 @@ struct GenTreeStmt : public GenTree
 
     __declspec(property(get = getPrevStmt)) GenTreeStmt* gtPrevStmt;
 
+    GenTreeStmt* gtNext;
+    GenTreeStmt* gtPrev;
+
+    bool compilerAdded;
+
     GenTreeStmt* getNextStmt()
     {
         if (gtNext == nullptr)
@@ -4932,7 +5157,7 @@ struct GenTreeStmt : public GenTree
         }
         else
         {
-            return gtNext->AsStmt();
+            return gtNext;
         }
     }
 
@@ -4944,34 +5169,35 @@ struct GenTreeStmt : public GenTree
         }
         else
         {
-            return gtPrev->AsStmt();
+            return gtPrev;
         }
     }
 
     GenTreeStmt(GenTree* expr, IL_OFFSETX offset)
-        : GenTree(GT_STMT, TYP_VOID)
-        , gtStmtExpr(expr)
+        : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)
 #endif
-    {
-        // Statements can't have statements as part of their expression tree.
-        assert(expr->gtOper != GT_STMT);
-
-        // Set the statement to have the same costs as the top node of the tree.
-        // This is used long before costs have been assigned, so we need to copy
-        // the raw costs.
-        CopyRawCosts(expr);
-    }
-
-#if DEBUGGABLE_GENTREE
-    GenTreeStmt() : GenTree(GT_STMT, TYP_VOID)
+        , gtNext(nullptr)
+        , gtPrev(nullptr)
+        , compilerAdded(false)
     {
     }
-#endif
+
+    bool IsPhiDefnStmt();
+
+    unsigned char GetCostSz() const
+    {
+        return gtStmtExpr->GetCostSz();
+    }
+
+    unsigned char GetCostEx() const
+    {
+        return gtStmtExpr->GetCostEx();
+    }
 };
 
 /*  NOTE: Any tree nodes that are larger than 8 bytes (two ints or
@@ -5069,8 +5295,6 @@ struct GenTreePutArgStk : public GenTreeUnOp
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
         , gtPutArgStkKind(Kind::Invalid)
         , gtNumSlots(numSlots)
-        , gtNumberReferenceSlots(0)
-        , gtGcPtrs(nullptr)
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 #if defined(DEBUG) || defined(UNIX_X86_ABI)
         , gtCall(callNode)
@@ -5132,28 +5356,6 @@ struct GenTreePutArgStk : public GenTreeUnOp
         return (varTypeIsSIMD(gtOp1) && (gtNumSlots == 3));
     }
 
-    //------------------------------------------------------------------------
-    // setGcPointers: Sets the number of references and the layout of the struct object returned by the VM.
-    //
-    // Arguments:
-    //    numPointers - Number of pointer references.
-    //    pointers    - layout of the struct (with pointers marked.)
-    //
-    // Return Value:
-    //    None
-    //
-    // Notes:
-    //    This data is used in the codegen for GT_PUTARG_STK to decide how to copy the struct to the stack by value.
-    //    If no pointer references are used, block copying instructions are used.
-    //    Otherwise the pointer reference slots are copied atomically in a way that gcinfo is emitted.
-    //    Any non pointer references between the pointer reference slots are copied in block fashion.
-    //
-    void setGcPointers(unsigned numPointers, BYTE* pointers)
-    {
-        gtNumberReferenceSlots = numPointers;
-        gtGcPtrs               = pointers;
-    }
-
     // Instruction selection: during codegen time, what code sequence we will be using
     // to encode this operation.
     // TODO-Throughput: The following information should be obtained from the child
@@ -5169,9 +5371,7 @@ struct GenTreePutArgStk : public GenTreeUnOp
         return (gtPutArgStkKind == Kind::Push) || (gtPutArgStkKind == Kind::PushAllSlots);
     }
 
-    unsigned gtNumSlots;             // Number of slots for the argument to be passed on stack
-    unsigned gtNumberReferenceSlots; // Number of reference slots.
-    BYTE*    gtGcPtrs;               // gcPointers
+    unsigned gtNumSlots; // Number of slots for the argument to be passed on stack
 
 #else  // !FEATURE_PUT_STRUCT_ARG_STK
     unsigned getArgSize();
@@ -6499,27 +6699,6 @@ inline var_types GenTree::CastFromType()
 inline var_types& GenTree::CastToType()
 {
     return this->gtCast.gtCastType;
-}
-
-//-----------------------------------------------------------------------------------
-// HasGCPtr: determine whether this block op involves GC pointers
-//
-// Arguments:
-//     None
-//
-// Return Value:
-//    Returns true iff the object being copied contains one or more GC pointers.
-//
-// Notes:
-//    Of the block nodes, only GT_OBJ and ST_STORE_OBJ are allowed to have GC pointers.
-//
-inline bool GenTreeBlk::HasGCPtr()
-{
-    if ((gtOper == GT_OBJ) || (gtOper == GT_STORE_OBJ))
-    {
-        return (AsObj()->gtGcPtrCount != 0);
-    }
-    return false;
 }
 
 inline bool GenTree::isUsedFromSpillTemp() const

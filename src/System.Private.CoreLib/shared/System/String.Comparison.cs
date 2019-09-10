@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -191,7 +192,7 @@ namespace System
         //
         public static int Compare(string? strA, string? strB, bool ignoreCase)
         {
-            var comparisonType = ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture;
+            StringComparison comparisonType = ignoreCase ? StringComparison.CurrentCultureIgnoreCase : StringComparison.CurrentCulture;
             return Compare(strA, strB, comparisonType);
         }
 
@@ -267,7 +268,7 @@ namespace System
         //
         public static int Compare(string? strA, string? strB, bool ignoreCase, CultureInfo? culture)
         {
-            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            CompareOptions options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
             return Compare(strA, strB, culture, options);
         }
 
@@ -315,7 +316,7 @@ namespace System
                 lengthB = Math.Min(lengthB, strB.Length - indexB);
             }
 
-            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            CompareOptions options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
             return CultureInfo.CurrentCulture.CompareInfo.Compare(strA, indexA, lengthA, strB, indexB, lengthB, options);
         }
 
@@ -326,7 +327,7 @@ namespace System
         //
         public static int Compare(string? strA, int indexA, string? strB, int indexB, int length, bool ignoreCase, CultureInfo? culture)
         {
-            var options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
+            CompareOptions options = ignoreCase ? CompareOptions.IgnoreCase : CompareOptions.None;
             return Compare(strA, indexA, strB, indexB, length, culture, options);
         }
 
@@ -670,7 +671,7 @@ namespace System
         // Determines whether two Strings match.
         public static bool Equals(string? a, string? b)
         {
-            if (object.ReferenceEquals(a,b))
+            if (object.ReferenceEquals(a, b))
             {
                 return true;
             }
@@ -723,15 +724,9 @@ namespace System
             }
         }
 
-        public static bool operator ==(string? a, string? b)
-        {
-            return string.Equals(a, b);
-        }
+        public static bool operator ==(string? a, string? b) => string.Equals(a, b);
 
-        public static bool operator !=(string? a, string? b)
-        {
-            return !string.Equals(a, b);
-        }
+        public static bool operator !=(string? a, string? b) => !string.Equals(a, b);
 
         // Gets a hash code for this string.  If strings A and B are such that A.Equals(B), then
         // they will return the same hash code.

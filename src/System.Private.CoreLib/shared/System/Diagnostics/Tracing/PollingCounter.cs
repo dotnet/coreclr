@@ -2,13 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
-using System.Diagnostics;
-using System.Collections;
-using System.Collections.Generic;
-using System.Threading;
-#if ES_BUILD_PCL
-    using System.Threading.Tasks;
 #endif
 
 #if ES_BUILD_STANDALONE
@@ -38,11 +33,12 @@ namespace System.Diagnostics.Tracing
                 throw new ArgumentNullException(nameof(metricProvider));
 
             _metricProvider = metricProvider;
+            Publish();
         }
 
         public override string ToString() => $"PollingCounter '{Name}' Count {1} Mean {_lastVal.ToString("n3")}";
 
-        private Func<double> _metricProvider;
+        private readonly Func<double> _metricProvider;
         private double _lastVal;
 
         internal override void WritePayload(float intervalSec, int pollingIntervalMillisec)
@@ -82,7 +78,7 @@ namespace System.Diagnostics.Tracing
     /// This is the payload that is sent in the with EventSource.Write
     /// </summary>
     [EventData]
-    class PollingPayloadType
+    internal class PollingPayloadType
     {
         public PollingPayloadType(CounterPayload payload) { Payload = payload; }
         public CounterPayload Payload { get; set; }

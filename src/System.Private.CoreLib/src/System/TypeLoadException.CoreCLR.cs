@@ -9,7 +9,7 @@ namespace System
 {
     public partial class TypeLoadException : SystemException
     {
-        // This is called from inside the EE. 
+        // This is called from inside the EE.
         private TypeLoadException(string? className,
             string? assemblyName,
             string? messageArg,
@@ -22,7 +22,7 @@ namespace System
             _messageArg = messageArg;
             _resourceId = resourceId;
 
-            // Set the _message field eagerly; debuggers look at this field to 
+            // Set the _message field eagerly; debuggers look at this field to
             // display error info. They don't call the Message property.
             SetMessageField();
         }
@@ -32,13 +32,13 @@ namespace System
             if (_message == null)
             {
                 if (_className == null && _resourceId == 0)
+                {
                     _message = SR.Arg_TypeLoadException;
+                }
                 else
                 {
-                    if (_assemblyName == null)
-                        _assemblyName = SR.IO_UnknownFileName;
-                    if (_className == null)
-                        _className = SR.IO_UnknownFileName;
+                    _assemblyName ??= SR.IO_UnknownFileName;
+                    _className ??= SR.IO_UnknownFileName;
 
                     string? format = null;
                     GetTypeLoadExceptionMessage(_resourceId, JitHelpers.GetStringHandleOnStack(ref format));

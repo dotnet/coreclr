@@ -15,8 +15,10 @@ namespace System
     {
         // CS0169: The private field '{blah}' is never used
 #pragma warning disable 169
-         private readonly IntPtr _value;
-#pragma warning restore
+#pragma warning disable CA1823
+        private readonly IntPtr _value;
+#pragma warning restore CA1823
+#pragma warning restore 169
 
         [Intrinsic]
         public ByReference(ref T value)
@@ -29,14 +31,11 @@ namespace System
 
         public ref T Value
         {
+            // Implemented as a JIT intrinsic - This default implementation is for
+            // completeness and to provide a concrete error if called via reflection
+            // or if the intrinsic is missed.
             [Intrinsic]
-            get
-            {
-                // Implemented as a JIT intrinsic - This default implementation is for
-                // completeness and to provide a concrete error if called via reflection
-                // or if the intrinsic is missed.
-                throw new PlatformNotSupportedException();
-            }
+            get => throw new PlatformNotSupportedException();
         }
     }
 }

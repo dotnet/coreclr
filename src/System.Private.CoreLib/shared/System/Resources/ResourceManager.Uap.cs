@@ -2,19 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.IO;
 using System.Globalization;
-using System.Collections;
-using System.Text;
 using System.Reflection;
-using System.Security;
-using System.Threading;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using Microsoft.Win32;
-using System.Collections.Generic;
-using System.Runtime.Versioning;
 using System.Diagnostics;
 using Internal.Resources;
 
@@ -164,8 +154,7 @@ namespace System.Resources
             // an empty string. We may in fact fail earlier for another reason, but otherwise we will
             // throw a MissingManifestResourceException when GetString is called indicating that a
             // resW filename called "" could not be found.
-            if (reswFilename == null)
-                reswFilename = string.Empty;
+            reswFilename ??= string.Empty;
 
             // At this point it is important NOT to set _useUapResourceManagement to false
             // if the PRI file does not exist because we are now certain we need to load PRI

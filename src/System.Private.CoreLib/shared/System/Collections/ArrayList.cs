@@ -12,7 +12,6 @@
 **
 ===========================================================*/
 
-using System.Security;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 
@@ -47,7 +46,7 @@ namespace System.Collections
         // increased to _defaultCapacity, and then increased in multiples of two as required.
         public ArrayList()
         {
-            _items = Array.Empty<Object>();
+            _items = Array.Empty<object>();
         }
 
         // Constructs a ArrayList with a given initial capacity. The list is
@@ -59,7 +58,7 @@ namespace System.Collections
             if (capacity < 0) throw new ArgumentOutOfRangeException(nameof(capacity), SR.Format(SR.ArgumentOutOfRange_MustBeNonNegNum, nameof(capacity)));
 
             if (capacity == 0)
-                _items = Array.Empty<Object>();
+                _items = Array.Empty<object>();
             else
                 _items = new object[capacity];
         }
@@ -76,7 +75,7 @@ namespace System.Collections
             int count = c.Count;
             if (count == 0)
             {
-                _items = Array.Empty<Object>();
+                _items = Array.Empty<object>();
             }
             else
             {
@@ -91,10 +90,7 @@ namespace System.Collections
         //
         public virtual int Capacity
         {
-            get
-            {
-                return _items.Length;
-            }
+            get => _items.Length;
             set
             {
                 if (value < _size)
@@ -124,31 +120,16 @@ namespace System.Collections
         }
 
         // Read-only property describing how many elements are in the List.
-        public virtual int Count
-        {
-            get
-            {
-                return _size;
-            }
-        }
+        public virtual int Count => _size;
 
-        public virtual bool IsFixedSize
-        {
-            get { return false; }
-        }
+        public virtual bool IsFixedSize => false;
 
 
         // Is this ArrayList read-only?
-        public virtual bool IsReadOnly
-        {
-            get { return false; }
-        }
+        public virtual bool IsReadOnly => false;
 
         // Is this ArrayList synchronized (thread-safe)?
-        public virtual bool IsSynchronized
-        {
-            get { return false; }
-        }
+        public virtual bool IsSynchronized => false;
 
         // Synchronization root for this object.
         public virtual object SyncRoot => this;
@@ -731,7 +712,7 @@ namespace System.Collections
         public virtual object?[] ToArray()
         {
             if (_size == 0)
-                return Array.Empty<Object>();
+                return Array.Empty<object>();
 
             object?[] array = new object[_size];
             Array.Copy(_items, 0, array, 0, _size);
@@ -772,7 +753,7 @@ namespace System.Collections
         // Note this requires reimplementing half of ArrayList...
         private class IListWrapper : ArrayList
         {
-            private IList _list;
+            private readonly IList _list;
 
             internal IListWrapper(IList list)
             {
@@ -782,40 +763,25 @@ namespace System.Collections
 
             public override int Capacity
             {
-                get { return _list.Count; }
+                get => _list.Count;
                 set
                 {
                     if (value < Count) throw new ArgumentOutOfRangeException(nameof(value), SR.ArgumentOutOfRange_SmallCapacity);
                 }
             }
 
-            public override int Count
-            {
-                get { return _list.Count; }
-            }
+            public override int Count => _list.Count;
 
-            public override bool IsReadOnly
-            {
-                get { return _list.IsReadOnly; }
-            }
+            public override bool IsReadOnly => _list.IsReadOnly;
 
-            public override bool IsFixedSize
-            {
-                get { return _list.IsFixedSize; }
-            }
+            public override bool IsFixedSize => _list.IsFixedSize;
 
 
-            public override bool IsSynchronized
-            {
-                get { return _list.IsSynchronized; }
-            }
+            public override bool IsSynchronized => _list.IsSynchronized;
 
             public override object? this[int index]
             {
-                get
-                {
-                    return _list[index];
-                }
+                get => _list[index];
                 set
                 {
                     _list[index] = value;
@@ -823,10 +789,7 @@ namespace System.Collections
                 }
             }
 
-            public override object SyncRoot
-            {
-                get { return _list.SyncRoot; }
-            }
+            public override object SyncRoot => _list.SyncRoot;
 
             public override int Add(object? obj)
             {
@@ -848,8 +811,7 @@ namespace System.Collections
                 if (Count - index < count)
                     throw new ArgumentException(SR.Argument_InvalidOffLen);
 
-                if (comparer == null)
-                    comparer = Comparer.Default;
+                comparer ??= Comparer.Default;
 
                 int lo = index;
                 int hi = index + count - 1;
@@ -941,7 +903,6 @@ namespace System.Collections
                 return _list.IndexOf(value);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex)
             {
                 return IndexOf(value, startIndex, _list.Count - startIndex);
@@ -983,8 +944,7 @@ namespace System.Collections
 
                 if (c.Count > 0)
                 {
-                    ArrayList? al = _list as ArrayList;
-                    if (al != null)
+                    if (_list is ArrayList al)
                     {
                         // We need to special case ArrayList.
                         // When c is a range of _list, we need to handle this in a special way.
@@ -1008,13 +968,11 @@ namespace System.Collections
                 return LastIndexOf(value, _list.Count - 1, _list.Count);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex)
             {
                 return LastIndexOf(value, startIndex, startIndex + 1);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex, int count)
             {
                 if (_list.Count == 0)
@@ -1235,8 +1193,8 @@ namespace System.Collections
 
         private class SyncArrayList : ArrayList
         {
-            private ArrayList _list;
-            private object _root;
+            private readonly ArrayList _list;
+            private readonly object _root;
 
             internal SyncArrayList(ArrayList list)
                 : base(false)
@@ -1254,7 +1212,6 @@ namespace System.Collections
                         return _list.Capacity;
                     }
                 }
-                [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
                 set
                 {
                     lock (_root)
@@ -1269,21 +1226,12 @@ namespace System.Collections
                 get { lock (_root) { return _list.Count; } }
             }
 
-            public override bool IsReadOnly
-            {
-                get { return _list.IsReadOnly; }
-            }
+            public override bool IsReadOnly => _list.IsReadOnly;
 
-            public override bool IsFixedSize
-            {
-                get { return _list.IsFixedSize; }
-            }
+            public override bool IsFixedSize => _list.IsFixedSize;
 
 
-            public override bool IsSynchronized
-            {
-                get { return true; }
-            }
+            public override bool IsSynchronized => true;
 
             public override object? this[int index]
             {
@@ -1303,10 +1251,7 @@ namespace System.Collections
                 }
             }
 
-            public override object SyncRoot
-            {
-                get { return _root; }
-            }
+            public override object SyncRoot => _root;
 
             public override int Add(object? value)
             {
@@ -1340,7 +1285,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int BinarySearch(int index, int count, object? value, IComparer? comparer)
             {
                 lock (_root)
@@ -1389,7 +1333,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void CopyTo(int index, Array array, int arrayIndex, int count)
             {
                 lock (_root)
@@ -1406,7 +1349,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override IEnumerator GetEnumerator(int index, int count)
             {
                 lock (_root)
@@ -1423,7 +1365,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex)
             {
                 lock (_root)
@@ -1432,7 +1373,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex, int count)
             {
                 lock (_root)
@@ -1449,7 +1389,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void InsertRange(int index, ICollection c)
             {
                 lock (_root)
@@ -1466,7 +1405,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex)
             {
                 lock (_root)
@@ -1475,7 +1413,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex, int count)
             {
                 lock (_root)
@@ -1500,7 +1437,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void RemoveRange(int index, int count)
             {
                 lock (_root)
@@ -1509,7 +1445,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void Reverse(int index, int count)
             {
                 lock (_root)
@@ -1518,7 +1453,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void SetRange(int index, ICollection c)
             {
                 lock (_root)
@@ -1527,7 +1461,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override ArrayList GetRange(int index, int count)
             {
                 lock (_root)
@@ -1552,7 +1485,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void Sort(int index, int count, IComparer? comparer)
             {
                 lock (_root)
@@ -1569,7 +1501,6 @@ namespace System.Collections
                 }
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override Array ToArray(Type type)
             {
                 lock (_root)
@@ -1590,8 +1521,8 @@ namespace System.Collections
 
         private class SyncIList : IList
         {
-            private IList _list;
-            private object _root;
+            private readonly IList _list;
+            private readonly object _root;
 
             internal SyncIList(IList list)
             {
@@ -1604,21 +1535,12 @@ namespace System.Collections
                 get { lock (_root) { return _list.Count; } }
             }
 
-            public virtual bool IsReadOnly
-            {
-                get { return _list.IsReadOnly; }
-            }
+            public virtual bool IsReadOnly => _list.IsReadOnly;
 
-            public virtual bool IsFixedSize
-            {
-                get { return _list.IsFixedSize; }
-            }
+            public virtual bool IsFixedSize => _list.IsFixedSize;
 
 
-            public virtual bool IsSynchronized
-            {
-                get { return true; }
-            }
+            public virtual bool IsSynchronized => true;
 
             public virtual object? this[int index]
             {
@@ -1638,10 +1560,7 @@ namespace System.Collections
                 }
             }
 
-            public virtual object SyncRoot
-            {
-                get { return _root; }
-            }
+            public virtual object SyncRoot => _root;
 
             public virtual int Add(object? value)
             {
@@ -1719,49 +1638,28 @@ namespace System.Collections
 
         private class FixedSizeList : IList
         {
-            private IList _list;
+            private readonly IList _list;
 
             internal FixedSizeList(IList l)
             {
                 _list = l;
             }
 
-            public virtual int Count
-            {
-                get { return _list.Count; }
-            }
+            public virtual int Count => _list.Count;
 
-            public virtual bool IsReadOnly
-            {
-                get { return _list.IsReadOnly; }
-            }
+            public virtual bool IsReadOnly => _list.IsReadOnly;
 
-            public virtual bool IsFixedSize
-            {
-                get { return true; }
-            }
+            public virtual bool IsFixedSize => true;
 
-            public virtual bool IsSynchronized
-            {
-                get { return _list.IsSynchronized; }
-            }
+            public virtual bool IsSynchronized => _list.IsSynchronized;
 
             public virtual object? this[int index]
             {
-                get
-                {
-                    return _list[index];
-                }
-                set
-                {
-                    _list[index] = value;
-                }
+                get => _list[index];
+                set => _list[index] = value;
             }
 
-            public virtual object SyncRoot
-            {
-                get { return _list.SyncRoot; }
-            }
+            public virtual object SyncRoot => _list.SyncRoot;
 
             public virtual int Add(object? obj)
             {
@@ -1819,32 +1717,17 @@ namespace System.Collections
                 _version = _list._version;
             }
 
-            public override int Count
-            {
-                get { return _list.Count; }
-            }
+            public override int Count => _list.Count;
 
-            public override bool IsReadOnly
-            {
-                get { return _list.IsReadOnly; }
-            }
+            public override bool IsReadOnly => _list.IsReadOnly;
 
-            public override bool IsFixedSize
-            {
-                get { return true; }
-            }
+            public override bool IsFixedSize => true;
 
-            public override bool IsSynchronized
-            {
-                get { return _list.IsSynchronized; }
-            }
+            public override bool IsSynchronized => _list.IsSynchronized;
 
             public override object? this[int index]
             {
-                get
-                {
-                    return _list[index];
-                }
+                get => _list[index];
                 set
                 {
                     _list[index] = value;
@@ -1852,10 +1735,7 @@ namespace System.Collections
                 }
             }
 
-            public override object SyncRoot
-            {
-                get { return _list.SyncRoot; }
-            }
+            public override object SyncRoot => _list.SyncRoot;
 
             public override int Add(object? obj)
             {
@@ -1867,7 +1747,6 @@ namespace System.Collections
                 throw new NotSupportedException(SR.NotSupported_FixedSizeCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int BinarySearch(int index, int count, object? value, IComparer? comparer)
             {
                 return _list.BinarySearch(index, count, value, comparer);
@@ -1875,10 +1754,8 @@ namespace System.Collections
 
             public override int Capacity
             {
-                get { return _list.Capacity; }
-                [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-                set
-                { throw new NotSupportedException(SR.NotSupported_FixedSizeCollection); }
+                get => _list.Capacity;
+                set => throw new NotSupportedException(SR.NotSupported_FixedSizeCollection);
             }
 
             public override void Clear()
@@ -1903,7 +1780,6 @@ namespace System.Collections
                 _list.CopyTo(array, index);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void CopyTo(int index, Array array, int arrayIndex, int count)
             {
                 _list.CopyTo(index, array, arrayIndex, count);
@@ -1914,7 +1790,6 @@ namespace System.Collections
                 return _list.GetEnumerator();
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override IEnumerator GetEnumerator(int index, int count)
             {
                 return _list.GetEnumerator(index, count);
@@ -1925,13 +1800,11 @@ namespace System.Collections
                 return _list.IndexOf(value);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex)
             {
                 return _list.IndexOf(value, startIndex);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex, int count)
             {
                 return _list.IndexOf(value, startIndex, count);
@@ -1942,7 +1815,6 @@ namespace System.Collections
                 throw new NotSupportedException(SR.NotSupported_FixedSizeCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void InsertRange(int index, ICollection c)
             {
                 throw new NotSupportedException(SR.NotSupported_FixedSizeCollection);
@@ -1953,13 +1825,11 @@ namespace System.Collections
                 return _list.LastIndexOf(value);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex)
             {
                 return _list.LastIndexOf(value, startIndex);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex, int count)
             {
                 return _list.LastIndexOf(value, startIndex, count);
@@ -1975,13 +1845,11 @@ namespace System.Collections
                 throw new NotSupportedException(SR.NotSupported_FixedSizeCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void RemoveRange(int index, int count)
             {
                 throw new NotSupportedException(SR.NotSupported_FixedSizeCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void SetRange(int index, ICollection c)
             {
                 _list.SetRange(index, c);
@@ -1998,14 +1866,12 @@ namespace System.Collections
                 return new Range(this, index, count);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void Reverse(int index, int count)
             {
                 _list.Reverse(index, count);
                 _version = _list._version;
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void Sort(int index, int count, IComparer? comparer)
             {
                 _list.Sort(index, count, comparer);
@@ -2017,7 +1883,6 @@ namespace System.Collections
                 return _list.ToArray();
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override Array ToArray(Type type)
             {
                 return _list.ToArray(type);
@@ -2031,49 +1896,28 @@ namespace System.Collections
 
         private class ReadOnlyList : IList
         {
-            private IList _list;
+            private readonly IList _list;
 
             internal ReadOnlyList(IList l)
             {
                 _list = l;
             }
 
-            public virtual int Count
-            {
-                get { return _list.Count; }
-            }
+            public virtual int Count => _list.Count;
 
-            public virtual bool IsReadOnly
-            {
-                get { return true; }
-            }
+            public virtual bool IsReadOnly => true;
 
-            public virtual bool IsFixedSize
-            {
-                get { return true; }
-            }
+            public virtual bool IsFixedSize => true;
 
-            public virtual bool IsSynchronized
-            {
-                get { return _list.IsSynchronized; }
-            }
+            public virtual bool IsSynchronized => _list.IsSynchronized;
 
             public virtual object? this[int index]
             {
-                get
-                {
-                    return _list[index];
-                }
-                set
-                {
-                    throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
-                }
+                get => _list[index];
+                set => throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            public virtual object SyncRoot
-            {
-                get { return _list.SyncRoot; }
-            }
+            public virtual object SyncRoot => _list.SyncRoot;
 
             public virtual int Add(object? obj)
             {
@@ -2130,42 +1974,21 @@ namespace System.Collections
                 _list = l;
             }
 
-            public override int Count
-            {
-                get { return _list.Count; }
-            }
+            public override int Count => _list.Count;
 
-            public override bool IsReadOnly
-            {
-                get { return true; }
-            }
+            public override bool IsReadOnly => true;
 
-            public override bool IsFixedSize
-            {
-                get { return true; }
-            }
+            public override bool IsFixedSize => true;
 
-            public override bool IsSynchronized
-            {
-                get { return _list.IsSynchronized; }
-            }
+            public override bool IsSynchronized => _list.IsSynchronized;
 
             public override object? this[int index]
             {
-                get
-                {
-                    return _list[index];
-                }
-                set
-                {
-                    throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
-                }
+                get => _list[index];
+                set => throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            public override object SyncRoot
-            {
-                get { return _list.SyncRoot; }
-            }
+            public override object SyncRoot => _list.SyncRoot;
 
             public override int Add(object? obj)
             {
@@ -2177,7 +2000,6 @@ namespace System.Collections
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int BinarySearch(int index, int count, object? value, IComparer? comparer)
             {
                 return _list.BinarySearch(index, count, value, comparer);
@@ -2186,10 +2008,8 @@ namespace System.Collections
 
             public override int Capacity
             {
-                get { return _list.Capacity; }
-                [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
-                set
-                { throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection); }
+                get => _list.Capacity;
+                set => throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
             public override void Clear()
@@ -2214,7 +2034,6 @@ namespace System.Collections
                 _list.CopyTo(array, index);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void CopyTo(int index, Array array, int arrayIndex, int count)
             {
                 _list.CopyTo(index, array, arrayIndex, count);
@@ -2225,7 +2044,6 @@ namespace System.Collections
                 return _list.GetEnumerator();
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override IEnumerator GetEnumerator(int index, int count)
             {
                 return _list.GetEnumerator(index, count);
@@ -2236,13 +2054,11 @@ namespace System.Collections
                 return _list.IndexOf(value);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex)
             {
                 return _list.IndexOf(value, startIndex);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int IndexOf(object? value, int startIndex, int count)
             {
                 return _list.IndexOf(value, startIndex, count);
@@ -2253,7 +2069,6 @@ namespace System.Collections
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void InsertRange(int index, ICollection c)
             {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
@@ -2264,13 +2079,11 @@ namespace System.Collections
                 return _list.LastIndexOf(value);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex)
             {
                 return _list.LastIndexOf(value, startIndex);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex, int count)
             {
                 return _list.LastIndexOf(value, startIndex, count);
@@ -2286,13 +2099,11 @@ namespace System.Collections
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void RemoveRange(int index, int count)
             {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void SetRange(int index, ICollection c)
             {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
@@ -2308,13 +2119,11 @@ namespace System.Collections
                 return new Range(this, index, count);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void Reverse(int index, int count)
             {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void Sort(int index, int count, IComparer? comparer)
             {
                 throw new NotSupportedException(SR.NotSupported_ReadOnlyCollection);
@@ -2325,7 +2134,6 @@ namespace System.Collections
                 return _list.ToArray();
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override Array ToArray(Type type)
             {
                 return _list.ToArray(type);
@@ -2343,12 +2151,12 @@ namespace System.Collections
         // made to the list while an enumeration is in progress.
         private sealed class ArrayListEnumerator : IEnumerator, ICloneable
         {
-            private ArrayList _list;
+            private readonly ArrayList _list;
             private int _index;
-            private int _endIndex;       // Where to stop.
-            private int _version;
+            private readonly int _endIndex;       // Where to stop.
+            private readonly int _version;
             private object? _currentElement;
-            private int _startIndex;     // Save this for Reset.
+            private readonly int _startIndex;     // Save this for Reset.
 
             internal ArrayListEnumerator(ArrayList list, int index, int count)
             {
@@ -2404,7 +2212,7 @@ namespace System.Collections
         private class Range : ArrayList
         {
             private ArrayList _baseList;
-            private int _baseIndex;
+            private readonly int _baseIndex;
             private int _baseSize;
             private int _baseVersion;
 
@@ -2471,10 +2279,7 @@ namespace System.Collections
 
             public override int Capacity
             {
-                get
-                {
-                    return _baseList.Capacity;
-                }
+                get => _baseList.Capacity;
 
                 set
                 {
@@ -2562,20 +2367,11 @@ namespace System.Collections
                 }
             }
 
-            public override bool IsReadOnly
-            {
-                get { return _baseList.IsReadOnly; }
-            }
+            public override bool IsReadOnly => _baseList.IsReadOnly;
 
-            public override bool IsFixedSize
-            {
-                get { return _baseList.IsFixedSize; }
-            }
+            public override bool IsFixedSize => _baseList.IsFixedSize;
 
-            public override bool IsSynchronized
-            {
-                get { return _baseList.IsSynchronized; }
-            }
+            public override bool IsSynchronized => _baseList.IsSynchronized;
 
             public override IEnumerator GetEnumerator()
             {
@@ -2604,13 +2400,7 @@ namespace System.Collections
                 return new Range(this, index, count);
             }
 
-            public override object SyncRoot
-            {
-                get
-                {
-                    return _baseList.SyncRoot;
-                }
-            }
+            public override object SyncRoot => _baseList.SyncRoot;
 
 
             public override int IndexOf(object? value)
@@ -2684,13 +2474,11 @@ namespace System.Collections
                 return -1;
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex)
             {
                 return LastIndexOf(value, startIndex, startIndex + 1);
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int LastIndexOf(object? value, int startIndex, int count)
             {
                 InternalUpdateRange();
@@ -2749,7 +2537,6 @@ namespace System.Collections
                 InternalUpdateVersion();
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override void SetRange(int index, ICollection c)
             {
                 InternalUpdateRange();
@@ -2819,13 +2606,13 @@ namespace System.Collections
 
         private sealed class ArrayListEnumeratorSimple : IEnumerator, ICloneable
         {
-            private ArrayList _list;
+            private readonly ArrayList _list;
             private int _index;
-            private int _version;
+            private readonly int _version;
             private object? _currentElement;
-            private bool _isArrayList;
+            private readonly bool _isArrayList;
             // this object is used to indicate enumeration has not started or has terminated
-            private static object s_dummyObject = new object();
+            private static readonly object s_dummyObject = new object();
 
             internal ArrayListEnumeratorSimple(ArrayList list)
             {
@@ -2910,7 +2697,7 @@ namespace System.Collections
 
         internal class ArrayListDebugView
         {
-            private ArrayList _arrayList;
+            private readonly ArrayList _arrayList;
 
             public ArrayListDebugView(ArrayList arrayList)
             {
@@ -2921,13 +2708,7 @@ namespace System.Collections
             }
 
             [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
-            public object?[] Items
-            {
-                get
-                {
-                    return _arrayList.ToArray();
-                }
-            }
+            public object?[] Items => _arrayList.ToArray();
         }
     }
 }

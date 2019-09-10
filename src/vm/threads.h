@@ -643,9 +643,9 @@ void CommonTripThread();
 // When we resume a thread at a new location, to get an exception thrown, we have to
 // pretend the exception originated elsewhere.
 EXTERN_C void ThrowControlForThread(
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
         FaultingExceptionFrame *pfef
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
         );
 
 // RWLock state inside TLS
@@ -3150,7 +3150,7 @@ public:
     bool InitRegDisplay(const PREGDISPLAY, const PT_CONTEXT, bool validContext);
     void FillRegDisplay(const PREGDISPLAY pRD, PT_CONTEXT pctx);
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     static PCODE VirtualUnwindCallFrame(T_CONTEXT* pContext, T_KNONVOLATILE_CONTEXT_POINTERS* pContextPointers = NULL,
                                            EECodeInfo * pCodeInfo = NULL);
     static UINT_PTR VirtualUnwindCallFrame(PREGDISPLAY pRD, EECodeInfo * pCodeInfo = NULL);
@@ -3160,7 +3160,7 @@ public:
         PT_RUNTIME_FUNCTION pFunctionEntry = NULL, UINT_PTR uImageBase = NULL);
     static UINT_PTR VirtualUnwindToFirstManagedCallFrame(T_CONTEXT* pContext);
 #endif // DACCESS_COMPILE
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
     // During a <clinit>, this thread must not be asynchronously
     // stopped or interrupted.  That would leave the class unavailable
@@ -4213,11 +4213,11 @@ public:
    this fast, the table is not perfect (there can be collisions), but this should
    not cause false positives, but it may allow errors to go undetected  */
 
-#ifdef _WIN64
+#ifdef BIT64
 #define OBJREF_HASH_SHIFT_AMOUNT 3
-#else // _WIN64
+#else // BIT64
 #define OBJREF_HASH_SHIFT_AMOUNT 2
-#endif // _WIN64
+#endif // BIT64
 
         // For debugging, you may want to make this number very large, (8K)
         // should basically insure that no collisions happen
@@ -4831,10 +4831,10 @@ private:
     // So we save reference to the clause post which TA was reraised, which is used in ExceptionTracker::ProcessManagedCallFrame
     // to make ThreadAbort proceed ahead instead of going in a loop.
     // This problem only happens on Win64 due to JIT64.  The common scenario is VB's "On error resume next"
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     DWORD       m_dwIndexClauseForCatch;
     StackFrame  m_sfEstablisherOfActualHandlerFrame;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 public:
     // Holds per-thread information the debugger uses to expose locking information
@@ -6737,5 +6737,17 @@ private:
 };
 
 BOOL Debug_IsLockedViaThreadSuspension();
+
+#ifdef FEATURE_WRITEBARRIER_COPY
+
+BYTE* GetWriteBarrierCodeLocation(VOID* barrier);
+BOOL IsIPInWriteBarrierCodeCopy(PCODE controlPc);
+PCODE AdjustWriteBarrierIP(PCODE controlPc);
+
+#else // FEATURE_WRITEBARRIER_COPY
+
+#define GetWriteBarrierCodeLocation(barrier) ((BYTE*)(barrier))
+
+#endif // FEATURE_WRITEBARRIER_COPY
 
 #endif //__threads_h__

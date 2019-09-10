@@ -673,7 +673,7 @@ void Compiler::fgDispDebugScopes()
  * Mark variables live across their entire scope.
  */
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 void Compiler::fgExtendDbgScopes()
 {
@@ -1113,7 +1113,7 @@ VARSET_VALRET_TP Compiler::fgGetHandlerLiveVars(BasicBlock* block)
         if (HBtab->HasFilter())
         {
             VarSetOps::UnionD(this, liveVars, HBtab->ebdFilter->bbLiveIn);
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             // The EH subsystem can trigger a stack walk after the filter
             // has returned, but before invoking the handler, and the only
             // IP address reported from this method will be the original
@@ -2059,7 +2059,7 @@ void Compiler::fgComputeLifeLIR(VARSET_TP& life, BasicBlock* block, VARSET_VALAR
             case GT_START_NONGC:
             case GT_START_PREEMPTGC:
             case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
             case GT_SWITCH_TABLE:
@@ -2273,7 +2273,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 
         if (asgNode->gtNext == nullptr)
         {
-            // This is a "NORMAL" statement with the assignment node hanging from the GT_STMT node.
+            // This is a "NORMAL" statement with the assignment node hanging from the statement.
 
             noway_assert(compCurStmt->gtStmtExpr == asgNode);
             JITDUMP("top level assign\n");
@@ -2291,7 +2291,6 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
 #endif // DEBUG
 
                 // Replace the assignment statement with the list of side effects
-                noway_assert(sideEffList->gtOper != GT_STMT);
 
                 *pTree = compCurStmt->gtStmtExpr = sideEffList;
 #ifdef DEBUG
@@ -2315,7 +2314,7 @@ bool Compiler::fgRemoveDeadStore(GenTree**        pTree,
             {
                 JITDUMP("removing stmt with no side effects\n");
 
-                // No side effects - remove the whole statement from the block->bbTreeList
+                // No side effects - remove the whole statement from the block->bbStmtList.
                 fgRemoveStmt(compCurBB, compCurStmt);
 
                 // Since we removed it do not process the rest (i.e. RHS) of the statement
@@ -2483,7 +2482,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
             VarSetOps::UnionD(this, finallyVars, block->bbLiveOut);
         }
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         // Funclets are called and returned from, as such we can only count on the frame
         // pointer being restored, and thus everything live in or live out must be on the
         // stack

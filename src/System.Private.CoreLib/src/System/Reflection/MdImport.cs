@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Globalization;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -10,10 +9,10 @@ using System.Runtime.InteropServices;
 
 namespace System.Reflection
 {
-    [Flags()]
+    [Flags]
     internal enum MdSigCallingConvention : byte
     {
-        CallConvMask = 0x0f,  // Calling convention is bottom 4 bits 
+        CallConvMask = 0x0f,  // Calling convention is bottom 4 bits
 
         Default = 0x00,
         C = 0x01,
@@ -28,12 +27,12 @@ namespace System.Reflection
         GenericInst = 0x0a,  // generic method instantiation
 
         Generic = 0x10,  // Generic method sig with explicit number of type arguments (precedes ordinary parameter count)
-        HasThis = 0x20,  // Top bit indicates a 'this' parameter    
+        HasThis = 0x20,  // Top bit indicates a 'this' parameter
         ExplicitThis = 0x40,  // This parameter is explicitly in the signature
     }
 
 
-    [Flags()]
+    [Flags]
     internal enum PInvokeAttributes
     {
         NoMangle = 0x0001,
@@ -69,7 +68,7 @@ namespace System.Reflection
     }
 
 
-    [Flags()]
+    [Flags]
     internal enum MethodSemanticsAttributes
     {
         Setter = 0x0001,
@@ -187,13 +186,7 @@ namespace System.Reflection
         private int length;
         private fixed int smallResult[16];
 
-        public int Length
-        {
-            get
-            {
-                return length;
-            }
-        }
+        public int Length => length;
 
         public int this[int index]
         {
@@ -478,8 +471,7 @@ namespace System.Reflection
 
         public ConstArray GetMemberRefProps(int memberTokenRef)
         {
-            ConstArray signature = new ConstArray();
-
+            ConstArray signature;
             _GetMemberRefProps(m_metadataImport2, memberTokenRef, out signature);
 
             return signature;
@@ -593,5 +585,3 @@ namespace System.Reflection
         }
     }
 }
-
-

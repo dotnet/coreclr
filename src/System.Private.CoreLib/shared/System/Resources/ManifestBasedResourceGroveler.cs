@@ -14,22 +14,15 @@
 **
 ===========================================================*/
 
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
+using System.Reflection;
+using System.Text;
+using System.Diagnostics;
+
 namespace System.Resources
 {
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Globalization;
-    using System.IO;
-    using System.Reflection;
-    using System.Runtime.InteropServices;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.Versioning;
-    using System.Text;
-    using System.Threading;
-    using System.Diagnostics;
-    using Microsoft.Win32;
-
     //
     // Note: this type is integral to the construction of exception objects,
     // and sometimes this has to be done in low memory situtations (OOM) or
@@ -41,7 +34,7 @@ namespace System.Resources
     //
     internal partial class ManifestBasedResourceGroveler : IResourceGroveler
     {
-        private ResourceManager.ResourceManagerMediator _mediator;
+        private readonly ResourceManager.ResourceManagerMediator _mediator;
 
         public ManifestBasedResourceGroveler(ResourceManager.ResourceManagerMediator mediator)
         {
@@ -58,7 +51,7 @@ namespace System.Resources
 
             ResourceSet? rs = null;
             Stream? stream = null;
-            Assembly? satellite = null;
+            Assembly? satellite;
 
             // 1. Fixups for ultimate fallbacks
             CultureInfo lookForCulture = UltimateFallbackFixup(culture);
@@ -146,7 +139,7 @@ namespace System.Resources
         {
             Debug.Assert(a != null, "assembly != null");
 
-            var attr = a.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
+            NeutralResourcesLanguageAttribute? attr = a.GetCustomAttribute<NeutralResourcesLanguageAttribute>();
             if (attr == null)
             {
                 fallbackLocation = UltimateResourceFallbackLocation.MainAssembly;
@@ -288,7 +281,7 @@ namespace System.Resources
 
             if (_mediator.UserResourceSet == null)
             {
-                return new RuntimeResourceSet(store, permitDeserialization:true);
+                return new RuntimeResourceSet(store, permitDeserialization: true);
             }
             else
             {
@@ -469,16 +462,19 @@ namespace System.Resources
         {
             try
             {
+                string[] resourceSetNames = assembly.GetManifestResourceNames();
+                int length = resourceSetNames.Length;
                 string postfix = "\"";
-                string [] resourceSetNames = assembly.GetManifestResourceNames();
 
                 // If we have more than 10 resource sets, we just print the first 10 for the sake of the exception message readability.
-                if (resourceSetNames.Length > 10)
+                const int MaxLength = 10;
+                if (length > MaxLength)
                 {
-                    resourceSetNames = resourceSetNames[..10];
+                    length = MaxLength;
                     postfix = "\", ...";
                 }
-                return "\"" + String.Join("\", \"", resourceSetNames) + postfix;
+
+                return "\"" + string.Join("\", \"", resourceSetNames, 0, length) + postfix;
             }
             catch
             {

@@ -961,7 +961,7 @@ inline bool IsInUsedAction(DPOSS_ACTION action)
 inline void VerifyExecutableAddress(const BYTE* address)
 {
 // TODO: : when can we apply this to x86?
-#if defined(_WIN64)   
+#if defined(BIT64)   
 #if defined(_DEBUG) 
 #ifndef FEATURE_PAL    
     MEMORY_BASIC_INFORMATION mbi;
@@ -983,7 +983,7 @@ inline void VerifyExecutableAddress(const BYTE* address)
     }
 #endif // !FEATURE_PAL    
 #endif // _DEBUG   
-#endif // _WIN64
+#endif // BIT64
 }
 
 #endif // !DACCESS_COMPILE
@@ -1673,11 +1673,11 @@ protected:
     // This is the only frame that the ranges are valid in.    
     FramePointer            m_fp;
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // This frame pointer is used for funclet stepping.
     // See IsRangeAppropriate() for more information.
     FramePointer            m_fpParentMethod;
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
     
     //m_fpException is 0 if we haven't stepped into an exception, 
     //  and is ignored.  If we get a TriggerUnwind while mid-step, we note

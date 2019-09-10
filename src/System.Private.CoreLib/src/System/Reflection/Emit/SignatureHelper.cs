@@ -2,16 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-// 
-
 using System.Text;
-using System;
 using System.Buffers.Binary;
 using System.Diagnostics;
-using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 
 namespace System.Reflection.Emit
 {
@@ -93,8 +87,7 @@ namespace System.Reflection.Emit
             SignatureHelper sigHelp;
             MdSigCallingConvention intCall;
 
-            if (returnType == null)
-                returnType = typeof(void);
+            returnType ??= typeof(void);
 
             if (unmanagedCallConv == CallingConvention.Cdecl)
             {
@@ -286,7 +279,7 @@ namespace System.Reflection.Emit
 
         private void AddOneArgTypeHelper(Type clsArgument, Type[]? requiredCustomModifiers, Type[]? optionalCustomModifiers)
         {
-            // This function will not increase the argument count. It only fills in bytes 
+            // This function will not increase the argument count. It only fills in bytes
             // in the signature based on clsArgument. This helper is called for return type.
 
             Debug.Assert(clsArgument != null);
@@ -453,7 +446,7 @@ namespace System.Reflection.Emit
                 {
                     type = RuntimeTypeHandle.GetCorElementType((RuntimeType)clsArgument);
 
-                    //GetCorElementType returns CorElementType.ELEMENT_TYPE_CLASS for both object and string
+                    // GetCorElementType returns CorElementType.ELEMENT_TYPE_CLASS for both object and string
                     if (type == CorElementType.ELEMENT_TYPE_CLASS)
                     {
                         if (clsArgument == typeof(object))
@@ -524,28 +517,28 @@ namespace System.Reflection.Emit
             // Pulls the token appart to get a rid, adds some appropriate bits
             // to the token and then adds this to the signature.
 
-            int rid = (token & 0x00FFFFFF); //This is RidFromToken;
-            MetadataTokenType type = (MetadataTokenType)(token & unchecked((int)0xFF000000)); //This is TypeFromToken;
+            int rid = (token & 0x00FFFFFF); // This is RidFromToken;
+            MetadataTokenType type = (MetadataTokenType)(token & unchecked((int)0xFF000000)); // This is TypeFromToken;
 
             if (rid > 0x3FFFFFF)
             {
-                // token is too big to be compressed    
+                // token is too big to be compressed
                 throw new ArgumentException(SR.Argument_LargeInteger);
             }
 
             rid = (rid << 2);
 
-            // TypeDef is encoded with low bits 00  
-            // TypeRef is encoded with low bits 01  
-            // TypeSpec is encoded with low bits 10    
+            // TypeDef is encoded with low bits 00
+            // TypeRef is encoded with low bits 01
+            // TypeSpec is encoded with low bits 10
             if (type == MetadataTokenType.TypeRef)
             {
-                //if type is mdtTypeRef
+                // if type is mdtTypeRef
                 rid |= 0x1;
             }
             else if (type == MetadataTokenType.TypeSpec)
             {
-                //if type is mdtTypeSpec
+                // if type is mdtTypeSpec
                 rid |= 0x2;
             }
 
@@ -561,7 +554,7 @@ namespace System.Reflection.Emit
 
         private unsafe void InternalAddRuntimeType(Type type)
         {
-            // Add a runtime type into the signature. 
+            // Add a runtime type into the signature.
 
             AddElementType(CorElementType.ELEMENT_TYPE_INTERNAL);
 
@@ -601,7 +594,7 @@ namespace System.Reflection.Emit
         {
             if (m_sizeLoc == NO_SIZE_IN_SIG)
             {
-                //We don't have a size if this is a field.
+                // We don't have a size if this is a field.
                 return;
             }
 
@@ -626,17 +619,17 @@ namespace System.Reflection.Emit
             if (m_sizeLoc == NO_SIZE_IN_SIG)
                 return;
 
-            //If we have fewer than 128 arguments and we haven't been told to copy the
-            //array, we can just set the appropriate bit and return.
+            // If we have fewer than 128 arguments and we haven't been told to copy the
+            // array, we can just set the appropriate bit and return.
             if (m_argCount < 0x80 && !forceCopy)
             {
                 m_signature[m_sizeLoc] = (byte)m_argCount;
                 return;
             }
 
-            //We need to have more bytes for the size.  Figure out how many bytes here.
-            //Since we need to copy anyway, we're just going to take the cost of doing a
-            //new allocation.
+            // We need to have more bytes for the size.  Figure out how many bytes here.
+            // Since we need to copy anyway, we're just going to take the cost of doing a
+            // new allocation.
             if (m_argCount < 0x80)
             {
                 newSigSize = 1;
@@ -650,17 +643,17 @@ namespace System.Reflection.Emit
                 newSigSize = 4;
             }
 
-            //Allocate the new array.
+            // Allocate the new array.
             temp = new byte[m_currSig + newSigSize - 1];
 
-            //Copy the calling convention.  The calling convention is always just one byte
-            //so we just copy that byte.  Then copy the rest of the array, shifting everything
-            //to make room for the new number of elements.
+            // Copy the calling convention.  The calling convention is always just one byte
+            // so we just copy that byte.  Then copy the rest of the array, shifting everything
+            // to make room for the new number of elements.
             temp[0] = m_signature[0];
             Buffer.BlockCopy(m_signature, m_sizeLoc + 1, temp, m_sizeLoc + newSigSize, currSigHolder - (m_sizeLoc + 1));
             m_signature = temp;
 
-            //Use the AddData method to add the number of elements appropriately compressed.
+            // Use the AddData method to add the number of elements appropriately compressed.
             m_currSig = m_sizeLoc;
             AddData(m_argCount);
             m_currSig = currSigHolder + (newSigSize - 1);
@@ -669,13 +662,7 @@ namespace System.Reflection.Emit
         #endregion
 
         #region Internal Members
-        internal int ArgumentCount
-        {
-            get
-            {
-                return m_argCount;
-            }
-        }
+        internal int ArgumentCount => m_argCount;
 
         internal static bool IsSimpleType(CorElementType type)
         {
@@ -702,8 +689,8 @@ namespace System.Reflection.Emit
             {
                 m_sigDone = true;
 
-                // If we have more than 128 variables, we can't just set the length, we need 
-                // to compress it.  Unfortunately, this means that we need to copy the entire 
+                // If we have more than 128 variables, we can't just set the length, we need
+                // to compress it.  Unfortunately, this means that we need to copy the entire
                 // array.
                 SetNumberOfSignatureElements(false);
             }
@@ -721,7 +708,7 @@ namespace System.Reflection.Emit
             int currSigLength = m_currSig;
             int newSigSize = currSigLength;
 
-            //Allocate the new array.
+            // Allocate the new array.
             if (argCount < 0x7F)
                 newSigSize += 1;
             else if (argCount < 0x3FFF)
@@ -788,9 +775,7 @@ namespace System.Reflection.Emit
             {
                 for (int i = 0; i < arguments.Length; i++)
                 {
-                    AddArgument(arguments[i],
-                        requiredCustomModifiers == null ? null : requiredCustomModifiers[i],
-                        optionalCustomModifiers == null ? null : optionalCustomModifiers[i]);
+                    AddArgument(arguments[i], requiredCustomModifiers?[i], optionalCustomModifiers?[i]);
                 }
             }
         }
@@ -807,7 +792,7 @@ namespace System.Reflection.Emit
 
             // Add an argument to the signature. Takes a Type and determines whether it
             // is one of the primitive types of which we have special knowledge or a more
-            // general class.  In the former case, we only add the appropriate short cut encoding, 
+            // general class.  In the former case, we only add the appropriate short cut encoding,
             // otherwise we will calculate proper description for the type.
             AddOneArgTypeHelper(argument, requiredCustomModifiers, optionalCustomModifiers);
         }
@@ -862,7 +847,7 @@ namespace System.Reflection.Emit
 
         internal byte[] GetSignature(bool appendEndOfSig)
         {
-            // Chops the internal signature to the appropriate length.  Adds the 
+            // Chops the internal signature to the appropriate length.  Adds the
             // end token to the signature and marks the signature as finished so that
             // no further tokens can be added. Return the full signature in a trimmed array.
             if (!m_sigDone)
@@ -873,7 +858,7 @@ namespace System.Reflection.Emit
                 m_sigDone = true;
             }
 
-            // This case will only happen if the user got the signature through 
+            // This case will only happen if the user got the signature through
             // InternalGetSignature first and then called GetSignature.
             if (m_signature.Length > m_currSig)
             {
@@ -912,28 +897,3 @@ namespace System.Reflection.Emit
         #endregion
     }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

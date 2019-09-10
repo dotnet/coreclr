@@ -8,7 +8,7 @@ using RuntimeTypeCache = System.RuntimeType.RuntimeTypeCache;
 
 namespace System.Reflection
 {
-    internal unsafe sealed class RuntimeEventInfo : EventInfo
+    internal sealed unsafe class RuntimeEventInfo : EventInfo
     {
         #region Private Data Members
         private int m_token;
@@ -46,27 +46,23 @@ namespace System.Reflection
 
             scope.GetEventProps(tkEvent, out m_utf8name, out m_flags);
 
-            RuntimeMethodInfo? dummy;
             Associates.AssignAssociates(scope, tkEvent, declaredType, reflectedType,
                 out m_addMethod, out m_removeMethod, out m_raiseMethod,
-                out dummy, out dummy, out m_otherMethod, out isPrivate, out m_bindingFlags);
+                out _, out _, out m_otherMethod, out isPrivate, out m_bindingFlags);
         }
         #endregion
 
         #region Internal Members
         internal override bool CacheEquals(object? o)
         {
-            RuntimeEventInfo? m = o as RuntimeEventInfo;
-
-            if (m is null)
-                return false;
-
-            return m.m_token == m_token &&
+            return
+                o is RuntimeEventInfo m &&
+                m.m_token == m_token &&
                 RuntimeTypeHandle.GetModule(m_declaringType).Equals(
                     RuntimeTypeHandle.GetModule(m.m_declaringType));
         }
 
-        internal BindingFlags BindingFlags { get { return m_bindingFlags; } }
+        internal BindingFlags BindingFlags => m_bindingFlags;
         #endregion
 
         #region Object Overrides
@@ -118,37 +114,16 @@ namespace System.Reflection
         #endregion
 
         #region MemberInfo Overrides
-        public override MemberTypes MemberType { get { return MemberTypes.Event; } }
-        public override string Name
-        {
-            get
-            {
-                if (m_name == null)
-                    m_name = new MdUtf8String(m_utf8name).ToString();
-
-                return m_name;
-            }
-        }
-        public override Type? DeclaringType { get { return m_declaringType; } }
+        public override MemberTypes MemberType => MemberTypes.Event;
+        public override string Name => m_name ??= new MdUtf8String(m_utf8name).ToString();
+        public override Type? DeclaringType => m_declaringType;
         public sealed override bool HasSameMetadataDefinitionAs(MemberInfo other) => HasSameMetadataDefinitionAsCore<RuntimeEventInfo>(other);
-        public override Type? ReflectedType
-        {
-            get
-            {
-                return ReflectedTypeInternal;
-            }
-        }
+        public override Type? ReflectedType => ReflectedTypeInternal;
 
-        private RuntimeType ReflectedTypeInternal
-        {
-            get
-            {
-                return m_reflectedTypeCache.GetRuntimeType();
-            }
-        }
+        private RuntimeType ReflectedTypeInternal => m_reflectedTypeCache.GetRuntimeType();
 
-        public override int MetadataToken { get { return m_token; } }
-        public override Module Module { get { return GetRuntimeModule(); } }
+        public override int MetadataToken => m_token;
+        public override Module Module => GetRuntimeModule();
         internal RuntimeModule GetRuntimeModule() { return m_declaringType.GetRuntimeModule(); }
         #endregion
 
@@ -158,7 +133,7 @@ namespace System.Reflection
             List<MethodInfo> ret = new List<MethodInfo>();
 
             if (m_otherMethod is null)
-                return new MethodInfo[0];
+                return Array.Empty<MethodInfo>();
 
             for (int i = 0; i < m_otherMethod.Length; i++)
             {
@@ -193,13 +168,7 @@ namespace System.Reflection
             return m_raiseMethod;
         }
 
-        public override EventAttributes Attributes
-        {
-            get
-            {
-                return m_flags;
-            }
-        }
-        #endregion    
+        public override EventAttributes Attributes => m_flags;
+        #endregion
     }
 }

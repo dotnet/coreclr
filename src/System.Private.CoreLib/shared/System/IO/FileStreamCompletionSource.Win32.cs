@@ -58,10 +58,7 @@ namespace System.IO
                 Debug.Assert(_overlapped != null, "AllocateNativeOverlapped returned null");
             }
 
-            internal NativeOverlapped* Overlapped
-            {
-                get { return _overlapped; }
-            }
+            internal NativeOverlapped* Overlapped => _overlapped;
 
             public void SetCompletedSynchronously(int numBytes)
             {
@@ -80,8 +77,7 @@ namespace System.IO
                 // Quick check to make sure the IO hasn't completed
                 if (_overlapped != null)
                 {
-                    var cancelCallback = s_cancelCallback;
-                    if (cancelCallback == null) s_cancelCallback = cancelCallback = Cancel;
+                    Action<object?>? cancelCallback = s_cancelCallback ??= Cancel;
 
                     // Register the cancellation only if the IO hasn't completed
                     long packedResult = Interlocked.CompareExchange(ref _result, RegisteringCancellation, NoResult);

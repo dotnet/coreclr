@@ -84,10 +84,10 @@ namespace System.Threading
         /// specified <paramref name="valueFactory"/> function.
         /// </summary>
         /// <param name="valueFactory">
-        /// The <see cref="T:System.Func{T}"/> invoked to produce a lazily-initialized value when
+        /// The <see cref="System.Func{T}"/> invoked to produce a lazily-initialized value when
         /// an attempt is made to retrieve <see cref="Value"/> without it having been previously initialized.
         /// </param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name="valueFactory"/> is a null reference (Nothing in Visual Basic).
         /// </exception>
         public ThreadLocal(Func<T> valueFactory)
@@ -103,11 +103,11 @@ namespace System.Threading
         /// specified <paramref name="valueFactory"/> function.
         /// </summary>
         /// <param name="valueFactory">
-        /// The <see cref="T:System.Func{T}"/> invoked to produce a lazily-initialized value when
+        /// The <see cref="System.Func{T}"/> invoked to produce a lazily-initialized value when
         /// an attempt is made to retrieve <see cref="Value"/> without it having been previously initialized.
         /// </param>
         /// <param name="trackAllValues">Whether to track all values set on the instance and expose them via the Values property.</param>
-        /// <exception cref="T:System.ArgumentNullException">
+        /// <exception cref="System.ArgumentNullException">
         /// <paramref name="valueFactory"/> is a null reference (Nothing in Visual Basic).
         /// </exception>
         public ThreadLocal(Func<T> valueFactory, bool trackAllValues)
@@ -137,7 +137,7 @@ namespace System.Threading
         }
 
         /// <summary>
-        /// Releases the resources used by this <see cref="T:System.Threading.ThreadLocal{T}" /> instance.
+        /// Releases the resources used by this <see cref="System.Threading.ThreadLocal{T}" /> instance.
         /// </summary>
         ~ThreadLocal()
         {
@@ -148,10 +148,10 @@ namespace System.Threading
         #region IDisposable Members
 
         /// <summary>
-        /// Releases the resources used by this <see cref="T:System.Threading.ThreadLocal{T}" /> instance.
+        /// Releases the resources used by this <see cref="System.Threading.ThreadLocal{T}" /> instance.
         /// </summary>
         /// <remarks>
-        /// Unlike most of the members of <see cref="T:System.Threading.ThreadLocal{T}"/>, this method is not thread-safe.
+        /// Unlike most of the members of <see cref="System.Threading.ThreadLocal{T}"/>, this method is not thread-safe.
         /// </remarks>
         public void Dispose()
         {
@@ -160,13 +160,13 @@ namespace System.Threading
         }
 
         /// <summary>
-        /// Releases the resources used by this <see cref="T:System.Threading.ThreadLocal{T}" /> instance.
+        /// Releases the resources used by this <see cref="System.Threading.ThreadLocal{T}" /> instance.
         /// </summary>
         /// <param name="disposing">
         /// A Boolean value that indicates whether this method is being called due to a call to <see cref="Dispose()"/>.
         /// </param>
         /// <remarks>
-        /// Unlike most of the members of <see cref="T:System.Threading.ThreadLocal{T}"/>, this method is not thread-safe.
+        /// Unlike most of the members of <see cref="System.Threading.ThreadLocal{T}"/>, this method is not thread-safe.
         /// </remarks>
         protected virtual void Dispose(bool disposing)
         {
@@ -213,14 +213,14 @@ namespace System.Threading
         #endregion
 
         /// <summary>Creates and returns a string representation of this instance for the current thread.</summary>
-        /// <returns>The result of calling <see cref="System.Object.ToString"/> on the <see cref="Value"/>.</returns>
-        /// <exception cref="T:System.NullReferenceException">
+        /// <returns>The result of calling <see cref="object.ToString"/> on the <see cref="Value"/>.</returns>
+        /// <exception cref="System.NullReferenceException">
         /// The <see cref="Value"/> for the current thread is a null reference (Nothing in Visual Basic).
         /// </exception>
-        /// <exception cref="T:System.InvalidOperationException">
+        /// <exception cref="System.InvalidOperationException">
         /// The initialization function referenced <see cref="Value"/> in an improper manner.
         /// </exception>
-        /// <exception cref="T:System.ObjectDisposedException">
+        /// <exception cref="System.ObjectDisposedException">
         /// The <see cref="ThreadLocal{T}"/> instance has been disposed.
         /// </exception>
         /// <remarks>
@@ -235,10 +235,10 @@ namespace System.Threading
         /// <summary>
         /// Gets or sets the value of this instance for the current thread.
         /// </summary>
-        /// <exception cref="T:System.InvalidOperationException">
+        /// <exception cref="System.InvalidOperationException">
         /// The initialization function referenced <see cref="Value"/> in an improper manner.
         /// </exception>
-        /// <exception cref="T:System.ObjectDisposedException">
+        /// <exception cref="System.ObjectDisposedException">
         /// The <see cref="ThreadLocal{T}"/> instance has been disposed.
         /// </exception>
         /// <remarks>
@@ -435,7 +435,7 @@ namespace System.Threading
         /// <summary>
         /// Gets a list for all of the values currently stored by all of the threads that have accessed this instance.
         /// </summary>
-        /// <exception cref="T:System.ObjectDisposedException">
+        /// <exception cref="System.ObjectDisposedException">
         /// The <see cref="ThreadLocal{T}"/> instance has been disposed.
         /// </exception>
         public IList<T> Values
@@ -447,7 +447,7 @@ namespace System.Threading
                     throw new InvalidOperationException(SR.ThreadLocal_ValuesNotAvailable);
                 }
 
-                var list = GetValuesAsList(); // returns null if disposed
+                List<T>? list = GetValuesAsList(); // returns null if disposed
                 if (list == null) throw new ObjectDisposedException(SR.ThreadLocal_Disposed);
                 return list;
             }
@@ -518,7 +518,7 @@ namespace System.Threading
         /// <summary>
         /// Gets whether <see cref="Value"/> is initialized on the current thread.
         /// </summary>
-        /// <exception cref="T:System.ObjectDisposedException">
+        /// <exception cref="System.ObjectDisposedException">
         /// The <see cref="ThreadLocal{T}"/> instance has been disposed.
         /// </exception>
         public bool IsValueCreated
@@ -555,10 +555,8 @@ namespace System.Threading
         }
 
         /// <summary>Gets the values of all threads that accessed the ThreadLocal&lt;T&gt;.</summary>
-        internal List<T>? ValuesForDebugDisplay // same as Values property, but doesn't throw if disposed
-        {
-            get { return GetValuesAsList(); }
-        }
+        internal List<T>? ValuesForDebugDisplay => // same as Values property, but doesn't throw if disposed
+            GetValuesAsList();
 
         /// <summary>
         /// Resizes a table to a certain length (or larger).
@@ -687,7 +685,7 @@ namespace System.Threading
             private int _nextIdToTry = 0;
 
             // Stores whether each ID is free or not. Additionally, the object is also used as a lock for the IdManager.
-            private List<bool> _freeIds = new List<bool>();
+            private readonly List<bool> _freeIds = new List<bool>();
 
             internal int GetId()
             {
@@ -741,7 +739,7 @@ namespace System.Threading
         private class FinalizationHelper
         {
             internal LinkedSlotVolatile[] SlotArray;
-            private bool _trackAllValues;
+            private readonly bool _trackAllValues;
 
             internal FinalizationHelper(LinkedSlotVolatile[] slotArray, bool trackAllValues)
             {
@@ -793,7 +791,7 @@ namespace System.Threading
     /// to ensure that the ThreadLocal&lt;T&gt; does not become initialized if it was not already.</summary>
     internal sealed class SystemThreading_ThreadLocalDebugView<T>
     {
-        //The ThreadLocal object being viewed.
+        // The ThreadLocal object being viewed.
         private readonly ThreadLocal<T> _tlocal;
 
         /// <summary>Constructs a new debugger view object for the provided ThreadLocal object.</summary>

@@ -7638,7 +7638,7 @@ getMethodInfoHelper(
 
         MethodTable * pMT  = ftn->GetMethodTable();
 
-        if (pMT->GetModule()->IsSystem())
+        if (ftn->IsJitIntrinsic())
         {
             if (MscorlibBinder::IsClass(pMT, CLASS__JIT_HELPERS))
             {
@@ -11279,7 +11279,7 @@ void reservePersonalityRoutineSpace(ULONG &unwindSize)
 //
 void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwindSize)
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
@@ -11304,10 +11304,10 @@ void CEEJitInfo::reserveUnwindInfo(BOOL isFunclet, BOOL isColdCode, ULONG unwind
     m_totalUnwindInfos++;
 
     EE_TO_JIT_TRANSITION_LEAF();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     LIMITED_METHOD_CONTRACT;
     // Dummy implementation to make cross-platform altjit work
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 // Allocate and initialize the .rdata and .pdata for this method or
@@ -11340,7 +11340,7 @@ void CEEJitInfo::allocUnwindInfo (
         CorJitFuncKind      funcKind               /* IN */
         )
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
@@ -11481,10 +11481,10 @@ void CEEJitInfo::allocUnwindInfo (
 #endif // defined(_TARGET_AMD64_)
 
     EE_TO_JIT_TRANSITION();
-#else // WIN64EXCEPTIONS
+#else // FEATURE_EH_FUNCLETS
     LIMITED_METHOD_CONTRACT;
     // Dummy implementation to make cross-platform altjit work
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 }
 
 void CEEJitInfo::recordCallSite(ULONG                 instrOffset,
@@ -11514,7 +11514,7 @@ void CEEJitInfo::recordRelocation(void * location,
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
-#ifdef _WIN64
+#ifdef BIT64
     JIT_TO_EE_TRANSITION();
 
     INT64 delta;
@@ -11692,13 +11692,13 @@ void CEEJitInfo::recordRelocation(void * location,
     }
 
     EE_TO_JIT_TRANSITION();
-#else // _WIN64
+#else // BIT64
     JIT_TO_EE_TRANSITION_LEAF();
 
     // Nothing to do on 32-bit
 
     EE_TO_JIT_TRANSITION_LEAF();
-#endif // _WIN64
+#endif // BIT64
 }
 
 WORD CEEJitInfo::getRelocTypeHint(void * target)
@@ -12108,7 +12108,7 @@ void CEEJitInfo::allocMem (
         totalSize += roDataSize;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     totalSize.AlignUp(sizeof(DWORD));
     totalSize += m_totalUnwindSize;
 #endif
@@ -12127,7 +12127,7 @@ void CEEJitInfo::allocMem (
     }
 
     m_CodeHeader = m_jitManager->allocCode(m_pMethodBeingCompiled, totalSize.Value(), GetReserveForJumpStubs(), flag
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
                                            , m_totalUnwindInfos
                                            , &m_moduleBase
 #endif
@@ -12149,7 +12149,7 @@ void CEEJitInfo::allocMem (
         *roDataBlock = NULL;
     }
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     current = (BYTE *)ALIGN_UP(current, sizeof(DWORD));
 
     m_theUnwindBlock = current;
@@ -12181,12 +12181,12 @@ void * CEEJitInfo::allocGCInfo (size_t size)
     _ASSERTE(m_CodeHeader != 0);
     _ASSERTE(m_CodeHeader->GetGCInfo() == 0);
 
-#ifdef _WIN64
+#ifdef BIT64
     if (size & 0xFFFFFFFF80000000LL)
     {
         COMPlusThrowHR(CORJIT_OUTOFMEM);
     }
-#endif // _WIN64
+#endif // BIT64
 
     block = m_jitManager->allocGCInfo(m_CodeHeader,(DWORD)size, &m_GCinfo_len);
     if (!block)
@@ -14183,7 +14183,7 @@ EECodeInfo::EECodeInfo()
     m_pMD = NULL;
     m_relOffset = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pFunctionEntry = NULL;
 #endif
 }
@@ -14222,7 +14222,7 @@ Invalid:
     m_pMD = NULL;
     m_relOffset = 0;
 
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     m_pFunctionEntry = NULL;
 #endif
 }
@@ -14237,7 +14237,7 @@ TADDR EECodeInfo::GetSavedMethodCode()
         HOST_NOCALLS;
         SUPPORTS_DAC;
     } CONTRACTL_END;
-#ifndef _WIN64
+#ifndef BIT64
 #if defined(HAVE_GCCOVER)
     _ASSERTE (!m_pMD->m_GcCover || GCStress<cfg_instr>::IsEnabled());
     if (GCStress<cfg_instr>::IsEnabled()
@@ -14283,15 +14283,17 @@ NativeCodeVersion EECodeInfo::GetNativeCodeVersion()
     }
 
 #ifdef FEATURE_CODE_VERSIONING
-    CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
-    CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
-    return pCodeVersionManager->GetNativeCodeVersion(pMD, PINSTRToPCODE(GetStartAddress()));
-#else
-    return NativeCodeVersion(pMD);
+    if (pMD->IsVersionable())
+    {
+        CodeVersionManager *pCodeVersionManager = pMD->GetCodeVersionManager();
+        CodeVersionManager::TableLockHolder lockHolder(pCodeVersionManager);
+        return pCodeVersionManager->GetNativeCodeVersion(pMD, PINSTRToPCODE(GetStartAddress()));
+    }
 #endif
+    return NativeCodeVersion(pMD);
 }
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
 // ----------------------------------------------------------------------------
 // EECodeInfo::GetMainFunctionInfo
@@ -14347,7 +14349,7 @@ BOOL EECodeInfo::HasFrameRegister()
 }
 #endif // defined(_TARGET_AMD64_)
 
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
 
 #if defined(_TARGET_AMD64_)

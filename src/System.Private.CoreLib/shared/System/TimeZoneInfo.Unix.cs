@@ -436,7 +436,7 @@ namespace System
 
                 fixed (byte* dirBufferPtr = dirBuffer)
                 {
-                    for(;;)
+                    while (true)
                     {
                         IntPtr dirHandle = Interop.Sys.OpenDir(currentPath);
                         if (dirHandle == IntPtr.Zero)
@@ -488,10 +488,7 @@ namespace System
                                 // we're returning directories.
                                 if (isDir)
                                 {
-                                    if (toExplore == null)
-                                    {
-                                        toExplore = new List<string>();
-                                    }
+                                    toExplore ??= new List<string>();
                                     toExplore.Add(fullPath);
                                 }
                                 else if (condition(fullPath))
@@ -1218,7 +1215,7 @@ namespace System
         {
             if (date.IsEmpty)
             {
-                return default(TransitionTime);
+                return default;
             }
 
             if (date[0] == 'M')
@@ -1276,9 +1273,6 @@ namespace System
         /// <summary>
         /// Parses a string like Jn or n into month and day values.
         /// </summary>
-        /// <returns>
-        /// true if the parsing succeeded; otherwise, false.
-        /// </returns>
         private static void TZif_ParseJulianDay(ReadOnlySpan<char> date, out int month, out int day)
         {
             // Jn

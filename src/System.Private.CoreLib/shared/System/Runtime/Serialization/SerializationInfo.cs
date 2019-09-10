@@ -20,8 +20,8 @@ namespace System.Runtime.Serialization
         private object?[] _values;
         private Type[] _types;
         private int _count;
-        private Dictionary<string, int> _nameToIndex;
-        private IFormatterConverter _converter;
+        private readonly Dictionary<string, int> _nameToIndex;
+        private readonly IFormatterConverter _converter;
         private string _rootTypeName;
         private string _rootTypeAssemblyName;
         private Type _rootType;
@@ -34,15 +34,8 @@ namespace System.Runtime.Serialization
         [ThreadStatic]
         private static DeserializationTracker? t_deserializationTracker;
 
-        private static DeserializationTracker GetThreadDeserializationTracker()
-        {
-            if (t_deserializationTracker == null)
-            {
-                t_deserializationTracker = new DeserializationTracker();
-            }
-
-            return t_deserializationTracker;
-        }
+        private static DeserializationTracker GetThreadDeserializationTracker() =>
+            t_deserializationTracker ??= new DeserializationTracker();
 #endif // !CORECLR
 
         // Returns true if deserialization is currently in progress
@@ -92,7 +85,7 @@ namespace System.Runtime.Serialization
             {
                 throw new ArgumentNullException(nameof(switchSuffix));
             }
-            if (String.IsNullOrWhiteSpace(switchSuffix))
+            if (string.IsNullOrWhiteSpace(switchSuffix))
             {
                 throw new ArgumentException(SR.Argument_EmptyName, nameof(switchSuffix));
             }
@@ -144,7 +137,7 @@ namespace System.Runtime.Serialization
 #else
                 DeserializationTracker tracker = GetThreadDeserializationTracker();
 #endif
-                if  (!tracker.DeserializationInProgress)
+                if (!tracker.DeserializationInProgress)
                 {
                     lock (tracker)
                     {
@@ -196,7 +189,7 @@ namespace System.Runtime.Serialization
 
         public string FullTypeName
         {
-            get { return _rootTypeName; }
+            get => _rootTypeName;
             set
             {
                 if (null == value)
@@ -211,7 +204,7 @@ namespace System.Runtime.Serialization
 
         public string AssemblyName
         {
-            get { return _rootTypeAssemblyName; }
+            get => _rootTypeAssemblyName;
             set
             {
                 if (null == value)

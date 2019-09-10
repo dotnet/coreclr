@@ -91,19 +91,17 @@ namespace System.Runtime
 
         private static long LastKnownFreeAddressSpace
         {
-            get { return Volatile.Read(ref s_hiddenLastKnownFreeAddressSpace); }
-            set { Volatile.Write(ref s_hiddenLastKnownFreeAddressSpace, value); }
+            get => Volatile.Read(ref s_hiddenLastKnownFreeAddressSpace);
+            set => Volatile.Write(ref s_hiddenLastKnownFreeAddressSpace, value);
         }
 
-        private static long AddToLastKnownFreeAddressSpace(long addend)
-        {
-            return Interlocked.Add(ref s_hiddenLastKnownFreeAddressSpace, addend);
-        }
+        private static long AddToLastKnownFreeAddressSpace(long addend) =>
+            Interlocked.Add(ref s_hiddenLastKnownFreeAddressSpace, addend);
 
         private static long LastTimeCheckingAddressSpace
         {
-            get { return Volatile.Read(ref s_hiddenLastTimeCheckingAddressSpace); }
-            set { Volatile.Write(ref s_hiddenLastTimeCheckingAddressSpace, value); }
+            get => Volatile.Read(ref s_hiddenLastTimeCheckingAddressSpace);
+            set => Volatile.Write(ref s_hiddenLastTimeCheckingAddressSpace, value);
         }
 
         // When allocating memory segment by segment, we've hit some cases
@@ -134,7 +132,7 @@ namespace System.Runtime
         // in the critical finalizer.
         private static long s_failPointReservedMemory;
 
-        private ulong _reservedMemory;  // The size of this request (from user)
+        private readonly ulong _reservedMemory;  // The size of this request (from user)
         private bool _mustSubtractReservation; // Did we add data to SharedStatics?
 
         // We can remove this link demand in a future version - we will
@@ -160,7 +158,7 @@ namespace System.Runtime
                 throw new InsufficientMemoryException(SR.InsufficientMemory_MemFailPoint_TooBig);
 
             ulong requestedSizeRounded = (ulong)(Math.Ceiling((double)sizeInMegabytes / MemoryCheckGranularity) * MemoryCheckGranularity);
-            //re-convert into bytes
+            // re-convert into bytes
             requestedSizeRounded <<= 20;
 
             ulong availPageFile = 0;  // available VM (physical + page file)
@@ -339,11 +337,9 @@ namespace System.Runtime
             */
         }
 
-        internal static long AddMemoryFailPointReservation(long size)
-        {
+        internal static long AddMemoryFailPointReservation(long size) =>
             // Size can legitimately be negative - see Dispose.
-            return Interlocked.Add(ref s_failPointReservedMemory, (long)size);
-        }
+            Interlocked.Add(ref s_failPointReservedMemory, (long)size);
 
         internal static ulong MemoryFailPointReservedMemory
         {
@@ -358,16 +354,16 @@ namespace System.Runtime
         [Serializable]
         internal sealed class MemoryFailPointState
         {
-            private ulong _segmentSize;
-            private int _allocationSizeInMB;
-            private bool _needPageFile;
-            private bool _needAddressSpace;
-            private bool _needContiguousVASpace;
-            private ulong _availPageFile;
-            private ulong _totalFreeAddressSpace;
-            private long _lastKnownFreeAddressSpace;
-            private ulong _reservedMem;
-            private string _stackTrace;  // Where did we fail, for additional debugging.
+            private readonly ulong _segmentSize;
+            private readonly int _allocationSizeInMB;
+            private readonly bool _needPageFile;
+            private readonly bool _needAddressSpace;
+            private readonly bool _needContiguousVASpace;
+            private readonly ulong _availPageFile;
+            private readonly ulong _totalFreeAddressSpace;
+            private readonly long _lastKnownFreeAddressSpace;
+            private readonly ulong _reservedMem;
+            private readonly string _stackTrace;  // Where did we fail, for additional debugging.
 
             internal MemoryFailPointState(int allocationSizeInMB, ulong segmentSize, bool needPageFile, bool needAddressSpace, bool needContiguousVASpace, ulong availPageFile, ulong totalFreeAddressSpace, long lastKnownFreeAddressSpace, ulong reservedMem)
             {

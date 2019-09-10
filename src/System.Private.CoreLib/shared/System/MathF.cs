@@ -12,8 +12,6 @@
 **
 ===========================================================*/
 
-//This class contains only static members and doesn't require serialization.
-
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
@@ -28,7 +26,7 @@ namespace System
         private const int maxRoundingDigits = 6;
 
         // This table is required for the Round function which can specify the number of digits to round to
-        private static float[] roundPower10Single = new float[] {
+        private static readonly float[] roundPower10Single = new float[] {
             1e0f, 1e1f, 1e2f, 1e3f, 1e4f, 1e5f, 1e6f
         };
 
@@ -42,7 +40,7 @@ namespace System
 
         public static float BitDecrement(float x)
         {
-            var bits = BitConverter.SingleToInt32Bits(x);
+            int bits = BitConverter.SingleToInt32Bits(x);
 
             if ((bits & 0x7F800000) >= 0x7F800000)
             {
@@ -67,7 +65,7 @@ namespace System
 
         public static float BitIncrement(float x)
         {
-            var bits = BitConverter.SingleToInt32Bits(x);
+            int bits = BitConverter.SingleToInt32Bits(x);
 
             if ((bits & 0x7F800000) >= 0x7F800000)
             {
@@ -95,8 +93,8 @@ namespace System
             // This method is required to work for all inputs,
             // including NaN, so we operate on the raw bits.
 
-            var xbits = BitConverter.SingleToInt32Bits(x);
-            var ybits = BitConverter.SingleToInt32Bits(y);
+            int xbits = BitConverter.SingleToInt32Bits(x);
+            int ybits = BitConverter.SingleToInt32Bits(y);
 
             // If the sign bits of x and y are not the same,
             // flip the sign bit of x and return the new value;
@@ -122,7 +120,7 @@ namespace System
                 return y; // IEEE 754-2008: NaN payload must be preserved
             }
 
-            var regularMod = x % y;
+            float regularMod = x % y;
 
             if (float.IsNaN(regularMod))
             {
@@ -134,12 +132,12 @@ namespace System
                 return float.NegativeZero;
             }
 
-            var alternativeResult = (regularMod - (Abs(y) * Sign(x)));
+            float alternativeResult = (regularMod - (Abs(y) * Sign(x)));
 
             if (Abs(alternativeResult) == Abs(regularMod))
             {
-                var divisionResult = x / y;
-                var roundedResult = Round(divisionResult);
+                float divisionResult = x / y;
+                float roundedResult = Round(divisionResult);
 
                 if (Abs(roundedResult) > Abs(divisionResult))
                 {
@@ -341,7 +339,7 @@ namespace System
 
             if (Abs(x) < singleRoundLimit)
             {
-                var power10 = roundPower10Single[digits];
+                float power10 = roundPower10Single[digits];
 
                 x *= power10;
 

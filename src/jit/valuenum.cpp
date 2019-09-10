@@ -257,215 +257,102 @@ TFp FpRem(TFp dividend, TFp divisor)
 }
 
 //--------------------------------------------------------------------------------
-// VNGetOperKind:   - Given two bools: isUnsigned and overFlowCheck
-//                    return the correct VNOperKind for them.
+// GetVNFuncForNode: Given a GenTree node, this returns the proper VNFunc to use
+// for ValueNumbering
 //
 // Arguments:
-//    isUnsigned    - The operKind returned should have the unsigned property
-//    overflowCheck - The operKind returned should have the overflow check property
+//    node - The GenTree node that we need the VNFunc for.
 //
 // Return Value:
-//                  - The VNOperKind to use for this pair of (isUnsigned, overflowCheck)
+//    The VNFunc to use for this GenTree node
 //
-VNOperKind VNGetOperKind(bool isUnsigned, bool overflowCheck)
-{
-    if (!isUnsigned)
-    {
-        if (!overflowCheck)
-        {
-            return VOK_Default;
-        }
-        else
-        {
-            return VOK_OverflowCheck;
-        }
-    }
-    else // isUnsigned
-    {
-        if (!overflowCheck)
-        {
-            return VOK_Unsigned;
-        }
-        else
-        {
-            return VOK_Unsigned_OverflowCheck;
-        }
-    }
-}
-
-//--------------------------------------------------------------------------------
-// GetVNFuncForOper:  - Given a genTreeOper this function Returns the correct
-//                         VNFunc to use for ValueNumbering
-//
-// Arguments:
-//    oper            - The gtOper value from the GenTree node
-//    operKind        - An enum that supports Normal, Unsigned, OverflowCheck,
-//                      and Unsigned_OverflowCheck,
-//
-// Return Value:
-//               - The VNFunc to use for this pair of (oper, operKind)
-//
-// Notes:        - An assert will fire when the oper does not support
-//                 the operKInd that is supplied.
-//
-VNFunc GetVNFuncForOper(genTreeOps oper, VNOperKind operKind)
-{
-    VNFunc result  = VNF_COUNT; // An illegal value
-    bool   invalid = false;
-
-    // For most genTreeOpers we just use the VNFunc with the same enum value as the oper
-    //
-    if (operKind == VOK_Default)
-    {
-        // We can directly use the enum value of oper
-        result = VNFunc(oper);
-    }
-    else if ((oper == GT_EQ) || (oper == GT_NE))
-    {
-        if (operKind == VOK_Unsigned)
-        {
-            // We will permit unsignedOper to be used with GT_EQ and GT_NE (as it is a no-op)
-            //
-            // Again we directly use the enum value of oper
-            result = VNFunc(oper);
-        }
-        else
-        {
-            invalid = true;
-        }
-    }
-    else // We will need to use a VNF_ function
-    {
-        switch (oper)
-        {
-            case GT_LT:
-                if (operKind == VOK_Unsigned)
-                {
-                    result = VNF_LT_UN;
-                }
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            case GT_LE:
-                if (operKind == VOK_Unsigned)
-                {
-                    result = VNF_LE_UN;
-                }
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            case GT_GE:
-                if (operKind == VOK_Unsigned)
-                {
-                    result = VNF_GE_UN;
-                }
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            case GT_GT:
-                if (operKind == VOK_Unsigned)
-                {
-                    result = VNF_GT_UN;
-                }
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            case GT_ADD:
-                if (operKind == VOK_OverflowCheck)
-                {
-                    result = VNF_ADD_OVF;
-                }
-                else if (operKind == VOK_Unsigned_OverflowCheck)
-                {
-                    result = VNF_ADD_UN_OVF;
-                }
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            case GT_SUB:
-                if (operKind == VOK_OverflowCheck)
-                {
-                    result = VNF_SUB_OVF;
-                }
-                else if (operKind == VOK_Unsigned_OverflowCheck)
-                {
-                    result = VNF_SUB_UN_OVF;
-                }
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            case GT_MUL:
-                if (operKind == VOK_OverflowCheck)
-                {
-                    result = VNF_MUL_OVF;
-                }
-                else if (operKind == VOK_Unsigned_OverflowCheck)
-                {
-                    result = VNF_MUL_UN_OVF;
-                }
-#ifndef _TARGET_64BIT_
-                else if (operKind == VOK_Unsigned)
-                {
-                    // This is the special 64-bit unsigned multiply used on 32-bit targets
-                    result = VNF_MUL64_UN;
-                }
-#endif
-                else
-                {
-                    invalid = true;
-                }
-                break;
-
-            default:
-                // Will trigger the noway_assert below.
-                break;
-        }
-    }
-    noway_assert(!invalid && (result != VNF_COUNT));
-
-    return result;
-}
-
-//--------------------------------------------------------------------------------
-// GetVNFuncForNode:  - Given a GenTree node, this returns the proper
-//                      VNFunc to use for ValueNumbering
-//
-// Arguments:
-//    node            - The GenTree node that we need the VNFunc for.
-//
-// Return Value:
-//               - The VNFunc to use for this GenTree node
-//
-// Notes:        - The gtFlags from the node are used to set operKind
-//                 to one of Normal, Unsigned, OverflowCheck,
-//                 or Unsigned_OverflowCheck. Also see GetVNFuncForOper()
+// Notes:
+//    Some opers have their semantics affected by GTF flags so they need to be
+//    replaced by special VNFunc values:
+//      - relops are affected by GTF_UNSIGNED/GTF_RELOP_NAN_UN
+//      - ADD/SUB/MUL are affected by GTF_OVERFLOW and GTF_UNSIGNED
 //
 VNFunc GetVNFuncForNode(GenTree* node)
 {
-    bool       isUnsignedOper   = ((node->gtFlags & GTF_UNSIGNED) != 0);
-    bool       hasOverflowCheck = node->gtOverflowEx();
-    VNOperKind operKind         = VNGetOperKind(isUnsignedOper, hasOverflowCheck);
-    VNFunc     result           = GetVNFuncForOper(node->gtOper, operKind);
+    static const VNFunc relopUnFuncs[]{VNF_LT_UN, VNF_LE_UN, VNF_GE_UN, VNF_GT_UN};
+    static_assert_no_msg(GT_LE - GT_LT == 1);
+    static_assert_no_msg(GT_GE - GT_LT == 2);
+    static_assert_no_msg(GT_GT - GT_LT == 3);
 
-    return result;
+    static const VNFunc binopOvfFuncs[]{VNF_ADD_OVF, VNF_SUB_OVF, VNF_MUL_OVF};
+    static const VNFunc binopUnOvfFuncs[]{VNF_ADD_UN_OVF, VNF_SUB_UN_OVF, VNF_MUL_UN_OVF};
+    static_assert_no_msg(GT_SUB - GT_ADD == 1);
+    static_assert_no_msg(GT_MUL - GT_ADD == 2);
+
+    switch (node->OperGet())
+    {
+        case GT_EQ:
+            if (varTypeIsFloating(node->gtGetOp1()))
+            {
+                assert(varTypeIsFloating(node->gtGetOp2()));
+                assert((node->gtFlags & GTF_RELOP_NAN_UN) == 0);
+            }
+            break;
+
+        case GT_NE:
+            if (varTypeIsFloating(node->gtGetOp1()))
+            {
+                assert(varTypeIsFloating(node->gtGetOp2()));
+                assert((node->gtFlags & GTF_RELOP_NAN_UN) != 0);
+            }
+            break;
+
+        case GT_LT:
+        case GT_LE:
+        case GT_GT:
+        case GT_GE:
+            if (varTypeIsFloating(node->gtGetOp1()))
+            {
+                assert(varTypeIsFloating(node->gtGetOp2()));
+                if ((node->gtFlags & GTF_RELOP_NAN_UN) != 0)
+                {
+                    return relopUnFuncs[node->OperGet() - GT_LT];
+                }
+            }
+            else
+            {
+                assert(varTypeIsIntegralOrI(node->gtGetOp1()));
+                assert(varTypeIsIntegralOrI(node->gtGetOp2()));
+                if (node->IsUnsigned())
+                {
+                    return relopUnFuncs[node->OperGet() - GT_LT];
+                }
+            }
+            break;
+
+        case GT_ADD:
+        case GT_SUB:
+        case GT_MUL:
+            if (varTypeIsIntegralOrI(node->gtGetOp1()) && node->gtOverflow())
+            {
+                assert(varTypeIsIntegralOrI(node->gtGetOp2()));
+                if (node->IsUnsigned())
+                {
+                    return binopUnOvfFuncs[node->OperGet() - GT_ADD];
+                }
+                else
+                {
+                    return binopOvfFuncs[node->OperGet() - GT_ADD];
+                }
+            }
+            break;
+
+        case GT_CAST:
+            // GT_CAST can overflow but it has special handling and it should not appear here.
+            unreached();
+
+        default:
+            // Make sure we don't miss an onverflow oper, if a new one is ever added.
+            assert(!GenTree::OperMayOverflow(node->OperGet()));
+            break;
+    }
+
+    return VNFunc(node->OperGet());
 }
 
 unsigned ValueNumStore::VNFuncArity(VNFunc vnf)
@@ -3390,11 +3277,11 @@ ValueNum ValueNumStore::EvalUsingMathIdentity(var_types typ, VNFunc func, ValueN
                 if (!varTypeIsFloating(typ))
                 {
                     ZeroVN = VNZeroForType(typ);
-                    if (VNIsEqual(arg0VN, ZeroVN))
+                    if (arg0VN == ZeroVN)
                     {
                         resultVN = arg1VN;
                     }
-                    else if (VNIsEqual(arg1VN, ZeroVN))
+                    else if (arg1VN == ZeroVN)
                     {
                         resultVN = arg0VN;
                     }
@@ -3409,11 +3296,11 @@ ValueNum ValueNumStore::EvalUsingMathIdentity(var_types typ, VNFunc func, ValueN
                 if (!varTypeIsFloating(typ))
                 {
                     ZeroVN = VNZeroForType(typ);
-                    if (VNIsEqual(arg1VN, ZeroVN))
+                    if (arg1VN == ZeroVN)
                     {
                         resultVN = arg0VN;
                     }
-                    else if (VNIsEqual(arg0VN, arg1VN))
+                    else if (arg0VN == arg1VN)
                     {
                         resultVN = ZeroVN;
                     }
@@ -3520,54 +3407,48 @@ ValueNum ValueNumStore::EvalUsingMathIdentity(var_types typ, VNFunc func, ValueN
                 break;
 
             case GT_EQ:
+                // (null == non-null) == false
+                // (non-null == null) == false
+                if (((arg0VN == VNForNull()) && IsKnownNonNull(arg1VN)) ||
+                    ((arg1VN == VNForNull()) && IsKnownNonNull(arg0VN)))
+                {
+                    resultVN = VNZeroForType(typ);
+                    break;
+                }
+                // (x == x) == true (integer only)
+                __fallthrough;
             case GT_GE:
             case GT_LE:
-                // (x == x) == true,  (null == non-null) == false,  (non-null == null) == false
-                // (x <= x) == true,  (null <= non-null) == false,  (non-null <= null) == false
-                // (x >= x) == true,  (null >= non-null) == false,  (non-null >= null) == false
-                //
-                // This identity does not apply for floating point (when x == NaN)
-                //
-                if (!varTypeIsFloating(typ))
+                // (x <= x) == true (integer only)
+                // (x >= x) == true (integer only)
+                if ((arg0VN == arg1VN) && varTypeIsIntegralOrI(TypeOfVN(arg0VN)))
                 {
-                    if (VNIsEqual(arg0VN, arg1VN))
-                    {
-                        resultVN = VNOneForType(typ);
-                    }
-                    if ((arg0VN == VNForNull()) && IsKnownNonNull(arg1VN))
-                    {
-                        resultVN = VNZeroForType(typ);
-                    }
-                    if (IsKnownNonNull(arg0VN) && (arg1VN == VNForNull()))
-                    {
-                        resultVN = VNZeroForType(typ);
-                    }
+                    resultVN = VNOneForType(typ);
                 }
                 break;
 
             case GT_NE:
+                // (null != non-null) == true
+                // (non-null != null) == true
+                if (((arg0VN == VNForNull()) && IsKnownNonNull(arg1VN)) ||
+                    ((arg1VN == VNForNull()) && IsKnownNonNull(arg0VN)))
+                {
+                    resultVN = VNOneForType(typ);
+                }
+                // (x != x) == false (integer only)
+                else if ((arg0VN == arg1VN) && varTypeIsIntegralOrI(TypeOfVN(arg0VN)))
+                {
+                    resultVN = VNZeroForType(typ);
+                }
+                break;
+
             case GT_GT:
             case GT_LT:
-                // (x != x) == false,  (null != non-null) == true,  (non-null != null) == true
-                // (x > x)  == false,  (null == non-null) == true,  (non-null == null) == true
-                // (x < x)  == false,  (null == non-null) == true,  (non-null == null) == true
-                //
-                // This identity does not apply for floating point (when x == NaN)
-                //
-                if (!varTypeIsFloating(typ))
+                // (x > x) == false (integer & floating point)
+                // (x < x) == false (integer & floating point)
+                if (arg0VN == arg1VN)
                 {
-                    if (VNIsEqual(arg0VN, arg1VN))
-                    {
-                        resultVN = VNZeroForType(typ);
-                    }
-                    if ((arg0VN == VNForNull()) && IsKnownNonNull(arg1VN))
-                    {
-                        resultVN = VNOneForType(typ);
-                    }
-                    if (IsKnownNonNull(arg0VN) && (arg1VN == VNForNull()))
-                    {
-                        resultVN = VNOneForType(typ);
-                    }
+                    resultVN = VNZeroForType(typ);
                 }
                 break;
 
@@ -3577,22 +3458,45 @@ ValueNum ValueNumStore::EvalUsingMathIdentity(var_types typ, VNFunc func, ValueN
     }
     else // must be a VNF_ function
     {
-        // These identities do not apply for floating point (when x == NaN)
-        //
-        if (VNIsEqual(arg0VN, arg1VN))
+        switch (func)
         {
-            // x <= x == true
-            // x >= x == true
-            if ((func == VNF_LE_UN) || (func == VNF_GE_UN))
-            {
-                resultVN = VNOneForType(typ);
-            }
-            // x < x == false
-            // x > x == false
-            else if ((func == VNF_LT_UN) || (func == VNF_GT_UN))
-            {
-                resultVN = VNZeroForType(typ);
-            }
+            case VNF_LT_UN:
+                // (x < 0) == false
+                // (x < x) == false
+                std::swap(arg0VN, arg1VN);
+                __fallthrough;
+            case VNF_GT_UN:
+                // (0 > x) == false
+                // (x > x) == false
+                // None of the above identities apply to floating point comparisons.
+                // For example, (NaN > NaN) is true instead of false because these are
+                // unordered comparisons.
+                if (varTypeIsIntegralOrI(TypeOfVN(arg0VN)) &&
+                    ((arg0VN == VNZeroForType(TypeOfVN(arg0VN))) || (arg0VN == arg1VN)))
+                {
+                    resultVN = VNZeroForType(typ);
+                }
+                break;
+
+            case VNF_GE_UN:
+                // (x >= 0) == true
+                // (x >= x) == true
+                std::swap(arg0VN, arg1VN);
+                __fallthrough;
+            case VNF_LE_UN:
+                // (0 <= x) == true
+                // (x <= x) == true
+                // Unlike (x < x) and (x > x), (x >= x) and (x <= x) also apply to floating
+                // point comparisons: x is either equal to itself or is unordered if it's NaN.
+                if ((varTypeIsIntegralOrI(TypeOfVN(arg0VN)) && (arg0VN == VNZeroForType(TypeOfVN(arg0VN)))) ||
+                    (arg0VN == arg1VN))
+                {
+                    resultVN = VNOneForType(typ);
+                }
+                break;
+
+            default:
+                break;
         }
     }
     return resultVN;
@@ -5916,125 +5820,84 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     compCurStmtNum = blk->bbStmtNum - 1; // Set compCurStmtNum
 #endif
 
+    GenTreeStmt* stmt = blk->firstStmt();
+
     // First: visit phi's.  If "newVNForPhis", give them new VN's.  If not,
     // first check to see if all phi args have the same value.
-    GenTreeStmt* firstNonPhi = blk->FirstNonPhiDef();
-    for (GenTreeStmt* phiDefStmt = blk->firstStmt(); phiDefStmt != firstNonPhi; phiDefStmt = phiDefStmt->getNextStmt())
+    for (; (stmt != nullptr) && stmt->IsPhiDefnStmt(); stmt = stmt->getNextStmt())
     {
-        // TODO-Cleanup: It has been proposed that we should have an IsPhiDef predicate.  We would use it
-        // in Block::FirstNonPhiDef as well.
-        GenTree* phiDef = phiDefStmt->gtStmtExpr;
-        assert(phiDef->OperGet() == GT_ASG);
-        GenTreeLclVarCommon* newSsaVar = phiDef->gtOp.gtOp1->AsLclVarCommon();
+        GenTree* asg = stmt->gtStmtExpr;
+        assert(asg->OperIs(GT_ASG));
 
-        ValueNumPair phiAppVNP;
-        ValueNumPair sameVNPair;
+        GenTreeLclVar* newSsaDef = asg->AsOp()->gtGetOp1()->AsLclVar();
+        ValueNumPair   phiVNP;
+        ValueNumPair   sameVNP;
 
-        GenTree* phiFunc = phiDef->gtOp.gtOp2;
-
-        // At this point a GT_PHI node should never have a nullptr for gtOp1
-        // and the gtOp1 should always be a GT_LIST node.
-        GenTree* phiOp1 = phiFunc->gtOp.gtOp1;
-        noway_assert(phiOp1 != nullptr);
-        noway_assert(phiOp1->OperGet() == GT_LIST);
-
-        GenTreeArgList* phiArgs = phiFunc->gtOp.gtOp1->AsArgList();
-
-        // A GT_PHI node should have more than one argument.
-        noway_assert(phiArgs->Rest() != nullptr);
-
-        GenTreeLclVarCommon* phiArg = phiArgs->Current()->AsLclVarCommon();
-        phiArgs                     = phiArgs->Rest();
-
-        phiAppVNP.SetBoth(vnStore->VNForIntCon(phiArg->gtSsaNum));
-        bool allSameLib  = true;
-        bool allSameCons = true;
-        sameVNPair       = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->gtSsaNum)->m_vnPair;
-        if (!sameVNPair.BothDefined())
+        for (GenTreePhi::Use& use : asg->AsOp()->gtGetOp2()->AsPhi()->Uses())
         {
-            allSameLib  = false;
-            allSameCons = false;
-        }
-        while (phiArgs != nullptr)
-        {
-            phiArg = phiArgs->Current()->AsLclVarCommon();
-            // Set the VN of the phi arg.
-            phiArg->gtVNPair = lvaTable[phiArg->gtLclNum].GetPerSsaData(phiArg->gtSsaNum)->m_vnPair;
-            if (phiArg->gtVNPair.BothDefined())
+            GenTreePhiArg* phiArg         = use.GetNode()->AsPhiArg();
+            ValueNum       phiArgSsaNumVN = vnStore->VNForIntCon(phiArg->GetSsaNum());
+            ValueNumPair   phiArgVNP      = lvaGetDesc(phiArg)->GetPerSsaData(phiArg->GetSsaNum())->m_vnPair;
+
+            phiArg->gtVNPair = phiArgVNP;
+
+            if (phiVNP.GetLiberal() == ValueNumStore::NoVN)
             {
-                if (phiArg->gtVNPair.GetLiberal() != sameVNPair.GetLiberal())
-                {
-                    allSameLib = false;
-                }
-                if (phiArg->gtVNPair.GetConservative() != sameVNPair.GetConservative())
-                {
-                    allSameCons = false;
-                }
+                // This is the first PHI argument
+                phiVNP  = ValueNumPair(phiArgSsaNumVN, phiArgSsaNumVN);
+                sameVNP = phiArgVNP;
             }
             else
             {
-                allSameLib  = false;
-                allSameCons = false;
+                phiVNP = vnStore->VNPairForFunc(newSsaDef->TypeGet(), VNF_Phi,
+                                                ValueNumPair(phiArgSsaNumVN, phiArgSsaNumVN), phiVNP);
+
+                if ((sameVNP.GetLiberal() != phiArgVNP.GetLiberal()) ||
+                    (sameVNP.GetConservative() != phiArgVNP.GetConservative()))
+                {
+                    // If this argument's VNs are different from "same" then change "same" to NoVN.
+                    // Note that this means that if any argument's VN is NoVN then the final result
+                    // will also be NoVN, which is what we want.
+                    sameVNP.SetBoth(ValueNumStore::NoVN);
+                }
             }
-            ValueNumPair phiArgSsaVNP;
-            phiArgSsaVNP.SetBoth(vnStore->VNForIntCon(phiArg->gtSsaNum));
-            phiAppVNP = vnStore->VNPairForFunc(newSsaVar->TypeGet(), VNF_Phi, phiArgSsaVNP, phiAppVNP);
-            phiArgs   = phiArgs->Rest();
         }
 
-        ValueNumPair newVNPair;
-        if (allSameLib)
-        {
-            newVNPair.SetLiberal(sameVNPair.GetLiberal());
-        }
-        else
-        {
-            newVNPair.SetLiberal(phiAppVNP.GetLiberal());
-        }
-        if (allSameCons)
-        {
-            newVNPair.SetConservative(sameVNPair.GetConservative());
-        }
-        else
-        {
-            newVNPair.SetConservative(phiAppVNP.GetConservative());
-        }
-
-        LclSsaVarDsc* newSsaVarDsc = lvaTable[newSsaVar->gtLclNum].GetPerSsaData(newSsaVar->GetSsaNum());
-        // If all the args of the phi had the same value(s, liberal and conservative), then there wasn't really
-        // a reason to have the phi -- just pass on that value.
-        if (allSameLib && allSameCons)
-        {
-            newSsaVarDsc->m_vnPair = newVNPair;
 #ifdef DEBUG
-            if (verbose)
-            {
-                printf("In SSA definition, incoming phi args all same, set VN of local %d/%d to ",
-                       newSsaVar->GetLclNum(), newSsaVar->GetSsaNum());
-                vnpPrint(newVNPair, 1);
-                printf(".\n");
-            }
-#endif // DEBUG
+        // There should be at least to 2 PHI arguments so phiVN's VNs should always be VNF_Phi functions.
+        VNFuncApp phiFunc;
+        assert(vnStore->GetVNFunc(phiVNP.GetLiberal(), &phiFunc) && (phiFunc.m_func == VNF_Phi));
+        assert(vnStore->GetVNFunc(phiVNP.GetConservative(), &phiFunc) && (phiFunc.m_func == VNF_Phi));
+#endif
+
+        ValueNumPair newSsaDefVNP;
+
+        if (sameVNP.BothDefined())
+        {
+            // If all the args of the phi had the same value(s, liberal and conservative), then there wasn't really
+            // a reason to have the phi -- just pass on that value.
+            newSsaDefVNP = sameVNP;
         }
         else
         {
             // They were not the same; we need to create a phi definition.
-            ValueNumPair lclNumVNP;
-            lclNumVNP.SetBoth(ValueNum(newSsaVar->GetLclNum()));
-            ValueNumPair ssaNumVNP;
-            ssaNumVNP.SetBoth(ValueNum(newSsaVar->GetSsaNum()));
-            ValueNumPair vnPhiDef =
-                vnStore->VNPairForFunc(newSsaVar->TypeGet(), VNF_PhiDef, lclNumVNP, ssaNumVNP, phiAppVNP);
-            newSsaVarDsc->m_vnPair = vnPhiDef;
-#ifdef DEBUG
-            if (verbose)
-            {
-                printf("SSA definition: set VN of local %d/%d to ", newSsaVar->GetLclNum(), newSsaVar->GetSsaNum());
-                vnpPrint(vnPhiDef, 1);
-                printf(".\n");
-            }
-#endif // DEBUG
+            ValueNum lclNumVN = ValueNum(newSsaDef->GetLclNum());
+            ValueNum ssaNumVN = ValueNum(newSsaDef->GetSsaNum());
+
+            newSsaDefVNP = vnStore->VNPairForFunc(newSsaDef->TypeGet(), VNF_PhiDef, ValueNumPair(lclNumVN, lclNumVN),
+                                                  ValueNumPair(ssaNumVN, ssaNumVN), phiVNP);
         }
+
+        LclSsaVarDsc* newSsaDefDsc = lvaGetDesc(newSsaDef)->GetPerSsaData(newSsaDef->GetSsaNum());
+        newSsaDefDsc->m_vnPair     = newSsaDefVNP;
+#ifdef DEBUG
+        if (verbose)
+        {
+            printf("SSA PHI definition: set VN of local %d/%d to ", newSsaDef->GetLclNum(), newSsaDef->GetSsaNum());
+            vnpPrint(newSsaDefVNP, 1);
+            printf(" %s.\n", sameVNP.BothDefined() ? "(all same)" : "");
+        }
+#endif // DEBUG
     }
 
     // Now do the same for each MemoryKind.
@@ -6126,7 +5989,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     }
 
     // Now iterate over the remaining statements, and their trees.
-    for (GenTreeStmt* stmt = firstNonPhi; stmt != nullptr; stmt = stmt->getNextStmt())
+    for (; stmt != nullptr; stmt = stmt->getNextStmt())
     {
 #ifdef DEBUG
         compCurStmtNum++;
@@ -7149,7 +7012,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             case GT_NO_OP:
             case GT_JMP:   // Control flow
             case GT_LABEL: // Control flow
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             case GT_END_LFIN: // Control flow
 #endif
             case GT_ARGPLACE:
@@ -8530,9 +8393,9 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
 {
     unsigned nArgs = ValueNumStore::VNFuncArity(vnf);
     assert(vnf != VNF_Boundary);
-    GenTreeArgList* args                    = call->gtCallArgs;
-    bool            generateUniqueVN        = false;
-    bool            useEntryPointAddrAsArg0 = false;
+    GenTreeCall::Use* args                    = call->gtCallArgs;
+    bool              generateUniqueVN        = false;
+    bool              useEntryPointAddrAsArg0 = false;
 
     switch (vnf)
     {
@@ -8546,7 +8409,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
         case VNF_JitNewArr:
         {
             generateUniqueVN  = true;
-            ValueNumPair vnp1 = vnStore->VNPNormalPair(args->Rest()->Current()->gtVNPair);
+            ValueNumPair vnp1 = vnStore->VNPNormalPair(args->GetNext()->GetNode()->gtVNPair);
 
             // The New Array helper may throw an overflow exception
             vnpExc = vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_NewArrOverflowExc, vnp1));
@@ -8577,7 +8440,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
         case VNF_JitReadyToRunNewArr:
         {
             generateUniqueVN  = true;
-            ValueNumPair vnp1 = vnStore->VNPNormalPair(args->Current()->gtVNPair);
+            ValueNumPair vnp1 = vnStore->VNPNormalPair(args->GetNode()->gtVNPair);
 
             // The New Array helper may throw an overflow exception
             vnpExc = vnStore->VNPExcSetSingleton(vnStore->VNPairForFunc(TYP_REF, VNF_NewArrOverflowExc, vnp1));
@@ -8617,7 +8480,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
     if (call->IsR2RRelativeIndir())
     {
 #ifdef DEBUG
-        assert(args->Current()->OperGet() == GT_ARGPLACE);
+        assert(args->GetNode()->OperGet() == GT_ARGPLACE);
 
         // Find the corresponding late arg.
         GenTree* indirectCellAddress = call->fgArgInfo->GetArgNode(0);
@@ -8644,7 +8507,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
     else
     {
         auto getCurrentArg = [call, &args, useEntryPointAddrAsArg0](int currentIndex) {
-            GenTree* arg = args->Current();
+            GenTree* arg = args->GetNode();
             if ((arg->gtFlags & GTF_LATE_ARG) != 0)
             {
                 // This arg is a setup node that moves the arg into position.
@@ -8681,7 +8544,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
             // Also include in the argument exception sets
             vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp0x);
 
-            args = args->Rest();
+            args = args->GetNext();
         }
         if (nArgs == 1)
         {
@@ -8703,7 +8566,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
             vnStore->VNPUnpackExc(vnp1wx, &vnp1, &vnp1x);
             vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp1x);
 
-            args = args->Rest();
+            args = args->GetNext();
             if (nArgs == 2)
             {
                 if (generateUniqueVN)
@@ -8723,7 +8586,7 @@ void Compiler::fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueN
                 vnStore->VNPUnpackExc(vnp2wx, &vnp2, &vnp2x);
                 vnpExc = vnStore->VNPExcSetUnion(vnpExc, vnp2x);
 
-                args = args->Rest();
+                args = args->GetNext();
                 assert(nArgs == 3); // Our current maximum.
                 assert(args == nullptr);
                 if (generateUniqueVN)
@@ -8747,19 +8610,16 @@ void Compiler::fgValueNumberCall(GenTreeCall* call)
 {
     // First: do value numbering of any argument placeholder nodes in the argument list
     // (by transferring from the VN of the late arg that they are standing in for...)
-    unsigned        i               = 0;
-    GenTreeArgList* args            = call->gtCallArgs;
-    bool            updatedArgPlace = false;
-    while (args != nullptr)
+    unsigned i = 0;
+    for (GenTreeCall::Use& use : call->Args())
     {
-        GenTree* arg = args->Current();
+        GenTree* arg = use.GetNode();
         if (arg->OperGet() == GT_ARGPLACE)
         {
             // Find the corresponding late arg.
             GenTree* lateArg = call->fgArgInfo->GetArgNode(i);
             assert(lateArg->gtVNPair.BothDefined());
-            arg->gtVNPair   = lateArg->gtVNPair;
-            updatedArgPlace = true;
+            arg->gtVNPair = lateArg->gtVNPair;
 #ifdef DEBUG
             if (verbose)
             {
@@ -8772,13 +8632,6 @@ void Compiler::fgValueNumberCall(GenTreeCall* call)
 #endif
         }
         i++;
-        args = args->Rest();
-    }
-    if (updatedArgPlace)
-    {
-        // Now we have to update the VN's of the argument list nodes, since that will be used in determining
-        // loop-invariance.
-        fgUpdateArgListVNs(call->gtCallArgs);
     }
 
     if (call->gtCallType == CT_HELPER)
@@ -8805,17 +8658,6 @@ void Compiler::fgValueNumberCall(GenTreeCall* call)
         // For now, arbitrary side effect on GcHeap/ByrefExposed.
         fgMutateGcHeap(call DEBUGARG("CALL"));
     }
-}
-
-void Compiler::fgUpdateArgListVNs(GenTreeArgList* args)
-{
-    if (args == nullptr)
-    {
-        return;
-    }
-    // Otherwise...
-    fgUpdateArgListVNs(args->Rest());
-    fgValueNumberTree(args);
 }
 
 VNFunc Compiler::fgValueNumberJitHelperMethodVNFunc(CorInfoHelpFunc helpFunc)

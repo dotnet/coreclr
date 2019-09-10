@@ -44,7 +44,7 @@ void Compiler::lvaInit()
     lvaTrackedFixed = false; // false: We can still add new tracked variables
 
     lvaDoneFrameLayout = NO_FRAME_LAYOUT;
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
     lvaShadowSPslotsVar = BAD_VAR_NUM;
 #endif // !FEATURE_EH_FUNCLETS
     lvaInlinedPInvokeFrameVar = BAD_VAR_NUM;
@@ -74,7 +74,7 @@ void Compiler::lvaInit()
     lvaInlineeReturnSpillTemp = BAD_VAR_NUM;
 
     gsShadowVarInfo = nullptr;
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     lvaPSPSym = BAD_VAR_NUM;
 #endif
 #if FEATURE_SIMD
@@ -412,7 +412,7 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
             if (supportSIMDTypes())
             {
                 var_types simdBaseType = TYP_UNKNOWN;
-                var_types type         = impNormStructType(info.compClassHnd, nullptr, nullptr, &simdBaseType);
+                var_types type         = impNormStructType(info.compClassHnd, &simdBaseType);
                 if (simdBaseType != TYP_UNKNOWN)
                 {
                     assert(varTypeIsSIMD(type));
@@ -1290,11 +1290,6 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
         }
 
         varDsc->lvOverlappingFields = StructHasOverlappingFields(cFlags);
-    }
-
-    if (varTypeIsGC(type))
-    {
-        varDsc->lvStructGcCount = 1;
     }
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
@@ -2504,43 +2499,14 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
     }
     if (varDsc->lvExactSize == 0)
     {
-        BOOL isValueClass = info.compCompHnd->isValueClass(typeHnd);
+        ClassLayout* layout = typGetObjLayout(typeHnd);
+        varDsc->SetLayout(layout);
+        varDsc->lvExactSize = layout->GetSize();
 
-        if (isValueClass)
+        if (layout->IsValueClass())
         {
-            varDsc->lvExactSize = info.compCompHnd->getClassSize(typeHnd);
-        }
-        else
-        {
-            varDsc->lvExactSize = info.compCompHnd->getHeapClassSize(typeHnd);
-        }
-
-        // Normalize struct types, and fill in GC info for all types
-        unsigned lvSize = varDsc->lvSize();
-        // The struct needs to be a multiple of TARGET_POINTER_SIZE bytes for getClassGClayout() to be valid.
-        assert((lvSize % TARGET_POINTER_SIZE) == 0);
-        varDsc->lvGcLayout     = getAllocator(CMK_LvaTable).allocate<BYTE>(lvSize / TARGET_POINTER_SIZE);
-        unsigned  numGCVars    = 0;
-        var_types simdBaseType = TYP_UNKNOWN;
-        if (isValueClass)
-        {
-            varDsc->lvType = impNormStructType(typeHnd, varDsc->lvGcLayout, &numGCVars, &simdBaseType);
-        }
-        else
-        {
-            numGCVars = info.compCompHnd->getClassGClayout(typeHnd, varDsc->lvGcLayout);
-        }
-
-        // We only save the count of GC vars in a struct up to 7.
-        if (numGCVars >= 8)
-        {
-            numGCVars = 7;
-        }
-
-        varDsc->lvStructGcCount = numGCVars;
-
-        if (isValueClass)
-        {
+            var_types simdBaseType = TYP_UNKNOWN;
+            varDsc->lvType         = impNormStructType(typeHnd, &simdBaseType);
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
             // Mark implicit byref struct parameters
@@ -2575,7 +2541,7 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
                     varDsc->SetHfaType(hfaType);
 
                     // hfa variables can never contain GC pointers
-                    assert(varDsc->lvStructGcCount == 0);
+                    assert(!layout->HasGCPtr());
                     // The size of this struct should be evenly divisible by 4 or 8
                     assert((varDsc->lvExactSize % genTypeSize(hfaType)) == 0);
                     // The number of elements in the HFA should fit into our MAX_ARG_REG_COUNT limit
@@ -2836,17 +2802,6 @@ void Compiler::lvaUpdateClass(unsigned varNum, GenTree* tree, CORINFO_CLASS_HAND
     {
         lvaUpdateClass(varNum, stackHnd);
     }
-}
-
-/*****************************************************************************
- * Returns the array of BYTEs containing the GC layout information
- */
-
-BYTE* Compiler::lvaGetGcLayout(unsigned varNum)
-{
-    assert(varTypeIsStruct(lvaTable[varNum].lvType) && (lvaTable[varNum].lvExactSize >= TARGET_POINTER_SIZE));
-
-    return lvaTable[varNum].lvGcLayout;
 }
 
 //------------------------------------------------------------------------
@@ -3429,7 +3384,7 @@ void Compiler::lvaSortByRefCount()
         {
             lvaSetVarDoNotEnregister(lclNum DEBUGARG(DNER_NoRegVars));
         }
-#if defined(JIT32_GCENCODER) && defined(WIN64EXCEPTIONS)
+#if defined(JIT32_GCENCODER) && defined(FEATURE_EH_FUNCLETS)
         else if (lvaIsOriginalThisArg(lclNum) && (info.compMethodInfo->options & CORINFO_GENERICS_CTXT_FROM_THIS) != 0)
         {
             // For x86/Linux, we need to track "this".
@@ -3618,25 +3573,8 @@ var_types LclVarDsc::lvaArgType()
                 type = TYP_INT;
                 break;
             case 8:
-                switch (*lvGcLayout)
-                {
-                    case TYPE_GC_NONE:
-                        type = TYP_I_IMPL;
-                        break;
-
-                    case TYPE_GC_REF:
-                        type = TYP_REF;
-                        break;
-
-                    case TYPE_GC_BYREF:
-                        type = TYP_BYREF;
-                        break;
-
-                    default:
-                        unreached();
-                }
+                type = m_layout->GetGCPtrType(0);
                 break;
-
             default:
                 type = TYP_BYREF;
                 break;
@@ -3964,7 +3902,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
     {
         MarkLocalVarsVisitor visitor(this, block, stmt, isRecompute);
-        DISPTREE(stmt);
+        DISPTREE(stmt->gtStmtExpr);
         visitor.WalkTree(&stmt->gtStmtExpr, nullptr);
     }
 }
@@ -3995,7 +3933,7 @@ void Compiler::lvaMarkLocalVars()
         }
     }
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 
     // Grab space for exception handling
 
@@ -4028,7 +3966,7 @@ void Compiler::lvaMarkLocalVars()
     // PSPSym and LocAllocSPvar are not used by the CoreRT ABI
     if (!IsTargetAbi(CORINFO_CORERT_ABI))
     {
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         if (ehNeedsPSPSym())
         {
             lvaPSPSym            = lvaGrabTempWithImplicitUse(false DEBUGARG("PSPSym"));
@@ -4857,7 +4795,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
 {
     LclVarDsc* varDsc;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_AMD64_)
     if (lvaPSPSym != BAD_VAR_NUM)
     {
         // We need to fix the offset of the PSPSym so there is no padding between it and the outgoing argument space.
@@ -5799,7 +5737,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     }
 #endif //_TARGET_AMD64_
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARMARCH_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARMARCH_)
     if (lvaPSPSym != BAD_VAR_NUM)
     {
         // On ARM/ARM64, if we need a PSPSym, allocate it first, before anything else, including
@@ -5887,7 +5825,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     }
 #endif
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
     /* If we need space for slots for shadow SP, reserve it now */
     if (ehNeedsShadowSPslots())
     {
@@ -6052,7 +5990,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
             // These need to be located as the very first variables (highest memory address)
             // and so they have already been assigned an offset
             if (
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
                 lclNum == lvaPSPSym ||
 #else
                 lclNum == lvaShadowSPslotsVar ||
@@ -6315,7 +6253,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         }
     }
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_AMD64_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_AMD64_)
     if (lvaPSPSym != BAD_VAR_NUM)
     {
         // On AMD64, if we need a PSPSym, allocate it last, immediately above the outgoing argument
@@ -6695,46 +6633,15 @@ int Compiler::lvaAllocateTemps(int stkOffs, bool mustDoubleAlign)
 #ifdef _TARGET_ARM_
         preSpillSize = genCountBits(codeGen->regSet.rsMaskPreSpillRegs(true)) * TARGET_POINTER_SIZE;
 #endif
-        bool assignDone;
-        bool assignNptr;
-        bool assignPtrs = true;
 
         /* Allocate temps */
 
-        if (TRACK_GC_TEMP_LIFETIMES)
-        {
-            /* first pointers, then non-pointers in second pass */
-            assignNptr = false;
-            assignDone = false;
-        }
-        else
-        {
-            /* Pointers and non-pointers together in single pass */
-            assignNptr = true;
-            assignDone = true;
-        }
-
         assert(codeGen->regSet.tmpAllFree());
-
-    AGAIN2:
 
         for (TempDsc* temp = codeGen->regSet.tmpListBeg(); temp != nullptr; temp = codeGen->regSet.tmpListNxt(temp))
         {
             var_types tempType = temp->tdTempType();
-            unsigned  size;
-
-            /* Make sure the type is appropriate */
-
-            if (!assignPtrs && varTypeIsGC(tempType))
-            {
-                continue;
-            }
-            if (!assignNptr && !varTypeIsGC(tempType))
-            {
-                continue;
-            }
-
-            size = temp->tdTempSize();
+            unsigned  size     = temp->tdTempSize();
 
             /* Figure out and record the stack offset of the temp */
 
@@ -6782,17 +6689,6 @@ int Compiler::lvaAllocateTemps(int stkOffs, bool mustDoubleAlign)
         // Only required for the ARM platform that we have an accurate estimate for the spillTempSize
         noway_assert(spillTempSize <= lvaGetMaxSpillTempSize());
 #endif
-
-        /* If we've only assigned some temps, go back and do the rest now */
-
-        if (!assignDone)
-        {
-            assignNptr = !assignNptr;
-            assignPtrs = !assignPtrs;
-            assignDone = true;
-
-            goto AGAIN2;
-        }
     }
     else // We haven't run codegen, so there are no Spill temps yet!
     {
