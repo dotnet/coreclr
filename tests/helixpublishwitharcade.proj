@@ -202,9 +202,8 @@
     <HelixPreCommand Include="export __CrashDumpFolder=$HELIX_DUMP_FOLDER" />
     <HelixPreCommand Include="cat $__TestEnv" />
 
-    <!-- Setup coredumps for linux. Core Dumps are currently not supported   -->
-    <!-- on OSX                                                              -->
     <HelixPreCommand Include="sudo bash -c 'echo $HELIX_DUMP_FOLDER/core.%u.%p > /proc/sys/kernel/core_pattern'" Condition=" '$(BuildOS)' != 'OSX' " />
+    <HelixPreCommand Include="ulimit -c unlimited" Condition=" '$(BuildOS)' == 'OSX' " />
   </ItemGroup>
 
   <PropertyGroup>
