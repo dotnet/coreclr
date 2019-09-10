@@ -9,6 +9,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Win32.SafeHandles;
@@ -90,9 +91,9 @@ namespace CoreclrTestLib
         public static extern bool Process32Next(IntPtr snapshot, ref ProcessEntry32 entry);
     }
 
-    static class libsystem_kernel
+    static class libSystem
     {
-        [DllImport(nameof(libsystem_kernel))]
+        [DllImport(nameof(libSystem))]
         public static extern int kill(int pid, int signal);
 
         public const int SIGABRT = 0x6;
@@ -129,9 +130,9 @@ namespace CoreclrTestLib
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
-                int pid = process.ID;
+                int pid = process.Id;
 
-                int status = libsystem_kernel.kill(pid, libsystem_kernel.SIGABRT);
+                int status = libSystem.kill(pid, libSystem.SIGABRT);
 
                 if (status == 0)
                 {
@@ -243,8 +244,12 @@ namespace CoreclrTestLib
             return false;
         }
 
+        static Regex psOutput = new Regex(@"(\d+) (\d+) -?(.+)", RegexOptions.Compiled);
+
         static bool TryFindChildProcessByNameMacOS(Process process, string childName, out Process child)
         {
+            child = null;
+
             Process ps = new Process
             {
                 StartInfo = new ProcessStartInfo("ps")
@@ -273,9 +278,9 @@ namespace CoreclrTestLib
                     Match match = psOutput.Match(line);
                     if (match.Success)
                     {
-                        int pid = int.Parse(match.Groups[0].Value);
-                        processParents.Add(pid, int.Parse(match.Groups[1].Value));
-                        if (match.Groups[2].Value.Contains(childName) && pid != Process.GetCurrentProcess().Id)
+                        int pid = int.Parse(match.Groups[1].Value);
+                        processParents.Add(pid, int.Parse(match.Groups[2].Value));
+                        if (match.Groups[3].Value.Contains(childName) && pid != Process.GetCurrentProcess().Id)
                         {
                             possibleCoreRunProcesses.Add(pid);
                         }
@@ -295,8 +300,11 @@ namespace CoreclrTestLib
                         ancestor = ancestorParent;
                     }
 
-                    child = process.GetProcessById(corerun);
-                    return true;
+                    if (ancestor == process.Id)
+                    {
+                        child = Process.GetProcessById(corerun);
+                        return true;
+                    }
                 }
             }
 
