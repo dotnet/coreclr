@@ -90,6 +90,14 @@ namespace CoreclrTestLib
         public static extern bool Process32Next(IntPtr snapshot, ref ProcessEntry32 entry);
     }
 
+    static class libsystem_kernel
+    {
+        [DllImport(nameof(libsystem_kernel))]
+        public static extern int kill(int pid, int signal);
+
+        public const int SIGABRT = 0x6;
+    }
+
     public class CoreclrTestWrapperLib
     {
         public const int EXIT_SUCCESS_CODE = 0;
@@ -111,7 +119,7 @@ namespace CoreclrTestLib
                     return DbgHelp.MiniDumpWriteDump(process.Handle, process.Id, crashDump.SafeFileHandle, flags, IntPtr.Zero, IntPtr.Zero, IntPtr.Zero);
                 }
             }
-            else
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 string coreRoot = Environment.GetEnvironmentVariable("CORE_ROOT");
                 ProcessStartInfo createdumpInfo = new ProcessStartInfo("sudo");
@@ -119,6 +127,19 @@ namespace CoreclrTestLib
                 Process createdump = Process.Start(createdumpInfo);
                 return createdump.WaitForExit(DEFAULT_TIMEOUT) && createdump.ExitCode == 0;
             }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                int pid = process.ID;
+
+                int status = libsystem_kernel.kill(pid, libsystem_kernel.SIGABRT);
+
+                if (status == 0)
+                {
+                    File.Copy($"/cores/core.{pid}", path);
+                }
+            }
+
+            return false;
         }
 
         static unsafe bool TryFindChildProcessByName(Process process, string childName, out Process child)
@@ -131,6 +152,10 @@ namespace CoreclrTestLib
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 return TryFindChildProcessByNameLinux(process, childName, out child);
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                return TryFindChildProcessByNameMacOS(process, childName, out child);
             }
             return false;
         }
@@ -180,7 +205,7 @@ namespace CoreclrTestLib
             }
         }
 
-        static unsafe bool TryFindChildProcessByNameLinux(Process process, string childName, out Process child)
+        static bool TryFindChildProcessByNameLinux(Process process, string childName, out Process child)
         {
             Queue<string> childrenFilesToCheck = new Queue<string>();
 
@@ -215,6 +240,66 @@ namespace CoreclrTestLib
             }
 
             child = null;
+            return false;
+        }
+
+        static bool TryFindChildProcessByNameMacOS(Process process, string childName, out Process child)
+        {
+            Process ps = new Process
+            {
+                StartInfo = new ProcessStartInfo("ps")
+                {
+                    Arguments = "-o pid,ppid,command",
+                    RedirectStandardOutput = true
+                }
+            };
+
+            if (ps.Start() && ps.WaitForExit(1000))
+            {
+                Dictionary<int, int> processParents = new Dictionary<int, int>();
+
+                List<int> possibleCoreRunProcesses = new List<int>();
+
+                bool seenHeader = false;
+                while (!ps.StandardOutput.EndOfStream)
+                {
+                    string line = ps.StandardOutput.ReadLine();
+                    if (!seenHeader)
+                    {
+                        seenHeader = true;
+                        continue;
+                    }
+
+                    Match match = psOutput.Match(line);
+                    if (match.Success)
+                    {
+                        int pid = int.Parse(match.Groups[0].Value);
+                        processParents.Add(pid, int.Parse(match.Groups[1].Value));
+                        if (match.Groups[2].Value.Contains(childName) && pid != Process.GetCurrentProcess().Id)
+                        {
+                            possibleCoreRunProcesses.Add(pid);
+                        }
+                    }
+                }
+
+                foreach (int corerun in possibleCoreRunProcesses)
+                {
+                    int ancestor = processParents[corerun];
+
+                    while (ancestor != process.Id)
+                    {
+                        if (!processParents.TryGetValue(ancestor, out int ancestorParent))
+                        {
+                            break;
+                        }
+                        ancestor = ancestorParent;
+                    }
+
+                    child = process.GetProcessById(corerun);
+                    return true;
+                }
+            }
+
             return false;
         }
 
