@@ -2,6 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System.Diagnostics;
+
 namespace System
 {
     public static partial class MemoryExtensions
@@ -99,8 +101,7 @@ namespace System
                     int index;
                     switch (_kind)
                     {
-                        default: // TODO: Throw?
-
+                        default: // TODO: Throw or fall-through?
                         case CharSpanSplitKind.Trim:
                             index = IndexOfWhitespace(slice);
                             break;
@@ -146,7 +147,7 @@ namespace System
                 }
             }
 
-            private enum CharSpanSplitKind
+            private enum CharSpanSplitKind : byte
             {
                 Trim = 0,
                 Char,
