@@ -336,7 +336,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("optEarlyProp Rewriting " FMT_BB "\n", compCurBB->bbNum);
-            gtDispTree(compCurStmt->m_rootTree);
+            gtDispStmt(compCurStmt);
             printf("\n");
         }
 #endif
@@ -368,7 +368,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("to\n");
-            gtDispTree(compCurStmt->m_rootTree);
+            gtDispStmt(compCurStmt);
             printf("\n");
         }
 #endif

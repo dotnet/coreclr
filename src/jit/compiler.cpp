@@ -8123,6 +8123,11 @@ void cBlocksV(Compiler* comp)
     comp->fgDispBasicBlocks(true);
 }
 
+void cStmt(Compiler* comp, Statement* statement)
+{
+    // Dummy stub.
+}
+
 void cTree(Compiler* comp, GenTree* tree)
 {
     static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
@@ -8615,7 +8620,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (trees)
             {
-                cTree(comp, stmt->m_rootTree);
+                cStmt(comp, stmt);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8629,7 +8634,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt->m_rootTree);
+                cStmtIR(comp, stmt);
             }
 
             if (!noStmts && !trees)
@@ -10639,6 +10644,11 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
 
     printf("\n");
+}
+
+void cStmtIR(Compiler* comp, Statement* stmt)
+{
+    // Dummy stub.
 }
 
 /*****************************************************************************

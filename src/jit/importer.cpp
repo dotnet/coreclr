@@ -638,7 +638,7 @@ inline void Compiler::impAppendStmt(Statement* stmt, unsigned chkLevel)
     if (verbose)
     {
         printf("\n\n");
-        gtDispTree(stmt->m_rootTree);
+        gtDispStmt(stmt);
     }
 #endif
 }

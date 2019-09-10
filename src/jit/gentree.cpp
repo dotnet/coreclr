@@ -11468,24 +11468,16 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
     }
 }
 
-//------------------------------------------------------------------------
-// gtDispArgList: Dump the tree for a call arg list
-//
-// Arguments:
-//    tree         - The call for which 'arg' is an argument
-//    indentStack  - the specification for the current level of indentation & arcs
-//
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'tree' must be a GT_LIST node
+void Compiler::gtDispStmt(Statement* stmts)
+{
+    // Dummy stub.
+}
 
-void Compiler::gtDispStmtList(Statement* stmts, IndentStack* indentStack /* = nullptr */)
+void Compiler::gtDispStmtList(Statement* stmts)
 {
     for (Statement* stmt = stmts; stmt != nullptr; stmt = stmt->m_next)
     {
-        gtDispTree(stmt->m_rootTree, indentStack);
+        gtDispStmt(stmt);
         printf("\n");
     }
 }
@@ -12705,7 +12697,7 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
             " [%06u] (assign/newobj [%06u] copy [%06u])\n",
             (options == BR_DONT_REMOVE) ? "checking if it is possible" : "attempting",
             (options == BR_MAKE_LOCAL_COPY) ? "make local unboxed version" : "remove side effects", dspTreeID(op),
-            dspTreeID(asgStmt->m_rootTree), dspTreeID(copyStmt->m_rootTree));
+            dspStmtID(asgStmt), dspStmtID(copyStmt));
 
     // If we don't recognize the form of the assign, bail.
     GenTree* asg = asgStmt->m_rootTree;

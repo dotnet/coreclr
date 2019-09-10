@@ -10020,7 +10020,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         stmt->m_rootTree->gtOper != GT_NOP) // Don't print if it is a GT_NOP. Too much noise from the inliner.
     {
         printf("\nRemoving statement ");
-        gtDispTree(stmt->m_rootTree);
+        gtDispStmt(stmt);
         printf(" in " FMT_BB " as useless:\n", block->bbNum);
     }
 #endif // DEBUG
@@ -15055,7 +15055,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
         printf("\nfgOptimizeBranch added these statements(s) at the end of " FMT_BB ":\n", bJump->bbNum);
         for (Statement* stmt = newStmtList; stmt != nullptr; stmt = stmt->m_next)
         {
-            gtDispTree(stmt->m_rootTree);
+            gtDispStmt(stmt);
         }
         printf("\nfgOptimizeBranch changed block " FMT_BB " from BBJ_ALWAYS to BBJ_COND.\n", bJump->bbNum);
 
@@ -18526,7 +18526,7 @@ BasicBlock* Compiler::fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind)
         printf("*** Computing fgRngChkTarget for block " FMT_BB "\n", block->bbNum);
         if (!block->IsLIR())
         {
-            gtDispTree(compCurStmt->m_rootTree);
+            gtDispStmt(compCurStmt);
         }
     }
 #endif // DEBUG
@@ -20530,7 +20530,7 @@ void Compiler::fgDumpStmtTree(Statement* stmt, unsigned bbNum)
 
     if (fgOrder == FGOrderLinear || opts.compDbgInfo)
     {
-        gtDispTree(stmt->m_rootTree);
+        gtDispStmt(stmt);
     }
     else
     {
@@ -22988,7 +22988,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
 
                         printf("\n");
 
-                        gtDispTree(currentDumpStmt->m_rootTree);
+                        gtDispStmt(currentDumpStmt);
                         printf("\n");
 
                     } while (currentDumpStmt != stmtAfter);
@@ -23375,7 +23375,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #ifdef DEBUG
                     if (verbose)
                     {
-                        gtDispTree(afterStmt->m_rootTree);
+                        gtDispStmt(afterStmt);
                     }
 #endif // DEBUG
                 }
@@ -23496,7 +23496,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #ifdef DEBUG
                         if (verbose)
                         {
-                            gtDispTree(afterStmt->m_rootTree);
+                            gtDispStmt(afterStmt);
                         }
 #endif // DEBUG
                     }
@@ -23604,7 +23604,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    gtDispTree(afterStmt->m_rootTree);
+                    gtDispStmt(afterStmt);
                 }
 #endif // DEBUG
             }
@@ -23752,7 +23752,7 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
 #ifdef DEBUG
         if (verbose)
         {
-            gtDispTree(nullStmt->m_rootTree);
+            gtDispStmt(nullStmt);
         }
 #endif // DEBUG
     }

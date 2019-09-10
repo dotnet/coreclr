@@ -6696,8 +6696,7 @@ void Compiler::fgMorphCallInline(GenTreeCall* call, InlineResult* inlineResult)
     {
         if (call->gtReturnType != TYP_VOID)
         {
-            JITDUMP("Inlining [%06u] failed, so bashing [%06u] to NOP\n", dspTreeID(call),
-                    dspTreeID(fgMorphStmt->m_rootTree));
+            JITDUMP("Inlining [%06u] failed, so bashing [%06u] to NOP\n", dspTreeID(call), dspStmtID(fgMorphStmt));
 
             // Detach the GT_CALL tree from the original statement by
             // hanging a "nothing" node to it. Later the "nothing" node will be removed
@@ -6771,9 +6770,9 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
     if (verbose)
     {
         printf("Expanding INLINE_CANDIDATE in statement ");
-        printTreeID(fgMorphStmt->m_rootTree);
+        printStmtID(fgMorphStmt);
         printf(" in " FMT_BB ":\n", compCurBB->bbNum);
-        gtDispTree(fgMorphStmt->m_rootTree);
+        gtDispStmt(fgMorphStmt);
         if (call->IsImplicitTailCall())
         {
             printf("Note: candidate is implicit tail call\n");
@@ -8445,7 +8444,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             if (verbose)
             {
                 printf("\nInserting assignment of a multi-reg call result to a temp:\n");
-                gtDispTree(assgStmt->m_rootTree);
+                gtDispStmt(assgStmt);
             }
             result->gtDebugFlags |= GTF_DEBUG_NODE_MORPHED;
 #endif // DEBUG
@@ -18081,7 +18080,7 @@ public:
         if (m_compiler->verbose)
         {
             printf("LocalAddressVisitor visiting statement:\n");
-            m_compiler->gtDispTree(stmt->m_rootTree);
+            m_compiler->gtDispStmt(stmt);
             m_stmtModified = false;
         }
 #endif // DEBUG
@@ -18112,7 +18111,7 @@ public:
             if (m_stmtModified)
             {
                 printf("LocalAddressVisitor modified statement:\n");
-                m_compiler->gtDispTree(stmt->m_rootTree);
+                m_compiler->gtDispStmt(stmt);
             }
 
             printf("\n");
@@ -18800,9 +18799,9 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
     {
         printf("\nFound contiguous assignments from a SIMD vector to memory.\n");
         printf("From " FMT_BB ", stmt", block->bbNum);
-        printTreeID(stmt->m_rootTree);
+        printStmtID(stmt);
         printf(" to stmt");
-        printTreeID(lastStmt->m_rootTree);
+        printStmtID(lastStmt);
         printf("\n");
     }
 #endif
@@ -18843,9 +18842,9 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
     if (verbose)
     {
         printf("\n" FMT_BB " stmt", block->bbNum);
-        printTreeID(stmt->m_rootTree);
+        printStmtID(stmt);
         printf("(before)\n");
-        gtDispTree(stmt->m_rootTree);
+        gtDispStmt(stmt);
     }
 #endif
 
@@ -18863,9 +18862,9 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
     if (verbose)
     {
         printf("\nReplaced " FMT_BB " stmt", block->bbNum);
-        printTreeID(stmt->m_rootTree);
+        printStmtID(stmt);
         printf("(after)\n");
-        gtDispTree(stmt->m_rootTree);
+        gtDispStmt(stmt);
     }
 #endif
     return true;
