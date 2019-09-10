@@ -102,19 +102,19 @@ namespace System
                         default: // TODO: Throw?
 
                         case CharSpanSplitKind.Trim:
-                            index = MoveNext(slice);
+                            index = IndexOfWhitespace(slice);
                             break;
 
                         case CharSpanSplitKind.Char:
-                            index = MoveNext(slice, _separatorChar);
+                            index = slice.IndexOf(_separatorChar);
                             break;
 
                         case CharSpanSplitKind.String:
-                            index = MoveNext(slice, _separatorString);
+                            index = slice.IndexOf(_separatorString);
                             break;
 
                         case CharSpanSplitKind.StringCompare:
-                            index = MoveNext(slice, _separatorString, _comparisonType);
+                            index = slice.IndexOf(_separatorString, _comparisonType);
                             break;
                     }
 
@@ -130,30 +130,21 @@ namespace System
                 _start = end + 1;
 
                 return true;
-            }
 
-            private static int MoveNext(ReadOnlySpan<char> slice)
-            {
                 // TODO: Optimize
-                for (int i = 0; i < slice.Length; i++)
+                static int IndexOfWhitespace(ReadOnlySpan<char> slice)
                 {
-                    if (char.IsWhiteSpace(slice[i]))
+                    for (int i = 0; i < slice.Length; i++)
                     {
-                        return i;
+                        if (char.IsWhiteSpace(slice[i]))
+                        {
+                            return i;
+                        }
                     }
+
+                    return -1;
                 }
-
-                return -1;
             }
-
-            private static int MoveNext(ReadOnlySpan<char> slice, char separator)
-                => slice.IndexOf(separator);
-
-            private static int MoveNext(ReadOnlySpan<char> slice, string separator)
-                => slice.IndexOf(separator);
-
-            private static int MoveNext(ReadOnlySpan<char> slice, string separator, StringComparison comparisonType)
-                => slice.IndexOf(separator, comparisonType);
 
             private enum CharSpanSplitKind
             {
