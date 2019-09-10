@@ -248,7 +248,6 @@ namespace System.Diagnostics.Tracing
         /// Returns true if the eventSource has been enabled at all. This is the preferred test
         /// to be performed before a relatively expensive EventSource operation.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         public bool IsEnabled()
         {
             return m_eventSourceEnabled;
@@ -263,7 +262,6 @@ namespace System.Diagnostics.Tracing
         /// positives (but is always accurate when returning false).  EventSources are free to
         /// have additional filtering.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         public bool IsEnabled(EventLevel level, EventKeywords keywords)
         {
             return IsEnabled(level, keywords, EventChannel.None);
@@ -279,7 +277,6 @@ namespace System.Diagnostics.Tracing
         /// positives (but is always accurate when returning false).  EventSources are free to
         /// have additional filtering.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         public bool IsEnabled(EventLevel level, EventKeywords keywords, EventChannel channel)
         {
             if (!m_eventSourceEnabled)
@@ -390,9 +387,9 @@ namespace System.Diagnostics.Tracing
             {
                 Debug.Assert(EventListener.s_EventSources != null);
 
-                foreach (WeakReference eventSourceRef in EventListener.s_EventSources)
+                foreach (WeakReference<EventSource> eventSourceRef in EventListener.s_EventSources)
                 {
-                    if (eventSourceRef.Target is EventSource eventSource && !eventSource.IsDisposed)
+                    if (eventSourceRef.TryGetTarget(out EventSource? eventSource) && !eventSource.IsDisposed)
                         ret.Add(eventSource);
                 }
             }
@@ -743,14 +740,12 @@ namespace System.Diagnostics.Tracing
 
 #pragma warning disable 1591
         // optimized for common signatures (no args)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId)
         {
             WriteEventCore(eventId, 0, null);
         }
 
         // optimized for common signatures (ints)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1)
         {
             if (m_eventSourceEnabled)
@@ -763,7 +758,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1, int arg2)
         {
             if (m_eventSourceEnabled)
@@ -779,7 +773,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1, int arg2, int arg3)
         {
             if (m_eventSourceEnabled)
@@ -799,7 +792,6 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (longs)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1)
         {
             if (m_eventSourceEnabled)
@@ -812,7 +804,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, long arg2)
         {
             if (m_eventSourceEnabled)
@@ -828,7 +819,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, long arg2, long arg3)
         {
             if (m_eventSourceEnabled)
@@ -848,12 +838,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (strings)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[1];
@@ -865,13 +854,12 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
-                if (arg2 == null) arg2 = "";
+                arg1 ??= "";
+                arg2 ??= "";
                 fixed (char* string1Bytes = arg1)
                 fixed (char* string2Bytes = arg2)
                 {
@@ -887,14 +875,13 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, string? arg2, string? arg3)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
-                if (arg2 == null) arg2 = "";
-                if (arg3 == null) arg3 = "";
+                arg1 ??= "";
+                arg2 ??= "";
+                arg3 ??= "";
                 fixed (char* string1Bytes = arg1)
                 fixed (char* string2Bytes = arg2)
                 fixed (char* string3Bytes = arg3)
@@ -915,12 +902,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (string and ints)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, int arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -935,12 +921,11 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, int arg2, int arg3)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[3];
@@ -959,12 +944,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (string and longs)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, string? arg1, long arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg1 == null) arg1 = "";
+                arg1 ??= "";
                 fixed (char* string1Bytes = arg1)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -980,12 +964,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (long and string)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg2 == null) arg2 = "";
+                arg2 ??= "";
                 fixed (char* string2Bytes = arg2)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1001,12 +984,11 @@ namespace System.Diagnostics.Tracing
         }
 
         // optimized for common signatures (int and string)
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, int arg1, string? arg2)
         {
             if (m_eventSourceEnabled)
             {
-                if (arg2 == null) arg2 = "";
+                arg2 ??= "";
                 fixed (char* string2Bytes = arg2)
                 {
                     EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1021,7 +1003,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, byte[]? arg1)
         {
             if (m_eventSourceEnabled)
@@ -1055,7 +1036,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, long arg1, byte[]? arg2)
         {
             if (m_eventSourceEnabled)
@@ -1163,7 +1143,7 @@ namespace System.Diagnostics.Tracing
         ///    {
         ///        if (IsEnabled())
         ///        {
-        ///            if (arg2 == null) arg2 = "";
+        ///            arg2 ??= "";
         ///            fixed (char* string2Bytes = arg2)
         ///            {
         ///                EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1196,7 +1176,7 @@ namespace System.Diagnostics.Tracing
         ///    {
         ///        if (IsEnabled())
         ///        {
-        ///            if (arg2 == null) arg2 = "";
+        ///            arg2 ??= "";
         ///            fixed (char* string2Bytes = arg2)
         ///            {
         ///                EventSource.EventData* descrs = stackalloc EventSource.EventData[2];
@@ -1305,7 +1285,6 @@ namespace System.Diagnostics.Tracing
         /// method signature. Even if you use this for rare events, this call should be guarded by an <see cref="IsEnabled()"/>
         /// check so that the varargs call is not made when the EventSource is not active.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         protected unsafe void WriteEvent(int eventId, params object?[] args)
         {
             WriteEventVarargs(eventId, null, args);
@@ -1442,7 +1421,6 @@ namespace System.Diagnostics.Tracing
         /// "Log", such an exception would become a cached exception for the initialization of the static
         /// member, and any future access to the "Log" would throw the cached exception).
         /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Naming", "CA1720:IdentifiersShouldNotContainTypeNames", MessageId = "guid")]
         private unsafe void Initialize(Guid eventSourceGuid, string eventSourceName, string[]? traits)
         {
             try
@@ -1527,8 +1505,7 @@ namespace System.Diagnostics.Tracing
             }
             catch (Exception e)
             {
-                if (m_constructionException == null)
-                    m_constructionException = e;
+                m_constructionException ??= e;
                 ReportOutOfBandMessage("ERROR: Exception during construction of EventSource " + Name + ": " + e.Message, true);
             }
 
@@ -1577,10 +1554,7 @@ namespace System.Diagnostics.Tracing
             /// </summary>
             public void Start()
             {
-                if (this.w == null)
-                {
-                    this.w = new uint[85];
-                }
+                this.w ??= new uint[85];
 
                 this.length = 0;
                 this.pos = 0;
@@ -2178,7 +2152,6 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         private unsafe void WriteEventString(EventLevel level, long keywords, string msgString)
         {
 #if FEATURE_MANAGED_ETW
@@ -2658,7 +2631,9 @@ namespace System.Diagnostics.Tracing
                 {
                     // We can't do the command, simply remember it and we do it when we are fully constructed.
                     if (m_deferredCommands == null)
+                    {
                         m_deferredCommands = commandArgs;       // create the first entry
+                    }
                     else
                     {
                         // We have one or more entries, find the last one and add it to that.
@@ -2706,8 +2681,7 @@ namespace System.Diagnostics.Tracing
                     throw new ArgumentException(SR.EventSource_ListenerNotFound);
                 }
 
-                if (commandArgs.Arguments == null)
-                    commandArgs.Arguments = new Dictionary<string, string?>();
+                commandArgs.Arguments ??= new Dictionary<string, string?>();
 
                 if (commandArgs.Command == EventCommand.Update)
                 {
@@ -2929,9 +2903,9 @@ namespace System.Diagnostics.Tracing
                 }
                 // TODO Enforce singleton pattern
                 Debug.Assert(EventListener.s_EventSources != null, "should be called within lock on EventListener.EventListenersLock which ensures s_EventSources to be initialized");
-                foreach (WeakReference eventSourceRef in EventListener.s_EventSources)
+                foreach (WeakReference<EventSource> eventSourceRef in EventListener.s_EventSources)
                 {
-                    if (eventSourceRef.Target is EventSource eventSource && eventSource.Guid == m_guid && !eventSource.IsDisposed)
+                    if (eventSourceRef.TryGetTarget(out EventSource? eventSource) && eventSource.Guid == m_guid && !eventSource.IsDisposed)
                     {
                         if (eventSource != this)
                         {
@@ -2944,8 +2918,7 @@ namespace System.Diagnostics.Tracing
                 EventDispatcher? dispatcher = m_Dispatchers;
                 while (dispatcher != null)
                 {
-                    if (dispatcher.m_EventEnabled == null)
-                        dispatcher.m_EventEnabled = new bool[m_eventData.Length];
+                    dispatcher.m_EventEnabled ??= new bool[m_eventData.Length];
                     dispatcher = dispatcher.m_Next;
                 }
 #if FEATURE_PERFTRACING
@@ -3683,8 +3656,7 @@ namespace System.Diagnostics.Tracing
             //     throw new WarningException(SR.EventSource_EventNameDoesNotEqualTaskPlusOpcode);
             // }
 
-            if (eventsByName == null)
-                eventsByName = new Dictionary<string, string>();
+            eventsByName ??= new Dictionary<string, string>();
 
             if (eventsByName.ContainsKey(evtName))
             {
@@ -3706,7 +3678,6 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         /// <param name="method">The method to probe.</param>
         /// <returns>The literal value or -1 if the value could not be determined. </returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Justification = "Switch statement is clearer than alternatives")]
         private static int GetHelperCallFirstArg(MethodInfo method)
         {
 #if (!ES_BUILD_PCL && !ES_BUILD_PN)
@@ -3835,7 +3806,6 @@ namespace System.Diagnostics.Tracing
         /// It will do this even if the EventSource is not enabled.
         /// TODO remove flush parameter it is not used.
         /// </summary>
-        [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "This does not need to be correct when racing with other threads")]
         internal void ReportOutOfBandMessage(string msg, bool flush)
         {
             try
@@ -4083,7 +4053,6 @@ namespace System.Diagnostics.Tracing
         /// call Dispose when they are done with their logging.
         /// </summary>
 #if ES_BUILD_STANDALONE
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1063:ImplementIDisposableCorrectly")]
 #endif
         public virtual void Dispose()
         {
@@ -4263,8 +4232,7 @@ namespace System.Diagnostics.Tracing
         {
             lock (EventListenersLock)
             {
-                if (s_EventSources == null)
-                    s_EventSources = new List<WeakReference>(2);
+                s_EventSources ??= new List<WeakReference<EventSource>>(2);
 
                 if (!s_EventSourceShutdownRegistered)
                 {
@@ -4287,11 +4255,11 @@ namespace System.Diagnostics.Tracing
                     while (0 < i)
                     {
                         --i;
-                        WeakReference weakRef = s_EventSources[i];
-                        if (!weakRef.IsAlive)
+                        WeakReference<EventSource> weakRef = s_EventSources[i];
+                        if (!weakRef.TryGetTarget(out _))
                         {
                             newIndex = i;
-                            weakRef.Target = newEventSource;
+                            weakRef.SetTarget(newEventSource);
                             break;
                         }
                     }
@@ -4299,7 +4267,7 @@ namespace System.Diagnostics.Tracing
                 if (newIndex < 0)
                 {
                     newIndex = s_EventSources.Count;
-                    s_EventSources.Add(new WeakReference(newEventSource));
+                    s_EventSources.Add(new WeakReference<EventSource>(newEventSource));
                 }
                 newEventSource.m_id = newIndex;
 
@@ -4338,9 +4306,9 @@ namespace System.Diagnostics.Tracing
             lock (EventListenersLock)
             {
                 Debug.Assert(s_EventSources != null);
-                foreach (WeakReference esRef in s_EventSources)
+                foreach (WeakReference<EventSource> esRef in s_EventSources)
                 {
-                    if (esRef.Target is EventSource es)
+                    if (esRef.TryGetTarget(out EventSource? es))
                         es.Dispose();
                 }
             }
@@ -4359,9 +4327,9 @@ namespace System.Diagnostics.Tracing
 #endif
             // Foreach existing EventSource in the appdomain
             Debug.Assert(s_EventSources != null);
-            foreach (WeakReference eventSourceRef in s_EventSources)
+            foreach (WeakReference<EventSource> eventSourceRef in s_EventSources)
             {
-                if (eventSourceRef.Target is EventSource eventSource)
+                if (eventSourceRef.TryGetTarget(out EventSource? eventSource))
                 {
                     Debug.Assert(eventSource.m_Dispatchers != null);
                     // Is the first output dispatcher the dispatcher we are removing?
@@ -4424,10 +4392,10 @@ namespace System.Diagnostics.Tracing
 
                 // For all eventSources
                 int id = -1;
-                foreach (WeakReference eventSourceRef in s_EventSources)
+                foreach (WeakReference<EventSource> eventSourceRef in s_EventSources)
                 {
                     id++;
-                    if (!(eventSourceRef.Target is EventSource eventSource))
+                    if (!(eventSourceRef.TryGetTarget(out EventSource? eventSource)))
                         continue;
                     Debug.Assert(eventSource.m_id == id, "Unexpected event source ID.");
 
@@ -4457,15 +4425,14 @@ namespace System.Diagnostics.Tracing
 
         /// <summary>
         /// Gets a global lock that is intended to protect the code:s_Listeners linked list and the
-        /// code:s_EventSources WeakReference list.  (We happen to use the s_EventSources list as
-        /// the lock object)
+        /// code:s_EventSources list.  (We happen to use the s_EventSources list as the lock object)
         /// </summary>
         internal static object EventListenersLock
         {
             get
             {
                 if (s_EventSources == null)
-                    Interlocked.CompareExchange(ref s_EventSources, new List<WeakReference>(2), null);
+                    Interlocked.CompareExchange(ref s_EventSources, new List<WeakReference<EventSource>>(2), null);
                 return s_EventSources;
             }
         }
@@ -4501,7 +4468,7 @@ namespace System.Diagnostics.Tracing
                         // We tolerate this by iterating over a copy of the list here. New event sources will take care of adding listeners themselves
                         // EventSources are not guaranteed to be added at the end of the s_EventSource list -- We re-use slots when a new source
                         // is created.
-                        WeakReference[] eventSourcesSnapshot = s_EventSources.ToArray();
+                        WeakReference<EventSource>[] eventSourcesSnapshot = s_EventSources.ToArray();
 
 #if DEBUG
                         bool previousValue = s_ConnectingEventSourcesAndListener;
@@ -4511,8 +4478,8 @@ namespace System.Diagnostics.Tracing
 #endif
                             for (int i = 0; i < eventSourcesSnapshot.Length; i++)
                             {
-                                WeakReference eventSourceRef = eventSourcesSnapshot[i];
-                                if (eventSourceRef.Target is EventSource eventSource)
+                                WeakReference<EventSource> eventSourceRef = eventSourcesSnapshot[i];
+                                if (eventSourceRef.TryGetTarget(out EventSource? eventSource))
                                 {
                                     EventSourceCreatedEventArgs args = new EventSourceCreatedEventArgs();
                                     args.EventSource = eventSource;
@@ -4554,7 +4521,7 @@ namespace System.Diagnostics.Tracing
         /// not have happened yet.  Thus it can contain event sources that are dead (thus you have
         /// to filter those out.
         /// </summary>
-        internal static List<WeakReference>? s_EventSources;
+        internal static List<WeakReference<EventSource>>? s_EventSources;
 
         /// <summary>
         /// Used to disallow reentrancy.
@@ -5380,8 +5347,10 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_OpcodeCollision, name, prevName, value));
                 }
             }
+
             opcodeTab[value] = name;
         }
+
         public void AddTask(string name, int value)
         {
             if ((flags & EventManifestOptions.Strict) != 0)
@@ -5396,10 +5365,11 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_TaskCollision, name, prevName, value));
                 }
             }
-            if (taskTab == null)
-                taskTab = new Dictionary<int, string>();
+
+            taskTab ??= new Dictionary<int, string>();
             taskTab[value] = name;
         }
+
         public void AddKeyword(string name, ulong value)
         {
             if ((value & (value - 1)) != 0)   // Is it a power of 2?
@@ -5418,8 +5388,8 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_KeywordCollision, name, prevName, "0x" + value.ToString("x", CultureInfo.CurrentCulture)));
                 }
             }
-            if (keywordTab == null)
-                keywordTab = new Dictionary<ulong, string>();
+
+            keywordTab ??= new Dictionary<ulong, string>();
             keywordTab[value] = name;
         }
 
@@ -5445,8 +5415,7 @@ namespace System.Diagnostics.Tracing
 
             ulong kwd = GetChannelKeyword(chValue);
 
-            if (channelTab == null)
-                channelTab = new Dictionary<int, ChannelInfo>(4);
+            channelTab ??= new Dictionary<int, ChannelInfo>(4);
             channelTab[value] = new ChannelInfo { Name = name, Keywords = kwd, Attribs = channelAttribute };
         }
 
@@ -5535,8 +5504,7 @@ namespace System.Diagnostics.Tracing
             {
                 // mark this index as "extraneous" (it has no parallel in the managed signature)
                 // we use these values in TranslateToManifestConvention()
-                if (byteArrArgIndices == null)
-                    byteArrArgIndices = new List<int>(4);
+                byteArrArgIndices ??= new List<int>(4);
                 byteArrArgIndices.Add(numParams);
 
                 // add an extra field to the template representing the length of the binary blob
@@ -5556,8 +5524,7 @@ namespace System.Diagnostics.Tracing
             if (type.IsEnum() && Enum.GetUnderlyingType(type) != typeof(ulong) && Enum.GetUnderlyingType(type) != typeof(long))
             {
                 templates.Append(" map=\"").Append(type.Name).Append("\"");
-                if (mapsTab == null)
-                    mapsTab = new Dictionary<string, Type>();
+                mapsTab ??= new Dictionary<string, Type>();
                 if (!mapsTab.ContainsKey(type.Name))
                     mapsTab.Add(type.Name, type);        // Remember that we need to dump the type enumeration
             }
@@ -5606,10 +5573,7 @@ namespace System.Diagnostics.Tracing
         {
             // strip off any non-channel keywords, since we are only interested in channels here.
             channelKeyword &= ValidPredefinedChannelKeywords;
-            if (channelTab == null)
-            {
-                channelTab = new Dictionary<int, ChannelInfo>(4);
-            }
+            channelTab ??= new Dictionary<int, ChannelInfo>(4);
 
             if (channelTab.Count == MaxCountChannels)
                 ManifestError(SR.EventSource_MaxChannelExceeded);
@@ -5697,8 +5661,8 @@ namespace System.Diagnostics.Tracing
                         access = attribs.Access;
 #endif
                     }
-                    if (fullName == null)
-                        fullName = providerName + "/" + channelInfo.Name;
+
+                    fullName ??= providerName + "/" + channelInfo.Name;
 
                     sb.Append("  <").Append(elementName);
                     sb.Append(" chid=\"").Append(channelInfo.Name).Append("\"");
@@ -5710,7 +5674,7 @@ namespace System.Diagnostics.Tracing
                         sb.Append(" value=\"").Append(channel).Append("\"");
                         if (channelType != null)
                             sb.Append(" type=\"").Append(channelType).Append("\"");
-                        sb.Append(" enabled=\"").Append(enabled.ToString().ToLower()).Append("\"");
+                        sb.Append(" enabled=\"").Append(enabled ? "true" : "false").Append("\"");
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
                         if (access != null)
                             sb.Append(" access=\"").Append(access).Append("\"");
@@ -5949,8 +5913,7 @@ namespace System.Diagnostics.Tracing
 
                 // allow channels to be auto-defined.  The well known ones get their well known names, and the
                 // rest get names Channel<N>.  This allows users to modify the Manifest if they want more advanced features.
-                if (channelTab == null)
-                    channelTab = new Dictionary<int, ChannelInfo>(4);
+                channelTab ??= new Dictionary<int, ChannelInfo>(4);
 
                 string channelName = channel.ToString();        // For well know channels this is a nice name, otherwise a number
                 if (EventChannel.Debug < channel)
@@ -5961,8 +5924,8 @@ namespace System.Diagnostics.Tracing
                     ManifestError(SR.Format(SR.EventSource_UndefinedChannel, channel, eventName));
             }
             // events that specify admin channels *must* have non-null "Message" attributes
-            if (resources != null && eventMessage == null)
-                eventMessage = resources.GetString("event_" + eventName, CultureInfo.InvariantCulture);
+            if (resources != null)
+                eventMessage ??= resources.GetString("event_" + eventName, CultureInfo.InvariantCulture);
 
             Debug.Assert(info!.Attribs != null);
             if (info.Attribs.EventChannelType == EventChannelType.Admin && eventMessage == null)
@@ -5976,8 +5939,7 @@ namespace System.Diagnostics.Tracing
                 return "";
 
             string? ret;
-            if (taskTab == null)
-                taskTab = new Dictionary<int, string>();
+            taskTab ??= new Dictionary<int, string>();
             if (!taskTab.TryGetValue((int)task, out ret))
                 ret = taskTab[(int)task] = eventName;
             return ret;
@@ -6108,8 +6070,7 @@ namespace System.Diagnostics.Tracing
 
         private static void UpdateStringBuilder([NotNull] ref StringBuilder? stringBuilder, string eventMessage, int startIndex, int count)
         {
-            if (stringBuilder == null)
-                stringBuilder = new StringBuilder();
+            stringBuilder ??= new StringBuilder();
             stringBuilder.Append(eventMessage, startIndex, count);
         }
 
