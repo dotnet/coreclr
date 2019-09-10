@@ -787,3 +787,7 @@ End
 Crst ReadyToRunEntryPointToMethodDescMap
     AcquiredBefore ExecuteManRangeLock
 End
+
+Crst TieredCompilation
+    AcquiredBefore ThreadpoolTimerQueue
+End

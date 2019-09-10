@@ -52,6 +52,10 @@
 
 #include "peimagelayout.inl"
 
+#ifdef FEATURE_PERFTRACING
+#include "eventpipe.h"
+#endif
+
 
 // Define these macro's to do strict validation for jit lock and class init entry leaks.
 // This defines determine if the asserts that verify for these leaks are defined or not.
@@ -1760,6 +1764,21 @@ static void RunMainPost()
     }
 }
 
+static void RunStartupHooks()
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM(););
+    }
+    CONTRACTL_END;
+
+    MethodDescCallSite processStartupHooks(METHOD__STARTUP_HOOK_PROVIDER__PROCESS_STARTUP_HOOKS);
+    processStartupHooks.Call(NULL);
+}
+
 INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThreads)
 {
     CONTRACTL
@@ -1798,22 +1817,24 @@ INT32 Assembly::ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThre
 
                 Thread::ApartmentState state = Thread::AS_Unknown;
                 state = SystemDomain::GetEntryPointThreadAptState(pMeth->GetMDImport(), pMeth->GetMemberDef());
-
-                // If the entry point has an explicit thread apartment state, set it
-                // before running the AppDomainManager initialization code.
-                if (state == Thread::AS_InSTA || state == Thread::AS_InMTA)
-                    SystemDomain::SetThreadAptState(state);
+                SystemDomain::SetThreadAptState(state);
 #endif // FEATURE_COMINTEROP
             }
 
             RunMainPre();
 
-            
             // Set the root assembly as the assembly that is containing the main method
             // The root assembly is used in the GetEntryAssembly method that on CoreCLR is used
             // to get the TargetFrameworkMoniker for the app
             AppDomain * pDomain = pThread->GetDomain();
             pDomain->SetRootAssembly(pMeth->GetAssembly());
+
+#ifdef FEATURE_PERFTRACING
+            // Initialize the managed components of EventPipe and allow tracing to be started before Main.
+            EventPipe::InitializeManaged();
+#endif
+            RunStartupHooks();
+
             hr = RunMain(pMeth, 1, &iRetVal, stringArgs);
         }
     }

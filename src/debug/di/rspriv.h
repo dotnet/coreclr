@@ -48,6 +48,7 @@
 
 struct MachineInfo;
 
+#include "processdescriptor.h"
 #include "nativepipeline.h"
 #include "stringcopyholder.h"
 
@@ -2230,7 +2231,7 @@ public:
 #if defined(FEATURE_DBGIPC_TRANSPORT_DI)
     static COM_METHOD CreateObjectTelesto(REFIID id, void ** pObject);
 #endif // FEATURE_DBGIPC_TRANSPORT_DI
-    static COM_METHOD CreateObject(CorDebugInterfaceVersion iDebuggerVersion, REFIID id, void **object);
+    static COM_METHOD CreateObject(CorDebugInterfaceVersion iDebuggerVersion, DWORD pid, LPCWSTR lpApplicationGroupId, REFIID id, void **object);
 
     //-----------------------------------------------------------
     // ICorDebugRemote
@@ -2301,6 +2302,9 @@ public:
                                        CordbAppDomain *appDomain,
                                        DebuggerIPCEvent* event);
 
+private:
+    Cordb(CorDebugInterfaceVersion iDebuggerVersion, const ProcessDescriptor& pd);
+
     //-----------------------------------------------------------
     // Data members
     //-----------------------------------------------------------
@@ -2334,6 +2338,9 @@ private:
 
     // This is the version of the ICorDebug APIs that the debugger believes it's consuming.
     CorDebugInterfaceVersion    m_debuggerSpecifiedVersion;
+
+    // Store information about the process to be debugged
+    ProcessDescriptor m_pd;
 
 //Note - this code could be useful outside coresystem, but keeping the change localized
 // because we are late in the win8 release
@@ -2807,8 +2814,8 @@ void DeleteIPCEventHelper(DebuggerIPCEvent *pDel);
 class IProcessShimHooks
 {
 public:
-    // Get the OS Process ID of the target.
-    virtual DWORD GetPid() = 0;
+    // Get the OS Process descriptor of the target.
+    virtual const ProcessDescriptor* GetProcessDescriptor() = 0;
 
     // Request a synchronization for attach. 
     // This essentially just sends an AsyncBreak to the left-side. Once the target is
@@ -2934,7 +2941,7 @@ class CordbProcess :
 #endif
 {
     // Ctor is private. Use OpenVirtualProcess instead. 
-    CordbProcess(ULONG64 clrInstanceId, IUnknown * pDataTarget, HMODULE hDacModule,  Cordb * pCordb, DWORD dwProcessID, ShimProcess * pShim);
+    CordbProcess(ULONG64 clrInstanceId, IUnknown * pDataTarget, HMODULE hDacModule,  Cordb * pCordb, const ProcessDescriptor * pProcessDescriptor, ShimProcess * pShim);
 
 public:    
 
@@ -2954,7 +2961,7 @@ public:
                                       IUnknown * pDataTarget, 
                                       HMODULE hDacModule,
                                       Cordb * pCordb, 
-                                      DWORD dwProcessID, 
+                                      const ProcessDescriptor * pProcessDescriptor, 
                                       ShimProcess * pShim, 
                                       CordbProcess ** ppProcess);
 
@@ -3263,8 +3270,8 @@ public:
 
     bool IsThreadSuspendedOrHijacked(ICorDebugThread * pICorDebugThread);
 
-    // Helper to get PID internally.
-    DWORD GetPid();
+    // Helper to get ProcessDescriptor internally.
+    const ProcessDescriptor* GetProcessDescriptor();
 
     HRESULT GetRuntimeOffsets();
         
@@ -3703,6 +3710,9 @@ private:
     // For Mac debugging, this handle is of course not the real process handle.  This is just a handle to
     // wait on for process termination.
     HANDLE                m_handle;
+
+    // Process descriptor - holds PID and App group ID for Mac debugging
+    ProcessDescriptor m_processDescriptor;
 
 public:
     // Wrapper to get the OS process handle. This is unsafe because it breaks the data-target abstraction.
@@ -10082,7 +10092,7 @@ public:
                                    CorDebugCreateProcessFlags corDebugFlags);
 
     HRESULT SendDebugActiveProcessEvent(MachineInfo machineInfo,
-                                        DWORD pid,
+                                        const ProcessDescriptor *pProcessDescriptor,
                                         bool fWin32Attach,
                                         CordbProcess *pProcess);
 
@@ -10181,12 +10191,12 @@ private:
 
         struct
         {
-            MachineInfo     machineInfo;
-            DWORD           processId;
+            MachineInfo machineInfo;
+            ProcessDescriptor processDescriptor;
 #if !defined(FEATURE_DBGIPC_TRANSPORT_DI)
-            bool            fWin32Attach;
+            bool fWin32Attach;
 #endif
-            CordbProcess    *pProcess;
+            CordbProcess *pProcess;
 
             // Wrapper to determine if we're interop-debugging.
             bool IsInteropDebugging()
@@ -10713,7 +10723,7 @@ private:
 class CorpubProcess : public CordbCommonBase, public ICorPublishProcess
 {
 public:
-    CorpubProcess(DWORD dwProcessId, 
+    CorpubProcess(const ProcessDescriptor * pProcessDescriptor,
         bool fManaged, 
         HANDLE hProcess,
         HANDLE hMutex, 
@@ -10772,7 +10782,7 @@ public:
     bool IsExited();
 
 public:
-    DWORD                           m_dwProcessId;
+    ProcessDescriptor               m_processDescriptor;
 
 private:
     bool                            m_fIsManaged;
