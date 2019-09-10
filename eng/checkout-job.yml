@@ -8,20 +8,21 @@ jobs:
 - job: 'checkout_windows'
   displayName: 'Checkout (Windows)'
 
-  variables:
-    use_open_queue: ${{ eq(variables['System.TeamProject'], 'public') }}
-
   pool:
     # Public Windows Build Pool
-    ${{ if variables.use_open_queue }}:
+    ${{ if eq(variables['System.TeamProject'], 'public') }}:
       vmImage: 'windows-latest'
 
     # Private Windows Build Pool
-    ${{ if not(variables.use_open_queue) }}:
+    ${{ if ne(variables['System.TeamProject'], 'public') }}:
       name: NetCoreInternal-Pool
       queue: BuildPool.Windows.10.Amd64.VS2017
   
   steps:
+  - checkout: self
+    clean: true
+    fetchDepth: 1
+
   ### Zip up downloaded repo and publish to Helix
   - template: /eng/upload-artifact-step.yml
     parameters:
@@ -36,16 +37,13 @@ jobs:
 - job: 'checkout_unix'
   displayName: 'Checkout (Unix)'
 
-  variables:
-    use_open_queue: ${{ eq(variables['System.TeamProject'], 'public') }}
-
   pool:
     # Public Linux Build Pool
-    ${{ if variables.use_open_queue }}:
+    ${{ if eq(variables['System.TeamProject'], 'public') }}:
       vmImage: 'ubuntu-latest'
 
     # Private Linux Build Pool
-    ${{ if not(variables.use_open_queue) }}:
+    ${{ if ne(variables['System.TeamProject'], 'public') }}:
       name: NetCoreInternal-Pool
       queue: BuildPool.Ubuntu.1604.Amd64
 
