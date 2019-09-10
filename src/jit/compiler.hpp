@@ -395,7 +395,7 @@ inline EHblkDsc* Compiler::ehGetBlockHndDsc(BasicBlock* block)
     return ehGetDsc(block->getHndIndex());
 }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 /*****************************************************************************
  *  Get the FuncInfoDsc for the funclet we are currently generating code for.
@@ -955,8 +955,7 @@ inline GenTree* Compiler::gtNewOperNode(genTreeOps oper, var_types type, GenTree
     assert((GenTree::OperKind(oper) & (GTK_UNOP | GTK_BINOP)) != 0);
     assert((GenTree::OperKind(oper) & GTK_EXOP) ==
            0); // Can't use this to construct any types that extend unary/binary operator.
-    assert(op1 != nullptr || oper == GT_PHI || oper == GT_RETFILT || oper == GT_NOP ||
-           (oper == GT_RETURN && type == TYP_VOID));
+    assert(op1 != nullptr || oper == GT_RETFILT || oper == GT_NOP || (oper == GT_RETURN && type == TYP_VOID));
 
     if (doSimplifications)
     {
@@ -1111,7 +1110,7 @@ inline GenTree* Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd)
 // Return Value:
 //    New CT_HELPER node
 
-inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args)
+inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeCall::Use* args)
 {
     unsigned     flags  = s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;
     GenTreeCall* result = gtNewCallNode(CT_HELPER, eeFindHelper(helper), type, args);
@@ -1866,22 +1865,6 @@ inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(GenTreeStmt* stmt)
     }
 
     return lclMask;
-}
-
-/*****************************************************************************
- * Returns true if the lvType is a TYP_REF or a TYP_BYREF.
- * When the lvType is a TYP_STRUCT it searches the GC layout
- * of the struct and returns true iff it contains a GC ref.
- */
-
-inline bool Compiler::lvaTypeIsGC(unsigned varNum)
-{
-    if (lvaTable[varNum].TypeGet() == TYP_STRUCT)
-    {
-        assert(lvaTable[varNum].lvGcLayout != nullptr); // bits are intialized
-        return (lvaTable[varNum].lvStructGcCount != 0);
-    }
-    return (varTypeIsGC(lvaTable[varNum].TypeGet()));
 }
 
 /*****************************************************************************
@@ -2757,7 +2740,7 @@ inline void Compiler::fgConvertBBToThrowBB(BasicBlock* block)
         leaveBlk->bbRefs  = 0;
         leaveBlk->bbPreds = nullptr;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
         // This function (fgConvertBBToThrowBB) can be called before the predecessor lists are created (e.g., in
         // fgMorph). The fgClearFinallyTargetBit() function to update the BBF_FINALLY_TARGET bit depends on these
         // predecessor lists. If there are no predecessor lists, we immediately clear all BBF_FINALLY_TARGET bits
@@ -2772,7 +2755,7 @@ inline void Compiler::fgConvertBBToThrowBB(BasicBlock* block)
             fgClearAllFinallyTargetBits();
             fgNeedToAddFinallyTargetBits = true;
         }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     }
 
     block->bbJumpKind = BBJ_THROW;
@@ -4142,8 +4125,8 @@ inline void Compiler::CLR_API_Leave(API_ICorJitInfo_Names ename)
 
 bool Compiler::fgStructTempNeedsExplicitZeroInit(LclVarDsc* varDsc, BasicBlock* block)
 {
-    bool containsGCPtr = (varDsc->lvStructGcCount > 0);
-    return (!info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) || (!containsGCPtr && varDsc->lvIsTemp));
+    return !info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) ||
+           (!varDsc->HasGCPtr() && varDsc->lvIsTemp);
 }
 
 /*****************************************************************************/
@@ -4217,7 +4200,7 @@ void GenTree::VisitOperands(TVisitor visitor)
         case GT_START_NONGC:
         case GT_START_PREEMPTGC:
         case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
         case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
         case GT_PHI_ARG:
@@ -4276,11 +4259,6 @@ void GenTree::VisitOperands(TVisitor visitor)
             return;
 
         // Variadic nodes
-        case GT_PHI:
-            assert(this->AsUnOp()->gtOp1 != nullptr);
-            this->AsUnOp()->gtOp1->VisitListOperands(visitor);
-            return;
-
         case GT_FIELD_LIST:
             VisitListOperands(visitor);
             return;
@@ -4313,6 +4291,16 @@ void GenTree::VisitOperands(TVisitor visitor)
 #endif // FEATURE_HW_INTRINSICS
 
         // Special nodes
+        case GT_PHI:
+            for (GenTreePhi::Use& use : AsPhi()->Uses())
+            {
+                if (visitor(use.GetNode()) == VisitResult::Abort)
+                {
+                    break;
+                }
+            }
+            return;
+
         case GT_CMPXCHG:
         {
             GenTreeCmpXchg* const cmpXchg = this->AsCmpXchg();
@@ -4417,15 +4405,23 @@ void GenTree::VisitOperands(TVisitor visitor)
             {
                 return;
             }
-            if ((call->gtCallArgs != nullptr) && (call->gtCallArgs->VisitListOperands(visitor) == VisitResult::Abort))
+
+            for (GenTreeCall::Use& use : call->Args())
             {
-                return;
+                if (visitor(use.GetNode()) == VisitResult::Abort)
+                {
+                    return;
+                }
             }
-            if ((call->gtCallLateArgs != nullptr) &&
-                (call->gtCallLateArgs->VisitListOperands(visitor)) == VisitResult::Abort)
+
+            for (GenTreeCall::Use& use : call->LateArgs())
             {
-                return;
+                if (visitor(use.GetNode()) == VisitResult::Abort)
+                {
+                    return;
+                }
             }
+
             if (call->gtCallType == CT_INDIRECT)
             {
                 if ((call->gtCallCookie != nullptr) && (visitor(call->gtCallCookie) == VisitResult::Abort))

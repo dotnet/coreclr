@@ -66,7 +66,7 @@ namespace System.Reflection
                 MethodAttributes methAttr = RuntimeMethodHandle.GetAttributes(associateMethodHandle);
 
                 // ECMA MethodSemantics: "All methods for a given Property or Event shall have the same accessibility
-                //(ie the MemberAccessMask subfield of their Flags row) and cannot be CompilerControlled  [CLS]"
+                // (ie the MemberAccessMask subfield of their Flags row) and cannot be CompilerControlled  [CLS]"
                 // Consequently, a property may be composed of public and private methods. If the declared type !=
                 // the reflected type, the private methods should not be exposed. Note that this implies that the
                 // identity of a property includes it's reflected type.
@@ -99,10 +99,7 @@ namespace System.Reflection
                 RuntimeType.GetMethodBase(reflectedType, associateMethodHandle) as RuntimeMethodInfo;
 
             // suppose a property was mapped to a method not in the derivation hierarchy of the reflectedTypeHandle
-            if (associateMethod == null)
-                associateMethod = reflectedType.Module.ResolveMethod(tkMethod, null, null) as RuntimeMethodInfo;
-
-            return associateMethod;
+            return associateMethod ?? reflectedType.Module.ResolveMethod(tkMethod, null, null) as RuntimeMethodInfo;
         }
 
         internal static void AssignAssociates(
@@ -188,8 +185,7 @@ namespace System.Reflection
                     removeOn = associateMethod;
                 else
                 {
-                    if (otherList is null)
-                        otherList = new List<MethodInfo>(cAssociates);
+                    otherList ??= new List<MethodInfo>(cAssociates);
                     otherList.Add(associateMethod);
                 }
             }
@@ -200,7 +196,7 @@ namespace System.Reflection
 
             composedOfAllPrivateMethods = (attributes & Attributes.ComposedOfAllPrivateMethods) != 0;
 
-            other = (otherList != null) ? otherList.ToArray() : null;
+            other = otherList?.ToArray();
         }
     }
 }

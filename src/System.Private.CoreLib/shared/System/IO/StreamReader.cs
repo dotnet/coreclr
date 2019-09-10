@@ -250,15 +250,9 @@ namespace System.IO
             }
         }
 
-        public virtual Encoding CurrentEncoding
-        {
-            get { return _encoding; }
-        }
+        public virtual Encoding CurrentEncoding => _encoding;
 
-        public virtual Stream BaseStream
-        {
-            get { return _stream; }
-        }
+        public virtual Stream BaseStream => _stream;
 
         // DiscardBufferedData tells StreamReader to throw away its internal
         // buffer contents.  This is useful if the user needs to seek on the
@@ -641,7 +635,6 @@ namespace System.IO
 
                 _charLen += _decoder.GetChars(_byteBuffer, 0, _byteLen, _charBuffer, _charLen);
             } while (_charLen == 0);
-            //Console.WriteLine("ReadBuffer called.  chars: "+charLen);
             return _charLen;
         }
 
@@ -751,7 +744,7 @@ namespace System.IO
                 _charPos = 0;
                 if (readToUserBuffer)
                 {
-                    charsRead += _decoder.GetChars(new ReadOnlySpan<byte>(_byteBuffer, 0, _byteLen), userBuffer.Slice(charsRead), flush:false);
+                    charsRead += _decoder.GetChars(new ReadOnlySpan<byte>(_byteBuffer, 0, _byteLen), userBuffer.Slice(charsRead), flush: false);
                     _charLen = 0;  // StreamReader's buffer is empty.
                 }
                 else
@@ -763,7 +756,6 @@ namespace System.IO
 
             _isBlocked &= charsRead < userBuffer.Length;
 
-            //Console.WriteLine("ReadBuffer: charsRead: "+charsRead+"  readToUserBuffer: "+readToUserBuffer);
             return charsRead;
         }
 
@@ -820,11 +812,9 @@ namespace System.IO
                     }
                     i++;
                 } while (i < _charLen);
+
                 i = _charLen - _charPos;
-                if (sb == null)
-                {
-                    sb = new StringBuilder(i + 80);
-                }
+                sb ??= new StringBuilder(i + 80);
                 sb.Append(_charBuffer, _charPos, i);
             } while (ReadBuffer() > 0);
             return sb.ToString();
@@ -904,10 +894,7 @@ namespace System.IO
                 } while (i < tmpCharLen);
 
                 i = tmpCharLen - tmpCharPos;
-                if (sb == null)
-                {
-                    sb = new StringBuilder(i + 80);
-                }
+                sb ??= new StringBuilder(i + 80);
                 sb.Append(tmpCharBuffer, tmpCharPos, i);
             } while (await ReadBufferAsync().ConfigureAwait(false) > 0);
 
@@ -1321,10 +1308,7 @@ namespace System.IO
         // Note this class is threadsafe.
         private sealed class NullStreamReader : StreamReader
         {
-            public override Encoding CurrentEncoding
-            {
-                get { return Encoding.Unicode; }
-            }
+            public override Encoding CurrentEncoding => Encoding.Unicode;
 
             protected override void Dispose(bool disposing)
             {
@@ -1341,7 +1325,6 @@ namespace System.IO
                 return -1;
             }
 
-            [SuppressMessage("Microsoft.Contracts", "CC1055")]  // Skip extra error checking to avoid *potential* AppCompat problems.
             public override int Read(char[] buffer, int index, int count)
             {
                 return 0;

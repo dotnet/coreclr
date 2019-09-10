@@ -4,7 +4,7 @@
 
 namespace System
 {
-    //  This value type is used for constructing System.ArgIterator.
+    // This value type is used for constructing System.ArgIterator.
     //
     //  SECURITY : m_ptr cannot be set to anything other than null by untrusted
     //  code.
@@ -16,6 +16,6 @@ namespace System
     {
         private IntPtr m_ptr;
 
-        internal IntPtr Value { get { return m_ptr; } }
+        internal IntPtr Value => m_ptr;
     }
 }

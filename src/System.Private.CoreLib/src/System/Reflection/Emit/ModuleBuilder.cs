@@ -533,7 +533,6 @@ namespace System.Reflection.Emit
 
         internal Type[] GetTypesNoLock()
         {
-            int size = _typeBuilderDict.Count;
             Type[] typeList = new Type[_typeBuilderDict.Count];
             int i = 0;
 
@@ -808,7 +807,7 @@ namespace System.Reflection.Emit
 
         private TypeBuilder DefineTypeNoLock(string name, TypeAttributes attr, Type? parent, Type[]? interfaces, PackingSize packingSize, int typesize)
         {
-            return new TypeBuilder(name, attr, parent, interfaces, this, packingSize, typesize, null); ;
+            return new TypeBuilder(name, attr, parent, interfaces, this, packingSize, typesize, null);
         }
 
         public TypeBuilder DefineType(string name, TypeAttributes attr, Type? parent, PackingSize packsize)
@@ -1172,7 +1171,7 @@ namespace System.Reflection.Emit
             {
                 return new MethodToken(GetMemberRefToken(method, null));
             }
-            else if ( method is SymbolMethod symMethod)
+            else if (method is SymbolMethod symMethod)
             {
                 if (symMethod.GetModule() == this)
                     return symMethod.GetToken();
@@ -1251,7 +1250,7 @@ namespace System.Reflection.Emit
 
         internal int GetMethodTokenInternal(MethodBase method, IEnumerable<Type>? optionalParameterTypes, bool useMethodDef)
         {
-            int tk = 0;
+            int tk;
             MethodInfo? methodInfo = method as MethodInfo;
 
             if (method.IsGenericMethod)

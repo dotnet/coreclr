@@ -4,8 +4,8 @@
   <PropertyGroup>
       <RestoreOutputPath>$(SourceDir)Common\CoreFX\obj</RestoreOutputPath>
       <Language>C#</Language>
-      <NugetTargetMoniker>.NETCoreApp,Version=v3.0</NugetTargetMoniker>
-      <TargetFramework>netcoreapp3.0</TargetFramework>
+      <NugetTargetMoniker>.NETCoreApp,Version=v5.0</NugetTargetMoniker>
+      <TargetFramework>netcoreapp5.0</TargetFramework>
       <ContainsPackageReferences>true</ContainsPackageReferences>
       <CLRTestKind>SharedLibrary</CLRTestKind>
       <IsTestProject>false</IsTestProject>
@@ -87,6 +87,9 @@
 
       <!-- Don't include all the nuget files -->
       <TestDependenciesToExclude Include="$(CORE_ROOT)\.nuget\**\*"/>
+
+      <!-- Don't include internal crossgen2 dependencies -->
+      <TestDependenciesToExclude Include="$(CORE_ROOT)\crossgen2\**\*"/>
 
       <CoreCLRBinariesToExclude Include="@(NetCoreAppPackagedAssemblies);@(TestDependenciesToExclude -> '%(Identity)')" />
     </ItemGroup>

@@ -323,13 +323,7 @@ namespace System.Reflection
             ModuleHandle.GetPEKind(GetNativeHandle(), out peKind, out machine);
         }
 
-        public override int MDStreamVersion
-        {
-            get
-            {
-                return ModuleHandle.GetMDStreamVersion(GetNativeHandle());
-            }
-        }
+        public override int MDStreamVersion => ModuleHandle.GetMDStreamVersion(GetNativeHandle());
         #endregion
 
         #region Data Members
@@ -371,16 +365,7 @@ namespace System.Reflection
         #endregion
 
         #region Internal Members
-        internal RuntimeType RuntimeType
-        {
-            get
-            {
-                if (m_runtimeType == null)
-                    m_runtimeType = ModuleHandle.GetModuleType(this);
-
-                return m_runtimeType;
-            }
-        }
+        internal RuntimeType RuntimeType => m_runtimeType ??= ModuleHandle.GetModuleType(this);
 
         internal bool IsTransientInternal()
         {
@@ -388,16 +373,7 @@ namespace System.Reflection
             return RuntimeModule.nIsTransientInternal(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal));
         }
 
-        internal MetadataImport MetadataImport
-        {
-            get
-            {
-                unsafe
-                {
-                    return ModuleHandle.GetMetadataImport(this);
-                }
-            }
-        }
+        internal MetadataImport MetadataImport => ModuleHandle.GetMetadataImport(this);
         #endregion
 
         #region ICustomAttributeProvider Members
@@ -466,13 +442,7 @@ namespace System.Reflection
             return fullyQualifiedName!;
         }
 
-        public override string FullyQualifiedName
-        {
-            get
-            {
-                return GetFullyQualifiedName();
-            }
-        }
+        public override string FullyQualifiedName => GetFullyQualifiedName();
 
         public override Type[] GetTypes()
         {
@@ -487,22 +457,12 @@ namespace System.Reflection
         {
             get
             {
-                unsafe
-                {
-                    Guid mvid;
-                    MetadataImport.GetScopeProps(out mvid);
-                    return mvid;
-                }
+                MetadataImport.GetScopeProps(out Guid mvid);
+                return mvid;
             }
         }
 
-        public override int MetadataToken
-        {
-            get
-            {
-                return ModuleHandle.GetToken(GetNativeHandle());
-            }
-        }
+        public override int MetadataToken => ModuleHandle.GetToken(GetNativeHandle());
 
         public override bool IsResource()
         {
@@ -542,7 +502,7 @@ namespace System.Reflection
             {
                 string? scopeName = null;
                 RuntimeModule thisAsLocal = this;
-                GetScopeName(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal),JitHelpers.GetStringHandleOnStack(ref scopeName));
+                GetScopeName(JitHelpers.GetQCallModuleOnStack(ref thisAsLocal), JitHelpers.GetStringHandleOnStack(ref scopeName));
                 return scopeName!;
             }
         }
@@ -565,13 +525,7 @@ namespace System.Reflection
             }
         }
 
-        public override Assembly Assembly
-        {
-            get
-            {
-                return GetRuntimeAssembly();
-            }
-        }
+        public override Assembly Assembly => GetRuntimeAssembly();
 
         internal RuntimeAssembly GetRuntimeAssembly()
         {

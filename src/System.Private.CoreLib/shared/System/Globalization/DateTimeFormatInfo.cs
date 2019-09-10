@@ -150,31 +150,11 @@ namespace System.Globalization
 
         private DateTimeFormatFlags formatFlags = DateTimeFormatFlags.NotInitialized;
 
-        private string CultureName => _name ?? (_name = _cultureData.CultureName);
+        private string CultureName => _name ??= _cultureData.CultureName;
 
-        private CultureInfo Culture
-        {
-            get
-            {
-                if (_cultureInfo == null)
-                {
-                    _cultureInfo = CultureInfo.GetCultureInfo(CultureName);
-                }
-                return _cultureInfo;
-            }
-        }
+        private CultureInfo Culture => _cultureInfo ??= CultureInfo.GetCultureInfo(CultureName);
 
-        private string LanguageName
-        {
-            get
-            {
-                if (_langName == null)
-                {
-                    _langName = _cultureData.TwoLetterISOLanguageName;
-                }
-                return _langName;
-            }
-        }
+        private string LanguageName => _langName ??= _cultureData.TwoLetterISOLanguageName;
 
         /// <summary>
         /// Create an array of string which contains the abbreviated day names.
@@ -1306,7 +1286,7 @@ namespace System.Globalization
             }
         }
 
-        internal bool HasSpacesInMonthNames =>(FormatFlags & DateTimeFormatFlags.UseSpacesInMonthNames) != 0;
+        internal bool HasSpacesInMonthNames => (FormatFlags & DateTimeFormatFlags.UseSpacesInMonthNames) != 0;
 
         internal bool HasSpacesInDayNames => (FormatFlags & DateTimeFormatFlags.UseSpacesInDayNames) != 0;
 
@@ -1338,7 +1318,7 @@ namespace System.Globalization
 
         /// <summary>
         /// Retrieve the array which contains the month names in genitive form.
-        /// If this culture does not use the gentive form, the normal month name is returned.
+        /// If this culture does not use the genitive form, the normal month name is returned.
         /// </summary>
         private string[] InternalGetGenitiveMonthNames(bool abbreviated)
         {
@@ -1768,13 +1748,7 @@ namespace System.Globalization
         /// DateTimeFormatInfo dtfi = new CultureInfo("ja-JP", false).DateTimeFormat.Calendar = new GregorianCalendar(GregorianCalendarTypes.Localized);
         /// String nativeName = dtfi.NativeCalendarName; // Get the Japanese name for the Gregorian calendar.
         /// </summary>
-        public string NativeCalendarName
-        {
-            get
-            {
-                return _cultureData.CalendarName(Calendar.ID);
-            }
-        }
+        public string NativeCalendarName => _cultureData.CalendarName(Calendar.ID);
 
         /// <summary>
         /// Used by custom cultures and others to set the list of available formats. Note that none of them are
@@ -1904,62 +1878,25 @@ namespace System.Globalization
 
         // Decimal separator used by positive TimeSpan pattern
         private string? _decimalSeparator;
-        internal string DecimalSeparator
-        {
-            get
-            {
-                if (_decimalSeparator == null)
-                {
-                    CultureData? cultureDataWithoutUserOverrides = _cultureData.UseUserOverride ?
-                        CultureData.GetCultureData(_cultureData.CultureName, false) :
-                        _cultureData;
-                    _decimalSeparator = new NumberFormatInfo(cultureDataWithoutUserOverrides).NumberDecimalSeparator;
-                }
-                return _decimalSeparator;
-            }
-        }
+        internal string DecimalSeparator =>
+            _decimalSeparator ??=
+            new NumberFormatInfo(_cultureData.UseUserOverride ? CultureData.GetCultureData(_cultureData.CultureName, false) : _cultureData).NumberDecimalSeparator;
 
         // Positive TimeSpan Pattern
         private string? _fullTimeSpanPositivePattern;
-        internal string FullTimeSpanPositivePattern
-        {
-            get
-            {
-                if (_fullTimeSpanPositivePattern == null)
-                {
-                    _fullTimeSpanPositivePattern = "d':'h':'mm':'ss'" + DecimalSeparator + "'FFFFFFF";
-                }
-                return _fullTimeSpanPositivePattern;
-            }
-        }
+        internal string FullTimeSpanPositivePattern =>
+            _fullTimeSpanPositivePattern ??= "d':'h':'mm':'ss'" + DecimalSeparator + "'FFFFFFF";
 
         // Negative TimeSpan Pattern
         private string? _fullTimeSpanNegativePattern;
-        internal string FullTimeSpanNegativePattern
-        {
-            get
-            {
-                if (_fullTimeSpanNegativePattern == null)
-                    _fullTimeSpanNegativePattern = "'-'" + FullTimeSpanPositivePattern;
-                return _fullTimeSpanNegativePattern;
-            }
-        }
+        internal string FullTimeSpanNegativePattern =>
+            _fullTimeSpanNegativePattern ??= "'-'" + FullTimeSpanPositivePattern;
 
         // Get suitable CompareInfo from current DTFI object.
-        internal CompareInfo CompareInfo
-        {
-            get
-            {
-                if (_compareInfo == null)
-                {
-                    // We use the regular GetCompareInfo here to make sure the created CompareInfo object is stored in the
-                    // CompareInfo cache. otherwise we would just create CompareInfo using _cultureData.
-                    _compareInfo = CompareInfo.GetCompareInfo(_cultureData.SortName);
-                }
-
-                return _compareInfo;
-            }
-        }
+        internal CompareInfo CompareInfo =>
+            // We use the regular GetCompareInfo here to make sure the created CompareInfo object is stored in the
+            // CompareInfo cache. otherwise we would just create CompareInfo using _cultureData.
+            _compareInfo ??= CompareInfo.GetCompareInfo(_cultureData.SortName);
 
         internal const DateTimeStyles InvalidDateTimeStyles = ~(DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite
                                                                | DateTimeStyles.AllowInnerWhite | DateTimeStyles.NoCurrentDateDefault
@@ -2029,10 +1966,7 @@ namespace System.Globalization
         /// <summary>
         /// Returns whether the YearMonthAdjustment function has any fix-up work to do for this culture/calendar.
         /// </summary>
-        internal bool HasYearMonthAdjustment
-        {
-            get => (FormatFlags & DateTimeFormatFlags.UseHebrewRule) != 0;
-        }
+        internal bool HasYearMonthAdjustment => (FormatFlags & DateTimeFormatFlags.UseHebrewRule) != 0;
 
         /// <summary>
         /// This is a callback that the parser can make back into the DTFI to let it fiddle with special
@@ -2310,14 +2244,15 @@ namespace System.Globalization
                     InsertHash(temp, GetAbbreviatedMonthName(i), TokenType.MonthToken, i);
                 }
 
-
                 if ((FormatFlags & DateTimeFormatFlags.UseGenitiveMonth) != 0)
                 {
+                    string [] genitiveMonthNames = InternalGetGenitiveMonthNames(abbreviated: false);
+                    string [] abbreviatedGenitiveMonthNames = InternalGetGenitiveMonthNames(abbreviated: true);
+
                     for (int i = 1; i <= 13; i++)
                     {
-                        string str;
-                        str = InternalGetMonthName(i, MonthNameStyles.Genitive, false);
-                        InsertHash(temp, str, TokenType.MonthToken, i);
+                        InsertHash(temp, genitiveMonthNames[i - 1], TokenType.MonthToken, i);
+                        InsertHash(temp, abbreviatedGenitiveMonthNames[i - 1], TokenType.MonthToken, i);
                     }
                 }
 
@@ -2333,7 +2268,6 @@ namespace System.Globalization
 
                 for (int i = 0; i < 7; i++)
                 {
-                    //String str = GetDayOfWeekNames()[i];
                     // We have to call public methods here to work with inherited DTFI.
                     string str = GetDayName((DayOfWeek)i);
                     InsertHash(temp, str, TokenType.DayOfWeekToken, i);
@@ -2432,7 +2366,6 @@ namespace System.Globalization
         {
             for (int i = 1; i <= 13; i++)
             {
-                //str = internalGetMonthName(i, MonthNameStyles.Regular, false);
                 // We have to call public methods here to work with inherited DTFI.
                 // Insert the month name first, so that they are at the front of abbreviated
                 // month names.
@@ -2559,12 +2492,12 @@ namespace System.Globalization
                         if (badFormat)
                         {
                             tokenType = TokenType.UnknownToken;
-                            return (false);
+                            return false;
                         }
                         // This is a Hebrew number.
                         // Do nothing here.  TryParseHebrewNumber() will update token accordingly.
                         tokenType = TokenType.HebrewNumber;
-                        return (true);
+                        return true;
                     }
                 }
             }
@@ -2646,7 +2579,7 @@ namespace System.Globalization
             TokenHashValue previousNode = hashTable[hashcode];
 
             // Insert the new node into the current slot.
-            hashTable[hashcode] = new TokenHashValue(str, tokenType, tokenValue); ;
+            hashTable[hashcode] = new TokenHashValue(str, tokenType, tokenValue);
 
             while (++pos < TOKEN_HASH_SIZE)
             {
@@ -2667,7 +2600,7 @@ namespace System.Globalization
                     return;
                 }
                 previousNode = temp;
-            };
+            }
             Debug.Fail("The hashtable is full.  This should not happen.");
         }
 
@@ -2682,7 +2615,7 @@ namespace System.Globalization
             int i = 0;
             // If there is whitespace characters in the beginning and end of the string, trim them since whitespaces are skipped by
             // DateTime.Parse().
-            if (char.IsWhiteSpace(str[0]) || char.IsWhiteSpace(str[str.Length - 1]))
+            if (char.IsWhiteSpace(str[0]) || char.IsWhiteSpace(str[^1]))
             {
                 str = str.Trim(null);   // Trim white space characters.
                 // Could have space for separators

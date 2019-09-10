@@ -378,15 +378,13 @@ public:
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
 
     unsigned char lvIsParam : 1;           // is this a parameter?
-    unsigned char lvIsRegArg : 1;          // is this a register argument?
+    unsigned char lvIsRegArg : 1;          // is this an argument that was passed by register?
     unsigned char lvFramePointerBased : 1; // 0 = off of REG_SPBASE (e.g., ESP), 1 = off of REG_FPBASE (e.g., EBP)
 
-    unsigned char lvStructGcCount : 3; // if struct, how many GC pointer (stop counting at 7). The only use of values >1
-                                       // is to help determine whether to use block init in the prolog.
-    unsigned char lvOnFrame : 1;       // (part of) the variable lives on the frame
-    unsigned char lvRegister : 1;      // assigned to live in a register? For RyuJIT backend, this is only set if the
-                                       // variable is in the same register for the entire function.
-    unsigned char lvTracked : 1;       // is this a tracked variable?
+    unsigned char lvOnFrame : 1;  // (part of) the variable lives on the frame
+    unsigned char lvRegister : 1; // assigned to live in a register? For RyuJIT backend, this is only set if the
+                                  // variable is in the same register for the entire function.
+    unsigned char lvTracked : 1;  // is this a tracked variable?
     bool          lvTrackedNonStruct()
     {
         return lvTracked && lvType != TYP_STRUCT;
@@ -853,8 +851,10 @@ public:
 
     CORINFO_FIELD_HANDLE lvFieldHnd; // field handle for promoted struct fields
 
-    BYTE* lvGcLayout; // GC layout info for structs
+private:
+    ClassLayout* m_layout; // layout info for structs
 
+public:
 #if ASSERTION_PROP
     BlockSet     lvRefBlks;          // Set of blocks that contain refs
     GenTreeStmt* lvDefStmt;          // Pointer to the statement with the single definition
@@ -910,6 +910,26 @@ public:
     }
 
     var_types lvaArgType();
+
+    // Returns true if this variable contains GC pointers (including being a GC pointer itself).
+    bool HasGCPtr()
+    {
+        return varTypeIsGC(lvType) || ((lvType == TYP_STRUCT) && m_layout->HasGCPtr());
+    }
+
+    // Returns the layout of a struct variable.
+    ClassLayout* GetLayout()
+    {
+        assert(varTypeIsStruct(lvType));
+        return m_layout;
+    }
+
+    // Sets the layout of a struct variable.
+    void SetLayout(ClassLayout* layout)
+    {
+        assert(varTypeIsStruct(lvType));
+        m_layout = layout;
+    }
 
     SsaDefArray<LclSsaVarDsc> lvPerSsaData;
 
@@ -1313,9 +1333,10 @@ struct FuncInfoDsc
 
 struct fgArgTabEntry
 {
-    GenTree* node;   // Initially points at the Op1 field of 'parent', but if the argument is replaced with an GT_ASG or
-                     // placeholder it will point at the actual argument in the gtCallLateArgs list.
-    GenTree* parent; // Points at the GT_LIST node in the gtCallArgs for this argument
+    GenTree* node;         // Initially points to `use`'s node, but if the argument is replaced with an GT_ASG or
+                           // placeholder it will point at the actual argument node in the gtCallLateArgs list.
+    GenTreeCall::Use* use; // Points at the GenTreeCall::Use in the gtCallArgs for this argument
+                           // or nullptr for the `this` argument which does not have a corresponding GenTreeCall::Use.
 
     unsigned argNum; // The original argument number, also specifies the required argument evaluation order from the IL
 
@@ -1756,19 +1777,19 @@ public:
     fgArgInfo(Compiler* comp, GenTreeCall* call, unsigned argCount);
     fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall);
 
-    fgArgTabEntry* AddRegArg(unsigned  argNum,
-                             GenTree*  node,
-                             GenTree*  parent,
-                             regNumber regNum,
-                             unsigned  numRegs,
-                             unsigned  alignment,
-                             bool      isStruct,
-                             bool      isVararg = false);
+    fgArgTabEntry* AddRegArg(unsigned          argNum,
+                             GenTree*          node,
+                             GenTreeCall::Use* use,
+                             regNumber         regNum,
+                             unsigned          numRegs,
+                             unsigned          alignment,
+                             bool              isStruct,
+                             bool              isVararg = false);
 
 #ifdef UNIX_AMD64_ABI
     fgArgTabEntry* AddRegArg(unsigned                                                         argNum,
                              GenTree*                                                         node,
-                             GenTree*                                                         parent,
+                             GenTreeCall::Use*                                                use,
                              regNumber                                                        regNum,
                              unsigned                                                         numRegs,
                              unsigned                                                         alignment,
@@ -1780,13 +1801,13 @@ public:
                              const SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR* const structDescPtr = nullptr);
 #endif // UNIX_AMD64_ABI
 
-    fgArgTabEntry* AddStkArg(unsigned argNum,
-                             GenTree* node,
-                             GenTree* parent,
-                             unsigned numSlots,
-                             unsigned alignment,
-                             bool     isStruct,
-                             bool     isVararg = false);
+    fgArgTabEntry* AddStkArg(unsigned          argNum,
+                             GenTree*          node,
+                             GenTreeCall::Use* use,
+                             unsigned          numSlots,
+                             unsigned          alignment,
+                             bool              isStruct,
+                             bool              isVararg = false);
 
     void RemorphReset();
     void UpdateRegArg(fgArgTabEntry* argEntry, GenTree* node, bool reMorphing);
@@ -2182,7 +2203,7 @@ public:
 // Exception handling functions
 //
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
 
     bool ehNeedsShadowSPslots()
     {
@@ -2297,7 +2318,7 @@ public:
     bool ehCallFinallyInCorrectRegion(BasicBlock* blockCallFinally, unsigned finallyIndex);
 #endif // DEBUG
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // Do we need a PSPSym in the main function? For codegen purposes, we only need one
     // if there is a filter that protects a region with a nested EH clause (such as a
     // try/catch nested in the 'try' body of a try/filter/filter-handler). See
@@ -2373,7 +2394,7 @@ public:
 
     void fgRemoveEHTableEntry(unsigned XTnum);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     EHblkDsc* fgAddEHTableEntry(unsigned XTnum);
 
@@ -2493,18 +2514,25 @@ public:
 
     GenTreeArgList* gtNewListNode(GenTree* op1, GenTreeArgList* op2);
 
+    GenTreeCall::Use* gtNewCallArgs(GenTree* node);
+    GenTreeCall::Use* gtNewCallArgs(GenTree* node1, GenTree* node2);
+    GenTreeCall::Use* gtNewCallArgs(GenTree* node1, GenTree* node2, GenTree* node3);
+    GenTreeCall::Use* gtNewCallArgs(GenTree* node1, GenTree* node2, GenTree* node3, GenTree* node4);
+    GenTreeCall::Use* gtPrependNewCallArg(GenTree* node, GenTreeCall::Use* args);
+    GenTreeCall::Use* gtInsertNewCallArgAfter(GenTree* node, GenTreeCall::Use* after);
+
     GenTreeCall* gtNewCallNode(gtCallTypes           callType,
                                CORINFO_METHOD_HANDLE handle,
                                var_types             type,
-                               GenTreeArgList*       args,
+                               GenTreeCall::Use*     args,
                                IL_OFFSETX            ilOffset = BAD_IL_OFFSET);
 
-    GenTreeCall* gtNewIndCallNode(GenTree*        addr,
-                                  var_types       type,
-                                  GenTreeArgList* args,
-                                  IL_OFFSETX      ilOffset = BAD_IL_OFFSET);
+    GenTreeCall* gtNewIndCallNode(GenTree*          addr,
+                                  var_types         type,
+                                  GenTreeCall::Use* args,
+                                  IL_OFFSETX        ilOffset = BAD_IL_OFFSET);
 
-    GenTreeCall* gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args = nullptr);
+    GenTreeCall* gtNewHelperCallNode(unsigned helper, var_types type, GenTreeCall::Use* args = nullptr);
 
     GenTree* gtNewLclvNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
     GenTree* gtNewLclLNode(unsigned lnum, var_types type DEBUGARG(IL_OFFSETX ILoffs = BAD_IL_OFFSET));
@@ -2667,6 +2695,7 @@ public:
     bool gtHasLocalsWithAddrOp(GenTree* tree);
 
     unsigned gtSetListOrder(GenTree* list, bool regs, bool isListCallArgs);
+    unsigned gtSetCallArgsOrder(const GenTreeCall::UseList& args, bool lateArgs, int* callCostEx, int* callCostSz);
 
     void gtWalkOp(GenTree** op1, GenTree** op2, GenTree* base, bool constOnly);
 
@@ -3058,7 +3087,7 @@ public:
 //-------------------------------------------------------------------------
 // All these frame offsets are inter-related and must be kept in sync
 
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
     // This is used for the callable handlers
     unsigned lvaShadowSPslotsVar; // TYP_BLK variable for all the shadow SP slots
 #endif                            // FEATURE_EH_FUNCLETS
@@ -3378,8 +3407,6 @@ public:
     }
 #endif // defined(FEATURE_SIMD)
 
-    BYTE* lvaGetGcLayout(unsigned varNum);
-    bool lvaTypeIsGC(unsigned varNum);
     unsigned lvaGSSecurityCookie; // LclVar number
     bool     lvaTempsHaveLargerOffsetThanVars();
 
@@ -3393,7 +3420,7 @@ public:
     unsigned lvaSecurityObject;  // variable representing the security object on the stack
     unsigned lvaStubArgumentVar; // variable representing the secret stub argument coming in EAX
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     unsigned lvaPSPSym; // variable representing the PSPSym
 #endif
 
@@ -3723,10 +3750,7 @@ public:
 
     GenTree* impGetStructAddr(GenTree* structVal, CORINFO_CLASS_HANDLE structHnd, unsigned curLevel, bool willDeref);
 
-    var_types impNormStructType(CORINFO_CLASS_HANDLE structHnd,
-                                BYTE*                gcLayout     = nullptr,
-                                unsigned*            numGCVars    = nullptr,
-                                var_types*           simdBaseType = nullptr);
+    var_types impNormStructType(CORINFO_CLASS_HANDLE structHnd, var_types* simdBaseType = nullptr);
 
     GenTree* impNormStructVal(GenTree*             structVal,
                               CORINFO_CLASS_HANDLE structHnd,
@@ -3761,7 +3785,7 @@ public:
     GenTreeCall* impReadyToRunHelperToTree(CORINFO_RESOLVED_TOKEN* pResolvedToken,
                                            CorInfoHelpFunc         helper,
                                            var_types               type,
-                                           GenTreeArgList*         arg                = nullptr,
+                                           GenTreeCall::Use*       args               = nullptr,
                                            CORINFO_LOOKUP_KIND*    pGenericLookupKind = nullptr);
 
     GenTree* impCastClassOrIsInstToTree(GenTree*                op1,
@@ -3818,9 +3842,9 @@ private:
                 ((opcode >= CEE_STLOC_0) && (opcode <= CEE_STLOC_3)));
     }
 
-    GenTreeArgList* impPopList(unsigned count, CORINFO_SIG_INFO* sig, GenTreeArgList* prefixTree = nullptr);
+    GenTreeCall::Use* impPopCallArgs(unsigned count, CORINFO_SIG_INFO* sig, GenTreeCall::Use* prefixArgs = nullptr);
 
-    GenTreeArgList* impPopRevList(unsigned count, CORINFO_SIG_INFO* sig, unsigned skipReverseCount = 0);
+    GenTreeCall::Use* impPopReverseCallArgs(unsigned count, CORINFO_SIG_INFO* sig, unsigned skipReverseCount = 0);
 
     /*
      * Get current IL offset with stack-empty info incoporated
@@ -4060,9 +4084,10 @@ private:
 
     BOOL impInlineIsThis(GenTree* tree, InlArgInfo* inlArgInfo);
 
-    BOOL impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*    additionalTreesToBeEvaluatedBefore,
-                                                            GenTree*    variableBeingDereferenced,
-                                                            InlArgInfo* inlArgInfo);
+    BOOL impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*          additionalTree,
+                                                            GenTreeCall::Use* additionalCallArgs,
+                                                            GenTree*          dereferencedAddress,
+                                                            InlArgInfo*       inlArgInfo);
 
     void impMarkInlineCandidate(GenTree*               call,
                                 CORINFO_CONTEXT_HANDLE exactContextHnd,
@@ -4107,7 +4132,7 @@ public:
     BasicBlock* fgFirstBB;        // Beginning of the basic block list
     BasicBlock* fgLastBB;         // End of the basic block list
     BasicBlock* fgFirstColdBlock; // First block to be placed in the cold section
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     BasicBlock* fgFirstFuncletBB; // First block of outlined funclets (to allow block insertion before the funclets)
 #endif
     BasicBlock* fgFirstBBScratch;   // Block inserted for initialization stuff. Is nullptr if no such block has been
@@ -4288,7 +4313,7 @@ public:
                                                    // This is derived from the profile data
                                                    // or is BB_UNITY_WEIGHT when we don't have profile data
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     bool fgFuncletsCreated; // true if the funclet creation phase has been run
 #endif                      // FEATURE_EH_FUNCLETS
 
@@ -4333,11 +4358,11 @@ public:
 
     void fgAddFinallyTargetFlags();
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // Sometimes we need to defer updating the BBF_FINALLY_TARGET bit. fgNeedToAddFinallyTargetBits signals
     // when this is necessary.
     bool fgNeedToAddFinallyTargetBits;
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
     bool fgRetargetBranchesToCanonicalCallFinally(BasicBlock*      block,
                                                   BasicBlock*      handler,
@@ -4345,7 +4370,7 @@ public:
 
     GenTree* fgGetCritSectOfStaticMethod();
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     void fgAddSyncMethodEnterExit();
 
@@ -4616,9 +4641,6 @@ public:
 
     // Does value-numbering for a call.  We interpret some helper calls.
     void fgValueNumberCall(GenTreeCall* call);
-
-    // The VN of some nodes in "args" may have changed -- reassign VNs to the arg list nodes.
-    void fgUpdateArgListVNs(GenTreeArgList* args);
 
     // Does value-numbering for a helper "call" that has a VN function symbol "vnf".
     void fgValueNumberHelperCallFunc(GenTreeCall* call, VNFunc vnf, ValueNumPair vnpExc);
@@ -4991,7 +5013,7 @@ public:
     };
     BasicBlock* fgRelocateEHRange(unsigned regionIndex, FG_RELOCATE_TYPE relocateType);
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 #if defined(_TARGET_ARM_)
     void fgClearFinallyTargetBit(BasicBlock* block);
 #endif // defined(_TARGET_ARM_)
@@ -5327,7 +5349,7 @@ private:
 
     GenTree* fgMorphCastIntoHelper(GenTree* tree, int helper, GenTree* oper);
 
-    GenTree* fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeArgList* args, bool morphArgs = true);
+    GenTree* fgMorphIntoHelperCall(GenTree* tree, int helper, GenTreeCall::Use* args, bool morphArgs = true);
 
     GenTree* fgMorphStackArgForVarArgs(unsigned lclNum, var_types varType, unsigned lclOffs);
 
@@ -5384,7 +5406,7 @@ private:
     GenTreeArgList* fgMorphArgList(GenTreeArgList* args, MorphAddrContext* mac);
 
     void fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
-                                     GenTree*             args,
+                                     GenTreeCall::Use*    args,
                                      unsigned             argIndex,
                                      CORINFO_CLASS_HANDLE copyBlkClass);
 
@@ -5398,7 +5420,8 @@ private:
     GenTree* fgMorphField(GenTree* tree, MorphAddrContext* mac);
     bool fgCanFastTailCall(GenTreeCall* call);
     bool fgCheckStmtAfterTailCall();
-    void fgMorphTailCall(GenTreeCall* call, void* pfnCopyArgs);
+    void fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs);
+    GenTree* fgMorphPotentialTailCall(GenTreeCall* call);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);
     GenTreeStmt* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
@@ -5686,24 +5709,10 @@ protected:
     // Hoist all expressions in "blk" that are invariant in loop "lnum" (an index into the optLoopTable)
     // outside of that loop.  Exempt expressions whose value number is in "m_hoistedInParentLoops"; add VN's of hoisted
     // expressions to "hoistInLoop".
-    void optHoistLoopExprsForBlock(BasicBlock* blk, unsigned lnum, LoopHoistContext* hoistCtxt);
+    void optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blocks, LoopHoistContext* hoistContext);
 
     // Return true if the tree looks profitable to hoist out of loop 'lnum'.
     bool optIsProfitableToHoistableTree(GenTree* tree, unsigned lnum);
-
-    // Hoist all proper sub-expressions of "tree" (which occurs in "stmt", which occurs in "blk")
-    // that are invariant in loop "lnum" (an index into the optLoopTable)
-    // outside of that loop.  Exempt expressions whose value number is in "hoistedInParents"; add VN's of hoisted
-    // expressions to "hoistInLoop".
-    // Returns "true" iff "tree" is loop-invariant (wrt "lnum").
-    // Assumes that the value of "*firstBlockAndBeforeSideEffect" indicates that we're in the first block, and before
-    // any possible globally visible side effects.  Assume is called in evaluation order, and updates this.
-    bool optHoistLoopExprsForTree(GenTree*          tree,
-                                  unsigned          lnum,
-                                  LoopHoistContext* hoistCtxt,
-                                  bool*             firstBlockAndBeforeSideEffect,
-                                  bool*             pHoistable,
-                                  bool*             pCctorDependent);
 
     // Performs the hoisting 'tree' into the PreHeader for loop 'lnum'
     void optHoistCandidate(GenTree* tree, unsigned lnum, LoopHoistContext* hoistCtxt);
@@ -5712,12 +5721,6 @@ protected:
     //   Constants and init values are always loop invariant.
     //   VNPhi's connect VN's to the SSA definition, so we can know if the SSA def occurs in the loop.
     bool optVNIsLoopInvariant(ValueNum vn, unsigned lnum, VNToBoolMap* recordedVNs);
-
-    // Returns "true" iff "tree" is valid at the head of loop "lnum", in the context of the hoist substitution
-    // "subst".  If "tree" is a local SSA var, it is valid if its SSA definition occurs outside of the loop, or
-    // if it is in the domain of "subst" (meaning that it's definition has been previously hoisted, with a "standin"
-    // local.)  If tree is a constant, it is valid.  Otherwise, if it is an operator, it is valid iff its children are.
-    bool optTreeIsValidAtLoopHead(GenTree* tree, unsigned lnum);
 
     // If "blk" is the entry block of a natural loop, returns true and sets "*pLnum" to the index of the loop
     // in the loop table.
@@ -6704,17 +6707,22 @@ public:
     AssertionIndex optAssertionGenPhiDefn(GenTree* tree);
     AssertionInfo optCreateJTrueBoundsAssertion(GenTree* tree);
     AssertionInfo optAssertionGenJtrue(GenTree* tree);
-    AssertionIndex optCreateJtrueAssertions(GenTree* op1, GenTree* op2, Compiler::optAssertionKind assertionKind);
+    AssertionIndex optCreateJtrueAssertions(GenTree*                   op1,
+                                            GenTree*                   op2,
+                                            Compiler::optAssertionKind assertionKind,
+                                            bool                       helperCallArgs = false);
     AssertionIndex optFindComplementary(AssertionIndex assertionIndex);
     void optMapComplementary(AssertionIndex assertionIndex, AssertionIndex index);
 
     // Assertion creation functions.
-    AssertionIndex optCreateAssertion(GenTree* op1, GenTree* op2, optAssertionKind assertionKind);
     AssertionIndex optCreateAssertion(GenTree*         op1,
                                       GenTree*         op2,
                                       optAssertionKind assertionKind,
-                                      AssertionDsc*    assertion);
-    void optCreateComplementaryAssertion(AssertionIndex assertionIndex, GenTree* op1, GenTree* op2);
+                                      bool             helperCallArgs = false);
+    void optCreateComplementaryAssertion(AssertionIndex assertionIndex,
+                                         GenTree*       op1,
+                                         GenTree*       op2,
+                                         bool           helperCallArgs = false);
 
     bool optAssertionVnInvolvesNan(AssertionDsc* assertion);
     AssertionIndex optAddAssertion(AssertionDsc* assertion);
@@ -7294,7 +7302,7 @@ public:
 
 // Things that MAY belong either in CodeGen or CodeGenContext
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     FuncInfoDsc*   compFuncInfos;
     unsigned short compCurrFuncIdx;
     unsigned short compFuncInfoCount;
@@ -7464,7 +7472,7 @@ public:
     //
 
 private:
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     void unwindGetFuncLocations(FuncInfoDsc*             func,
                                 bool                     getHotSectionData,
                                 /* OUT */ emitLocation** ppStartLoc,
@@ -7474,7 +7482,7 @@ private:
     void unwindReserveFunc(FuncInfoDsc* func);
     void unwindEmitFunc(FuncInfoDsc* func, void* pHotCode, void* pColdCode);
 
-#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && FEATURE_EH_FUNCLETS)
+#if defined(_TARGET_AMD64_) || (defined(_TARGET_X86_) && defined(FEATURE_EH_FUNCLETS))
 
     void unwindReserveFuncHelper(FuncInfoDsc* func, bool isHotCode);
     void unwindEmitFuncHelper(FuncInfoDsc* func, void* pHotCode, void* pColdCode, bool isHotCode);
@@ -8137,26 +8145,49 @@ private:
     // Returns true if the TYP_SIMD locals on stack are aligned at their
     // preferred byte boundary specified by getSIMDTypeAlignment().
     //
-    // As per the Intel manual, the preferred alignment for AVX vectors is 32-bytes. On Amd64,
-    // RSP/EBP is aligned at 16-bytes, therefore to align SIMD types at 32-bytes we need even
-    // RSP/EBP to be 32-byte aligned. It is not clear whether additional stack space used in
-    // aligning stack is worth the benefit and for now will use 16-byte alignment for AVX
-    // 256-bit vectors with unaligned load/stores to/from memory. On x86, the stack frame
-    // is aligned to 4 bytes. We need to extend existing support for double (8-byte) alignment
-    // to 16 or 32 byte alignment for frames with local SIMD vars, if that is determined to be
+    // As per the Intel manual, the preferred alignment for AVX vectors is
+    // 32-bytes. It is not clear whether additional stack space used in
+    // aligning stack is worth the benefit and for now will use 16-byte
+    // alignment for AVX 256-bit vectors with unaligned load/stores to/from
+    // memory. On x86, the stack frame is aligned to 4 bytes. We need to extend
+    // existing support for double (8-byte) alignment to 16 or 32 byte
+    // alignment for frames with local SIMD vars, if that is determined to be
     // profitable.
+    //
+    // On Amd64 and SysV, RSP+8 is aligned on entry to the function (before
+    // prolog has run). This means that in RBP-based frames RBP will be 16-byte
+    // aligned. For RSP-based frames these are only sometimes aligned, depending
+    // on the frame size.
     //
     bool isSIMDTypeLocalAligned(unsigned varNum)
     {
 #if defined(FEATURE_SIMD) && ALIGN_SIMD_TYPES
         if (lclVarIsSIMDType(varNum) && lvaTable[varNum].lvType != TYP_BYREF)
         {
-            bool ebpBased;
-            int  off = lvaFrameAddress(varNum, &ebpBased);
             // TODO-Cleanup: Can't this use the lvExactSize on the varDsc?
-            int  alignment = getSIMDTypeAlignment(lvaTable[varNum].lvType);
-            bool isAligned = (alignment <= STACK_ALIGN) && ((off % alignment) == 0);
-            return isAligned;
+            int alignment = getSIMDTypeAlignment(lvaTable[varNum].lvType);
+            if (alignment <= STACK_ALIGN)
+            {
+                bool rbpBased;
+                int  off = lvaFrameAddress(varNum, &rbpBased);
+                // On SysV and Winx64 ABIs RSP+8 will be 16-byte aligned at the
+                // first instruction of a function. If our frame is RBP based
+                // then RBP will always be 16 bytes aligned, so we can simply
+                // check the offset.
+                if (rbpBased)
+                {
+                    return (off % alignment) == 0;
+                }
+
+                // For RSP-based frame the alignment of RSP depends on our
+                // locals. rsp+8 is aligned on entry and we just subtract frame
+                // size so it is not hard to compute. Note that the compiler
+                // tries hard to make sure the frame size means RSP will be
+                // 16-byte aligned, but for leaf functions without locals (i.e.
+                // frameSize = 0) it will not be.
+                int frameSize = codeGen->genTotalFrameSize();
+                return ((8 - frameSize + off) % alignment) == 0;
+            }
         }
 #endif // FEATURE_SIMD
 
@@ -8853,12 +8884,6 @@ public:
 #endif // FEATURE_MULTIREG_RET
     }
 
-#if FEATURE_MULTIREG_ARGS
-    // Given a GenTree node of TYP_STRUCT that represents a pass by value argument
-    // return the gcPtr layout for the pointers sized fields
-    void getStructGcPtrsFromOp(GenTree* op, BYTE* gcPtrsOut);
-#endif // FEATURE_MULTIREG_ARGS
-
     // Returns true if the method being compiled returns a value
     bool compMethodHasRetVal()
     {
@@ -8871,6 +8896,26 @@ public:
     void compDispLocalVars();
 
 #endif // DEBUG
+
+private:
+    class ClassLayoutTable* m_classLayoutTable;
+
+    class ClassLayoutTable* typCreateClassLayoutTable();
+    class ClassLayoutTable* typGetClassLayoutTable();
+
+public:
+    // Get the layout having the specified layout number.
+    ClassLayout* typGetLayoutByNum(unsigned layoutNum);
+    // Get the layout number of the specified layout.
+    unsigned typGetLayoutNum(ClassLayout* layout);
+    // Get the layout having the specified size but no class handle.
+    ClassLayout* typGetBlkLayout(unsigned blockSize);
+    // Get the number of a layout having the specified size but no class handle.
+    unsigned typGetBlkLayoutNum(unsigned blockSize);
+    // Get the layout for the specified class handle.
+    ClassLayout* typGetObjLayout(CORINFO_CLASS_HANDLE classHandle);
+    // Get the number of a layout for the specified class handle.
+    unsigned typGetObjLayoutNum(CORINFO_CLASS_HANDLE classHandle);
 
 //-------------------------- Global Compiler Data ------------------------------------
 
@@ -9842,7 +9887,7 @@ public:
             case GT_START_NONGC:
             case GT_START_PREEMPTGC:
             case GT_PROF_HOOK:
-#if !FEATURE_EH_FUNCLETS
+#if !defined(FEATURE_EH_FUNCLETS)
             case GT_END_LFIN:
 #endif // !FEATURE_EH_FUNCLETS
             case GT_PHI_ARG:
@@ -9898,7 +9943,6 @@ public:
             case GT_NOP:
             case GT_RETURN:
             case GT_RETFILT:
-            case GT_PHI:
             case GT_RUNTIMELOOKUP:
             {
                 GenTreeUnOp* const unOp = node->AsUnOp();
@@ -9914,6 +9958,17 @@ public:
             }
 
             // Special nodes
+            case GT_PHI:
+                for (GenTreePhi::Use& use : node->AsPhi()->Uses())
+                {
+                    result = WalkTree(&use.NodeRef(), node);
+                    if (result == fgWalkResult::WALK_ABORT)
+                    {
+                        return result;
+                    }
+                }
+                break;
+
             case GT_CMPXCHG:
             {
                 GenTreeCmpXchg* const cmpXchg = node->AsCmpXchg();
@@ -10095,18 +10150,18 @@ public:
                     }
                 }
 
-                for (GenTreeArgList* args = call->gtCallArgs; args != nullptr; args = args->Rest())
+                for (GenTreeCall::Use& use : call->Args())
                 {
-                    result = WalkTree(args->pCurrent(), call);
+                    result = WalkTree(&use.NodeRef(), call);
                     if (result == fgWalkResult::WALK_ABORT)
                     {
                         return result;
                     }
                 }
 
-                for (GenTreeArgList* args = call->gtCallLateArgs; args != nullptr; args = args->Rest())
+                for (GenTreeCall::Use& use : call->LateArgs())
                 {
-                    result = WalkTree(args->pCurrent(), call);
+                    result = WalkTree(&use.NodeRef(), call);
                     if (result == fgWalkResult::WALK_ABORT)
                     {
                         return result;

@@ -47,7 +47,7 @@ namespace System.Diagnostics
         /// <summary>
         /// This flag is set to true when the frame represents a rethrow marker.
         /// </summary>
-        private readonly bool _isLastFrameFromForeignExceptionStackTrace;
+        private bool _isLastFrameFromForeignExceptionStackTrace;
 
         private void InitMembers()
         {
@@ -111,7 +111,7 @@ namespace System.Diagnostics
         /// use the debugger's line mapping logic.
         /// </summary>
         public StackFrame(string? fileName, int lineNumber, int colNumber)
-            : this (fileName, lineNumber)
+            : this(fileName, lineNumber)
         {
             _columnNumber = colNumber;
         }

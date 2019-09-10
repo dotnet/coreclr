@@ -11,8 +11,6 @@
 **
 ===========================================================*/
 
-using System.Reflection;
-
 namespace System
 {
     /* By default, attributes are inherited and multiple attributes are not allowed */
@@ -25,11 +23,11 @@ namespace System
 
         internal static readonly AttributeUsageAttribute Default = new AttributeUsageAttribute(AttributeTargets.All);
 
-        //Constructors
         public AttributeUsageAttribute(AttributeTargets validOn)
         {
             _attributeTarget = validOn;
         }
+
         internal AttributeUsageAttribute(AttributeTargets validOn, bool allowMultiple, bool inherited)
         {
             _attributeTarget = validOn;
@@ -37,21 +35,18 @@ namespace System
             _inherited = inherited;
         }
 
-        public AttributeTargets ValidOn
-        {
-            get { return _attributeTarget; }
-        }
+        public AttributeTargets ValidOn => _attributeTarget;
 
         public bool AllowMultiple
         {
-            get { return _allowMultiple; }
-            set { _allowMultiple = value; }
+            get => _allowMultiple;
+            set => _allowMultiple = value;
         }
 
         public bool Inherited
         {
-            get { return _inherited; }
-            set { _inherited = value; }
+            get => _inherited;
+            set => _inherited = value;
         }
     }
 }

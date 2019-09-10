@@ -23,7 +23,6 @@ namespace System.Runtime.InteropServices
         //   manipulating _state.
 
         /// <summary>Specifies the handle to be wrapped.</summary>
-        [SuppressMessage("Microsoft.Security", "CA2111:PointersShouldNotBeVisible")]
         protected IntPtr handle;
         /// <summary>Combined ref count and closed/disposed flags (so we can atomically modify them).</summary>
         private volatile int _state;
@@ -50,7 +49,7 @@ namespace System.Runtime.InteropServices
             public const int Disposed = 0b10;
             public const int RefCount = unchecked(~0b11); // 2 bits reserved for closed/disposed; ref count gets 30 bits
             public const int RefCountOne = 1 << 2;
-        };
+        }
 
         /// <summary>Creates a SafeHandle class.</summary>
         protected SafeHandle(IntPtr invalidHandleValue, bool ownsHandle)

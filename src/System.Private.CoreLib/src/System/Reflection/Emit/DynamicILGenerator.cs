@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Buffers.Binary;
 using System.Diagnostics.SymbolStore;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
@@ -590,7 +589,7 @@ namespace System.Reflection.Emit
             m_code = dynamicILInfo.Code;
             m_localSignature = dynamicILInfo.LocalSignature;
             m_exceptionHeader = dynamicILInfo.Exceptions;
-            //m_exceptions = dynamicILInfo.Exceptions;
+            // m_exceptions = dynamicILInfo.Exceptions;
             m_scope = dynamicILInfo.DynamicScope;
 
             m_method = dynamicILInfo.DynamicMethod;
@@ -878,24 +877,15 @@ namespace System.Reflection.Emit
                 module, m_method.Name, (byte[])m_scope[m_methodSignature]!, new DynamicResolver(this));
         }
 
-        internal byte[] LocalSignature
-        {
-            get
-            {
-                if (m_localSignature == null)
-                    m_localSignature = SignatureHelper.GetLocalVarSigHelper().InternalGetSignatureArray();
-
-                return m_localSignature;
-            }
-        }
-        internal byte[] Exceptions { get { return m_exceptions; } }
-        internal byte[] Code { get { return m_code; } }
-        internal int MaxStackSize { get { return m_maxStackSize; } }
+        internal byte[] LocalSignature => m_localSignature ??= SignatureHelper.GetLocalVarSigHelper().InternalGetSignatureArray();
+        internal byte[] Exceptions => m_exceptions;
+        internal byte[] Code => m_code;
+        internal int MaxStackSize => m_maxStackSize;
         #endregion
 
         #region Public ILGenerator Methods
-        public DynamicMethod DynamicMethod { get { return m_method; } }
-        internal DynamicScope DynamicScope { get { return m_scope; } }
+        public DynamicMethod DynamicMethod => m_method;
+        internal DynamicScope DynamicScope => m_scope;
 
         public void SetCode(byte[]? code, int maxStackSize)
         {
@@ -989,15 +979,7 @@ namespace System.Reflection.Emit
     internal class DynamicScope
     {
         #region Private Data Members
-        internal List<object?> m_tokens;
-        #endregion
-
-        #region Constructor
-        internal DynamicScope()
-        {
-            m_tokens = new List<object?>();
-            m_tokens.Add(null);
-        }
+        internal readonly List<object?> m_tokens = new List<object?> { null };
         #endregion
 
         #region Internal Methods

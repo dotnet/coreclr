@@ -2,33 +2,21 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using Microsoft.Win32;
-using System.Collections.Generic;
+using System;
 using System.Diagnostics;
+using System.Security.Permissions;
+using BitOperations = Microsoft.Diagnostics.Tracing.Internal.BitOperations;
+#endif
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Numerics;
 using System.Runtime.InteropServices;
-using System.Security;
-#if ES_BUILD_STANDALONE
-using System.Security.Permissions;
-#endif
 #if CORECLR && PLATFORM_WINDOWS
 using Internal.Win32;
 #endif
-using System.Threading;
-using System;
-
-#if ES_BUILD_STANDALONE
-using BitOperations = Microsoft.Diagnostics.Tracing.Internal.BitOperations;
-#endif
-
-#if !ES_BUILD_AGAINST_DOTNET_V35
-using Contract = System.Diagnostics.Contracts.Contract;
-#else
-using Contract = Microsoft.Diagnostics.Contracts.Internal.Contract;
-#endif
-
 #if ES_BUILD_AGAINST_DOTNET_V35
 using Microsoft.Internal;       // for Tuple (can't define alias for open generic types so we "use" the whole namespace)
 #endif
@@ -44,9 +32,8 @@ namespace System.Diagnostics.Tracing
         None = 0,
         ETW,
         EventPipe
-    };
+    }
 
-    // New in CLR4.0
     internal enum ControllerCommand
     {
         // Strictly Positive numbers are for provider-specific commands, negative number are for 'shared' commands. 256
@@ -55,7 +42,7 @@ namespace System.Diagnostics.Tracing
         SendManifest = -1,
         Enable = -2,
         Disable = -3,
-    };
+    }
 
     /// <summary>
     /// Only here because System.Diagnostics.EventProvider needs one more extensibility hook (when it gets a
@@ -113,17 +100,16 @@ namespace System.Diagnostics.Tracing
         private const int s_etwAPIMaxRefObjCount = 8;
         private const int s_traceEventMaximumSize = 65482;
 
-        [SuppressMessage("Microsoft.Design", "CA1034:NestedTypesShouldNotBeVisible")]
         public enum WriteEventErrorCode : int
         {
-            //check mapping to runtime codes
+            // check mapping to runtime codes
             NoError = 0,
             NoFreeBuffers = 1,
             EventTooBig = 2,
             NullInput = 3,
             TooManyArgs = 4,
             Other = 5,
-        };
+        }
 
         // Because callbacks happen on registration, and we need the callbacks for those setup
         // we can't call Register in the constructor.
@@ -289,7 +275,7 @@ namespace System.Diagnostics.Tracing
                     if (sessionsChanged.Count == 0)
                         sessionsChanged.Add(new Tuple<SessionInfo, bool>(new SessionInfo(0, 0), true));
 
-                    foreach (var session in sessionsChanged)
+                    foreach (Tuple<SessionInfo, bool> session in sessionsChanged)
                     {
                         int sessionChanged = session.Item1.sessionIdBit;
                         int etwSessionId = session.Item1.etwSessionId;
@@ -355,11 +341,25 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        // New in CLR4.0
         protected virtual void OnControllerCommand(ControllerCommand command, IDictionary<string, string?>? arguments, int sessionId, int etwSessionId) { }
-        protected EventLevel Level { get { return (EventLevel)m_level; } set { m_level = (byte)value; } }
-        protected EventKeywords MatchAnyKeyword { get { return (EventKeywords)m_anyKeywordMask; } set { m_anyKeywordMask = unchecked((long)value); } }
-        protected EventKeywords MatchAllKeyword { get { return (EventKeywords)m_allKeywordMask; } set { m_allKeywordMask = unchecked((long)value); } }
+
+        protected EventLevel Level
+        {
+            get => (EventLevel)m_level;
+            set => m_level = (byte)value;
+        }
+
+        protected EventKeywords MatchAnyKeyword
+        {
+            get => (EventKeywords)m_anyKeywordMask;
+            set => m_anyKeywordMask = unchecked((long)value);
+        }
+
+        protected EventKeywords MatchAllKeyword
+        {
+            get => (EventKeywords)m_allKeywordMask;
+            set => m_allKeywordMask = unchecked((long)value);
+        }
 
         private static int FindNull(byte[] buffer, int idx)
         {
@@ -434,8 +434,7 @@ namespace System.Diagnostics.Tracing
             if (val > 1)
                 return;
 
-            if (sessionList == null)
-                sessionList = new List<SessionInfo>(8);
+            sessionList ??= new List<SessionInfo>(8);
 
             if (val == 1)
             {
@@ -471,11 +470,11 @@ namespace System.Diagnostics.Tracing
 #if (PLATFORM_WINDOWS && (ES_SESSION_INFO || !ES_BUILD_STANDALONE))
             int buffSize = 256;     // An initial guess that probably works most of the time.
             byte* buffer;
-            for (; ; )
+            while (true)
             {
-                var space = stackalloc byte[buffSize];
+                byte* space = stackalloc byte[buffSize];
                 buffer = space;
-                var hr = 0;
+                int hr = 0;
 
                 fixed (Guid* provider = &m_providerId)
                 {
@@ -504,7 +503,7 @@ namespace System.Diagnostics.Tracing
                 if (providerInstance->NextOffset == 0)
                     break;
                 Debug.Assert(0 <= providerInstance->NextOffset && providerInstance->NextOffset < buffSize);
-                var structBase = (byte*)providerInstance;
+                byte* structBase = (byte*)providerInstance;
                 providerInstance = (Interop.Advapi32.TRACE_PROVIDER_INSTANCE_INFO*)&structBase[providerInstance->NextOffset];
             }
 #else
@@ -549,7 +548,7 @@ namespace System.Diagnostics.Tracing
                                     {
                                         int startIdx = keywordIdx + 18;
                                         int endIdx = dataAsString.IndexOf('\0', startIdx);
-                                        string keywordBitString = dataAsString.Substring(startIdx, endIdx-startIdx);
+                                        string keywordBitString = dataAsString.Substring(startIdx, endIdx - startIdx);
                                         int keywordBit;
                                         if (0 < endIdx && int.TryParse(keywordBitString, out keywordBit))
                                             action(etwSessionId, 1L << keywordBit, ref sessionList);
@@ -609,7 +608,7 @@ namespace System.Diagnostics.Tracing
 #if ES_BUILD_STANDALONE
                 (new RegistryPermission(RegistryPermissionAccess.Read, regKey)).Assert();
 #endif
-                using (var key = Registry.LocalMachine.OpenSubKey(regKey))
+                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(regKey))
                 {
                     data = key?.GetValue(valueName, null) as byte[];
                     if (data != null)
@@ -683,7 +682,6 @@ namespace System.Diagnostics.Tracing
             return false;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1024:UsePropertiesWhereAppropriate")]
         public static WriteEventErrorCode GetLastWriteEventError()
         {
             return s_returnCode;
@@ -956,8 +954,6 @@ namespace System.Diagnostics.Tracing
         // <UsesUnsafeCode Name="Local v7 of type: Char*" />
         // <ReferencesCritical Name="Method: EncodeObject(Object&, EventData*, Byte*):String" Ring="1" />
         // </SecurityKernel>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity", Justification = "Performance-critical code")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
         internal unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, IntPtr eventHandle, Guid* activityID, Guid* childActivityID, params object?[] eventPayload)
         {
             WriteEventErrorCode status = WriteEventErrorCode.NoError;
@@ -1154,7 +1150,6 @@ namespace System.Diagnostics.Tracing
         // <SecurityKernel Critical="True" Ring="0">
         // <CallsSuppressUnmanagedCode Name="Interop.Advapi32.EventWrite(System.Int64,EventDescriptor&,System.UInt32,System.Void*):System.UInt32" />
         // </SecurityKernel>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
         protected internal unsafe bool WriteEvent(ref EventDescriptor eventDescriptor, IntPtr eventHandle, Guid* activityID, Guid* childActivityID, int dataCount, IntPtr data)
         {
             if (childActivityID != null)
@@ -1176,7 +1171,6 @@ namespace System.Diagnostics.Tracing
             return true;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1045:DoNotPassTypesByReference")]
         internal unsafe bool WriteEventRaw(
             ref EventDescriptor eventDescriptor,
             IntPtr eventHandle,

@@ -34,10 +34,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // in this table.  If the property is set, the new value will replace any existing token registrations.
         public T? InvocationList
         {
-            get
-            {
-                return m_invokeList;
-            }
+            get => m_invokeList;
             set
             {
                 lock (m_tokens)
@@ -133,7 +130,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             // take a dependency upon it.  (Simply applying the hash-value algorithm directly won't work in the
             // case of collisions, where we'll use a different token value).
 
-            uint handlerHashCode = 0;
+            uint handlerHashCode;
             Delegate[] invocationList = ((Delegate)(object)handler).GetInvocationList();
             if (invocationList.Length == 1)
             {

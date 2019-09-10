@@ -6,7 +6,6 @@
 // Don't override IsAlwaysNormalized because it is just a Unicode Transformation and could be confused.
 //
 
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -16,8 +15,8 @@ namespace System.Text
     {
         private const string base64Chars =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        //   0123456789111111111122222222223333333333444444444455555555556666
-        //             012345678901234567890123456789012345678901234567890123
+        // 0123456789111111111122222222223333333333444444444455555555556666
+        //              012345678901234567890123456789012345678901234567890123
 
         // These are the characters that can be directly encoded in UTF7.
         private const string directChars =
@@ -53,7 +52,7 @@ namespace System.Text
         }
 
         public UTF7Encoding(bool allowOptionals)
-            : base(UTF7_CODEPAGE) //Set the data item.
+            : base(UTF7_CODEPAGE) // Set the data item.
         {
             // Allowing optionals?
             _allowOptionals = allowOptionals;
@@ -328,7 +327,7 @@ namespace System.Text
             if (byteIndex < 0 || byteCount < 0)
                 throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
 
-            if ( bytes.Length - byteIndex < byteCount)
+            if (bytes.Length - byteIndex < byteCount)
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
 
             if (charIndex < 0 || charIndex > chars.Length)
@@ -492,8 +491,8 @@ namespace System.Text
                         if (!buffer.AddByte(_base64Bytes[(bits >> bitCount) & 0x3F]))
                         {
                             bitCount += 6;                              // We didn't use these bits
-                            currentChar = buffer.GetNextChar();              // We're processing this char still, but AddByte
-                                                                             // --'d it when we ran out of space
+                            buffer.GetNextChar();                       // We're processing this char still, but AddByte
+                                                                        // --'d it when we ran out of space
                             break;                                      // Stop here, not enough room for bytes
                         }
                     }
@@ -804,15 +803,10 @@ namespace System.Text
             }
 
             // Anything left in our encoder?
-            internal override bool HasState
-            {
-                get
-                {
-                    // NOTE: This forces the last -, which some encoder might not encode.  If we
-                    // don't see it we don't think we're done reading.
-                    return (this.bitCount != -1);
-                }
-            }
+            internal override bool HasState =>
+                // NOTE: This forces the last -, which some encoder might not encode.  If we
+                // don't see it we don't think we're done reading.
+                (this.bitCount != -1);
         }
 
         // Of all the amazing things... This MUST be Encoder so that our com name
@@ -838,52 +832,24 @@ namespace System.Text
             }
 
             // Anything left in our encoder?
-            internal override bool HasState
-            {
-                get
-                {
-                    return this.bits != 0 || this.bitCount != -1;
-                }
-            }
+            internal override bool HasState => this.bits != 0 || this.bitCount != -1;
         }
 
         // Preexisting UTF7 behavior for bad bytes was just to spit out the byte as the next char
         // and turn off base64 mode if it was in that mode.  We still exit the mode, but now we fallback.
         private sealed class DecoderUTF7Fallback : DecoderFallback
         {
-            // Construction.  Default replacement fallback uses no best fit and ? replacement string
-            public DecoderUTF7Fallback()
-            {
-            }
+            // Default replacement fallback uses no best fit and ? replacement string
 
-            public override DecoderFallbackBuffer CreateFallbackBuffer()
-            {
-                return new DecoderUTF7FallbackBuffer(this);
-            }
+            public override DecoderFallbackBuffer CreateFallbackBuffer() =>
+                new DecoderUTF7FallbackBuffer();
 
             // Maximum number of characters that this instance of this fallback could return
-            public override int MaxCharCount
-            {
-                get
-                {
-                    // returns 1 char per bad byte
-                    return 1;
-                }
-            }
+            public override int MaxCharCount => 1; // returns 1 char per bad byte
 
-            public override bool Equals(object? value)
-            {
-                if (value is DecoderUTF7Fallback)
-                {
-                    return true;
-                }
-                return false;
-            }
+            public override bool Equals(object? value) => value is DecoderUTF7Fallback;
 
-            public override int GetHashCode()
-            {
-                return 984;
-            }
+            public override int GetHashCode() => 984;
         }
 
         private sealed class DecoderUTF7FallbackBuffer : DecoderFallbackBuffer
@@ -892,11 +858,6 @@ namespace System.Text
             private char cFallback = (char)0;
             private int iCount = -1;
             private int iSize;
-
-            // Construction
-            public DecoderUTF7FallbackBuffer(DecoderUTF7Fallback fallback)
-            {
-            }
 
             // Fallback Methods
             public override bool Fallback(byte[] bytesUnknown, int index)
@@ -940,13 +901,7 @@ namespace System.Text
             }
 
             // Return # of chars left in this fallback
-            public override int Remaining
-            {
-                get
-                {
-                    return (iCount > 0) ? iCount : 0;
-                }
-            }
+            public override int Remaining => (iCount > 0) ? iCount : 0;
 
             // Clear the buffer
             public override unsafe void Reset()

@@ -4,7 +4,6 @@
 
 using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Threading;
 
 namespace System.Runtime.InteropServices
 {
@@ -16,7 +15,7 @@ namespace System.Runtime.InteropServices
             return LoadByName(libraryName,
                               JitHelpers.GetQCallAssemblyOnStack(ref rtAsm),
                               searchPath.HasValue,
-                              (uint) searchPath.GetValueOrDefault(),
+                              (uint)searchPath.GetValueOrDefault(),
                               throwOnError);
         }
 

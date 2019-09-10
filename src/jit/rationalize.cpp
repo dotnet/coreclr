@@ -139,7 +139,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
 #ifdef FEATURE_READYTORUN_COMPILER
                                      CORINFO_CONST_LOOKUP entryPoint,
 #endif
-                                     GenTreeArgList* args)
+                                     GenTreeCall::Use* args)
 {
     GenTree* const tree           = *use;
     GenTree* const treeFirstNode  = comp->fgGetFirstNode(tree);
@@ -165,7 +165,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
     // Replace "tree" with "call"
     if (parents.Height() > 1)
     {
-        parents.Index(1)->ReplaceOperand(use, call);
+        parents.Top(1)->ReplaceOperand(use, call);
     }
     else
     {
@@ -181,7 +181,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
     // 0 is current node, so start at 1
     for (int i = 1; i < parents.Height(); i++)
     {
-        parents.Index(i)->gtFlags |= (call->gtFlags & GTF_ALL_EFFECT) | GTF_CALL;
+        parents.Top(i)->gtFlags |= (call->gtFlags & GTF_ALL_EFFECT) | GTF_CALL;
     }
 
     // Since "tree" is replaced with "call", pop "tree" node (i.e the current node)
@@ -209,14 +209,14 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
 {
     GenTreeIntrinsic* intrinsic = (*use)->AsIntrinsic();
 
-    GenTreeArgList* args;
+    GenTreeCall::Use* args;
     if (intrinsic->gtOp.gtOp2 == nullptr)
     {
-        args = comp->gtNewArgList(intrinsic->gtGetOp1());
+        args = comp->gtNewCallArgs(intrinsic->gtGetOp1());
     }
     else
     {
-        args = comp->gtNewArgList(intrinsic->gtGetOp1(), intrinsic->gtGetOp2());
+        args = comp->gtNewCallArgs(intrinsic->gtGetOp1(), intrinsic->gtGetOp2());
     }
 
     RewriteNodeAsCall(use, parents, intrinsic->gtMethodHandle,
@@ -373,13 +373,10 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 GenTreeBlk*  storeBlk = nullptr;
                 unsigned int size     = varDsc->lvExactSize;
 
-                if (varDsc->lvStructGcCount != 0)
+                if (varDsc->HasGCPtr())
                 {
                     CORINFO_CLASS_HANDLE structHnd = varDsc->lvVerTypeInfo.GetClassHandle();
                     GenTreeObj*          objNode   = comp->gtNewObjNode(structHnd, location)->AsObj();
-                    unsigned int         slots     = roundUp(size, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
-
-                    objNode->SetGCInfo(varDsc->lvGcLayout, varDsc->lvStructGcCount, slots);
                     objNode->ChangeOper(GT_STORE_OBJ);
                     objNode->SetData(value);
                     comp->fgMorphUnsafeBlk(objNode);
@@ -387,7 +384,8 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 }
                 else
                 {
-                    storeBlk = new (comp, GT_STORE_BLK) GenTreeBlk(GT_STORE_BLK, TYP_STRUCT, location, value, size);
+                    storeBlk = new (comp, GT_STORE_BLK)
+                        GenTreeBlk(GT_STORE_BLK, TYP_STRUCT, location, value, comp->typGetBlkLayout(size));
                 }
                 storeBlk->gtFlags |= GTF_ASG;
                 storeBlk->gtFlags |= ((location->gtFlags | value->gtFlags) & GTF_ALL_EFFECT);
@@ -564,7 +562,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
 
     // First, remove any preceeding list nodes, which are not otherwise visited by the tree walk.
     //
-    // NOTE: GT_FIELD_LIST head nodes, and GT_LIST nodes used by phi nodes will in fact be visited.
+    // NOTE: GT_FIELD_LIST head nodes, and GT_LIST nodes used by GT_HWIntrinsic nodes will in fact be visited.
     for (GenTree* prev = node->gtPrev; prev != nullptr && prev->OperIsAnyList() && !(prev->OperIsFieldListHead());
          prev          = node->gtPrev)
     {
@@ -593,7 +591,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::Ge
     }
     else
     {
-        use = LIR::Use(BlockRange(), useEdge, parentStack.Index(1));
+        use = LIR::Use(BlockRange(), useEdge, parentStack.Top(1));
     }
 
     assert(node == use.Def());

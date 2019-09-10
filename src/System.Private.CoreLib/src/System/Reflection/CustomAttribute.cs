@@ -2,12 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 
 namespace System.Reflection
 {
@@ -440,9 +438,9 @@ namespace System.Reflection
         #endregion
 
         #region Public Members
-        public virtual Type AttributeType { get { return Constructor.DeclaringType!; } }
+        public virtual Type AttributeType => Constructor.DeclaringType!;
 
-        public virtual ConstructorInfo Constructor { get { return m_ctor; } }
+        public virtual ConstructorInfo Constructor => m_ctor;
 
         public virtual IList<CustomAttributeTypedArgument> ConstructorArguments
         {
@@ -965,7 +963,7 @@ namespace System.Reflection
             bool useObjectArray = (caType.IsValueType || caType.ContainsGenericParameters);
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : caType;
 
-            for (var i = 0; i < pcas.Count; i++)
+            for (int i = 0; i < pcas.Count; i++)
                 result.Add(pcas[i]);
 
             while (type != (RuntimeType)typeof(object) && type != null)
@@ -976,7 +974,7 @@ namespace System.Reflection
             }
 
             object[] typedResult = CreateAttributeArrayHelper(arrayType, result.Count);
-            for (var i = 0; i < result.Count; i++)
+            for (int i = 0; i < result.Count; i++)
             {
                 typedResult[i] = result[i];
             }
@@ -1008,7 +1006,7 @@ namespace System.Reflection
             bool useObjectArray = (caType.IsValueType || caType.ContainsGenericParameters);
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : caType;
 
-            for (var i = 0; i < pcas.Count; i++)
+            for (int i = 0; i < pcas.Count; i++)
                 result.Add(pcas[i]);
 
             while (method != null)
@@ -1019,7 +1017,7 @@ namespace System.Reflection
             }
 
             object[] typedResult = CreateAttributeArrayHelper(arrayType, result.Count);
-            for (var i = 0; i < result.Count; i++)
+            for (int i = 0; i < result.Count; i++)
             {
                 typedResult[i] = result[i];
             }
@@ -1156,7 +1154,7 @@ namespace System.Reflection
             RuntimeType arrayType = useObjectArray ? (RuntimeType)typeof(object) : attributeFilterType!;
 
             object[] result = CreateAttributeArrayHelper(arrayType, attributes.Count + pcaCount);
-            for (var i = 0; i < attributes.Count; i++)
+            for (int i = 0; i < attributes.Count; i++)
             {
                 result[i] = attributes[i];
             }
@@ -1417,7 +1415,7 @@ namespace System.Reflection
 
             if (mustBeInheritable)
             {
-                attributeUsageAttribute = CustomAttribute.GetAttributeUsage(attributeType);
+                attributeUsageAttribute = GetAttributeUsage(attributeType);
 
                 if (!attributeUsageAttribute.Inherited)
                     return false;
@@ -1431,9 +1429,7 @@ namespace System.Reflection
             {
                 if (derivedAttributes[i].GetType() == attributeType)
                 {
-                    if (attributeUsageAttribute == null)
-                        attributeUsageAttribute = CustomAttribute.GetAttributeUsage(attributeType);
-
+                    attributeUsageAttribute ??= GetAttributeUsage(attributeType);
                     return attributeUsageAttribute.AllowMultiple;
                 }
             }
@@ -1566,8 +1562,8 @@ namespace System.Reflection
             Debug.Assert(pca.BaseType == typeof(Attribute), "Pseudo CA Error");
             AttributeUsageAttribute usage = CustomAttribute.GetAttributeUsage(pca);
             Debug.Assert(usage.Inherited == false, "Pseudo CA Error");
-            //AllowMultiple is true for TypeForwardedToAttribute
-            //Debug.Assert(usage.AllowMultiple == false, "Pseudo CA Error");
+            // AllowMultiple is true for TypeForwardedToAttribute
+            // Debug.Assert(usage.AllowMultiple == false, "Pseudo CA Error");
         }
         #endregion
 

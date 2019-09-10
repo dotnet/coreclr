@@ -5,13 +5,11 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
-using System.Runtime.InteropServices;
 using System.Text;
-using Internal.Runtime.CompilerServices;
-
 #if ENABLE_WINRT
 using Internal.Runtime.Augments;
 #endif
+using Internal.Runtime.CompilerServices;
 
 namespace System.Globalization
 {
@@ -172,7 +170,7 @@ namespace System.Globalization
         {
             field |= Interop.Kernel32.LOCALE_RETURN_NUMBER;
             int value = 0;
-            GetLocaleInfoEx(localeName, field, (char*) &value, sizeof(int));
+            GetLocaleInfoEx(localeName, field, (char*)&value, sizeof(int));
             return value;
         }
 
@@ -381,8 +379,7 @@ namespace System.Globalization
                         {
                             // Found another ', so we have ''.  Need to add \' instead.
                             // 1st make sure we have our stringbuilder
-                            if (result == null)
-                                result = new StringBuilder(str, 0, i, str.Length * 2);
+                            result ??= new StringBuilder(str, 0, i, str.Length * 2);
 
                             // Append a \' and keep going (so we don't turn off quote mode)
                             result.Append("\\'");
@@ -404,8 +401,7 @@ namespace System.Globalization
                 {
                     // Found a \, need to change it to \\
                     // 1st make sure we have our stringbuilder
-                    if (result == null)
-                        result = new StringBuilder(str, 0, i, str.Length * 2);
+                    result ??= new StringBuilder(str, 0, i, str.Length * 2);
 
                     // Append our \\ to the string & continue
                     result.Append("\\\\");
@@ -413,8 +409,7 @@ namespace System.Globalization
                 }
 
                 // If we have a builder we need to add our character
-                if (result != null)
-                    result.Append(str[i]);
+                result?.Append(str[i]);
             }
 
             // Unchanged string? , just return input string
@@ -457,7 +452,7 @@ namespace System.Globalization
 
             // Since its in n;n;n;n;n format, we can always get the length quickly
             int[] values;
-            if (win32Str[win32Str.Length - 1] == '0')
+            if (win32Str[^1] == '0')
             {
                 // Trailing 0 gets dropped. 1;0 -> 1
                 values = new int[(win32Str.Length / 2)];
@@ -466,7 +461,7 @@ namespace System.Globalization
             {
                 // Need extra space for trailing zero 1 -> 1;0
                 values = new int[(win32Str.Length / 2) + 2];
-                values[values.Length - 1] = 0;
+                values[^1] = 0;
             }
 
             int i;
@@ -616,7 +611,7 @@ namespace System.Globalization
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 
-            char *pBuffer = stackalloc char[Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1]; // +1 for the null termination
+            char* pBuffer = stackalloc char[Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1]; // +1 for the null termination
             int length = Interop.Kernel32.LCIDToLocaleName(culture, pBuffer, Interop.Kernel32.LOCALE_NAME_MAX_LENGTH + 1, Interop.Kernel32.LOCALE_ALLOW_NEUTRAL_NAMES);
 
             if (length > 0)
@@ -703,7 +698,7 @@ namespace System.Globalization
                 Interop.Kernel32.EnumSystemLocalesEx(EnumAllSystemLocalesProc, flags, Unsafe.AsPointer(ref context), IntPtr.Zero);
             }
 
-            CultureInfo [] cultures = new CultureInfo[context.strings.Count];
+            CultureInfo[] cultures = new CultureInfo[context.strings.Count];
             for (int i = 0; i < cultures.Length; i++)
             {
                 cultures[i] = new CultureInfo(context.strings[i]);
@@ -717,15 +712,9 @@ namespace System.Globalization
             return GetLocaleInfo(cultureName, LocaleStringData.ConsoleFallbackName);
         }
 
-        internal bool IsFramework
-        {
-            get { return false; }
-        }
+        internal bool IsFramework => false;
 
-        internal bool IsWin32Installed
-        {
-            get { return true; }
-        }
+        internal bool IsWin32Installed => true;
 
         internal bool IsReplacementCulture
         {
@@ -739,7 +728,7 @@ namespace System.Globalization
                     Interop.Kernel32.EnumSystemLocalesEx(EnumAllSystemLocalesProc, Interop.Kernel32.LOCALE_REPLACEMENT, Unsafe.AsPointer(ref context), IntPtr.Zero);
                 }
 
-                for (int i=0; i<context.strings.Count; i++)
+                for (int i = 0; i < context.strings.Count; i++)
                 {
                     if (string.Compare(context.strings[i], _sWindowsName, StringComparison.OrdinalIgnoreCase) == 0)
                         return true;

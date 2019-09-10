@@ -73,13 +73,13 @@ namespace System.Reflection
         public virtual Type[] GetExportedTypes() { throw NotImplemented.ByDesign; }
         public virtual Type[] GetForwardedTypes() { throw NotImplemented.ByDesign; }
 
-        public virtual string? CodeBase { get { throw NotImplemented.ByDesign; } }
-        public virtual MethodInfo? EntryPoint { get { throw NotImplemented.ByDesign; } }
-        public virtual string? FullName { get { throw NotImplemented.ByDesign; } }
-        public virtual string ImageRuntimeVersion { get { throw NotImplemented.ByDesign; } }
+        public virtual string? CodeBase => throw NotImplemented.ByDesign;
+        public virtual MethodInfo? EntryPoint => throw NotImplemented.ByDesign;
+        public virtual string? FullName => throw NotImplemented.ByDesign;
+        public virtual string ImageRuntimeVersion => throw NotImplemented.ByDesign;
         public virtual bool IsDynamic => false;
-        public virtual string Location { get { throw NotImplemented.ByDesign; } }
-        public virtual bool ReflectionOnly { get { throw NotImplemented.ByDesign; } }
+        public virtual string Location => throw NotImplemented.ByDesign;
+        public virtual bool ReflectionOnly => throw NotImplemented.ByDesign;
         public virtual bool IsCollectible => true;
 
         public virtual ManifestResourceInfo? GetManifestResourceInfo(string resourceName) { throw NotImplemented.ByDesign; }
@@ -119,7 +119,7 @@ namespace System.Reflection
 
         public virtual event ModuleResolveEventHandler? ModuleResolve { add { throw NotImplemented.ByDesign; } remove { throw NotImplemented.ByDesign; } }
 
-        public virtual Module ManifestModule { get { throw NotImplemented.ByDesign; } }
+        public virtual Module ManifestModule => throw NotImplemented.ByDesign;
         public virtual Module? GetModule(string name) { throw NotImplemented.ByDesign; }
 
         public Module[] GetModules() => GetModules(getResourceModules: false);
@@ -148,8 +148,8 @@ namespace System.Reflection
         /*
           Returns true if the assembly was loaded from the global assembly cache.
         */
-        public virtual bool GlobalAssemblyCache { get { throw NotImplemented.ByDesign; } }
-        public virtual long HostContext { get { throw NotImplemented.ByDesign; } }
+        public virtual bool GlobalAssemblyCache => throw NotImplemented.ByDesign;
+        public virtual long HostContext => throw NotImplemented.ByDesign;
 
         public override bool Equals(object? o) => base.Equals(o);
         public override int GetHashCode() => base.GetHashCode();
@@ -174,10 +174,7 @@ namespace System.Reflection
             return (left is null) ? false : left.Equals(right);
         }
 
-        public static bool operator !=(Assembly? left, Assembly? right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(Assembly? left, Assembly? right) => !(left == right);
 
         public static string CreateQualifiedName(string? assemblyName, string? typeName) => typeName + ", " + assemblyName;
 

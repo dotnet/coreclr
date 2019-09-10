@@ -16,8 +16,7 @@ namespace System.Reflection
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
-            ParameterInfo? dummy;
-            return GetParameters(method, member, sig, out dummy, false);
+            return GetParameters(method, member, sig, out _, false);
         }
 
         internal static unsafe ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
@@ -88,10 +87,7 @@ namespace System.Reflection
             // Fill in empty ParameterInfos for those without tokens
             if (fetchReturnParameter)
             {
-                if (returnParameter == null)
-                {
-                    returnParameter = new RuntimeParameterInfo(sig, MetadataImport.EmptyImport, 0, -1, (ParameterAttributes)0, member);
-                }
+                returnParameter ??= new RuntimeParameterInfo(sig, MetadataImport.EmptyImport, 0, -1, (ParameterAttributes)0, member);
             }
             else
             {
@@ -131,7 +127,7 @@ namespace System.Reflection
         {
             get
             {
-                MethodBase? result = m_originalMember != null ? m_originalMember : MemberImpl as MethodBase;
+                MethodBase? result = m_originalMember ?? MemberImpl as MethodBase;
                 Debug.Assert(result != null);
                 return result;
             }
@@ -274,8 +270,8 @@ namespace System.Reflection
             }
         }
 
-        public override object? DefaultValue { get { return GetDefaultValue(false); } }
-        public override object? RawDefaultValue { get { return GetDefaultValue(true); } }
+        public override object? DefaultValue => GetDefaultValue(false);
+        public override object? RawDefaultValue => GetDefaultValue(true);
 
         private object? GetDefaultValue(bool raw)
         {
@@ -484,13 +480,7 @@ namespace System.Reflection
                 return null;
         }
 
-        public override int MetadataToken
-        {
-            get
-            {
-                return m_tkParamDef;
-            }
-        }
+        public override int MetadataToken => m_tkParamDef;
 
         public override Type[] GetRequiredCustomModifiers()
         {

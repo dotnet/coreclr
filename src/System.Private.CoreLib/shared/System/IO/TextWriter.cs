@@ -121,7 +121,7 @@ namespace System.IO
         [AllowNull]
         public virtual string NewLine
         {
-            get { return CoreNewLineStr; }
+            get => CoreNewLineStr;
             set
             {
                 if (value == null)
@@ -712,13 +712,7 @@ namespace System.IO
             {
             }
 
-            public override Encoding Encoding
-            {
-                get
-                {
-                    return Encoding.Unicode;
-                }
-            }
+            public override Encoding Encoding => Encoding.Unicode;
 
             public override void Write(char[] buffer, int index, int count)
             {
@@ -772,9 +766,9 @@ namespace System.IO
             public override string NewLine
             {
                 [MethodImpl(MethodImplOptions.Synchronized)]
-                get { return _out.NewLine; }
+                get => _out.NewLine;
                 [MethodImpl(MethodImplOptions.Synchronized)]
-                set { _out.NewLine = value; }
+                set => _out.NewLine = value;
             }
 
             [MethodImpl(MethodImplOptions.Synchronized)]

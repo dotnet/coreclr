@@ -39,10 +39,7 @@ namespace System.Globalization
         /// Internal method to provide a default intance of GregorianCalendar.
         /// Used by NLS+ implementation
         /// </summary>
-        internal static Calendar GetDefaultInstance()
-        {
-            return s_defaultInstance ?? (s_defaultInstance = new GregorianCalendar());
-        }
+        internal static Calendar GetDefaultInstance() => s_defaultInstance ??= new GregorianCalendar();
 
         public GregorianCalendar() : this(GregorianCalendarTypes.Localized)
         {
@@ -79,17 +76,12 @@ namespace System.Globalization
             }
         }
 
-        internal override CalendarId ID
-        {
-            get
-            {
-                // By returning different ID for different variations of GregorianCalendar,
-                // we can support the Transliterated Gregorian calendar.
-                // DateTimeFormatInfo will use this ID to get formatting information about
-                // the calendar.
-                return ((CalendarId)_type);
-            }
-        }
+        internal override CalendarId ID =>
+            // By returning different ID for different variations of GregorianCalendar,
+            // we can support the Transliterated Gregorian calendar.
+            // DateTimeFormatInfo will use this ID to get formatting information about
+            // the calendar.
+            ((CalendarId)_type);
 
         /// <summary>
         /// Gets the absolute date for the given Gregorian date. The absolute date means
@@ -158,12 +150,12 @@ namespace System.Globalization
             if (i >= 0)
             {
                 m = i % 12 + 1;
-                y = y + i / 12;
+                y += i / 12;
             }
             else
             {
                 m = 12 + (i + 1) % 12;
-                y = y + (i - 11) / 12;
+                y += (i - 11) / 12;
             }
 
             int[] daysArray = (y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) ? DaysToMonth366 : DaysToMonth365;

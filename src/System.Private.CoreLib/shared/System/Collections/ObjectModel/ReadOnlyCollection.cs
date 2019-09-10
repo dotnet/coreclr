@@ -24,15 +24,9 @@ namespace System.Collections.ObjectModel
             this.list = list;
         }
 
-        public int Count
-        {
-            get { return list.Count; }
-        }
+        public int Count => list.Count;
 
-        public T this[int index]
-        {
-            get { return list[index]; }
-        }
+        public T this[int index] => list[index];
 
         public bool Contains(T value)
         {
@@ -54,26 +48,14 @@ namespace System.Collections.ObjectModel
             return list.IndexOf(value);
         }
 
-        protected IList<T> Items
-        {
-            get
-            {
-                return list;
-            }
-        }
+        protected IList<T> Items => list;
 
-        bool ICollection<T>.IsReadOnly
-        {
-            get { return true; }
-        }
+        bool ICollection<T>.IsReadOnly => true;
 
         T IList<T>.this[int index]
         {
-            get { return list[index]; }
-            set
-            {
-                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
-            }
+            get => list[index];
+            set => ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }
 
         void ICollection<T>.Add(T value)
@@ -107,18 +89,9 @@ namespace System.Collections.ObjectModel
             return ((IEnumerable)list).GetEnumerator();
         }
 
-        bool ICollection.IsSynchronized
-        {
-            get { return false; }
-        }
+        bool ICollection.IsSynchronized => false;
 
-        object ICollection.SyncRoot
-        {
-            get
-            {
-                return (list is ICollection coll) ? coll.SyncRoot : this;
-            }
-        }
+        object ICollection.SyncRoot => list is ICollection coll ? coll.SyncRoot : this;
 
         void ICollection.CopyTo(Array array, int index)
         {
@@ -191,23 +164,14 @@ namespace System.Collections.ObjectModel
             }
         }
 
-        bool IList.IsFixedSize
-        {
-            get { return true; }
-        }
+        bool IList.IsFixedSize => true;
 
-        bool IList.IsReadOnly
-        {
-            get { return true; }
-        }
+        bool IList.IsReadOnly => true;
 
         object? IList.this[int index]
         {
-            get { return list[index]; }
-            set
-            {
-                ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
-            }
+            get => list[index];
+            set => ThrowHelper.ThrowNotSupportedException(ExceptionResource.NotSupported_ReadOnlyCollection);
         }
 
         int IList.Add(object? value)

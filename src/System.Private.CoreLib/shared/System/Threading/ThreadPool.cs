@@ -66,7 +66,7 @@ namespace System.Threading
 
                     var newQueues = new WorkStealingQueue[oldQueues.Length + 1];
                     Array.Copy(oldQueues, 0, newQueues, 0, oldQueues.Length);
-                    newQueues[newQueues.Length - 1] = queue;
+                    newQueues[^1] = queue;
                     if (Interlocked.CompareExchange(ref _queues, newQueues, oldQueues) == oldQueues)
                     {
                         break;
@@ -157,7 +157,7 @@ namespace System.Threading
                             // for the head to end up > than the tail, since you can't set any more bits than all of
                             // them.
                             //
-                            m_headIndex = m_headIndex & m_mask;
+                            m_headIndex &= m_mask;
                             m_tailIndex = tail = m_tailIndex & m_mask;
                             Debug.Assert(m_headIndex <= m_tailIndex);
                         }
@@ -212,7 +212,6 @@ namespace System.Threading
                 }
             }
 
-            [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
             public bool LocalFindAndPop(object obj)
             {
                 // Fast path: check the tail. If equal, we can skip the lock.
@@ -271,7 +270,6 @@ namespace System.Threading
 
             public object? LocalPop() => m_headIndex < m_tailIndex ? LocalPopCore() : null;
 
-            [SuppressMessage("Microsoft.Concurrency", "CA8001", Justification = "Reviewed for thread safety")]
             private object? LocalPopCore()
             {
                 while (true)
@@ -1259,7 +1257,7 @@ namespace System.Threading
             i = 0;
             foreach (object item in workitems)
             {
-                if (i < result.Length) //just in case someone calls us while the queues are in motion
+                if (i < result.Length) // just in case someone calls us while the queues are in motion
                     result[i] = item;
                 i++;
             }

@@ -32,7 +32,7 @@ namespace System
             List<Attribute> attributeList = new List<Attribute>();
             CopyToArrayList(attributeList, attributes, types);
 
-            //if this is an index we need to get the parameter types to help disambiguate
+            // if this is an index we need to get the parameter types to help disambiguate
             Type[] indexParamTypes = GetIndexParameterTypes(element);
 
 
@@ -61,7 +61,7 @@ namespace System
                 if (!usage.Inherited)
                     return false;
 
-                //if this is an index we need to get the parameter types to help disambiguate
+                // if this is an index we need to get the parameter types to help disambiguate
                 Type[] indexParamTypes = GetIndexParameterTypes(element);
 
                 PropertyInfo? baseProp = GetParentDefinition(element, indexParamTypes);
@@ -84,10 +84,7 @@ namespace System
 
             // for the current property get the base class of the getter and the setter, they might be different
             // note that this only works for RuntimeMethodInfo
-            MethodInfo? propAccessor = property.GetGetMethod(true);
-
-            if (propAccessor == null)
-                propAccessor = property.GetSetMethod(true);
+            MethodInfo? propAccessor = property.GetGetMethod(true) ?? property.GetSetMethod(true);
 
             RuntimeMethodInfo? rtPropAccessor = propAccessor as RuntimeMethodInfo;
 
@@ -102,9 +99,9 @@ namespace System
                     return rtPropAccessor.DeclaringType!.GetProperty(
                         property.Name,
                         BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly,
-                        null, //will use default binder
+                        null, // will use default binder
                         property.PropertyType,
-                        propertyParameters, //used for index properties
+                        propertyParameters, // used for index properties
                         null);
                 }
             }
@@ -238,8 +235,7 @@ namespace System
             List<Type> disAllowMultiple = new List<Type>();
             object?[] objAttr;
 
-            if (type == null)
-                type = typeof(Attribute);
+            type ??= typeof(Attribute);
 
             objAttr = param.GetCustomAttributes(type, false);
 
