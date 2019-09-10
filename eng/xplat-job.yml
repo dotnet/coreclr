@@ -7,6 +7,7 @@ parameters:
   helixType: '(unspecified)'
   container: ''
   crossrootfsDir: ''
+  stagedBuild: false
 
   # arcade-specific parameters
   condition: ''
@@ -28,10 +29,11 @@ jobs:
 
     condition: ${{ parameters.condition }}
     dependsOn:
-      - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-        - 'checkout_windows'
-      - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-        - 'checkout_unix'
+      - ${{ if ne(parameters.stagedBuild, true) }}:
+        - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
+          - 'checkout_windows'
+        - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
+          - 'checkout_unix'
       - ${{ if ne(parameters.dependsOn, '') }}:
         - ${{ parameters.dependsOn }}
 
