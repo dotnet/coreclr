@@ -8120,7 +8120,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
     GenTree* thisArg = recursiveTailCall->gtCallObjp;
     if (thisArg && !thisArg->IsNothingNode() && !thisArg->IsArgPlaceHolderNode())
     {
-        Statement* thisArgStmt = gtNewStmt(thisArg, callILOffset);
+        Statement* thisArgStmt = fgNewStmt(thisArg, callILOffset);
         fgInsertStmtBefore(block, earlyArgInsertionPoint, thisArgStmt);
     }
 
@@ -8178,7 +8178,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
             if ((earlyArg->gtFlags & GTF_LATE_ARG) != 0)
             {
                 // This is a setup node so we need to hoist it.
-                Statement* earlyArgStmt = gtNewStmt(earlyArg, callILOffset);
+                Statement* earlyArgStmt = fgNewStmt(earlyArg, callILOffset);
                 fgInsertStmtBefore(block, earlyArgInsertionPoint, earlyArgStmt);
             }
             else
@@ -8225,7 +8225,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
         var_types  thisType           = lvaTable[info.compThisArg].TypeGet();
         GenTree*   arg0               = gtNewLclvNode(lvaArg0Var, thisType);
         GenTree*   arg0Assignment     = gtNewAssignNode(arg0, gtNewLclvNode(info.compThisArg, thisType));
-        Statement* arg0AssignmentStmt = gtNewStmt(arg0Assignment, callILOffset);
+        Statement* arg0AssignmentStmt = fgNewStmt(arg0Assignment, callILOffset);
         fgInsertStmtBefore(block, paramAssignmentInsertionPoint, arg0AssignmentStmt);
     }
 
@@ -8266,7 +8266,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
                         GenTree* zero = gtNewZeroConNode(genActualType(lclType));
                         init          = gtNewAssignNode(lcl, zero);
                     }
-                    Statement* initStmt = gtNewStmt(init, callILOffset);
+                    Statement* initStmt = fgNewStmt(init, callILOffset);
                     fgInsertStmtBefore(block, lastStmt, initStmt);
                 }
             }
@@ -8359,7 +8359,7 @@ Statement* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
             GenTree*   tempSrc       = arg;
             GenTree*   tempDest      = gtNewLclvNode(tmpNum, tempSrc->gtType);
             GenTree*   tmpAssignNode = gtNewAssignNode(tempDest, tempSrc);
-            Statement* tmpAssignStmt = gtNewStmt(tmpAssignNode, callILOffset);
+            Statement* tmpAssignStmt = fgNewStmt(tmpAssignNode, callILOffset);
             fgInsertStmtBefore(block, tmpAssignmentInsertionPoint, tmpAssignStmt);
             argInTemp = gtNewLclvNode(tmpNum, tempSrc->gtType);
         }
@@ -8369,7 +8369,7 @@ Statement* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
         assert(paramDsc->lvIsParam);
         GenTree* paramDest       = gtNewLclvNode(originalArgNum, paramDsc->lvType);
         GenTree* paramAssignNode = gtNewAssignNode(paramDest, argInTemp);
-        paramAssignStmt          = gtNewStmt(paramAssignNode, callILOffset);
+        paramAssignStmt          = fgNewStmt(paramAssignNode, callILOffset);
 
         fgInsertStmtBefore(block, paramAssignmentInsertionPoint, paramAssignStmt);
     }
@@ -8434,7 +8434,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             assg = fgMorphTree(assg);
 
             // Create the assignment statement and insert it before the current statement.
-            Statement* assgStmt = gtNewStmt(assg, compCurStmt->m_ILoffsx);
+            Statement* assgStmt = fgNewStmt(assg, compCurStmt->m_ILoffsx);
             fgInsertStmtBefore(compCurBB, compCurStmt, assgStmt);
 
             // Return the temp.
@@ -16009,7 +16009,7 @@ void Compiler::fgMorphBlocks()
                         {
                             // gtNewTempAssign inserted additional statements after last
                             fgRemoveStmt(block, lastStmt);
-                            Statement* newStmt = gtNewStmt(tree, offset);
+                            Statement* newStmt = fgNewStmt(tree, offset);
                             fgInsertStmtAfter(block, pAfterStatement, newStmt);
                             lastStmt = newStmt;
                         }

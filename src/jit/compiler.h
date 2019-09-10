@@ -2443,8 +2443,7 @@ public:
     XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
     */
 
-    // Functions to create nodes
-    Statement* gtNewStmt(GenTree* expr = nullptr, IL_OFFSETX offset = BAD_IL_OFFSET);
+    // Functions to create nodes:
 
     // For unary opers.
     GenTree* gtNewOperNode(genTreeOps oper, var_types type, GenTree* op1, bool doSimplifications = TRUE);
@@ -2656,7 +2655,7 @@ public:
     Statement* gtCloneStmt(Statement* stmt)
     {
         GenTree* exprClone = gtCloneExpr(stmt->m_rootTree);
-        return gtNewStmt(exprClone, stmt->m_ILoffsx);
+        return fgNewStmt(exprClone, stmt->m_ILoffsx);
     }
 
     // Internal helper for cloning a call
@@ -5256,6 +5255,9 @@ public:
 public:
     static bool fgBlockContainsStatementBounded(BasicBlock* block, Statement* stmt, bool answerOnBoundExceeded = true);
 #endif
+
+public: // Used by indirectcalltransformer and objectalloc.
+    Statement* fgNewStmt(GenTree* expr = nullptr, IL_OFFSETX offset = BAD_IL_OFFSET);
 
 public: // Used by indirectcalltransformer.
     void fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt);

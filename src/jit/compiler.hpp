@@ -942,7 +942,17 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
 
 /*****************************************************************************/
 
-inline Statement* Compiler::gtNewStmt(GenTree* expr, IL_OFFSETX offset)
+//------------------------------------------------------------------------
+// fgNewStmt: Create a new Statement for the given expression tree.
+//
+// Arguments:
+//   expr - the tree to create a stmt for;
+//   offset  - the IL offset of this expr.
+//
+// Return Value:
+//    The new created statement with `expr`.
+//
+inline Statement* Compiler::fgNewStmt(GenTree* expr, IL_OFFSETX offset /* = BAD_IL_OFFSET */)
 {
     Statement* stmt = new (this->getAllocator(CMK_ASTNode)) Statement(expr, offset);
     return stmt;

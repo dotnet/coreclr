@@ -725,7 +725,7 @@ private:
         {
             elseBlock            = CreateAndInsertBasicBlock(BBJ_NONE, thenBlock);
             GenTreeCall* call    = origCall;
-            Statement*   newStmt = compiler->gtNewStmt(call);
+            Statement*   newStmt = compiler->fgNewStmt(call);
 
             call->gtFlags &= ~GTF_CALL_INLINE_CANDIDATE;
             call->SetIsGuarded();

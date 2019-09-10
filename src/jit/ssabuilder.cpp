@@ -697,7 +697,7 @@ void SsaBuilder::InsertPhi(BasicBlock* block, unsigned lclNum)
     asg->SetCosts(0, 0);
 
     // Create the statement and chain everything in linear order - PHI, LCL_VAR, ASG
-    Statement* stmt  = m_pCompiler->gtNewStmt(asg);
+    Statement* stmt  = m_pCompiler->fgNewStmt(asg);
     stmt->m_treeList = phi;
     phi->gtNext      = lhs;
     lhs->gtPrev      = phi;

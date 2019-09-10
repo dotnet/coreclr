@@ -725,7 +725,7 @@ Statement* Compiler::impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX 
 
     /* Allocate an 'expression statement' node */
 
-    Statement* stmt = gtNewStmt(tree, offset);
+    Statement* stmt = fgNewStmt(tree, offset);
 
     /* Append the statement to the current block's stmt list */
 
@@ -743,7 +743,7 @@ void Compiler::impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, Statement* 
 {
     /* Allocate an 'expression statement' node */
 
-    Statement* stmt = gtNewStmt(tree, offset);
+    Statement* stmt = fgNewStmt(tree, offset);
 
     /* Append the statement to the current block's stmt list */
 
@@ -770,7 +770,7 @@ void Compiler::impAssignTempGen(unsigned    tmp,
     {
         if (pAfterStmt)
         {
-            Statement* asgStmt = gtNewStmt(asg, ilOffset);
+            Statement* asgStmt = fgNewStmt(asg, ilOffset);
             fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
             *pAfterStmt = asgStmt;
         }
@@ -831,7 +831,7 @@ void Compiler::impAssignTempGen(unsigned             tmpNum,
     {
         if (pAfterStmt)
         {
-            Statement* asgStmt = gtNewStmt(asg, ilOffset);
+            Statement* asgStmt = fgNewStmt(asg, ilOffset);
             fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
             *pAfterStmt = asgStmt;
         }
@@ -1104,7 +1104,7 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
         // Append all the op1 of GT_COMMA trees before we evaluate op2 of the GT_COMMA tree.
         if (pAfterStmt)
         {
-            Statement* newStmt = gtNewStmt(dest->gtOp.gtOp1, ilOffset);
+            Statement* newStmt = fgNewStmt(dest->gtOp.gtOp1, ilOffset);
             fgInsertStmtAfter(block, *pAfterStmt, newStmt);
             *pAfterStmt = newStmt;
         }
@@ -1357,7 +1357,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         GenTree* asg = gtNewAssignNode(ptrSlot, src->gtOp.gtOp1);
         if (pAfterStmt)
         {
-            Statement* newStmt = gtNewStmt(asg, ilOffset);
+            Statement* newStmt = fgNewStmt(asg, ilOffset);
             fgInsertStmtAfter(block, *pAfterStmt, newStmt);
             *pAfterStmt = newStmt;
         }
@@ -1376,7 +1376,7 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         if (pAfterStmt)
         {
             // Insert op1 after '*pAfterStmt'
-            Statement* newStmt = gtNewStmt(src->gtOp.gtOp1, ilOffset);
+            Statement* newStmt = fgNewStmt(src->gtOp.gtOp1, ilOffset);
             fgInsertStmtAfter(block, *pAfterStmt, newStmt);
             *pAfterStmt = newStmt;
         }
@@ -2590,11 +2590,11 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
             // Report the debug info. impImportBlockCode won't treat the actual handler as exception block and thus
             // won't do it for us.
             impCurStmtOffs = newBlk->bbCodeOffs | IL_OFFSETX_STKBIT;
-            argStmt        = gtNewStmt(argAsg, impCurStmtOffs);
+            argStmt        = fgNewStmt(argAsg, impCurStmtOffs);
         }
         else
         {
-            argStmt = gtNewStmt(argAsg);
+            argStmt = fgNewStmt(argAsg);
         }
 
         fgInsertStmtAtEnd(newBlk, argStmt);
@@ -9292,7 +9292,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
                 if (endCatches)
                 {
-                    lastStmt            = gtNewStmt(endCatches);
+                    lastStmt            = fgNewStmt(endCatches);
                     endLFinStmt->m_next = lastStmt;
                     lastStmt->m_prev    = endLFinStmt;
                 }
@@ -9323,7 +9323,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
             callBlock->bbJumpDest = HBtab->ebdHndBeg; // This callBlock will call the "finally" handler.
             GenTree* endLFin      = new (this, GT_END_LFIN) GenTreeVal(GT_END_LFIN, TYP_VOID, finallyNesting);
-            endLFinStmt           = gtNewStmt(endLFin);
+            endLFinStmt           = fgNewStmt(endLFin);
             endCatches            = NULL;
 
             encFinallies++;
@@ -9383,7 +9383,7 @@ void Compiler::impImportLeave(BasicBlock* block)
 
         if (endCatches)
         {
-            lastStmt            = gtNewStmt(endCatches);
+            lastStmt            = fgNewStmt(endCatches);
             endLFinStmt->m_next = lastStmt;
             lastStmt->m_prev    = endLFinStmt;
         }

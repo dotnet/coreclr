@@ -527,7 +527,7 @@ unsigned int ObjectAllocator::MorphAllocObjNodeIntoStackAlloc(GenTreeAllocObj* a
         const bool isCopyBlock = false;
         tree = comp->gtNewBlkOpNode(tree, comp->gtNewIconNode(0), structSize, isVolatile, isCopyBlock);
 
-        Statement* newStmt = comp->gtNewStmt(tree);
+        Statement* newStmt = comp->fgNewStmt(tree);
 
         comp->fgInsertStmtBefore(block, stmt, newStmt);
     }
@@ -549,7 +549,7 @@ unsigned int ObjectAllocator::MorphAllocObjNodeIntoStackAlloc(GenTreeAllocObj* a
     tree = comp->gtNewFieldRef(TYP_I_IMPL, FieldSeqStore::FirstElemPseudoField, tree, 0);
     tree = comp->gtNewAssignNode(tree, allocObj->gtGetOp1());
 
-    Statement* newStmt = comp->gtNewStmt(tree);
+    Statement* newStmt = comp->fgNewStmt(tree);
 
     comp->fgInsertStmtBefore(block, stmt, newStmt);
 

@@ -6215,7 +6215,7 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
     compCurBB = preHead;
     hoist     = fgMorphTree(hoist);
 
-    Statement* hoistStmt       = gtNewStmt(hoist);
+    Statement* hoistStmt       = fgNewStmt(hoist);
     hoistStmt->m_compilerAdded = true;
 
     /* simply append the statement at the end of the preHead's list */

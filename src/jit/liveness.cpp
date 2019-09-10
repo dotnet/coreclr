@@ -992,7 +992,7 @@ void Compiler::fgExtendDbgLifetimes()
                     GenTree* initNode = gtNewAssignNode(varNode, zero);
 
                     // Create a statement for the initializer, sequence it, and append it to the current BB.
-                    Statement* initStmt = gtNewStmt(initNode);
+                    Statement* initStmt = fgNewStmt(initNode);
                     gtSetStmtInfo(initStmt);
                     fgSetStmtSeq(initStmt);
                     fgInsertStmtNearEnd(block, initStmt);

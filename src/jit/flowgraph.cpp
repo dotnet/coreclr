@@ -282,7 +282,7 @@ void Compiler::fgInstrumentMethod()
             GenTreeCall::Use* args = gtNewCallArgs(gtNewIconEmbMethHndNode(info.compMethodHnd));
             GenTree*          call = gtNewHelperCallNode(CORINFO_HELP_BBT_FCN_ENTER, TYP_VOID, args);
 
-            stmt = gtNewStmt(call);
+            stmt = fgNewStmt(call);
         }
         else
         {
@@ -374,7 +374,7 @@ void Compiler::fgInstrumentMethod()
         GenTree* relop = gtNewOperNode(GT_NE, TYP_INT, valueNode, gtNewIconNode(0, TYP_INT));
         GenTree* colon = new (this, GT_COLON) GenTreeColon(TYP_VOID, gtNewNothingNode(), call);
         GenTree* cond  = gtNewQmarkNode(TYP_VOID, relop, colon);
-        stmt           = gtNewStmt(cond);
+        stmt           = fgNewStmt(cond);
     }
 
     fgEnsureFirstBBisScratch();
@@ -600,7 +600,7 @@ void Compiler::fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt)
 //
 Statement* Compiler::fgNewStmtAtBeg(BasicBlock* block, GenTree* tree)
 {
-    Statement* stmt = gtNewStmt(tree);
+    Statement* stmt = fgNewStmt(tree);
     fgInsertStmtAtBeg(block, stmt);
     return stmt;
 }
@@ -654,7 +654,7 @@ void Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
 //
 Statement* Compiler::fgNewStmtAtEnd(BasicBlock* block, GenTree* tree)
 {
-    Statement* stmt = gtNewStmt(tree);
+    Statement* stmt = fgNewStmt(tree);
     fgInsertStmtAtEnd(block, stmt);
     return stmt;
 }
@@ -739,7 +739,7 @@ void Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
 //
 Statement* Compiler::fgNewStmtNearEnd(BasicBlock* block, GenTree* tree)
 {
-    Statement* stmt = gtNewStmt(tree);
+    Statement* stmt = fgNewStmt(tree);
     fgInsertStmtNearEnd(block, stmt);
     return stmt;
 }
@@ -9275,7 +9275,7 @@ void Compiler::fgAddInternal()
  */
 Statement* Compiler::fgNewStmtFromTree(GenTree* tree, BasicBlock* block, IL_OFFSETX offs)
 {
-    Statement* stmt = gtNewStmt(tree, offs);
+    Statement* stmt = fgNewStmt(tree, offs);
 
     if (fgStmtListThreaded)
     {
@@ -14554,7 +14554,7 @@ bool Compiler::fgOptimizeUncondBranchToSimpleCond(BasicBlock* block, BasicBlock*
 
     GenTree* cloned = gtCloneExpr(stmt->m_rootTree);
     noway_assert(cloned);
-    Statement* jmpStmt = gtNewStmt(cloned);
+    Statement* jmpStmt = fgNewStmt(cloned);
 
     block->bbJumpKind = BBJ_COND;
     block->bbJumpDest = target->bbJumpDest;
@@ -23413,7 +23413,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                         // Don't put GT_OBJ node under a GT_COMMA.
                         // Codegen can't deal with it.
                         // Just hang the address here in case there are side-effect.
-                        newStmt = gtNewStmt(gtUnusedValNode(argNode->gtOp.gtOp1), callILOffset);
+                        newStmt = fgNewStmt(gtUnusedValNode(argNode->gtOp.gtOp1), callILOffset);
                     }
                     else
                     {
@@ -23488,7 +23488,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                         // just append the arg node as an unused value.
                         if (newStmt == nullptr)
                         {
-                            newStmt = gtNewStmt(gtUnusedValNode(argNode), callILOffset);
+                            newStmt = fgNewStmt(gtUnusedValNode(argNode), callILOffset);
                         }
 
                         fgInsertStmtAfter(block, afterStmt, newStmt);
@@ -23533,7 +23533,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
         }
 
         tree    = fgGetSharedCCtor(exactClass);
-        newStmt = gtNewStmt(tree, callILOffset);
+        newStmt = fgNewStmt(tree, callILOffset);
         fgInsertStmtAfter(block, afterStmt, newStmt);
         afterStmt = newStmt;
     }
@@ -23541,7 +23541,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     // Insert the nullcheck statement now.
     if (nullcheck)
     {
-        newStmt = gtNewStmt(nullcheck, callILOffset);
+        newStmt = fgNewStmt(nullcheck, callILOffset);
         fgInsertStmtAfter(block, afterStmt, newStmt);
         afterStmt = newStmt;
     }
@@ -23595,7 +23595,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
                                               false,                                      // isVolatile
                                               false);                                     // not copyBlock
 
-                        newStmt = gtNewStmt(tree, callILOffset);
+                        newStmt = fgNewStmt(tree, callILOffset);
                         fgInsertStmtAfter(block, afterStmt, newStmt);
                         afterStmt = newStmt;
                     }
@@ -23737,7 +23737,7 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
 
         // Assign null to the local.
         GenTree*   nullExpr = gtNewTempAssign(tmpNum, gtNewZeroConNode(lclTyp));
-        Statement* nullStmt = gtNewStmt(nullExpr, callILOffset);
+        Statement* nullStmt = fgNewStmt(nullExpr, callILOffset);
 
         if (stmtAfter == nullptr)
         {
