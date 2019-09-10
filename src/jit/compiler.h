@@ -8922,6 +8922,7 @@ public:
 #ifdef DEBUG
     static unsigned s_compMethodsCount; // to produce unique label names
     unsigned        compGenTreeID;
+    unsigned        compStatementID;
     unsigned        compBasicBlockID;
 #endif
 

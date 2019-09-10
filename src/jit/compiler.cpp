@@ -5758,6 +5758,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     // Reset node and block ID counter
     compGenTreeID    = 0;
+    compStatementID  = 0;
     compBasicBlockID = 0;
 #endif
 
@@ -5945,7 +5946,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     if (compIsForInlining())
     {
-        compGenTreeID = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compGenTreeID   = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compStatementID = impInlineInfo->InlinerCompiler->compStatementID;
     }
 #endif
 
@@ -5955,6 +5957,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     if (compIsForInlining())
     {
         impInlineInfo->InlinerCompiler->compGenTreeID    = compGenTreeID;
+        impInlineInfo->InlinerCompiler->compStatementID  = compStatementID;
         impInlineInfo->InlinerCompiler->compBasicBlockID = compBasicBlockID;
     }
 #endif

@@ -955,6 +955,9 @@ inline GenTree::GenTree(genTreeOps oper, var_types type DEBUGARG(bool largeNode)
 inline Statement* Compiler::fgNewStmt(GenTree* expr, IL_OFFSETX offset /* = BAD_IL_OFFSET */)
 {
     Statement* stmt = new (this->getAllocator(CMK_ASTNode)) Statement(expr, offset);
+#ifdef DEBUG
+    stmt->m_stmtID = compStatementID++;
+#endif
     return stmt;
 }
 

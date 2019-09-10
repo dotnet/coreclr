@@ -5138,6 +5138,7 @@ struct Statement
 
 #ifdef DEBUG
     IL_OFFSET m_LastILoffs; // instr offset at end of stmt
+    unsigned  m_stmtID;
 #endif
 
     Statement* m_next;
