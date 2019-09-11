@@ -177,7 +177,7 @@ namespace CoreclrTestLib
             {
                 int ppid = process.Id;
 
-                var processEntry = new Kernel32.ProcessEntry32 { Size = sizeof(Kernel32.ProcessEntry32) };
+                var processEntry = new Kernel32.ProcessEntry32 { Size = Marshal.SizeOf<Kernel32.ProcessEntry32>() };
 
                 bool success = Kernel32.Process32First(snapshot, ref processEntry);
                 while (success)
