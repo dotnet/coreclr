@@ -238,9 +238,7 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
 
     // } while (callTarget != IntPtr.Zero);
     pCode->EmitLDARG(ARG_CALL_TARGET);
-    pCode->EmitLDC(0);
-    pCode->EmitCONV_I();
-    pCode->EmitBNE_UN(loopStart);
+    pCode->EmitBRTRUE(loopStart);
 
     // }
     pCode->EmitLEAVE(afterTryFinally);
