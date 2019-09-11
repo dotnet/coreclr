@@ -579,7 +579,7 @@ const bool dspGCtbls = true;
 #define DISPTREE(t)
 #define DISPRANGE(range)
 #define DISPTREERANGE(range, t)
-#define DISPSTMTLIST(firstStmt)                                                                                            \
+#define DISPSTMTLIST(firstStmt)
 #define VERBOSE 0
 #endif // !DEBUG
 
