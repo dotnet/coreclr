@@ -937,7 +937,7 @@ void Rationalizer::DoPhase()
             continue;
         }
 
-        for (Statement* statement = firstStatement; statement != nullptr; statement = statement->m_next)
+        for (Statement* statement : StatementList(firstStatement))
         {
             assert(statement->m_treeList != nullptr);
             assert(statement->m_treeList->gtPrev == nullptr);

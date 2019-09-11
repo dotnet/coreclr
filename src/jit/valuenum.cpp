@@ -5657,7 +5657,7 @@ void Compiler::fgValueNumber()
         for (BasicBlock* blk = fgFirstBB; blk != nullptr; blk = blk->bbNext)
         {
             // Now iterate over the block's statements, and their trees.
-            for (Statement* stmt = blk->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
+            for (Statement* stmt : StatementList(blk->FirstNonPhiDef()))
             {
                 for (GenTree* tree = stmt->m_treeList; tree != nullptr; tree = tree->gtNext)
                 {

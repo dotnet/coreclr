@@ -15588,9 +15588,9 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(cons
     if (fgRemoveRestOfBlock)
     {
         // Remove the rest of the stmts in the block
-        for (stmt = stmt->m_next; stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* removeStmt : StatementList(stmt->m_next))
         {
-            fgRemoveStmt(block, stmt);
+            fgRemoveStmt(block, removeStmt);
         }
 
         // The rest of block has been removed and we will always throw an exception.

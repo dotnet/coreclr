@@ -3921,7 +3921,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         if (verbose)
         {
             printf("*** creating GC Poll in block " FMT_BB "\n", block->bbNum);
-            gtDispStmtList(block->bbStmtList);
+            gtDispBlockStmts(block);
         }
 #endif // DEBUG
     }
@@ -4058,11 +4058,11 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
         if (verbose)
         {
             printf("*** creating inlined GC Poll in top block " FMT_BB "\n", top->bbNum);
-            gtDispStmtList(top->bbStmtList);
+            gtDispBlockStmts(top);
             printf(" poll block is " FMT_BB "\n", poll->bbNum);
-            gtDispStmtList(poll->bbStmtList);
+            gtDispBlockStmts(poll);
             printf(" bottom block is " FMT_BB "\n", bottom->bbNum);
-            gtDispStmtList(bottom->bbStmtList);
+            gtDispBlockStmts(bottom);
         }
 #endif // DEBUG
     }
@@ -15053,7 +15053,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     {
         // Dump out the newStmtList that we created
         printf("\nfgOptimizeBranch added these statements(s) at the end of " FMT_BB ":\n", bJump->bbNum);
-        for (Statement* stmt = newStmtList; stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* stmt : StatementList(newStmtList))
         {
             gtDispStmt(stmt);
         }
@@ -19250,7 +19250,7 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
             break;
     }
 
-    for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->m_next)
+    for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
     {
         unsigned char cost = stmt->GetCostSz();
         if (cost < MAX_COST)
@@ -20551,11 +20551,10 @@ void Compiler::fgDumpBlock(BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        Statement* firstStmt = block->firstStmt();
-        for (Statement* stmt = firstStmt; stmt != nullptr; stmt = stmt->m_next)
+        for (Statement* stmt : block->Statements())
         {
             fgDumpStmtTree(stmt, block->bbNum);
-            if (stmt == firstStmt)
+            if (stmt == block->firstStmt())
             {
                 block->bbStmtNum = compCurStmtNum; // Set the block->bbStmtNum
             }

@@ -19460,7 +19460,7 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*      
         }
     }
 
-    for (Statement* stmt = impStmtList; stmt != nullptr; stmt = stmt->m_next)
+    for (Statement* stmt : StatementList(impStmtList))
     {
         GenTree* expr = stmt->m_rootTree;
         if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))

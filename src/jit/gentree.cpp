@@ -11499,9 +11499,9 @@ void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
     gtDispTree(stmt->m_rootTree);
 }
 
-void Compiler::gtDispStmtList(Statement* stmts)
+void Compiler::gtDispBlockStmts(BasicBlock* block)
 {
-    for (Statement* stmt = stmts; stmt != nullptr; stmt = stmt->m_next)
+    for (Statement* stmt : block->Statements())
     {
         gtDispStmt(stmt);
         printf("\n");
