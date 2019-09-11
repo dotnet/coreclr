@@ -771,7 +771,8 @@ void Compiler::impAssignTempGen(unsigned    tmp,
         if (pAfterStmt)
         {
             Statement* asgStmt = gtNewStmt(asg, ilOffset);
-            *pAfterStmt        = fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
+            fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
+            *pAfterStmt = asgStmt;
         }
         else
         {
@@ -831,7 +832,8 @@ void Compiler::impAssignTempGen(unsigned             tmpNum,
         if (pAfterStmt)
         {
             Statement* asgStmt = gtNewStmt(asg, ilOffset);
-            *pAfterStmt        = fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
+            fgInsertStmtAfter(block, *pAfterStmt, asgStmt);
+            *pAfterStmt = asgStmt;
         }
         else
         {
@@ -1102,7 +1104,9 @@ GenTree* Compiler::impAssignStruct(GenTree*             dest,
         // Append all the op1 of GT_COMMA trees before we evaluate op2 of the GT_COMMA tree.
         if (pAfterStmt)
         {
-            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(dest->gtOp.gtOp1, ilOffset));
+            Statement* newStmt = gtNewStmt(dest->gtOp.gtOp1, ilOffset);
+            fgInsertStmtAfter(block, *pAfterStmt, newStmt);
+            *pAfterStmt = newStmt;
         }
         else
         {
@@ -1353,7 +1357,9 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         GenTree* asg = gtNewAssignNode(ptrSlot, src->gtOp.gtOp1);
         if (pAfterStmt)
         {
-            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(asg, ilOffset));
+            Statement* newStmt = gtNewStmt(asg, ilOffset);
+            fgInsertStmtAfter(block, *pAfterStmt, newStmt);
+            *pAfterStmt = newStmt;
         }
         else
         {
@@ -1370,7 +1376,9 @@ GenTree* Compiler::impAssignStructPtr(GenTree*             destAddr,
         if (pAfterStmt)
         {
             // Insert op1 after '*pAfterStmt'
-            *pAfterStmt = fgInsertStmtAfter(block, *pAfterStmt, gtNewStmt(src->gtOp.gtOp1, ilOffset));
+            Statement* newStmt = gtNewStmt(src->gtOp.gtOp1, ilOffset);
+            fgInsertStmtAfter(block, *pAfterStmt, newStmt);
+            *pAfterStmt = newStmt;
         }
         else if (impLastStmt != nullptr)
         {

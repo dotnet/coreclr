@@ -5268,10 +5268,10 @@ private:
     void fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt);
     Statement* fgNewStmtAtBeg(BasicBlock* block, GenTree* tree);
 
-    Statement* fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
+    void fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
 
-public: // Used by linear scan register allocation
-    Statement* fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
+public: // Used by objectalloc.
+    void fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
 
 private:
     Statement* fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAfter, Statement* stmtList);

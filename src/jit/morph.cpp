@@ -16009,7 +16009,9 @@ void Compiler::fgMorphBlocks()
                         {
                             // gtNewTempAssign inserted additional statements after last
                             fgRemoveStmt(block, lastStmt);
-                            lastStmt = fgInsertStmtAfter(block, pAfterStatement, gtNewStmt(tree, offset));
+                            Statement* newStmt = gtNewStmt(tree, offset);
+                            fgInsertStmtAfter(block, pAfterStatement, newStmt);
+                            lastStmt = newStmt;
                         }
 
                         // make sure that copy-prop ignores this assignment.
