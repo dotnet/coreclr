@@ -124,10 +124,10 @@ namespace System
         {
             get
             {
-                Interop.PROCESS_MEMORY_COUNTERS memoryCounters = default;
-                memoryCounters.cb = (uint)(sizeof(Interop.PROCESS_MEMORY_COUNTERS));
+                Interop.Kernel32.PROCESS_MEMORY_COUNTERS memoryCounters = default;
+                memoryCounters.cb = (uint)(sizeof(Interop.Kernel32.PROCESS_MEMORY_COUNTERS));
 
-                if (!Interop.Kernel32.K32GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), ref memoryCounters, memoryCounters.cb))
+                if (!Interop.Kernel32.GetProcessMemoryInfo(Interop.Kernel32.GetCurrentProcess(), ref memoryCounters, memoryCounters.cb))
                 {
                     return 0;
                 }

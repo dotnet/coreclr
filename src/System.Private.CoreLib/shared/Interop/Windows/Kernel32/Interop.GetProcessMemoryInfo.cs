@@ -7,24 +7,24 @@ using System.Runtime.InteropServices;
 
 internal partial class Interop
 {
-    [StructLayout(LayoutKind.Sequential)]
-    internal struct PROCESS_MEMORY_COUNTERS
-    {
-        public uint cb;
-        public uint PageFaultCount;
-        public UIntPtr PeakWorkingSetSize;
-        public UIntPtr WorkingSetSize;
-        public UIntPtr QuotaPeakPagedPoolUsage;
-        public UIntPtr QuotaPagedPoolUsage;
-        public UIntPtr QuotaPeakNonPagedPoolUsage;
-        public UIntPtr QuotaNonPagedPoolUsage;
-        public UIntPtr PagefileUsage;
-        public UIntPtr PeakPagefileUsage;
-    }
-
     internal partial class Kernel32
     {
-        [DllImport(Libraries.Kernel32)]
-        internal static extern bool K32GetProcessMemoryInfo(IntPtr Process, ref PROCESS_MEMORY_COUNTERS ppsmemCounters, uint cb);
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct PROCESS_MEMORY_COUNTERS
+        {
+            public uint cb;
+            public uint PageFaultCount;
+            public UIntPtr PeakWorkingSetSize;
+            public UIntPtr WorkingSetSize;
+            public UIntPtr QuotaPeakPagedPoolUsage;
+            public UIntPtr QuotaPagedPoolUsage;
+            public UIntPtr QuotaPeakNonPagedPoolUsage;
+            public UIntPtr QuotaNonPagedPoolUsage;
+            public UIntPtr PagefileUsage;
+            public UIntPtr PeakPagefileUsage;
+        }
+
+        [DllImport(Libraries.Kernel32, EntryPoint="K32GetProcessMemoryInfo")]
+        internal static extern bool GetProcessMemoryInfo(IntPtr Process, ref PROCESS_MEMORY_COUNTERS ppsmemCounters, uint cb);
     }
 }
