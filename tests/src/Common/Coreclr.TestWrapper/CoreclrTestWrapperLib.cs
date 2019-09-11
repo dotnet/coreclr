@@ -131,11 +131,12 @@ namespace CoreclrTestLib
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
             {
                 int pid = process.Id;
-
+                Console.WriteLine($"Aborting process {pid} to generate dump");
                 int status = libSystem.kill(pid, libSystem.SIGABRT);
 
                 if (status == 0)
                 {
+                    Console.WriteLine($"Copying dump for {pid} to {path}.");
                     File.Copy($"/cores/core.{pid}", path);
                 }
             }
@@ -263,7 +264,7 @@ namespace CoreclrTestLib
             {
                 Dictionary<int, int> processParents = new Dictionary<int, int>();
 
-                List<int> possibleCoreRunProcesses = new List<int>();
+                List<int> possibleChildProcess = new List<int>();
 
                 bool seenHeader = false;
                 while (!ps.StandardOutput.EndOfStream)
@@ -282,14 +283,14 @@ namespace CoreclrTestLib
                         processParents.Add(pid, int.Parse(match.Groups[2].Value));
                         if (match.Groups[3].Value.Contains(childName) && pid != Process.GetCurrentProcess().Id)
                         {
-                            possibleCoreRunProcesses.Add(pid);
+                            possibleChildProcess.Add(pid);
                         }
                     }
                 }
 
-                foreach (int corerun in possibleCoreRunProcesses)
+                foreach (int child in possibleChildProcess)
                 {
-                    int ancestor = processParents[corerun];
+                    int ancestor = processParents[child];
 
                     while (ancestor != process.Id)
                     {
@@ -302,11 +303,14 @@ namespace CoreclrTestLib
 
                     if (ancestor == process.Id)
                     {
-                        child = Process.GetProcessById(corerun);
+                        Console.WriteLine($"Found child process with the name: {childName}. Pid {child}.");
+                        child = Process.GetProcessById(child);
                         return true;
                     }
                 }
             }
+
+            Console.WriteLine($"Did not find child process with the name: {childName}");
 
             return false;
         }
