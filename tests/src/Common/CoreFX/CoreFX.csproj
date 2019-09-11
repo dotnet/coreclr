@@ -1,16 +1,23 @@
-<Project Sdk="Microsoft.NET.Sdk">
+<Project>
+
+  <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
   <PropertyGroup>
       <RestoreOutputPath>$(SourceDir)Common\CoreFX\obj</RestoreOutputPath>
       <Language>C#</Language>
       <TargetFramework>netcoreapp3.0</TargetFramework>
-      <TargetFramework Condition="'$(SetTFMForRestore)'=='true'">netcoreapp5.0</TargetFramework>
       <CLRTestKind>SharedLibrary</CLRTestKind>
       <IsTestProject>false</IsTestProject>
       <MicrosoftDiagnosticsRuntimePackageVersion>1.0.5</MicrosoftDiagnosticsRuntimePackageVersion>
-      <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
-      <OutputType>Exe</OutputType>
+      <OutputType>Library</OutputType>
+      <SelfContained>true</SelfContained>
       <ProjectDepsFileName>Microsoft.NETCore.App.deps.json</ProjectDepsFileName>
       <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+      <IncludeMainProjectInDepsFile>false</IncludeMainProjectInDepsFile>
+      <NuGetTargetMoniker>.NETCoreApp,Version=v3.0</NuGetTargetMoniker>
+      <NuGetTargetMonikerShort>netcoreapp3.0</NuGetTargetMonikerShort>
+      <GenerateDependencyFile>true</GenerateDependencyFile>
+      <RuntimeFrameworkVersion>$(MicrosoftNETCoreAppVersion)</RuntimeFrameworkVersion>
   </PropertyGroup>
 
   <!-- Switch RuntimeIdentifier according to currently targeted OSGroup -->
@@ -21,8 +28,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <FrameworkReference Include="Microsoft.NETCore.App" IsImplicitlyDefined="true" Pack="false" PrivateAssets="All" Condition="('$(_TargetFrameworkVersionWithoutV)' != '') And ('$(_TargetFrameworkVersionWithoutV)' &gt;= '3.0')"
-                        Version="$(MicrosoftNETCoreAppVersion)" />
     <!-- Microsoft.Private.CoreFx.OOB is a meta-package that contains references to most of what we need -->
     <PackageReference Include="Microsoft.Private.CoreFx.OOB" Version="$(MicrosoftPrivateCoreFxNETCoreAppVersion)" />
 
@@ -35,6 +40,7 @@
     <!-- hostpolicy.dll -->
     <PackageReference Include="Microsoft.NETCore.DotNetHostPolicy" Version="$(MicrosoftNETCoreAppVersion)" />
 
+    <KnownFrameworkReference Remove="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
   <!-- Target SetupTestingHost needs to run after "AfterResolveReferences" so @(ReferenceCopyLocalPaths) is
@@ -43,6 +49,10 @@
   -->
 
   <Target Name="SetupTestingHost" DependsOnTargets="ResolveAssemblyReferences">
+
+    <MSBuild Projects="$(MSBuildProjectFile)"
+             Targets="Publish"
+             Properties="RuntimeIdentifier=$(RuntimeIdentifier);PublishDir=$(NETCoreAppTestSharedFrameworkPath)" />
 
     <Error Condition="'$(CORE_ROOT)' == ''"
            Text="CORE_ROOT variable is not set." />
@@ -125,4 +135,13 @@
   <PropertyGroup>
     <ProjectAssetsFile>$(SourceDir)Common\CoreFX\obj\project.assets.json</ProjectAssetsFile>
   </PropertyGroup>
+
+  <Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+  <Target Name="CoreCompile">
+    <ItemGroup>
+      <IntermediateAssembly Remove="@(IntermediateAssembly)" />
+    </ItemGroup>
+  </Target>
+
 </Project>

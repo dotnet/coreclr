@@ -384,26 +384,6 @@ namespace $([System.String]::Copy($(Category)).Replace(".","_").Replace("\","").
     <MSBuild Projects="$(MSBuildThisFileDirectory)src\Common\CoreFX\CoreFX.csproj"
              Targets="SetupTestingHost"
              Properties="OutputPath=$(NETCoreAppTestSharedFrameworkPath)" />
-
-    <MSBuild Projects="$(MSBuildProjectFile)"
-             Targets="GenerateTestSharedFrameworkDepsFile"/>
-  </Target>
-
-  <!-- After we copied all the framework libraries we need to generate a deps.json file for the shared test framework -->
-  <Target Name="GenerateTestSharedFrameworkDepsFile">
-    <ItemGroup>
-      <!-- This is for HostPolicy, CoreCLR and Jit dependencies to continue to remain inside of the deps.json -->
-      <ExceptionForDepsJson Include="microsoft.netcore.app" />
-
-      <!-- TODO: We should see about generating this from scratch instead of relying on a previous deps file as a template -->
-      <_sharedFrameworkDepsJson Include="$(DotnetCliPath)\shared\Microsoft.NETCore.App\*\Microsoft.NETCore.App.deps.json" />
-    </ItemGroup>
-
-    <PropertyGroup>
-      <_OriginalDepsJsonPath>%(_sharedFrameworkDepsJson.FullPath)</_OriginalDepsJsonPath>
-      <_OutputTestSharedFrameworkDepsPath>$(NETCoreAppTestSharedFrameworkPath)\Microsoft.NETCore.App.deps.json</_OutputTestSharedFrameworkDepsPath>
-    </PropertyGroup>
-
   </Target>
 
   <Target Name="Build">
