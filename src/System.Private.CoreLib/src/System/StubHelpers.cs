@@ -1744,9 +1744,6 @@ namespace System.StubHelpers
 #endif
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal static extern IntPtr ReturnAddress();
-
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern IntPtr NextCallReturnAddress();
     }  // class StubHelpers
 }

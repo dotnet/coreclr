@@ -5,6 +5,7 @@
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
+using System.StubHelpers;
 using Internal.Runtime.CompilerServices;
 
 namespace System.Runtime.CompilerServices
@@ -222,6 +223,43 @@ namespace System.Runtime.CompilerServices
         private static extern void FreeTailCallArgBuffer();
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern IntPtr GetTailCallTls();
+        private static unsafe extern TailCallTls* GetTailCallInfo(IntPtr retAddrSlot, IntPtr* retAddr);
+
+        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
+        private delegate void CallTargetDelegate(IntPtr argsBuffer, IntPtr retVal);
+
+        private static unsafe void DispatchTailCalls(
+            IntPtr callersRetAddrSlot, IntPtr callTarget, IntPtr retVal)
+        {
+            IntPtr callersRetAddr;
+            TailCallTls* tls = GetTailCallInfo(callersRetAddrSlot, &callersRetAddr);
+            TailCallFrame* prevFrame = tls->Frame;
+            if (callersRetAddr == prevFrame->ReturnAddress)
+            {
+                prevFrame->NextCall = callTarget;
+                return;
+            }
+
+            TailCallFrame newFrame;
+            newFrame.Prev = prevFrame;
+
+            try
+            {
+                tls->Frame = &newFrame;
+
+                do
+                {
+                    newFrame.NextCall = IntPtr.Zero;
+                    var callTargetDel = Marshal.GetDelegateForFunctionPointer<CallTargetDelegate>(callTarget);
+                    newFrame.ReturnAddress = StubHelpers.StubHelpers.NextCallReturnAddress();
+                    callTargetDel(tls->ArgBuffer, retVal);
+                    callTarget = newFrame.NextCall;
+                } while (callTarget != IntPtr.Zero);
+            }
+            finally
+            {
+                tls->Frame = prevFrame;
+            }
+        }
     }
 }

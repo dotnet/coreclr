@@ -5404,6 +5404,7 @@ private:
         GenTreeCall* call,
         CORINFO_TAILCALL_HELP& help);
     GenTree* fgGetDirectCallTargetAddress(GenTreeCall* directCall);
+    GenTree* fgGetMethodAddress(CORINFO_METHOD_HANDLE methHnd, CORINFO_ACCESS_FLAGS flags);
 
     GenTree* fgMorphPotentialTailCall(GenTreeCall* call);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);

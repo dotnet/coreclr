@@ -566,6 +566,9 @@ const bool dspGCtbls = true;
 #define DISPTREERANGE(range, t)                                                                                        \
     if (JitTls::GetCompiler()->verbose)                                                                                \
         JitTls::GetCompiler()->gtDispTreeRange(range, t);
+#define DISPSTMTLIST(firstStmt)                                                                                        \
+    if (JitTls::GetCompiler()->verbose)                                                                                \
+        JitTls::GetCompiler()->gtDispStmtList(firstStmt);
 #define VERBOSE JitTls::GetCompiler()->verbose
 #else // !DEBUG
 #define JITDUMP(...)
@@ -576,6 +579,7 @@ const bool dspGCtbls = true;
 #define DISPTREE(t)
 #define DISPRANGE(range)
 #define DISPTREERANGE(range, t)
+#define DISPSTMTLIST(firstStmt)                                                                                            \
 #define VERBOSE 0
 #endif // !DEBUG
 

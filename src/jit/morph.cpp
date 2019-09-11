@@ -7506,7 +7506,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     info.compCompHnd->reportTailCallDecision(nullptr,
                                              (call->gtCallType == CT_USER_FUNC) ? call->gtCallMethHnd : nullptr,
                                              call->IsTailPrefixedCall(), tailCallResult, nullptr);
-
     // Now actually morph the call.
     compTailCallUsed = true;
     // This will prevent inlining this call.
@@ -7627,12 +7626,12 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     else
     {
         fgMorphCall(call);
-    }
 
-    // Fast tail call: in case of fast tail calls, we need a jmp epilog and
-    // hence mark it as BBJ_RETURN with BBF_JMP flag set.
-    noway_assert(compCurBB->bbJumpKind == BBJ_RETURN);
-    compCurBB->bbFlags |= BBF_HAS_JMP;
+        // Fast tail call: in case of fast tail calls, we need a jmp epilog and
+        // hence mark it as BBJ_RETURN with BBF_JMP flag set.
+        noway_assert(compCurBB->bbJumpKind == BBJ_RETURN);
+        compCurBB->bbFlags |= BBF_HAS_JMP;
+    }
 
     // For non-void calls, we return a place holder which will be used by the
     // parent GT_RETURN node of this call (note that we have already removed
@@ -7678,7 +7677,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help)
 {
     JITDUMP("fgMorphTailCallViaHelper (before):\n");
-    DISPTREE(call);
+    DISPSTMTLIST(fgMorphStmt);
 
     // TODO: Some comments (check old document and see what still applies)
 
@@ -7689,22 +7688,6 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // fast tail calls
     assert(!call->IsImplicitTailCall());
     assert(!fgCanFastTailCall(call));
-
-    // We wish to transform tail obj.foo(a, b) into StoreArgs(obj, a, b); tail
-    // CallTarget(). We will morph the call node to the StoreArgs call and
-    // insert another call to CallTarget.
-
-    // First we add the tailcall after this call.
-    GenTreeCall* callTarget = gtNewCallNode(
-        CT_USER_FUNC, help.hCallTarget,
-        (var_types)call->gtReturnType, nullptr,
-        fgMorphStmt->gtStmtILoffsx);
-
-    callTarget->gtType = call->gtType;
-    callTarget->gtRetClsHnd = call->gtRetClsHnd;
-#if FEATURE_MULTIREG_RET
-    callTarget->gtReturnTypeDesc = call->gtReturnTypeDesc;
-#endif
 
     // If VSD then get rid of arg to VSD since we turn this into a direct call.
     // The extra arg will be the first arg so this needs to be done before we
@@ -7724,7 +7707,22 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         call->fgArgInfo = nullptr;
     }
 
-    // Transfer retbuf from call to CallTarget.
+    // We wish to transform tail obj.foo(a, b) into StoreArgs(obj, a, b); tail
+    // CallTarget(). We will morph the call node to the StoreArgs call and
+    // insert another call to CallTarget.
+
+    GenTreeCall* callDispatcherNode = gtNewCallNode(
+        CT_USER_FUNC, help.hDispatcher,
+        TYP_VOID, nullptr,
+        fgMorphStmt->gtStmtILoffsx);
+    // The dispatcher has signature
+    // void DispatchTailCalls(void* callersRetAddrSlot, void* callTarget, void* retValue)
+
+    // Add return value arg.
+    GenTree* retValTemp;
+    unsigned int newRetLcl = BAD_VAR_NUM;
+
+    // Use existing retbuf if there is one.
     if (call->HasRetBufArg())
     {
         GenTree* retBufArg = call->gtCallArgs->Current();
@@ -7732,8 +7730,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
                retBufArg->OperIsLocal() &&
                (retBufArg->AsLclVarCommon()->GetLclNum() == info.compRetBuffArg));
 
-        callTarget->gtCallArgs = gtNewListNode(retBufArg, callTarget->gtCallArgs);
-        callTarget->gtCallMoreFlags |= GTF_CALL_M_RETBUFFARG;
+        retValTemp = callDispatcherNode->gtCallArgs->Current();
 
         call->gtCallArgs = call->gtCallArgs->Rest();
         call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
@@ -7741,13 +7738,52 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         // We changed args so recompute info.
         call->fgArgInfo = nullptr;
     }
+    else if (call->gtType != TYP_VOID)
+    {
+        newRetLcl = lvaGrabTemp(false DEBUGARG("Return value for tail call dispatcher"));
+        lvaTable[newRetLcl].lvType = call->gtType;
+        lvaSetVarAddrExposed(newRetLcl);
 
-    callTarget->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
+        retValTemp = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(newRetLcl, call->gtType));
+    }
+    else
+    {
+        retValTemp = gtNewZeroConNode(TYP_I_IMPL);
+    }
 
-    GenTreeStmt* callTargetStmt = fgNewStmtFromTree(callTarget, fgMorphStmt->gtStmtILoffsx);
-    fgInsertStmtAtEnd(compCurBB, callTargetStmt);
-    // No need to morph it here as we inserted it in the block and will get
-    // around to it soon.
+    callDispatcherNode->gtCallArgs = gtNewListNode(retValTemp, callDispatcherNode->gtCallArgs);
+
+    // Add callTarget
+    callDispatcherNode->gtCallArgs =
+        gtNewListNode(
+            fgGetMethodAddress(help.hCallTarget, CORINFO_ACCESS_ANY),
+            callDispatcherNode->gtCallArgs);
+
+    // Add the callers return address slot.
+    if (lvaRetAddrVar == BAD_VAR_NUM)
+    {
+        lvaRetAddrVar = lvaGrabTemp(false DEBUGARG("Return address"));
+        lvaTable[lvaRetAddrVar].lvType = TYP_I_IMPL;
+        lvaSetVarAddrExposed(lvaRetAddrVar);
+    }
+
+    GenTree* retAddrSlot = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(lvaRetAddrVar, TYP_I_IMPL));
+    callDispatcherNode->gtCallArgs = gtNewListNode(retAddrSlot, callDispatcherNode->gtCallArgs);
+
+    GenTreeStmt* callDispatcherStmt = fgNewStmtFromTree(callDispatcherNode, fgMorphStmt->gtStmtILoffsx);
+    fgInsertStmtAtEnd(compCurBB, callDispatcherStmt);
+
+    if (call->gtType != TYP_VOID)
+    {
+        assert(newRetLcl != BAD_VAR_NUM);
+        fgInsertStmtAtEnd(
+            compCurBB,
+            fgNewStmtFromTree(
+                gtNewOperNode(GT_RETURN, call->gtType, gtNewLclvNode(newRetLcl, call->gtType))));
+    }
+
+    // No need to morph the inserted statements here as we will get around to it
+    // soon.
 
     // Put 'this' in normal param list
     if (call->gtCallObjp)
@@ -7840,30 +7876,32 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     noway_assert(temp == call);
 
     JITDUMP("fgMorphTailCallViaHelper (after):\n");
-#ifdef DEBUG
-    if (verbose)
-    {
-        gtDispStmtList(fgMorphStmt);
-    }
-#endif
+    DISPSTMTLIST(fgMorphStmt);
 }
 
 GenTree* Compiler::fgGetDirectCallTargetAddress(GenTreeCall* call)
 {
-    CORINFO_ACCESS_FLAGS aflags = CORINFO_ACCESS_ANY;
+    assert(call->gtCallType == CT_USER_FUNC);
+
+    unsigned aflags = CORINFO_ACCESS_ANY;
 
     if (call->IsSameThis())
     {
-        aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_THIS);
+        aflags |= CORINFO_ACCESS_THIS;
     }
 
     if (!call->NeedsNullCheck())
     {
-        aflags = (CORINFO_ACCESS_FLAGS)(aflags | CORINFO_ACCESS_NONNULL);
+        aflags |= CORINFO_ACCESS_NONNULL;
     }
 
+    return fgGetMethodAddress(call->gtCallMethHnd, (CORINFO_ACCESS_FLAGS)aflags);
+}
+
+GenTree* Compiler::fgGetMethodAddress(CORINFO_METHOD_HANDLE methHnd, CORINFO_ACCESS_FLAGS flags)
+{
     CORINFO_CONST_LOOKUP addrInfo;
-    info.compCompHnd->getFunctionEntryPoint(call->gtCallMethHnd, &addrInfo, aflags);
+    info.compCompHnd->getFunctionEntryPoint(methHnd, &addrInfo, flags);
 
     GenTree* result = nullptr;
     switch (addrInfo.accessType)
@@ -15527,18 +15565,16 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             morph = stmt->gtStmtExpr;
             noway_assert(compTailCallUsed);
             noway_assert(morph->gtOper == GT_CALL);
-            // A fast tail call jumps directly to the target func and a
-            // helper-based one calls a store-args stub and then tailcalls to a
-            // CallTarget func.
-            noway_assert(morph->AsCall()->IsFastTailCall() ||
-                         (stmt->gtNextStmt != nullptr &&
-                          stmt->gtNextStmt->gtStmtExpr->gtOper == GT_CALL &&
-                          stmt->gtNextStmt->gtStmtExpr->AsCall()->IsFastTailCall()));
-
-            // Slow tailcalls are transformed into storage of args + a fast
-            // tailcall and fast tailcalls always end with BBJ_RETURN.
-            noway_assert((compCurBB->bbJumpKind == BBJ_RETURN) &&
-                         (compCurBB->bbFlags & BBF_HAS_JMP));
+            GenTreeCall* call = morph->AsCall();
+            // Could either be
+            //   - a fast call made as jmp in which case block will be ending with
+            //   BBJ_RETURN and marked as containing a jmp.
+            //   - a tail call dispatched via helper, in which case there will be
+            //   another call as the next statement and the block will be ending
+            //   with BBJ_RETURN
+            noway_assert((call->IsFastTailCall() && (compCurBB->bbJumpKind == BBJ_THROW) &&
+                          (compCurBB->bbFlags & BBF_HAS_JMP)) ||
+                         (compCurBB->bbJumpKind == BBJ_RETURN));
         }
 
 #ifdef DEBUG

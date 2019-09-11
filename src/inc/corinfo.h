@@ -961,7 +961,6 @@ enum CorInfoIntrinsics
     CORINFO_INTRINSIC_StubHelpers_GetStubContext,
     CORINFO_INTRINSIC_StubHelpers_GetStubContextAddr,
     CORINFO_INTRINSIC_StubHelpers_GetNDirectTarget,
-    CORINFO_INTRINSIC_StubHelpers_ReturnAddress,
     CORINFO_INTRINSIC_StubHelpers_NextCallReturnAddress,
     CORINFO_INTRINSIC_InterlockedAdd32,
     CORINFO_INTRINSIC_InterlockedAdd64,
@@ -1877,6 +1876,7 @@ struct CORINFO_TAILCALL_HELP
     CORINFO_TAILCALL_HELP_FLAGS flags;
     CORINFO_METHOD_HANDLE       hStoreArgs;
     CORINFO_METHOD_HANDLE       hCallTarget;
+    CORINFO_METHOD_HANDLE       hDispatcher;
 };
 
 // This is used to indicate that a finally has been called 

@@ -4372,6 +4372,15 @@ private:
 
 public:
     TailCallTls* GetTailCallTls() { return &m_tailCallTls; }
+    void* GetHijackedReturnAddress()
+    {
+#ifdef FEATURE_HIJACK
+        if (m_State & TS_Hijacked)
+            return m_pvHJRetAddr;
+#endif
+
+        return NULL;
+    }
     void* AllocTailCallArgBuffer(size_t size, void* gcDesc);
     void FreeTailCallArgBuffer();
 

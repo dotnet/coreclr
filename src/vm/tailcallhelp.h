@@ -16,14 +16,17 @@ class TailCallHelp
 public:
     static FCDECL2(void*, AllocTailCallArgBuffer, INT32, void*);
     static FCDECL0(void,  FreeTailCallArgBuffer);
-    static FCDECL0(void*, GetTailCallTls);
+    static FCDECL2(void*, GetTailCallInfo, void**, void**);
 
     static void CreateTailCallHelperStubs(
         MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
         MetaSig& callSiteSig, bool virt,
         MethodDesc** storeArgsStub, bool* storeArgsNeedsTarget,
         MethodDesc** callTargetStub);
+
+    static MethodDesc* GetTailCallDispatcherMD();
 private:
+
     static void LayOutArgBuffer(
         MetaSig& callSiteSig, MethodDesc* calleeMD,
         bool storeTarget, bool hasGenericContext,
@@ -37,7 +40,8 @@ private:
     static MethodDesc* CreateCallTargetStub(const TailCallInfo& info);
     static void CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder* sig);
 
-    static void EmitLoadStoreArgBuffer(ILCodeStream* stream, TypeHandle tyHnd, bool isLoad);
+    static void EmitLoadTyHnd(ILCodeStream* stream, TypeHandle tyHnd);
+    static void EmitStoreTyHnd(ILCodeStream* stream, TypeHandle tyHnd);
 
     static void AppendTypeHandle(SigBuilder& builder, TypeHandle th);
 
