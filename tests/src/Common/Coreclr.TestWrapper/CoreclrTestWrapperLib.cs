@@ -283,10 +283,16 @@ namespace CoreclrTestLib
                     {
                         int pid = int.Parse(match.Groups[1].Value);
                         processParents.Add(pid, int.Parse(match.Groups[2].Value));
+                        Console.WriteLine($"Process {pid} has parent {int.Parse(match.Groups[2].Value)}");
                         if (match.Groups[3].Value.Contains(childName) && pid != Process.GetCurrentProcess().Id)
                         {
+                            Console.WriteLine($"Process {pid} may be child process. Command: {match.Groups[3]}");
                             possibleChildProcess.Add(pid);
                         }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"ps output did not match pattern: '{line}'");
                     }
                 }
 
