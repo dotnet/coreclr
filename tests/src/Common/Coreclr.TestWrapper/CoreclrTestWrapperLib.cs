@@ -246,7 +246,7 @@ namespace CoreclrTestLib
             return false;
         }
 
-        static Regex psOutput = new Regex(@"(\d+) (\d+) -?(.+)", RegexOptions.Compiled);
+        static Regex psOutput = new Regex(@"(\d+) +(\d+) +-?(.+)", RegexOptions.Compiled);
 
         static bool TryFindChildProcessByNameMacOS(Process process, string childName, out Process child)
         {
