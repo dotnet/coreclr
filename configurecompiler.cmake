@@ -339,9 +339,26 @@ elseif (CLR_CMAKE_PLATFORM_UNIX)
     endif ()
   endif(UPPERCASE_CMAKE_BUILD_TYPE STREQUAL DEBUG OR UPPERCASE_CMAKE_BUILD_TYPE STREQUAL CHECKED)
 
-  # This linker option causes executables we build to be marked as containing position independent code.
-  # It is necessary to make ASLR work for executables.
-  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie" )
+  set(BUILDING_ON_RHEL_6 0)
+  if (EXISTS /etc/system-release-cpe)
+    file(READ /etc/system-release-cpe SYSTEM_RELEASE_CPE)
+
+    if (SYSTEM_RELEASE_CPE MATCHES "^([^:]*):([^:]*):([^:]*):([^:]*):([^:]*):([^:]*)\n$")
+      if ((CMAKE_MATCH_3 STREQUAL "centos" OR CMAKE_MATCH_3 STREQUAL "redhat") AND (CMAKE_MATCH_5 MATCHES "6*"))
+        set(BUILDING_ON_RHEL_6 1)
+      endif ()
+    endif ()
+  endif ()
+
+  # The ld linker on RHEL 6 / CentOS 6 has a bug that causes a link failure when linking corebundle with the -pie specified.
+  # It is some kind of misplay between -ffunction-sections, -fdata-sections compiler options and --gc-collect and -pie 
+  # linker options.
+  # As a workaround, don't set the -pie linker option when building the corebundle on RHEL / CentOS 6
+  if (NOT (BUILDING_ON_RHEL_6 AND CLR_CMAKE_BUILD_COREBUNDLE))
+    # This linker option causes executables we build to be marked as containing position independent code.
+    # It is necessary to make ASLR work for executables.
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -pie" )
+  endif ()
 
 endif(WIN32)
 
