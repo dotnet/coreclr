@@ -137,7 +137,7 @@ namespace CoreclrTestLib
                 if (status == 0)
                 {
                     Console.WriteLine($"Copying dump for {pid} to {path}.");
-                    File.Copy($"/cores/core.{pid}", path);
+                    File.Copy($"/cores/core.{pid}", path, true);
                 }
                 return true;
             }
@@ -369,7 +369,7 @@ namespace CoreclrTestLib
                     {
                         foreach (var coreDump in Directory.EnumerateFiles("/cores"))
                         {
-                            File.Copy(coreDump, Path.Combine(crashDumpFolder, Path.GetFileName(coreDump) + ".dmp"));
+                            File.Copy(coreDump, Path.Combine(crashDumpFolder, Path.GetFileName(coreDump) + ".dmp"), true);
                         }
                     }
                 }
