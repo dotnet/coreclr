@@ -7731,7 +7731,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
                retBufArg->OperIsLocal() &&
                (retBufArg->AsLclVarCommon()->GetLclNum() == info.compRetBuffArg));
 
-        retValTemp = callDispatcherNode->gtCallArgs->Current();
+        retValTemp = call->gtCallArgs->Current();
 
         call->gtCallArgs = call->gtCallArgs->Rest();
         call->gtCallMoreFlags &= ~GTF_CALL_M_RETBUFFARG;
