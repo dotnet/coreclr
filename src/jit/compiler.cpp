@@ -8125,7 +8125,9 @@ void cBlocksV(Compiler* comp)
 
 void cStmt(Compiler* comp, Statement* statement)
 {
-    // Dummy stub.
+    static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
+    printf("===================================================================== *Stmt %u\n", sequenceNumber++);
+    comp->gtDispStmt(statement, ">>>");
 }
 
 void cTree(Compiler* comp, GenTree* tree)
@@ -10648,7 +10650,12 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 
 void cStmtIR(Compiler* comp, Statement* stmt)
 {
-    // Dummy stub.
+    cTreeIR(comp, stmt->m_rootTree);
+    if (comp->dumpIRNoStmts == false)
+    {
+        dTabStopIR(0, COLUMN_OPCODE);
+        Compiler::printStmtID(stmt);
+    }
 }
 
 /*****************************************************************************

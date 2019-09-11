@@ -2853,7 +2853,7 @@ public:
     int gtGetLclVarName(unsigned lclNum, char* buf, unsigned buf_remaining);
     char* gtGetLclVarName(unsigned lclNum);
     void gtDispLclVar(unsigned varNum, bool padForBiggestDisp = true);
-    void gtDispStmt(Statement* stmt);
+    void gtDispStmt(Statement* stmt, const char* msg = nullptr);
     void gtDispStmtList(Statement* stmts);
     void gtGetArgMsg(GenTreeCall* call, GenTree* arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
     void gtGetLateArgMsg(GenTreeCall* call, GenTree* arg, int argNum, int listCount, char* bufp, unsigned bufLength);
@@ -8598,14 +8598,8 @@ public:
 
     static void printStmtID(Statement* stmt)
     {
-        if (stmt == nullptr)
-        {
-            printf("[------]");
-        }
-        else
-        {
-            printf("[%06d]", dspStmtID(stmt));
-        }
+        assert(stmt != nullptr);
+        printf("STMT%d", dspStmtID(stmt));
     }
 
     static void printTreeID(GenTree* tree)

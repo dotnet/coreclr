@@ -11468,9 +11468,35 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
     }
 }
 
-void Compiler::gtDispStmt(Statement* stmts)
+void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
 {
-    // Dummy stub.
+    if (opts.compDbgInfo)
+    {
+        printStmtID(stmt);
+        IL_OFFSETX firstILOffsx = stmt->m_ILoffsx;
+        printf("(IL ");
+        if (firstILOffsx == BAD_IL_OFFSET)
+        {
+            printf("  ???");
+        }
+        else
+        {
+            printf("0x%03X", jitGetILoffs(firstILOffsx));
+        }
+        printf("...");
+
+        IL_OFFSET lastILOffs = stmt->m_LastILoffs;
+        if (lastILOffs == BAD_IL_OFFSET)
+        {
+            printf("  ???");
+        }
+        else
+        {
+            printf("0x%03X", lastILOffs);
+        }
+        printf(")");
+    }
+    gtDispTree(stmt->m_rootTree);
 }
 
 void Compiler::gtDispStmtList(Statement* stmts)
