@@ -10,6 +10,13 @@ using System.Text;
 
 using Internal.Runtime.CompilerServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
+#if BIT64
+using nint = System.Int64;
+#else
+using nint = System.Int32;
+#endif
+
 namespace System.Numerics
 {
     /* Note: The following patterns are used throughout the code here and are described here
@@ -104,7 +111,7 @@ namespace System.Numerics
                 {
                     fixed (byte* basePtr = &this.register.byte_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (byte)(object)value;
                         }
@@ -114,7 +121,7 @@ namespace System.Numerics
                 {
                     fixed (sbyte* basePtr = &this.register.sbyte_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (sbyte)(object)value;
                         }
@@ -124,7 +131,7 @@ namespace System.Numerics
                 {
                     fixed (ushort* basePtr = &this.register.uint16_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (ushort)(object)value;
                         }
@@ -134,7 +141,7 @@ namespace System.Numerics
                 {
                     fixed (short* basePtr = &this.register.int16_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (short)(object)value;
                         }
@@ -144,7 +151,7 @@ namespace System.Numerics
                 {
                     fixed (uint* basePtr = &this.register.uint32_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (uint)(object)value;
                         }
@@ -154,7 +161,7 @@ namespace System.Numerics
                 {
                     fixed (int* basePtr = &this.register.int32_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (int)(object)value;
                         }
@@ -164,7 +171,7 @@ namespace System.Numerics
                 {
                     fixed (ulong* basePtr = &this.register.uint64_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (ulong)(object)value;
                         }
@@ -174,7 +181,7 @@ namespace System.Numerics
                 {
                     fixed (long* basePtr = &this.register.int64_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (long)(object)value;
                         }
@@ -184,7 +191,7 @@ namespace System.Numerics
                 {
                     fixed (float* basePtr = &this.register.single_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (float)(object)value;
                         }
@@ -194,7 +201,7 @@ namespace System.Numerics
                 {
                     fixed (double* basePtr = &this.register.double_0)
                     {
-                        for (int g = 0; g < Count; g++)
+                        for (nint g = 0; g < Count; g++)
                         {
                             *(basePtr + g) = (double)(object)value;
                         }
@@ -322,7 +329,7 @@ namespace System.Numerics
             }
             if (index < 0 || (values.Length - index) < Count)
             {
-                throw new IndexOutOfRangeException(SR.Format(SR.Arg_InsufficientNumberOfElements, Vector<T>.Count, nameof(values)));
+                Vector.ThrowInsufficientNumberOfElementsException(Vector<T>.Count);
             }
             this = Unsafe.ReadUnaligned<Vector<T>>(ref Unsafe.As<T, byte>(ref values[index]));
         }
@@ -330,7 +337,7 @@ namespace System.Numerics
         internal unsafe Vector(void* dataPointer)
         {
             ThrowHelper.ThrowForUnsupportedVectorBaseType<T>();
-            this = Unsafe.ReadUnaligned<Vector<T>>(ref *(byte*)dataPointer);
+            this = Unsafe.ReadUnaligned<Vector<T>>(dataPointer);
         }
 
         private Vector(ref Register existingRegister)
@@ -392,6 +399,7 @@ namespace System.Numerics
             {
                 ThrowHelper.ThrowArgumentException_DestinationTooShort();
             }
+
             Unsafe.WriteUnaligned<Vector<T>>(ref MemoryMarshal.GetReference(destination), this);
         }
 
@@ -438,7 +446,7 @@ namespace System.Numerics
                 // Match the JIT's exception type here. For perf, a NullReference is thrown instead of an ArgumentNull.
                 throw new NullReferenceException(SR.Arg_NullArgumentNullRef);
             }
-            if (startIndex < 0 || startIndex >= destination.Length)
+            if ((uint)startIndex >= (uint)destination.Length)
             {
                 throw new ArgumentOutOfRangeException(nameof(startIndex), SR.Format(SR.Arg_ArgumentOutOfRangeException, startIndex));
             }
@@ -458,7 +466,7 @@ namespace System.Numerics
             [Intrinsic]
             get
             {
-                if (index >= Count || index < 0)
+                if ((uint)index >= (uint)Count)
                 {
                     throw new IndexOutOfRangeException(SR.Format(SR.Arg_ArgumentOutOfRangeException, index));
                 }
@@ -622,92 +630,42 @@ namespace System.Numerics
         /// <returns>The hash code.</returns>
         public override readonly int GetHashCode()
         {
-            int hash = 0;
+            HashCode hashCode = new HashCode();
 
-            if (Vector.IsHardwareAccelerated)
+            if (typeof(T) == typeof(byte) ||
+                typeof(T) == typeof(sbyte) ||
+                typeof(T) == typeof(ushort) ||
+                typeof(T) == typeof(short) ||
+                typeof(T) == typeof(int) ||
+                typeof(T) == typeof(uint) ||
+                typeof(T) == typeof(long) ||
+                typeof(T) == typeof(ulong))
             {
-                if (typeof(T) == typeof(byte) ||
-                    typeof(T) == typeof(sbyte) ||
-                    typeof(T) == typeof(ushort) ||
-                    typeof(T) == typeof(short) ||
-                    typeof(T) == typeof(int) ||
-                    typeof(T) == typeof(uint))
+                for (nint g = 0; g < Vector<int>.Count; g++)
                 {
-                    for (int g = 0; g < Unsafe.SizeOf<Vector<T>>() / sizeof(int); g++)
-                    {
-                        hash = HashCode.Combine(hash, Unsafe.Add(ref Unsafe.As<Vector<T>, int>(ref Unsafe.AsRef<Vector<T>>(in this)), g).GetHashCode());
-                    }
-                    return hash;
+                    hashCode.Add(Unsafe.Add(ref Unsafe.As<Vector<T>, int>(ref Unsafe.AsRef<Vector<T>>(in this)), (IntPtr)g));
                 }
-                else if (typeof(T) == typeof(long) || typeof(T) == typeof(ulong))
+            }
+            else if (typeof(T) == typeof(float))
+            {
+                for (nint g = 0; g < Count; g++)
                 {
-                    for (int g = 0; g < Unsafe.SizeOf<Vector<T>>() / sizeof(long); g++)
-                    {
-                        hash = HashCode.Combine(hash, Unsafe.Add(ref Unsafe.As<Vector<T>, long>(ref Unsafe.AsRef<Vector<T>>(in this)), g).GetHashCode());
-                    }
-                    return hash;
+                    hashCode.Add(Unsafe.Add(ref Unsafe.As<Vector<T>, float>(ref Unsafe.AsRef<Vector<T>>(in this)), (IntPtr)g));
                 }
-                else if (typeof(T) == typeof(float))
+            }
+            else if (typeof(T) == typeof(double))
+            {
+                for (nint g = 0; g < Count; g++)
                 {
-                    for (int g = 0; g < Count; g++)
-                    {
-                        hash = HashCode.Combine(hash, ((float)(object)this[g]).GetHashCode());
-                    }
-                    return hash;
-                }
-                else if (typeof(T) == typeof(double))
-                {
-                    for (int g = 0; g < Count; g++)
-                    {
-                        hash = HashCode.Combine(hash, ((double)(object)this[g]).GetHashCode());
-                    }
-                    return hash;
-                }
-                else
-                {
-                    throw new NotSupportedException(SR.Arg_TypeNotSupported);
+                    hashCode.Add(Unsafe.Add(ref Unsafe.As<Vector<T>, double>(ref Unsafe.AsRef<Vector<T>>(in this)), (IntPtr)g));
                 }
             }
             else
             {
-                if (typeof(T) == typeof(byte) ||
-                    typeof(T) == typeof(sbyte) ||
-                    typeof(T) == typeof(ushort) ||
-                    typeof(T) == typeof(short) ||
-                    typeof(T) == typeof(int) ||
-                    typeof(T) == typeof(uint))
-                {
-                    return HashCode.Combine(
-                        this.register.int32_0.GetHashCode(),
-                        this.register.int32_1.GetHashCode(),
-                        this.register.int32_2.GetHashCode(),
-                        this.register.int32_3.GetHashCode());
-                }
-                else if (typeof(T) == typeof(long) || typeof(T) == typeof(ulong))
-                {
-                    return HashCode.Combine(
-                        this.register.int64_0.GetHashCode(),
-                        this.register.int64_1.GetHashCode());
-                }
-                else if (typeof(T) == typeof(float))
-                {
-                    hash = HashCode.Combine(hash, this.register.single_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.single_1.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.single_2.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.single_3.GetHashCode());
-                    return hash;
-                }
-                else if (typeof(T) == typeof(double))
-                {
-                    hash = HashCode.Combine(hash, this.register.double_0.GetHashCode());
-                    hash = HashCode.Combine(hash, this.register.double_1.GetHashCode());
-                    return hash;
-                }
-                else
-                {
-                    throw new NotSupportedException(SR.Arg_TypeNotSupported);
-                }
+                throw new NotSupportedException(SR.Arg_TypeNotSupported);
             }
+
+            return hashCode.ToHashCode();
         }
 
         /// <summary>
