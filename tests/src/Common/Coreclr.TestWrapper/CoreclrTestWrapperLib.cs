@@ -139,6 +139,7 @@ namespace CoreclrTestLib
                     Console.WriteLine($"Copying dump for {pid} to {path}.");
                     File.Copy($"/cores/core.{pid}", path);
                 }
+                return true;
             }
 
             return false;
