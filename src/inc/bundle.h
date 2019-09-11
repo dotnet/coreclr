@@ -15,12 +15,12 @@
 
 class Bundle;
 
-struct BundleLoc
+struct BundleFileLocation
 {
     INT64 Size;
     INT64 Offset;
 
-    BundleLoc() 
+    BundleFileLocation()
     { 
         LIMITED_METHOD_CONTRACT;
 
@@ -28,7 +28,7 @@ struct BundleLoc
         Offset = 0; 
     }
 
-    static BundleLoc Invalid() { LIMITED_METHOD_CONTRACT; return BundleLoc(); }
+    static BundleFileLocation Invalid() { LIMITED_METHOD_CONTRACT; return BundleFileLocation(); }
 
     LPCWSTR Path() const;
 
@@ -41,14 +41,14 @@ class Bundle
 {
 public:
     Bundle(LPCWSTR bundlePath, BundleProbe *probe);
-    BundleLoc Probe(LPCWSTR path, bool pathIsBundleRelative = false) const;
+    BundleFileLocation Probe(LPCWSTR path, bool pathIsBundleRelative = false) const;
 
     LPCWSTR Path() const { LIMITED_METHOD_CONTRACT; return m_path; }
     LPCWSTR BasePath() const { LIMITED_METHOD_CONTRACT; return m_basePath; }
 
     static Bundle* AppBundle; // The BundleInfo for the current app, initialized by coreclr_initialize.
     static bool AppIsBundle() { LIMITED_METHOD_CONTRACT; return AppBundle != nullptr; }
-    static BundleLoc ProbeAppBundle(LPCWSTR path, bool pathIsBundleRelative = false);
+    static BundleFileLocation ProbeAppBundle(LPCWSTR path, bool pathIsBundleRelative = false);
 
 private:
 

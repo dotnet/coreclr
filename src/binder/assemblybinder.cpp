@@ -1407,21 +1407,21 @@ namespace BINDER_SPACE
     }
     
     /* static */
-    HRESULT AssemblyBinder::GetAssembly(SString   &assemblyPath,
-                                        BOOL       fIsInGAC,
+    HRESULT AssemblyBinder::GetAssembly(SString           &assemblyPath,
+                                        BOOL               fIsInGAC,
                                         
                                         // When binding to the native image, should we
                                         // assume assemblyPath explicitly specifies that
                                         // NI?  (If not, infer the path to the NI
                                         // implicitly.)
-                                        BOOL       fExplicitBindToNativeImage,
+                                        BOOL               fExplicitBindToNativeImage,
                                         
-                                        Assembly **ppAssembly,
+                                        Assembly         **ppAssembly,
 
                                         // If assemblyPath refers to a native image without metadata,
                                         // szMDAssemblyPath gives the alternative file to get metadata.
-                                        LPCTSTR    szMDAssemblyPath,
-                                        BundleLoc  bundleLoc)
+                                        LPCTSTR            szMDAssemblyPath,
+                                        BundleFileLocation bundleFileLocation)
     {
         HRESULT hr = S_OK;
 
@@ -1445,7 +1445,7 @@ namespace BINDER_SPACE
             LPCTSTR szAssemblyPath = const_cast<LPCTSTR>(assemblyPath.GetUnicode());
 
             BINDER_LOG_ENTER(W("BinderAcquirePEImage"));
-            hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, fExplicitBindToNativeImage, bundleLoc);
+            hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, fExplicitBindToNativeImage, bundleFileLocation);
             BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImage"), hr);
             IF_FAIL_GO(hr);
 
@@ -1462,7 +1462,7 @@ namespace BINDER_SPACE
                     BinderReleasePEImage(pNativePEImage);
 
                     BINDER_LOG_ENTER(W("BinderAcquirePEImageIL"));
-                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false, bundleLoc);
+                    hr = BinderAcquirePEImage(szAssemblyPath, &pPEImage, &pNativePEImage, false, bundleFileLocation);
                     BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImageIL"), hr);
                     IF_FAIL_GO(hr);
                 }
@@ -1492,7 +1492,7 @@ namespace BINDER_SPACE
                 else
                 {
                     BINDER_LOG_ENTER(W("BinderAcquirePEImage"));
-                    hr = BinderAcquirePEImage(szMDAssemblyPath, &pPEImage, NULL, FALSE, bundleLoc);
+                    hr = BinderAcquirePEImage(szMDAssemblyPath, &pPEImage, NULL, FALSE, bundleFileLocation);
                     BINDER_LOG_LEAVE_HR(W("BinderAcquirePEImage"), hr);
                     IF_FAIL_GO(hr);
 

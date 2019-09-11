@@ -37,20 +37,20 @@ inline const SString PEImage::GetPathToLoad()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return m_bundleLoc.IsValid() ? (SString)m_bundleLoc.Path() : m_path;
+    return m_bundleFileLocation.IsValid() ? (SString)m_bundleFileLocation.Path() : m_path;
 }
 
 inline INT64 PEImage::GetOffset() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return m_bundleLoc.Offset;
+    return m_bundleFileLocation.Offset;
 }
 
 inline INT64 PEImage::GetSize() const
 {
     LIMITED_METHOD_CONTRACT;
-    return m_bundleLoc.Size;
+    return m_bundleFileLocation.Size;
 }
 
 inline void PEImage::SetModuleFileNameHintForDAC()
@@ -439,7 +439,7 @@ inline CHECK PEImage::CheckFormat()
     CHECK_OK;
 }
 
-inline void  PEImage::Init(LPCWSTR pPath, BundleLoc bundleLoc)
+inline void  PEImage::Init(LPCWSTR pPath, BundleFileLocation bundleFileLocation)
 {
     CONTRACTL
     {
@@ -451,7 +451,7 @@ inline void  PEImage::Init(LPCWSTR pPath, BundleLoc bundleLoc)
 
     m_path = pPath;
     m_path.Normalize();
-    m_bundleLoc = bundleLoc;
+    m_bundleFileLocation = bundleFileLocation;
     SetModuleFileNameHintForDAC();
 }
 #ifndef DACCESS_COMPILE
@@ -483,14 +483,14 @@ inline PTR_PEImage PEImage::FindByPath(LPCWSTR pPath)
 }
 
 /* static */
-inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags /* = MDInternalImport_Default */, BundleLoc bundleLoc)
+inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags /* = MDInternalImport_Default */, BundleFileLocation bundleFileLocation)
 {
     BOOL fUseCache = !((flags & MDInternalImport_NoCache) == MDInternalImport_NoCache);
 
     if (!fUseCache)
     {
         PEImageHolder pImage(new PEImage);
-        pImage->Init(pPath, bundleLoc);
+        pImage->Init(pPath, bundleFileLocation);
         return dac_cast<PTR_PEImage>(pImage.Extract());
     }
 
@@ -511,7 +511,7 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
         if (flags &  MDInternalImport_TrustedNativeImage)
             pImage->SetIsTrustedNativeImage();
 #endif        
-        pImage->Init(pPath, bundleLoc);
+        pImage->Init(pPath, bundleFileLocation);
 
         pImage->AddToHashMap();
         return dac_cast<PTR_PEImage>(pImage.Extract());

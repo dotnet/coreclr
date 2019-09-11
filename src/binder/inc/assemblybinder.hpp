@@ -63,12 +63,12 @@ namespace BINDER_SPACE
                                             /* in */ PEImage    *pNativePEImage,
                                             /* out */ Assembly **ppAssembly);
 
-        static HRESULT GetAssembly(/* in */  SString    &assemblyPath,
-                                   /* in */  BOOL        fIsInGAC,
-                                   /* in */  BOOL        fExplicitBindToNativeImage,
-                                   /* out */ Assembly  **ppAssembly,
-                                   /* in */  LPCTSTR     szMDAssemblyPath = NULL,
-                                   /* in */  BundleLoc   bundleLoc = BundleLoc::Invalid());
+        static HRESULT GetAssembly(/* in */  SString           &assemblyPath,
+                                   /* in */  BOOL               fIsInGAC,
+                                   /* in */  BOOL               fExplicitBindToNativeImage,
+                                   /* out */ Assembly         **ppAssembly,
+                                   /* in */  LPCTSTR            szMDAssemblyPath = NULL,
+                                   /* in */  BundleFileLocation bundleFileLocation = BundleFileLocation::Invalid());
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         static HRESULT BindUsingHostAssemblyResolver (/* in */ INT_PTR pManagedAssemblyLoadContextToBindWithin,

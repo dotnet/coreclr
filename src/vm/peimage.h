@@ -102,7 +102,7 @@ public:
     static PTR_PEImage OpenImage(
         LPCWSTR pPath,
         MDInternalImportFlags flags = MDInternalImport_Default,
-        BundleLoc bundleLoc = BundleLoc::Invalid());
+        BundleFileLocation bundleFileLocation = BundleFileLocation::Invalid());
 
     // clones the image with new flags (this is pretty much about cached / noncached difference)
     void Clone(MDInternalImportFlags flags, PTR_PEImage* ppImage)
@@ -242,7 +242,7 @@ private:
     // Private routines
     // ------------------------------------------------------------
 
-    void  Init(LPCWSTR pPath, BundleLoc bundleLoc);
+    void  Init(LPCWSTR pPath, BundleFileLocation bundleFileLocation);
     void  Init(IStream* pStream, UINT64 uStreamAsmId,
                DWORD dwModuleId, BOOL resourceFile);
 
@@ -278,9 +278,9 @@ private:
     SString     m_path;
     LONG        m_refCount;
 
-    BundleLoc m_bundleLoc; // If this image is located within a single-file bundle, 
-                           // the location within the bundle. If m_bundleLoc is vaild, 
-                           // it takes precedence over m_path for loading.
+    BundleFileLocation m_bundleFileLocation; // If this image is located within a single-file bundle, 
+                                             // the location within the bundle. If m_bundleFileLocation is vaild, 
+                                             // it takes precedence over m_path for loading.
 
     // This variable will have the data of module name. 
     // It is only used by DAC to remap fusion loaded modules back to 

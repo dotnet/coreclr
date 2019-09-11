@@ -119,7 +119,8 @@ static void ConvertConfigPropertiesToUnicode(
     const char** propertyValues,
     int propertyCount,
     LPCWSTR** propertyKeysWRef,
-    LPCWSTR** propertyValuesWRef)
+    LPCWSTR** propertyValuesWRef,
+    BundleProbe** bundleProbe)
 {
     LPCWSTR* propertyKeysW = new (nothrow) LPCWSTR[propertyCount];
     ASSERTE_ALL_BUILDS(propertyKeysW != nullptr);
@@ -129,8 +130,20 @@ static void ConvertConfigPropertiesToUnicode(
 
     for (int propertyIndex = 0; propertyIndex < propertyCount; ++propertyIndex)
     {
+        if (strcmp(propertyKeys[propertyIndex], "BUNDLE_PROBE") == 0)
+        {
+            // If this application is a single-file bundle, the bundle-probe callback 
+            // is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
+            // Therefore obtain the value; don't convert it to Unicode.
+
+            *bundleProbe = (BundleProbe *)propertyValues[propertyIndex];
+            propertyKeysW[propertyIndex] = W("BUNDLE_PROBE");
+            propertyValuesW[propertyIndex] = W("");
+            continue;
+        }
+
         propertyKeysW[propertyIndex] = StringToUnicode(propertyKeys[propertyIndex]);
-        propertyValuesW[propertyIndex] = propertyValues[propertyIndex] != nullptr ? StringToUnicode(propertyValues[propertyIndex]) : nullptr;
+        propertyValuesW[propertyIndex] = StringToUnicode(propertyValues[propertyIndex]);
     }
 
     *propertyKeysWRef = propertyKeysW;
@@ -192,34 +205,24 @@ int coreclr_initialize(
     hr = CorHost2::CreateObject(IID_ICLRRuntimeHost4, (void**)&host);
     IfFailRet(hr);
 
-    // If this application is a single-file bundle, the bundle-probe callback 
-    // is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
-    // Therefore obtain the value before converting property keys/values to unicode.
-    for (int i = 0; i < propertyCount; i++)
-    {
-        if (strcmp(propertyKeys[i], "BUNDLE_PROBE") == 0)
-        {
-            BundleProbe* bundleProbe = (BundleProbe*)propertyValues[i];
-
-            if (bundleProbe != nullptr)
-            {
-                static Bundle bundle(StringToUnicode(exePath), bundleProbe);
-                Bundle::AppBundle = &bundle;
-            }
-            break;
-        }
-    }
-
     ConstWStringHolder appDomainFriendlyNameW = StringToUnicode(appDomainFriendlyName);
 
     LPCWSTR* propertyKeysW;
     LPCWSTR* propertyValuesW;
+    BundleProbe* bundleProbe = nullptr;
     ConvertConfigPropertiesToUnicode(
         propertyKeys,
         propertyValues,
         propertyCount,
         &propertyKeysW,
-        &propertyValuesW);
+        &propertyValuesW,
+        &bundleProbe);
+
+    if (bundleProbe != nullptr)
+    {
+        static Bundle bundle(StringToUnicode(exePath), bundleProbe);
+        Bundle::AppBundle = &bundle;
+    }
 
     // This will take ownership of propertyKeysWTemp and propertyValuesWTemp
     Configuration::InitializeConfigurationKnobs(propertyCount, propertyKeysW, propertyValuesW);

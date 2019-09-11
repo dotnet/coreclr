@@ -28,11 +28,11 @@
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 #include "bundle.h"
 
-STDAPI BinderAcquirePEImage(LPCTSTR     szAssemblyPath,
-                            PEImage   **ppPEImage,
-                            PEImage   **ppNativeImage,
-                            BOOL        fExplicitBindToNativeImage,
-                            BundleLoc   bundleLoc);
+STDAPI BinderAcquirePEImage(LPCTSTR            szAssemblyPath,
+                            PEImage          **ppPEImage,
+                            PEImage          **ppNativeImage,
+                            BOOL               fExplicitBindToNativeImage,
+                            BundleFileLocation bundleFileLocation);
 
 STDAPI BinderAcquireImport(PEImage            *pPEImage,
                            IMDInternalImport **pIMetaDataAssemblyImport,

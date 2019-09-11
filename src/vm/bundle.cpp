@@ -31,14 +31,14 @@ static LPCSTR UnicodeToUtf8(LPCWSTR str)
     return result;
 }
 
-LPCWSTR BundleLoc::Path() const
+LPCWSTR BundleFileLocation::Path() const
 {
     LIMITED_METHOD_CONTRACT;
 
     // Currently, there is only one bundle -- the bundle for the main App.
     // Therefore, obtain the path from the global AppBundle.
     // If there is more than one bundle in one application (ex: single file plugins)
-    // the BundlePath may be stored in the BundleLoc structure.
+    // the BundlePath may be stored in the BundleFileLocation structure.
 
     _ASSERTE(IsValid());
     _ASSERTE(Bundle::AppBundle != nullptr);
@@ -74,14 +74,14 @@ Bundle::Bundle(LPCWSTR bundlePath, BundleProbe *probe)
     _ASSERTE(pos != nullptr);
 
     size_t baseLen = pos - bundlePath + 1; // Include DIRECTORY_SEPARATOR_CHAR_W in m_basePath
-    m_basePath.Set(bundlePath, baseLen);
+    m_basePath.Set(bundlePath, (COUNT_T)baseLen);
 }
 
-BundleLoc Bundle::Probe(LPCWSTR path, bool pathIsBundleRelative) const
+BundleFileLocation Bundle::Probe(LPCWSTR path, bool pathIsBundleRelative) const
 {
     STANDARD_VM_CONTRACT;
 
-    BundleLoc loc;
+    BundleFileLocation loc;
 
     // Skip over m_base_path, if any.
     // TODO: Normalize paths
@@ -106,10 +106,10 @@ BundleLoc Bundle::Probe(LPCWSTR path, bool pathIsBundleRelative) const
     return loc;
 }
 
-BundleLoc Bundle::ProbeAppBundle(LPCWSTR path, bool pathIsBundleRelative)
+BundleFileLocation Bundle::ProbeAppBundle(LPCWSTR path, bool pathIsBundleRelative)
 {
     STANDARD_VM_CONTRACT;
 
-    return AppIsBundle() ? AppBundle->Probe(path, pathIsBundleRelative) : BundleLoc::Invalid();
+    return AppIsBundle() ? AppBundle->Probe(path, pathIsBundleRelative) : BundleFileLocation::Invalid();
 }
 
