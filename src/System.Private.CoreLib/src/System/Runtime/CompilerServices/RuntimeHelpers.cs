@@ -234,7 +234,7 @@ namespace System.Runtime.CompilerServices
             IntPtr callersRetAddr;
             TailCallTls* tls = GetTailCallInfo(callersRetAddrSlot, &callersRetAddr);
             TailCallFrame* prevFrame = tls->Frame;
-            if (callersRetAddr == prevFrame->ReturnAddress)
+            if (callersRetAddr == prevFrame->TailCallAwareReturnAddress)
             {
                 prevFrame->NextCall = callTarget;
                 return;
@@ -251,7 +251,6 @@ namespace System.Runtime.CompilerServices
                 {
                     newFrame.NextCall = IntPtr.Zero;
                     var callTargetDel = Marshal.GetDelegateForFunctionPointer<CallTargetDelegate>(callTarget);
-                    newFrame.ReturnAddress = StubHelpers.StubHelpers.NextCallReturnAddress();
                     callTargetDel(tls->ArgBuffer, retVal);
                     callTarget = newFrame.NextCall;
                 } while (callTarget != IntPtr.Zero);

@@ -124,6 +124,10 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
     sigBuilder.AppendElementType(ELEMENT_TYPE_I);
     sigBuilder.AppendElementType(ELEMENT_TYPE_I);
 
+    const int ARG_CALLERS_RET_ADDR_SLOT = 0;
+    const int ARG_CALL_TARGET = 1;
+    const int ARG_RET_VAL = 2;
+
     DWORD cbSig;
     PCCOR_SIGNATURE pSig = AllocateSignature(
         MscorlibBinder::GetModule()->GetLoaderAllocator(), sigBuilder, &cbSig);
@@ -150,7 +154,7 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
     ILCodeLabel* afterTryFinally = pCode->NewCodeLabel();
 
     // tls = RuntimeHelpers.GetTailcallInfo(callersRetAddrSlot, &retAddr);
-    pCode->EmitLDARG(0);
+    pCode->EmitLDARG(ARG_CALLERS_RET_ADDR_SLOT);
     pCode->EmitLDLOCA(retAddrLcl);
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__GET_TAILCALL_INFO, 2, 1);
     pCode->EmitSTLOC(tlsLcl);
@@ -160,15 +164,15 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
     pCode->EmitLDFLD(FIELD__TAIL_CALL_TLS__FRAME);
     pCode->EmitSTLOC(prevFrameLcl);
 
-    // if (prevFrame.ReturnAddress != retAddr) goto noUnwindLbl;
-    pCode->EmitLDLOC(prevFrameLcl);
-    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
+    // if (retAddr != prevFrame.TailCallAwareReturnAddress) goto noUnwindLbl;
     pCode->EmitLDLOC(retAddrLcl);
+    pCode->EmitLDLOC(prevFrameLcl);
+    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__TAILCALL_AWARE_RETURN_ADDRESS);
     pCode->EmitBNE_UN(noUnwindLbl);
 
     // prevFrame->NextCall = callTarget;
     pCode->EmitLDLOC(prevFrameLcl);
-    pCode->EmitLDARG(1);
+    pCode->EmitLDARG(ARG_CALL_TARGET);
     pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
 
     // return;
@@ -184,11 +188,6 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
 
     // try {
     pCode->BeginTryBlock();
-
-    // newFrameEntry.ReturnAddress = NextCallReturnAddress();
-    pCode->EmitLDLOCA(newFrameEntryLcl);
-    pCode->EmitCALL(METHOD__STUBHELPERS__NEXT_CALL_RETURN_ADDRESS, 0, 1);
-    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__RETURN_ADDRESS);
 
     // tls->Frame = &newFrameEntry;
     pCode->EmitLDLOC(tlsLcl);
@@ -206,34 +205,39 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
 
     SigBuilder calliSig;
     calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
-    calliSig.AppendData(2);
+    calliSig.AppendData(3);
     calliSig.AppendElementType(ELEMENT_TYPE_VOID);
+    calliSig.AppendElementType(ELEMENT_TYPE_I);
     calliSig.AppendElementType(ELEMENT_TYPE_I);
     calliSig.AppendElementType(ELEMENT_TYPE_I);
 
     DWORD cbCalliSig;
     PCCOR_SIGNATURE pCalliSig = (PCCOR_SIGNATURE)calliSig.GetSignature(&cbCalliSig);
 
-    // callTarget(tls->ArgBuffer, retVal)
+    // callTarget(tls->ArgBuffer, retVal, &newFrameEntry.TailCallAwareReturnAddress)
     // arg buffer
     pCode->EmitLDLOC(tlsLcl);
     pCode->EmitLDFLD(FIELD__TAIL_CALL_TLS__ARG_BUFFER);
 
     // ret val
-    pCode->EmitLDARG(2);
+    pCode->EmitLDARG(ARG_RET_VAL);
+
+    // TailCallAwareReturnAddress
+    pCode->EmitLDLOCA(newFrameEntryLcl);
+    pCode->EmitLDFLDA(FIELD__TAIL_CALL_FRAME__TAILCALL_AWARE_RETURN_ADDRESS);
 
     // callTarget
-    pCode->EmitLDARG(1);
+    pCode->EmitLDARG(ARG_CALL_TARGET);
 
     pCode->EmitCALLI(pCode->GetSigToken(pCalliSig, cbCalliSig), 2, 0);
 
     // callTarget = newFrameEntry.NextCall;
     pCode->EmitLDLOC(newFrameEntryLcl);
     pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
-    pCode->EmitSTARG(1);
+    pCode->EmitSTARG(ARG_CALL_TARGET);
 
     // } while (callTarget != IntPtr.Zero);
-    pCode->EmitLDARG(1);
+    pCode->EmitLDARG(ARG_CALL_TARGET);
     pCode->EmitLDC(0);
     pCode->EmitCONV_I();
     pCode->EmitBNE_UN(loopStart);
@@ -646,12 +650,15 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
                     FALSE);
 
     ILCodeStream* pCode = sl.NewCodeStream(ILStubLinker::kDispatch);
-    const int ARG_BUFFER_ARG_INDEX = 0;
-    const int RET_VALUE_ARG_INDEX = 1;
+
+    // void CallTarget(void* argBuffer, void* retVal, void** pTailCallAwareRetAddress)
+    const int ARG_ARG_BUFFER = 0;
+    const int ARG_RET_VAL = 1;
+    const int ARG_PTR_TAILCALL_AWARE_RET_ADDR = 2;
 
     auto emitOffs = [&](UINT offs)
     {
-        pCode->EmitLDARG(ARG_BUFFER_ARG_INDEX);
+        pCode->EmitLDARG(ARG_ARG_BUFFER);
         if (offs != 0)
         {
             pCode->EmitLDC(offs);
@@ -684,6 +691,11 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
 
     // RuntimeHelpers.FreeTailCallArgBuffer();
     pCode->EmitCALL(METHOD__RUNTIME_HELPERS__FREE_TAILCALL_ARG_BUFFER, 0, 0);
+
+    // *pTailCallAwareRetAddr = NextCallReturnAddress();
+    pCode->EmitLDARG(ARG_PTR_TAILCALL_AWARE_RET_ADDR);
+    pCode->EmitCALL(METHOD__STUBHELPERS__NEXT_CALL_RETURN_ADDRESS, 0, 1);
+    pCode->EmitSTIND_I();
 
     int numRetVals = info.CallSiteSig->IsReturnTypeVoid() ? 0 : 1;
     // Normally there will not be any target and we just emit a normal
@@ -764,7 +776,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         DWORD resultLcl = pCode->NewLocal(LocalDesc(info.RetTyHnd));
         pCode->EmitSTLOC(resultLcl);
 
-        pCode->EmitLDARG(RET_VALUE_ARG_INDEX);
+        pCode->EmitLDARG(ARG_RET_VAL);
         pCode->EmitLDLOC(resultLcl);
         EmitStoreTyHnd(pCode, info.RetTyHnd);
     }
@@ -801,8 +813,8 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
 {
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
-    // Arg buffer and return value pointer.
-    sig->AppendData(2);
+    // Arg buffer, return value pointer, and pointer to "tail call aware return address" field.
+    sig->AppendData(3);
 
     // Returns void
     sig->AppendElementType(ELEMENT_TYPE_VOID);
@@ -811,6 +823,9 @@ void TailCallHelp::CreateCallTargetStubSig(const TailCallInfo& info, SigBuilder*
     sig->AppendElementType(ELEMENT_TYPE_I);
 
     // Return value
+    sig->AppendElementType(ELEMENT_TYPE_I);
+
+    // Pointer to tail call aware return address
     sig->AppendElementType(ELEMENT_TYPE_I);
 
 #ifdef _DEBUG

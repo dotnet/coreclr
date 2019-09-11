@@ -9952,6 +9952,10 @@ void Compiler::gtGetLclVarNameInfo(unsigned lclNum, const char** ilKindOut, cons
             {
                 ilName = "GsCookie";
             }
+            else if (lclNum == lvaRetAddrVar)
+            {
+                ilName = "ReturnAddress";
+            }
 #if FEATURE_FIXED_OUT_ARGS
             else if (lclNum == lvaPInvokeFrameRegSaveVar)
             {

@@ -1839,6 +1839,11 @@ void ILCodeStream::EmitSTFLD(BinderFieldID id)
     STANDARD_VM_CONTRACT;
     EmitSTFLD(GetToken(MscorlibBinder::GetField(id)));
 }
+void ILCodeStream::EmitLDFLDA(BinderFieldID id)
+{
+    STANDARD_VM_CONTRACT;
+    EmitLDFLDA(GetToken(MscorlibBinder::GetField(id)));
+}
 
 void ILStubLinker::SetHasThis (bool fHasThis)
 {

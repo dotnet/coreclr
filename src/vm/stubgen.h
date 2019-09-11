@@ -774,6 +774,7 @@ public:
     void EmitCALL       (BinderMethodID id, int numInArgs, int numRetArgs);
     void EmitLDFLD      (BinderFieldID id);
     void EmitSTFLD      (BinderFieldID id);
+    void EmitLDFLDA     (BinderFieldID id);
 
     void EmitLabel(ILCodeLabel* pLabel);
     void EmitLoadThis ();

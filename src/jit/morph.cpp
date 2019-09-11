@@ -7529,11 +7529,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
 #endif
 
-    // Store the call type for later to introduce the correct placeholder.
-    var_types origCallType = call->TypeGet();
-    // Avoid potential extra work for the return (for example, vzeroupper)
-    call->gtType = TYP_VOID;
-
 #ifdef DEBUG
     if (verbose)
     {
@@ -7617,6 +7612,9 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 
     fgMorphStmt->gtStmtExpr = call;
 
+    // Store the call type for later to introduce the correct placeholder.
+    var_types origCallType = call->TypeGet();
+
     // For helper-based tailcalls we transform into multiple calls where the
     // last call is a fast tailcall. This will modify fgMorphStmt.
     if (call->IsTailCallViaHelper())
@@ -7625,6 +7623,9 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     }
     else
     {
+        // Avoid potential extra work for the return (for example, vzeroupper)
+        call->gtType = TYP_VOID;
+
         fgMorphCall(call);
 
         // Fast tail call: in case of fast tail calls, we need a jmp epilog and

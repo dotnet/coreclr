@@ -105,7 +105,7 @@ namespace System.Runtime.CompilerServices
     internal unsafe struct TailCallFrame
     {
         public TailCallFrame* Prev;
-        public IntPtr ReturnAddress;
+        public IntPtr TailCallAwareReturnAddress;
         public IntPtr NextCall;
     }
 

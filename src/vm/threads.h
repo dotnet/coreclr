@@ -981,7 +981,7 @@ class BaseStackGuard;
 struct NewTailCallFrame
 {
     NewTailCallFrame* Prev;
-    void* ReturnAddress;
+    void* TailCallAwareReturnAddress;
     void* NextCall;
 };
 
