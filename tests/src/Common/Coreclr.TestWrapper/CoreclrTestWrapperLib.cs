@@ -322,6 +322,7 @@ namespace CoreclrTestLib
             string environmentVar = Environment.GetEnvironmentVariable(TIMEOUT_ENVIRONMENT_VAR);
             int timeout = environmentVar != null ? int.Parse(environmentVar) : DEFAULT_TIMEOUT;
             bool collectCrashDumps = Environment.GetEnvironmentVariable(COLLECT_DUMPS_ENVIRONMENT_VAR) != null;
+            string crashDumpFolder = Environment.GetEnvironmentVariable(CRASH_DUMP_FOLDER_ENVIRONMENT_VAR);
 
             var outputStream = new FileStream(outputFile, FileMode.Create);
             var errorStream = new FileStream(errorFile, FileMode.Create);
@@ -357,6 +358,15 @@ namespace CoreclrTestLib
                     // Process completed. Check process.ExitCode here.
                     exitCode = process.ExitCode;
                     Task.WaitAll(copyOutput, copyError);
+
+                    // If on OSX, copy any dumps from crashed tests to crashDumpFolder.
+                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && crashDumpFolder != null && Directory.Exists("/cores"))
+                    {
+                        foreach (var coreDump in Directory.EnumerateFiles("/cores"))
+                        {
+                            File.Copy(coreDump, Path.Combine(crashDumpFolder, Path.GetFileName(coreDump) + ".dmp"));
+                        }
+                    }
                 }
                 else
                 {
@@ -372,7 +382,6 @@ namespace CoreclrTestLib
 
                     if (collectCrashDumps)
                     {
-                        string crashDumpFolder = Environment.GetEnvironmentVariable(CRASH_DUMP_FOLDER_ENVIRONMENT_VAR);
                         if (crashDumpFolder != null)
                         {
                             Process childProcess;
