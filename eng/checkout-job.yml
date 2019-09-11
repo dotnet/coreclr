@@ -48,6 +48,10 @@ jobs:
       queue: BuildPool.Ubuntu.1604.Amd64
 
   steps:
+  - checkout: self
+    clean: true
+    fetchDepth: 1
+
   ### Zip up downloaded repo and publish to Helix
   - template: /eng/upload-artifact-step.yml
     parameters:
