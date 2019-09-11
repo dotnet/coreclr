@@ -289,9 +289,9 @@ namespace CoreclrTestLib
                     }
                 }
 
-                foreach (int child in possibleChildProcess)
+                foreach (int childPid in possibleChildProcess)
                 {
-                    int ancestor = processParents[child];
+                    int ancestor = processParents[childPid];
 
                     while (ancestor != process.Id)
                     {
@@ -304,8 +304,8 @@ namespace CoreclrTestLib
 
                     if (ancestor == process.Id)
                     {
-                        Console.WriteLine($"Found child process with the name: {childName}. Pid {child}.");
-                        child = Process.GetProcessById(child);
+                        Console.WriteLine($"Found child process with the name: {childName}. Pid {childPid}.");
+                        child = Process.GetProcessById(childPid);
                         return true;
                     }
                 }
