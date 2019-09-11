@@ -605,14 +605,17 @@ Statement* Compiler::fgNewStmtAtBeg(BasicBlock* block, GenTree* tree)
     return stmt;
 }
 
-/*****************************************************************************
- *
- *  Insert the given tree or statement at the end of the given basic block.
- *  Returns the (potentially) new statement.
- *  If the block can be a conditional block, use fgInsertStmtNearEnd.
- */
-
-Statement* Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
+//------------------------------------------------------------------------
+// fgInsertStmtAtEnd: Insert the given statement at the end of the given basic block.
+//
+// Arguments:
+//   block - the block into which 'stmt' will be inserted;
+//   stmt  - the statement to be inserted.
+//
+// Note:
+//   If the block can be a conditional block, use fgNewStmtNearEnd.
+//
+void Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
 {
 
     assert(stmt->gtNext == nullptr); // We don't set it, and it needs to be this after the insert
@@ -635,14 +638,26 @@ Statement* Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
         block->bbStmtList = stmt;
         stmt->gtPrev      = stmt;
     }
-
-    return stmt;
 }
 
+//------------------------------------------------------------------------
+// fgNewStmtAtEnd: Insert the given tree as a new statement at the end of the given basic block.
+//
+// Arguments:
+//   block - the block into which 'stmt' will be inserted;
+//   tree  - the tree to be inserted.
+//
+// Return Value:
+//    The new created statement with `tree` inserted into `block`.
+//
+// Note:
+//   If the block can be a conditional block, use fgNewStmtNearEnd.
+//
 Statement* Compiler::fgNewStmtAtEnd(BasicBlock* block, GenTree* tree)
 {
     Statement* stmt = gtNewStmt(tree);
-    return fgInsertStmtAtEnd(block, stmt);
+    fgInsertStmtAtEnd(block, stmt);
+    return stmt;
 }
 
 //------------------------------------------------------------------------

@@ -5257,8 +5257,8 @@ public:
     static bool fgBlockContainsStatementBounded(BasicBlock* block, Statement* stmt, bool answerOnBoundExceeded = true);
 #endif
 
-public:
-    Statement* fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt);
+public: // Used by indirectcalltransformer.
+    void fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt);
     Statement* fgNewStmtAtEnd(BasicBlock* block, GenTree* tree);
 
 private:
