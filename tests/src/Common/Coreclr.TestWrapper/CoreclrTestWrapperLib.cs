@@ -75,7 +75,8 @@ namespace CoreclrTestLib
             public int ParentProcessID;
             public int PriClassBase;
             public int Flags;
-            public fixed char ExeFile[MAX_PATH];
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_PATH)]
+            public char[] ExeFile;
         }
 
         [DllImport("kernel32.dll")]
