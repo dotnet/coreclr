@@ -7708,10 +7708,6 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         call->fgArgInfo = nullptr;
     }
 
-    // We wish to transform tail obj.foo(a, b) into StoreArgs(obj, a, b); tail
-    // CallTarget(). We will morph the call node to the StoreArgs call and
-    // insert another call to CallTarget.
-
     GenTreeCall* callDispatcherNode = gtNewCallNode(
         CT_USER_FUNC, help.hDispatcher,
         TYP_VOID, nullptr,
@@ -7760,7 +7756,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
             fgGetMethodAddress(help.hCallTarget, CORINFO_ACCESS_ANY),
             callDispatcherNode->gtCallArgs);
 
-    // Add the callers return address slot.
+    // Add the caller's return address slot.
     if (lvaRetAddrVar == BAD_VAR_NUM)
     {
         lvaRetAddrVar = lvaGrabTemp(false DEBUGARG("Return address"));
