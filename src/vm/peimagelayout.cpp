@@ -468,11 +468,11 @@ MappedImageLayout::MappedImageLayout(PEImage* pOwner)
     CLRMapViewHolder forceRelocs;
     if (PEDecoder::GetForceRelocs())
     {
-        forceRelocs.Assign(CLRMapViewOfFile(m_FileMap, 0, offsetHighPart, offsetLowPart, size));
+        forceRelocs.Assign(CLRMapViewOfFile(m_FileMap, 0, offsetHighPart, offsetLowPart, (SIZE_T)size));
     }
 #endif // _DEBUG
 
-    m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, offsetHighPart, offsetLowPart, size));
+    m_FileView.Assign(CLRMapViewOfFile(m_FileMap, 0, offsetHighPart, offsetLowPart, (SIZE_T)size));
     if (m_FileView == NULL)
         ThrowLastError();
     IfFailThrow(Init((void *) m_FileView));
@@ -635,7 +635,7 @@ FlatImageLayout::FlatImageLayout(PEImage* pOwner)
 
         DWORD lowPart = (DWORD) offset;
         DWORD highPart = (DWORD)(offset >> 32);
-        m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_READ, highPart, lowPart, size));
+        m_FileView.Assign(CLRMapViewOfFile(m_FileMap, FILE_MAP_READ, highPart, lowPart, (SIZE_T)size));
         if (m_FileView == NULL)
             ThrowLastError();
     }
