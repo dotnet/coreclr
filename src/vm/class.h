@@ -417,19 +417,19 @@ class EEClassLayoutInfo
         );
 
         // size (in bytes) of fixed portion of NStruct.
-        UINT32      m_cbNativeSize;
-        UINT32      m_cbManagedSize;
+        UINT32      m_cbNativeSize; // Native
+        UINT32      m_cbManagedSize; // Managed
 
     public:
         // this is equal to the largest of the alignment requirements
         // of each of the EEClass's members. If the NStruct extends another NStruct,
         // the base NStruct is treated as the first member for the purpose of
         // this calculation.
-        BYTE        m_LargestAlignmentRequirementOfAllMembers;
+        BYTE        m_LargestAlignmentRequirementOfAllMembers; // Native
 
         // Post V1.0 addition: This is the equivalent of m_LargestAlignmentRequirementOfAllMember
         // for the managed layout.
-        BYTE        m_ManagedLargestAlignmentRequirementOfAllMembers;
+        BYTE        m_ManagedLargestAlignmentRequirementOfAllMembers; // Managed
 
     private:
         enum {
@@ -463,18 +463,18 @@ class EEClassLayoutInfo
 #endif
         };
 
-        BYTE        m_bFlags;
+        BYTE        m_bFlags; // Natve + Managed
 
         // Packing size in bytes (1, 2, 4, 8 etc.)
-        BYTE        m_cbPackingSize;
+        BYTE        m_cbPackingSize; // Managed
 
         // # of fields that are of the calltime-marshal variety.
-        UINT        m_numCTMFields;
+        UINT        m_numCTMFields; // Native
 
         // An array of NativeFieldDescriptor data blocks, used to drive call-time
         // marshaling of NStruct reference parameters. The number of elements
         // equals m_numCTMFields.
-        RelativePointer<PTR_NativeFieldDescriptor> m_pNativeFieldDescriptors;
+        RelativePointer<PTR_NativeFieldDescriptor> m_pNativeFieldDescriptors; // Native
 
 
     public:
