@@ -5843,6 +5843,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     info.compPublishStubParam = opts.jitFlags->IsSet(JitFlags::JIT_FLAG_PUBLISH_SECRET_PARAM);
 
+    info.compHasNextCallRetAddr = false;
+
     switch (methodInfo->args.getCallConv())
     {
         case CORINFO_CALLCONV_VARARG:

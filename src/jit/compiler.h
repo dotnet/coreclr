@@ -8745,6 +8745,7 @@ public:
         bool compProfilerCallback : 1; // JIT inserted a profiler Enter callback
         bool compPublishStubParam : 1; // EAX captured in prolog will be available through an instrinsic
         bool compRetBuffDefStack : 1;  // The ret buff argument definitely points into the stack.
+        bool compHasNextCallRetAddr : 1; // The NextCallReturnAddress intrinsic is used.
 
         var_types compRetType;       // Return type of the method as declared in IL
         var_types compRetNativeType; // Normalized return type as per target arch ABI

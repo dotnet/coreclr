@@ -3541,6 +3541,11 @@ GenTree* Compiler::impIntrinsic(GenTree*                newobjThis,
 
     if (intrinsicID == CORINFO_INTRINSIC_StubHelpers_NextCallReturnAddress)
     {
+        // For now we just avoid inlining anything into these methods since
+        // this intrinsic is only rarely used. We could do this better if we
+        // wanted to by trying to match which call is the one we need to get
+        // the return address of.
+        info.compHasNextCallRetAddr = true;
         return new (this, GT_LABEL) GenTree(GT_LABEL, TYP_I_IMPL);
     }
 
@@ -19614,6 +19619,13 @@ void Compiler::impMarkInlineCandidateHelper(GenTreeCall*           call,
     if (InlineStrategy::IsNoInline(info.compCompHnd, info.compMethodHnd))
     {
         inlineResult.NoteFatal(InlineObservation::CALLER_IS_JIT_NOINLINE);
+        return;
+    }
+
+    // Don't inline into callers that use the NextCallReturnAddress intrinsic.
+    if (info.compHasNextCallRetAddr)
+    {
+        inlineResult.NoteFatal(InlineObservation::CALLER_USES_NEXT_CALL_RET_ADDR);
         return;
     }
 
