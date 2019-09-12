@@ -136,7 +136,6 @@ public:
     static FCDECL2(void,            MulticastDebuggerTraceHelper, Object*, INT32);
 #endif
 
-    static FCDECL0(void*,           ReturnAddress);
     static FCDECL0(void*,           NextCallReturnAddress);
 };
 
