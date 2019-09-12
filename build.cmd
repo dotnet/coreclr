@@ -659,6 +659,8 @@ if %__BuildCoreLib% EQU 1 (
             call %__ProjectDir%\dotnet.cmd publish --self-contained -r win-%__BuildArch% -c %__BuildType% -o "%__BinDir%\crossgen2" "%__ProjectDir%\src\tools\crossgen2\crossgen2\crossgen2.csproj"
             copy /Y "%__BinDir%\clrjit.dll" "%__BinDir%\crossgen2\clrjitilc.dll"
             copy /Y "%__BinDir%\jitinterface.dll" "%__BinDir%\crossgen2\jitinterface.dll"
+            echo %__MsgPrefix%Publishing tibcmgr...
+            call %__ProjectDir%\dotnet.cmd publish --self-contained -r win-%__BuildArch% -c %__BuildType% -o "%__BinDir%\tibcmgr" "%__ProjectDir%\src\tools\crossgen2\tibcmgr\tibcmgr.csproj"
         )
     )
     if %__IbcOptimize% EQU 1 (
