@@ -17,6 +17,7 @@ namespace Tracing.Tests.ExceptionThrown_V1
             var providers = new List<Provider>()
             {
                 new Provider("Microsoft-DotNETCore-SampleProfiler"),
+                //ExceptionKeyword (0x8000): 0b1000_0000_0000_0000
                 new Provider("Microsoft-Windows-DotNETRuntime", 0b1000_0000_0000_0000, EventLevel.Warning)
             };
 
@@ -26,7 +27,7 @@ namespace Tracing.Tests.ExceptionThrown_V1
 
         private static Dictionary<string, ExpectedEventCount> _expectedEventCounts = new Dictionary<string, ExpectedEventCount>()
         {
-            { "Microsoft-Windows-DotNETRuntime", 1000 },
+            { "Microsoft-Windows-DotNETRuntime", new ExpectedEventCount(1000, 0.2f) },
             { "Microsoft-Windows-DotNETRuntimeRundown", -1 },
             { "Microsoft-DotNETCore-SampleProfiler", -1 }
         };
