@@ -65,7 +65,7 @@ namespace CoreclrTestLib
         };
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        public unsafe struct ProcessEntry32
+        public unsafe struct ProcessEntry32W
         {
             public int Size;
             public int Usage;
@@ -86,10 +86,10 @@ namespace CoreclrTestLib
         public static extern IntPtr CreateToolhelp32Snapshot(Toolhelp32Flags flags, int processId);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern bool Process32First(IntPtr snapshot, ref ProcessEntry32 entry);
+        public static extern bool Process32FirstW(IntPtr snapshot, ref ProcessEntry32W entry);
 
         [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-        public static extern bool Process32Next(IntPtr snapshot, ref ProcessEntry32 entry);
+        public static extern bool Process32NextW(IntPtr snapshot, ref ProcessEntry32W entry);
     }
 
     static class libSystem
@@ -191,9 +191,9 @@ namespace CoreclrTestLib
             {
                 int ppid = process.Id;
 
-                var processEntry = new Kernel32.ProcessEntry32 { Size = Marshal.SizeOf<Kernel32.ProcessEntry32>() };
+                var processEntry = new Kernel32.ProcessEntry32W { Size = sizeof(Kernel32.ProcessEntry32W) };
 
-                bool success = Kernel32.Process32First(snapshot, ref processEntry);
+                bool success = Kernel32.Process32FirstW(snapshot, ref processEntry);
                 while (success)
                 {
                     if (processEntry.ParentProcessID == ppid)
@@ -211,7 +211,7 @@ namespace CoreclrTestLib
                         catch {}
                     }
 
-                    success = Kernel32.Process32Next(snapshot, ref processEntry);
+                    success = Kernel32.Process32NextW(snapshot, ref processEntry);
                 }
 
                 child = null;
