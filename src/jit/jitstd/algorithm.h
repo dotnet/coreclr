@@ -48,7 +48,7 @@ Function for_each(InputIterator first, InputIterator last, Function func)
 
 namespace
 {
-// Sort the elements in range [first, last) using insertion sort, an efficient alternative
+// Sort the elements in range [first, last] using insertion sort, an efficient alternative
 // to quick sort when the range to be sorted is small enough.
 template <typename RandomAccessIterator, typename Less>
 void insertion_sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
@@ -72,7 +72,7 @@ void insertion_sort(RandomAccessIterator first, RandomAccessIterator last, Less 
     }
 }
 
-// Sort the elements in range [first, last) using quick sort.
+// Sort the elements in range [first, last] using quick sort.
 template <typename RandomAccessIterator, typename Less>
 void quick_sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
 {
