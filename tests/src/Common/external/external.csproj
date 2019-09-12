@@ -2,6 +2,11 @@
 
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
 
+  <!-- This project places dlls from packagereferences into the
+       targeting pack folder, where they are referenced directly (via
+       "Reference") by the test projects. They are also copied into
+       the CORE_ROOT when running tests. -->
+
   <PropertyGroup>
     <!-- Given that xunit packages bring with them part of the framework, we need to specify a runtime in order to get the assets
          This RID value doesn't really matter, since the assets we are copying are not RID specific, so defaulting to Windows here
@@ -26,9 +31,7 @@
   <!-- Some out-of-band packages like System.ComponentModel.Primitives
        conflict with the versions in other test dependencies files. We
        don't want to overwrite these versions when creating the
-       coreroot, so we need a filter mechanism. This is a simplified
-       version of the logic in the buildtools depproj targets. -->
-    <!-- Support filtering to a subset of packages or files -->
+       CORE_ROOT. This logic prevents filters out such conflicts. -->
   <Target Name="FilterNugetPackages"
           AfterTargets="ResolveAssemblyReferences"
           Condition="'@(PackageToInclude)' != ''">

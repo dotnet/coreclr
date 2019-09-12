@@ -16,9 +16,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- First wins. We do separate restore, and each subsequent restore only copies files
-         that don't already exist in core_root. we used to do restore in msbuild, appending to itemgroups
-         where last wins. -->
+    <!-- These projects are individually restored in order. Each
+         subsequent restore only copies files that don't already exist
+         in CORE_ROOT, so assets from the first project file win. -->
     <CoreRootProjectFiles Include="$(SourceDir)Common\test_dependencies\test_dependencies.csproj" />
     <CoreRootProjectFiles Include="$(SourceDir)Common\test_runtime\test_runtime.csproj" />
   </ItemGroup>
@@ -41,9 +41,6 @@
   </PropertyGroup>
 
   <Target Name="CopyDependencyToCoreRoot">
-  <!-- TODO: make this incremental again! -->
-  <!-- incrementalism here was breaking it. -->
-  <!-- ensure CORE_ROOT gets output -->
     <MSBuild Projects="@(CoreRootProjectFiles)"
              Targets="CopyDependencyToCoreRoot"
              Properties="Language=C#;RuntimeIdentifier=$(TargetRid)" />
