@@ -100,6 +100,19 @@ namespace CoreclrTestLib
         public const int SIGABRT = 0x6;
     }
 
+    static class libproc
+    {
+        [DllImport(nameof(libproc))]
+        private static extern int proc_listchildpids(int ppid, int[] buffer, int byteSize);
+
+        public static unsafe bool ListChildPids(int ppid, out int[] buffer)
+        {
+            int n = proc_listchildpids(ppid, null, 0);
+            buffer = new int[n];
+            return proc_listchildpids(ppid, buffer, buffer.Length * sizeof(int)) != -1;
+        }
+    }
+
     public class CoreclrTestWrapperLib
     {
         public const int EXIT_SUCCESS_CODE = 0;
@@ -135,10 +148,11 @@ namespace CoreclrTestLib
                 Console.WriteLine($"Aborting process {pid} to generate dump");
                 int status = libSystem.kill(pid, libSystem.SIGABRT);
 
+                // Only copy if the dump path isn't the default dump generation location.
                 if (status == 0)
                 {
-                    Console.WriteLine($"Copying dump for {pid} to {path}.");
-                    File.Copy($"/cores/core.{pid}", path, true);
+                    Console.WriteLine($"Moving dump for {pid} to {path}.");
+                    File.Move($"/cores/core.{pid}", path, true);
                 }
                 return true;
             }
@@ -247,79 +261,35 @@ namespace CoreclrTestLib
             return false;
         }
 
-        static Regex psOutput = new Regex(@"(\d+) +(\d+) +-?(.+)", RegexOptions.Compiled);
-
         static bool TryFindChildProcessByNameMacOS(Process process, string childName, out Process child)
         {
             child = null;
+            Queue<int> childrenPidsToCheck = new Queue<int>();
 
-            Process ps = new Process
+            childrenPidsToCheck.Enqueue(process.Id);
+
+            while (childrenPidsToCheck.Count != 0)
             {
-                StartInfo = new ProcessStartInfo("ps")
+                int pid = childrenPidsToCheck.Dequeue();
+                if (libproc.ListChildPids(pid, out int[] children))
                 {
-                    Arguments = "-o pid,ppid,command",
-                    RedirectStandardOutput = true
-                }
-            };
-
-            if (ps.Start() && ps.WaitForExit(1000))
-            {
-                Dictionary<int, int> processParents = new Dictionary<int, int>();
-
-                List<int> possibleChildProcess = new List<int>();
-
-                bool seenHeader = false;
-                while (!ps.StandardOutput.EndOfStream)
-                {
-                    string line = ps.StandardOutput.ReadLine();
-                    if (!seenHeader)
+                    foreach (var childPid in children)
                     {
-                        seenHeader = true;
-                        continue;
-                    }
-
-                    Match match = psOutput.Match(line);
-                    if (match.Success)
-                    {
-                        int pid = int.Parse(match.Groups[1].Value);
-                        processParents.Add(pid, int.Parse(match.Groups[2].Value));
-                        Console.WriteLine($"Process {pid} has parent {int.Parse(match.Groups[2].Value)}");
-                        if (match.Groups[3].Value.Contains(childName) && pid != Process.GetCurrentProcess().Id)
+                        Process childProcess = Process.GetProcessById(childPid);
+                        if (childProcess.ProcessName.Equals(childName, StringComparison.Ordinal))
                         {
-                            Console.WriteLine($"Process {pid} may be child process. Command: {match.Groups[3]}");
-                            possibleChildProcess.Add(pid);
+                            child = childProcess;
+                            return true;
                         }
-                    }
-                    else
-                    {
-                        Console.WriteLine($"ps output did not match pattern: '{line}'");
-                    }
-                }
-
-                foreach (int childPid in possibleChildProcess)
-                {
-                    int ancestor = processParents[childPid];
-
-                    while (ancestor != process.Id)
-                    {
-                        if (!processParents.TryGetValue(ancestor, out int ancestorParent))
+                        else
                         {
-                            break;
+                            childrenPidsToCheck.Enqueue(childPid);
                         }
-                        ancestor = ancestorParent;
-                    }
-
-                    if (ancestor == process.Id)
-                    {
-                        Console.WriteLine($"Found child process with the name: {childName}. Pid {childPid}.");
-                        child = Process.GetProcessById(childPid);
-                        return true;
                     }
                 }
             }
 
-            Console.WriteLine($"Did not find child process with the name: {childName}");
-
+            child = null;
             return false;
         }
 
@@ -370,15 +340,6 @@ namespace CoreclrTestLib
                     // Process completed. Check process.ExitCode here.
                     exitCode = process.ExitCode;
                     Task.WaitAll(copyOutput, copyError);
-
-                    // If on OSX, copy any dumps from crashed tests to crashDumpFolder.
-                    if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && crashDumpFolder != null && Directory.Exists("/cores"))
-                    {
-                        foreach (var coreDump in Directory.EnumerateFiles("/cores"))
-                        {
-                            File.Copy(coreDump, Path.Combine(crashDumpFolder, Path.GetFileName(coreDump) + ".dmp"), true);
-                        }
-                    }
                 }
                 else
                 {
