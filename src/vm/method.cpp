@@ -5477,11 +5477,7 @@ MethodDesc::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
 #ifdef FEATURE_CODE_VERSIONING
     // Make sure the active IL and native code version are in triage dumps.
-    CodeVersionManager* codeVersionManager = GetCodeVersionManager();
-    if (codeVersionManager != NULL) 
-    {
-        codeVersionManager->GetActiveILCodeVersion(PTR_MethodDesc(this)).GetActiveNativeCodeVersion(PTR_MethodDesc(this));
-    }
+    GetCodeVersionManager()->GetActiveILCodeVersion(dac_cast<PTR_MethodDesc>(this)).GetActiveNativeCodeVersion(dac_cast<PTR_MethodDesc>(this));
 #endif
 
     // Also, call DacValidateMD to dump the memory it needs. !clrstack calls 
