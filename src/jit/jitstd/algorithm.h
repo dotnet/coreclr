@@ -48,6 +48,8 @@ Function for_each(InputIterator first, InputIterator last, Function func)
 
 namespace
 {
+// Sort the elements in range [first, last) using insertion sort, an efficient alternative
+// to quick sort when the range to be sorted is small enough.
 template <typename RandomAccessIterator, typename Less>
 void insertion_sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
 {
@@ -70,12 +72,13 @@ void insertion_sort(RandomAccessIterator first, RandomAccessIterator last, Less 
     }
 }
 
+// Sort the elements in range [first, last) using quick sort.
 template <typename RandomAccessIterator, typename Less>
 void quick_sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
 {
     // Avoid real recursion as it can be slower, at least due to the extra "less"
     // parameter that needs to be passed around. It's also likely to need more
-    // stack space. Use manual tail recursion for one partition and push the other
+    // stack space. Use "manual" tail recursion for one partition and push the other
     // partition on a stack. Assuming a proper implementation (sorting the smaller
     // partition using tail recursion and push the larger partition) then the
     // maximum stack depth should not exceed log2(n). So a depth of 32 should be
@@ -192,7 +195,7 @@ void quick_sort(RandomAccessIterator first, RandomAccessIterator last, Less less
 
         // Ideally, the 2 partitions should have the same size, that would guarantee
         // log2(n) stack space. If that's not the case then push the larger partition
-        // onto the stack and sort the smaller one using tail recursion.
+        // onto the stack and sort the smaller one using "manual" tail recursion.
         if ((leftLast - leftFirst) < (rightLast - rightFirst))
         {
             firstStack[depth] = rightFirst;
@@ -215,6 +218,9 @@ void quick_sort(RandomAccessIterator first, RandomAccessIterator last, Less less
 }
 }
 
+// Sort the elements in range [first, last) in ascending order, where the order
+// is defined by the specified "less" predicate. This implementation does not
+// use a stable sort algorithm.
 template<typename RandomAccessIterator, typename Less>
 void sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
 {
@@ -223,6 +229,8 @@ void sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
 
     if (first != last)
     {
+        // For convenience, quick_sort sorts the [first, last] range
+        // so "last" needs to be adjusted accordingly.
         quick_sort(first, last - 1, less);
 
 #ifdef DEBUG
