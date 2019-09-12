@@ -7702,10 +7702,13 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         // calli for the runtime.
         noway_assert(!(help.flags & CORINFO_TAILCALL_STORE_TARGET));
 
+        // X86 does not include the stub arg in the arg list.
+#ifndef _TARGET_X86_
         call->gtCallArgs = call->gtCallArgs->Rest();
-        call->gtFlags &= ~GTF_CALL_VIRT_STUB;
-
         call->fgArgInfo = nullptr;
+#endif
+
+        call->gtFlags &= ~GTF_CALL_VIRT_STUB;
     }
 
     GenTreeCall* callDispatcherNode = gtNewCallNode(
