@@ -4372,11 +4372,14 @@ private:
 
 public:
     TailCallTls* GetTailCallTls() { return &m_tailCallTls; }
-    void* GetHijackedReturnAddress()
+    void* GetHijackedReturnAddress(void*** pSlot)
     {
 #ifdef FEATURE_HIJACK
         if (m_State & TS_Hijacked)
+        {
+            *pSlot = m_ppvHJRetAddrPtr;
             return m_pvHJRetAddr;
+        }
 #endif
 
         return NULL;

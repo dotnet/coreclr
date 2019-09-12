@@ -36,8 +36,9 @@ FCIMPL2(void*, TailCallHelp::GetTailCallInfo, void** retAddrSlot, void** retAddr
 
     Thread* thread = GetThread();
 
-    void* hijackedRetAddr = thread->GetHijackedReturnAddress();
-    if (hijackedRetAddr == NULL)
+    void** hijackedSlot;
+    void* hijackedRetAddr = thread->GetHijackedReturnAddress(&hijackedSlot);
+    if (hijackedRetAddr == NULL || hijackedSlot != retAddrSlot)
         *retAddr = *retAddrSlot;
     else
         *retAddr = hijackedRetAddr;
