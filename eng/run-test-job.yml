@@ -2,13 +2,14 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osIdentifier: ''
+  osSubgroup: ''
   container: ''
   testGroup: ''
   readyToRun: false
   helixQueues: ''
   # If true, run the corefx tests instead of the coreclr ones
   corefxTests: false
+  stagedBuild: false
   displayNameArgs: ''
   runInUnloadableContext: false
 
@@ -23,9 +24,10 @@ jobs:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
     osGroup: ${{ parameters.osGroup }}
-    osIdentifier: ${{ parameters.osIdentifier }}
+    osSubgroup: ${{ parameters.osSubgroup }}
     readyToRun: ${{ parameters.readyToRun }}
     corefxTests: ${{ parameters.corefxTests }}
+    stagedBuild: ${{ parameters.stagedBuild }}
     helixType: 'build/tests/'
 
     # Test jobs should continue on error for internal builds
@@ -34,24 +36,24 @@ jobs:
 
     # Compute job name from template parameters
     ${{ if and(eq(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
-      name: 'run_test_p0_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p0_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-      displayName: 'Run Test Pri0 ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+      name: 'run_test_p0_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
+      dependsOn: 'build_test_p0_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      displayName: 'Run Test Pri0 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(ne(parameters.testGroup, 'innerloop'), eq(parameters.displayNameArgs, '')) }}:
-      name: 'run_test_p1_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p1_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-      displayName: 'Run Test Pri1 ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+      name: 'run_test_p1_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
+      dependsOn: 'build_test_p1_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      displayName: 'Run Test Pri1 ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(eq(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
-      name: 'run_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-      displayName: 'Run Test Pri0 ${{ parameters.displayNameArgs }} ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+      name: 'run_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
+      dependsOn: 'build_test_p0_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      displayName: 'Run Test Pri0 ${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     ${{ if and(ne(parameters.testGroup, 'innerloop'), ne(parameters.displayNameArgs, '')) }}:
-      name: 'run_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
-      dependsOn: 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osIdentifier }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
-      displayName: 'Run Test Pri1 ${{ parameters.displayNameArgs }} ${{ parameters.osIdentifier }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
+      name: 'run_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
+      dependsOn: 'build_test_p1_${{ parameters.displayNameArgs }}_${{ parameters.osGroup }}${{ parameters.osSubgroup }}_${{ parameters.archType }}_${{parameters.buildConfig }}'      
+      displayName: 'Run Test Pri1 ${{ parameters.displayNameArgs }} ${{ parameters.osGroup }}${{ parameters.osSubgroup }} ${{ parameters.archType }} ${{ parameters.buildConfig }}'
 
     variables:
     - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
@@ -62,6 +64,8 @@ jobs:
       timeoutInMinutes: 150
     ${{ if in(parameters.testGroup, 'outerloop') }}:
       timeoutInMinutes: 270
+    ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
+      timeoutInMinutes: 480
     ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs', 'gcstress0x3-gcstress0xc') }}:
       timeoutInMinutes: 390
     ${{ if in(parameters.testGroup, 'jitstress-isas-x86', 'gcstress-extra', 'r2r-extra') }}:
@@ -127,7 +131,11 @@ jobs:
           timeoutPerTestInMinutes: 10
         ${{ if in(parameters.testGroup, 'outerloop') }}:
           timeoutPerTestCollectionInMinutes: 120
-          timeoutPerTestInMinutes: 10
+          timeoutPerTestInMinutes: 10          
+        ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
+          timeoutPerTestCollectionInMinutes: 360
+          # gc reliability may take up to 2 hours to shutdown. Some scenarios have very long iteration times.
+          timeoutPerTestInMinutes: 240
         ${{ if in(parameters.testGroup, 'jitstress', 'jitstress-isas-arm', 'jitstress-isas-x86', 'jitstressregs-x86', 'jitstressregs', 'jitstress2-jitstressregs' ) }}:
           timeoutPerTestCollectionInMinutes: 120
           timeoutPerTestInMinutes: 30
@@ -254,3 +262,7 @@ jobs:
           - jitminopts
           - forcerelocs
           - gcstress15
+        ${{ if in(parameters.testGroup, 'gc-longrunning') }}:
+          longRunningGcTests: true
+          scenarios:
+          - normal
