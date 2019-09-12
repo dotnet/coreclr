@@ -64,6 +64,7 @@ namespace CoreclrTestLib
             TH32CS_SNAPTHREAD = 0x00000004
         };
 
+        [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
         public unsafe struct ProcessEntry32
         {
             public int Size;
@@ -75,8 +76,7 @@ namespace CoreclrTestLib
             public int ParentProcessID;
             public int PriClassBase;
             public int Flags;
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = MAX_PATH)]
-            public char[] ExeFile;
+            public fixed char ExeFile[MAX_PATH];
         }
 
         [DllImport("kernel32.dll")]
