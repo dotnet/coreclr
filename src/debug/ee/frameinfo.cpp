@@ -1269,7 +1269,7 @@ FramePointer GetFramePointerForDebugger(DebuggerFrameData* pData, CrawlFrame* pC
     if (pData->info.frame == NULL)
     {
         // This is a managed method frame.
-        fpResult = FramePointer::MakeFramePointer((LPVOID)GetRegdisplayStackMark(&pData->info.registers));
+        fpResult = FramePointer::MakeFramePointer((LPVOID)GetRegdisplayStackMark(&pData->regDisplay));
     }
     else
     {
