@@ -4987,6 +4987,19 @@ void Compiler::lvaFixVirtualFrameOffsets()
     }
 
 #endif // FEATURE_FIXED_OUT_ARGS
+
+#ifdef _TARGET_ARMARCH_
+    // We normally add alignment below the locals between them and the outgoing
+    // arg space area. When we store fp/lr at the bottom, however, this will be
+    // below the alignment. So we should not apply the alignment adjustment to
+    // them. On ARM it turns out we always store these at +0 and +8 of the FP,
+    // so instead of dealing with skipping adjustment just for them we just do
+    // set them here always. If we ever end up without frame pointers on ARM we
+    // should take this alignment into account instead.
+    assert(codeGen->isFramePointerUsed());
+    if (lvaRetAddrVar != BAD_VAR_NUM)
+        lvaTable[lvaRetAddrVar].lvStkOffs = 8;
+#endif
 }
 
 #ifdef _TARGET_ARM_
@@ -5709,8 +5722,6 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     {
         stkOffs -= REGSIZE_BYTES;
     }
-#else
-    noway_assert(lvaRetAddrVar == BAD_VAR_NUM);
 #endif //_TARGET_XARCH_
 
     int  preSpillSize    = 0;
