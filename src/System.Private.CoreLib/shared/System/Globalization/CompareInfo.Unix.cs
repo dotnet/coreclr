@@ -491,7 +491,7 @@ namespace System.Globalization
             }
         }
 
-        private unsafe bool StartsWith(string source, string prefix, CompareOptions options)
+        private bool StartsWith(string source, string prefix, CompareOptions options)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
 
@@ -499,36 +499,14 @@ namespace System.Globalization
             Debug.Assert(!string.IsNullOrEmpty(prefix));
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            fixed (char* pPinnedSource = source)
-            fixed (char* pPinnedPrefix = prefix)
+#if CORECLR
+            if (_isAsciiEqualityOrdinal && CanUseAsciiOrdinalForOptions(options) && source.IsFastSort() && prefix.IsFastSort())
             {
-                char* pSourceI = pPinnedSource;
-                char* pPrefixI = pPinnedPrefix;
-
-                int length = Math.Min(prefix.Length, source.Length);
-
-                while (*pSourceI == *pPrefixI && length != 0)
-                {
-                    pSourceI++;
-                    pPrefixI++;
-                    length--;
-                }
-
-                if (length == 0 && prefix.Length <= source.Length)
-                {
-                    return true; // very lucky path - a binary match
-                }
-                else if (length != 0 && options == CompareOptions.None &&
-                    (*pSourceI < 0x80) && (*pPrefixI < 0x80) && (!s_highCharTable[*pSourceI]) && (!s_highCharTable[*pPrefixI]))
-                {
-                    return false; // also a lucky path - a simple mismatch
-                }
-                else
-                {
-                    // we have to process whole strings again to make sure that things like IgnoreSymbols are handled properly
-                    return Interop.Globalization.StartsWith(_sortHandle, pPinnedPrefix, prefix.Length, pPinnedSource, source.Length, options);
-                }
+                return IsPrefix(source, prefix, GetOrdinalCompareOptions(options));
             }
+#endif
+
+            return Interop.Globalization.StartsWith(_sortHandle, prefix, prefix.Length, source, source.Length, options);
         }
 
         private unsafe bool StartsWith(ReadOnlySpan<char> source, ReadOnlySpan<char> prefix, CompareOptions options)
