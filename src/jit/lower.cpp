@@ -1615,19 +1615,6 @@ void Lowering::LowerCall(GenTree* node)
         }
     }
 
-    if (call->IsTailCallViaHelper())
-    {
-        // Either controlExpr or gtCallAddr must contain real call target.
-        if (controlExpr == nullptr)
-        {
-            assert(call->gtCallType == CT_INDIRECT);
-            assert(call->gtCallAddr != nullptr);
-            controlExpr = call->gtCallAddr;
-        }
-
-        controlExpr = LowerTailCallViaHelper(call, controlExpr);
-    }
-
     if (controlExpr != nullptr)
     {
         LIR::Range controlExprRange = LIR::SeqTree(comp, controlExpr);
@@ -1636,31 +1623,28 @@ void Lowering::LowerCall(GenTree* node)
         DISPRANGE(controlExprRange);
 
         GenTree* insertionPoint = call;
-        if (!call->IsTailCallViaHelper())
+        // The controlExpr should go before the gtCallCookie and the gtCallAddr, if they exist
+        //
+        // TODO-LIR: find out what's really required here, as this is currently a tree order
+        // dependency.
+        if (call->gtCallType == CT_INDIRECT)
         {
-            // The controlExpr should go before the gtCallCookie and the gtCallAddr, if they exist
-            //
-            // TODO-LIR: find out what's really required here, as this is currently a tree order
-            // dependency.
-            if (call->gtCallType == CT_INDIRECT)
+            bool isClosed = false;
+            if (call->gtCallCookie != nullptr)
             {
-                bool isClosed = false;
-                if (call->gtCallCookie != nullptr)
-                {
 #ifdef DEBUG
-                    GenTree* firstCallAddrNode = BlockRange().GetTreeRange(call->gtCallAddr, &isClosed).FirstNode();
-                    assert(isClosed);
-                    assert(call->gtCallCookie->Precedes(firstCallAddrNode));
+                GenTree* firstCallAddrNode = BlockRange().GetTreeRange(call->gtCallAddr, &isClosed).FirstNode();
+                assert(isClosed);
+                assert(call->gtCallCookie->Precedes(firstCallAddrNode));
 #endif // DEBUG
 
-                    insertionPoint = BlockRange().GetTreeRange(call->gtCallCookie, &isClosed).FirstNode();
-                    assert(isClosed);
-                }
-                else if (call->gtCallAddr != nullptr)
-                {
-                    insertionPoint = BlockRange().GetTreeRange(call->gtCallAddr, &isClosed).FirstNode();
-                    assert(isClosed);
-                }
+                insertionPoint = BlockRange().GetTreeRange(call->gtCallCookie, &isClosed).FirstNode();
+                assert(isClosed);
+            }
+            else if (call->gtCallAddr != nullptr)
+            {
+                insertionPoint = BlockRange().GetTreeRange(call->gtCallAddr, &isClosed).FirstNode();
+                assert(isClosed);
             }
         }
 
@@ -2113,132 +2097,11 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
 
 #else // !FEATURE_FASTTAILCALL
 
-    // Platform choose not to implement fast tail call mechanism.
-    // In such a case we should never be reaching this method as
-    // the expectation is that IsTailCallViaHelper() will always
-    // be true on such a platform.
+    // Platform choose not to implement fast tail call mechanism. In such a
+    // case we should never be reaching this method as the expectation is that
+    // all tailcalls will be dispatched via helper.
     unreached();
 #endif
-}
-
-//------------------------------------------------------------------------
-// LowerTailCallViaHelper: lower a call via the tailcall helper. Morph
-// has already inserted tailcall helper special arguments. This function
-// inserts actual data for some placeholders.
-//
-// For ARM32, AMD64, lower
-//      tail.call(void* copyRoutine, void* dummyArg, ...)
-// as
-//      Jit_TailCall(void* copyRoutine, void* callTarget, ...)
-//
-// For x86, lower
-//      tail.call(<function args>, int numberOfOldStackArgs, int dummyNumberOfNewStackArgs, int flags, void* dummyArg)
-// as
-//      JIT_TailCall(<function args>, int numberOfOldStackArgsWords, int numberOfNewStackArgsWords, int flags, void*
-//      callTarget)
-// Note that the special arguments are on the stack, whereas the function arguments follow the normal convention.
-//
-// Also inserts PInvoke method epilog if required.
-//
-// Arguments:
-//    call         -  The call node
-//    callTarget   -  The real call target. This is used to replace the dummyArg during lowering.
-//
-// Return Value:
-//    Returns control expression tree for making a call to helper Jit_TailCall.
-//
-GenTree* Lowering::LowerTailCallViaHelper(GenTreeCall* call, GenTree* callTarget)
-{
-    // Tail call restrictions i.e. conditions under which tail prefix is ignored.
-    // Most of these checks are already done by importer or fgMorphTailCall().
-    // This serves as a double sanity check.
-    assert((comp->info.compFlags & CORINFO_FLG_SYNCH) == 0); // tail calls from synchronized methods
-    assert(!comp->opts.compNeedSecurityCheck);               // tail call from methods that need security check
-    assert(!call->IsUnmanaged());                            // tail calls to unamanaged methods
-    assert(!comp->compLocallocUsed);                         // tail call from methods that also do localloc
-
-#ifdef _TARGET_AMD64_
-    assert(!comp->getNeedsGSSecurityCookie()); // jit64 compat: tail calls from methods that need GS check
-#endif                                         // _TARGET_AMD64_
-
-    // We expect to see a call that meets the following conditions
-    assert(call->IsTailCallViaHelper());
-    assert(callTarget != nullptr);
-
-    // The TailCall helper call never returns to the caller and is not GC interruptible.
-    // Therefore the block containing the tail call should be a GC safe point to avoid
-    // GC starvation. It is legal for the block to be unmarked iff the entry block is a
-    // GC safe point, as the entry block trivially dominates every reachable block.
-    assert((comp->compCurBB->bbFlags & BBF_GC_SAFE_POINT) || (comp->fgFirstBB->bbFlags & BBF_GC_SAFE_POINT));
-
-    // If PInvokes are in-lined, we have to remember to execute PInvoke method epilog anywhere that
-    // a method returns.  This is a case of caller method has both PInvokes and tail calls.
-    if (comp->info.compCallUnmanaged)
-    {
-        InsertPInvokeMethodEpilog(comp->compCurBB DEBUGARG(call));
-    }
-
-    // Remove gtCallAddr from execution order if present.
-    if (call->gtCallType == CT_INDIRECT)
-    {
-        assert(call->gtCallAddr != nullptr);
-
-        bool               isClosed;
-        LIR::ReadOnlyRange callAddrRange = BlockRange().GetTreeRange(call->gtCallAddr, &isClosed);
-        assert(isClosed);
-
-        BlockRange().Remove(std::move(callAddrRange));
-    }
-
-    // The callTarget tree needs to be sequenced.
-    LIR::Range callTargetRange = LIR::SeqTree(comp, callTarget);
-
-    // First argument will be the 'actual' target.
-    fgArgTabEntry* argEntry;
-
-    // First arg at this point will be the 'store args' stub. Swap it so we call
-    // it passing the target as the first arg instead.
-    argEntry = comp->gtArgEntryByArgNum(call, 0);
-    assert(argEntry != nullptr);
-    GenTree* firstArg = argEntry->node->gtOp.gtOp1;
-    assert(firstArg->IsIntegralConst());
-    CORINFO_METHOD_HANDLE storeArgs = (CORINFO_METHOD_HANDLE)firstArg->AsIntConCommon()->IconValue();
-
-    ContainCheckRange(callTargetRange);
-    BlockRange().InsertAfter(firstArg, std::move(callTargetRange));
-
-    bool               isClosed;
-    LIR::ReadOnlyRange firstArgRange = BlockRange().GetTreeRange(firstArg, &isClosed);
-    assert(isClosed);
-
-    BlockRange().Remove(std::move(firstArgRange));
-
-    argEntry->node->gtOp.gtOp1 = callTarget;
-
-    // Transform this call node into a call to Jit tail call helper.
-    call->gtCallType    = CT_USER_FUNC;
-    call->gtCallMethHnd = storeArgs;
-    call->gtFlags &= ~GTF_CALL_VIRT_KIND_MASK;
-
-    // Lower this as if it were a normal call.
-    call->gtCallMoreFlags &= ~(GTF_CALL_M_TAILCALL | GTF_CALL_M_TAILCALL_VIA_HELPER);
-    GenTree* result = LowerDirectCall(call);
-
-    // Now add back tail call flags for identifying this node as tail call dispatched via helper.
-    call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL | GTF_CALL_M_TAILCALL_VIA_HELPER;
-
-#ifdef PROFILING_SUPPORTED
-    // Insert profiler tail call hook if needed.
-    // Since we don't know the insertion point, pass null for second param.
-    if (comp->compIsProfilerHookNeeded())
-    {
-        InsertProfTailCallHook(call, nullptr);
-    }
-#endif // PROFILING_SUPPORTED
-
-    assert(call->IsTailCallViaHelper());
-
-    return result;
 }
 
 #ifndef _TARGET_64BIT_
@@ -2911,7 +2774,7 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
 
     // Don't support tail calling helper methods.
     // But we might encounter tail calls dispatched via JIT helper appear as a tail call to helper.
-    noway_assert(!call->IsTailCall() || call->IsTailCallViaHelper() || call->gtCallType == CT_USER_FUNC);
+    noway_assert(!call->IsTailCall() || call->gtCallType == CT_USER_FUNC);
 
     // Non-virtual direct/indirect calls: Work out if the address of the
     // call is known at JIT time.  If not it is either an indirect call
@@ -2980,7 +2843,7 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
             // Non-virtual direct call to known address
             // For helper based tailcall the target address is passed as an
             // arg to the store args stub so we want a node for it.
-            if (!IsCallTargetInRange(addr) || call->IsTailCallViaHelper())
+            if (!IsCallTargetInRange(addr))
             {
                 result = AddrGen(addr);
             }
@@ -3038,20 +2901,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     assert((comp->info.compCompHnd->getMethodAttribs(call->gtCallMethHnd) &
             (CORINFO_FLG_DELEGATE_INVOKE | CORINFO_FLG_FINAL)) == (CORINFO_FLG_DELEGATE_INVOKE | CORINFO_FLG_FINAL));
 
-    GenTree* thisArgNode;
-    if (call->IsTailCallViaHelper())
-    {
-        // In case of helper dispatched tail calls, "thisptr" will be the second arg.
-        // The first arg is: real call target.
-        const unsigned argNum  = 1;
-
-        fgArgTabEntry* thisArgTabEntry = comp->gtArgEntryByArgNum(call, argNum);
-        thisArgNode                    = thisArgTabEntry->node;
-    }
-    else
-    {
-        thisArgNode = comp->gtGetThisArg(call);
-    }
+    GenTree* thisArgNode = comp->gtGetThisArg(call);
 
     assert(thisArgNode->gtOper == GT_PUTARG_REG);
     GenTree* originalThisExpr = thisArgNode->gtOp.gtOp1;
@@ -3810,24 +3660,9 @@ GenTree* Lowering::LowerVirtualVtableCall(GenTreeCall* call)
 {
     noway_assert(call->gtCallType == CT_USER_FUNC);
 
-    // If this is a tail call via helper, thisPtr will be the second argument.
-    int       thisPtrArgNum;
-    regNumber thisPtrArgReg;
-
-    if (call->IsTailCallViaHelper())
-    {
-        thisPtrArgNum = 1;
-        thisPtrArgReg = REG_ARG_1;
-    }
-    else
-    {
-        thisPtrArgNum = 0;
-        thisPtrArgReg = comp->codeGen->genGetThisArgReg(call);
-    }
-
     // get a reference to the thisPtr being passed
-    fgArgTabEntry* argEntry = comp->gtArgEntryByArgNum(call, thisPtrArgNum);
-    assert(argEntry->regNum == thisPtrArgReg);
+    fgArgTabEntry* argEntry = comp->gtArgEntryByArgNum(call, 0);
+    assert(argEntry->regNum == comp->codeGen->genGetThisArgReg(call));
     assert(argEntry->node->gtOper == GT_PUTARG_REG);
     GenTree* thisPtr = argEntry->node->gtOp.gtOp1;
 
@@ -3980,10 +3815,7 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
     // The VM considers exceptions that occur in stubs on 64-bit to be not managed exceptions and
     // it would be difficult to change this in a way so that it affects only the right stubs.
 
-    if (!call->IsTailCallViaHelper())
-    {
-        call->gtFlags |= GTF_CALL_NULLCHECK;
-    }
+    call->gtFlags |= GTF_CALL_NULLCHECK;
 #endif
 
     // This is code to set up an indirect call to a stub address computed
@@ -4023,16 +3855,6 @@ GenTree* Lowering::LowerVirtualStubCall(GenTreeCall* call)
         // Direct stub calls, though the stubAddr itself may still need to be
         // accessed via an indirection.
         GenTree* addr = AddrGen(stubAddr);
-
-#ifdef _TARGET_X86_
-        // On x86, for tailcall via helper, the JIT_TailCall helper takes the stubAddr as
-        // the target address, and we set a flag that it's a VSD call. The helper then
-        // handles any necessary indirection.
-        if (call->IsTailCallViaHelper())
-        {
-            result = addr;
-        }
-#endif // _TARGET_X86_
 
         if (result == nullptr)
         {

@@ -2879,22 +2879,12 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
     }
     else if (call->IsVirtualStub())
     {
-        if (!call->IsTailCallViaHelper())
-        {
-            GenTree* stubAddrArg = fgGetStubAddrArg(call);
-            // And push the stub address onto the list of arguments
-            call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
+        GenTree* stubAddrArg = fgGetStubAddrArg(call);
+        // And push the stub address onto the list of arguments
+        call->gtCallArgs = gtNewListNode(stubAddrArg, call->gtCallArgs);
 
-            numArgs++;
-            nonStandardArgs.Add(stubAddrArg, stubAddrArg->gtRegNum);
-        }
-        else
-        {
-            // If it is a VSD call getting dispatched via tail call helper,
-            // fgMorphTailCallViaHelper() would materialize stub addr as an additional
-            // parameter added to the original arg list and hence no need to
-            // add as a non-standard arg.
-        }
+        numArgs++;
+        nonStandardArgs.Add(stubAddrArg, stubAddrArg->gtRegNum);
     }
     else
 #endif // !_TARGET_X86_
@@ -3472,19 +3462,6 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         {
             isRegArg = (nonStdRegNum != REG_STK);
         }
-#if defined(_TARGET_X86_)
-        else if (call->IsTailCallViaHelper())
-        {
-            // We have already (before calling fgMorphArgs()) appended the 4 special args
-            // required by the x86 tailcall helper. These args are required to go on the
-            // stack. Force them to the stack here.
-            assert(numArgs >= 4);
-            if (argIndex >= numArgs - 4)
-            {
-                isRegArg = false;
-            }
-        }
-#endif // defined(_TARGET_X86_)
 
         // Now we know if the argument goes in registers or not and how big it is.
         CLANG_FORMAT_COMMENT_ANCHOR;
@@ -5128,11 +5105,7 @@ void Compiler::fgMakeOutgoingStructArgCopy(GenTreeCall*         call,
             if (lvaIsImplicitByRefLocal(varNum))
             {
                 LclVarDsc* varDsc = &lvaTable[varNum];
-                // JIT_TailCall helper has an implicit assumption that all tail call arguments live
-                // on the caller's frame. If an argument lives on the caller caller's frame, it may get
-                // overwritten if that frame is reused for the tail call. Therefore, we should always copy
-                // struct parameters if they are passed as arguments to a tail call.
-                if (!call->IsTailCallViaHelper() && (varDsc->lvRefCnt(RCS_EARLY) == 1) && !fgMightHaveLoop())
+                if ((varDsc->lvRefCnt(RCS_EARLY) == 1) && !fgMightHaveLoop())
                 {
                     assert(!call->IsTailCall());
 
@@ -7510,10 +7483,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     compTailCallUsed = true;
     // This will prevent inlining this call.
     call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
-    if (!canFastTailCall)
-    {
-        call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_VIA_HELPER;
-    }
 #if FEATURE_TAILCALL_OPT
     if (fastTailCallToLoop)
     {
@@ -7617,7 +7586,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 
     // For helper-based tailcalls we transform into multiple calls where the
     // last call is a fast tailcall. This will modify fgMorphStmt.
-    if (call->IsTailCallViaHelper())
+    if (!canFastTailCall)
     {
         fgMorphTailCallViaHelper(call, tailCallHelp);
     }
@@ -7865,6 +7834,8 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     call->gtCallType    = CT_USER_FUNC;
     call->gtCallMethHnd = help.hStoreArgs;
     call->gtFlags &= ~GTF_CALL_VIRT_KIND_MASK;
+    // TODO: We should be able to clean up this. This flag is only used for
+    // fast tailcalls now.
     call->gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
 
     // The store-args stub returns no value.

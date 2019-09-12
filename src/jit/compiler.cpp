@@ -9356,10 +9356,6 @@ int cTreeFlagsIR(Compiler* comp, GenTree* tree)
                     {
                         chars += printf("[CALL_M_FRAME_VAR_DEATH]");
                     }
-                    if (call->gtCallMoreFlags & GTF_CALL_M_TAILCALL_VIA_HELPER)
-                    {
-                        chars += printf("[CALL_M_TAILCALL_VIA_HELPER]");
-                    }
 #if FEATURE_TAILCALL_OPT
                     if (call->gtCallMoreFlags & GTF_CALL_M_IMPLICIT_TAILCALL)
                     {
