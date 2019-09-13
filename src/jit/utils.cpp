@@ -755,8 +755,8 @@ void ConfigMethodRange::InitRanges(const WCHAR* rangeStr, unsigned capacity)
     m_entries            = capacity;
 
     const WCHAR* p           = rangeStr;
-    unsigned       lastRange   = 0;
-    bool           setHighPart = false;
+    unsigned     lastRange   = 0;
+    bool         setHighPart = false;
 
     while ((*p != 0) && (lastRange < m_entries))
     {

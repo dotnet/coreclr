@@ -399,7 +399,7 @@ void JitConfigValues::initialize(ICorJitHost* host)
 #define CONFIG_INTEGER(name, key, defaultValue) m_##name = host->getIntConfigValue(key, defaultValue);
 #define CONFIG_STRING(name, key) m_##name = host->getStringConfigValue(key);
 #define CONFIG_METHODSET(name, key)                                                                                    \
-    const WCHAR* name##value = host->getStringConfigValue(key);                                                      \
+    const WCHAR* name##value = host->getStringConfigValue(key);                                                        \
     m_##name.initialize(name##value, host);                                                                            \
     host->freeStringConfigValue(name##value);
 
