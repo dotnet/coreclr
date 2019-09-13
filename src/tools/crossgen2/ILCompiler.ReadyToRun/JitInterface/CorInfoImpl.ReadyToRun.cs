@@ -1843,6 +1843,6 @@ namespace Internal.JitInterface
             return false;
         }
 
-        private int SizeOfPInvokeTransitionFrame => TransitionBlock.FromTarget(_compilation.NodeFactory.Target).SizeOfPInvokeTransitionBlock;
+        private int SizeOfPInvokeTransitionFrame => 11 * _compilation.NodeFactory.Target.PointerSize;
     }
 }
