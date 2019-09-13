@@ -303,7 +303,7 @@ GetCPInfo(
     }
 
     lpCPInfo->MaxCharSize = 4;
-    memcpy( lpCPInfo->LeadByte, lpStruct->LeadByte , MAX_LEADBYTES );
+    memset( lpCPInfo->LeadByte, 0, MAX_LEADBYTES );
 
     /* Don't need to be set, according to the spec. */
     memset( lpCPInfo->DefaultChar, '?', MAX_DEFAULTCHAR );
