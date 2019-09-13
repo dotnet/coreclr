@@ -7638,6 +7638,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // Use existing retbuf if there is one.
     if (call->HasRetBufArg())
     {
+        JITDUMP("Transferring retbuf\n");
         GenTree* retBufArg = call->gtCallArgs->GetNode();
         assert((info.compRetBuffArg != BAD_VAR_NUM) &&
                retBufArg->OperIsLocal() &&
@@ -7653,6 +7654,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     }
     else if (call->gtType != TYP_VOID)
     {
+        JITDUMP("Creating a new temp for the return value\n");
         newRetLcl = lvaGrabTemp(false DEBUGARG("Return value for tail call dispatcher"));
         lvaTable[newRetLcl].lvType = call->gtType;
         lvaSetVarAddrExposed(newRetLcl);
@@ -7661,6 +7663,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     }
     else
     {
+        JITDUMP("No return value so using null pointer as arg\n");
         retValTemp = gtNewZeroConNode(TYP_I_IMPL);
     }
 
@@ -7701,6 +7704,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // Put 'this' in normal param list
     if (call->gtCallObjp)
     {
+        JITDUMP("Moving this pointer into arg list\n");
         GenTree* thisPtr = nullptr;
         GenTree* objp    = call->gtCallObjp;
         call->gtCallObjp = nullptr;
@@ -7755,6 +7759,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // We may need to pass the target address, for instance for calli.
     if (help.flags & CORINFO_TAILCALL_STORE_TARGET)
     {
+        JITDUMP("VM requested target, so adding target\n");
         GenTree* target;
         if (call->gtCallType == CT_INDIRECT)
         {
