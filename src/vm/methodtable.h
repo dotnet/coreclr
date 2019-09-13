@@ -2866,6 +2866,8 @@ public:
     
     mdTypeDef GetEnclosingCl();
 
+    bool GetCharSet(CorNativeLinkType* pCharSet);
+
 #ifdef DACCESS_COMPILE
     void EnumMemoryRegions(CLRDataEnumMemoryFlags flags);
 #endif

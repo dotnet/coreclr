@@ -4291,31 +4291,7 @@ static CorNativeLinkType GetLinkTypeOfMethodTable(MethodTable* pMT)
 {
     CorNativeLinkType nltType;
 
-    IMDInternalImport* pInternalImport = pMT->GetModule()->GetMDImport();
-
-    DWORD clFlags;
-    if (FAILED(pInternalImport->GetTypeDefProps(pMT->GetTypeDefRid(), &clFlags, NULL)))
-    {
-        UNREACHABLE_MSG("Structs that are generating interop marshalling stubs have already been verified to have valid metadata");
-    }
-
-    if (IsTdAnsiClass(clFlags))
-    {
-        nltType = nltAnsi;
-    }
-    else if (IsTdUnicodeClass(clFlags))
-    {
-        nltType = nltUnicode;
-    }
-    else if (IsTdAutoClass(clFlags))
-    {
-#ifdef PLATFORM_WINDOWS
-        nltType = nltUnicode;
-#else
-        nltType = nltAnsi; // We don't have a utf8 charset in metadata yet, but ANSI == UTF-8 off-Windows
-#endif
-    }
-    else
+    if (!pMT->GetCharSet(&nltType))
     {
         UNREACHABLE_MSG("Structs that are generating interop marshalling stubs have already been verified to have valid metadata");
     }

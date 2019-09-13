@@ -366,6 +366,10 @@ class EEClassLayoutInfo
        AllocMemTracker    *pamTracker
     );
 
+    static VOID CollectNativeLayoutFieldMetadataThrowing(
+        MethodTable* pMT
+    );
+
     friend class ClassLoader;
     friend class EEClass;
     friend class MethodTableBuilder;
@@ -373,48 +377,17 @@ class EEClassLayoutInfo
     friend class NativeImageDumper;
 #endif
 
-    private:
-        static void ParseFieldNativeTypes(
-            IMDInternalImport* pInternalImport,
-            const mdTypeDef cl, // cl of the NStruct being loaded
-            HENUMInternal* phEnumField, // enumerator for fields
-            const ULONG cTotalFields,
-            Module* pModule, // Module that defines the scope, loader and heap (for allocate FieldMarshalers)
-            ParseNativeTypeFlags nativeTypeFlags,
-            const SigTypeContext* pTypeContext, // Type parameters for NStruct being loaded
-            BOOL* fDisqualifyFromManagedSequential,
-            LayoutRawFieldInfo* pFieldInfoArrayOut, // caller-allocated array to fill in.  Needs room for cTotalFields+1 elements
-            EEClassLayoutInfo* pEEClassLayoutInfoOut, // caller-allocated structure to fill in.
-            ULONG* cInstanceFields // [out] number of instance fields
-#ifdef _DEBUG
-            ,
-            LPCUTF8 szNamespace,
-            LPCUTF8 szName
-#endif
-        );
-
-        static void SetOffsetsAndSortFields(
-            IMDInternalImport* pInternalImport,
-            const mdTypeDef cl,
-            LayoutRawFieldInfo* pFieldInfoArray, // An array of LayoutRawFieldInfos.
-            const ULONG cInstanceFields,
-            const BOOL fExplicitOffsets,
-            const UINT32 cbAdjustedParentLayoutNativeSize,
-            Module* pModule, // Module that defines the scope for the type-load
-            LayoutRawFieldInfo** pSortArrayOut // A caller-allocated array to fill in with pointers to elements in pFieldInfoArray in ascending order when sequential layout, and declaration order otherwise.
-        );
-
         // size (in bytes) of fixed portion of NStruct.
         UINT32      m_cbNativeSize; // Native
         UINT32      m_cbManagedSize; // Managed
 
-    public:
         // this is equal to the largest of the alignment requirements
         // of each of the EEClass's members. If the NStruct extends another NStruct,
         // the base NStruct is treated as the first member for the purpose of
         // this calculation.
         BYTE        m_LargestAlignmentRequirementOfAllMembers; // Native
 
+    public:
         // Post V1.0 addition: This is the equivalent of m_LargestAlignmentRequirementOfAllMember
         // for the managed layout.
         BYTE        m_ManagedLargestAlignmentRequirementOfAllMembers; // Managed
@@ -534,7 +507,7 @@ class EEClassLayoutInfo
             return (m_bFlags & e_HAS_EXPLICIT_SIZE) == e_HAS_EXPLICIT_SIZE;
         }        
 
-        DWORD GetPackingSize() const
+        BYTE GetPackingSize() const
         {
             LIMITED_METHOD_CONTRACT;
             return m_cbPackingSize;

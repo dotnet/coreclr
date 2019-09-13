@@ -2038,7 +2038,7 @@ unsigned CEEInfo::getClassAlignmentRequirementStatic(TypeHandle clsHnd)
         if (clsHnd.IsNativeValueType())
         {
             // if it's the unmanaged view of the managed type, we always use the unmanaged alignment requirement
-            result = pInfo->m_LargestAlignmentRequirementOfAllMembers;
+            result = pInfo->GetLargestAlignmentRequirementOfAllMembers();
         }
         else
         if (pInfo->IsManagedSequential())
@@ -2053,7 +2053,7 @@ unsigned CEEInfo::getClassAlignmentRequirementStatic(TypeHandle clsHnd)
             _ASSERTE(!pMT->ContainsPointers());
 
             // if it's blittable, we use the unmanaged alignment requirement
-            result = pInfo->m_LargestAlignmentRequirementOfAllMembers;
+            result = pInfo->GetLargestAlignmentRequirementOfAllMembers();
         }
     }
 

@@ -227,29 +227,9 @@ VOID ParseNativeType(Module* pModule,
 struct LayoutRawFieldInfo
 {
     mdFieldDef  m_MD;             // mdMemberDefNil for end of array
-    RawFieldPlacementInfo m_nativePlacement; // Description of the native field placement
     ULONG       m_sequence;       // sequence # from metadata
-
-
-    // The LayoutKind.Sequential attribute now affects managed layout as well.
-    // So we need to keep a parallel set of layout data for the managed side. The Size and AlignmentReq
-    // is redundant since we can figure it out from the sig but since we're already accessing the sig
-    // in ParseNativeType, we might as well capture it at that time.
-    RawFieldPlacementInfo m_managedPlacement;
-
+    RawFieldPlacementInfo m_placement;
     NativeFieldDescriptor m_nfd;
-};
-
-
-class EENativeClassLayoutInfo
-{
-private:
-    UINT32 m_nativeSize;
-    UINT m_numFields;
-    BYTE m_LargestAlignmentRequirementOfAllMembers;
-    BYTE m_flags;
-    BYTE m_nativeHFAType;
-    NativeFieldDescriptor m_fieldDescriptors[0];
 };
 
 #endif // __FieldMarshaler_h__

@@ -3724,13 +3724,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
     DWORD i;
     IMDInternalImport * pInternalImport = GetMDImport(); // to avoid multiple dereferencings
 
-    NativeFieldDescriptor * pNextNativeFieldDescriptor = NULL;
-    if (HasLayout())
-    {
-        pNextNativeFieldDescriptor = GetLayoutInfo()->GetNativeFieldDescriptors();
-    }
-
-
 //========================================================================
 // BEGIN:
 //    Go thru all fields and initialize their FieldDescs.
@@ -4188,15 +4181,6 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 if (pwalk->m_MD == bmtMetaData->pFields[i])
                 {
                     pLayoutFieldInfo = pwalk;
-
-                    const NativeFieldDescriptor *pSrcFieldDescriptor = &pwalk->m_nfd;
-
-                    *pNextNativeFieldDescriptor = *pSrcFieldDescriptor;
-
-                    pNextNativeFieldDescriptor->SetFieldDesc(pFD);
-                    pNextNativeFieldDescriptor->SetExternalOffset(pwalk->m_nativePlacement.m_offset);
-
-                    pNextNativeFieldDescriptor++;
                     break;
                 }
                 pwalk++;
@@ -4232,7 +4216,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                     (*pByValueClassCache)[dwCurrentDeclaredField]->GetNumInstanceFieldBytes();
 
                 if (pLayoutFieldInfo)
-                    IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_nativePlacement.m_offset));
+                    IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_placement.m_offset));
                 else
                     pFD->SetOffset(FIELD_OFFSET_VALUE_CLASS);
             }
@@ -4241,7 +4225,7 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
                 (DWORD_PTR &)pFD->m_pMTOfEnclosingClass =
                     (*pByValueClassCache)[dwCurrentDeclaredField]->GetNumInstanceFieldBytes();
 
-                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_managedPlacement.m_offset));
+                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_placement.m_offset));
             }
             else
             {
@@ -4262,9 +4246,9 @@ VOID    MethodTableBuilder::InitializeFieldDescs(FieldDesc *pFieldDescList,
             // mark it as either GC or non-GC and as unplaced; it will get placed later on in an optimized way.
 
             if ((IsBlittable() || HasExplicitFieldOffsetLayout()) && !fIsStatic)
-                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_nativePlacement.m_offset));
+                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_placement.m_offset));
             else if (IsManagedSequential() && !fIsStatic)
-                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_managedPlacement.m_offset));
+                IfFailThrow(pFD->SetOffset(pLayoutFieldInfo->m_placement.m_offset));
             else if (bCurrentFieldIsGCPointer)
                 pFD->SetOffset(FIELD_OFFSET_UNPLACED_GC_PTR);
             else
