@@ -152,15 +152,6 @@ typedef PVOID NATIVE_LIBRARY_HANDLE;
 #endif // !_MSC_VER
 #endif // !THROW_DECL
 
-#ifndef _MSC_VER
-#if defined(CORECLR)
-// Define this if the underlying platform supports true 2-pass EH.
-// At the same time, this enables running several PAL instances
-// side-by-side.
-#define FEATURE_PAL_SXS 1
-#endif // CORECLR
-#endif // !_MSC_VER
-
 #if defined(_MSC_VER)
 #define DECLSPEC_ALIGN(x)   __declspec(align(x))
 #else
@@ -494,12 +485,6 @@ PAL_GetTransportPipeName(
     IN DWORD id,
     IN const char *applicationGroupId,
     IN const char *suffix);
-
-PALIMPORT
-void
-PALAPI
-PAL_InitializeDebug(
-    void);
 
 PALIMPORT
 void
@@ -3018,8 +3003,6 @@ PAL_BindResources(IN LPCSTR lpDomain);
 #define EXCEPTION_NONCONTINUABLE 0x1
 #define EXCEPTION_UNWINDING 0x2
 
-#ifdef FEATURE_PAL_SXS
-
 #define EXCEPTION_EXIT_UNWIND 0x4       // Exit unwind is in progress (not used by PAL SEH)
 #define EXCEPTION_NESTED_CALL 0x10      // Nested exception handler call
 #define EXCEPTION_TARGET_UNWIND 0x20    // Target unwind in progress
@@ -3032,8 +3015,6 @@ PAL_BindResources(IN LPCSTR lpDomain);
 #define IS_DISPATCHING(Flag) ((Flag & EXCEPTION_UNWIND) == 0)
 #define IS_UNWINDING(Flag) ((Flag & EXCEPTION_UNWIND) != 0)
 #define IS_TARGET_UNWIND(Flag) (Flag & EXCEPTION_TARGET_UNWIND)
-
-#endif // FEATURE_PAL_SXS
 
 #define EXCEPTION_IS_SIGNAL 0x100
 
@@ -3058,8 +3039,6 @@ typedef struct _EXCEPTION_POINTERS {
     PCONTEXT ContextRecord;
 } EXCEPTION_POINTERS, *PEXCEPTION_POINTERS, *LPEXCEPTION_POINTERS;
 
-#ifdef FEATURE_PAL_SXS
-
 typedef LONG EXCEPTION_DISPOSITION;
 
 enum {
@@ -3068,8 +3047,6 @@ enum {
     ExceptionNestedException,
     ExceptionCollidedUnwind,
 };
-
-#endif // FEATURE_PAL_SXS
 
 //
 // A function table entry is generated for each frame function.
@@ -3267,24 +3244,8 @@ PALAPI
 PAL_nanosleep(
     IN long timeInNs);
 
-#ifndef FEATURE_PAL_SXS
-
-typedef LONG (PALAPI_NOEXPORT *PTOP_LEVEL_EXCEPTION_FILTER)(
-                           struct _EXCEPTION_POINTERS *ExceptionInfo);
-typedef PTOP_LEVEL_EXCEPTION_FILTER LPTOP_LEVEL_EXCEPTION_FILTER;
-
-PALIMPORT
-LPTOP_LEVEL_EXCEPTION_FILTER
-PALAPI
-SetUnhandledExceptionFilter(
-                IN LPTOP_LEVEL_EXCEPTION_FILTER lpTopLevelExceptionFilter);
-
-#else // FEATURE_PAL_SXS
-
 typedef EXCEPTION_DISPOSITION (PALAPI_NOEXPORT *PVECTORED_EXCEPTION_HANDLER)(
                            struct _EXCEPTION_POINTERS *ExceptionPointers);
-
-#endif // FEATURE_PAL_SXS
 
 // Define BitScanForward64 and BitScanForward
 // Per MSDN, BitScanForward64 will search the mask data from LSB to MSB for a set bit.
@@ -4797,8 +4758,6 @@ public:
 #define HardwareExceptionHolder
 #endif // FEATURE_ENABLE_HARDWARE_EXCEPTIONS
 
-#ifdef FEATURE_PAL_SXS
-
 class NativeExceptionHolderBase;
 
 PALIMPORT
@@ -5009,8 +4968,6 @@ public:
 
 } // extern "C++"
 
-#endif // FEATURE_PAL_SXS
-
 #define PAL_CPP_THROW(type, obj) { throw obj; }
 #define PAL_CPP_RETHROW { throw; }
 #define PAL_CPP_TRY                     try { HardwareExceptionHolder
@@ -5028,31 +4985,7 @@ public:
 #pragma warning(disable:4611) // interaction between '_setjmp' and C++ object destruction is non-portable
 #endif
 
-#ifdef FEATURE_PAL_SXS
-
 #define PAL_TRY_FOR_DLLMAIN(ParamType, paramDef, paramRef, _reason) PAL_TRY(ParamType, paramDef, paramRef)
-
-#else // FEATURE_PAL_SXS
-
-#define PAL_TRY(ParamType, paramDef, paramRef)                          \
-    {                                                                   \
-        ParamType __param = paramRef;                                   \
-        ParamType paramDef; paramDef = __param;                         \
-        try {                                                           \
-            HardwareExceptionHolder
-
-#define PAL_TRY_FOR_DLLMAIN(ParamType, paramDef, paramRef, _reason)     \
-    {                                                                   \
-        ParamType __param = paramRef;                                   \
-        ParamType paramDef; paramDef = __param;                         \
-        try {                                                           \
-            HardwareExceptionHolder
-
-#define PAL_ENDTRY                                                      \
-        }                                                               \
-    }
-
-#endif // FEATURE_PAL_SXS
 
 #endif // __cplusplus
 

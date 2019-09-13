@@ -948,27 +948,6 @@ PAL_TerminateEx(
 
 /*++
 Function:
-  PAL_InitializeDebug
-
-Abstract:
-  This function is the called when cordbg attaches to the process.
---*/
-void
-PALAPI
-PAL_InitializeDebug(
-    void)
-{
-    PERF_ENTRY(PAL_InitializeDebug);
-    ENTRY("PAL_InitializeDebug()\n");
-#if HAVE_MACH_EXCEPTIONS
-    MachExceptionInitializeDebug();
-#endif
-    LOGEXIT("PAL_InitializeDebug returns\n");
-    PERF_EXIT(PAL_InitializeDebug);
-}
-
-/*++
-Function:
   PALIsThreadDataInitialized
 
 Returns TRUE if startup has reached a point where thread data is available
