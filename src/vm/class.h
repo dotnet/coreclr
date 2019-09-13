@@ -404,18 +404,6 @@ class EEClassLayoutInfo
             LayoutRawFieldInfo** pSortArrayOut // A caller-allocated array to fill in with pointers to elements in pFieldInfoArray in ascending order when sequential layout, and declaration order otherwise.
         );
 
-        static void CalculateSizeAndFieldOffsets(
-            const UINT32 parentSize,
-            ULONG numInstanceFields,
-            BOOL fExplicitOffsets,
-            LayoutRawFieldInfo* const* pSortedFieldInfoArray, // An array of pointers to LayoutRawFieldInfo's in ascending order when sequential layout.
-            ULONG classSizeInMetadata,
-            BYTE packingSize,
-            BYTE parentAlignmentRequirement,
-            BOOL calculatingNativeLayout,
-            EEClassLayoutInfo* pEEClassLayoutInfoOut // A pointer to a caller-allocated EEClassLayoutInfo that we are filling in.
-        );
-
         // size (in bytes) of fixed portion of NStruct.
         UINT32      m_cbNativeSize; // Native
         UINT32      m_cbManagedSize; // Managed

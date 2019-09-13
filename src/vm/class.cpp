@@ -3450,16 +3450,18 @@ void EEClassLayoutInfo::SetOffsetsAndSortFields(
     }
 }
 
-void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
+void CalculateSizeAndFieldOffsets(
     const UINT32 parentSize,
     ULONG numInstanceFields,
     BOOL fExplicitOffsets,
-    LayoutRawFieldInfo* const* pSortedFieldInfoArray,
+    LayoutRawFieldInfo* const* pSortedFieldInfoArray, // An array of pointers to LayoutRawFieldInfo's in ascending order when sequential layout.
     ULONG classSizeInMetadata,
     BYTE packingSize,
     BYTE parentAlignmentRequirement,
     BOOL calculatingNativeLayout,
-    EEClassLayoutInfo* pEEClassLayoutInfoOut
+    BOOL* pIsZeroSizedOut,
+    BYTE* pLargestAlignmentRequirementOut,
+    UINT32* pSizeOut
 )
 {
     UINT32 cbCurOffset = parentSize;
@@ -3556,8 +3558,12 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     // This is a zero-sized struct - need to record the fact and bump it up to 1.
     if (calcTotalSize == 0)
     {
-        pEEClassLayoutInfoOut->SetIsZeroSized(TRUE);
+        *pIsZeroSizedOut = TRUE;
         calcTotalSize = 1;
+    }
+    else
+    {
+        *pIsZeroSizedOut = FALSE;
     }
 
     // The packingSize acts as a ceiling on all individual alignment
@@ -3565,16 +3571,8 @@ void EEClassLayoutInfo::CalculateSizeAndFieldOffsets(
     // is also capped.
     _ASSERTE(LargestAlignmentRequirement <= packingSize);
 
-    if (calculatingNativeLayout)
-    {
-        pEEClassLayoutInfoOut->m_cbNativeSize = calcTotalSize;
-        pEEClassLayoutInfoOut->m_LargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
-    }
-    else
-    {
-        pEEClassLayoutInfoOut->m_cbManagedSize = calcTotalSize;
-        pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers = LargestAlignmentRequirement;
-    }
+    *pSizeOut = calcTotalSize;
+    *pLargestAlignmentRequirementOut = LargestAlignmentRequirement;
 }
 
 //=======================================================================
@@ -3779,6 +3777,8 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         parentAlignmentRequirement = pParentLayoutInfo->GetLargestAlignmentRequirementOfAllMembers();
     }
 
+    BOOL isZeroSized;
+
     CalculateSizeAndFieldOffsets(
         cbAdjustedParentLayoutNativeSize,
         cInstanceFields,
@@ -3787,7 +3787,12 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         classSizeInMetadata,
         packingSize,
         parentAlignmentRequirement,
-        /*calculatingNativeLayout*/ TRUE, pEEClassLayoutInfoOut);
+        /*calculatingNativeLayout*/ TRUE,
+        &isZeroSized,
+        &pEEClassLayoutInfoOut->m_LargestAlignmentRequirementOfAllMembers,
+        &pEEClassLayoutInfoOut->m_cbNativeSize);
+
+    pEEClassLayoutInfoOut->SetIsZeroSized(isZeroSized);
 
     // Calculate the managedsequential layout if the type is eligible.
     if (!fDisqualifyFromManagedSequential)
@@ -3809,7 +3814,9 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
             packingSize,
             parentManagedAlignmentRequirement,
             /*calculatingNativeLayout*/ FALSE,
-            pEEClassLayoutInfoOut);
+            &isZeroSized,
+            &pEEClassLayoutInfoOut->m_ManagedLargestAlignmentRequirementOfAllMembers,
+            &pEEClassLayoutInfoOut->m_cbManagedSize);
 
 #ifdef _DEBUG
         // @perf: If the type is blittable, the managed and native layouts have to be identical
