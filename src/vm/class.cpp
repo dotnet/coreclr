@@ -1480,15 +1480,11 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
 
         if (category & NATIVE_FIELD_SUBCATEGORY_FLOAT)
         {
-            if (category == NATIVE_FIELD_CATEGORY_R4)
+            if (pNativeFieldDescriptor->NativeSize() == 4)
             {
                 fieldType = ELEMENT_TYPE_R4;
             }
-            else if (category == NATIVE_FIELD_CATEGORY_R8)
-            {
-                fieldType = ELEMENT_TYPE_R8;
-            }
-            else if (category == NATIVE_FIELD_CATEGORY_DATE)
+            else if (pNativeFieldDescriptor->NativeSize() == 8)
             {
                 fieldType = ELEMENT_TYPE_R8;
             }
