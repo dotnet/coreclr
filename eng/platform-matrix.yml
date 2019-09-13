@@ -13,24 +13,20 @@ parameters:
   # 'all' - the queues used for non-PR, non-CI test runs, e.g., Manual or Scheduled runs. Typically this is all available queues.
   # 'corefx' - the queues used for a corefx test run.
   helixQueueGroup: 'pr'
-  ignoreDependencyOnBuildJobs: false
+  stagedBuild: false
   jobParameters: {}
 
 jobs:
-
-# TODO: simplify osIdentifier by adding osGroup and osSubGroup. See
-# https://github.com/Microsoft/azure-pipelines-yaml/pull/46 for more information
 
 # Linux arm
 
 - ${{ if or(containsValue(parameters.platforms, 'Linux_arm'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm
       osGroup: Linux
-      osIdentifier: Linux
       container:
         image: ubuntu-16.04-cross-14.04-23cacb0-20190528233931
         registry: mcr
@@ -49,11 +45,10 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Linux_arm64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm64
       osGroup: Linux
-      osIdentifier: Linux
       container:
         image: ubuntu-16.04-cross-arm64-cfdd435-20190520220848
         registry: mcr
@@ -73,11 +68,11 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Linux_musl_x64'), eq(parameters.platformGroup, 'all')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: Linux
-      osIdentifier: Linux_musl
+      osSubgroup: _musl
       container:
         image: alpine-3.6-WithNode-cfdd435-20190521001804
         registry: mcr
@@ -94,11 +89,11 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Linux_musl_arm64'), eq(parameters.platformGroup, 'all')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm64
       osGroup: Linux
-      osIdentifier: Linux_musl
+      osSubgroup: _musl
       container:
         image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
         registry: mcr
@@ -115,11 +110,11 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Linux_rhel6_x64'), eq(parameters.platformGroup, 'all')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: Linux
-      osIdentifier: Linux_rhel6
+      osSubgroup: _rhel6
       container:
         image: centos-6-3e800f1-20190501005338
         registry: mcr
@@ -134,11 +129,10 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Linux_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: Linux
-      osIdentifier: Linux
       container:
         image: centos-7-3e800f1-20190501005343
         registry: mcr
@@ -170,7 +164,6 @@ jobs:
 #     buildConfig: ${{ parameters.buildConfig }}
 #     archType: x64
 #     osGroup: FreeBSD
-#     osIdentifier: FreeBSD
 #     # There are no FreeBSD helix queues, so we don't run tests at the moment.
 #     helixQueues:
 #       asString: ''
@@ -182,14 +175,14 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'OSX_x64'), eq(parameters.platformGroup, 'all')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: OSX
-      osIdentifier: OSX
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - OSX.1013.Amd64.Open
+        - OSX.1014.Amd64.Open
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), notIn(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - OSX.1013.Amd64.Open
         - OSX.1014.Amd64.Open
@@ -203,11 +196,10 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x64'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: x64
       osGroup: Windows_NT
-      osIdentifier: Windows_NT
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - Windows.10.Amd64.Open
@@ -229,11 +221,10 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Windows_NT_x86'), in(parameters.platformGroup, 'all', 'gcstress')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: x86
       osGroup: Windows_NT
-      osIdentifier: Windows_NT
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
         - Windows.10.Amd64.Open
@@ -253,11 +244,10 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm'), eq(parameters.platformGroup, 'all')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm
       osGroup: Windows_NT
-      osIdentifier: Windows_NT
       helixQueues:
       # NOTE: there are no queues specified for Windows_NT_arm public with helixQueueGroup='pr'. This means that specifying
       # Windows_NT_arm for a PR job causes a build, but no test run. If the test build and test runs were separate jobs,
@@ -273,11 +263,10 @@ jobs:
 - ${{ if or(containsValue(parameters.platforms, 'Windows_NT_arm64'), eq(parameters.platformGroup, 'all')) }}:
   - template: ${{ parameters.jobTemplate }}
     parameters:
-      ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+      stagedBuild: ${{ parameters.stagedBuild }}
       buildConfig: ${{ parameters.buildConfig }}
       archType: arm64
       osGroup: Windows_NT
-      osIdentifier: Windows_NT
       helixQueues:
       # TODO: Consider adding Windows.10.Arm64.Open here if capacity is enough for handling both Windows_NT/arm and Windows_NT/arm64 testing
       - ${{ if eq(variables['System.TeamProject'], 'internal') }}:
