@@ -3029,7 +3029,7 @@ BasicBlock::weight_t BasicBlock::getBBWeight(Compiler* comp)
     }
 }
 
-// LclVarDsc "less" comparer for small code.
+// LclVarDsc "less" comparer used to compare the weight of two locals, when optimizing for small code.
 class LclVarDsc_SmallCode_Less
 {
     const LclVarDsc* m_lvaTable;
@@ -3099,7 +3099,6 @@ public:
         // Break the tie by:
         //   - Increasing the weight by 2   if we are a register arg.
         //   - Increasing the weight by 0.5 if we are a GC type.
-        //   - Increasing the weight by 0.5 if we were enregistered in the previous pass.
 
         if (weight1 != 0)
         {
@@ -3137,7 +3136,7 @@ public:
     }
 };
 
-// LclVarDsc "less" comparer for blended code.
+// LclVarDsc "less" comparer used to compare the weight of two locals, when optimizing for blended code.
 class LclVarDsc_BlendedCode_Less
 {
     const LclVarDsc* m_lvaTable;
@@ -3207,7 +3206,7 @@ public:
             return weight1 > weight2;
         }
 
-        // If the unweighted ref counts are different then try the unweighted ref counts.
+        // If the weighted ref counts are different then try the unweighted ref counts.
         if (dsc1->lvRefCnt() != dsc2->lvRefCnt())
         {
             return dsc1->lvRefCnt() > dsc2->lvRefCnt();
@@ -3404,13 +3403,13 @@ void Compiler::lvaSortByRefCount()
     JITDUMP("Tracked variable (%u out of %u) table:\n", lvaTrackedCount, lvaCount);
 
     // Assign indices to all the variables we've decided to track
-    for (unsigned i = 0; i < lvaTrackedCount; i++)
+    for (unsigned varIndex = 0; varIndex < lvaTrackedCount; varIndex++)
     {
-        LclVarDsc* varDsc = lvaGetDesc(tracked[i]);
+        LclVarDsc* varDsc = lvaGetDesc(tracked[varIndex]);
         assert(varDsc->lvTracked);
-        varDsc->lvVarIndex = static_cast<unsigned short>(i);
+        varDsc->lvVarIndex = static_cast<unsigned short>(varIndex);
 
-        INDEBUG(if (verbose) { gtDispLclVar(tracked[i]); })
+        INDEBUG(if (verbose) { gtDispLclVar(tracked[varIndex]); })
         JITDUMP(" [%6s]: refCnt = %4u, refCntWtd = %6s\n", varTypeName(varDsc->TypeGet()), varDsc->lvRefCnt(),
                 refCntWtd2str(varDsc->lvRefCntWtd()));
     }
@@ -3418,9 +3417,9 @@ void Compiler::lvaSortByRefCount()
     JITDUMP("\n");
 
     // Mark all variables past the first 'lclMAX_TRACKED' as untracked
-    for (unsigned i = lvaTrackedCount; i < trackedCount; i++)
+    for (unsigned varIndex = lvaTrackedCount; varIndex < trackedCount; varIndex++)
     {
-        LclVarDsc* varDsc = lvaGetDesc(tracked[i]);
+        LclVarDsc* varDsc = lvaGetDesc(tracked[varIndex]);
         assert(varDsc->lvTracked);
         varDsc->lvTracked = 0;
     }
