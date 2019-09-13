@@ -7613,8 +7613,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         // calli for the runtime.
         noway_assert(!(help.flags & CORINFO_TAILCALL_STORE_TARGET));
 
-        JITDUMP("This is a VSD, so removing VSD stub arg\n");
-
+        JITDUMP("This is a VSD\n");
 // X86/ARM32 do not include the stub arg in the arg list.
 #if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
         call->gtCallArgs = call->gtCallArgs->GetNext();
