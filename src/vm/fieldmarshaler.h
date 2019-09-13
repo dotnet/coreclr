@@ -59,9 +59,10 @@ BOOL IsStructMarshalable(TypeHandle th);
 
 bool IsFieldBlittable(
     Module* pModule,
+    mdFieldDef fd,
     SigPointer fieldSig,
     const SigTypeContext* pTypeContext,
-    bool isAnsi
+    ParseNativeTypeFlags flags
 );
 
 // Describes specific categories of native fields.

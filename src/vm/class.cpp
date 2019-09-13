@@ -4043,7 +4043,7 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
 #endif
             );
 
-            if (!IsFieldBlittable(pModule, fsig.GetArgProps(), pTypeContext, nativeTypeFlags == ParseNativeTypeFlags::IsAnsi))
+            if (!IsFieldBlittable(pModule, fd, fsig.GetArgProps(), pTypeContext, nativeTypeFlags))
                 pEEClassLayoutInfoOut->SetIsBlittable(FALSE);
 
             (*cInstanceFields)++;

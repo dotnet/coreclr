@@ -241,12 +241,29 @@ VOID ParseNativeType(Module*                     pModule,
 
 bool IsFieldBlittable(
     Module* pModule,
+    mdFieldDef fd,
     SigPointer fieldSig,
     const SigTypeContext* pTypeContext,
-    bool isAnsi
+    ParseNativeTypeFlags flags
 )
 {
+    PCCOR_SIGNATURE marshalInfoSig;
+    ULONG marshalInfoSigLength;
+
+    CorNativeType nativeType = NATIVE_TYPE_DEFAULT;
+
+    if (pModule->GetMDImport()->GetFieldMarshal(fd, &marshalInfoSig, &marshalInfoSigLength) == S_OK && marshalInfoSigLength > 0)
+    {
+        nativeType = (CorNativeType)*marshalInfoSig;
+    }
+
+    if (nativeType != NATIVE_TYPE_DEFAULT && flags == ParseNativeTypeFlags::IsWinRT)
+    {
+        return false;
+    }
+
     bool isBlittable = false;
+
     EX_TRY
     {
         TypeHandle valueTypeHandle;
@@ -255,26 +272,44 @@ bool IsFieldBlittable(
         switch (corElemType)
         {
         case ELEMENT_TYPE_CHAR:
-            isBlittable = !isAnsi;
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT && flags != ParseNativeTypeFlags::IsAnsi) || (nativeType == NATIVE_TYPE_I2) || (nativeType == NATIVE_TYPE_U2);
             break;
         case ELEMENT_TYPE_I1:
         case ELEMENT_TYPE_U1:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_I1) || (nativeType == NATIVE_TYPE_U1);
+            break;
         case ELEMENT_TYPE_I2:
         case ELEMENT_TYPE_U2:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_I2) || (nativeType == NATIVE_TYPE_U2);
+            break;
         case ELEMENT_TYPE_I4:
         case ELEMENT_TYPE_U4:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_I4) || (nativeType == NATIVE_TYPE_U4) || (nativeType == NATIVE_TYPE_ERROR);
+            break;
         case ELEMENT_TYPE_I8:
         case ELEMENT_TYPE_U8:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_I8) || (nativeType == NATIVE_TYPE_U8);
+            break;
         case ELEMENT_TYPE_R4:
         case ELEMENT_TYPE_R8:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_R8) || (nativeType == NATIVE_TYPE_R8);
+            break;
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_INT) || (nativeType == NATIVE_TYPE_UINT);
+            break;
         case ELEMENT_TYPE_PTR:
+            isBlittable = nativeType == NATIVE_TYPE_DEFAULT && flags != ParseNativeTypeFlags::IsWinRT;
+            break;
         case ELEMENT_TYPE_FNPTR:
-            isBlittable = true;
+            isBlittable = flags != ParseNativeTypeFlags::IsWinRT && (nativeType == NATIVE_TYPE_DEFAULT || nativeType == NATIVE_TYPE_FUNC);
             break;
         case ELEMENT_TYPE_VALUETYPE:
-            if (valueTypeHandle.GetMethodTable() == MscorlibBinder::GetClass(CLASS__DECIMAL))
+            if (nativeType != NATIVE_TYPE_DEFAULT && nativeType != NATIVE_TYPE_STRUCT)
+            {
+                isBlittable = false;
+            }
+            else if (valueTypeHandle.GetMethodTable() == MscorlibBinder::GetClass(CLASS__DECIMAL))
             {
                 isBlittable = false;
             }
