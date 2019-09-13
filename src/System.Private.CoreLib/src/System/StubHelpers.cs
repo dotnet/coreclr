@@ -1576,6 +1576,14 @@ namespace System.StubHelpers
         private ulong lo64;
     }
 
+    // The WinRTTypeNameNative type has the same native layout as
+    // the Windows.UI.DirectUI.Xaml.TypeNameNative type (used for projecting a System.Type to WinRT).
+    internal struct WinRTTypeNameNative
+    {
+        private IntPtr typeName;
+        private int typeKind;
+    }
+
     internal abstract class CleanupWorkListElement
     {
         private CleanupWorkListElement? m_Next;

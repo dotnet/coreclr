@@ -2683,14 +2683,6 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
         NativeFieldFlags nfc = pNFD->GetNativeFieldFlags();
 
-#ifdef FEATURE_COMINTEROP
-        if (nfc & NATIVE_FIELD_SUBCATEGORY_COM_ONLY)
-        {
-            _ASSERTE(false && "COMInterop not supported for CoreCLR on Unix.");
-            return false;
-        }
-        else
-#endif // FEATURE_COMINTEROP
         if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
         {
             unsigned int numElements = pNFD->GetNumElements();
@@ -2729,7 +2721,7 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         {
             fieldClassificationType = SystemVClassificationTypeInteger;
         }
-        else if (nfc & NATIVE_FIELD_SUBCATEGORY_OTHER)
+        else if (nfc & NATIVE_FIELD_CATEGORY_ILLEGAL)
         {
             return false;
         }

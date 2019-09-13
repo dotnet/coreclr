@@ -160,16 +160,16 @@ VOID ParseNativeType(Module*                     pModule,
                 break;      
 #ifdef FEATURE_COMINTEROP
             case MarshalInfo::MARSHAL_TYPE_HSTRING:
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_COM_STRUCT, sizeof(HSTRING), sizeof(HSTRING));
+                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_NONBLITTABLE_INTEGER, sizeof(HSTRING), sizeof(HSTRING));
                 break;
             case MarshalInfo::MARSHAL_TYPE_DATETIME:
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_WELL_KNOWN, sizeof(INT64), alignof(INT64));
+                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_NONBLITTABLE_INTEGER, sizeof(INT64), alignof(INT64));
                 break;
             case MarshalInfo::MARSHAL_TYPE_INTERFACE:
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_INTERFACE_TYPE, sizeof(IUnknown*), sizeof(IUnknown*));
+                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_NONBLITTABLE_INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
                 break;
             case MarshalInfo::MARSHAL_TYPE_SAFEARRAY:
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_INTERFACE_TYPE, sizeof(SAFEARRAY*), sizeof(SAFEARRAY*));
+                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_NONBLITTABLE_INTEGER, sizeof(SAFEARRAY*), sizeof(SAFEARRAY*));
                 break;
 #endif
             case MarshalInfo::MARSHAL_TYPE_DELEGATE:
@@ -215,13 +215,13 @@ VOID ParseNativeType(Module*                     pModule,
                 break;
 #ifdef FEATURE_COMINTEROP
             case MarshalInfo::MARSHAL_TYPE_SYSTEMTYPE:
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_COM_STRUCT, sizeof(TypeNameNative), alignof(TypeNameNative));
+                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__WINRT_TYPE_NAME_NATIVE));
                 break;
             case MarshalInfo::MARSHAL_TYPE_EXCEPTION:
                 *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_NONBLITTABLE_INTEGER, sizeof(int), alignof(int));
                 break;
             case MarshalInfo::MARSHAL_TYPE_NULLABLE:
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_WELL_KNOWN, sizeof(IUnknown*), sizeof(IUnknown*));
+                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_NONBLITTABLE_INTEGER, sizeof(IUnknown*), sizeof(IUnknown*));
                 break;
 #endif
             case MarshalInfo::MARSHAL_TYPE_UNKNOWN:
