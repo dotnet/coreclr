@@ -280,12 +280,12 @@ void AddFilesFromDirectoryToTpaList(const char* directory, std::string& tpaList)
     closedir(dir);
 }
 
-const char* GetEnvValueBoolean(const char* envVariable)
+const char* GetEnvValueBoolean(const char* envVariable, bool defaultValue = false)
 {
     const char* envValue = std::getenv(envVariable);
     if (envValue == nullptr)
     {
-        envValue = "0";
+        envValue = defaultValue ? "1" : "0";
     }
     // CoreCLR expects strings "true" and "false" instead of "1" and "0".
     return (std::strcmp(envValue, "1") == 0 || strcasecmp(envValue, "true") == 0) ? "true" : "false";
@@ -421,8 +421,14 @@ int ExecuteManagedAssembly(
     if (!GetCoreClrFunctions(&initializeCoreCLR, &executeAssembly, &shutdownCoreCLR, clrFilesAbsolutePath))
         return -1;
 
+#ifdef COREBUNDLE_BUILD
+    bool useServerGcDefault = true;
+#else
+    bool useServerGcDefault = false;
+#endif
+
     // Check whether we are enabling server GC (off by default)
-    const char* useServerGc = GetEnvValueBoolean(serverGcVar);
+    const char* useServerGc = GetEnvValueBoolean(serverGcVar, useServerGcDefault);
 
     // Check Globalization Invariant mode (false by default)
     const char* globalizationInvariant = GetEnvValueBoolean(globalizationInvariantVar);
