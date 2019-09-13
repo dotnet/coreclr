@@ -613,7 +613,7 @@ Statement* Compiler::fgNewStmtAtBeg(BasicBlock* block, GenTree* tree)
 //   stmt  - the statement to be inserted.
 //
 // Note:
-//   If the block can be a conditional block, use fgNewStmtNearEnd.
+//   If the block can be a conditional block, use fgInsertStmtNearEnd.
 //
 void Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
 {
