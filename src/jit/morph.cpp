@@ -7834,9 +7834,10 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     call->gtCallType    = CT_USER_FUNC;
     call->gtCallMethHnd = help.hStoreArgs;
     call->gtFlags &= ~GTF_CALL_VIRT_KIND_MASK;
-    // TODO: We should be able to clean up this. This flag is only used for
-    // fast tailcalls now.
-    call->gtCallMoreFlags &= ~GTF_CALL_M_TAILCALL;
+    // TODO: We should be able to clean up this. The tailcall flag is only used
+    // for fast tailcalls now.
+    call->gtCallMoreFlags &=
+        ~(GTF_CALL_M_TAILCALL | GTF_CALL_M_DELEGATE_INV | GTF_CALL_M_SECURE_DELEGATE_INV);
 
     // The store-args stub returns no value.
     call->gtRetClsHnd = nullptr;
