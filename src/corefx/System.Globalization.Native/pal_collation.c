@@ -618,40 +618,43 @@ static int32_t GetCollationElementMask(UColAttributeValue strength)
     }
 }
 
+static int32_t inline GetNextNonIgnorableCharacter(UCollationElements* pIterator, UErrorCode* pErrorCode)
+{
+    int32_t result = UCOL_IGNORABLE;
+
+    do
+    {
+        result = ucol_next(pIterator, pErrorCode);
+    }
+    while (result == UCOL_IGNORABLE); // we don't check errorCode because on error the result is set to UCOL_NULLORDER
+
+    return result;
+}
+
 static int32_t SimpleStartsWith_Iterators(UCollationElements* pPatternIterator, UCollationElements* pSourceIterator, UColAttributeValue strength)
 {
     UErrorCode errorCode = U_ZERO_ERROR;
-    int32_t movePattern = TRUE, moveSource = TRUE;
-    int32_t patternItem = 0, sourceItem = 0;
 
     int32_t collationElementMask = GetCollationElementMask(strength);
-    int32_t end = UCOL_NULLORDER & collationElementMask;
 
     while (TRUE)
     {
-        if (movePattern)
-        {
-            patternItem = ucol_next(pPatternIterator, &errorCode) & collationElementMask;
-        }
-        if (moveSource)
-        {
-            sourceItem = ucol_next(pSourceIterator, &errorCode) & collationElementMask;
-        }
-        movePattern = moveSource = TRUE;
+        int32_t patternItem = GetNextNonIgnorableCharacter(pPatternIterator, &errorCode);
+        int32_t sourceItem = GetNextNonIgnorableCharacter(pSourceIterator, &errorCode);
 
-        if (patternItem == end)
+        if (patternItem == UCOL_NULLORDER)
         {
+            if (strength >= UCOL_SECONDARY && sourceItem != UCOL_NULLORDER)
+            {
+                if (((sourceItem & UCOL_PRIMARYORDERMASK) == 0) && (sourceItem & UCOL_SECONDARYORDERMASK) != 0)
+                {
+                    return FALSE; // the next non-ignorable character in source text is a combining character
+                }
+            }
+
             return TRUE;
         }
-        else if (sourceItem == UCOL_IGNORABLE)
-        {
-            movePattern = FALSE;
-        }
-        else if (patternItem == UCOL_IGNORABLE)
-        {
-            moveSource = FALSE;
-        }
-        else if (patternItem != sourceItem)
+        else if ((patternItem & collationElementMask) != (sourceItem & collationElementMask))
         {
             return FALSE;
         }
