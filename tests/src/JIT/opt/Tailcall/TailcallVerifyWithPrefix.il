@@ -23,6 +23,11 @@
   .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )                     
   .ver 4:0:0:0
 }
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:2:1:0
+}
 .assembly TailcallVerifyWithPrefix
 {
   .custom instance void [mscorlib]System.Reflection.AssemblyDescriptionAttribute::.ctor(string) = ( 01 00 00 00 00 ) 
@@ -2564,10 +2569,18 @@
     IL_05aa:  ldloc.0
     IL_05ab:  call       bool [mscorlib]System.String::op_Equality(string,
                                                                    string)
-    IL_05b0:  brfalse.s  IL_05bc
+    IL_05b0:  brfalse.s  IL_ChkPinvoke
 
     IL_05b2:  call       int32 TailcallVerify.Condition18::Test2()
     IL_05b7:  call       void TailcallVerify.Program::set_Result(int32)
+
+    IL_ChkPinvoke:
+
+              call       class [System.Runtime.Extensions]System.OperatingSystem [System.Runtime.Extensions]System.Environment::get_OSVersion()
+              callvirt   instance valuetype [System.Runtime.Extensions]System.PlatformID [System.Runtime.Extensions]System.OperatingSystem::get_Platform()   
+              ldc.i4.2   // Win32NT
+              bne.un     IL_05fc
+
     IL_05bc:  ldloc.1
     IL_05bd:  ldstr      "Condition19.Test1"
     IL_05c2:  call       bool [mscorlib]System.String::op_Equality(string,
