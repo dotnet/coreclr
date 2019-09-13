@@ -3052,7 +3052,7 @@ public:
     unsigned            lvaOutgoingArgSpaceVar;  // dummy TYP_LCLBLK var for fixed outgoing argument space
     PhasedVar<unsigned> lvaOutgoingArgSpaceSize; // size of fixed outgoing argument space
 #endif                                           // FEATURE_FIXED_OUT_ARGS
-    unsigned lvaRetAddrVar; // variable representing the return address
+    unsigned lvaRetAddrVar;                      // variable representing the return address
 
 #ifdef _TARGET_ARM_
     // On architectures whose ABIs allow structs to be passed in registers, struct promotion will sometimes
@@ -5429,9 +5429,7 @@ private:
 
     bool fgCanFastTailCall(GenTreeCall* call);
     bool fgCheckStmtAfterTailCall();
-    void fgMorphTailCallViaHelper(
-        GenTreeCall* call,
-        CORINFO_TAILCALL_HELP& help);
+    void fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help);
     GenTree* fgGetDirectCallTargetAddress(GenTreeCall* directCall);
     GenTree* fgGetMethodAddress(CORINFO_METHOD_HANDLE methHnd, CORINFO_ACCESS_FLAGS flags);
 
@@ -8772,14 +8770,14 @@ public:
         // (2) the code is hot/cold split, and we issued less code than we expected
         // in the cold section (the hot section will always be padded out to compTotalHotCodeSize).
 
-        bool compIsStatic : 1;         // Is the method static (no 'this' pointer)?
-        bool compIsVarArgs : 1;        // Does the method have varargs parameters?
-        bool compIsContextful : 1;     // contextful method
-        bool compInitMem : 1;          // Is the CORINFO_OPT_INIT_LOCALS bit set in the method info options?
-        bool compUnwrapContextful : 1; // JIT should unwrap proxies when possible
-        bool compProfilerCallback : 1; // JIT inserted a profiler Enter callback
-        bool compPublishStubParam : 1; // EAX captured in prolog will be available through an instrinsic
-        bool compRetBuffDefStack : 1;  // The ret buff argument definitely points into the stack.
+        bool compIsStatic : 1;           // Is the method static (no 'this' pointer)?
+        bool compIsVarArgs : 1;          // Does the method have varargs parameters?
+        bool compIsContextful : 1;       // contextful method
+        bool compInitMem : 1;            // Is the CORINFO_OPT_INIT_LOCALS bit set in the method info options?
+        bool compUnwrapContextful : 1;   // JIT should unwrap proxies when possible
+        bool compProfilerCallback : 1;   // JIT inserted a profiler Enter callback
+        bool compPublishStubParam : 1;   // EAX captured in prolog will be available through an instrinsic
+        bool compRetBuffDefStack : 1;    // The ret buff argument definitely points into the stack.
         bool compHasNextCallRetAddr : 1; // The NextCallReturnAddress intrinsic is used.
 
         var_types compRetType;       // Return type of the method as declared in IL

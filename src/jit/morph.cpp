@@ -7366,8 +7366,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(call->callInfo != nullptr);
 
         CORINFO_METHOD_HANDLE targetMethHnd = call->callInfo->hMethod;
-        CORINFO_SIG_INFO* callSiteSig = &call->callInfo->sig;
-        unsigned flags = 0;
+        CORINFO_SIG_INFO*     callSiteSig   = &call->callInfo->sig;
+        unsigned              flags         = 0;
         if ((call->callInfo->kind == CORINFO_VIRTUALCALL_VTABLE) ||
             (call->callInfo->kind == CORINFO_VIRTUALCALL_STUB) ||
             (call->callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN))
@@ -7375,8 +7375,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             flags |= CORINFO_TAILCALL_IS_CALLVIRT;
         }
 
-        if (!info.compCompHnd->getTailCallHelp(
-            targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELP_FLAGS)flags, &tailCallHelp))
+        if (!info.compCompHnd->getTailCallHelp(targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELP_FLAGS)flags,
+                                               &tailCallHelp))
         {
             failTailCall("Tail call help not available");
             return nullptr;
@@ -7615,24 +7615,22 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
 
         JITDUMP("This is a VSD, so removing VSD stub arg\n");
 
-        // X86/ARM32 do not include the stub arg in the arg list.
+// X86/ARM32 do not include the stub arg in the arg list.
 #if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
         call->gtCallArgs = call->gtCallArgs->GetNext();
-        call->fgArgInfo = nullptr;
+        call->fgArgInfo  = nullptr;
 #endif
 
         call->gtFlags &= ~GTF_CALL_VIRT_STUB;
     }
 
-    GenTreeCall* callDispatcherNode = gtNewCallNode(
-        CT_USER_FUNC, help.hDispatcher,
-        TYP_VOID, nullptr,
-        fgMorphStmt->gtStmtILoffsx);
+    GenTreeCall* callDispatcherNode =
+        gtNewCallNode(CT_USER_FUNC, help.hDispatcher, TYP_VOID, nullptr, fgMorphStmt->gtStmtILoffsx);
     // The dispatcher has signature
     // void DispatchTailCalls(void* callersRetAddrSlot, void* callTarget, void* retValue)
 
     // Add return value arg.
-    GenTree* retValTemp;
+    GenTree*     retValTemp;
     unsigned int newRetLcl = BAD_VAR_NUM;
 
     // Use existing retbuf if there is one.
@@ -7640,8 +7638,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     {
         JITDUMP("Transferring retbuf\n");
         GenTree* retBufArg = call->gtCallArgs->GetNode();
-        assert((info.compRetBuffArg != BAD_VAR_NUM) &&
-               retBufArg->OperIsLocal() &&
+        assert((info.compRetBuffArg != BAD_VAR_NUM) && retBufArg->OperIsLocal() &&
                (retBufArg->AsLclVarCommon()->GetLclNum() == info.compRetBuffArg));
 
         retValTemp = retBufArg;
@@ -7655,7 +7652,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     else if (call->gtType != TYP_VOID)
     {
         JITDUMP("Creating a new temp for the return value\n");
-        newRetLcl = lvaGrabTemp(false DEBUGARG("Return value for tail call dispatcher"));
+        newRetLcl                  = lvaGrabTemp(false DEBUGARG("Return value for tail call dispatcher"));
         lvaTable[newRetLcl].lvType = call->gtType;
         lvaSetVarAddrExposed(newRetLcl);
 
@@ -7671,19 +7668,17 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
 
     // Add callTarget
     callDispatcherNode->gtCallArgs =
-        gtPrependNewCallArg(
-            fgGetMethodAddress(help.hCallTarget, CORINFO_ACCESS_ANY),
-            callDispatcherNode->gtCallArgs);
+        gtPrependNewCallArg(fgGetMethodAddress(help.hCallTarget, CORINFO_ACCESS_ANY), callDispatcherNode->gtCallArgs);
 
     // Add the caller's return address slot.
     if (lvaRetAddrVar == BAD_VAR_NUM)
     {
-        lvaRetAddrVar = lvaGrabTemp(false DEBUGARG("Return address"));
+        lvaRetAddrVar                  = lvaGrabTemp(false DEBUGARG("Return address"));
         lvaTable[lvaRetAddrVar].lvType = TYP_I_IMPL;
         lvaSetVarAddrExposed(lvaRetAddrVar);
     }
 
-    GenTree* retAddrSlot = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(lvaRetAddrVar, TYP_I_IMPL));
+    GenTree* retAddrSlot           = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(lvaRetAddrVar, TYP_I_IMPL));
     callDispatcherNode->gtCallArgs = gtPrependNewCallArg(retAddrSlot, callDispatcherNode->gtCallArgs);
 
     GenTreeStmt* callDispatcherStmt = fgNewStmtFromTree(callDispatcherNode, fgMorphStmt->gtStmtILoffsx);
@@ -7692,10 +7687,8 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     if (call->gtType != TYP_VOID)
     {
         assert(newRetLcl != BAD_VAR_NUM);
-        fgInsertStmtAtEnd(
-            compCurBB,
-            fgNewStmtFromTree(
-                gtNewOperNode(GT_RETURN, call->gtType, gtNewLclvNode(newRetLcl, call->gtType))));
+        fgInsertStmtAtEnd(compCurBB, fgNewStmtFromTree(gtNewOperNode(GT_RETURN, call->gtType,
+                                                                     gtNewLclvNode(newRetLcl, call->gtType))));
     }
 
     // No need to morph the inserted statements here as we will get around to it
@@ -7766,7 +7759,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
             noway_assert(call->gtCallAddr != nullptr);
 
             // TODO: This should be evaluated last. How?
-            target = call->gtCallAddr;
+            target           = call->gtCallAddr;
             call->gtCallAddr = nullptr;
         }
         else
@@ -7776,7 +7769,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
         }
 
         call->gtCallArgs = gtPrependNewCallArg(target, call->gtCallArgs);
-        call->fgArgInfo = nullptr;
+        call->fgArgInfo  = nullptr;
     }
 
     // This is now a direct call to the store args stub and not a tailcall.
@@ -7785,12 +7778,11 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     call->gtFlags &= ~GTF_CALL_VIRT_KIND_MASK;
     // TODO: We should be able to clean up this. The tailcall flag is only used
     // for fast tailcalls now.
-    call->gtCallMoreFlags &=
-        ~(GTF_CALL_M_TAILCALL | GTF_CALL_M_DELEGATE_INV | GTF_CALL_M_SECURE_DELEGATE_INV);
+    call->gtCallMoreFlags &= ~(GTF_CALL_M_TAILCALL | GTF_CALL_M_DELEGATE_INV | GTF_CALL_M_SECURE_DELEGATE_INV);
 
     // The store-args stub returns no value.
-    call->gtRetClsHnd = nullptr;
-    call->gtType = TYP_VOID;
+    call->gtRetClsHnd  = nullptr;
+    call->gtType       = TYP_VOID;
     call->gtReturnType = TYP_VOID;
 
     GenTree* temp = fgMorphCall(call);
@@ -7842,9 +7834,9 @@ GenTree* Compiler::fgGetMethodAddress(CORINFO_METHOD_HANDLE methHnd, CORINFO_ACC
         case IAT_RELPVALUE:
         {
             GenTree* offsetPtr = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            GenTree* offset = gtNewOperNode(GT_IND, TYP_I_IMPL, offsetPtr);
-            GenTree* cellAddr = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
-            result = gtNewOperNode(GT_ADD, TYP_I_IMPL, offset, cellAddr);
+            GenTree* offset    = gtNewOperNode(GT_IND, TYP_I_IMPL, offsetPtr);
+            GenTree* cellAddr  = gtNewIconHandleNode((size_t)addrInfo.addr, GTF_ICON_FTN_ADDR);
+            result             = gtNewOperNode(GT_ADD, TYP_I_IMPL, offset, cellAddr);
             break;
         }
         default:

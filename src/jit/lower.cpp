@@ -2881,8 +2881,8 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     LIR::Use thisExprUse(BlockRange(), &thisArgNode->gtOp.gtOp1, thisArgNode);
     ReplaceWithLclVar(thisExprUse, delegateInvokeTmp);
 
-    thisExpr = thisExprUse.Def(); // it's changed; reload it.
-    unsigned lclNum   = delegateInvokeTmp;
+    thisExpr        = thisExprUse.Def(); // it's changed; reload it.
+    unsigned lclNum = delegateInvokeTmp;
 
     // replace original expression feeding into thisPtr with
     // [originalThis + offsetOfDelegateInstance]
@@ -3109,7 +3109,7 @@ void Lowering::InsertPInvokeMethodProlog()
 #if defined(_TARGET_X86_) || defined(_TARGET_ARM_)
     GenTreeCall::Use* argList = comp->gtNewCallArgs(frameAddr);
 #else
-    GenTreeCall::Use*  argList = comp->gtNewCallArgs(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
+    GenTreeCall::Use* argList = comp->gtNewCallArgs(frameAddr, PhysReg(REG_SECRET_STUB_PARAM));
 #endif
 
     GenTree* call = comp->gtNewHelperCallNode(CORINFO_HELP_INIT_PINVOKE_FRAME, TYP_I_IMPL, argList);

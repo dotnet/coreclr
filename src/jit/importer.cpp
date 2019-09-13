@@ -7355,8 +7355,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
         // We cannot lazily obtain the signature of a CALLI call because it has no method
         // handle that we can use, so we need to save its full call signature here.
         assert(call->gtCall.callInfo == nullptr);
-        call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-        *call->gtCall.callInfo = *callInfo;
+        call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+        *call->gtCall.callInfo     = *callInfo;
         call->gtCall.callInfo->sig = calliSig;
 #endif // DEBUG
 
@@ -7891,8 +7891,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
             // We cannot lazily obtain the signature of a vararg call because using its method
             // handle will give us only the declared argument list, not the full argument list.
             assert(call->gtCall.callInfo == nullptr);
-            call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-            *call->gtCall.callInfo = *callInfo;
+            call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+            *call->gtCall.callInfo     = *callInfo;
             call->gtCall.callInfo->sig = *sig;
 #endif
 
@@ -8494,8 +8494,8 @@ DONE:
         // obtain tailcall helpers later.
         if (call->gtCall.callInfo == nullptr)
         {
-            call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-            *call->gtCall.callInfo = *callInfo;
+            call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+            *call->gtCall.callInfo     = *callInfo;
             call->gtCall.callInfo->sig = *sig;
         }
 

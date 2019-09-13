@@ -1941,9 +1941,10 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
 
         if ((emitComp->lvaIsParameter(var)
 #if !defined(_TARGET_AMD64_) || defined(UNIX_AMD64_ABI)
-            && !emitComp->lvaIsRegArgument(var)
+             && !emitComp->lvaIsRegArgument(var)
 #endif // !_TARGET_AMD64_ || UNIX_AMD64_ABI
-            ) || (static_cast<unsigned>(var) == emitComp->lvaRetAddrVar))
+                 ) ||
+            (static_cast<unsigned>(var) == emitComp->lvaRetAddrVar))
         {
             /* If no EBP frame, arguments and ret addr are off of ESP, above temps */
 

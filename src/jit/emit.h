@@ -2112,7 +2112,7 @@ public:
     static unsigned emitTotalPhIGcnt; // total number of insPlaceholderGroupData allocated
     static unsigned emitTotalIGicnt;
     static size_t   emitTotalIGsize;
-    static unsigned emitTotalIGmcnt;    // total method count
+    static unsigned emitTotalIGmcnt;   // total method count
     static unsigned emitTotalIGExtend; // total number of 'emitExtend' (typically overflow) groups
     static unsigned emitTotalIGjmps;
     static unsigned emitTotalIGptrs;

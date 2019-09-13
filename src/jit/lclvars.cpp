@@ -5600,7 +5600,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
         stkOffs -= (compCalleeRegsPushed - 2) * REGSIZE_BYTES;
     }
 
-#else  // !_TARGET_ARM64_
+#else // !_TARGET_ARM64_
 #ifdef _TARGET_ARM_
     // On ARM32 LR is part of the pushed registers and is always stored at the
     // top.
@@ -5918,8 +5918,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
 #ifdef JIT32_GCENCODER
                 lclNum == lvaLocAllocSPvar ||
 #endif // JIT32_GCENCODER
-                lclNum == lvaSecurityObject ||
-                lclNum == lvaRetAddrVar)
+                lclNum == lvaSecurityObject || lclNum == lvaRetAddrVar)
             {
                 assert(varDsc->lvStkOffs != BAD_STK_OFFS);
                 continue;

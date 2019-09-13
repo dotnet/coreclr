@@ -223,7 +223,6 @@ private:
     void genLogLabel(BasicBlock* bb);
 
 protected:
-
     void genDefineTempLabel(BasicBlock* label);
     void genDefineInlineTempLabel(BasicBlock* label);
 
