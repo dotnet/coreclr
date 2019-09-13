@@ -3667,98 +3667,81 @@ namespace
 void ParseFieldNativeTypes(
     IMDInternalImport* pInternalImport,
     const mdTypeDef cl,
-    HENUMInternal* phEnumField,
+    ApproxFieldDescIterator fieldDescs,
     Module* pModule,
     ParseNativeTypeFlags nativeTypeFlags,
     const SigTypeContext* pTypeContext,
-    LayoutRawFieldInfo* pFieldInfoArrayOut,
-    ULONG* cInstanceFields
+    LayoutRawFieldInfo* pFieldInfoArrayOut
 #ifdef _DEBUG
     ,
-    const ULONG cTotalFields,
     LPCUTF8 szNamespace,
     LPCUTF8 szName
 #endif
 )
 {
     HRESULT hr;
-    mdFieldDef fd;
-    ULONG maxRid = pInternalImport->GetCountWithTokenKind(mdtFieldDef);
 
-    ULONG i;
-    for (i = 0; pInternalImport->EnumNext(phEnumField, &fd); i++)
+    for (int i = 0; i < fieldDescs.Count(); i++)
     {
         DWORD dwFieldAttrs;
-        ULONG rid = RidFromToken(fd);
 
-        if ((rid == 0) || (rid > maxRid))
-        {
-            COMPlusThrowHR(COR_E_TYPELOAD, BFA_BAD_FIELD_TOKEN);
-        }
+        FieldDesc* pFieldDesc = fieldDescs.Next();
+        mdFieldDef fd = pFieldDesc->GetMemberDef();
 
         IfFailThrow(pInternalImport->GetFieldDefProps(fd, &dwFieldAttrs));
 
         PCCOR_SIGNATURE pNativeType = NULL;
         ULONG cbNativeType;
-        // We ignore marshaling data attached to statics and literals,
-        // since these do not contribute to instance data.
-        if (!IsFdStatic(dwFieldAttrs) && !IsFdLiteral(dwFieldAttrs))
+        if (IsFdHasFieldMarshal(dwFieldAttrs))
         {
-            PCCOR_SIGNATURE pCOMSignature;
-            ULONG       cbCOMSignature;
-
-            if (IsFdHasFieldMarshal(dwFieldAttrs))
-            {
-                hr = pInternalImport->GetFieldMarshal(fd, &pNativeType, &cbNativeType);
-                if (FAILED(hr))
-                {
-                    cbNativeType = 0;
-                }
-            }
-            else
+            hr = pInternalImport->GetFieldMarshal(fd, &pNativeType, &cbNativeType);
+            if (FAILED(hr))
             {
                 cbNativeType = 0;
             }
-
-            IfFailThrow(pInternalImport->GetSigOfFieldDef(fd, &cbCOMSignature, &pCOMSignature));
-
-            IfFailThrow(::validateTokenSig(fd, pCOMSignature, cbCOMSignature, dwFieldAttrs, pInternalImport));
-
-            // fill the appropriate entry in pInfoArray
-            pFieldInfoArrayOut->m_MD = fd;
-            pFieldInfoArrayOut->m_placement.m_offset = (UINT32)-1;
-            pFieldInfoArrayOut->m_sequence = 0;
-
-#ifdef _DEBUG
-            LPCUTF8 szFieldName;
-            if (FAILED(pInternalImport->GetNameOfFieldDef(fd, &szFieldName)))
-            {
-                szFieldName = "Invalid FieldDef record";
-            }
-#endif
-            MetaSig fsig(pCOMSignature, cbCOMSignature, pModule, pTypeContext, MetaSig::sigField);
-            fsig.NextArg();
-
-            ParseNativeType(pModule,
-                fsig.GetArgProps(),
-                fd,
-                nativeTypeFlags,
-                &pFieldInfoArrayOut->m_nfd,
-                pTypeContext
-#ifdef _DEBUG
-                ,
-                szNamespace,
-                szName,
-                szFieldName
-#endif
-            );
-
-            (*cInstanceFields)++;
-            pFieldInfoArrayOut++;
         }
+        else
+        {
+            cbNativeType = 0;
+        }
+
+        PCCOR_SIGNATURE pCOMSignature;
+        ULONG cbCOMSignature;
+        pFieldDesc->GetSig(&pCOMSignature, &cbCOMSignature);
+
+        // fill the appropriate entry in pInfoArray
+        pFieldInfoArrayOut->m_MD = fd;
+        pFieldInfoArrayOut->m_placement.m_offset = (UINT32)-1;
+        pFieldInfoArrayOut->m_sequence = 0;
+
+#ifdef _DEBUG
+        LPCUTF8 szFieldName;
+        if (FAILED(pInternalImport->GetNameOfFieldDef(fd, &szFieldName)))
+        {
+            szFieldName = "Invalid FieldDef record";
+        }
+#endif
+        MetaSig fsig(pCOMSignature, cbCOMSignature, pModule, pTypeContext, MetaSig::sigField);
+        fsig.NextArg();
+
+        ParseNativeType(pModule,
+            fsig.GetArgProps(),
+            fd,
+            nativeTypeFlags,
+            &pFieldInfoArrayOut->m_nfd,
+            pTypeContext
+#ifdef _DEBUG
+            ,
+            szNamespace,
+            szName,
+            szFieldName
+#endif
+        );
+
+        pFieldInfoArrayOut->m_nfd.SetFieldDesc(pFieldDesc);
+        pFieldInfoArrayOut++;
     }
 
-    _ASSERTE(i == cTotalFields);
     // NULL out the last entry
     pFieldInfoArrayOut->m_MD = mdFieldDefNil;
 }
@@ -4125,7 +4108,6 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         }
     }
 
-    ULONG cInstanceFields = 0;
 
     CorNativeLinkType charSet;
 
@@ -4143,20 +4125,22 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         if (charSet == nltAnsi)
             nativeTypeFlags = ParseNativeTypeFlags::IsAnsi;
 
-    NewArrayHolder<LayoutRawFieldInfo> pInfoArray = new LayoutRawFieldInfo[cTotalFields + 1];
+    ApproxFieldDescIterator fieldDescs(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
+
+    ULONG cInstanceFields = fieldDescs.Count();
+
+    NewArrayHolder<LayoutRawFieldInfo> pInfoArray = new LayoutRawFieldInfo[cInstanceFields + 1];
 
     SigTypeContext context(pMT);
 
     ParseFieldNativeTypes(
         pInternalImport,
         pMT->GetCl(),
-        &hEnumField,
+        fieldDescs,
         pModule,
         nativeTypeFlags,
         &context,
-        pInfoArray,
-        &cInstanceFields
-        DEBUGARG(cTotalFields)
+        pInfoArray
         DEBUGARG(szNamespace)
         DEBUGARG(szName)
     );
@@ -4238,15 +4222,6 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
     for (UINT i = 0; i < cInstanceFields; i++)
     {
         pInfoArray[i].m_nfd.SetExternalOffset(pInfoArray[i].m_placement.m_offset);
-        ApproxFieldDescIterator fieldDescs(pMT, ApproxFieldDescIterator::INSTANCE_FIELDS);
-        for (int j = 0; j < fieldDescs.Count(); j++)
-        {
-            FieldDesc* pFieldDesc = fieldDescs.Next();
-            if (pFieldDesc->GetMemberDef() == pInfoArray[i].m_MD)
-            {
-                pNativeFieldDescriptors[i].SetFieldDesc(pFieldDesc);
-            }
-        }
         pNativeFieldDescriptors[i] = pInfoArray[i].m_nfd;
     }
 
