@@ -4372,17 +4372,16 @@ private:
 
 public:
     TailCallTls* GetTailCallTls() { return &m_tailCallTls; }
-    void* GetHijackedReturnAddress(void*** pSlot)
+    void* GetReturnAddress(void** retAddrSlot)
     {
 #ifdef FEATURE_HIJACK
-        if (m_State & TS_Hijacked)
+        if ((m_State & TS_Hijacked) && (retAddrSlot == m_ppvHJRetAddrPtr))
         {
-            *pSlot = m_ppvHJRetAddrPtr;
             return m_pvHJRetAddr;
         }
 #endif
 
-        return NULL;
+        return *retAddrSlot;
     }
     void* AllocTailCallArgBuffer(size_t size, void* gcDesc);
     void FreeTailCallArgBuffer();
