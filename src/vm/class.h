@@ -649,6 +649,16 @@ class EEClassLayoutInfo
 
 };
 
+class EENativeClassLayoutInfo
+{
+private:
+    UINT32 m_nativeSize;
+    UINT m_numFields;
+    BYTE m_LargestAlignmentRequirementOfAllMembers;
+    BYTE m_flags;
+    BYTE m_nativeHFAType;
+    NativeFieldDescriptor m_fieldDescriptors[0];
+};
 
 
 //

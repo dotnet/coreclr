@@ -241,6 +241,65 @@ VOID ParseNativeType(Module*                     pModule,
 
 }
 
+bool IsFieldBlittable(
+    Module* pModule,
+    SigPointer fieldSig,
+    const SigTypeContext* pTypeContext,
+    bool isAnsi
+)
+{
+    bool isBlittable = false;
+    EX_TRY
+    {
+        TypeHandle valueTypeHandle;
+        CorElementType corElemType = fieldSig.PeekElemTypeNormalized(pModule, pTypeContext, &valueTypeHandle);
+
+        switch (corElemType)
+        {
+        case ELEMENT_TYPE_CHAR:
+            isBlittable = !isAnsi;
+            break;
+        case ELEMENT_TYPE_I1:
+        case ELEMENT_TYPE_U1:
+        case ELEMENT_TYPE_I2:
+        case ELEMENT_TYPE_U2:
+        case ELEMENT_TYPE_I4:
+        case ELEMENT_TYPE_U4:
+        case ELEMENT_TYPE_I8:
+        case ELEMENT_TYPE_U8:
+        case ELEMENT_TYPE_R4:
+        case ELEMENT_TYPE_R8:
+        case ELEMENT_TYPE_I:
+        case ELEMENT_TYPE_U:
+        case ELEMENT_TYPE_PTR:
+        case ELEMENT_TYPE_FNPTR:
+            isBlittable = true;
+            break;
+        case ELEMENT_TYPE_VALUETYPE:
+            if (valueTypeHandle.GetMethodTable() == MscorlibBinder::GetClass(CLASS__DECIMAL))
+            {
+                isBlittable = false;
+            }
+            else if (valueTypeHandle.GetMethodTable()->HasSameTypeDefAs(g_pNullableClass))
+            {
+                isBlittable = false;
+            }
+            else
+            {
+                isBlittable = valueTypeHandle.GetMethodTable()->IsBlittable();
+            }
+            break;
+        }
+    }
+    EX_CATCH
+    {
+        // We were unable to determine the native type, likely because there is a mutually recursive type reference
+        // in this field's type. A mutually recursive object would never be blittable, so we don't need to do anything.
+    }
+    EX_END_CATCH(RethrowTerminalExceptions);
+    return isBlittable;
+}
+
 //=======================================================================
 // This function returns TRUE if the type passed in is either a value class or a class and if it has layout information 
 // and is marshalable. In all other cases it will return FALSE. 
