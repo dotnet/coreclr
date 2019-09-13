@@ -134,10 +134,12 @@ namespace CoreclrTestLib
                 Console.WriteLine($"Aborting process {pid} to generate dump");
                 int status = libSystem.kill(pid, libSystem.SIGABRT);
 
-                if (status == 0)
+                string defaultCoreDumpPath = $"/cores/core.{pid}";
+
+                if (status == 0 && File.Exists(defaultCoreDumpPath))
                 {
                     Console.WriteLine($"Copying dump for {pid} to {path}.");
-                    File.Copy($"/cores/core.{pid}", path, true);
+                    File.Copy(defaultCoreDumpPath, path, true);
                 }
                 return true;
             }
