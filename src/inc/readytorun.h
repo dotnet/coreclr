@@ -360,4 +360,9 @@ struct READYTORUN_EXCEPTION_CLAUSE
     };  
 };
 
+enum ReadyToRunRuntimeConstants : DWORD
+{
+    READYTORUN_RUNTIME_CONSTANT_PInvokeTransitionFrameSize = 11 * sizeof(void *)
+};
+
 #endif // __READYTORUN_H__
