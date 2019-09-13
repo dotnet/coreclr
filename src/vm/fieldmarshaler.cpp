@@ -132,7 +132,7 @@ VOID ParseNativeType(Module*                     pModule,
                 break;
             case MarshalInfo::MARSHAL_TYPE_DOUBLE:
 #if defined(_TARGET_X86_) && defined(UNIX_X86_ABI)
-                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_R8, sizeof(double), 4);
+                *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_BLITTABLE_FLOAT, sizeof(double), 4);
 #else
                 *pNFD = NativeFieldDescriptor(NATIVE_FIELD_CATEGORY_BLITTABLE_FLOAT, sizeof(double), sizeof(double));
 #endif
