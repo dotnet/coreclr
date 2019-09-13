@@ -13,7 +13,6 @@
 #include "mlinfo.h"
 #include "eeconfig.h"
 #include "olevariant.h"
-#include "nativefieldflags.h"
 
 #ifdef FEATURE_PREJIT
 #include "compile.h"
@@ -52,34 +51,40 @@ enum class ParseNativeTypeFlags : int
 #endif // FEATURE_COMINTEROP
 };
 
-VOID ParseNativeType(Module*    pModule,
-    SigPointer                  sig,
-    mdFieldDef                  fd,
-    ParseNativeTypeFlags        flags,
-    NativeFieldDescriptor*      pNFD,
-    const SigTypeContext *      pTypeContext
-#ifdef _DEBUG
-    ,
-    LPCUTF8                     szNamespace,
-    LPCUTF8                     szClassName,
-    LPCUTF8                     szFieldName
-#endif
-);
-
 //=======================================================================
 // This function returns TRUE if the type passed in is either a value class or a class and if it has layout information 
 // and is marshalable. In all other cases it will return FALSE. 
 //=======================================================================
 BOOL IsStructMarshalable(TypeHandle th);
 
+bool IsFieldBlittable(
+    Module* pModule,
+    SigPointer fieldSig,
+    const SigTypeContext* pTypeContext,
+    bool isAnsi
+);
+
+// Describes specific categories of native fields.
+enum class NativeFieldCategory : short
+{
+    // The native representation of the field is a floating point field.
+    FLOAT,
+    // The field has a nested MethodTable* (i.e. a field of a struct, class, or array)
+    NESTED,
+    // The native representation of the field can be treated as an integer.
+    INTEGER,
+    // The field is illegal to marshal.
+    ILLEGAL
+};
+
 class NativeFieldDescriptor
 {
 public:
     NativeFieldDescriptor();
 
-    NativeFieldDescriptor(NativeFieldFlags flags, ULONG nativeSize, ULONG alignment);
+    NativeFieldDescriptor(NativeFieldCategory flags, ULONG nativeSize, ULONG alignment);
 
-    NativeFieldDescriptor(PTR_MethodTable pMT, int numElements = 1, bool isBlittable = false);
+    NativeFieldDescriptor(PTR_MethodTable pMT, int numElements = 1);
 
     NativeFieldDescriptor(const NativeFieldDescriptor& other);
 
@@ -112,7 +117,7 @@ public:
 
     void Restore();
 
-    NativeFieldFlags GetNativeFieldFlags() const
+    NativeFieldCategory GetNativeFieldFlags() const
     {
         return m_flags;
     }
@@ -170,12 +175,7 @@ public:
 
     BOOL IsUnmarshalable() const
     {
-        return m_flags == NATIVE_FIELD_CATEGORY_ILLEGAL ? TRUE : FALSE;
-    }
-
-    BOOL IsBlittable() const
-    {
-        return m_flags & NATIVE_FIELD_SUBCATEGORY_BLITTABLE ? TRUE : FALSE;
+        return m_flags == NativeFieldCategory::ILLEGAL ? TRUE : FALSE;
     }
 
 private:
@@ -194,9 +194,23 @@ private:
         };
     };
     UINT32 m_offset;
-    NativeFieldFlags m_flags;
+    NativeFieldCategory m_flags;
     bool m_isNestedType;
 };
+
+VOID ParseNativeType(Module* pModule,
+    SigPointer                  sig,
+    mdFieldDef                  fd,
+    ParseNativeTypeFlags        flags,
+    NativeFieldDescriptor* pNFD,
+    const SigTypeContext* pTypeContext
+#ifdef _DEBUG
+    ,
+    LPCUTF8                     szNamespace,
+    LPCUTF8                     szClassName,
+    LPCUTF8                     szFieldName
+#endif
+);
 
 //=======================================================================
 // The classloader stores an intermediate representation of the layout

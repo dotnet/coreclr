@@ -2681,9 +2681,9 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
         pField->GetName_NoThrow(&fieldName);
 #endif // _DEBUG
 
-        NativeFieldFlags nfc = pNFD->GetNativeFieldFlags();
+        NativeFieldCategory nfc = pNFD->GetNativeFieldFlags();
 
-        if (nfc & NATIVE_FIELD_SUBCATEGORY_NESTED)
+        if (nfc == NativeFieldCategory::NESTED)
         {
             unsigned int numElements = pNFD->GetNumElements();
             unsigned int nestedElementOffset = normalizedFieldOffset;
@@ -2713,15 +2713,15 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
             }
             continue;
         }
-        else if (nfc & NATIVE_FIELD_SUBCATEGORY_FLOAT)
+        else if (nfc == NativeFieldCategory::FLOAT)
         {
             fieldClassificationType = SystemVClassificationTypeSSE;
         }
-        else if (nfc & NATIVE_FIELD_SUBCATEGORY_INTEGER)
+        else if (nfc == NativeFieldCategory::INTEGER)
         {
             fieldClassificationType = SystemVClassificationTypeInteger;
         }
-        else if (nfc & NATIVE_FIELD_CATEGORY_ILLEGAL)
+        else if (nfc == NativeFieldCategory::ILLEGAL)
         {
             return false;
         }

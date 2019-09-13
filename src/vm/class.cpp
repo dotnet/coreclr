@@ -1476,9 +1476,9 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
     {
         CorElementType fieldType = ELEMENT_TYPE_END;
 
-        NativeFieldFlags category = pCurrNFD->GetNativeFieldFlags();
+        NativeFieldCategory category = pCurrNFD->GetNativeFieldFlags();
 
-        if (category & NATIVE_FIELD_SUBCATEGORY_FLOAT)
+        if (category == NativeFieldCategory::FLOAT)
         {
             if (pNativeFieldDescriptor->NativeSize() == 4)
             {
@@ -1500,7 +1500,7 @@ CorElementType EEClassLayoutInfo::GetNativeHFATypeRaw()
                 fieldType = ELEMENT_TYPE_END;
             }
         }
-        else if (category & NATIVE_FIELD_SUBCATEGORY_NESTED)
+        else if (category == NativeFieldCategory::NESTED)
         {
             fieldType = pCurrNFD->GetNestedNativeMethodTable()->GetNativeHFAType();
         }
@@ -4043,7 +4043,7 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
 #endif
             );
 
-            if (!pFieldInfoArrayOut->m_nfd.IsBlittable())
+            if (!IsFieldBlittable(pModule, fsig.GetArgProps(), pTypeContext, nativeTypeFlags == ParseNativeTypeFlags::IsAnsi))
                 pEEClassLayoutInfoOut->SetIsBlittable(FALSE);
 
             (*cInstanceFields)++;
