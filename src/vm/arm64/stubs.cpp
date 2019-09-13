@@ -1262,56 +1262,6 @@ void UMEntryThunkCode::Poison()
 
 #endif // DACCESS_COMPILE
 
-#ifdef PROFILING_SUPPORTED
-#include "proftoeeinterfaceimpl.h"
-
-extern UINT_PTR ProfileGetIPFromPlatformSpecificHandle(void * handle)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
-extern void ProfileSetFunctionIDInPlatformSpecificHandle(void * pPlatformSpecificHandle, FunctionID functionID)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-ProfileArgIterator::ProfileArgIterator(MetaSig * pMetaSig, void* platformSpecificHandle)
-    : m_argIterator(pMetaSig)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-ProfileArgIterator::~ProfileArgIterator()
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
-LPVOID ProfileArgIterator::GetNextArgAddr()
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
-LPVOID ProfileArgIterator::GetHiddenArgValue(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
-LPVOID ProfileArgIterator::GetThis(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-
-LPVOID ProfileArgIterator::GetReturnBufferAddr(void)
-{
-    _ASSERTE(!"ARM64:NYI");
-    return NULL;
-}
-#endif
-
 #if !defined(DACCESS_COMPILE)
 VOID ResetCurrentContext()
 {
