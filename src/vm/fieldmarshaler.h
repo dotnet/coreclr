@@ -240,4 +240,16 @@ struct LayoutRawFieldInfo
     NativeFieldDescriptor m_nfd;
 };
 
+
+class EENativeClassLayoutInfo
+{
+private:
+    UINT32 m_nativeSize;
+    UINT m_numFields;
+    BYTE m_LargestAlignmentRequirementOfAllMembers;
+    BYTE m_flags;
+    BYTE m_nativeHFAType;
+    NativeFieldDescriptor m_fieldDescriptors[0];
+};
+
 #endif // __FieldMarshaler_h__

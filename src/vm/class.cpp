@@ -4043,7 +4043,11 @@ void EEClassLayoutInfo::ParseFieldNativeTypes(
 #endif
             );
 
-            if (!IsFieldBlittable(pModule, fd, fsig.GetArgProps(), pTypeContext, nativeTypeFlags))
+            bool isFieldBlittable = IsFieldBlittable(pModule, fd, fsig.GetArgProps(), pTypeContext, nativeTypeFlags);
+
+            _ASSERTE(!(pFieldInfoArrayOut->m_nfd.IsUnmarshalable() && isFieldBlittable));
+
+            if (!isFieldBlittable)
                 pEEClassLayoutInfoOut->SetIsBlittable(FALSE);
 
             (*cInstanceFields)++;

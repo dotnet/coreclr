@@ -291,8 +291,9 @@ bool IsFieldBlittable(
             isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_I8) || (nativeType == NATIVE_TYPE_U8);
             break;
         case ELEMENT_TYPE_R4:
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_R4);
         case ELEMENT_TYPE_R8:
-            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_R8) || (nativeType == NATIVE_TYPE_R8);
+            isBlittable = (nativeType == NATIVE_TYPE_DEFAULT) || (nativeType == NATIVE_TYPE_R8);
             break;
         case ELEMENT_TYPE_I:
         case ELEMENT_TYPE_U:
@@ -319,7 +320,7 @@ bool IsFieldBlittable(
             }
             else
             {
-                isBlittable = valueTypeHandle.GetMethodTable()->IsBlittable();
+                isBlittable = !valueTypeHandle.GetMethodTable()->HasInstantiation() && valueTypeHandle.GetMethodTable()->IsBlittable();
             }
             break;
         }

@@ -649,18 +649,6 @@ class EEClassLayoutInfo
 
 };
 
-class EENativeClassLayoutInfo
-{
-private:
-    UINT32 m_nativeSize;
-    UINT m_numFields;
-    BYTE m_LargestAlignmentRequirementOfAllMembers;
-    BYTE m_flags;
-    BYTE m_nativeHFAType;
-    NativeFieldDescriptor m_fieldDescriptors[0];
-};
-
-
 //
 // This structure is used only when the classloader is building the interface map.  Before the class
 // is resolved, the EEClass contains an array of these, which are all interfaces *directly* declared
