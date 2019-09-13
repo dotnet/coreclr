@@ -53,22 +53,17 @@ namespace
 template <typename RandomAccessIterator, typename Less>
 void insertion_sort(RandomAccessIterator first, RandomAccessIterator last, Less less)
 {
-    for (; first < last; first++)
+    for (RandomAccessIterator i = first; i < last; ++i)
     {
-        RandomAccessIterator min = first;
+        RandomAccessIterator j = i;
+        auto temp = *(j + 1);
 
-        for (RandomAccessIterator i = min + 1; i <= last; i++)
+        for (; (j >= first) && less(temp, *j); --j)
         {
-            if (less(*i, *min))
-            {
-                min = i;
-            }
+            *(j + 1) = *j;
         }
 
-        if (min != first)
-        {
-            swap(*min, *first);
-        }
+        *(j + 1) = temp;
     }
 }
 
