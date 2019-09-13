@@ -52,6 +52,8 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public bool IsARM => Architecture == TargetArchitecture.ARM;
         public bool IsARM64 => Architecture == TargetArchitecture.ARM64;
 
+        public bool Is64Bit => PointerSize == sizeof(long);
+
         /// <summary>
         /// This property is only overridden in AMD64 Unix variant of the transition block.
         /// </summary>
@@ -72,6 +74,22 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public int SizeOfCalleeSavedRegisters => NumCalleeSavedRegisters * PointerSize;
 
         public abstract int SizeOfTransitionBlock { get; }
+
+        public int SizeOfPInvokeTransitionBlock => SizeOfGSCookie + SizeOfInlinedTransitionFrame;
+
+        private int SizeOfGSCookie => PointerSize;
+
+        private int SizeOfInlinedTransitionFrame => SizeOfFrame + SizeOfInlinedCallFrame; // base class size + inlined call frame fields
+
+        private int SizeOfFrame => 2 * PointerSize; // vtable, m_Next
+
+        private int SizeOfInlinedCallFrameOnAllPlatforms => 5 * PointerSize; // m_Datum, m_pCallSiteSP, m_pCallerReturnAddress, m_pCalleeSavedFP, m_pThread
+
+        private int SizeOfInlinedCallFrameStubSecretArg => (Is64Bit ? 1 : 0) * PointerSize;
+
+        private int SizeOfInlinedCallFrameSPAfterProlog => (IsARM || IsARM64 ? 1 : 0) * PointerSize;
+
+        private int SizeOfInlinedCallFrame => SizeOfInlinedCallFrameOnAllPlatforms + SizeOfInlinedCallFrameStubSecretArg + SizeOfInlinedCallFrameSPAfterProlog;
 
         public abstract int OffsetOfArgumentRegisters { get; }
 
@@ -329,6 +347,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             public override int NumCalleeSavedRegisters => 4;
             // Argument registers, callee-save registers, return address
             public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfCalleeSavedRegisters + PointerSize;
+
             public override int OffsetOfArgumentRegisters => 0;
             // CALLDESCR_FPARGREGS is not set for X86
             public override int OffsetOfFloatArgumentRegisters => 0;

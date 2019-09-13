@@ -1842,5 +1842,7 @@ namespace Internal.JitInterface
 
             return false;
         }
+
+        private int SizeOfPInvokeTransitionFrame => TransitionBlock.FromTarget(_compilation.NodeFactory.Target).SizeOfPInvokeTransitionBlock;
     }
 }
