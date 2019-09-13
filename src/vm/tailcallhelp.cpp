@@ -625,7 +625,6 @@ void TailCallHelp::CreateStoreArgsStubSig(
     // * This pointer (for instance calls)
     // * Generic context (for generic calls requiring context)
 
-    // See MethodRefSig in ECMA-335 for the format.
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
     ULONG paramCount = 0;
@@ -757,6 +756,8 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     }
     else
     {
+        // Build the signature for the calli. TODO: Should we use the signature
+        // from the original calli instead?
         SigBuilder calliSig;
 
         if (info.CallSiteSig->HasThis())
@@ -871,6 +872,8 @@ void TailCallHelp::EmitLoadTyHnd(ILCodeStream* stream, TypeHandle tyHnd)
     CorElementType ty = tyHnd.GetSignatureCorElementType();
     if (tyHnd.IsByRef())
     {
+        // Note: we can use an "untracked" ldind.i here even with byrefs because
+        // we are loading between two tracked positions.
         stream->EmitLDIND_I();
     }
     else
@@ -885,6 +888,8 @@ void TailCallHelp::EmitStoreTyHnd(ILCodeStream* stream, TypeHandle tyHnd)
     CorElementType ty = tyHnd.GetSignatureCorElementType();
     if (tyHnd.IsByRef())
     {
+        // Note: we can use an "untracked" stind.i here even with byrefs because
+        // we are storing between two tracked positions.
         stream->EmitSTIND_I();
     }
     else
