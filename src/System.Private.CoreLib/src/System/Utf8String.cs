@@ -57,6 +57,11 @@ namespace System
         /// </summary>
         public static implicit operator ReadOnlySpan<Char8>(Utf8String? value) => value.AsSpan();
 
+        /// <summary>
+        /// Projects a <see cref="Utf8String"/> instance as a <see cref="Utf8Span"/>.
+        /// </summary>
+        public static implicit operator Utf8Span(Utf8String? value) => new Utf8Span(value);
+
         /*
          * INSTANCE PROPERTIES
          */
@@ -232,6 +237,13 @@ namespace System
             // TODO_UTF8STRING: Call into optimized transcoding routine when it's available.
 
             return Encoding.UTF8.GetString(new ReadOnlySpan<byte>(ref DangerousGetMutableReference(), Length));
+        }
+
+        [StackTraceHidden]
+        internal static void ThrowImproperStringSplit()
+        {
+            throw new InvalidOperationException(
+                message: SR.Utf8String_CannotSplitMultibyteSubsequence);
         }
     }
 }

@@ -1015,7 +1015,7 @@ namespace System.Globalization
         /// The following IndexOf overload is mainly used by String.Replace. This overload assumes the parameters are already validated
         /// and the caller is passing a valid matchLengthPtr pointer.
         /// </summary>
-        internal unsafe int IndexOf(string source, string value, int startIndex, int count, CompareOptions options, int* matchLengthPtr)
+        internal unsafe int IndexOf(string source, string value, int startIndex, int count, CompareOptions options, int* matchLengthPtr, bool fromBeginning = true)
         {
             Debug.Assert(source != null);
             Debug.Assert(value != null);
@@ -1038,7 +1038,16 @@ namespace System.Globalization
 
             if (options == CompareOptions.OrdinalIgnoreCase)
             {
-                int res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
+                int res;
+                if (fromBeginning)
+                {
+                    res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
+                }
+                else
+                {
+                    res = LastIndexOfOrdinal(source, value, startIndex, count, ignoreCase: true);
+                }
+
                 if (res >= 0 && matchLengthPtr != null)
                 {
                     *matchLengthPtr = value.Length;
@@ -1048,7 +1057,18 @@ namespace System.Globalization
 
             if (GlobalizationMode.Invariant)
             {
-                int res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase: (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0);
+                bool ignoreCase = (options & (CompareOptions.IgnoreCase | CompareOptions.OrdinalIgnoreCase)) != 0;
+                int res;
+
+                if (fromBeginning)
+                {
+                    res = IndexOfOrdinal(source, value, startIndex, count, ignoreCase);
+                }
+                else
+                {
+                    res = LastIndexOfOrdinal(source, value, startIndex, count, ignoreCase);
+                }
+
                 if (res >= 0 && matchLengthPtr != null)
                 {
                     *matchLengthPtr = value.Length;
@@ -1058,11 +1078,24 @@ namespace System.Globalization
 
             if (options == CompareOptions.Ordinal)
             {
-                int retValue = SpanHelpers.IndexOf(
-                    ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
-                    count,
-                    ref value.GetRawStringData(),
-                    value.Length);
+                int retValue;
+
+                if (fromBeginning)
+                {
+                    retValue = SpanHelpers.IndexOf(
+                        ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
+                        count,
+                        ref value.GetRawStringData(),
+                        value.Length);
+                }
+                else
+                {
+                    retValue = SpanHelpers.LastIndexOf(
+                        ref Unsafe.Add(ref source.GetRawStringData(), startIndex),
+                        count,
+                        ref value.GetRawStringData(),
+                        value.Length);
+                }
 
                 if (retValue >= 0)
                 {
@@ -1077,7 +1110,15 @@ namespace System.Globalization
             }
             else
             {
-                return IndexOfCore(source, value, startIndex, count, options, matchLengthPtr);
+                if (fromBeginning)
+                {
+                    // Call the string-based overload, as it special-cases IsFastSort as a perf optimization.
+                    return IndexOfCore(source, value, startIndex, count, options, matchLengthPtr);
+                }
+                else
+                {
+                    return IndexOfCore(source.AsSpan(startIndex, count), value, options, matchLengthPtr, fromBeginning: false);
+                }
             }
         }
 

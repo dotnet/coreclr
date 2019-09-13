@@ -7251,6 +7251,19 @@ bool getILIntrinsicImplementationForUnsafe(MethodDesc * ftn,
         methInfo->options = (CorInfoOptions)0;
         return true;
     }
+    else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_IS_NULL)->GetMemberDef())
+    {
+        // 'ldnull' opcode would produce type o, and we can't compare & against o (ECMA-335, Table III.4).
+        // However, we can compare & against native int, so we'll use that instead.
+
+        static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDC_I4_0, CEE_CONV_U, CEE_PREFIX1, (CEE_CEQ & 0xFF), CEE_RET };
+        methInfo->ILCode = const_cast<BYTE*>(ilcode);
+        methInfo->ILCodeSize = sizeof(ilcode);
+        methInfo->maxStack = 2;
+        methInfo->EHcount = 0;
+        methInfo->options = (CorInfoOptions)0;
+        return true;
+    }
     else if (tk == MscorlibBinder::GetMethod(METHOD__UNSAFE__BYREF_INIT_BLOCK_UNALIGNED)->GetMemberDef())
     {
         static const BYTE ilcode[] = { CEE_LDARG_0, CEE_LDARG_1, CEE_LDARG_2, CEE_PREFIX1, (CEE_UNALIGNED & 0xFF), 0x01, CEE_PREFIX1, (CEE_INITBLK & 0xFF), CEE_RET };
@@ -7521,9 +7534,6 @@ bool getILIntrinsicImplementationForRuntimeHelpers(MethodDesc * ftn,
         if (methodTable == MscorlibBinder::GetClass(CLASS__BOOLEAN)
             || methodTable == MscorlibBinder::GetClass(CLASS__BYTE)
             || methodTable == MscorlibBinder::GetClass(CLASS__SBYTE)
-#ifdef FEATURE_UTF8STRING
-            || methodTable == MscorlibBinder::GetClass(CLASS__CHAR8)
-#endif // FEATURE_UTF8STRING
             || methodTable == MscorlibBinder::GetClass(CLASS__CHAR)
             || methodTable == MscorlibBinder::GetClass(CLASS__INT16)
             || methodTable == MscorlibBinder::GetClass(CLASS__UINT16)

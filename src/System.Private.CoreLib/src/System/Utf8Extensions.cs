@@ -26,7 +26,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsBytes(this Utf8String? text)
         {
-            if (text == null)
+            if (text is null)
                 return default;
 
             return new ReadOnlySpan<byte>(ref text.DangerousGetMutableReference(), text.Length);
@@ -44,7 +44,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsBytes(this Utf8String? text, int start)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -70,7 +70,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<byte> AsBytes(this Utf8String? text, int start, int length)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -97,7 +97,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<Char8> AsSpan(this Utf8String? text)
         {
-            if (text == null)
+            if (text is null)
                 return default;
 
             return new ReadOnlySpan<Char8>(ref Unsafe.As<byte, Char8>(ref text.DangerousGetMutableReference()), text.Length);
@@ -115,7 +115,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<Char8> AsSpan(this Utf8String? text, int start)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -141,7 +141,7 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadOnlySpan<Char8> AsSpan(this Utf8String? text, int start, int length)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -165,7 +165,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="text"/> is null.</remarks>
         public static ReadOnlyMemory<Char8> AsMemory(this Utf8String? text)
         {
-            if (text == null)
+            if (text is null)
                 return default;
 
             return new ReadOnlyMemory<Char8>(text, 0, text.Length);
@@ -180,7 +180,7 @@ namespace System
         /// </exception>
         public static ReadOnlyMemory<Char8> AsMemory(this Utf8String? text, int start)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -198,7 +198,7 @@ namespace System
         /// <param name="startIndex">The index at which to begin this slice.</param>
         public static ReadOnlyMemory<Char8> AsMemory(this Utf8String? text, Index startIndex)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (!startIndex.Equals(Index.Start))
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
@@ -223,7 +223,7 @@ namespace System
         /// </exception>
         public static ReadOnlyMemory<Char8> AsMemory(this Utf8String? text, int start, int length)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -247,7 +247,7 @@ namespace System
         /// <param name="range">The range used to indicate the start and length of the sliced string.</param>
         public static ReadOnlyMemory<Char8> AsMemory(this Utf8String? text, Range range)
         {
-            if (text == null)
+            if (text is null)
             {
                 Index startIndex = range.Start;
                 Index endIndex = range.End;
@@ -267,7 +267,7 @@ namespace System
         /// <remarks>Returns default when <paramref name="text"/> is null.</remarks>
         public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String? text)
         {
-            if (text == null)
+            if (text is null)
                 return default;
 
             return new ReadOnlyMemory<byte>(text, 0, text.Length);
@@ -282,7 +282,7 @@ namespace System
         /// </exception>
         public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String? text, int start)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -300,7 +300,7 @@ namespace System
         /// <param name="startIndex">The index at which to begin this slice.</param>
         public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String? text, Index startIndex)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (!startIndex.Equals(Index.Start))
                     ThrowHelper.ThrowArgumentNullException(ExceptionArgument.text);
@@ -325,7 +325,7 @@ namespace System
         /// </exception>
         public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String? text, int start, int length)
         {
-            if (text == null)
+            if (text is null)
             {
                 if (start != 0 || length != 0)
                     ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.start);
@@ -349,7 +349,7 @@ namespace System
         /// <param name="range">The range used to indicate the start and length of the sliced string.</param>
         public static ReadOnlyMemory<byte> AsMemoryBytes(this Utf8String? text, Range range)
         {
-            if (text == null)
+            if (text is null)
             {
                 Index startIndex = range.Start;
                 Index endIndex = range.End;
