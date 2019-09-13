@@ -452,7 +452,7 @@ public unsafe struct FixedBufferClassificationTestBlittable
 [StructLayout(LayoutKind.Sequential)]
 public unsafe struct FixedBufferClassificationTest
 {
-    public fixed bool arr[3];
+    public fixed int arr[3];
     public NonBlittableFloat f;
 }
 
