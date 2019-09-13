@@ -2912,7 +2912,7 @@ void CodeGen::genCodeForStoreBlk(GenTreeBlk* storeBlkNode)
 
     if (storeBlkNode->OperIs(GT_STORE_OBJ) && storeBlkNode->OperIsCopyBlkOp() && !storeBlkNode->gtBlkOpGcUnsafe)
     {
-        assert(storeBlkNode->AsObj()->gtGcPtrCount != 0);
+        assert(storeBlkNode->AsObj()->GetLayout()->HasGCPtr());
         genCodeForCpObj(storeBlkNode->AsObj());
         return;
     }
@@ -3660,9 +3660,9 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     bool      dstOnStack  = dstAddr->gtSkipReloadOrCopy()->OperIsLocalAddr();
 
 #ifdef DEBUG
-
-    // A CpObj always involves one or more GC pointers.
-    assert(cpObjNode->gtGcPtrCount > 0);
+    // If the GenTree node has data about GC pointers, this means we're dealing
+    // with CpObj, so this requires special logic.
+    assert(cpObjNode->GetLayout()->HasGCPtr());
 
     // MovSp (alias for movsq on x64 and movsd on x86) instruction is used for copying non-gcref fields
     // and it needs src = RSI and dst = RDI.
@@ -3702,7 +3702,7 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     gcInfo.gcMarkRegPtrVal(REG_RSI, srcAddrType);
     gcInfo.gcMarkRegPtrVal(REG_RDI, dstAddr->TypeGet());
 
-    unsigned slots = cpObjNode->gtSlots;
+    unsigned slots = cpObjNode->GetLayout()->GetSlotCount();
 
     // If we can prove it's on the stack we don't need to use the write barrier.
     if (dstOnStack)
@@ -3729,52 +3729,49 @@ void CodeGen::genCodeForCpObj(GenTreeObj* cpObjNode)
     }
     else
     {
-        BYTE*    gcPtrs     = cpObjNode->gtGcPtrs;
-        unsigned gcPtrCount = cpObjNode->gtGcPtrCount;
+        ClassLayout* layout     = cpObjNode->GetLayout();
+        unsigned     gcPtrCount = layout->GetGCPtrCount();
 
         unsigned i = 0;
         while (i < slots)
         {
-            switch (gcPtrs[i])
+            if (!layout->IsGCPtr(i))
             {
-                case TYPE_GC_NONE:
-                    // Let's see if we can use rep movsp instead of a sequence of movsp instructions
-                    // to save cycles and code size.
-                    {
-                        unsigned nonGcSlotCount = 0;
+                // Let's see if we can use rep movsp instead of a sequence of movsp instructions
+                // to save cycles and code size.
+                unsigned nonGcSlotCount = 0;
 
-                        do
-                        {
-                            nonGcSlotCount++;
-                            i++;
-                        } while (i < slots && gcPtrs[i] == TYPE_GC_NONE);
-
-                        // If we have a very small contiguous non-gc region, it's better just to
-                        // emit a sequence of movsp instructions
-                        if (nonGcSlotCount < CPOBJ_NONGC_SLOTS_LIMIT)
-                        {
-                            while (nonGcSlotCount > 0)
-                            {
-                                instGen(INS_movsp);
-                                nonGcSlotCount--;
-                            }
-                        }
-                        else
-                        {
-                            // Otherwise, we can save code-size and improve CQ by emitting
-                            // rep movsp (alias for movsd/movsq for x86/x64)
-                            assert((cpObjNode->gtRsvdRegs & RBM_RCX) != 0);
-
-                            getEmitter()->emitIns_R_I(INS_mov, EA_4BYTE, REG_RCX, nonGcSlotCount);
-                            instGen(INS_r_movsp);
-                        }
-                    }
-                    break;
-                default:
-                    // We have a GC pointer, call the memory barrier.
-                    genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
-                    gcPtrCount--;
+                do
+                {
+                    nonGcSlotCount++;
                     i++;
+                } while ((i < slots) && !layout->IsGCPtr(i));
+
+                // If we have a very small contiguous non-gc region, it's better just to
+                // emit a sequence of movsp instructions
+                if (nonGcSlotCount < CPOBJ_NONGC_SLOTS_LIMIT)
+                {
+                    while (nonGcSlotCount > 0)
+                    {
+                        instGen(INS_movsp);
+                        nonGcSlotCount--;
+                    }
+                }
+                else
+                {
+                    // Otherwise, we can save code-size and improve CQ by emitting
+                    // rep movsp (alias for movsd/movsq for x86/x64)
+                    assert((cpObjNode->gtRsvdRegs & RBM_RCX) != 0);
+
+                    getEmitter()->emitIns_R_I(INS_mov, EA_4BYTE, REG_RCX, nonGcSlotCount);
+                    instGen(INS_r_movsp);
+                }
+            }
+            else
+            {
+                genEmitHelperCall(CORINFO_HELP_ASSIGN_BYREF, 0, EA_PTRSIZE);
+                gcPtrCount--;
+                i++;
             }
         }
 
@@ -5329,11 +5326,9 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
     assert(!call->IsVirtual() || call->gtControlExpr || call->gtCallAddr);
 
     // Consume all the arg regs
-    for (GenTree* list = call->gtCallLateArgs; list; list = list->MoveNext())
+    for (GenTreeCall::Use& use : call->LateArgs())
     {
-        assert(list->OperIsList());
-
-        GenTree* argNode = list->Current();
+        GenTree* argNode = use.GetNode();
 
         fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, argNode->gtSkipReloadOrCopy());
         assert(curArgTabEntry);
@@ -5403,40 +5398,35 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
 #if defined(_TARGET_X86_) || defined(UNIX_AMD64_ABI)
     // The call will pop its arguments.
     // for each putarg_stk:
-    ssize_t  stackArgBytes = 0;
-    GenTree* args          = call->gtCallArgs;
-    while (args)
+    ssize_t stackArgBytes = 0;
+    for (GenTreeCall::Use& use : call->Args())
     {
-        GenTree* arg = args->gtOp.gtOp1;
-        if (arg->OperGet() != GT_ARGPLACE && !(arg->gtFlags & GTF_LATE_ARG))
+        GenTree* arg = use.GetNode();
+        if (arg->OperIs(GT_PUTARG_STK) && ((arg->gtFlags & GTF_LATE_ARG) == 0))
         {
-            if (arg->OperGet() == GT_PUTARG_STK)
-            {
-                GenTree* source = arg->gtOp.gtOp1;
-                unsigned size   = arg->AsPutArgStk()->getArgSize();
-                stackArgBytes += size;
+            GenTree* source = arg->AsPutArgStk()->gtGetOp1();
+            unsigned size   = arg->AsPutArgStk()->getArgSize();
+            stackArgBytes += size;
 #ifdef DEBUG
-                fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, arg);
-                assert(curArgTabEntry);
-                assert(size == (curArgTabEntry->numSlots * TARGET_POINTER_SIZE));
+            fgArgTabEntry* curArgTabEntry = compiler->gtArgEntryByNode(call, arg);
+            assert(curArgTabEntry != nullptr);
+            assert(size == (curArgTabEntry->numSlots * TARGET_POINTER_SIZE));
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
-                if (source->TypeGet() == TYP_STRUCT)
-                {
-                    GenTreeObj* obj      = source->AsObj();
-                    unsigned    argBytes = roundUp(obj->gtBlkSize, TARGET_POINTER_SIZE);
+            if (source->TypeGet() == TYP_STRUCT)
+            {
+                GenTreeObj* obj      = source->AsObj();
+                unsigned    argBytes = roundUp(obj->GetLayout()->GetSize(), TARGET_POINTER_SIZE);
 #ifdef _TARGET_X86_
-                    // If we have an OBJ, we must have created a copy if the original arg was not a
-                    // local and was not a multiple of TARGET_POINTER_SIZE.
-                    // Note that on x64/ux this will be handled by unrolling in genStructPutArgUnroll.
-                    assert((argBytes == obj->gtBlkSize) || obj->Addr()->IsLocalAddrExpr());
+                // If we have an OBJ, we must have created a copy if the original arg was not a
+                // local and was not a multiple of TARGET_POINTER_SIZE.
+                // Note that on x64/ux this will be handled by unrolling in genStructPutArgUnroll.
+                assert((argBytes == obj->GetLayout()->GetSize()) || obj->Addr()->IsLocalAddrExpr());
 #endif // _TARGET_X86_
-                    assert((curArgTabEntry->numSlots * TARGET_POINTER_SIZE) == argBytes);
-                }
+                assert((curArgTabEntry->numSlots * TARGET_POINTER_SIZE) == argBytes);
+            }
 #endif // FEATURE_PUT_STRUCT_ARG_STK
 #endif // DEBUG
-            }
         }
-        args = args->gtOp.gtOp2;
     }
 #endif // defined(_TARGET_X86_) || defined(UNIX_AMD64_ABI)
 
@@ -7626,11 +7616,11 @@ bool CodeGen::genAdjustStackForPutArgStk(GenTreePutArgStk* putArgStk)
     {
         case GenTreePutArgStk::Kind::RepInstr:
         case GenTreePutArgStk::Kind::Unroll:
-            assert((putArgStk->gtNumberReferenceSlots == 0) && (source->OperGet() != GT_FIELD_LIST) && (argSize >= 16));
+            assert(!source->AsObj()->GetLayout()->HasGCPtr() && (argSize >= 16));
             break;
         case GenTreePutArgStk::Kind::Push:
         case GenTreePutArgStk::Kind::PushAllSlots:
-            assert((putArgStk->gtNumberReferenceSlots != 0) || (source->OperGet() == GT_FIELD_LIST) || (argSize < 16));
+            assert(source->OperIs(GT_FIELD_LIST) || source->AsObj()->GetLayout()->HasGCPtr() || (argSize < 16));
             break;
         case GenTreePutArgStk::Kind::Invalid:
         default:
@@ -8174,7 +8164,9 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
 
     assert(targetType == TYP_STRUCT);
 
-    if (putArgStk->gtNumberReferenceSlots == 0)
+    ClassLayout* layout = source->AsObj()->GetLayout();
+
+    if (!layout->HasGCPtr())
     {
         switch (putArgStk->gtPutArgStkKind)
         {
@@ -8206,7 +8198,6 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         assert(m_pushStkArg);
 
         GenTree*       srcAddr  = source->gtGetOp1();
-        BYTE*          gcPtrs   = putArgStk->gtGcPtrs;
         const unsigned numSlots = putArgStk->gtNumSlots;
 
         regNumber  srcRegNum    = srcAddr->gtRegNum;
@@ -8231,22 +8222,8 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
 
         for (int i = numSlots - 1; i >= 0; --i)
         {
-            emitAttr slotAttr;
-            if (gcPtrs[i] == TYPE_GC_NONE)
-            {
-                slotAttr = EA_4BYTE;
-            }
-            else if (gcPtrs[i] == TYPE_GC_REF)
-            {
-                slotAttr = EA_GCREF;
-            }
-            else
-            {
-                assert(gcPtrs[i] == TYPE_GC_BYREF);
-                slotAttr = EA_BYREF;
-            }
-
-            const unsigned offset = i * TARGET_POINTER_SIZE;
+            emitAttr       slotAttr = emitTypeSize(layout->GetGCPtrType(i));
+            const unsigned offset   = i * TARGET_POINTER_SIZE;
             if (srcAddrInReg)
             {
                 getEmitter()->emitIns_AR_R(INS_push, slotAttr, REG_NA, srcRegNum, offset);
@@ -8270,11 +8247,10 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
         unsigned       numGCSlotsCopied = 0;
 #endif // DEBUG
 
-        BYTE*          gcPtrs   = putArgStk->gtGcPtrs;
         const unsigned numSlots = putArgStk->gtNumSlots;
         for (unsigned i = 0; i < numSlots;)
         {
-            if (gcPtrs[i] == TYPE_GC_NONE)
+            if (!layout->IsGCPtr(i))
             {
                 // Let's see if we can use rep movsp (alias for movsd or movsq for 32 and 64 bits respectively)
                 // instead of a sequence of movsp instructions to save cycles and code size.
@@ -8283,7 +8259,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
                 {
                     adjacentNonGCSlotCount++;
                     i++;
-                } while ((i < numSlots) && (gcPtrs[i] == TYPE_GC_NONE));
+                } while ((i < numSlots) && !layout->IsGCPtr(i));
 
                 // If we have a very small contiguous non-ref region, it's better just to
                 // emit a sequence of movsp instructions
@@ -8302,15 +8278,13 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
             }
             else
             {
-                assert((gcPtrs[i] == TYPE_GC_REF) || (gcPtrs[i] == TYPE_GC_BYREF));
-
                 // We have a GC (byref or ref) pointer
                 // TODO-Amd64-Unix: Here a better solution (for code size and CQ) would be to use movsp instruction,
                 // but the logic for emitting a GC info record is not available (it is internal for the emitter
                 // only.) See emitGCVarLiveUpd function. If we could call it separately, we could do
                 // instGen(INS_movsp); and emission of gc info.
 
-                var_types memType = (gcPtrs[i] == TYPE_GC_REF) ? TYP_REF : TYP_BYREF;
+                var_types memType = layout->GetGCPtrType(i);
                 getEmitter()->emitIns_R_AR(ins_Load(memType), emitTypeSize(memType), REG_RCX, REG_RSI, 0);
                 genStoreRegToStackArg(memType, REG_RCX, i * TARGET_POINTER_SIZE);
 #ifdef DEBUG
@@ -8332,7 +8306,7 @@ void CodeGen::genPutStructArgStk(GenTreePutArgStk* putArgStk)
             }
         }
 
-        assert(numGCSlotsCopied == putArgStk->gtNumberReferenceSlots);
+        assert(numGCSlotsCopied == layout->GetGCPtrCount());
 #endif // _TARGET_X86_
     }
 }

@@ -1110,7 +1110,7 @@ inline GenTree* Compiler::gtNewIconEmbFldHndNode(CORINFO_FIELD_HANDLE fldHnd)
 // Return Value:
 //    New CT_HELPER node
 
-inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeArgList* args)
+inline GenTreeCall* Compiler::gtNewHelperCallNode(unsigned helper, var_types type, GenTreeCall::Use* args)
 {
     unsigned     flags  = s_helperCallProperties.NoThrow((CorInfoHelpFunc)helper) ? 0 : GTF_EXCEPT;
     GenTreeCall* result = gtNewCallNode(CT_HELPER, eeFindHelper(helper), type, args);
@@ -1865,22 +1865,6 @@ inline VARSET_VALRET_TP Compiler::lvaStmtLclMask(GenTreeStmt* stmt)
     }
 
     return lclMask;
-}
-
-/*****************************************************************************
- * Returns true if the lvType is a TYP_REF or a TYP_BYREF.
- * When the lvType is a TYP_STRUCT it searches the GC layout
- * of the struct and returns true iff it contains a GC ref.
- */
-
-inline bool Compiler::lvaTypeIsGC(unsigned varNum)
-{
-    if (lvaTable[varNum].TypeGet() == TYP_STRUCT)
-    {
-        assert(lvaTable[varNum].lvGcLayout != nullptr); // bits are intialized
-        return (lvaTable[varNum].lvStructGcCount != 0);
-    }
-    return (varTypeIsGC(lvaTable[varNum].TypeGet()));
 }
 
 /*****************************************************************************
@@ -4141,8 +4125,8 @@ inline void Compiler::CLR_API_Leave(API_ICorJitInfo_Names ename)
 
 bool Compiler::fgStructTempNeedsExplicitZeroInit(LclVarDsc* varDsc, BasicBlock* block)
 {
-    bool containsGCPtr = (varDsc->lvStructGcCount > 0);
-    return (!info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) || (!containsGCPtr && varDsc->lvIsTemp));
+    return !info.compInitMem || ((block->bbFlags & BBF_BACKWARD_JUMP) != 0) ||
+           (!varDsc->HasGCPtr() && varDsc->lvIsTemp);
 }
 
 /*****************************************************************************/
@@ -4421,15 +4405,23 @@ void GenTree::VisitOperands(TVisitor visitor)
             {
                 return;
             }
-            if ((call->gtCallArgs != nullptr) && (call->gtCallArgs->VisitListOperands(visitor) == VisitResult::Abort))
+
+            for (GenTreeCall::Use& use : call->Args())
             {
-                return;
+                if (visitor(use.GetNode()) == VisitResult::Abort)
+                {
+                    return;
+                }
             }
-            if ((call->gtCallLateArgs != nullptr) &&
-                (call->gtCallLateArgs->VisitListOperands(visitor)) == VisitResult::Abort)
+
+            for (GenTreeCall::Use& use : call->LateArgs())
             {
-                return;
+                if (visitor(use.GetNode()) == VisitResult::Abort)
+                {
+                    return;
+                }
             }
+
             if (call->gtCallType == CT_INDIRECT)
             {
                 if ((call->gtCallCookie != nullptr) && (visitor(call->gtCallCookie) == VisitResult::Abort))

@@ -224,8 +224,7 @@ void CodeGen::genCodeForBBlist()
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-            LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
+            LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
 
             if (varDsc->lvIsInReg())
             {
@@ -558,8 +557,7 @@ void CodeGen::genCodeForBBlist()
         bool            foundMismatchedRegVar = false;
         while (mismatchLiveVarIter.NextElem(&mismatchLiveVarIndex))
         {
-            unsigned   varNum = compiler->lvaTrackedToVarNum[mismatchLiveVarIndex];
-            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(mismatchLiveVarIndex);
             if (varDsc->lvIsRegCandidate())
             {
                 if (!foundMismatchedRegVar)
@@ -567,7 +565,7 @@ void CodeGen::genCodeForBBlist()
                     JITDUMP("Mismatched live reg vars after BB%02u:", block->bbNum);
                     foundMismatchedRegVar = true;
                 }
-                JITDUMP(" V%02u", varNum);
+                JITDUMP(" V%02u", compiler->lvaTrackedIndexToLclNum(mismatchLiveVarIndex));
             }
         }
         if (foundMismatchedRegVar)
@@ -1088,7 +1086,6 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 unsigned flags = splitArg->GetRegSpillFlagByIdx(i);
                 if ((flags & GTF_SPILLED) != 0)
                 {
-                    BYTE*     gcPtrs  = splitArg->gtGcPtrs;
                     var_types dstType = splitArg->GetRegType(i);
                     regNumber dstReg  = splitArg->GetRegNumByIdx(i);
 

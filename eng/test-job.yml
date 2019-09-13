@@ -2,7 +2,7 @@ parameters:
   buildConfig: ''
   archType: ''
   osGroup: ''
-  osIdentifier: ''
+  osSubgroup: ''
   container: ''
   testGroup: ''
   readyToRun: false
@@ -13,7 +13,7 @@ parameters:
   displayNameArgs: ''
   runInUnloadableContext: false
   condition: true
-  ignoreDependencyOnBuildJobs: false
+  stagedBuild: false
 
 ### Test job
 
@@ -26,7 +26,7 @@ jobs:
     buildConfig:                 ${{ parameters.buildConfig }}
     archType:                    ${{ parameters.archType }}
     osGroup:                     ${{ parameters.osGroup }}
-    osIdentifier:                ${{ parameters.osIdentifier }}
+    osSubgroup:                  ${{ parameters.osSubgroup }}
     container:                   ${{ parameters.container }}
     testGroup:                   ${{ parameters.testGroup }}
     readyToRun:                  ${{ parameters.readyToRun }}
@@ -34,18 +34,19 @@ jobs:
     corefxTests:                 ${{ parameters.coreFxTests }}
     displayNameArgs:             ${{ parameters.displayNameArgs }}
     condition:                   ${{ parameters.condition }}
-    ignoreDependencyOnBuildJobs: ${{ parameters.ignoreDependencyOnBuildJobs }}
+    stagedBuild:                 ${{ parameters.stagedBuild }}
 
 - template: run-test-job.yml
   parameters:
     buildConfig:            ${{ parameters.buildConfig }}
     archType:               ${{ parameters.archType }}
     osGroup:                ${{ parameters.osGroup }}
-    osIdentifier:           ${{ parameters.osIdentifier }}
+    osSubgroup:             ${{ parameters.osSubgroup }}
     container:              ${{ parameters.container }}
     testGroup:              ${{ parameters.testGroup }}
     readyToRun:             ${{ parameters.readyToRun }}
     helixQueues:            ${{ parameters.helixQueues }}
     corefxTests:            ${{ parameters.coreFxTests }}
     displayNameArgs:        ${{ parameters.displayNameArgs }}
+    stagedBuild:            ${{ parameters.stagedBuild }}
     runInUnloadableContext: ${{ parameters.runInUnloadableContext }}

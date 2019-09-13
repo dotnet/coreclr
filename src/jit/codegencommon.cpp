@@ -621,8 +621,6 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
 template <bool ForCodeGen>
 void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 {
-    LclVarDsc* varDsc;
-
 #ifdef DEBUG
     if (verbose)
     {
@@ -668,10 +666,10 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
     unsigned        deadVarIndex = 0;
     while (deadIter.NextElem(&deadVarIndex))
     {
-        unsigned varNum = lvaTrackedToVarNum[deadVarIndex];
-        varDsc          = lvaTable + varNum;
-        bool isGCRef    = (varDsc->TypeGet() == TYP_REF);
-        bool isByRef    = (varDsc->TypeGet() == TYP_BYREF);
+        unsigned   varNum  = lvaTrackedIndexToLclNum(deadVarIndex);
+        LclVarDsc* varDsc  = lvaGetDesc(varNum);
+        bool       isGCRef = (varDsc->TypeGet() == TYP_REF);
+        bool       isByRef = (varDsc->TypeGet() == TYP_BYREF);
 
         if (varDsc->lvIsInReg())
         {
@@ -704,10 +702,10 @@ void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
     unsigned        bornVarIndex = 0;
     while (bornIter.NextElem(&bornVarIndex))
     {
-        unsigned varNum = lvaTrackedToVarNum[bornVarIndex];
-        varDsc          = lvaTable + varNum;
-        bool isGCRef    = (varDsc->TypeGet() == TYP_REF);
-        bool isByRef    = (varDsc->TypeGet() == TYP_BYREF);
+        unsigned   varNum  = lvaTrackedIndexToLclNum(bornVarIndex);
+        LclVarDsc* varDsc  = lvaGetDesc(varNum);
+        bool       isGCRef = (varDsc->TypeGet() == TYP_REF);
+        bool       isByRef = (varDsc->TypeGet() == TYP_BYREF);
 
         if (varDsc->lvIsInReg())
         {
@@ -1099,8 +1097,8 @@ unsigned CodeGenInterface::InferStructOpSizeAlign(GenTree* op, unsigned* alignme
 
     if (op->gtOper == GT_OBJ)
     {
-        CORINFO_CLASS_HANDLE clsHnd = op->AsObj()->gtClass;
-        opSize                      = compiler->info.compCompHnd->getClassSize(clsHnd);
+        CORINFO_CLASS_HANDLE clsHnd = op->AsObj()->GetLayout()->GetClassHandle();
+        opSize                      = op->AsObj()->GetLayout()->GetSize();
         alignment = roundUp(compiler->info.compCompHnd->getClassAlignmentRequirement(clsHnd), TARGET_POINTER_SIZE);
     }
     else if (op->gtOper == GT_LCL_VAR)
@@ -4521,8 +4519,7 @@ void CodeGen::genCheckUseBlockInit()
             continue;
         }
 
-        if (compiler->info.compInitMem || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0) ||
-            varDsc->lvMustInit)
+        if (compiler->info.compInitMem || varDsc->HasGCPtr() || varDsc->lvMustInit)
         {
             if (varDsc->lvTracked)
             {
@@ -4568,7 +4565,7 @@ void CodeGen::genCheckUseBlockInit()
             CLANG_FORMAT_COMMENT_ANCHOR;
 
             if ((!varDsc->lvTracked || (varDsc->lvType == TYP_STRUCT)) && varDsc->lvOnFrame &&
-                (!varDsc->lvIsTemp || varTypeIsGC(varDsc->TypeGet()) || (varDsc->lvStructGcCount > 0)))
+                (!varDsc->lvIsTemp || varDsc->HasGCPtr()))
             {
 
                 varDsc->lvMustInit = true;
@@ -4585,7 +4582,7 @@ void CodeGen::genCheckUseBlockInit()
 
         /* Ignore if not a pointer variable or value class with a GC field */
 
-        if (!compiler->lvaTypeIsGC(varNum))
+        if (!varDsc->HasGCPtr())
         {
             continue;
         }
@@ -4606,13 +4603,18 @@ void CodeGen::genCheckUseBlockInit()
 
         /* Is this a 'must-init' stack pointer local? */
 
-        if (varDsc->lvMustInit && varDsc->lvOnFrame)
+        if (varDsc->lvMustInit && varDsc->lvOnFrame && !counted)
         {
-            if (!counted)
+            if (varDsc->TypeGet() == TYP_STRUCT)
             {
-                initStkLclCnt += varDsc->lvStructGcCount;
-                counted = true;
+                initStkLclCnt += varDsc->GetLayout()->GetGCPtrCount();
             }
+            else
+            {
+                assert(varTypeIsGC(varDsc->TypeGet()));
+                initStkLclCnt += 1;
+            }
+            counted = true;
         }
 
         if ((compiler->lvaLclSize(varNum) > (3 * TARGET_POINTER_SIZE)) && (largeGcStructs <= 4))
@@ -6347,11 +6349,11 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
             {
                 // We only initialize the GC variables in the TYP_STRUCT
                 const unsigned slots  = (unsigned)compiler->lvaLclSize(varNum) / REGSIZE_BYTES;
-                const BYTE*    gcPtrs = compiler->lvaGetGcLayout(varNum);
+                ClassLayout*   layout = varDsc->GetLayout();
 
                 for (unsigned i = 0; i < slots; i++)
                 {
-                    if (gcPtrs[i] != TYPE_GC_NONE)
+                    if (layout->IsGCPtr(i))
                     {
                         getEmitter()->emitIns_S_R(ins_Store(TYP_I_IMPL), EA_PTRSIZE,
                                                   genGetZeroReg(initReg, pInitRegZeroed), varNum, i * REGSIZE_BYTES);
@@ -7711,7 +7713,7 @@ void CodeGen::genFnProlog()
         /* We need to know the offset range of tracked stack GC refs */
         /* We assume that the GC reference can be anywhere in the TYP_STRUCT */
 
-        if (compiler->lvaTypeIsGC(varNum) && varDsc->lvTrackedNonStruct() && varDsc->lvOnFrame)
+        if (varDsc->HasGCPtr() && varDsc->lvTrackedNonStruct() && varDsc->lvOnFrame)
         {
             // For fields of PROMOTION_TYPE_DEPENDENT type of promotion, they should have been
             // taken care of by the parent struct.
@@ -12184,7 +12186,7 @@ void CodeGenInterface::VariableLiveKeeper::siStartOrCloseVariableLiveRanges(VARS
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned int     varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
+            unsigned int     varNum = m_Compiler->lvaTrackedIndexToLclNum(varIndex);
             const LclVarDsc* varDsc = m_Compiler->lvaGetDesc(varNum);
             siStartOrCloseVariableLiveRange(varDsc, varNum, isBorn, isDying);
         }
@@ -12313,7 +12315,7 @@ void CodeGenInterface::VariableLiveKeeper::siEndAllVariableLiveRange(VARSET_VALA
             unsigned        varIndex = 0;
             while (iter.NextElem(&varIndex))
             {
-                unsigned int varNum = m_Compiler->lvaTrackedToVarNum[varIndex];
+                unsigned int varNum = m_Compiler->lvaTrackedIndexToLclNum(varIndex);
                 siEndVariableLiveRange(varNum);
             }
         }
