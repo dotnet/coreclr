@@ -4988,17 +4988,16 @@ void Compiler::lvaFixVirtualFrameOffsets()
 
 #endif // FEATURE_FIXED_OUT_ARGS
 
-#ifdef _TARGET_ARMARCH_
+#ifdef _TARGET_ARM64_
     // We normally add alignment below the locals between them and the outgoing
     // arg space area. When we store fp/lr at the bottom, however, this will be
     // below the alignment. So we should not apply the alignment adjustment to
-    // them. On ARM it turns out we always store these at +0 and +8 of the FP,
-    // so instead of dealing with skipping adjustment just for them we just do
-    // set them here always. If we ever end up without frame pointers on ARM we
-    // should take this alignment into account instead.
+    // them. On ARM64 it turns out we always store these at +0 and +8 of the FP,
+    // so instead of dealing with skipping adjustment just for them we just set
+    // them here always.
     assert(codeGen->isFramePointerUsed());
     if (lvaRetAddrVar != BAD_VAR_NUM)
-        lvaTable[lvaRetAddrVar].lvStkOffs = 8;
+        lvaTable[lvaRetAddrVar].lvStkOffs = REGSIZE_BYTES;
 #endif
 }
 
@@ -5766,6 +5765,13 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     }
 
 #else  // !_TARGET_ARM64_
+#ifdef _TARGET_ARM_
+    // On ARM32 LR is part of the pushed registers and is always stored at the
+    // top.
+    if (lvaRetAddrVar != BAD_VAR_NUM)
+        lvaTable[lvaRetAddrVar].lvStkOffs = stkOffs - REGSIZE_BYTES;
+#endif
+
     stkOffs -= compCalleeRegsPushed * REGSIZE_BYTES;
 #endif // !_TARGET_ARM64_
 
