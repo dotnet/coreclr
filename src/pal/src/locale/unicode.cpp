@@ -43,13 +43,6 @@ using namespace CorUnix;
 
 SET_DEFAULT_DEBUG_CHANNEL(UNICODE);
 
-// We hardcode the system's default codepage to be UTF-8.
-// There are several reasons for this:
-// - On OSX, HFS+ file names are encoded as UTF-8.
-// - On OSX, When writing strings to the console, the Terminal.app will interpret them as UTF-8.
-// - We want Ansi marshalling to mean marshal to UTF-8 on Mac and Linux
-static const UINT PAL_ACP = CP_UTF8;
-
 /*++
 Function:
 UnicodeDataComp
@@ -285,7 +278,7 @@ GetCPInfo(
     ENTRY("GetCPInfo(CodePage=%hu, lpCPInfo=%p)\n", CodePage, lpCPInfo);
 
     /*check if the input code page is valid*/
-    if( CP_ACP != CodePage && PAL_ACP != CodePage )
+    if( CP_ACP != CodePage && CP_UTF8 != CodePage )
     {
         /* error, invalid argument */
         ERROR("CodePage(%d) parameter is invalid\n",CodePage);
@@ -330,10 +323,10 @@ GetACP(VOID)
     PERF_ENTRY(GetACP);
     ENTRY("GetACP(VOID)\n");
 
-    LOGEXIT("GetACP returning UINT %d\n", PAL_ACP );
+    LOGEXIT("GetACP returning UINT %d\n", CP_UTF8);
     PERF_EXIT(GetACP);
 
-    return PAL_ACP;
+    return CP_UTF8;
 }
 
 
@@ -445,7 +438,7 @@ MultiByteToWideChar(
 
     // Use UTF8ToUnicode on all systems, since it replaces
     // invalid characters and Core Foundation doesn't do that.
-    if (CodePage == CP_UTF8 || CodePage == PAL_ACP)
+    if (CodePage == CP_UTF8 || CodePage == CP_ACP)
     {
         if (cbMultiByte <= -1)
         {
@@ -530,7 +523,7 @@ WideCharToMultiByte(
 
     // Use UnicodeToUTF8 on all systems because we use
     // UTF8ToUnicode in MultiByteToWideChar() on all systems.
-    if (CodePage == CP_UTF8 || CodePage == PAL_ACP)
+    if (CodePage == CP_UTF8 || CodePage == CP_ACP)
     {
         if (cchWideChar == -1)
         {
