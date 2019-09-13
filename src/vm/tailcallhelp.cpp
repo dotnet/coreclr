@@ -102,13 +102,47 @@ struct TailCallInfo
     }
 };
 
+// This creates the dispatcher used to dispatch sequences of tailcalls. In C#
+// code it is the following function. Once C# gets function pointer support this
+// function can be put in System.Private.CoreLib.
+// private static unsafe void DispatchTailCalls(
+//     IntPtr callersRetAddrSlot, IntPtr callTarget, IntPtr retVal)
+// {
+//     IntPtr callersRetAddr;
+//     TailCallTls* tls = GetTailCallInfo(callersRetAddrSlot, &callersRetAddr);
+//     TailCallFrame* prevFrame = tls->Frame;
+//     if (callersRetAddr == prevFrame->TailCallAwareReturnAddress)
+//     {
+//         prevFrame->NextCall = callTarget;
+//         return;
+//     }
+//
+//     TailCallFrame newFrame;
+//     newFrame.Prev = prevFrame;
+//
+//     try
+//     {
+//         tls->Frame = &newFrame;
+//
+//         do
+//         {
+//             newFrame.NextCall = IntPtr.Zero;
+//             var fptr = (func* void(IntPtr, IntPtr, void*))callTarget;
+//             fptr(tls->ArgBuffer, retVal, &newFrame.TailCallAwareReturnAddress);
+//             callTarget = newFrame.NextCall;
+//         } while (callTarget != IntPtr.Zero);
+//     }
+//     finally
+//     {
+//         tls->Frame = prevFrame;
+//     }
+// }
 MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
 {
     static MethodDesc* s_tailCallDispatcherMD;
     if (s_tailCallDispatcherMD != NULL)
         return s_tailCallDispatcherMD;
 
-    // Signature: void DispatchTailCalls(void* callersRetAddrSlot, void* callTarget, void* retVal)
     SigBuilder sigBuilder;
     sigBuilder.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
@@ -299,8 +333,9 @@ void TailCallHelp::CreateTailCallHelperStubs(
 
     // There are two cases where we will need the tailcalling site to pass us the target:
     // * It was a calli, for obvious reasons
-    // * The target is generic. Since the CallTarget stub is non-generic we
-    // cannot express a call to it in IL.
+    // * The target is generic (in which case it might depend on type parameters
+    // in the caller). Since the CallTarget stub is non-generic we cannot
+    // express a call to it in IL.
     *storeArgsNeedsTarget = pCalleeMD == NULL || callSiteSig.IsGenericMethod();
 
     // We 'attach' the tailcall stub to the target method except for the case of

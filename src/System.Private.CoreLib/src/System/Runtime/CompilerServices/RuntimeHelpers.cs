@@ -224,41 +224,5 @@ namespace System.Runtime.CompilerServices
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static unsafe extern TailCallTls* GetTailCallInfo(IntPtr retAddrSlot, IntPtr* retAddr);
-
-        [UnmanagedFunctionPointer(CallingConvention.StdCall)]
-        private delegate void CallTargetDelegate(IntPtr argsBuffer, IntPtr retVal);
-
-        private static unsafe void DispatchTailCalls(
-            IntPtr callersRetAddrSlot, IntPtr callTarget, IntPtr retVal)
-        {
-            IntPtr callersRetAddr;
-            TailCallTls* tls = GetTailCallInfo(callersRetAddrSlot, &callersRetAddr);
-            TailCallFrame* prevFrame = tls->Frame;
-            if (callersRetAddr == prevFrame->TailCallAwareReturnAddress)
-            {
-                prevFrame->NextCall = callTarget;
-                return;
-            }
-
-            TailCallFrame newFrame;
-            newFrame.Prev = prevFrame;
-
-            try
-            {
-                tls->Frame = &newFrame;
-
-                do
-                {
-                    newFrame.NextCall = IntPtr.Zero;
-                    var callTargetDel = Marshal.GetDelegateForFunctionPointer<CallTargetDelegate>(callTarget);
-                    callTargetDel(tls->ArgBuffer, retVal);
-                    callTarget = newFrame.NextCall;
-                } while (callTarget != IntPtr.Zero);
-            }
-            finally
-            {
-                tls->Frame = prevFrame;
-            }
-        }
     }
 }
