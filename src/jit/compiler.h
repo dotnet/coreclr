@@ -8668,7 +8668,8 @@ public:
     bool compTailCallStress()
     {
 #ifdef DEBUG
-        return (JitConfig.TailcallStress() != 0 || compStressCompile(STRESS_TAILCALL, 5));
+        return !opts.jitFlags->IsSet(JitFlags::JIT_FLAG_IL_STUB) &&
+               (JitConfig.TailcallStress() != 0 || compStressCompile(STRESS_TAILCALL, 5));
 #else
         return false;
 #endif
