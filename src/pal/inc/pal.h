@@ -396,13 +396,6 @@ PALAPI
 PAL_InitializeCoreCLR(
     const char *szExePath);
 
-PALIMPORT
-DWORD_PTR
-PALAPI
-PAL_EntryPoint(
-    IN LPTHREAD_START_ROUTINE lpStartAddress,
-    IN LPVOID lpParameter);
-
 /// <summary>
 /// This function shuts down PAL WITHOUT exiting the current process.
 /// </summary>
