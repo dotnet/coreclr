@@ -362,7 +362,7 @@ struct READYTORUN_EXCEPTION_CLAUSE
 
 enum ReadyToRunRuntimeConstants : DWORD
 {
-    READYTORUN_RUNTIME_CONSTANT_PInvokeTransitionFrameSize = 11 * sizeof(void *)
+    READYTORUN_PInvokeTransitionFrameSizeInPointerUnits = 11
 };
 
 #endif // __READYTORUN_H__
