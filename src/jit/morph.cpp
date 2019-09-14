@@ -7006,6 +7006,13 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 #endif
 
+    // If the NextCallReturnAddress intrinsic is used we should do normal calls.
+    if (info.compHasNextCallRetAddr)
+    {
+        reportFastTailCallDecision("Uses NextCallReturnAddress intrinsic", 0, 0);
+        return false;
+    }
+
     // Count user args while tracking whether any of them has a larger than one
     // stack slot sized requirement. This requirement is required to support
     // lowering the fast tail call, which, currently only supports copying
