@@ -1108,19 +1108,6 @@ void InitJITHelpers1()
 EXTERN_C void JIT_UpdateWriteBarrierState(bool) {}
 #endif // !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
 
-EXTERN_C void __stdcall ProfileEnterNaked(UINT_PTR clientData)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-EXTERN_C void __stdcall ProfileLeaveNaked(UINT_PTR clientData)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-EXTERN_C void __stdcall ProfileTailcallNaked(UINT_PTR clientData)
-{
-    _ASSERTE(!"ARM64:NYI");
-}
-
 PTR_CONTEXT GetCONTEXTFromRedirectedStubStackFrame(T_DISPATCHER_CONTEXT * pDispatcherContext)
 {
     LIMITED_METHOD_DAC_CONTRACT;
