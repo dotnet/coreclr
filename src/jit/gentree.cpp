@@ -11468,6 +11468,12 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
     }
 }
 
+//------------------------------------------------------------------------
+// gtDispBlockStmts: dumps all statements inside `block`.
+//
+// Arguments:
+//    block - the block to display statements for.
+//
 void Compiler::gtDispBlockStmts(BasicBlock* block)
 {
     for (Statement* stmt : block->Statements())
