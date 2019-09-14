@@ -6994,6 +6994,18 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     }
 #endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
 
+#ifdef _TARGET_AMD64_
+    // Needed for Jit64 compat.
+    // In future, enabling fast tail calls from methods that need GS cookie
+    // check would require codegen side work to emit GS cookie check before a
+    // tail call.
+    if (getNeedsGSSecurityCookie())
+    {
+        reportFastTailCallDecision("GS Security cookie check required", 0, 0);
+        return false;
+    }
+#endif
+
     // Count user args while tracking whether any of them has a larger than one
     // stack slot sized requirement. This requirement is required to support
     // lowering the fast tail call, which, currently only supports copying
@@ -7213,24 +7225,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         failTailCall("Needs security check");
         return nullptr;
     }
-
-    if (compLocallocUsed || compLocallocOptimized)
-    {
-        failTailCall("Localloc used");
-        return nullptr;
-    }
-
-#ifdef _TARGET_AMD64_
-    // Needed for Jit64 compat.
-    // In future, enabling tail calls from methods that need GS cookie check
-    // would require codegen side work to emit GS cookie check before a tail
-    // call.
-    if (getNeedsGSSecurityCookie())
-    {
-        failTailCall("GS Security cookie check");
-        return nullptr;
-    }
-#endif
 
 #ifdef DEBUG
     // DDB 99324: Just disable tailcall under compGcChecks stress mode.
@@ -15835,10 +15829,6 @@ void Compiler::fgSetOptions()
     }
 
     /* Assume we won't need an explicit stack frame if this is allowed */
-
-    // CORINFO_HELP_TAILCALL won't work with localloc because of the restoring of
-    // the callee-saved registers.
-    noway_assert(!compTailCallUsed || !compLocallocUsed);
 
     if (compLocallocUsed)
     {
