@@ -329,7 +329,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             public override int NumCalleeSavedRegisters => 4;
             // Argument registers, callee-save registers, return address
             public override int SizeOfTransitionBlock => SizeOfArgumentRegisters + SizeOfCalleeSavedRegisters + PointerSize;
-
             public override int OffsetOfArgumentRegisters => 0;
             // CALLDESCR_FPARGREGS is not set for X86
             public override int OffsetOfFloatArgumentRegisters => 0;
