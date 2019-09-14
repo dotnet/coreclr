@@ -284,6 +284,9 @@ if(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
   set(LIBUNWIND_OBJECTS $<TARGET_OBJECTS:libunwind>)
 endif(NOT CLR_CMAKE_USE_SYSTEM_LIBUNWIND)
 
+# Disable LTO in this project, as it results in a size increase
+string(REPLACE "-flto" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
 add_library(coreclrpal
   STATIC
   ${SOURCES}

@@ -11,7 +11,7 @@ then
   echo "Specify the clang version to use, split into major and minor version"
   echo "Specify the target architecture."
   echo "Specify the script directory."
-  echo "Optionally specify the build configuration (flavor.) Defaults to DEBUG." 
+  echo "Optionally specify the build configuration (flavor.) Defaults to DEBUG."
   echo "Optionally specify 'coverage' to enable code coverage build."
   echo "Optionally specify 'scan-build' to enable build with clang static analyzer."
   echo "Target ninja instead of make. ninja must be on the PATH."
@@ -108,6 +108,8 @@ llvm_link="$(locate_llvm_exec link)"
 [[ $? -eq 0 ]] || { echo "Unable to locate llvm-link"; exit 1; }
 llvm_nm="$(locate_llvm_exec nm)"
 [[ $? -eq 0 ]] || { echo "Unable to locate llvm-nm"; exit 1; }
+llvm_ranlib="$(locate_llvm_exec ranlib)"
+[[ $? -eq 0 ]] || { echo "Unable to locate llvm-ranlib"; exit 1; }
 if [ $OS = "Linux" -o $OS = "FreeBSD" -o $OS = "OpenBSD" -o $OS = "NetBSD" -o $OS = "SunOS" ]; then
   llvm_objdump="$(locate_llvm_exec objdump)"
   [[ $? -eq 0 ]] || { echo "Unable to locate llvm-objdump"; exit 1; }
@@ -164,6 +166,7 @@ $cmake_command \
   "-DCMAKE_AR=$llvm_ar" \
   "-DCMAKE_LINKER=$llvm_link" \
   "-DCMAKE_NM=$llvm_nm" \
+  "-DCMAKE_RANLIB=$llvm_ranlib" \
   "-DCMAKE_OBJDUMP=$llvm_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
