@@ -172,6 +172,14 @@ namespace ReadyToRun.SuperIlc
                         }
                         return line;
                     }
+                    else if (line.StartsWith("Fatal error", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (lineIndex + 1 < lines.Length && lines[lineIndex + 1].TrimStart().StartsWith("at "))
+                        {
+                            line += lines[lineIndex + 1];
+                        }
+                        return line;
+                    }
                 }
 
                 return $"Exit code: {process.ExitCode} = 0x{process.ExitCode:X8}, expected {process.Parameters.ExpectedExitCode}";
