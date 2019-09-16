@@ -163,7 +163,7 @@ public sealed class ParallelRunner
         using (TraceEventSession traceEventSession = new TraceEventSession("ReadyToRunTestSession"))
         {
             traceEventSession.EnableProvider(ClrTraceEventParser.ProviderGuid, TraceEventLevel.Verbose, (ulong)(ClrTraceEventParser.Keywords.Jit | ClrTraceEventParser.Keywords.Loader));
-            int warmupRuns = 1;
+            int warmupRuns = 0;
             int realRuns = 1;
             PerfEventSourceListener perfMeasurer = null;
             if (measurePerf)

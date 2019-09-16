@@ -39,7 +39,7 @@ public sealed class PerfEventSourceListener
             if (_doneWarmup.WaitOne(0))
                 _compilationMsec -= traceEvent.TimeStampRelativeMSec;
         });
-        // Use the Compilation/Stop events to count when 
+        // Use the Compilation/Stop events to count when a run ends, since events arrive in order.
         traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Compilation/Stop", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
@@ -63,7 +63,7 @@ public sealed class PerfEventSourceListener
 
         // For all of the events below, we only want to process them after the warmup is complete. We can't just start this listener after
         // we have started the warmup because those runs might take some time, and we don't want to erroneously process warmup events when
-        // trying to measure the real run's.
+        // trying to measure the real runs.
         traceEventSession.Source.Dynamic.AddCallbackForProviderEvent(providerName, "Loading/Start", delegate (TraceEvent traceEvent)
         {
             if (_doneWarmup.WaitOne(0))
