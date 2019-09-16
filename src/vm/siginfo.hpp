@@ -139,8 +139,8 @@ public:
     //=========================================================================
 
 
-        void ConvertToInternalExactlyOne(Module* pSigModule, const SigTypeContext *pTypeContext, SigBuilder * pSigBuilder, BOOL bSkipCustomModifier = TRUE);
-        void ConvertToInternalSignature(Module* pSigModule, const SigTypeContext *pTypeContext, SigBuilder * pSigBuilder, BOOL bSkipCustomModifier = TRUE);
+        void ConvertToInternalExactlyOne(Module* pSigModule, SigTypeContext *pTypeContext, SigBuilder * pSigBuilder, BOOL bSkipCustomModifier = TRUE);
+        void ConvertToInternalSignature(Module* pSigModule, SigTypeContext *pTypeContext, SigBuilder * pSigBuilder, BOOL bSkipCustomModifier = TRUE);
 
 
     //=========================================================================

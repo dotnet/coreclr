@@ -335,8 +335,21 @@ public:
     }
     mdToken GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig)
     {
-        WRAPPER_NO_CONTRACT;
-        return GetSigTokenWorker(pSig, cbSig);
+        CONTRACTL
+        {
+            THROWS;
+            MODE_ANY;
+            GC_NOTRIGGER;
+            PRECONDITION(pSig != NULL);
+        }
+        CONTRACTL_END;
+
+        mdToken token = TokenFromRid(m_signatures.GetCount(), mdtSignature)+1;
+        CQuickBytesSpecifySize<16>& sigData = *m_signatures.Append();
+        sigData.AllocThrows(cbSig);
+        memcpy(sigData.Ptr(), pSig, cbSig);
+        return token;
+
     }
 
 protected:
@@ -378,24 +391,6 @@ protected:
         
         ((HandleType*)m_qbEntries.Ptr())[RidFromToken(token)-1] = handle;
 
-        return token;
-    }
-
-    mdToken GetSigTokenWorker(PCCOR_SIGNATURE pSig, DWORD cbSig)
-    {
-        CONTRACTL
-        {
-            THROWS;
-            MODE_ANY;
-            GC_NOTRIGGER;
-            PRECONDITION(pSig != NULL);
-        }
-        CONTRACTL_END;
-
-        mdToken token = TokenFromRid(m_signatures.GetCount(), mdtSignature)+1;
-        CQuickBytesSpecifySize<16>& sigData = *m_signatures.Append();
-        sigData.AllocThrows(cbSig);
-        memcpy(sigData.Ptr(), pSig, cbSig);
         return token;
     }
     
