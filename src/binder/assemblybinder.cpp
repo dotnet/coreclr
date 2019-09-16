@@ -1189,7 +1189,7 @@ namespace BINDER_SPACE
                 SString candidates[] = { W(".dll"), W(".ni.dll") };
 
                 // Loop through the binding paths looking for a matching assembly
-                for (DWORD i = 0; i < 2; i++)
+                for (int i = 0; i < 2; i++)
                 {
                     SString assemblyFileName(simpleName);
                     assemblyFileName.Append(candidates[i]);

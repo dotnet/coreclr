@@ -1410,15 +1410,17 @@ HRESULT PEImage::TryOpenFile()
     if (m_hFile!=INVALID_HANDLE_VALUE)
         return S_OK;
     {
-        ErrorModeHolder mode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
-        m_hFile=WszCreateFile((LPCWSTR)GetPathToLoad(),
-                               GENERIC_READ,
-                               FILE_SHARE_READ|FILE_SHARE_DELETE,
-                               NULL,
-                               OPEN_EXISTING,
-                               FILE_ATTRIBUTE_NORMAL,
-                               NULL);
+        ErrorModeHolder mode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
+
+        m_hFile = WszCreateFile((LPCWSTR)GetPathToLoad(),
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_DELETE,
+            NULL,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL);
     }
+
     if (m_hFile != INVALID_HANDLE_VALUE)
             return S_OK;
     if (GetLastError())

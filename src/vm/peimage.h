@@ -147,7 +147,7 @@ public:
 
     // Accessors
     const SString &GetPath();
-    const SString GetPathToLoad();
+    const SString &GetPathToLoad();
 
     BOOL IsFile();
     HANDLE GetFileHandle();

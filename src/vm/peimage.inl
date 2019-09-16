@@ -33,11 +33,11 @@ inline const SString &PEImage::GetPath()
     return m_path;
 }
 
-inline const SString PEImage::GetPathToLoad()
+inline const SString &PEImage::GetPathToLoad()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return m_bundleFileLocation.IsValid() ? (SString)m_bundleFileLocation.Path() : m_path;
+    return m_bundleFileLocation.IsValid() ? m_bundleFileLocation.Path() : m_path;
 }
 
 inline INT64 PEImage::GetOffset() const

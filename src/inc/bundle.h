@@ -30,7 +30,7 @@ struct BundleFileLocation
 
     static BundleFileLocation Invalid() { LIMITED_METHOD_CONTRACT; return BundleFileLocation(); }
 
-    LPCWSTR Path() const;
+    const SString &Path() const;
 
     bool IsValid() const { LIMITED_METHOD_CONTRACT; return Offset != 0; }
 };
@@ -43,8 +43,8 @@ public:
     Bundle(LPCWSTR bundlePath, BundleProbe *probe);
     BundleFileLocation Probe(LPCWSTR path, bool pathIsBundleRelative = false) const;
 
-    LPCWSTR Path() const { LIMITED_METHOD_CONTRACT; return m_path; }
-    LPCWSTR BasePath() const { LIMITED_METHOD_CONTRACT; return m_basePath; }
+    const SString &Path() const { LIMITED_METHOD_CONTRACT; return m_path; }
+    const SString &BasePath() const { LIMITED_METHOD_CONTRACT; return m_basePath; }
 
     static Bundle* AppBundle; // The BundleInfo for the current app, initialized by coreclr_initialize.
     static bool AppIsBundle() { LIMITED_METHOD_CONTRACT; return AppBundle != nullptr; }
@@ -52,7 +52,7 @@ public:
 
 private:
 
-    LPCWSTR m_path; // The path to single-file executable
+    SString m_path; // The path to single-file executable
     BundleProbe *m_probe;
 
     SString m_basePath; // The prefix to denote a path within the bundle

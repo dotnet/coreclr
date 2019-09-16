@@ -31,7 +31,7 @@ static LPCSTR UnicodeToUtf8(LPCWSTR str)
     return result;
 }
 
-LPCWSTR BundleFileLocation::Path() const
+const SString &BundleFileLocation::Path() const
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -52,7 +52,7 @@ Bundle::Bundle(LPCWSTR bundlePath, BundleProbe *probe)
 
     _ASSERTE(probe != nullptr);
 
-    m_path = bundlePath;
+    m_path.Set(bundlePath);
     m_probe = probe;
 
     // In this prototype, the bundle-base path is simply the directory containing 
