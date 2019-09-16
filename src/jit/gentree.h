@@ -5131,6 +5131,7 @@ struct GenTreeILOffset : public GenTree
 
 struct Statement
 {
+public:
     GenTree*       gtStmtExpr;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
     InlineContext* gtInlineContext; // The inline context for this statement.
@@ -5138,8 +5139,12 @@ struct Statement
 
 #ifdef DEBUG
     IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
+
+private:
+    unsigned m_stmtID;
 #endif
 
+public:
     __declspec(property(get = getNextStmt)) Statement* gtNextStmt;
 
     __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
@@ -5173,13 +5178,14 @@ struct Statement
         }
     }
 
-    Statement(GenTree* expr, IL_OFFSETX offset)
+    Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_stmtID(stmtID)
 #endif
         , gtNext(nullptr)
         , gtPrev(nullptr)
@@ -5201,6 +5207,13 @@ struct Statement
     {
         return gtStmtExpr->GetCostEx();
     }
+
+#ifdef DEBUG
+    unsigned GetID() const
+    {
+        return m_stmtID;
+    }
+#endif
 };
 
 class StatementIterator
