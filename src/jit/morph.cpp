@@ -6798,6 +6798,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //
 // Arguments:
 //    callee - The callee to check
+//    failReason - If this method returns false, the reason why. Can be nullptr.
 //
 // Return Value:
 //    Returns true or false based on whether the callee can be fastTailCalled
@@ -6909,7 +6910,7 @@ void Compiler::fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result)
 //    caller({ double, double, double, double, double, double }) // 48 byte stack
 //    callee(int, int) -- 2 int registers
 
-bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
+bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
 {
 #if FEATURE_FASTTAILCALL
     // To reach here means that the return types of the caller and callee are tail call compatible.
@@ -6935,84 +6936,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     fgInitArgInfo(callee);
     fgArgInfo* argInfo = callee->fgArgInfo;
 
-    auto reportFastTailCallDecision = [this, callee](const char* msg, size_t callerStackSize, size_t calleeStackSize) {
-#if DEBUG
-        if ((JitConfig.JitReportFastTailCallDecisions()) == 1)
-        {
-            if (callee->gtCallType != CT_INDIRECT)
-            {
-                const char* methodName;
-
-                methodName = eeGetMethodFullName(callee->gtCallMethHnd);
-
-                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: %s -- Decision: ",
-                       info.compFullName, methodName);
-            }
-            else
-            {
-                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: IndirectCall -- "
-                       "Decision: ",
-                       info.compFullName);
-            }
-
-            if (callerStackSize != -1)
-            {
-                printf("%s (CallerStackSize: %d, CalleeStackSize: %d)\n\n", msg, callerStackSize, calleeStackSize);
-            }
-            else
-            {
-                printf("%s\n\n", msg);
-            }
-        }
-        else
-        {
-            JITDUMP("[Fast tailcall decision]: %s\n", msg);
-        }
-#else
-        (void)this;
-        (void)callee;
-#endif // DEBUG
-    };
-
-// Note on vararg methods:
-// If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
-// But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
-// fixed args. Therefore, we can allow a vararg method to fast tail call other methods as long as
-// out-going area required for callee is bounded by caller's fixed argument space.
-//
-// Note that callee being a vararg method is not a problem since we can account the params being passed.
-//
-// We will currently decide to not fast tail call on Windows armarch if the caller or callee is a vararg
-// method. This is due to the ABI differences for native vararg methods for these platforms. There is
-// work required to shuffle arguments to the correct locations.
-
-#if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
-    if (info.compIsVarArgs || callee->IsVarargs())
-    {
-        reportFastTailCallDecision("Fast tail calls with varargs not supported on Windows ARM/ARM64", 0, 0);
-        return false;
-    }
-#endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
-
-#ifdef _TARGET_AMD64_
-    // Needed for Jit64 compat.
-    // In future, enabling fast tail calls from methods that need GS cookie
-    // check would require codegen side work to emit GS cookie check before a
-    // tail call.
-    if (getNeedsGSSecurityCookie())
-    {
-        reportFastTailCallDecision("GS Security cookie check required", 0, 0);
-        return false;
-    }
-#endif
-
-    // If the NextCallReturnAddress intrinsic is used we should do normal calls.
-    if (info.compHasNextCallRetAddr)
-    {
-        reportFastTailCallDecision("Uses NextCallReturnAddress intrinsic", 0, 0);
-        return false;
-    }
-
     // Count user args while tracking whether any of them has a larger than one
     // stack slot sized requirement. This requirement is required to support
     // lowering the fast tail call, which, currently only supports copying
@@ -7027,6 +6950,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     bool   hasNonEnregisterableStructs          = false;
     bool   hasByrefParameter                    = false;
     size_t calleeStackSize                      = 0;
+    size_t callerStackSize                      = info.compArgStackSize;
 
     for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
     {
@@ -7071,19 +6995,110 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
         }
     }
 
+    auto reportFastTailCallDecision = [&](const char* thisFailReason) {
+        if (failReason != nullptr)
+        {
+            *failReason = thisFailReason;
+        }
+
+#ifdef DEBUG
+        if ((JitConfig.JitReportFastTailCallDecisions()) == 1)
+        {
+            if (callee->gtCallType != CT_INDIRECT)
+            {
+                const char* methodName;
+
+                methodName = eeGetMethodFullName(callee->gtCallMethHnd);
+
+                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: %s -- Decision: ",
+                       info.compFullName, methodName);
+            }
+            else
+            {
+                printf("[Fast tailcall decision]: Caller: %s\n[Fast tailcall decision]: Callee: IndirectCall -- "
+                       "Decision: ",
+                       info.compFullName);
+            }
+
+            if (thisFailReason == nullptr)
+            {
+                printf("Will fast tailcall");
+            }
+            else
+            {
+                printf("Will not fast tailcall (%s)", thisFailReason);
+            }
+
+            printf(" (CallerStackSize: %d, CalleeStackSize: %d)\n\n", callerStackSize, calleeStackSize);
+        }
+        else
+        {
+            if (thisFailReason == nullptr)
+            {
+                JITDUMP("[Fast tailcall decision]: Will fast tailcall\n");
+            }
+            else
+            {
+                JITDUMP("[Fast tailcall decision]: Will not fast tailcall (%s)\n", thisFailReason);
+            }
+        }
+#else
+        (void)this;
+        (void)callee;
+#endif // DEBUG
+    };
+
+// Note on vararg methods:
+// If the caller is vararg method, we don't know the number of arguments passed by caller's caller.
+// But we can be sure that in-coming arg area of vararg caller would be sufficient to hold its
+// fixed args. Therefore, we can allow a vararg method to fast tail call other methods as long as
+// out-going area required for callee is bounded by caller's fixed argument space.
+//
+// Note that callee being a vararg method is not a problem since we can account the params being passed.
+//
+// We will currently decide to not fast tail call on Windows armarch if the caller or callee is a vararg
+// method. This is due to the ABI differences for native vararg methods for these platforms. There is
+// work required to shuffle arguments to the correct locations.
+
+#if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
+    if (info.compIsVarArgs || callee->IsVarargs())
+    {
+        reportFastTailCallDecision("Fast tail calls with varargs are not supported");
+        return false;
+    }
+#endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
+
+#ifdef _TARGET_AMD64_
+    // Needed for Jit64 compat.
+    // In future, enabling fast tail calls from methods that need GS cookie
+    // check would require codegen side work to emit GS cookie check before a
+    // tail call.
+    if (getNeedsGSSecurityCookie())
+    {
+        reportFastTailCallDecision("GS Security cookie check required");
+        return false;
+    }
+#endif
+
+    // If the NextCallReturnAddress intrinsic is used we should do normal calls.
+    if (info.compHasNextCallRetAddr)
+    {
+        reportFastTailCallDecision("Uses NextCallReturnAddress intrinsic");
+        return false;
+    }
+
     if (callee->HasRetBufArg()) // RetBuf
     {
         // If callee has RetBuf param, caller too must have it.
         // Otherwise go the slow route.
         if (info.compRetBuffArg == BAD_VAR_NUM)
         {
-            reportFastTailCallDecision("Callee has RetBuf but caller does not.", 0, 0);
+            reportFastTailCallDecision("Callee has RetBuf but caller does not.");
             return false;
         }
     }
 
     const unsigned maxRegArgs            = MAX_REG_ARG;
-    size_t         callerStackSize       = info.compArgStackSize;
     hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
 
     bool hasStackArgs = false;
@@ -7094,7 +7109,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
     if (hasByrefParameter)
     {
-        reportFastTailCallDecision("Callee has a byref parameter", 0, 0);
+        reportFastTailCallDecision("Callee has a byref parameter");
         return false;
     }
 
@@ -7111,8 +7126,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // arguments is less than the caller's
     if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision("Not enough incoming arg space");
         return false;
     }
 
@@ -7132,15 +7146,14 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
     if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize > 0)
     {
-        reportFastTailCallDecision("Will not fastTailCall hasLargerThanOneStackSlotSizedStruct && calleeStackSize",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision(
+            "Caller or callee has multi-slot arg and callee takes stack args (unsupported scenario)");
         return false;
     }
 
     if (hasNonEnregisterableStructs)
     {
-        reportFastTailCallDecision("Will not fastTailCall hasNonEnregisterableStructs", callerStackSize,
-                                   calleeStackSize);
+        reportFastTailCallDecision("Callee has non-enregisterable struct arg (unsupported scenario)");
         return false;
     }
 
@@ -7153,8 +7166,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
     // for more information.
     if (hasStackArgs && (calleeStackSize > callerStackSize))
     {
-        reportFastTailCallDecision("Will not fastTailCall hasStackArgs && (calleeStackSize > callerStackSize)",
-                                   callerStackSize, calleeStackSize);
+        reportFastTailCallDecision("Not enough incoming arg space");
         return false;
     }
 
@@ -7164,9 +7176,11 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee)
 
 #endif //  WINDOWS_AMD64_ABI
 
-    reportFastTailCallDecision("Will fastTailCall", callerStackSize, calleeStackSize);
+    reportFastTailCallDecision(nullptr);
     return true;
 #else // FEATURE_FASTTAILCALL
+    if (failReason)
+        *failReason = "Fast tailcalls are not supported on this platform";
     return false;
 #endif
 }
@@ -7347,7 +7361,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         return nullptr;
     }
 
-    bool canFastTailCall = fgCanFastTailCall(call);
+    const char* failReason      = nullptr;
+    bool        canFastTailCall = fgCanFastTailCall(call, &failReason);
 
     CORINFO_TAILCALL_HELP tailCallHelp;
     if (!canFastTailCall)
@@ -7356,7 +7371,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         {
             // Implicit or opportunistic tail calls are always dispatched via fast tail call
             // mechanism and never via tail call helper for perf.
-            failTailCall("Opportunistic tail call cannot be dispatched as epilog+jmp");
+            failTailCall(failReason);
             return nullptr;
         }
 
@@ -7512,13 +7527,12 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(treeWithCall == call);
     }
 #endif
-
-    GenTreeStmt* nextMorphStmt = fgMorphStmt->gtNextStmt;
+    Statement* nextMorphStmt = fgMorphStmt->gtNextStmt;
     // Remove all stmts after the call.
     while (nextMorphStmt != nullptr)
     {
-        GenTreeStmt* stmtToRemove = nextMorphStmt;
-        nextMorphStmt             = stmtToRemove->gtNextStmt;
+        Statement* stmtToRemove = nextMorphStmt;
+        nextMorphStmt           = stmtToRemove->gtNextStmt;
         fgRemoveStmt(compCurBB, stmtToRemove);
     }
 
@@ -7589,8 +7603,17 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  */
 void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help)
 {
-    JITDUMP("fgMorphTailCallViaHelper (before):\n");
-    DISPSTMTLIST(fgMorphStmt);
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("fgMorphTailCallViaHelper (before):\n");
+        for (Statement* stmt = fgMorphStmt; stmt != nullptr; stmt = stmt->getNextStmt())
+        {
+            gtDispTree(stmt->gtStmtExpr);
+            printf("\n");
+        }
+    }
+#endif
 
     // TODO: Some comments (check old document and see what still applies)
 
@@ -7600,7 +7623,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     // We come this route only for tail prefixed calls that cannot be dispatched as
     // fast tail calls
     assert(!call->IsImplicitTailCall());
-    assert(!fgCanFastTailCall(call));
+    assert(!fgCanFastTailCall(call, nullptr));
 
     // If VSD then get rid of arg to VSD since we turn this into a direct call.
     // The extra arg will be the first arg so this needs to be done before we
@@ -7681,7 +7704,7 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     GenTree* retAddrSlot           = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(lvaRetAddrVar, TYP_I_IMPL));
     callDispatcherNode->gtCallArgs = gtPrependNewCallArg(retAddrSlot, callDispatcherNode->gtCallArgs);
 
-    GenTreeStmt* callDispatcherStmt = fgNewStmtFromTree(callDispatcherNode, fgMorphStmt->gtStmtILoffsx);
+    Statement* callDispatcherStmt = fgNewStmtFromTree(callDispatcherNode, fgMorphStmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(compCurBB, callDispatcherStmt);
 
     if (call->gtType != TYP_VOID)
@@ -7788,8 +7811,17 @@ void Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP
     GenTree* temp = fgMorphCall(call);
     noway_assert(temp == call);
 
-    JITDUMP("fgMorphTailCallViaHelper (after):\n");
-    DISPSTMTLIST(fgMorphStmt);
+#ifdef DEBUG
+    if (verbose)
+    {
+        printf("fgMorphTailCallViaHelper (after):\n");
+        for (Statement* stmt = fgMorphStmt; stmt != nullptr; stmt = stmt->getNextStmt())
+        {
+            gtDispTree(stmt->gtStmtExpr);
+            printf("\n");
+        }
+    }
+#endif
 }
 
 GenTree* Compiler::fgGetDirectCallTargetAddress(GenTreeCall* call)
@@ -7893,19 +7925,19 @@ GenTree* Compiler::fgGetStubAddrArg(GenTreeCall* call)
 void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall)
 {
     assert(recursiveTailCall->IsTailCallConvertibleToLoop());
-    GenTreeStmt* lastStmt = block->lastStmt();
+    Statement* lastStmt = block->lastStmt();
     assert(recursiveTailCall == lastStmt->gtStmtExpr);
 
     // Transform recursive tail call into a loop.
 
-    GenTreeStmt* earlyArgInsertionPoint = lastStmt;
-    IL_OFFSETX   callILOffset           = lastStmt->gtStmtILoffsx;
+    Statement* earlyArgInsertionPoint = lastStmt;
+    IL_OFFSETX callILOffset           = lastStmt->gtStmtILoffsx;
 
     // Hoist arg setup statement for the 'this' argument.
     GenTree* thisArg = recursiveTailCall->gtCallObjp;
     if (thisArg && !thisArg->IsNothingNode() && !thisArg->IsArgPlaceHolderNode())
     {
-        GenTreeStmt* thisArgStmt = gtNewStmt(thisArg, callILOffset);
+        Statement* thisArgStmt = gtNewStmt(thisArg, callILOffset);
         fgInsertStmtBefore(block, earlyArgInsertionPoint, thisArgStmt);
     }
 
@@ -7948,8 +7980,8 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
     //  [000057] - A----------             \--* = int
     //  [000056] D------N----                \--*  lclVar    int    V01 arg1
 
-    GenTreeStmt* tmpAssignmentInsertionPoint   = lastStmt;
-    GenTreeStmt* paramAssignmentInsertionPoint = lastStmt;
+    Statement* tmpAssignmentInsertionPoint   = lastStmt;
+    Statement* paramAssignmentInsertionPoint = lastStmt;
 
     // Process early args. They may contain both setup statements for late args and actual args.
     // Early args don't include 'this' arg. We need to account for that so that the call to gtArgEntryByArgNum
@@ -7963,14 +7995,14 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
             if ((earlyArg->gtFlags & GTF_LATE_ARG) != 0)
             {
                 // This is a setup node so we need to hoist it.
-                GenTreeStmt* earlyArgStmt = gtNewStmt(earlyArg, callILOffset);
+                Statement* earlyArgStmt = gtNewStmt(earlyArg, callILOffset);
                 fgInsertStmtBefore(block, earlyArgInsertionPoint, earlyArgStmt);
             }
             else
             {
                 // This is an actual argument that needs to be assigned to the corresponding caller parameter.
                 fgArgTabEntry* curArgTabEntry = gtArgEntryByArgNum(recursiveTailCall, earlyArgIndex);
-                GenTreeStmt*   paramAssignStmt =
+                Statement*     paramAssignStmt =
                     fgAssignRecursiveCallArgToCallerParam(earlyArg, curArgTabEntry, block, callILOffset,
                                                           tmpAssignmentInsertionPoint, paramAssignmentInsertionPoint);
                 if ((tmpAssignmentInsertionPoint == lastStmt) && (paramAssignStmt != nullptr))
@@ -7990,7 +8022,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
         // A late argument is an actual argument that needs to be assigned to the corresponding caller's parameter.
         GenTree*       lateArg        = use.GetNode();
         fgArgTabEntry* curArgTabEntry = gtArgEntryByLateArgIndex(recursiveTailCall, lateArgIndex);
-        GenTreeStmt*   paramAssignStmt =
+        Statement*     paramAssignStmt =
             fgAssignRecursiveCallArgToCallerParam(lateArg, curArgTabEntry, block, callILOffset,
                                                   tmpAssignmentInsertionPoint, paramAssignmentInsertionPoint);
 
@@ -8007,10 +8039,10 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
     // block won't be in the loop (it's assumed to have no predecessors), we need to update the special local here.
     if (!info.compIsStatic && (lvaArg0Var != info.compThisArg))
     {
-        var_types    thisType           = lvaTable[info.compThisArg].TypeGet();
-        GenTree*     arg0               = gtNewLclvNode(lvaArg0Var, thisType);
-        GenTree*     arg0Assignment     = gtNewAssignNode(arg0, gtNewLclvNode(info.compThisArg, thisType));
-        GenTreeStmt* arg0AssignmentStmt = gtNewStmt(arg0Assignment, callILOffset);
+        var_types  thisType           = lvaTable[info.compThisArg].TypeGet();
+        GenTree*   arg0               = gtNewLclvNode(lvaArg0Var, thisType);
+        GenTree*   arg0Assignment     = gtNewAssignNode(arg0, gtNewLclvNode(info.compThisArg, thisType));
+        Statement* arg0AssignmentStmt = gtNewStmt(arg0Assignment, callILOffset);
         fgInsertStmtBefore(block, paramAssignmentInsertionPoint, arg0AssignmentStmt);
     }
 
@@ -8051,7 +8083,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
                         GenTree* zero = gtNewZeroConNode(genActualType(lclType));
                         init          = gtNewAssignNode(lcl, zero);
                     }
-                    GenTreeStmt* initStmt = gtNewStmt(init, callILOffset);
+                    Statement* initStmt = gtNewStmt(init, callILOffset);
                     fgInsertStmtBefore(block, lastStmt, initStmt);
                 }
             }
@@ -8088,12 +8120,12 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
 // Return Value:
 //    parameter assignment statement if one was inserted; nullptr otherwise.
 
-GenTreeStmt* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
-                                                             fgArgTabEntry* argTabEntry,
-                                                             BasicBlock*    block,
-                                                             IL_OFFSETX     callILOffset,
-                                                             GenTreeStmt*   tmpAssignmentInsertionPoint,
-                                                             GenTreeStmt*   paramAssignmentInsertionPoint)
+Statement* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
+                                                           fgArgTabEntry* argTabEntry,
+                                                           BasicBlock*    block,
+                                                           IL_OFFSETX     callILOffset,
+                                                           Statement*     tmpAssignmentInsertionPoint,
+                                                           Statement*     paramAssignmentInsertionPoint)
 {
     // Call arguments should be assigned to temps first and then the temps should be assigned to parameters because
     // some argument trees may reference parameters directly.
@@ -8131,7 +8163,7 @@ GenTreeStmt* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
     // any caller parameters. Some common cases are handled above but we may be able to eliminate
     // more temp assignments.
 
-    GenTreeStmt* paramAssignStmt = nullptr;
+    Statement* paramAssignStmt = nullptr;
     if (needToAssignParameter)
     {
         if (argInTemp == nullptr)
@@ -8139,12 +8171,12 @@ GenTreeStmt* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
             // The argument is not assigned to a temp. We need to create a new temp and insert an assignment.
             // TODO: we can avoid a temp assignment if we can prove that the argument tree
             // doesn't involve any caller parameters.
-            unsigned tmpNum            = lvaGrabTemp(true DEBUGARG("arg temp"));
-            lvaTable[tmpNum].lvType    = arg->gtType;
-            GenTree*     tempSrc       = arg;
-            GenTree*     tempDest      = gtNewLclvNode(tmpNum, tempSrc->gtType);
-            GenTree*     tmpAssignNode = gtNewAssignNode(tempDest, tempSrc);
-            GenTreeStmt* tmpAssignStmt = gtNewStmt(tmpAssignNode, callILOffset);
+            unsigned tmpNum          = lvaGrabTemp(true DEBUGARG("arg temp"));
+            lvaTable[tmpNum].lvType  = arg->gtType;
+            GenTree*   tempSrc       = arg;
+            GenTree*   tempDest      = gtNewLclvNode(tmpNum, tempSrc->gtType);
+            GenTree*   tmpAssignNode = gtNewAssignNode(tempDest, tempSrc);
+            Statement* tmpAssignStmt = gtNewStmt(tmpAssignNode, callILOffset);
             fgInsertStmtBefore(block, tmpAssignmentInsertionPoint, tmpAssignStmt);
             argInTemp = gtNewLclvNode(tmpNum, tempSrc->gtType);
         }
@@ -8219,7 +8251,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             assg = fgMorphTree(assg);
 
             // Create the assignment statement and insert it before the current statement.
-            GenTreeStmt* assgStmt = gtNewStmt(assg, compCurStmt->gtStmtILoffsx);
+            Statement* assgStmt = gtNewStmt(assg, compCurStmt->gtStmtILoffsx);
             fgInsertStmtBefore(compCurBB, compCurStmt, assgStmt);
 
             // Return the temp.
@@ -14942,7 +14974,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
     {
         noway_assert(block->bbStmtList != nullptr && block->bbStmtList->gtPrev != nullptr);
 
-        GenTreeStmt* lastStmt = block->lastStmt();
+        Statement* lastStmt = block->lastStmt();
 
         noway_assert(lastStmt->gtNext == nullptr);
 
@@ -15150,7 +15182,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
     {
         noway_assert(block->bbStmtList != nullptr && block->bbStmtList->gtPrev != nullptr);
 
-        GenTreeStmt* lastStmt = block->lastStmt();
+        Statement* lastStmt = block->lastStmt();
 
         noway_assert(lastStmt->gtNext == nullptr);
 
@@ -15281,7 +15313,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 // Returns false if 'stmt' is still in the block (even if other statements were removed).
 //
 
-bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(const char* msg))
+bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(const char* msg))
 {
     assert(block != nullptr);
     assert(stmt != nullptr);
@@ -15374,9 +15406,9 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(co
     if (fgRemoveRestOfBlock)
     {
         // Remove the rest of the stmts in the block
-        for (stmt = stmt->getNextStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* removeStmt : StatementList(stmt->gtNext))
         {
-            fgRemoveStmt(block, stmt);
+            fgRemoveStmt(block, removeStmt);
         }
 
         // The rest of block has been removed and we will always throw an exception.
@@ -15423,8 +15455,8 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
     fgCurrentlyInUseArgTemps = hashBv::Create(this);
 
-    GenTreeStmt* stmt = block->firstStmt();
-    GenTree*     prev = nullptr;
+    Statement* stmt = block->firstStmt();
+    GenTree*   prev = nullptr;
     for (; stmt != nullptr; prev = stmt->gtStmtExpr, stmt = stmt->gtNextStmt)
     {
         if (fgRemoveRestOfBlock)
@@ -15565,9 +15597,9 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
     {
         if ((block->bbJumpKind == BBJ_COND) || (block->bbJumpKind == BBJ_SWITCH))
         {
-            GenTreeStmt* first = block->firstStmt();
+            Statement* first = block->firstStmt();
             noway_assert(first);
-            GenTreeStmt* lastStmt = block->lastStmt();
+            Statement* lastStmt = block->lastStmt();
             noway_assert(lastStmt && lastStmt->gtNext == nullptr);
             GenTree* last = lastStmt->gtStmtExpr;
 
@@ -15711,8 +15743,8 @@ void Compiler::fgMorphBlocks()
                 //
                 // TODO: Need to characterize the last top level stmt of a block ending with BBJ_RETURN.
 
-                GenTreeStmt* lastStmt = block->lastStmt();
-                GenTree*     ret      = (lastStmt != nullptr) ? lastStmt->gtStmtExpr : nullptr;
+                Statement* lastStmt = block->lastStmt();
+                GenTree*   ret      = (lastStmt != nullptr) ? lastStmt->gtStmtExpr : nullptr;
 
                 if ((ret != nullptr) && (ret->OperGet() == GT_RETURN) && ((ret->gtFlags & GTF_RET_MERGED) != 0))
                 {
@@ -15752,9 +15784,9 @@ void Compiler::fgMorphBlocks()
                         noway_assert(ret->OperGet() == GT_RETURN);
                         noway_assert(ret->gtGetOp1() != nullptr);
 
-                        GenTreeStmt* pAfterStatement = lastStmt;
-                        IL_OFFSETX   offset          = lastStmt->gtStmtILoffsx;
-                        GenTree*     tree =
+                        Statement* pAfterStatement = lastStmt;
+                        IL_OFFSETX offset          = lastStmt->gtStmtILoffsx;
+                        GenTree*   tree =
                             gtNewTempAssign(genReturnLocal, ret->gtGetOp1(), &pAfterStatement, offset, block);
                         if (tree->OperIsCopyBlkOp())
                         {
@@ -15769,7 +15801,9 @@ void Compiler::fgMorphBlocks()
                         {
                             // gtNewTempAssign inserted additional statements after last
                             fgRemoveStmt(block, lastStmt);
-                            lastStmt = fgInsertStmtAfter(block, pAfterStatement, gtNewStmt(tree, offset));
+                            Statement* newStmt = gtNewStmt(tree, offset);
+                            fgInsertStmtAfter(block, pAfterStatement, newStmt);
+                            lastStmt = newStmt;
                         }
 
                         // make sure that copy-prop ignores this assignment.
@@ -16135,7 +16169,7 @@ GenTree* Compiler::fgGetTopLevelQmark(GenTree* expr, GenTree** ppDst /* = NULL *
  *     tmp has the result.
  *
  */
-void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
+void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, Statement* stmt)
 {
 #ifdef DEBUG
     if (verbose)
@@ -16245,8 +16279,8 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
     helperBlock->inheritWeightPercentage(cond2Block, 50);
 
     // Append cond1 as JTRUE to cond1Block
-    GenTree*     jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, condExpr);
-    GenTreeStmt* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    GenTree*   jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, condExpr);
+    Statement* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(cond1Block, jmpStmt);
 
     // Append cond2 as JTRUE to cond2Block
@@ -16255,14 +16289,14 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
     fgInsertStmtAtEnd(cond2Block, jmpStmt);
 
     // AsgBlock should get tmp = op1 assignment.
-    trueExpr              = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), trueExpr);
-    GenTreeStmt* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
+    trueExpr            = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), trueExpr);
+    Statement* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(asgBlock, trueStmt);
 
     // Since we are adding helper in the JTRUE false path, reverse the cond2 and add the helper.
     gtReverseCond(cond2Expr);
-    GenTree*     helperExpr = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), true2Expr);
-    GenTreeStmt* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmtILoffsx);
+    GenTree*   helperExpr = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), true2Expr);
+    Statement* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(helperBlock, helperStmt);
 
     // Finally remove the nested qmark stmt.
@@ -16327,7 +16361,7 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt)
  *  If the qmark assigns to a variable, then create tmps for "then"
  *  and "else" results and assign the temp to the variable as a writeback step.
  */
-void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
+void Compiler::fgExpandQmarkStmt(BasicBlock* block, Statement* stmt)
 {
     GenTree* expr = stmt->gtStmtExpr;
 
@@ -16460,8 +16494,8 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
         elseBlock->inheritWeightPercentage(condBlock, 50);
     }
 
-    GenTree*     jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, qmark->gtGetOp1());
-    GenTreeStmt* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    GenTree*   jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, qmark->gtGetOp1());
+    Statement* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
     fgInsertStmtAtEnd(condBlock, jmpStmt);
 
     // Remove the original qmark statement.
@@ -16487,7 +16521,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
         {
             trueExpr = gtNewTempAssign(lclNum, trueExpr);
         }
-        GenTreeStmt* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
+        Statement* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
         fgInsertStmtAtEnd(thenBlock, trueStmt);
     }
 
@@ -16498,7 +16532,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt)
         {
             falseExpr = gtNewTempAssign(lclNum, falseExpr);
         }
-        GenTreeStmt* falseStmt = fgNewStmtFromTree(falseExpr, stmt->gtStmtILoffsx);
+        Statement* falseStmt = fgNewStmtFromTree(falseExpr, stmt->gtStmtILoffsx);
         fgInsertStmtAtEnd(elseBlock, falseStmt);
     }
 
@@ -16523,7 +16557,7 @@ void Compiler::fgExpandQmarkNodes()
     {
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt : block->Statements())
             {
                 GenTree* expr = stmt->gtStmtExpr;
 #ifdef DEBUG
@@ -16549,7 +16583,7 @@ void Compiler::fgPostExpandQmarkChecks()
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             GenTree* expr = stmt->gtStmtExpr;
             fgWalkTreePre(&expr, Compiler::fgAssertNoQmark, nullptr);
@@ -17829,7 +17863,7 @@ public:
     {
     }
 
-    void VisitStmt(GenTreeStmt* stmt)
+    void VisitStmt(Statement* stmt)
     {
 #ifdef DEBUG
         if (m_compiler->verbose)
@@ -18469,7 +18503,7 @@ void Compiler::fgMarkAddressExposedLocals()
         // Make the current basic block address available globally
         compCurBB = block;
 
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             visitor.VisitStmt(stmt);
         }
@@ -18487,13 +18521,13 @@ void Compiler::fgMarkAddressExposedLocals()
 //
 // Argument:
 //  block - BasicBlock*. block which stmt belongs to
-//  stmt  - GenTreeStmt*. the stmt node we want to check
+//  stmt  - Statement*. the stmt node we want to check
 //
 // return value:
 //  if this funciton successfully optimized the stmts, then return true. Otherwise
 //  return false;
 
-bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTreeStmt* stmt)
+bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* stmt)
 {
 
     GenTree* tree = stmt->gtStmtExpr;
@@ -18513,11 +18547,11 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTreeStmt
         return false;
     }
 
-    var_types    simdType             = getSIMDTypeForSize(simdSize);
-    int          assignmentsCount     = simdSize / genTypeSize(baseType) - 1;
-    int          remainingAssignments = assignmentsCount;
-    GenTreeStmt* curStmt              = stmt->getNextStmt();
-    GenTreeStmt* lastStmt             = stmt;
+    var_types  simdType             = getSIMDTypeForSize(simdSize);
+    int        assignmentsCount     = simdSize / genTypeSize(baseType) - 1;
+    int        remainingAssignments = assignmentsCount;
+    Statement* curStmt              = stmt->getNextStmt();
+    Statement* lastStmt             = stmt;
 
     while (curStmt != nullptr && remainingAssignments > 0)
     {
@@ -18628,7 +18662,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTreeStmt
 #endif // FEATURE_SIMD
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
-GenTreeStmt* SkipNopStmts(GenTreeStmt* stmt)
+Statement* SkipNopStmts(Statement* stmt)
 {
     while ((stmt != nullptr) && !stmt->IsNothingNode())
     {
@@ -18655,9 +18689,9 @@ bool Compiler::fgCheckStmtAfterTailCall()
     // For debuggable code, it would be an assignment of the call to a temp
     // We want to get rid of any of this extra trees, and just leave
     // the call.
-    GenTreeStmt* callStmt = fgMorphStmt;
+    Statement* callStmt = fgMorphStmt;
 
-    GenTreeStmt* nextMorphStmt = callStmt->gtNextStmt;
+    Statement* nextMorphStmt = callStmt->gtNextStmt;
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
     // Legacy Jit64 Compat:
@@ -18686,7 +18720,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
             // impImportBlockCode()). Hence, it is not possible to assert about the IR
             // form generated by pop but pop tree must be side-effect free so that we can
             // delete it safely.
-            GenTreeStmt* popStmt = nextMorphStmt;
+            Statement* popStmt = nextMorphStmt;
 
             // Side effect flags on a GT_COMMA may be overly pessimistic, so examine
             // the constituent nodes.
@@ -18718,8 +18752,8 @@ bool Compiler::fgCheckStmtAfterTailCall()
         {
             // The next stmt can be GT_RETURN(TYP_VOID) or GT_RETURN(lclVar),
             // where lclVar was return buffer in the call for structs or simd.
-            GenTreeStmt* retStmt = nextMorphStmt;
-            GenTree*     retExpr = retStmt->gtStmtExpr;
+            Statement* retStmt = nextMorphStmt;
+            GenTree*   retExpr = retStmt->gtStmtExpr;
             noway_assert(retExpr->gtOper == GT_RETURN);
 
             nextMorphStmt = retStmt->gtNextStmt;
@@ -18735,8 +18769,8 @@ bool Compiler::fgCheckStmtAfterTailCall()
             // However, we can't check that this assignment was created there.
             if (nextMorphStmt->gtStmtExpr->gtOper == GT_ASG)
             {
-                GenTreeStmt* moveStmt = nextMorphStmt;
-                GenTree*     moveExpr = nextMorphStmt->gtStmtExpr;
+                Statement* moveStmt = nextMorphStmt;
+                GenTree*   moveExpr = nextMorphStmt->gtStmtExpr;
                 noway_assert(moveExpr->gtGetOp1()->OperIsLocal() && moveExpr->gtGetOp2()->OperIsLocal());
 
                 unsigned srcLclNum = moveExpr->gtGetOp2()->AsLclVarCommon()->gtLclNum;
@@ -18749,8 +18783,8 @@ bool Compiler::fgCheckStmtAfterTailCall()
             if (nextMorphStmt != nullptr)
 #endif
             {
-                GenTreeStmt* retStmt = nextMorphStmt;
-                GenTree*     retExpr = nextMorphStmt->gtStmtExpr;
+                Statement* retStmt = nextMorphStmt;
+                GenTree*   retExpr = nextMorphStmt->gtStmtExpr;
                 noway_assert(retExpr->gtOper == GT_RETURN);
 
                 GenTree* treeWithLcl = retExpr->gtGetOp1();

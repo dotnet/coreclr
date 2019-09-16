@@ -3528,7 +3528,7 @@ var_types LclVarDsc::lvaArgType()
 //     Verifies that local accesses are consistenly typed.
 //     Verifies that casts remain in bounds.
 
-void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stmt, bool isRecompute)
+void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt, bool isRecompute)
 {
     const BasicBlock::weight_t weight = block->getBBWeight(this);
 
@@ -3775,9 +3775,9 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     class MarkLocalVarsVisitor final : public GenTreeVisitor<MarkLocalVarsVisitor>
     {
     private:
-        BasicBlock*  m_block;
-        GenTreeStmt* m_stmt;
-        bool         m_isRecompute;
+        BasicBlock* m_block;
+        Statement*  m_stmt;
+        bool        m_isRecompute;
 
     public:
         enum
@@ -3785,7 +3785,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
             DoPreOrder = true,
         };
 
-        MarkLocalVarsVisitor(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt, bool isRecompute)
+        MarkLocalVarsVisitor(Compiler* compiler, BasicBlock* block, Statement* stmt, bool isRecompute)
             : GenTreeVisitor<MarkLocalVarsVisitor>(compiler), m_block(block), m_stmt(stmt), m_isRecompute(isRecompute)
         {
         }
@@ -3800,7 +3800,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     JITDUMP("\n*** %s local variables in block " FMT_BB " (weight=%s)\n", isRecompute ? "recomputing" : "marking",
             block->bbNum, refCntWtd2str(block->getBBWeight(this)));
 
-    for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
     {
         MarkLocalVarsVisitor visitor(this, block, stmt, isRecompute);
         DISPTREE(stmt->gtStmtExpr);
