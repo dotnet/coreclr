@@ -28,4 +28,10 @@
     <Compile Include="HostPolicyMock.cs" />
     <Compile Include="XPlatformUtils.cs" />
   </ItemGroup>
+
+  <!-- This project depends on properties pulled in by dir.targets,
+       which isn't usually imported for the tests/src/Common
+       projects. -->
+  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
+
 </Project>
