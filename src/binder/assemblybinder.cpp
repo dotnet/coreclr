@@ -648,7 +648,8 @@ namespace BINDER_SPACE
         StackSString sCoreLib;
 
         // For normal runs, corelib is expected to be found in systemDirectory.
-        // For self-contained single-file bundles, corelib is expected within the bundle (systemDirectory is empty)
+        // For self-contained single-file bundles, corelib is expected within the bundle
+        // (systemDirectory is set accordingly)
 
         StackSString sCoreLibDir(systemDirectory);
         if (!sCoreLibDir.EndsWith(DIRECTORY_SEPARATOR_CHAR_W))
