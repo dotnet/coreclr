@@ -7664,6 +7664,7 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
 // X86/ARM32 do not include the stub arg in the arg list.
 #if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
         call->gtCallArgs = call->gtCallArgs->GetNext();
+        // We changed args so recompute info.
         call->fgArgInfo  = nullptr;
 #endif
 
@@ -7735,7 +7736,6 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
         // materialize as embedded stmts in right execution order.
         assert(thisPtr != nullptr);
         call->gtCallArgs = gtPrependNewCallArg(thisPtr, call->gtCallArgs);
-        // We changed args so recompute info.
         call->fgArgInfo = nullptr;
     }
 
