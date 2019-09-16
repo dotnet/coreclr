@@ -4833,7 +4833,9 @@ void Compiler::lvaFixVirtualFrameOffsets()
     // them here always.
     assert(codeGen->isFramePointerUsed());
     if (lvaRetAddrVar != BAD_VAR_NUM)
+    {
         lvaTable[lvaRetAddrVar].lvStkOffs = REGSIZE_BYTES;
+    }
 #endif
 }
 
@@ -5548,7 +5550,9 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     // On x86/amd64, the return address has already been pushed by the call instruction in the caller.
     stkOffs -= TARGET_POINTER_SIZE; // return address;
     if (lvaRetAddrVar != BAD_VAR_NUM)
+    {
         lvaTable[lvaRetAddrVar].lvStkOffs = stkOffs;
+    }
 
     // TODO-AMD64-CQ: for X64 eventually this should be pushed with all the other
     // calleeregs.  When you fix this, you'll also need to fix
@@ -5605,7 +5609,9 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
     // On ARM32 LR is part of the pushed registers and is always stored at the
     // top.
     if (lvaRetAddrVar != BAD_VAR_NUM)
+    {
         lvaTable[lvaRetAddrVar].lvStkOffs = stkOffs - REGSIZE_BYTES;
+    }
 #endif
 
     stkOffs -= compCalleeRegsPushed * REGSIZE_BYTES;
