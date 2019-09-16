@@ -1643,13 +1643,7 @@ namespace System.StubHelpers
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.pHandle, ExceptionResource.ArgumentNull_SafeHandle);
             }
 
-            try
-            {
-                pHandle.DangerousRelease();
-            }
-            catch
-            {
-            }
+            pHandle.DangerousRelease();
         }
 
 #if FEATURE_COMINTEROP
