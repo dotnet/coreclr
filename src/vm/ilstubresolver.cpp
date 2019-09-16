@@ -154,7 +154,6 @@ void ILStubResolver::ResolveToken(mdToken token, TypeHandle * pTH, MethodDesc **
     case mdtMethodDef:
         {
             MethodDesc* pMD = m_pCompileTimeState->m_tokenLookupMap.LookupMethodDef(token);
-
             _ASSERTE(pMD);
             *ppMD = pMD;
             *pTH = TypeHandle(pMD->GetMethodTable());
