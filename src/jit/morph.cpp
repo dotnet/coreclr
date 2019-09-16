@@ -7748,7 +7748,10 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
         {
             noway_assert(call->gtCallAddr != nullptr);
 
-            // TODO: This should be evaluated last. How?
+            // Normally this would be evaluated last, however we are putting it
+            // as the first arg in the arg list. Luckily import already spills
+            // this aggressively so we just assert that it is side effect free.
+            noway_assert(!(call->gtCallAddr->gtFlags & GTF_SIDE_EFFECT));
             target           = call->gtCallAddr;
             call->gtCallAddr = nullptr;
         }
