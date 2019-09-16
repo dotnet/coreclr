@@ -1,5 +1,5 @@
-﻿<Project Sdk="Microsoft.NET.Sdk" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-<Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.props))\dir.props" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="$([MSBuild]::GetPathOfFileAbove(dir.props))" />
 
   <PropertyGroup>
     <AssemblyName>R2RDump</AssemblyName>
@@ -15,8 +15,8 @@
     <CLSCompliant>false</CLSCompliant>
     <NoWarn>8002,NU1701</NoWarn>
     <RuntimeIdentifiers>win-x64;win-x86</RuntimeIdentifiers>
+    <OutputPath>$(BinDir)</OutputPath>
   </PropertyGroup>
-
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NETCore.CoreDisTools">
@@ -29,6 +29,4 @@
       <Version>1.6.0</Version>
     </PackageReference>
   </ItemGroup>
-
-  <Import Project="$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildThisFileDirectory), dir.targets))\dir.targets" />
 </Project>

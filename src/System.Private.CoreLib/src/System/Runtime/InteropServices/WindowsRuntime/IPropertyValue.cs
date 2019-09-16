@@ -2,10 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-//
-
-using System;
-
 namespace System.Runtime.InteropServices.WindowsRuntime
 {
     [ComImport]
@@ -104,7 +100,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     internal struct Point
     {
         // float X;
-        // float Y;        
+        // float Y;
     }
 
     // Specify size directly instead of fields to avoid warnings
@@ -113,7 +109,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
     internal struct Size
     {
         // float Width;
-        // float Height;   
+        // float Height;
     }
 
     // Specify size directly instead of fields to avoid warnings
@@ -124,6 +120,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         // float X;
         // float Y;
         // float Width;
-        // float Height;        
+        // float Height;
     }
 }

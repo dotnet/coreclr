@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace System.Security.Cryptography
@@ -22,17 +21,17 @@ namespace System.Security.Cryptography
             HResult = hr;
         }
 
-        public CryptographicException(string message)
+        public CryptographicException(string? message)
             : base(message)
         {
         }
 
-        public CryptographicException(string message, Exception inner)
+        public CryptographicException(string? message, Exception? inner)
             : base(message, inner)
         {
         }
 
-        public CryptographicException(string format, string insert)
+        public CryptographicException(string format, string? insert)
             : base(string.Format(format, insert))
         {
         }

@@ -29,11 +29,8 @@
 #include "multicorejit.h"
 #include "multicorejitimpl.h"
 
-const wchar_t * AppxProfile    = W("Application.Profile");
 
-
-
-void MulticoreJitFireEtw(const wchar_t * pAction, const wchar_t * pTarget, int p1, int p2, int p3)
+void MulticoreJitFireEtw(const WCHAR * pAction, const WCHAR * pTarget, int p1, int p2, int p3)
 {
     LIMITED_METHOD_CONTRACT
     
@@ -41,7 +38,7 @@ void MulticoreJitFireEtw(const wchar_t * pAction, const wchar_t * pTarget, int p
 }
 
 
-void MulticoreJitFireEtwA(const wchar_t * pAction, const char * pTarget, int p1, int p2, int p3)
+void MulticoreJitFireEtwA(const WCHAR * pAction, const char * pTarget, int p1, int p2, int p3)
 {
     CONTRACTL {
         NOTHROW;
@@ -234,7 +231,7 @@ FileLoadLevel MulticoreJitManager::GetModuleFileLoadLevel(Module * pModule)
 
     if (pModule != NULL)
     {
-        DomainFile * pDomainFile = pModule->FindDomainFile(GetAppDomain());
+        DomainFile * pDomainFile = pModule->GetDomainFile();
 
         if (pDomainFile != NULL)
         {
@@ -822,7 +819,7 @@ HRESULT MulticoreJitRecorder::StopProfile(bool appDomainShutdown)
 
 
 // suffix (>= 0) is used for AutoStartProfile, to support multiple AppDomains. It's set to -1 for normal API call path
-HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t * pFile, int suffix, LONG nSession)
+HRESULT MulticoreJitRecorder::StartProfile(const WCHAR * pRoot, const WCHAR * pFile, int suffix, LONG nSession)
 {
     STANDARD_VM_CONTRACT;
 
@@ -907,7 +904,6 @@ HRESULT MulticoreJitRecorder::StartProfile(const wchar_t * pRoot, const wchar_t 
         }
 
         NewHolder<MulticoreJitProfilePlayer> player(new (nothrow) MulticoreJitProfilePlayer(
-            m_pDomain,
             m_pBinderContext,
             nSession,
             m_fAppxMode));
@@ -1013,7 +1009,7 @@ PCODE MulticoreJitRecorder::RequestMethodCode(MethodDesc * pMethod, MulticoreJit
 // API Function: SettProfileRoot, store information with MulticoreJitManager class
 // Threading: protected by InterlockedExchange(m_fMulticoreJITEnabled)
 
-void MulticoreJitManager::SetProfileRoot(AppDomain * pDomain, const wchar_t * pProfilePath)
+void MulticoreJitManager::SetProfileRoot(AppDomain * pDomain, const WCHAR * pProfilePath)
 {
     STANDARD_VM_CONTRACT;
 
@@ -1038,7 +1034,7 @@ void MulticoreJitManager::SetProfileRoot(AppDomain * pDomain, const wchar_t * pP
 
 // API Function: StartProfile
 // Threading: protected by m_playerLock
-void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBinderContext, const wchar_t * pProfile, int suffix)
+void MulticoreJitManager::StartProfile(AppDomain * pDomain, ICLRPrivBinder *pBinderContext, const WCHAR * pProfile, int suffix)
 {
     CONTRACTL
     {

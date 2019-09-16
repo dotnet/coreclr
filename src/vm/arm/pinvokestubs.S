@@ -76,6 +76,92 @@
 .endmacro
 
 // ------------------------------------------------------------------
+// IN:
+// InlinedCallFrame (r0) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+//                          before actual InlinedCallFrame data)
+//
+//
+    NESTED_ENTRY JIT_PInvokeBegin,_TEXT,NoHandler
+
+        PROLOG_PUSH  "{r4, lr}"
+
+        ldr     r1, =s_gsCookie
+        ldr     r1, [r1]
+        str     r1, [r0]
+        add     r4, r0, SIZEOF__GSCookie
+                    
+        // r4 = pFrame
+        
+        // set first slot to the value of InlinedCallFrame::`vftable' (checked by runtime code)
+        ldr     r1, .L12
+        str     r1, [r4]
+
+        mov     r1, 0
+        str     r1, [r4, #InlinedCallFrame__m_Datum]
+    
+        add     r1, sp, 8
+        str     r1, [r4, #InlinedCallFrame__m_pCallSiteSP]
+        str     r11, [r4, #InlinedCallFrame__m_pCalleeSavedFP]
+        str     lr, [r4, #InlinedCallFrame__m_pCallerReturnAddress]
+        str     r9, [r4, #InlinedCallFrame__m_pSPAfterProlog]
+
+        ;; r0 = GetThread()
+        bl      C_FUNC(GetThread)
+        str     r0, [r4, #InlinedCallFrame__m_pThread]
+
+        // pFrame->m_Next = pThread->m_pFrame;
+        ldr     r1, [r0, #Thread_m_pFrame]
+        str     r1, [r4, #Frame__m_Next]
+
+        // pThread->m_pFrame = pFrame;
+        str     r4, [r0, #Thread_m_pFrame]
+
+        // pThread->m_fPreemptiveGCDisabled = 0
+        mov     r1, 0
+        str     r1, [r0, #Thread_m_fPreemptiveGCDisabled]
+
+        EPILOG_POP   "{r4, pc}"
+
+    NESTED_END JIT_PInvokeBegin, _TEXT
+
+.L12:
+    .word   _ZTV16InlinedCallFrame+8
+
+// ------------------------------------------------------------------
+// IN:
+// InlinedCallFrame (r0) = pointer to the InlinedCallFrame data, including the GS cookie slot (GS cookie right 
+//                          before actual InlinedCallFrame data)
+//
+//
+    LEAF_ENTRY JIT_PInvokeEnd, _TEXT
+
+        add     r0, r0, SIZEOF__GSCookie
+        ldr     r1, [r0, #InlinedCallFrame__m_pThread]
+
+        // r0 = pFrame
+        // r1 = pThread
+        
+        // pThread->m_fPreemptiveGCDisabled = 1
+        mov     r2, 1
+        str     r2, [r1, #Thread_m_fPreemptiveGCDisabled]
+
+        // Check return trap
+        ldr     r2, =g_TrapReturningThreads
+        ldr     r2, [r2]
+        cbnz    r2, LOCAL_LABEL(RarePath)
+
+        // pThread->m_pFrame = pFrame->m_Next
+        ldr     r2, [r0, #Frame__m_Next]
+        str     r2, [r1, #Thread_m_pFrame]
+
+        bx      lr
+
+LOCAL_LABEL(RarePath):
+        b       C_FUNC(JIT_PInvokeEndRarePath)
+
+    LEAF_END JIT_PInvokeEnd, _TEXT
+
+// ------------------------------------------------------------------
 // VarargPInvokeStub & VarargPInvokeGenILStub
 // There is a separate stub when the method has a hidden return buffer arg.
 //

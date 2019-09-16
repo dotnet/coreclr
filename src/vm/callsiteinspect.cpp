@@ -212,7 +212,7 @@ namespace
 
             // Check if it is an OBJECTREF (from the GC heap)
             if (pvDest)
-                SetObjectReferenceUnchecked((OBJECTREF *)pvDest, *src);
+                SetObjectReference((OBJECTREF *)pvDest, *src);
 
             *(OBJECTREF*)&ret = (*src);
         }
@@ -289,7 +289,7 @@ namespace
                     break;
                 }
 
-#if !defined(_WIN64) && BIGENDIAN
+#if !defined(BIT64) && BIGENDIAN
                 if (fEndianessFixup)
                     ret <<= 32;
 #endif

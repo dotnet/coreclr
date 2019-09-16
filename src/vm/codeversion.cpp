@@ -25,17 +25,29 @@
 // versioning information
 //
 
+NativeCodeVersion::NativeCodeVersion() : m_pMethodDesc(PTR_NULL) {};
 NativeCodeVersion::NativeCodeVersion(const NativeCodeVersion & rhs) : m_pMethodDesc(rhs.m_pMethodDesc) {}
 NativeCodeVersion::NativeCodeVersion(PTR_MethodDesc pMethod) : m_pMethodDesc(pMethod) {}
 BOOL NativeCodeVersion::IsNull() const { return m_pMethodDesc == NULL; }
 PTR_MethodDesc NativeCodeVersion::GetMethodDesc() const { return m_pMethodDesc; }
-PCODE NativeCodeVersion::GetNativeCode() const { return m_pMethodDesc->GetNativeCode(); }
 NativeCodeVersionId NativeCodeVersion::GetVersionId() const { return 0; }
-// ReJITID NativeCodeVersion::GetILCodeVersionId() const; { return 0; }
-// ILCodeVersion NativeCodeVersion::GetILCodeVersion() const { return ILCodeVersion(m_pMethodDesc); }
+BOOL NativeCodeVersion::IsDefaultVersion() const { return TRUE; }
+PCODE NativeCodeVersion::GetNativeCode() const { return m_pMethodDesc->GetNativeCode(); }
+
 #ifndef DACCESS_COMPILE
 BOOL NativeCodeVersion::SetNativeCodeInterlocked(PCODE pCode, PCODE pExpected) { return m_pMethodDesc->SetNativeCodeInterlocked(pCode, pExpected); }
 #endif
+
+#ifdef HAVE_GCCOVER
+PTR_GCCoverageInfo NativeCodeVersion::GetGCCoverageInfo() const { return GetMethodDesc()->m_GcCover; }
+void NativeCodeVersion::SetGCCoverageInfo(PTR_GCCoverageInfo gcCover)
+{
+    MethodDesc *pMD = GetMethodDesc();
+    _ASSERTE(gcCover == NULL || pMD->m_GcCover == NULL);
+    *EnsureWritablePages(&pMD->m_GcCover) = gcCover;
+}
+#endif
+
 bool NativeCodeVersion::operator==(const NativeCodeVersion & rhs) const { return m_pMethodDesc == rhs.m_pMethodDesc; }
 bool NativeCodeVersion::operator!=(const NativeCodeVersion & rhs) const { return !operator==(rhs); }
 
@@ -63,6 +75,9 @@ NativeCodeVersionNode::NativeCodeVersionNode(
     m_id(id),
 #ifdef FEATURE_TIERED_COMPILATION
     m_optTier(optimizationTier),
+#endif
+#ifdef HAVE_GCCOVER
+    m_gcCover(PTR_NULL),
 #endif
     m_flags(0)
 {}
@@ -166,8 +181,26 @@ void NativeCodeVersionNode::SetOptimizationTier(NativeCodeVersion::OptimizationT
 
 #endif // FEATURE_TIERED_COMPILATION
 
+#ifdef HAVE_GCCOVER
+
+PTR_GCCoverageInfo NativeCodeVersionNode::GetGCCoverageInfo() const
+{
+    LIMITED_METHOD_CONTRACT;
+    return m_gcCover;
+}
+
+void NativeCodeVersionNode::SetGCCoverageInfo(PTR_GCCoverageInfo gcCover)
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(gcCover == NULL || m_gcCover == NULL);
+
+    m_gcCover = gcCover;
+}
+
+#endif // HAVE_GCCOVER
+
 NativeCodeVersion::NativeCodeVersion() :
-    m_storageKind(StorageKind::Unknown)
+    m_storageKind(StorageKind::Unknown), m_pVersionNode(PTR_NULL)
 {}
 
 NativeCodeVersion::NativeCodeVersion(const NativeCodeVersion & rhs) :
@@ -320,6 +353,13 @@ void NativeCodeVersion::SetActiveChildFlag(BOOL isActive)
     LIMITED_METHOD_DAC_CONTRACT;
     if (m_storageKind == StorageKind::Explicit)
     {
+        if (isActive &&
+            !CodeVersionManager::InitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion() &&
+            GetMethodDesc()->GetNativeCode() == NULL)
+        {
+            CodeVersionManager::SetInitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion();
+        }
+
         AsNode()->SetActiveChildFlag(isActive);
     }
     else
@@ -370,6 +410,40 @@ void NativeCodeVersion::SetOptimizationTier(OptimizationTier tier)
 #endif
 
 #endif
+
+#ifdef HAVE_GCCOVER
+
+PTR_GCCoverageInfo NativeCodeVersion::GetGCCoverageInfo() const
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        return AsNode()->GetGCCoverageInfo();
+    }
+    else
+    {
+        return GetMethodDesc()->m_GcCover;
+    }
+}
+
+void NativeCodeVersion::SetGCCoverageInfo(PTR_GCCoverageInfo gcCover)
+{
+    WRAPPER_NO_CONTRACT;
+
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        AsNode()->SetGCCoverageInfo(gcCover);
+    }
+    else
+    {
+        MethodDesc *pMD = GetMethodDesc();
+        _ASSERTE(gcCover == NULL || pMD->m_GcCover == NULL);
+        *EnsureWritablePages(&pMD->m_GcCover) = gcCover;
+    }
+}
+
+#endif // HAVE_GCCOVER
 
 PTR_NativeCodeVersionNode NativeCodeVersion::AsNode() const
 {
@@ -580,7 +654,14 @@ ReJITID ILCodeVersionNode::GetVersionId() const
 ILCodeVersion::RejitFlags ILCodeVersionNode::GetRejitState() const
 {
     LIMITED_METHOD_DAC_CONTRACT;
-    return m_rejitState.Load();
+    return static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ILCodeVersion::kStateMask);
+}
+
+BOOL ILCodeVersionNode::GetEnableReJITCallback() const
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+
+    return (m_rejitState.Load() & ILCodeVersion::kSuppressParams) == ILCodeVersion::kSuppressParams;
 }
 
 PTR_COR_ILMETHOD ILCodeVersionNode::GetIL() const
@@ -613,7 +694,29 @@ PTR_ILCodeVersionNode ILCodeVersionNode::GetNextILVersionNode() const
 void ILCodeVersionNode::SetRejitState(ILCodeVersion::RejitFlags newState)
 {
     LIMITED_METHOD_CONTRACT;
-    m_rejitState.Store(newState);
+    // We're doing a non thread safe modification to m_rejitState
+    _ASSERTE(LockOwnedByCurrentThread());
+
+    ILCodeVersion::RejitFlags oldNonMaskFlags = 
+        static_cast<ILCodeVersion::RejitFlags>(m_rejitState.Load() & ~ILCodeVersion::kStateMask);
+    m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(newState | oldNonMaskFlags));
+}
+
+void ILCodeVersionNode::SetEnableReJITCallback(BOOL state)
+{
+    LIMITED_METHOD_CONTRACT;
+    // We're doing a non thread safe modification to m_rejitState
+    _ASSERTE(LockOwnedByCurrentThread());
+
+    ILCodeVersion::RejitFlags oldFlags = m_rejitState.Load();
+    if (state)
+    {
+        m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(oldFlags | ILCodeVersion::kSuppressParams));
+    }
+    else
+    {
+        m_rejitState.Store(static_cast<ILCodeVersion::RejitFlags>(oldFlags & ~ILCodeVersion::kSuppressParams));
+    }
 }
 
 void ILCodeVersionNode::SetIL(COR_ILMETHOD* pIL)
@@ -784,6 +887,19 @@ ILCodeVersion::RejitFlags ILCodeVersion::GetRejitState() const
     }
 }
 
+BOOL ILCodeVersion::GetEnableReJITCallback() const
+{
+    LIMITED_METHOD_DAC_CONTRACT;
+    if (m_storageKind == StorageKind::Explicit)
+    {
+        return AsNode()->GetEnableReJITCallback();
+    }
+    else
+    {
+        return FALSE;
+    }
+}
+
 PTR_COR_ILMETHOD ILCodeVersion::GetIL() const
 {
     CONTRACTL
@@ -876,6 +992,12 @@ void ILCodeVersion::SetRejitState(RejitFlags newState)
 {
     LIMITED_METHOD_CONTRACT;
     AsNode()->SetRejitState(newState);
+}
+
+void ILCodeVersion::SetEnableReJITCallback(BOOL state)
+{
+    LIMITED_METHOD_CONTRACT;
+    return AsNode()->SetEnableReJITCallback(state);
 }
 
 void ILCodeVersion::SetIL(COR_ILMETHOD* pIL)
@@ -1754,6 +1876,10 @@ void ILCodeVersioningState::LinkILCodeVersionNode(ILCodeVersionNode* pILCodeVers
 }
 #endif
 
+#ifndef DACCESS_COMPILE
+bool CodeVersionManager::s_initialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion = false;
+#endif
+
 CodeVersionManager::CodeVersionManager()
 {}
 
@@ -2031,6 +2157,10 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
     }
 #endif
 
+    // Assume that a new IL code version will be added for a method def, and that an instantiation may not yet have native code
+    // for the default native code version
+    CodeVersionManager::SetInitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion();
+
     // step 1 - mark the IL versions as being active, this ensures that
     // any new method instantiations added after this point will bind to
     // the correct version
@@ -2075,7 +2205,13 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
 
     // step 3 - update each pre-existing method instantiation
     {
+        // Backpatching entry point slots requires cooperative GC mode, see
+        // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+        // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+        // must be used here to prevent deadlock.
+        GCX_COOP();
         TableLockHolder lock(this);
+
         for (DWORD i = 0; i < cActiveVersions; i++)
         {
             // Its possible the active IL version has changed if
@@ -2156,12 +2292,193 @@ HRESULT CodeVersionManager::AddNativeCodeVersion(
     return S_OK;
 }
 
-PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodDesc, BOOL fCanBackpatchPrestub)
+PCODE CodeVersionManager::PublishNonJumpStampVersionableCodeIfNecessary(
+    MethodDesc* pMethodDesc,
+    bool *doBackpatchRef,
+    bool *doFullBackpatchRef)
 {
     STANDARD_VM_CONTRACT;
     _ASSERTE(!LockOwnedByCurrentThread());
-    _ASSERTE(pMethodDesc->IsVersionable());
-    _ASSERTE(!pMethodDesc->IsPointingToPrestub() || !pMethodDesc->IsVersionableWithJumpStamp());
+    _ASSERTE(pMethodDesc->IsVersionableWithoutJumpStamp());
+    _ASSERTE(doBackpatchRef != nullptr);
+    _ASSERTE(*doBackpatchRef);
+    _ASSERTE(doFullBackpatchRef != nullptr);
+    _ASSERTE(!*doFullBackpatchRef);
+
+    HRESULT hr = S_OK;
+    PCODE pCode;
+    NativeCodeVersion activeVersion;
+    do
+    {
+        // Try a faster check to see if the default native code version would be the active one. If any method gets a new IL or
+        // native code version when the method's default native code version does not have native code, the global flag on
+        // CodeVersionManager is set (not a typical case, may be possible with profilers). So, if the flag is not set and the
+        // default native code version does not have native code, then it must be the active code version.
+        pCode = pMethodDesc->GetNativeCode();
+        if (pCode == NULL && !CodeVersionManager::InitialNativeCodeVersionMayNotBeTheDefaultNativeCodeVersion())
+        {
+            activeVersion = NativeCodeVersion(pMethodDesc);
+            break;
+        }
+
+        if (!pMethodDesc->IsPointingToPrestub())
+        {
+            *doFullBackpatchRef = true;
+            return NULL;
+        }
+
+        TableLockHolder lock(this);
+
+        if (SUCCEEDED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &activeVersion)))
+        {
+            pCode = activeVersion.GetNativeCode();
+            break;
+        }
+
+        _ASSERTE(hr == E_OUTOFMEMORY);
+        ReportCodePublishError(pMethodDesc, hr);
+        *doBackpatchRef = false;
+        return pCode != NULL ? pCode : pMethodDesc->PrepareInitialCode();
+    } while (false);
+
+#ifdef FEATURE_TIERED_COMPILATION
+    bool shouldCountCalls = true;
+#endif
+    while (true)
+    {
+        // Compile the code if needed
+        bool doPublish = true;
+        bool profilerMayHaveActivatedNonDefaultCodeVersion = false;
+        if (pCode == NULL)
+        {
+            PrepareCodeConfigBuffer configBuffer(activeVersion);
+            PrepareCodeConfig *config = configBuffer.GetConfig();
+            pCode = pMethodDesc->PrepareCode(config);
+
+        #ifdef FEATURE_CODE_VERSIONING
+            if (config->ProfilerMayHaveActivatedNonDefaultCodeVersion())
+            {
+                profilerMayHaveActivatedNonDefaultCodeVersion = true;
+            }
+        #endif
+
+            if (config->GeneratedOrLoadedNewCode())
+            {
+            #ifdef FEATURE_TIERED_COMPILATION
+                _ASSERTE(!config->ShouldCountCalls() || pMethodDesc->IsEligibleForTieredCompilation());
+                _ASSERTE(
+                    !config->ShouldCountCalls() ||
+                    activeVersion.GetOptimizationTier() == NativeCodeVersion::OptimizationTier0);
+                if (shouldCountCalls &&
+                    config->ShouldCountCalls()) // the generated code was at a tier that is call-counted
+                {
+                    // This is the first call to a call-counted code version of the method
+                    // - It is possible that this is not the first call to the method, for example after the method is called a
+                    //   few times, a profiler may activate a new IL code version. When the method is called again, it would
+                    //   reach this path. It will initiate the tiering delay, which is appropriate when running new IL for the
+                    //   first time in the foreground, as it is similar to the method being called for the first time and would
+                    //   have to go through the normal flow of tier transitions again.
+                    // - Currently, there is only one call-counted tier in the normal flow of tier transitions for a method. In
+                    //   the future there may be more call-counted tiers. Those code versions should be jitted and activated in
+                    //   the background and would not reach this path.
+                    if (!GetAppDomain()->GetTieredCompilationManager()->OnMethodCodeVersionCalledFirstTime(pMethodDesc))
+                    {
+                        doPublish = false;
+                    }
+
+                    shouldCountCalls = false;
+                }
+            #endif
+            }
+            else
+            {
+                _ASSERTE(!config->ShouldCountCalls());
+
+                // The thread that generated or loaded the new code will publish the code and backpatch if necessary
+                doPublish = false;
+            }
+        }
+    #ifdef FEATURE_TIERED_COMPILATION
+        else if (shouldCountCalls && CallCounter::OnMethodCodeVersionCalledSubsequently(activeVersion, &doPublish))
+        {
+            shouldCountCalls = false;
+        }
+    #endif
+
+        bool mayHaveEntryPointSlotsToBackpatch = doPublish && pMethodDesc->MayHaveEntryPointSlotsToBackpatch();
+        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(mayHaveEntryPointSlotsToBackpatch);
+
+        // Try a faster check to see if we can avoid checking the currently active code version
+        // - For the default code version, if a profiler is attached it may be notified of JIT events and may request rejit
+        //   synchronously on the same thread. In that case, for back-compat as described below, the returned code must be for
+        //   the rejitted or newer code.
+        // - It must be ensured that there are no races that could cause an older entry point to replace a newer entry point.
+        //   For non-default code versions, it's necessary to check the currently active code version and publish under the
+        //   CodeVersionManager's lock. For default code versions, the entry point is atomically updated and only if it is
+        //   pointing to the prestub.
+        if (activeVersion.IsDefaultVersion() && !profilerMayHaveActivatedNonDefaultCodeVersion)
+        {
+            if (doPublish)
+            {
+                pMethodDesc->TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(pCode, mayHaveEntryPointSlotsToBackpatch);
+            }
+            else
+            {
+                *doBackpatchRef = false;
+            }
+            return pCode;
+        }
+
+        // Backpatching entry point slots requires cooperative GC mode, see
+        // MethodDescBackpatchInfoTracker::Backpatch_Locked(). The code version manager's table lock is an unsafe lock that
+        // may be taken in any GC mode. The lock is taken in cooperative GC mode on some other paths, so the same ordering
+        // must be used here to prevent deadlock.
+        GCX_MAYBE_COOP(mayHaveEntryPointSlotsToBackpatch);
+        TableLockHolder lock(this);
+
+        NativeCodeVersion newActiveVersion;
+        if (FAILED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &newActiveVersion)))
+        {
+            break;
+        }
+
+        // The common case is that newActiveCode == activeCode, however we did leave the lock so there is
+        // possibility that the active version has changed. If it has we need to restart the compilation
+        // and publishing process with the new active version instead.
+        //
+        // In theory it should be legitimate to break out of this loop and run the less recent active version,
+        // because ultimately this is a race between one thread that is updating the version and another thread
+        // trying to run the current version. However for back-compat with ReJIT we need to guarantee that
+        // a versioning update at least as late as the profiler JitCompilationFinished callback wins the race.
+        if (newActiveVersion == activeVersion)
+        {
+            if (doPublish)
+            {
+                pMethodDesc->SetCodeEntryPoint(pCode);
+            }
+            else
+            {
+                *doBackpatchRef = false;
+            }
+            return pCode;
+        }
+
+        activeVersion = newActiveVersion;
+        pCode = activeVersion.GetNativeCode();
+    }
+
+    _ASSERTE(hr == E_OUTOFMEMORY);
+    ReportCodePublishError(pMethodDesc, hr);
+    *doBackpatchRef = false;
+    return pCode;
+}
+
+PCODE CodeVersionManager::PublishJumpStampVersionableCodeIfNecessary(MethodDesc* pMethodDesc)
+{
+    STANDARD_VM_CONTRACT;
+    _ASSERTE(!LockOwnedByCurrentThread());
+    _ASSERTE(pMethodDesc->IsVersionableWithJumpStamp());
+    _ASSERTE(!pMethodDesc->IsPointingToPrestub());
 
     HRESULT hr = S_OK;
     PCODE pCode = NULL;
@@ -2172,7 +2489,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         if (FAILED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &activeVersion)))
         {
             _ASSERTE(hr == E_OUTOFMEMORY);
-            ReportCodePublishError(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef(), pMethodDesc, hr);
+            ReportCodePublishError(pMethodDesc, hr);
             return NULL;
         }
     }
@@ -2184,10 +2501,11 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
         pCode = activeVersion.GetNativeCode();
         if (pCode == NULL)
         {
-            pCode = pMethodDesc->PrepareCode(activeVersion);
+            PrepareCodeConfigBuffer configBuffer(activeVersion);
+            pCode = pMethodDesc->PrepareCode(configBuffer.GetConfig());
         }
 
-        MethodDescBackpatchInfoTracker::ConditionalLockHolder lockHolder(pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
+        _ASSERTE(!pMethodDesc->MayHaveEntryPointSlotsToBackpatch());
 
         // suspend in preparation for publishing if needed
         if (fEESuspend)
@@ -2197,6 +2515,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
 
         {
             TableLockHolder lock(this);
+
             // The common case is that newActiveCode == activeCode, however we did leave the lock so there is
             // possibility that the active version has changed. If it has we need to restart the compilation
             // and publishing process with the new active version instead.
@@ -2209,7 +2528,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             if (FAILED(hr = GetActiveILCodeVersion(pMethodDesc).GetOrCreateActiveNativeCodeVersion(pMethodDesc, &newActiveVersion)))
             {
                 _ASSERTE(hr == E_OUTOFMEMORY);
-                ReportCodePublishError(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef(), pMethodDesc, hr);
+                ReportCodePublishError(pMethodDesc, hr);
                 pCode = NULL;
                 break;
             }
@@ -2219,12 +2538,6 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
             }
             else
             {
-                // if we aren't allowed to backpatch we are done
-                if (!fCanBackpatchPrestub)
-                {
-                    break;
-                }
-
                 // attempt to publish the active version still under the lock
                 if (FAILED(hr = PublishNativeCodeVersion(pMethodDesc, activeVersion, fEESuspend)))
                 {
@@ -2239,7 +2552,7 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
                     }
                     else
                     {
-                        ReportCodePublishError(pMethodDesc->GetModule(), pMethodDesc->GetMemberDef(), pMethodDesc, hr);
+                        ReportCodePublishError(pMethodDesc, hr);
                         pCode = NULL;
                         break;
                     }
@@ -2250,14 +2563,14 @@ PCODE CodeVersionManager::PublishVersionableCodeIfNecessary(MethodDesc* pMethodD
                     break;
                 }
             }
-        } // exit lock
+        } // exit lock, revert GC mode
 
         if (fEESuspend)
         {
             ThreadSuspend::RestartEE(FALSE, TRUE);
         }
     }
-    
+
     // if the EE is still suspended from breaking in the middle of the loop, resume it
     if (fEESuspend)
     {
@@ -2270,9 +2583,30 @@ HRESULT CodeVersionManager::PublishNativeCodeVersion(MethodDesc* pMethod, Native
 {
     // TODO: This function needs to make sure it does not change the precode's target if call counting is in progress. Track
     // whether call counting is currently being done for the method, and use a lock to ensure the expected precode target.
-    WRAPPER_NO_CONTRACT;
+
+    CONTRACTL
+    {
+        GC_NOTRIGGER;
+
+        // Backpatching entry point slots requires cooperative GC mode, see MethodDescBackpatchInfoTracker::Backpatch_Locked().
+        // The code version manager's table lock is an unsafe lock that may be taken in any GC mode. The lock is taken in
+        // cooperative GC mode on other paths, so the caller must use the same ordering to prevent deadlock (switch to
+        // cooperative GC mode before taking the lock).
+        if (pMethod->MayHaveEntryPointSlotsToBackpatch())
+        {
+            MODE_COOPERATIVE;
+        }
+        else
+        {
+            MODE_ANY;
+        }
+        NOTHROW;
+    }
+    CONTRACTL_END;
+
     _ASSERTE(LockOwnedByCurrentThread());
     _ASSERTE(pMethod->IsVersionable());
+
     HRESULT hr = S_OK;
     PCODE pCode = nativeCodeVersion.IsNull() ? NULL : nativeCodeVersion.GetNativeCode();
     if (pMethod->IsVersionableWithoutJumpStamp())
@@ -2723,6 +3057,20 @@ void CodeVersionManager::ReportCodePublishError(CodePublishError* pErrorRecord)
     ReportCodePublishError(pErrorRecord->pModule, pErrorRecord->methodDef, pErrorRecord->pMethodDesc, pErrorRecord->hrStatus);
 }
 
+NOINLINE void CodeVersionManager::ReportCodePublishError(MethodDesc* pMD, HRESULT hrStatus)
+{
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_TRIGGERS;
+        CAN_TAKE_LOCK;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    ReportCodePublishError(pMD->GetModule(), pMD->GetMemberDef(), pMD, hrStatus);
+}
+
 void CodeVersionManager::ReportCodePublishError(Module* pModule, mdMethodDef methodDef, MethodDesc* pMD, HRESULT hrStatus)
 {
     CONTRACTL
@@ -2843,7 +3191,7 @@ PublishMethodHolder::~PublishMethodHolder()
         pCodeVersionManager->LeaveLock();
         if (FAILED(m_hr))
         {
-            pCodeVersionManager->ReportCodePublishError(m_pMD->GetModule(), m_pMD->GetMemberDef(), m_pMD, m_hr);
+            pCodeVersionManager->ReportCodePublishError(m_pMD, m_hr);
         }
     }
 }

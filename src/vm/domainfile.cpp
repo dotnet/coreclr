@@ -567,10 +567,6 @@ BOOL DomainFile::DoIncrementalLoad(FileLoadLevel level)
         FinishLoad();
         break;
 
-    case FILE_LOAD_VERIFY_EXECUTION:
-        VerifyExecution();
-        break;
-
     case FILE_ACTIVE:
         Activate();
         break;
@@ -734,7 +730,6 @@ void DomainFile::VerifyNativeImageDependencies(bool verifyOnly)
 
 NativeImageRejected:
     m_pFile->ClearNativeImage();
-    m_pFile->SetCannotUseNativeImage();
 
     CheckZapRequired();
 
@@ -786,18 +781,6 @@ BOOL DomainFile::IsZapRequired()
         return FALSE;
 
     DomainAssembly * pDomainAssembly = GetDomainAssembly();
-
-    // If the manifest module does not have an ngen image, the non-manifest
-    // modules cannot either
-    if (m_pFile->IsModule() && !pDomainAssembly->GetFile()->CanUseNativeImage())
-        m_pFile->SetCannotUseNativeImage();
-
-    // Some cases are not supported by design. They can never have a native image.
-    // So ignore such cases
-
-    if (!m_pFile->CanUseNativeImage() &&
-        g_pConfig->RequireZaps() == EEConfig::REQUIRE_ZAPS_SUPPORTED)
-        return FALSE;
 
 #ifdef FEATURE_NATIVE_IMAGE_GENERATION
     if (IsCompilationProcess())
@@ -851,8 +834,7 @@ void DomainFile::CheckZapRequired()
     GetFile()->FlushExternalLog();
 
     StackSString ss;
-    ss.Printf("ZapRequire: Could not get native image for %s.\n"
-              "Use FusLogVw.exe to check the reason.",
+    ss.Printf("ZapRequire: Could not get native image for %s.\n",
               GetSimpleName());
 
 #if defined(_DEBUG)
@@ -920,7 +902,6 @@ void DomainFile::ClearNativeImageStress()
 
     if (DbgRandomOnHashAndExe(hash, float(stressPercentage)/100))
     {
-        GetFile()->SetCannotUseNativeImage();
         GetFile()->ClearNativeImage();
         ExternalLog(LL_ERROR, "Rejecting native image for **clearNativeImageStress**");
     }
@@ -1004,14 +985,6 @@ void DomainFile::PostLoadLibrary()
 void DomainFile::AddDependencies()
 {
     STANDARD_VM_CONTRACT;
-
-#ifdef FEATURE_PREJIT
-
-    //
-    // CoreCLR hard binds to mscorlib.dll only. No need to track hardbound dependencies.
-    //
-
-#endif // FEATURE_PREJIT
 }
 
 void DomainFile::EagerFixups()
@@ -1023,8 +996,9 @@ void DomainFile::EagerFixups()
     {
         GetCurrentModule()->RunEagerFixups();
     }
-#ifdef FEATURE_READYTORUN
     else
+#endif // FEATURE_PREJIT
+#ifdef FEATURE_READYTORUN
     if (GetCurrentModule()->IsReadyToRun())
     {
 #ifndef CROSSGEN_COMPILE
@@ -1041,8 +1015,6 @@ void DomainFile::EagerFixups()
                                          GetCurrentModule() /* (void *)pLayout */);
     }
 #endif // FEATURE_READYTORUN
-
-#endif // FEATURE_PREJIT
 }
 
 void DomainFile::VtableFixups()
@@ -1147,31 +1119,6 @@ void DomainFile::FinishLoad()
     // Notify the perfmap of the IL image load.
     PerfMap::LogImageLoad(m_pFile);
 #endif
-}
-
-void DomainFile::VerifyExecution()
-{
-    CONTRACT_VOID
-    {
-        INSTANCE_CHECK;
-        PRECONDITION(IsLoaded());
-        STANDARD_VM_CHECK;
-    }
-    CONTRACT_END;
-
-    if(GetFile()->PassiveDomainOnly())
-    {
-    // Remove path - location must be hidden for security purposes
-        LPCWSTR path=GetFile()->GetPath();
-        LPCWSTR pStart = wcsrchr(path, '\\');
-        if (pStart != NULL)
-            pStart++;
-        else
-            pStart = path;
-        COMPlusThrow(kInvalidOperationException, IDS_EE_CODEEXECUTION_ASSEMBLY_FOR_PASSIVE_DOMAIN_ONLY,pStart);
-    }
-
-    RETURN;
 }
 
 void DomainFile::Activate()
@@ -1542,13 +1489,6 @@ void DomainAssembly::FindNativeImage()
                     "the second appdomain. See System.LoaderOptimization.MultiDomain "
                     "for information about domain-neutral loading.");
                 GetFile()->ClearNativeImage();
-
-                // We only support a (non-shared) native image to be used from a single
-                // AppDomain. Its not obvious if this is an implementation restriction,
-                // or if this should fail DomainFile::CheckZapRequired().
-                // We err on the side of conservativeness, so that multi-domain tests
-                // do not blow up in CheckZapRequired()
-                GetFile()->SetCannotUseNativeImage();
             }
             else
             {
@@ -2407,6 +2347,12 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
          GCHeapUtilities::IsServerHeap()   &&
          IsGCSpecialThread());
 
+    if (IsCollectible())
+    {
+        // Collectible assemblies have statics stored in managed arrays, so they don't need special handlings
+        return;
+    }
+
     DomainModuleIterator i = IterateModules(kModIterIncludeLoaded);
     while (i.Next())
     {
@@ -2416,8 +2362,8 @@ void DomainAssembly::EnumStaticGCRefs(promote_func* fn, ScanContext* sc)
         {
             // We guarantee that at this point the module has it's DomainLocalModule set up
             // , as we create it while we load the module
-            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule(this->GetAppDomain()));
-            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(this->GetAppDomain(), fn, sc);
+            _ASSERTE(pDomainFile->GetLoadedModule()->GetDomainLocalModule());
+            pDomainFile->GetLoadedModule()->EnumRegularStaticGCRefs(fn, sc);
 
             // We current to do not iterate over the ThreadLocalModules that correspond
             // to this Module. The GC discovers thread statics through the handle table.

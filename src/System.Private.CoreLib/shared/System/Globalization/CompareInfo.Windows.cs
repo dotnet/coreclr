@@ -6,28 +6,40 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
-using Internal.Runtime.CompilerServices;
-
 namespace System.Globalization
 {
     public partial class CompareInfo
     {
-        private unsafe void InitSort(CultureInfo culture)
+        internal static unsafe IntPtr GetSortHandle(string cultureName)
         {
-            _sortName = culture.SortName;
-
             if (GlobalizationMode.Invariant)
             {
-                _sortHandle = IntPtr.Zero;
+                return IntPtr.Zero;
             }
-            else
-            {
-                const uint LCMAP_SORTHANDLE = 0x20000000;
 
-                IntPtr handle;
-                int ret = Interop.Kernel32.LCMapStringEx(_sortName, LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
-                _sortHandle = ret > 0 ? handle : IntPtr.Zero;
+            IntPtr handle;
+            int ret = Interop.Kernel32.LCMapStringEx(cultureName, Interop.Kernel32.LCMAP_SORTHANDLE, null, 0, &handle, IntPtr.Size, null, null, IntPtr.Zero);
+            if (ret > 0)
+            {
+                // Even if we can get the sort handle, it is not guaranteed to work when Windows compatibility shim is applied
+                // e.g. Windows 7 compatibility mode. We need to ensure it is working before using it.
+                // otherwise the whole framework app will not start.
+                int hashValue = 0;
+                char a = 'a';
+                ret = Interop.Kernel32.LCMapStringEx(null, Interop.Kernel32.LCMAP_HASH, &a, 1, &hashValue, sizeof(int), null, null, handle);
+                if (ret > 1)
+                {
+                    return handle;
+                }
             }
+
+            return IntPtr.Zero;
+        }
+
+        private void InitSort(CultureInfo culture)
+        {
+            _sortName = culture.SortName;
+            _sortHandle = GetSortHandle(_sortName);
         }
 
         private static unsafe int FindStringOrdinal(
@@ -111,7 +123,7 @@ namespace System.Globalization
 
             return FindStringOrdinal(FIND_FROMEND, source, startIndex - count + 1, count, value, value.Length, ignoreCase);
         }
-        
+
         private unsafe int GetHashCodeOfStringCore(ReadOnlySpan<char> source, CompareOptions options)
         {
             Debug.Assert(!GlobalizationMode.Invariant);
@@ -141,7 +153,7 @@ namespace System.Globalization
                 // sort keys, LCMapStringEx treats the output buffer as containing opaque binary data.
                 // See https://docs.microsoft.com/en-us/windows/desktop/api/winnls/nf-winnls-lcmapstringex.
 
-                byte[] borrowedArr = null;
+                byte[]? borrowedArr = null;
                 Span<byte> span = sortKeyLength <= 512 ?
                     stackalloc byte[512] :
                     (borrowedArr = ArrayPool<byte>.Shared.Rent(sortKeyLength));
@@ -177,7 +189,7 @@ namespace System.Globalization
             fixed (char* char1 = &string1)
             fixed (char* char2 = &string2)
             {
-                // Use the OS to compare and then convert the result to expected value by subtracting 2 
+                // Use the OS to compare and then convert the result to expected value by subtracting 2
                 return Interop.Kernel32.CompareStringOrdinal(char1, count1, char2, count2, true) - 2;
             }
         }
@@ -191,7 +203,7 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
@@ -224,7 +236,7 @@ namespace System.Globalization
             Debug.Assert(!GlobalizationMode.Invariant);
             Debug.Assert((options & (CompareOptions.Ordinal | CompareOptions.OrdinalIgnoreCase)) == 0);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pString1 = &MemoryMarshal.GetReference(string1))
@@ -263,7 +275,7 @@ namespace System.Globalization
             Debug.Assert(!lpStringSource.IsEmpty);
             Debug.Assert(!lpStringValue.IsEmpty);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pSource = &MemoryMarshal.GetReference(lpStringSource))
@@ -282,7 +294,7 @@ namespace System.Globalization
                                     _sortHandle);
             }
         }
-        
+
         private unsafe int FindString(
             uint dwFindNLSStringFlags,
             string lpStringSource,
@@ -297,7 +309,7 @@ namespace System.Globalization
             Debug.Assert(lpStringSource != null);
             Debug.Assert(lpStringValue != null);
 
-            string localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
+            string? localeName = _sortHandle != IntPtr.Zero ? null : _sortName;
 
             fixed (char* pLocaleName = localeName)
             fixed (char* pSource = lpStringSource)
@@ -431,7 +443,6 @@ namespace System.Globalization
         private IntPtr _sortHandle;
 
         private const uint LCMAP_SORTKEY = 0x00000400;
-        private const uint LCMAP_HASH    = 0x00040000;
 
         private const int FIND_STARTSWITH = 0x00100000;
         private const int FIND_ENDSWITH = 0x00200000;
@@ -493,16 +504,16 @@ namespace System.Globalization
                 throw new ArgumentException(SR.Argument_InvalidFlag, nameof(options));
             }
 
-            byte [] keyData = null;
+            byte[] keyData;
             if (source.Length == 0)
-            { 
+            {
                 keyData = Array.Empty<byte>();
             }
             else
             {
                 uint flags = LCMAP_SORTKEY | (uint)GetNativeCompareFlags(options);
 
-                fixed (char *pSource = source)
+                fixed (char* pSource = source)
                 {
                     int sortKeyLength = Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                 flags,
@@ -516,7 +527,7 @@ namespace System.Globalization
 
                     keyData = new byte[sortKeyLength];
 
-                    fixed (byte* pBytes =  keyData)
+                    fixed (byte* pBytes = keyData)
                     {
                         if (Interop.Kernel32.LCMapStringEx(_sortHandle != IntPtr.Zero ? null : _sortName,
                                                 flags,

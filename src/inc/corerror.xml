@@ -845,13 +845,13 @@
 
 <HRESULT NumericValue="0x8013131e">
 	<SymbolicName>CORDBG_E_CANT_SET_IP_OUT_OF_FINALLY_ON_WIN64</SymbolicName>
-	<Message>"SetIP is not possible because it would move EIP from within a finally clause to a point outside of one on WIN64 platforms."</Message>
+	<Message>"SetIP is not possible because it would move EIP from within a finally clause to a point outside of one on this platforms."</Message>
 	<Comment> SetIP isn't possible because it would move </Comment>
 </HRESULT>
 
 <HRESULT NumericValue="0x8013131f">
 	<SymbolicName>CORDBG_E_CANT_SET_IP_OUT_OF_CATCH_ON_WIN64</SymbolicName>
-	<Message>"SetIP is not possible because it would move EIP from within a catch clause to a point outside of one on WIN64 platforms."</Message>
+	<Message>"SetIP is not possible because it would move EIP from within a catch clause to a point outside of one on this platforms."</Message>
 	<Comment> SetIP isn't possible because it would move </Comment>
 </HRESULT>
 
@@ -1258,6 +1258,36 @@
 <HRESULT NumericValue="0x80131382">
     <SymbolicName>CORPROF_E_CALLBACK7_REQUIRED</SymbolicName>
     <Comment> Profiler must implement ICorProfilerCallback7 interface for this call to be supported. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131383">
+    <SymbolicName>CORPROF_E_REJIT_INLINING_DISABLED</SymbolicName>
+    <Comment> The runtime's tracking of inlined methods for ReJIT is not enabled. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131384">
+    <SymbolicName>CORDIAGIPC_E_BAD_ENCODING</SymbolicName>
+    <Comment> The runtime was unable to decode the Header or Payload. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131385">
+    <SymbolicName>CORDIAGIPC_E_UNKNOWN_COMMAND</SymbolicName>
+    <Comment> The specified CommandSet or CommandId is unknown. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131386">
+    <SymbolicName>CORDIAGIPC_E_UNKNOWN_MAGIC</SymbolicName>
+    <Comment> The magic version of Diagnostics IPC is unknown. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131387">
+    <SymbolicName>CORDIAGIPC_E_UNKNOWN_ERROR</SymbolicName>
+    <Comment> An unknown error occurred in the Diagnpostics IPC Server. </Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x80131388">
+    <SymbolicName>CORPROF_E_SUSPENSION_IN_PROGRESS</SymbolicName>
+    <Comment> The runtime cannot be suspened since a suspension is already in progress. </Comment>
 </HRESULT>
 
 <HRESULT NumericValue="0x80131401">
@@ -2153,6 +2183,12 @@
   <Comment>Couldn't find a native image.</Comment>
 </HRESULT>
 
+<HRESULT NumericValue="0x80131c68">
+  <SymbolicName>CORDBG_E_UNSUPPORTED_DELEGATE</SymbolicName>
+  <Message>"The delegate contains a delegate currently not supported by the API."</Message>
+  <Comment>The delegate contains a delegate currently not supported by the API.</Comment>
+</HRESULT>
+
 <HRESULT NumericValue="0x80131d02">
 	<SymbolicName>PEFMT_E_64BIT</SymbolicName>
 	<Message>"File is PE32+."</Message>
@@ -2233,6 +2269,24 @@
 	<SymbolicName>CLR_E_GC_OOM</SymbolicName>
 	<Message>"Failfast due to an OOM during a GC"</Message>
 	<Comment>During a GC when we try to allocate memory for GC datastructures we could not.</Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x8013200A">
+	<SymbolicName>CLR_E_GC_BAD_AFFINITY_CONFIG</SymbolicName>
+	<Message>"GCHeapAffinitizeMask or GCHeapAffinitizeRanges didn't specify any CPUs the current process is affinitized to."</Message>
+	<Comment>During a GC initialization, the affinity mask specified via GCHeapAffinitizeMask or GCHeapAffinitizeRanges didn't contain any CPUs the current process is affinitized to.</Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x8013200B">
+	<SymbolicName>CLR_E_GC_BAD_AFFINITY_CONFIG_FORMAT</SymbolicName>
+	<Message>"GCHeapAffinitizeRanges configuration string has invalid format."</Message>
+	<Comment>During a GC initialization, the GCHeapAffinitizeRanges config couldn't be parsed due to its invalid format.</Comment>
+</HRESULT>
+
+<HRESULT NumericValue="0x8013200C">
+	<SymbolicName>CLR_E_CROSSGEN_NO_IBC_DATA_FOUND</SymbolicName>
+	<Message>"Cannot compile using the PartialNgen flag because no IBC data was found."</Message>
+	<Comment>During crossgen compilation, the PartialNgen flag was set, but no IBC data was found in the resources section of the input image, and no IBC file was externally provided.</Comment>
 </HRESULT>
 
 <HRESULT NumericValue="E_ACCESSDENIED">

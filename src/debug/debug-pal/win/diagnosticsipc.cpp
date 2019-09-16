@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <assert.h>
-#include <new>
 #include <stdio.h>
 #include "diagnosticsipc.h"
 
@@ -14,6 +13,7 @@ IpcStream::DiagnosticsIpc::DiagnosticsIpc(const char(&namedPipeName)[MaxNamedPip
 
 IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
+    Close();
 }
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
@@ -47,7 +47,7 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
     const uint32_t nOutBufferSize = 16 * 1024;
     HANDLE hPipe = ::CreateNamedPipeA(
         _pNamedPipeName,                                            // pipe name
-        PIPE_ACCESS_DUPLEX/* | FILE_FLAG_OVERLAPPED*/,              // read/write access
+        PIPE_ACCESS_DUPLEX,                                         // read/write access
         PIPE_TYPE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS,    // message type pipe, message-read and blocking mode
         PIPE_UNLIMITED_INSTANCES,                                   // max. instances
         nOutBufferSize,                                             // output buffer size
@@ -63,21 +63,29 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
     }
 
     const BOOL fSuccess = ::ConnectNamedPipe(hPipe, NULL) != 0;
-    const DWORD errorCode = ::GetLastError();
-    if (!fSuccess && (errorCode != ERROR_PIPE_CONNECTED))
+    if (!fSuccess)
     {
-        if (callback != nullptr)
-            callback("Failed to wait for a client process to connect.", errorCode);
-        return nullptr;
+        const DWORD errorCode = ::GetLastError();
+        switch (errorCode)
+        {
+            case ERROR_PIPE_CONNECTED:
+                // Occurs when a client connects before the function is called.
+                // In this case, there is a connection between client and
+                // server, even though the function returned zero.
+                break;
+
+            default:
+                if (callback != nullptr)
+                    callback("A client process failed to connect.", errorCode);
+                ::CloseHandle(hPipe);
+                return nullptr;
+        }
     }
 
-    auto pIpcStream = new (std::nothrow) IpcStream(hPipe);
-    if (pIpcStream == nullptr && callback != nullptr)
-        callback("Failed to allocate an IpcStream object.", 1);
-    return pIpcStream;
+    return new IpcStream(hPipe);
 }
 
-void IpcStream::DiagnosticsIpc::Unlink(ErrorCallback callback)
+void IpcStream::DiagnosticsIpc::Close(ErrorCallback)
 {
 }
 
@@ -85,11 +93,13 @@ IpcStream::~IpcStream()
 {
     if (_hPipe != INVALID_HANDLE_VALUE)
     {
+        Flush();
+
         const BOOL fSuccessDisconnectNamedPipe = ::DisconnectNamedPipe(_hPipe);
         assert(fSuccessDisconnectNamedPipe != 0);
 
         const BOOL fSuccessCloseHandle = ::CloseHandle(_hPipe);
-        assert(CloseHandle != 0);
+        assert(fSuccessCloseHandle != 0);
     }
 }
 

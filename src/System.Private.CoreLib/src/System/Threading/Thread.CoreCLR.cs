@@ -14,29 +14,31 @@ namespace System.Threading
     internal sealed class ThreadHelper
     {
         private Delegate _start;
-        internal CultureInfo _startCulture;
-        internal CultureInfo _startUICulture;
-        private object _startArg = null;
-        private ExecutionContext _executionContext = null;
+        internal CultureInfo? _startCulture;
+        internal CultureInfo? _startUICulture;
+        private object? _startArg = null;
+        private ExecutionContext? _executionContext = null;
 
         internal ThreadHelper(Delegate start)
         {
-            _start = start; 
+            _start = start;
         }
 
-        internal void SetExecutionContextHelper(ExecutionContext ec)
+        internal void SetExecutionContextHelper(ExecutionContext? ec)
         {
             _executionContext = ec;
         }
 
         internal static readonly ContextCallback s_threadStartContextCallback = new ContextCallback(ThreadStart_Context);
 
-        private static void ThreadStart_Context(object state)
+        private static void ThreadStart_Context(object? state)
         {
+            Debug.Assert(state is ThreadHelper);
             ThreadHelper t = (ThreadHelper)state;
 
             t.InitializeCulture();
 
+            Debug.Assert(t._start is ThreadStart || t._start is ParameterizedThreadStart);
             if (t._start is ThreadStart threadStart)
             {
                 threadStart();
@@ -63,11 +65,12 @@ namespace System.Threading
         }
 
         // call back helper
-        internal void ThreadStart(object obj)
+        internal void ThreadStart(object? obj)
         {
+            Debug.Assert(_start is ParameterizedThreadStart);
             _startArg = obj;
-            
-            ExecutionContext context = _executionContext;
+
+            ExecutionContext? context = _executionContext;
             if (context != null)
             {
                 ExecutionContext.RunInternal(context, s_threadStartContextCallback, this);
@@ -82,7 +85,9 @@ namespace System.Threading
         // call back helper
         internal void ThreadStart()
         {
-            ExecutionContext context = _executionContext;
+            Debug.Assert(_start is ThreadStart);
+
+            ExecutionContext? context = _executionContext;
             if (context != null)
             {
                 ExecutionContext.RunInternal(context, s_threadStartContextCallback, this);
@@ -112,13 +117,13 @@ namespace System.Threading
         ** ThreadBaseObject to maintain alignment between the two classes.
         ** DON'T CHANGE THESE UNLESS YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
-        internal ExecutionContext _executionContext; // this call context follows the logical thread
-        internal SynchronizationContext _synchronizationContext; // maintained separately from ExecutionContext
+        internal ExecutionContext? _executionContext; // this call context follows the logical thread
+        internal SynchronizationContext? _synchronizationContext; // maintained separately from ExecutionContext
 
-        private string _name;
-        private Delegate _delegate; // Delegate
+        private string? _name;
+        private Delegate? _delegate; // Delegate
 
-        private object _threadStartArg;
+        private object? _threadStartArg;
 
         /*=========================================================================
         ** The base implementation of Thread is all native.  The following fields
@@ -127,6 +132,7 @@ namespace System.Threading
         ** YOU MODIFY ThreadBaseObject in vm\object.h
         =========================================================================*/
 #pragma warning disable 169 // These fields are not used from managed.
+#pragma warning disable CA1823
         // IntPtrs need to be together, and before ints, because IntPtrs are 64-bit
         // fields on 64-bit platforms, where they will be sorted together.
 
@@ -134,10 +140,11 @@ namespace System.Threading
         private int _priority; // INT32
 
         // The following field is required for interop with the VS Debugger
-        // Prior to making any changes to this field, please reach out to the VS Debugger 
+        // Prior to making any changes to this field, please reach out to the VS Debugger
         // team to make sure that your changes are not going to prevent the debugger
         // from working.
         private int _managedThreadId; // INT32
+#pragma warning restore CA1823
 #pragma warning restore 169
 
         private Thread() { }
@@ -151,7 +158,7 @@ namespace System.Threading
         private void Create(ParameterizedThreadStart start) =>
             SetStartHelper((Delegate)start, 0);
 
-        private void Create(ParameterizedThreadStart start, int maxStackSize) => 
+        private void Create(ParameterizedThreadStart start, int maxStackSize) =>
             SetStartHelper((Delegate)start, maxStackSize);
 
         public extern int ManagedThreadId
@@ -179,7 +186,7 @@ namespace System.Threading
         /// method on the IThreadable interface passed in the constructor. Once the
         /// thread is dead, it cannot be restarted with another call to Start.
         /// </summary>
-        public void Start(object parameter)
+        public void Start(object? parameter)
         {
             // In the case of a null delegate (second call to start on same thread)
             // StartInternal method will take care of the error reporting.
@@ -207,8 +214,10 @@ namespace System.Threading
             {
                 // If we reach here with a null delegate, something is broken. But we'll let the StartInternal method take care of
                 // reporting an error. Just make sure we don't try to dereference a null delegate.
-                ThreadHelper t = (ThreadHelper)_delegate.Target;
-                ExecutionContext ec = ExecutionContext.Capture();
+                Debug.Assert(_delegate.Target is ThreadHelper);
+                var t = (ThreadHelper)_delegate.Target;
+
+                ExecutionContext? ec = ExecutionContext.Capture();
                 t.SetExecutionContextHelper(ec);
             }
 
@@ -218,8 +227,10 @@ namespace System.Threading
         private void SetCultureOnUnstartedThreadNoCheck(CultureInfo value, bool uiCulture)
         {
             Debug.Assert(_delegate != null);
+            Debug.Assert(_delegate.Target is ThreadHelper);
 
-            ThreadHelper t = (ThreadHelper)(_delegate.Target);
+            var t = (ThreadHelper)(_delegate.Target);
+
             if (uiCulture)
             {
                 t._startUICulture = value;
@@ -260,9 +271,9 @@ namespace System.Threading
         public static void SpinWait(int iterations) => SpinWaitInternal(iterations);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern bool YieldInternal();
+        private static extern Interop.BOOL YieldInternal();
 
-        public static bool Yield() => YieldInternal();
+        public static bool Yield() => YieldInternal() != Interop.BOOL.FALSE;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());
@@ -274,14 +285,14 @@ namespace System.Threading
         {
             Debug.Assert(maxStackSize >= 0);
 
-            var threadStartCallBack = new ThreadHelper(start);
+            var helper = new ThreadHelper(start);
             if (start is ThreadStart)
             {
-                SetStart(new ThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
+                SetStart(new ThreadStart(helper.ThreadStart), maxStackSize);
             }
             else
             {
-                SetStart(new ParameterizedThreadStart(threadStartCallBack.ThreadStart), maxStackSize);
+                SetStart(new ParameterizedThreadStart(helper.ThreadStart), maxStackSize);
             }
         }
 
@@ -300,13 +311,13 @@ namespace System.Threading
         private extern void StartupSetApartmentStateInternal();
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
 
-        partial void ThreadNameChanged(string value)
+        partial void ThreadNameChanged(string? value)
         {
             InformThreadNameChange(GetNativeHandle(), value, value?.Length ?? 0);
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void InformThreadNameChange(ThreadHandle t, string name, int len);
+        private static extern void InformThreadNameChange(ThreadHandle t, string? name, int len);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern DeserializationTracker GetThreadDeserializationTracker(ref StackCrawlMark stackMark);
@@ -459,18 +470,20 @@ namespace System.Threading
         {
             get
             {
-                if (s_optimalMaxSpinWaitsPerSpinIteration != 0)
-                {
-                    return s_optimalMaxSpinWaitsPerSpinIteration;
-                }
-
-                // This is done lazily because the first call to the function below in the process triggers a measurement that
-                // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
-                // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
-                s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
-                Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
-                return s_optimalMaxSpinWaitsPerSpinIteration;
+                int optimalMaxSpinWaitsPerSpinIteration = s_optimalMaxSpinWaitsPerSpinIteration;
+                return optimalMaxSpinWaitsPerSpinIteration != 0 ? optimalMaxSpinWaitsPerSpinIteration : CalculateOptimalMaxSpinWaitsPerSpinIteration();
             }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int CalculateOptimalMaxSpinWaitsPerSpinIteration()
+        {
+            // This is done lazily because the first call to the function below in the process triggers a measurement that
+            // takes a nontrivial amount of time if the measurement has not already been done in the backgorund.
+            // See Thread::InitializeYieldProcessorNormalized(), which describes and calculates this value.
+            s_optimalMaxSpinWaitsPerSpinIteration = GetOptimalMaxSpinWaitsPerSpinIterationInternal();
+            Debug.Assert(s_optimalMaxSpinWaitsPerSpinIteration > 0);
+            return s_optimalMaxSpinWaitsPerSpinIteration;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
@@ -478,7 +491,7 @@ namespace System.Threading
 
         // The upper bits of t_currentProcessorIdCache are the currentProcessorId. The lower bits of
         // the t_currentProcessorIdCache are counting down to get it periodically refreshed.
-        // TODO: Consider flushing the currentProcessorIdCache on Wait operations or similar 
+        // TODO: Consider flushing the currentProcessorIdCache on Wait operations or similar
         // actions that are likely to result in changing the executing core
         [ThreadStatic]
         private static int t_currentProcessorIdCache;

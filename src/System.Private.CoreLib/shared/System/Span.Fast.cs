@@ -12,6 +12,7 @@ using Internal.Runtime.CompilerServices;
 
 #pragma warning disable 0809  //warning CS0809: Obsolete member 'Span<T>.Equals(object)' overrides non-obsolete member 'object.Equals(object)'
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -30,9 +31,6 @@ namespace System
         /// <summary>A byref or a native ptr.</summary>
         internal readonly ByReference<T> _pointer;
         /// <summary>The number of elements this Span contains.</summary>
-#if PROJECTN
-        [Bound]
-#endif
         private readonly int _length;
 
         /// <summary>
@@ -42,14 +40,14 @@ namespace System
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array)
+        public Span(T[]? array)
         {
             if (array == null)
             {
                 this = default;
                 return; // returns default
             }
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (default(T)! == null && array.GetType() != typeof(T[])) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
                 ThrowHelper.ThrowArrayTypeMismatchException();
 
             _pointer = new ByReference<T>(ref Unsafe.As<byte, T>(ref array.GetRawSzArrayData()));
@@ -66,10 +64,10 @@ namespace System
         /// <remarks>Returns default when <paramref name="array"/> is null.</remarks>
         /// <exception cref="System.ArrayTypeMismatchException">Thrown when <paramref name="array"/> is covariant and array's type is not exactly T[].</exception>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;=Length).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in the range (&lt;0 or &gt;Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span(T[] array, int start, int length)
+        public Span(T[]? array, int start, int length)
         {
             if (array == null)
             {
@@ -78,7 +76,7 @@ namespace System
                 this = default;
                 return; // returns default
             }
-            if (default(T) == null && array.GetType() != typeof(T[]))
+            if (default(T)! == null && array.GetType() != typeof(T[])) // TODO-NULLABLE: default(T) == null warning (https://github.com/dotnet/roslyn/issues/34757)
                 ThrowHelper.ThrowArrayTypeMismatchException();
 #if BIT64
             // See comment in Span<T>.Slice for how this works.
@@ -140,13 +138,6 @@ namespace System
         /// </exception>
         public ref T this[int index]
         {
-#if PROJECTN
-            [BoundsChecking]
-            get
-            {
-                return ref Unsafe.Add(ref _pointer.Value, index);
-            }
-#else
             [Intrinsic]
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             [NonVersionable]
@@ -156,20 +147,7 @@ namespace System
                     ThrowHelper.ThrowIndexOutOfRangeException();
                 return ref Unsafe.Add(ref _pointer.Value, index);
             }
-#endif
         }
-
-        public ref T this[Index index]
-        {
-            get
-            {
-                // Evaluate the actual index first because it helps performance
-                int actualIndex = index.GetOffset(_length);
-                return ref this [actualIndex];
-            }
-        }
-
-        public Span<T> this[Range range] => Slice(range);
 
         /// <summary>
         /// Returns a reference to the 0th element of the Span. If the Span is empty, returns null reference.
@@ -302,15 +280,15 @@ namespace System
         /// Returns true if left and right point at the same memory and have the same length.  Note that
         /// this does *not* check to see if the *contents* are equal.
         /// </summary>
-        public static bool operator ==(Span<T> left, Span<T> right)
-        {
-            return left._length == right._length && Unsafe.AreSame<T>(ref left._pointer.Value, ref right._pointer.Value);
-        }
+        public static bool operator ==(Span<T> left, Span<T> right) =>
+            left._length == right._length &&
+            Unsafe.AreSame<T>(ref left._pointer.Value, ref right._pointer.Value);
 
         /// <summary>
         /// Defines an implicit conversion of a <see cref="Span{T}"/> to a <see cref="ReadOnlySpan{T}"/>
         /// </summary>
-        public static implicit operator ReadOnlySpan<T>(Span<T> span) => new ReadOnlySpan<T>(ref span._pointer.Value, span._length);
+        public static implicit operator ReadOnlySpan<T>(Span<T> span) =>
+            new ReadOnlySpan<T>(ref span._pointer.Value, span._length);
 
         /// <summary>
         /// For <see cref="Span{Char}"/>, returns a new instance of string that represents the characters pointed to by the span.
@@ -337,7 +315,7 @@ namespace System
         /// </summary>
         /// <param name="start">The index at which to begin this slice.</param>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;=Length).
+        /// Thrown when the specified <paramref name="start"/> index is not in range (&lt;0 or &gt;Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(int start)
@@ -354,7 +332,7 @@ namespace System
         /// <param name="start">The index at which to begin this slice.</param>
         /// <param name="length">The desired length for the slice (exclusive).</param>
         /// <exception cref="System.ArgumentOutOfRangeException">
-        /// Thrown when the specified <paramref name="start"/> or end index is not in range (&lt;0 or &gt;=Length).
+        /// Thrown when the specified <paramref name="start"/> or end index is not in range (&lt;0 or &gt;Length).
         /// </exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> Slice(int start, int length)
@@ -373,28 +351,6 @@ namespace System
                 ThrowHelper.ThrowArgumentOutOfRangeException();
 #endif
 
-            return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
-        }
-
-        /// <summary>
-        /// Forms a slice out of the given span, beginning at 'startIndex'
-        /// </summary>
-        /// <param name="startIndex">The index at which to begin this slice.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(Index startIndex)
-        {
-            int actualIndex = startIndex.GetOffset(_length);
-            return Slice(actualIndex);
-        }
-
-        /// <summary>
-        /// Forms a slice out of the given span, beginning at range start index to the range end
-        /// </summary>
-        /// <param name="range">The range which has the start and end indexes used to slice the span.</param>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<T> Slice(Range range)
-        {
-            (int start, int length) = range.GetOffsetAndLength(_length);
             return new Span<T>(ref Unsafe.Add(ref _pointer.Value, start), length);
         }
 

@@ -5,11 +5,6 @@
     <CLRTestKind Condition="'$(CLRTestKind)' == ''">BuildAndRun</CLRTestKind>
     <CLRTestPriority Condition="'$(CLRTestPriority)' == ''">0</CLRTestPriority>
   </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(UsingMicrosoftNETSdk)' == 'true'">
-    <!-- Many parts of the tests expect the output file to be an exe. We override the extension to match here, but in future we should probably update the infrastructure to look for dlls -->
-    <TargetExt Condition="'$(OutputType)' == 'Exe' and '$(TargetExt)' == '.dll'">.exe</TargetExt>
-  </PropertyGroup>
 
   <!-- All CLRTests need to be of a certain "kind". These kinds are enumerated below.
   By default all tests are BuildAndRun. This means that the build system will Build them
@@ -81,6 +76,11 @@
     <_WillCLRTestProjectBuild Condition="'$(_WillCLRTestProjectBuild)' == ''">false</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != 'true'">true</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' != 'true' And '$(BuildAllProjects)' == 'true' And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == '' And '$(_WillCLRTestProjectBuild)' == 'true' And '$(DisableProjectBuild)' != 'true'">true</CopyNativeProjectBinaries>
+    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == '' And ('$(_WillCLRTestProjectBuild)' == 'false' Or '$(DisableProjectBuild)' == 'true')">false</CopyNativeProjectBinaries>
   </PropertyGroup>
     
   <!-- if we have determined that there is nothing to build, overwrite the build targets so that nothing happens -->
@@ -186,7 +186,7 @@
   </Target>
 
   <Target Name="ConsolidateNativeProjectReference"
-          Condition="'@(NativeProjectReferenceNormalized)' != ''"
+          Condition="'@(NativeProjectReferenceNormalized)' != '' and '$(CopyNativeProjectBinaries)' == 'true'"
           BeforeTargets="Build" >
      <ItemGroup>
         <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))" Condition="'$(RunningOnUnix)' == 'true'" />
@@ -199,17 +199,7 @@
 
   </Target>
 
-  <PropertyGroup>
-     <PrepareForRunDependsOn>$(PrepareForRunDependsOn);ResetReferenceCopyLocalPaths</PrepareForRunDependsOn>
-  </PropertyGroup>
-
-  <Target Name="ResetReferenceCopyLocalPaths"
-          Condition="'@(ReferenceCopyLocalPaths)' != ''"
-          BeforeTargets="_CopyFilesMarkedCopyLocal">
-    <ItemGroup>
-       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)" Condition="'%(ReferenceCopyLocalPaths.CopyLocal)' != 'true'"/>
-    </ItemGroup>
-  </Target>
+  <Target Name="CopyAllNativeProjectReferenceBinaries" DependsOnTargets="ResolveCmakeNativeProjectReference;ConsolidateNativeProjectReference" />
 
   <Target Name="UpdateReferenceItems"
           BeforeTargets="BeforeResolveReferences"
@@ -236,7 +226,10 @@
     <ProjectAssetsFile></ProjectAssetsFile>
   </PropertyGroup>
 
-  <Import Project="../../clr.coreclr.props" />
-  <Import Project="../../clr.defines.targets" />
+  <PropertyGroup Condition="'$(ReferenceSystemPrivateCoreLib)' == 'true' and '$(UsingMicrosoftNETSdk)' == 'true'">
+    <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
+  </PropertyGroup>
+
+  <Import Project="../../clr.featuredefines.props" />
 
 </Project>

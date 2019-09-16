@@ -30,7 +30,7 @@ namespace System.Globalization
         // Gregorian year 2001 is Korean year 4334.
         private static readonly EraInfo[] s_koreanEraInfo = new EraInfo[]
         {
-            new EraInfo( 1, 1, 1, 1, -2333, 2334, GregorianCalendar.MaxYear + 2333)   // era #, start year/month/day, yearOffset, minEraYear
+            new EraInfo(1, 1, 1, 1, -2333, 2334, GregorianCalendar.MaxYear + 2333)   // era #, start year/month/day, yearOffset, minEraYear
         };
 
         private readonly GregorianCalendarHelper _helper;
@@ -62,7 +62,6 @@ namespace System.Globalization
         {
             return _helper.AddMonths(time, months);
         }
-
 
         public override DateTime AddYears(DateTime time, int years)
         {
@@ -139,12 +138,10 @@ namespace System.Globalization
             return _helper.IsLeapMonth(year, month, era);
         }
 
-
         public override DateTime ToDateTime(int year, int month, int day, int hour, int minute, int second, int millisecond, int era)
         {
             return _helper.ToDateTime(year, month, day, hour, minute, second, millisecond, era);
         }
-
 
         public override int[] Eras => _helper.Eras;
 

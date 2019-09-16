@@ -30,6 +30,10 @@ public:
         static BOOL IsDevice(SString & path);
 
         static HRESULT NormalizePath(SString& path);
+
+#ifndef FEATURE_PAL
+        static void NormalizeDirectorySeparators(SString& path);
+#endif
 };
 
 HMODULE
@@ -59,6 +63,7 @@ LoadLibraryExWrapper(
 #ifndef FEATURE_PAL
             //Adding the assert to ensure relative paths which are not just filenames are not used for LoadLibrary Calls
             _ASSERTE(!LongFile::IsPathNotFullyQualified(path) || !LongFile::ContainsDirectorySeparator(path));
+            LongFile::NormalizeDirectorySeparators(path);
 #endif //FEATURE_PAL
 
             ret = LoadLibraryExW(path.GetUnicode(), hFile, dwFlags);
@@ -126,50 +131,6 @@ CreateFileWrapper(
         SetLastError(hr);
     }
     else if(ret == INVALID_HANDLE_VALUE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
-
-BOOL
-SetFileAttributesWrapper(
-        _In_ LPCWSTR lpFileName,
-        _In_ DWORD dwFileAttributes
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BOOL   ret = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString path(LongPathString::Literal, lpFileName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(path)))
-        {
-            ret = SetFileAttributesW(
-                    path.GetUnicode(),
-                    dwFileAttributes
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
     {
         SetLastError(lastError);
     }
@@ -289,54 +250,6 @@ DeleteFileWrapper(
         {
             ret = DeleteFileW(
                     path.GetUnicode()
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
-
-
-BOOL
-CopyFileWrapper(
-        _In_ LPCWSTR lpExistingFileName,
-        _In_ LPCWSTR lpNewFileName,
-        _In_ BOOL bFailIfExists
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr  = S_OK;
-    BOOL    ret = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString Existingpath(LongPathString::Literal, lpExistingFileName);
-        LongPathString Newpath(LongPathString::Literal, lpNewFileName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(Existingpath)) && SUCCEEDED(LongFile::NormalizePath(Newpath)))
-        {
-            ret = CopyFileW(
-                    Existingpath.GetUnicode(),
-                    Newpath.GetUnicode(),
-                    bFailIfExists
                     );
         }
         
@@ -498,125 +411,6 @@ SearchPathWrapper(
 
 }
 
-DWORD
-GetShortPathNameWrapper(
-        _In_ LPCWSTR lpszLongPath,
-        SString& lpszShortPath
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    DWORD ret = 0;
-    HRESULT hr = S_OK;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString longPath(LongPathString::Literal, lpszLongPath);
-
-        if (SUCCEEDED(LongFile::NormalizePath(longPath)))
-        {
-            COUNT_T size = lpszShortPath.GetUnicodeAllocation() + 1;
-
-            ret = GetShortPathNameW(
-                    longPath.GetUnicode(),
-                    lpszShortPath.OpenUnicodeBuffer(size - 1),
-                    (DWORD)size
-                    );
-
-            if (ret > size)
-            {
-                lpszShortPath.CloseBuffer();
-                ret = GetShortPathNameW(
-                        longPath.GetUnicode(),
-                        lpszShortPath.OpenUnicodeBuffer(ret -1),
-                        ret
-                        );
-            }
-            
-            lpszShortPath.CloseBuffer(ret);
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == 0)
-    {
-        SetLastError(lastError);
-    }
-        
-    return ret;
-}
-
-DWORD
-GetLongPathNameWrapper(
-        _In_ LPCWSTR lpszShortPath,
-        SString& lpszLongPath
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    DWORD ret = 0;
-    HRESULT hr = S_OK;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString shortPath(LongPathString::Literal, lpszShortPath);
-
-        if (SUCCEEDED(LongFile::NormalizePath(shortPath)))
-        {
-            COUNT_T size = lpszLongPath.GetUnicodeAllocation() + 1;
-
-            ret = GetLongPathNameW(
-                    shortPath.GetUnicode(),
-                    lpszLongPath.OpenUnicodeBuffer(size - 1),
-                    (DWORD)size
-                    );
-
-            if (ret > size)
-            {
-                lpszLongPath.CloseBuffer();
-                ret = GetLongPathNameW(
-                        shortPath.GetUnicode(),
-                        lpszLongPath.OpenUnicodeBuffer(ret - 1),
-                        ret
-                        );
-
-            }
-
-            lpszLongPath.CloseBuffer(ret);
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == 0)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
-
 BOOL
 CreateDirectoryWrapper(
         _In_ LPCWSTR lpPathName,
@@ -661,47 +455,6 @@ CreateDirectoryWrapper(
     return ret;
 }
 
-BOOL
-RemoveDirectoryWrapper(
-        _In_ LPCWSTR lpPathName
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BOOL ret   = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString path(LongPathString::Literal, lpPathName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(path)))
-        {
-            ret = RemoveDirectoryW(
-                    path.GetUnicode()
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
 DWORD
 GetModuleFileNameWrapper(
     _In_opt_ HMODULE hModule,
@@ -951,53 +704,6 @@ DWORD WINAPI GetEnvironmentVariableWrapper(
 #ifndef FEATURE_PAL
 
 BOOL
-CreateHardLinkWrapper(
-        _In_       LPCWSTR lpFileName,
-        _In_       LPCWSTR lpExistingFileName,
-        _Reserved_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
-        )
-{
-    CONTRACTL
-    {
-        NOTHROW;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr = S_OK;
-    BOOL ret   = FALSE;
-    DWORD lastError;
-
-    EX_TRY
-    {
-        LongPathString Existingpath(LongPathString::Literal, lpExistingFileName);
-        LongPathString FileName(LongPathString::Literal, lpFileName);
-
-        if (SUCCEEDED(LongFile::NormalizePath(Existingpath)) && SUCCEEDED(LongFile::NormalizePath(FileName)))
-        {
-            ret = CreateHardLinkW(
-                    Existingpath.GetUnicode(),
-                    FileName.GetUnicode(),
-                    lpSecurityAttributes
-                    );
-        }
-        
-        lastError = GetLastError();
-    }
-    EX_CATCH_HRESULT(hr);
-
-    if (hr != S_OK )
-    {
-        SetLastError(hr);
-    }
-    else if(ret == FALSE)
-    {
-        SetLastError(lastError);
-    }
-
-    return ret;
-}
-
-BOOL
 CopyFileExWrapper(
         _In_        LPCWSTR lpExistingFileName,
         _In_        LPCWSTR lpNewFileName,
@@ -1172,6 +878,17 @@ const WCHAR* LongFile::ExtendedPrefix = W("\\\\?\\");
 const WCHAR* LongFile::DevicePathPrefix = W("\\\\.\\");
 const WCHAR* LongFile::UNCExtendedPathPrefix = W("\\\\?\\UNC\\");
 const WCHAR* LongFile::UNCPathPrefix = UNCPATHPREFIX;
+
+void LongFile::NormalizeDirectorySeparators(SString& path)
+{
+    for(SString::Iterator i = path.Begin(); i < path.End(); ++i)
+    {
+        if (*i == AltDirectorySeparatorChar)
+        {
+            path.Replace(i, DirectorySeparatorChar);
+        }
+    }
+}
 
 BOOL LongFile::IsExtended(SString & path)
 {

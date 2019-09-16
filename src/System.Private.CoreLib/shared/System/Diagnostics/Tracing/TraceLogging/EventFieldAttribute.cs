@@ -2,7 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
+#endif
 
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
@@ -58,7 +60,7 @@ namespace System.Diagnostics.Tracing
         /// as the event field's name.
         /// TODO REMOVE
         /// </summary>
-        internal string Name
+        internal string? Name
         {
             get;
             set;

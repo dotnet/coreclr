@@ -69,6 +69,7 @@ parser.add_argument('-fx_root', dest='fx_root', default=None)
 parser.add_argument('-fx_branch', dest='fx_branch', default='master')
 parser.add_argument('-fx_commit', dest='fx_commit', default=None)
 parser.add_argument('-env_script', dest='env_script', default=None)
+parser.add_argument('-exclusion_rsp_file', dest='exclusion_rsp_file', default=None)
 parser.add_argument('-no_run_tests', dest='no_run_tests', action="store_true", default=False)
 
 
@@ -81,7 +82,7 @@ def validate_args(args):
     Args:
         args (argparser.ArgumentParser): Args parsed by the argument parser.
     Returns:
-        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
+        (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, exclusion_rsp_file, no_run_tests)
             (str, str, str, str, str, str, str, str, str)
     Notes:
     If the arguments are valid then return them all in a tuple. If not, raise
@@ -96,6 +97,7 @@ def validate_args(args):
     fx_branch = args.fx_branch
     fx_commit = args.fx_commit
     env_script = args.env_script
+    exclusion_rsp_file = args.exclusion_rsp_file
     no_run_tests = args.no_run_tests
 
     def validate_arg(arg, check):
@@ -142,7 +144,11 @@ def validate_args(args):
         validate_arg(env_script, lambda item: os.path.isfile(env_script))
         env_script = os.path.abspath(env_script)
 
-    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests)
+    if exclusion_rsp_file is not None:
+        validate_arg(exclusion_rsp_file, lambda item: os.path.isfile(exclusion_rsp_file))
+        exclusion_rsp_file = os.path.abspath(exclusion_rsp_file)
+
+    args = (arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, exclusion_rsp_file, no_run_tests)
 
     log('Configuration:')
     log(' arch: %s' % arch)
@@ -153,6 +159,7 @@ def validate_args(args):
     log(' fx_branch: %s' % fx_branch)
     log(' fx_commit: %s' % fx_commit)
     log(' env_script: %s' % env_script)
+    log(' exclusion_rsp_file: %s' % exclusion_rsp_file)
     log(' no_run_tests: %s' % no_run_tests)
 
     return args
@@ -196,7 +203,7 @@ def copy_files(source_dir, target_dir):
 
     global testing
     assert os.path.isdir(source_dir)
-    assert os.path.isdir(target_dir)
+    assert testing or os.path.isdir(target_dir)
 
     for source_filename in os.listdir(source_dir):
         source_pathname = os.path.join(source_dir, source_filename)
@@ -215,7 +222,10 @@ def main(args):
     global Unix_name_map
     global testing
 
-    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, no_run_tests = validate_args(
+    if testing:
+        log("Running with testing = True")
+
+    arch, ci_arch, build_type, clr_root, fx_root, fx_branch, fx_commit, env_script, exclusion_rsp_file, no_run_tests = validate_args(
         args)
 
     clr_os = 'Windows_NT' if Is_windows else Unix_name_map[os.uname()[0]]
@@ -299,7 +309,7 @@ def main(args):
     if not Is_windows and arch == 'arm' :
         # We need to force clang5.0; we are building in a docker container that doesn't have
         # clang3.9, which is currently the default used by the native build.
-        common_config_args += ' /p:BuildNativeClang=--clang5.0'
+        common_config_args += ' /p:BuildNativeCompiler=--clang5.0'
 
     if not Is_windows and (arch == 'arm' or arch == 'arm64'):
         # It is needed under docker where LC_ALL is not configured.
@@ -318,17 +328,47 @@ def main(args):
     # by its dependencies.props file). Note that we always build Release corefx.
     # We must copy all files, not just the files that already exist in the corefx runtime
     # directory. This is required so we copy over all altjit compilers.
+    #
+    # We find the latest numbered directory in the 'Microsoft.NETCore.App' directory. This
+    # is expected to be the current product version, e.g., 3.0.0.
+    #
     # TODO: it might be cleaner to encapsulate the knowledge of how to do this in the
     # corefx msbuild files somewhere.
 
-    fx_runtime = os.path.join(fx_root,
-                             'artifacts',
-                             'bin',
-                             'testhost',
-                             'netcoreapp-%s-%s-%s' % (clr_os, 'Release', arch),
-                             'shared',
-                             'Microsoft.NETCore.App',
-                             '9.9.9')
+    netcore_app_path = os.path.join(fx_root,
+                                    'artifacts',
+                                    'bin',
+                                    'testhost',
+                                    'netcoreapp-%s-%s-%s' % (clr_os, 'Release', arch),
+                                    'shared',
+                                    'Microsoft.NETCore.App')
+
+    if not testing and not os.path.isdir(netcore_app_path):
+        log("Error: path not found or is not a directory: %s" % netcore_app_path)
+        sys.exit(1)
+
+    fx_runtime = None
+
+    if testing:
+        fx_runtime = os.path.join(netcore_app_path, '9.9.9')
+    else:
+        # Figure out what the latest product version is, and use that.
+        netcore_app_version_dirs = os.listdir(netcore_app_path)
+
+        if netcore_app_version_dirs is None:
+            log("Error: no version directories in %s" % netcore_app_path)
+            sys.exit(1)
+
+        netcore_app_version_dirs.sort(reverse=True)
+        for netcore_app_version_dir in netcore_app_version_dirs:
+            netcore_app_version_path = os.path.join(netcore_app_path, netcore_app_version_dir)
+            if os.path.isdir(netcore_app_version_path):
+                fx_runtime = netcore_app_version_path
+                break
+
+    if fx_runtime is None:
+        log("Error: couldn't find fx runtime directory in %s" % netcore_app_path)
+        sys.exit(1)
 
     log('Updating CoreCLR: %s => %s' % (core_root, fx_runtime))
     copy_files(core_root, fx_runtime)
@@ -379,6 +419,9 @@ def main(args):
     if not Is_windows and (arch == 'arm' or arch == 'arm64'):
         # It is needed under docker where LC_ALL is not configured.
         command += ' --warnAsError false'
+
+    if exclusion_rsp_file is not None:
+        command += (' /p:TestRspFile=%s' % exclusion_rsp_file)
 
     # Run the corefx test build and run the tests themselves.
 

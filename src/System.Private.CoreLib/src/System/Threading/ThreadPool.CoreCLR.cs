@@ -11,6 +11,7 @@
 **
 =============================================================================*/
 
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Runtime.InteropServices;
@@ -32,7 +33,7 @@ namespace System.Threading
     {
         private static IntPtr InvalidHandle => new IntPtr(-1);
         private IntPtr registeredWaitHandle = InvalidHandle;
-        private WaitHandle m_internalWaitObject;
+        private WaitHandle? m_internalWaitObject;
         private bool bReleaseNeeded = false;
         private volatile int m_lock = 0;
 
@@ -56,7 +57,7 @@ namespace System.Threading
         }
 
         internal bool Unregister(
-             WaitHandle waitObject          // object to be notified when all callbacks to delegates have completed
+             WaitHandle? waitObject          // object to be notified when all callbacks to delegates have completed
              )
         {
             bool result = false;
@@ -75,11 +76,12 @@ namespace System.Threading
                     {
                         if (ValidHandle())
                         {
-                            result = UnregisterWaitNative(GetHandle(), waitObject == null ? null : waitObject.SafeWaitHandle);
+                            result = UnregisterWaitNative(GetHandle(), waitObject?.SafeWaitHandle);
                             if (result == true)
                             {
                                 if (bReleaseNeeded)
                                 {
+                                    Debug.Assert(m_internalWaitObject != null, "Must be non-null for bReleaseNeeded to be true");
                                     m_internalWaitObject.SafeWaitHandle.DangerousRelease();
                                     bReleaseNeeded = false;
                                 }
@@ -109,7 +111,7 @@ namespace System.Threading
         {
             // if the app has already unregistered the wait, there is nothing to cleanup
             // we can detect this by checking the handle. Normally, there is no race condition here
-            // so no need to protect reading of handle. However, if this object gets 
+            // so no need to protect reading of handle. However, if this object gets
             // resurrected and then someone does an unregister, it would introduce a race condition
             //
             // PrepareConstrainedRegions call not needed since finalizer already in Cer
@@ -128,8 +130,8 @@ namespace System.Threading
             // This will result in a "leak" of sorts (since the handle will not be cleaned up)
             // but the process is exiting anyway.
             //
-            // During AD-unload, we don't finalize live objects until all threads have been 
-            // aborted out of the AD.  Since these locked regions are CERs, we won't abort them 
+            // During AD-unload, we don't finalize live objects until all threads have been
+            // aborted out of the AD.  Since these locked regions are CERs, we won't abort them
             // while the lock is held.  So there should be no leak on AD-unload.
             //
             if (Interlocked.CompareExchange(ref m_lock, 1, 0) == 0)
@@ -141,6 +143,7 @@ namespace System.Threading
                         WaitHandleCleanupNative(registeredWaitHandle);
                         if (bReleaseNeeded)
                         {
+                            Debug.Assert(m_internalWaitObject != null, "Must be non-null for bReleaseNeeded to be true");
                             m_internalWaitObject.SafeWaitHandle.DangerousRelease();
                             bReleaseNeeded = false;
                         }
@@ -159,7 +162,7 @@ namespace System.Threading
         private static extern void WaitHandleCleanupNative(IntPtr handle);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern bool UnregisterWaitNative(IntPtr handle, SafeHandle waitObject);
+        private static extern bool UnregisterWaitNative(IntPtr handle, SafeHandle? waitObject);
     }
 
     public sealed class RegisteredWaitHandle : MarshalByRefObject
@@ -181,9 +184,8 @@ namespace System.Threading
             internalRegisteredWait.SetWaitObject(waitObject);
         }
 
-        // This is the only public method on this class
         public bool Unregister(
-             WaitHandle waitObject          // object to be notified when all callbacks to delegates have completed
+             WaitHandle? waitObject          // object to be notified when all callbacks to delegates have completed
              )
         {
             return internalRegisteredWait.Unregister(waitObject);
@@ -205,7 +207,10 @@ namespace System.Threading
 
         public static bool SetMaxThreads(int workerThreads, int completionPortThreads)
         {
-            return SetMaxThreadsNative(workerThreads, completionPortThreads);
+            return
+                workerThreads >= 0 &&
+                completionPortThreads >= 0 &&
+                SetMaxThreadsNative(workerThreads, completionPortThreads);
         }
 
         public static void GetMaxThreads(out int workerThreads, out int completionPortThreads)
@@ -215,7 +220,10 @@ namespace System.Threading
 
         public static bool SetMinThreads(int workerThreads, int completionPortThreads)
         {
-            return SetMinThreadsNative(workerThreads, completionPortThreads);
+            return
+                workerThreads >= 0 &&
+                completionPortThreads >= 0 &&
+                SetMinThreadsNative(workerThreads, completionPortThreads);
         }
 
         public static void GetMinThreads(out int workerThreads, out int completionPortThreads)
@@ -228,10 +236,39 @@ namespace System.Threading
             GetAvailableThreadsNative(out workerThreads, out completionPortThreads);
         }
 
+        /// <summary>
+        /// Gets the number of thread pool threads that currently exist.
+        /// </summary>
+        /// <remarks>
+        /// For a thread pool implementation that may have different types of threads, the count includes all types.
+        /// </remarks>
+        public static extern int ThreadCount
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
+
+        /// <summary>
+        /// Gets the number of work items that have been processed so far.
+        /// </summary>
+        /// <remarks>
+        /// For a thread pool implementation that may have different types of work items, the count includes all types.
+        /// </remarks>
+        public static long CompletedWorkItemCount => GetCompletedWorkItemCount();
+
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+        private static extern long GetCompletedWorkItemCount();
+
+        private static extern long PendingUnmanagedWorkItemCount
+        {
+            [MethodImpl(MethodImplOptions.InternalCall)]
+            get;
+        }
+
         private static RegisteredWaitHandle RegisterWaitForSingleObject(  // throws RegisterWaitException
              WaitHandle waitObject,
              WaitOrTimerCallback callBack,
-             object state,
+             object? state,
              uint millisecondsTimeOutInterval,
              bool executeOnlyOnce,   // NOTE: we do not allow other options that allow the callback to be queued as an APC
              bool compressStack
@@ -261,7 +298,7 @@ namespace System.Threading
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern bool RequestWorkerThread();
+        internal static extern Interop.BOOL RequestWorkerThread();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe bool PostQueuedCompletionStatus(NativeOverlapped* overlapped);
@@ -272,8 +309,8 @@ namespace System.Threading
 
         // The thread pool maintains a per-appdomain managed work queue.
         // New thread pool entries are added in the managed queue.
-        // The VM is responsible for the actual growing/shrinking of 
-        // threads. 
+        // The VM is responsible for the actual growing/shrinking of
+        // threads.
         private static void EnsureInitialized()
         {
             if (!ThreadPoolGlobals.threadPoolInitialized)
@@ -289,7 +326,7 @@ namespace System.Threading
             ThreadPoolGlobals.threadPoolInitialized = true;
         }
 
-        // Native methods: 
+        // Native methods:
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern bool SetMinThreadsNative(int workerThreads, int completionPortThreads);

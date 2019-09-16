@@ -8,16 +8,14 @@
 
 class FinalizerThread
 {
-    static BOOL fRunFinalizersOnUnload;
     static BOOL fQuitFinalizer;
-    
+
 #if defined(__linux__) && defined(FEATURE_EVENT_TRACE)
     static ULONGLONG LastHeapDumpTime;
 #endif
 
     static CLREvent *hEventFinalizer;
     static CLREvent *hEventFinalizerDone;
-    static CLREvent *hEventShutDownToFinalizer;
     static CLREvent *hEventFinalizerToShutDown;
 
     // Note: This enum makes it easier to read much of the code that deals with the
@@ -28,11 +26,6 @@ class FinalizerThread
     {
         kLowMemoryNotification  = 0,
         kFinalizer              = 1,
-
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH 
-        kProfilingAPIAttach     = 2,
-#endif // FEATURE_PROFAPI_ATTACH_DETACH 
-
         kHandleCount,
     };
 
@@ -40,16 +33,9 @@ class FinalizerThread
 
     static void WaitForFinalizerEvent (CLREvent *event);
 
-    static BOOL FinalizerThreadWatchDogHelper();
+    static void DoOneFinalization(Object* fobj, Thread* pThread);
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
-    static void ProcessProfilerAttachIfNecessary(ULONGLONG * pui64TimestampLastCheckedEventMs);
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
-
-    static Object * DoOneFinalization(Object* fobj, Thread* pThread, int bitToCheck, bool *pbTerminate);
-
-    static void FinalizeAllObjects_Wrapper(void *ptr);
-    static Object * FinalizeAllObjects(Object* fobj, int bitToCheck);
+    static void FinalizeAllObjects(int bitToCheck);
 
 public:
     static Thread* GetFinalizerThread() 
@@ -65,6 +51,21 @@ public:
 
     static BOOL HaveExtraWorkForFinalizer();
 
+    static void RaiseShutdownEvents()
+    {
+        WRAPPER_NO_CONTRACT;
+        fQuitFinalizer = TRUE;
+        EnableFinalization();
+
+        // Do not wait for FinalizerThread if the current one is FinalizerThread.
+        if (GetThread() != GetFinalizerThread())
+        {
+            // This wait must be alertable to handle cases where the current
+            // thread's context is needed (i.e. RCW cleanup)
+            hEventFinalizerToShutDown->Wait(INFINITE, /*alertable*/ TRUE);
+        }
+    }
+
     static void FinalizerThreadWait(DWORD timeout = INFINITE);
 
     // We wake up a wait for finaliation for two reasons:
@@ -73,11 +74,9 @@ public:
     static void SignalFinalizationDone(BOOL fFinalizer);
 
     static VOID FinalizerThreadWorker(void *args);
-    static void FinalizeObjectsOnShutdown(LPVOID args);
     static DWORD WINAPI FinalizerThreadStart(void *args);
 
     static void FinalizerThreadCreate();
-    static BOOL FinalizerThreadWatchDog();
 };
 
 #endif // _FINALIZER_THREAD_H_

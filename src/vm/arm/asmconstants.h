@@ -124,11 +124,11 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__ArgumentRegisters == sizeof(ArgumentRegisters))
 #define SIZEOF__FloatArgumentRegisters 0x40
 ASMCONSTANTS_C_ASSERT(SIZEOF__FloatArgumentRegisters == sizeof(FloatArgumentRegisters))
 
+#define ASM_ENREGISTERED_RETURNTYPE_MAXSIZE 0x20
+ASMCONSTANTS_C_ASSERT(ASM_ENREGISTERED_RETURNTYPE_MAXSIZE == ENREGISTERED_RETURNTYPE_MAXSIZE)
+
 #define UMEntryThunk__m_pUMThunkMarshInfo 0x0C
 ASMCONSTANTS_C_ASSERT(UMEntryThunk__m_pUMThunkMarshInfo == offsetof(UMEntryThunk, m_pUMThunkMarshInfo))
-
-#define UMEntryThunk__m_dwDomainId 0x10
-ASMCONSTANTS_C_ASSERT(UMEntryThunk__m_dwDomainId == offsetof(UMEntryThunk, m_dwDomainId))
 
 #define UMThunkMarshInfo__m_pILStub 0x00
 ASMCONSTANTS_C_ASSERT(UMThunkMarshInfo__m_pILStub == offsetof(UMThunkMarshInfo, m_pILStub))
@@ -179,18 +179,6 @@ ASMCONSTANTS_C_ASSERT(Thread__m_pFrame == offsetof(Thread, m_pFrame));
 #define Thread_m_pFrame Thread__m_pFrame
 
 #ifndef CROSSGEN_COMPILE
-#define               Thread__m_pDomain                 0x10
-ASMCONSTANTS_C_ASSERT(Thread__m_pDomain == offsetof(Thread, m_pDomain));
-
-#define               AppDomain__m_dwId                 0x04
-ASMCONSTANTS_C_ASSERT(AppDomain__m_dwId == offsetof(AppDomain, m_dwId));
-
-#define               AppDomain__m_sDomainLocalBlock                 0x08
-ASMCONSTANTS_C_ASSERT(AppDomain__m_sDomainLocalBlock == offsetof(AppDomain, m_sDomainLocalBlock));
-
-#define               DomainLocalBlock__m_pModuleSlots                 0x04
-ASMCONSTANTS_C_ASSERT(DomainLocalBlock__m_pModuleSlots == offsetof(DomainLocalBlock, m_pModuleSlots));
-
 #define               DomainLocalModule__m_pDataBlob                 0x18
 ASMCONSTANTS_C_ASSERT(DomainLocalModule__m_pDataBlob == offsetof(DomainLocalModule, m_pDataBlob));
 
@@ -229,8 +217,30 @@ ASMCONSTANTS_C_ASSERT(CallDescrData__returnValue          == offsetof(CallDescrD
 
 #define SIZEOF__FaultingExceptionFrame                  (SIZEOF__Frame + 0x8 + SIZEOF__CONTEXT)
 #define FaultingExceptionFrame__m_fFilterExecuted       SIZEOF__Frame
-ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame));
-ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted));
+ASMCONSTANTS_C_ASSERT(SIZEOF__FaultingExceptionFrame        == sizeof(FaultingExceptionFrame))
+ASMCONSTANTS_C_ASSERT(FaultingExceptionFrame__m_fFilterExecuted == offsetof(FaultingExceptionFrame, m_fFilterExecuted))
+
+// For JIT_PInvokeBegin and JIT_PInvokeEnd helpers
+#define               Frame__m_Next 0x04
+ASMCONSTANTS_C_ASSERT(Frame__m_Next == offsetof(Frame, m_Next))
+
+#define               InlinedCallFrame__m_Datum 0x08
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_Datum == offsetof(InlinedCallFrame, m_Datum))
+
+#define               InlinedCallFrame__m_pCallSiteSP 0x0C
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallSiteSP == offsetof(InlinedCallFrame, m_pCallSiteSP))
+
+#define               InlinedCallFrame__m_pCallerReturnAddress 0x10
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCallerReturnAddress == offsetof(InlinedCallFrame, m_pCallerReturnAddress))
+
+#define               InlinedCallFrame__m_pCalleeSavedFP 0x14
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pCalleeSavedFP == offsetof(InlinedCallFrame, m_pCalleeSavedFP))
+
+#define               InlinedCallFrame__m_pThread 0x18
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pThread == offsetof(InlinedCallFrame, m_pThread))
+
+#define               InlinedCallFrame__m_pSPAfterProlog 0x1C
+ASMCONSTANTS_C_ASSERT(InlinedCallFrame__m_pSPAfterProlog == offsetof(InlinedCallFrame, m_pSPAfterProlog))
 
 #undef ASMCONSTANTS_RUNTIME_ASSERT
 #undef ASMCONSTANTS_C_ASSERT

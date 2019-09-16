@@ -2,20 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-
-using System;
 using System.IO;
 using System.Globalization;
-using System.Collections;
-using System.Text;
 using System.Reflection;
-using System.Security;
-using System.Threading;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
-using Microsoft.Win32;
-using System.Collections.Generic;
-using System.Runtime.Versioning;
 using System.Diagnostics;
 using Internal.Resources;
 
@@ -23,12 +12,12 @@ namespace System.Resources
 {
     public partial class ResourceManager
     {
-        private WindowsRuntimeResourceManagerBase _WinRTResourceManager;
-        private PRIExceptionInfo _PRIExceptionInfo;
+        private WindowsRuntimeResourceManagerBase? _WinRTResourceManager;
+        private PRIExceptionInfo? _PRIExceptionInfo;
         private bool _PRIInitialized;
         private bool _useUapResourceManagement;
 
-        private string GetStringFromPRI(string stringName, CultureInfo culture, string neutralResourcesCulture)
+        private string? GetStringFromPRI(string stringName, CultureInfo? culture, string? neutralResourcesCulture)
         {
             Debug.Assert(_useUapResourceManagement);
             Debug.Assert(_WinRTResourceManager != null);
@@ -42,7 +31,7 @@ namespace System.Resources
                 culture = null;
             }
 
-            string startingCulture = culture?.Name;
+            string? startingCulture = culture?.Name;
 
             if (_PRIInitialized == false)
             {
@@ -71,22 +60,22 @@ namespace System.Resources
         internal static WindowsRuntimeResourceManagerBase GetWinRTResourceManager()
         {
 #if FEATURE_APPX
-            Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, System.Runtime.WindowsRuntime", throwOnError: true);
+            Type WinRTResourceManagerType = Type.GetType("System.Resources.WindowsRuntimeResourceManager, System.Runtime.WindowsRuntime", throwOnError: true)!;
 #else // ENABLE_WINRT
             Assembly hiddenScopeAssembly = Assembly.Load(Internal.Runtime.Augments.RuntimeAugments.HiddenScopeAssemblyName);
             Type WinRTResourceManagerType = hiddenScopeAssembly.GetType("System.Resources.WindowsRuntimeResourceManager", true);
 #endif
-            return (WindowsRuntimeResourceManagerBase)Activator.CreateInstance(WinRTResourceManagerType, true);
+            return (WindowsRuntimeResourceManagerBase)Activator.CreateInstance(WinRTResourceManagerType, nonPublic: true)!;
         }
 
         // CoreCLR: When running under AppX, the following rules apply for resource lookup:
         //
         // 1) For Framework assemblies, we always use satellite assembly based lookup.
         // 2) For non-FX assemblies:
-        //    
+        //
         //    a) If the assembly lives under PLATFORM_RESOURCE_ROOTS (as specified by the host during AppDomain creation),
         //       then we will use satellite assembly based lookup in assemblies like *.resources.dll.
-        //   
+        //
         //    b) For any other non-FX assembly, we will use the modern resource manager with the premise that app package
         //       contains the PRI resources.
         //
@@ -100,7 +89,7 @@ namespace System.Resources
 
 #if FEATURE_APPX
             // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
-            string platformResourceRoots = (string)(AppContext.GetData("PLATFORM_RESOURCE_ROOTS"));
+            string? platformResourceRoots = (string?)AppContext.GetData("PLATFORM_RESOURCE_ROOTS");
             if ((platformResourceRoots != null) && (platformResourceRoots != string.Empty))
             {
                 string resourceAssemblyPath = resourcesAssembly.Location;
@@ -118,7 +107,7 @@ namespace System.Resources
 #else // ENABLE_WINRT
             foreach (var attrib in resourcesAssembly.GetCustomAttributes())
             {
-                AssemblyMetadataAttribute meta = attrib as AssemblyMetadataAttribute;
+                AssemblyMetadataAttribute? meta = attrib as AssemblyMetadataAttribute;
                 if (meta != null && meta.Key.Equals(".NETFrameworkAssembly"))
                 {
                     return false;
@@ -147,13 +136,14 @@ namespace System.Resources
                 return;
 #endif
 
+            Debug.Assert(MainAssembly != null);
             if (!ShouldUseUapResourceManagement(MainAssembly))
                 return;
 
             _useUapResourceManagement = true;
 
             // If we have the type information from the ResourceManager(Type) constructor, we use it. Otherwise, we use BaseNameField.
-            string reswFilename = _locationInfo == null ? BaseNameField : _locationInfo.FullName;
+            string? reswFilename = _locationInfo == null ? BaseNameField : _locationInfo.FullName;
 
             // The only way this can happen is if a class inherited from ResourceManager and
             // did not set the BaseNameField before calling the protected ResourceManager() constructor.
@@ -164,8 +154,7 @@ namespace System.Resources
             // an empty string. We may in fact fail earlier for another reason, but otherwise we will
             // throw a MissingManifestResourceException when GetString is called indicating that a
             // resW filename called "" could not be found.
-            if (reswFilename == null)
-                reswFilename = string.Empty;
+            reswFilename ??= string.Empty;
 
             // At this point it is important NOT to set _useUapResourceManagement to false
             // if the PRI file does not exist because we are now certain we need to load PRI

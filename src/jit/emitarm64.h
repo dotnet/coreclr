@@ -84,7 +84,6 @@ bool emitInsIsCompare(instruction ins);
 bool emitInsIsLoad(instruction ins);
 bool emitInsIsStore(instruction ins);
 bool emitInsIsLoadOrStore(instruction ins);
-emitAttr emitInsAdjustLoadStoreAttr(instruction ins, emitAttr attr);
 emitAttr emitInsTargetRegSize(instrDesc* id);
 emitAttr emitInsLoadStoreSize(instrDesc* id);
 
@@ -668,6 +667,12 @@ inline static bool insOptsConvertIntToFloat(insOpts opt)
 static bool isValidImmCond(ssize_t imm);
 static bool isValidImmCondFlags(ssize_t imm);
 static bool isValidImmCondFlagsImm5(ssize_t imm);
+
+// Computes page "delta" between two addresses
+inline static ssize_t computeRelPageAddr(size_t dstAddr, size_t srcAddr)
+{
+    return (dstAddr >> 12) - (srcAddr >> 12);
+}
 
 /************************************************************************/
 /*           The public entry points to output instructions             */

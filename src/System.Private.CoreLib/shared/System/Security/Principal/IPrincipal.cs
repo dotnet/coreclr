@@ -6,17 +6,12 @@
 // All roles will implement this interface
 //
 
-using System;
-
 namespace System.Security.Principal
 {
-#if PROJECTN
-    [Internal.Runtime.CompilerServices.RelocatedType("System.Security.Principal")]
-#endif
     public interface IPrincipal
     {
         // Retrieve the identity object
-        IIdentity Identity { get; }
+        IIdentity? Identity { get; }
 
         // Perform a check for a specific role
         bool IsInRole(string role);

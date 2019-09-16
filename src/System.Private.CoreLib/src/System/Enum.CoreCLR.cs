@@ -12,16 +12,16 @@ namespace System
     public abstract partial class Enum
     {
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetEnumValuesAndNames(RuntimeTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, bool getNames);
+        private static extern void GetEnumValuesAndNames(QCallTypeHandle enumType, ObjectHandleOnStack values, ObjectHandleOnStack names, Interop.BOOL getNames);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        public override extern bool Equals(object obj);
+        public extern override bool Equals(object? obj);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object InternalBoxEnum(RuntimeType enumType, long value);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern int InternalCompareTo(object o1, object o2);
+        private static extern int InternalCompareTo(object thisRef, object? target);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern CorElementType InternalGetCorElementType();
@@ -49,20 +49,21 @@ namespace System
 
         private static EnumInfo GetEnumInfo(RuntimeType enumType, bool getNames = true)
         {
-            EnumInfo entry = enumType.GenericCache as EnumInfo;
+            EnumInfo? entry = enumType.GenericCache as EnumInfo;
 
             if (entry == null || (getNames && entry.Names == null))
             {
-                ulong[] values = null;
-                string[] names = null;
+                ulong[]? values = null;
+                string[]? names = null;
+                RuntimeTypeHandle enumTypeHandle = enumType.GetTypeHandleInternal();
                 GetEnumValuesAndNames(
-                    enumType.GetTypeHandleInternal(),
+                    JitHelpers.GetQCallTypeHandleOnStack(ref enumTypeHandle),
                     JitHelpers.GetObjectHandleOnStack(ref values),
                     JitHelpers.GetObjectHandleOnStack(ref names),
-                    getNames);
+                    getNames ? Interop.BOOL.TRUE : Interop.BOOL.FALSE);
                 bool hasFlagsAttribute = enumType.IsDefined(typeof(FlagsAttribute), inherit: false);
 
-                entry = new EnumInfo(hasFlagsAttribute, values, names);
+                entry = new EnumInfo(hasFlagsAttribute, values!, names!);
                 enumType.GenericCache = entry;
             }
 
@@ -95,7 +96,7 @@ namespace System
             return InternalHasFlag(flag);
         }
 
-        public static string GetName(Type enumType, object value)
+        public static string? GetName(Type enumType, object value)
         {
             if (enumType == null)
                 throw new ArgumentNullException(nameof(enumType));
@@ -146,7 +147,7 @@ namespace System
             return rtType;
         }
 
-        public int CompareTo(object target)
+        public int CompareTo(object? target)
         {
             const int retIncompatibleMethodTables = 2;  // indicates that the method tables did not match
             const int retInvalidEnumType = 3; // indicates that the enum was of an unknown/unsupported underlying type
@@ -164,7 +165,7 @@ namespace System
             else if (ret == retIncompatibleMethodTables)
             {
                 Type thisType = this.GetType();
-                Type targetType = target.GetType();
+                Type targetType = target!.GetType();
 
                 throw new ArgumentException(SR.Format(SR.Arg_EnumAndObjectMustBeSameType, targetType, thisType));
             }

@@ -77,30 +77,6 @@ inline void Thread::SetThrowable(OBJECTREF pThrowable DEBUG_ARG(ThreadExceptionS
     m_ExceptionState.SetThrowable(pThrowable DEBUG_ARG(stecFlags));
 }
 
-inline void Thread::SetKickOffDomainId(ADID ad)
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    m_pKickOffDomainId = ad;
-}
-
-
-inline ADID Thread::GetKickOffDomainId()
-{
-    CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-    _ASSERTE(m_pKickOffDomainId.m_dwId != 0);
-    return m_pKickOffDomainId;
-}
-
 // get the current notification (if any) from this thread
 inline OBJECTHANDLE Thread::GetThreadCurrNotification()
 {
@@ -206,5 +182,38 @@ inline void Thread::SetGCSpecial(bool fGCSpecial)
     LIMITED_METHOD_CONTRACT;
     m_fGCSpecial = fGCSpecial;
 }
+
+#if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
+
+inline Thread::CurrentPrepareCodeConfigHolder::CurrentPrepareCodeConfigHolder(Thread *thread, PrepareCodeConfig *config)
+    : m_thread(thread)
+#ifdef _DEBUG
+    , m_config(config)
+#endif
+{
+    LIMITED_METHOD_CONTRACT;
+    _ASSERTE(thread != nullptr);
+    _ASSERTE(thread == GetThread());
+    _ASSERTE(config != nullptr);
+
+    PrepareCodeConfig *previousConfig = thread->m_currentPrepareCodeConfig;
+    if (previousConfig != nullptr)
+    {
+        config->SetNextInSameThread(previousConfig);
+    }
+    thread->m_currentPrepareCodeConfig = config;
+}
+
+inline Thread::CurrentPrepareCodeConfigHolder::~CurrentPrepareCodeConfigHolder()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    PrepareCodeConfig *config = m_thread->m_currentPrepareCodeConfig;
+    _ASSERTE(config == m_config);
+    m_thread->m_currentPrepareCodeConfig = config->GetNextInSameThread();
+    config->SetNextInSameThread(nullptr);
+}
+
+#endif // !DACCESS_COMPILE && !CROSSGEN_COMPILE
 
 #endif

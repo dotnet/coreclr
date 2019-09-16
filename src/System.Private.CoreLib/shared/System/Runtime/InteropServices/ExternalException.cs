@@ -6,13 +6,12 @@
 **
 **
 **
-** Purpose: Exception base class for all errors from Interop or Structured 
+** Purpose: Exception base class for all errors from Interop or Structured
 **          Exception Handling code.
 **
 **
 =============================================================================*/
 
-using System;
 using System.Globalization;
 using System.Runtime.Serialization;
 
@@ -30,19 +29,19 @@ namespace System.Runtime.InteropServices
             HResult = HResults.E_FAIL;
         }
 
-        public ExternalException(string message)
+        public ExternalException(string? message)
             : base(message)
         {
             HResult = HResults.E_FAIL;
         }
 
-        public ExternalException(string message, Exception inner)
+        public ExternalException(string? message, Exception? inner)
             : base(message, inner)
         {
             HResult = HResults.E_FAIL;
         }
 
-        public ExternalException(string message, int errorCode)
+        public ExternalException(string? message, int errorCode)
             : base(message)
         {
             HResult = errorCode;
@@ -53,13 +52,7 @@ namespace System.Runtime.InteropServices
         {
         }
 
-        public virtual int ErrorCode
-        {
-            get
-            {
-                return HResult;
-            }
-        }
+        public virtual int ErrorCode => HResult;
 
         public override string ToString()
         {
@@ -68,16 +61,15 @@ namespace System.Runtime.InteropServices
 
             string s = className + " (0x" + HResult.ToString("X8", CultureInfo.InvariantCulture) + ")";
 
-            if (!(string.IsNullOrEmpty(message)))
+            if (!string.IsNullOrEmpty(message))
             {
                 s = s + ": " + message;
             }
 
-            Exception innerException = InnerException;
-
+            Exception? innerException = InnerException;
             if (innerException != null)
             {
-                s = s + " ---> " + innerException.ToString();
+                s = s + Environment.NewLine + InnerExceptionPrefix + innerException.ToString();
             }
 
             if (StackTrace != null)

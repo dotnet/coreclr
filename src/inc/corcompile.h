@@ -18,16 +18,6 @@
 #ifndef _COR_COMPILE_H_
 #define _COR_COMPILE_H_
 
-#ifndef FEATURE_PREJIT
-#error FEATURE_PREJIT is required for this file
-#endif // FEATURE_PREJIT
-
-#if !defined(_TARGET_X86_) || defined(FEATURE_PAL)
-#ifndef WIN64EXCEPTIONS
-#define WIN64EXCEPTIONS
-#endif
-#endif  // !_TARGET_X86_ || FEATURE_PAL
-
 #include <cor.h>
 #include <corhdr.h>
 #include <corinfo.h>
@@ -698,13 +688,14 @@ enum CORCOMPILE_FIXUP_BLOB_KIND
 
     ENCODE_DECLARINGTYPE_HANDLE,
 
+    ENCODE_INDIRECT_PINVOKE_TARGET,                 /* For calling a pinvoke method ptr  */
+
     ENCODE_MODULE_HANDLE                = 0x50,     /* Module token */
     ENCODE_STATIC_FIELD_ADDRESS,                    /* For accessing a static field */
     ENCODE_MODULE_ID_FOR_STATICS,                   /* For accessing static fields */
     ENCODE_MODULE_ID_FOR_GENERIC_STATICS,           /* For accessing static fields */
     ENCODE_CLASS_ID_FOR_STATICS,                    /* For accessing static fields */
     ENCODE_SYNC_LOCK,                               /* For synchronizing access to a type */
-    ENCODE_INDIRECT_PINVOKE_TARGET,                 /* For calling a pinvoke method ptr  */
     ENCODE_PROFILING_HANDLE,                        /* For the method's profiling counter */
     ENCODE_VARARGS_METHODDEF,                       /* For calling a varargs method */
     ENCODE_VARARGS_METHODREF,
@@ -775,7 +766,7 @@ struct CORCOMPILE_EXCEPTION_CLAUSE
 
 struct CORCOMPILE_COLD_METHOD_ENTRY
 {
-#ifdef WIN64EXCEPTIONS
+#ifdef FEATURE_EH_FUNCLETS
     DWORD       mainFunctionEntryRVA;
 #endif
     // TODO: hotCodeSize should be encoded in GC info
@@ -1416,8 +1407,6 @@ typedef DWORD (*ENCODEMODULE_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HAN
 // Define function pointer DEFINETOKEN_CALLBACK
 typedef void (*DEFINETOKEN_CALLBACK)(LPVOID pModuleContext, CORINFO_MODULE_HANDLE moduleHandle, DWORD index, mdTypeRef* token);
 
-typedef HRESULT (*CROSS_DOMAIN_CALLBACK)(LPVOID pArgs);
-
 class ICorCompileInfo
 {
   public:
@@ -1454,13 +1443,6 @@ class ICorCompileInfo
             BOOL fForceDebug,
             BOOL fForceProfiling,
             BOOL fForceInstrument
-            ) = 0;
-
-    // calls pfnCallback in the specified domain
-    virtual HRESULT MakeCrossDomainCallback(
-            ICorCompilationDomain*  pDomain,
-            CROSS_DOMAIN_CALLBACK   pfnCallback,
-            LPVOID                  pArgs
             ) = 0;
 
     // Destroys a compilation domain
@@ -1768,6 +1750,11 @@ class ICorCompileInfo
     virtual int GetVersionResilientTypeHashCode(CORINFO_MODULE_HANDLE moduleHandle, mdToken token) = 0;
 
     virtual int GetVersionResilientMethodHashCode(CORINFO_METHOD_HANDLE methodHandle) = 0;
+
+    virtual BOOL EnumMethodsForStub(CORINFO_METHOD_HANDLE hMethod, void** enumerator) = 0;
+    virtual BOOL EnumNextMethodForStub(void * enumerator, CORINFO_METHOD_HANDLE *hMethod) = 0;
+    virtual void EnumCloseForStubEnumerator(void *enumerator) = 0;
+
 #endif
 
     virtual BOOL HasCustomAttribute(CORINFO_METHOD_HANDLE method, LPCSTR customAttributeName) = 0;

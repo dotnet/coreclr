@@ -176,6 +176,18 @@ namespace Server.Contract
         void Reverse_BStr_Out([MarshalAs(UnmanagedType.BStr)] string a, [MarshalAs(UnmanagedType.BStr)] out string b);
 
         void Reverse_BStr_OutAttr([MarshalAs(UnmanagedType.BStr)] string a, [Out][MarshalAs(UnmanagedType.BStr)] string b);
+
+        [LCIDConversion(1)]
+        [return: MarshalAs(UnmanagedType.LPWStr)]
+        string Reverse_LPWStr_With_LCID([MarshalAs(UnmanagedType.LPWStr)] string a);
+
+        [LCIDConversion(0)]
+        void Pass_Through_LCID(out int lcid);
+    }
+
+    public struct HResult
+    {
+        public int hr;
     }
 
     [ComVisible(true)]
@@ -187,6 +199,9 @@ namespace Server.Contract
 
         [PreserveSig]
         int Return_As_HResult(int hresultToReturn);
+
+        [PreserveSig]
+        HResult Return_As_HResult_Struct(int hresultToReturn);
     }
 
     public enum IDispatchTesting_Exception
@@ -231,6 +246,9 @@ namespace Server.Contract
 
         // Special cases
         HFA_4 DoubleHVAValues(ref HFA_4 input);
+
+        [LCIDConversion(0)]
+        int PassThroughLCID();
     }
 
     [ComVisible(true)]
@@ -285,6 +303,22 @@ namespace Server.Contract
         string GetLicense();
 
         void SetNextLicense([MarshalAs(UnmanagedType.LPWStr)] string lic);
+    }
+
+    /// <remarks>
+    /// This interface is used to test consumption of the NET server from a NET client only.
+    /// </remarks>
+    [ComVisible(true)]
+    [Guid("CCBC1915-3252-4F6B-98AA-411CE6213D94")]
+    [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    public interface IConsumeNETServer
+    {
+        IntPtr GetCCW();
+        object GetRCW();
+        void ReleaseResources();
+
+        bool EqualByCCW(object obj);
+        bool NotEqualByRCW(object obj);
     }
 }
 

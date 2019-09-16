@@ -9,8 +9,10 @@
 ** (i.e. the finalizer is guaranteed to run, won't be aborted by the host and is
 ** run after the finalizers of other objects collected at the same time).
 **
-** 
+**
 ===========================================================*/
+
+using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.ConstrainedExecution
 {
@@ -20,7 +22,7 @@ namespace System.Runtime.ConstrainedExecution
         {
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1821:RemoveEmptyFinalizers")]
+        [SuppressMessage("Microsoft.Performance", "CA1821:RemoveEmptyFinalizers")]
         ~CriticalFinalizerObject()
         {
         }

@@ -125,7 +125,6 @@ parser.add_argument("--large_version_bubble", dest="large_version_bubble", actio
 parser.add_argument("--precompile_core_root", dest="precompile_core_root", action="store_true", default=False)
 parser.add_argument("--sequential", dest="sequential", action="store_true", default=False)
 
-parser.add_argument("--build_xunit_test_wrappers", dest="build_xunit_test_wrappers", action="store_true", default=False)
 parser.add_argument("--generate_layout", dest="generate_layout", action="store_true", default=False)
 parser.add_argument("--generate_layout_only", dest="generate_layout_only", action="store_true", default=False)
 parser.add_argument("--analyze_results_only", dest="analyze_results_only", action="store_true", default=False)
@@ -141,7 +140,6 @@ parser.add_argument("-test_native_bin_location", dest="test_native_bin_location"
 ################################################################################
 
 g_verbose = False
-gc_stress_c = False
 gc_stress = False
 coredump_pattern = ""
 file_name_cache = defaultdict(lambda: None)
@@ -451,7 +449,6 @@ def create_and_use_test_env(_os, env, func):
         on windows, until xunit is used on unix there is no managed code run
         in runtest.sh.
     """
-    global gc_stress_c
     global gc_stress
 
     ret_code = 0
@@ -507,9 +504,6 @@ def create_and_use_test_env(_os, env, func):
                 else:
                     command = "export"
 
-                if key.lower() == "complus_gcstress" and "c" in value.lower():
-                    gc_stress_c = True
-
                 if key.lower() == "complus_gcstress":
                     gc_stress = True
 
@@ -560,7 +554,6 @@ def get_environment(test_env=None):
         On Windows, os.environ keys (the environment variable names) are all upper case,
         and map lookup is case-insensitive on the key.
     """
-    global gc_stress_c
     global gc_stress
 
     complus_vars = defaultdict(lambda: "")
@@ -600,9 +593,6 @@ def get_environment(test_env=None):
 
         if "complus_gcstress" in complus_vars:
             gc_stress = True
-
-        if "c" in complus_vars["COMPlus_GCStress"].lower():
-            gc_stress_c = True
 
     return complus_vars
 
@@ -698,87 +688,6 @@ def call_msbuild(coreclr_repo_location,
         inspect_and_delete_coredump_files(host_os, arch, test_location)
 
     return proc.returncode
-
-def running_in_ci():
-    """ Check if running in ci
-
-    Returns:
-        bool
-    """
-
-    is_ci = False
-
-    try:
-        jenkins_build_number = os.environ["BUILD_NUMBER"]
-
-        is_ci = True
-    except:
-        pass
-
-    return is_ci
-
-def copy_native_test_bin_to_core_root(host_os, path, core_root):
-    """ Recursively copy all files to core_root
-    
-    Args:
-        host_os(str)    : os
-        path(str)       : native test bin location
-        core_root(str)  : core_root location
-    """
-    assert os.path.isdir(path) or os.path.isfile(path)
-    assert os.path.isdir(core_root)
-
-    extension = "so" if host_os == "Linux" else "dylib"
-
-    if os.path.isdir(path):
-        for item in os.listdir(path):
-            copy_native_test_bin_to_core_root(host_os, os.path.join(path, item), core_root)
-    elif path.endswith(extension):
-        print("cp -p %s %s" % (path, core_root))
-        shutil.copy2(path, core_root)
-
-def correct_line_endings(host_os, test_location, root=True):
-    """ Recursively correct all .sh/.cmd files to the correct line ending
-
-    Args:
-        host_os(str)        : os
-        test_location(str)  : location of the tests
-    """
-    if root:
-        print("Correcting line endings...")
-
-    assert os.path.isdir(test_location) or os.path.isfile(test_location)
-
-    extension = "cmd" if host_os == "Windows_NT" else ".sh"
-    incorrect_line_ending = '\n' if host_os == "Windows_NT" else '\r\n'
-    correct_line_ending = os.linesep
-
-    if os.path.isdir(test_location):
-        for item in os.listdir(test_location):
-            correct_line_endings(host_os, os.path.join(test_location, item), False)
-    elif test_location.endswith(extension):
-        if sys.version_info < (3,0):
-
-            content = None
-            with open(test_location) as file_handle:
-                content = file_handle.read()
-     
-            assert content != None
-            subbed_content = content.replace(incorrect_line_ending, correct_line_ending)
-
-            if content != subbed_content:
-                with open(test_location, 'w') as file_handle:
-                    file_handle.write(subbed_content)
-
-        else:
-            # Python3 will correct line endings automatically.
- 
-            content = None
-            with open(test_location) as file_handle:
-                content = file_handle.read()
-     
-            with open(test_location, 'w') as file_handle:
-                file_handle.write(content)
 
 def setup_coredump_generation(host_os):
     """ Configures the environment so that the current process and any child
@@ -1075,7 +984,7 @@ def run_tests(host_os,
     if run_in_context:
         print("Running test in an unloadable AssemblyLoadContext")
         os.environ["CLRCustomTestLauncher"] = os.path.join(coreclr_repo_location, "tests", "scripts", "runincontext%s" % (".cmd" if host_os == "Windows_NT" else ".sh"))
-        os.environ["__RunInUnloadableContext"] = "1";
+        os.environ["RunInUnloadableContext"] = "1";
         per_test_timeout = 20*60*1000
 
     # Set __TestTimeout environment variable, which is the per-test timeout in milliseconds.
@@ -1217,11 +1126,6 @@ def setup_args(args):
                                       "Error setting test location.")
 
     coreclr_setup_args.verify(args,
-                              "build_xunit_test_wrappers",
-                              lambda arg: True,
-                              "Error setting build_xunit_test_wrappers")
-
-    coreclr_setup_args.verify(args,
                               "generate_layout_only",
                               lambda arg: True,
                               "Error setting generate_layout_only")
@@ -1309,11 +1213,6 @@ def setup_args(args):
                               "sequential",
                               lambda arg: True,
                               "Error setting sequential")
-    
-    coreclr_setup_args.verify(args,
-                              "build_xunit_test_wrappers",
-                              lambda arg: True,
-                              "Error setting build_xunit_test_wrappers")
     
     coreclr_setup_args.verify(args,
                               "verbose",
@@ -1407,41 +1306,6 @@ def setup_tools(host_os, coreclr_repo_location):
         setup = True
 
     return setup
-
-def setup_coredis_tools(coreclr_repo_location, host_os, arch, core_root):
-    """ Setup CoreDisTools if needed
-
-    Args:
-        coreclr_repo_location(str)  : coreclr repo location
-        host_os(str)                : os
-        arch(str)                   : arch
-        core_root(str)              : core_root
-    """
-
-    if host_os.lower() == "osx":
-        print("GCStress C is not supported on your platform.")
-        sys.exit(1)
-
-    unsupported_arches = ["arm", "arm64"]
-
-    if arch in unsupported_arches:
-        # Nothing to do; CoreDisTools unneeded.
-        return
-
-    command = None
-    test_location = os.path.join(coreclr_repo_location, "tests")
-    if host_os == "Windows_NT":
-        command = [os.path.join(test_location, "setup-stress-dependencies.cmd"), "/arch", arch, "/outputdir", core_root]
-    else:
-        command = [os.path.join(test_location, "setup-stress-dependencies.sh"), "--outputDir=%s" % core_root]
-
-    sys.stdout.flush() # flush output before creating sub-process
-    proc = subprocess.Popen(command)
-    proc.communicate()
-
-    if proc.returncode != 0:
-        print("Failed to set up stress dependencies.")
-        sys.exit(1)
 
 def precompile_core_root(test_location,
                          host_os,
@@ -1563,9 +1427,7 @@ def setup_core_root(host_os,
                     test_native_bin_location,
                     product_location,
                     test_location,
-                    core_root,
-                    is_corefx=False,
-                    generate_layout=True):
+                    core_root):
     """ Setup the core root
 
     Args:
@@ -1575,12 +1437,6 @@ def setup_core_root(host_os,
         coreclr_repo_location(str)  : coreclr repo location
         product_location(str)       : Product location
         core_root(str)              : Location for core_root
-        is_corefx                   : Building corefx core_root
-
-    Optional Args:
-        is_corefx(Bool)             : Pass if planning on running corex
-                                    : tests
-
     """
     global g_verbose
 
@@ -1754,67 +1610,6 @@ def setup_core_root(host_os,
     copy_tree(product_location, core_root)
     print("---------------------------------------------------------------------")
     print("")
-
-    if is_corefx:
-        corefx_utility_setup = os.path.join(coreclr_repo_location,
-                                            "src",
-                                            "Common",
-                                            "CoreFX",
-                                            "TestFileSetup",
-                                            "CoreFX.TestUtils.TestFileSetup.csproj")
-
-        os.environ["__BuildLogRootName"] = "Tests_GenerateTestHost"
-        msbuild_command = [dotnetcli_location,
-                           "msbuild",
-                           os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
-                           "/p:GenerateRuntimeLayout=true"]
-
-        sys.stdout.flush() # flush output before creating sub-process
-        proc = subprocess.Popen(msbuild_command)
-        proc.communicate()
-
-        if proc.returncode != 0:
-            print("Error: generating test host failed.")
-            return False
-
-        os.environ["__BuildLogRootName"] = ""
-
-        msbuild_command = [dotnetcli_location,
-                           "msbuild",
-                           "/t:Restore",
-                           corefx_utility_setup]
-
-        sys.stdout.flush() # flush output before creating sub-process
-        proc = subprocess.Popen(msbuild_command)
-        proc.communicate()
-
-        if proc.returncode != 0:
-            print("Error: msbuild failed.")
-            return False
-
-        corefx_logpath = os.path.join(coreclr_repo_location, 
-                                      "bin", 
-                                      "tests", 
-                                      "%s.%s.%s" % (host_os, arch, build_type), 
-                                      "CoreFX",
-                                      "CoreFXTestUtilities")
-
-        msbuild_command = [dotnetcli_location,
-                           "msbuild",
-                           "/p:Configuration=%s" % build_type,
-                           "/p:OSGroup=%s" % host_os,
-                           "/p:Platform=%s" % arch,
-                           "/p:OutputPath=%s" % corefx_logpath,
-                           corefx_utility_setup]
-
-        sys.stdout.flush() # flush output before creating sub-process
-        proc = subprocess.Popen(msbuild_command)
-        proc.communicate()
-
-        if proc.returncode != 0:
-            print("Error: msbuild failed.")
-            return False
-
     print("Core_Root setup.")
     print("")
 
@@ -1846,114 +1641,6 @@ def delete_existing_wrappers(test_location):
 
         print("rm %s" % test_location)
         os.remove(test_location)
-
-def build_test_wrappers(host_os, 
-                        arch, 
-                        build_type, 
-                        coreclr_repo_location,
-                        test_location,
-                        altjit_arch=None):
-    """ Build the coreclr test wrappers
-
-    Args:
-        host_os(str)                : os
-        arch(str)                   : architecture
-        build_type(str)             : build configuration
-        coreclr_repo_location(str)  : coreclr repo location
-        test_location(str)          : location of the test
-
-    Notes:
-        Build the xUnit test wrappers. Note that this will have been done as a
-        part of build-test.cmd/sh. It is possible that the host has a different
-        set of dependencies from the target or the exclude list has changed
-        after building.
-
-    """
-    global g_verbose
-
-    delete_existing_wrappers(to_unicode(test_location))
-
-    # Setup the dotnetcli location
-    dotnetcli_location = os.path.join(coreclr_repo_location, "dotnet%s" % (".cmd" if host_os == "Windows_NT" else ".sh"))
-
-    # Set global env variables.
-    os.environ["__BuildLogRootName"] = "Tests_XunitWrapper"
-    os.environ["__Exclude"] = os.path.join(coreclr_repo_location, "tests", "issues.targets")
-
-    command = [dotnetcli_location,
-               "msbuild",
-               os.path.join(coreclr_repo_location, "tests", "runtest.proj"),
-               "/p:RestoreAdditionalProjectSources=https://dotnet.myget.org/F/dotnet-core/",
-               "/p:BuildWrappers=true",
-               "/p:TargetsWindows=%s" % ("true" if host_os == "Windows_NT" else "false")]
-
-    logs_dir = os.path.join(coreclr_repo_location, "bin", "Logs")
-    if not os.path.isdir(logs_dir):
-        os.makedirs(logs_dir)
-
-    log_path = os.path.join(logs_dir, "Tests_XunitWrapper%s_%s_%s" % (host_os, arch, build_type))
-    build_log = log_path + ".log"
-    wrn_log = log_path + ".wrn"
-    err_log = log_path + ".err"
-
-    command += ["/fileloggerparameters:\"Verbosity=normal;LogFile=%s\"" % build_log,
-                "/fileloggerparameters1:\"WarningsOnly;LogFile=%s\"" % wrn_log,
-                "/fileloggerparameters2:\"ErrorsOnly;LogFile=%s\"" % err_log,
-                "/consoleloggerparameters:Summary"]
-
-    command += ["/p:__BuildOS=%s" % host_os,
-                "/p:__BuildArch=%s" % arch,
-                "/p:__BuildType=%s" % build_type,
-                "/p:__LogsDir=%s" % logs_dir]
-
-    if not altjit_arch is None:
-        command += ["/p:__AltJitArch=%s" % altjit_arch]
-
-    print("Creating test wrappers...")
-    print(" ".join(command))
-
-    sys.stdout.flush() # flush output before creating sub-process
-    if not g_verbose:
-        proc = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        if not running_in_ci():
-            try:
-                expected_time_to_complete = 60*5 # 5 Minutes
-                estimated_time_running = 0
-
-                time_delta = 1
-
-                while True:
-                    time_remaining = expected_time_to_complete - estimated_time_running
-                    time_in_minutes = math.floor(time_remaining / 60)
-                    remaining_seconds = time_remaining % 60
-
-                    sys.stdout.write("\rEstimated time remaining: %d minutes %d seconds" % (time_in_minutes, remaining_seconds))
-                    sys.stdout.flush()
-
-                    time.sleep(time_delta)
-                    estimated_time_running += time_delta
-
-                    if estimated_time_running == expected_time_to_complete:
-                        break
-                    if proc.poll() is not None:
-                        break
-
-            except KeyboardInterrupt:
-                proc.kill()
-                sys.exit(1)
-    else:
-        proc = subprocess.Popen(command)
-
-    try:
-        proc.communicate()
-    except KeyboardInterrupt:
-        proc.kill()
-        sys.exit(1)
-
-    if proc.returncode != 0:
-        print("Error: creating test wrappers failed.")
-        return False
 
 def find_test_from_name(host_os, test_location, test_name):
     """ Given a test's name return the location on disk
@@ -2098,11 +1785,6 @@ def parse_test_results(host_os, arch, build_type, coreclr_repo_location, test_lo
 
             return
 
-    if host_os != "Windows_NT" and running_in_ci():
-        # Huge hack.
-        # TODO change netci to parse testRun.xml
-        shutil.copy2(test_run_location, os.path.join(os.path.dirname(test_run_location), "coreclrtests.xml"))
-
     assemblies = xml.etree.ElementTree.parse(test_run_location).getroot()
 
     tests = defaultdict(lambda: None)
@@ -2132,8 +1814,7 @@ def parse_test_results(host_os, arch, build_type, coreclr_repo_location, test_lo
 
                 if failed == "1":
                     failure_info = collection[0][0]
-
-                    test_output = failure_info[0].text
+                    test_output = failure_info.text
 
                 test_location_on_filesystem = find_test_from_name(host_os, test_location, test_name)
 
@@ -2352,11 +2033,7 @@ def do_setup(host_os,
 
     if unprocessed_args.precompile_core_root:
         precompile_core_root(test_location, host_os, arch, core_root, use_jit_disasm=args.jitdisasm, altjit_name=unprocessed_args.crossgen_altjit)
-
-    # If COMPlus_GCStress is set then we need to setup cordistools
-    if gc_stress_c:
-        setup_coredis_tools(coreclr_repo_location, host_os, arch, core_root)
-    
+  
     build_info = None
     is_same_os = None
     is_same_arch = None
@@ -2371,25 +2048,9 @@ def do_setup(host_os,
         is_same_arch = build_info["build_arch"] == arch
         is_same_build_type = build_info["build_type"] == build_type
 
-    # Copy all the native libs to core_root
-    if host_os != "Windows_NT"  and not (is_same_os and is_same_arch and is_same_build_type):
-        copy_native_test_bin_to_core_root(host_os, os.path.join(test_native_bin_location, "src"), core_root)
-
-        # Line ending only need to be corrected if this is a cross build.
-        correct_line_endings(host_os, test_location)
-
     # If we are inside altjit scenario, we ought to re-build Xunit test wrappers to consider
     # ExcludeList items in issues.targets for both build arch and altjit arch
     is_altjit_scenario = not args.altjit_arch is None
-
-    if unprocessed_args.build_xunit_test_wrappers:
-        build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
-    elif build_info is None:
-        build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
-    elif not (is_same_os and is_same_arch and is_same_build_type):
-        build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location)
-    elif is_altjit_scenario:
-        build_test_wrappers(host_os, arch, build_type, coreclr_repo_location, test_location, args.altjit_arch)
 
     return run_tests(host_os, 
                      arch,

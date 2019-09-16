@@ -192,6 +192,14 @@ FCIMPL0(UINT32, SystemNative::GetTickCount)
 }
 FCIMPLEND;
 
+FCIMPL0(UINT64, SystemNative::GetTickCount64)
+{
+    FCALL_CONTRACT;
+
+    return ::GetTickCount64();
+}
+FCIMPLEND;
+
 
 
 
@@ -277,7 +285,7 @@ FCIMPL0(Object*, SystemNative::GetCommandLineArgs)
     {
         STRINGREF str = StringObject::NewString(argv[i]);
         STRINGREF * destData = ((STRINGREF*)(strArray->GetDataPtr())) + i;
-        SetObjectReference((OBJECTREF*)destData, (OBJECTREF)str, strArray->GetAppDomain());
+        SetObjectReference((OBJECTREF*)destData, (OBJECTREF)str);
     }
     delete [] argv;
 
@@ -325,13 +333,14 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
 
     BEGIN_QCALL;
 
+#ifndef FEATURE_PAL
     CPUGroupInfo::EnsureInitialized();
 
     if(CPUGroupInfo::CanEnableThreadUseAllCpuGroups())
     {
         processorCount = CPUGroupInfo::GetNumActiveProcessors();
     }
-
+#endif // !FEATURE_PAL
     // Processor count will be 0 if CPU groups are disabled/not supported
     if(processorCount == 0)
     {
@@ -343,29 +352,10 @@ INT32 QCALLTYPE SystemNative::GetProcessorCount()
         processorCount = systemInfo.dwNumberOfProcessors;
     }
 
-#ifdef FEATURE_PAL
-    uint32_t cpuLimit;
-
-    if (PAL_GetCpuLimit(&cpuLimit) && cpuLimit < (uint32_t)processorCount)
-        processorCount = cpuLimit;
-#endif
-
     END_QCALL;
 
     return processorCount;
 }
-
-FCIMPL0(FC_BOOL_RET, SystemNative::HasShutdownStarted)
-{
-    FCALL_CONTRACT;
-
-    // Return true if the EE has started to shutdown and is now going to
-    // aggressively finalize objects referred to by static variables OR
-    // if someone is unloading the current AppDomain AND we have started
-    // finalizing objects referred to by static variables.
-    FC_RETURN_BOOL(g_fEEShutDown & ShutDown_Finalize2);
-}
-FCIMPLEND
 
 // FailFast is supported in BCL.small as internal to support failing fast in places where EEE used to be thrown.
 //

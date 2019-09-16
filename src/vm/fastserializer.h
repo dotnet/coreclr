@@ -16,7 +16,7 @@ class IpcStream;
 
 // the enumeration has a specific set of values to keep it compatible with consumer library
 // it's sibling is defined in https://github.com/Microsoft/perfview/blob/10d1f92b242c98073b3817ac5ee6d98cd595d39b/src/FastSerialization/FastSerialization.cs#L2295
-enum class FastSerializerTags : BYTE
+enum class FastSerializerTags : uint8_t
 {
     Error              = 0, // To improve debugabilty, 0 is an illegal tag.
     NullReference      = 1, // Tag for a null object forwardReference.
@@ -53,16 +53,16 @@ public:
 class IpcStreamWriter final : public StreamWriter
 {
 public:
-    IpcStreamWriter(IpcStream *pStream);
+    IpcStreamWriter(uint64_t id, IpcStream *pStream);
     ~IpcStreamWriter();
     bool Write(const void *lpBuffer, const uint32_t nBytesToWrite, uint32_t &nBytesWritten) const;
 
 private:
-    IpcStream *const _pStream;
+    IpcStream *_pStream;
 };
 
 //!
-//! Implements a StreamWriter for writing bytes to an File.
+//! Implements a StreamWriter for writing bytes to a File.
 //!
 class FileStreamWriter final : public StreamWriter
 {
@@ -86,10 +86,16 @@ public:
     void WriteTag(FastSerializerTags tag, BYTE *payload = NULL, unsigned int payloadLength = 0);
     void WriteString(const char *strContents, unsigned int length);
 
-    size_t GetCurrentPosition() const
+    unsigned int GetRequiredPadding() const
     {
         LIMITED_METHOD_CONTRACT;
-        return m_currentPos;
+        return m_requiredPadding;
+    }
+
+    bool HasWriteErrors() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_writeErrorEncountered;
     }
 
 private:
@@ -98,7 +104,7 @@ private:
 
     StreamWriter *const m_pStreamWriter;
     bool m_writeErrorEncountered;
-    size_t m_currentPos;
+    unsigned int m_requiredPadding;
 };
 
 #endif // FEATURE_PERFTRACING

@@ -1,8 +1,12 @@
 @if not defined _echo @echo off
 setlocal
 
+:: Clear the 'Platform' environment variable for this session
+:: This avoids overriding the default value from BuildTools projects used for initialization
+set Platform=
+
 set INIT_TOOLS_LOG=%~dp0init-tools.log
-if [%PACKAGES_DIR%]==[] set PACKAGES_DIR=%~dp0packages
+if [%PACKAGES_DIR%]==[] set PACKAGES_DIR=%~dp0.packages
 if [%TOOLRUNTIME_DIR%]==[] set TOOLRUNTIME_DIR=%~dp0Tools
 set DOTNET_PATH=%~dp0.dotnet\
 if [%DOTNET_CMD%]==[] set DOTNET_CMD=%DOTNET_PATH%dotnet.exe
@@ -32,7 +36,7 @@ if exist "%DotNetBuildToolsDir%" (
   mklink /j "%TOOLRUNTIME_DIR%" "%DotNetBuildToolsDir%"
 
   if not exist "%DOTNET_CMD%" (
-    echo ERROR: Ensure that '%DotNetBuildToolsDir%' contains the .NET Core SDK at '%DOTNET_PATH%'
+    echo %__ErrMsgPrefix%ERROR: Ensure that '%DotNetBuildToolsDir%' contains the .NET Core SDK at '%DOTNET_PATH%'
     exit /b 1
   )
 
@@ -50,7 +54,7 @@ if exist "%DOTNET_CMD%" goto :afterdotnetrestore
 REM Use x86 tools on arm64 and x86.
 REM arm32 host is not currently supported, please crossbuild.
 if /i "%PROCESSOR_ARCHITECTURE%" == "arm" (
-  echo "Error, arm32 arch not supported for build tools."
+  echo %__ErrMsgPrefix%ERROR: arm32 arch not supported for build tools.
   exit /b 1
 )
 
@@ -71,13 +75,10 @@ echo "init-tools.cmd: Setting arch to %_Arch% for build tools"
 
 :ArchSet
 
-echo Installing dotnet cli...
-set PS_DOTNET_INSTALL_SCRIPT=". %~dp0eng\configure-toolset.ps1; . %~dp0eng\common\tools.ps1; InitializeBuildTool"
 if NOT exist "%DOTNET_CMD%" (
-  echo running: powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%
-  powershell -NoProfile -ExecutionPolicy unrestricted -Command %PS_DOTNET_INSTALL_SCRIPT%
+  call %~dp0init-dotnet.cmd
   if NOT exist "%DOTNET_CMD%" (
-    echo ERROR: Could not install dotnet cli correctly. 1>&2
+    echo %__ErrMsgPrefix%ERROR: Could not install dotnet cli correctly. Expected to be installed at %DOTNET_CMD% 1>&2
     goto :error
   )
 )
@@ -98,7 +99,7 @@ echo Restoring BuildTools version %BUILDTOOLS_VERSION%...
 echo Running: "%DOTNET_CMD%" restore "%INIT_TOOLS_RESTORE_PROJECT%" --no-cache --packages "%PACKAGES_DIR%" --source "%BUILDTOOLS_SOURCE%" /p:BuildToolsPackageVersion=%BUILDTOOLS_VERSION% /p:ToolsDir=%TOOLRUNTIME_DIR% >> "%INIT_TOOLS_LOG%"
 call "%DOTNET_CMD%" restore "%INIT_TOOLS_RESTORE_PROJECT%" --no-cache --packages "%PACKAGES_DIR%" --source "%BUILDTOOLS_SOURCE%" /p:BuildToolsPackageVersion=%BUILDTOOLS_VERSION% /p:ToolsDir=%TOOLRUNTIME_DIR% >> "%INIT_TOOLS_LOG%"
 if NOT exist "%BUILD_TOOLS_PATH%\init-tools.cmd" (
-  echo ERROR: Could not restore build tools correctly. 1>&2
+  echo %__ErrMsgPrefix%ERROR: Could not restore build tools correctly. 1>&2
   goto :error
 )
 
@@ -112,7 +113,7 @@ echo Running: "%BUILD_TOOLS_PATH%\init-tools.cmd" "%~dp0" "%DOTNET_CMD%" "%TOOLR
 call "%BUILD_TOOLS_PATH%\init-tools.cmd" "%~dp0" "%DOTNET_CMD%" "%TOOLRUNTIME_DIR%" "%PACKAGES_DIR%" >> "%INIT_TOOLS_LOG%"
 set INIT_TOOLS_ERRORLEVEL=%ERRORLEVEL%
 if not [%INIT_TOOLS_ERRORLEVEL%]==[0] (
-  echo ERROR: An error occured when trying to initialize the tools. 1>&2
+  echo %__ErrMsgPrefix%ERROR: An error occurred when trying to initialize the tools. 1>&2
   goto :error
 )
 

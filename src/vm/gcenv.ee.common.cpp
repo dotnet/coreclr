@@ -5,7 +5,7 @@
 #include "common.h"
 #include "gcenv.h"
 
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
 
 struct FindFirstInterruptiblePointState
 {
@@ -76,7 +76,7 @@ unsigned FindFirstInterruptiblePoint(CrawlFrame* pCF, unsigned offs, unsigned en
 #endif // USE_GC_INFO_DECODER
 }
 
-#endif // WIN64EXCEPTIONS
+#endif // FEATURE_EH_FUNCLETS
 
 //-----------------------------------------------------------------------------
 // Determine whether we should report the generic parameter context
@@ -158,7 +158,7 @@ void GcEnumObject(LPVOID pData, OBJECTREF *pObj, uint32_t flags)
     //
     // Sanity check that the flags contain only these three values
     //
-    assert((flags & ~(GC_CALL_INTERIOR|GC_CALL_PINNED|GC_CALL_CHECK_APP_DOMAIN)) == 0);
+    assert((flags & ~(GC_CALL_INTERIOR|GC_CALL_PINNED)) == 0);
 
     // for interior pointers, we optimize the case in which
     //  it points into the current threads stack area
@@ -205,13 +205,6 @@ StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
 
     GCCONTEXT   *gcctx = (GCCONTEXT*) pData;
 
-#ifdef FEATURE_APPDOMAIN_RESOURCE_MONITORING
-    if (g_fEnableARM)
-    {
-        gcctx->sc->pCurrentDomain = pCF->GetAppDomain();
-    }
-#endif //FEATURE_APPDOMAIN_RESOURCE_MONITORING
-
     MethodDesc *pMD = pCF->GetFunction();
 
 #ifdef GC_PROFILING
@@ -224,11 +217,11 @@ StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
     gcctx->cf = pCF;
 
     bool fReportGCReferences = true;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // We may have unwound this crawlFrame and thus, shouldn't report the invalid
     // references it may contain.
     fReportGCReferences = pCF->ShouldCrawlframeReportGCReferences();
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     if (fReportGCReferences)
     {
@@ -255,7 +248,7 @@ StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
     #endif // _DEBUG
 
             DWORD relOffsetOverride = NO_OVERRIDE_OFFSET;
-#if defined(WIN64EXCEPTIONS) && defined(USE_GC_INFO_DECODER)
+#if defined(FEATURE_EH_FUNCLETS) && defined(USE_GC_INFO_DECODER)
             if (pCF->ShouldParentToFuncletUseUnwindTargetLocationForGCReporting())
             {
                 GCInfoToken gcInfoToken = pCF->GetGCInfoToken();
@@ -285,7 +278,7 @@ StackWalkAction GcStackCrawlCallBack(CrawlFrame* pCF, VOID* pData)
                 }
 
             }
-#endif // WIN64EXCEPTIONS && USE_GC_INFO_DECODER
+#endif // FEATURE_EH_FUNCLETS && USE_GC_INFO_DECODER
 
             pCM->EnumGcRefs(pCF->GetRegisterSet(),
                             pCF->GetCodeInfo(),

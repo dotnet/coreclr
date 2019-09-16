@@ -58,8 +58,8 @@ This file contains the logic for providing Execution Script generation.
   -->
   
   <ItemGroup>
-    <ExecutionScriptKind Include="Batch" Condition="'$(BuildOS)' == 'Windows_NT'"/>
-    <ExecutionScriptKind Include="Bash" />
+    <ExecutionScriptKind Include="Batch" Condition="'$(BuildOS)' == 'Windows_NT'" />
+    <ExecutionScriptKind Include="Bash" Condition="'$(BuildOS)' != 'Windows_NT'" />
   </ItemGroup>
 
   <PropertyGroup>
@@ -71,6 +71,7 @@ This file contains the logic for providing Execution Script generation.
   <Import Project="CLRTest.CrossGen.targets" />
   <Import Project="CLRTest.GC.targets" />
   <Import Project="CLRTest.Execute.*.targets" />
+  <Import Project="CLRTest.MockHosting.targets" Condition="'$(RequiresMockHostPolicy)' == 'true'" />
   
   <Target Name="GenerateExecutionScriptsInternal"
     Condition="$(_CLRTestNeedsToRun) or $(_CLRTestBuildsExecutable)"

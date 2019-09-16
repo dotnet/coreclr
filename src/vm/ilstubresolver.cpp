@@ -233,6 +233,11 @@ bool ILStubResolver::IsNativeToCLRInteropStub()
     return (m_type == NativeToCLRInteropStub);
 }
 
+bool ILStubResolver::IsCLRToNativeInteropStub()
+{
+    return (m_type == CLRToNativeInteropStub);
+}
+
 void ILStubResolver::SetStubType(ILStubType stubType)
 {
     LIMITED_METHOD_CONTRACT;
@@ -266,7 +271,7 @@ ILStubResolver::SetStubTargetMethodSig(
     }
     CONTRACTL_END;
 
-    NewHolder<BYTE> pNewSig = new BYTE[cbStubTargetSigLength];
+    NewArrayHolder<BYTE> pNewSig = new BYTE[cbStubTargetSigLength];
     
     memcpyNoGCRefs((void *)pNewSig, pStubTargetMethodSig, cbStubTargetSigLength);
     
@@ -313,9 +318,9 @@ ILStubResolver::AllocGeneratedIL(
 #if !defined(DACCESS_COMPILE)
     _ASSERTE(0 != cbCode);
 
-    NewHolder<BYTE>             pNewILCodeBuffer        = NULL;
-    NewHolder<BYTE>             pNewLocalSig            = NULL;
-    NewHolder<CompileTimeState> pNewCompileTimeState    = NULL;
+    NewArrayHolder<BYTE>             pNewILCodeBuffer        = NULL;
+    NewArrayHolder<BYTE>             pNewLocalSig            = NULL;
+    NewArrayHolder<CompileTimeState> pNewCompileTimeState    = NULL;
 
     pNewCompileTimeState = (CompileTimeState *)new BYTE[sizeof(CompileTimeState)];
     memset(pNewCompileTimeState, 0, sizeof(CompileTimeState));
@@ -392,7 +397,6 @@ COR_ILMETHOD_SECT_EH* ILStubResolver::AllocEHSect(size_t nClauses)
         return NULL;
     }
 }
-
 
 void ILStubResolver::FreeCompileTimeState()
 {

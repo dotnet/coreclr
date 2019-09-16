@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
+#pragma warning disable SA1121 // explicitly using type aliases instead of built-in types
 #if BIT64
 using nuint = System.UInt64;
 #else
@@ -14,10 +15,10 @@ using nuint = System.UInt32;
 
 namespace System
 {
-    partial class Buffer
+    public partial class Buffer
     {
         // Copies from one primitive array to another primitive array without
-        // respecting types.  This calls memmove internally.  The count and 
+        // respecting types.  This calls memmove internally.  The count and
         // offset parameters here are in bytes.  If you want to use traditional
         // array element indices and counts, use Array.Copy.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -58,5 +59,20 @@ namespace System
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern unsafe void __Memmove(byte* dest, byte* src, nuint len);
+
+        // Used by ilmarshalers.cpp
+        internal static unsafe void Memcpy(byte* pDest, int destIndex, byte[] src, int srcIndex, int len)
+        {
+            Debug.Assert((srcIndex >= 0) && (destIndex >= 0) && (len >= 0), "Index and length must be non-negative!");
+            Debug.Assert(src.Length - srcIndex >= len, "not enough bytes in src");
+            // If dest has 0 elements, the fixed statement will throw an
+            // IndexOutOfRangeException.  Special-case 0-byte copies.
+            if (len == 0)
+                return;
+            fixed (byte* pSrc = src)
+            {
+                Memcpy(pDest + destIndex, pSrc + srcIndex, len);
+            }
+        }
     }
 }

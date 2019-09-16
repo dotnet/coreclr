@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -129,7 +129,7 @@ namespace System
     // user-defined format strings. The following table describes the formatting
     // characters that are supported in user defined format strings.
     //
-    // 
+    //
     // 0 - Digit placeholder. If the value being
     // formatted has a digit in the position where the '0' appears in the format
     // string, then that digit is copied to the output string. Otherwise, a '0' is
@@ -256,13 +256,11 @@ namespace System
         // In order to support more digits, we would need to update ParseFormatSpecifier to pre-parse
         // the format and determine exactly how many digits are being requested and whether they
         // represent "significant digits" or "digits after the decimal point".
-        private const int SinglePrecisionCustomFormat = 6;
+        private const int SinglePrecisionCustomFormat = 7;
         private const int DoublePrecisionCustomFormat = 15;
 
         private const int DefaultPrecisionExponentialFormat = 6;
 
-        private const int ScaleNAN = unchecked((int)0x80000000);
-        private const int ScaleINF = 0x7FFFFFFF;
         private const int MaxUInt32DecDigits = 10;
         private const int CharStackBufferSize = 32;
         private const string PosNumberFormat = "#";
@@ -377,7 +375,7 @@ namespace System
             number.CheckConsistency();
         }
 
-        public static string FormatDouble(double value, string format, NumberFormatInfo info)
+        public static string FormatDouble(double value, string? format, NumberFormatInfo info)
         {
             Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
             var sb = new ValueStringBuilder(stackBuffer);
@@ -388,7 +386,7 @@ namespace System
         {
             Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
             var sb = new ValueStringBuilder(stackBuffer);
-            string s = FormatDouble(ref sb, value, format, info);
+            string? s = FormatDouble(ref sb, value, format, info);
             return s != null ?
                 TryCopyTo(s, destination, out charsWritten) :
                 sb.TryCopyTo(destination, out charsWritten);
@@ -445,7 +443,7 @@ namespace System
                 case 'N':
                 case 'n':
                 {
-                    // The fixed-point and number formats use the precision specifier to indicate the number 
+                    // The fixed-point and number formats use the precision specifier to indicate the number
                     // of decimal digits to format. This defaults to NumberFormatInfo.NumberDecimalDigits.
 
                     if (precision == -1)
@@ -519,7 +517,7 @@ namespace System
         /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
         /// Null if no existing string was returned, in which case the formatted output is in the builder.
         /// </returns>
-        private static unsafe string FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        private static unsafe string? FormatDouble(ref ValueStringBuilder sb, double value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             if (!double.IsFinite(value))
             {
@@ -544,7 +542,7 @@ namespace System
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, DoubleNumberBufferLength);
             number.IsNegative = double.IsNegative(value);
 
-            // We need to track the original precision requested since some formats 
+            // We need to track the original precision requested since some formats
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
@@ -585,7 +583,7 @@ namespace System
             return null;
         }
 
-        public static string FormatSingle(float value, string format, NumberFormatInfo info)
+        public static string FormatSingle(float value, string? format, NumberFormatInfo info)
         {
             Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
             var sb = new ValueStringBuilder(stackBuffer);
@@ -596,7 +594,7 @@ namespace System
         {
             Span<char> stackBuffer = stackalloc char[CharStackBufferSize];
             var sb = new ValueStringBuilder(stackBuffer);
-            string s = FormatSingle(ref sb, value, format, info);
+            string? s = FormatSingle(ref sb, value, format, info);
             return s != null ?
                 TryCopyTo(s, destination, out charsWritten) :
                 sb.TryCopyTo(destination, out charsWritten);
@@ -607,7 +605,7 @@ namespace System
         /// Non-null if an existing string can be returned, in which case the builder will be unmodified.
         /// Null if no existing string was returned, in which case the formatted output is in the builder.
         /// </returns>
-        private static unsafe string FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
+        private static unsafe string? FormatSingle(ref ValueStringBuilder sb, float value, ReadOnlySpan<char> format, NumberFormatInfo info)
         {
             if (!float.IsFinite(value))
             {
@@ -632,7 +630,7 @@ namespace System
             NumberBuffer number = new NumberBuffer(NumberBufferKind.FloatingPoint, pDigits, SingleNumberBufferLength);
             number.IsNegative = float.IsNegative(value);
 
-            // We need to track the original precision requested since some formats 
+            // We need to track the original precision requested since some formats
             // accept values like 0 and others may require additional fixups.
             int nMaxDigits = GetFloatingPointMaxDigitsAndPrecision(fmt, ref precision, info, out bool isSignificantDigits);
 
@@ -687,7 +685,7 @@ namespace System
             return false;
         }
 
-        public static unsafe string FormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider? provider)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -733,7 +731,7 @@ namespace System
             }
         }
 
-        public static unsafe bool TryFormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatInt32(int value, ReadOnlySpan<char> format, IFormatProvider? provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -779,7 +777,7 @@ namespace System
             }
         }
 
-        public static unsafe string FormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider? provider)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -823,7 +821,7 @@ namespace System
             }
         }
 
-        public static unsafe bool TryFormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatUInt32(uint value, ReadOnlySpan<char> format, IFormatProvider? provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -867,7 +865,7 @@ namespace System
             }
         }
 
-        public static unsafe string FormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider? provider)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -914,7 +912,7 @@ namespace System
             }
         }
 
-        public static unsafe bool TryFormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatInt64(long value, ReadOnlySpan<char> format, IFormatProvider? provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format with a non-negative value
             if (value >= 0 && format.Length == 0)
@@ -961,7 +959,7 @@ namespace System
             }
         }
 
-        public static unsafe string FormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider)
+        public static unsafe string FormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider? provider)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -1006,7 +1004,7 @@ namespace System
             }
         }
 
-        public static unsafe bool TryFormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider provider, Span<char> destination, out int charsWritten)
+        public static unsafe bool TryFormatUInt64(ulong value, ReadOnlySpan<char> format, IFormatProvider? provider, Span<char> destination, out int charsWritten)
         {
             // Fast path for default format
             if (format.Length == 0)
@@ -1607,6 +1605,7 @@ namespace System
         internal static unsafe void NumberToString(ref ValueStringBuilder sb, ref NumberBuffer number, char format, int nMaxDigits, NumberFormatInfo info)
         {
             number.CheckConsistency();
+            bool isCorrectlyRounded = (number.Kind == NumberBufferKind.FloatingPoint);
 
             switch (format)
             {
@@ -1616,7 +1615,7 @@ namespace System
                     if (nMaxDigits < 0)
                         nMaxDigits = info.CurrencyDecimalDigits;
 
-                    RoundNumber(ref number, number.Scale + nMaxDigits); // Don't change this line to use digPos since digCount could have its sign changed.
+                    RoundNumber(ref number, number.Scale + nMaxDigits, isCorrectlyRounded); // Don't change this line to use digPos since digCount could have its sign changed.
 
                     FormatCurrency(ref sb, ref number, nMaxDigits, info);
 
@@ -1629,12 +1628,12 @@ namespace System
                     if (nMaxDigits < 0)
                         nMaxDigits = info.NumberDecimalDigits;
 
-                    RoundNumber(ref number, number.Scale + nMaxDigits);
+                    RoundNumber(ref number, number.Scale + nMaxDigits, isCorrectlyRounded);
 
                     if (number.IsNegative)
                         sb.Append(info.NegativeSign);
 
-                    FormatFixed(ref sb, ref number, nMaxDigits, info, null, info.NumberDecimalSeparator, null);
+                    FormatFixed(ref sb, ref number, nMaxDigits, null, info.NumberDecimalSeparator, null);
 
                     break;
                 }
@@ -1645,7 +1644,7 @@ namespace System
                     if (nMaxDigits < 0)
                         nMaxDigits = info.NumberDecimalDigits; // Since we are using digits in our calculation
 
-                    RoundNumber(ref number, number.Scale + nMaxDigits);
+                    RoundNumber(ref number, number.Scale + nMaxDigits, isCorrectlyRounded);
 
                     FormatNumber(ref sb, ref number, nMaxDigits, info);
 
@@ -1659,7 +1658,7 @@ namespace System
                         nMaxDigits = DefaultPrecisionExponentialFormat;
                     nMaxDigits++;
 
-                    RoundNumber(ref number, nMaxDigits);
+                    RoundNumber(ref number, nMaxDigits, isCorrectlyRounded);
 
                     if (number.IsNegative)
                         sb.Append(info.NegativeSign);
@@ -1694,7 +1693,7 @@ namespace System
                         }
                     }
 
-                    RoundNumber(ref number, nMaxDigits);
+                    RoundNumber(ref number, nMaxDigits, isCorrectlyRounded);
 
                 SkipRounding:
                     if (number.IsNegative)
@@ -1713,7 +1712,7 @@ namespace System
                         nMaxDigits = info.PercentDecimalDigits;
                     number.Scale += 2;
 
-                    RoundNumber(ref number, number.Scale + nMaxDigits);
+                    RoundNumber(ref number, number.Scale + nMaxDigits, isCorrectlyRounded);
 
                     FormatPercent(ref sb, ref number, nMaxDigits, info);
 
@@ -1852,7 +1851,7 @@ namespace System
                 {
                     number.Scale += scaleAdjust;
                     int pos = scientific ? digitCount : number.Scale + digitCount - decimalPos;
-                    RoundNumber(ref number, pos);
+                    RoundNumber(ref number, pos, isCorrectlyRounded: false);
                     if (dig[0] == 0)
                     {
                         src = FindSection(format, 2);
@@ -2116,7 +2115,7 @@ namespace System
                 switch (ch)
                 {
                     case '#':
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, info._currencyGroupSizes, info.CurrencyDecimalSeparator, info.CurrencyGroupSeparator);
+                        FormatFixed(ref sb, ref number, nMaxDigits, info._currencyGroupSizes, info.CurrencyDecimalSeparator, info.CurrencyGroupSeparator);
                         break;
                     case '-':
                         sb.Append(info.NegativeSign);
@@ -2131,7 +2130,7 @@ namespace System
             }
         }
 
-        private static unsafe void FormatFixed(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, NumberFormatInfo info, int[] groupDigits, string sDecimal, string sGroup)
+        private static unsafe void FormatFixed(ref ValueStringBuilder sb, ref NumberBuffer number, int nMaxDigits, int[]? groupDigits, string? sDecimal, string? sGroup)
         {
             int digPos = number.Scale;
             byte* dig = number.GetDigitsPointer();
@@ -2140,6 +2139,7 @@ namespace System
             {
                 if (groupDigits != null)
                 {
+                    Debug.Assert(sGroup != null, "Must be nulll when groupDigits != null");
                     int groupSizeIndex = 0;                             // Index into the groupDigits array.
                     int bufferSize = digPos;                            // The length of the result buffer string.
                     int groupSize = 0;                                  // The current group size.
@@ -2216,6 +2216,7 @@ namespace System
 
             if (nMaxDigits > 0)
             {
+                Debug.Assert(sDecimal != null);
                 sb.Append(sDecimal);
                 if ((digPos < 0) && (nMaxDigits > 0))
                 {
@@ -2244,7 +2245,7 @@ namespace System
                 switch (ch)
                 {
                     case '#':
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, info._numberGroupSizes, info.NumberDecimalSeparator, info.NumberGroupSeparator);
+                        FormatFixed(ref sb, ref number, nMaxDigits, info._numberGroupSizes, info.NumberDecimalSeparator, info.NumberGroupSeparator);
                         break;
                     case '-':
                         sb.Append(info.NegativeSign);
@@ -2351,7 +2352,7 @@ namespace System
                 switch (ch)
                 {
                     case '#':
-                        FormatFixed(ref sb, ref number, nMaxDigits, info, info._percentGroupSizes, info.PercentDecimalSeparator, info.PercentGroupSeparator);
+                        FormatFixed(ref sb, ref number, nMaxDigits, info._percentGroupSizes, info.PercentDecimalSeparator, info.PercentGroupSeparator);
                         break;
                     case '-':
                         sb.Append(info.NegativeSign);
@@ -2366,15 +2367,15 @@ namespace System
             }
         }
 
-        internal static unsafe void RoundNumber(ref NumberBuffer number, int pos)
+        internal static unsafe void RoundNumber(ref NumberBuffer number, int pos, bool isCorrectlyRounded)
         {
             byte* dig = number.GetDigitsPointer();
 
             int i = 0;
-            while (i < pos && dig[i] != 0)
+            while (i < pos && dig[i] != '\0')
                 i++;
 
-            if (i == pos && dig[i] >= '5')
+            if ((i == pos) && ShouldRoundUp(dig, i, number.Kind, isCorrectlyRounded))
             {
                 while (i > 0 && dig[i - 1] == '9')
                     i--;
@@ -2395,6 +2396,7 @@ namespace System
                 while (i > 0 && dig[i - 1] == '0')
                     i--;
             }
+
             if (i == 0)
             {
                 if (number.Kind != NumberBufferKind.FloatingPoint)
@@ -2408,6 +2410,38 @@ namespace System
             dig[i] = (byte)('\0');
             number.DigitsCount = i;
             number.CheckConsistency();
+
+            static bool ShouldRoundUp(byte* dig, int i, NumberBufferKind numberKind, bool isCorrectlyRounded)
+            {
+                // We only want to round up if the digit is greater than or equal to 5 and we are
+                // not rounding a floating-point number. If we are rounding a floating-point number
+                // we have one of two cases.
+                //
+                // In the case of a standard numeric-format specifier, the exact and correctly rounded
+                // string will have been produced. In this scenario, pos will have pointed to the
+                // terminating null for the buffer and so this will return false.
+                //
+                // However, in the case of a custom numeric-format specifier, we currently fall back
+                // to generating Single/DoublePrecisionCustomFormat digits and then rely on this
+                // function to round correctly instead. This can unfortunately lead to double-rounding
+                // bugs but is the best we have right now due to back-compat concerns.
+
+                byte digit = dig[i];
+
+                if ((digit == '\0') || isCorrectlyRounded)
+                {
+                    // Fast path for the common case with no rounding
+                    return false;
+                }
+
+                // Values greater than or equal to 5 should round up, otherwise we round down. The IEEE
+                // 754 spec actually dictates that ties (exactly 5) should round to the nearest even number
+                // but that can have undesired behavior for custom numeric format strings. This probably
+                // needs further thought for .NET 5 so that we can be spec compliant and so that users
+                // can get the desired rounding behavior for their needs.
+
+                return (digit >= '5');
+            }
         }
 
         private static unsafe int FindSection(ReadOnlySpan<char> format, int section)
@@ -2421,7 +2455,7 @@ namespace System
             fixed (char* pFormat = &MemoryMarshal.GetReference(format))
             {
                 src = 0;
-                for (; ; )
+                while (true)
                 {
                     if (src >= format.Length)
                     {

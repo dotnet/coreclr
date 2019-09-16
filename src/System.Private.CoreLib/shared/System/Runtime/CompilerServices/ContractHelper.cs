@@ -4,7 +4,6 @@
 
 #define DEBUG // The behavior of this contract library should be consistent regardless of build type.
 
-using System.Diagnostics;
 using System.Diagnostics.Contracts;
 
 namespace System.Runtime.CompilerServices
@@ -13,12 +12,12 @@ namespace System.Runtime.CompilerServices
     {
         /// <summary>
         /// Allows a managed application environment such as an interactive interpreter (IronPython) or a
-        /// web browser host (Jolt hosting Silverlight in IE) to be notified of contract failures and 
+        /// web browser host (Jolt hosting Silverlight in IE) to be notified of contract failures and
         /// potentially "handle" them, either by throwing a particular exception type, etc.  If any of the
         /// event handlers sets the Cancel flag in the ContractFailedEventArgs, then the Contract class will
         /// not pop up an assert dialog box or trigger escalation policy.
         /// </summary>
-        internal static event EventHandler<ContractFailedEventArgs> InternalContractFailed;
+        internal static event EventHandler<ContractFailedEventArgs>? InternalContractFailed;
 
         /// <summary>
         /// Rewriter will call this method on a contract failure to allow listeners to be notified.
@@ -31,19 +30,19 @@ namespace System.Runtime.CompilerServices
         ///          Otherwise, returns the localized failure message.
         /// </summary>
         [System.Diagnostics.DebuggerNonUserCode]
-        public static string RaiseContractFailedEvent(ContractFailureKind failureKind, string userMessage, string conditionText, Exception innerException)
+        public static string? RaiseContractFailedEvent(ContractFailureKind failureKind, string? userMessage, string? conditionText, Exception? innerException)
         {
             if (failureKind < ContractFailureKind.Precondition || failureKind > ContractFailureKind.Assume)
                 throw new ArgumentException(SR.Format(SR.Arg_EnumIllegalVal, failureKind), nameof(failureKind));
 
-            string returnValue;
+            string? returnValue;
             string displayMessage = "contract failed.";  // Incomplete, but in case of OOM during resource lookup...
-            ContractFailedEventArgs eventArgs = null;  // In case of OOM.
+            ContractFailedEventArgs? eventArgs = null;  // In case of OOM.
 
             try
             {
                 displayMessage = GetDisplayMessage(failureKind, userMessage, conditionText);
-                EventHandler<ContractFailedEventArgs> contractFailedEventLocal = InternalContractFailed;
+                EventHandler<ContractFailedEventArgs>? contractFailedEventLocal = InternalContractFailed;
                 if (contractFailedEventLocal != null)
                 {
                     eventArgs = new ContractFailedEventArgs(failureKind, displayMessage, conditionText, innerException);
@@ -62,7 +61,7 @@ namespace System.Runtime.CompilerServices
                     if (eventArgs.Unwind)
                     {
                         // unwind
-                        if (innerException == null) { innerException = eventArgs.thrownDuringHandler; }
+                        innerException ??= eventArgs.thrownDuringHandler;
                         throw new ContractException(failureKind, displayMessage, userMessage, conditionText, innerException);
                     }
                 }
@@ -78,6 +77,7 @@ namespace System.Runtime.CompilerServices
                     returnValue = displayMessage;
                 }
             }
+
             return returnValue;
         }
 
@@ -85,7 +85,7 @@ namespace System.Runtime.CompilerServices
         /// Rewriter calls this method to get the default failure behavior.
         /// </summary>
         [System.Diagnostics.DebuggerNonUserCode]
-        public static void TriggerFailure(ContractFailureKind kind, string displayMessage, string userMessage, string conditionText, Exception innerException)
+        public static void TriggerFailure(ContractFailureKind kind, string? displayMessage, string? userMessage, string? conditionText, Exception? innerException)
         {
             if (string.IsNullOrEmpty(displayMessage))
             {
@@ -95,7 +95,7 @@ namespace System.Runtime.CompilerServices
             System.Diagnostics.Debug.ContractFailure(displayMessage, string.Empty, GetFailureMessage(kind, null));
         }
 
-        private static string GetFailureMessage(ContractFailureKind failureKind, string conditionText)
+        private static string GetFailureMessage(ContractFailureKind failureKind, string? conditionText)
         {
             bool hasConditionText = !string.IsNullOrEmpty(conditionText);
             switch (failureKind)
@@ -124,15 +124,15 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        private static string GetDisplayMessage(ContractFailureKind failureKind, string userMessage, string conditionText)
+        private static string GetDisplayMessage(ContractFailureKind failureKind, string? userMessage, string? conditionText)
         {
             string failureMessage;
             // Well-formatted English messages will take one of four forms.  A sentence ending in
-            // either a period or a colon, the condition string, then the message tacked 
+            // either a period or a colon, the condition string, then the message tacked
             // on to the end with two spaces in front.
-            // Note that both the conditionText and userMessage may be null.  Also, 
+            // Note that both the conditionText and userMessage may be null.  Also,
             // on Silverlight we may not be able to look up a friendly string for the
-            // error message.  Let's leverage Silverlight's default error message there. 
+            // error message.  Let's leverage Silverlight's default error message there.
             if (!string.IsNullOrEmpty(conditionText))
             {
                 failureMessage = GetFailureMessage(failureKind, conditionText);

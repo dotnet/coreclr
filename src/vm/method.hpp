@@ -210,16 +210,13 @@ class MethodDesc
 
 public:
 
-    enum
-    {
-#ifdef _WIN64
-        ALIGNMENT_SHIFT = 3,
+#ifdef BIT64
+    static const int ALIGNMENT_SHIFT = 3;
 #else
-        ALIGNMENT_SHIFT = 2,
+    static const int ALIGNMENT_SHIFT = 2;
 #endif
-        ALIGNMENT       = (1<<ALIGNMENT_SHIFT),
-        ALIGNMENT_MASK  = (ALIGNMENT-1)
-    };
+    static const size_t ALIGNMENT = (1 << ALIGNMENT_SHIFT);
+    static const size_t ALIGNMENT_MASK = (ALIGNMENT - 1);
 
 #ifdef _DEBUG 
 
@@ -671,7 +668,6 @@ public:
         return GetMethodTable()->IsInterface();
     }
 
-    void ComputeSuppressUnmanagedCodeAccessAttr(IMDInternalImport *pImport);
     BOOL HasNativeCallableAttribute();
 
 #ifdef FEATURE_COMINTEROP 
@@ -867,6 +863,16 @@ public:
         Module *pModule = GetModule();
         PREFIX_ASSUME(pModule != NULL);
         return pModule->GetMDImport();
+    }
+
+    HRESULT GetCustomAttribute(WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData) const
+    {
+        WRAPPER_NO_CONTRACT;
+        Module *pModule = GetModule();
+        PREFIX_ASSUME(pModule != NULL);
+        return pModule->GetCustomAttribute(GetMemberDef(), attribute, ppData, pcbData);
     }
 
 #ifndef DACCESS_COMPILE 
@@ -1246,6 +1252,8 @@ public:
     // can optimize its performance? Eligibility is invariant for the lifetime of a method.
     bool DetermineAndSetIsEligibleForTieredCompilation();
 
+    bool IsJitOptimizationDisabled();
+
 private:
     // This function is not intended to be called in most places, and is named as such to discourage calling it accidentally
     bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
@@ -1396,27 +1404,40 @@ private:
     void RecordAndBackpatchEntryPointSlot_Locked(LoaderAllocator *mdLoaderAllocator, LoaderAllocator *slotLoaderAllocator, TADDR slot, EntryPointSlots::SlotType slotType, PCODE currentEntryPoint);
 
 public:
+    bool TryBackpatchEntryPointSlotsFromPrestub(PCODE entryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+        return TryBackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */, true /* onlyFromPrestubEntryPoint */);
+    }
+
     void BackpatchEntryPointSlots(PCODE entryPoint)
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(entryPoint != GetPrestubEntryPointToBackpatch());
-        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
-
         BackpatchEntryPointSlots(entryPoint, false /* isPrestubEntryPoint */);
     }
 
     void BackpatchToResetEntryPointSlots()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(MayHaveEntryPointSlotsToBackpatch());
-
         BackpatchEntryPointSlots(GetPrestubEntryPointToBackpatch(), true /* isPrestubEntryPoint */);
     }
 
 private:
-    void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint);
+    void BackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint)
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifdef _DEBUG // workaround for release build unused variable error
+        bool success =
+#endif
+            TryBackpatchEntryPointSlots(entryPoint, isPrestubEntryPoint, false /* onlyFromPrestubEntryPoint */);
+        _ASSERTE(success);
+    }
+
+    bool TryBackpatchEntryPointSlots(PCODE entryPoint, bool isPrestubEntryPoint, bool onlyFromPrestubEntryPoint);
 
 public:
+    void TrySetInitialCodeEntryPointForNonJumpStampVersionableMethod(PCODE entryPoint, bool mayHaveEntryPointSlotsToBackpatch);
     void SetCodeEntryPoint(PCODE entryPoint);
     void ResetCodeEntryPoint();
 
@@ -1653,18 +1674,17 @@ public:
     MethodDesc *ResolveGenericVirtualMethod(OBJECTREF *orThis);
 
 
+private:
+    ReturnKind ParseReturnKindFromSig(INDEBUG(bool supportStringConstructors = false));
+
 public:
-
-    // does this function return an object reference?
-    MetaSig::RETURNTYPE ReturnsObject(
-#ifdef _DEBUG 
-        bool supportStringConstructors = false,
-#endif
-        MethodTable** pMT = NULL
-        );
-
-
-    void Destruct();
+    // This method is used to restore ReturnKind using the class handle, it is fully supported only on x64 Ubuntu,
+    // other platforms do not support multi-reg return case with pointers. 
+    // Use this method only when you can't hit this case
+    // (like ComPlusMethodFrame::GcScanRoots) or when you can tolerate RT_Illegal return.
+    // Also, on the other platforms for a single field struct return case
+    // the function can't distinguish RT_Object and RT_ByRef.
+    ReturnKind GetReturnKind(INDEBUG(bool supportStringConstructors = false));
 
 public:
     // In general you don't want to call GetCallTarget - you want to
@@ -2014,7 +2034,6 @@ public:
 #ifndef DACCESS_COMPILE
 public:
     PCODE PrepareInitialCode();
-    PCODE PrepareCode(NativeCodeVersion codeVersion);
     PCODE PrepareCode(PrepareCodeConfig* pConfig);
 
 private:
@@ -2058,6 +2077,121 @@ public:
     BOOL ReadyToRunRejectedPrecompiledCode();
     void SetProfilerRejectedPrecompiledCode();
     void SetReadyToRunRejectedPrecompiledCode();
+
+#ifdef FEATURE_CODE_VERSIONING
+public:
+    bool ProfilerMayHaveActivatedNonDefaultCodeVersion() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_profilerMayHaveActivatedNonDefaultCodeVersion;
+    }
+
+    void SetProfilerMayHaveActivatedNonDefaultCodeVersion()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_profilerMayHaveActivatedNonDefaultCodeVersion);
+
+        m_profilerMayHaveActivatedNonDefaultCodeVersion = true;
+    }
+
+    bool GeneratedOrLoadedNewCode() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_generatedOrLoadedNewCode;
+    }
+
+    void SetGeneratedOrLoadedNewCode()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_generatedOrLoadedNewCode);
+
+        m_generatedOrLoadedNewCode = true;
+    }
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+public:
+    bool ShouldCountCalls() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return m_shouldCountCalls;
+    }
+
+    void SetShouldCountCalls()
+    {
+        WRAPPER_NO_CONTRACT;
+        _ASSERTE(!m_shouldCountCalls);
+
+        m_shouldCountCalls = true;
+    }
+#endif
+
+#ifndef CROSSGEN_COMPILE
+public:
+    enum class JitOptimizationTier : UINT8
+    {
+        Unknown, // to identify older runtimes that would send this value
+        MinOptJitted,
+        Optimized,
+        QuickJitted,
+        OptimizedTier1,
+
+        Count
+    };
+
+    static JitOptimizationTier GetJitOptimizationTier(PrepareCodeConfig *config, MethodDesc *methodDesc);
+    static const char *GetJitOptimizationTierStr(PrepareCodeConfig *config, MethodDesc *methodDesc);
+
+    bool JitSwitchedToMinOpt() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToMinOpt;
+    }
+
+    void SetJitSwitchedToMinOpt()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+#ifdef FEATURE_TIERED_COMPILATION
+        m_jitSwitchedToOptimized = false;
+#endif
+        m_jitSwitchedToMinOpt = true;
+    }
+
+#ifdef FEATURE_TIERED_COMPILATION
+public:
+    bool JitSwitchedToOptimized() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_jitSwitchedToOptimized;
+    }
+
+    void SetJitSwitchedToOptimized()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        if (!m_jitSwitchedToMinOpt)
+        {
+            m_jitSwitchedToOptimized = true;
+        }
+    }
+#endif
+
+public:
+    PrepareCodeConfig *GetNextInSameThread() const
+    {
+        LIMITED_METHOD_CONTRACT;
+        return m_nextInSameThread;
+    }
+
+    void SetNextInSameThread(PrepareCodeConfig *config)
+    {
+        LIMITED_METHOD_CONTRACT;
+        _ASSERTE(config == nullptr || m_nextInSameThread == nullptr);
+
+        m_nextInSameThread = config;
+    }
+#endif // !CROSSGEN_COMPILE
     
 protected:
     MethodDesc* m_pMethodDesc;
@@ -2066,6 +2200,26 @@ protected:
     BOOL m_mayUsePrecompiledCode;
     BOOL m_ProfilerRejectedPrecompiledCode;
     BOOL m_ReadyToRunRejectedPrecompiledCode;
+
+#ifdef FEATURE_CODE_VERSIONING
+private:
+    bool m_profilerMayHaveActivatedNonDefaultCodeVersion;
+    bool m_generatedOrLoadedNewCode;
+#endif
+
+#ifdef FEATURE_TIERED_COMPILATION
+private:
+    bool m_shouldCountCalls;
+#endif
+
+#ifndef CROSSGEN_COMPILE
+private:
+    bool m_jitSwitchedToMinOpt; // when it wasn't requested
+#ifdef FEATURE_TIERED_COMPILATION
+    bool m_jitSwitchedToOptimized; // when a different tier was requested
+#endif
+    PrepareCodeConfig *m_nextInSameThread;
+#endif // !CROSSGEN_COMPILE
 };
 
 #ifdef FEATURE_CODE_VERSIONING
@@ -2081,6 +2235,25 @@ public:
     virtual CORJIT_FLAGS GetJitCompilationFlags();
 private:
     ILCodeVersion m_ilCodeVersion;
+};
+
+class PrepareCodeConfigBuffer
+{
+private:
+    UINT8 m_buffer[sizeof(VersionedPrepareCodeConfig)];
+
+public:
+    PrepareCodeConfigBuffer(NativeCodeVersion codeVersion);
+
+public:
+    PrepareCodeConfig *GetConfig() const
+    {
+        WRAPPER_NO_CONTRACT;
+        return (PrepareCodeConfig *)m_buffer;
+    }
+
+    PrepareCodeConfigBuffer(const PrepareCodeConfigBuffer &) = delete;
+    PrepareCodeConfigBuffer &operator =(const PrepareCodeConfigBuffer &) = delete;
 };
 #endif // FEATURE_CODE_VERSIONING
 #endif // DACCESS_COMPILE
@@ -2353,7 +2526,7 @@ class StoredSigMethodDesc : public MethodDesc
 
     RelativePointer<TADDR>           m_pSig;
     DWORD           m_cSig;
-#ifdef _WIN64 
+#ifdef BIT64 
     // m_dwExtendedFlags is not used by StoredSigMethodDesc itself.
     // It is used by child classes. We allocate the space here to get
     // optimal layout.
@@ -2412,7 +2585,7 @@ class FCallMethodDesc : public MethodDesc
 #endif
 
     DWORD   m_dwECallID;
-#ifdef _WIN64 
+#ifdef BIT64 
     DWORD   m_padding;
 #endif
 
@@ -2452,7 +2625,7 @@ protected:
     RelativePointer<PTR_CUTF8>           m_pszMethodName;
     PTR_DynamicResolver m_pResolver;
 
-#ifndef _WIN64
+#ifndef BIT64
     // We use m_dwExtendedFlags from StoredSigMethodDesc on WIN64
     DWORD               m_dwExtendedFlags;   // see DynamicMethodDesc::ExtendedFlags enum
 #endif
@@ -2468,7 +2641,7 @@ protected:
         // mdStatic               = 0x0010,
         nomdCALLIStub             = 0x0020,
         nomdDelegateStub          = 0x0040,
-        nomdCopyCtorArgs          = 0x0080,
+        // unused                 = 0x0080
         nomdUnbreakable           = 0x0100,
         nomdDelegateCOMStub       = 0x0200,  // CLR->COM or COM->CLR call via a delegate (WinRT specific)
         nomdSignatureNeedsRestore = 0x0400,
@@ -2522,15 +2695,6 @@ public:
         m_dwExtendedFlags = (m_dwExtendedFlags & ~nomdStackArgSize) | ((DWORD)cbArgSize << 16);
     }
 
-    void SetHasCopyCtorArgs(bool value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (value)
-        {
-            m_dwExtendedFlags |= nomdCopyCtorArgs;
-        }
-    }
-
     void SetUnbreakable(bool value)
     {
         LIMITED_METHOD_CONTRACT;
@@ -2582,7 +2746,6 @@ public:
     bool IsCLRToCOMStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsDelegateStub()); }
     bool IsCOMToCLRStub()    { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 == (m_dwExtendedFlags & mdStatic)) &&  IsReverseStub()); }
     bool IsPInvokeStub()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return ((0 != (m_dwExtendedFlags & mdStatic)) && !IsReverseStub() && !IsCALLIStub()); }
-    bool HasCopyCtorArgs()   { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdCopyCtorArgs));  }
     bool IsUnbreakable()     { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdUnbreakable));  }
     bool IsDelegateCOMStub() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdDelegateCOMStub));  }
     bool IsSignatureNeedsRestore() { LIMITED_METHOD_CONTRACT; _ASSERTE(IsILStub()); return (0 != (m_dwExtendedFlags & nomdSignatureNeedsRestore)); }
@@ -2799,8 +2962,6 @@ public:
 
         kDefaultDllImportSearchPathsStatus = 0x2000, // either method has custom attribute or not.
 
-        kHasCopyCtorArgs                = 0x4000,
-
         kStdCallWithRetBuf              = 0x8000,   // Call returns large structure, only valid if kStdCall is also set
 
     };
@@ -2941,23 +3102,6 @@ public:
         return (ndirect.m_DefaultDllImportSearchPathsAttributeValue & 0x2) != 0;
     }
 
-    BOOL HasCopyCtorArgs() const
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-
-        return (ndirect.m_wFlags & kHasCopyCtorArgs) != 0;
-    }
-
-    void SetHasCopyCtorArgs(BOOL value)
-    {
-        WRAPPER_NO_CONTRACT;
-
-        if (value)
-        {
-            InterlockedSetNDirectFlags(kHasCopyCtorArgs);
-        }
-    }
-
     BOOL IsStdCallWithRetBuf() const
     {
         LIMITED_METHOD_DAC_CONTRACT;
@@ -3023,14 +3167,10 @@ public:
     //  Find the entry point name and function address
     //  based on the module and data from NDirectMethodDesc
     //
-    LPVOID FindEntryPoint(HINSTANCE hMod) const;
+    LPVOID FindEntryPoint(NATIVE_LIBRARY_HANDLE hMod) const;
 
 private:
-    FARPROC FindEntryPointWithMangling(HINSTANCE mod, PTR_CUTF8 entryPointName) const;
-
-#ifdef MDA_SUPPORTED    
-    Stub* GenerateStubForMDA(LPVOID pNativeTarget, Stub *pInnerStub);
-#endif // MDA_SUPPORTED
+    FARPROC FindEntryPointWithMangling(NATIVE_LIBRARY_HANDLE mod, PTR_CUTF8 entryPointName) const;
 
 public:
 
@@ -3132,7 +3272,6 @@ struct ComPlusCallInfo
     {
         kHasSuppressUnmanagedCodeAccess = 0x1,
         kRequiresArgumentWrapping       = 0x2,
-        kHasCopyCtorArgs                = 0x4,
     };
 
     union
@@ -3167,19 +3306,6 @@ struct ComPlusCallInfo
     // on x86 when we have an InlinedCallFrame representing a CLR->COM call.
     WORD        m_cbStackArgumentSize;
 
-    void SetHasCopyCtorArgs(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        if (value)
-            FastInterlockOr(reinterpret_cast<DWORD *>(&m_flags), kHasCopyCtorArgs);
-    }
-
-    BOOL HasCopyCtorArgs()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return ((m_flags & kHasCopyCtorArgs) != 0);
-    }
-
     void InitStackArgumentSize()
     {
         LIMITED_METHOD_CONTRACT;
@@ -3207,11 +3333,7 @@ struct ComPlusCallInfo
         return m_cbStackArgumentSize;
     }
 
-    union
-    {
-        LPVOID      m_pRetThunk;         // used for late-bound calls
-        LPVOID      m_pInterceptStub;    // used for early-bound IL stub calls
-    };
+    LPVOID      m_pRetThunk;
 
 #else // _TARGET_X86_
     void InitStackArgumentSize()
@@ -3284,18 +3406,6 @@ public:
     }
 
 #ifdef _TARGET_X86_
-    BOOL HasCopyCtorArgs()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_pComPlusCallInfo->HasCopyCtorArgs();
-    }
-
-    void SetHasCopyCtorArgs(BOOL value)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_pComPlusCallInfo->SetHasCopyCtorArgs(value);
-    }
-
     WORD GetStackArgumentSize()
     {
         LIMITED_METHOD_DAC_CONTRACT;

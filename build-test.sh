@@ -67,7 +67,7 @@ build_test_wrappers()
         eval $nextCommand
 
         if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Error: XUnit wrapper build failed. Refer to the build log files for details (above)"
             exit 1
         else
             echo "XUnit Wrappers have been built."
@@ -150,10 +150,89 @@ generate_layout()
     build_MSBuild_projects "Tests_Overlay_Managed" "${__ProjectDir}/tests/runtest.proj" "Creating test overlay" "/t:CreateTestOverlay"
 
     chmod +x $__BinDir/corerun
-    chmod +x $__BinDir/crossgen
+    chmod +x $__CrossgenExe
 
     # Make sure to copy over the pulled down packages
     cp -r $__BinDir/* $CORE_ROOT/ > /dev/null
+
+    if [ "$__BuildOS" != "OSX" ]; then
+        nextCommand="\"$__TestDir/setup-stress-dependencies.sh\" --arch=$__BuildArch --outputDir=$CORE_ROOT"
+        echo "Resolve runtime dependences via $nextCommand"
+        eval $nextCommand
+        if [ $? != 0 ]; then
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Error: setup-stress-dependencies failed."
+            exit 1
+        fi
+    fi
+
+    # Precompile framework assemblies with crossgen if required
+    if [ $__DoCrossgen -ne 0 ]; then
+        precompile_coreroot_fx
+    fi
+}
+
+precompile_coreroot_fx()
+{
+    echo "${__MsgPrefix}Running crossgen on framework assemblies in CORE_ROOT: '${CORE_ROOT}'"
+
+    # Read the exclusion file for this platform
+    skipCrossGenFiles=($(read_array "$(dirname "$0")/tests/skipCrossGenFiles.${__BuildArch}.txt"))
+
+    local overlayDir=$CORE_ROOT
+
+    filesToPrecompile=$(find -L $overlayDir -iname \*.dll -not -iname \*.ni.dll -not -iname \*-ms-win-\* -not -iname xunit.\* -type f -maxdepth 0)
+    for fileToPrecompile in ${filesToPrecompile}
+    do
+        local filename=${fileToPrecompile}
+        if is_skip_crossgen_test "$(basename $filename)"; then
+                continue
+        fi
+        echo Precompiling $filename
+        $__CrossgenExe /Platform_Assemblies_Paths $overlayDir $filename 1> $filename.stdout 2>$filename.stderr
+        local exitCode=$?
+        if [[ $exitCode != 0 ]]; then
+            if grep -q -e '0x80131018' $filename.stderr; then
+                printf "\n\t$filename is not a managed assembly.\n\n"
+            else
+                echo Unable to precompile $filename.
+                cat $filename.stdout
+                cat $filename.stderr
+                exit $exitCode
+            fi
+        else
+            rm $filename.{stdout,stderr}
+        fi
+    done
+}
+
+declare -a skipCrossGenFiles
+
+function is_skip_crossgen_test {
+    for skip in "${skipCrossGenFiles[@]}"; do
+        if [ "$1" == "$skip" ]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Get an array of items by reading the specified file line by line.
+function read_array {
+    local theArray=()
+
+    if [ ! -f "$1" ]; then
+        return
+    fi
+
+    # bash in Mac OS X doesn't support 'readarray', so using alternate way instead.
+    # readarray -t theArray < "$1"
+    # Any line that starts with '#' is ignored.
+    while IFS='' read -r line || [ -n "$line" ]; do
+        if [[ $line != "#"* ]]; then
+            theArray[${#theArray[@]}]=$line
+        fi
+    done < "$1"
+    echo ${theArray[@]}
 }
 
 generate_testhost()
@@ -245,7 +324,7 @@ build_Tests()
         build_native_projects "$__BuildArch" "${__NativeTestIntermediatesDir}"
 
         if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Error: native test build failed. Refer to the build log files for details (above)"
             exit 1
         fi
     fi
@@ -256,7 +335,7 @@ build_Tests()
         build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "$__up"
 
         if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Error: build failed. Refer to the build log files for details (above)"
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Error: managed test build failed. Refer to the build log files for details (above)"
             exit 1
         else
             echo "Checking the Managed Tests Build..."
@@ -264,21 +343,34 @@ build_Tests()
             build_MSBuild_projects "Check_Test_Build" "${__ProjectDir}/tests/runtest.proj" "Check Test Build" "/t:CheckTestBuild"
 
             if [ $? -ne 0 ]; then
-                echo "${__MsgPrefix}Error: Check Test Build failed."
+                echo "${__ErrMsgPrefix}${__MsgPrefix}Error: Check Test Build failed."
                 exit 1
             fi
         fi
 
         echo "Managed tests build success!"
+
+        build_test_wrappers
     fi
 
-    build_test_wrappers
+    if [ $__CopyNativeTestBinaries == 1 ]; then
+        echo "Copying native test binaries to output..."
+
+        build_MSBuild_projects "Tests_Managed" "$__ProjectDir/tests/build.proj" "Managed tests build (build tests)" "/t:CopyAllNativeProjectReferenceBinaries"
+
+        if [ $? -ne 0 ]; then
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Error: copying native test binaries failed. Refer to the build log files for details (above)"
+            exit 1
+        fi
+    fi
 
     if [ -n "$__UpdateInvalidPackagesArg" ]; then
         __up="/t:UpdateInvalidPackageVersions"
     fi
 
-    generate_layout
+    if [ $__SkipGenerateLayout != 1 ]; then
+        generate_layout
+    fi
 }
 
 build_MSBuild_projects()
@@ -296,13 +388,6 @@ build_MSBuild_projects()
     __BuildLog="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.log"
     __BuildWrn="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.wrn"
     __BuildErr="$__LogsDir/${__BuildLogRootName}.${__BuildOS}.${__BuildArch}.${__BuildType}.err"
-
-    # Use binclashlogger by default if no other logger is specified
-    if [[ "${extraBuildParameters[*]}" == *"/l:"* ]]; then
-        __msbuildEventLogging=
-    else
-        __msbuildEventLogging="/l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log"
-    fi
 
     if [[ "$subDirectoryName" == "Tests_Managed" ]]; then
         # Execute msbuild managed test build in stages - workaround for excessive data retention in MSBuild ConfigCache
@@ -328,23 +413,23 @@ build_MSBuild_projects()
             export __TestGroupToBuild=$testGroupToBuild
 
             # Generate build command
-            buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+            buildArgs=("$projectName")
             buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
             buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
-            buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-            buildArgs+=("$__msbuildEventLogging")
+            buildArgs+=("${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
             buildArgs+=("${extraBuildParameters[@]}")
             buildArgs+=("${__CommonMSBuildArgs[@]}")
             buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-            nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
+            # Disable warnAsError - coreclr issue 19922
+            nextCommand="\"$__ProjectRoot/eng/common/msbuild.sh\" $__ArcadeScriptArgs --warnAsError false ${buildArgs[@]}"
             echo "Building step '$stepName' testGroupToBuild=$testGroupToBuild via $nextCommand"
             eval $nextCommand
 
             # Make sure everything is OK
             if [ $? -ne 0 ]; then
-                echo "${__MsgPrefix}Failed to build $stepName. See the build logs:"
+                echo "${__ErrMsgPrefix}${__MsgPrefix}Failed to build $stepName. See the build logs:"
                 echo "    $__BuildLog"
                 echo "    $__BuildWrn"
                 echo "    $__BuildErr"
@@ -360,23 +445,23 @@ build_MSBuild_projects()
         __msbuildErr="\"/flp2:ErrorsOnly;LogFile=${__BuildErr}\""
 
         # Generate build command
-        buildArgs=("/nologo" "/verbosity:minimal" "/clp:Summary")
+        buildArgs=("$projectName")
         buildArgs+=("/p:RestoreDefaultOptimizationDataPackage=false" "/p:PortableBuild=true")
         buildArgs+=("/p:UsePartialNGENOptimization=false" "/maxcpucount")
 
-        buildArgs+=("$projectName" "${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
-        buildArgs+=("$__msbuildEventLogging")
+        buildArgs+=("${__msbuildLog}" "${__msbuildWrn}" "${__msbuildErr}")
         buildArgs+=("${extraBuildParameters[@]}")
         buildArgs+=("${__CommonMSBuildArgs[@]}")
         buildArgs+=("${__UnprocessedBuildArgs[@]}")
 
-        nextCommand="\"$__ProjectRoot/dotnet.sh\" msbuild ${buildArgs[@]}"
+        # Disable warnAsError - coreclr issue 19922
+        nextCommand="\"$__ProjectRoot/eng/common/msbuild.sh\" $__ArcadeScriptArgs --warnAsError false ${buildArgs[@]}"
         echo "Building step '$stepName' via $nextCommand"
         eval $nextCommand
 
         # Make sure everything is OK
         if [ $? -ne 0 ]; then
-            echo "${__MsgPrefix}Failed to build $stepName. See the build logs:"
+            echo "${__ErrMsgPrefix}${__MsgPrefix}Failed to build $stepName. See the build logs:"
             echo "    $__BuildLog"
             echo "    $__BuildWrn"
             echo "    $__BuildErr"
@@ -415,13 +500,14 @@ build_native_projects()
         __versionSourceFile="$intermediatesForBuild/version.c"
         if [ $__SkipGenerateVersion == 0 ]; then
             pwd
-            $__ProjectRoot/dotnet.sh msbuild /nologo /verbosity:minimal /clp:Summary \
-                                     /p:RestoreDefaultOptimizationDataPackage=false /p:PortableBuild=true \
-                                     /p:UsePartialNGENOptimization=false /maxcpucount \
-                                     $__ProjectDir/build.proj /t:GenerateVersionHeader \
-                                     /p:GenerateVersionHeader=true /p:NativeVersionSourceFile=$__versionSourceFile \
-                                     /l:BinClashLogger,Tools/Microsoft.DotNet.Build.Tasks.dll\;LogFile=binclash.log \
-                                     $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            $__ProjectRoot/eng/common/msbuild.sh $__ProjectRoot/eng/empty.csproj \
+                                                 /p:NativeVersionFile=$__versionSourceFile \
+                                                 /p:ArcadeBuild=true /t:GenerateNativeVersionFile /restore \
+                                                 $__CommonMSBuildArgs $__UnprocessedBuildArgs
+            if [ $? -ne 0 ]; then
+                echo "${__ErrMsgPrefix}Failed to generate native version file."
+                exit $?
+            fi
         else
             # Generate the dummy version.c, but only if it didn't exist to make sure we don't trigger unnecessary rebuild
             __versionSourceLine="static char sccsid[] __attribute__((used)) = \"@(#)No version information produced\";"
@@ -448,7 +534,7 @@ build_native_projects()
     fi
 
     if [ ! -f "$intermediatesForBuild/$buildFile" ]; then
-        echo "Failed to generate $message build project!"
+        echo "${__ErrMsgPrefix}Failed to generate $message build project!"
         exit 1
     fi
 
@@ -464,7 +550,7 @@ build_native_projects()
 
     $buildTool install -j $__NumProc
     if [ $? != 0 ]; then
-        echo "Failed to build $message."
+        echo "${__ErrMsgPrefix}Failed to build $message."
         exit 1
     fi
 
@@ -493,10 +579,13 @@ usage()
     echo "generatelayoutonly - only pull down dependencies and build coreroot"
     echo "generatetesthostonly - only pull down dependencies and build coreroot and the CoreFX testhost"
     echo "skiprestorepackages - skip package restore"
+    echo "crossgen - Precompiles the framework managed assemblies in coreroot"
     echo "runtests - run tests after building them"
     echo "bindir - output directory (defaults to $__ProjectRoot/bin)"
     echo "msbuildonunsupportedplatform - build managed binaries even if distro is not officially supported."
     echo "priority1 - include priority=1 tests in the build"
+    echo "copynativeonly: Only copy the native test binaries to the managed output. Do not build the native or managed tests."
+    echo "skipgeneratelayout: Do not generate the Core_Root layout or the CoreFX testhost."
     exit 1
 }
 
@@ -589,7 +678,7 @@ __IncludeTests=INCLUDE_TESTS
 # Set the various build properties here so that CMake and MSBuild can pick them up
 export __ProjectDir="$__ProjectRoot"
 __SourceDir="$__ProjectDir/src"
-__PackagesDir="$__ProjectDir/packages"
+__PackagesDir="$__ProjectDir/.packages"
 __RootBinDir="$__ProjectDir/bin"
 __BuildToolsDir="$__ProjectDir/Tools"
 __DotNetCli="$__ProjectDir/dotnet.sh"
@@ -624,6 +713,9 @@ __GenerateLayoutOnly=
 __GenerateTestHostOnly=
 __priority1=
 __BuildTestWrappersOnly=
+__DoCrossgen=0
+__CopyNativeTestBinaries=0
+__SkipGenerateLayout=0
 CORE_ROOT=
 
 while :; do
@@ -668,6 +760,11 @@ while :; do
 
         release)
             __BuildType=Release
+            ;;
+
+        ci|-ci)
+            __ArcadeScriptArgs="--ci"
+            __ErrMsgPrefix="##vso[task.logissue type=error]"
             ;;
 
         coverage)
@@ -802,6 +899,10 @@ while :; do
             __SkipRestorePackages=1
             ;;
 
+        crossgen)
+            __DoCrossgen=1
+            ;;
+
         bindir)
             if [ -n "$2" ]; then
                 __RootBinDir="$2"
@@ -827,6 +928,17 @@ while :; do
             __UnprocessedBuildArgs+=("/p:CLRTestPriorityToBuild=1")
             ;;
 
+        copynativeonly)
+            __SkipNative=1
+            __SkipManaged=1
+            __CopyNativeTestBinaries=1
+            __SkipRestorePackages=1
+            ;;
+
+        skipgeneratelayout)
+            __SkipGenerateLayout=1
+            ;;
+
         *)
             __UnprocessedBuildArgs+=("$1")
             ;;
@@ -848,7 +960,7 @@ else
   __NumProc=$(nproc --all)
 fi
 
-__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS")
+__CommonMSBuildArgs=("/p:__BuildArch=$__BuildArch" "/p:__BuildType=$__BuildType" "/p:__BuildOS=$__BuildOS" "/nodeReuse:false")
 
 # Configure environment if we are doing a verbose build
 if [ $__VerboseBuild == 1 ]; then
@@ -883,9 +995,6 @@ __CrossComponentBinDir="$__BinDir"
 __CrossCompIntermediatesDir="$__IntermediatesDir/crossgen"
 
 __CrossArch="$__HostArch"
-if [[ "$__HostArch" == "x64" && "$__BuildArch" == "arm" ]]; then
-    __CrossArch="x86"
-fi
 if [ $__CrossBuild == 1 ]; then
     __CrossComponentBinDir="$__CrossComponentBinDir/$__CrossArch"
 fi
@@ -915,7 +1024,12 @@ fi
 # init the target distro name
 initTargetDistroRid
 
-# Override tool directory
+if [ $__PortableBuild == 0 ]; then
+    __CommonMSBuildArgs="$__CommonMSBuildArgs /p:PortableBuild=false"
+fi
+
+# Restore Build Tools
+source $__ProjectRoot/init-tools.sh
 
 if [[ (-z "$__GenerateLayoutOnly") && (-z "$__GenerateTestHostOnly") && (-z "$__BuildTestWrappersOnly") ]]; then
     build_Tests

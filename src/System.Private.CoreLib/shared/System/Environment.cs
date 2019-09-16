@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Reflection;
 using System.Threading;
@@ -12,7 +11,7 @@ namespace System
 {
     public static partial class Environment
     {
-        public static string GetEnvironmentVariable(string variable)
+        public static string? GetEnvironmentVariable(string variable)
         {
             if (variable == null)
                 throw new ArgumentNullException(nameof(variable));
@@ -20,7 +19,7 @@ namespace System
             return GetEnvironmentVariableCore(variable);
         }
 
-        public static string GetEnvironmentVariable(string variable, EnvironmentVariableTarget target)
+        public static string? GetEnvironmentVariable(string variable, EnvironmentVariableTarget target)
         {
             if (target == EnvironmentVariableTarget.Process)
                 return GetEnvironmentVariable(variable);
@@ -41,13 +40,13 @@ namespace System
             return GetEnvironmentVariablesFromRegistry(fromMachine);
         }
 
-        public static void SetEnvironmentVariable(string variable, string value)
+        public static void SetEnvironmentVariable(string variable, string? value)
         {
             ValidateVariableAndValue(variable, ref value);
             SetEnvironmentVariableCore(variable, value);
         }
 
-        public static void SetEnvironmentVariable(string variable, string value, EnvironmentVariableTarget target)
+        public static void SetEnvironmentVariable(string variable, string? value, EnvironmentVariableTarget target)
         {
             if (target == EnvironmentVariableTarget.Process)
             {
@@ -89,7 +88,7 @@ namespace System
             return ExpandEnvironmentVariablesCore(name);
         }
 
-        private static string[] s_commandLineArgs;
+        private static string[]? s_commandLineArgs;
 
         internal static void SetCommandLineArgs(string[] cmdLineArgs) // invoked from VM
         {
@@ -113,7 +112,7 @@ namespace System
 
         public static bool Is64BitOperatingSystem => Is64BitProcess || Is64BitOperatingSystemWhen32BitProcess;
 
-        private static OperatingSystem s_osVersion;
+        private static OperatingSystem? s_osVersion;
 
         public static OperatingSystem OSVersion
         {
@@ -134,7 +133,7 @@ namespace System
             get
             {
                 // FX_PRODUCT_VERSION is expected to be set by the host
-                string versionString = (string)AppContext.GetData("FX_PRODUCT_VERSION");
+                string? versionString = (string?)AppContext.GetData("FX_PRODUCT_VERSION");
 
                 if (versionString == null)
                 {
@@ -150,31 +149,7 @@ namespace System
                     versionSpan = versionSpan.Slice(0, separatorIndex);
 
                 // Return zeros rather then failing if the version string fails to parse
-                return Version.TryParse(versionSpan, out Version version) ? version : new Version();
-            }
-        }
-
-        public static long WorkingSet
-        {
-            get
-            {
-                // Use reflection to access the implementation in System.Diagnostics.Process.dll.  While far from ideal,
-                // we do this to avoid duplicating the Windows, Linux, macOS, and potentially other platform-specific implementations
-                // present in Process.  If it proves important, we could look at separating that functionality out of Process into
-                // Common files which could also be included here.
-                Type processType = Type.GetType("System.Diagnostics.Process, System.Diagnostics.Process, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a", throwOnError: false);
-                IDisposable currentProcess = processType?.GetMethod("GetCurrentProcess")?.Invoke(null, BindingFlags.DoNotWrapExceptions, null, null, null) as IDisposable;
-                if (currentProcess != null)
-                {
-                    using (currentProcess)
-                    {
-                        object result = processType.GetMethod("get_WorkingSet64")?.Invoke(currentProcess, BindingFlags.DoNotWrapExceptions, null, null, null);
-                        if (result is long) return (long)result;
-                    }
-                }
-
-                // Could not get the current working set.
-                return 0;
+                return Version.TryParse(versionSpan, out Version? version) ? version : new Version();
             }
         }
 
@@ -191,7 +166,7 @@ namespace System
             throw new ArgumentOutOfRangeException(nameof(target), target, SR.Format(SR.Arg_EnumIllegalVal, target));
         }
 
-        private static void ValidateVariableAndValue(string variable, ref string value)
+        private static void ValidateVariableAndValue(string variable, ref string? value)
         {
             if (variable == null)
                 throw new ArgumentNullException(nameof(variable));

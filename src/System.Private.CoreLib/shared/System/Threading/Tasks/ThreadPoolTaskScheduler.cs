@@ -7,15 +7,12 @@
 // TaskScheduler.cs
 //
 //
-// This file contains the primary interface and management of tasks and queues.  
+// This file contains the primary interface and management of tasks and queues.
 //
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-using System;
-using System.Security;
-using System.Diagnostics;
 using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics;
 
 namespace System.Threading.Tasks
 {
@@ -29,11 +26,15 @@ namespace System.Threading.Tasks
         /// </summary>
         internal ThreadPoolTaskScheduler()
         {
-            int id = base.Id; // force ID creation of the default scheduler
+            _ = base.Id; // force ID creation of the default scheduler
         }
 
         // static delegate for threads allocated to handle LongRunning tasks.
-        private static readonly ParameterizedThreadStart s_longRunningThreadWork = s => ((Task)s).ExecuteEntryUnsafe(threadPoolThread: null);
+        private static readonly ParameterizedThreadStart s_longRunningThreadWork = s =>
+        {
+            Debug.Assert(s is Task);
+            ((Task)s).ExecuteEntryUnsafe(threadPoolThread: null);
+        };
 
         /// <summary>
         /// Schedules a task to the ThreadPool.
@@ -61,7 +62,7 @@ namespace System.Threading.Tasks
         /// This internal function will do this:
         ///   (1) If the task had previously been queued, attempt to pop it and return false if that fails.
         ///   (2) Return whether the task is executed
-        /// 
+        ///
         /// IMPORTANT NOTE: TryExecuteTaskInline will NOT throw task exceptions itself. Any wait code path using this function needs
         /// to account for exceptions that need to be propagated, and throw themselves accordingly.
         /// </summary>
@@ -77,7 +78,7 @@ namespace System.Threading.Tasks
             }
             finally
             {
-                //   Only call NWIP() if task was previously queued
+                // Only call NWIP() if task was previously queued
                 if (taskWasPreviouslyQueued) NotifyWorkItemProgress();
             }
 
@@ -118,9 +119,6 @@ namespace System.Threading.Tasks
         /// This is the only scheduler that returns false for this property, indicating that the task entry codepath is unsafe (CAS free)
         /// since we know that the underlying scheduler already takes care of atomic transitions from queued to non-queued.
         /// </summary>
-        internal override bool RequiresAtomicStartTransition
-        {
-            get { return false; }
-        }
+        internal override bool RequiresAtomicStartTransition => false;
     }
 }

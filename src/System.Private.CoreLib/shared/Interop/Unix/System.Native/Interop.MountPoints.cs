@@ -29,7 +29,7 @@ internal static partial class Interop
                     {
                         Array.Resize(ref found, count * 2);
                     }
-                    found[count++] = Marshal.PtrToStringAnsi((IntPtr)name);
+                    found[count++] = Marshal.PtrToStringAnsi((IntPtr)name)!;
                 });
             }
 

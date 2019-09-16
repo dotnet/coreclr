@@ -75,8 +75,8 @@ void copyFlags(GenTree* dst, GenTree* src, unsigned mask)
 void Rationalizer::RewriteSIMDOperand(LIR::Use& use, bool keepBlk)
 {
 #ifdef FEATURE_SIMD
-    // No lowering is needed for non-SIMD nodes, so early out if featureSIMD is not enabled.
-    if (!comp->featureSIMD)
+    // No lowering is needed for non-SIMD nodes, so early out if SIMD types are not supported.
+    if (!comp->supportSIMDTypes())
     {
         return;
     }
@@ -139,7 +139,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
 #ifdef FEATURE_READYTORUN_COMPILER
                                      CORINFO_CONST_LOOKUP entryPoint,
 #endif
-                                     GenTreeArgList* args)
+                                     GenTreeCall::Use* args)
 {
     GenTree* const tree           = *use;
     GenTree* const treeFirstNode  = comp->fgGetFirstNode(tree);
@@ -165,7 +165,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
     // Replace "tree" with "call"
     if (parents.Height() > 1)
     {
-        parents.Index(1)->ReplaceOperand(use, call);
+        parents.Top(1)->ReplaceOperand(use, call);
     }
     else
     {
@@ -181,7 +181,7 @@ void Rationalizer::RewriteNodeAsCall(GenTree**             use,
     // 0 is current node, so start at 1
     for (int i = 1; i < parents.Height(); i++)
     {
-        parents.Index(i)->gtFlags |= (call->gtFlags & GTF_ALL_EFFECT) | GTF_CALL;
+        parents.Top(i)->gtFlags |= (call->gtFlags & GTF_ALL_EFFECT) | GTF_CALL;
     }
 
     // Since "tree" is replaced with "call", pop "tree" node (i.e the current node)
@@ -209,14 +209,14 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
 {
     GenTreeIntrinsic* intrinsic = (*use)->AsIntrinsic();
 
-    GenTreeArgList* args;
+    GenTreeCall::Use* args;
     if (intrinsic->gtOp.gtOp2 == nullptr)
     {
-        args = comp->gtNewArgList(intrinsic->gtGetOp1());
+        args = comp->gtNewCallArgs(intrinsic->gtGetOp1());
     }
     else
     {
-        args = comp->gtNewArgList(intrinsic->gtGetOp1(), intrinsic->gtGetOp2());
+        args = comp->gtNewCallArgs(intrinsic->gtGetOp1(), intrinsic->gtGetOp2());
     }
 
     RewriteNodeAsCall(use, parents, intrinsic->gtMethodHandle,
@@ -228,10 +228,9 @@ void Rationalizer::RewriteIntrinsicAsUserCall(GenTree** use, ArrayStack<GenTree*
 
 #ifdef DEBUG
 
-void Rationalizer::ValidateStatement(GenTree* tree, BasicBlock* block)
+void Rationalizer::ValidateStatement(Statement* stmt, BasicBlock* block)
 {
-    assert(tree->gtOper == GT_STMT);
-    DBEXEC(TRUE, JitTls::GetCompiler()->fgDebugCheckNodeLinks(block, tree));
+    DBEXEC(TRUE, JitTls::GetCompiler()->fgDebugCheckNodeLinks(block, stmt));
 }
 
 // sanity checks that apply to all kinds of IR
@@ -241,11 +240,11 @@ void Rationalizer::SanityCheck()
     BasicBlock* block;
     foreach_block(comp, block)
     {
-        for (GenTree* statement = block->bbTreeList; statement != nullptr; statement = statement->gtNext)
+        for (Statement* statement : block->Statements())
         {
             ValidateStatement(statement, block);
 
-            for (GenTree* tree = statement->gtStmt.gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = statement->gtStmtList; tree; tree = tree->gtNext)
             {
                 // QMARK nodes should have been removed before this phase.
                 assert(tree->OperGet() != GT_QMARK);
@@ -374,13 +373,10 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 GenTreeBlk*  storeBlk = nullptr;
                 unsigned int size     = varDsc->lvExactSize;
 
-                if (varDsc->lvStructGcCount != 0)
+                if (varDsc->HasGCPtr())
                 {
                     CORINFO_CLASS_HANDLE structHnd = varDsc->lvVerTypeInfo.GetClassHandle();
                     GenTreeObj*          objNode   = comp->gtNewObjNode(structHnd, location)->AsObj();
-                    unsigned int         slots     = roundUp(size, TARGET_POINTER_SIZE) / TARGET_POINTER_SIZE;
-
-                    objNode->SetGCInfo(varDsc->lvGcLayout, varDsc->lvStructGcCount, slots);
                     objNode->ChangeOper(GT_STORE_OBJ);
                     objNode->SetData(value);
                     comp->fgMorphUnsafeBlk(objNode);
@@ -388,7 +384,8 @@ void Rationalizer::RewriteAssignment(LIR::Use& use)
                 }
                 else
                 {
-                    storeBlk = new (comp, GT_STORE_BLK) GenTreeBlk(GT_STORE_BLK, TYP_STRUCT, location, value, size);
+                    storeBlk = new (comp, GT_STORE_BLK)
+                        GenTreeBlk(GT_STORE_BLK, TYP_STRUCT, location, value, comp->typGetBlkLayout(size));
                 }
                 storeBlk->gtFlags |= GTF_ASG;
                 storeBlk->gtFlags |= ((location->gtFlags | value->gtFlags) & GTF_ALL_EFFECT);
@@ -552,7 +549,7 @@ void Rationalizer::RewriteAddress(LIR::Use& use)
     JITDUMP("\n");
 }
 
-Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<GenTree*>& parentStack)
+Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, Compiler::GenTreeStack& parentStack)
 {
     assert(useEdge != nullptr);
 
@@ -565,7 +562,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
 
     // First, remove any preceeding list nodes, which are not otherwise visited by the tree walk.
     //
-    // NOTE: GT_FIELD_LIST head nodes, and GT_LIST nodes used by phi nodes will in fact be visited.
+    // NOTE: GT_FIELD_LIST head nodes, and GT_LIST nodes used by GT_HWIntrinsic nodes will in fact be visited.
     for (GenTree* prev = node->gtPrev; prev != nullptr && prev->OperIsAnyList() && !(prev->OperIsFieldListHead());
          prev          = node->gtPrev)
     {
@@ -594,7 +591,7 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
     }
     else
     {
-        use = LIR::Use(BlockRange(), useEdge, parentStack.Index(1));
+        use = LIR::Use(BlockRange(), useEdge, parentStack.Top(1));
     }
 
     assert(node == use.Def());
@@ -755,42 +752,24 @@ Compiler::fgWalkResult Rationalizer::RewriteNode(GenTree** useEdge, ArrayStack<G
             assert(comp->IsTargetIntrinsic(node->gtIntrinsic.gtIntrinsicId));
             break;
 
-#ifdef FEATURE_SIMD
         case GT_BLK:
+            // We should only see GT_BLK for TYP_STRUCT or for InitBlocks.
+            assert((node->TypeGet() == TYP_STRUCT) || use.User()->OperIsInitBlkOp());
+            break;
+
         case GT_OBJ:
-        {
-            // TODO-1stClassStructs: These should have been transformed to GT_INDs, but in order
-            // to preserve existing behavior, we will keep this as a block node if this is the
-            // lhs of a block assignment, and either:
-            // - It is a "generic" TYP_STRUCT assignment, OR
-            // - It is an initblk, OR
-            // - Neither the lhs or rhs are known to be of SIMD type.
-
-            GenTree* parent  = use.User();
-            bool     keepBlk = false;
-            if ((parent->OperGet() == GT_ASG) && (node == parent->gtGetOp1()))
+            assert(node->TypeGet() == TYP_STRUCT || !use.User()->OperIsInitBlkOp());
+            if (varTypeIsSIMD(node))
             {
-                if ((node->TypeGet() == TYP_STRUCT) || parent->OperIsInitBlkOp())
-                {
-                    keepBlk = true;
-                }
-                else if (!comp->isAddrOfSIMDType(node->AsBlk()->Addr()))
-                {
-                    GenTree* dataSrc = parent->gtGetOp2();
-                    if (!dataSrc->IsLocal() && (dataSrc->OperGet() != GT_SIMD) && (!dataSrc->OperIsHWIntrinsic()))
-                    {
-                        noway_assert(dataSrc->OperIsIndir());
-                        keepBlk = !comp->isAddrOfSIMDType(dataSrc->AsIndir()->Addr());
-                    }
-                }
+                // Rewrite these as GT_IND.
+                RewriteSIMDOperand(use, false);
             }
-            RewriteSIMDOperand(use, keepBlk);
-        }
-        break;
+            break;
 
+#ifdef FEATURE_SIMD
         case GT_SIMD:
         {
-            noway_assert(comp->featureSIMD);
+            noway_assert(comp->supportSIMDTypes());
             GenTreeSIMD* simdNode = node->AsSIMD();
             unsigned     simdSize = simdNode->gtSIMDSize;
             var_types    simdType = comp->getSIMDTypeForSize(simdSize);
@@ -947,18 +926,18 @@ void Rationalizer::DoPhase()
         comp->compCurBB = block;
         m_block         = block;
 
-        GenTreeStmt* firstStatement = block->firstStmt();
         block->MakeLIR(nullptr, nullptr);
 
         // Establish the first and last nodes for the block. This is necessary in order for the LIR
         // utilities that hang off the BasicBlock type to work correctly.
+        Statement* firstStatement = block->firstStmt();
         if (firstStatement == nullptr)
         {
             // No statements in this block; skip it.
             continue;
         }
 
-        for (GenTreeStmt *statement = firstStatement, *nextStatement; statement != nullptr; statement = nextStatement)
+        for (Statement* statement : StatementList(firstStatement))
         {
             assert(statement->gtStmtList != nullptr);
             assert(statement->gtStmtList->gtPrev == nullptr);
@@ -967,23 +946,21 @@ void Rationalizer::DoPhase()
 
             BlockRange().InsertAtEnd(LIR::Range(statement->gtStmtList, statement->gtStmtExpr));
 
-            nextStatement     = statement->getNextStmt();
-            statement->gtNext = nullptr;
-            statement->gtPrev = nullptr;
-
             // If this statement has correct offset information, change it into an IL offset
             // node and insert it into the LIR.
             if (statement->gtStmtILoffsx != BAD_IL_OFFSET)
             {
                 assert(!statement->IsPhiDefnStmt());
-                statement->SetOper(GT_IL_OFFSET);
-
-                BlockRange().InsertBefore(statement->gtStmtList, statement);
+                GenTreeILOffset* ilOffset = new (comp, GT_IL_OFFSET)
+                    GenTreeILOffset(statement->gtStmtILoffsx DEBUGARG(statement->gtStmtLastILoffs));
+                BlockRange().InsertBefore(statement->gtStmtList, ilOffset);
             }
 
             m_block = block;
             visitor.WalkTree(&statement->gtStmtExpr, nullptr);
         }
+
+        block->bbStmtList = nullptr;
 
         assert(BlockRange().CheckLIR(comp, true));
     }

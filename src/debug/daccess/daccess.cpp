@@ -38,8 +38,6 @@ CRITICAL_SECTION g_dacCritSec;
 ClrDataAccess* g_dacImpl;
 HINSTANCE g_thisModule;
 
-extern VOID STDMETHODCALLTYPE TLS_FreeMasterSlotIndex();
-
 EXTERN_C
 #ifdef FEATURE_PAL
 DLLEXPORT // For Win32 PAL LoadLibrary emulation
@@ -86,9 +84,6 @@ BOOL WINAPI DllMain(HANDLE instance, DWORD reason, LPVOID reserved)
         {
             DeleteCriticalSection(&g_dacCritSec);
         }
-#ifndef FEATURE_PAL
-        TLS_FreeMasterSlotIndex();
-#endif
         g_procInitialized = false;
         break;
     }
@@ -469,8 +464,6 @@ MetaEnum::End(void)
     switch(m_kind)
     {
     case mdtTypeDef:
-        m_mdImport->EnumTypeDefClose(&m_enum);
-        break;
     case mdtMethodDef:
     case mdtFieldDef:
         m_mdImport->EnumClose(&m_enum);
@@ -494,7 +487,7 @@ MetaEnum::NextToken(mdToken* token,
     switch(m_kind)
     {
     case mdtTypeDef:
-        if (!m_mdImport->EnumTypeDefNext(&m_enum, token))
+        if (!m_mdImport->EnumNext(&m_enum, token))
         {
             return S_FALSE;
         }
@@ -866,7 +859,10 @@ SplitName::FindType(IMDInternalImport* mdInternal)
 
     ULONG32 length;
     WCHAR   wszName[MAX_CLASS_NAME];
-    ConvertUtf8(m_typeName, MAX_CLASS_NAME, &length, wszName);
+    if (ConvertUtf8(m_typeName, MAX_CLASS_NAME, &length, wszName) != S_OK)
+    {
+        return false;
+    }
 
     WCHAR *pHead;
 
@@ -3285,6 +3281,10 @@ ClrDataAccess::QueryInterface(THIS_
     {
         ifaceRet = static_cast<ISOSDacInterface6*>(this);
     }
+    else if (IsEqualIID(interfaceId, __uuidof(ISOSDacInterface7)))
+    {
+        ifaceRet = static_cast<ISOSDacInterface7*>(this);
+    }
     else
     {
         *iface = NULL;
@@ -3829,18 +3829,15 @@ ClrDataAccess::GetAppDomainByUniqueID(
 
     EX_TRY
     {
-        AppDomainIterator iter(FALSE);
-
-        status = E_INVALIDARG;
-        while (iter.Next())
+        if (uniqueID != DefaultADID)
         {
-            if (iter.GetDomain()->GetId().m_dwId == uniqueID)
-            {
-                *appDomain = new (nothrow)
-                    ClrDataAppDomain(this, iter.GetDomain());
-                status = *appDomain ? S_OK : E_OUTOFMEMORY;
-                break;
-            }
+            status = E_INVALIDARG;
+        }
+        else
+        {
+            *appDomain = new (nothrow)
+                ClrDataAppDomain(this, AppDomain::GetCurrentDomain());
+            status = *appDomain ? S_OK : E_OUTOFMEMORY;
         }
     }
     EX_CATCH
@@ -5620,7 +5617,6 @@ ClrDataAccess::Initialize(void)
     cccallbacks.m_hmodCoreCLR               = (HINSTANCE)m_globalBase; // Base address of the runtime in the target process
     cccallbacks.m_pfnIEE                    = NULL;
     cccallbacks.m_pfnGetCORSystemDirectory  = NULL;
-    cccallbacks.m_pfnGetCLRFunction         = NULL;
     InitUtilcode(cccallbacks);
 
     return S_OK;
@@ -7848,13 +7844,10 @@ STDAPI OutOfProcessExceptionEventSignatureCallback(__in PDWORD pContext,
     }
     EX_CATCH_HRESULT(hr);
 
-#ifndef FEATURE_WINDOWSPHONE
-    // we can't assert this on phone as it's possible for the OS to kill
+    // it's possible for the OS to kill
     // the faulting process before WER crash reporting has completed.
-    _ASSERTE(hr == S_OK);
-#else
     _ASSERTE(hr == S_OK || hr == CORDBG_E_READVIRTUAL_FAILURE);
-#endif
+
     if (hr != S_OK)
     {
         // S_FALSE means either it is not a managed exception or we do not have Watson buckets.
@@ -8105,7 +8098,7 @@ bool DacHandleWalker::FetchMoreHandles(HANDLESCANPROC callback)
                         if (mask & 1)
                         {
                             dac_handle_table *pTable = hTable;
-                            PTR_AppDomain pDomain = SystemDomain::GetAppDomainAtIndex(ADIndex(pTable->uADIndex));
+                            PTR_AppDomain pDomain = AppDomain::GetCurrentDomain();
                             param.AppDomain = TO_CDADDR(pDomain.GetAddr());
                             param.Type = handleType;
 
@@ -8475,7 +8468,6 @@ StackWalkAction DacStackReferenceWalker::Callback(CrawlFrame *pCF, VOID *pData)
 
     MethodDesc *pMD = pCF->GetFunction();
     gcctx->sc->pMD = pMD;
-    gcctx->sc->pCurrentDomain = pCF->GetAppDomain();
 
     PREGDISPLAY pRD = pCF->GetRegisterSet();
     dsc->sp = (TADDR)GetRegdisplaySP(pRD);;
@@ -8485,12 +8477,12 @@ StackWalkAction DacStackReferenceWalker::Callback(CrawlFrame *pCF, VOID *pData)
     gcctx->cf = pCF;
 
     bool fReportGCReferences = true;
-#if defined(WIN64EXCEPTIONS)
+#if defined(FEATURE_EH_FUNCLETS)
     // On Win64 and ARM, we may have unwound this crawlFrame and thus, shouldn't report the invalid
     // references it may contain.
     // todo.
     fReportGCReferences = pCF->ShouldCrawlframeReportGCReferences();
-#endif // defined(WIN64EXCEPTIONS)
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     Frame *pFrame = ((DacScanContext*)gcctx->sc)->pFrame = pCF->GetFrame();
 

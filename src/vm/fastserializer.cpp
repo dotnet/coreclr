@@ -5,6 +5,8 @@
 #include "common.h"
 #include "fastserializer.h"
 #include "diagnosticsipc.h"
+#include <diagnosticsprotocol.h>
+#include <eventpipeprotocolhelper.h>
 
 #ifdef FEATURE_PERFTRACING
 
@@ -12,16 +14,19 @@
 // As a result of work on V3 of Event Pipe (https://github.com/Microsoft/perfview/pull/532) it got removed
 // if you need it, please use git to restore it
 
-IpcStreamWriter::IpcStreamWriter(IpcStream *pStream) : _pStream(pStream)
+IpcStreamWriter::IpcStreamWriter(uint64_t id, IpcStream *pStream) : _pStream(pStream)
 {
     CONTRACTL
     {
         NOTHROW;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(_pStream != nullptr);
     }
     CONTRACTL_END;
+
+    if (_pStream == nullptr)
+        return;
 }
 
 IpcStreamWriter::~IpcStreamWriter()
@@ -49,6 +54,10 @@ bool IpcStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite, 
     }
     CONTRACTL_END;
 
+    if (_pStream == nullptr)
+        return false;
+    if (lpBuffer == nullptr || nBytesToWrite == 0)
+        return false;
     return _pStream->Write(lpBuffer, nBytesToWrite, nBytesWritten);
 }
 
@@ -58,10 +67,9 @@ FileStreamWriter::FileStreamWriter(const SString &outputFilePath)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
-
     m_pFileStream = new CFileStream();
     if (FAILED(m_pFileStream->OpenForWrite(outputFilePath)))
     {
@@ -97,6 +105,9 @@ bool FileStreamWriter::Write(const void *lpBuffer, const uint32_t nBytesToWrite,
     }
     CONTRACTL_END;
 
+    if (m_pFileStream == nullptr)
+        return false;
+
     ULONG outCount;
     HRESULT hResult = m_pFileStream->Write(lpBuffer, nBytesToWrite, &outCount);
     nBytesWritten = static_cast<uint32_t>(outCount);
@@ -109,13 +120,13 @@ FastSerializer::FastSerializer(StreamWriter *pStreamWriter) : m_pStreamWriter(pS
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
         PRECONDITION(m_pStreamWriter != NULL);
     }
     CONTRACTL_END;
 
     m_writeErrorEncountered = false;
-    m_currentPos = 0;
+    m_requiredPadding = 0;
     WriteFileHeader();
 }
 
@@ -143,7 +154,7 @@ void FastSerializer::WriteObject(FastSerializableObject *pObject)
     }
     CONTRACTL_END;
 
-    WriteTag(FastSerializerTags::BeginObject);
+    WriteTag(pObject->IsPrivate() ? FastSerializerTags::BeginPrivateObject : FastSerializerTags::BeginObject);
 
     WriteSerializationType(pObject);
 
@@ -171,22 +182,14 @@ void FastSerializer::WriteBuffer(BYTE *pBuffer, unsigned int length)
     EX_TRY
     {
         uint32_t outCount;
-        m_pStreamWriter->Write(pBuffer, length, outCount);
+        bool fSuccess = m_pStreamWriter->Write(pBuffer, length, outCount);
 
-#ifdef _DEBUG
-        size_t prevPos = m_currentPos;
-#endif
-        m_currentPos += outCount;
-#ifdef _DEBUG
-        _ASSERTE(prevPos < m_currentPos);
-#endif
+        m_requiredPadding = (ALIGNMENT_SIZE + m_requiredPadding - (outCount % ALIGNMENT_SIZE)) % ALIGNMENT_SIZE;
 
-        if (length != outCount)
-        {
-            // This will cause us to stop writing to the file.
-            // The file will still remain open until shutdown so that we don't have to take a lock at this level when we touch the file stream.
-            m_writeErrorEncountered = true;
-        }
+        // This will cause us to stop writing to the file.
+        // The file will still remain open until shutdown so that we don't
+        // have to take a lock at this level when we touch the file stream.
+        m_writeErrorEncountered = (length != outCount) || !fSuccess;
     }
     EX_CATCH
     {
@@ -207,7 +210,7 @@ void FastSerializer::WriteSerializationType(FastSerializableObject *pObject)
     CONTRACTL_END;
 
     // Write the BeginObject tag.
-    WriteTag(FastSerializerTags::BeginObject);
+    WriteTag(pObject->IsPrivate() ? FastSerializerTags::BeginPrivateObject : FastSerializerTags::BeginObject);
 
     // Write a NullReferenceTag, which implies that the following fields belong to SerializationType.
     WriteTag(FastSerializerTags::NullReference);
@@ -252,7 +255,7 @@ void FastSerializer::WriteFileHeader()
     {
         NOTHROW;
         GC_NOTRIGGER;
-        MODE_ANY;
+        MODE_PREEMPTIVE;
     }
     CONTRACTL_END;
 

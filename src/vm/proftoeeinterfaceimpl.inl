@@ -63,9 +63,10 @@ inline BOOL AreCallbackStateFlagsSet(DWORD dwFlags)
     BOOL fRet;
     BEGIN_GETTHREAD_ALLOWED_IN_NO_THROW_REGION;
     DWORD dwProfilerCallbackFullStateFlags = pThread->GetProfilerCallbackFullState();
-    if ((dwProfilerCallbackFullStateFlags & COR_PRF_CALLBACKSTATE_FORCEGC_WAS_CALLED) != 0)
+    if (((dwProfilerCallbackFullStateFlags & COR_PRF_CALLBACKSTATE_FORCEGC_WAS_CALLED) != 0)
+        || ((dwProfilerCallbackFullStateFlags & COR_PRF_CALLBACKSTATE_REJIT_WAS_CALLED) != 0))
     {
-        // Threads on which ForceGC() was successfully called should be treated just
+        // Threads on which ForceGC() or RequestReJIT() was successfully called should be treated just
         // like native threads.  Profiler can do whatever it wants
         return TRUE;
     }
@@ -178,14 +179,14 @@ inline ProfToEEInterfaceImpl::ProfToEEInterfaceImpl()
 };
 
 
-inline BOOL IsClassOfMethodTableInited(MethodTable * pMethodTable, AppDomain * pAppDomain)
+inline BOOL IsClassOfMethodTableInited(MethodTable * pMethodTable)
 {
     LIMITED_METHOD_CONTRACT;
 
     return (pMethodTable->IsRestored() &&
         (pMethodTable->GetModuleForStatics() != NULL) &&
-        (pMethodTable->GetDomainLocalModule(pAppDomain) != NULL) &&
-        pMethodTable->IsClassInited(pAppDomain));
+        (pMethodTable->GetDomainLocalModule() != NULL) &&
+        pMethodTable->IsClassInited());
 }
 
 

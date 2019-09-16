@@ -61,7 +61,7 @@ inline UPTR DispID2HashKey(DISPID DispID)
 }
 
 // Typedef for string comparition functions.
-typedef int (__cdecl *UnicodeStringCompareFuncPtr)(const wchar_t *, const wchar_t *);
+typedef int (__cdecl *UnicodeStringCompareFuncPtr)(const WCHAR *, const WCHAR *);
 
 //--------------------------------------------------------------------------------
 // The DispatchMemberInfo class implementation.
@@ -906,7 +906,7 @@ void DispatchMemberInfo::SetUpMethodMarshalerInfo(MethodDesc *pMD, BOOL bReturnV
 
             MarshalInfo Info(msig.GetModule(), msig.GetArgProps(), msig.GetSigTypeContext(), paramDef, MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                              (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                             TRUE, iParam, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, TRUE
+                             TRUE, iParam, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, TRUE
     #ifdef _DEBUG
                      , pMD->m_pszDebugMethodName, pMD->m_pszDebugClassName, iParam
     #endif
@@ -943,7 +943,7 @@ void DispatchMemberInfo::SetUpMethodMarshalerInfo(MethodDesc *pMD, BOOL bReturnV
     {
         MarshalInfo Info(msig.GetModule(), msig.GetReturnProps(), msig.GetSigTypeContext(), returnParamDef, MarshalInfo::MARSHAL_SCENARIO_COMINTEROP,
                          (CorNativeLinkType)0, (CorNativeLinkFlags)0,
-                         FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, pMD, TRUE
+                         FALSE, 0, numArgs, BestFit, ThrowOnUnmappableChar, FALSE, TRUE, pMD, TRUE
 #ifdef _DEBUG
                          , pMD->m_pszDebugMethodName, pMD->m_pszDebugClassName, 0
 #endif
@@ -1326,7 +1326,7 @@ void DispatchInfo::InvokeMemberWorker(DispatchMemberInfo*   pDispMemberInfo,
 
         // If the variant is a byref static array, then remember the property value.
         if (IsVariantByrefStaticArray(pSrcOleVariant))
-            SetObjectReference(&pObjs->ByrefStaticArrayBackupPropVal, pObjs->PropVal, pAppDomain);
+            SetObjectReference(&pObjs->ByrefStaticArrayBackupPropVal, pObjs->PropVal);
     }
 
 
@@ -2095,6 +2095,11 @@ HRESULT DispatchInfo::InvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id,
         // DISPATCH_CONSTRUCT only works when calling InvokeMember.
         if (wFlags & DISPATCH_CONSTRUCT)
             return E_INVALIDARG;
+
+        if ((!(wFlags & (DISPATCH_METHOD | DISPATCH_PROPERTYGET))) && pDispMemberInfo->GetMemberType() == EnumMemberTypes::Method)
+        {
+            return DISP_E_MEMBERNOTFOUND;
+        }
 
         // We have the member so retrieve the number of formal parameters.
         NumParams = pDispMemberInfo->GetNumParameters();
@@ -3299,8 +3304,6 @@ DispatchMemberInfo* DispatchExInfo::CreateDispatchMemberInfoInstance(DISPID Disp
 
     DispatchMemberInfo* pInfo = new DispatchMemberInfo(this, DispID, strMemberName, MemberInfoObj);
 
-    AppDomain* pDomain = SystemDomain::GetAppDomainFromId(m_pSimpleWrapperOwner->GetDomainID(), ADV_CURRENTAD);
-    
     pInfo->SetHandle(GetLoaderAllocator()->AllocateHandle(MemberInfoObj));
     
     RETURN pInfo;

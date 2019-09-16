@@ -101,150 +101,6 @@ const char* emitter::emitIfName(unsigned f)
 
 #endif
 
-#ifdef TRANSLATE_PDB
-
-/* these are protected */
-
-AddrMap*  emitter::emitPDBOffsetTable = 0;
-LocalMap* emitter::emitPDBLocalTable  = 0;
-bool      emitter::emitIsPDBEnabled   = true;
-BYTE*     emitter::emitILBaseOfCode   = 0;
-BYTE*     emitter::emitILMethodBase   = 0;
-BYTE*     emitter::emitILMethodStart  = 0;
-BYTE*     emitter::emitImgBaseOfCode  = 0;
-
-void emitter::MapCode(int ilOffset, BYTE* imgDest)
-{
-    if (emitIsPDBEnabled)
-    {
-        emitPDBOffsetTable->MapSrcToDest(ilOffset, (int)(imgDest - emitImgBaseOfCode));
-    }
-}
-
-void emitter::MapFunc(int                imgOff,
-                      int                procLen,
-                      int                dbgStart,
-                      int                dbgEnd,
-                      short              frameReg,
-                      int                stkAdjust,
-                      int                lvaCount,
-                      OptJit::LclVarDsc* lvaTable,
-                      bool               framePtr)
-{
-    if (emitIsPDBEnabled)
-    {
-        // this code stores information about local symbols for the PDB translation
-
-        assert(lvaCount >= 0); // don't allow a negative count
-
-        LvaDesc* rgLvaDesc = 0;
-
-        if (lvaCount > 0)
-        {
-            rgLvaDesc = new LvaDesc[lvaCount];
-
-            if (!rgLvaDesc)
-            {
-                NOMEM();
-            }
-
-            LvaDesc*           pDst = rgLvaDesc;
-            OptJit::LclVarDsc* pSrc = lvaTable;
-            for (int i = 0; i < lvaCount; ++i, ++pDst, ++pSrc)
-            {
-                pDst->slotNum = pSrc->lvSlotNum;
-                pDst->isReg   = pSrc->lvRegister;
-                pDst->reg     = (pSrc->lvRegister ? pSrc->lvRegNum : frameReg);
-                pDst->off     = pSrc->lvStkOffs + stkAdjust;
-            }
-        }
-
-        emitPDBLocalTable->AddFunc((int)(emitILMethodBase - emitILBaseOfCode), imgOff - (int)emitImgBaseOfCode, procLen,
-                                   dbgStart - imgOff, dbgEnd - imgOff, lvaCount, rgLvaDesc, framePtr);
-        // do not delete rgLvaDesc here -- responsibility is now on emitPDBLocalTable destructor
-    }
-}
-
-/* these are public */
-
-void emitter::SetILBaseOfCode(BYTE* pTextBase)
-{
-    emitILBaseOfCode = pTextBase;
-}
-
-void emitter::SetILMethodBase(BYTE* pMethodEntry)
-{
-    emitILMethodBase = pMethodEntry;
-}
-
-void emitter::SetILMethodStart(BYTE* pMethodCode)
-{
-    emitILMethodStart = pMethodCode;
-}
-
-void emitter::SetImgBaseOfCode(BYTE* pTextBase)
-{
-    emitImgBaseOfCode = pTextBase;
-}
-
-void emitter::SetIDBaseToProlog()
-{
-    emitInstrDescILBase = (int)(emitILMethodBase - emitILBaseOfCode);
-}
-
-void emitter::SetIDBaseToOffset(int methodOffset)
-{
-    emitInstrDescILBase = methodOffset + (int)(emitILMethodStart - emitILBaseOfCode);
-}
-
-void emitter::DisablePDBTranslation()
-{
-    // this function should disable PDB translation code
-    emitIsPDBEnabled = false;
-}
-
-bool emitter::IsPDBEnabled()
-{
-    return emitIsPDBEnabled;
-}
-
-void emitter::InitTranslationMaps(int ilCodeSize)
-{
-    if (emitIsPDBEnabled)
-    {
-        emitPDBOffsetTable = AddrMap::Create(ilCodeSize);
-        emitPDBLocalTable  = LocalMap::Create();
-    }
-}
-
-void emitter::DeleteTranslationMaps()
-{
-    if (emitPDBOffsetTable)
-    {
-        delete emitPDBOffsetTable;
-        emitPDBOffsetTable = 0;
-    }
-    if (emitPDBLocalTable)
-    {
-        delete emitPDBLocalTable;
-        emitPDBLocalTable = 0;
-    }
-}
-
-void emitter::InitTranslator(PDBRewriter* pPDB, int* rgSecMap, IMAGE_SECTION_HEADER** rgpHeader, int numSections)
-{
-    if (emitIsPDBEnabled)
-    {
-        pPDB->InitMaps(rgSecMap,           // new PE section header order
-                       rgpHeader,          // array of section headers
-                       numSections,        // number of sections
-                       emitPDBOffsetTable, // code offset translation table
-                       emitPDBLocalTable); // slot variable translation table
-    }
-}
-
-#endif // TRANSLATE_PDB
-
 /*****************************************************************************/
 
 #if EMITTER_STATS
@@ -267,6 +123,10 @@ size_t emitter::emitSizeMethod;
 
 size_t   emitter::emitTotMemAlloc;
 unsigned emitter::emitTotalInsCnt;
+unsigned emitter::emitCurPrologInsCnt;
+size_t   emitter::emitCurPrologIGSize;
+unsigned emitter::emitMaxPrologInsCnt;
+size_t   emitter::emitMaxPrologIGSize;
 unsigned emitter::emitTotalIGcnt;
 unsigned emitter::emitTotalPhIGcnt;
 unsigned emitter::emitTotalIGjmps;
@@ -274,6 +134,25 @@ unsigned emitter::emitTotalIGptrs;
 unsigned emitter::emitTotalIGicnt;
 size_t   emitter::emitTotalIGsize;
 unsigned emitter::emitTotalIGmcnt;
+unsigned emitter::emitTotalIGEmitAdd;
+
+unsigned emitter::emitTotalIDescSmallCnt;
+unsigned emitter::emitTotalIDescCnt;
+unsigned emitter::emitTotalIDescJmpCnt;
+#if !defined(_TARGET_ARM64_)
+unsigned emitter::emitTotalIDescLblCnt;
+#endif // !defined(_TARGET_ARM64_)
+unsigned emitter::emitTotalIDescCnsCnt;
+unsigned emitter::emitTotalIDescDspCnt;
+unsigned emitter::emitTotalIDescCnsDspCnt;
+#ifdef _TARGET_XARCH_
+unsigned emitter::emitTotalIDescAmdCnt;
+unsigned emitter::emitTotalIDescCnsAmdCnt;
+#endif // _TARGET_XARCH_
+unsigned emitter::emitTotalIDescCGCACnt;
+#ifdef _TARGET_ARM_
+unsigned emitter::emitTotalIDescRelocCnt;
+#endif // _TARGET_ARM_
 
 unsigned emitter::emitSmallDspCnt;
 unsigned emitter::emitLargeDspCnt;
@@ -286,24 +165,40 @@ void emitterStaticStats(FILE* fout)
 {
     // insGroup members
 
+    insGroup* igDummy = nullptr;
+
     fprintf(fout, "\n");
     fprintf(fout, "insGroup:\n");
-    fprintf(fout, "Offset of igNext              = %2u\n", offsetof(insGroup, igNext));
+    fprintf(fout, "Offset / size of igNext              = %2u / %2u\n", offsetof(insGroup, igNext),
+            sizeof(igDummy->igNext));
 #ifdef DEBUG
-    fprintf(fout, "Offset of igSelf              = %2u\n", offsetof(insGroup, igSelf));
+    fprintf(fout, "Offset / size of igSelf              = %2u / %2u\n", offsetof(insGroup, igSelf),
+            sizeof(igDummy->igSelf));
 #endif
-    fprintf(fout, "Offset of igNum               = %2u\n", offsetof(insGroup, igNum));
-    fprintf(fout, "Offset of igOffs              = %2u\n", offsetof(insGroup, igOffs));
-    fprintf(fout, "Offset of igFuncIdx           = %2u\n", offsetof(insGroup, igFuncIdx));
-    fprintf(fout, "Offset of igFlags             = %2u\n", offsetof(insGroup, igFlags));
-    fprintf(fout, "Offset of igSize              = %2u\n", offsetof(insGroup, igSize));
-    fprintf(fout, "Offset of igData              = %2u\n", offsetof(insGroup, igData));
+    fprintf(fout, "Offset / size of igNum               = %2u / %2u\n", offsetof(insGroup, igNum),
+            sizeof(igDummy->igNum));
+    fprintf(fout, "Offset / size of igOffs              = %2u / %2u\n", offsetof(insGroup, igOffs),
+            sizeof(igDummy->igOffs));
+    fprintf(fout, "Offset / size of igFuncIdx           = %2u / %2u\n", offsetof(insGroup, igFuncIdx),
+            sizeof(igDummy->igFuncIdx));
+    fprintf(fout, "Offset / size of igFlags             = %2u / %2u\n", offsetof(insGroup, igFlags),
+            sizeof(igDummy->igFlags));
+    fprintf(fout, "Offset / size of igSize              = %2u / %2u\n", offsetof(insGroup, igSize),
+            sizeof(igDummy->igSize));
+    fprintf(fout, "Offset / size of igData              = %2u / %2u\n", offsetof(insGroup, igData),
+            sizeof(igDummy->igData));
+    fprintf(fout, "Offset / size of igPhData            = %2u / %2u\n", offsetof(insGroup, igPhData),
+            sizeof(igDummy->igPhData));
 #if EMIT_TRACK_STACK_DEPTH
-    fprintf(fout, "Offset of igStkLvl            = %2u\n", offsetof(insGroup, igStkLvl));
+    fprintf(fout, "Offset / size of igStkLvl            = %2u / %2u\n", offsetof(insGroup, igStkLvl),
+            sizeof(igDummy->igStkLvl));
 #endif
-    fprintf(fout, "Offset of igGCregs            = %2u\n", offsetof(insGroup, igGCregs));
-    fprintf(fout, "Offset of igInsCnt            = %2u\n", offsetof(insGroup, igInsCnt));
-    fprintf(fout, "Size   of insGroup            = %u\n", sizeof(insGroup));
+    fprintf(fout, "Offset / size of igGCregs            = %2u / %2u\n", offsetof(insGroup, igGCregs),
+            sizeof(igDummy->igGCregs));
+    fprintf(fout, "Offset / size of igInsCnt            = %2u / %2u\n", offsetof(insGroup, igInsCnt),
+            sizeof(igDummy->igInsCnt));
+    fprintf(fout, "\n");
+    fprintf(fout, "Size of insGroup                     = %u\n", sizeof(insGroup));
 
     // insPlaceholderGroupData members
 
@@ -321,7 +216,8 @@ void emitterStaticStats(FILE* fout)
     fprintf(fout, "Size   of insPlaceholderGroupData = %u\n", sizeof(insPlaceholderGroupData));
 
     fprintf(fout, "\n");
-    fprintf(fout, "Size   of instrDesc   = %2u\n", sizeof(emitter::instrDesc));
+    fprintf(fout, "SMALL_IDSC_SIZE           = %2u\n", SMALL_IDSC_SIZE);
+    fprintf(fout, "Size   of instrDesc       = %2u\n", sizeof(emitter::instrDesc));
     // fprintf(fout, "Offset of _idIns      = %2u\n", offsetof(emitter::instrDesc, _idIns      ));
     // fprintf(fout, "Offset of _idInsFmt   = %2u\n", offsetof(emitter::instrDesc, _idInsFmt   ));
     // fprintf(fout, "Offset of _idOpSize   = %2u\n", offsetof(emitter::instrDesc, _idOpSize   ));
@@ -329,6 +225,42 @@ void emitterStaticStats(FILE* fout)
     // fprintf(fout, "Offset of _idAddrUnion= %2u\n", offsetof(emitter::instrDesc, _idAddrUnion));
     // fprintf(fout, "\n");
     // fprintf(fout, "Size   of _idAddrUnion= %2u\n", sizeof(((emitter::instrDesc*)0)->_idAddrUnion));
+
+    fprintf(fout, "Size   of instrDescJmp    = %2u\n", sizeof(emitter::instrDescJmp));
+#if !defined(_TARGET_ARM64_)
+    fprintf(fout, "Size   of instrDescLbl    = %2u\n", sizeof(emitter::instrDescLbl));
+#endif // !defined(_TARGET_ARM64_)
+    fprintf(fout, "Size   of instrDescCns    = %2u\n", sizeof(emitter::instrDescCns));
+    fprintf(fout, "Size   of instrDescDsp    = %2u\n", sizeof(emitter::instrDescDsp));
+    fprintf(fout, "Size   of instrDescCnsDsp = %2u\n", sizeof(emitter::instrDescCnsDsp));
+#ifdef _TARGET_XARCH_
+    fprintf(fout, "Size   of instrDescAmd    = %2u\n", sizeof(emitter::instrDescAmd));
+    fprintf(fout, "Size   of instrDescCnsAmd = %2u\n", sizeof(emitter::instrDescCnsAmd));
+#endif // _TARGET_XARCH_
+    fprintf(fout, "Size   of instrDescCGCA   = %2u\n", sizeof(emitter::instrDescCGCA));
+#ifdef _TARGET_ARM_
+    fprintf(fout, "Size   of instrDescReloc  = %2u\n", sizeof(emitter::instrDescReloc));
+#endif // _TARGET_ARM_
+
+    fprintf(fout, "\n");
+    fprintf(fout, "SC_IG_BUFFER_SIZE             = %2u\n", SC_IG_BUFFER_SIZE);
+    fprintf(fout, "SMALL_IDSC_SIZE per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / SMALL_IDSC_SIZE);
+    fprintf(fout, "instrDesc per IG buffer       = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDesc));
+    fprintf(fout, "instrDescJmp per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescJmp));
+#if !defined(_TARGET_ARM64_)
+    fprintf(fout, "instrDescLbl per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescLbl));
+#endif // !defined(_TARGET_ARM64_)
+    fprintf(fout, "instrDescCns per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCns));
+    fprintf(fout, "instrDescDsp per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescDsp));
+    fprintf(fout, "instrDescCnsDsp per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCnsDsp));
+#ifdef _TARGET_XARCH_
+    fprintf(fout, "instrDescAmd per IG buffer    = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescAmd));
+    fprintf(fout, "instrDescCnsAmd per IG buffer = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCnsAmd));
+#endif // _TARGET_XARCH_
+    fprintf(fout, "instrDescCGCA per IG buffer   = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescCGCA));
+#ifdef _TARGET_ARM_
+    fprintf(fout, "instrDescReloc per IG buffer  = %2u\n", SC_IG_BUFFER_SIZE / sizeof(emitter::instrDescReloc));
+#endif // _TARGET_ARM_
 
     fprintf(fout, "\n");
     fprintf(fout, "GCInfo::regPtrDsc:\n");
@@ -356,7 +288,7 @@ void emitterStats(FILE* fout)
             fprintf(fout, "\n");
         }
 
-        assert(emitter::emitTotalInsCnt);
+        assert(emitter::emitTotalInsCnt > 0);
 
         fprintf(fout, "Average of %4.2f bytes of code generated per instruction\n",
                 (double)totActualSize / emitter::emitTotalInsCnt);
@@ -378,26 +310,33 @@ void emitterStats(FILE* fout)
         if ((c > 0) && (1000 * c >= ic))
         {
             dc += c;
-            fprintf(fout, "          %-13s %8u (%5.2f%%)\n", emitter::emitIfName(f), c, 100.0 * c / ic);
+            fprintf(fout, "          %-14s %8u (%5.2f%%)\n", emitter::emitIfName(f), c, 100.0 * c / ic);
         }
     }
 
-    fprintf(fout, "         --------------------------------\n");
-    fprintf(fout, "          %-13s %8u (%5.2f%%)\n", "Total shown", dc, 100.0 * dc / ic);
+    fprintf(fout, "         ---------------------------------\n");
+    fprintf(fout, "          %-14s %8u (%5.2f%%)\n", "Total shown", dc, 100.0 * dc / ic);
 
-    if (emitter::emitTotalIGmcnt)
+    if (emitter::emitTotalIGmcnt > 0)
     {
+        fprintf(fout, "\n");
         fprintf(fout, "Total of %8u methods\n", emitter::emitTotalIGmcnt);
         fprintf(fout, "Total of %8u insGroup\n", emitter::emitTotalIGcnt);
         fprintf(fout, "Total of %8u insPlaceholderGroupData\n", emitter::emitTotalPhIGcnt);
+        fprintf(fout, "Total of %8u emitAdd insGroup\n", emitter::emitTotalIGEmitAdd);
         fprintf(fout, "Total of %8u instructions\n", emitter::emitTotalIGicnt);
         fprintf(fout, "Total of %8u jumps\n", emitter::emitTotalIGjmps);
         fprintf(fout, "Total of %8u GC livesets\n", emitter::emitTotalIGptrs);
+        fprintf(fout, "\n");
+        fprintf(fout, "Max prolog instrDesc count: %8u\n", emitter::emitMaxPrologInsCnt);
+        fprintf(fout, "Max prolog insGroup size  : %8u\n", emitter::emitMaxPrologIGSize);
         fprintf(fout, "\n");
         fprintf(fout, "Average of %8.1lf insGroup     per method\n",
                 (double)emitter::emitTotalIGcnt / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf insPhGroup   per method\n",
                 (double)emitter::emitTotalPhIGcnt / emitter::emitTotalIGmcnt);
+        fprintf(fout, "Average of %8.1lf emitAdd IG   per method\n",
+                (double)emitter::emitTotalIGEmitAdd / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf instructions per method\n",
                 (double)emitter::emitTotalIGicnt / emitter::emitTotalIGmcnt);
         fprintf(fout, "Average of %8.1lf desc.  bytes per method\n",
@@ -419,6 +358,37 @@ void emitterStats(FILE* fout)
         fprintf(fout, "\n");
         fprintf(fout, "A total of %8u desc.  bytes\n", emitter::emitTotalIGsize);
         fprintf(fout, "\n");
+
+        fprintf(fout, "Total instructions:    %8u\n", emitter::emitTotalInsCnt);
+        fprintf(fout, "Total small instrDesc: %8u (%5.2f%%)\n", emitter::emitTotalIDescSmallCnt,
+                100.0 * emitter::emitTotalIDescSmallCnt / emitter::emitTotalInsCnt);
+        fprintf(fout, "Total instrDesc:       %8u (%5.2f%%)\n", emitter::emitTotalIDescCnt,
+                100.0 * emitter::emitTotalIDescCnt / emitter::emitTotalInsCnt);
+        fprintf(fout, "Total instrDescJmp:    %8u (%5.2f%%)\n", emitter::emitTotalIDescJmpCnt,
+                100.0 * emitter::emitTotalIDescJmpCnt / emitter::emitTotalInsCnt);
+#if !defined(_TARGET_ARM64_)
+        fprintf(fout, "Total instrDescLbl:    %8u (%5.2f%%)\n", emitter::emitTotalIDescLblCnt,
+                100.0 * emitter::emitTotalIDescLblCnt / emitter::emitTotalInsCnt);
+#endif // !defined(_TARGET_ARM64_)
+        fprintf(fout, "Total instrDescCns:    %8u (%5.2f%%)\n", emitter::emitTotalIDescCnsCnt,
+                100.0 * emitter::emitTotalIDescCnsCnt / emitter::emitTotalInsCnt);
+        fprintf(fout, "Total instrDescDsp:    %8u (%5.2f%%)\n", emitter::emitTotalIDescDspCnt,
+                100.0 * emitter::emitTotalIDescDspCnt / emitter::emitTotalInsCnt);
+        fprintf(fout, "Total instrDescCnsDsp: %8u (%5.2f%%)\n", emitter::emitTotalIDescCnsDspCnt,
+                100.0 * emitter::emitTotalIDescCnsDspCnt / emitter::emitTotalInsCnt);
+#ifdef _TARGET_XARCH_
+        fprintf(fout, "Total instrDescAmd:    %8u (%5.2f%%)\n", emitter::emitTotalIDescAmdCnt,
+                100.0 * emitter::emitTotalIDescAmdCnt / emitter::emitTotalInsCnt);
+        fprintf(fout, "Total instrDescCnsAmd: %8u (%5.2f%%)\n", emitter::emitTotalIDescCnsAmdCnt,
+                100.0 * emitter::emitTotalIDescCnsAmdCnt / emitter::emitTotalInsCnt);
+#endif // _TARGET_XARCH_
+        fprintf(fout, "Total instrDescCGCA:   %8u (%5.2f%%)\n", emitter::emitTotalIDescCGCACnt,
+                100.0 * emitter::emitTotalIDescCGCACnt / emitter::emitTotalInsCnt);
+#ifdef _TARGET_ARM_
+        fprintf(fout, "Total instrDescReloc:  %8u (%5.2f%%)\n", emitter::emitTotalIDescRelocCnt,
+                100.0 * emitter::emitTotalIDescRelocCnt / emitter::emitTotalInsCnt);
+#endif // _TARGET_ARM_
+        fprintf(fout, "\n");
     }
 
     fprintf(fout, "Descriptor size distribution:\n");
@@ -433,33 +403,37 @@ void emitterStats(FILE* fout)
     stkDepthTable.dump(fout);
     fprintf(fout, "\n");
 
-    int      i;
-    unsigned c;
-    unsigned m;
-
-    if (emitter::emitSmallCnsCnt || emitter::emitLargeCnsCnt)
+    if ((emitter::emitSmallCnsCnt > 0) || (emitter::emitLargeCnsCnt > 0))
     {
         fprintf(fout, "SmallCnsCnt = %6u\n", emitter::emitSmallCnsCnt);
         fprintf(fout, "LargeCnsCnt = %6u (%3u %% of total)\n", emitter::emitLargeCnsCnt,
                 100 * emitter::emitLargeCnsCnt / (emitter::emitLargeCnsCnt + emitter::emitSmallCnsCnt));
     }
 
-#if 0
-    // TODO-Cleanup: WHy is this in #if 0 - Is EMITTER_STATS ever used? Fix or delete this.
-    if  (emitter::emitSmallCnsCnt)
+    // Print out the most common small constants.
+    if (emitter::emitSmallCnsCnt > 0)
     {
-        fprintf(fout, "\n");
+        fprintf(fout, "\n\n");
+        fprintf(fout, "Common small constants >= %2u, <= %2u\n", ID_MIN_SMALL_CNS, ID_MAX_SMALL_CNS);
 
-        m = emitter::emitSmallCnsCnt/1000 + 1;
+        unsigned m = emitter::emitSmallCnsCnt / 1000 + 1;
 
-        for (i = ID_MIN_SMALL_CNS; i < ID_MAX_SMALL_CNS; i++)
+        for (int i = ID_MIN_SMALL_CNS; (i <= ID_MAX_SMALL_CNS) && (i < SMALL_CNS_TSZ); i++)
         {
-            c = emitter::emitSmallCns[i-ID_MIN_SMALL_CNS];
-            if  (c >= m)
-                fprintf(fout, "cns[%4d] = %u\n", i, c);
+            unsigned c = emitter::emitSmallCns[i - ID_MIN_SMALL_CNS];
+            if (c >= m)
+            {
+                if (i == SMALL_CNS_TSZ - 1)
+                {
+                    fprintf(fout, "cns[>=%4d] = %u\n", i, c);
+                }
+                else
+                {
+                    fprintf(fout, "cns[%4d] = %u\n", i, c);
+                }
+            }
         }
     }
-#endif // 0
 
     fprintf(fout, "%8u bytes allocated in the emitter\n", emitter::emitTotMemAlloc);
 }
@@ -789,6 +763,22 @@ insGroup* emitter::emitSavIG(bool emitAdd)
     emitTotalIGicnt += emitCurIGinsCnt;
     emitTotalIGsize += sz;
     emitSizeMethod += sz;
+
+    if (emitIGisInProlog(ig))
+    {
+        emitCurPrologInsCnt += emitCurIGinsCnt;
+        emitCurPrologIGSize += sz;
+
+        // Keep track of the maximums.
+        if (emitCurPrologInsCnt > emitMaxPrologInsCnt)
+        {
+            emitMaxPrologInsCnt = emitCurPrologInsCnt;
+        }
+        if (emitCurPrologIGSize > emitMaxPrologIGSize)
+        {
+            emitMaxPrologIGSize = emitCurPrologIGSize;
+        }
+    }
 #endif
 
     // printf("Group [%08X]%3u has %2u instructions (%4u bytes at %08X)\n", ig, ig->igNum, emitCurIGinsCnt, sz, id);
@@ -1019,7 +1009,9 @@ void emitter::emitBegFN(bool hasFramePtr
 
 #if EMITTER_STATS
     emitTotalIGmcnt++;
-    emitSizeMethod = 0;
+    emitSizeMethod      = 0;
+    emitCurPrologInsCnt = 0;
+    emitCurPrologIGSize = 0;
 #endif
 
     emitInsCount = 0;
@@ -1170,7 +1162,7 @@ size_t emitter::emitGenEpilogLst(size_t (*fp)(void*, unsigned), void* cp)
  *  The following series of methods allocates instruction descriptors.
  */
 
-void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
+void* emitter::emitAllocAnyInstr(size_t sz, emitAttr opsz)
 {
     instrDesc* id;
 
@@ -1185,7 +1177,7 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
     // re-used. But generating additional groups would not work.
     if (emitComp->compStressCompile(Compiler::STRESS_EMITTER, 1) && emitCurIGinsCnt && !emitIGisInProlog(emitCurIG) &&
         !emitIGisInEpilog(emitCurIG)
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         && !emitIGisInFuncletProlog(emitCurIG) && !emitIGisInFuncletEpilog(emitCurIG)
 #endif // FEATURE_EH_FUNCLETS
             )
@@ -1265,13 +1257,10 @@ void* emitter::emitAllocInstr(size_t sz, emitAttr opsz)
 
     instrDescDebugInfo* info = (instrDescDebugInfo*)emitGetMem(sizeof(*info));
 
-    info->idNum        = emitInsCount;
-    info->idSize       = sz;
-    info->idVarRefOffs = 0;
-    info->idMemCookie  = 0;
-#ifdef TRANSLATE_PDB
-    info->idilStart = emitInstrDescILBase;
-#endif
+    info->idNum         = emitInsCount;
+    info->idSize        = sz;
+    info->idVarRefOffs  = 0;
+    info->idMemCookie   = 0;
     info->idFinallyCall = false;
     info->idCatchRet    = false;
     info->idCallSig     = nullptr;
@@ -1482,7 +1471,7 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
     bool emitAdd = false;
 
     if (igType == IGPT_EPILOG
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         || igType == IGPT_FUNCLET_EPILOG
 #endif // FEATURE_EH_FUNCLETS
         )
@@ -1555,7 +1544,7 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
     {
         igPh->igFlags |= IGF_EPILOG;
     }
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     else if (igType == IGPT_FUNCLET_PROLOG)
     {
         igPh->igFlags |= IGF_FUNCLET_PROLOG;
@@ -1585,7 +1574,7 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
     emitCurIGsize += MAX_PLACEHOLDER_IG_SIZE;
     emitCurCodeOffset += emitCurIGsize;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     // Add the appropriate IP mapping debugging record for this placeholder
     // group. genExitCode() adds the mapping for main function epilogs.
     if (emitComp->opts.compDbgInfo)
@@ -1610,7 +1599,7 @@ void emitter::emitCreatePlaceholderIG(insGroupPlaceholderType igType,
     else
     {
         if (igType == IGPT_EPILOG
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             || igType == IGPT_FUNCLET_EPILOG
 #endif // FEATURE_EH_FUNCLETS
             )
@@ -1661,7 +1650,7 @@ void emitter::emitGeneratePrologEpilog()
 #ifdef DEBUG
     unsigned prologCnt = 0;
     unsigned epilogCnt = 0;
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
     unsigned funcletPrologCnt = 0;
     unsigned funcletEpilogCnt = 0;
 #endif // FEATURE_EH_FUNCLETS
@@ -1694,7 +1683,7 @@ void emitter::emitGeneratePrologEpilog()
                 emitEndFnEpilog();
                 break;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
             case IGPT_FUNCLET_PROLOG:
                 INDEBUG(++funcletPrologCnt);
@@ -1721,7 +1710,7 @@ void emitter::emitGeneratePrologEpilog()
     if (emitComp->verbose)
     {
         printf("%d prologs, %d epilogs", prologCnt, epilogCnt);
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         printf(", %d funclet prologs, %d funclet epilogs", funcletPrologCnt, funcletEpilogCnt);
 #endif // FEATURE_EH_FUNCLETS
         printf("\n");
@@ -1729,7 +1718,7 @@ void emitter::emitGeneratePrologEpilog()
 // prolog/epilog code doesn't use this yet
 // noway_assert(prologCnt == 1);
 // noway_assert(epilogCnt == emitEpilogCnt); // Is this correct?
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
         assert(funcletPrologCnt == emitComp->ehFuncletCount());
 #endif // FEATURE_EH_FUNCLETS
     }
@@ -1923,16 +1912,16 @@ void emitter::emitEndFnEpilog()
         // underestimation of the epilog size is harmless (since the EIP
         // can not be between instructions).
         assert(emitEpilogCnt == 1 ||
-               (emitExitSeqSize - newSize) <= 5 // delta between size of various forms of jmp (size is either 6 or 5)
+               (emitExitSeqSize - newSize) <= 5 // delta between size of various forms of jmp (size is either 6 or 5),
                                                 // and various forms of ret (size is either 1 or 3). The combination can
-                                                // be anything been 1 and 5.
+                                                // be anything between 1 and 5.
                );
         emitExitSeqSize = newSize;
     }
 #endif // JIT32_GCENCODER
 }
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
 /*****************************************************************************
  *
@@ -2154,7 +2143,10 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
 
 #if EMITTER_STATS
             emitSmallCnsCnt++;
-            emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
+            if ((cns - ID_MIN_SMALL_CNS) >= (SMALL_CNS_TSZ - 1))
+                emitSmallCns[SMALL_CNS_TSZ - 1]++;
+            else
+                emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
             emitSmallDspCnt++;
 #endif
 
@@ -2162,10 +2154,7 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
         }
         else
         {
-            instrDescCns* id = emitAllocInstrCns(size);
-
-            id->idSetIsLargeCns();
-            id->idcCnsVal = cns;
+            instrDescCns* id = emitAllocInstrCns(size, cns);
 
 #if EMITTER_STATS
             emitLargeCnsCnt++;
@@ -2189,7 +2178,10 @@ emitter::instrDesc* emitter::emitNewInstrCnsDsp(emitAttr size, target_ssize_t cn
 #if EMITTER_STATS
             emitLargeDspCnt++;
             emitSmallCnsCnt++;
-            emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
+            if ((cns - ID_MIN_SMALL_CNS) >= (SMALL_CNS_TSZ - 1))
+                emitSmallCns[SMALL_CNS_TSZ - 1]++;
+            else
+                emitSmallCns[cns - ID_MIN_SMALL_CNS]++;
 #endif
 
             return id;
@@ -2320,12 +2312,12 @@ void* emitter::emitAddLabel(VARSET_VALARG_TP GCvars, regMaskTP gcrefRegs, regMas
     emitThisGCrefRegs = emitInitGCrefRegs = gcrefRegs;
     emitThisByrefRegs = emitInitByrefRegs = byrefRegs;
 
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (isFinallyTarget)
     {
         emitCurIG->igFlags |= IGF_FINALLY_TARGET;
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 
 #ifdef DEBUG
     if (EMIT_GC_VERBOSE)
@@ -2369,7 +2361,7 @@ bool emitter::emitIsFuncEnd(emitLocation* emitLoc, emitLocation* emitLocNextFrag
     if (ig->igNext->igFlags & IGF_FUNCLET_PROLOG)
         return true;
 
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
 
     // Is the next IG a placeholder group for a funclet prolog?
     if ((ig->igNext->igFlags & IGF_PLACEHOLDER) && (ig->igNext->igPhData->igPhType == IGPT_FUNCLET_PROLOG))
@@ -3087,12 +3079,12 @@ void emitter::emitDispIGflags(unsigned flags)
     {
         printf(", byref");
     }
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (flags & IGF_FINALLY_TARGET)
     {
         printf(", ftarget");
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     if (flags & IGF_FUNCLET_PROLOG)
     {
         printf(", funclet prolog");
@@ -3144,7 +3136,7 @@ void emitter::emitDispIG(insGroup* ig, insGroup* igPrev, bool verbose)
             case IGPT_EPILOG:
                 pszType = "epilog";
                 break;
-#if FEATURE_EH_FUNCLETS
+#if defined(FEATURE_EH_FUNCLETS)
             case IGPT_FUNCLET_PROLOG:
                 pszType = "funclet prolog";
                 break;
@@ -3265,7 +3257,7 @@ void emitter::emitDispIG(insGroup* ig, insGroup* igPrev, bool verbose)
                     emitDispIns(id, false, true, false, ofs, nullptr, 0, ig);
 
                     ins += emitSizeOfInsDsc(id);
-                    ofs += emitInstCodeSz(id);
+                    ofs += id->idCodeSize();
                 } while (--cnt);
 
                 printf("\n");
@@ -3358,12 +3350,12 @@ size_t emitter::emitIssue1Instr(insGroup* ig, instrDesc* id, BYTE** dp)
     if (csz != id->idCodeSize())
     {
         /* It is fatal to under-estimate the instruction size */
-        noway_assert(emitInstCodeSz(id) >= csz);
+        noway_assert(id->idCodeSize() >= csz);
 
 #if DEBUG_EMIT
         if (EMITVERBOSE)
         {
-            printf("Instruction predicted size = %u, actual = %u\n", emitInstCodeSz(id), csz);
+            printf("Instruction predicted size = %u, actual = %u\n", id->idCodeSize(), csz);
         }
 #endif // DEBUG_EMIT
 
@@ -3633,7 +3625,7 @@ AGAIN:
 
         /* Get hold of the current jump size */
 
-        jsz = emitSizeOfJump(jmp);
+        jsz = jmp->idCodeSize();
 
         /* Get the group the jump is in */
 
@@ -3721,7 +3713,7 @@ AGAIN:
 
             if (jmp->idjShort)
             {
-                assert(emitSizeOfJump(jmp) == ssz);
+                assert(jmp->idCodeSize() == ssz);
 
                 // We should not be jumping/branching across funclets/functions
                 emitCheckFuncletBranch(jmp, jmpIG);
@@ -4090,7 +4082,7 @@ AGAIN:
 
         /* Make sure the size of the jump is marked correctly */
 
-        assert((0 == (jsz | jmpDist)) || (jsz == emitSizeOfJump(jmp)));
+        assert((0 == (jsz | jmpDist)) || (jsz == jmp->idCodeSize()));
 
 #ifdef DEBUG
         if (EMITVERBOSE)
@@ -4589,7 +4581,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
                 }
                 else
                 {
-                    /* If emitFullGCinfo==false, the we don't use any
+                    /* If emitFullGCinfo==false, then we don't use any
                        regPtrDsc's and so explictly note the location
                        of "this" in GCEncode.cpp
                      */
@@ -4688,8 +4680,8 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 // printf("Variable #%2u/%2u is at stack offset %d\n", num, indx, offs);
 
 #ifdef JIT32_GCENCODER
-#ifndef WIN64EXCEPTIONS
-                /* Remember the frame offset of the "this" argument for synchronized methods */
+#ifndef FEATURE_EH_FUNCLETS
+                // Remember the frame offset of the "this" argument for synchronized methods.
                 if (emitComp->lvaIsOriginalThisArg(num) && emitComp->lvaKeepAliveAndReportThis())
                 {
                     emitSyncThisObjOffs = offs;
@@ -5081,7 +5073,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 // See specification comment at the declaration.
 void emitter::emitGenGCInfoIfFuncletRetTarget(insGroup* ig, BYTE* cp)
 {
-#if FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#if defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
     // We only emit this GC information on targets where finally's are implemented via funclets,
     // and the finally is invoked, during non-exceptional execution, via a branch with a predefined
     // link register, rather than a "true call" for which we would already generate GC info.  Currently,
@@ -5098,7 +5090,7 @@ void emitter::emitGenGCInfoIfFuncletRetTarget(insGroup* ig, BYTE* cp)
             emitRecordGCcall(cp, /*callInstrSize*/ 1);
         }
     }
-#endif // FEATURE_EH_FUNCLETS && defined(_TARGET_ARM_)
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_TARGET_ARM_)
 }
 
 /*****************************************************************************
@@ -5158,7 +5150,7 @@ UNATIVE_OFFSET emitter::emitFindOffset(insGroup* ig, unsigned insNum)
 
     while (insNum > 0)
     {
-        of += emitInstCodeSz(id);
+        of += id->idCodeSize();
 
         castto(id, BYTE*) += emitSizeOfInsDsc(id);
 
@@ -5720,7 +5712,7 @@ void emitter::emitGCvarLiveSet(int offs, GCtype gcType, BYTE* addr, ssize_t disp
 
     desc->vpdNext = nullptr;
 
-#if !defined(JIT32_GCENCODER) || !defined(WIN64EXCEPTIONS)
+#if !defined(JIT32_GCENCODER) || !defined(FEATURE_EH_FUNCLETS)
     /* the lower 2 bits encode props about the stk ptr */
 
     if (offs == emitSyncThisObjOffs)
@@ -5814,7 +5806,7 @@ void emitter::emitGCvarDeadSet(int offs, BYTE* addr, ssize_t disp)
     if (EMITVERBOSE)
     {
         GCtype gcType = (desc->vpdVarNum & byref_OFFSET_FLAG) ? GCT_BYREF : GCT_GCREF;
-#if !defined(JIT32_GCENCODER) || !defined(WIN64EXCEPTIONS)
+#if !defined(JIT32_GCENCODER) || !defined(FEATURE_EH_FUNCLETS)
         bool isThis = (desc->vpdVarNum & this_OFFSET_FLAG) != 0;
 
         printf("[%08X] %s%s var died at [%s", dspPtr(desc), GCtypeStr(gcType), isThis ? "this-ptr" : "",
@@ -6651,11 +6643,7 @@ void emitter::emitGCvarLiveUpd(int offs, int varNum, GCtype gcType, BYTE* addr)
                     LclVarDsc* varDsc = &emitComp->lvaTable[varNum];
                     isTracked         = emitComp->lvaIsGCTracked(varDsc);
                 }
-                else
-                {
-                    // Is it an untracked spill temp?
-                    isTracked = TRACK_GC_TEMP_LIFETIMES;
-                }
+
                 if (!isTracked)
                 {
 #if DOUBLE_ALIGN
@@ -6713,6 +6701,7 @@ void emitter::emitGCvarDeadUpd(int offs, BYTE* addr)
 
         if (emitGCrFrameLiveTab[disp] != nullptr)
         {
+            assert(!emitComp->lvaKeepAliveAndReportThis() || (offs != emitSyncThisObjOffs));
             emitGCvarDeadSet(offs, addr, disp);
         }
     }
@@ -6861,6 +6850,10 @@ void emitter::emitNxtIG(bool emitAdd)
     if (emitAdd)
     {
         emitCurIG->igFlags |= IGF_EMIT_ADD;
+
+#if EMITTER_STATS
+        emitTotalIGEmitAdd++;
+#endif // EMITTER_STATS
     }
 
     // We've created a new IG; no need to force another one.

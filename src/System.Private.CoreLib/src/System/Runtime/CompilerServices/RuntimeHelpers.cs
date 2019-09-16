@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Internal.Runtime.CompilerServices;
 
@@ -27,7 +28,8 @@ namespace System.Runtime.CompilerServices
         // Of course, reference types are not cloned.
         //
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern object GetObjectValue(object obj);
+        [return: NotNullIfNotNull("obj")]
+        public static extern object? GetObjectValue(object? obj);
 
         // RunClassConstructor causes the class constructor for the given type to be triggered
         // in the current domain.  After this call returns, the class constructor is guaranteed to
@@ -63,7 +65,7 @@ namespace System.Runtime.CompilerServices
 
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        internal static extern void _CompileMethod(IRuntimeMethodInfo method);
+        internal static extern void _CompileMethod(RuntimeMethodHandleInternal method);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern unsafe void _PrepareMethod(IRuntimeMethodInfo method, IntPtr* pInstantiation, int cInstantiation);
@@ -76,12 +78,12 @@ namespace System.Runtime.CompilerServices
             }
         }
 
-        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[] instantiation)
+        public static void PrepareMethod(RuntimeMethodHandle method, RuntimeTypeHandle[]? instantiation)
         {
             unsafe
             {
                 int length;
-                IntPtr[] instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
+                IntPtr[]? instantiationHandles = RuntimeTypeHandle.CopyRuntimeTypeHandles(instantiation, out length);
                 fixed (IntPtr* pInstantiation = instantiationHandles)
                 {
                     _PrepareMethod(method.GetMethodInfo(), pInstantiation, length);
@@ -97,15 +99,14 @@ namespace System.Runtime.CompilerServices
         public static extern int GetHashCode(object o);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public new static extern bool Equals(object o1, object o2);
+        public static extern new bool Equals(object? o1, object? o2);
 
         public static int OffsetToStringData
         {
             // This offset is baked in by string indexer intrinsic, so there is no harm
             // in getting it baked in here as well.
             [System.Runtime.Versioning.NonVersionable]
-            get
-            {
+            get =>
                 // Number of bytes from the address pointed to by a reference to
                 // a String to the first 16-bit character in the String.  Skip
                 // over the MethodTable pointer, & String
@@ -114,11 +115,11 @@ namespace System.Runtime.CompilerServices
                 // This property allows C#'s fixed statement to work on Strings.
                 // On 64 bit platforms, this should be 12 (8+4) and on 32 bit 8 (4+4).
 #if BIT64
-                return 12;
+                12;
 #else // 32
-                return 8;
+                8;
 #endif // BIT64
-            }
+
         }
 
         // This method ensures that there is sufficient stack to execute the average Framework function.
@@ -136,14 +137,15 @@ namespace System.Runtime.CompilerServices
         public static extern bool TryEnsureSufficientExecutionStack();
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object userData);
+        public static extern void ExecuteCodeWithGuaranteedCleanup(TryCode code, CleanupCode backoutCode, object? userData);
 
-        internal static void ExecuteBackoutCodeHelper(object backoutCode, object userData, bool exceptionThrown)
+        internal static void ExecuteBackoutCodeHelper(object backoutCode, object? userData, bool exceptionThrown)
         {
             ((CleanupCode)backoutCode)(userData, exceptionThrown);
         }
 
         /// <returns>true if given type is reference type or value type that contains references</returns>
+        [Intrinsic]
         public static bool IsReferenceOrContainsReferences<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
@@ -155,12 +157,20 @@ namespace System.Runtime.CompilerServices
         /// <remarks>
         /// Only use the result of this for Equals() comparison, not for CompareTo() comparison.
         /// </remarks>
+        [Intrinsic]
         internal static bool IsBitwiseEquatable<T>()
         {
             // The body of this function will be replaced by the EE with unsafe code!!!
             // See getILIntrinsicImplementationForRuntimeHelpers for how this happens.
             throw new InvalidOperationException();
         }
+
+        internal static ref byte GetRawData(this object obj) =>
+            ref Unsafe.As<RawData>(obj).Data;
+
+        [Intrinsic]
+        internal static ref byte GetRawSzArrayData(this Array array) =>
+            ref Unsafe.As<RawSzArrayData>(array).Data;
 
         // Returns true iff the object has a component size;
         // i.e., is variable length like System.String or Array.

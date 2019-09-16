@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
-
 namespace System.Runtime.CompilerServices
 {
     // We might want to make this inherited someday.  But I suspect it shouldn't
@@ -11,7 +9,7 @@ namespace System.Runtime.CompilerServices
     [AttributeUsage(AttributeTargets.Struct | AttributeTargets.Class | AttributeTargets.Interface, AllowMultiple = true, Inherited = false)]
     internal sealed class TypeDependencyAttribute : Attribute
     {
-        private string typeName;
+        private readonly string typeName;
 
         public TypeDependencyAttribute(string typeName)
         {
@@ -20,6 +18,3 @@ namespace System.Runtime.CompilerServices
         }
     }
 }
-
-
-

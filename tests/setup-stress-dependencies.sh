@@ -16,9 +16,10 @@ function print_usage {
     echo ''
     echo 'Command line:'
     echo ''
-    echo './setup-gcstress.sh --outputDir=<coredistools_lib_install_path>'
+    echo './setup-gcstress.sh --arch=<TargetArch> --outputDir=<coredistools_lib_install_path>'
     echo ''
     echo 'Required arguments:'
+    echo '  --arch=<TargetArch>        : Target arch for the build'
     echo '  --outputDir=<path>         : Directory to install libcoredistools.so'
     echo ''
 }
@@ -55,6 +56,9 @@ do
         -v|--verbose)
             verbose=1
             ;;
+        --arch=*)
+            __BuildArch=${i#*=}
+            ;;
         --outputDir=*)
             libInstallDir=${i#*=}
             ;;
@@ -66,10 +70,21 @@ do
     esac
 done
 
-if [ -z "$libInstallDir" ]; then
-    echo "--libInstallDir is required."
+if [ -z "$__BuildArch" ]; then
+    echo "--arch is required."
     print_usage
     exit_with_error 1
+fi
+
+if [ -z "$libInstallDir" ]; then
+    echo "--outputDir is required."
+    print_usage
+    exit_with_error 1
+fi
+
+if [ "$__BuildArch" == "arm64" ] || [ "$__BuildArch" == "arm" ]; then
+    echo "No runtime dependencies for arm32/arm64"
+    exit $EXIT_CODE_SUCCESS
 fi
 
 # This script must be located in coreclr/tests.
@@ -79,7 +94,7 @@ echo "Running init-tools.sh"
 "${scriptDir}"/../init-tools.sh
 
 dotnet=$"${scriptDir}"/../.dotnet/dotnet
-packageDir="${scriptDir}"/../packages
+packageDir="${scriptDir}"/../.packages
 csprojPath="${scriptDir}"/src/Common/stress_dependencies/stress_dependencies.csproj
 
 if [ ! -e $dotnetCmd ]; then
@@ -147,7 +162,7 @@ initDistroRidGlobal ${__BuildOS} x64 ${isPortable}
 # The CoreDisTools package is currently manually packaged and we only have
 # 14.04 and 16.04 packages. Use the oldest package which will work on newer
 # platforms.
-if [[ ${__DistroRid} == "ubuntu"* ]]; then
+if [[ ${__BuildOS} == "Linux" ]]; then
    __DistroRid=ubuntu.14.04
 fi
 
@@ -162,7 +177,7 @@ fi
 
 # Download the package
 echo Downloading CoreDisTools package
-bash -c -x "$dotnet restore $csprojPath --source https://dotnet.myget.org/F/dotnet-core/ --packages $packageDir"
+bash -c -x "$dotnet restore $csprojPath --packages $packageDir"
 if [ $? -ne 0 ]
 then
     exit_with_error 1 "Failed to restore the package"
@@ -170,6 +185,8 @@ fi
 
 # Get library path
 libPath=`find $packageDir | grep $rid | grep -m 1 libcoredistools`
+echo "libPath to be used: ${libPath}"
+
 if [ ! -e $libPath ] || [ -z "$libPath" ]; then
     exit_with_error 1 'Failed to locate the downloaded library'
 fi

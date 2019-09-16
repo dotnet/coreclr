@@ -6,6 +6,7 @@ using System.Buffers;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -22,7 +23,15 @@ namespace System
 
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public sealed partial class String : IComparable, IEnumerable, IConvertible, IEnumerable<char>, IComparable<string>, IEquatable<string>, ICloneable
+    public sealed partial class String : IComparable, IEnumerable, IConvertible, IEnumerable<char>, IComparable<string?>,
+        // IEquatable<string> is invariant by design.  However, the lack of covariance means that String?
+        // couldn't be used in places constrained to T : IEquatable<String>.  As a workaround, until the
+        // language provides a mechanism for this, we make the generic type argument oblivious, in conjunction
+        // with making all such constraints oblivious as well.
+#nullable disable
+        IEquatable<string>,
+#nullable restore
+        ICloneable
     {
         /*
          * CONSTRUCTORS
@@ -35,13 +44,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern String(char[] value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
-        private string Ctor(char[] value)
+        private string Ctor(char[]? value)
         {
             if (value == null || value.Length == 0)
                 return Empty;
@@ -58,9 +64,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern String(char[] value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -94,9 +97,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern unsafe String(char* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -119,9 +119,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern unsafe String(char* value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -155,9 +152,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(sbyte* value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -176,9 +170,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(sbyte* value, int startIndex, int length);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -208,7 +199,7 @@ namespace System
         }
 
         // Encoder for String..ctor(sbyte*) and String..ctor(sbyte*, int, int)
-        private static unsafe string CreateStringForSByteConstructor(byte *pb, int numBytes)
+        private static unsafe string CreateStringForSByteConstructor(byte* pb, int numBytes)
         {
             Debug.Assert(numBytes >= 0);
             Debug.Assert(pb <= (pb + numBytes));
@@ -222,7 +213,7 @@ namespace System
                 throw new ArgumentException(SR.Arg_InvalidANSIString);
 
             string newString = FastAllocateString(numCharsRequired);
-            fixed (char *pFirstChar = &newString._firstChar)
+            fixed (char* pFirstChar = &newString._firstChar)
             {
                 numCharsRequired = Interop.Kernel32.MultiByteToWideChar(Interop.Kernel32.CP_ACP, Interop.Kernel32.MB_PRECOMPOSED, pb, numBytes, pFirstChar, numCharsRequired);
             }
@@ -238,13 +229,10 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public extern unsafe String(sbyte* value, int startIndex, int length, Encoding enc);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
-        private unsafe string Ctor(sbyte* value, int startIndex, int length, Encoding enc)
+        private unsafe string Ctor(sbyte* value, int startIndex, int length, Encoding? enc)
         {
             if (enc == null)
                 return new string(value, startIndex, length);
@@ -275,9 +263,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern String(char c, int count);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -327,9 +312,6 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         public extern String(ReadOnlySpan<char> value);
 
-#if PROJECTN
-        [DependencyReductionRoot]
-#endif
 #if !CORECLR
         static
 #endif
@@ -361,7 +343,7 @@ namespace System
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static implicit operator ReadOnlySpan<char>(string value) =>
+        public static implicit operator ReadOnlySpan<char>(string? value) =>
             value != null ? new ReadOnlySpan<char>(ref value.GetRawStringData(), value.Length) : default;
 
         public object Clone()
@@ -436,7 +418,7 @@ namespace System
         }
 
         [NonVersionable]
-        public static bool IsNullOrEmpty(string value)
+        public static bool IsNullOrEmpty([NotNullWhen(false)] string? value)
         {
             // Using 0u >= (uint)value.Length rather than
             // value.Length == 0 as it will elide the bounds check to
@@ -447,20 +429,7 @@ namespace System
             return (value == null || 0u >= (uint)value.Length) ? true : false;
         }
 
-        [System.Runtime.CompilerServices.IndexerName("Chars")]
-        public char this[Index index]
-        {
-            get
-            {
-                int actualIndex = index.GetOffset(Length);
-                return this[actualIndex];
-            }
-        }
-
-        [System.Runtime.CompilerServices.IndexerName("Chars")]
-        public string this[Range range] => Substring(range);
-
-        public static bool IsNullOrWhiteSpace(string value)
+        public static bool IsNullOrWhiteSpace([NotNullWhen(false)] string? value)
         {
             if (value == null) return true;
 
@@ -471,6 +440,13 @@ namespace System
 
             return true;
         }
+
+        /// <summary>
+        /// Returns a reference to the first element of the String. If the string is null, an access will throw a NullReferenceException.
+        /// </summary>
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        [NonVersionable]
+        public ref readonly char GetPinnableReference() => ref _firstChar;
 
         internal ref char GetRawStringData() => ref _firstChar;
 
@@ -533,7 +509,7 @@ namespace System
         }
 
         // Returns this string.
-        public string ToString(IFormatProvider provider)
+        public string ToString(IFormatProvider? provider)
         {
             return this;
         }
@@ -564,109 +540,18 @@ namespace System
             return new StringRuneEnumerator(this);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe int wcslen(char* ptr)
         {
-            char* end = ptr;
-
-            // First make sure our pointer is aligned on a word boundary
-            int alignment = IntPtr.Size - 1;
-
-            // If ptr is at an odd address (e.g. 0x5), this loop will simply iterate all the way
-            while (((uint)end & (uint)alignment) != 0)
+            // IndexOf processes memory in aligned chunks, and thus it won't crash even if it accesses memory beyond the null terminator.
+            int length = SpanHelpers.IndexOf(ref *ptr, '\0', int.MaxValue);
+            if (length < 0)
             {
-                if (*end == 0) goto FoundZero;
-                end++;
+                ThrowMustBeNullTerminatedString();
             }
 
-#if !BIT64
-            // The following code is (somewhat surprisingly!) significantly faster than a naive loop,
-            // at least on x86 and the current jit.
-
-            // The loop condition below works because if "end[0] & end[1]" is non-zero, that means
-            // neither operand can have been zero. If is zero, we have to look at the operands individually,
-            // but we hope this going to fairly rare.
-
-            // In general, it would be incorrect to access end[1] if we haven't made sure
-            // end[0] is non-zero. However, we know the ptr has been aligned by the loop above
-            // so end[0] and end[1] must be in the same word (and therefore page), so they're either both accessible, or both not.
-
-            while ((end[0] & end[1]) != 0 || (end[0] != 0 && end[1] != 0))
-            {
-                end += 2;
-            }
-
-            Debug.Assert(end[0] == 0 || end[1] == 0);
-            if (end[0] != 0) end++;
-#else // !BIT64
-            // Based on https://graphics.stanford.edu/~seander/bithacks.html#ZeroInWord
-
-            // 64-bit implementation: process 1 ulong (word) at a time
-
-            // What we do here is add 0x7fff from each of the
-            // 4 individual chars within the ulong, using MagicMask.
-            // If the char > 0 and < 0x8001, it will have its high bit set.
-            // We then OR with MagicMask, to set all the other bits.
-            // This will result in all bits set (ulong.MaxValue) for any
-            // char that fits the above criteria, and something else otherwise.
-
-            // Note that for any char > 0x8000, this will be a false
-            // positive and we will fallback to the slow path and
-            // check each char individually. This is OK though, since
-            // we optimize for the common case (ASCII chars, which are < 0x80).
-
-            // NOTE: We can access a ulong a time since the ptr is aligned,
-            // and therefore we're only accessing the same word/page. (See notes
-            // for the 32-bit version above.)
-
-            const ulong MagicMask = 0x7fff7fff7fff7fff;
-
-            while (true)
-            {
-                ulong word = *(ulong*)end;
-                word += MagicMask; // cause high bit to be set if not zero, and <= 0x8000
-                word |= MagicMask; // set everything besides the high bits
-
-                if (word == ulong.MaxValue) // 0xffff...
-                {
-                    // all of the chars have their bits set (and therefore none can be 0)
-                    end += 4;
-                    continue;
-                }
-
-                // at least one of them didn't have their high bit set!
-                // go through each char and check for 0.
-
-                if (end[0] == 0) goto EndAt0;
-                if (end[1] == 0) goto EndAt1;
-                if (end[2] == 0) goto EndAt2;
-                if (end[3] == 0) goto EndAt3;
-
-                // if we reached here, it was a false positive-- just continue
-                end += 4;
-            }
-
-            EndAt3: end++;
-            EndAt2: end++;
-            EndAt1: end++;
-            EndAt0:
-#endif // !BIT64
-
-            FoundZero:
-            Debug.Assert(*end == 0);
-
-            int count = (int)(end - ptr);
-
-#if BIT64
-            // Check for overflow
-            if (ptr + count != end)
-                throw new ArgumentException(SR.Arg_MustBeNullTerminatedString);
-#else
-            Debug.Assert(ptr + count == end);
-#endif
-
-            return count;
+            return length;
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static unsafe int strlen(byte* ptr)
@@ -681,6 +566,7 @@ namespace System
             return length;
         }
 
+        [DoesNotReturn]
         private static void ThrowMustBeNullTerminatedString()
         {
             throw new ArgumentException(SR.Arg_MustBeNullTerminatedString);
@@ -695,77 +581,77 @@ namespace System
             return TypeCode.String;
         }
 
-        bool IConvertible.ToBoolean(IFormatProvider provider)
+        bool IConvertible.ToBoolean(IFormatProvider? provider)
         {
             return Convert.ToBoolean(this, provider);
         }
 
-        char IConvertible.ToChar(IFormatProvider provider)
+        char IConvertible.ToChar(IFormatProvider? provider)
         {
             return Convert.ToChar(this, provider);
         }
 
-        sbyte IConvertible.ToSByte(IFormatProvider provider)
+        sbyte IConvertible.ToSByte(IFormatProvider? provider)
         {
             return Convert.ToSByte(this, provider);
         }
 
-        byte IConvertible.ToByte(IFormatProvider provider)
+        byte IConvertible.ToByte(IFormatProvider? provider)
         {
             return Convert.ToByte(this, provider);
         }
 
-        short IConvertible.ToInt16(IFormatProvider provider)
+        short IConvertible.ToInt16(IFormatProvider? provider)
         {
             return Convert.ToInt16(this, provider);
         }
 
-        ushort IConvertible.ToUInt16(IFormatProvider provider)
+        ushort IConvertible.ToUInt16(IFormatProvider? provider)
         {
             return Convert.ToUInt16(this, provider);
         }
 
-        int IConvertible.ToInt32(IFormatProvider provider)
+        int IConvertible.ToInt32(IFormatProvider? provider)
         {
             return Convert.ToInt32(this, provider);
         }
 
-        uint IConvertible.ToUInt32(IFormatProvider provider)
+        uint IConvertible.ToUInt32(IFormatProvider? provider)
         {
             return Convert.ToUInt32(this, provider);
         }
 
-        long IConvertible.ToInt64(IFormatProvider provider)
+        long IConvertible.ToInt64(IFormatProvider? provider)
         {
             return Convert.ToInt64(this, provider);
         }
 
-        ulong IConvertible.ToUInt64(IFormatProvider provider)
+        ulong IConvertible.ToUInt64(IFormatProvider? provider)
         {
             return Convert.ToUInt64(this, provider);
         }
 
-        float IConvertible.ToSingle(IFormatProvider provider)
+        float IConvertible.ToSingle(IFormatProvider? provider)
         {
             return Convert.ToSingle(this, provider);
         }
 
-        double IConvertible.ToDouble(IFormatProvider provider)
+        double IConvertible.ToDouble(IFormatProvider? provider)
         {
             return Convert.ToDouble(this, provider);
         }
 
-        decimal IConvertible.ToDecimal(IFormatProvider provider)
+        decimal IConvertible.ToDecimal(IFormatProvider? provider)
         {
             return Convert.ToDecimal(this, provider);
         }
 
-        DateTime IConvertible.ToDateTime(IFormatProvider provider)
+        DateTime IConvertible.ToDateTime(IFormatProvider? provider)
         {
             return Convert.ToDateTime(this, provider);
         }
 
-        object IConvertible.ToType(Type type, IFormatProvider provider)
+        object IConvertible.ToType(Type type, IFormatProvider? provider)
         {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
@@ -779,17 +665,15 @@ namespace System
 
         public bool IsNormalized(NormalizationForm normalizationForm)
         {
-#if CORECLR
-            if (this.IsFastSort())
+            if (this.IsAscii())
             {
-                // If its FastSort && one of the 4 main forms, then its already normalized
+                // If its ASCII && one of the 4 main forms, then its already normalized
                 if (normalizationForm == NormalizationForm.FormC ||
                     normalizationForm == NormalizationForm.FormKC ||
                     normalizationForm == NormalizationForm.FormD ||
                     normalizationForm == NormalizationForm.FormKD)
                     return true;
             }
-#endif
             return Normalization.IsNormalized(this, normalizationForm);
         }
 
@@ -800,18 +684,24 @@ namespace System
 
         public string Normalize(NormalizationForm normalizationForm)
         {
-#if CORECLR
             if (this.IsAscii())
             {
-                // If its FastSort && one of the 4 main forms, then its already normalized
+                // If its ASCII && one of the 4 main forms, then its already normalized
                 if (normalizationForm == NormalizationForm.FormC ||
                     normalizationForm == NormalizationForm.FormKC ||
                     normalizationForm == NormalizationForm.FormD ||
                     normalizationForm == NormalizationForm.FormKD)
                     return this;
             }
-#endif
             return Normalization.Normalize(this, normalizationForm);
+        }
+
+        private unsafe bool IsAscii()
+        {
+            fixed (char* str = &_firstChar)
+            {
+                return ASCIIUtility.GetIndexOfFirstNonAsciiChar(str, (uint)Length) == (uint)Length;
+            }
         }
     }
 }

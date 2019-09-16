@@ -5,20 +5,9 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
-using System.Threading;
 
 namespace System.Globalization
 {
-#if CORERT
-    using StringStringDictionary = LowLevelDictionary<string, string>;
-    using StringCultureDataDictionary = LowLevelDictionary<string, CultureData>;
-    using LcidToCultureNameDictionary = LowLevelDictionary<int, string>;
-#else
-    using StringStringDictionary = Dictionary<string, string>;
-    using StringCultureDataDictionary = Dictionary<string, CultureData>;
-    using LcidToCultureNameDictionary = Dictionary<int, string>;
-#endif
-
     /// <summary>
     /// List of culture data
     /// Note the we cache overrides.
@@ -55,87 +44,87 @@ namespace System.Globalization
         private const int undef = -1;
 
         // Override flag
-        private string _sRealName; // Name you passed in (ie: en-US, en, or de-DE_phoneb)
-        private string _sWindowsName; // Name OS thinks the object is (ie: de-DE_phoneb, or en-US (even if en was passed in))
+        private string _sRealName = null!; // Name you passed in (ie: en-US, en, or de-DE_phoneb). Initialized by helper called during initialization.
+        private string? _sWindowsName; // Name OS thinks the object is (ie: de-DE_phoneb, or en-US (even if en was passed in))
 
         // Identity
-        private string _sName; // locale name (ie: en-us, NO sort info, but could be neutral)
-        private string _sParent; // Parent name (which may be a custom locale/culture)
-        private string _sLocalizedDisplayName; // Localized pretty name for this locale
-        private string _sEnglishDisplayName; // English pretty name for this locale
-        private string _sNativeDisplayName; // Native pretty name for this locale
-        private string _sSpecificCulture; // The culture name to be used in CultureInfo.CreateSpecificCulture(), en-US form if neutral, sort name if sort
+        private string? _sName; // locale name (ie: en-us, NO sort info, but could be neutral)
+        private string? _sParent; // Parent name (which may be a custom locale/culture)
+        private string? _sLocalizedDisplayName; // Localized pretty name for this locale
+        private string? _sEnglishDisplayName; // English pretty name for this locale
+        private string? _sNativeDisplayName; // Native pretty name for this locale
+        private string? _sSpecificCulture; // The culture name to be used in CultureInfo.CreateSpecificCulture(), en-US form if neutral, sort name if sort
 
         // Language
-        private string _sISO639Language; // ISO 639 Language Name
-        private string _sISO639Language2; // ISO 639 Language Name
-        private string _sLocalizedLanguage; // Localized name for this language
-        private string _sEnglishLanguage; // English name for this language
-        private string _sNativeLanguage; // Native name of this language
-        private string _sAbbrevLang; // abbreviated language name (Windows Language Name) ex: ENU
-        private string _sConsoleFallbackName; // The culture name for the console fallback UI culture
-        private int    _iInputLanguageHandle=undef;// input language handle
+        private string? _sISO639Language; // ISO 639 Language Name
+        private string? _sISO639Language2; // ISO 639 Language Name
+        private string? _sLocalizedLanguage; // Localized name for this language
+        private string? _sEnglishLanguage; // English name for this language
+        private string? _sNativeLanguage; // Native name of this language
+        private string? _sAbbrevLang; // abbreviated language name (Windows Language Name) ex: ENU
+        private string? _sConsoleFallbackName; // The culture name for the console fallback UI culture
+        private int _iInputLanguageHandle = undef; // input language handle
 
         // Region
-        private string _sRegionName; // (RegionInfo)
-        private string _sLocalizedCountry; // localized country name
-        private string _sEnglishCountry; // english country name (RegionInfo)
-        private string _sNativeCountry; // native country name
-        private string _sISO3166CountryName; // ISO 3166 (RegionInfo), ie: US
-        private string _sISO3166CountryName2; // 3 char ISO 3166 country name 2 2(RegionInfo) ex: USA (ISO)
-        private int    _iGeoId = undef; // GeoId
+        private string? _sRegionName; // (RegionInfo)
+        private string? _sLocalizedCountry; // localized country name
+        private string? _sEnglishCountry; // english country name (RegionInfo)
+        private string? _sNativeCountry; // native country name
+        private string? _sISO3166CountryName; // ISO 3166 (RegionInfo), ie: US
+        private string? _sISO3166CountryName2; // 3 char ISO 3166 country name 2 2(RegionInfo) ex: USA (ISO)
+        private int _iGeoId = undef; // GeoId
 
         // Numbers
-        private string _sPositiveSign; // (user can override) positive sign
-        private string _sNegativeSign; // (user can override) negative sign
+        private string? _sPositiveSign; // (user can override) positive sign
+        private string? _sNegativeSign; // (user can override) negative sign
         // (nfi populates these 5, don't have to be = undef)
         private int _iDigits; // (user can override) number of fractional digits
         private int _iNegativeNumber; // (user can override) negative number format
-        private int[] _waGrouping; // (user can override) grouping of digits
-        private string _sDecimalSeparator; // (user can override) decimal separator
-        private string _sThousandSeparator; // (user can override) thousands separator
-        private string _sNaN; // Not a Number
-        private string _sPositiveInfinity; // + Infinity
-        private string _sNegativeInfinity; // - Infinity
+        private int[]? _waGrouping; // (user can override) grouping of digits
+        private string? _sDecimalSeparator; // (user can override) decimal separator
+        private string? _sThousandSeparator; // (user can override) thousands separator
+        private string? _sNaN; // Not a Number
+        private string? _sPositiveInfinity; // + Infinity
+        private string? _sNegativeInfinity; // - Infinity
 
         // Percent
         private int _iNegativePercent = undef; // Negative Percent (0-3)
         private int _iPositivePercent = undef; // Positive Percent (0-11)
-        private string _sPercent; // Percent (%) symbol
-        private string _sPerMille; // PerMille symbol
+        private string? _sPercent; // Percent (%) symbol
+        private string? _sPerMille; // PerMille symbol
 
         // Currency
-        private string _sCurrency; // (user can override) local monetary symbol
-        private string _sIntlMonetarySymbol; // international monetary symbol (RegionInfo)
-        private string _sEnglishCurrency; // English name for this currency
-        private string _sNativeCurrency; // Native name for this currency
+        private string? _sCurrency; // (user can override) local monetary symbol
+        private string? _sIntlMonetarySymbol; // international monetary symbol (RegionInfo)
+        private string? _sEnglishCurrency; // English name for this currency
+        private string? _sNativeCurrency; // Native name for this currency
         // (nfi populates these 4, don't have to be = undef)
         private int _iCurrencyDigits; // (user can override) # local monetary fractional digits
         private int _iCurrency; // (user can override) positive currency format
         private int _iNegativeCurrency; // (user can override) negative currency format
-        private int[] _waMonetaryGrouping; // (user can override) monetary grouping of digits
-        private string _sMonetaryDecimal; // (user can override) monetary decimal separator
-        private string _sMonetaryThousand; // (user can override) monetary thousands separator
+        private int[]? _waMonetaryGrouping; // (user can override) monetary grouping of digits
+        private string? _sMonetaryDecimal; // (user can override) monetary decimal separator
+        private string? _sMonetaryThousand; // (user can override) monetary thousands separator
 
         // Misc
         private int _iMeasure = undef; // (user can override) system of measurement 0=metric, 1=US (RegionInfo)
-        private string _sListSeparator; // (user can override) list separator
+        private string? _sListSeparator; // (user can override) list separator
 
         // Time
-        private string _sAM1159; // (user can override) AM designator
-        private string _sPM2359; // (user can override) PM designator
-        private string _sTimeSeparator;
-        private volatile string[] _saLongTimes; // (user can override) time format
-        private volatile string[] _saShortTimes; // short time format
-        private volatile string[] _saDurationFormats; // time duration format
+        private string? _sAM1159; // (user can override) AM designator
+        private string? _sPM2359; // (user can override) PM designator
+        private string? _sTimeSeparator;
+        private volatile string[]? _saLongTimes; // (user can override) time format
+        private volatile string[]? _saShortTimes; // short time format
+        private volatile string[]? _saDurationFormats; // time duration format
 
         // Calendar specific data
         private int _iFirstDayOfWeek = undef; // (user can override) first day of week (gregorian really)
         private int _iFirstWeekOfYear = undef; // (user can override) first week of year (gregorian really)
-        private volatile CalendarId[] _waCalendars; // all available calendar type(s).  The first one is the default calendar
+        private volatile CalendarId[]? _waCalendars; // all available calendar type(s).  The first one is the default calendar
 
         // Store for specific data about each calendar
-        private CalendarData[] _calendars; // Store for specific calendar data
+        private CalendarData?[]? _calendars; // Store for specific calendar data
 
         // Text information
         private int _iReadingLayout = undef; // Reading layout data
@@ -161,155 +150,145 @@ namespace System.Globalization
         /// <remarks>
         /// Using a property so we avoid creating the dictionary until we need it
         /// </remarks>
-        private static StringStringDictionary RegionNames
-        {
-            get
+        private static Dictionary<string, string> RegionNames =>
+            s_regionNames ??=
+            new Dictionary<string, string>(211 /* prime */)
             {
-                if (s_regionNames == null)
-                {
-                    StringStringDictionary regionNames = new StringStringDictionary(211 /* prime */);
-
-                    regionNames.Add("029", "en-029");
-                    regionNames.Add("AE", "ar-AE");
-                    regionNames.Add("AF", "prs-AF");
-                    regionNames.Add("AL", "sq-AL");
-                    regionNames.Add("AM", "hy-AM");
-                    regionNames.Add("AR", "es-AR");
-                    regionNames.Add("AT", "de-AT");
-                    regionNames.Add("AU", "en-AU");
-                    regionNames.Add("AZ", "az-Cyrl-AZ");
-                    regionNames.Add("BA", "bs-Latn-BA");
-                    regionNames.Add("BD", "bn-BD");
-                    regionNames.Add("BE", "nl-BE");
-                    regionNames.Add("BG", "bg-BG");
-                    regionNames.Add("BH", "ar-BH");
-                    regionNames.Add("BN", "ms-BN");
-                    regionNames.Add("BO", "es-BO");
-                    regionNames.Add("BR", "pt-BR");
-                    regionNames.Add("BY", "be-BY");
-                    regionNames.Add("BZ", "en-BZ");
-                    regionNames.Add("CA", "en-CA");
-                    regionNames.Add("CH", "it-CH");
-                    regionNames.Add("CL", "es-CL");
-                    regionNames.Add("CN", "zh-CN");
-                    regionNames.Add("CO", "es-CO");
-                    regionNames.Add("CR", "es-CR");
-                    regionNames.Add("CS", "sr-Cyrl-CS");
-                    regionNames.Add("CZ", "cs-CZ");
-                    regionNames.Add("DE", "de-DE");
-                    regionNames.Add("DK", "da-DK");
-                    regionNames.Add("DO", "es-DO");
-                    regionNames.Add("DZ", "ar-DZ");
-                    regionNames.Add("EC", "es-EC");
-                    regionNames.Add("EE", "et-EE");
-                    regionNames.Add("EG", "ar-EG");
-                    regionNames.Add("ES", "es-ES");
-                    regionNames.Add("ET", "am-ET");
-                    regionNames.Add("FI", "fi-FI");
-                    regionNames.Add("FO", "fo-FO");
-                    regionNames.Add("FR", "fr-FR");
-                    regionNames.Add("GB", "en-GB");
-                    regionNames.Add("GE", "ka-GE");
-                    regionNames.Add("GL", "kl-GL");
-                    regionNames.Add("GR", "el-GR");
-                    regionNames.Add("GT", "es-GT");
-                    regionNames.Add("HK", "zh-HK");
-                    regionNames.Add("HN", "es-HN");
-                    regionNames.Add("HR", "hr-HR");
-                    regionNames.Add("HU", "hu-HU");
-                    regionNames.Add("ID", "id-ID");
-                    regionNames.Add("IE", "en-IE");
-                    regionNames.Add("IL", "he-IL");
-                    regionNames.Add("IN", "hi-IN");
-                    regionNames.Add("IQ", "ar-IQ");
-                    regionNames.Add("IR", "fa-IR");
-                    regionNames.Add("IS", "is-IS");
-                    regionNames.Add("IT", "it-IT");
-                    regionNames.Add("IV", "");
-                    regionNames.Add("JM", "en-JM");
-                    regionNames.Add("JO", "ar-JO");
-                    regionNames.Add("JP", "ja-JP");
-                    regionNames.Add("KE", "sw-KE");
-                    regionNames.Add("KG", "ky-KG");
-                    regionNames.Add("KH", "km-KH");
-                    regionNames.Add("KR", "ko-KR");
-                    regionNames.Add("KW", "ar-KW");
-                    regionNames.Add("KZ", "kk-KZ");
-                    regionNames.Add("LA", "lo-LA");
-                    regionNames.Add("LB", "ar-LB");
-                    regionNames.Add("LI", "de-LI");
-                    regionNames.Add("LK", "si-LK");
-                    regionNames.Add("LT", "lt-LT");
-                    regionNames.Add("LU", "lb-LU");
-                    regionNames.Add("LV", "lv-LV");
-                    regionNames.Add("LY", "ar-LY");
-                    regionNames.Add("MA", "ar-MA");
-                    regionNames.Add("MC", "fr-MC");
-                    regionNames.Add("ME", "sr-Latn-ME");
-                    regionNames.Add("MK", "mk-MK");
-                    regionNames.Add("MN", "mn-MN");
-                    regionNames.Add("MO", "zh-MO");
-                    regionNames.Add("MT", "mt-MT");
-                    regionNames.Add("MV", "dv-MV");
-                    regionNames.Add("MX", "es-MX");
-                    regionNames.Add("MY", "ms-MY");
-                    regionNames.Add("NG", "ig-NG");
-                    regionNames.Add("NI", "es-NI");
-                    regionNames.Add("NL", "nl-NL");
-                    regionNames.Add("NO", "nn-NO");
-                    regionNames.Add("NP", "ne-NP");
-                    regionNames.Add("NZ", "en-NZ");
-                    regionNames.Add("OM", "ar-OM");
-                    regionNames.Add("PA", "es-PA");
-                    regionNames.Add("PE", "es-PE");
-                    regionNames.Add("PH", "en-PH");
-                    regionNames.Add("PK", "ur-PK");
-                    regionNames.Add("PL", "pl-PL");
-                    regionNames.Add("PR", "es-PR");
-                    regionNames.Add("PT", "pt-PT");
-                    regionNames.Add("PY", "es-PY");
-                    regionNames.Add("QA", "ar-QA");
-                    regionNames.Add("RO", "ro-RO");
-                    regionNames.Add("RS", "sr-Latn-RS");
-                    regionNames.Add("RU", "ru-RU");
-                    regionNames.Add("RW", "rw-RW");
-                    regionNames.Add("SA", "ar-SA");
-                    regionNames.Add("SE", "sv-SE");
-                    regionNames.Add("SG", "zh-SG");
-                    regionNames.Add("SI", "sl-SI");
-                    regionNames.Add("SK", "sk-SK");
-                    regionNames.Add("SN", "wo-SN");
-                    regionNames.Add("SV", "es-SV");
-                    regionNames.Add("SY", "ar-SY");
-                    regionNames.Add("TH", "th-TH");
-                    regionNames.Add("TJ", "tg-Cyrl-TJ");
-                    regionNames.Add("TM", "tk-TM");
-                    regionNames.Add("TN", "ar-TN");
-                    regionNames.Add("TR", "tr-TR");
-                    regionNames.Add("TT", "en-TT");
-                    regionNames.Add("TW", "zh-TW");
-                    regionNames.Add("UA", "uk-UA");
-                    regionNames.Add("US", "en-US");
-                    regionNames.Add("UY", "es-UY");
-                    regionNames.Add("UZ", "uz-Cyrl-UZ");
-                    regionNames.Add("VE", "es-VE");
-                    regionNames.Add("VN", "vi-VN");
-                    regionNames.Add("YE", "ar-YE");
-                    regionNames.Add("ZA", "af-ZA");
-                    regionNames.Add("ZW", "en-ZW");
-
-                    s_regionNames = regionNames;
-                }
-
-                return s_regionNames;
-            }
-        }
+                { "029", "en-029" },
+                { "AE", "ar-AE" },
+                { "AF", "prs-AF" },
+                { "AL", "sq-AL" },
+                { "AM", "hy-AM" },
+                { "AR", "es-AR" },
+                { "AT", "de-AT" },
+                { "AU", "en-AU" },
+                { "AZ", "az-Cyrl-AZ" },
+                { "BA", "bs-Latn-BA" },
+                { "BD", "bn-BD" },
+                { "BE", "nl-BE" },
+                { "BG", "bg-BG" },
+                { "BH", "ar-BH" },
+                { "BN", "ms-BN" },
+                { "BO", "es-BO" },
+                { "BR", "pt-BR" },
+                { "BY", "be-BY" },
+                { "BZ", "en-BZ" },
+                { "CA", "en-CA" },
+                { "CH", "it-CH" },
+                { "CL", "es-CL" },
+                { "CN", "zh-CN" },
+                { "CO", "es-CO" },
+                { "CR", "es-CR" },
+                { "CS", "sr-Cyrl-CS" },
+                { "CZ", "cs-CZ" },
+                { "DE", "de-DE" },
+                { "DK", "da-DK" },
+                { "DO", "es-DO" },
+                { "DZ", "ar-DZ" },
+                { "EC", "es-EC" },
+                { "EE", "et-EE" },
+                { "EG", "ar-EG" },
+                { "ES", "es-ES" },
+                { "ET", "am-ET" },
+                { "FI", "fi-FI" },
+                { "FO", "fo-FO" },
+                { "FR", "fr-FR" },
+                { "GB", "en-GB" },
+                { "GE", "ka-GE" },
+                { "GL", "kl-GL" },
+                { "GR", "el-GR" },
+                { "GT", "es-GT" },
+                { "HK", "zh-HK" },
+                { "HN", "es-HN" },
+                { "HR", "hr-HR" },
+                { "HU", "hu-HU" },
+                { "ID", "id-ID" },
+                { "IE", "en-IE" },
+                { "IL", "he-IL" },
+                { "IN", "hi-IN" },
+                { "IQ", "ar-IQ" },
+                { "IR", "fa-IR" },
+                { "IS", "is-IS" },
+                { "IT", "it-IT" },
+                { "IV", "" },
+                { "JM", "en-JM" },
+                { "JO", "ar-JO" },
+                { "JP", "ja-JP" },
+                { "KE", "sw-KE" },
+                { "KG", "ky-KG" },
+                { "KH", "km-KH" },
+                { "KR", "ko-KR" },
+                { "KW", "ar-KW" },
+                { "KZ", "kk-KZ" },
+                { "LA", "lo-LA" },
+                { "LB", "ar-LB" },
+                { "LI", "de-LI" },
+                { "LK", "si-LK" },
+                { "LT", "lt-LT" },
+                { "LU", "lb-LU" },
+                { "LV", "lv-LV" },
+                { "LY", "ar-LY" },
+                { "MA", "ar-MA" },
+                { "MC", "fr-MC" },
+                { "ME", "sr-Latn-ME" },
+                { "MK", "mk-MK" },
+                { "MN", "mn-MN" },
+                { "MO", "zh-MO" },
+                { "MT", "mt-MT" },
+                { "MV", "dv-MV" },
+                { "MX", "es-MX" },
+                { "MY", "ms-MY" },
+                { "NG", "ig-NG" },
+                { "NI", "es-NI" },
+                { "NL", "nl-NL" },
+                { "NO", "nn-NO" },
+                { "NP", "ne-NP" },
+                { "NZ", "en-NZ" },
+                { "OM", "ar-OM" },
+                { "PA", "es-PA" },
+                { "PE", "es-PE" },
+                { "PH", "en-PH" },
+                { "PK", "ur-PK" },
+                { "PL", "pl-PL" },
+                { "PR", "es-PR" },
+                { "PT", "pt-PT" },
+                { "PY", "es-PY" },
+                { "QA", "ar-QA" },
+                { "RO", "ro-RO" },
+                { "RS", "sr-Latn-RS" },
+                { "RU", "ru-RU" },
+                { "RW", "rw-RW" },
+                { "SA", "ar-SA" },
+                { "SE", "sv-SE" },
+                { "SG", "zh-SG" },
+                { "SI", "sl-SI" },
+                { "SK", "sk-SK" },
+                { "SN", "wo-SN" },
+                { "SV", "es-SV" },
+                { "SY", "ar-SY" },
+                { "TH", "th-TH" },
+                { "TJ", "tg-Cyrl-TJ" },
+                { "TM", "tk-TM" },
+                { "TN", "ar-TN" },
+                { "TR", "tr-TR" },
+                { "TT", "en-TT" },
+                { "TW", "zh-TW" },
+                { "UA", "uk-UA" },
+                { "US", "en-US" },
+                { "UY", "es-UY" },
+                { "UZ", "uz-Cyrl-UZ" },
+                { "VE", "es-VE" },
+                { "VN", "vi-VN" },
+                { "YE", "ar-YE" },
+                { "ZA", "af-ZA" },
+                { "ZW", "en-ZW" }
+            };
 
         // Cache of regions we've already looked up
-        private static volatile StringCultureDataDictionary s_cachedRegions;
-        private static volatile StringStringDictionary s_regionNames;
+        private static volatile Dictionary<string, CultureData>? s_cachedRegions;
+        private static volatile Dictionary<string, string>? s_regionNames;
 
-        internal static CultureData GetCultureDataForRegion(string cultureName, bool useUserOverride)
+        internal static CultureData? GetCultureDataForRegion(string? cultureName, bool useUserOverride)
         {
             // First do a shortcut for Invariant
             if (string.IsNullOrEmpty(cultureName))
@@ -318,7 +297,7 @@ namespace System.Globalization
             }
 
             // First check if GetCultureData() can find it (ie: its a real culture)
-            CultureData retVal = GetCultureData(cultureName, useUserOverride);
+            CultureData? retVal = GetCultureData(cultureName, useUserOverride);
             if (retVal != null && !retVal.IsNeutralCulture)
             {
                 return retVal;
@@ -328,15 +307,16 @@ namespace System.Globalization
             // (Remember this isn't a core clr path where that's not supported)
 
             // If it was neutral remember that so that RegionInfo() can throw the right exception
-            CultureData neutral = retVal;
+            CultureData? neutral = retVal;
 
             // Try the hash table next
             string hashName = AnsiToLower(useUserOverride ? cultureName : cultureName + '*');
-            StringCultureDataDictionary tempHashTable = s_cachedRegions;
+            Dictionary<string, CultureData>? tempHashTable = s_cachedRegions;
+
             if (tempHashTable == null)
             {
                 // No table yet, make a new one
-                tempHashTable = new StringCultureDataDictionary();
+                tempHashTable = new Dictionary<string, CultureData>();
             }
             else
             {
@@ -357,7 +337,7 @@ namespace System.Globalization
             if (retVal == null || (retVal.IsNeutralCulture == true))
             {
                 // Not a valid mapping, try the hard coded table
-                string name;
+                string? name;
                 if (RegionNames.TryGetValue(cultureName, out name))
                 {
                     // Make sure we can get culture data for it
@@ -562,13 +542,13 @@ namespace System.Globalization
                 return s_Invariant;
             }
         }
-        private volatile static CultureData s_Invariant;
+        private static volatile CultureData? s_Invariant;
 
         // Cache of cultures we've already looked up
-        private static volatile StringCultureDataDictionary s_cachedCultures;
+        private static volatile Dictionary<string, CultureData>? s_cachedCultures;
         private static readonly object s_lock = new object();
 
-        internal static CultureData GetCultureData(string cultureName, bool useUserOverride)
+        internal static CultureData? GetCultureData(string? cultureName, bool useUserOverride)
         {
             // First do a shortcut for Invariant
             if (string.IsNullOrEmpty(cultureName))
@@ -578,17 +558,17 @@ namespace System.Globalization
 
             // Try the hash table first
             string hashName = AnsiToLower(useUserOverride ? cultureName : cultureName + '*');
-            StringCultureDataDictionary tempHashTable = s_cachedCultures;
+            Dictionary<string, CultureData>? tempHashTable = s_cachedCultures;
             if (tempHashTable == null)
             {
                 // No table yet, make a new one
-                tempHashTable = new StringCultureDataDictionary();
+                tempHashTable = new Dictionary<string, CultureData>();
             }
             else
             {
                 // Check the hash table
                 bool ret;
-                CultureData retVal;
+                CultureData? retVal;
                 lock (s_lock)
                 {
                     ret = tempHashTable.TryGetValue(hashName, out retVal);
@@ -600,7 +580,7 @@ namespace System.Globalization
             }
 
             // Not found in the hash table, need to see if we can build one that works for us
-            CultureData culture = CreateCultureData(cultureName, useUserOverride);
+            CultureData? culture = CreateCultureData(cultureName, useUserOverride);
             if (culture == null)
             {
                 return null;
@@ -639,7 +619,7 @@ namespace System.Globalization
                 if (name[i] >= 'A' && name[i] <= 'Z')
                 {
                     // lowercase characters before '-'
-                    normalizedName[i] = (char) (((int)name[i]) + 0x20);
+                    normalizedName[i] = (char)(((int)name[i]) + 0x20);
                     changed = true;
                 }
                 else
@@ -659,7 +639,7 @@ namespace System.Globalization
             {
                 if (name[i] >= 'a' && name[i] <= 'z')
                 {
-                    normalizedName[i] = (char) (((int)name[i]) - 0x20);
+                    normalizedName[i] = (char)(((int)name[i]) - 0x20);
                     changed = true;
                 }
                 else
@@ -677,7 +657,7 @@ namespace System.Globalization
             return name;
         }
 
-        private static CultureData CreateCultureData(string cultureName, bool useUserOverride)
+        private static CultureData? CreateCultureData(string cultureName, bool useUserOverride)
         {
             if (GlobalizationMode.Invariant)
             {
@@ -693,6 +673,14 @@ namespace System.Globalization
                 cd._iLanguage = CultureInfo.LOCALE_CUSTOM_UNSPECIFIED;
 
                 return cd;
+            }
+
+            if (cultureName.Length == 1 && (cultureName[0] == 'C' || cultureName[0] == 'c'))
+            {
+                // Always map the "C" locale to Invariant to avoid mapping it to en_US_POSIX on Linux because POSIX
+                // locale collation doesn't support case insensitive comparisons.
+                // We do the same mapping on Windows for the sake of consistency.
+                return CultureData.Invariant;
             }
 
             CultureData culture = new CultureData();
@@ -711,7 +699,7 @@ namespace System.Globalization
         private bool InitCompatibilityCultureData()
         {
             // for compatibility handle the deprecated ids: zh-chs, zh-cht
-            string cultureName = _sRealName;
+            string cultureName = _sRealName!;
 
             string fallbackCultureName;
             string realCultureName;
@@ -745,8 +733,8 @@ namespace System.Globalization
         /// We'd rather people use the named version since this doesn't allow custom locales
         internal static CultureData GetCultureData(int culture, bool bUseUserOverride)
         {
-            string localeName = null;
-            CultureData retVal = null;
+            string? localeName = null;
+            CultureData? retVal = null;
 
             if (culture == CultureInfo.LOCALE_INVARIANT)
             {
@@ -818,7 +806,7 @@ namespace System.Globalization
                 if (_sParent == null)
                 {
                     // Ask using the real name, so that we get parents of neutrals
-                    _sParent = GetLocaleInfo(_sRealName, LocaleStringData.ParentName);
+                    _sParent = GetLocaleInfo(_sRealName!, LocaleStringData.ParentName);
                 }
                 return _sParent;
             }
@@ -931,11 +919,11 @@ namespace System.Globalization
                             // Our existing names mostly look like:
                             // "English" + "United States" -> "English (United States)"
                             // "Azeri (Latin)" + "Azerbaijan" -> "Azeri (Latin, Azerbaijan)"
-                            if (EnglishLanguageName[EnglishLanguageName.Length - 1] == ')')
+                            if (EnglishLanguageName[^1] == ')')
                             {
                                 // "Azeri (Latin)" + "Azerbaijan" -> "Azeri (Latin, Azerbaijan)"
                                 _sEnglishDisplayName = string.Concat(
-                                    EnglishLanguageName.AsSpan(0, _sEnglishLanguage.Length - 1),
+                                    EnglishLanguageName.AsSpan(0, _sEnglishLanguage!.Length - 1),
                                     ", ",
                                     EnglishCountryName,
                                     ")");
@@ -1044,7 +1032,7 @@ namespace System.Globalization
             {
                 if (_sAbbrevLang == null)
                 {
-                    _sAbbrevLang = GetThreeLetterWindowsLanguageName(_sRealName);
+                    _sAbbrevLang = GetThreeLetterWindowsLanguageName(_sRealName!);
                 }
                 return _sAbbrevLang;
             }
@@ -1066,7 +1054,7 @@ namespace System.Globalization
 
                     if (CultureInfo.DefaultThreadCurrentUICulture != null &&
                         ((ci = GetUserDefaultCulture()) != null) &&
-                        !CultureInfo.DefaultThreadCurrentUICulture.Name.Equals(ci.Name))
+                        !CultureInfo.DefaultThreadCurrentUICulture!.Name.Equals(ci.Name))
                     {
                         _sLocalizedLanguage = NativeLanguageName;
                     }
@@ -1131,7 +1119,7 @@ namespace System.Globalization
             {
                 if (_iGeoId == undef)
                 {
-                    _iGeoId = GetGeoId(_sRealName);
+                    _iGeoId = GetGeoId(_sRealName!);
                 }
                 return _iGeoId;
             }
@@ -1253,7 +1241,7 @@ namespace System.Globalization
             {
                 if (_sConsoleFallbackName == null)
                 {
-                    _sConsoleFallbackName = GetConsoleFallbackName(_sRealName);
+                    _sConsoleFallbackName = GetConsoleFallbackName(_sRealName!);
                 }
                 return _sConsoleFallbackName;
             }
@@ -1528,10 +1516,10 @@ namespace System.Globalization
                 {
                     Debug.Assert(!GlobalizationMode.Invariant);
 
-                    string[] longTimes = GetTimeFormats();
+                    string[]? longTimes = GetTimeFormats();
                     if (longTimes == null || longTimes.Length == 0)
                     {
-                        _saLongTimes = Invariant._saLongTimes;
+                        _saLongTimes = Invariant._saLongTimes!;
                     }
                     else
                     {
@@ -1555,8 +1543,7 @@ namespace System.Globalization
                     Debug.Assert(!GlobalizationMode.Invariant);
 
                     // Try to get the short times from the OS/culture.dll
-                    string[] shortTimes = null;
-                    shortTimes = GetShortTimeFormats();
+                    string[]? shortTimes = GetShortTimeFormats();
 
                     if (shortTimes == null || shortTimes.Length == 0)
                     {
@@ -1567,22 +1554,11 @@ namespace System.Globalization
                         shortTimes = DeriveShortTimesFromLong();
                     }
 
-                    /* The above logic doesn't make sense on Mac, since the OS can provide us a "short time pattern".
-                     * currently this is the 4th element in the array returned by LongTimes.  We'll add this to our array
-                     * if it doesn't exist.
-                     */
-                    shortTimes = AdjustShortTimesForMac(shortTimes);
-
                     // Found short times, use them
                     _saShortTimes = shortTimes;
                 }
                 return _saShortTimes;
             }
-        }
-
-        private string[] AdjustShortTimesForMac(string[] shortTimes)
-        {
-            return shortTimes;
         }
 
         private string[] DeriveShortTimesFromLong()
@@ -1830,7 +1806,7 @@ namespace System.Globalization
                     if (count == 0)
                     {
                         // Failed for some reason, just grab Gregorian from Invariant
-                        _waCalendars = Invariant._waCalendars;
+                        _waCalendars = Invariant._waCalendars!;
                     }
                     else
                     {
@@ -1904,15 +1880,12 @@ namespace System.Globalization
             int calendarIndex = (int)calendarId - 1;
 
             // Have to have calendars
-            if (_calendars == null)
-            {
-                _calendars = new CalendarData[CalendarData.MAX_CALENDARS];
-            }
+            _calendars ??= new CalendarData[CalendarData.MAX_CALENDARS];
 
             // we need the following local variable to avoid returning null
             // when another thread creates a new array of CalendarData (above)
             // right after we insert the newly created CalendarData (below)
-            CalendarData calendarData = _calendars[calendarIndex];
+            CalendarData? calendarData = _calendars[calendarIndex];
             // Make sure that calendar has data
             if (calendarData == null)
             {
@@ -1924,18 +1897,13 @@ namespace System.Globalization
             return calendarData;
         }
 
-        internal bool IsRightToLeft
-        {
-            get
-            {
-                // Returns one of the following 4 reading layout values:
-                // 0 - Left to right (eg en-US)
-                // 1 - Right to left (eg arabic locales)
-                // 2 - Vertical top to bottom with columns to the left and also left to right (ja-JP locales)
-                // 3 - Vertical top to bottom with columns proceeding to the right
-                return ReadingLayout == 1;
-            }
-        }
+        internal bool IsRightToLeft =>
+            // Returns one of the following 4 reading layout values:
+            // 0 - Left to right (eg en-US)
+            // 1 - Right to left (eg arabic locales)
+            // 2 - Vertical top to bottom with columns to the left and also left to right (ja-JP locales)
+            // 3 - Vertical top to bottom with columns proceeding to the right
+            ReadingLayout == 1;
 
         /// <summary>
         /// Returns one of the following 4 reading layout values:
@@ -2002,7 +1970,7 @@ namespace System.Globalization
             {
                 if (_iDefaultAnsiCodePage == undef)
                 {
-                    _iDefaultAnsiCodePage = GetAnsiCodePage(_sRealName);
+                    _iDefaultAnsiCodePage = GetAnsiCodePage(_sRealName!);
                 }
                 return _iDefaultAnsiCodePage;
             }
@@ -2017,7 +1985,7 @@ namespace System.Globalization
             {
                 if (_iDefaultOemCodePage == undef)
                 {
-                    _iDefaultOemCodePage = GetOemCodePage(_sRealName);
+                    _iDefaultOemCodePage = GetOemCodePage(_sRealName!);
                 }
                 return _iDefaultOemCodePage;
             }
@@ -2032,7 +2000,7 @@ namespace System.Globalization
             {
                 if (_iDefaultMacCodePage == undef)
                 {
-                    _iDefaultMacCodePage = GetMacCodePage(_sRealName);
+                    _iDefaultMacCodePage = GetMacCodePage(_sRealName!);
                 }
                 return _iDefaultMacCodePage;
             }
@@ -2047,7 +2015,7 @@ namespace System.Globalization
             {
                 if (_iDefaultEbcdicCodePage == undef)
                 {
-                    _iDefaultEbcdicCodePage = GetEbcdicCodePage(_sRealName);
+                    _iDefaultEbcdicCodePage = GetEbcdicCodePage(_sRealName!);
                 }
                 return _iDefaultEbcdicCodePage;
             }
@@ -2066,22 +2034,11 @@ namespace System.Globalization
             }
         }
 
-        internal bool IsNeutralCulture
-        {
-            get
-            {
-                // InitCultureData told us if we're neutral or not
-                return _bNeutral;
-            }
-        }
+        internal bool IsNeutralCulture =>
+            // InitCultureData told us if we're neutral or not
+            _bNeutral;
 
-        internal bool IsInvariantCulture
-        {
-            get
-            {
-                return string.IsNullOrEmpty(Name);
-            }
-        }
+        internal bool IsInvariantCulture => string.IsNullOrEmpty(Name);
 
         /// <summary>
         /// Get an instance of our default calendar
@@ -2136,7 +2093,7 @@ namespace System.Globalization
             {
                 if (_sTimeSeparator == null)
                 {
-                    string longTimeFormat = GetTimeFormatString();
+                    string? longTimeFormat = GetTimeFormatString();
                     if (string.IsNullOrEmpty(longTimeFormat))
                     {
                         longTimeFormat = LongTimes[0];
@@ -2190,23 +2147,17 @@ namespace System.Globalization
             Debug.Assert(str != null);
             Debug.Assert(start >= 0);
             Debug.Assert(end >= 0);
-            StringBuilder result = null;
+            StringBuilder? result = null;
 
             for (int i = start; i < str.Length && i <= end; i++)
             {
                 switch (str[i])
                 {
                     case '\'':
-                        if (result == null)
-                        {
-                            result = new StringBuilder(str, start, i - start, str.Length);
-                        }
+                        result ??= new StringBuilder(str, start, i - start, str.Length);
                         break;
                     case '\\':
-                        if (result == null)
-                        {
-                            result = new StringBuilder(str, start, i - start, str.Length);
-                        }
+                        result ??= new StringBuilder(str, start, i - start, str.Length);
                         ++i;
                         if (i < str.Length)
                         {
@@ -2214,10 +2165,7 @@ namespace System.Globalization
                         }
                         break;
                     default:
-                        if (result != null)
-                        {
-                            result.Append(str[i]);
-                        }
+                        result?.Append(str[i]);
                         break;
                 }
             }
@@ -2236,7 +2184,7 @@ namespace System.Globalization
         /// </summary>
         private static string GetTimeSeparator(string format)
         {
-            //  Find the time separator so that we can pretend we know TimeSeparator.
+            // Find the time separator so that we can pretend we know TimeSeparator.
             return GetSeparator(format, "Hhms");
         }
 
@@ -2246,7 +2194,7 @@ namespace System.Globalization
         /// </summary>
         private static string GetDateSeparator(string format)
         {
-            //  Find the date separator so that we can pretend we know DateSeparator.
+            // Find the date separator so that we can pretend we know DateSeparator.
             return GetSeparator(format, "dyM");
         }
 
@@ -2305,7 +2253,7 @@ namespace System.Globalization
                                 case '\\':
                                     break;
                                 default:
-                                    --i; //backup since we will move over this next
+                                    --i; // backup since we will move over this next
                                     break;
                             }
                         }
@@ -2328,17 +2276,17 @@ namespace System.Globalization
         {
             if (GlobalizationMode.Invariant || IsInvariantCulture)
             {
-                nfi._positiveSign = _sPositiveSign;
-                nfi._negativeSign = _sNegativeSign;
+                nfi._positiveSign = _sPositiveSign!;
+                nfi._negativeSign = _sNegativeSign!;
 
-                nfi._numberGroupSeparator = _sThousandSeparator;
-                nfi._numberDecimalSeparator = _sDecimalSeparator;
+                nfi._numberGroupSeparator = _sThousandSeparator!;
+                nfi._numberDecimalSeparator = _sDecimalSeparator!;
                 nfi._numberDecimalDigits = _iDigits;
                 nfi._numberNegativePattern = _iNegativeNumber;
 
-                nfi._currencySymbol = _sCurrency;
-                nfi._currencyGroupSeparator = _sMonetaryThousand;
-                nfi._currencyDecimalSeparator = _sMonetaryDecimal;
+                nfi._currencySymbol = _sCurrency!;
+                nfi._currencyGroupSeparator = _sMonetaryThousand!;
+                nfi._currencyDecimalSeparator = _sMonetaryDecimal!;
                 nfi._currencyDecimalDigits = _iCurrencyDigits;
                 nfi._currencyNegativePattern = _iNegativeCurrency;
                 nfi._currencyPositivePattern = _iCurrency;
@@ -2371,6 +2319,7 @@ namespace System.Globalization
                     nfi._nativeDigits[i] = char.ToString(digits[i]);
                 }
 
+                Debug.Assert(_sRealName != null);
                 nfi._digitSubstitution = GetDigitSubstitution(_sRealName);
             }
 

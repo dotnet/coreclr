@@ -25,7 +25,8 @@ namespace System.Globalization
         {
             CheckTicksRange(time.Ticks);
 
-            TimeToLunar(time, out int year, out int month, out int day);
+
+            TimeToLunar(time, out int year, out _, out _);
             return ((year - 4) % 60) + 1;
         }
 
@@ -69,7 +70,7 @@ namespace System.Globalization
 
         internal abstract int MinCalendarYear { get; }
         internal abstract int MaxCalendarYear { get; }
-        internal abstract EraInfo[] CalEraInfo { get; }
+        internal abstract EraInfo[]? CalEraInfo { get; }
         internal abstract DateTime MinDate { get; }
         internal abstract DateTime MaxDate { get; }
 
@@ -78,7 +79,7 @@ namespace System.Globalization
 
         internal int MinEraCalendarYear(int era)
         {
-            EraInfo[] eraInfo = CalEraInfo;
+            EraInfo[]? eraInfo = CalEraInfo;
             if (eraInfo == null)
             {
                 return MinCalendarYear;
@@ -108,7 +109,7 @@ namespace System.Globalization
 
         internal int MaxEraCalendarYear(int era)
         {
-            EraInfo[] eraInfo = CalEraInfo;
+            EraInfo[]? eraInfo = CalEraInfo;
             if (eraInfo == null)
             {
                 return MaxCalendarYear;
@@ -373,7 +374,7 @@ namespace System.Globalization
             }
 
             // Add the actual lunar day to get the solar day we want
-            solarDay = solarDay + numLunarDays;
+            solarDay += numLunarDays;
 
             if (solarDay > (365 + (isLeapYear ? 1 : 0)))
             {
@@ -505,7 +506,7 @@ namespace System.Globalization
 
             for (int i = 1; i < m; i++)
             {
-                d = d + InternalGetDaysInMonth(y, i);
+                d += InternalGetDaysInMonth(y, i);
             }
             return d;
         }
@@ -517,7 +518,8 @@ namespace System.Globalization
         public override int GetDayOfMonth(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-            TimeToLunar(time, out int y, out int m, out int d);
+
+            TimeToLunar(time, out _, out _, out int d);
 
             return d;
         }
@@ -547,7 +549,8 @@ namespace System.Globalization
         public override int GetMonth(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-            TimeToLunar(time, out int y, out int m, out int d);
+
+            TimeToLunar(time, out _, out int m, out _);
 
             return m;
         }
@@ -559,7 +562,8 @@ namespace System.Globalization
         public override int GetYear(DateTime time)
         {
             CheckTicksRange(time.Ticks);
-            TimeToLunar(time, out int y, out int m, out int d);
+
+            TimeToLunar(time, out int y, out _, out _);
 
             return GetYear(y, time);
         }
@@ -619,7 +623,7 @@ namespace System.Globalization
 
         /// <summary>
         /// Returns  the leap month in a calendar year of the specified era. This method returns 0
-        /// if this this year is not a leap year.
+        /// if this year is not a leap year.
         /// </summary>
         public override int GetLeapMonth(int year, int era)
         {

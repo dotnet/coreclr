@@ -2,12 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using Microsoft.Win32;
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
-using System.Threading;
 
 namespace System
 {
@@ -29,10 +25,12 @@ namespace System
         // Leaving it uninitialized would confuse debuggers.
         //
         // We need to call the String constructor so that the compiler doesn't mark this as a literal.
-        // Marking this as a literal would mean that it doesn't show up as a field which we can access 
+        // Marking this as a literal would mean that it doesn't show up as a field which we can access
         // from native.
+#pragma warning disable CS8618 // compiler sees this non-nullable static string as uninitialized
         [Intrinsic]
         public static readonly string Empty;
+#pragma warning restore CS8618
 
         // Gets the character at a specified position.
         //
@@ -59,13 +57,10 @@ namespace System
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal static extern string FastAllocateString(int length);
 
-        // Is this a string that can be compared quickly (that is it has only characters > 0x80 
+        // Is this a string that can be compared quickly (that is it has only characters > 0x80
         // and not a - or '
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         internal extern bool IsFastSort();
-        // Is this a string that only contains characters < 0x80.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        internal extern bool IsAscii();
 
         // Set extra byte for odd-sized strings that came from interop as BSTR.
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -77,7 +72,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private extern string Intern();
         [MethodImpl(MethodImplOptions.InternalCall)]
-        private extern string IsInterned();
+        private extern string? IsInterned();
 
         public static string Intern(string str)
         {
@@ -89,7 +84,7 @@ namespace System
             return str.Intern();
         }
 
-        public static string IsInterned(string str)
+        public static string? IsInterned(string str)
         {
             if (str == null)
             {

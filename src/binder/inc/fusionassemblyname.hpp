@@ -18,7 +18,7 @@ struct FusionProperty
 {
     union {
         LPVOID pv;
-        wchar_t* asStr;        // For debugging.
+        WCHAR* asStr;        // For debugging.
     };
     DWORD  cb;
 };
@@ -51,8 +51,6 @@ private:
     LPWSTR       _pwzPathModifier;
     LPWSTR       _pwzTextualIdentity;
     LPWSTR       _pwzTextualIdentityILFull;
-
-    DWORD _dw;
 
 public:
     // IUnknown methods

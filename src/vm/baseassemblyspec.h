@@ -98,6 +98,7 @@ public:
     void SetCodeBase(LPCWSTR szCodeBase);
 
     VOID SetCulture(LPCSTR szCulture);
+    bool IsNeutralCulture();
 
     VOID ConvertPublicKeyToToken();
 
@@ -110,7 +111,6 @@ public:
     BOOL HasPublicKey() const;
     BOOL HasPublicKeyToken() const;
     BOOL IsMscorlibSatellite();
-    BOOL IsMscorlibDebugSatellite();
     BOOL IsMscorlib();
 
     //

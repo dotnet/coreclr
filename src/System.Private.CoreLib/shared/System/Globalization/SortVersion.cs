@@ -8,9 +8,12 @@ namespace System.Globalization
 {
     [Serializable]
     [System.Runtime.CompilerServices.TypeForwardedFrom("mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089")]
-    public sealed class SortVersion : IEquatable<SortVersion>
+    public sealed class SortVersion :
+#nullable disable // to enable use with both T and T? for reference types due to IEquatable<T> being invariant
+        IEquatable<SortVersion>
+#nullable restore
     {
-        private int m_NlsVersion; // Do not rename (binary serialization)
+        private readonly int m_NlsVersion; // Do not rename (binary serialization)
         private Guid m_SortId; // Do not rename (binary serialization)
 
         public int FullVersion => m_NlsVersion;
@@ -39,12 +42,12 @@ namespace System.Globalization
             m_SortId = customVersion;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is SortVersion otherVersion && Equals(otherVersion);
         }
 
-        public bool Equals(SortVersion other)
+        public bool Equals(SortVersion? other)
         {
             if (other == null)
             {
@@ -61,7 +64,7 @@ namespace System.Globalization
 
         // Force inline as the true/false ternary takes it above ALWAYS_INLINE size even though the asm ends up smaller
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static bool operator ==(SortVersion left, SortVersion right)
+        public static bool operator ==(SortVersion? left, SortVersion? right)
         {
             // Test "right" first to allow branch elimination when inlined for null checks (== null)
             // so it can become a simple test
@@ -74,9 +77,7 @@ namespace System.Globalization
             return right.Equals(left);
         }
 
-        public static bool operator !=(SortVersion left, SortVersion right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(SortVersion? left, SortVersion? right) =>
+            !(left == right);
     }
 }

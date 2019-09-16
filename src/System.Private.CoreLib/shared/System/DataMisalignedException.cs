@@ -23,19 +23,19 @@ namespace System
             HResult = HResults.COR_E_DATAMISALIGNED;
         }
 
-        public DataMisalignedException(string message)
+        public DataMisalignedException(string? message)
             : base(message)
         {
             HResult = HResults.COR_E_DATAMISALIGNED;
         }
 
-        public DataMisalignedException(string message, Exception innerException)
+        public DataMisalignedException(string? message, Exception? innerException)
             : base(message, innerException)
         {
             HResult = HResults.COR_E_DATAMISALIGNED;
         }
 
-        internal DataMisalignedException(SerializationInfo info, StreamingContext context) : base(info, context)
+        private DataMisalignedException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

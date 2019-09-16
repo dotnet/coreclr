@@ -2,7 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+#if ES_BUILD_STANDALONE
 using System;
+using System.Diagnostics;
+#endif
 using System.Collections;
 using System.Collections.Generic;
 
@@ -24,7 +27,7 @@ namespace System.Diagnostics.Tracing
 
         public override void WriteMetadata(
             TraceLoggingMetadataCollector collector,
-            string name,
+            string? name,
             EventFieldFormat format)
         {
             collector.BeginBufferedArray();
@@ -34,13 +37,13 @@ namespace System.Diagnostics.Tracing
 
         public override void WriteData(TraceLoggingDataCollector collector, PropertyValue value)
         {
-            var bookmark = collector.BeginBufferedArray();
+            int bookmark = collector.BeginBufferedArray();
 
-            var count = 0;
-            IEnumerable enumerable = (IEnumerable)value.ReferenceValue;
+            int count = 0;
+            IEnumerable? enumerable = (IEnumerable?)value.ReferenceValue;
             if (enumerable != null)
             {
-                foreach (var element in enumerable)
+                foreach (object? element in enumerable)
                 {
                     this.elementInfo.WriteData(collector, elementInfo.PropertyValueFactory(element));
                     count++;
@@ -50,11 +53,12 @@ namespace System.Diagnostics.Tracing
             collector.EndBufferedArray(bookmark, count);
         }
 
-        public override object GetData(object value)
+        public override object? GetData(object? value)
         {
+            Debug.Assert(value != null, "null accepted only for some overrides");
             var iterType = (IEnumerable)value;
-            List<object> serializedEnumerable = new List<object>();
-            foreach (var element in iterType)
+            List<object?> serializedEnumerable = new List<object?>();
+            foreach (object? element in iterType)
             {
                 serializedEnumerable.Add(elementInfo.GetData(element));
             }

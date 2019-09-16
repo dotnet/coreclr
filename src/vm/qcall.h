@@ -237,37 +237,9 @@ public:
         }
     };
 
-    // AppDomainHandle is used for passing AppDomains into QCalls via System.AppDomainHandle
-    struct AppDomainHandle
-    {
-        AppDomain *m_pAppDomain;
-
-        operator AppDomain *()
-        {
-            LIMITED_METHOD_CONTRACT;
-#ifdef _DEBUG
-            VerifyDomainHandle();
-#endif // _DEBUG
-            return m_pAppDomain;
-        }
-
-        AppDomain *operator->() const
-        {
-            LIMITED_METHOD_CONTRACT;
-#ifdef _DEBUG
-            VerifyDomainHandle();
-#endif // _DEBUG
-            return m_pAppDomain;
-        }
-
-    private:
-#ifdef _DEBUG
-        void VerifyDomainHandle() const;
-#endif // _DEBUG
-    };
-
     struct AssemblyHandle
     {
+        Object ** m_ppObject;
         DomainAssembly * m_pAssembly;
 
         operator DomainAssembly * ()
@@ -285,6 +257,7 @@ public:
 
     struct ModuleHandle
     {
+        Object ** m_ppObject;
         Module * m_pModule;
 
         operator Module * ()
@@ -297,6 +270,18 @@ public:
         {
             LIMITED_METHOD_CONTRACT;
             return m_pModule;
+        }
+    };
+
+    struct TypeHandle
+    {
+        Object ** m_ppObject;
+        PTR_VOID m_pTypeHandle;
+
+        ::TypeHandle AsTypeHandle()
+        {
+            LIMITED_METHOD_CONTRACT;
+            return ::TypeHandle::FromPtr(m_pTypeHandle);
         }
     };
 

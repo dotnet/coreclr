@@ -2,8 +2,8 @@ project(System.Globalization.Native C)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-add_definitions(-DPIC=1)
-add_definitions(-DBIT64=1)
+add_definitions(-DPIC)
+add_definitions(-DBIT64)
 
 set(ICU_HOMEBREW_INC_PATH "/usr/local/opt/icu4c/include")
 
@@ -36,8 +36,6 @@ else()
 endif()
 
 include(configure.cmake)
-
-add_compile_options(-fPIC)
 
 set(NATIVEGLOBALIZATION_SOURCES
     pal_calendarData.c
@@ -85,7 +83,7 @@ else()
         dl
     )
 
-    add_definitions(-DU_DISABLE_RENAMING=1)
+    add_definitions(-DU_DISABLE_RENAMING)
 endif()
 
 verify_dependencies(

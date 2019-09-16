@@ -82,6 +82,7 @@ struct OverrideProcArgs
 
         struct
         {
+            MethodTable*    m_pArrayMT;
             VARTYPE         m_vt;
 #ifdef FEATURE_COMINTEROP
             SIZE_T          m_cbElementSize;
@@ -455,6 +456,7 @@ public:
                 BOOL BestFit,
                 BOOL ThrowOnUnmappableChar,
                 BOOL fEmitsIL,
+                BOOL onInstanceMethod,
                 MethodDesc* pMD = NULL,
                 BOOL fUseCustomMarshal = TRUE
 #ifdef _DEBUG

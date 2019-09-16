@@ -1,8 +1,8 @@
 project(ClrJit)
 
-if(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
+set_source_files_properties(${JIT_EXPORTS_FILE} PROPERTIES GENERATED TRUE)
 
+if(CLR_CMAKE_PLATFORM_UNIX)
     add_library_clr(clrjit_static
       STATIC
       ${SHARED_LIB_SOURCES}

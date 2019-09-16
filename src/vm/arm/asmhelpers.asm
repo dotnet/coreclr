@@ -16,7 +16,6 @@
     SETALIAS CTPMethodTable__s_pThunkTable, ?s_pThunkTable@CTPMethodTable@@0PAVMethodTable@@A
     SETALIAS g_pObjectClass, ?g_pObjectClass@@3PAVMethodTable@@A
 
-    IMPORT GetThread
     IMPORT JIT_InternalThrow
     IMPORT JIT_WriteBarrier
     IMPORT TheUMEntryPrestubWorker
@@ -58,11 +57,14 @@
 
     IMPORT GetCurrentSavedRedirectContext
 
-    ;; Imports to support virtual import fixup for ngen images
-    IMPORT VirtualMethodFixupWorker
     ;; Import to support cross-moodule external method invocation in ngen images
     IMPORT ExternalMethodFixupWorker
+
+#ifdef FEATURE_PREJIT
+    ;; Imports to support virtual import fixup for ngen images
+    IMPORT VirtualMethodFixupWorker
     IMPORT StubDispatchFixupWorker
+#endif
 
 #ifdef FEATURE_READYTORUN
     IMPORT DynamicHelperWorker
@@ -386,7 +388,8 @@ UMThunkStub_StackArgs SETA 10*4
 
         CHECK_STACK_ALIGNMENT
 
-        bl                  GetThread
+        ; r0 = GetThread(). Trashes r5
+        INLINE_GETTHREAD    r0, r5
         cbz                 r0, UMThunkStub_DoThreadSetup
 
 UMThunkStub_HaveThread
@@ -457,6 +460,8 @@ UMThunkStub_DoTrapReturningThreads
         b                   UMThunkStub_InCooperativeMode
 
         NESTED_END
+        
+        INLINE_GETTHREAD_CONSTANT_POOL
 
 ; ------------------------------------------------------------------
 
@@ -704,7 +709,7 @@ LsetFP8
 ;
         NESTED_ENTRY GenericComPlusCallStub
 
-        PROLOG_WITH_TRANSITION_BLOCK 0x20
+        PROLOG_WITH_TRANSITION_BLOCK ASM_ENREGISTERED_RETURNTYPE_MAXSIZE
 
         add         r0, sp, #__PWTB_TransitionBlock ; pTransitionBlock
         mov         r1, r12                         ; pMethodDesc
@@ -718,7 +723,7 @@ LsetFP8
         ; r0 = fpRetSize
 
         ; return value is stored before float argument registers
-        add         r1, sp, #(__PWTB_FloatArgumentRegisters - 0x20)
+        add         r1, sp, #(__PWTB_FloatArgumentRegisters - ASM_ENREGISTERED_RETURNTYPE_MAXSIZE)
         bl          setStubReturnValue
 
         EPILOG_WITH_TRANSITION_BLOCK_RETURN
@@ -1239,6 +1244,7 @@ stackProbe_loop
     EPILOG_RETURN
     NESTED_END
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; VirtualMethodFixupStub
 ;
@@ -1293,6 +1299,7 @@ stackProbe_loop
     EPILOG_BRANCH_REG r12
 
     NESTED_END
+#endif // FEATURE_PREJIT
 
 ;------------------------------------------------
 ; ExternalMethodFixupStub
@@ -1331,6 +1338,7 @@ stackProbe_loop
 
     NESTED_END
 
+#ifdef FEATURE_PREJIT
 ;------------------------------------------------
 ; StubDispatchFixupStub
 ;
@@ -1363,6 +1371,7 @@ stackProbe_loop
     EPILOG_BRANCH_REG   r12
  
     NESTED_END
+#endif // FEATURE_PREJIT
 
 ;------------------------------------------------
 ; JIT_RareDisableHelper

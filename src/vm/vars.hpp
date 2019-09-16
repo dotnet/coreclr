@@ -20,7 +20,7 @@ typedef LPVOID  DictionaryEntry;
 /* Define the implementation dependent size types */
 
 #ifndef _INTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             intptr_t;
 #else
 typedef int                 intptr_t;
@@ -29,7 +29,7 @@ typedef int                 intptr_t;
 #endif
 
 #ifndef _UINTPTR_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64    uintptr_t;
 #else
 typedef unsigned int        uintptr_t;
@@ -38,7 +38,7 @@ typedef unsigned int        uintptr_t;
 #endif
 
 #ifndef _PTRDIFF_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef __int64             ptrdiff_t;
 #else
 typedef int                 ptrdiff_t;
@@ -48,7 +48,7 @@ typedef int                 ptrdiff_t;
 
 
 #ifndef _SIZE_T_DEFINED
-#ifdef  _WIN64
+#ifdef  BIT64
 typedef unsigned __int64 size_t;
 #else
 typedef unsigned int     size_t;
@@ -56,11 +56,6 @@ typedef unsigned int     size_t;
 #define _SIZE_T_DEFINED
 #endif
 
-
-#ifndef _WCHAR_T_DEFINED
-typedef unsigned short wchar_t;
-#define _WCHAR_T_DEFINED
-#endif
 
 #include "util.hpp"
 #include <corpriv.h>
@@ -162,8 +157,7 @@ class OBJECTREF {
 
         class ReflectClassBaseObject* m_asReflectClass;
         class ExecutionContextObject* m_asExecutionContext;
-        class AppDomainBaseObject* m_asAppDomainBase;
-        class PermissionSetObject* m_asPermissionSetObject;
+        class AssemblyLoadContextBaseObject* m_asAssemblyLoadContextBase;
     };
 
     public:
@@ -483,28 +477,9 @@ extern int g_IGCTrimCommit;
 #endif
 
 extern BOOL g_fEnableETW;
-extern BOOL g_fEnableARM;
 
 // Returns a BOOL to indicate if the runtime is active or not
 BOOL IsRuntimeActive(); 
-
-//
-// Can we run managed code?
-//
-struct LoaderLockCheck
-{
-    enum kind
-    {
-        ForMDA,
-        ForCorrectness,
-        None,
-    };
-};
-BOOL CanRunManagedCode(LoaderLockCheck::kind checkKind, HINSTANCE hInst = 0);
-inline BOOL CanRunManagedCode(HINSTANCE hInst = 0)
-{
-    return CanRunManagedCode(LoaderLockCheck::ForMDA, hInst);
-}
 
 //
 // Global state variable indicating if the EE is in its init phase.
@@ -530,10 +505,6 @@ EXTERN BOOL g_fComStarted;
 GVAL_DECL(DWORD, g_fEEShutDown);
 EXTERN DWORD g_fFastExitProcess;
 EXTERN BOOL g_fFatalErrorOccurredOnGCThread;
-#ifndef DACCESS_COMPILE
-EXTERN BOOL g_fSuspendOnShutdown;
-EXTERN BOOL g_fSuspendFinalizerOnShutdown;
-#endif // DACCESS_COMPILE
 EXTERN Volatile<LONG> g_fForbidEnterEE;
 GVAL_DECL(bool, g_fProcessDetach);
 EXTERN bool g_fManagedAttach;
@@ -556,15 +527,10 @@ enum FWStatus
 };
 
 EXTERN DWORD g_FinalizerWaiterStatus;
-extern ULONGLONG g_ObjFinalizeStartTime;
-extern Volatile<BOOL> g_FinalizerIsRunning;
-extern Volatile<ULONG> g_FinalizerLoopCount;
 
 #if defined(FEATURE_PAL) && defined(FEATURE_EVENT_TRACE)
 extern Volatile<BOOL> g_TriggerHeapDump;
 #endif // FEATURE_PAL
-
-extern LONG GetProcessedExitProcessEventCount();
 
 #ifndef DACCESS_COMPILE
 //
@@ -690,61 +656,6 @@ GVAL_DECL(SIZE_T, g_runtimeVirtualSize);
 #ifndef MAXULONGLONG
 #define MAXULONGLONG                     UI64(0xffffffffffffffff)
 #endif
-
-// #ADID_vs_ADIndex
-// code:ADID is an ID for an appdomain that is sparse and remains unique within the process for the lifetime of the process.
-// Remoting and (I believe) the thread pool use the former as a way of referring to appdomains outside of their normal lifetime safely.
-// Interop also uses ADID to handle issues involving unloaded domains.
-// 
-// code:ADIndex is an ID for an appdomain that's dense and may be reused once the appdomain is unloaded.
-// This is useful for fast array based lookup from a number to an appdomain property.  
-struct ADIndex
-{
-    DWORD m_dwIndex;
-    ADIndex ()
-    : m_dwIndex(0)
-    {}
-    explicit ADIndex (DWORD id)
-    : m_dwIndex(id)
-    {
-        SUPPORTS_DAC;
-    }
-    BOOL operator==(const ADIndex& ad) const
-    {
-        return m_dwIndex == ad.m_dwIndex;
-    }
-    BOOL operator!=(const ADIndex& ad) const
-    {
-        return m_dwIndex != ad.m_dwIndex;
-    }
-};
-
-// An ADID is a number that represents an appdomain.  They are allcoated with code:SystemDomain::GetNewAppDomainId
-// ADIDs are NOT reused today, so they are unique even after the appdomain dies.  
-// 
-// see also code:BaseDomain::m_dwId 
-// see also code:ADIndex
-// see also code:ADIndex#ADID_vs_ADIndex
-struct ADID
-{
-    DWORD m_dwId;
-    ADID ()
-    : m_dwId(0)
-    {LIMITED_METHOD_CONTRACT;}
-    explicit ADID (DWORD id)
-    : m_dwId(id)
-    {LIMITED_METHOD_CONTRACT;}
-    BOOL operator==(const ADID& ad) const
-    {
-        LIMITED_METHOD_DAC_CONTRACT;
-        return m_dwId == ad.m_dwId;
-    }
-    BOOL operator!=(const ADID& ad) const
-    {
-        LIMITED_METHOD_CONTRACT;
-        return m_dwId != ad.m_dwId;
-    }
-};
 
 struct TPIndex
 {

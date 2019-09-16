@@ -486,6 +486,15 @@ Exit:
         {
             dwUseIdentityFlags &= ~AssemblyIdentity::IDENTITY_FLAG_CONTENT_TYPE;
         }
+        if ((dwIncludeFlags & INCLUDE_PUBLIC_KEY_TOKEN) == 0)
+        {
+            dwUseIdentityFlags &= ~AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY;
+            dwUseIdentityFlags &= ~AssemblyIdentity::IDENTITY_FLAG_PUBLIC_KEY_TOKEN;
+        }
+        if ((dwIncludeFlags & EXCLUDE_CULTURE) != 0)
+        {
+            dwUseIdentityFlags &= ~AssemblyIdentity::IDENTITY_FLAG_CULTURE;
+        }
 
         dwHash ^= static_cast<DWORD>(HashCaseInsensitive(GetSimpleName()));
         dwHash = _rotl(dwHash, 4);
@@ -586,41 +595,6 @@ Exit:
             if (fEquals && ((dwIncludeFlags & INCLUDE_RETARGETABLE) != 0))
             {
                 fEquals = (GetIsRetargetable() == pAssemblyName->GetIsRetargetable());
-            }
-        }
-
-        return fEquals;
-    }
-
-    BOOL AssemblyName::RefEqualsDef(AssemblyName *pAssemblyNameDef,
-                                    BOOL          fInspectionOnly)
-    {
-        BOOL fEquals = FALSE;
-        
-        if (GetContentType() == AssemblyContentType_WindowsRuntime)
-        {   // Assembly is meaningless for WinRT, all assemblies form one joint type namespace
-            return (GetContentType() == pAssemblyNameDef->GetContentType());
-        }
-        
-        if (EqualsCaseInsensitive(GetSimpleName(), pAssemblyNameDef->GetSimpleName()) &&
-            EqualsCaseInsensitive(GetNormalizedCulture(),
-                                  pAssemblyNameDef->GetNormalizedCulture()) &&
-            GetPublicKeyTokenBLOB().Equals(pAssemblyNameDef->GetPublicKeyTokenBLOB()) && 
-            (GetContentType() == pAssemblyNameDef->GetContentType()))
-        {
-            PEKIND kRefArchitecture = GetArchitecture();
-            PEKIND kDefArchitecture = pAssemblyNameDef->GetArchitecture();
-
-            if (kRefArchitecture == peNone)
-            {
-                fEquals = (fInspectionOnly || 
-                           (kDefArchitecture == peNone) ||
-                           (kDefArchitecture == peMSIL) ||
-                           (kDefArchitecture == Assembly::GetSystemArchitecture()));
-            }
-            else
-            {
-                fEquals = (kRefArchitecture == kDefArchitecture);
             }
         }
 

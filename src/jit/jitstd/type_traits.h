@@ -194,6 +194,12 @@ struct make_unsigned<__int64>
     typedef unsigned __int64 type;
 };
 
+template<>
+struct make_unsigned<size_t>
+{
+    typedef size_t type;
+};
+
 template<typename Type1>
 struct make_signed
 {
@@ -221,4 +227,4 @@ struct make_signed<unsigned __int64>
     typedef signed __int64 type;
 };
 
-} // namespace jit_std
+} // namespace jitstd

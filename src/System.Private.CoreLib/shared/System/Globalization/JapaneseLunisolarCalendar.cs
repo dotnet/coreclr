@@ -26,15 +26,10 @@ namespace System.Globalization
         public override DateTime MinSupportedDateTime => s_minDate;
 
         public override DateTime MaxSupportedDateTime => s_maxDate;
-        
-        protected override int DaysInYearBeforeMinSupportedYear
-        {
-            get
-            {
-                // 1959 from ChineseLunisolarCalendar
-                return 354;
-            }
-        }
+
+        protected override int DaysInYearBeforeMinSupportedYear =>
+            // 1959 from ChineseLunisolarCalendar
+            354;
 
         // Data for years 1960-2049 matches output of Calendrical Calculations [1] and published calendar tables [2].
         // [1] Reingold, Edward M, and Nachum Dershowitz. Calendrical Calculations: The Ultimate Edition. Cambridge [etc.: Cambridge University Press, 2018. Print.
@@ -142,7 +137,7 @@ namespace System.Globalization
 
         internal override DateTime MaxDate => s_maxDate;
 
-        internal override EraInfo[] CalEraInfo => JapaneseCalendar.GetEraInfo();
+        internal override EraInfo[]? CalEraInfo => JapaneseCalendar.GetEraInfo();
 
         internal override int GetYearInfo(int lunarYear, int index)
         {
@@ -201,7 +196,7 @@ namespace System.Globalization
             // If we didn't copy any then something was wrong, just return base
             if (newIndex == 0) return baseEras;
 
-            Array.Resize(ref newEras, newIndex);
+            Array.Resize(ref newEras!, newIndex);
             return newEras;
         }
 

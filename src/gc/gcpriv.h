@@ -37,8 +37,15 @@ inline void FATAL_GC_ERROR()
     GCToOSInterface::DebugBreak();
 #endif // DACCESS_COMPILE
     _ASSERTE(!"Fatal Error in GC.");
-    GCToEEInterface::HandleFatalError(COR_E_EXECUTIONENGINE);
+    GCToEEInterface::HandleFatalError((unsigned int)COR_E_EXECUTIONENGINE);
 }
+
+#ifdef MULTIPLE_HEAPS
+// This turns on instrumentation that collects info for heap balancing.
+// Define it and make sure you have HEAP_BALANCE_LOG/HEAP_BALANCE_TEMP_LOG 
+// level logging enabled *only*.
+//#define HEAP_BALANCE_INSTRUMENTATION
+#endif //MULTIPLE_HEAPS
 
 #ifdef _MSC_VER
 #pragma inline_depth(20)
@@ -127,7 +134,6 @@ inline void FATAL_GC_ERROR()
 
 //#define SHORT_PLUGS           //keep plug short
 
-#define FFIND_OBJECT        //faster find_object, slower allocation
 #define FFIND_DECAY  7      //Number of GC for which fast find will be active
 
 #ifndef MAX_LONGPATH
@@ -256,6 +262,15 @@ const int policy_expand  = 2;
 #define SPINLOCK_LOG (DT_LOG_0 + 5)
 #define SNOOP_LOG (DT_LOG_0 + 6)
 
+// NOTE! This is for HEAP_BALANCE_INSTRUMENTATION
+// This particular one is special and needs to be well formatted because we 
+// do post processing on it with tools\GCLogParser. If you need to add some 
+// detail to help with investigation that's not 't processed by tooling 
+// prefix it with TEMP so that line will be written to the results as is in
+// the result. I have some already logged with HEAP_BALANCE_TEMP_LOG.
+#define HEAP_BALANCE_LOG (DT_LOG_0 + 7)
+#define HEAP_BALANCE_TEMP_LOG (DT_LOG_0 + 8)
+
 #ifndef DACCESS_COMPILE
 
 #ifdef SIMPLE_DPRINTF
@@ -268,6 +283,7 @@ void GCLog (const char *fmt, ... );
 //#define dprintf(l,x) {if (trace_gc && ((l <= 2) || (l == BGC_LOG) || (l==GTC_LOG))) {GCLog x;}}
 //#define dprintf(l,x) {if ((l == 1) || (l == 2222)) {GCLog x;}}
 #define dprintf(l,x) {if ((l <= 1) || (l == GTC_LOG)) {GCLog x;}}
+//#define dprintf(l,x) {if (l == HEAP_BALANCE_LOG) {GCLog x;}}
 //#define dprintf(l,x) {if ((l==GTC_LOG) || (l <= 1)) {GCLog x;}}
 //#define dprintf(l,x) {if (trace_gc && ((l <= print_level) || (l==GTC_LOG))) {GCLog x;}}
 //#define dprintf(l,x) {if (l==GTC_LOG) {printf ("\n");printf x ; fflush(stdout);}}
@@ -1219,12 +1235,25 @@ public:
 
     PER_HEAP
     CObjectHeader* allocate (size_t jsize,
-                             alloc_context* acontext);
+                             alloc_context* acontext,
+                             uint32_t flags);
 
 #ifdef MULTIPLE_HEAPS
-    static void balance_heaps (alloc_context* acontext);
+    PER_HEAP_ISOLATED
+    void hb_log_new_allocation();
+
+    PER_HEAP_ISOLATED
+    void hb_log_balance_activities();
+
+    static
+    void balance_heaps (alloc_context* acontext);
+    PER_HEAP
+    ptrdiff_t get_balance_heaps_loh_effective_budget ();
     static 
     gc_heap* balance_heaps_loh (alloc_context* acontext, size_t size);
+    // Unlike balance_heaps_loh, this may return nullptr if we failed to change heaps.
+    static
+    gc_heap* balance_heaps_loh_hard_limit_retry (alloc_context* acontext, size_t size);
     static
     void gc_thread_stub (void* arg);
 #endif //MULTIPLE_HEAPS
@@ -1232,8 +1261,10 @@ public:
     // For LOH allocations we only update the alloc_bytes_loh in allocation
     // context - we don't actually use the ptr/limit from it so I am
     // making this explicit by not passing in the alloc_context.
+    // Note: This is an instance method, but the heap instance is only used for
+    // lowest_address and highest_address, which are currently the same accross all heaps.
     PER_HEAP
-    CObjectHeader* allocate_large_object (size_t size, int64_t& alloc_bytes);
+    CObjectHeader* allocate_large_object (size_t size, uint32_t flags, int64_t& alloc_bytes);
 
 #ifdef FEATURE_STRUCTALIGN
     PER_HEAP
@@ -1441,13 +1472,13 @@ protected:
     void fire_etw_pin_object_event (uint8_t* object, uint8_t** ppObject);
 
     PER_HEAP
-    size_t limit_from_size (size_t size, size_t room, int gen_number,
+    size_t limit_from_size (size_t size, uint32_t flags, size_t room, int gen_number,
                             int align_const);
     PER_HEAP
-    allocation_state try_allocate_more_space (alloc_context* acontext, size_t jsize,
+    allocation_state try_allocate_more_space (alloc_context* acontext, size_t jsize, uint32_t flags, 
                                               int alloc_generation_number);
-    PER_HEAP
-    BOOL allocate_more_space (alloc_context* acontext, size_t jsize,
+    PER_HEAP_ISOLATED
+    BOOL allocate_more_space (alloc_context* acontext, size_t jsize, uint32_t flags, 
                               int alloc_generation_number);
 
     PER_HEAP
@@ -1462,6 +1493,7 @@ protected:
     BOOL a_fit_free_list_p (int gen_number, 
                             size_t size, 
                             alloc_context* acontext,
+                            uint32_t flags,
                             int align_const);
 
 #ifdef BACKGROUND_GC
@@ -1475,6 +1507,7 @@ protected:
     void bgc_loh_alloc_clr (uint8_t* alloc_start,
                             size_t size, 
                             alloc_context* acontext,
+                            uint32_t flags, 
                             int align_const, 
                             int lock_index,
                             BOOL check_used_p,
@@ -1516,6 +1549,7 @@ protected:
     PER_HEAP
     BOOL a_fit_free_list_large_p (size_t size, 
                                   alloc_context* acontext,
+                                  uint32_t flags, 
                                   int align_const);
 
     PER_HEAP
@@ -1523,12 +1557,14 @@ protected:
                               heap_segment* seg,
                               size_t size, 
                               alloc_context* acontext,
+                              uint32_t flags, 
                               int align_const,
                               BOOL* commit_failed_p);
     PER_HEAP
     BOOL loh_a_fit_segment_end_p (int gen_number,
                                   size_t size, 
                                   alloc_context* acontext,
+                                  uint32_t flags,
                                   int align_const,
                                   BOOL* commit_failed_p,
                                   oom_reason* oom_r);
@@ -1562,6 +1598,7 @@ protected:
     BOOL soh_try_fit (int gen_number,
                       size_t size, 
                       alloc_context* acontext,
+                      uint32_t flags,
                       int align_const,
                       BOOL* commit_failed_p,
                       BOOL* short_seg_end_p);
@@ -1569,6 +1606,7 @@ protected:
     BOOL loh_try_fit (int gen_number,
                       size_t size, 
                       alloc_context* acontext,
+                      uint32_t flags, 
                       int align_const,
                       BOOL* commit_failed_p,
                       oom_reason* oom_r);
@@ -1577,6 +1615,7 @@ protected:
     allocation_state allocate_small (int gen_number,
                                      size_t size, 
                                      alloc_context* acontext,
+                                     uint32_t flags,
                                      int align_const);
 
 #ifdef RECORD_LOH_STATE
@@ -1599,6 +1638,7 @@ protected:
     allocation_state allocate_large (int gen_number,
                                      size_t size, 
                                      alloc_context* acontext,
+                                     uint32_t flags, 
                                      int align_const);
 
     PER_HEAP_ISOLATED
@@ -1845,8 +1885,8 @@ protected:
     void adjust_limit (uint8_t* start, size_t limit_size, generation* gen,
                        int gen_number);
     PER_HEAP
-    void adjust_limit_clr (uint8_t* start, size_t limit_size,
-                           alloc_context* acontext, heap_segment* seg,
+    void adjust_limit_clr (uint8_t* start, size_t limit_size, size_t size,
+                           alloc_context* acontext, uint32_t flags, heap_segment* seg,
                            int align_const, int gen_number);
     PER_HEAP
     void  leave_allocation_segment (generation* gen);
@@ -2228,7 +2268,7 @@ protected:
     BOOL loh_object_p (uint8_t* o);
 
     PER_HEAP_ISOLATED
-    BOOL should_compact_loh();
+    BOOL loh_compaction_requested();
 
     // If the LOH compaction mode is just to compact once,
     // we need to see if we should reset it back to not compact.
@@ -2948,7 +2988,7 @@ public:
     GCEvent full_gc_end_event;
 
     // Full GC Notification percentages.
-    PER_HEAP_ISOLATED
+    PER_HEAP
     uint32_t fgn_maxgen_percent;
 
     PER_HEAP_ISOLATED
@@ -2988,12 +3028,18 @@ public:
     size_t etw_allocation_running_amount[2];
 
     PER_HEAP
+    uint64_t total_alloc_bytes_soh;
+
+    PER_HEAP
+    uint64_t total_alloc_bytes_loh;
+
+    PER_HEAP
     int gc_policy;  //sweep, compact, expand
 
 #ifdef MULTIPLE_HEAPS
     PER_HEAP_ISOLATED
     bool gc_thread_no_affinitize_p;
-
+    
     PER_HEAP_ISOLATED
     GCEvent gc_start_event;
 
@@ -3002,6 +3048,9 @@ public:
 
     PER_HEAP
     heap_segment* new_heap_segment;
+
+    PER_HEAP_ISOLATED
+    size_t min_gen0_balance_delta;
 
 #define alloc_quantum_balance_units (16)
 
@@ -3068,7 +3117,7 @@ public:
 
     PER_HEAP_ISOLATED
     uint64_t total_physical_mem;
-
+    
     PER_HEAP_ISOLATED
     uint64_t entry_available_physical_mem;
 
@@ -3145,8 +3194,17 @@ public:
     PER_HEAP_ISOLATED
     size_t current_total_committed_gc_own;
 
+    // This is if large pages should be used.
+    PER_HEAP_ISOLATED
+    bool use_large_pages_p;
+
     PER_HEAP_ISOLATED
     size_t last_gc_index;
+
+#ifdef HEAP_BALANCE_INSTRUMENTATION
+    PER_HEAP_ISOLATED
+    size_t last_gc_end_time_ms;
+#endif //HEAP_BALANCE_INSTRUMENTATION
 
 #ifdef SEG_MAPPING_TABLE
     PER_HEAP_ISOLATED
@@ -3648,10 +3706,8 @@ protected:
 
     PER_HEAP
     BOOL gen0_bricks_cleared;
-#ifdef FFIND_OBJECT
     PER_HEAP
     int gen0_must_clear_bricks;
-#endif //FFIND_OBJECT
     
     PER_HEAP_ISOLATED
     bool maxgen_size_inc_p; 
@@ -3969,10 +4025,6 @@ private:
 
     }
 
-    BOOL FinalizeSegForAppDomain (void *pDomain, 
-                                  BOOL fRunFinalizers, 
-                                  unsigned int Seg);
-
 public:
     ~CFinalize();
     bool Initialize();
@@ -3991,9 +4043,6 @@ public:
     void SetSegForShutDown(BOOL fHasLock);
     size_t GetNumberFinalizableObjects();
     void DiscardNonCriticalObjects();
-
-    //Methods used by the app domain unloading call to finalize objects in an app domain
-    bool FinalizeAppDomain (void *pDomain, bool fRunFinalizers);
 
     void CheckFinalizerObjects();
 };
@@ -4558,15 +4607,4 @@ inline
 size_t gcard_of (uint8_t* object)
 {
     return (size_t)(object) / card_size;
-}
-
-inline
-void YieldProcessorScalingFactor()
-{
-    unsigned int n = g_yieldProcessorScalingFactor;
-    _ASSERTE(n != 0);
-    do
-    {
-        YieldProcessor();
-    } while (--n != 0);
 }

@@ -4,18 +4,18 @@
 
 #include <pal.h>
 #include <pal_assert.h>
-#include <new>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/stat.h>
 #include "diagnosticsipc.h"
 #include "processdescriptor.h"
 
 IpcStream::DiagnosticsIpc::DiagnosticsIpc(const int serverSocket, sockaddr_un *const pServerAddress) :
     _serverSocket(serverSocket),
-    _pServerAddress(new (std::nothrow) sockaddr_un),
-    _isUnlinked(false)
+    _pServerAddress(new sockaddr_un),
+    _isClosed(false)
 {
     _ASSERTE(_pServerAddress != nullptr);
     _ASSERTE(_serverSocket != -1);
@@ -28,30 +28,31 @@ IpcStream::DiagnosticsIpc::DiagnosticsIpc(const int serverSocket, sockaddr_un *c
 
 IpcStream::DiagnosticsIpc::~DiagnosticsIpc()
 {
-    if (_serverSocket != -1)
-    {
-        const int fSuccessClose = ::close(_serverSocket);
-        _ASSERTE(fSuccessClose != -1); // TODO: Add error handling?
-
-        Unlink();
-
-        delete _pServerAddress;
-    }
+    Close();
+    delete _pServerAddress;
 }
 
 IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const pIpcName, ErrorCallback callback)
 {
+#ifdef __APPLE__
+    mode_t prev_mask = umask(~(S_IRUSR | S_IWUSR)); // This will set the default permission bit to 600
+#endif // __APPLE__
+
     const int serverSocket = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (serverSocket == -1)
     {
         if (callback != nullptr)
             callback(strerror(errno), errno);
-        _ASSERTE(serverSocket != -1);
+#ifdef __APPLE__
+        umask(prev_mask);
+#endif // __APPLE__
+        _ASSERTE(!"Failed to create diagnostics IPC socket.");
         return nullptr;
     }
 
     sockaddr_un serverAddress{};
     serverAddress.sun_family = AF_UNIX;
+
     const ProcessDescriptor pd = ProcessDescriptor::FromCurrentProcess();
     PAL_GetTransportName(
         sizeof(serverAddress.sun_path),
@@ -60,6 +61,16 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
         pd.m_Pid,
         pd.m_ApplicationGroupId,
         "socket");
+
+#ifndef __APPLE__
+    if (fchmod(serverSocket, S_IRUSR | S_IWUSR) == -1)
+    {
+        if (callback != nullptr)
+            callback(strerror(errno), errno);
+        _ASSERTE(!"Failed to set permissions on diagnostics IPC socket.");
+        return nullptr;
+    }
+#endif // __APPLE__
 
     const int fSuccessBind = ::bind(serverSocket, (sockaddr *)&serverAddress, sizeof(serverAddress));
     if (fSuccessBind == -1)
@@ -70,6 +81,10 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
         const int fSuccessClose = ::close(serverSocket);
         _ASSERTE(fSuccessClose != -1);
+
+#ifdef __APPLE__
+        umask(prev_mask);
+#endif // __APPLE__
 
         return nullptr;
     }
@@ -86,9 +101,15 @@ IpcStream::DiagnosticsIpc *IpcStream::DiagnosticsIpc::Create(const char *const p
 
         const int fSuccessClose = ::close(serverSocket);
         _ASSERTE(fSuccessClose != -1);
-
+#ifdef __APPLE__
+        umask(prev_mask);
+#endif // __APPLE__
         return nullptr;
     }
+
+#ifdef __APPLE__
+    umask(prev_mask);
+#endif // __APPLE__
 
     return new IpcStream::DiagnosticsIpc(serverSocket, &serverAddress);
 }
@@ -105,10 +126,26 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
         return nullptr;
     }
 
-    auto pIpcStream = new (std::nothrow) IpcStream(clientSocket);
-    if (pIpcStream == nullptr && callback != nullptr)
-        callback("Failed to allocate an IpcStream object.", 1);
-    return pIpcStream;
+    return new IpcStream(clientSocket);
+}
+
+void IpcStream::DiagnosticsIpc::Close(ErrorCallback callback)
+{
+    if (_isClosed)
+        return;
+    _isClosed = true;
+
+    if (_serverSocket != -1)
+    {
+        if (::close(_serverSocket) == -1)
+        {
+            if (callback != nullptr)
+                callback(strerror(errno), errno);
+            _ASSERTE(!"Failed to close unix domain socket.");
+        }
+
+        Unlink(callback);
+    }
 }
 
 //! This helps remove the socket from the filesystem when the runtime exits.
@@ -120,16 +157,12 @@ IpcStream *IpcStream::DiagnosticsIpc::Accept(ErrorCallback callback) const
 //!   removed from the filesystem when the last reference to it is closed.
 void IpcStream::DiagnosticsIpc::Unlink(ErrorCallback callback)
 {
-    if (_isUnlinked)
-        return;
-    _isUnlinked = true;
-
     const int fSuccessUnlink = ::unlink(_pServerAddress->sun_path);
     if (fSuccessUnlink == -1)
     {
         if (callback != nullptr)
             callback(strerror(errno), errno);
-        _ASSERTE(fSuccessUnlink == 0);
+        _ASSERTE(!"Failed to unlink server address.");
     }
 }
 
@@ -137,6 +170,8 @@ IpcStream::~IpcStream()
 {
     if (_clientSocket != -1)
     {
+        Flush();
+
         const int fSuccessClose = ::close(_clientSocket);
         _ASSERTE(fSuccessClose != -1);
     }

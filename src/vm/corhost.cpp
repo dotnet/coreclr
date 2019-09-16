@@ -39,11 +39,6 @@
 #include "dwreport.h"
 #endif // !FEATURE_PAL
 
-#include "stringarraylist.h"
-#ifdef FEATURE_PERFTRACING
-#include "eventpipe.h"
-#endif // FEATURE_PERFTRACING
-
 #ifdef FEATURE_COMINTEROP
 #include "winrttypenameconverter.h"
 #endif
@@ -65,7 +60,6 @@ UINT32 _tls_index = 0;
 #ifndef DACCESS_COMPILE
 
 extern void STDMETHODCALLTYPE EEShutDown(BOOL fIsDllUnloading);
-extern HRESULT STDAPICALLTYPE CoInitializeEE(DWORD fFlags);
 extern void PrintToStdOutA(const char *pszString);
 extern void PrintToStdOutW(const WCHAR *pwzString);
 extern BOOL g_fEEHostedStartup;
@@ -277,9 +271,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
     CONTRACTL_END;
 
     // No point going further if the runtime is not running...
-    // We use CanRunManagedCode() instead of IsRuntimeActive() because this allows us
-    // to specify test using the form that does not trigger a GC.
-    if (!(g_fEEStarted && CanRunManagedCode(LoaderLockCheck::None)))
+    if (!IsRuntimeActive())
     {
         return HOST_E_CLRNOTAVAILABLE;
     }   
@@ -301,7 +293,7 @@ HRESULT CorHost2::GetCurrentAppDomainId(DWORD *pdwAppDomainId)
         }
         else
         {
-            *pdwAppDomainId = SystemDomain::GetCurrentDomain()->GetId().m_dwId;
+            *pdwAppDomainId = DefaultADID;
         }
     }
 
@@ -343,10 +335,8 @@ void SetCommandLineArgs(LPCWSTR pwzAssemblyPath, int argc, LPCWSTR* argv)
     }
     CONTRACTL_END;
 
-    // Send the command line to EventPipe.
-#ifdef FEATURE_PERFTRACING
-    EventPipe::SaveCommandLine(pwzAssemblyPath, argc, argv);
-#endif // FEATURE_PERFTRACING
+    // Record the command line.
+    SaveManagedCommandLine(pwzAssemblyPath, argc, argv);
 
     // Send the command line to System.Environment.
     struct _gc
@@ -428,11 +418,6 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         }
     }
 
-    if(pCurDomain->GetId().m_dwId != DefaultADID)
-    {
-        return HOST_E_INVALIDOPERATION;
-    }
-
     INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
@@ -460,14 +445,26 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
             arguments->SetAt(i, argument);
         }
 
-        DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
-        if (pReturnValue)
+        if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Corhost_Swallow_Uncaught_Exceptions))
         {
-            *pReturnValue = retval;
+            EX_TRY
+                DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
+                if (pReturnValue)
+                {
+                    *pReturnValue = retval;
+                }
+            EX_CATCH_HRESULT (hr)
+        }
+        else
+        {
+            DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
+            if (pReturnValue)
+            {
+                *pReturnValue = retval;
+            }
         }
 
         GCPROTECT_END();
-
     }
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
@@ -515,8 +512,6 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
     }
 
     _ASSERTE (!pThread->PreemptiveGCDisabled());
-
-    _ASSERTE (SystemDomain::GetCurrentDomain()->GetId().m_dwId == DefaultADID);
 
     INSTALL_UNHANDLED_MANAGED_EXCEPTION_TRAP;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
@@ -602,6 +597,10 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
     if( pCallback == NULL)
         return E_POINTER;
 
+    // This is currently supported in default domain only
+    if (dwAppDomainId != DefaultADID)
+        return HOST_E_INVALIDOPERATION;
+
     CONTRACTL
     {
         NOTHROW;
@@ -615,14 +614,13 @@ HRESULT CorHost2::ExecuteInAppDomain(DWORD dwAppDomainId,
     BEGIN_ENTRYPOINT_NOTHROW;
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
     GCX_COOP_THREAD_EXISTS(GET_THREAD());
-    ENTER_DOMAIN_ID(ADID(dwAppDomainId))
+
+    // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
+    // The thread should be in preemptive mode.
     {
-        // We are calling an unmanaged function pointer, either an unmanaged function, or a marshaled out delegate.
-        // The thread should be in preemptive mode.
         GCX_PREEMP();
         hr=ExecuteInAppDomainHelper (pCallback, cookie);
     }
-    END_DOMAIN_TRANSITION;
     END_EXTERNAL_ENTRYPOINT;
     END_ENTRYPOINT_NOTHROW;
 
@@ -741,6 +739,12 @@ HRESULT CorHost2::_CreateAppDomain(
             pwzAppNiPaths = pPropertyValues[i];
         }
         else
+        if (wcscmp(pPropertyNames[i], W("DEFAULT_STACK_SIZE")) == 0)
+        {
+            extern void ParseDefaultStackSize(LPCWSTR value);
+            ParseDefaultStackSize(pPropertyValues[i]);
+        }
+        else
         if (wcscmp(pPropertyNames[i], W("USE_ENTRYPOINT_FILTER")) == 0)
         {
             extern void ParseUseEntryPointFilter(LPCWSTR value);
@@ -779,7 +783,7 @@ HRESULT CorHost2::_CreateAppDomain(
     }
 #endif
 
-    *pAppDomainID=pDomain->GetId().m_dwId;
+    *pAppDomainID=DefaultADID;
 
     m_fAppDomainCreated = TRUE;
 
@@ -825,6 +829,10 @@ HRESULT CorHost2::_CreateDelegate(
     if(wszMethodName == NULL)
         return E_INVALIDARG;
     
+    // This is currently supported in default domain only
+    if (appDomainID != DefaultADID)
+        return HOST_E_INVALIDOPERATION;
+
     BEGIN_ENTRYPOINT_NOTHROW;
 
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
@@ -834,42 +842,37 @@ HRESULT CorHost2::_CreateDelegate(
     MAKE_UTF8PTR_FROMWIDE(szClassName, wszClassName);
     MAKE_UTF8PTR_FROMWIDE(szMethodName, wszMethodName);
 
-    ADID id;
-    id.m_dwId=appDomainID;
-
-    ENTER_DOMAIN_ID(id)
-
-    GCX_PREEMP();
-
-    AssemblySpec spec;
-    spec.Init(szAssemblyName);
-    Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
-
-    TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
-    MethodDesc* pMD=NULL;
-    
-    if (!th.IsTypeDesc()) 
     {
-        pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Unique);
-        if (pMD == NULL)
+        GCX_PREEMP();
+
+        AssemblySpec spec;
+        spec.Init(szAssemblyName);
+        Assembly* pAsm=spec.LoadAssembly(FILE_ACTIVE);
+
+        TypeHandle th=pAsm->GetLoader()->LoadTypeByNameThrowing(pAsm,NULL,szClassName);
+        MethodDesc* pMD=NULL;
+    
+        if (!th.IsTypeDesc()) 
         {
-            // try again without the FM_Unique flag (error path)
-            pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Default);
-            if (pMD != NULL)
+            pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Unique);
+            if (pMD == NULL)
             {
-                // the method exists but is overloaded
-                ThrowHR(COR_E_AMBIGUOUSMATCH);
+                // try again without the FM_Unique flag (error path)
+                pMD = MemberLoader::FindMethodByName(th.GetMethodTable(), szMethodName, MemberLoader::FM_Default);
+                if (pMD != NULL)
+                {
+                    // the method exists but is overloaded
+                    ThrowHR(COR_E_AMBIGUOUSMATCH);
+                }
             }
         }
+
+        if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
+            ThrowHR(COR_E_MISSINGMETHOD);
+
+        UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
+        *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
     }
-
-    if (pMD==NULL || !pMD->IsStatic() || pMD->ContainsGenericVariables()) 
-        ThrowHR(COR_E_MISSINGMETHOD);
-
-    UMEntryThunk *pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
-    *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
-
-    END_DOMAIN_TRANSITION;
 
     END_EXTERNAL_ENTRYPOINT;
 
@@ -1269,31 +1272,6 @@ static PEImage *MapFileHelper(HANDLE hFile)
     }
     PEImageHolder pImage(PEImage::LoadFlat(base, dwSize));
     return pImage.Extract();
-}
-
-HRESULT CorRuntimeHostBase::MapFile(HANDLE hFile, HMODULE* phHandle)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_PREEMPTIVE;
-        ENTRY_POINT;
-    }
-    CONTRACTL_END;
-
-    HRESULT hr;
-    BEGIN_ENTRYPOINT_NOTHROW;
-
-    BEGIN_EXTERNAL_ENTRYPOINT(&hr)
-    {
-        *phHandle = (HMODULE) (MapFileHelper(hFile)->GetLoadedLayout()->GetBase());
-    }
-    END_EXTERNAL_ENTRYPOINT;
-    END_ENTRYPOINT_NOTHROW;
-
-
-    return hr;
 }
 
 LONG CorHost2::m_RefCount = 0;
@@ -2342,12 +2320,6 @@ void CExecutionEngine::GetLastThrownObjectExceptionFromThread(void **ppvExceptio
 
 } // HRESULT CExecutionEngine::GetLastThrownObjectExceptionFromThread()
 
-
-LocaleID RuntimeGetFileSystemLocale()
-{
-    return PEImage::GetFileSystemLocale();
-};
-
 HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName, IActivationFactory ** factory)
 {
 #ifdef FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
@@ -2365,11 +2337,6 @@ HRESULT CorHost2::DllGetActivationFactory(DWORD appDomainID, LPCWSTR wszTypeName
         {
             return hr;
         }
-    }
-
-    if(SystemDomain::GetCurrentDomain()->GetId().m_dwId != DefaultADID)
-    {
-        return HOST_E_INVALIDOPERATION;
     }
 
     return DllGetActivationFactoryImpl(NULL, wszTypeName, NULL, factory);
@@ -2407,7 +2374,7 @@ HRESULT STDMETHODCALLTYPE DllGetActivationFactoryImpl(LPCWSTR wszAssemblyName,
         GCX_COOP();
 
         bool bIsPrimitive;
-        TypeHandle typeHandle = WinRTTypeNameConverter::GetManagedTypeFromWinRTTypeName(wszTypeName, &bIsPrimitive);
+        TypeHandle typeHandle = WinRTTypeNameConverter::LoadManagedTypeForWinRTTypeName(wszTypeName, /* pLoadBinder */ nullptr, &bIsPrimitive);
         if (!bIsPrimitive && !typeHandle.IsNull() && !typeHandle.IsTypeDesc() && typeHandle.AsMethodTable()->IsExportedToWinRT())
         {
             struct _gc {

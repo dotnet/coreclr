@@ -66,7 +66,6 @@ set(VM_CROSSGEN_SOURCES
   ../peimagelayout.cpp
   ../pendingload.cpp
   ../precode.cpp
-  ../sha1.cpp
   ../sigformat.cpp
   ../siginfo.cpp
   ../simplerwlock.cpp
@@ -162,7 +161,6 @@ set(VM_CROSSGEN_HEADERS
   ../peimagelayout.inl
   ../pendingload.h
   ../precode.h
-  ../sha1.h
   ../sigformat.h
   ../siginfo.hpp
   ../simplerwlock.hpp
@@ -267,3 +265,4 @@ if (CLR_CMAKE_PLATFORM_LINUX)
 endif (CLR_CMAKE_PLATFORM_LINUX)
 
 add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})
+add_dependencies(cee_crossgen eventing_headers)

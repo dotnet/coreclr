@@ -1194,6 +1194,15 @@ inline IMDInternalImport* MethodTable::GetMDImport()
 }
 
 //==========================================================================================
+inline HRESULT MethodTable::GetCustomAttribute(
+                               WellKnownAttribute attribute,
+                               const void  **ppData,
+                               ULONG *pcbData)
+{
+    return GetModule()->GetCustomAttribute(GetCl(), attribute, ppData, pcbData);
+}
+
+//==========================================================================================
 inline BOOL MethodTable::IsSealed()
 {
     LIMITED_METHOD_CONTRACT;
@@ -1490,20 +1499,11 @@ inline PTR_BYTE MethodTable::GetGCThreadStaticsBasePointer(PTR_Thread pThread)
 }
 
 //==========================================================================================
-inline PTR_DomainLocalModule MethodTable::GetDomainLocalModule(AppDomain * pAppDomain)
-{
-    WRAPPER_NO_CONTRACT;
-    return GetModuleForStatics()->GetDomainLocalModule(pAppDomain);
-}
-
-#ifndef DACCESS_COMPILE
-//==========================================================================================
 inline PTR_DomainLocalModule MethodTable::GetDomainLocalModule()
 {
     WRAPPER_NO_CONTRACT;
     return GetModuleForStatics()->GetDomainLocalModule();
 }
-#endif //!DACCESS_COMPILE
 
 //==========================================================================================
 inline OBJECTREF MethodTable::AllocateNoChecks()
@@ -1555,7 +1555,7 @@ inline BOOL MethodTable::UnBoxInto(void *dest, OBJECTREF src)
         if (src == NULL || src->GetMethodTable() != this)
             return FALSE;
 
-        CopyValueClass(dest, src->UnBox(), this, src->GetAppDomain());
+        CopyValueClass(dest, src->UnBox(), this);
     }
     return TRUE;
 }
@@ -1580,7 +1580,7 @@ inline BOOL MethodTable::UnBoxIntoArg(ArgDestination *argDest, OBJECTREF src)
         if (src == NULL || src->GetMethodTable() != this)
             return FALSE;
 
-        CopyValueClassArg(argDest, src->UnBox(), this, src->GetAppDomain(), 0);
+        CopyValueClassArg(argDest, src->UnBox(), this, 0);
     }
     return TRUE;
 }
@@ -1607,7 +1607,7 @@ inline void MethodTable::UnBoxIntoUnchecked(void *dest, OBJECTREF src)
     {
         _ASSERTE(src->GetMethodTable()->GetNumInstanceFieldBytes() == GetNumInstanceFieldBytes());
 
-        CopyValueClass(dest, src->UnBox(), this, src->GetAppDomain());
+        CopyValueClass(dest, src->UnBox(), this);
     }
 }
 #endif

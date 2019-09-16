@@ -16,7 +16,6 @@
 #include "ceeload.h"
 #include "class.h"
 #include "dllimport.h"
-#include "mdaassistants.h"
 
 enum UMThunkStubFlags
 {
@@ -286,8 +285,7 @@ public:
     VOID LoadTimeInit(PCODE                   pManagedTarget,
                       OBJECTHANDLE            pObjectHandle,
                       UMThunkMarshInfo       *pUMThunkMarshInfo,
-                      MethodDesc             *pMD,
-                      ADID                    dwDomainId)
+                      MethodDesc             *pMD)
     {
         CONTRACTL
         {
@@ -302,7 +300,6 @@ public:
         m_pManagedTarget = pManagedTarget;
         m_pObjectHandle     = pObjectHandle;
         m_pUMThunkMarshInfo = pUMThunkMarshInfo;
-        m_dwDomainId        = dwDomainId;
 
         m_pMD = pMD;    // For debugging and profiling, so they can identify the target
 
@@ -467,20 +464,6 @@ public:
         RETURN m_pMD;
     }
 
-    ADID GetDomainId() const
-    {
-        CONTRACT (ADID)
-        {
-            NOTHROW;
-            GC_NOTRIGGER;
-            MODE_ANY;
-            PRECONDITION(m_state == kRunTimeInited || m_state == kLoadTimeInited);
-        }
-        CONTRACT_END;
-
-        RETURN m_dwDomainId;
-    }
-
     static DWORD GetOffsetOfMethodDesc()
     {
         LIMITED_METHOD_CONTRACT;
@@ -518,7 +501,6 @@ private:
         UMEntryThunk *m_pNextFreeThunk;
     };
 
-    ADID                    m_dwDomainId;   // appdomain of module (cached for fast access)
 #ifdef _DEBUG
     DWORD                   m_state;        // the initialization state
 #endif
@@ -582,10 +564,10 @@ Stub *GenerateUMThunkPrestub();
 //-------------------------------------------------------------------------
 // NExport stub
 //-------------------------------------------------------------------------
-#if  !defined(_WIN64) && !defined(DACCESS_COMPILE) && !defined(CROSS_COMPILE)
+#if  !defined(BIT64) && !defined(DACCESS_COMPILE) && !defined(CROSS_COMPILE)
 EXCEPTION_HANDLER_DECL(FastNExportExceptHandler);
 EXCEPTION_HANDLER_DECL(UMThunkPrestubHandler);
-#endif // _WIN64
+#endif // BIT64
 
 extern "C" void TheUMEntryPrestub(void);
 extern "C" PCODE TheUMEntryPrestubWorker(UMEntryThunk * pUMEntryThunk);

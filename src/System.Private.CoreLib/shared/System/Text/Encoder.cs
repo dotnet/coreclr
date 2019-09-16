@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Text;
-using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 
@@ -22,22 +20,18 @@ namespace System.Text
     //
     public abstract class Encoder
     {
-        internal EncoderFallback _fallback = null;
+        internal EncoderFallback? _fallback = null;
 
-        internal EncoderFallbackBuffer _fallbackBuffer = null;
+        internal EncoderFallbackBuffer? _fallbackBuffer = null;
 
         protected Encoder()
         {
             // We don't call default reset because default reset probably isn't good if we aren't initialized.
         }
 
-        public EncoderFallback Fallback
+        public EncoderFallback? Fallback
         {
-            get
-            {
-                return _fallback;
-            }
-
+            get => _fallback;
             set
             {
                 if (value == null)
@@ -71,13 +65,7 @@ namespace System.Text
             }
         }
 
-        internal bool InternalHasFallbackBuffer
-        {
-            get
-            {
-                return _fallbackBuffer != null;
-            }
-        }
+        internal bool InternalHasFallbackBuffer => _fallbackBuffer != null;
 
         // Reset the Encoder
         //
@@ -90,7 +78,7 @@ namespace System.Text
         // We avoid GetMaxByteCount() because a) we can't call the base encoder and b) it might be really big.
         public virtual void Reset()
         {
-            char[] charTemp = { };
+            char[] charTemp = Array.Empty<char>();
             byte[] byteTemp = new byte[GetByteCount(charTemp, 0, 0, true)];
             GetBytes(charTemp, 0, 0, byteTemp, 0, true);
             if (_fallbackBuffer != null)
@@ -343,4 +331,3 @@ namespace System.Text
         }
     }
 }
-

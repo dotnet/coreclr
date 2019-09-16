@@ -40,7 +40,6 @@ SET_DEFAULT_DEBUG_CHANNEL(PAL); // some headers have code with asserts, so do th
 #include "pal/environ.h"
 #include "pal/utils.h"
 #include "pal/debug.h"
-#include "pal/locale.h"
 #include "pal/init.h"
 #include "pal/numa.h"
 #include "pal/stackstring.hpp"
@@ -103,6 +102,9 @@ static pthread_mutex_t init_critsec_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 // The default minimum stack size
 SIZE_T g_defaultStackSize = 0;
+
+// The default value of parameter, whether to mmap images at default base address or not
+BOOL g_useDefaultBaseAddr = FALSE;
 
 /* critical section to protect access to init_count. This is allocated on the
    very first PAL_Initialize call, and is freed afterward. */
@@ -382,6 +384,22 @@ Initialize(
         }
 #endif // ENSURE_PRIMARY_STACK_SIZE
 
+#ifdef FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+        char* useDefaultBaseAddr = getenv("COMPlus_UseDefaultBaseAddr");
+        if (useDefaultBaseAddr != NULL)
+        {
+            errno = 0;
+            // Like all numeric values specific by the COMPlus_xxx variables, it is a
+            // hexadecimal string without any prefix.
+            long int flag = strtol(useDefaultBaseAddr, NULL, 16);
+
+            if (errno == 0)
+            {
+                g_useDefaultBaseAddr = (BOOL) flag;
+            }
+        }
+#endif // FEATURE_ENABLE_NO_ADDRESS_SPACE_RANDOMIZATION
+
         // Initialize the TLS lookaside cache
         if (FALSE == TLSInitialize())
         {
@@ -458,17 +476,6 @@ Initialize(
         }
 
         PROCAddThread(pThread, pThread);
-
-        //
-        // Initialize mutex and condition variable used to synchronize the ending threads count
-        //
-
-        palError = InitializeEndingThreadsData();
-        if (NO_ERROR != palError)
-        {
-            ERROR("Unable to create ending threads data\n");
-            goto CLEANUP1b;
-        }
 
         //
         // It's now safe to access our thread data
@@ -674,12 +681,6 @@ Initialize(
     {
         init_count++;
 
-        // Behave the same wrt entering the PAL independent of whether this
-        // is the first call to PAL_Initialize or not.  The first call implied
-        // PAL_Enter by virtue of creating the CPalThread for the current
-        // thread, and its starting state is to be in the PAL.
-        (void)PAL_Enter(PAL_BoundaryTop);
-
         TRACE("Initialization count increases to %d\n", init_count.Load());
 
         SetLastError(NO_ERROR);
@@ -779,7 +780,6 @@ PAL_InitializeCoreCLR(const char *szExePath)
     // Check for a repeated call (this is a no-op).
     if (InterlockedIncrement(&g_coreclrInitialized) > 1)
     {
-        PAL_Enter(PAL_BoundaryTop);
         return ERROR_SUCCESS;
     }
 
@@ -886,40 +886,6 @@ PAL_IsDebuggerPresent()
 
 /*++
 Function:
-  PAL_EntryPoint
-
-Abstract:
-  This function should be used to wrap code that uses PAL library on thread that was not created by PAL.
---*/
-PALIMPORT
-DWORD_PTR
-PALAPI
-PAL_EntryPoint(
-    IN LPTHREAD_START_ROUTINE lpStartAddress,
-    IN LPVOID lpParameter)
-{
-    CPalThread *pThread;
-    DWORD_PTR retval = (DWORD) -1;
-
-    ENTRY("PAL_EntryPoint(lpStartAddress=%p, lpParameter=%p)\n", lpStartAddress, lpParameter);
-
-    pThread = InternalGetCurrentThread();
-    if (NULL == pThread)
-    {
-        /* This function works only for thread that called PAL_Initialize for now. */
-        ERROR( "Unable to get the thread object.\n" );
-        goto done;
-    }
-
-    retval = (*lpStartAddress)(lpParameter);
-
-done:
-    LOGEXIT("PAL_EntryPoint returns int %d\n", retval);
-    return retval;
-}
-
-/*++
-Function:
   PAL_Shutdown
 
 Abstract:
@@ -978,27 +944,6 @@ PAL_TerminateEx(
 
     LOGEXIT("PAL_TerminateEx is exiting the current process.\n");
     exit(exitCode);
-}
-
-/*++
-Function:
-  PAL_InitializeDebug
-
-Abstract:
-  This function is the called when cordbg attaches to the process.
---*/
-void
-PALAPI
-PAL_InitializeDebug(
-    void)
-{
-    PERF_ENTRY(PAL_InitializeDebug);
-    ENTRY("PAL_InitializeDebug()\n");
-#if HAVE_MACH_EXCEPTIONS
-    MachExceptionInitializeDebug();
-#endif
-    LOGEXIT("PAL_InitializeDebug returns\n");
-    PERF_EXIT(PAL_InitializeDebug);
 }
 
 /*++

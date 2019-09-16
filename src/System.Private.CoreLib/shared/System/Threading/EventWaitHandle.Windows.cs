@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
@@ -18,7 +17,7 @@ namespace System.Threading
             SafeWaitHandle = handle;
         }
 
-        private void CreateEventCore(bool initialState, EventResetMode mode, string name, out bool createdNew)
+        private void CreateEventCore(bool initialState, EventResetMode mode, string? name, out bool createdNew)
         {
 #if !PLATFORM_WINDOWS
             if (name != null)
@@ -43,7 +42,7 @@ namespace System.Threading
             SafeWaitHandle = handle;
         }
 
-        private static OpenExistingResult OpenExistingWorker(string name, out EventWaitHandle result)
+        private static OpenExistingResult OpenExistingWorker(string name, out EventWaitHandle? result)
         {
 #if PLATFORM_WINDOWS
             if (name == null)
@@ -81,7 +80,7 @@ namespace System.Threading
                 throw Win32Marshal.GetExceptionForLastWin32Error();
             return res;
         }
-        
+
         public bool Set()
         {
             bool res = Interop.Kernel32.SetEvent(SafeWaitHandle);

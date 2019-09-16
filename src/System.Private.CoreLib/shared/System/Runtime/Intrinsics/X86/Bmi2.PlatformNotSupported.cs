@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 
 namespace System.Runtime.Intrinsics.X86
@@ -15,13 +16,13 @@ namespace System.Runtime.Intrinsics.X86
     {
         internal Bmi2() { }
 
-        public static bool IsSupported { get { return false; } }
+        public static bool IsSupported { [Intrinsic] get { return false; } }
 
         public abstract class X64
         {
             internal X64() { }
 
-            public static bool IsSupported { get { return false; } }
+            public static bool IsSupported { [Intrinsic] get { return false; } }
 
             /// <summary>
             /// unsigned __int64 _bzhi_u64 (unsigned __int64 a, unsigned int index)
@@ -33,7 +34,7 @@ namespace System.Runtime.Intrinsics.X86
             /// <summary>
             /// unsigned __int64 _mulx_u64 (unsigned __int64 a, unsigned __int64 b, unsigned __int64* hi)
             ///   MULX r64a, r64b, reg/m64
-            /// The above native signature does not directly correspond to the managed signature. 
+            /// The above native signature does not directly correspond to the managed signature.
             /// This intrinisc is only available on 64-bit processes
             /// </summary>
             public static ulong MultiplyNoFlags(ulong left, ulong right) { throw new PlatformNotSupportedException(); }
@@ -41,7 +42,7 @@ namespace System.Runtime.Intrinsics.X86
             /// <summary>
             /// unsigned __int64 _mulx_u64 (unsigned __int64 a, unsigned __int64 b, unsigned __int64* hi)
             ///   MULX r64a, r64b, reg/m64
-            /// The above native signature does not directly correspond to the managed signature. 
+            /// The above native signature does not directly correspond to the managed signature.
             /// This intrinisc is only available on 64-bit processes
             /// </summary>
             public static unsafe ulong MultiplyNoFlags(ulong left, ulong right, ulong* low) { throw new PlatformNotSupportedException(); }
@@ -70,14 +71,14 @@ namespace System.Runtime.Intrinsics.X86
         /// <summary>
         /// unsigned int _mulx_u32 (unsigned int a, unsigned int b, unsigned int* hi)
         ///   MULX r32a, r32b, reg/m32
-        /// The above native signature does not directly correspond to the managed signature. 
+        /// The above native signature does not directly correspond to the managed signature.
         /// </summary>
         public static uint MultiplyNoFlags(uint left, uint right) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// unsigned int _mulx_u32 (unsigned int a, unsigned int b, unsigned int* hi)
         ///   MULX r32a, r32b, reg/m32
-        /// The above native signature does not directly correspond to the managed signature. 
+        /// The above native signature does not directly correspond to the managed signature.
         /// </summary>
         public static unsafe uint MultiplyNoFlags(uint left, uint right, uint* low) { throw new PlatformNotSupportedException(); }
 

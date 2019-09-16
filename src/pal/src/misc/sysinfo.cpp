@@ -80,6 +80,7 @@ Revision History:
 #endif
 
 #include "pal/dbgmsg.h"
+#include "pal/process.h"
 
 #include <algorithm>
 
@@ -95,10 +96,9 @@ SET_DEFAULT_DEBUG_CHANNEL(MISC);
 #endif
 #endif // __APPLE__
 
-
 DWORD
 PALAPI
-PAL_GetLogicalCpuCountFromOS()
+PAL_GetTotalCpuCount()
 {
     int nrcpus = 0;
 
@@ -129,7 +129,35 @@ PAL_GetLogicalCpuCountFromOS()
     {
         ASSERT("sysctl failed for HW_NCPU (%d)\n", errno);
     }
+#else // HAVE_SYSCONF
+#error "Don't know how to get total CPU count on this platform"
 #endif // HAVE_SYSCONF
+
+    return nrcpus;
+}
+
+DWORD
+PALAPI
+PAL_GetLogicalCpuCountFromOS()
+{
+    static int nrcpus = -1;
+
+    if (nrcpus == -1)
+    {
+#if HAVE_SCHED_GETAFFINITY
+
+        cpu_set_t cpuSet;
+        int st = sched_getaffinity(gPID, sizeof(cpu_set_t), &cpuSet);
+        if (st != 0)
+        {
+            ASSERT("sched_getaffinity failed (%d)\n", errno);
+        }
+
+        nrcpus = CPU_COUNT(&cpuSet);
+#else // HAVE_SCHED_GETAFFINITY
+        nrcpus = PAL_GetTotalCpuCount();
+#endif // HAVE_SCHED_GETAFFINITY
+    }
 
     return nrcpus;
 }
@@ -186,7 +214,7 @@ GetSystemInfo(
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) (1ull << 47);
 #elif defined(USERLIMIT)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) USERLIMIT;
-#elif defined(_WIN64)
+#elif defined(BIT64)
 #if defined(USRSTACK64)
     lpSystemInfo->lpMaximumApplicationAddress = (PVOID) USRSTACK64;
 #else // !USRSTACK64
@@ -394,13 +422,13 @@ PAL_HasGetCurrentProcessorNumber()
 }
 
 bool
-ReadMemoryValueFromFile(const char* filename, size_t* val)
+ReadMemoryValueFromFile(const char* filename, uint64_t* val)
 {
     bool result = false;
     char *line = nullptr;
     size_t lineLen = 0;
     char* endptr = nullptr;
-    size_t num = 0, l, multiplier;
+    uint64_t num = 0, l, multiplier;
 
     if (val == nullptr)
         return false;
@@ -498,6 +526,22 @@ PAL_GetLogicalProcessorCacheSizeFromOS()
         DWORD logicalCPUs = PAL_GetLogicalCpuCountFromOS();
 
         cacheSize = logicalCPUs*std::min(1536, std::max(256, (int)logicalCPUs*128))*1024;
+    }
+#endif
+
+#if HAVE_SYSCTLBYNAME
+    if (cacheSize == 0)
+    {
+        int64_t cacheSizeFromSysctl = 0;
+        size_t sz = sizeof(cacheSizeFromSysctl);
+        const bool success = sysctlbyname("hw.l3cachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0
+            || sysctlbyname("hw.l2cachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0
+            || sysctlbyname("hw.l1dcachesize", &cacheSizeFromSysctl, &sz, nullptr, 0) == 0;
+        if (success)
+        {
+            _ASSERTE(cacheSizeFromSysctl > 0);
+            cacheSize = (size_t) cacheSizeFromSysctl;
+        }
     }
 #endif
 

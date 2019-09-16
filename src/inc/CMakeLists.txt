@@ -49,7 +49,7 @@ else()
 
 # The prebuilt files contain extra '!_MIDL_USE_GUIDDEF_' after the #endif, but not in the comment.
 # In order to not to have to modify these prebuilt files, we disable the extra tokens warning.
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 add_compile_options(-Wno-extra-tokens)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
 add_compile_options(-Wno-endif-labels)
@@ -62,7 +62,6 @@ foreach(IDL_SOURCE IN LISTS CORGUIDS_IDL_SOURCES)
    list(APPEND CORGUIDS_SOURCES ${C_SOURCE})
 endforeach(IDL_SOURCE)
 
-add_compile_options(-fPIC)
 endif(WIN32)
 
 if(FEATURE_JIT_PITCHING)

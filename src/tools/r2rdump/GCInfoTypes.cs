@@ -79,6 +79,7 @@ namespace R2RDump
         internal int SIZE_OF_RETURN_KIND_FAT { get; } = 2;
         internal int CODE_LENGTH_ENCBASE { get; } = 8;
         internal int NORM_PROLOG_SIZE_ENCBASE { get; } = 5;
+        internal int NORM_EPILOG_SIZE_ENCBASE { get; } = 3;
         internal int SECURITY_OBJECT_STACK_SLOT_ENCBASE { get; } = 6;
         internal int GS_COOKIE_STACK_SLOT_ENCBASE { get; } = 6;
         internal int PSP_SYM_STACK_SLOT_ENCBASE { get; } = 6;
@@ -92,7 +93,6 @@ namespace R2RDump
         internal int INTERRUPTIBLE_RANGE_DELTA1_ENCBASE { get; } = 6;
         internal int INTERRUPTIBLE_RANGE_DELTA2_ENCBASE { get; } = 6;
 
-        internal int MAX_PREDECODED_SLOTS { get; } = 64;
         internal int NUM_REGISTERS_ENCBASE { get; } = 2;
         internal int NUM_STACK_SLOTS_ENCBASE { get; } = 2;
         internal int NUM_UNTRACKED_SLOTS_ENCBASE { get; } = 1;

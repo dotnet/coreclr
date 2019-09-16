@@ -185,17 +185,17 @@ void Compiler::optEarlyProp()
 
         compCurBB = block;
 
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr;)
+        for (Statement* stmt = block->firstStmt(); stmt != nullptr;)
         {
             // Preserve the next link before the propagation and morph.
-            GenTreeStmt* next = stmt->gtNextStmt;
+            Statement* next = stmt->gtNextStmt;
 
             compCurStmt = stmt;
 
             // Walk the stmt tree in linear order to rewrite any array length reference with a
             // constant array length.
             bool isRewritten = false;
-            for (GenTree* tree = stmt->gtStmt.gtStmtList; tree != nullptr; tree = tree->gtNext)
+            for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
                 GenTree* rewrittenTree = optEarlyPropRewriteTree(tree);
                 if (rewrittenTree != nullptr)
@@ -258,7 +258,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
             //      *  stmtExpr  void  (top level)
             //      \--*  indir     int
             //          \--*  lclVar    ref    V02 loc0
-            if (compCurStmt->gtStmt.gtStmtExpr == tree)
+            if (compCurStmt->gtStmtExpr == tree)
             {
                 return nullptr;
             }
@@ -322,7 +322,6 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
                         GenTree* comma = check->gtGetParent(nullptr);
                         if ((comma != nullptr) && comma->OperIs(GT_COMMA) && (comma->gtGetOp1() == check))
                         {
-                            GenTree* next = check->gtNext;
                             optRemoveRangeCheck(comma, compCurStmt);
                             // Both `tree` and `check` have been removed from the statement.
                             // 'tree' was replaced with 'nop' or side effect list under 'comma'.
@@ -337,7 +336,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("optEarlyProp Rewriting " FMT_BB "\n", compCurBB->bbNum);
-            gtDispTree(compCurStmt);
+            gtDispTree(compCurStmt->gtStmtExpr);
             printf("\n");
         }
 #endif
@@ -369,7 +368,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("to\n");
-            gtDispTree(compCurStmt);
+            gtDispTree(compCurStmt->gtStmtExpr);
             printf("\n");
         }
 #endif
@@ -608,8 +607,8 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // Then walk the statement list in reverse execution order
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
-                                                GenTree* curStmt = compCurStmt->gtPrev;
-                                                currentTree      = curStmt->gtStmt.gtStmtExpr;
+                                                Statement* curStmt = compCurStmt->getPrevStmt();
+                                                currentTree        = curStmt->gtStmtExpr;
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
                                                     if ((nodesWalked++ > maxNodesWalked) ||
@@ -619,9 +618,9 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     }
                                                     else
                                                     {
-                                                        curStmt = curStmt->gtStmt.gtPrevStmt;
+                                                        curStmt = curStmt->getPrevStmt();
                                                         assert(curStmt != nullptr);
-                                                        currentTree = curStmt->gtStmt.gtStmtExpr;
+                                                        currentTree = curStmt->gtStmtExpr;
                                                     }
                                                 }
 
@@ -639,8 +638,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                         additionNode->gtFlags & (GTF_EXCEPT | GTF_DONT_CSE);
 
                                                     // Re-morph the statement.
-                                                    fgMorphBlockStmt(compCurBB,
-                                                                     curStmt->AsStmt() DEBUGARG("optFoldNullCheck"));
+                                                    fgMorphBlockStmt(compCurBB, curStmt DEBUGARG("optFoldNullCheck"));
                                                 }
                                             }
                                         }

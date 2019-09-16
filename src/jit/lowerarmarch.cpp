@@ -92,6 +92,13 @@ bool Lowering::IsContainableImmed(GenTree* parentNode, GenTree* childNode)
             case GT_LE:
             case GT_GE:
             case GT_GT:
+            case GT_ARR_BOUNDS_CHECK:
+#ifdef FEATURE_SIMD
+            case GT_SIMD_CHK:
+#endif
+#ifdef FEATURE_HW_INTRINSICS
+            case GT_HW_INTRINSIC_CHK:
+#endif
                 return emitter::emitIns_valid_imm_for_cmp(immVal, size);
             case GT_AND:
             case GT_OR:
@@ -226,7 +233,7 @@ void Lowering::LowerStoreIndir(GenTreeIndir* node)
 void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 {
     GenTree*  dstAddr  = blkNode->Addr();
-    unsigned  size     = blkNode->gtBlkSize;
+    unsigned  size     = blkNode->Size();
     GenTree*  source   = blkNode->Data();
     Compiler* compiler = comp;
 
@@ -237,7 +244,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
     if (!isInitBlk)
     {
         // CopyObj or CopyBlk
-        if ((blkNode->OperGet() == GT_STORE_OBJ) && ((blkNode->AsObj()->gtGcPtrCount == 0) || blkNode->gtBlkOpGcUnsafe))
+        if (blkNode->OperIs(GT_STORE_OBJ) && (!blkNode->AsObj()->GetLayout()->HasGCPtr() || blkNode->gtBlkOpGcUnsafe))
         {
             blkNode->SetOper(GT_STORE_BLK);
         }
@@ -305,17 +312,16 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // CopyObj
             GenTreeObj* objNode = blkNode->AsObj();
 
-            unsigned slots = objNode->gtSlots;
+            unsigned slots = objNode->GetLayout()->GetSlotCount();
 
 #ifdef DEBUG
             // CpObj must always have at least one GC-Pointer as a member.
-            assert(objNode->gtGcPtrCount > 0);
+            assert(objNode->GetLayout()->HasGCPtr());
 
             assert(dstAddr->gtType == TYP_BYREF || dstAddr->gtType == TYP_I_IMPL);
 
-            CORINFO_CLASS_HANDLE clsHnd    = objNode->gtClass;
-            size_t               classSize = compiler->info.compCompHnd->getClassSize(clsHnd);
-            size_t               blkSize   = roundUp(classSize, TARGET_POINTER_SIZE);
+            size_t classSize = objNode->GetLayout()->GetSize();
+            size_t blkSize   = roundUp(classSize, TARGET_POINTER_SIZE);
 
             // Currently, the EE always round up a class data structure so
             // we are not handling the case where we have a non multiple of pointer sized
@@ -324,7 +330,6 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // handle this case.
             assert(classSize == blkSize);
             assert((blkSize / TARGET_POINTER_SIZE) == slots);
-            assert(objNode->HasGCPtr());
 #endif
 
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
@@ -616,15 +621,12 @@ void Lowering::ContainCheckIndir(GenTreeIndir* indirNode)
     bool     makeContained = true;
     if ((addr->OperGet() == GT_LEA) && IsSafeToContainMem(indirNode, addr))
     {
-        GenTreeAddrMode* lea   = addr->AsAddrMode();
-        GenTree*         base  = lea->Base();
-        GenTree*         index = lea->Index();
-        int              cns   = lea->Offset();
-
 #ifdef _TARGET_ARM_
         // ARM floating-point load/store doesn't support a form similar to integer
         // ldr Rdst, [Rbase + Roffset] with offset in a register. The only supported
         // form is vldr Rdst, [Rbase + imm] with a more limited constraint on the imm.
+        GenTreeAddrMode* lea = addr->AsAddrMode();
+        int              cns = lea->Offset();
         if (lea->HasIndex() || !emitter::emitIns_valid_imm_for_vldst_offset(cns))
         {
             if (indirNode->OperGet() == GT_STOREIND)
@@ -870,10 +872,9 @@ void Lowering::ContainCheckSIMD(GenTreeSIMD* simdNode)
 //
 void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
 {
-    NamedIntrinsic  intrinsicID = node->gtHWIntrinsicId;
-    GenTreeArgList* argList     = nullptr;
-    GenTree*        op1         = node->gtOp.gtOp1;
-    GenTree*        op2         = node->gtOp.gtOp2;
+    GenTreeArgList* argList = nullptr;
+    GenTree*        op1     = node->gtOp.gtOp1;
+    GenTree*        op2     = node->gtOp.gtOp2;
 
     if (op1->OperIs(GT_LIST))
     {
@@ -896,6 +897,11 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
             {
                 MakeSrcContained(node, op2);
 
+#if 0
+                // This is currently not supported downstream. The following (at least) need to be modifed:
+                //   GenTree::isContainableHWIntrinsic() needs to handle this.
+                //   CodeGen::genConsumRegs()
+                // 
                 GenTree* op3 = argList->Rest()->Rest()->Current();
 
                 // In the HW intrinsics C# API there is no direct way to specify a vector element to element mov
@@ -913,6 +919,7 @@ void Lowering::ContainCheckHWIntrinsic(GenTreeHWIntrinsic* node)
                         MakeSrcContained(node, op3);
                     }
                 }
+#endif
             }
             break;
 

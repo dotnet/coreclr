@@ -89,9 +89,8 @@ if(WIN32)
         set(CORDBDI_SOURCES_ASM_FILE ${CMAKE_CURRENT_BINARY_DIR}/${name}.obj)
     endif()
 elseif(CLR_CMAKE_PLATFORM_UNIX)
-    add_compile_options(-fPIC)
 
-    if(CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM)
+    if(CLR_CMAKE_TARGET_ARCH_AMD64 OR CLR_CMAKE_TARGET_ARCH_ARM64 OR CLR_CMAKE_TARGET_ARCH_ARM)
       set(CORDBDI_SOURCES_ASM_FILE
         ${ARCH_SOURCES_DIR}/floatconversion.S
       )
@@ -109,3 +108,4 @@ endif (WIN32)
 list(APPEND CORDBDI_SOURCES ${CORDBDI_SOURCES_ASM_FILE})
 
 add_library_clr(cordbdi STATIC ${CORDBDI_SOURCES})
+add_dependencies(cordbdi eventing_headers)

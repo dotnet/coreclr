@@ -104,10 +104,6 @@ ASMCONSTANTS_C_ASSERT(SIZEOF__ComMethodFrame
 ASMCONSTANTS_C_ASSERT(OFFSETOF__UMEntryThunk__m_pUMThunkMarshInfo
                     == offsetof(UMEntryThunk, m_pUMThunkMarshInfo));
 
-#define               OFFSETOF__UMEntryThunk__m_dwDomainId   0x20
-ASMCONSTANTS_C_ASSERT(OFFSETOF__UMEntryThunk__m_dwDomainId
-                    == offsetof(UMEntryThunk, m_dwDomainId));
-
 #define               OFFSETOF__UMThunkMarshInfo__m_pILStub         0x00
 ASMCONSTANTS_C_ASSERT(OFFSETOF__UMThunkMarshInfo__m_pILStub
                     == offsetof(UMThunkMarshInfo, m_pILStub));
@@ -146,10 +142,6 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_pFrame
 #define               OFFSETOF__Thread__m_State                     0x8
 ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_State
                     == offsetof(Thread, m_State));
-
-#define               OFFSETOF__Thread__m_pDomain                   0x18
-ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_pDomain
-                    == offsetof(Thread, m_pDomain));
 
 #define               OFFSETOF__Thread__m_dwLockCount               0x20
 ASMCONSTANTS_C_ASSERT(OFFSETOF__Thread__m_dwLockCount
@@ -261,18 +253,6 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__InterfaceInfo_t__m_pMethodTable
 #define               SIZEOF__InterfaceInfo_t   0x8
 ASMCONSTANTS_C_ASSERT(SIZEOF__InterfaceInfo_t
                     == sizeof(InterfaceInfo_t));
-
-#define               OFFSETOF__AppDomain__m_dwId   0x8
-ASMCONSTANTS_C_ASSERT(OFFSETOF__AppDomain__m_dwId 
-                    == offsetof(AppDomain, m_dwId));
-
-#define               OFFSETOF__AppDomain__m_sDomainLocalBlock   DBG_FRE(0x10, 0x10)
-ASMCONSTANTS_C_ASSERT(OFFSETOF__AppDomain__m_sDomainLocalBlock
-                    == offsetof(AppDomain, m_sDomainLocalBlock));
-
-#define               OFFSETOF__DomainLocalBlock__m_pModuleSlots   0x8 
-ASMCONSTANTS_C_ASSERT(OFFSETOF__DomainLocalBlock__m_pModuleSlots
-                    == offsetof(DomainLocalBlock, m_pModuleSlots));
 
 #define               OFFSETOF__DomainLocalModule__m_pDataBlob   0x030
 ASMCONSTANTS_C_ASSERT(OFFSETOF__DomainLocalModule__m_pDataBlob  
@@ -555,6 +535,27 @@ ASMCONSTANTS_C_ASSERT(OFFSETOF__StringObject__m_StringLength
 #define               OFFSETOF__ArrayTypeDesc__m_Arg 0x10
 ASMCONSTANTS_C_ASSERT(OFFSETOF__ArrayTypeDesc__m_Arg
                     == offsetof(ArrayTypeDesc, m_Arg));
+
+// For JIT_PInvokeBegin and JIT_PInvokeEnd helpers
+#define               OFFSETOF__InlinedCallFrame__m_Datum 0x10
+ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_Datum
+                    == offsetof(InlinedCallFrame, m_Datum));
+
+#define               OFFSETOF__InlinedCallFrame__m_pCallSiteSP 0x20
+ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCallSiteSP
+                    == offsetof(InlinedCallFrame, m_pCallSiteSP));
+
+#define               OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress 0x28
+ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCallerReturnAddress
+                    == offsetof(InlinedCallFrame, m_pCallerReturnAddress));
+
+#define               OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP 0x30
+ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pCalleeSavedFP
+                    == offsetof(InlinedCallFrame, m_pCalleeSavedFP));
+
+#define               OFFSETOF__InlinedCallFrame__m_pThread 0x38
+ASMCONSTANTS_C_ASSERT(OFFSETOF__InlinedCallFrame__m_pThread
+                    == offsetof(InlinedCallFrame, m_pThread));
 
 #define CallDescrData__pSrc                0x00
 #define CallDescrData__numStackSlots       0x08

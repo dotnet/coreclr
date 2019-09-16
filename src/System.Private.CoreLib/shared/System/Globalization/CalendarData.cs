@@ -12,33 +12,33 @@ namespace System.Globalization
     //
     //  NOTE: Calendars depend on the locale name that creates it.  Only a few
     //        properties are available without locales using CalendarData.GetCalendar(CalendarData)
-
+    //
     internal partial class CalendarData
     {
         // Max calendars
         internal const int MAX_CALENDARS = 23;
 
         // Identity
-        internal string sNativeName; // Calendar Name for the locale
+        internal string sNativeName = null!; // Calendar Name for the locale
 
         // Formats
-        internal string[] saShortDates; // Short Data format, default first
-        internal string[] saYearMonths; // Year/Month Data format, default first
-        internal string[] saLongDates; // Long Data format, default first
-        internal string sMonthDay; // Month/Day format
+        internal string[] saShortDates = null!; // Short Data format, default first
+        internal string[] saYearMonths = null!; // Year/Month Data format, default first
+        internal string[] saLongDates = null!; // Long Data format, default first
+        internal string sMonthDay = null!; // Month/Day format
 
         // Calendar Parts Names
-        internal string[] saEraNames; // Names of Eras
-        internal string[] saAbbrevEraNames; // Abbreviated Era Names
-        internal string[] saAbbrevEnglishEraNames; // Abbreviated Era Names in English
-        internal string[] saDayNames; // Day Names, null to use locale data, starts on Sunday
-        internal string[] saAbbrevDayNames; // Abbrev Day Names, null to use locale data, starts on Sunday
-        internal string[] saSuperShortDayNames; // Super short Day of week names
-        internal string[] saMonthNames; // Month Names (13)
-        internal string[] saAbbrevMonthNames; // Abbrev Month Names (13)
-        internal string[] saMonthGenitiveNames; // Genitive Month Names (13)
-        internal string[] saAbbrevMonthGenitiveNames; // Genitive Abbrev Month Names (13)
-        internal string[] saLeapYearMonthNames; // Multiple strings for the month names in a leap year.
+        internal string[] saEraNames = null!; // Names of Eras
+        internal string[] saAbbrevEraNames = null!; // Abbreviated Era Names
+        internal string[] saAbbrevEnglishEraNames = null!; // Abbreviated Era Names in English
+        internal string[] saDayNames = null!; // Day Names, null to use locale data, starts on Sunday
+        internal string[] saAbbrevDayNames = null!; // Abbrev Day Names, null to use locale data, starts on Sunday
+        internal string[] saSuperShortDayNames = null!; // Super short Day of week names
+        internal string[] saMonthNames = null!; // Month Names (13)
+        internal string[] saAbbrevMonthNames = null!; // Abbrev Month Names (13)
+        internal string[] saMonthGenitiveNames = null!; // Genitive Month Names (13)
+        internal string[] saAbbrevMonthGenitiveNames = null!; // Genitive Abbrev Month Names (13)
+        internal string[] saLeapYearMonthNames = null!; // Multiple strings for the month names in a leap year.
 
         // Integers at end to make marshaller happier
         internal int iTwoDigitYearMax = 2029; // Max 2 digit year (for Y2K bug data entry)
@@ -51,7 +51,9 @@ namespace System.Globalization
         internal static readonly CalendarData Invariant = CreateInvariant();
 
         // Private constructor
-        private CalendarData() { }
+        private CalendarData()
+        {
+        }
 
         // Invariant factory
         private static CalendarData CreateInvariant()
@@ -78,13 +80,13 @@ namespace System.Globalization
             invariant.saEraNames = new string[] { "A.D." };     // Era names
             invariant.saAbbrevEraNames = new string[] { "AD" };      // Abbreviated Era names
             invariant.saAbbrevEnglishEraNames = new string[] { "AD" };     // Abbreviated era names in English
-            invariant.saDayNames = new string[] { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" };// day names
+            invariant.saDayNames = new string[] { "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday" }; // day names
             invariant.saAbbrevDayNames = new string[] { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };     // abbreviated day names
             invariant.saSuperShortDayNames = new string[] { "Su", "Mo", "Tu", "We", "Th", "Fr", "Sa" };      // The super short day names
             invariant.saMonthNames = new string[] { "January", "February", "March", "April", "May", "June",
-                                                            "July", "August", "September", "October", "November", "December", string.Empty}; // month names
+                                                            "July", "August", "September", "October", "November", "December", string.Empty }; // month names
             invariant.saAbbrevMonthNames = new string[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", string.Empty}; // abbreviated month names
+                                                            "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", string.Empty }; // abbreviated month names
             invariant.saMonthGenitiveNames = invariant.saMonthNames;              // Genitive month names (same as month names for invariant)
             invariant.saAbbrevMonthGenitiveNames = invariant.saAbbrevMonthNames;    // Abbreviated genitive month names (same as abbrev month names for invariant)
             invariant.saLeapYearMonthNames = invariant.saMonthNames;              // leap year month names are unused in Gregorian English (invariant)
@@ -105,27 +107,28 @@ namespace System.Globalization
 
             if (!LoadCalendarDataFromSystem(localeName, calendarId))
             {
-                Debug.Fail("[CalendarData] LoadCalendarDataFromSystem call isn't expected to fail for calendar " + calendarId + " locale " + localeName);
+                // LoadCalendarDataFromSystem sometimes can fail on Linux if the installed ICU package is missing some resources.
+                // The ICU package can miss some resources in some cases like if someone compile and build the ICU package manually or ICU has a regression.
 
                 // Something failed, try invariant for missing parts
                 // This is really not good, but we don't want the callers to crash.
-                if (this.sNativeName == null) this.sNativeName = string.Empty;           // Calendar Name for the locale.
+                this.sNativeName ??= string.Empty;           // Calendar Name for the locale.
 
                 // Formats
-                if (this.saShortDates == null) this.saShortDates = Invariant.saShortDates; // Short Data format, default first
-                if (this.saYearMonths == null) this.saYearMonths = Invariant.saYearMonths; // Year/Month Data format, default first
-                if (this.saLongDates == null) this.saLongDates = Invariant.saLongDates;  // Long Data format, default first
-                if (this.sMonthDay == null) this.sMonthDay = Invariant.sMonthDay;    // Month/Day format
+                this.saShortDates ??= Invariant.saShortDates; // Short Data format, default first
+                this.saYearMonths ??= Invariant.saYearMonths; // Year/Month Data format, default first
+                this.saLongDates ??= Invariant.saLongDates;  // Long Data format, default first
+                this.sMonthDay ??= Invariant.sMonthDay;    // Month/Day format
 
                 // Calendar Parts Names
-                if (this.saEraNames == null) this.saEraNames = Invariant.saEraNames;              // Names of Eras
-                if (this.saAbbrevEraNames == null) this.saAbbrevEraNames = Invariant.saAbbrevEraNames;        // Abbreviated Era Names
-                if (this.saAbbrevEnglishEraNames == null) this.saAbbrevEnglishEraNames = Invariant.saAbbrevEnglishEraNames; // Abbreviated Era Names in English
-                if (this.saDayNames == null) this.saDayNames = Invariant.saDayNames;              // Day Names, null to use locale data, starts on Sunday
-                if (this.saAbbrevDayNames == null) this.saAbbrevDayNames = Invariant.saAbbrevDayNames;        // Abbrev Day Names, null to use locale data, starts on Sunday
-                if (this.saSuperShortDayNames == null) this.saSuperShortDayNames = Invariant.saSuperShortDayNames;    // Super short Day of week names
-                if (this.saMonthNames == null) this.saMonthNames = Invariant.saMonthNames;            // Month Names (13)
-                if (this.saAbbrevMonthNames == null) this.saAbbrevMonthNames = Invariant.saAbbrevMonthNames;      // Abbrev Month Names (13)
+                this.saEraNames ??= Invariant.saEraNames;              // Names of Eras
+                this.saAbbrevEraNames ??= Invariant.saAbbrevEraNames;        // Abbreviated Era Names
+                this.saAbbrevEnglishEraNames ??= Invariant.saAbbrevEnglishEraNames; // Abbreviated Era Names in English
+                this.saDayNames ??= Invariant.saDayNames;              // Day Names, null to use locale data, starts on Sunday
+                this.saAbbrevDayNames ??= Invariant.saAbbrevDayNames;        // Abbrev Day Names, null to use locale data, starts on Sunday
+                this.saSuperShortDayNames ??= Invariant.saSuperShortDayNames;    // Super short Day of week names
+                this.saMonthNames ??= Invariant.saMonthNames;            // Month Names (13)
+                this.saAbbrevMonthNames ??= Invariant.saAbbrevMonthNames;      // Abbrev Month Names (13)
                 // Genitive and Leap names can follow the fallback below
             }
 
@@ -165,7 +168,7 @@ namespace System.Globalization
                 this.saAbbrevEnglishEraNames = new string[] { "" };
             }
 
-            // Japanese is the only thing with > 1 era.  Its current era # is how many ever 
+            // Japanese is the only thing with > 1 era.  Its current era # is how many ever
             // eras are in the array.  (And the others all have 1 string in the array)
             this.iCurrentEra = this.saEraNames.Length;
         }
@@ -177,7 +180,7 @@ namespace System.Globalization
             {
                 // For Localized Gregorian we really expect the data from the OS.
                 case CalendarId.GREGORIAN:
-                    // Fallback for CoreCLR < Win7 or culture.dll missing            
+                    // Fallback for CoreCLR < Win7 or culture.dll missing
                     if (this.saEraNames == null || this.saEraNames.Length == 0 || string.IsNullOrEmpty(this.saEraNames[0]))
                     {
                         this.saEraNames = new string[] { "A.D." };
@@ -260,7 +263,7 @@ namespace System.Globalization
             {
                 // For Localized Gregorian we really expect the data from the OS.
                 case CalendarId.GREGORIAN:
-                    // Fallback for CoreCLR < Win7 or culture.dll missing            
+                    // Fallback for CoreCLR < Win7 or culture.dll missing
                     if (this.saAbbrevEraNames == null || this.saAbbrevEraNames.Length == 0 || string.IsNullOrEmpty(this.saAbbrevEraNames[0]))
                     {
                         this.saAbbrevEraNames = new string[] { "AD" };
@@ -320,7 +323,7 @@ namespace System.Globalization
             //
             // Get a calendar.
             // Unfortunately we depend on the locale in the OS, so we need a locale
-            // no matter what.  So just get the appropriate calendar from the 
+            // no matter what.  So just get the appropriate calendar from the
             // appropriate locale here
             //
 
@@ -375,4 +378,3 @@ namespace System.Globalization
         }
     }
 }
-

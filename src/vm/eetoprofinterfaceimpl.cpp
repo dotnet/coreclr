@@ -99,13 +99,9 @@ enum ClrToProfEntrypointFlags
     kEE2PNoTrigger                      = 0x00000004,
 };
 
-#ifdef FEATURE_PROFAPI_ATTACH_DETACH
 #define ASSERT_EVAC_COUNTER_NONZERO()   \
     _ASSERTE((GetThreadNULLOk() == NULL) ||                                             \
              (GetThreadNULLOk()->GetProfilerEvacuationCounter() != 0U))
-#else // FEATURE_PROFAPI_ATTACH_DETACH
-#define ASSERT_EVAC_COUNTER_NONZERO()
-#endif // FEATURE_PROFAPI_ATTACH_DETACH
 
 #define CHECK_PROFILER_STATUS(ee2pFlags)                                                \
     /* If one of these asserts fires, perhaps you forgot to use                     */  \
@@ -983,7 +979,7 @@ EEToProfInterfaceImpl::~EEToProfInterfaceImpl()
 
     if (m_pSavedAllocDataBlock)
     {
-#ifdef _WIN64
+#ifdef BIT64
         _ASSERTE((UINT_PTR)m_pSavedAllocDataBlock != 0xFFFFFFFFFFFFFFFF);
 #else
         _ASSERTE((UINT_PTR)m_pSavedAllocDataBlock != 0xFFFFFFFF);
@@ -5328,7 +5324,7 @@ HRESULT EEToProfInterfaceImpl::RuntimeThreadResumed(ThreadID resumedThreadId)
         // ICorProfilerInfo2::DoStackSnapshot!  And that dude is called asynchronously and
         // must therefore never cause a GC.
         // Other reasons for notrigger: also called by notrigger dudes Thread::SysStartSuspendForDebug,
-        // CheckSuspended, Thread::IsRunningIn, Thread::IsExecutingWithinCer, Thread::IsExecutingWithinCer,
+        // CheckSuspended, Thread::IsExecutingWithinCer, Thread::IsExecutingWithinCer,
         // UnwindFrames
         GC_NOTRIGGER;
 
@@ -5757,7 +5753,7 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
                 return hr;
         }
 
-#ifdef _WIN64
+#ifdef BIT64
         // Recompute sizes as ULONGs for legacy callback
         for (ULONG i = 0; i < pData->curIdx; i++)
             pData->arrULONG[i] = (pData->arrMemBlockSize[i] > ULONG_MAX) ? ULONG_MAX : (ULONG)pData->arrMemBlockSize[i];
@@ -5787,7 +5783,7 @@ HRESULT EEToProfInterfaceImpl::MovedReferences(GCReferencesData *pData)
                 return hr;
         }
 
-#ifdef _WIN64
+#ifdef BIT64
         // Recompute sizes as ULONGs for legacy callback
         for (ULONG i = 0; i < pData->curIdx; i++)
             pData->arrULONG[i] = (pData->arrMemBlockSize[i] > ULONG_MAX) ? ULONG_MAX : (ULONG)pData->arrMemBlockSize[i];

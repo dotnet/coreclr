@@ -960,35 +960,6 @@ bool emitter::emitInsMayWriteMultipleRegs(instrDesc* id)
     }
 }
 
-// For the small loads/store instruction we adjust the size 'attr'
-// depending upon whether we have a load or a store
-//
-emitAttr emitter::emitInsAdjustLoadStoreAttr(instruction ins, emitAttr attr)
-{
-    if (EA_SIZE(attr) <= EA_4BYTE)
-    {
-        if (emitInsIsLoad(ins))
-        {
-            // The value of 'ins' encodes the size to load
-            // we use EA_8BYTE here because it is the size we will write (into dataReg)
-            // it is also required when ins is INS_ldrsw
-            //
-            attr = EA_8BYTE;
-        }
-        else
-        {
-            assert(emitInsIsStore(ins));
-
-            // The value of 'ins' encodes the size to store
-            // we use EA_4BYTE here because it is the size of the register
-            // that we want to display when storing small values
-            //
-            attr = EA_4BYTE;
-        }
-    }
-    return attr;
-}
-
 // Takes an instrDesc 'id' and uses the instruction 'ins' to determine the
 // size of the target register that is written or read by the instruction.
 // Note that even if EA_4BYTE is returned a load instruction will still
@@ -2327,9 +2298,9 @@ emitter::code_t emitter::emitInsCode(instruction ins, insFormat fmt)
     unsigned R = bmImm.immR;
     unsigned S = bmImm.immS;
 
-    unsigned elemWidth = 64; // used when immN == 1
+    unsigned elemWidth = 64; // used when N == 1
 
-    if (bmImm.immN == 0) // find the smaller elemWidth when immN == 0
+    if (N == 0) // find the smaller elemWidth when N == 0
     {
         // Scan S for the highest bit not set
         elemWidth = 32;
@@ -3393,9 +3364,8 @@ void emitter::emitIns_I(instruction ins, emitAttr attr, ssize_t imm)
 
 void emitter::emitIns_R(instruction ins, emitAttr attr, regNumber reg)
 {
-    emitAttr   size = EA_SIZE(attr);
-    insFormat  fmt  = IF_NONE;
-    instrDesc* id   = nullptr;
+    insFormat  fmt = IF_NONE;
+    instrDesc* id  = nullptr;
 
     /* Figure out the encoding format of the instruction */
     switch (ins)
@@ -3537,7 +3507,6 @@ void emitter::emitIns_R_I(instruction ins, emitAttr attr, regNumber reg, ssize_t
                 ssize_t  imm8 = 0;
                 unsigned pos  = 0;
                 canEncode     = true;
-                bool failed   = false;
                 while (uimm != 0)
                 {
                     INT64 loByte = uimm & 0xFF;
@@ -6089,8 +6058,7 @@ void emitter::emitIns_R_R_R_R(
 
 void emitter::emitIns_R_COND(instruction ins, emitAttr attr, regNumber reg, insCond cond)
 {
-    emitAttr     size = EA_SIZE(attr);
-    insFormat    fmt  = IF_NONE;
+    insFormat    fmt = IF_NONE;
     condFlagsImm cfi;
     cfi.immCFVal = 0;
 
@@ -6132,8 +6100,7 @@ void emitter::emitIns_R_COND(instruction ins, emitAttr attr, regNumber reg, insC
 
 void emitter::emitIns_R_R_COND(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, insCond cond)
 {
-    emitAttr     size = EA_SIZE(attr);
-    insFormat    fmt  = IF_NONE;
+    insFormat    fmt = IF_NONE;
     condFlagsImm cfi;
     cfi.immCFVal = 0;
 
@@ -6178,8 +6145,7 @@ void emitter::emitIns_R_R_COND(instruction ins, emitAttr attr, regNumber reg1, r
 void emitter::emitIns_R_R_R_COND(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber reg3, insCond cond)
 {
-    emitAttr     size = EA_SIZE(attr);
-    insFormat    fmt  = IF_NONE;
+    insFormat    fmt = IF_NONE;
     condFlagsImm cfi;
     cfi.immCFVal = 0;
 
@@ -6229,8 +6195,7 @@ void emitter::emitIns_R_R_R_COND(
 void emitter::emitIns_R_R_FLAGS_COND(
     instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, insCflags flags, insCond cond)
 {
-    emitAttr     size = EA_SIZE(attr);
-    insFormat    fmt  = IF_NONE;
+    insFormat    fmt = IF_NONE;
     condFlagsImm cfi;
     cfi.immCFVal = 0;
 
@@ -6274,8 +6239,7 @@ void emitter::emitIns_R_R_FLAGS_COND(
 void emitter::emitIns_R_I_FLAGS_COND(
     instruction ins, emitAttr attr, regNumber reg, int imm, insCflags flags, insCond cond)
 {
-    emitAttr     size = EA_SIZE(attr);
-    insFormat    fmt  = IF_NONE;
+    insFormat    fmt = IF_NONE;
     condFlagsImm cfi;
     cfi.immCFVal = 0;
 
@@ -6876,7 +6840,6 @@ void emitter::emitIns_R_C(
 
     emitAttr      size = EA_SIZE(attr);
     insFormat     fmt  = IF_NONE;
-    int           disp = 0;
     instrDescJmp* id   = emitNewInstrJmp();
 
     switch (ins)
@@ -7020,7 +6983,7 @@ void emitter::emitIns_R_AI(instruction ins, emitAttr attr, regNumber ireg, ssize
         // add reg, reg, imm
         ins           = INS_add;
         fmt           = IF_DI_2A;
-        instrDesc* id = emitAllocInstr(attr);
+        instrDesc* id = emitNewInstr(attr);
         assert(id->idIsReloc());
 
         id->idIns(ins);
@@ -8430,9 +8393,8 @@ BYTE* emitter::emitOutputLoadLabel(BYTE* dst, BYTE* srcAddr, BYTE* dstAddr, inst
     {
         // adrp x, [rel page addr] -- compute page address: current page addr + rel page addr
         assert(fmt == IF_LARGEADR);
-        ssize_t relPageAddr =
-            (((ssize_t)dstAddr & 0xFFFFFFFFFFFFF000LL) - ((ssize_t)srcAddr & 0xFFFFFFFFFFFFF000LL)) >> 12;
-        dst = emitOutputShortAddress(dst, INS_adrp, IF_DI_1E, relPageAddr, dstReg);
+        ssize_t relPageAddr = computeRelPageAddr((size_t)dstAddr, (size_t)srcAddr);
+        dst                 = emitOutputShortAddress(dst, INS_adrp, IF_DI_1E, relPageAddr, dstReg);
 
         // add x, x, page offs -- compute address = page addr + page offs
         ssize_t imm12 = (ssize_t)dstAddr & 0xFFF; // 12 bits
@@ -8532,8 +8494,7 @@ BYTE* emitter::emitOutputLJ(insGroup* ig, BYTE* dst, instrDesc* i)
             {
                 // adrp x, [rel page addr] -- compute page address: current page addr + rel page addr
                 assert(fmt == IF_LARGELDC);
-                ssize_t relPageAddr =
-                    (((ssize_t)dstAddr & 0xFFFFFFFFFFFFF000LL) - ((ssize_t)srcAddr & 0xFFFFFFFFFFFFF000LL)) >> 12;
+                ssize_t relPageAddr = computeRelPageAddr((size_t)dstAddr, (size_t)srcAddr);
                 if (isVectorRegister(dstReg))
                 {
                     // Update addrReg with the reserved integer register
@@ -9071,14 +9032,13 @@ unsigned emitter::emitOutputCall(insGroup* ig, BYTE* dst, instrDesc* id, code_t 
 
 size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 {
-    BYTE*         dst  = *dp;
-    BYTE*         odst = dst;
-    code_t        code = 0;
-    size_t        sz   = emitGetInstrDescSize(id); // TODO-ARM64-Cleanup: on ARM, this is set in each case. why?
-    instruction   ins  = id->idIns();
-    insFormat     fmt  = id->idInsFmt();
-    emitAttr      size = id->idOpSize();
-    unsigned char callInstrSize = 0;
+    BYTE*       dst  = *dp;
+    BYTE*       odst = dst;
+    code_t      code = 0;
+    size_t      sz   = emitGetInstrDescSize(id); // TODO-ARM64-Cleanup: on ARM, this is set in each case. why?
+    instruction ins  = id->idIns();
+    insFormat   fmt  = id->idInsFmt();
+    emitAttr    size = id->idOpSize();
 
 #ifdef DEBUG
 #if DUMP_GC_TABLES
@@ -9089,8 +9049,6 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
 #endif // DEBUG
 
     assert(REG_NA == (int)REG_NA);
-
-    VARSET_TP GCvars(VarSetOps::UninitVal());
 
     /* What instruction format have we got? */
 
@@ -10709,7 +10667,7 @@ void emitter::emitDispAddrRRExt(regNumber reg1, regNumber reg2, insOpts opt, boo
  *  Display (optionally) the instruction encoding in hex
  */
 
-void emitter::emitDispInsHex(BYTE* code, size_t sz)
+void emitter::emitDispInsHex(instrDesc* id, BYTE* code, size_t sz)
 {
     // We do not display the instruction hex if we want diff-able disassembly
     if (!emitComp->opts.disDiffable)
@@ -10720,6 +10678,7 @@ void emitter::emitDispInsHex(BYTE* code, size_t sz)
         }
         else
         {
+            assert(sz == 0);
             printf("              ");
         }
     }
@@ -10753,7 +10712,7 @@ void emitter::emitDispIns(
 
     /* Display the instruction hex code */
 
-    emitDispInsHex(pCode, sz);
+    emitDispInsHex(id, pCode, sz);
 
     printf("      ");
 
@@ -10890,8 +10849,9 @@ void emitter::emitDispIns(
             break;
 
         case IF_BR_1B: // BR_1B   ................ ......nnnnn.....         Rn
+            // The size of a branch target is always EA_PTRSIZE
             assert(insOptsNone(id->idInsOpt()));
-            emitDispReg(id->idReg3(), size, false);
+            emitDispReg(id->idReg3(), EA_PTRSIZE, false);
             break;
 
         case IF_LS_1A: // LS_1A   XX...V..iiiiiiii iiiiiiiiiiittttt      Rt    PC imm(1MB)
@@ -11592,8 +11552,6 @@ void emitter::emitDispFrameRef(int varx, int disp, int offs, bool asmfm)
 //
 void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataReg, GenTreeIndir* indir)
 {
-    emitAttr ldstAttr = isVectorRegister(dataReg) ? attr : emitInsAdjustLoadStoreAttr(ins, attr);
-
     GenTree* addr = indir->Addr();
 
     if (addr->isContained())
@@ -11642,7 +11600,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     noway_assert(emitInsIsLoad(ins) || (tmpReg != dataReg));
 
                     // Then load/store dataReg from/to [tmpReg + offset]
-                    emitIns_R_R_I(ins, ldstAttr, dataReg, tmpReg, offset);
+                    emitIns_R_R_I(ins, attr, dataReg, tmpReg, offset);
                 }
                 else // large offset
                 {
@@ -11656,7 +11614,7 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                     noway_assert(tmpReg != index->gtRegNum);
 
                     // Then load/store dataReg from/to [tmpReg + index*scale]
-                    emitIns_R_R_R_I(ins, ldstAttr, dataReg, tmpReg, index->gtRegNum, lsl, INS_OPTS_LSL);
+                    emitIns_R_R_R_I(ins, attr, dataReg, tmpReg, index->gtRegNum, lsl, INS_OPTS_LSL);
                 }
             }
             else // (offset == 0)
@@ -11664,21 +11622,21 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 if (lsl > 0)
                 {
                     // Then load/store dataReg from/to [memBase + index*scale]
-                    emitIns_R_R_R_I(ins, ldstAttr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_OPTS_LSL);
+                    emitIns_R_R_R_I(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum, lsl, INS_OPTS_LSL);
                 }
                 else // no scale
                 {
                     // Then load/store dataReg from/to [memBase + index]
-                    emitIns_R_R_R(ins, ldstAttr, dataReg, memBase->gtRegNum, index->gtRegNum);
+                    emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, index->gtRegNum);
                 }
             }
         }
         else // no Index register
         {
-            if (emitIns_valid_imm_for_ldst_offset(offset, EA_SIZE(attr)))
+            if (emitIns_valid_imm_for_ldst_offset(offset, emitTypeSize(indir->TypeGet())))
             {
                 // Then load/store dataReg from/to [memBase + offset]
-                emitIns_R_R_I(ins, ldstAttr, dataReg, memBase->gtRegNum, offset);
+                emitIns_R_R_I(ins, attr, dataReg, memBase->gtRegNum, offset);
             }
             else
             {
@@ -11689,14 +11647,14 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
                 codeGen->instGen_Set_Reg_To_Imm(EA_PTRSIZE, tmpReg, offset);
 
                 // Then load/store dataReg from/to [memBase + tmpReg]
-                emitIns_R_R_R(ins, ldstAttr, dataReg, memBase->gtRegNum, tmpReg);
+                emitIns_R_R_R(ins, attr, dataReg, memBase->gtRegNum, tmpReg);
             }
         }
     }
     else // addr is not contained, so we evaluate it into a register
     {
         // Then load/store dataReg from/to [addrReg]
-        emitIns_R_R(ins, ldstAttr, dataReg, addr->gtRegNum);
+        emitIns_R_R(ins, attr, dataReg, addr->gtRegNum);
     }
 }
 
@@ -11705,8 +11663,6 @@ void emitter::emitInsLoadStoreOp(instruction ins, emitAttr attr, regNumber dataR
 
 regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src)
 {
-    regNumber result = REG_NA;
-
     // dst can only be a reg
     assert(!dst->isContained());
 
@@ -11737,8 +11693,6 @@ regNumber emitter::emitInsBinary(instruction ins, emitAttr attr, GenTree* dst, G
 
 regNumber emitter::emitInsTernary(instruction ins, emitAttr attr, GenTree* dst, GenTree* src1, GenTree* src2)
 {
-    regNumber result = REG_NA;
-
     // dst can only be a reg
     assert(!dst->isContained());
 

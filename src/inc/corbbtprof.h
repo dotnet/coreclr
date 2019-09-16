@@ -275,6 +275,8 @@ enum SectionFormat
     SectionFormatInvalid                = -1
 };
 
+#include <pshpack1.h>
+
 struct CORBBTPROF_SECTION_TABLE_ENTRY
 {
     SectionFormat                  FormatID;
@@ -402,10 +404,10 @@ struct CORBBTPROF_METHOD_BLOCK_COUNTS_SECTION_HEADER
     DWORD                          NumMethods;
 };
 
-struct CORBBTPROF_BLOCK_DATA    // Also defined here code:ICorJitInfo.ProfileBuffer
+struct CORBBTPROF_BLOCK_DATA    // This struct is also defined by:  ICorJitInfo.BlockCounts
 {
-    DWORD                          ILOffset;
-    DWORD                          ExecutionCount;
+    UINT32                         ILOffset;
+    UINT32                         ExecutionCount;
 };
 
 struct CORBBTPROF_METHOD_DETAIL_HEADER
@@ -589,4 +591,7 @@ struct CORBBTPROF_BLOB_POOL_ENTRY
     DWORD                  cBuffer;
     BYTE                   buffer[0];  // actually 'cBuffer' in length
 };
+
+#include <poppack.h>
+
 #endif /* COR_BBTPROF_H_ */
