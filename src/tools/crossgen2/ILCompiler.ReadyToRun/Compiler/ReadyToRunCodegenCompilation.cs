@@ -211,12 +211,17 @@ namespace ILCompiler
             using (FileStream inputFile = File.OpenRead(_inputFilePath))
             {
                 PEReader inputPeReader = new PEReader(inputFile);
+                PerfEventSource.Log.LoadingStop();
 
+                PerfEventSource.Log.GraphProcessingStart();
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
+                PerfEventSource.Log.GraphProcessingStop();
 
+                PerfEventSource.Log.EmittingStart();
                 NodeFactory.SetMarkingComplete();
                 ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
+                PerfEventSource.Log.EmittingStop();
             }
         }
 
@@ -263,6 +268,7 @@ namespace ILCompiler
 
                 try
                 {
+                    PerfEventSource.Log.JitStart();
                     _corInfo.CompileMethod(methodCodeNodeNeedingCode);
                 }
                 catch (TypeSystemException ex)
@@ -273,6 +279,10 @@ namespace ILCompiler
                 catch (RequiresRuntimeJitException ex)
                 {
                     Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                }
+                finally
+                {
+                    PerfEventSource.Log.JitStop();
                 }
             }
         }

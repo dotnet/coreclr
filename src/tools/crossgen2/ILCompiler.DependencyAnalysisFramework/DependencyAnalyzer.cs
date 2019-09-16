@@ -256,7 +256,9 @@ namespace ILCompiler.DependencyAnalysisFramework
             do
             {
                 // Run mark stack algorithm as much as possible
+                PerfEventSource.Log.DependencyAnalysisStart();
                 ProcessMarkStack();
+                PerfEventSource.Log.DependencyAnalysisStop();
 
                 // Compute all dependencies which were not ready during the ProcessMarkStack step
                 ComputeDependencies(_deferredStaticDependencies);
@@ -281,6 +283,8 @@ namespace ILCompiler.DependencyAnalysisFramework
         {
             if (_marker.MarkNode(node, reason1, reason2, reason))
             {
+                PerfEventSource.Log.AddedNodeToMarkStack();
+
                 // Pop the top node of the mark stack
                 if (_stackPopRandomizer == null)
                 {
