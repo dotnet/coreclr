@@ -140,7 +140,9 @@ public:
     {
         if (m_isNestedType)
         {
-            return GetNestedNativeMethodTable()->GetLayoutInfo()->GetNativeSize() * GetNumElements();
+            MethodTable* pMT = GetNestedNativeMethodTable();
+            pMT->EnsureNativeLayoutInfoInitialized();
+            return pMT->GetLayoutInfo()->GetNativeSize() * GetNumElements();
         }
         else
         {
@@ -152,7 +154,9 @@ public:
     {
         if (m_isNestedType)
         {
-            return GetNestedNativeMethodTable()->GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers();
+            MethodTable* pMT = GetNestedNativeMethodTable();
+            pMT->EnsureNativeLayoutInfoInitialized();
+            return pMT->GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers();
         }
         else
         {

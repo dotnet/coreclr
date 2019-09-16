@@ -298,6 +298,9 @@ TypeHandle TypeHandle::MakeArray(int rank) const
 TypeHandle TypeHandle::MakeNativeValueType() const
 {
     STATIC_CONTRACT_WRAPPER;
+
+    this->GetMethodTable()->EnsureNativeLayoutInfoInitialized();
+
     return ClassLoader::LoadNativeValueTypeThrowing(*this);
 }
 

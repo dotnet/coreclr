@@ -2802,6 +2802,12 @@ MarshalInfo::MarshalInfo(Module* pModule,
                     IfFailGoto(E_FAIL, lFail);
                 }
 
+                if (!m_pMT->HasLayout())
+                {
+                    m_resID = IDS_EE_BADMARSHAL_NOTMARSHALABLE;
+                    IfFailGoto(E_FAIL, lFail);
+                }
+
                 UINT managedSize = m_pMT->GetAlignedNumInstanceFieldBytes();
                 UINT  nativeSize = m_pMT->GetNativeSize();
                 
@@ -2874,7 +2880,7 @@ MarshalInfo::MarshalInfo(Module* pModule,
                         }
                     }
                 }
-                else if (m_pMT->HasLayout())
+                else
                 {
                     if (!(nativeType == NATIVE_TYPE_DEFAULT || nativeType == NATIVE_TYPE_STRUCT))
                     {
@@ -3578,8 +3584,8 @@ void MarshalInfo::SetupArgumentSizes()
 {
     CONTRACTL
     {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -3603,8 +3609,8 @@ UINT16 MarshalInfo::GetNativeSize(MarshalType mtype)
 {
     CONTRACTL
     {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_ANY;
     }
     CONTRACTL_END;

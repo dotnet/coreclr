@@ -1897,8 +1897,8 @@ CEEInfo::getClassSize(
     CORINFO_CLASS_HANDLE clsHnd)
 {
     CONTRACTL {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
@@ -2037,6 +2037,7 @@ unsigned CEEInfo::getClassAlignmentRequirementStatic(TypeHandle clsHnd)
 
         if (clsHnd.IsNativeValueType())
         {
+            pMT->EnsureNativeLayoutInfoInitialized();
             // if it's the unmanaged view of the managed type, we always use the unmanaged alignment requirement
             result = pInfo->GetLargestAlignmentRequirementOfAllMembers();
         }
@@ -2052,6 +2053,7 @@ unsigned CEEInfo::getClassAlignmentRequirementStatic(TypeHandle clsHnd)
         {
             _ASSERTE(!pMT->ContainsPointers());
 
+            pMT->EnsureNativeLayoutInfoInitialized();
             // if it's blittable, we use the unmanaged alignment requirement
             result = pInfo->GetLargestAlignmentRequirementOfAllMembers();
         }

@@ -2559,6 +2559,8 @@ bool MethodTable::ClassifyEightBytesWithNativeLayout(SystemVStructRegisterPassin
 
     // Should be in this method only doing a native layout classification.
     _ASSERTE(useNativeLayout);
+    
+    EnsureNativeLayoutInfoInitialized();
 
 #ifdef DACCESS_COMPILE
     // No register classification for this case.
@@ -5575,6 +5577,8 @@ void MethodTable::DoFullyLoad(Generics::RecursionGraph * const pVisited,  const 
     // Fully load the types of fields associated with a field marshaler when ngenning
     if (HasLayout() && GetAppDomain()->IsCompilationDomain() && !IsZapped())
     {
+        EnsureNativeLayoutInfoInitialized();
+
         NativeFieldDescriptor* pNativeFieldDescriptors = this->GetLayoutInfo()->GetNativeFieldDescriptors();
         UINT  numReferenceFields                       = this->GetLayoutInfo()->GetNumCTMFields();
 

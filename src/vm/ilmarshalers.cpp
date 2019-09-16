@@ -2483,7 +2483,7 @@ void ILBlittablePtrMarshaler::EmitConvertContentsCLRToNative(ILCodeStream* pslIL
     STANDARD_VM_CONTRACT;
 
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
-    UINT uNativeSize = m_pargs->m_pMT->GetNativeSize();
+    UINT uNativeSize = m_pargs->m_pMT->GetNumInstanceFieldBytes();
     int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
 
     EmitLoadNativeValue(pslILEmit);
@@ -2505,7 +2505,7 @@ void ILBlittablePtrMarshaler::EmitConvertContentsNativeToCLR(ILCodeStream* pslIL
     STANDARD_VM_CONTRACT;
     
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
-    UINT uNativeSize = m_pargs->m_pMT->GetNativeSize();
+    UINT uNativeSize = m_pargs->m_pMT->GetNumInstanceFieldBytes();
     int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
     
     EmitLoadManagedValue(pslILEmit);
@@ -2628,7 +2628,7 @@ void ILBlittableLayoutClassMarshaler::EmitConvertContentsCLRToNative(ILCodeStrea
     STANDARD_VM_CONTRACT;
 
     ILCodeLabel* pNullRefLabel = pslILEmit->NewCodeLabel();
-    UINT uNativeSize = m_pargs->m_pMT->GetNativeSize();
+    UINT uNativeSize = m_pargs->m_pMT->GetNumInstanceFieldBytes();
     int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
 
     EmitLoadNativeHomeAddr(pslILEmit);
@@ -2654,7 +2654,7 @@ void ILBlittableLayoutClassMarshaler::EmitConvertContentsNativeToCLR(ILCodeStrea
 {
     STANDARD_VM_CONTRACT;
 
-    UINT uNativeSize = m_pargs->m_pMT->GetNativeSize();
+    UINT uNativeSize = m_pargs->m_pMT->GetNumInstanceFieldBytes();
     int fieldDef = pslILEmit->GetToken(MscorlibBinder::GetField(FIELD__RAW_DATA__DATA));
 
     pslILEmit->EmitLDTOKEN(pslILEmit->GetToken(m_pargs->m_pMT));

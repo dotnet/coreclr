@@ -366,10 +366,16 @@ class EEClassLayoutInfo
        AllocMemTracker    *pamTracker
     );
 
-    static VOID CollectNativeLayoutFieldMetadataThrowing(
+    static void CollectNativeLayoutFieldMetadataThrowing(
         MethodTable* pMT
     );
 
+public:
+    static VOID InitializeNativeLayoutFieldMetadataThrowing(
+        MethodTable* pMT
+    );
+
+private:
     friend class ClassLoader;
     friend class EEClass;
     friend class MethodTableBuilder;
@@ -437,7 +443,6 @@ class EEClassLayoutInfo
         // equals m_numCTMFields.
         RelativePointer<PTR_NativeFieldDescriptor> m_pNativeFieldDescriptors; // Native
 
-
     public:
         BOOL GetNativeSize() const
         {
@@ -474,7 +479,7 @@ class EEClassLayoutInfo
         void SetNativeFieldDescriptors(NativeFieldDescriptor *pNativeFieldDescriptors)
         {
             LIMITED_METHOD_CONTRACT;
-            m_pNativeFieldDescriptors.SetValueMaybeNull(pNativeFieldDescriptors);
+            m_pNativeFieldDescriptors.SetValueVolatile(pNativeFieldDescriptors);
         }
 #endif // DACCESS_COMPILE
 
@@ -1691,18 +1696,13 @@ public:
     inline UINT32 GetNativeSize()
     {
         LIMITED_METHOD_DAC_CONTRACT;
+        if (HasLayout() && m_cbNativeSize == 0)
+        {
+            m_cbNativeSize = GetLayoutInfo()->GetNativeSize();
+        }
         return m_cbNativeSize;
     }
-    static UINT32 GetOffsetOfNativeSize()
-    {
-        LIMITED_METHOD_CONTRACT;
-        return (UINT32)(offsetof(EEClass, m_cbNativeSize));
-    }
-    void SetNativeSize(UINT32 nativeSize)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_cbNativeSize = nativeSize;
-    }
+
 #ifdef FEATURE_COMINTEROP
     OBJECTHANDLE GetOHDelegate()
     {
@@ -2113,9 +2113,6 @@ public:
     LayoutEEClass() : EEClass(sizeof(LayoutEEClass))
     {
         LIMITED_METHOD_CONTRACT;
-#ifdef _DEBUG
-        FillMemory(&m_LayoutInfo, sizeof(m_LayoutInfo), 0xcc);
-#endif
     }
 #endif // !DACCESS_COMPILE
 };

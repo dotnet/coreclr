@@ -1711,6 +1711,8 @@ public:
 
     inline EEClassLayoutInfo *GetLayoutInfo();
 
+    inline void EnsureNativeLayoutInfoInitialized();
+
     inline BOOL IsBlittable();
 
     inline BOOL IsManagedSequential();

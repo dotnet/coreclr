@@ -414,6 +414,7 @@ NativeFieldDescriptor::NativeFieldDescriptor(PTR_MethodTable pMT, int numElement
 
     m_pFD.SetValueMaybeNull(nullptr);
     m_pNestedType.SetValue(pMT);
+    pMT->EnsureNativeLayoutInfoInitialized();
     m_numElements = numElements;
     m_flags = NativeFieldCategory::NESTED;
     m_isNestedType = true;

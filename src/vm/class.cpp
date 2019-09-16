@@ -3642,21 +3642,59 @@ namespace
             TypeHandle pNestedType = fsig.GetLastTypeHandleThrowing(ClassLoader::LoadTypes,
                 CLASS_LOAD_APPROXPARENTS,
                 TRUE);
-            if (!pNestedType.GetMethodTable()->IsManagedSequential())
-            {
-                return TRUE;
-            }
 
             pManagedPlacementInfo->m_size = (pNestedType.GetMethodTable()->GetNumInstanceFieldBytes());
 
-            _ASSERTE(pNestedType.GetMethodTable()->HasLayout()); // If it is ManagedSequential(), it also has Layout but doesn't hurt to check before we do a cast!
-            pManagedPlacementInfo->m_alignment = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
+            if (pNestedType.GetMethodTable()->HasLayout())
+            {
+                pManagedPlacementInfo->m_alignment = pNestedType.GetMethodTable()->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
+            }
+            else
+            {
+                pManagedPlacementInfo->m_alignment = 8;
+            }
 
-            return FALSE;
+            return !pNestedType.GetMethodTable()->IsManagedSequential();
         }
         // No other type permitted for ManagedSequential.
         return TRUE;
     }
+
+#ifdef UNIX_AMD64_ABI
+    void SystemVAmd64CheckForPassNativeStructInRegister(MethodTable* pMT)
+    {
+        STANDARD_VM_CONTRACT;
+        DWORD totalStructSize = 0;
+
+        // If not a native value type, return.
+        if (!pMT->IsValueType())
+        {
+            return;
+        }
+
+        totalStructSize = pMT->GetLayoutInfo()->GetNativeSize();
+
+        // If num of bytes for the fields is bigger than CLR_SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS
+        // pass through stack
+        if (totalStructSize > CLR_SYSTEMV_MAX_STRUCT_BYTES_TO_PASS_IN_REGISTERS)
+        {
+            LOG((LF_JIT, LL_EVERYTHING, "**** SystemVAmd64CheckForPassNativeStructInRegister: struct %s is too big to pass in registers (%d bytes)\n",
+                pMT->GetDebugClassName(), totalStructSize));
+            return;
+        }
+
+        _ASSERTE(pMT->HasLayout());
+
+        // Classify the native layout for this struct.
+        const bool useNativeLayout = true;
+        // Iterate through the fields and make sure they meet requirements to pass in registers
+        SystemVStructRegisterPassingHelper helper((unsigned int)totalStructSize);
+        if (pMT->ClassifyEightBytes(&helper, 0, 0, useNativeLayout))
+        {
+            pMT->GetLayoutInfo()->SetNativeStructPassedInRegisters();
+        }
+    }
+#endif // UNIX_AMD64_ABI
 }
 
 //=====================================================================
@@ -3821,10 +3859,7 @@ void DetermineBlittabilityAndManagedSequential(
 #endif
             MetaSig fsig(pCOMSignature, cbCOMSignature, pModule, pTypeContext, MetaSig::sigField);
             CorElementType corElemType = fsig.NextArgNormalized();
-            if (!(*fDisqualifyFromManagedSequential))
-            {
-                *fDisqualifyFromManagedSequential = CheckIfDisqualifiedFromManagedSequential(corElemType, fsig, &pFieldInfoArrayOut->m_placement);
-            }
+            *fDisqualifyFromManagedSequential |= CheckIfDisqualifiedFromManagedSequential(corElemType, fsig, &pFieldInfoArrayOut->m_placement);
 
             if (!IsFieldBlittable(pModule, fd, fsig.GetArgProps(), pTypeContext, nativeTypeFlags))
                 *pIsBlittableOut = FALSE;
@@ -3934,12 +3969,11 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     {
         pParentLayoutInfo = pParentMT->GetLayoutInfo();
         // Treat base class as an initial member.
-        cbAdjustedParentLayoutNativeSize = pParentLayoutInfo->GetNativeSize();
+        cbAdjustedParentLayoutNativeSize = pParentMT->GetNumInstanceFieldBytes();
         // If the parent was originally a zero-sized explicit type but
         // got bumped up to a size of 1 for compatibility reasons, then
         // we need to remove the padding, but ONLY for inheritance situations.
         if (pParentLayoutInfo->IsZeroSized()) {
-            CONSISTENCY_CHECK(cbAdjustedParentLayoutNativeSize == 1);
             cbAdjustedParentLayoutNativeSize = 0;
         }
     }
@@ -4008,11 +4042,11 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
     }
 
     // Calculate the managedsequential layout if the type is eligible.
-    if (!fDisqualifyFromManagedSequential)
+    if (!fDisqualifyFromManagedSequential || fExplicitOffsets || isBlittable)
     {
         BYTE parentManagedAlignmentRequirement = 0;
         UINT32 parentSize = 0;
-        if (pParentMT && pParentMT->IsManagedSequential())
+        if (pParentMT && (pParentMT->IsManagedSequential() || (pParentMT->GetClass()->HasExplicitFieldOffsetLayout() && pParentMT->IsBlittable())))
         {
             parentManagedAlignmentRequirement = pParentLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
             parentSize = pParentMT->GetNumInstanceFieldBytes();
@@ -4021,7 +4055,7 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
         CalculateSizeAndFieldOffsets(
             parentSize,
             cInstanceFields,
-            /* fExplicitOffsets */ FALSE,
+            fExplicitOffsets,
             pSortArray,
             classSizeInMetadata,
             packingSize,
@@ -4044,6 +4078,48 @@ VOID EEClassLayoutInfo::CollectLayoutFieldMetadataThrowing(
 #pragma warning(pop)
 #endif // _PREFAST_
 
+void EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable* pMT)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        PRECONDITION(CheckPointer(pMT));
+        PRECONDITION(pMT->HasLayout());
+    }
+    CONTRACTL_END;
+
+    EEClassLayoutInfo* pLayoutInfo = pMT->GetLayoutInfo();
+
+    if (!pLayoutInfo->IsZeroSized())
+    {
+        if (pLayoutInfo->m_pNativeFieldDescriptors.GetValueVolatile() == nullptr)
+        {
+            ListLockHolder nativeTypeLoadLock(pMT->GetDomain()->GetNativeTypeLoadLock());
+            ListLockEntryHolder entry(ListLockEntry::Find(nativeTypeLoadLock, pMT->GetClass()));
+            ListLockEntryLockHolder pEntryLock(entry, FALSE);
+            nativeTypeLoadLock.Release();
+            if (!pEntryLock.DeadlockAwareAcquire())
+            {
+                DefineFullyQualifiedNameForClassW()
+                COMPlusThrow(kTypeLoadException, IDS_CANNOT_MARSHAL_RECURSIVE_DEF, GetFullyQualifiedNameForClassW(pMT));
+            }
+
+            if (pLayoutInfo->m_pNativeFieldDescriptors.GetValueVolatile() == nullptr)
+            {
+                CollectNativeLayoutFieldMetadataThrowing(pMT);
+#ifdef FEATURE_HFA
+                pMT->GetClass()->CheckForNativeHFA();
+#endif
+#ifdef UNIX_AMD64_ABI
+                SystemVAmd64CheckForPassNativeStructInRegister(pMT);
+#endif
+            }
+        }
+    }
+}
+
 #ifdef _PREFAST_
 #pragma warning(push)
 #pragma warning(disable:21000) // Suppress PREFast warning about overly large function
@@ -4055,7 +4131,6 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
-        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pMT));
         PRECONDITION(pMT->HasLayout());
         PRECONDITION(pMT->GetLayoutInfo()->GetNumCTMFields() > 0);
@@ -4070,7 +4145,6 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
     hEnumField.EnumInit(mdtFieldDef, pMT->GetCl());
     ULONG cTotalFields = pInternalImport->EnumGetCount(&hEnumField);
 
-#ifdef _DEBUG
     LPCUTF8 szName;
     LPCUTF8 szNamespace;
     if (FAILED(pInternalImport->GetNameOfTypeDef(pMT->GetCl(), &szName, &szNamespace)))
@@ -4078,6 +4152,7 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         szName = szNamespace = "Invalid TypeDef record";
     }
 
+#ifdef _DEBUG
     if (g_pConfig->ShouldBreakOnStructMarshalSetup(szName))
         CONSISTENCY_CHECK_MSGF(false, ("BreakOnStructMarshalSetup: '%s' ", szName));
 #endif
@@ -4195,6 +4270,18 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
     {
         _ASSERTE(pEEClassLayoutInfo->IsZeroSized());
         pEEClassLayoutInfo->m_cbNativeSize = 1; // Bump the managed size of the structure up to 1.
+    }
+
+    // The intrinsic Vector types have specialized alignment requirements. For these types,
+    // copy the managed alignment requirement as the native alignment requirement.
+    if (strcmp(szNamespace, g_IntrinsicsNS) == 0)
+    {
+        if (strcmp(szName, g_Vector64Name) == 0
+            || strcmp(szName, g_Vector128Name) == 0
+            || strcmp(szName, g_Vector256Name) == 0)
+        {
+            pEEClassLayoutInfo->m_LargestAlignmentRequirementOfAllMembers = pEEClassLayoutInfo->m_ManagedLargestAlignmentRequirementOfAllMembers;
+        }
     }
 
     LoaderAllocator* pAllocator = pMT->GetLoaderAllocator();

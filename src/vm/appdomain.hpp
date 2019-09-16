@@ -1027,6 +1027,12 @@ public:
         return &m_ILStubGenLock;
     }
 
+    ListLock* GetNativeTypeLoadLock()
+    {
+        LIMITED_METHOD_CONTRACT;
+        return &m_NativeTypeLoadLock;
+    }
+
     STRINGREF *IsStringInterned(STRINGREF *pString);
     STRINGREF *GetOrInternString(STRINGREF *pString);
 
@@ -1185,6 +1191,7 @@ protected:
     ListLock         m_ClassInitLock;
     JitListLock      m_JITLock;
     ListLock         m_ILStubGenLock;
+    ListLock         m_NativeTypeLoadLock;
 
     // Fusion context, used for adding assemblies to the is domain. It defines
     // fusion properties for finding assemblyies such as SharedBinPath,

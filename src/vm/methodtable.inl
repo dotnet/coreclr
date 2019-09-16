@@ -1101,6 +1101,7 @@ inline UINT32 MethodTable::GetNativeSize()
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(GetClass());
+    EnsureNativeLayoutInfoInitialized();
     return GetClass()->GetNativeSize();
 }
 
@@ -1236,6 +1237,15 @@ inline EEClassLayoutInfo *MethodTable::GetLayoutInfo()
     LIMITED_METHOD_CONTRACT;
     PRECONDITION(HasLayout());
     return GetClass()->GetLayoutInfo();
+}
+
+inline void MethodTable::EnsureNativeLayoutInfoInitialized()
+{
+    LIMITED_METHOD_CONTRACT;
+#ifndef DACCESS_COMPILE
+    PRECONDITION(HasLayout());
+    EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(this);
+#endif
 }
 
 //==========================================================================================

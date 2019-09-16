@@ -708,7 +708,14 @@ public:
             if (wNativeSize == VARIABLESIZE)
             {
                 // the unmanaged type size is variable
-                nativeSize = m_pargs->m_pMT->GetNativeSize();
+                if (nativeType.InternalToken.IsBlittable())
+                {
+                    nativeSize = m_pargs->m_pMT->GetNumInstanceFieldBytes();
+                }
+                else
+                {
+                    nativeSize = m_pargs->m_pMT->GetNativeSize();
+                }
             }
             else
             {
