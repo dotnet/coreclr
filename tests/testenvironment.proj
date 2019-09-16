@@ -50,7 +50,7 @@
   <ItemDefinitionGroup>
     <TestEnvironment>
       <TieredCompilation>0</TieredCompilation>
-      <DbgEnableMiniDump>1</DbgEnableMiniDump> <!-- Enable minidumps for all scenarios -->
+      <DbgEnableMiniDump Condition="'$(TargetsWindows)' != 'true'">1</DbgEnableMiniDump> <!-- Enable minidumps for all scenarios -->
       <DbgMiniDumpName Condition="'$(TargetsWindows)' != 'true'">$HELIX_DUMP_FOLDER/coredump.%d.dmp</DbgMiniDumpName>
     </TestEnvironment>
   </ItemDefinitionGroup>

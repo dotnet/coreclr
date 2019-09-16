@@ -155,6 +155,10 @@ namespace CoreclrTestLib
                     Console.WriteLine($"Moving dump for {pid} to {path}.");
                     File.Move(defaultCoreDumpPath, path, true);
                 }
+                else
+                {
+                    Console.WriteLine($"Unable to find OS-generated dump for {pid} at default path: {defaultCoreDumpPath}");
+                }
                 return true;
             }
 
