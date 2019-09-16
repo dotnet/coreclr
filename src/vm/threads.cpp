@@ -1314,6 +1314,7 @@ void Dbg_TrackSyncStack::LeaveSync(UINT_PTR caller, void *pAwareLock)
 
 #endif  // TRACK_SYNC
 
+
 static  DWORD dwHashCodeSeed = 123456789;
 
 //--------------------------------------------------------------------
@@ -5188,6 +5189,7 @@ Thread::ApartmentState Thread::SetApartment(ApartmentState state, BOOL fFireMDAO
     return GetApartment();
 }
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
+
 
 //----------------------------------------------------------------------------
 //

@@ -153,9 +153,7 @@ void ILStubResolver::ResolveToken(mdToken token, TypeHandle * pTH, MethodDesc **
     {
     case mdtMethodDef:
         {
-            MethodDesc* pMD = m_pStubMD;
-            if (token != TOKEN_ILSTUB_METHODDEF)
-                pMD = m_pCompileTimeState->m_tokenLookupMap.LookupMethodDef(token);
+            MethodDesc* pMD = m_pCompileTimeState->m_tokenLookupMap.LookupMethodDef(token);
 
             _ASSERTE(pMD);
             *ppMD = pMD;

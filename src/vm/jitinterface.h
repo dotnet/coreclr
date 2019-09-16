@@ -161,6 +161,7 @@ EXTERN_C FCDECL_MONHELPER(JIT_MonEnterStatic_Portable, AwareLock *lock);
 EXTERN_C FCDECL_MONHELPER(JIT_MonExitStatic, AwareLock *lock);
 EXTERN_C FCDECL_MONHELPER(JIT_MonExitStatic_Portable, AwareLock *lock);
 
+
 #ifndef JIT_GetSharedGCStaticBase
 #define JIT_GetSharedGCStaticBase JIT_GetSharedGCStaticBase_Portable
 #endif

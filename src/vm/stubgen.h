@@ -301,8 +301,21 @@ public:
     }
     SigPointer LookupSig(mdToken token)
     {
-        WRAPPER_NO_CONTRACT;
-        return LookupSigWorker(token);
+        CONTRACTL
+        {
+            THROWS;
+            MODE_ANY;
+            GC_NOTRIGGER;
+            PRECONDITION(RidFromToken(token)-1 < m_signatures.GetCount());
+            PRECONDITION(RidFromToken(token) != 0);
+            PRECONDITION(TypeFromToken(token) == mdtSignature);
+        }
+        CONTRACTL_END;
+
+        CQuickBytesSpecifySize<16>& sigData = m_signatures[static_cast<COUNT_T>(RidFromToken(token)-1)];
+        PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigData.Ptr();
+        DWORD cbSig = static_cast<DWORD>(sigData.Size());
+        return SigPointer(pSig, cbSig);
     }
 
     mdToken GetToken(TypeHandle pMT)
@@ -342,25 +355,6 @@ protected:
         CONTRACTL_END;
         
         return ((HandleType*)m_qbEntries.Ptr())[RidFromToken(token)-1];
-    }
-
-    SigPointer LookupSigWorker(mdToken token)
-    {
-        CONTRACTL
-        {
-            THROWS;
-            MODE_ANY;
-            GC_NOTRIGGER;
-            PRECONDITION(RidFromToken(token)-1 < m_signatures.GetCount());
-            PRECONDITION(RidFromToken(token) != 0);
-            PRECONDITION(TypeFromToken(token) == mdtSignature);
-        }
-        CONTRACTL_END;
-
-        CQuickBytesSpecifySize<16>& sigData = m_signatures[static_cast<COUNT_T>(RidFromToken(token)-1)];
-        PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigData.Ptr();
-        DWORD cbSig = static_cast<DWORD>(sigData.Size());
-        return SigPointer(pSig, cbSig);
     }
 
     template<mdToken TokenType, typename HandleType>
@@ -405,9 +399,9 @@ protected:
         return token;
     }
     
-    unsigned int                                    m_nextAvailableRid;
-    CQuickBytesSpecifySize<TOKEN_LOOKUP_MAP_SIZE>   m_qbEntries;
-    InlineSArray<CQuickBytesSpecifySize<16>, 2, 0>  m_signatures;
+    unsigned int                                   m_nextAvailableRid;
+    CQuickBytesSpecifySize<TOKEN_LOOKUP_MAP_SIZE>  m_qbEntries;
+    SArray<CQuickBytesSpecifySize<16>, FALSE>      m_signatures;
 };
 
 class ILCodeLabel;
@@ -862,10 +856,6 @@ protected:
 #endif // BIT64
 };
 
-// Represents the signature of the target method for an IL stub
 #define TOKEN_ILSTUB_TARGET_SIG (TokenFromRid(0xFFFFFF, mdtSignature))
-// Represents the token for the IL stub method, useful for instance for
-// recursive calls.
-#define TOKEN_ILSTUB_METHODDEF (TokenFromRid(0xFFFFFF, mdtMethodDef))
 
 #endif  // __STUBGEN_H__

@@ -973,7 +973,6 @@ EXTERN_C void STDCALL OnHijackWorker(HijackArgs * pArgs);
 
 #ifdef DACCESS_COMPILE
 class BaseStackGuard;
-
 #endif
 
 // Note: Layout of this must match similarly named structures in jithelpers.cs.
@@ -4385,7 +4384,6 @@ public:
     }
     void* AllocTailCallArgBuffer(size_t size, void* gcDesc);
     void FreeTailCallArgBuffer();
-
 
 #ifdef _DEBUG
 private:
