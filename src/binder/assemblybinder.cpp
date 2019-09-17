@@ -645,7 +645,6 @@ namespace BINDER_SPACE
         _ASSERTE(ppSystemAssembly != NULL);
 
         ReleaseHolder<Assembly> pSystemAssembly;
-        StackSString sCoreLib;
 
         // For normal runs, corelib is expected to be found in systemDirectory.
         // For self-contained single-file bundles, corelib is expected within the bundle
@@ -657,7 +656,7 @@ namespace BINDER_SPACE
             sCoreLibDir.Append(DIRECTORY_SEPARATOR_CHAR_W);
         }
 
-        sCoreLib = sCoreLibDir;
+        StackSString sCoreLib(sCoreLibDir);
         sCoreLib.Append(CoreLibName_IL_W);
 
         // At run-time, System.Private.CoreLib.dll is expected to be the NI image.

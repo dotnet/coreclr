@@ -135,6 +135,10 @@ static void ConvertConfigPropertiesToUnicode(
             // If this application is a single-file bundle, the bundle-probe callback 
             // is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
             // Therefore obtain the value; don't convert it to Unicode.
+            //
+            // This method of communicating "BUNDLE_PROBE" as a string is a temporary hack.
+            // Please see https://github.com/dotnet/coreclr/issues/26752 about 
+            // designing a better corehost-coreclr interface.
 
             *bundleProbe = (BundleProbe *)propertyValues[propertyIndex];
             propertyKeysW[propertyIndex] = W("BUNDLE_PROBE");
@@ -175,7 +179,6 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
-
 extern "C"
 DLLEXPORT
 int coreclr_initialize(

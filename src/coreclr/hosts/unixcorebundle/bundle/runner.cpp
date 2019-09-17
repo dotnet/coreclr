@@ -35,7 +35,7 @@ bool runner_t::probe(const char *relative_path, int64_t *size, int64_t *offset)
 {
     for (file_entry_t& entry : m_manifest.files)
     {
-        if (strcmp(entry.relative_path().c_str(), relative_path) == 0)
+        if (entry.relative_path() == relative_path)
         {
             *size = entry.size();
             *offset = entry.offset();
