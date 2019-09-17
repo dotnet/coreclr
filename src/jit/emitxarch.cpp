@@ -14035,17 +14035,33 @@ emitter::insExecutionCharacteristics emitter::getInsExecutionCharacteristics(ins
             break;
 
         case INS_div:
-        case INS_idiv:
-            result.insThroughput = PERFSCORE_THROUGHPUT_6C;
-            // The integer divide instruction has a long latency
+            // The integer divide instructions have long latencies
             if ((id->idOpSize() == EA_8BYTE))
             {
-                result.insLatency = PERFSCORE_LATENCY_50C;
+                result.insThroughput = PERFSCORE_THROUGHPUT_52C;
+                result.insLatency    = PERFSCORE_LATENCY_62C;
             }
             else
             {
                 assert(id->idOpSize() == EA_4BYTE);
-                result.insThroughput = PERFSCORE_LATENCY_25C;
+                result.insThroughput = PERFSCORE_THROUGHPUT_6C;
+                result.insThroughput = PERFSCORE_LATENCY_26C;
+            }
+            break;
+
+        case INS_idiv:
+            result.insThroughput = PERFSCORE_THROUGHPUT_6C;
+            // The integer divide instructions have long latenies
+            if ((id->idOpSize() == EA_8BYTE))
+            {
+                result.insThroughput = PERFSCORE_THROUGHPUT_57C;
+                result.insLatency    = PERFSCORE_LATENCY_69C;
+            }
+            else
+            {
+                assert(id->idOpSize() == EA_4BYTE);
+                result.insThroughput = PERFSCORE_THROUGHPUT_6C;
+                result.insThroughput = PERFSCORE_LATENCY_26C;
             }
             break;
 

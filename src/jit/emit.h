@@ -1235,7 +1235,9 @@ protected:
 #define PERFSCORE_THROUGHPUT_6C 6.0f   // slower - 6 cycles
 #define PERFSCORE_THROUGHPUT_10C 10.0f // slower - 10 cycles
 #define PERFSCORE_THROUGHPUT_13C 13.0f // slower - 13 cycles
-#define PERFSCORE_THROUGHPUT_25C 25.0f // slower - 26 cycles
+#define PERFSCORE_THROUGHPUT_25C 25.0f // slower - 25 cycles
+#define PERFSCORE_THROUGHPUT_52C 52.0f // slower - 52 cycles
+#define PERFSCORE_THROUGHPUT_57C 57.0f // slower - 57 cycles
 
 #define PERFSCORE_THROUGHPUT_DEFAULT PERFSCORE_THROUGHPUT_1C
 
@@ -1257,8 +1259,9 @@ protected:
 #define PERFSCORE_LATENCY_13C 13.0f
 #define PERFSCORE_LATENCY_16C 16.0f
 #define PERFSCORE_LATENCY_23C 23.0f
-#define PERFSCORE_LATENCY_25C 25.0f
-#define PERFSCORE_LATENCY_50C 50.0f
+#define PERFSCORE_LATENCY_26C 26.0f
+#define PERFSCORE_LATENCY_62C 62.0f
+#define PERFSCORE_LATENCY_69C 69.0f
 
 #define PERFSCORE_LATENCY_BRANCH_DIRECT 1.0f   // cost of an unconditional branch
 #define PERFSCORE_LATENCY_BRANCH_COND 2.0f     // includes cost of a possible misprediction
