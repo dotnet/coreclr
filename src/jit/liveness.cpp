@@ -861,7 +861,7 @@ void Compiler::fgExtendDbgLifetimes()
                 argDsc               = lvaTable + fieldVarNum;
             }
         }
-        noway_assert(argDsc->lvIsParam);
+        noway_assert(argDsc->lvIsArg);
         if (argDsc->lvTracked)
         {
             noway_assert(!VarSetOps::IsMember(this, trackedArgs, argDsc->lvVarIndex)); // Each arg should define a
@@ -2519,7 +2519,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
            liveness of such locals will bubble to the top (fgFirstBB)
            in fgInterBlockLocalVarLiveness() */
 
-        if (!varDsc->lvIsParam && VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex) &&
+        if (!varDsc->lvIsArg && VarSetOps::IsMember(this, fgFirstBB->bbLiveIn, varDsc->lvVarIndex) &&
             (info.compInitMem || varTypeIsGC(varDsc->TypeGet())))
         {
             varDsc->lvMustInit = true;
@@ -2545,7 +2545,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
 
             /* Don't set lvMustInit unless we have a non-arg, GC pointer */
 
-            if (varDsc->lvIsParam)
+            if (varDsc->lvIsArg)
             {
                 continue;
             }

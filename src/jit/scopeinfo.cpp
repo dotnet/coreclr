@@ -310,7 +310,7 @@ void CodeGenInterface::siVarLoc::siFillStackVarLoc(
             // to accomodate for this situation.
             if (varDsc->lvIsImplicitByRef)
             {
-                assert(varDsc->lvIsParam);
+                assert(varDsc->lvIsArg);
                 assert(varDsc->lvType == TYP_BYREF);
                 this->vlType = VLT_STK_BYREF;
             }
@@ -1533,7 +1533,7 @@ void CodeGen::psiBegProlog()
     {
         LclVarDsc* lclVarDsc = &compiler->lvaTable[varScope->vsdVarNum];
 
-        if (!lclVarDsc->lvIsParam)
+        if (!lclVarDsc->lvIsArg)
         {
             continue;
         }

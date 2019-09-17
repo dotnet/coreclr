@@ -377,7 +377,7 @@ public:
     // note this only packs because var_types is a typedef of unsigned char
     var_types lvType : 5; // TYP_INT/LONG/FLOAT/DOUBLE/REF
 
-    unsigned char lvIsParam : 1;           // is this a parameter?
+    unsigned char lvIsArg : 1;             // is this an argument?
     unsigned char lvIsRegArg : 1;          // is this an argument that was passed by register?
     unsigned char lvFramePointerBased : 1; // 0 = off of REG_SPBASE (e.g., ESP), 1 = off of REG_FPBASE (e.g., EBP)
 
@@ -831,7 +831,7 @@ public:
         // this for arguments, which must be passed according the defined ABI. We don't want to do this for
         // dependently promoted struct fields, but we don't know that here. See lvaMapSimd12ToSimd16().
         // (Note that for 64-bits, we are already rounding up to 16.)
-        if ((lvType == TYP_SIMD12) && !lvIsParam)
+        if ((lvType == TYP_SIMD12) && !lvIsArg)
         {
             assert(lvExactSize == 12);
             return 16;
@@ -873,14 +873,14 @@ public:
     {
         return varTypeIsSmall(TypeGet()) &&
                // lvIsStructField is treated the same as the aliased local, see fgDoNormalizeOnStore.
-               (lvIsParam || lvAddrExposed || lvIsStructField);
+               (lvIsArg || lvAddrExposed || lvIsStructField);
     }
 
     bool lvNormalizeOnStore()
     {
         return varTypeIsSmall(TypeGet()) &&
                // lvIsStructField is treated the same as the aliased local, see fgDoNormalizeOnStore.
-               !(lvIsParam || lvAddrExposed || lvIsStructField);
+               !(lvIsArg || lvAddrExposed || lvIsStructField);
     }
 
     void incRefCnts(BasicBlock::weight_t weight,
@@ -3274,7 +3274,7 @@ public:
         LclVarDsc* varDsc = lvaGetDesc(varNum);
         if (varDsc->lvIsImplicitByRef)
         {
-            assert(varDsc->lvIsParam);
+            assert(varDsc->lvIsArg);
 
             assert(varTypeIsStruct(varDsc) || (varDsc->lvType == TYP_BYREF));
             return true;
@@ -6887,7 +6887,7 @@ private:
 
         LclVarDsc* varDsc = &lvaTable[lclNum];
 
-        assert(varDsc->lvIsParam);
+        assert(varDsc->lvIsArg);
 
         return (info.compIsVarArgs && !varDsc->lvIsRegArg && (lclNum != lvaVarargsHandleArg));
 
@@ -9432,9 +9432,9 @@ public:
             // Possible solution to address case (b)
             //   - Whenver a parameter passed in an argument register needs to be spilled by LSRA, we
             //     create a new spill temp if the method needs GS cookie check.
-            return varDsc->lvIsParam;
+            return varDsc->lvIsArg;
 #else // !defined(_TARGET_AMD64_)
-            return varDsc->lvIsParam && !varDsc->lvIsRegArg;
+            return varDsc->lvIsArg && !varDsc->lvIsRegArg;
 #endif
         }
 

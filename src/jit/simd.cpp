@@ -1084,7 +1084,7 @@ GenTree* Compiler::impSIMDPopStack(var_types type, bool expectAddr, CORINFO_CLAS
     {
         unsigned   lclNum    = tree->AsLclVarCommon()->GetLclNum();
         LclVarDsc* lclVarDsc = &lvaTable[lclNum];
-        isParam              = lclVarDsc->lvIsParam;
+        isParam              = lclVarDsc->lvIsArg;
     }
 
     // normalize TYP_STRUCT value

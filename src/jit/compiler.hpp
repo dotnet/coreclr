@@ -1191,7 +1191,7 @@ inline GenTree* Compiler::gtNewFieldRef(var_types typ, CORINFO_FIELD_HANDLE fldH
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
         // These structs are passed by reference; we should probably be able to treat these
         // as non-global refs, but downstream logic expects these to be marked this way.
-        if (lvaTable[lclNum].lvIsParam)
+        if (lvaTable[lclNum].lvIsArg)
         {
             tree->gtFlags |= GTF_GLOB_REF;
         }
@@ -2022,7 +2022,7 @@ inline
         varDsc               = lvaTable + varNum;
         bool isPrespilledArg = false;
 #if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
-        isPrespilledArg = varDsc->lvIsParam && compIsProfilerHookNeeded() &&
+        isPrespilledArg = varDsc->lvIsArg && compIsProfilerHookNeeded() &&
                           lvaIsPreSpilled(varNum, codeGen->regSet.rsMaskPreSpillRegs(false));
 #endif
 
@@ -2033,12 +2033,12 @@ inline
 #ifdef _TARGET_AMD64_
 #ifndef UNIX_AMD64_ABI
             // On amd64, every param has a stack location, except on Unix-like systems.
-            assert(varDsc->lvIsParam);
+            assert(varDsc->lvIsArg);
 #endif // UNIX_AMD64_ABI
 #else  // !_TARGET_AMD64_
             // For other targets, a stack parameter that is enregistered or prespilled
             // for profiling on ARM will have a stack location.
-            assert((varDsc->lvIsParam && !varDsc->lvIsRegArg) || isPrespilledArg);
+            assert((varDsc->lvIsArg && !varDsc->lvIsRegArg) || isPrespilledArg);
 #endif // !_TARGET_AMD64_
         }
 
@@ -2054,7 +2054,7 @@ inline
 #endif
         {
 #if DOUBLE_ALIGN
-            assert(FPbased == (isFramePointerUsed() || (genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)));
+            assert(FPbased == (isFramePointerUsed() || (genDoubleAlign() && varDsc->lvIsArg && !varDsc->lvIsRegArg)));
 #else
 #ifdef _TARGET_X86_
             assert(FPbased == isFramePointerUsed());
@@ -2191,7 +2191,7 @@ inline bool Compiler::lvaIsParameter(unsigned varNum)
     assert(varNum < lvaCount);
     varDsc = lvaTable + varNum;
 
-    return varDsc->lvIsParam;
+    return varDsc->lvIsArg;
 }
 
 inline bool Compiler::lvaIsRegArgument(unsigned varNum)
@@ -3908,7 +3908,7 @@ inline Compiler::lvaPromotionType Compiler::lvaGetPromotionType(const LclVarDsc*
         // The struct is not enregistered
         return PROMOTION_TYPE_DEPENDENT;
     }
-    if (!varDsc->lvIsParam)
+    if (!varDsc->lvIsArg)
     {
         // The struct is a register candidate
         return PROMOTION_TYPE_INDEPENDENT;
@@ -4021,7 +4021,7 @@ inline bool Compiler::lvaIsGCTracked(const LclVarDsc* varDsc)
     if (varDsc->lvTracked && (varDsc->lvType == TYP_REF || varDsc->lvType == TYP_BYREF))
     {
         // Stack parameters are always untracked w.r.t. GC reportings
-        const bool isStackParam = varDsc->lvIsParam && !varDsc->lvIsRegArg;
+        const bool isStackParam = varDsc->lvIsArg && !varDsc->lvIsRegArg;
 #ifdef _TARGET_AMD64_
         return !isStackParam && !lvaIsFieldOfDependentlyPromotedStruct(varDsc);
 #else  // !_TARGET_AMD64_

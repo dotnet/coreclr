@@ -1736,7 +1736,7 @@ void CodeGen::genExitCode(BasicBlock* block)
             for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount && varDsc->lvIsRegArg;
                  varNum++, varDsc++)
             {
-                noway_assert(varDsc->lvIsParam);
+                noway_assert(varDsc->lvIsArg);
 
                 gcInfo.gcMarkRegPtrVal(varDsc->lvArgReg, varDsc->TypeGet());
             }
@@ -3039,7 +3039,7 @@ void CodeGen::genGCWriteBarrier(GenTree* tgt, GCInfo::WriteBarrierForm wbf)
             else
             {
                 LclVarDsc* varDsc = &compiler->lvaTable[lclNum];
-                if (varDsc->lvIsParam && varDsc->lvType == TYP_BYREF)
+                if (varDsc->lvIsArg && varDsc->lvType == TYP_BYREF)
                 {
                     wbKind = CWBKind_ByRefArg; // Out (or in/out) arg
                 }
@@ -3234,7 +3234,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
         varDsc = compiler->lvaTable + varNum;
 
         // Is this variable a register arg?
-        if (!varDsc->lvIsParam)
+        if (!varDsc->lvIsArg)
         {
             continue;
         }
@@ -3606,7 +3606,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 varNum = regArgTab[argNum].varNum;
                 noway_assert(varNum < compiler->lvaCount);
                 varDsc = compiler->lvaTable + varNum;
-                noway_assert(varDsc->lvIsParam && varDsc->lvIsRegArg);
+                noway_assert(varDsc->lvIsArg && varDsc->lvIsRegArg);
 
                 /* cannot possibly have stack arguments */
                 noway_assert(varDsc->lvIsInReg());
@@ -3758,7 +3758,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
 
         noway_assert(regArgTab[argNum].circular == false);
 
-        noway_assert(varDsc->lvIsParam);
+        noway_assert(varDsc->lvIsArg);
         noway_assert(varDsc->lvIsRegArg);
         noway_assert(varDsc->lvIsInReg() == false ||
                      (varDsc->lvType == TYP_LONG && varDsc->lvOtherReg == REG_STK && regArgTab[argNum].slot == 2));
@@ -3917,13 +3917,13 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             varNumDest = regArgTab[destReg].varNum;
             noway_assert(varNumDest < compiler->lvaCount);
             varDscDest = compiler->lvaTable + varNumDest;
-            noway_assert(varDscDest->lvIsParam && varDscDest->lvIsRegArg);
+            noway_assert(varDscDest->lvIsArg && varDscDest->lvIsRegArg);
 
             noway_assert(srcReg < argMax);
             varNumSrc = regArgTab[srcReg].varNum;
             noway_assert(varNumSrc < compiler->lvaCount);
             varDscSrc = compiler->lvaTable + varNumSrc;
-            noway_assert(varDscSrc->lvIsParam && varDscSrc->lvIsRegArg);
+            noway_assert(varDscSrc->lvIsArg && varDscSrc->lvIsRegArg);
 
             emitAttr size = EA_PTRSIZE;
 
@@ -3940,7 +3940,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                 varNum = regArgTab[argNum].varNum;
                 noway_assert(varNum < compiler->lvaCount);
                 varDsc = compiler->lvaTable + varNum;
-                noway_assert(varDsc->lvIsParam && varDsc->lvIsRegArg);
+                noway_assert(varDsc->lvIsArg && varDsc->lvIsRegArg);
 
                 noway_assert(genTypeSize(genActualType(varDscSrc->TypeGet())) <= REGSIZE_BYTES);
 
@@ -4073,7 +4073,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
                     varNumSrc = regArgTab[srcReg].varNum;
                     noway_assert(varNumSrc < compiler->lvaCount);
                     varDscSrc = compiler->lvaTable + varNumSrc;
-                    noway_assert(varDscSrc->lvIsParam && varDscSrc->lvIsRegArg);
+                    noway_assert(varDscSrc->lvIsArg && varDscSrc->lvIsRegArg);
 
                     if (destMemType == TYP_REF)
                     {
@@ -4150,7 +4150,7 @@ void CodeGen::genFnPrologCalleeRegArgs(regNumber xtraReg, bool* pXtraRegClobbere
             }
 #endif // defined(UNIX_AMD64_ABI)
 
-            noway_assert(varDsc->lvIsParam && varDsc->lvIsRegArg);
+            noway_assert(varDsc->lvIsArg && varDsc->lvIsRegArg);
 #ifndef _TARGET_64BIT_
 #ifndef _TARGET_ARM_
             // Right now we think that incoming arguments are not pointer sized.  When we eventually
@@ -4377,7 +4377,7 @@ void CodeGen::genEnregisterIncomingStackArgs()
     {
         /* Is this variable a parameter? */
 
-        if (!varDsc->lvIsParam)
+        if (!varDsc->lvIsArg)
         {
             continue;
         }
@@ -4464,7 +4464,7 @@ void CodeGen::genCheckUseBlockInit()
         // double-counting the initialization impact of any locals.
         bool counted = false;
 
-        if (varDsc->lvIsParam)
+        if (varDsc->lvIsArg)
         {
             continue;
         }
@@ -6535,7 +6535,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     {
         for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->info.compArgsCount; varNum++, varDsc++)
         {
-            noway_assert(varDsc->lvIsParam);
+            noway_assert(varDsc->lvIsArg);
 
             if (!varDsc->lvIsRegArg)
             {
@@ -6608,7 +6608,7 @@ void CodeGen::genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed)
     //   - if floating point type, also reload it into corresponding integer reg
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->info.compArgsCount; varNum++, varDsc++)
     {
-        noway_assert(varDsc->lvIsParam);
+        noway_assert(varDsc->lvIsArg);
 
         if (!varDsc->lvIsRegArg)
         {
@@ -6879,7 +6879,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
         // method to have at least a single arg so that we can use it to obtain caller's
         // SP.
         LclVarDsc* varDsc = compiler->lvaTable;
-        NYI_IF((varDsc == nullptr) || !varDsc->lvIsParam, "Profiler ELT callback for a method without any params");
+        NYI_IF((varDsc == nullptr) || !varDsc->lvIsArg, "Profiler ELT callback for a method without any params");
 
         // lea rdx, [FramePointer + Arg0's offset]
         getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, REG_ARG_1, 0, 0);
@@ -6919,7 +6919,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper /*= CORINFO_HELP_PROF_FC
     else
     {
         LclVarDsc* varDsc = compiler->lvaTable;
-        NYI_IF((varDsc == nullptr) || !varDsc->lvIsParam, "Profiler ELT callback for a method without any params");
+        NYI_IF((varDsc == nullptr) || !varDsc->lvIsArg, "Profiler ELT callback for a method without any params");
 
         // lea rdx, [FramePointer + Arg0's offset]
         getEmitter()->emitIns_R_S(INS_lea, EA_PTRSIZE, REG_ARG_1, 0, 0);
@@ -7680,7 +7680,7 @@ void CodeGen::genFnProlog()
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
-        if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
+        if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
         {
             continue;
         }
@@ -10331,7 +10331,7 @@ unsigned CodeGen::getFirstArgWithStackSlot()
 
         // We should have found a stack parameter (and broken out of this loop) before
         // we find any non-parameters.
-        assert(varDsc->lvIsParam);
+        assert(varDsc->lvIsArg);
 
         if (varDsc->lvArgReg == REG_STK)
         {
@@ -10687,7 +10687,7 @@ void CodeGen::genSetScopeInfoUsingVariableRanges()
                     UNATIVE_OFFSET startOffs = liveRange.m_StartEmitLocation.CodeOffset(getEmitter());
                     UNATIVE_OFFSET endOffs   = liveRange.m_EndEmitLocation.CodeOffset(getEmitter());
 
-                    if (varDsc->lvIsParam && (startOffs == endOffs))
+                    if (varDsc->lvIsArg && (startOffs == endOffs))
                     {
                         // If the length is zero, it means that the prolog is empty. In that case,
                         // CodeGen::genSetScopeInfo will report the liveness of all arguments

@@ -1981,7 +1981,7 @@ inline UNATIVE_OFFSET emitter::emitInsSizeSV(code_t code, int var, int dsp)
 
 #ifdef UNIX_AMD64_ABI
                     LclVarDsc* varDsc         = emitComp->lvaTable + var;
-                    bool       isRegPassedArg = varDsc->lvIsParam && varDsc->lvIsRegArg;
+                    bool       isRegPassedArg = varDsc->lvIsArg && varDsc->lvIsRegArg;
                     // Register passed args could have a stack offset of 0.
                     noway_assert((int)offs < 0 || isRegPassedArg);
 #else  // !UNIX_AMD64_ABI

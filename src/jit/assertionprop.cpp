@@ -100,7 +100,7 @@ void Compiler::optAddCopies()
         // Note that this effectively disables this optimization for all local variables
         // as C# sets InitLocals all the time starting in Whidbey.
 
-        if (!varDsc->lvIsParam && info.compInitMem)
+        if (!varDsc->lvIsArg && info.compInitMem)
         {
             continue;
         }
@@ -115,7 +115,7 @@ void Compiler::optAddCopies()
         bool isFloatParam = false;
 
 #ifdef _TARGET_X86_
-        isFloatParam = varDsc->lvIsParam && varTypeIsFloating(typ);
+        isFloatParam = varDsc->lvIsArg && varTypeIsFloating(typ);
 #endif
 
         if (!isFloatParam && !varDsc->lvVolatileHint)
@@ -151,8 +151,8 @@ void Compiler::optAddCopies()
 #ifdef DEBUG
         if (verbose)
         {
-            printf("Trying to add a copy for V%02u %s, avg_wtd = %s\n", lclNum,
-                   varDsc->lvIsParam ? "an arg" : "a local", refCntWtd2str(paramAvgWtdRefDiv2));
+            printf("Trying to add a copy for V%02u %s, avg_wtd = %s\n", lclNum, varDsc->lvIsArg ? "an arg" : "a local",
+                   refCntWtd2str(paramAvgWtdRefDiv2));
         }
 #endif
 
@@ -180,7 +180,7 @@ void Compiler::optAddCopies()
             }
             noway_assert(block && (block->bbNum == bbNum));
 
-            bool     importantUseInBlock = (varDsc->lvIsParam) && (block->getBBWeight(this) > paramAvgWtdRefDiv2);
+            bool     importantUseInBlock = (varDsc->lvIsArg) && (block->getBBWeight(this) > paramAvgWtdRefDiv2);
             bool     isPreHeaderBlock    = ((block->bbFlags & BBF_LOOP_PREHEADER) != 0);
             BlockSet blockDom(BlockSetOps::UninitVal());
             BlockSet blockDomSub0(BlockSetOps::UninitVal());
@@ -243,7 +243,7 @@ void Compiler::optAddCopies()
         }
 
         // We should have found at least one heavier-than-averageDiv2 block.
-        if (varDsc->lvIsParam)
+        if (varDsc->lvIsArg)
         {
             if (!paramFoundImportantUse)
             {
@@ -266,7 +266,7 @@ void Compiler::optAddCopies()
         if (compStressCompile(STRESS_GENERIC_VARN, 30))
         {
             // Ensure that we preserve the invariants required by the subsequent code.
-            if (varDsc->lvIsParam || isDominatedByFirstBB)
+            if (varDsc->lvIsArg || isDominatedByFirstBB)
             {
                 doCopy = true;
             }
@@ -294,7 +294,7 @@ void Compiler::optAddCopies()
         }
 #endif
 
-        if (varDsc->lvIsParam)
+        if (varDsc->lvIsArg)
         {
             noway_assert(varDsc->lvDefStmt == nullptr || varDsc->lvIsStructField);
 

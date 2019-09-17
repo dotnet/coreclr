@@ -2019,7 +2019,7 @@ void emitter::emitSetFrameRangeGCRs()
     LclVarDsc* varDsc;
     for (varNum = 0, varDsc = emitComp->lvaTable; varNum < emitComp->lvaCount; varNum++, varDsc++)
     {
-        if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
+        if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
         {
             continue;
         }
@@ -4672,7 +4672,7 @@ unsigned emitter::emitEndCodeGen(Compiler* comp,
 
         for (num = 0, dsc = emitComp->lvaTable, cnt = emitComp->lvaCount; num < cnt; num++, dsc++)
         {
-            if (!dsc->lvOnFrame || (dsc->lvIsParam && !dsc->lvIsRegArg))
+            if (!dsc->lvOnFrame || (dsc->lvIsArg && !dsc->lvIsRegArg))
             {
                 continue;
             }

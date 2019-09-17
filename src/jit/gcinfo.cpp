@@ -521,7 +521,7 @@ bool GCInfo::gcIsUntrackedLocalOrNonEnregisteredArg(unsigned varNum, bool* pKeep
     assert(varTypeIsGC(varDsc->TypeGet()));
 
     // Do we have an argument or local variable?
-    if (!varDsc->lvIsParam)
+    if (!varDsc->lvIsArg)
     {
         // If is pinned, it must be an untracked local.
         assert(!varDsc->lvPinned || !varDsc->lvTracked);

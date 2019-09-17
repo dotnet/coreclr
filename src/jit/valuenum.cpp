@@ -5691,7 +5691,7 @@ void Compiler::fgValueNumber()
         LclVarDsc* varDsc = &lvaTable[lclNum];
         assert(varDsc->lvTracked);
 
-        if (varDsc->lvIsParam)
+        if (varDsc->lvIsArg)
         {
             // We assume that code equivalent to this variable initialization loop
             // has been performed when doing SSA naming, so that all the variables we give

@@ -2206,7 +2206,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                 // For genDoubleAlign(), locals are addressed relative to ESP and
                 // arguments are addressed relative to EBP.
 
-                if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
+                if (compiler->genDoubleAlign() && varDsc->lvIsArg && !varDsc->lvIsRegArg)
                     offset += compiler->codeGen->genTotalFrameSize();
 #endif
 
@@ -2255,7 +2255,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
                     // For genDoubleAlign(), locals are addressed relative to ESP and
                     // arguments are addressed relative to EBP.
 
-                    if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
+                    if (compiler->genDoubleAlign() && varDsc->lvIsArg && !varDsc->lvIsRegArg)
                     {
                         offset += compiler->codeGen->genTotalFrameSize();
                     }
@@ -4077,7 +4077,7 @@ void GCInfo::gcMakeRegPtrTable(
         if (varTypeIsGC(varDsc->TypeGet()))
         {
             // Do we have an argument or local variable?
-            if (!varDsc->lvIsParam)
+            if (!varDsc->lvIsArg)
             {
                 // If is is pinned, it must be an untracked local.
                 assert(!varDsc->lvPinned || !varDsc->lvTracked);
@@ -4185,7 +4185,7 @@ void GCInfo::gcMakeRegPtrTable(
                 // For genDoubleAlign(), locals are addressed relative to ESP and
                 // arguments are addressed relative to EBP.
 
-                if (compiler->genDoubleAlign() && varDsc->lvIsParam && !varDsc->lvIsRegArg)
+                if (compiler->genDoubleAlign() && varDsc->lvIsArg && !varDsc->lvIsRegArg)
                     offset += compiler->codeGen->genTotalFrameSize();
 #endif
                 GcSlotFlags flags = GC_SLOT_UNTRACKED;

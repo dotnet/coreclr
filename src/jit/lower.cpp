@@ -1991,7 +1991,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
                 callerArgDsc->lvFieldLclStart; // update the callerArgNum to the promoted struct field's lclNum
             callerArgDsc = comp->lvaTable + callerArgLclNum;
         }
-        noway_assert(callerArgDsc->lvIsParam);
+        noway_assert(callerArgDsc->lvIsArg);
 
         // Start searching in execution order list till we encounter call node
         unsigned  tmpLclNum = BAD_VAR_NUM;
@@ -3356,7 +3356,7 @@ void Lowering::InsertPInvokeMethodProlog()
 
     // some sanity checks on the frame list root vardsc
     LclVarDsc* varDsc = &comp->lvaTable[comp->info.compLvFrameListRoot];
-    noway_assert(!varDsc->lvIsParam);
+    noway_assert(!varDsc->lvIsArg);
     noway_assert(varDsc->lvType == TYP_I_IMPL);
 
     GenTree* store =

@@ -101,12 +101,12 @@ int Compiler::optCopyProp_LclVarScore(LclVarDsc* lclVarDsc, LclVarDsc* copyVarDs
     // For doubles we also prefer to change parameters into non-parameter local variables
     if (lclVarDsc->lvType == TYP_DOUBLE)
     {
-        if (lclVarDsc->lvIsParam)
+        if (lclVarDsc->lvIsArg)
         {
             score += 2;
         }
 
-        if (copyVarDsc->lvIsParam)
+        if (copyVarDsc->lvIsArg)
         {
             score -= 2;
         }
@@ -195,7 +195,7 @@ void Compiler::optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, Lc
         {
             continue;
         }
-        if (gsShadowVarInfo != nullptr && lvaTable[newLclNum].lvIsParam &&
+        if (gsShadowVarInfo != nullptr && lvaTable[newLclNum].lvIsArg &&
             gsShadowVarInfo[newLclNum].shadowCopy == lclNum)
         {
             continue;
@@ -381,7 +381,7 @@ void Compiler::optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curS
             // If we encounter first use of a param or this pointer add it as a live definition.
             // Since they are always live, do it only once.
             else if ((tree->gtOper == GT_LCL_VAR) && !(tree->gtFlags & GTF_VAR_USEASG) &&
-                     (lvaTable[lclNum].lvIsParam || lvaTable[lclNum].lvVerTypeInfo.IsThisPtr()))
+                     (lvaTable[lclNum].lvIsArg || lvaTable[lclNum].lvVerTypeInfo.IsThisPtr()))
             {
                 GenTreePtrStack* stack;
                 if (!curSsaName->Lookup(lclNum, &stack))

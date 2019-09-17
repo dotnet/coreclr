@@ -3604,7 +3604,7 @@ void CodeGen::genClearStackVec3ArgUpperBits()
     for (unsigned varNum = 0; varNum < compiler->info.compArgsCount; varNum++)
     {
         LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
-        assert(varDsc->lvIsParam);
+        assert(varDsc->lvIsArg);
 
         // Does var has simd12 type?
         if (varDsc->lvType != TYP_SIMD12)
@@ -5968,7 +5968,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             unsigned fieldVarNum = varDsc->lvFieldLclStart;
             varDsc               = compiler->lvaTable + fieldVarNum;
         }
-        noway_assert(varDsc->lvIsParam);
+        noway_assert(varDsc->lvIsArg);
 
         if (varDsc->lvIsRegArg && (varDsc->lvRegNum != REG_STK))
         {
@@ -6039,7 +6039,7 @@ void CodeGen::genJmpMethod(GenTree* jmp)
             unsigned fieldVarNum = varDsc->lvFieldLclStart;
             varDsc               = compiler->lvaTable + fieldVarNum;
         }
-        noway_assert(varDsc->lvIsParam);
+        noway_assert(varDsc->lvIsArg);
 
         // Skip if arg not passed in a register.
         if (!varDsc->lvIsRegArg)

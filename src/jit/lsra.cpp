@@ -1392,7 +1392,7 @@ void LinearScan::identifyCandidatesExceptionDataflow()
 
         if (varTypeIsGC(varDsc))
         {
-            if (VarSetOps::IsMember(compiler, finallyVars, varIndex) && !varDsc->lvIsParam)
+            if (VarSetOps::IsMember(compiler, finallyVars, varIndex) && !varDsc->lvIsArg)
             {
                 varDsc->lvMustInit = true;
             }
@@ -1659,7 +1659,7 @@ void LinearScan::identifyCandidates()
 #if DOUBLE_ALIGN
         if (checkDoubleAlign)
         {
-            if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
+            if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
             {
                 refCntStkParam += varDsc->lvRefCnt();
             }
@@ -7239,7 +7239,7 @@ void LinearScan::resolveRegisters()
 
                 // Determine initial position for parameters
 
-                if (varDsc->lvIsParam)
+                if (varDsc->lvIsArg)
                 {
                     regMaskTP initialRegMask = interval->firstRefPosition->registerAssignment;
                     regNumber initialReg     = (initialRegMask == RBM_NONE || interval->firstRefPosition->spillAfter)

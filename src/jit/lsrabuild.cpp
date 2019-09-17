@@ -1766,7 +1766,7 @@ void LinearScan::insertZeroInitRefPositions()
     while (iter.NextElem(&varIndex))
     {
         LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
-        if (!varDsc->lvIsParam && isCandidateVar(varDsc))
+        if (!varDsc->lvIsArg && isCandidateVar(varDsc))
         {
             JITDUMP("V%02u was live in to first block:", compiler->lvaTrackedIndexToLclNum(varIndex));
             Interval* interval = getIntervalForLocalVar(varIndex);
@@ -1973,7 +1973,7 @@ void LinearScan::buildIntervals()
     {
         LclVarDsc* argDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
 
-        if (!argDsc->lvIsParam)
+        if (!argDsc->lvIsArg)
         {
             continue;
         }
@@ -2048,7 +2048,7 @@ void LinearScan::buildIntervals()
             unsigned fieldVarNum = argDsc->lvFieldLclStart;
             argDsc               = &(compiler->lvaTable[fieldVarNum]);
         }
-        noway_assert(argDsc->lvIsParam);
+        noway_assert(argDsc->lvIsArg);
         if (!argDsc->lvTracked && argDsc->lvIsRegArg)
         {
             updateRegStateForArg(argDsc);
@@ -2130,7 +2130,7 @@ void LinearScan::buildIntervals()
                     LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
                     // Add a dummyDef for any candidate vars that are in the "newLiveIn" set.
                     // If this is the entry block, don't add any incoming parameters (they're handled with ParamDefs).
-                    if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsParam))
+                    if (isCandidateVar(varDsc) && (predBlock != nullptr || !varDsc->lvIsArg))
                     {
                         Interval*    interval = getIntervalForLocalVar(varIndex);
                         RefPosition* pos      = newRefPosition(interval, currentLoc, RefTypeDummyDef, nullptr,

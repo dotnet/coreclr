@@ -401,8 +401,8 @@ void Compiler::lvaInitThisPtr(InitVarDscInfo* varDscInfo)
     LclVarDsc* varDsc = varDscInfo->varDsc;
     if (!info.compIsStatic)
     {
-        varDsc->lvIsParam = 1;
-        varDsc->lvIsPtr   = 1;
+        varDsc->lvIsArg = 1;
+        varDsc->lvIsPtr = 1;
 
         lvaArg0Var = info.compThisArg = varDscInfo->varNum;
         noway_assert(info.compThisArg == 0);
@@ -483,7 +483,7 @@ void Compiler::lvaInitRetBuffArg(InitVarDscInfo* varDscInfo)
     {
         info.compRetBuffArg = varDscInfo->varNum;
         varDsc->lvType      = TYP_BYREF;
-        varDsc->lvIsParam   = 1;
+        varDsc->lvIsArg     = 1;
         varDsc->lvIsRegArg  = 1;
 
         if (hasFixedRetBuffReg())
@@ -575,7 +575,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
         CORINFO_CLASS_HANDLE typeHnd = nullptr;
 
         CorInfoTypeWithMod corInfoType = info.compCompHnd->getArgType(&info.compMethodInfo->args, argLst, &typeHnd);
-        varDsc->lvIsParam              = 1;
+        varDsc->lvIsArg                = 1;
 
         lvaInitVarDsc(varDsc, varDscInfo->varNum, strip(corInfoType), typeHnd, argLst, &info.compMethodInfo->args);
 
@@ -1075,7 +1075,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
         info.compTypeCtxtArg = varDscInfo->varNum;
 
         LclVarDsc* varDsc = varDscInfo->varDsc;
-        varDsc->lvIsParam = 1;
+        varDsc->lvIsArg   = 1;
         varDsc->lvType    = TYP_I_IMPL;
 
         if (varDscInfo->canEnreg(TYP_I_IMPL))
@@ -1129,7 +1129,7 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
 
         LclVarDsc* varDsc = varDscInfo->varDsc;
         varDsc->lvType    = TYP_I_IMPL;
-        varDsc->lvIsParam = 1;
+        varDsc->lvIsArg   = 1;
         // Make sure this lives in the stack -- address may be reported to the VM.
         // TODO-CQ: This should probably be:
         //   lvaSetVarDoNotEnregister(varDscInfo->varNum DEBUGARG(DNER_VMNeedsStackAddr));
@@ -1241,7 +1241,7 @@ void Compiler::lvaInitVarDsc(LclVarDsc*              varDsc,
 
     if (tiVerificationNeeded)
     {
-        if (varDsc->lvIsParam)
+        if (varDsc->lvIsArg)
         {
             // For an incoming ValueType we better be able to have the full type information
             // so that we can layout the parameter offsets correctly
@@ -1349,7 +1349,7 @@ unsigned Compiler::compMapILvarNum(unsigned ILvarNum)
         noway_assert(info.compIsVarArgs);
 
         varNum = lvaVarargsHandleArg;
-        noway_assert(lvaTable[varNum].lvIsParam);
+        noway_assert(lvaTable[varNum].lvIsArg);
     }
     else if (ILvarNum == (unsigned)ICorDebugInfo::RETBUF_ILNUM)
     {
@@ -1365,14 +1365,14 @@ unsigned Compiler::compMapILvarNum(unsigned ILvarNum)
     {
         // Parameter
         varNum = compMapILargNum(ILvarNum);
-        noway_assert(lvaTable[varNum].lvIsParam);
+        noway_assert(lvaTable[varNum].lvIsArg);
     }
     else if (ILvarNum < info.compILlocalsCount)
     {
         // Local variable
         unsigned lclNum = ILvarNum - info.compILargsCount;
         varNum          = info.compArgsCount + lclNum;
-        noway_assert(!lvaTable[varNum].lvIsParam);
+        noway_assert(!lvaTable[varNum].lvIsArg);
     }
     else
     {
@@ -1802,9 +1802,9 @@ bool Compiler::StructPromotionHelper::CanPromoteStructVar(unsigned lclNum)
 
     // Reject struct promotion of parameters when -GS stack reordering is enabled
     // as we could introduce shadow copies of them.
-    if (varDsc->lvIsParam && compiler->compGSReorderStackLayout)
+    if (varDsc->lvIsArg && compiler->compGSReorderStackLayout)
     {
-        JITDUMP("  struct promotion of V%02u is disabled because lvIsParam and compGSReorderStackLayout\n", lclNum);
+        JITDUMP("  struct promotion of V%02u is disabled because lvIsArg and compGSReorderStackLayout\n", lclNum);
         return false;
     }
 
@@ -1900,14 +1900,14 @@ bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned lclNum)
         shouldPromote = false;
     }
 #endif // _TARGET_AMD64_ || _TARGET_ARM64_ || _TARGET_ARM_
-    else if (varDsc->lvIsParam && !compiler->lvaIsImplicitByRefLocal(lclNum))
+    else if (varDsc->lvIsArg && !compiler->lvaIsImplicitByRefLocal(lclNum))
     {
 #if FEATURE_MULTIREG_STRUCT_PROMOTE
         // Is this a variable holding a value with exactly two fields passed in
         // multiple registers?
         if ((structPromotionInfo.fieldCnt != 2) && compiler->lvaIsMultiregStruct(varDsc, compiler->info.compIsVarArgs))
         {
-            JITDUMP("Not promoting multireg struct local V%02u, because lvIsParam is true and #fields != 2\n", lclNum);
+            JITDUMP("Not promoting multireg struct local V%02u, because lvIsArg is true and #fields != 2\n", lclNum);
             shouldPromote = false;
         }
         else
@@ -1921,7 +1921,7 @@ bool Compiler::StructPromotionHelper::ShouldPromoteStructVar(unsigned lclNum)
             //             overwrite other fields.
             if (structPromotionInfo.fieldCnt != 1)
         {
-            JITDUMP("Not promoting promotable struct local V%02u, because lvIsParam is true and #fields = "
+            JITDUMP("Not promoting promotable struct local V%02u, because lvIsArg is true and #fields = "
                     "%d.\n",
                     lclNum, structPromotionInfo.fieldCnt);
             shouldPromote = false;
@@ -2179,7 +2179,7 @@ void Compiler::StructPromotionHelper::PromoteStructVar(unsigned lclNum)
         fieldVarDsc->lvFldOffset     = pFieldInfo->fldOffset;
         fieldVarDsc->lvFldOrdinal    = pFieldInfo->fldOrdinal;
         fieldVarDsc->lvParentLcl     = lclNum;
-        fieldVarDsc->lvIsParam       = varDsc->lvIsParam;
+        fieldVarDsc->lvIsArg         = varDsc->lvIsArg;
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
 
         // Reset the implicitByRef flag.
@@ -2248,7 +2248,7 @@ void Compiler::lvaPromoteLongVars()
     {
         LclVarDsc* varDsc = &lvaTable[lclNum];
         if (!varTypeIsLong(varDsc) || varDsc->lvDoNotEnregister || varDsc->lvIsMultiRegArgOrRet() ||
-            (varDsc->lvRefCnt() == 0) || varDsc->lvIsStructField || (fgNoStructPromotion && varDsc->lvIsParam))
+            (varDsc->lvRefCnt() == 0) || varDsc->lvIsStructField || (fgNoStructPromotion && varDsc->lvIsArg))
         {
             continue;
         }
@@ -2265,7 +2265,7 @@ void Compiler::lvaPromoteLongVars()
         }
 #endif
 
-        bool isParam = varDsc->lvIsParam;
+        bool isParam = varDsc->lvIsArg;
 
         for (unsigned index = 0; index < 2; ++index)
         {
@@ -2296,7 +2296,7 @@ void Compiler::lvaPromoteLongVars()
             // Currently we do not support enregistering incoming promoted aggregates with more than one field.
             if (isParam)
             {
-                fieldVarDsc->lvIsParam = true;
+                fieldVarDsc->lvIsArg = true;
                 lvaSetVarDoNotEnregister(varNum DEBUGARG(DNER_LongParamField));
             }
         }
@@ -2512,7 +2512,7 @@ void Compiler::lvaSetStruct(unsigned varNum, CORINFO_CLASS_HANDLE typeHnd, bool 
 
 #if defined(_TARGET_AMD64_) || defined(_TARGET_ARM64_)
             // Mark implicit byref struct parameters
-            if (varDsc->lvIsParam && !varDsc->lvIsStructField)
+            if (varDsc->lvIsArg && !varDsc->lvIsStructField)
             {
                 structPassingKind howToReturnStruct;
                 getArgTypeForStruct(typeHnd, &howToReturnStruct, this->info.compIsVarArgs, varDsc->lvExactSize);
@@ -3974,7 +3974,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
             // and not tracked.
             for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
             {
-                const bool isSpecialVarargsParam = varDsc->lvIsParam && raIsVarargsStackArg(lclNum);
+                const bool isSpecialVarargsParam = varDsc->lvIsArg && raIsVarargsStackArg(lclNum);
 
                 if (isSpecialVarargsParam)
                 {
@@ -4006,7 +4006,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
 
             // Special case for some varargs params ... these must
             // remain unreferenced.
-            const bool isSpecialVarargsParam = varDsc->lvIsParam && raIsVarargsStackArg(lclNum);
+            const bool isSpecialVarargsParam = varDsc->lvIsArg && raIsVarargsStackArg(lclNum);
 
             if (!isSpecialVarargsParam)
             {
@@ -4045,7 +4045,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
 
         // Set initial value for lvSingleDef for explicit and implicit
         // argument locals as they are "defined" on entry.
-        varDsc->lvSingleDef = varDsc->lvIsParam;
+        varDsc->lvSingleDef = varDsc->lvIsArg;
     }
 
     JITDUMP("\n*** lvaComputeRefCounts -- explicit counts ***\n");
@@ -4112,7 +4112,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
 
         // If we have JMP, all arguments must have a location
         // even if we don't use them inside the method
-        if (compJmpOpUsed && varDsc->lvIsParam && (varDsc->lvRefCnt() == 0))
+        if (compJmpOpUsed && varDsc->lvIsArg && (varDsc->lvRefCnt() == 0))
         {
             // except when we have varargs and the argument is
             // passed on the stack.  In that case, it's important
@@ -4748,7 +4748,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
         // Is this a non-param promoted struct field?
         //   if so then set doAssignStkOffs to false.
         //
-        if (varDsc->lvIsStructField && !varDsc->lvIsParam)
+        if (varDsc->lvIsStructField && !varDsc->lvIsArg)
         {
             LclVarDsc*       parentvarDsc  = &lvaTable[varDsc->lvParentLcl];
             lvaPromotionType promotionType = lvaGetPromotionType(parentvarDsc);
@@ -4761,7 +4761,7 @@ void Compiler::lvaFixVirtualFrameOffsets()
 
         if (!varDsc->lvOnFrame)
         {
-            if (!varDsc->lvIsParam
+            if (!varDsc->lvIsArg
 #if !defined(_TARGET_AMD64_)
                 || (varDsc->lvIsRegArg
 #if defined(_TARGET_ARM_) && defined(PROFILING_SUPPORTED)
@@ -4855,7 +4855,7 @@ void Compiler::lvaUpdateArgsWithInitialReg()
             varDsc               = lvaTable + fieldVarNum;
         }
 
-        noway_assert(varDsc->lvIsParam);
+        noway_assert(varDsc->lvIsArg);
 
         if (varDsc->lvIsRegCandidate())
         {
@@ -5097,7 +5097,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
         }
     }
 
-    noway_assert(varDsc->lvIsParam);
+    noway_assert(varDsc->lvIsArg);
 
     if (varDsc->lvIsRegArg)
     {
@@ -5214,7 +5214,7 @@ int Compiler::lvaAssignVirtualFrameOffsetToArg(unsigned lclNum,
         }
     }
 
-    noway_assert(varDsc->lvIsParam);
+    noway_assert(varDsc->lvIsArg);
 
     if (varDsc->lvIsRegArg)
     {
@@ -5923,7 +5923,7 @@ void Compiler::lvaAssignVirtualFrameOffsetsToLocals()
                 continue;
             }
 
-            if (varDsc->lvIsParam)
+            if (varDsc->lvIsArg)
             {
 #if defined(_TARGET_AMD64_) && !defined(UNIX_AMD64_ABI)
 
@@ -6486,7 +6486,7 @@ void Compiler::lvaAssignFrameOffsetsToPromotedStructs()
             // A register passed struct arg is homed on the stack in a separate local var.
             // The offset of these structs is already calculated in lvaAssignVirtualFrameOffsetToArg methos.
             // Make sure the code below is not executed for these structs and the offset is not changed.
-            && !varDsc->lvIsParam
+            && !varDsc->lvIsArg
 #endif // !defined(_TARGET_ARM_)
 #endif // !UNIX_AMD64_ABI
             )
@@ -7269,7 +7269,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
     if (bFirstPass)
     {
         // Ignore arguments and temps
-        if (varDsc->lvIsParam || lclNum >= pComp->info.compLocalsCount)
+        if (varDsc->lvIsArg || lclNum >= pComp->info.compLocalsCount)
         {
             varDsc->lvNoLclFldStress = true;
             return WALK_SKIP_SUBTREES;

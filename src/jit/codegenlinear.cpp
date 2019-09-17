@@ -41,7 +41,7 @@ void CodeGen::genInitializeRegisterState()
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
         // Is this variable a parameter assigned to a register?
-        if (!varDsc->lvIsParam || !varDsc->lvRegister)
+        if (!varDsc->lvIsArg || !varDsc->lvRegister)
         {
             continue;
         }

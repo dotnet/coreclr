@@ -5959,7 +5959,7 @@ GenTree* Compiler::fgMorphStackArgForVarArgs(unsigned lclNum, var_types varType,
 
     LclVarDsc* varDsc = &lvaTable[lclNum];
 
-    if (varDsc->lvIsParam && !varDsc->lvIsRegArg && lclNum != lvaVarargsHandleArg)
+    if (varDsc->lvIsArg && !varDsc->lvIsRegArg && lclNum != lvaVarargsHandleArg)
     {
         // Create a node representing the local pointing to the base of the args
         GenTree* ptrArg =
@@ -7358,7 +7358,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
                     return nullptr;
                 }
             }
-            if (varDsc->lvPromoted && varDsc->lvIsParam && !lvaIsImplicitByRefLocal(varNum))
+            if (varDsc->lvPromoted && varDsc->lvIsArg && !lvaIsImplicitByRefLocal(varNum))
             {
                 failTailCall("Has Struct Promoted Param");
                 return nullptr;
@@ -7372,7 +7372,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             }
         }
 
-        if (varTypeIsStruct(varDsc->TypeGet()) && varDsc->lvIsParam)
+        if (varTypeIsStruct(varDsc->TypeGet()) && varDsc->lvIsArg)
         {
             hasStructParam = true;
             // This prevents transforming a recursive tail call into a loop
@@ -8255,7 +8255,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
                 continue;
             }
 #endif // FEATURE_FIXED_OUT_ARGS
-            if (!varDsc->lvIsParam)
+            if (!varDsc->lvIsArg)
             {
                 var_types lclType            = varDsc->TypeGet();
                 bool      isUserLocal        = (varNum < info.compLocalsCount);
@@ -8339,7 +8339,7 @@ Statement* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
     {
         unsigned   lclNum = arg->AsLclVar()->gtLclNum;
         LclVarDsc* varDsc = &lvaTable[lclNum];
-        if (!varDsc->lvIsParam)
+        if (!varDsc->lvIsArg)
         {
             // The argument is a non-parameter local so it doesn't need to be assigned to a temp.
             argInTemp = arg;
@@ -8376,7 +8376,7 @@ Statement* Compiler::fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
 
         // Now assign the temp to the parameter.
         LclVarDsc* paramDsc = lvaTable + originalArgNum;
-        assert(paramDsc->lvIsParam);
+        assert(paramDsc->lvIsArg);
         GenTree* paramDest       = gtNewLclvNode(originalArgNum, paramDsc->lvType);
         GenTree* paramAssignNode = gtNewAssignNode(paramDest, argInTemp);
         paramAssignStmt          = gtNewStmt(paramAssignNode, callILOffset);
@@ -17522,7 +17522,7 @@ void Compiler::fgRetypeImplicitByRefArgs()
                         fieldVarDsc->setLvRefCnt(0, RCS_EARLY);
                     }
 
-                    fieldVarDsc->lvIsParam = false;
+                    fieldVarDsc->lvIsArg = false;
                     // The fields shouldn't inherit any register preferences from
                     // the parameter which is really a pointer to the struct.
                     fieldVarDsc->lvIsRegArg      = false;
@@ -18346,7 +18346,7 @@ private:
         // a ByRef to an INT32 when they actually write a SIZE_T or INT64. There are cases where
         // overwriting these extra 4 bytes corrupts some data (such as a saved register) that leads
         // to A/V. Wheras previously the JIT64 codegen did not lead to an A/V.
-        if (!varDsc->lvIsParam && !varDsc->lvIsStructField && (genActualType(varDsc->TypeGet()) == TYP_INT))
+        if (!varDsc->lvIsArg && !varDsc->lvIsStructField && (genActualType(varDsc->TypeGet()) == TYP_INT))
         {
             // TODO-Cleanup: This should simply check if the user is a call node, not if a call ancestor exists.
             if (Compiler::gtHasCallOnStack(&m_ancestors))

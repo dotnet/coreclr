@@ -300,7 +300,7 @@ void Compiler::raMarkStkVars()
             bool needSlot = false;
 
             bool stkFixedArgInVarArgs =
-                info.compIsVarArgs && varDsc->lvIsParam && !varDsc->lvIsRegArg && lclNum != lvaVarargsHandleArg;
+                info.compIsVarArgs && varDsc->lvIsArg && !varDsc->lvIsRegArg && lclNum != lvaVarargsHandleArg;
 
             // If its address has been exposed, ignore lvRefCnt. However, exclude
             // fixed arguments in varargs method as lvOnFrame shouldn't be set
@@ -324,7 +324,7 @@ void Compiler::raMarkStkVars()
                an issue as fgExtendDbgLifetimes() adds an initialization and
                variables in scope will not have a zero ref-cnt.
              */
-            if (opts.compDbgCode && !varDsc->lvIsParam && varDsc->lvTracked)
+            if (opts.compDbgCode && !varDsc->lvIsArg && varDsc->lvTracked)
             {
                 for (unsigned scopeNum = 0; scopeNum < info.compVarScopesCount; scopeNum++)
                 {
@@ -348,7 +348,7 @@ void Compiler::raMarkStkVars()
 
                 needSlot |= true;
 
-                if (!varDsc->lvIsParam)
+                if (!varDsc->lvIsArg)
                 {
                     varDsc->lvMustInit = true;
                 }
@@ -393,7 +393,7 @@ void Compiler::raMarkStkVars()
 
             /* All arguments are off of EBP with double-aligned frames */
 
-            if (varDsc->lvIsParam && !varDsc->lvIsRegArg)
+            if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
             {
                 varDsc->lvFramePointerBased = true;
             }
@@ -421,7 +421,7 @@ void Compiler::raMarkStkVars()
         // to the GC, as the frame offsets in these local varables would
         // not be correct.
 
-        if (varDsc->lvIsParam && raIsVarargsStackArg(lclNum))
+        if (varDsc->lvIsArg && raIsVarargsStackArg(lclNum))
         {
             if (!varDsc->lvPromoted && !varDsc->lvIsStructField)
             {

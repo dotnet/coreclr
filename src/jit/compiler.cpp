@@ -4900,7 +4900,7 @@ bool Compiler::compQuirkForPPP()
     /* Look for struct locals that are address taken */
     for (lclNum = 0, varDsc = lvaTable; lclNum < lvaCount; lclNum++, varDsc++)
     {
-        if (varDsc->lvIsParam) // It can't be a parameter
+        if (varDsc->lvIsArg) // It can't be a parameter
         {
             continue;
         }
