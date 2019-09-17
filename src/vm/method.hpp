@@ -302,7 +302,7 @@ public:
         //
         // In particular, methods versionable with vtable slot backpatch should not have a precode (in the sense HasPrecode()
         // must return false) even if they will not have native code.
-        bool result = IsVersionableWithPrecode() ? true : !MayHaveNativeCode();
+        bool result = IsVersionableWithPrecode() || !MayHaveNativeCode();
         _ASSERTE(!result || !IsVersionableWithVtableSlotBackpatch());
         return result;
     }
@@ -1441,7 +1441,7 @@ public:
             return false;
 #endif
 
-        return IsVersionableWithPrecode() && !IsEnCMethod();
+        return !IsVersionableWithPrecode() && !IsEnCMethod();
     }
 
     //Is this method currently pointing to native code that will never change?

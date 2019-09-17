@@ -3786,17 +3786,9 @@ void MethodDesc::SaveChunk::Append(MethodDesc * pMD)
     // Determine optional slots that are going to be saved
     if (method.m_fHasPrecode)
     {
-        method.m_fHasNativeCodeSlot = pMD->MayHaveNativeCode();
+        method.m_fHasNativeCodeSlot = TRUE;
 
-        if (method.m_fHasNativeCodeSlot)
-        {
-            method.m_fHasFixupList = (m_pImage->GetFixupList(pMD) != NULL);
-        }
-        else
-        {
-            _ASSERTE(m_pImage->GetFixupList(pMD) == NULL);
-            method.m_fHasFixupList = FALSE;
-        }
+        method.m_fHasFixupList = (m_pImage->GetFixupList(pMD) != NULL);
     }
     else
     {
