@@ -37,6 +37,7 @@ set(HEADERS
     ./bundle/runner.h
     ./bundle/trace.h
     ./bundle/utils.h
+    ../unixcoreruncommon/coreruncommon.h
 )
 
 _add_executable(corebundle
