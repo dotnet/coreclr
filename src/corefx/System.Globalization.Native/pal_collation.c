@@ -626,7 +626,7 @@ static int32_t inline GetNextNonIgnorableCharacter(UCollationElements* pIterator
     {
         result = ucol_next(pIterator, pErrorCode);
     }
-    while (result == UCOL_IGNORABLE); // we don't check errorCode because on error the result is set to UCOL_NULLORDER
+    while (result == UCOL_IGNORABLE); // SimpleStartsWith_Iterators checks for error
 
     return result;
 }
@@ -640,7 +640,16 @@ static int32_t SimpleStartsWith_Iterators(UCollationElements* pPatternIterator, 
     while (TRUE)
     {
         int32_t patternItem = GetNextNonIgnorableCharacter(pPatternIterator, &errorCode);
+        if (!U_SUCCESS(errorCode))
+        {
+            return FALSE;
+        }
+
         int32_t sourceItem = GetNextNonIgnorableCharacter(pSourceIterator, &errorCode);
+        if (!U_SUCCESS(errorCode))
+        {
+            return FALSE;
+        }
 
         if (patternItem == UCOL_NULLORDER)
         {
@@ -661,8 +670,10 @@ static int32_t SimpleStartsWith_Iterators(UCollationElements* pPatternIterator, 
     }
 }
 
-int32_t SimpleStartsWith(const UCollator* pCollator, UErrorCode* pErrorCode, const UChar* pPattern, int32_t patternLength, const UChar* pText, int32_t textLength)
+int32_t SimpleStartsWith(const UCollator* pCollator, UErrorCode* pErrorCode, const UChar* pPattern, int32_t patternLength, const UChar* pText, int32_t textLength, int32_t options)
 {
+    assert(options <= 1);
+
     int32_t result = FALSE;
 
     UCollationElements* pPatternIterator = ucol_openElements(pCollator, pPattern, patternLength, pErrorCode);
@@ -735,7 +746,7 @@ int32_t GlobalizationNative_StartsWith(
     }
     else
     {
-        return SimpleStartsWith(pCollator, &err, lpTarget, cwTargetLength, lpSource, cwSourceLength);
+        return SimpleStartsWith(pCollator, &err, lpTarget, cwTargetLength, lpSource, cwSourceLength, options);
     }
 }
 
