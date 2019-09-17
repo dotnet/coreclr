@@ -310,10 +310,6 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
     LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
 #endif
 
-#ifndef CROSSGEN_COMPILE
-    JitILStub(pDispatchTailCallsMD);
-#endif
-
     // We might waste a MethodDesc here if we lose the race, but that is very
     // unlikely and since this initialization only happens once not a big deal.
     InterlockedCompareExchangeT(&s_tailCallDispatcherMD, pDispatchTailCallsMD, NULL);
@@ -611,10 +607,6 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
 #endif
 
-#ifndef CROSSGEN_COMPILE
-    JitILStub(pStoreArgsMD);
-#endif
-
     return pStoreArgsMD;
 }
 
@@ -831,10 +823,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     StackScratchBuffer ssb;
     LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: CallTarget IL created\n"));
     LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
-#endif
-
-#ifndef CROSSGEN_COMPILE
-    JitILStub(pCallTargetMD);
 #endif
 
     return pCallTargetMD;
