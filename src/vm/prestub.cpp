@@ -896,6 +896,11 @@ PCODE MethodDesc::JitCompileCodeLockedEventWrapper(PrepareCodeConfig* pConfig, J
             {
                 g_profControlBlock.pProfInterface->DynamicMethodJITCompilationFinished((FunctionID)this, pEntry->m_hrResultCode, TRUE);
             }
+
+            if (nativeCodeVersion.IsDefaultVersion())
+            {
+                pConfig->SetProfilerMayHaveActivatedNonDefaultCodeVersion();
+            }
         }
         END_PIN_PROFILER();
     }
@@ -1952,11 +1957,7 @@ PCODE MethodDesc::DoPrestub(MethodTable *pDispatchingMT)
     }
 
     /**************************   BACKPATCHING   *************************/
-    // See if the addr of code has changed from the pre-stub
-    BOOL fIsPointingToPrestub = IsPointingToPrestub();
-    bool fIsVersionable = false;
 #ifdef FEATURE_CODE_VERSIONING
-    fIsVersionable = IsVersionable();
     if (IsVersionable())
     {
         bool doBackpatch = true;

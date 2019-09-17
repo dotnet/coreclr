@@ -6968,7 +6968,7 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
         // for tiering currently to avoid some unnecessary overhead
         (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
 
-        (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED)) 
+        (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED))
 
 #ifdef FEATURE_REJIT
         ||
@@ -6979,9 +6979,9 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
             (GetMethodClassification(pMDMethod->GetMethodType()) == mcIL
                 || GetMethodClassification(pMDMethod->GetMethodType()) == mcDynamic) &&
 
-            !pMDMethod->GetOwningType()->GetModule()->IsCollectible() &&
+            !GetModule()->IsCollectible() &&
 
-            !pMDMethod->GetOwningType()->GetModule()->IsEditAndContinueEnabled())
+            !GetModule()->IsEditAndContinueEnabled())
 #endif // FEATURE_REJIT
         )
     {

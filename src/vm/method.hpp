@@ -1168,7 +1168,7 @@ public:
     bool IsVersionable()
     {
         WRAPPER_NO_CONTRACT;
-        return IsVersionableWithPrecode() || IsVersionableWithVtableSlotBackpatch();
+        return IsEligibleForTieredCompilation() || IsEligibleForReJIT();
     }
 
     // True iff all calls to the method should funnel through a Precode which can be updated to point to the current method
@@ -1233,6 +1233,7 @@ private:
     bool Helper_IsEligibleForVersioningWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
+        _ASSERTE(IsVersionable());
         _ASSERTE(IsIL() || IsDynamicMethod());
 
 #if defined(FEATURE_CODE_VERSIONING) && !defined(CROSSGEN_COMPILE)
@@ -1317,9 +1318,7 @@ public:
 #ifndef CROSSGEN_COMPILE
         // This is the only case currently. In the future, a method that does not have a vtable slot may still record entry
         // point slots that need to be backpatched on entry point change, and in such cases the conditions here may be changed.
-        bool result = IsVersionableWithVtableSlotBackpatch();
-
-        return result;
+        return IsVersionableWithVtableSlotBackpatch();
 #else
         // Entry point slot backpatch is disabled for CrossGen
         return false;
@@ -2060,8 +2059,6 @@ public:
     void SetProfilerMayHaveActivatedNonDefaultCodeVersion()
     {
         WRAPPER_NO_CONTRACT;
-        _ASSERTE(!m_profilerMayHaveActivatedNonDefaultCodeVersion);
-
         m_profilerMayHaveActivatedNonDefaultCodeVersion = true;
     }
 

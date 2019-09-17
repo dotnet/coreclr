@@ -3786,9 +3786,17 @@ void MethodDesc::SaveChunk::Append(MethodDesc * pMD)
     // Determine optional slots that are going to be saved
     if (method.m_fHasPrecode)
     {
-        method.m_fHasNativeCodeSlot = TRUE;
+        method.m_fHasNativeCodeSlot = pMD->MayHaveNativeCode();
 
-        method.m_fHasFixupList = (m_pImage->GetFixupList(pMD) != NULL);
+        if (method.m_fHasNativeCodeSlot)
+        {
+            method.m_fHasFixupList = (m_pImage->GetFixupList(pMD) != NULL);
+        }
+        else
+        {
+            _ASSERTE(m_pImage->GetFixupList(pMD) == NULL);
+            method.m_fHasFixupList = FALSE;
+        }
     }
     else
     {
@@ -3996,6 +4004,8 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
 #endif
 
             g_IBCLogger.LogMethodDescWriteAccess(this);
+            
+            pIMD->m_wFlags2 = pIMD->m_wFlags2 & ~InstantiatedMethodDesc::Unrestored;
 
             if (ETW_PROVIDER_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER))
             {
