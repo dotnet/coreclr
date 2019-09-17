@@ -5990,7 +5990,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\n***** " FMT_BB ", STMT%05u (before)\n", blk->bbNum, stmt->GetID());
+            printf("\n***** " FMT_BB ", " FMT_STMT "(before)\n", blk->bbNum, stmt->GetID());
             gtDispTree(stmt->gtStmtExpr);
             printf("\n");
         }
@@ -6004,7 +6004,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\n***** " FMT_BB ", STMT%05u (after)\n", blk->bbNum, stmt->GetID());
+            printf("\n***** " FMT_BB ", " FMT_STMT "(after)\n", blk->bbNum, stmt->GetID());
             gtDispTree(stmt->gtStmtExpr);
             printf("\n");
             if (stmt->gtNext)

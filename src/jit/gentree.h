@@ -5129,6 +5129,10 @@ struct GenTreeILOffset : public GenTree
 #endif
 };
 
+// We use the following format when print the Statement number: Statement->GetID()
+// This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
+#define FMT_STMT "STMT%05u"
+
 struct Statement
 {
 public:

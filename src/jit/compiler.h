@@ -8599,7 +8599,7 @@ public:
     static void printStmtID(Statement* stmt)
     {
         assert(stmt != nullptr);
-        printf("STMT%05u", stmt->GetID());
+        printf(FMT_STMT, stmt->GetID());
     }
 
     static void printTreeID(GenTree* tree)
