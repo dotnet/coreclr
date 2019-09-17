@@ -7820,7 +7820,7 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
 
     // Add return value arg.
     GenTree*     retValArg;
-    GenTree*     retVal;
+    GenTree*     retVal = nullptr;
     unsigned int newRetLcl = BAD_VAR_NUM;
 
     // Use existing retbuf if there is one.
@@ -7888,6 +7888,7 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
     if (origCall->gtType == TYP_VOID)
         return callDispatcherNode;
 
+    assert(retVal != nullptr);
     GenTree* comma = gtNewOperNode(GT_COMMA, origCall->TypeGet(), callDispatcherNode, retVal);
     // The JIT seems to want to CSE this comma and messes up multi-reg ret
     // values in the process. Just avoid CSE'ing this tree entirely in that
