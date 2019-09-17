@@ -7626,17 +7626,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  */           
 GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help)
 {
-#ifdef DEBUG
-    if (verbose)
-    {
-        printf("fgMorphTailCallViaHelper (before):\n");
-        for (Statement* stmt = fgMorphStmt; stmt != nullptr; stmt = stmt->getNextStmt())
-        {
-            gtDispTree(stmt->gtStmtExpr);
-            printf("\n");
-        }
-    }
-#endif
+    JITDUMP("fgMorphTailCallViaHelper (before):\n");
+    DISPTREE(call);
 
     // TODO: Some comments (check old document and see what still applies)
 
@@ -7849,12 +7840,26 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
     else if (origCall->gtType != TYP_VOID)
     {
         JITDUMP("Creating a new temp for the return value\n");
-        newRetLcl                  = lvaGrabTemp(false DEBUGARG("Return value for tail call dispatcher"));
-        lvaTable[newRetLcl].lvType = origCall->gtType;
+        newRetLcl = lvaGrabTemp(false DEBUGARG("Return value for tail call dispatcher"));
+        if (varTypeIsStruct(origCall->gtType))
+        {
+            lvaSetStruct(newRetLcl, origCall->gtRetClsHnd, false);
+        }
+        else
+        {
+            lvaTable[newRetLcl].lvType = origCall->gtType;
+        }
+
         lvaSetVarAddrExposed(newRetLcl);
 
-        retValArg = gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(newRetLcl, origCall->gtType));
-        retVal    = gtNewLclvNode(newRetLcl, origCall->gtType);
+        retValArg = gtNewOperNode(GT_ADDR, TYP_I_IMPL,
+                                  gtNewLclvNode(newRetLcl, lvaTable[newRetLcl].lvType));
+        retVal = gtNewLclvNode(newRetLcl, lvaTable[newRetLcl].lvType);
+
+        if (varTypeIsStruct(origCall->gtType))
+        {
+            retVal = impFixupStructReturnType(retVal, origCall->gtRetClsHnd);
+        }
     }
     else
     {
@@ -7883,7 +7888,14 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
     if (origCall->gtType == TYP_VOID)
         return callDispatcherNode;
 
-    return gtNewOperNode(GT_COMMA, origCall->TypeGet(), callDispatcherNode, retVal);
+    GenTree* comma = gtNewOperNode(GT_COMMA, origCall->TypeGet(), callDispatcherNode, retVal);
+    // The JIT seems to want to CSE this comma and messes up multi-reg ret
+    // values in the process. Just avoid CSE'ing this tree entirely in that
+    // case.
+    if (origCall->HasMultiRegRetVal())
+        comma->gtFlags |= GTF_DONT_CSE;
+
+    return comma;
 }
 
 // fgGetDirectCallTargetAddress: Create a node that represents the target
