@@ -26,23 +26,6 @@ set(COREBUNDLE_SOURCES
 )
 
 set(HEADERS
-    ./bundle/dir_utils.h
-    ./bundle/error_codes.h
-    ./bundle/extractor.h
-    ./bundle/file_entry.h
-    ./bundle/file_type.h
-    ./bundle/header.h
-    ./bundle/manifest.h
-    ./bundle/marker.h
-    ./bundle/pal.h
-    ./bundle/reader.h
-    ./bundle/runner.h
-    ./bundle/trace.h
-    ./bundle/utils.h
-    ../unixcoreruncommon/coreruncommon.h
-)
-
-set(HEADERS
     ./bundle/error_codes.h
     ./bundle/file_entry.h
     ./bundle/file_type.h
