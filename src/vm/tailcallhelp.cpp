@@ -314,8 +314,10 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
     JitILStub(pDispatchTailCallsMD);
 #endif
 
-    s_tailCallDispatcherMD = pDispatchTailCallsMD;
-    return pDispatchTailCallsMD;
+    // We might waste a MethodDesc here if we lose the race, but that is very
+    // unlikely and since this initialization only happens once not a big deal.
+    InterlockedCompareExchangeT(&s_tailCallDispatcherMD, pDispatchTailCallsMD, NULL);
+    return s_tailCallDispatcherMD;
 }
 
 void TailCallHelp::CreateTailCallHelperStubs(
