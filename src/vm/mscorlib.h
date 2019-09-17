@@ -1171,7 +1171,6 @@ DEFINE_METHOD(HANDLE_MARSHALER,          THROW_CRITICALHANDLE_FIELD_CHANGED, Thr
 
 DEFINE_CLASS(NATIVEVARIANT,         StubHelpers,            NativeVariant)
 DEFINE_CLASS(NATIVEDECIMAL,         StubHelpers,            NativeDecimal)
-DEFINE_CLASS(WINRT_TYPE_NAME_NATIVE,StubHelpers,            WinRTTypeNameNative)
 
 #ifdef FEATURE_COMINTEROP
 DEFINE_CLASS(IITERABLE,              WinRT,                 IIterable`1)

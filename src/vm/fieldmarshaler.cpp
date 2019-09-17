@@ -213,7 +213,7 @@ VOID ParseNativeType(Module*                     pModule,
                 break;
 #ifdef FEATURE_COMINTEROP
             case MarshalInfo::MARSHAL_TYPE_SYSTEMTYPE:
-                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__WINRT_TYPE_NAME_NATIVE));
+                *pNFD = NativeFieldDescriptor(MscorlibBinder::GetClass(CLASS__TYPENAMENATIVE));
                 break;
             case MarshalInfo::MARSHAL_TYPE_EXCEPTION:
                 *pNFD = NativeFieldDescriptor(NativeFieldCategory::INTEGER, sizeof(int), alignof(int));
