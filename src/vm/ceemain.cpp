@@ -1454,6 +1454,7 @@ void STDMETHODCALLTYPE EEShutDownHelper(BOOL fIsDllUnloading)
 
                     if (pThread != NULL)
                     {
+                        pInfo = pThread->GetIBCInfo();
                         if (pInfo == NULL) 
                         { 
                             CONTRACT_VIOLATION( ThrowsViolation | FaultViolation); 
