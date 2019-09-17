@@ -16,6 +16,8 @@ using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
 
+using System.Threading;
+
 namespace ILCompiler
 {
     public abstract class Compilation : ICompilation
@@ -211,17 +213,14 @@ namespace ILCompiler
             using (FileStream inputFile = File.OpenRead(_inputFilePath))
             {
                 PEReader inputPeReader = new PEReader(inputFile);
-                PerfEventSource.Log.LoadingStop();
 
-                PerfEventSource.Log.GraphProcessingStart();
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
-                PerfEventSource.Log.GraphProcessingStop();
 
-                PerfEventSource.Log.EmittingStart();
+                ReadyToRunPerfEventSource.Log.EmittingStart();
                 NodeFactory.SetMarkingComplete();
                 ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
-                PerfEventSource.Log.EmittingStop();
+                ReadyToRunPerfEventSource.Log.EmittingStop();
             }
         }
 
@@ -268,7 +267,7 @@ namespace ILCompiler
 
                 try
                 {
-                    PerfEventSource.Log.JitStart();
+                    ReadyToRunPerfEventSource.Log.JitStart();
                     _corInfo.CompileMethod(methodCodeNodeNeedingCode);
                 }
                 catch (TypeSystemException ex)
@@ -282,7 +281,7 @@ namespace ILCompiler
                 }
                 finally
                 {
-                    PerfEventSource.Log.JitStop();
+                    ReadyToRunPerfEventSource.Log.JitStop();
                 }
             }
         }

@@ -169,7 +169,7 @@ public sealed class ParallelRunner
             if (measurePerf)
             {
                 Debug.Assert(processList.Count == 1);
-                warmupRuns = 2;
+                warmupRuns = 1;
                 realRuns = 5;
                 perfMeasurer = new PerfEventSourceListener(traceEventSession, warmupRuns, realRuns);
             }

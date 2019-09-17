@@ -250,15 +250,16 @@ namespace ILCompiler.DependencyAnalysisFramework
 
         public override void ComputeMarkedNodes()
         {
+            DependencyAnalysisPerfEventSource.Log.GraphProcessingStart();
             if (_markingCompleted)
                 return;
 
             do
             {
                 // Run mark stack algorithm as much as possible
-                PerfEventSource.Log.DependencyAnalysisStart();
+                DependencyAnalysisPerfEventSource.Log.DependencyAnalysisStart();
                 ProcessMarkStack();
-                PerfEventSource.Log.DependencyAnalysisStop();
+                DependencyAnalysisPerfEventSource.Log.DependencyAnalysisStop();
 
                 // Compute all dependencies which were not ready during the ProcessMarkStack step
                 ComputeDependencies(_deferredStaticDependencies);
@@ -277,13 +278,14 @@ namespace ILCompiler.DependencyAnalysisFramework
             _markedNodesFinal = _markedNodes.ToImmutableArray();
             _markedNodes = null;
             _markingCompleted = true;
+            DependencyAnalysisPerfEventSource.Log.GraphProcessingStop();
         }
 
         private bool AddToMarkStack(DependencyNodeCore<DependencyContextType> node, string reason, DependencyNodeCore<DependencyContextType> reason1, DependencyNodeCore<DependencyContextType> reason2)
         {
             if (_marker.MarkNode(node, reason1, reason2, reason))
             {
-                PerfEventSource.Log.AddedNodeToMarkStack();
+                DependencyAnalysisPerfEventSource.Log.AddedNodeToMarkStack();
 
                 // Pop the top node of the mark stack
                 if (_stackPopRandomizer == null)

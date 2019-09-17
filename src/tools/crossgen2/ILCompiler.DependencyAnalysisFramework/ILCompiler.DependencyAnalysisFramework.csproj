@@ -33,6 +33,6 @@
     <Compile Include="IDependencyAnalysisMarkStrategy.cs" />
     <Compile Include="IDependencyNode.cs" />
     <Compile Include="NoLogStrategy.cs" />
-    <Compile Include="PerfEventSource.cs" />
+    <Compile Include="DependencyAnalysisPerfEventSource.cs" />
   </ItemGroup>
 </Project>

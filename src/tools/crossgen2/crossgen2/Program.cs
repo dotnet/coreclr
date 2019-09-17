@@ -229,8 +229,8 @@ namespace ILCompiler
                     throw new CommandLineException("Target OS is not supported");
             }
 
-            PerfEventSource.Log.CompilationStart();
-            PerfEventSource.Log.LoadingStart();
+            ReadyToRunPerfEventSource.Log.CompilationStart();
+            ReadyToRunPerfEventSource.Log.LoadingStart();
             //
             // Initialize type system context
             //
@@ -396,8 +396,9 @@ namespace ILCompiler
 
             ICompilation compilation = builder.ToCompilation();
 
+            ReadyToRunPerfEventSource.Log.LoadingStop();
             compilation.Compile(_outputFilePath);
-            PerfEventSource.Log.CompilationStop();
+            ReadyToRunPerfEventSource.Log.CompilationStop();
 
             return 0;
         }
