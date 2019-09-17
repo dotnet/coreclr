@@ -1712,7 +1712,8 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
     {
         r0Trashed = false;
     }
-    else if (varTypeIsFloating(compiler->info.compRetType) || compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))
+    else if (varTypeIsFloating(compiler->info.compRetType) ||
+             compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))
     {
         r0Trashed = !compiler->info.compIsVarArgs && !compiler->opts.compUseSoftFP;
     }
