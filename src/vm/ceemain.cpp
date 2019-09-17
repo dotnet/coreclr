@@ -274,7 +274,7 @@ HRESULT InitializeEE(COINITIEE flags)
 {
     WRAPPER_NO_CONTRACT;
 #ifdef FEATURE_EVENT_TRACE
-    if(!g_fEEComActivatedStartup)
+    if (!g_fEEComActivatedStartup)
         g_fEEOtherStartup = TRUE;
 #endif // FEATURE_EVENT_TRACE
     return EnsureEEStarted(flags);
@@ -1139,7 +1139,7 @@ HRESULT EEStartup(COINITIEE fFlags)
 
     _ASSERTE(!g_fEEStarted && !g_fEEInit && SUCCEEDED (g_EEStartupStatus));
 
-    PAL_TRY(COINITIEE *, pfFlags, &fFlags)
+    PAL_TRY(COINITIEE*, pfFlags, &fFlags)
     {
 #ifndef CROSSGEN_COMPILE
         InitializeClrNotifications();

@@ -78,6 +78,7 @@ int corerun(const int argc, const char* argv[])
                             argv0AbsolutePath.c_str(),
                             clrFilesAbsolutePath.c_str(),
                             managedAssemblyAbsolutePath.c_str(),
+                            nullptr,
                             managedAssemblyArgc,
                             managedAssemblyArgv);
 

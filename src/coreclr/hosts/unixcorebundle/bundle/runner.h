@@ -7,32 +7,32 @@
 
 #include "error_codes.h"
 #include "pal.h"
+#include "manifest.h"
 
 namespace bundle
 {
     class runner_t
     {
     public:
-        runner_t(const pal::string_t& bundle_path)
+        runner_t(const pal::string_t& bundle_path="")
             : m_bundle_path(bundle_path)
             , m_bundle_map(nullptr)
             , m_bundle_length(0)
         {
         }
 
-        StatusCode extract();
+        StatusCode process();
 
-        pal::string_t extraction_dir()
-        {
-            return m_extraction_dir;
-        }
+        bool probe (const char *relative_path, int64_t *size, int64_t *offset);
+
+        const pal::char_t* get_bundle_path() { return m_bundle_path.c_str(); }
 
     private:
         void map_host();
         void unmap_host();
 
+        manifest_t m_manifest;
         pal::string_t m_bundle_path;
-        pal::string_t m_extraction_dir;
         int8_t* m_bundle_map;
         size_t m_bundle_length;
     };

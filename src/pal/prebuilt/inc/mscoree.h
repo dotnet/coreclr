@@ -252,7 +252,7 @@ EXTERN_C const IID IID_ICLRRuntimeHost;
     ICLRRuntimeHost : public IUnknown
     {
     public:
-        virtual HRESULT STDMETHODCALLTYPE Start( void) = 0;
+        virtual HRESULT STDMETHODCALLTYPE Start() = 0;
         
         virtual HRESULT STDMETHODCALLTYPE Stop( void) = 0;
         

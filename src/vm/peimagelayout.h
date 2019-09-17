@@ -161,6 +161,7 @@ class FlatImageLayout: public PEImageLayout
 protected:
     HandleHolder m_FileMap;
     CLRMapViewHolder m_FileView;
+
 public:
 #ifndef DACCESS_COMPILE    
     FlatImageLayout(PEImage* pOwner);   

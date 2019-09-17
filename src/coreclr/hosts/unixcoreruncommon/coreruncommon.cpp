@@ -102,8 +102,7 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
     len = sizeof(path);
     if (sysctl(name, __arraycount(name), path, &len, NULL, 0) != -1)
     {
-        entrypointExecutable.assign(path);
-        result = true;
+        result = GetAbsolutePath(execfn, entrypointExecutable);
     }
     else
     {
@@ -116,8 +115,7 @@ bool GetEntrypointExecutableAbsolutePath(std::string& entrypointExecutable)
 
     if (execfn)
     {
-        entrypointExecutable.assign(execfn);
-        result = true;
+        result = GetAbsolutePath(execfn, entrypointExecutable);
     }
     else
 #endif
@@ -351,6 +349,7 @@ int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
             const char* managedAssemblyAbsolutePath,
+            bool bundleProbe(const char*, int64_t*, int64_t*),
             int managedAssemblyArgc,
             const char** managedAssemblyArgv)
 {
@@ -449,7 +448,12 @@ int ExecuteManagedAssembly(
     // NATIVE_DLL_SEARCH_DIRECTORIES
     // - The list of paths that will be probed for native DLLs called by PInvoke
     //
+    // BUNDLE_PROBE
+    // -  If this application is a single-file bundle, the bundle-probe callback 
+    //    is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
+
     const char *propertyKeys[] = {
+        "BUNDLE_PROBE",
         "TRUSTED_PLATFORM_ASSEMBLIES",
         "APP_PATHS",
         "APP_NI_PATHS",
@@ -461,6 +465,8 @@ int ExecuteManagedAssembly(
 #endif
     };
     const char *propertyValues[] = {
+        // BUNDLE_PROBE
+        (const char*)bundleProbe,
         // TRUSTED_PLATFORM_ASSEMBLIES
         tpaList.c_str(),
         // APP_PATHS

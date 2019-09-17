@@ -19,7 +19,7 @@
 #include "domainfile.h"
 #include "holder.h"
 #include "../binder/inc/assemblybinder.hpp"
-
+#include "bundle.h"
 #ifdef FEATURE_PREJIT
 #include "compile.h"
 #endif
@@ -197,10 +197,11 @@ VOID  AssemblySpec::Bind(AppDomain      *pAppDomain,
 }
 
 
-STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
-                            PEImage **ppPEImage,
-                            PEImage **ppNativeImage,
-                            BOOL      fExplicitBindToNativeImage)
+STDAPI BinderAcquirePEImage(LPCWSTR             wszAssemblyPath,
+                            PEImage           **ppPEImage,
+                            PEImage           **ppNativeImage,
+                            BOOL                fExplicitBindToNativeImage,
+                            BundleFileLocation  bundleFileLocation)
 {
     HRESULT hr = S_OK;
 
@@ -211,11 +212,13 @@ STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
         PEImageHolder pImage = NULL;
         PEImageHolder pNativeImage = NULL;
 
+        AppDomain* pDomain = ::GetAppDomain();
+
 #ifdef FEATURE_PREJIT
         // fExplicitBindToNativeImage is set on Phone when we bind to a list of native images and have no IL on device for an assembly
         if (fExplicitBindToNativeImage)
         {
-            pNativeImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_TrustedNativeImage);
+            pNativeImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_TrustedNativeImage, bundleFileLocation);
 
             // Make sure that the IL image can be opened if the native image is not available.
             hr=pNativeImage->TryOpenFile();
@@ -227,7 +230,7 @@ STDAPI BinderAcquirePEImage(LPCWSTR   wszAssemblyPath,
         else
 #endif
         {
-            pImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_Default);
+            pImage = PEImage::OpenImage(wszAssemblyPath, MDInternalImport_Default, bundleFileLocation);
 
             // Make sure that the IL image can be opened if the native image is not available.
             hr=pImage->TryOpenFile();

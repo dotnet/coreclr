@@ -148,6 +148,7 @@ int main(const int argc, const char* argv[])
                             entryPointExecutablePath.c_str(),
                             clrFilesAbsolutePath.c_str(),
                             managedAssemblyAbsolutePath,
+                            nullptr,
                             managedAssemblyArgc,
                             managedAssemblyArgv);
 

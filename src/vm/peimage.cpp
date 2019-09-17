@@ -1325,7 +1325,6 @@ void PEImage::LoadNoMetaData()
     }
 }
 
-
 #endif //DACCESS_COMPILE
 
 //-------------------------------------------------------------------------------
@@ -1364,19 +1363,20 @@ HANDLE PEImage::GetFileHandle()
 
     {
         ErrorModeHolder mode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
-        m_hFile=WszCreateFile((LPCWSTR) m_path,
-                                            GENERIC_READ,
-                                            FILE_SHARE_READ|FILE_SHARE_DELETE,
-                                            NULL,
-                                            OPEN_EXISTING,
-                                            FILE_ATTRIBUTE_NORMAL,
-                                            NULL);
+
+        m_hFile=WszCreateFile((LPCWSTR) GetPathToLoad(),
+                               GENERIC_READ,
+                               FILE_SHARE_READ|FILE_SHARE_DELETE,
+                               NULL,
+                               OPEN_EXISTING,
+                               FILE_ATTRIBUTE_NORMAL,
+                               NULL);
     }
 
     if (m_hFile == INVALID_HANDLE_VALUE)
     {
 #if !defined(DACCESS_COMPILE)
-        EEFileLoadException::Throw(m_path, HRESULT_FROM_WIN32(GetLastError()));
+        EEFileLoadException::Throw(GetPathToLoad(), HRESULT_FROM_WIN32(GetLastError()));
 #else // defined(DACCESS_COMPILE)
         ThrowLastError();
 #endif // !defined(DACCESS_COMPILE)
@@ -1410,15 +1410,17 @@ HRESULT PEImage::TryOpenFile()
     if (m_hFile!=INVALID_HANDLE_VALUE)
         return S_OK;
     {
-        ErrorModeHolder mode(SEM_NOOPENFILEERRORBOX|SEM_FAILCRITICALERRORS);
-        m_hFile=WszCreateFile((LPCWSTR) m_path,
-                                            GENERIC_READ,
-                                            FILE_SHARE_READ|FILE_SHARE_DELETE,
-                                            NULL,
-                                            OPEN_EXISTING,
-                                            FILE_ATTRIBUTE_NORMAL,
-                                            NULL);
+        ErrorModeHolder mode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
+
+        m_hFile = WszCreateFile((LPCWSTR)GetPathToLoad(),
+            GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_DELETE,
+            NULL,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            NULL);
     }
+
     if (m_hFile != INVALID_HANDLE_VALUE)
             return S_OK;
     if (GetLastError())
@@ -1450,7 +1452,6 @@ BOOL PEImage::IsPtrInImage(PTR_CVOID data)
 
     return FALSE;
 }
-
 
 #if !defined(DACCESS_COMPILE)
 PEImage * PEImage::OpenImage(

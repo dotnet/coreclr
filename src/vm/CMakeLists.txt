@@ -40,6 +40,7 @@ set(VM_SOURCES_DAC_AND_WKS_COMMON
     assembly.cpp
     baseassemblyspec.cpp
     binder.cpp
+    bundle.cpp
     callcounter.cpp
     ceeload.cpp
     class.cpp

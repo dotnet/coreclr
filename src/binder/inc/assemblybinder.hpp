@@ -18,6 +18,7 @@
 #include "bindertypes.hpp"
 #include "bindresult.hpp"
 #include "coreclrbindercommon.h"
+#include "bundle.h"
 
 class CLRPrivBinderAssemblyLoadContext;
 class CLRPrivBinderCoreCLR;
@@ -62,11 +63,12 @@ namespace BINDER_SPACE
                                             /* in */ PEImage    *pNativePEImage,
                                             /* out */ Assembly **ppAssembly);
 
-        static HRESULT GetAssembly(/* in */  SString     &assemblyPath,
-                                   /* in */  BOOL         fIsInGAC,
-                                   /* in */  BOOL         fExplicitBindToNativeImage,
-                                   /* out */ Assembly   **ppAssembly,
-                                   /* in */  LPCTSTR      szMDAssemblyPath = NULL);
+        static HRESULT GetAssembly(/* in */  SString           &assemblyPath,
+                                   /* in */  BOOL               fIsInGAC,
+                                   /* in */  BOOL               fExplicitBindToNativeImage,
+                                   /* out */ Assembly         **ppAssembly,
+                                   /* in */  LPCTSTR            szMDAssemblyPath = NULL,
+                                   /* in */  BundleFileLocation bundleFileLocation = BundleFileLocation::Invalid());
 
 #if !defined(DACCESS_COMPILE) && !defined(CROSSGEN_COMPILE)
         static HRESULT BindUsingHostAssemblyResolver (/* in */ INT_PTR pManagedAssemblyLoadContextToBindWithin,

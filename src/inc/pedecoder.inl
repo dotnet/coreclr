@@ -166,8 +166,6 @@ inline void PEDecoder::Init(void *flatBase, COUNT_T size)
     m_flags = FLAG_CONTENTS;
 }
 
-
-
 inline HRESULT PEDecoder::Init(void *mappedBase, bool fixedUp /*= FALSE*/)
 {
     CONTRACTL

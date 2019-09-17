@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include <memory>
-#include "extractor.h"
 #include "runner.h"
 #include "trace.h"
 #include "header.h"
@@ -32,35 +31,33 @@ void runner_t::unmap_host()
     }
 }
 
-// Current support for executing single-file bundles involves 
-// extraction of embedded files to actual files on disk. 
-// This method implements the file extraction functionality at startup.
-StatusCode runner_t::extract()
+bool runner_t::probe(const char *relative_path, int64_t *size, int64_t *offset)
+{
+    for (file_entry_t& entry : m_manifest.files)
+    {
+        if (strcmp(entry.relative_path().c_str(), relative_path) == 0)
+        {
+            *size = entry.size();
+            *offset = entry.offset();
+            return true;
+        }
+    }
+    return false;
+}
+
+StatusCode runner_t::process()
 {
     try
     {
         map_host();
         reader_t reader(m_bundle_map, m_bundle_length);
 
-        // Read the bundle header
         reader.set_offset(marker_t::header_offset());
         header_t header = header_t::read(reader);
 
-        extractor_t extractor(header.bundle_id(), m_bundle_path);
-        m_extraction_dir = extractor.extraction_dir();
-
-        // Determine if embedded files are already extracted, and available for reuse
-        if (extractor.can_reuse_extraction())
-        {
-            return StatusCode::Success;
-        }
-
-        manifest_t manifest = manifest_t::read(reader, header.num_embedded_files());
-
-        extractor.extract(manifest, reader);
+        m_manifest = manifest_t::read(reader, header.num_embedded_files());
 
         unmap_host();
-
         return StatusCode::Success;
     }
     catch (StatusCode e)

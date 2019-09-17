@@ -15,6 +15,8 @@
 #include <utilcode.h>
 #include <corhost.h>
 #include <configuration.h>
+#include "bundle.h"
+
 #ifdef FEATURE_GDBJIT
 #include "../../vm/gdbjithelpers.h"
 #endif // FEATURE_GDBJIT
@@ -117,7 +119,8 @@ static void ConvertConfigPropertiesToUnicode(
     const char** propertyValues,
     int propertyCount,
     LPCWSTR** propertyKeysWRef,
-    LPCWSTR** propertyValuesWRef)
+    LPCWSTR** propertyValuesWRef,
+    BundleProbe** bundleProbe)
 {
     LPCWSTR* propertyKeysW = new (nothrow) LPCWSTR[propertyCount];
     ASSERTE_ALL_BUILDS(propertyKeysW != nullptr);
@@ -127,6 +130,18 @@ static void ConvertConfigPropertiesToUnicode(
 
     for (int propertyIndex = 0; propertyIndex < propertyCount; ++propertyIndex)
     {
+        if (strcmp(propertyKeys[propertyIndex], "BUNDLE_PROBE") == 0)
+        {
+            // If this application is a single-file bundle, the bundle-probe callback 
+            // is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
+            // Therefore obtain the value; don't convert it to Unicode.
+
+            *bundleProbe = (BundleProbe *)propertyValues[propertyIndex];
+            propertyKeysW[propertyIndex] = W("BUNDLE_PROBE");
+            propertyValuesW[propertyIndex] = W("");
+            continue;
+        }
+
         propertyKeysW[propertyIndex] = StringToUnicode(propertyKeys[propertyIndex]);
         propertyValuesW[propertyIndex] = StringToUnicode(propertyValues[propertyIndex]);
     }
@@ -160,6 +175,7 @@ extern "C" int coreclr_create_delegate(void*, unsigned int, const char*, const c
 // Returns:
 //  HRESULT indicating status of the operation. S_OK if the assembly was successfully executed
 //
+
 extern "C"
 DLLEXPORT
 int coreclr_initialize(
@@ -193,12 +209,20 @@ int coreclr_initialize(
 
     LPCWSTR* propertyKeysW;
     LPCWSTR* propertyValuesW;
+    BundleProbe* bundleProbe = nullptr;
     ConvertConfigPropertiesToUnicode(
         propertyKeys,
         propertyValues,
         propertyCount,
         &propertyKeysW,
-        &propertyValuesW);
+        &propertyValuesW,
+        &bundleProbe);
+
+    if (bundleProbe != nullptr)
+    {
+        static Bundle bundle(StringToUnicode(exePath), bundleProbe);
+        Bundle::AppBundle = &bundle;
+    }
 
     // This will take ownership of propertyKeysWTemp and propertyValuesWTemp
     Configuration::InitializeConfigurationKnobs(propertyCount, propertyKeysW, propertyValuesW);

@@ -8,6 +8,7 @@
 #include "coreclrbindercommon.h"
 #include "clrprivbindercoreclr.h"
 #include "clrprivbinderutil.h"
+#include "bundle.h"
 
 using namespace BINDER_SPACE;
 
@@ -177,5 +178,7 @@ HRESULT CCoreCLRBinderHelper::GetAssembly(/* in */  SString     &assemblyPath,
     return AssemblyBinder::GetAssembly(assemblyPath,
                                        fIsInGAC,
                                        fExplicitBindToNativeImage,
-                                       ppAssembly);
+                                       ppAssembly,
+                                       NULL /* szMDAssemblyPath */,
+                                       Bundle::ProbeAppBundle(assemblyPath));
 }
