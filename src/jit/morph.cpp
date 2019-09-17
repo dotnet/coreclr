@@ -7569,14 +7569,14 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         if (origCallType != TYP_VOID && info.compRetType != TYP_VOID)
         {
             var_types nodeTy = origCallType;
-    #ifdef FEATURE_HFA
+#ifdef FEATURE_HFA
             // Return a dummy node, as the return is already removed.
             if (nodeTy == TYP_STRUCT)
             {
                 // This is a HFA, use float 0.
                 nodeTy = TYP_FLOAT;
             }
-    #elif defined(UNIX_AMD64_ABI)
+#elif defined(UNIX_AMD64_ABI)
             // Return a dummy node, as the return is already removed.
             if (varTypeIsStruct(nodeTy))
             {
@@ -7584,19 +7584,18 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
                 // The actual return registers are hacked in lower and the register allocator.
                 nodeTy = TYP_INT;
             }
-    #endif
-    #ifdef FEATURE_SIMD
+#endif
+#ifdef FEATURE_SIMD
             // Return a dummy node, as the return is already removed.
             if (varTypeIsSIMD(nodeTy))
             {
                 nodeTy = TYP_DOUBLE;
             }
-    #endif
+#endif
             result = gtNewZeroConNode(genActualType(nodeTy));
             result = fgMorphTree(result);
         }
     }
-
 
     return result;
 }
@@ -7623,7 +7622,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  *       LCL ReturnValue
  * whenever the call node returns a value. If the call node does not return a
  * value the last comma will not be there.
- */           
+ */
 GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help)
 {
     JITDUMP("fgMorphTailCallViaHelper (before):\n");
@@ -7656,14 +7655,13 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
 #if !defined(_TARGET_X86_) && !defined(_TARGET_ARM_)
         call->gtCallArgs = call->gtCallArgs->GetNext();
         // We changed args so recompute info.
-        call->fgArgInfo  = nullptr;
+        call->fgArgInfo = nullptr;
 #endif
 
         call->gtFlags &= ~GTF_CALL_VIRT_STUB;
     }
 
-    GenTree* callDispatcherAndGetResult =
-        fgCreateCallDispatcherAndGetResult(call, help.hCallTarget, help.hDispatcher);
+    GenTree* callDispatcherAndGetResult = fgCreateCallDispatcherAndGetResult(call, help.hCallTarget, help.hDispatcher);
 
     // Change the call to a call to the StoreArgs stub.
     if (call->HasRetBufArg())
@@ -7727,7 +7725,7 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
         // materialize as embedded stmts in right execution order.
         assert(thisPtr != nullptr);
         call->gtCallArgs = gtPrependNewCallArg(thisPtr, call->gtCallArgs);
-        call->fgArgInfo = nullptr;
+        call->fgArgInfo  = nullptr;
     }
 
     // We may need to pass the target address, for instance for calli.
@@ -7770,11 +7768,7 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
     call->gtReturnType = TYP_VOID;
 
     GenTree* finalTree =
-        gtNewOperNode(
-            GT_COMMA, 
-            callDispatcherAndGetResult->TypeGet(),
-            call,
-            callDispatcherAndGetResult);
+        gtNewOperNode(GT_COMMA, callDispatcherAndGetResult->TypeGet(), call, callDispatcherAndGetResult);
 
     finalTree = fgMorphTree(finalTree);
 
@@ -7809,7 +7803,7 @@ GenTree* Compiler::fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_
 // Return Value:
 //    A node that can be used in place of the original call.
 //
-GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
+GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          origCall,
                                                       CORINFO_METHOD_HANDLE callTargetStubHnd,
                                                       CORINFO_METHOD_HANDLE dispatcherHnd)
 {
@@ -7820,7 +7814,7 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
 
     // Add return value arg.
     GenTree*     retValArg;
-    GenTree*     retVal = nullptr;
+    GenTree*     retVal    = nullptr;
     unsigned int newRetLcl = BAD_VAR_NUM;
 
     // Use existing retbuf if there is one.
@@ -7855,8 +7849,8 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
 
         lvaSetVarAddrExposed(newRetLcl);
 
-        retValArg = gtNewOperNode(GT_ADDR, TYP_I_IMPL,
-                                  gtNewLclvNode(newRetLcl, genActualType(lvaTable[newRetLcl].lvType)));
+        retValArg =
+            gtNewOperNode(GT_ADDR, TYP_I_IMPL, gtNewLclvNode(newRetLcl, genActualType(lvaTable[newRetLcl].lvType)));
         retVal = gtNewLclvNode(newRetLcl, genActualType(lvaTable[newRetLcl].lvType));
 
         if (varTypeIsStruct(origCall->gtType))
@@ -7874,8 +7868,7 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
 
     // Add callTarget
     callDispatcherNode->gtCallArgs =
-        gtPrependNewCallArg(fgGetMethodAddress(callTargetStubHnd, CORINFO_ACCESS_ANY),
-                            callDispatcherNode->gtCallArgs);
+        gtPrependNewCallArg(fgGetMethodAddress(callTargetStubHnd, CORINFO_ACCESS_ANY), callDispatcherNode->gtCallArgs);
 
     // Add the caller's return address slot.
     if (lvaRetAddrVar == BAD_VAR_NUM)
