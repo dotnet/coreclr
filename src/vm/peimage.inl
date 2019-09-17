@@ -37,7 +37,7 @@ inline const SString &PEImage::GetPathToLoad()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
-    return m_bundleFileLocation.IsValid() ? m_bundleFileLocation.Path() : m_path;
+    return IsInBundle() ? m_bundleFileLocation.Path() : m_path;
 }
 
 inline INT64 PEImage::GetOffset() const
@@ -45,6 +45,13 @@ inline INT64 PEImage::GetOffset() const
     LIMITED_METHOD_CONTRACT;
 
     return m_bundleFileLocation.Offset;
+}
+
+inline BOOL PEImage::IsInBundle() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_bundleFileLocation.IsValid();
 }
 
 inline INT64 PEImage::GetSize() const

@@ -315,13 +315,17 @@ void PEFile::LoadLibrary(BOOL allowNativeSkip/*=TRUE*/) // if allowNativeSkip==F
         {
             if (GetILimage()->IsFile())
             {
+
 #ifdef PLATFORM_UNIX
-                if (GetILimage()->IsILOnly())
+                bool loadILImage = GetILimage()->IsILOnly();
+#else
+                bool loadILImage = GetILimage()->IsILOnly() && GetILimage()->IsInBundle();
+#endif // PLATFORM_UNIX
+                if (loadILImage)
                 {
                     GetILimage()->Load();
                 }
                 else
-#endif // PLATFORM_UNIX
                 {
                     GetILimage()->LoadFromMapped();
                 }

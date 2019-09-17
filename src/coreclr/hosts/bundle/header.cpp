@@ -5,7 +5,6 @@
 #include "header.h"
 #include "reader.h"
 #include "error_codes.h"
-#include "trace.h"
 
 using namespace bundle;
 
@@ -22,9 +21,6 @@ header_t header_t::read(reader_t& reader)
 
     if (!fixed_header->is_valid())
     {
-        trace::error(_X("Failure processing application bundle."));
-        trace::error(_X("Bundle header version compatibility check failed."));
-
         throw StatusCode::BundleExtractionFailure;
     }
 

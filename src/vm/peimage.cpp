@@ -1009,10 +1009,7 @@ PTR_PEImageLayout PEImage::GetLayoutInternal(DWORD imageLayoutMask,DWORD flags)
         BOOL bIsFlatLayoutSuitable = ((imageLayoutMask & PEImageLayout::LAYOUT_FLAT) != 0);
 
 #if !defined(PLATFORM_UNIX)
-        if (bIsMappedLayoutSuitable)
-        {
-            bIsFlatLayoutSuitable = FALSE;
-        }
+        bIsFlatLayoutSuitable = IsInBundle() || !bIsMappedLayoutSuitable;
 #endif // !PLATFORM_UNIX
 
         _ASSERTE(bIsMappedLayoutSuitable || bIsFlatLayoutSuitable);
@@ -1219,7 +1216,13 @@ void PEImage::Load()
     }
 
 #ifdef PLATFORM_UNIX
-    if (m_pLayouts[IMAGE_FLAT] != NULL
+    bool canUseLoadedFlat = true;
+#else
+    bool canUseLoadedFlat = IsInBundle();
+#endif // PLATFORM_UNIX
+
+    if (canUseLoadedFlat 
+        && m_pLayouts[IMAGE_FLAT] != NULL
         && m_pLayouts[IMAGE_FLAT]->CheckILOnlyFormat()
         && !m_pLayouts[IMAGE_FLAT]->HasWriteableSections())
     {
@@ -1236,7 +1239,6 @@ void PEImage::Load()
         SetLayout(IMAGE_LOADED, m_pLayouts[IMAGE_FLAT]);
     }
     else
-#endif // PLATFORM_UNIX
     {
         if(!IsFile())
         {

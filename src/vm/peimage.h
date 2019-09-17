@@ -150,6 +150,7 @@ public:
     const SString &GetPathToLoad();
 
     BOOL IsFile();
+    BOOL IsInBundle() const;
     HANDLE GetFileHandle();
     INT64 GetOffset() const;
     INT64 GetSize() const;

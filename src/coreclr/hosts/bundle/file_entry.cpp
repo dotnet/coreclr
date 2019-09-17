@@ -3,7 +3,6 @@
 // See the LICENSE file in the project root for more information.
 
 #include "file_entry.h"
-#include "trace.h"
 #include "error_codes.h"
 
 using namespace bundle;
@@ -15,7 +14,7 @@ bool file_entry_t::is_valid() const
 }
 
 // Fixup a path to have current platform's directory separator.
-void fixup_path_separator(pal::string_t& path)
+void fixup_dir_separator(pal::string_t& path)
 {
     const pal::char_t bundle_dir_separator = '/';
 
@@ -38,13 +37,11 @@ file_entry_t file_entry_t::read(reader_t &reader)
 
     if (!entry.is_valid())
     {
-        trace::error(_X("Failure processing application bundle; possible file corruption."));
-        trace::error(_X("Invalid FileEntry detected."));
         throw StatusCode::BundleExtractionFailure;
     }
 
     reader.read_path_string(entry.m_relative_path);
-    fixup_path_separator(entry.m_relative_path);
+    fixup_dir_separator(entry.m_relative_path);
 
     return entry;
 }

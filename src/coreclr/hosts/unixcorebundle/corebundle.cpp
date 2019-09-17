@@ -10,17 +10,8 @@
 #include <string>
 #include <string.h>
 #include <sys/stat.h>
-
-#include <marker.h>
-#include <runner.h>
+#include <app_bundle.h>
 #include <utils.h>
-
-static bundle::runner_t bundle_runner;
-
-bool probe_bundle(const pal::char_t* path, int64_t *size, int64_t *offset)
-{
-    return bundle_runner.probe(path, size, offset);
-}
 
 int main(const int argc, const char* argv[])
 {
@@ -32,19 +23,10 @@ int main(const int argc, const char* argv[])
         return -1;
     }
 
-    if (!bundle::marker_t::is_bundle())
+    if (!bundle::app_bundle_t::init(exe_path.c_str()))
     {
         perror("Executuable is not a bundle");
         return -1;
-    }
-
-    bundle_runner = bundle::runner_t(exe_path);
-    StatusCode bundle_status = bundle_runner.process();	        
-
-    if (bundle_status != StatusCode::Success)
-    {
-        perror("Could not extract contents of the bundle");
-        return bundle_status;
     }
 
     std::string root_dir = get_directory(exe_path);
@@ -63,7 +45,7 @@ int main(const int argc, const char* argv[])
                         exe_path.c_str(),
                         root_dir.c_str(),
                         app_path.c_str(),
-                        probe_bundle,
+                        bundle::app_bundle_t::probe,
                         app_argc,
                         app_argv);
 

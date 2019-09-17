@@ -452,6 +452,10 @@ int ExecuteManagedAssembly(
     const char* globalizationInvariant = GetEnvValueBoolean(globalizationInvariantVar);
 
     // Allowed property names:
+    // BUNDLE_PROBE
+    // -  If this application is a single-file bundle, the bundle-probe callback 
+    //    is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
+    //
     // APPBASE
     // - The base path of the application from which the exe and other assemblies will be loaded
     //
@@ -466,10 +470,6 @@ int ExecuteManagedAssembly(
     //
     // NATIVE_DLL_SEARCH_DIRECTORIES
     // - The list of paths that will be probed for native DLLs called by PInvoke
-    //
-    // BUNDLE_PROBE
-    // -  If this application is a single-file bundle, the bundle-probe callback 
-    //    is passed in as the value of "BUNDLE_PROBE" property (masquarading as char *).
 
     const char *propertyKeys[] = {
         "BUNDLE_PROBE",
