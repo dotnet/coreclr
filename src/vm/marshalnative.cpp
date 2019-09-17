@@ -151,7 +151,7 @@ FCIMPL3(VOID, MarshalNative::StructureToPtr, Object* pObjUNSAFE, LPVOID ptr, CLR
     
     if (pMT->IsBlittable())
     {
-        memcpyNoGCRefs(ptr, pObj->GetData(), pMT->GetNumInstanceFieldBytes());
+        memcpyNoGCRefs(ptr, pObj->GetData(), pMT->GetNativeSize());
     }
     else if (pMT->HasLayout())
     {
@@ -206,7 +206,7 @@ FCIMPL3(VOID, MarshalNative::PtrToStructureHelper, LPVOID ptr, Object* pObjIn, C
     }
     else if (pMT->IsBlittable())
     {
-        memcpyNoGCRefs(pObj->GetData(), ptr, pMT->GetNumInstanceFieldBytes());
+        memcpyNoGCRefs(pObj->GetData(), ptr, pMT->GetNativeSize());
     }
     else if (pMT->HasLayout())
     {

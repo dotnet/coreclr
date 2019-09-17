@@ -1101,6 +1101,10 @@ inline UINT32 MethodTable::GetNativeSize()
 {
     LIMITED_METHOD_CONTRACT;
     _ASSERTE(GetClass());
+    if (IsBlittable())
+    {
+        return GetClass()->GetLayoutInfo()->GetManagedSize();
+    }
     EnsureNativeLayoutInfoInitialized();
     return GetClass()->GetNativeSize();
 }

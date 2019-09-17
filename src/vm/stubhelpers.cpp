@@ -1468,7 +1468,7 @@ FCIMPL3(void, StubHelpers::FmtClassUpdateNativeInternal, Object* pObjUNSAFE, BYT
 
     if (pMT->IsBlittable())
     {
-        memcpyNoGCRefs(pbNative, pObj->GetData(), pMT->GetNumInstanceFieldBytes());
+        memcpyNoGCRefs(pbNative, pObj->GetData(), pMT->GetNativeSize());
     }
     else
     {
@@ -1497,7 +1497,7 @@ FCIMPL2(void, StubHelpers::FmtClassUpdateCLRInternal, Object* pObjUNSAFE, BYTE* 
 
     if (pMT->IsBlittable())
     {
-        memcpyNoGCRefs(pObj->GetData(), pbNative, pMT->GetNumInstanceFieldBytes());
+        memcpyNoGCRefs(pObj->GetData(), pbNative, pMT->GetNativeSize());
     }
     else
     {

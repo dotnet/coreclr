@@ -141,6 +141,10 @@ public:
         if (m_isNestedType)
         {
             MethodTable* pMT = GetNestedNativeMethodTable();
+            if (pMT->IsBlittable())
+            {
+                return pMT->GetLayoutInfo()->GetManagedSize();
+            }
             pMT->EnsureNativeLayoutInfoInitialized();
             return pMT->GetLayoutInfo()->GetNativeSize() * GetNumElements();
         }
@@ -155,6 +159,10 @@ public:
         if (m_isNestedType)
         {
             MethodTable* pMT = GetNestedNativeMethodTable();
+            if (pMT->IsBlittable())
+            {
+                return pMT->GetLayoutInfo()->m_ManagedLargestAlignmentRequirementOfAllMembers;
+            }
             pMT->EnsureNativeLayoutInfoInitialized();
             return pMT->GetLayoutInfo()->GetLargestAlignmentRequirementOfAllMembers();
         }
