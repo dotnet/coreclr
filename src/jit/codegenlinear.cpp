@@ -321,7 +321,7 @@ void CodeGen::genCodeForBBlist()
         }
 #endif
 
-        /* Tell everyone which basic block we're working on */
+        // Tell everyone which basic block we're working on
 
         compiler->compCurBB = block;
 
@@ -361,7 +361,7 @@ void CodeGen::genCodeForBBlist()
 
         if (needLabel)
         {
-            /* Mark a label and update the current set of live GC refs */
+            // Mark a label and update the current set of live GC refs
 
             block->bbEmitCookie = getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,
                                                              gcInfo.gcRegByrefSetCur, FALSE);

@@ -1085,30 +1085,6 @@ int emitter::instrDesc::idAddrUnion::iiaGetJitDataOffset() const
 
 #if defined(DEBUG) || defined(LATE_DISASM)
 
-#if 0  // ndef _TARGET_XARCH_
-//----------------------------------------------------------------------------------------
-// getInsExecutionCharacteristics: 
-//    Returns the current instruction execution characteristics
-//
-// Arguments:
-//    id  - The current instruction descriptor to be evaluated
-//
-// Return Value:
-//    A struct containing the current instruction execution characteristics
-//
-// Notes:
-//    This is the default implementation that can be used when we don't
-//    have a target specific implementation available
-//
-emitter::insExecutionCharacteristics emitter::getInsExecutionCharacteristics(instrDesc* id)
-{
-    insExecutionCharacteristics result;
-    result.insThroughput = PERFSCORE_THROUGHPUT_DEFAULT;
-    result.insLatency = PERFSCORE_LATENCY_DEFAULT;
-    return result;
-}
-#endif // ! _TARGET_XARCH_
-
 //----------------------------------------------------------------------------------------
 // insEvaluateExecutionCost:
 //    Returns the estimate execution cost fortyhe current instruction

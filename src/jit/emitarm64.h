@@ -339,7 +339,7 @@ static bool isIntegerRegister(regNumber reg)
     return (reg >= REG_INT_FIRST) && (reg <= REG_INT_LAST);
 }
 
-//  Returns true is reg encodes for REG_SP or REG_FP
+//  Returns true if reg encodes for REG_SP or REG_FP
 static bool isStackRegister(regNumber reg)
 {
     return (reg == REG_ZR) || (reg == REG_FP);
