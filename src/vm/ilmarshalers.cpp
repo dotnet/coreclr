@@ -3808,7 +3808,7 @@ void ILMngdMarshaler::EmitCallMngdMarshalerMethod(ILCodeStream* pslILEmit, Metho
 
 bool ILNativeArrayMarshaler::UsePinnedArraySpecialCase()
 {
-    if (IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE)))
+    if (IsCLRToNative(m_dwMarshalFlags) && !IsByref(m_dwMarshalFlags) && (NULL != m_pargs->na.m_pArrayMT) && (NULL == OleVariant::GetMarshalerForVarType(m_pargs->na.m_vt, TRUE)))
     {
         return true;
     }
@@ -3855,7 +3855,6 @@ void ILNativeArrayMarshaler::EmitCreateMngdMarshaler(ILCodeStream* pslILEmit)
     pslILEmit->EmitCALL(METHOD__MNGD_NATIVE_ARRAY_MARSHALER__CREATE_MARSHALER, 3, 0);
 }
 
-
 void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
 {
     CONTRACTL
@@ -3900,7 +3899,7 @@ void ILNativeArrayMarshaler::EmitMarshalArgumentCLRToNative()
         m_pcsMarshal->EmitCONV_I();
         // Optimize marshalling by emitting the data ptr offset directly into the IL stream
         // instead of doing an FCall to recalulate it each time when possible.
-        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->m_pMarshalInfo->GetArrayElementTypeHandle().MakeSZArray().GetMethodTable()));
+        m_pcsMarshal->EmitLDC(ArrayBase::GetDataPtrOffset(m_pargs->na.m_pArrayMT));
         m_pcsMarshal->EmitADD();
         EmitStoreNativeValue(m_pcsMarshal);
 
