@@ -7847,14 +7847,17 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall* origCall,
         }
         else
         {
-            lvaTable[newRetLcl].lvType = origCall->gtType;
+            // Since we pass a reference to the return value to the dispatcher
+            // we need to use the real return type so we can normalize it on
+            // load when we return it.
+            lvaTable[newRetLcl].lvType = (var_types)origCall->gtReturnType;
         }
 
         lvaSetVarAddrExposed(newRetLcl);
 
         retValArg = gtNewOperNode(GT_ADDR, TYP_I_IMPL,
-                                  gtNewLclvNode(newRetLcl, lvaTable[newRetLcl].lvType));
-        retVal = gtNewLclvNode(newRetLcl, lvaTable[newRetLcl].lvType);
+                                  gtNewLclvNode(newRetLcl, genActualType(lvaTable[newRetLcl].lvType)));
+        retVal = gtNewLclvNode(newRetLcl, genActualType(lvaTable[newRetLcl].lvType));
 
         if (varTypeIsStruct(origCall->gtType))
         {
