@@ -6968,24 +6968,22 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
         // for tiering currently to avoid some unnecessary overhead
         (g_pConfig->TieredCompilation_QuickJit() || GetModule()->HasNativeOrReadyToRunImage()) &&
 
-        (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED)) ||
+        (pMDMethod->GetMethodType() == METHOD_TYPE_NORMAL || pMDMethod->GetMethodType() == METHOD_TYPE_INSTANTIATED)) 
+
+#ifdef FEATURE_REJIT
+        ||
 
         // Methods that are R2R need precode if ReJIT is enabled. Keep this in sync with MethodDesc::IsEligibleForReJIT()
         (ReJitManager::IsReJITEnabled() &&
 
-            GetMethodClassification(pMDMethod->GetMethodType()) == mcIL &&
-
-            // TODO: this check was in the IsEligibleForReJIT check, but I don't believe we have 
-            // that information at this point. It is set after creating the MD, so at this point we don't
-            // know. This means stubs will potentially create a code slot when unecessary
-            // !IsWrapperStub() &&
-
-            // TODO: I believe this is redundant to the check that MethodType == mcIL above
-            GetMethodClassification(pMDMethod->GetMethodType()) != mcDynamic &&
+            (GetMethodClassification(pMDMethod->GetMethodType()) == mcIL
+                || GetMethodClassification(pMDMethod->GetMethodType()) == mcDynamic) &&
 
             !pMDMethod->GetOwningType()->GetModule()->IsCollectible() &&
 
-            !pMDMethod->GetOwningType()->GetModule()->IsEditAndContinueEnabled()))
+            !pMDMethod->GetOwningType()->GetModule()->IsEditAndContinueEnabled())
+#endif // FEATURE_REJIT
+        )
     {
         return TRUE;
     }

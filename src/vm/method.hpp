@@ -1193,7 +1193,7 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-#if defined(FEATURE_CODE_VERSIONING)
+#ifdef FEATURE_REJIT
         return
             ReJitManager::IsReJITEnabled() &&
 
@@ -1204,7 +1204,7 @@ public:
 
             // Functional requirement
             CodeVersionManager::IsMethodSupported(PTR_MethodDesc(this));
-#else
+#else // FEATURE_REJIT
         return false;
 #endif
     }
