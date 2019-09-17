@@ -8941,9 +8941,6 @@ public:
 
     BasicBlock* compCurBB;   // the current basic block in process
     Statement*  compCurStmt; // the current statement in process
-#ifdef DEBUG
-    unsigned compCurStmtNum; // to give all statements an increasing StmtNum when printing dumps
-#endif
 
     //  The following is used to create the 'method JIT info' block.
     size_t compInfoBlkSize;

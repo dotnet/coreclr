@@ -20520,23 +20520,17 @@ void Compiler::fgDispBasicBlocks(bool dumpTrees)
     fgDispBasicBlocks(fgFirstBB, nullptr, dumpTrees);
 }
 
-/*****************************************************************************/
-//  Increment the stmtNum and dump the tree using gtDispTree
+//------------------------------------------------------------------------
+// fgDumpStmtTree: dump the statement and the basic block number.
+//
+// Arguments:
+//    stmt  - the statement to dump;
+//    bbNum - The basic block number to dump.
 //
 void Compiler::fgDumpStmtTree(Statement* stmt, unsigned bbNum)
 {
-    compCurStmtNum++; // Increment the current stmtNum
-
-    printf("\n***** " FMT_BB ", stmt %d\n", bbNum, compCurStmtNum);
-
-    if (fgOrder == FGOrderLinear || opts.compDbgInfo)
-    {
-        gtDispStmt(stmt);
-    }
-    else
-    {
-        gtDispTree(stmt->gtStmtExpr);
-    }
+    printf("\n***** " FMT_BB "\n", bbNum);
+    gtDispStmt(stmt);
 }
 
 //------------------------------------------------------------------------
@@ -20555,10 +20549,6 @@ void Compiler::fgDumpBlock(BasicBlock* block)
         for (Statement* stmt : block->Statements())
         {
             fgDumpStmtTree(stmt, block->bbNum);
-            if (stmt == block->firstStmt())
-            {
-                block->bbStmtNum = compCurStmtNum; // Set the block->bbStmtNum
-            }
         }
     }
     else
@@ -20572,13 +20562,10 @@ void Compiler::fgDumpBlock(BasicBlock* block)
 //
 void Compiler::fgDumpTrees(BasicBlock* firstBlock, BasicBlock* lastBlock)
 {
-    compCurStmtNum = 0; // Reset the current stmtNum
-
-    /* Walk the basic blocks */
+    // Walk the basic blocks.
 
     // Note that typically we have already called fgDispBasicBlocks()
-    //  so we don't need to print the preds and succs again here
-    //
+    // so we don't need to print the preds and succs again here.
     for (BasicBlock* block = firstBlock; block; block = block->bbNext)
     {
         fgDumpBlock(block);

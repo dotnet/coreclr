@@ -15669,17 +15669,12 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
         GenTree* tree = stmt->gtStmtExpr;
 
 #ifdef DEBUG
-        compCurStmtNum++;
-        if (stmt == block->bbStmtList)
-        {
-            block->bbStmtNum = compCurStmtNum; // Set the block->bbStmtNum
-        }
 
         unsigned oldHash = verbose ? gtHashValue(tree) : DUMMY_INIT(~0);
 
         if (verbose)
         {
-            printf("\nfgMorphTree " FMT_BB ", stmt %d (before)\n", block->bbNum, compCurStmtNum);
+            printf("\nfgMorphTree " FMT_BB ", STMT%05u (before)\n", block->bbNum, stmt->GetID());
             gtDispTree(tree);
         }
 #endif
@@ -15766,7 +15761,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             unsigned newHash = gtHashValue(morph);
             if (newHash != oldHash)
             {
-                printf("\nfgMorphTree " FMT_BB ", stmt %d (after)\n", block->bbNum, compCurStmtNum);
+                printf("\nfgMorphTree " FMT_BB ", STMT%05u (after)\n", block->bbNum, stmt->GetID());
                 gtDispTree(morph);
             }
         }
@@ -15906,10 +15901,6 @@ void Compiler::fgMorphBlocks()
 
     BasicBlock* block = fgFirstBB;
     noway_assert(block);
-
-#ifdef DEBUG
-    compCurStmtNum = 0;
-#endif
 
     do
     {
