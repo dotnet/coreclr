@@ -90,6 +90,7 @@ LPCUTF8 ILStubResolver::GetStubMethodName()
 #endif
         case TailCallStoreArgsStub:  return "IL_STUB_StoreTailCallArgs";
         case TailCallCallTargetStub: return "IL_STUB_CallTailCallTarget";
+        case TailCallDispatcherStub: return "IL_STUB_DispatchTailCalls";
         default:
             UNREACHABLE_MSG("Unknown stub type");
     }

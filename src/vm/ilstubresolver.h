@@ -93,6 +93,7 @@ protected:
 #endif
         TailCallStoreArgsStub,
         TailCallCallTargetStub,
+        TailCallDispatcherStub,
     };
 
     enum CompileTimeStatePtrSpecialValues

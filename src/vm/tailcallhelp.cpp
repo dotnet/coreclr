@@ -296,7 +296,7 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
             MscorlibBinder::GetModule()->GetLoaderAllocator(),
             mscorlib->GetILStubCache()->GetOrCreateStubMethodTable(mscorlib),
-            0,
+            ILSTUB_TAILCALL_DISPATCH,
             mscorlib,
             pSig, cbSig,
             &emptyCtx,
