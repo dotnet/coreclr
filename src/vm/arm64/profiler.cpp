@@ -55,9 +55,8 @@ ProfileArgIterator::ProfileArgIterator(MetaSig* pSig, void* pPlatformSpecificHan
 
     m_handle = pPlatformSpecificHandle;
 
-#ifdef _DEBUG
     PROFILE_PLATFORM_SPECIFIC_DATA* pData = reinterpret_cast<PROFILE_PLATFORM_SPECIFIC_DATA*>(pPlatformSpecificHandle);
-
+#ifdef _DEBUG
     // Unwind a frame and get the SP for the profiled method to make sure it matches
     // what the JIT gave us
 
