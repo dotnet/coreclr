@@ -1654,6 +1654,13 @@ FOUND_AM:
     return true;
 }
 
+#ifdef DEBUG
+unsigned CodeGen::genGetInitStackLocalCount()
+{
+    return genInitStkLclCnt;
+}
+#endif // DEBUG
+
 #ifdef _TARGET_ARMARCH_
 //------------------------------------------------------------------------
 // genEmitGSCookieCheck: Generate code to check that the GS cookie
@@ -7559,6 +7566,213 @@ void CodeGen::genEstablishFramePointer(int delta, bool reportUnwindData)
 #endif
 }
 
+namespace
+{
+
+struct PrologInitHelper
+{
+public:
+    static PrologInitHelper GetPrologInitHelper(CodeGen* codeGen, Compiler* compiler);
+
+    int GetStackLow() const
+    {
+        return m_stackLow;
+    }
+
+    int GetStackHigh() const
+    {
+        return m_stackHigh;
+    }
+
+    regMaskTP GetIntRegs() const
+    {
+        return m_intRegs;
+    }
+
+    regMaskTP GetFloatRegs() const
+    {
+        return m_fltRegs;
+    }
+
+    regMaskTP GetDoubleRegs() const
+    {
+        return m_dblRegs;
+    }
+
+private:
+    PrologInitHelper()
+        : m_stackLow(+INT_MAX)
+        , m_stackHigh(-INT_MAX)
+        , m_intRegs(RBM_NONE)
+        , m_fltRegs(RBM_NONE)
+        , m_dblRegs(RBM_NONE)
+#ifdef DEBUG
+        , m_hasUntrLcl(false)
+#endif
+    {
+    }
+
+    int m_stackLow;
+    int m_stackHigh;
+
+    // Int, float, double registers which must be zero initialized.
+    regMaskTP m_intRegs;
+    regMaskTP m_fltRegs;
+    regMaskTP m_dblRegs;
+
+#ifdef DEBUG
+    bool m_hasUntrLcl; // Is any local that must be initialized?
+#endif
+};
+
+//------------------------------------------------------------------------
+// GetPrologInitHelper: Calculate registers and stack places that need to be initialized.
+//
+// Arguments:
+//   codeGen  - pointer to a codegen to get spills etc;
+//   compiler - pointer to a compiler to get local variables etc.
+//
+// Return value:
+//   PrologInitHelper struct with:
+//     the stack frame ranges that will cover all of the tracked and untracked pointer variables;
+//     int, float, and double registers that need to be initialized.
+//
+// Notes:
+//   Generally, enregistered variables should not need to be zero-inited. They only need to be zero-inited when they
+//   have a possibly uninitialized read on some control flow path. Apparently some of the IL_STUBs that we  generate
+//   have this property.
+//
+// static
+PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compiler* compiler)
+{
+    PrologInitHelper initHelper;
+
+    unsigned   varNum;
+    LclVarDsc* varDsc;
+
+    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
+    {
+        if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
+        {
+            continue;
+        }
+
+        if (varDsc->IsUnused())
+        {
+            continue;
+        }
+
+        // For lvMustInit vars, gather pertinent info.
+
+        if (!varDsc->lvMustInit)
+        {
+            continue;
+        }
+
+        signed int loOffs = varDsc->lvStkOffs;
+        signed int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
+
+        if (varDsc->lvIsInReg())
+        {
+            regMaskTP regMask = genRegMask(varDsc->lvRegNum);
+            if (!varDsc->IsFloatRegType())
+            {
+                initHelper.m_intRegs |= regMask;
+
+                if (varTypeIsMultiReg(varDsc))
+                {
+                    if (varDsc->lvOtherReg != REG_STK)
+                    {
+                        initHelper.m_intRegs |= genRegMask(varDsc->lvOtherReg);
+                    }
+                    else
+                    {
+                        // Upper DWORD is on the stack, and needs to be initialized.
+                        loOffs += sizeof(int);
+                        goto INIT_STK;
+                    }
+                }
+            }
+            else if (varDsc->TypeGet() == TYP_DOUBLE)
+            {
+                initHelper.m_dblRegs |= regMask;
+            }
+            else
+            {
+                initHelper.m_fltRegs |= regMask;
+            }
+        }
+        else
+        {
+        INIT_STK:
+
+            INDEBUG(initHelper.m_hasUntrLcl = true;)
+
+            if (loOffs < initHelper.m_stackLow)
+            {
+                initHelper.m_stackLow = loOffs;
+            }
+            if (hiOffs > initHelper.m_stackHigh)
+            {
+                initHelper.m_stackHigh = hiOffs;
+            }
+        }
+    }
+
+    // Don't forget about spill temps that hold pointers.
+
+    const RegSet& regSet = codeGen->regSet;
+
+    assert(regSet.tmpAllFree());
+    for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
+    {
+        if (!varTypeIsGC(tempThis->tdTempType()))
+        {
+            continue;
+        }
+
+        signed int loOffs = tempThis->tdTempOffs();
+        signed int hiOffs = loOffs + TARGET_POINTER_SIZE;
+
+        // If there is a frame pointer used, due to frame pointer chaining it will point to the stored value of the
+        // previous frame pointer. Thus, stkOffs can't be zero.
+        CLANG_FORMAT_COMMENT_ANCHOR;
+
+#if !defined(_TARGET_AMD64_)
+        // However, on amd64 there is no requirement to chain frame pointers.
+
+        noway_assert(!codeGen->isFramePointerUsed() || loOffs != 0);
+#endif // !defined(_TARGET_AMD64_)
+
+        INDEBUG(initHelper.m_hasUntrLcl = true;)
+
+        if (loOffs < initHelper.m_stackLow)
+        {
+            initHelper.m_stackLow = loOffs;
+        }
+        if (hiOffs > initHelper.m_stackHigh)
+        {
+            initHelper.m_stackHigh = hiOffs;
+        }
+    }
+
+    assert((codeGen->genGetInitStackLocalCount() > 0) == initHelper.m_hasUntrLcl);
+
+#ifdef DEBUG
+    if (compiler->verbose)
+    {
+        if (codeGen->genGetInitStackLocalCount() > 0)
+        {
+            printf("Found %u lvMustInit int-sized stack slots, frame offsets %d through %d\n",
+                   codeGen->genGetInitStackLocalCount(), -initHelper.m_stackLow, -initHelper.m_stackHigh);
+        }
+    }
+#endif
+
+    return initHelper;
+}
+}
+
 /*****************************************************************************
  *
  *  Generates code for a function prolog.
@@ -7578,10 +7792,6 @@ void CodeGen::genEstablishFramePointer(int delta, bool reportUnwindData)
  *  ARM stepping code is here: debug\ee\arm\armwalker.cpp, vm\arm\armsinglestepper.cpp.
  */
 
-#ifdef _PREFAST_
-#pragma warning(push)
-#pragma warning(disable : 21000) // Suppress PREFast warning about overly large function
-#endif
 void CodeGen::genFnProlog()
 {
     ScopedSetVariable<bool> _setGeneratingProlog(&compiler->compGeneratingProlog, true);
@@ -7652,151 +7862,7 @@ void CodeGen::genFnProlog()
 
 #endif // FEATURE_EH_FUNCLETS && DEBUG
 
-    /*-------------------------------------------------------------------------
-     *
-     *  Record the stack frame ranges that will cover all of the tracked
-     *  and untracked pointer variables.
-     *  Also find which registers will need to be zero-initialized.
-     *
-     *  'initRegs': - Generally, enregistered variables should not need to be
-     *                zero-inited. They only need to be zero-inited when they
-     *                have a possibly uninitialized read on some control
-     *                flow path. Apparently some of the IL_STUBs that we
-     *                generate have this property.
-     */
-
-    int untrLclLo = +INT_MAX;
-    int untrLclHi = -INT_MAX;
-    // 'hasUntrLcl' is true if there are any stack locals which must be init'ed.
-    // Note that they may be tracked, but simply not allocated to a register.
-    bool hasUntrLcl = false;
-
-    regMaskTP initRegs    = RBM_NONE; // Registers which must be init'ed.
-    regMaskTP initFltRegs = RBM_NONE; // FP registers which must be init'ed.
-    regMaskTP initDblRegs = RBM_NONE;
-
-    unsigned   varNum;
-    LclVarDsc* varDsc;
-
-    for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
-    {
-        if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
-        {
-            continue;
-        }
-
-        if (varDsc->IsUnused())
-        {
-            continue;
-        }
-
-        /* For lvMustInit vars, gather pertinent info */
-
-        if (!varDsc->lvMustInit)
-        {
-            continue;
-        }
-
-        signed int loOffs = varDsc->lvStkOffs;
-        signed int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
-
-        if (varDsc->lvIsInReg())
-        {
-            regMaskTP regMask = genRegMask(varDsc->lvRegNum);
-            if (!varDsc->IsFloatRegType())
-            {
-                initRegs |= regMask;
-
-                if (varTypeIsMultiReg(varDsc))
-                {
-                    if (varDsc->lvOtherReg != REG_STK)
-                    {
-                        initRegs |= genRegMask(varDsc->lvOtherReg);
-                    }
-                    else
-                    {
-                        /* Upper DWORD is on the stack, and needs to be inited */
-
-                        loOffs += sizeof(int);
-                        goto INIT_STK;
-                    }
-                }
-            }
-            else if (varDsc->TypeGet() == TYP_DOUBLE)
-            {
-                initDblRegs |= regMask;
-            }
-            else
-            {
-                initFltRegs |= regMask;
-            }
-        }
-        else
-        {
-        INIT_STK:
-
-            hasUntrLcl = true;
-
-            if (loOffs < untrLclLo)
-            {
-                untrLclLo = loOffs;
-            }
-            if (hiOffs > untrLclHi)
-            {
-                untrLclHi = hiOffs;
-            }
-        }
-    }
-
-    /* Don't forget about spill temps that hold pointers */
-
-    assert(regSet.tmpAllFree());
-    for (TempDsc* tempThis = regSet.tmpListBeg(); tempThis != nullptr; tempThis = regSet.tmpListNxt(tempThis))
-    {
-        if (!varTypeIsGC(tempThis->tdTempType()))
-        {
-            continue;
-        }
-
-        signed int loOffs = tempThis->tdTempOffs();
-        signed int hiOffs = loOffs + TARGET_POINTER_SIZE;
-
-        // If there is a frame pointer used, due to frame pointer chaining it will point to the stored value of the
-        // previous frame pointer. Thus, stkOffs can't be zero.
-        CLANG_FORMAT_COMMENT_ANCHOR;
-
-#if !defined(_TARGET_AMD64_)
-        // However, on amd64 there is no requirement to chain frame pointers.
-
-        noway_assert(!isFramePointerUsed() || loOffs != 0);
-#endif // !defined(_TARGET_AMD64_)
-
-        // printf("    Untracked tmp at [EBP-%04X]\n", -stkOffs);
-
-        hasUntrLcl = true;
-
-        if (loOffs < untrLclLo)
-        {
-            untrLclLo = loOffs;
-        }
-        if (hiOffs > untrLclHi)
-        {
-            untrLclHi = hiOffs;
-        }
-    }
-
-    assert((genInitStkLclCnt > 0) == hasUntrLcl);
-
-#ifdef DEBUG
-    if (verbose)
-    {
-        if (genInitStkLclCnt > 0)
-        {
-            printf("Found %u lvMustInit int-sized stack slots, frame offsets %d through %d\n", genInitStkLclCnt,
-                   -untrLclLo, -untrLclHi);
-        }
-    }
-#endif
+    const PrologInitHelper initHelper = PrologInitHelper::GetPrologInitHelper(this, compiler);
 
 #ifdef _TARGET_ARM_
     // On the ARM we will spill any incoming struct args in the first instruction in the prolog
@@ -7856,7 +7922,7 @@ void CodeGen::genFnProlog()
     else
 #endif // _TARGET_XARCH_
     {
-        tempMask = initRegs & ~excludeMask & ~regSet.rsMaskResvd;
+        tempMask = initHelper.GetIntRegs() & ~excludeMask & ~regSet.rsMaskResvd;
 
         if (tempMask != RBM_NONE)
         {
@@ -8053,7 +8119,7 @@ void CodeGen::genFnProlog()
     // Zero out the frame as needed
     //
 
-    genZeroInitFrame(untrLclHi, untrLclLo, initReg, &initRegZeroed);
+    genZeroInitFrame(initHelper.GetStackHigh(), initHelper.GetStackLow(), initReg, &initRegZeroed);
 
 #if defined(FEATURE_EH_FUNCLETS)
 
@@ -8179,13 +8245,13 @@ void CodeGen::genFnProlog()
 
     /* Initialize any must-init registers variables now */
 
-    if (initRegs)
+    if (initHelper.GetIntRegs() != RBM_NONE)
     {
         regMaskTP regMask = 0x1;
 
         for (regNumber reg = REG_INT_FIRST; reg <= REG_INT_LAST; reg = REG_NEXT(reg), regMask <<= 1)
         {
-            if (regMask & initRegs)
+            if ((regMask & initHelper.GetIntRegs()) != RBM_NONE)
             {
                 // Check if we have already zeroed this register
                 if ((reg == initReg) && initRegZeroed)
@@ -8204,10 +8270,10 @@ void CodeGen::genFnProlog()
         }
     }
 
-    if (initFltRegs | initDblRegs)
+    if ((initHelper.GetFloatRegs() != RBM_NONE) || (initHelper.GetDoubleRegs() != RBM_NONE))
     {
-        // If initReg is not in initRegs then we will use REG_SCRATCH
-        if ((genRegMask(initReg) & initRegs) == 0)
+        // If initReg is not in initInitRegs then we will use REG_SCRATCH
+        if ((genRegMask(initReg) & initHelper.GetIntRegs()) == RBM_NONE)
         {
             initReg       = REG_SCRATCH;
             initRegZeroed = false;
@@ -8223,7 +8289,7 @@ void CodeGen::genFnProlog()
         }
 #endif // _TARGET_ARM_
 
-        genZeroInitFltRegs(initFltRegs, initDblRegs, initReg);
+        genZeroInitFltRegs(initHelper.GetFloatRegs(), initHelper.GetDoubleRegs(), initReg);
     }
 
     //-----------------------------------------------------------------------------
@@ -8316,9 +8382,6 @@ void CodeGen::genFnProlog()
 
     noway_assert(getEmitter()->emitMaxTmpSize == regSet.tmpGetTotalSize());
 }
-#ifdef _PREFAST_
-#pragma warning(pop)
-#endif
 
 /*****************************************************************************
  *

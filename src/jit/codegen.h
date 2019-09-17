@@ -44,6 +44,9 @@ public:
                                    unsigned* mulPtr,
 #endif // SCALED_ADDR_MODES
                                    ssize_t* cnsPtr);
+#ifdef DEBUG
+    virtual unsigned genGetInitStackLocalCount();
+#endif
 
 private:
 #if defined(_TARGET_XARCH_)
