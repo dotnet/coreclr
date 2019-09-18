@@ -234,14 +234,10 @@ void ILStubResolver::GetEHInfo(unsigned EHnumber, CORINFO_EH_CLAUSE* clause)
     clause->FilterOffset = ehInfo->GetFilterOffset();
 }
 
-bool ILStubResolver::IsNativeToCLRInteropStub()
+ILStubResolver::ILStubType ILStubResolver::GetStubType()
 {
-    return (m_type == NativeToCLRInteropStub);
-}
-
-bool ILStubResolver::IsCLRToNativeInteropStub()
-{
-    return (m_type == CLRToNativeInteropStub);
+    LIMITED_METHOD_CONTRACT;
+    return m_type;
 }
 
 void ILStubResolver::SetStubType(ILStubType stubType)

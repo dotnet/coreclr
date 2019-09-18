@@ -13988,7 +13988,7 @@ bool CEEInfo::getTailCallHelp(
     pResult->flags = (CORINFO_TAILCALL_HELP_FLAGS)outFlags;
     pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
     pResult->hCallTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
-    pResult->hDispatcher = (CORINFO_METHOD_HANDLE)TailCallHelp::GetTailCallDispatcherMD();
+    pResult->hDispatcher = (CORINFO_METHOD_HANDLE)TailCallHelp::GetOrCreateTailCallDispatcherMD();
 
     EE_TO_JIT_TRANSITION();
 

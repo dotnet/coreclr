@@ -24,6 +24,7 @@ public:
         MethodDesc** storeArgsStub, bool* storeArgsNeedsTarget,
         MethodDesc** callTargetStub);
 
+    static MethodDesc* GetOrCreateTailCallDispatcherMD();
     static MethodDesc* GetTailCallDispatcherMD();
 private:
 

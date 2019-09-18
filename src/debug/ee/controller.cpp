@@ -23,6 +23,7 @@
 #include "eeconfig.h"
 
 #include "../../vm/methoditer.h"
+#include "../../vm/tailcallhelp.h"
 
 const char *GetTType( TraceType tt);
 
@@ -5666,9 +5667,34 @@ bool DebuggerStepper::TrapStepInHelper(
     return false;
 }
 
-FORCEINLINE bool IsTailCall(const BYTE * pTargetIP)
+static bool IsTailCallDispatcher(const BYTE * pTargetIP)
 {
-    return TailCallStubManager::IsTailCallStubHelper(reinterpret_cast<PCODE>(pTargetIP));
+    MethodDesc* tailCallDispatcher = TailCallHelp::GetTailCallDispatcherMD();
+    if (tailCallDispatcher == NULL)
+        return false;
+
+    MethodDesc* targetMD = MethodTable::GetMethodDescForSlotAddress((PCODE)pTargetIP);
+    return targetMD == tailCallDispatcher;
+}
+
+static bool IsTailCallThatReturns(const BYTE * ip, ControllerStackInfo* info)
+{
+    if (!IsTailCallDispatcher(ip))
+        return false;
+
+    _ASSERTE(info->HasReturnFrame());
+    LOG((LF_CORDB,LL_INFO1000, "DS::TSOTCVH: target %p is the tailcall dispatcher\n", ip));
+
+    Thread* thread = GetThread();
+    LPVOID retAddr = (LPVOID)GetControlPC(&info->m_returnFrame.registers);
+
+    TailCallTls* tls = thread->GetTailCallTls();
+    LPVOID tailCallAwareRetAddr = tls->Frame->TailCallAwareReturnAddress;
+
+    LOG((LF_CORDB,LL_INFO1000, "DS::TSOTCVH: ret addr is %p, tailcall aware ret addr is %p\n",
+        retAddr, tailCallAwareRetAddr));
+
+    return retAddr == tailCallAwareRetAddr;
 }
 
 // bool DebuggerStepper::TrapStep()   TrapStep attepts to set a
@@ -5886,11 +5912,13 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                     fCallingIntoFunclet = IsAddrWithinMethodIncludingFunclet(ji, info->m_activeFrame.md, walker.GetNextIP()) &&
                         ((CORDB_ADDRESS)(SIZE_T)walker.GetNextIP() != ji->m_addrOfCode);
 #endif
-                    // At this point, we know that the call/branch target is not in the current method.
-                    // So if the current instruction is a jump, this must be a tail call or possibly a jump to the finally.
-                    // So, check if the  call/branch target is the JIT helper for handling tail calls if we are not calling
-                    // into the funclet.
-                    if ((fIsJump && !fCallingIntoFunclet) || IsTailCall(walker.GetNextIP()))
+                    // At this point, we know that the call/branch target is not
+                    // in the current method. The possible cases is that this is
+                    // a jump or a tailcall-via-helper. Such a tailcall might
+                    // execute by first returning to some IL stubs in which case
+                    // a step over should be changed to a step out to the
+                    // previous user function.
+                    if ((fIsJump && !fCallingIntoFunclet) || IsTailCallThatReturns(walker.GetNextIP(), info))
                     {
                         // A step-over becomes a step-out for a tail call.
                         if (!in)
@@ -6036,7 +6064,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                 return true;
             }
 
-            if (IsTailCall(walker.GetNextIP()))
+            if (IsTailCallThatReturns(walker.GetNextIP(), info))
             {
                 if (!in)
                 {
@@ -6509,7 +6537,6 @@ void DebuggerStepper::TrapStepOut(ControllerStackInfo *info, bool fForceTraditio
                  "DS::TSO: Setting unmanaged trace patch at 0x%x(%x)\n",
                      GetControlPC(&(info->m_activeFrame.registers)),
                      info->m_returnFrame.fp.GetSPValue()));
-
 
                 AddAndActivateNativePatchForAddress((CORDB_ADDRESS_TYPE *)GetControlPC(&(info->m_activeFrame.registers)),
                          info->m_returnFrame.fp,

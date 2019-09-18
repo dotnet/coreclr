@@ -102,6 +102,13 @@ struct TailCallInfo
     }
 };
 
+static MethodDesc* s_tailCallDispatcherMD;
+MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
+{
+    return s_tailCallDispatcherMD;
+}
+
+
 // This creates the dispatcher used to dispatch sequences of tailcalls. In C#
 // code it is the following function. Once C# gets function pointer support this
 // function can be put in System.Private.CoreLib.
@@ -137,9 +144,8 @@ struct TailCallInfo
 //         tls->Frame = prevFrame;
 //     }
 // }
-MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
+MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
 {
-    static MethodDesc* s_tailCallDispatcherMD;
     if (s_tailCallDispatcherMD != NULL)
         return s_tailCallDispatcherMD;
 
