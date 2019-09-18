@@ -141,12 +141,7 @@ public:
         if (m_isNestedType)
         {
             MethodTable* pMT = GetNestedNativeMethodTable();
-            if (pMT->IsBlittable())
-            {
-                return pMT->GetLayoutInfo()->GetManagedSize();
-            }
-            pMT->EnsureNativeLayoutInfoInitialized();
-            return pMT->GetLayoutInfo()->GetNativeSize() * GetNumElements();
+            return pMT->GetNativeSize() * GetNumElements();
         }
         else
         {

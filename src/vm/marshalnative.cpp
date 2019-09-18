@@ -385,6 +385,8 @@ FCIMPL1(UINT32, MarshalNative::OffsetOfHelper, ReflectFieldObject *pFieldUNSAFE)
         HELPER_METHOD_FRAME_END();
     }
 
+    th.GetMethodTable()->EnsureNativeLayoutInfoInitialized();
+
     NativeFieldDescriptor *pNFD = th.GetMethodTable()->GetLayoutInfo()->GetNativeFieldDescriptors();
     UINT  numReferenceFields = th.GetMethodTable()->GetLayoutInfo()->GetNumCTMFields();
 

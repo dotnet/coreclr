@@ -47,7 +47,10 @@ VOID ParseNativeType(Module*                     pModule,
 {
     CONTRACTL
     {
-        STANDARD_VM_CHECK;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pNFD));
     }
     CONTRACTL_END;
@@ -342,8 +345,8 @@ BOOL IsStructMarshalable(TypeHandle th)
 {
     CONTRACTL
     {
-        NOTHROW;
-        GC_NOTRIGGER;
+        THROWS;
+        GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(!th.IsNull());
     }
@@ -369,6 +372,8 @@ BOOL IsStructMarshalable(TypeHandle th)
     
     if (pMT->IsStructMarshalable())
         return TRUE;
+
+    pMT->EnsureNativeLayoutInfoInitialized();
 
     const NativeFieldDescriptor *pNativeFieldDescriptors = pMT->GetLayoutInfo()->GetNativeFieldDescriptors();
     UINT  numReferenceFields              = pMT->GetLayoutInfo()->GetNumCTMFields();
@@ -414,7 +419,10 @@ NativeFieldDescriptor::NativeFieldDescriptor(PTR_MethodTable pMT, int numElement
 
     m_pFD.SetValueMaybeNull(nullptr);
     m_pNestedType.SetValue(pMT);
-    pMT->EnsureNativeLayoutInfoInitialized();
+    if (!pMT->IsBlittable())
+    {
+        pMT->EnsureNativeLayoutInfoInitialized();
+    }
     m_numElements = numElements;
     m_flags = NativeFieldCategory::NESTED;
     m_isNestedType = true;

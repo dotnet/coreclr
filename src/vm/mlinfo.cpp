@@ -1433,7 +1433,14 @@ MarshalInfo::MarshalInfo(Module* pModule,
 #endif
 )
 {
-    STANDARD_VM_CONTRACT;
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+    }
+    CONTRACTL_END;
 
     HRESULT hr;
     NativeTypeParamInfo ParamInfo;
@@ -3152,7 +3159,10 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, TypeHa
 {
     CONTRACTL
     {
-        STANDARD_VM_CHECK;
+                THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pParamInfo));
     }
     CONTRACTL_END;
@@ -3948,7 +3958,10 @@ HRESULT MarshalInfo::TryGetItfMarshalInfo(TypeHandle th, BOOL fDispItf, BOOL fIn
 {
     CONTRACTL
     {
-        STANDARD_VM_CHECK;
+                THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(!th.IsNull());
         PRECONDITION(CheckPointer(pInfo));
     }
@@ -5025,7 +5038,10 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
 {
     CONTRACT_VOID
     {
-        STANDARD_VM_CHECK;
+                THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(!thElement.IsNull());
         POSTCONDITION(!IsValid() || !m_thElement.IsNull());
     }

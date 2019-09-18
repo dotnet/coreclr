@@ -4115,6 +4115,10 @@ void EEClassLayoutInfo::InitializeNativeLayoutFieldMetadataThrowing(MethodTable*
 #ifdef UNIX_AMD64_ABI
                 SystemVAmd64CheckForPassNativeStructInRegister(pMT);
 #endif
+                if(IsStructMarshalable(pMT))
+                {
+                    pMT->SetStructMarshalable();
+                }
             }
         }
     }
