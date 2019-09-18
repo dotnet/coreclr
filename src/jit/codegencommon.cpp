@@ -7603,6 +7603,8 @@ private:
         , m_poisonDblRegs(RBM_NONE)
         , m_poisoning(false)
         , m_preciseInit(false)
+        , m_poisoningLocs(compiler->getAllocatorDebugOnly())
+        , m_preciseZeroingLocs(compiler->getAllocatorDebugOnly())
 #endif
     {
     }
@@ -7637,6 +7639,12 @@ private:
 
     bool m_poisoning;
     bool m_preciseInit;
+
+    typedef jitstd::pair<int, int> StackLocation;
+    typedef jitstd::vector<StackLocation> StackLocations;
+
+    StackLocations m_poisoningLocs;
+    StackLocations m_preciseZeroingLocs;
 #endif
 };
 
@@ -7854,18 +7862,36 @@ void PrologInitHelper::PoisonRegisters() const
 }
 #endif // DEBUG
 
-void PrologInitHelper::RecordStackInit(int low, int high DEBUGARG(bool poison))
+void PrologInitHelper::RecordStackInit(int low, int high DEBUGARG(bool poisonThisInterval))
 {
-    INDEBUG(m_needToZeroStack = true;)
+#ifdef DEBUG
+    if (!poisonThisInterval)
+#endif // DEBUG
+    {
+        INDEBUG(m_needToZeroStack = true;)
 
-    if (low < m_stackLow)
-    {
-        m_stackLow = low;
+        if (low < m_stackLow)
+        {
+            m_stackLow = low;
+        }
+        if (high > m_stackHigh)
+        {
+            m_stackHigh = high;
+        }
     }
-    if (high > m_stackHigh)
+#ifdef DEBUG
+    if (poisonThisInterval)
     {
-        m_stackHigh = high;
+        assert(m_poisoning);
+        StackLocation sl(low, high);
+        m_poisoningLocs.push_back(sl);
     }
+    else if (m_preciseInit)
+    {
+        StackLocation sl(low, high);
+        m_preciseZeroingLocs.push_back(sl);
+    }
+#endif // DEBUG
 }
 }
 
