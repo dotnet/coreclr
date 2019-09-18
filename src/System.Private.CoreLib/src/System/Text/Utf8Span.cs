@@ -58,20 +58,6 @@ namespace System.Text
 
         public bool IsEmpty => Bytes.IsEmpty;
 
-        /// <summary>
-        /// Similar to "== default", but ignores the Length check.
-        /// </summary>
-        private unsafe bool IsNull
-        {
-            [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            get
-            {
-                bool isNull = Unsafe.IsNull(ref MemoryMarshal.GetReference(Bytes));
-                Debug.Assert(!isNull || Length == 0, "If reference is null, Length must be 0.");
-                return isNull;
-            }
-        }
-
         internal int Length => Bytes.Length;
 
         public Utf8Span this[Range range]

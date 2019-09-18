@@ -261,178 +261,236 @@ namespace System.Text
         /// returning a new <see cref="Utf8Span"/> containing the resulting slice.
         /// </summary>
         public Utf8Span TrimStart() => TrimHelper(TrimType.Head);
-
         [StructLayout(LayoutKind.Auto)]
         public readonly ref struct SplitResult
         {
-            private readonly Utf8Span _originalSource;
-            private readonly int _searchRune; // -1 if not specified, takes less space than "Rune?"
-            private readonly Utf8Span _searchTerm;
-            private readonly Utf8StringSplitOptions _splitOptions;
+            private readonly State _state;
 
             internal SplitResult(Utf8Span source, Rune searchRune, Utf8StringSplitOptions splitOptions)
             {
-                _originalSource = source;
-                _searchRune = searchRune.Value;
-                _searchTerm = default;
-                _splitOptions = splitOptions;
+                _state = new State
+                {
+                    RemainingSearchSpace = source,
+                    SearchRune = searchRune.Value,
+                    SearchTerm = default,
+                    SplitOptions = splitOptions
+                };
             }
 
             internal SplitResult(Utf8Span source, Utf8Span searchTerm, Utf8StringSplitOptions splitOptions)
             {
-                _originalSource = source;
-                _searchRune = -1;
-                _searchTerm = searchTerm;
-                _splitOptions = splitOptions;
-            }
-
-            private void ApplySplitOptions(ref Utf8Span input)
-            {
-                if ((_splitOptions & Utf8StringSplitOptions.TrimEntries) != 0)
+                _state = new State
                 {
-                    input = input.Trim();
-                }
-
-                if ((_splitOptions & Utf8StringSplitOptions.RemoveEmptyEntries) != 0)
-                {
-                    if (input.IsEmpty)
-                    {
-                        input = default;
-                    }
-                }
-            }
-
-            private void DeconstructHelper(in Utf8Span actualSource, out Utf8Span firstItem, out Utf8Span remainder)
-            {
-                // n.b. Our callers might pass the same reference for 'actualSource' and 'remainder'.
-                // We need to take care not to read 'actualSource' after writing 'remainder'.
-
-                if (actualSource.IsNull)
-                {
-                    firstItem = default;
-                    remainder = default;
-                    return;
-                }
-
-                if (_searchRune >= 0)
-                {
-                    Debug.Assert(Rune.IsValid(_searchRune));
-                    actualSource.SplitOn(Rune.UnsafeCreate((uint)_searchRune)).Deconstruct(out firstItem, out remainder);
-                }
-                else
-                {
-                    actualSource.SplitOn(_searchTerm).Deconstruct(out firstItem, out remainder);
-                }
-
-                ApplySplitOptions(ref firstItem);
-
-                // It's possible that 'firstItem' could be null, such as if it's an empty string
-                // and we were asked to trim empty entries. We'll keep iterating either until we
-                // run out of data or until we have a non-null output for firstItem.
-
-                while (firstItem.IsNull && !remainder.IsNull)
-                {
-                    if (_searchRune >= 0)
-                    {
-                        Debug.Assert(Rune.IsValid(_searchRune));
-                        remainder.SplitOn(Rune.UnsafeCreate((uint)_searchRune)).Deconstruct(out firstItem, out remainder);
-                    }
-                    else
-                    {
-                        remainder.SplitOn(_searchTerm).Deconstruct(out firstItem, out remainder);
-                    }
-
-                    ApplySplitOptions(ref firstItem);
-                }
-
-                ApplySplitOptions(ref remainder);
+                    RemainingSearchSpace = source,
+                    SearchRune = -1,
+                    SearchTerm = searchTerm,
+                    SplitOptions = splitOptions
+                };
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2)
             {
-                DeconstructHelper(in _originalSource, out item1, out item2);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out item2);
+                TrimIfNeeded(ref item2);
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2, out Utf8Span item3)
             {
-                DeconstructHelper(in _originalSource, out item1, out Utf8Span remainder);
-                DeconstructHelper(in remainder, out item2, out item3);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out Utf8Span remainder);
+                _state.DeconstructHelper(in remainder, out item2, out item3);
+                TrimIfNeeded(ref item3);
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2, out Utf8Span item3, out Utf8Span item4)
             {
-                DeconstructHelper(in _originalSource, out item1, out Utf8Span remainder);
-                DeconstructHelper(in remainder, out item2, out remainder);
-                DeconstructHelper(in remainder, out item3, out item4);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out Utf8Span remainder);
+                _state.DeconstructHelper(in remainder, out item2, out remainder);
+                _state.DeconstructHelper(in remainder, out item3, out item4);
+                TrimIfNeeded(ref item4);
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2, out Utf8Span item3, out Utf8Span item4, out Utf8Span item5)
             {
-                DeconstructHelper(in _originalSource, out item1, out Utf8Span remainder);
-                DeconstructHelper(in remainder, out item2, out remainder);
-                DeconstructHelper(in remainder, out item3, out remainder);
-                DeconstructHelper(in remainder, out item4, out item5);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out Utf8Span remainder);
+                _state.DeconstructHelper(in remainder, out item2, out remainder);
+                _state.DeconstructHelper(in remainder, out item3, out remainder);
+                _state.DeconstructHelper(in remainder, out item4, out item5);
+                TrimIfNeeded(ref item5);
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2, out Utf8Span item3, out Utf8Span item4, out Utf8Span item5, out Utf8Span item6)
             {
-                DeconstructHelper(in _originalSource, out item1, out Utf8Span remainder);
-                DeconstructHelper(in remainder, out item2, out remainder);
-                DeconstructHelper(in remainder, out item3, out remainder);
-                DeconstructHelper(in remainder, out item4, out remainder);
-                DeconstructHelper(in remainder, out item5, out item6);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out Utf8Span remainder);
+                _state.DeconstructHelper(in remainder, out item2, out remainder);
+                _state.DeconstructHelper(in remainder, out item3, out remainder);
+                _state.DeconstructHelper(in remainder, out item4, out remainder);
+                _state.DeconstructHelper(in remainder, out item5, out item6);
+                TrimIfNeeded(ref item6);
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2, out Utf8Span item3, out Utf8Span item4, out Utf8Span item5, out Utf8Span item6, out Utf8Span item7)
             {
-                DeconstructHelper(in _originalSource, out item1, out Utf8Span remainder);
-                DeconstructHelper(in remainder, out item2, out remainder);
-                DeconstructHelper(in remainder, out item3, out remainder);
-                DeconstructHelper(in remainder, out item4, out remainder);
-                DeconstructHelper(in remainder, out item5, out remainder);
-                DeconstructHelper(in remainder, out item6, out item7);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out Utf8Span remainder);
+                _state.DeconstructHelper(in remainder, out item2, out remainder);
+                _state.DeconstructHelper(in remainder, out item3, out remainder);
+                _state.DeconstructHelper(in remainder, out item4, out remainder);
+                _state.DeconstructHelper(in remainder, out item5, out remainder);
+                _state.DeconstructHelper(in remainder, out item6, out item7);
+                TrimIfNeeded(ref item7);
             }
 
             [EditorBrowsable(EditorBrowsableState.Never)]
             public void Deconstruct(out Utf8Span item1, out Utf8Span item2, out Utf8Span item3, out Utf8Span item4, out Utf8Span item5, out Utf8Span item6, out Utf8Span item7, out Utf8Span item8)
             {
-                DeconstructHelper(in _originalSource, out item1, out Utf8Span remainder);
-                DeconstructHelper(in remainder, out item2, out remainder);
-                DeconstructHelper(in remainder, out item3, out remainder);
-                DeconstructHelper(in remainder, out item4, out remainder);
-                DeconstructHelper(in remainder, out item5, out remainder);
-                DeconstructHelper(in remainder, out item6, out remainder);
-                DeconstructHelper(in remainder, out item7, out item8);
+                _state.DeconstructHelper(in _state.RemainingSearchSpace, out item1, out Utf8Span remainder);
+                _state.DeconstructHelper(in remainder, out item2, out remainder);
+                _state.DeconstructHelper(in remainder, out item3, out remainder);
+                _state.DeconstructHelper(in remainder, out item4, out remainder);
+                _state.DeconstructHelper(in remainder, out item5, out remainder);
+                _state.DeconstructHelper(in remainder, out item6, out remainder);
+                _state.DeconstructHelper(in remainder, out item7, out item8);
+                TrimIfNeeded(ref item8);
             }
 
             public Enumerator GetEnumerator() => new Enumerator(this);
 
+            private void TrimIfNeeded(ref Utf8Span span)
+            {
+                if ((_state.SplitOptions & Utf8StringSplitOptions.TrimEntries) != 0)
+                {
+                    span = span.Trim();
+                }
+            }
+
             [StructLayout(LayoutKind.Auto)]
             public ref struct Enumerator
             {
+                private const Utf8StringSplitOptions HALT_ENUMERATION = (Utf8StringSplitOptions)int.MinValue;
+
                 private Utf8Span _current;
-                private Utf8Span _remainder;
-                private readonly SplitResult _result;
+                private State _state;
 
                 internal Enumerator(SplitResult result)
                 {
-                    _result = result;
-                    _remainder = result._originalSource;
                     _current = default;
+                    _state = result._state; // copy by value
                 }
 
                 public Utf8Span Current => _current;
 
                 public bool MoveNext()
                 {
-                    _result.DeconstructHelper(in _remainder, out _current, out _remainder);
-                    return !_current.IsNull;
+                    // Happy path: if the search term was found, then the two 'out' fields below are overwritten with
+                    // the contents of the (before, after) tuple, and we can return right away.
+
+                    if (_state.DeconstructHelper(in _state.RemainingSearchSpace, out _current, out _state.RemainingSearchSpace))
+                    {
+                        return true;
+                    }
+
+                    // At this point, the search term was not found within the search space. '_current' contains the last
+                    // bit of data after the final occurrence of the search term. We'll also set a flag saying that we've
+                    // completed enumeration.
+
+                    if (_current.IsEmpty && (_state.SplitOptions & Utf8StringSplitOptions.RemoveEmptyEntries) != 0)
+                    {
+                        return false;
+                    }
+
+                    if ((_state.SplitOptions & HALT_ENUMERATION) != 0)
+                    {
+                        return false;
+                    }
+
+                    _state.SplitOptions |= HALT_ENUMERATION; // prevents yielding <empty> forever at end of split
+
+                    return true;
+                }
+            }
+
+            [StructLayout(LayoutKind.Auto)]
+            private ref struct State // fully mutable
+            {
+                internal Utf8Span RemainingSearchSpace;
+                internal int SearchRune; // -1 if not specified, takes less space than "Rune?"
+                internal Utf8Span SearchTerm;
+                internal Utf8StringSplitOptions SplitOptions;
+
+                // Returns 'true' if a match was found, 'false' otherwise.
+                internal readonly bool DeconstructHelper(in Utf8Span source, out Utf8Span firstItem, out Utf8Span remainder)
+                {
+                    // n.b. Our callers might pass the same reference for 'source' and 'remainder'.
+                    // We need to take care not to read 'source' after writing 'remainder'.
+
+                    bool wasMatchFound;
+                    ref readonly Utf8Span searchSpan = ref source;
+
+                    while (true)
+                    {
+                        if (searchSpan.IsEmpty)
+                        {
+                            firstItem = searchSpan;
+                            remainder = default;
+                            wasMatchFound = false;
+                            break;
+                        }
+
+                        Range matchRange;
+
+                        if (SearchRune >= 0)
+                        {
+                            wasMatchFound = searchSpan.TryFind(Rune.UnsafeCreate((uint)SearchRune), out matchRange);
+                        }
+                        else
+                        {
+                            wasMatchFound = searchSpan.TryFind(SearchTerm, out matchRange);
+                        }
+
+                        if (!wasMatchFound)
+                        {
+                            // If no match was found, we move 'source' to 'firstItem', trim if necessary, and return right away.
+
+                            firstItem = searchSpan;
+
+                            if ((SplitOptions & Utf8StringSplitOptions.TrimEntries) != 0)
+                            {
+                                firstItem = firstItem.Trim();
+                            }
+
+                            remainder = default;
+                        }
+                        else
+                        {
+                            // Otherwise, if a match was found, split the result across 'firstItem' and 'remainder',
+                            // applying trimming if necessary.
+
+                            firstItem = searchSpan[..matchRange.Start]; // TODO_UTF8STRING: Could use unsafe slicing as optimization
+                            remainder = searchSpan[matchRange.End..]; // TODO_UTF8STRING: Could use unsafe slicing as optimization
+
+                            if ((SplitOptions & Utf8StringSplitOptions.TrimEntries) != 0)
+                            {
+                                firstItem = firstItem.Trim();
+                            }
+
+                            // If we're asked to remove empty entries, loop until there's a real value in 'firstItem'.
+
+                            if ((SplitOptions & Utf8StringSplitOptions.RemoveEmptyEntries) != 0 && firstItem.IsEmpty)
+                            {
+                                searchSpan = ref remainder;
+                                continue;
+                            }
+                        }
+
+                        break; // loop only if explicit 'continue' statement was hit
+                    }
+
+                    return wasMatchFound;
                 }
             }
         }
