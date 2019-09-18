@@ -10607,7 +10607,7 @@ void CodeGen::genSetScopeInfo()
 
     // Initialize the table where the reported variables' home will be placed.
     compiler->eeSetLVcount(varsLocationsCount);
-  
+
 #ifdef DEBUG
     genTrnslLocalVarCount = varsLocationsCount;
     if (varsLocationsCount)
