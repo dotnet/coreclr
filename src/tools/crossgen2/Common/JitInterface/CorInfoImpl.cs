@@ -616,7 +616,7 @@ namespace Internal.JitInterface
 
             if (method.IsSynchronized)
                 result |= CorInfoFlag.CORINFO_FLG_SYNCH;
-            if (method.IsIntrinsic)
+            if (method.IsIntrinsic || method.Name == "GetStubContext")
                 result |= CorInfoFlag.CORINFO_FLG_INTRINSIC | CorInfoFlag.CORINFO_FLG_JIT_INTRINSIC;
             if (method.IsVirtual)
                 result |= CorInfoFlag.CORINFO_FLG_VIRTUAL;
@@ -3038,7 +3038,13 @@ namespace Internal.JitInterface
                 flags.Set(CorJitFlag.CORJIT_FLAG_REVERSE_PINVOKE);
 
             if (this.MethodBeingCompiled.IsPInvoke)
+            {
                 flags.Set(CorJitFlag.CORJIT_FLAG_IL_STUB);
+
+#if READYTORUN
+                flags.Set(CorJitFlag.CORJIT_FLAG_PUBLISH_SECRET_PARAM);
+#endif
+            }
 
             if (this.MethodBeingCompiled.IsNoOptimization)
                 flags.Set(CorJitFlag.CORJIT_FLAG_MIN_OPT);
