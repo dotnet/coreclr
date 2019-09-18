@@ -4145,10 +4145,6 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
     // Internal interface for the NStruct being loaded.
     IMDInternalImport* pInternalImport = pModule->GetMDImport();
 
-    HENUMInternalHolder hEnumField(pInternalImport);
-    hEnumField.EnumInit(mdtFieldDef, pMT->GetCl());
-    ULONG cTotalFields = pInternalImport->EnumGetCount(&hEnumField);
-
     LPCUTF8 szName;
     LPCUTF8 szNamespace;
     if (FAILED(pInternalImport->GetNameOfTypeDef(pMT->GetCl(), &szName, &szNamespace)))
@@ -4231,7 +4227,7 @@ VOID EEClassLayoutInfo::CollectNativeLayoutFieldMetadataThrowing(MethodTable* pM
         pfwalk->m_placement.m_alignment = pfwalk->m_nfd.AlignmentRequirement();
     }
 
-    S_UINT32 cbSortArraySize = S_UINT32(cTotalFields) * S_UINT32(sizeof(LayoutRawFieldInfo*));
+    S_UINT32 cbSortArraySize = S_UINT32(cInstanceFields) * S_UINT32(sizeof(LayoutRawFieldInfo*));
     if (cbSortArraySize.IsOverflow())
     {
         ThrowHR(COR_E_TYPELOAD);
