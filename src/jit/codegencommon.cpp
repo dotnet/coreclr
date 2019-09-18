@@ -7593,12 +7593,22 @@ private:
         , m_zeroDblRegs(RBM_NONE)
 #ifdef DEBUG
         , m_hasUntrLcl(false)
+        , m_poisonIntRegs(RBM_NONE)
+        , m_poisonFltRegs(RBM_NONE)
+        , m_poisonDblRegs(RBM_NONE)
+        , m_poisoning(false)
+        , m_preciseInit(false)
 #endif
     {
     }
 
     void ZeroStack(regNumber initReg, bool* pInitRegZeroed) const;
     void ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) const;
+
+#ifdef DEBUG
+    void PoisonStack() const;
+    void PoisonRegisters() const;
+#endif // DEBUG
 
     CodeGen*  m_codeGen;
     Compiler* m_compiler;
@@ -7613,6 +7623,13 @@ private:
 
 #ifdef DEBUG
     bool m_hasUntrLcl; // Is any local that must be initialized?
+
+    regMaskTP m_poisonIntRegs;
+    regMaskTP m_poisonFltRegs;
+    regMaskTP m_poisonDblRegs;
+
+    bool m_poisoning;
+    bool m_preciseInit;
 #endif
 };
 
@@ -7766,11 +7783,17 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
 void PrologInitHelper::InitStack(regNumber initReg, bool* pInitRegZeroed) const
 {
     ZeroStack(initReg, pInitRegZeroed);
+#ifdef DEBUG
+    PoisonStack();
+#endif // DEBUG
 }
 
 void PrologInitHelper::InitRegisters(regNumber initReg, bool* pInitRegZeroed) const
 {
     ZeroRegisters(initReg, pInitRegZeroed);
+#ifdef DEBUG
+    PoisonRegisters();
+#endif // DEBUG
 }
 
 void PrologInitHelper::ZeroStack(regNumber initReg, bool* pInitRegZeroed) const
@@ -7827,6 +7850,16 @@ void PrologInitHelper::ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) co
         m_codeGen->genZeroInitFltRegs(m_zeroFltRegs, m_zeroDblRegs, initReg);
     }
 }
+
+#ifdef DEBUG
+void PrologInitHelper::PoisonStack() const
+{
+}
+
+void PrologInitHelper::PoisonRegisters() const
+{
+}
+#endif // DEBUG
 }
 
 /*****************************************************************************
