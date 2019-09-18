@@ -28,7 +28,7 @@ jobs:
       archType: arm
       osGroup: Linux
       container:
-        image: ubuntu-16.04-cross-14.04-23cacb0-20190528233931
+        image: ubuntu-16.04-cross-14.04-23cacb0-20190918214022
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -50,7 +50,7 @@ jobs:
       archType: arm64
       osGroup: Linux
       container:
-        image: ubuntu-16.04-cross-arm64-cfdd435-20190520220848
+        image: ubuntu-16.04-cross-arm64-cfdd435-20190918214022
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -74,7 +74,7 @@ jobs:
       osGroup: Linux
       osSubgroup: _musl
       container:
-        image: alpine-3.6-WithNode-cfdd435-20190521001804
+        image: alpine-3.9-WithNode-0fc54a3-20190918214015
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -95,7 +95,7 @@ jobs:
       osGroup: Linux
       osSubgroup: _musl
       container:
-        image: ubuntu-16.04-cross-arm64-alpine-406629a-20190520220848
+        image: ubuntu-16.04-cross-arm64-alpine-406629a-20190918214022
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -116,7 +116,7 @@ jobs:
       osGroup: Linux
       osSubgroup: _rhel6
       container:
-        image: centos-6-3e800f1-20190501005338
+        image: centos-6-50f0d02-20190918213956
         registry: mcr
       helixQueues:
       # TODO: enable RedHat.6.Amd64.Open once https://github.com/dotnet/coreclr/issues/23580 is resolved
@@ -134,7 +134,7 @@ jobs:
       archType: x64
       osGroup: Linux
       container:
-        image: centos-7-3e800f1-20190501005343
+        image: centos-7-50f0d02-20190918214028
         registry: mcr
       helixQueues:
       - ${{ if and(eq(variables['System.TeamProject'], 'public'), in(parameters.helixQueueGroup, 'pr', 'ci', 'corefx')) }}:
