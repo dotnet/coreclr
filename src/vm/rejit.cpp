@@ -84,12 +84,12 @@
 //
 // Transitions between RejitInfo states happen only in the following circumstances:
 //   1) New RejitInfo added to table (kJumpNone state)
-//      Inside RequestRejit,
+//      Inside RequestRejit
 //      Global Crst MAY/MAY NOT be held, table Crst held
 //      Allowed SharedReJit states: Requested, GettingReJITParameters, Active
 //
 //   2) kJumpNone -> kJumpToPrestub
-//      Inside RequestRejit,
+//      Inside RequestRejit
 //      Global Crst MAY/MAY NOT be held, table Crst held
 //      Allowed SharedReJit states: Requested, GettingReJITParameters, Active
 //
