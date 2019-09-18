@@ -9,9 +9,9 @@ using System.Diagnostics.Tracing;
 /// </summary>
 namespace ILCompiler
 {
-    // The event IDs here must not collide with the ones used by DependencyAnalysisPerfEventSource.cs
+    // The event IDs here must not collide with the ones used by DependencyAnalysis' PerfEventSource
     [EventSource(Name = "Microsoft-ILCompiler-Perf")]
-    public class ReadyToRunPerfEventSource : EventSource
+    public class PerfEventSource : EventSource
     {
         [Event(1, Level = EventLevel.Informational)]
         public void LoadingStart() { WriteEvent(1); }
@@ -33,6 +33,6 @@ namespace ILCompiler
         [Event(8, Level = EventLevel.Informational)]
         public void JitStop() { WriteEvent(8); }
 
-        public static ReadyToRunPerfEventSource Log = new ReadyToRunPerfEventSource();
+        public static PerfEventSource Log = new PerfEventSource();
     }
 }

@@ -217,10 +217,10 @@ namespace ILCompiler
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
 
-                ReadyToRunPerfEventSource.Log.EmittingStart();
+                PerfEventSource.Log.EmittingStart();
                 NodeFactory.SetMarkingComplete();
                 ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
-                ReadyToRunPerfEventSource.Log.EmittingStop();
+                PerfEventSource.Log.EmittingStop();
             }
         }
 
@@ -267,7 +267,7 @@ namespace ILCompiler
 
                 try
                 {
-                    ReadyToRunPerfEventSource.Log.JitStart();
+                    PerfEventSource.Log.JitStart();
                     _corInfo.CompileMethod(methodCodeNodeNeedingCode);
                 }
                 catch (TypeSystemException ex)
@@ -281,7 +281,7 @@ namespace ILCompiler
                 }
                 finally
                 {
-                    ReadyToRunPerfEventSource.Log.JitStop();
+                    PerfEventSource.Log.JitStop();
                 }
             }
         }

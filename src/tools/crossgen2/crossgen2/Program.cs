@@ -14,10 +14,6 @@ using Internal.TypeSystem.Ecma;
 
 using Internal.CommandLine;
 
-using ILCompiler.DependencyAnalysisFramework;
-
-using Debug = System.Diagnostics.Debug;
-
 namespace ILCompiler
 {
     internal class Program
@@ -229,8 +225,8 @@ namespace ILCompiler
                     throw new CommandLineException("Target OS is not supported");
             }
 
-            ReadyToRunPerfEventSource.Log.CompilationStart();
-            ReadyToRunPerfEventSource.Log.LoadingStart();
+            PerfEventSource.Log.CompilationStart();
+            PerfEventSource.Log.LoadingStart();
             //
             // Initialize type system context
             //
@@ -396,9 +392,9 @@ namespace ILCompiler
 
             ICompilation compilation = builder.ToCompilation();
 
-            ReadyToRunPerfEventSource.Log.LoadingStop();
+            PerfEventSource.Log.LoadingStop();
             compilation.Compile(_outputFilePath);
-            ReadyToRunPerfEventSource.Log.CompilationStop();
+            PerfEventSource.Log.CompilationStop();
 
             return 0;
         }

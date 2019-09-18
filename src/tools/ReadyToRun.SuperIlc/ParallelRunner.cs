@@ -268,7 +268,7 @@ public sealed class ParallelRunner
                 }
                 while (freeSlot == null);
 
-                freeSlot.Launch(processInfo, jittedMethods, index + 1, totalCount, progressIndex, failureCount);
+                freeSlot.Launch(processInfo, jittedMethods, index, totalCount, progressIndex, failureCount);
             }
 
             // We have launched all the commands, now wait for all processes to finish

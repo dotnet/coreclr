@@ -11,7 +11,7 @@ namespace ILCompiler.DependencyAnalysisFramework
 {
     // The event IDs here must not collide with the ones used by ReadyToRunPerfEventSource.cs
     [EventSource(Name = "Microsoft-ILCompiler-Perf")]
-    public class DependencyAnalysisPerfEventSource : EventSource
+    class PerfEventSource : EventSource
     {
         [Event(1001, Level = EventLevel.Informational)]
         public void GraphProcessingStart() { WriteEvent(1001); }
@@ -26,6 +26,6 @@ namespace ILCompiler.DependencyAnalysisFramework
         [Event(1005, Level = EventLevel.Informational)]
         public void AddedNodeToMarkStack() { WriteEvent(1005); }
 
-        public static DependencyAnalysisPerfEventSource Log = new DependencyAnalysisPerfEventSource();
+        public static PerfEventSource Log = new PerfEventSource();
     }
 }
