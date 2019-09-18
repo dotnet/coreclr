@@ -4452,6 +4452,9 @@ void CodeGen::genEnregisterIncomingStackArgs()
  *  At the same time we set lvMustInit for locals (enregistered or on stack)
  *  that must be initialized (e.g. initialize memory (comInitMem),
  *  untracked pointers or disable DFA)
+ * TODO seandree: I do not think that this comment is valid, does DFA stand for data flow analysis here?
+ * how does it affect what we want to zero? Untracked pointers are also not correct, because we can have tracked
+ * pointers on the stack, and what is comInitMem?
  */
 void CodeGen::genCheckUseBlockInit()
 {
@@ -6038,25 +6041,27 @@ regNumber CodeGen::genGetZeroReg(regNumber initReg, bool* pInitRegZeroed)
 #endif // !_TARGET_ARM64_
 }
 
-/*-----------------------------------------------------------------------------
- *
- * Do we have any untracked pointer locals at all,
- * or do we need to initialize memory for locspace?
- *
- * untrLclHi      - (Untracked locals High-Offset)   The upper bound offset at which the zero init code will end
- * initializing memory (not inclusive).
- * untrLclLo      - (Untracked locals Low-Offset)    The lower bound at which the zero init code will start zero
- * initializing memory.
- * initReg        - A scratch register (that gets set to zero on some platforms).
- * pInitRegZeroed - Sets a flag that tells the callee whether or not the initReg register got zeroed.
- */
+// genZeroInitFrame: Zero stack locations in the range.
+//
+// Arguments:
+// untrLclHi      - (Untracked locals High-Offset)   The upper bound offset at which the zero init code will end
+// initializing memory (not inclusive).
+// untrLclLo      - (Untracked locals Low-Offset)    The lower bound at which the zero init code will start zero
+// initializing memory.
+// initReg        - A scratch register (that gets set to zero on some platforms).
+// pInitRegZeroed - Sets a flag that tells the callee whether or not the initReg register got zeroed.
+//
+// Notes:
+//   We zeroing memory for pointers on the stack.
+// TODO seandree: rename the arguments if confirm that they have no relationship to tracked/untracked vars.
 void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, bool* pInitRegZeroed)
 {
     assert(compiler->compGeneratingProlog);
+    assert(untrLclHi > untrLclLo);
+    assert(genInitStkLclCnt > 0);
 
     if (genUseBlockInit)
     {
-        assert(untrLclHi > untrLclLo);
 #ifdef _TARGET_ARMARCH_
         /*
             Generate the following code:
@@ -6306,7 +6311,7 @@ void CodeGen::genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, 
 #error Unsupported or unset target architecture
 #endif // _TARGET_*
     }
-    else if (genInitStkLclCnt > 0)
+    else
     {
         assert((genRegMask(initReg) & intRegState.rsCalleeRegArgMaskLiveIn) == 0); // initReg is not a live incoming
                                                                                    // argument reg
@@ -7592,7 +7597,7 @@ private:
         , m_zeroFltRegs(RBM_NONE)
         , m_zeroDblRegs(RBM_NONE)
 #ifdef DEBUG
-        , m_hasUntrLcl(false)
+        , m_needToZeroStack(false)
         , m_poisonIntRegs(RBM_NONE)
         , m_poisonFltRegs(RBM_NONE)
         , m_poisonDblRegs(RBM_NONE)
@@ -7622,7 +7627,7 @@ private:
     regMaskTP m_zeroDblRegs;
 
 #ifdef DEBUG
-    bool m_hasUntrLcl; // Is any local that must be initialized?
+    bool m_needToZeroStack; // Is any stack location that must be initialized to 0?
 
     regMaskTP m_poisonIntRegs;
     regMaskTP m_poisonFltRegs;
@@ -7714,7 +7719,7 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         {
         INIT_STK:
 
-            INDEBUG(initHelper.m_hasUntrLcl = true;)
+            INDEBUG(initHelper.m_needToZeroStack = true;)
 
             if (loOffs < initHelper.m_stackLow)
             {
@@ -7752,7 +7757,7 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         noway_assert(!codeGen->isFramePointerUsed() || loOffs != 0);
 #endif // !defined(_TARGET_AMD64_)
 
-        INDEBUG(initHelper.m_hasUntrLcl = true;)
+        INDEBUG(initHelper.m_needToZeroStack = true;)
 
         if (loOffs < initHelper.m_stackLow)
         {
@@ -7764,7 +7769,7 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         }
     }
 
-    assert((codeGen->genGetInitStackLocalCount() > 0) == initHelper.m_hasUntrLcl);
+    assert((codeGen->genGetInitStackLocalCount() > 0) == initHelper.m_needToZeroStack);
 
 #ifdef DEBUG
     if (compiler->verbose)
@@ -7782,7 +7787,10 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
 
 void PrologInitHelper::InitStack(regNumber initReg, bool* pInitRegZeroed) const
 {
-    ZeroStack(initReg, pInitRegZeroed);
+    if (m_codeGen->genGetInitStackLocalCount() > 0)
+    {
+        ZeroStack(initReg, pInitRegZeroed);
+    }
 #ifdef DEBUG
     PoisonStack();
 #endif // DEBUG
@@ -7798,6 +7806,9 @@ void PrologInitHelper::InitRegisters(regNumber initReg, bool* pInitRegZeroed) co
 
 void PrologInitHelper::ZeroStack(regNumber initReg, bool* pInitRegZeroed) const
 {
+    assert(m_needToZeroStack);
+    assert(m_stackLow != +INT_MAX);
+    assert(m_stackHigh != -INT_MAX);
     m_codeGen->genZeroInitFrame(m_stackHigh, m_stackLow, initReg, pInitRegZeroed);
 }
 
@@ -8208,6 +8219,8 @@ void CodeGen::genFnProlog()
     // Init the frame as needed, mostly zero out stack variables.
     //
 
+    // TODO seandree: we call this function without checking that we actually need to zero anything,
+    // if we have a function that does not need to init anything on the stack then this call will fail with an assert.
     initHelper.InitStack(initReg, &initRegZeroed);
 
 #if defined(FEATURE_EH_FUNCLETS)
