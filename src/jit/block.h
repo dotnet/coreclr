@@ -41,7 +41,7 @@ typedef BitVec          ASSERT_TP;
 typedef BitVec_ValArg_T ASSERT_VALARG_TP;
 typedef BitVec_ValRet_T ASSERT_VALRET_TP;
 
-// We use the following format when print the BasicBlock number: bbNum
+// We use the following format when printing the BasicBlock number: bbNum
 // This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
 #define FMT_BB "BB%02u"
 

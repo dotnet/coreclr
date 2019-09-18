@@ -11468,10 +11468,20 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
     }
 }
 
+// gtDispStmt: Print a statement to jitstdout.
+//
+// Arguments:
+//    stmt - the statement to be printed;
+//    msg  - an additional message to print before the statement.
+//
 void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
 {
     if (opts.compDbgInfo)
     {
+        if (msg != nullptr)
+        {
+            printf("%s ", msg);
+        }
         printStmtID(stmt);
         IL_OFFSETX firstILOffsx = stmt->gtStmtILoffsx;
         printf(" (IL ");

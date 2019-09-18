@@ -20525,7 +20525,7 @@ void Compiler::fgDispBasicBlocks(bool dumpTrees)
 //
 // Arguments:
 //    stmt  - the statement to dump;
-//    bbNum - The basic block number to dump.
+//    bbNum - the basic block number to dump.
 //
 void Compiler::fgDumpStmtTree(Statement* stmt, unsigned bbNum)
 {

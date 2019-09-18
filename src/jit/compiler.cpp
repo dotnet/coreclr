@@ -10650,7 +10650,7 @@ void cNodeIR(Compiler* comp, GenTree* tree)
 void cStmtIR(Compiler* comp, Statement* stmt)
 {
     cTreeIR(comp, stmt->gtStmtExpr);
-    if (comp->dumpIRNoStmts == false)
+    if (!comp->dumpIRNoStmts)
     {
         dTabStopIR(0, COLUMN_OPCODE);
         Compiler::printStmtID(stmt);
