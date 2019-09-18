@@ -25,6 +25,7 @@ Revision History:
 #include <sched.h>
 #include <errno.h>
 #include <unistd.h>
+#include <inttypes.h>
 #include <sys/types.h>
 #if HAVE_SYSCTL
 #include <sys/sysctl.h>
@@ -256,6 +257,7 @@ static uint64_t GetMemorySizeMultiplier(char units)
     return 1;
 }
 
+#ifndef __APPLE__
 // Try to read the MemAvailable entry from /proc/meminfo.
 // Return true if the /proc/meminfo existed, the entry was present and we were able to parse it.
 static bool ReadMemAvailable(uint64_t* memAvailable)
@@ -271,7 +273,7 @@ static bool ReadMemAvailable(uint64_t* memAvailable)
         {
             char units = '\0';
             uint64_t available;
-            int fieldsParsed = sscanf(line, "MemAvailable: %lu %cB", &available, &units);
+            int fieldsParsed = sscanf(line, "MemAvailable: %" SCNu64 " %cB", &available, &units);
 
             if (fieldsParsed >= 1)
             {
@@ -288,6 +290,7 @@ static bool ReadMemAvailable(uint64_t* memAvailable)
 
     return foundMemAvailable;
 }
+#endif // __APPLE__
 
 /*++
 Function:
