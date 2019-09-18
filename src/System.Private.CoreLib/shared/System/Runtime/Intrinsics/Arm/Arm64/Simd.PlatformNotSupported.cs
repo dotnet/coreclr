@@ -343,5 +343,314 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// </summary>
         public static Vector64<T> Xor<T>(Vector64<T> left, Vector64<T> right) where T : struct { throw new PlatformNotSupportedException(); }
         public static Vector128<T> Xor<T>(Vector128<T> left, Vector128<T> right) where T : struct { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Vector Add across (Sum)
+        ///
+        /// For each element result += value[elem]
+        ///
+        /// Corresponds to vector forms of ARM64 ADDV &amp; FADDP
+        /// </summary>
+        public static byte   AddAcross(Vector64<byte>    value) { throw new PlatformNotSupportedException(); }
+        public static sbyte  AddAcross(Vector64<sbyte>   value) { throw new PlatformNotSupportedException(); }
+        public static ushort AddAcross(Vector64<ushort>  value) { throw new PlatformNotSupportedException(); }
+        public static short  AddAcross(Vector64<short>   value) { throw new PlatformNotSupportedException(); }
+        public static uint   AddAcross(Vector64<uint>    value) { throw new PlatformNotSupportedException(); }
+        public static int    AddAcross(Vector64<int>     value) { throw new PlatformNotSupportedException(); }
+        public static float  AddAcross(Vector64<float>   value) { throw new PlatformNotSupportedException(); }
+        public static byte   AddAcross(Vector128<byte>   value) { throw new PlatformNotSupportedException(); }
+        public static sbyte  AddAcross(Vector128<sbyte>  value) { throw new PlatformNotSupportedException(); }
+        public static ushort AddAcross(Vector128<ushort> value) { throw new PlatformNotSupportedException(); }
+        public static short  AddAcross(Vector128<short>  value) { throw new PlatformNotSupportedException(); }
+        public static uint   AddAcross(Vector128<uint>   value) { throw new PlatformNotSupportedException(); }
+        public static int    AddAcross(Vector128<int>    value) { throw new PlatformNotSupportedException(); }
+        public static long   AddAcross(Vector128<long>   value) { throw new PlatformNotSupportedException(); }
+        public static float  AddAcross(Vector128<float>  value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Vector Absolute Compare GE
+        ///
+        /// for each elem
+        /// |left[elem]| >= |right[elem]|
+        ///
+        /// Corresponds to vector forms of ARM64 FACGE
+        /// </summary>
+        public static Vector64<float>   AbsoluteCompareGreatherThanOrEqual (Vector64<float> left  , Vector64<float>   right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float>  AbsoluteCompareGreatherThanOrEqual (Vector128<float> left , Vector128<float>  right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> AbsoluteCompareGreatherThanOrEqual (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Vector Absolute Compare GT
+        ///
+        /// for each elem
+        /// |left[elem]| > |right[elem]|
+        ///
+        /// Corresponds to vector forms of ARM64 FACGT
+        /// </summary>
+        public static Vector64<float>   AbsoluteCompareGreatherThan (Vector64<float> left  , Vector64<float>   right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float>  AbsoluteCompareGreatherThan (Vector128<float> left , Vector128<float>  right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> AbsoluteCompareGreatherThan (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Left Shift and Insert
+        ///
+        /// Corresponds to vector forms of ARM64 SLI
+        /// </summary>
+        public static Vector64<byte>  LeftShiftAndInsert (Vector64<byte> left , Vector64<byte>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint>  LeftShiftAndInsert (Vector64<uint> left , Vector64<uint>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector64<sbyte> LeftShiftAndInsert (Vector64<sbyte> left, Vector64<sbyte> right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int>   LeftShiftAndInsert (Vector64<int> left  , Vector64<int>   right, uint shift) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<byte>  LeftShiftAndInsert (Vector128<byte>   left, Vector128<byte>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint>  LeftShiftAndInsert (Vector128<uint>   left, Vector128<uint>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong>  LeftShiftAndInsert (Vector128<ulong> left, Vector128<ulong> right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<sbyte> LeftShiftAndInsert (Vector128<sbyte>  left, Vector128<sbyte> right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int>   LeftShiftAndInsert (Vector128<int>    left, Vector128<int>   right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long>  LeftShiftAndInsert (Vector128<long>   left, Vector128<long>  right, uint shift) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Right Shift and Insert
+        ///
+        /// Corresponds to vector forms of ARM64 SRI
+        /// </summary>
+        public static Vector64<byte>  RightShiftAndInsert (Vector64<byte> left , Vector64<byte>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint>  RightShiftAndInsert (Vector64<uint> left , Vector64<uint>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector64<sbyte> RightShiftAndInsert (Vector64<sbyte> left, Vector64<sbyte> right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int>   RightShiftAndInsert (Vector64<int>   left, Vector64<int>   right, uint shift) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<byte>  RightShiftAndInsert (Vector128<byte> left , Vector128<byte>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint>  RightShiftAndInsert (Vector128<uint> left , Vector128<uint>  right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> RightShiftAndInsert (Vector128<ulong> left, Vector128<ulong> right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<sbyte> RightShiftAndInsert (Vector128<sbyte> left, Vector128<sbyte> right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int>   RightShiftAndInsert (Vector128<int> left  , Vector128<int>   right, uint shift) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long>  RightShiftAndInsert (Vector128<long> left , Vector128<long>  right, uint shift) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Extract and Narrow (Low part)
+        ///
+        /// Corresponds to vector forms of ARM64 XTN
+        /// </summary>
+        public static Vector64<int> ExtractAndNarrowLow (Vector128<long> value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector64<uint> ExtractAndNarrowLow (Vector128<ulong> value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Extract and Narrow (High part)
+        ///
+        /// Corresponds to vector forms of ARM64 XTN2
+        /// </summary>
+        public static Vector64<int> ExtractAndNarrowHigh (Vector128<long> value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector64<uint> ExtractAndNarrowHigh (Vector128<ulong> value) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Unzip vectors (Even elements)
+        ///
+        /// Corresponds to vector forms of ARM64 UZP1
+        /// </summary>
+        public static Vector64<sbyte> UnzipEven (Vector64<sbyte> left, Vector64<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> UnzipEven (Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<byte> UnzipEven (Vector64<byte> left, Vector64<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> UnzipEven (Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> UnzipEven (Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<sbyte> UnzipEven (Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> UnzipEven (Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> UnzipEven (Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> UnzipEven (Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> UnzipEven (Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> UnzipEven (Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> UnzipEven (Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> UnzipEven (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Unzip vectors (Odd elements)
+        ///
+        /// Corresponds to vector forms of ARM64 UZP2
+        /// </summary>
+        public static Vector64<sbyte> UnzipOdd (Vector64<sbyte> left, Vector64<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> UnzipOdd (Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<byte> UnzipOdd (Vector64<byte> left, Vector64<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> UnzipOdd (Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> UnzipOdd (Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<sbyte> UnzipOdd (Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> UnzipOdd (Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> UnzipOdd (Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> UnzipOdd (Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> UnzipOdd (Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> UnzipOdd (Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> UnzipOdd (Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> UnzipOdd (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Zip vectors (Low half)
+        ///
+        /// Corresponds to vector forms of ARM64 ZIP1
+        /// </summary>
+        public static Vector64<sbyte> ZipLow (Vector64<sbyte> left, Vector64<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> ZipLow (Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<byte> ZipLow (Vector64<byte> left, Vector64<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> ZipLow (Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> ZipLow (Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<sbyte> ZipLow (Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ZipLow (Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ZipLow (Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> ZipLow (Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> ZipLow (Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> ZipLow (Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> ZipLow (Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> ZipLow (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Unzip vectors (Top half)
+        ///
+        /// Corresponds to vector forms of ARM64 ZIP2
+        /// </summary>
+        public static Vector64<sbyte> ZipHigh (Vector64<sbyte> left, Vector64<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> ZipHigh (Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<byte> ZipHigh (Vector64<byte> left, Vector64<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> ZipHigh (Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> ZipHigh (Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<sbyte> ZipHigh (Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> ZipHigh (Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> ZipHigh (Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> ZipHigh (Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> ZipHigh (Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> ZipHigh (Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> ZipHigh (Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> ZipHigh (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Transpose vectors (Even elements)
+        ///
+        /// Corresponds to vector forms of ARM64 TRN1
+        /// </summary>
+        public static Vector64<sbyte> TransposeVectorEven (Vector64<sbyte> left, Vector64<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> TransposeVectorEven (Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<byte> TransposeVectorEven (Vector64<byte> left, Vector64<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> TransposeVectorEven (Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> TransposeVectorEven (Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<sbyte> TransposeVectorEven (Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> TransposeVectorEven (Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> TransposeVectorEven (Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> TransposeVectorEven (Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> TransposeVectorEven (Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> TransposeVectorEven (Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> TransposeVectorEven (Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> TransposeVectorEven (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+        /// <summary>
+        /// Transpose vectors (Odd elements)
+        ///
+        /// Corresponds to vector forms of ARM64 TRN2
+        /// </summary>
+        public static Vector64<sbyte> TransposeVectorOdd (Vector64<sbyte> left, Vector64<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> TransposeVectorOdd (Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<byte> TransposeVectorOdd (Vector64<byte> left, Vector64<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> TransposeVectorOdd (Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> TransposeVectorOdd (Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<sbyte> TransposeVectorOdd (Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> TransposeVectorOdd (Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<long> TransposeVectorOdd (Vector128<long> left, Vector128<long> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> TransposeVectorOdd (Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> TransposeVectorOdd (Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<ulong> TransposeVectorOdd (Vector128<ulong> left, Vector128<ulong> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> TransposeVectorOdd (Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> TransposeVectorOdd (Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+
+
+        /// <summary>
+        /// Multiply and subtract
+        ///
+        /// Corresponds to vector forms of ARM64 FMLS and MLS.
+        /// </summary>
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, Vector64<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, Vector128<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, float value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, Vector64<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, Vector128<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, float value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<double> MultiplyAndSubtract (Vector128<double> acc, Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> MultiplyAndSubtract (Vector128<double> acc, Vector128<double> left, Vector128<double> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> MultiplyAndSubtract (Vector128<double> acc, Vector128<double> left, double value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, Vector64<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, Vector128<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, int value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, Vector64<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, Vector128<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, int value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, Vector128<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, uint value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, Vector64<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, uint value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<byte> MultiplyAndSubtract (Vector128<byte> acc, Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> MultiplyAndSubtract (Vector128<byte> acc, Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<sbyte> MultiplyAndSubtract (Vector128<sbyte> acc, Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<sbyte> MultiplyAndSubtract (Vector128<sbyte> acc, Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+
+
+        /// <summary>
+        /// Multiply and Add
+        ///
+        /// Corresponds to vector forms of ARM64 FMLA and MLA.
+        /// </summary>
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, Vector64<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, Vector64<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, Vector128<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, float value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, Vector128<float> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, Vector64<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, Vector128<float> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, float value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<double> MultiplyAndAdd (Vector128<double> acc, Vector128<double> left, Vector128<double> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> MultiplyAndAdd (Vector128<double> acc, Vector128<double> left, Vector128<double> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<double> MultiplyAndAdd (Vector128<double> acc, Vector128<double> left, double value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, Vector64<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, Vector64<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, Vector128<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, int value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, Vector128<int> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, Vector64<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, Vector128<int> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, int value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, Vector128<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, uint value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, Vector64<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> sel, byte index) { throw new PlatformNotSupportedException(); }
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, uint value) { throw new PlatformNotSupportedException(); }
+
+        public static Vector128<byte> MultiplyAndAdd (Vector128<byte> acc, Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<byte> MultiplyAndAdd (Vector128<byte> acc, Vector128<byte> left, Vector128<byte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<sbyte> MultiplyAndAdd (Vector128<sbyte> acc, Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
+        public static Vector128<sbyte> MultiplyAndAdd (Vector128<sbyte> acc, Vector128<sbyte> left, Vector128<sbyte> right) { throw new PlatformNotSupportedException(); }
     }
 }

@@ -344,5 +344,311 @@ namespace System.Runtime.Intrinsics.Arm.Arm64
         /// </summary>
         public static Vector64<T>  Xor<T>(Vector64<T>  left, Vector64<T>  right) where T : struct => Xor(left, right);
         public static Vector128<T> Xor<T>(Vector128<T> left, Vector128<T> right) where T : struct => Xor(left, right);
+
+	/// <summary>
+        /// Vector Add across (Sum)
+        ///
+        /// For each element result += value[elem]
+        ///
+        /// Corresponds to vector forms of ARM64 ADDV &amp; FADDP
+        /// </summary>
+        public static byte   AddAcross(Vector64<byte>    value) => AddAcross(value);
+        public static sbyte  AddAcross(Vector64<sbyte>   value) => AddAcross(value);
+        public static ushort AddAcross(Vector64<ushort>  value) => AddAcross(value);
+        public static short  AddAcross(Vector64<short>   value) => AddAcross(value);
+        public static uint   AddAcross(Vector64<uint>    value) => AddAcross(value);
+        public static int    AddAcross(Vector64<int>     value) => AddAcross(value);
+        public static float  AddAcross(Vector64<float>   value) => AddAcross(value);
+        public static byte   AddAcross(Vector128<byte>   value) => AddAcross(value);
+        public static sbyte  AddAcross(Vector128<sbyte>  value) => AddAcross(value);
+        public static ushort AddAcross(Vector128<ushort> value) => AddAcross(value);
+        public static short  AddAcross(Vector128<short>  value) => AddAcross(value);
+        public static uint   AddAcross(Vector128<uint>   value) => AddAcross(value);
+        public static int    AddAcross(Vector128<int>    value) => AddAcross(value);
+        public static long   AddAcross(Vector128<long>   value) => AddAcross(value);
+        public static float  AddAcross(Vector128<float>  value) => AddAcross(value);
+
+        /// <summary>
+        /// Vector Absolute Compare GE
+        ///
+        /// for each elem
+        /// |left[elem]| >= |right[elem]|
+        ///
+        /// Corresponds to vector forms of ARM64 FACGE
+        /// </summary>
+        public static Vector64<float>   AbsoluteCompareGreatherThanOrEqual (Vector64<float> left  , Vector64<float>   right) => AbsoluteCompareGreatherThanOrEqual(left, right);
+        public static Vector128<float>  AbsoluteCompareGreatherThanOrEqual (Vector128<float> left , Vector128<float>  right) => AbsoluteCompareGreatherThanOrEqual(left, right);
+        public static Vector128<double> AbsoluteCompareGreatherThanOrEqual (Vector128<double> left, Vector128<double> right) => AbsoluteCompareGreatherThanOrEqual(left, right);
+
+        /// <summary>
+        /// Vector Absolute Compare GT
+        ///
+        /// for each elem
+        /// |left[elem]| > |right[elem]|
+        ///
+        /// Corresponds to vector forms of ARM64 FACGT
+        /// </summary>
+        public static Vector64<float>   AbsoluteCompareGreatherThan (Vector64<float> left  , Vector64<float>   right) => AbsoluteCompareGreatherThan(left, right);
+        public static Vector128<float>  AbsoluteCompareGreatherThan (Vector128<float> left , Vector128<float>  right) => AbsoluteCompareGreatherThan(left, right);
+        public static Vector128<double> AbsoluteCompareGreatherThan (Vector128<double> left, Vector128<double> right) => AbsoluteCompareGreatherThan(left, right);
+
+        /// <summary>
+        /// Left Shift and Insert
+        ///
+        /// Corresponds to vector forms of ARM64 SLI
+        /// </summary>
+        public static Vector64<byte>  LeftShiftAndInsert (Vector64<byte> left , Vector64<byte>  right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector64<uint>  LeftShiftAndInsert (Vector64<uint> left , Vector64<uint>  right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector64<sbyte> LeftShiftAndInsert (Vector64<sbyte> left, Vector64<sbyte> right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector64<int>   LeftShiftAndInsert (Vector64<int> left  , Vector64<int>   right, uint shift) => LeftShiftAndInsert(left, right, shift);
+
+        public static Vector128<byte>  LeftShiftAndInsert (Vector128<byte> left  , Vector128<byte>  right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector128<uint>  LeftShiftAndInsert (Vector128<uint> left  , Vector128<uint>  right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector128<ulong> LeftShiftAndInsert (Vector128<ulong> left, Vector128<ulong> right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector128<sbyte> LeftShiftAndInsert (Vector128<sbyte> left , Vector128<sbyte> right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector128<int>   LeftShiftAndInsert (Vector128<int> left   , Vector128<int>   right, uint shift) => LeftShiftAndInsert(left, right, shift);
+        public static Vector128<long>  LeftShiftAndInsert (Vector128<long> left  , Vector128<long>  right, uint shift) => LeftShiftAndInsert(left, right, shift);
+
+        /// <summary>
+        /// Right Shift and Insert
+        ///
+        /// Corresponds to vector forms of ARM64 SRI
+        /// </summary>
+        public static Vector64<byte>  RightShiftAndInsert (Vector64<byte> left , Vector64<byte>  right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector64<uint>  RightShiftAndInsert (Vector64<uint> left , Vector64<uint>  right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector64<sbyte> RightShiftAndInsert (Vector64<sbyte> left, Vector64<sbyte> right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector64<int>   RightShiftAndInsert (Vector64<int> left  , Vector64<int>   right, uint shift) => RightShiftAndInsert(left, right, shift);
+
+        public static Vector128<byte>  RightShiftAndInsert (Vector128<byte> left  , Vector128<byte>  right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector128<uint>  RightShiftAndInsert (Vector128<uint> left  , Vector128<uint>  right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector128<ulong> RightShiftAndInsert (Vector128<ulong> left , Vector128<ulong> right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector128<sbyte> RightShiftAndInsert (Vector128<sbyte> left , Vector128<sbyte> right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector128<int>   RightShiftAndInsert (Vector128<int> left   , Vector128<int>   right, uint shift) => RightShiftAndInsert(left, right, shift);
+        public static Vector128<long>  RightShiftAndInsert (Vector128<long> left  , Vector128<long>  right, uint shift) => RightShiftAndInsert(left, right, shift);
+
+        /// <summary>
+        /// Extract and Narrow (Low part)
+        ///
+        /// Corresponds to vector forms of ARM64 XTN
+        /// </summary>
+        public static Vector64<int> ExtractAndNarrowLow (Vector128<long> value) => ExtractAndNarrowLow (value);
+        public static Vector64<uint> ExtractAndNarrowLow (Vector128<ulong> value) => ExtractAndNarrowLow (value);
+
+        /// <summary>
+        /// Extract and Narrow (High part)
+        ///
+        /// Corresponds to vector forms of ARM64 XTN2
+        /// </summary>
+        public static Vector64<int> ExtractAndNarrowHigh (Vector128<long> value) => ExtractAndNarrowHigh (value);
+        public static Vector64<uint> ExtractAndNarrowHigh (Vector128<ulong> value) => ExtractAndNarrowHigh (value);
+
+        /// <summary>
+        /// Unzip vectors (Even elements)
+        ///
+        /// Corresponds to vector forms of ARM64 UZP1
+        /// </summary>
+        public static Vector64<sbyte> UnzipEven (Vector64<sbyte> left, Vector64<sbyte> right) => UnzipEven (left, right);
+        public static Vector64<int> UnzipEven (Vector64<int> left, Vector64<int> right) => UnzipEven (left, right);
+        public static Vector64<byte> UnzipEven (Vector64<byte> left, Vector64<byte> right) => UnzipEven (left, right);
+        public static Vector64<uint> UnzipEven (Vector64<uint> left, Vector64<uint> right) => UnzipEven (left, right);
+        public static Vector64<float> UnzipEven (Vector64<float> left, Vector64<float> right) => UnzipEven (left, right);
+
+        public static Vector128<sbyte> UnzipEven (Vector128<sbyte> left, Vector128<sbyte> right) => UnzipEven (left, right);
+        public static Vector128<int> UnzipEven (Vector128<int> left, Vector128<int> right) => UnzipEven (left, right);
+        public static Vector128<long> UnzipEven (Vector128<long> left, Vector128<long> right) => UnzipEven (left, right);
+        public static Vector128<byte> UnzipEven (Vector128<byte> left, Vector128<byte> right) => UnzipEven (left, right);
+        public static Vector128<uint> UnzipEven (Vector128<uint> left, Vector128<uint> right) => UnzipEven (left, right);
+        public static Vector128<ulong> UnzipEven (Vector128<ulong> left, Vector128<ulong> right) => UnzipEven (left, right);
+        public static Vector128<float> UnzipEven (Vector128<float> left, Vector128<float> right) => UnzipEven (left, right);
+        public static Vector128<double> UnzipEven (Vector128<double> left, Vector128<double> right) => UnzipEven (left, right);
+
+        /// <summary>
+        /// Unzip vectors (Odd elements)
+        ///
+        /// Corresponds to vector forms of ARM64 UZP2
+        /// </summary>
+        public static Vector64<sbyte> UnzipOdd (Vector64<sbyte> left, Vector64<sbyte> right) => UnzipOdd (left, right);
+        public static Vector64<int> UnzipOdd (Vector64<int> left, Vector64<int> right) => UnzipOdd (left, right);
+        public static Vector64<byte> UnzipOdd (Vector64<byte> left, Vector64<byte> right) => UnzipOdd (left, right);
+        public static Vector64<uint> UnzipOdd (Vector64<uint> left, Vector64<uint> right) => UnzipOdd (left, right);
+        public static Vector64<float> UnzipOdd (Vector64<float> left, Vector64<float> right) => UnzipOdd (left, right);
+
+        public static Vector128<sbyte> UnzipOdd (Vector128<sbyte> left, Vector128<sbyte> right) => UnzipOdd (left, right);
+        public static Vector128<int> UnzipOdd (Vector128<int> left, Vector128<int> right) => UnzipOdd (left, right);
+        public static Vector128<long> UnzipOdd (Vector128<long> left, Vector128<long> right) => UnzipOdd (left, right);
+        public static Vector128<byte> UnzipOdd (Vector128<byte> left, Vector128<byte> right) => UnzipOdd (left, right);
+        public static Vector128<uint> UnzipOdd (Vector128<uint> left, Vector128<uint> right) => UnzipOdd (left, right);
+        public static Vector128<ulong> UnzipOdd (Vector128<ulong> left, Vector128<ulong> right) => UnzipOdd (left, right);
+        public static Vector128<float> UnzipOdd (Vector128<float> left, Vector128<float> right) => UnzipOdd (left, right);
+        public static Vector128<double> UnzipOdd (Vector128<double> left, Vector128<double> right) => UnzipOdd (left, right);
+
+        /// <summary>
+        /// Zip vectors (Low half)
+        ///
+        /// Corresponds to vector forms of ARM64 ZIP1
+        /// </summary>
+        public static Vector64<sbyte> ZipLow (Vector64<sbyte> left, Vector64<sbyte> right) => ZipLow (left, right);
+        public static Vector64<int> ZipLow (Vector64<int> left, Vector64<int> right) => ZipLow (left, right);
+        public static Vector64<byte> ZipLow (Vector64<byte> left, Vector64<byte> right) => ZipLow (left, right);
+        public static Vector64<uint> ZipLow (Vector64<uint> left, Vector64<uint> right) => ZipLow (left, right);
+        public static Vector64<float> ZipLow (Vector64<float> left, Vector64<float> right) => ZipLow (left, right);
+
+        public static Vector128<sbyte> ZipLow (Vector128<sbyte> left, Vector128<sbyte> right) => ZipLow (left, right);
+        public static Vector128<int> ZipLow (Vector128<int> left, Vector128<int> right) => ZipLow (left, right);
+        public static Vector128<long> ZipLow (Vector128<long> left, Vector128<long> right) => ZipLow (left, right);
+        public static Vector128<byte> ZipLow (Vector128<byte> left, Vector128<byte> right) => ZipLow (left, right);
+        public static Vector128<uint> ZipLow (Vector128<uint> left, Vector128<uint> right) => ZipLow (left, right);
+        public static Vector128<ulong> ZipLow (Vector128<ulong> left, Vector128<ulong> right) => ZipLow (left, right);
+        public static Vector128<float> ZipLow (Vector128<float> left, Vector128<float> right) => ZipLow (left, right);
+        public static Vector128<double> ZipLow (Vector128<double> left, Vector128<double> right) => ZipLow (left, right);
+
+        /// <summary>
+        /// Unzip vectors (Top half)
+        ///
+        /// Corresponds to vector forms of ARM64 ZIP2
+        /// </summary>
+        public static Vector64<sbyte> ZipHigh (Vector64<sbyte> left, Vector64<sbyte> right) => ZipHigh (left, right);
+        public static Vector64<int> ZipHigh (Vector64<int> left, Vector64<int> right) => ZipHigh (left, right);
+        public static Vector64<byte> ZipHigh (Vector64<byte> left, Vector64<byte> right) => ZipHigh (left, right);
+        public static Vector64<uint> ZipHigh (Vector64<uint> left, Vector64<uint> right) => ZipHigh (left, right);
+        public static Vector64<float> ZipHigh (Vector64<float> left, Vector64<float> right) => ZipHigh (left, right);
+
+        public static Vector128<sbyte> ZipHigh (Vector128<sbyte> left, Vector128<sbyte> right) => ZipHigh (left, right);
+        public static Vector128<int> ZipHigh (Vector128<int> left, Vector128<int> right) => ZipHigh (left, right);
+        public static Vector128<long> ZipHigh (Vector128<long> left, Vector128<long> right) => ZipHigh (left, right);
+        public static Vector128<byte> ZipHigh (Vector128<byte> left, Vector128<byte> right) => ZipHigh (left, right);
+        public static Vector128<uint> ZipHigh (Vector128<uint> left, Vector128<uint> right) => ZipHigh (left, right);
+        public static Vector128<ulong> ZipHigh (Vector128<ulong> left, Vector128<ulong> right) => ZipHigh (left, right);
+        public static Vector128<float> ZipHigh (Vector128<float> left, Vector128<float> right) => ZipHigh (left, right);
+        public static Vector128<double> ZipHigh (Vector128<double> left, Vector128<double> right) => ZipHigh (left, right);
+
+        /// <summary>
+        /// Transpose vectors (Even elements)
+        ///
+        /// Corresponds to vector forms of ARM64 TRN1
+        /// </summary>
+        public static Vector64<sbyte> TransposeVectorEven (Vector64<sbyte> left, Vector64<sbyte> right) => TransposeVectorEven (left, right);
+        public static Vector64<int> TransposeVectorEven (Vector64<int> left, Vector64<int> right) => TransposeVectorEven (left, right);
+        public static Vector64<byte> TransposeVectorEven (Vector64<byte> left, Vector64<byte> right) => TransposeVectorEven (left, right);
+        public static Vector64<uint> TransposeVectorEven (Vector64<uint> left, Vector64<uint> right)  => TransposeVectorEven (left, right);
+        public static Vector64<float> TransposeVectorEven (Vector64<float> left, Vector64<float> right) => TransposeVectorEven (left, right);
+
+        public static Vector128<sbyte> TransposeVectorEven (Vector128<sbyte> left, Vector128<sbyte> right) => TransposeVectorEven (left, right);
+        public static Vector128<int> TransposeVectorEven (Vector128<int> left, Vector128<int> right) => TransposeVectorEven (left, right);
+        public static Vector128<long> TransposeVectorEven (Vector128<long> left, Vector128<long> right) => TransposeVectorEven (left, right);
+        public static Vector128<byte> TransposeVectorEven (Vector128<byte> left, Vector128<byte> right) => TransposeVectorEven (left, right);
+        public static Vector128<uint> TransposeVectorEven (Vector128<uint> left, Vector128<uint> right) => TransposeVectorEven (left, right);
+        public static Vector128<ulong> TransposeVectorEven (Vector128<ulong> left, Vector128<ulong> right) => TransposeVectorEven (left, right);
+        public static Vector128<float> TransposeVectorEven (Vector128<float> left, Vector128<float> right) => TransposeVectorEven (left, right);
+        public static Vector128<double> TransposeVectorEven (Vector128<double> left, Vector128<double> right) => TransposeVectorEven (left, right);
+
+        /// <summary>
+        /// Transpose vectors (Odd elements)
+        ///
+        /// Corresponds to vector forms of ARM64 TRN2
+        /// </summary>
+        public static Vector64<sbyte> TransposeVectorOdd (Vector64<sbyte> left, Vector64<sbyte> right) => TransposeVectorOdd (left, right);
+        public static Vector64<int> TransposeVectorOdd (Vector64<int> left, Vector64<int> right) => TransposeVectorOdd (left, right);
+        public static Vector64<byte> TransposeVectorOdd (Vector64<byte> left, Vector64<byte> right) => TransposeVectorOdd (left, right);
+        public static Vector64<uint> TransposeVectorOdd (Vector64<uint> left, Vector64<uint> right) => TransposeVectorOdd (left, right);
+        public static Vector64<float> TransposeVectorOdd (Vector64<float> left, Vector64<float> right) => TransposeVectorOdd (left, right);
+
+        public static Vector128<sbyte> TransposeVectorOdd (Vector128<sbyte> left, Vector128<sbyte> right) => TransposeVectorOdd (left, right);
+        public static Vector128<int> TransposeVectorOdd (Vector128<int> left, Vector128<int> right) => TransposeVectorOdd (left, right);
+        public static Vector128<long> TransposeVectorOdd (Vector128<long> left, Vector128<long> right) => TransposeVectorOdd (left, right);
+        public static Vector128<byte> TransposeVectorOdd (Vector128<byte> left, Vector128<byte> right) => TransposeVectorOdd (left, right);
+        public static Vector128<uint> TransposeVectorOdd (Vector128<uint> left, Vector128<uint> right) => TransposeVectorOdd (left, right);
+        public static Vector128<ulong> TransposeVectorOdd (Vector128<ulong> left, Vector128<ulong> right) => TransposeVectorOdd (left, right);
+        public static Vector128<float> TransposeVectorOdd (Vector128<float> left, Vector128<float> right) => TransposeVectorOdd (left, right);
+        public static Vector128<double> TransposeVectorOdd (Vector128<double> left, Vector128<double> right) => TransposeVectorOdd (left, right);
+
+        /// <summary>
+        /// Multiply and subtract
+        ///
+        /// Corresponds to vector forms of ARM64 FMLS and MLS.
+        /// </summary>
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, Vector64<float> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, Vector64<float> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, Vector128<float> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector64<float> MultiplyAndSubtract (Vector64<float> acc, Vector64<float> left, float value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, Vector128<float> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, Vector64<float> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, Vector128<float> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<float> MultiplyAndSubtract (Vector128<float> acc, Vector128<float> left, float value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector128<double> MultiplyAndSubtract (Vector128<double> acc, Vector128<double> left, Vector128<double> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<double> MultiplyAndSubtract (Vector128<double> acc, Vector128<double> left, Vector128<double> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<double> MultiplyAndSubtract (Vector128<double> acc, Vector128<double> left, double value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, Vector64<int> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, Vector64<int> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, Vector128<int> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector64<int> MultiplyAndSubtract (Vector64<int> acc, Vector64<int> left, int value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, Vector128<int> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, Vector64<int> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, Vector128<int> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<int> MultiplyAndSubtract (Vector128<int> acc, Vector128<int> left, int value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, Vector128<uint> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector64<uint> MultiplyAndSubtract (Vector64<uint> acc, Vector64<uint> left, uint value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, Vector64<uint> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> sel, byte index) => MultiplyAndSubtract (acc, left, sel, index);
+        public static Vector128<uint> MultiplyAndSubtract (Vector128<uint> acc, Vector128<uint> left, uint value) => MultiplyAndSubtract (acc, left, value);
+
+        public static Vector128<byte> MultiplyAndSubtract (Vector128<byte> acc, Vector128<byte> left, Vector128<byte> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<byte> MultiplyAndSubtract (Vector128<byte> acc, Vector128<byte> left, Vector64<byte> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<sbyte> MultiplyAndSubtract (Vector128<sbyte> acc, Vector128<sbyte> left, Vector128<sbyte> right) => MultiplyAndSubtract (acc, left, right);
+        public static Vector128<sbyte> MultiplyAndSubtract (Vector128<sbyte> acc, Vector128<sbyte> left, Vector64<sbyte> right) => MultiplyAndSubtract (acc, left, right);
+
+
+        /// <summary>
+        /// Multiply and Add
+        ///
+        /// Corresponds to vector forms of ARM64 FMLA and MLA.
+        /// </summary>
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, Vector64<float> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, Vector64<float> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, Vector128<float> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector64<float> MultiplyAndAdd (Vector64<float> acc, Vector64<float> left, float value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, Vector128<float> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, Vector64<float> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, Vector128<float> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<float> MultiplyAndAdd (Vector128<float> acc, Vector128<float> left, float value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector128<double> MultiplyAndAdd (Vector128<double> acc, Vector128<double> left, Vector128<double> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<double> MultiplyAndAdd (Vector128<double> acc, Vector128<double> left, Vector128<double> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<double> MultiplyAndAdd (Vector128<double> acc, Vector128<double> left, double value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, Vector64<int> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, Vector64<int> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, Vector128<int> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector64<int> MultiplyAndAdd (Vector64<int> acc, Vector64<int> left, int value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, Vector128<int> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, Vector64<int> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, Vector128<int> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<int> MultiplyAndAdd (Vector128<int> acc, Vector128<int> left, int value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, Vector64<uint> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, Vector128<uint> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector64<uint> MultiplyAndAdd (Vector64<uint> acc, Vector64<uint> left, uint value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, Vector64<uint> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, Vector128<uint> sel, byte index) => MultiplyAndAdd (acc, left, sel, index);
+        public static Vector128<uint> MultiplyAndAdd (Vector128<uint> acc, Vector128<uint> left, uint value) => MultiplyAndAdd (acc, left, value);
+
+        public static Vector128<byte> MultiplyAndAdd (Vector128<byte> acc, Vector128<byte> left, Vector128<byte> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<byte> MultiplyAndAdd (Vector128<byte> acc, Vector128<byte> left, Vector64<byte> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<sbyte> MultiplyAndAdd (Vector128<sbyte> acc, Vector128<sbyte> left, Vector128<sbyte> right) => MultiplyAndAdd (acc, left, right);
+        public static Vector128<sbyte> MultiplyAndAdd (Vector128<sbyte> acc, Vector128<sbyte> left, Vector64<sbyte> right) => MultiplyAndAdd (acc, left, right);
     }
 }

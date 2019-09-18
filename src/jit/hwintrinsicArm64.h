@@ -30,7 +30,10 @@ struct HWIntrinsicInfo
         SimdInsertOp,  // SIMD intrinsics which take one vector operand and a lane index and value and return a vector
         SimdSelectOp,  // BitwiseSelect intrinsic which takes three vector operands and returns a vector
         SimdSetAllOp,  // Simd intrinsics which take one numeric operand and return a vector
-        Sha1HashOp     // SIMD instrisics for SHA1 Hash operations. Takes two vectors and hash index and returns vector
+        Sha1HashOp,    // SIMD instrisics for SHA1 Hash operations. Takes two vectors and hash index and returns vector
+        SimdTblOp,     // SIMD instrisics for table lookup operations. Takes a list of vectors and a single vector and returns vector
+        SimdTbxOp,     // SIMD instrisics for table lookup operations. Takes a list of vectors and a single vector and returns vector
+        SimdSumOp,     // SIMD intrinsics for Sum operations. Takes a vector and returns a scalar.
     };
 
     // Flags will be used to handle secondary meta-data which will help

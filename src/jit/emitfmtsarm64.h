@@ -143,6 +143,7 @@ IF_DEF(DI_1C, IS_NONE, NONE) // DI_1C   X........Nrrrrrr ssssssnnnnn.....       
 IF_DEF(DI_1D, IS_NONE, NONE) // DI_1D   X........Nrrrrrr ssssss.....ddddd      Rd       imm(N,r,s)
 IF_DEF(DI_1E, IS_NONE, JMP)  // DI_1E   .ii.....iiiiiiii iiiiiiiiiiiddddd      Rd       simm21
 IF_DEF(DI_1F, IS_NONE, NONE) // DI_1F   X..........iiiii cccc..nnnnn.nzcv      Rn imm5  nzcv cond
+IF_DEF(DI_1G, IS_NONE, NONE) // DI_1G   X........Nrrrrrr ssssss.....ddddd      Rd       imr, imms   (N,r,s)
 
 IF_DEF(DI_2A, IS_NONE, NONE) // DI_2A   X.......shiiiiii iiiiiinnnnnddddd      Rd Rn    imm(i12,sh)
 IF_DEF(DI_2B, IS_NONE, NONE) // DI_2B   X.........Xnnnnn ssssssnnnnnddddd      Rd Rn    imm(0-63)
@@ -173,6 +174,7 @@ IF_DEF(DR_4A, IS_NONE, NONE) // DR_4A   X..........mmmmm .aaaaannnnnddddd      R
 IF_DEF(DV_1A, IS_NONE, NONE) // DV_1A   .........X.iiiii iii........ddddd      Vd imm8    (fmov - immediate scalar)
 IF_DEF(DV_1B, IS_NONE, NONE) // DV_1B   .QX..........iii jjjj..iiiiiddddd      Vd imm8    (fmov/movi - immediate vector)
 IF_DEF(DV_1C, IS_NONE, NONE) // DV_1C   .........X...... ......nnnnn.....      Vn #0.0    (fcmp - with zero)
+IF_DEF(DV_1D, IS_NONE, NONE) // DV_1D   .Q.........mmmmm .ll...nnnnnddddd      Vd,{ V... },Vm    (tbl - structure load store)
 
 IF_DEF(DV_2A, IS_NONE, NONE) // DV_2A   .Q.......X...... ......nnnnnddddd      Vd Vn      (fabs, fcvtXX - vector)
 IF_DEF(DV_2B, IS_NONE, NONE) // DV_2B   .Q.........iiiii ......nnnnnddddd      Rd Vn[]    (umov/smov    - to general)

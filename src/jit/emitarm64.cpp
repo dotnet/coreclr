@@ -559,6 +559,16 @@ void emitter::emitInsSanityCheck(instrDesc* id)
             assert(isVectorRegister(id->idReg1()));
             break;
 
+        case IF_DV_1D: // DV_1D   .Q.........mmmmm .ll...nnnnnddddd      Vd,{ V... },Vm   (tbl - structure load store)
+            assert(insOptsNone(id->idInsOpt()));
+            datasize = id->idOpSize();
+            assert(isValidVectorDatasize(datasize));
+            assert(isValidArrangement(id->idOpSize(), id->idInsOpt()));
+            assert(isVectorRegister(id->idReg1()));
+            assert(isVectorRegister(id->idReg2()));
+            assert(isVectorRegister(id->idReg3()));
+            break;
+
         case IF_DV_2A: // DV_2A   .Q.......X...... ......nnnnnddddd      Vd Vn      (fabs, fcvt - vector)
         case IF_DV_2M: // DV_2M   .Q......XX...... ......nnnnnddddd      Vd Vn      (abs, neg   - vector)
         case IF_DV_2P: // DV_2P   ................ ......nnnnnddddd      Vd Vn      (aes*, sha1su1)
@@ -854,6 +864,7 @@ bool emitter::emitInsMayWriteToGCReg(instrDesc* id)
         case IF_DV_2M: // DV_2M   .Q......XX...... ......nnnnnddddd      Vd Vn      (abs, neg - vector)
         case IF_DV_2P: // DV_2P   ................ ......nnnnnddddd      Vd Vn      (aes*, sha1su1) - Vd both source and
                        // destination
+        case IF_DV_1D: // DV_1D   .Q.........mmmmm .ll...nnnnnddddd      Vd,{ V... },Vm   (tbl - structure load store)
 
         case IF_DV_3A:  // DV_3A   .Q......XX.mmmmm ......nnnnnddddd      Vd Vn Vm   (vector)
         case IF_DV_3AI: // DV_3AI  .Q......XXLMmmmm ....H.nnnnnddddd      Vd Vn Vm[] (vector)
@@ -3933,7 +3944,7 @@ void emitter::emitIns_R_R(
                 fmt = IF_DV_2M;
                 break;
             }
-            if (ins == INS_cnt)
+            if (ins == INS_cnt || ins == INS_rbit)
             {
                 // Doesn't have general register version(s)
                 break;
@@ -9730,6 +9741,16 @@ size_t emitter::emitOutputInstr(insGroup* ig, instrDesc* id, BYTE** dp)
             code     = emitInsCode(ins, fmt);
             code |= insEncodeFloatElemsize(elemsize); // X
             code |= insEncodeReg_Vn(id->idReg1());    // nnnnn
+            dst += emitOutput_Instr(dst, code);
+            break;
+
+        case IF_DV_1D: // DV_1D   .Q.........mmmmm .ll...nnnnnddddd      Vd,{ V... },Vm   (tbl - structure load store)
+            datasize = id->idOpSize();
+            code = emitInsCode(ins, fmt);
+            code |= insEncodeVectorsize(datasize);    // Q
+            code |= insEncodeReg_Vd(id->idReg1());    // ddddd
+            code |= insEncodeReg_Vn(id->idReg2());    // nnnnn
+            code |= insEncodeReg_Vm(id->idReg3());    // mmmmm
             dst += emitOutput_Instr(dst, code);
             break;
 

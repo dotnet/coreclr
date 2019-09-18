@@ -463,6 +463,14 @@ INST2(fabd,    "fabd",   0, 0, IF_EN2G,   0x2EA0D400,  0x7EA0D400)
                                    //  fabd    Vd,Vn,Vm             DV_3B  0Q1011101X1mmmmm 110101nnnnnddddd   2EA0 D400   Vd,Vn,Vm  (vector)
                                    //  fabd    Vd,Vn,Vm             DV_3D  011111101X1mmmmm 110101nnnnnddddd   7EA0 D400   Vd,Vn,Vm  (scalar)
 
+INST2(facge,   "facge",  0, 0, IF_EN2G,   0x2E20EC00,  0x7E20EC00)
+                                   //  facge   Vd,Vn,Vm             DV_3B  0Q1011100X1mmmmm 111011nnnnnddddd   2E20 EC00   Vd,Vn,Vm  (vector)
+                                   //  facge   Vd,Vn,Vm             DV_3D  011111100X1mmmmm 111011nnnnnddddd   7E20 EC00   Vd,Vn,Vm  (scalar)
+
+INST2(facgt,   "facgt",  0, 0, IF_EN2G,   0x2EA0EC00,  0x7EA0EC00)
+                                   //  facgt   Vd,Vn,Vm             DV_3B  0Q1011101X1mmmmm 111011nnnnnddddd   2EA0 EC00   Vd,Vn,Vm  (vector)
+                                   //  facgt   Vd,Vn,Vm             DV_3D  011111101X1mmmmm 111011nnnnnddddd   7EA0 EC00   Vd,Vn,Vm  (scalar)
+
 //    enum     name     FP LD/ST            DV_2K        DV_1C
 INST2(fcmp,    "fcmp",   0, 0, IF_EN2I,   0x1E202000,  0x1E202008)
                                    //  fcmp    Vn,Vm                DV_2K  000111100X1mmmmm 001000nnnnn00000   1E20 2000   Vn Vm
@@ -926,7 +934,13 @@ INST1(movn,    "movn",   0, 0, IF_DI_1B,  0x12800000)
    
 INST1(movz,    "movz",   0, 0, IF_DI_1B,  0x52800000)
                                    //  movz    Rd,imm(i16,hw)       DI_1B  X10100101hwiiiii iiiiiiiiiiiddddd   5280 0000   imm(i16,hw)
-                                   
+
+INST1(tbl,     "tbl",    0, 0, IF_DV_1D,  0x4E000000)
+                                   //  tbl    Vd,{ V... },Vm        DV_1D  0Q001110000mmmmm 0ll000nnnnnddddd  4E00 0000   Vd,{ V... },Vm
+
+INST1(tbx,     "tbx",    0, 0, IF_DV_1D,  0x4E001000)
+                                   //  tbx    Vd,{ V... },Vm        DV_1D  0Q001110000mmmmm 0ll100nnnnnddddd  4E00 1000   Vd,{ V... },Vm
+
 INST1(csel,    "csel",   0, 0, IF_DR_3D,  0x1A800000)
                                    //  csel    Rd,Rn,Rm,cond        DR_3D  X0011010100mmmmm cccc00nnnnnddddd   1A80 0000   cond
 
@@ -1232,6 +1246,24 @@ INST1(umax,    "umax",   0, 0, IF_DV_3A,  0x2E206400)
 
 INST1(umin,    "umin",   0, 0, IF_DV_3A,  0x2E206C00)
                                    //  umin    Vd,Vn,Vm             DV_3A  0Q101110XX1mmmmm 011011nnnnnddddd   2E20 6C00   Vd,Vn,Vm  (vector)
+
+INST1(uzp1,    "uzp1",   0, 0, IF_DV_3A,  0x0E801800)
+                                   //  uzp1    Vd,Vn,Vm             DV_3A  0Q001110XX0mmmmm 000110nnnnnddddd   0E80 1800   Vd,Vn,Vm  (vector)
+
+INST1(uzp2,    "uzp2",   0, 0, IF_DV_3A,  0x0E805800)
+                                   //  upz2    Vd,Vn,Vm             DV_3A  0Q001110XX0mmmmm 010110nnnnnddddd   0E80 5800   Vd,Vn,Vm  (vector)
+
+INST1(zip1,    "zip1",   0, 0, IF_DV_3A,  0x0E803800)
+                                   //  zip1    Vd,Vn,Vm             DV_3A  0Q001110XX0mmmmm 011110nnnnnddddd   0E80 3800   Vd,Vn,Vm  (vector)
+
+INST1(zip2,    "zip2",   0, 0, IF_DV_3A,  0x0E807800)
+                                   //  zip2    Vd,Vn,Vm             DV_3A  0Q001110XX0mmmmm 001110nnnnnddddd   0E80 7800   Vd,Vn,Vm  (vector)
+
+INST1(trn1,    "trn1",   0, 0, IF_DV_3A,  0x0E802800)
+                                   //  zip1    Vd,Vn,Vm             DV_3A  0Q001110XX0mmmmm 001010nnnnnddddd   0E80 2800   Vd,Vn,Vm  (vector)
+
+INST1(trn2,    "trn2",   0, 0, IF_DV_3A,  0x0E806800)
+                                   //  zip2    Vd,Vn,Vm             DV_3A  0Q001110XX0mmmmm 011010nnnnnddddd   0E80 6800   Vd,Vn,Vm  (vector)
 
 INST1(fcvtl,   "fcvtl",  0, 0, IF_DV_2G,  0x0E217800)
                                    //  fcvtl   Vd,Vn                DV_2G  000011100X100001 011110nnnnnddddd   0E21 7800   Vd,Vn    (scalar)

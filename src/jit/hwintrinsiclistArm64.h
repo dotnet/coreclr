@@ -42,6 +42,7 @@ HARDWARE_INTRINSIC(NI_ARM64_NONE_MOV,             None,          None,          
 //  Base
 HARDWARE_INTRINSIC(NI_ARM64_BASE_CLS,             Base,          LeadingSignCount,               UnaryOp,       INS_invalid, INS_cls,     INS_cls,      None )
 HARDWARE_INTRINSIC(NI_ARM64_BASE_CLZ,             Base,          LeadingZeroCount,               UnaryOp,       INS_invalid, INS_clz,     INS_clz,      None )
+HARDWARE_INTRINSIC(NI_ARM64_BASE_RBIT,            Base,          ReverseBitOrder,                UnaryOp,       INS_invalid, INS_rbit,    INS_rbit,     None )
 
 // Vector64
 HARDWARE_INTRINSIC(NI_Vector64_AsByte,            Vector64,      AsByte,                         UnaryOp,       INS_invalid, INS_invalid, INS_invalid,  None )
@@ -102,6 +103,25 @@ HARDWARE_INTRINSIC(NI_ARM64_SIMD_GetItem,         Simd,     Extract,            
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_SetItem,         Simd,     Insert,                         SimdInsertOp,  INS_mov,     INS_mov,     INS_mov,      None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_SetAllVector64,  Simd,     SetAllVector64,                 SimdSetAllOp,  INS_dup,     INS_dup,     INS_dup,      None )
 HARDWARE_INTRINSIC(NI_ARM64_SIMD_SetAllVector128, Simd,     SetAllVector128,                SimdSetAllOp,  INS_dup,     INS_dup,     INS_dup,      None )
+
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_ABS_GE,          Simd,     AbsoluteCompareGreatherThanOrEqual, SimdBinaryOp,  INS_facge,   INS_invalid, INS_invalid,  None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_ABS_GT,          Simd,     AbsoluteCompareGreatherThan,        SimdBinaryOp,  INS_facgt,   INS_invalid, INS_invalid,  None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_SLI,             Simd,     LeftShiftAndInsert,                 SimdBinaryOp,  INS_invalid, INS_sli,     INS_sli,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_SRI,             Simd,     RightShiftAndInsert,                SimdBinaryOp,  INS_invalid, INS_sri,     INS_sri,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_XTN_LO,          Simd,     ExtractAndNarrowLow,                SimdUnaryOp,   INS_invalid, INS_xtn,     INS_xtn,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_XTN_HI,          Simd,     ExtractAndNarrowHigh,               SimdUnaryOp,   INS_invalid, INS_xtn2,    INS_xtn2,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_UNZIP_LO,        Simd,     UnzipEven,                          SimdBinaryOp,  INS_uzp1,    INS_uzp1,    INS_uzp1,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_UNZIP_HI,        Simd,     UnzipOdd,                           SimdBinaryOp,  INS_uzp2,    INS_uzp2,    INS_uzp2,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_ZIP_LO,          Simd,     ZipLow,                             SimdBinaryOp,  INS_zip1,    INS_zip1,    INS_zip1,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_ZIP_HI,          Simd,     ZipHigh,                            SimdBinaryOp,  INS_zip2,    INS_zip2,    INS_zip2,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_TBL,             Simd,     TableVectorLookup,                  SimdTblOp,     INS_invalid, INS_tbl,     INS_tbl,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_TBX,             Simd,     TableVectorLookupExtension,         SimdTbxOp,     INS_invalid, INS_tbx,     INS_tbx,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_TRN_ODD,         Simd,     TransposeVectorOdd,                 SimdBinaryOp,  INS_trn1,    INS_trn1,    INS_trn1,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_TRN_EVEN,        Simd,     TransposeVectorEven,                SimdBinaryOp,  INS_trn2,    INS_trn2,    INS_trn2,     None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_MLS,             Simd,     MultiplyAndSubtract,                SimdBinaryOp,  INS_fmls,    INS_mls,     INS_mls,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_MLA,             Simd,     MultiplyAndAdd,                     SimdBinaryOp,  INS_fmla,    INS_mla,     INS_mla,      None )
+HARDWARE_INTRINSIC(NI_ARM64_SIMD_ADDV,            Simd,     AddAcross,                          SimdSumOp,     INS_faddp,   INS_addv,    INS_addv,     None )
+
 //Aes
 HARDWARE_INTRINSIC(NI_ARM64_AesEncrypt,           Aes,      Encrypt,                        SimdBinaryRMWOp,   INS_invalid,    INS_invalid, INS_aese,      None )
 HARDWARE_INTRINSIC(NI_ARM64_AesDecrypt,           Aes,      Decrypt,                        SimdBinaryRMWOp,   INS_invalid,    INS_invalid, INS_aesd,      None )
