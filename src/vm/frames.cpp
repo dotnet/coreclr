@@ -1018,7 +1018,14 @@ GCFrame::~GCFrame()
 
     if (m_Next != NULL)
     {
-        GCX_COOP_THREAD_EXISTS(m_pCurThread);
+        // Do a manual switch to the GC cooperative mode instead of using the GCX_COOP_THREAD_EXISTS
+        // macro so that this function isn't slowed down by having to deal with FS:0 chain on x86 Windows.
+        BOOL wasCoop = m_pCurThread->PreemptiveGCDisabled();
+        if (!wasCoop)
+        {
+            m_pCurThread->DisablePreemptiveGC();
+        }
+
         // When the frame is destroyed, make sure it is no longer in the
         // frame chain managed by the Thread.
 
@@ -1055,6 +1062,12 @@ GCFrame::~GCFrame()
             }
         }
 #endif // FEATURE_EH_FUNCLETS && !FEATURE_PAL
+
+        if (!wasCoop)
+        {
+            m_pCurThread->EnablePreemptiveGC();
+        }
+
     }
 }
 
