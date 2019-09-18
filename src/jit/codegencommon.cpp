@@ -7574,34 +7574,19 @@ struct PrologInitHelper
 public:
     static PrologInitHelper GetPrologInitHelper(CodeGen* codeGen, Compiler* compiler);
 
-    int GetStackLow() const
-    {
-        return m_stackLow;
-    }
-
-    int GetStackHigh() const
-    {
-        return m_stackHigh;
-    }
-
     regMaskTP GetIntRegs() const
     {
         return m_intRegs;
     }
 
-    regMaskTP GetFloatRegs() const
-    {
-        return m_fltRegs;
-    }
-
-    regMaskTP GetDoubleRegs() const
-    {
-        return m_dblRegs;
-    }
+    void InitStack(regNumber initReg, bool* pInitRegZeroed) const;
+    void InitRegisters(regNumber initReg, bool* pInitRegZeroed) const;
 
 private:
-    PrologInitHelper()
-        : m_stackLow(+INT_MAX)
+    PrologInitHelper(CodeGen* codeGen, Compiler* compiler)
+        : m_codeGen(codeGen)
+        , m_compiler(compiler)
+        , m_stackLow(+INT_MAX)
         , m_stackHigh(-INT_MAX)
         , m_intRegs(RBM_NONE)
         , m_fltRegs(RBM_NONE)
@@ -7611,6 +7596,12 @@ private:
 #endif
     {
     }
+
+    void ZeroStack(regNumber initReg, bool* pInitRegZeroed) const;
+    void ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) const;
+
+    CodeGen*  m_codeGen;
+    Compiler* m_compiler;
 
     int m_stackLow;
     int m_stackHigh;
@@ -7645,7 +7636,7 @@ private:
 // static
 PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compiler* compiler)
 {
-    PrologInitHelper initHelper;
+    PrologInitHelper initHelper(codeGen, compiler);
 
     unsigned   varNum;
     LclVarDsc* varDsc;
@@ -7770,6 +7761,71 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
 #endif
 
     return initHelper;
+}
+
+void PrologInitHelper::InitStack(regNumber initReg, bool* pInitRegZeroed) const
+{
+    ZeroStack(initReg, pInitRegZeroed);
+}
+
+void PrologInitHelper::InitRegisters(regNumber initReg, bool* pInitRegZeroed) const
+{
+    ZeroRegisters(initReg, pInitRegZeroed);
+}
+
+void PrologInitHelper::ZeroStack(regNumber initReg, bool* pInitRegZeroed) const
+{
+    m_codeGen->genZeroInitFrame(m_stackHigh, m_stackLow, initReg, pInitRegZeroed);
+}
+
+void PrologInitHelper::ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) const
+{
+    if (m_intRegs != RBM_NONE)
+    {
+        regMaskTP regMask = 0x1;
+
+        for (regNumber reg = REG_INT_FIRST; reg <= REG_INT_LAST; reg = REG_NEXT(reg), regMask <<= 1)
+        {
+            if ((regMask & m_intRegs) != RBM_NONE)
+            {
+                // Check if we have already zeroed this register
+                if ((reg == initReg) && *pInitRegZeroed)
+                {
+                    continue;
+                }
+                else
+                {
+                    m_codeGen->instGen_Set_Reg_To_Zero(EA_PTRSIZE, reg);
+                    if (reg == initReg)
+                    {
+                        *pInitRegZeroed = true;
+                    }
+                }
+            }
+        }
+    }
+
+    if ((m_fltRegs != RBM_NONE) || (m_dblRegs != RBM_NONE))
+    {
+        // If initReg is not in initInitRegs then we will use REG_SCRATCH
+        if ((genRegMask(initReg) & m_intRegs) == RBM_NONE)
+        {
+            initReg         = REG_SCRATCH;
+            *pInitRegZeroed = false;
+        }
+
+#ifdef _TARGET_ARM_
+        // This is needed only for Arm since it can use a zero initialized int register
+        // to initialize vfp registers.
+        if (!initRegZeroed)
+        {
+            m_codeGen->instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
+            *pInitRegZeroed = true;
+        }
+#endif // _TARGET_ARM_
+
+        m_codeGen->genZeroInitFltRegs(m_fltRegs, m_dblRegs, initReg);
+    }
 }
 }
 
@@ -8116,10 +8172,10 @@ void CodeGen::genFnProlog()
     }
 
     //
-    // Zero out the frame as needed
+    // Init the frame as needed, mostly zero out stack variables.
     //
 
-    genZeroInitFrame(initHelper.GetStackHigh(), initHelper.GetStackLow(), initReg, &initRegZeroed);
+    initHelper.InitStack(initReg, &initRegZeroed);
 
 #if defined(FEATURE_EH_FUNCLETS)
 
@@ -8243,54 +8299,9 @@ void CodeGen::genFnProlog()
     // Home the incoming arguments
     genEnregisterIncomingStackArgs();
 
-    /* Initialize any must-init registers variables now */
+    // Initialize any must-init registers variables now.
 
-    if (initHelper.GetIntRegs() != RBM_NONE)
-    {
-        regMaskTP regMask = 0x1;
-
-        for (regNumber reg = REG_INT_FIRST; reg <= REG_INT_LAST; reg = REG_NEXT(reg), regMask <<= 1)
-        {
-            if ((regMask & initHelper.GetIntRegs()) != RBM_NONE)
-            {
-                // Check if we have already zeroed this register
-                if ((reg == initReg) && initRegZeroed)
-                {
-                    continue;
-                }
-                else
-                {
-                    instGen_Set_Reg_To_Zero(EA_PTRSIZE, reg);
-                    if (reg == initReg)
-                    {
-                        initRegZeroed = true;
-                    }
-                }
-            }
-        }
-    }
-
-    if ((initHelper.GetFloatRegs() != RBM_NONE) || (initHelper.GetDoubleRegs() != RBM_NONE))
-    {
-        // If initReg is not in initInitRegs then we will use REG_SCRATCH
-        if ((genRegMask(initReg) & initHelper.GetIntRegs()) == RBM_NONE)
-        {
-            initReg       = REG_SCRATCH;
-            initRegZeroed = false;
-        }
-
-#ifdef _TARGET_ARM_
-        // This is needed only for Arm since it can use a zero initialized int register
-        // to initialize vfp registers.
-        if (!initRegZeroed)
-        {
-            instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
-            initRegZeroed = true;
-        }
-#endif // _TARGET_ARM_
-
-        genZeroInitFltRegs(initHelper.GetFloatRegs(), initHelper.GetDoubleRegs(), initReg);
-    }
+    initHelper.InitRegisters(initReg, &initRegZeroed);
 
     //-----------------------------------------------------------------------------
 

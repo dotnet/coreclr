@@ -403,12 +403,14 @@ protected:
 
 #endif // _TARGET_XARCH_
 
-    void genZeroInitFltRegs(const regMaskTP& initFltRegs, const regMaskTP& initDblRegs, const regNumber& initReg);
-
     regNumber genGetZeroReg(regNumber initReg, bool* pInitRegZeroed);
+
+public:
+    void genZeroInitFltRegs(const regMaskTP& initFltRegs, const regMaskTP& initDblRegs, const regNumber& initReg);
 
     void genZeroInitFrame(int untrLclHi, int untrLclLo, regNumber initReg, bool* pInitRegZeroed);
 
+protected:
     void genReportGenericContextArg(regNumber initReg, bool* pInitRegZeroed);
 
     void genSetGSSecurityCookie(regNumber initReg, bool* pInitRegZeroed);
