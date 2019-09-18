@@ -618,6 +618,21 @@ regMaskTP Compiler::compHelperCallKillSet(CorInfoHelpFunc helper)
     }
 }
 
+//------------------------------------------------------------------------
+// compChangeLife: Compare the given "newLife" with last set of live variables and update
+//  codeGen "gcInfo", siScopes, "regSet" with the new variable's homes/liveness.
+//
+// Arguments:
+//    newLife - the new set of variables that are alive.
+//
+// Assumptions:
+//    The set of live variables reflects the result of only emitted code, it should not be considering the becoming
+//    live/dead of instructions that has not been emitted yet. This is used to ensure [) "VariableLiveRange"
+//    intervals when calling "siStartVariableLiveRange" and "siEndVariableLiveRange".
+//
+// Notes:
+//    If "ForCodeGen" is false, only "compCurLife" set (and no mask) will be setted.
+//
 template <bool ForCodeGen>
 void Compiler::compChangeLife(VARSET_VALARG_TP newLife)
 {
@@ -2069,9 +2084,13 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         {
             printf("; Tier-0 compilation\n");
         }
-        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
+        else if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_TIER1))
         {
             printf("; Tier-1 compilation\n");
+        }
+        else if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_READYTORUN))
+        {
+            printf("; ReadyToRun compilation\n");
         }
 
         if ((compiler->opts.compFlags & CLFLG_MAXOPT) == CLFLG_MAXOPT)
@@ -2084,11 +2103,20 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
         }
         else if (compiler->opts.MinOpts())
         {
-            printf("; compiler->opts.MinOpts() is true\n");
+            printf("; MinOpts code\n");
         }
         else
         {
             printf("; unknown optimization flags\n");
+        }
+
+        if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_BBINSTR))
+        {
+            printf("; instrumented for collecting profile data\n");
+        }
+        else if (compiler->opts.jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && compiler->fgHaveProfileData())
+        {
+            printf("; optimized using profile data\n");
         }
 
 #if DOUBLE_ALIGN
@@ -2231,11 +2259,17 @@ void CodeGen::genGenerateCode(void** codePtr, ULONG* nativeSizeOfCode)
 
     compiler->EndPhase(PHASE_EMIT_CODE);
 
+#if defined(DEBUG) || defined(LATE_DISASM)
+    // Add code size information into the Perf Score
+    compiler->info.compPerfScore += (compiler->info.compTotalHotCodeSize * PERFSCORE_CODESIZE_COST_HOT);
+    compiler->info.compPerfScore += (compiler->info.compTotalColdCodeSize * PERFSCORE_CODESIZE_COST_COLD);
+#endif // DEBUG || LATE_DISASM
+
 #ifdef DEBUG
-    if (compiler->opts.disAsm)
+    if (compiler->opts.disAsm || verbose)
     {
-        printf("; Total bytes of code %d, prolog size %d for method %s\n", codeSize, prologSize,
-               compiler->info.compFullName);
+        printf("; Total bytes of code %d, prolog size %d, perf score %.2f, (MethodHash=%08x) for method %s\n", codeSize,
+               prologSize, compiler->info.compPerfScore, compiler->info.compMethodHash(), compiler->info.compFullName);
         printf("; ============================================================\n");
         printf(""); // in our logic this causes a flush
     }
@@ -10582,6 +10616,7 @@ void CodeGen::genSetScopeInfo()
 
     if (varsLocationsCount == 0)
     {
+        // No variable home to report
         compiler->eeSetLVcount(0);
         compiler->eeSetLVdone();
         return;
@@ -10589,6 +10624,7 @@ void CodeGen::genSetScopeInfo()
 
     noway_assert(compiler->opts.compScopeInfo && (compiler->info.compVarScopesCount > 0));
 
+    // Initialize the table where the reported variables' home will be placed.
     compiler->eeSetLVcount(varsLocationsCount);
 
 #ifdef DEBUG
