@@ -10,13 +10,10 @@ using System.Reflection.PortableExecutable;
 using Internal.IL;
 using Internal.JitInterface;
 using Internal.TypeSystem;
-using Internal.TypeSystem.Ecma;
 
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
-
-using System.Threading;
 
 namespace ILCompiler
 {
