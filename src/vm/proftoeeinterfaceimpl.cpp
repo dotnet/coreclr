@@ -10235,11 +10235,15 @@ HCIMPL2(EXTERN_C void, ProfileEnter, UINT_PTR clientData, void * platformSpecifi
 
 #ifdef PROFILING_SUPPORTED
 
+    // We might have already torn down the profiler, if so we need to abort.
+    if (g_profControlBlock.curProfStatus.Get() != kProfStatusActive 
 #ifdef PROF_TEST_ONLY_FORCE_ELT
-    // If this test-only flag is set, it's possible we might not have a profiler
-    // attached, or might not have any of the hooks set. See
-    // code:ProfControlBlock#TestOnlyELT
-    if (g_profControlBlock.fTestOnlyForceEnterLeave)
+        // If this test-only flag is set, it's possible we might not have a profiler
+        // attached, or might not have any of the hooks set. See
+        // code:ProfControlBlock#TestOnlyELT
+        || g_profControlBlock.fTestOnlyForceEnterLeave
+#endif // PROF_TEST_ONLY_FORCE_ELT
+        )
     {
         if ((g_profControlBlock.pProfInterface.Load() == NULL) ||
             (
@@ -10253,7 +10257,6 @@ HCIMPL2(EXTERN_C void, ProfileEnter, UINT_PTR clientData, void * platformSpecifi
             return;
         }
     }       
-#endif // PROF_TEST_ONLY_FORCE_ELT
 
     // ELT3 Fast-Path hooks should be NULL when ELT intermediary is used.
     _ASSERTE(g_profControlBlock.pProfInterface->GetEnter3Hook() == NULL);
@@ -10407,11 +10410,15 @@ HCIMPL2(EXTERN_C void, ProfileLeave, UINT_PTR clientData, void * platformSpecifi
 
 #ifdef PROFILING_SUPPORTED
 
+    // We might have already torn down the profiler, if so we need to abort.
+    if (g_profControlBlock.curProfStatus.Get() != kProfStatusActive 
 #ifdef PROF_TEST_ONLY_FORCE_ELT
-    // If this test-only flag is set, it's possible we might not have a profiler
-    // attached, or might not have any of the hooks set. See
-    // code:ProfControlBlock#TestOnlyELT
-    if (g_profControlBlock.fTestOnlyForceEnterLeave)
+        // If this test-only flag is set, it's possible we might not have a profiler
+        // attached, or might not have any of the hooks set. See
+        // code:ProfControlBlock#TestOnlyELT
+        || g_profControlBlock.fTestOnlyForceEnterLeave
+#endif // PROF_TEST_ONLY_FORCE_ELT
+        )
     {
         if ((g_profControlBlock.pProfInterface.Load() == NULL) ||
             (
@@ -10425,7 +10432,6 @@ HCIMPL2(EXTERN_C void, ProfileLeave, UINT_PTR clientData, void * platformSpecifi
             return;
         }
     }
-#endif // PROF_TEST_ONLY_FORCE_ELT
 
     // ELT3 Fast-Path hooks should be NULL when ELT intermediary is used.
     _ASSERTE(g_profControlBlock.pProfInterface->GetLeave3Hook() == NULL);
@@ -10539,11 +10545,15 @@ HCIMPL2(EXTERN_C void, ProfileTailcall, UINT_PTR clientData, void * platformSpec
 
 #ifdef PROFILING_SUPPORTED
 
+    // We might have already torn down the profiler, if so we need to abort.
+    if (g_profControlBlock.curProfStatus.Get() != kProfStatusActive 
 #ifdef PROF_TEST_ONLY_FORCE_ELT
-    // If this test-only flag is set, it's possible we might not have a profiler
-    // attached, or might not have any of the hooks set. See
-    // code:ProfControlBlock#TestOnlyELT
-    if (g_profControlBlock.fTestOnlyForceEnterLeave)
+        // If this test-only flag is set, it's possible we might not have a profiler
+        // attached, or might not have any of the hooks set. See
+        // code:ProfControlBlock#TestOnlyELT
+        || g_profControlBlock.fTestOnlyForceEnterLeave
+#endif // PROF_TEST_ONLY_FORCE_ELT
+        )
     {
         if ((g_profControlBlock.pProfInterface.Load() == NULL) ||
             (
@@ -10557,7 +10567,6 @@ HCIMPL2(EXTERN_C void, ProfileTailcall, UINT_PTR clientData, void * platformSpec
             return;
         }
     }
-#endif // PROF_TEST_ONLY_FORCE_ELT
 
     // ELT3 fast-path hooks should be NULL when ELT intermediary is used.
     _ASSERTE(g_profControlBlock.pProfInterface->GetTailcall3Hook() == NULL);
