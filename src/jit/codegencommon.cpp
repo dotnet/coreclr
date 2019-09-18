@@ -7615,6 +7615,8 @@ private:
     void PoisonRegisters() const;
 #endif // DEBUG
 
+    void RecordStackInit(int low, int high DEBUGARG(bool poison));
+
     CodeGen*  m_codeGen;
     Compiler* m_compiler;
 
@@ -7702,7 +7704,7 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
                     {
                         // Upper DWORD is on the stack, and needs to be initialized.
                         loOffs += sizeof(int);
-                        goto INIT_STK;
+                        initHelper.RecordStackInit(loOffs, hiOffs DEBUGARG(false));
                     }
                 }
             }
@@ -7717,18 +7719,7 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         }
         else
         {
-        INIT_STK:
-
-            INDEBUG(initHelper.m_needToZeroStack = true;)
-
-            if (loOffs < initHelper.m_stackLow)
-            {
-                initHelper.m_stackLow = loOffs;
-            }
-            if (hiOffs > initHelper.m_stackHigh)
-            {
-                initHelper.m_stackHigh = hiOffs;
-            }
+            initHelper.RecordStackInit(loOffs, hiOffs DEBUGARG(false));
         }
     }
 
@@ -7757,16 +7748,7 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         noway_assert(!codeGen->isFramePointerUsed() || loOffs != 0);
 #endif // !defined(_TARGET_AMD64_)
 
-        INDEBUG(initHelper.m_needToZeroStack = true;)
-
-        if (loOffs < initHelper.m_stackLow)
-        {
-            initHelper.m_stackLow = loOffs;
-        }
-        if (hiOffs > initHelper.m_stackHigh)
-        {
-            initHelper.m_stackHigh = hiOffs;
-        }
+        initHelper.RecordStackInit(loOffs, hiOffs DEBUGARG(false));
     }
 
     assert((codeGen->genGetInitStackLocalCount() > 0) == initHelper.m_needToZeroStack);
@@ -7871,6 +7853,20 @@ void PrologInitHelper::PoisonRegisters() const
 {
 }
 #endif // DEBUG
+
+void PrologInitHelper::RecordStackInit(int low, int high DEBUGARG(bool poison))
+{
+    INDEBUG(m_needToZeroStack = true;)
+
+    if (low < m_stackLow)
+    {
+        m_stackLow = low;
+    }
+    if (high > m_stackHigh)
+    {
+        m_stackHigh = high;
+    }
+}
 }
 
 /*****************************************************************************
