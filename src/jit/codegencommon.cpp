@@ -7675,8 +7675,11 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
 
     for (varNum = 0, varDsc = compiler->lvaTable; varNum < compiler->lvaCount; varNum++, varDsc++)
     {
-        if (varDsc->lvIsArg && !varDsc->lvIsRegArg)
+        if (varDsc->lvIsArg)
         {
+            // TODO seandee: that was strange, we skipped only register arguments,
+            // but we should not initialized stack arguments as well, should we?
+            assert(!varDsc->lvMustInit);
             continue;
         }
 
@@ -7691,9 +7694,6 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         {
             continue;
         }
-
-        int loOffs = varDsc->lvStkOffs;
-        int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
 
         if (varDsc->lvIsInReg())
         {
@@ -7711,7 +7711,8 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
                     else
                     {
                         // Upper DWORD is on the stack, and needs to be initialized.
-                        loOffs += sizeof(int);
+                        int loOffs = varDsc->lvStkOffs + sizeof(int);
+                        int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
                         initHelper.RecordStackInit(loOffs, hiOffs DEBUGARG(false));
                     }
                 }
@@ -7727,6 +7728,8 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
         }
         else
         {
+            int loOffs = varDsc->lvStkOffs;
+            int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
             initHelper.RecordStackInit(loOffs, hiOffs DEBUGARG(false));
         }
     }
