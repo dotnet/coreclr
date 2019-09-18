@@ -7574,9 +7574,9 @@ struct PrologInitHelper
 public:
     static PrologInitHelper GetPrologInitHelper(CodeGen* codeGen, Compiler* compiler);
 
-    regMaskTP GetIntRegs() const
+    regMaskTP GetZeroingIntRegs() const
     {
-        return m_intRegs;
+        return m_zeroIntRegs;
     }
 
     void InitStack(regNumber initReg, bool* pInitRegZeroed) const;
@@ -7588,9 +7588,9 @@ private:
         , m_compiler(compiler)
         , m_stackLow(+INT_MAX)
         , m_stackHigh(-INT_MAX)
-        , m_intRegs(RBM_NONE)
-        , m_fltRegs(RBM_NONE)
-        , m_dblRegs(RBM_NONE)
+        , m_zeroIntRegs(RBM_NONE)
+        , m_zeroFltRegs(RBM_NONE)
+        , m_zeroDblRegs(RBM_NONE)
 #ifdef DEBUG
         , m_hasUntrLcl(false)
 #endif
@@ -7607,9 +7607,9 @@ private:
     int m_stackHigh;
 
     // Int, float, double registers which must be zero initialized.
-    regMaskTP m_intRegs;
-    regMaskTP m_fltRegs;
-    regMaskTP m_dblRegs;
+    regMaskTP m_zeroIntRegs;
+    regMaskTP m_zeroFltRegs;
+    regMaskTP m_zeroDblRegs;
 
 #ifdef DEBUG
     bool m_hasUntrLcl; // Is any local that must be initialized?
@@ -7668,13 +7668,13 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
             regMaskTP regMask = genRegMask(varDsc->lvRegNum);
             if (!varDsc->IsFloatRegType())
             {
-                initHelper.m_intRegs |= regMask;
+                initHelper.m_zeroIntRegs |= regMask;
 
                 if (varTypeIsMultiReg(varDsc))
                 {
                     if (varDsc->lvOtherReg != REG_STK)
                     {
-                        initHelper.m_intRegs |= genRegMask(varDsc->lvOtherReg);
+                        initHelper.m_zeroIntRegs |= genRegMask(varDsc->lvOtherReg);
                     }
                     else
                     {
@@ -7686,11 +7686,11 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
             }
             else if (varDsc->TypeGet() == TYP_DOUBLE)
             {
-                initHelper.m_dblRegs |= regMask;
+                initHelper.m_zeroDblRegs |= regMask;
             }
             else
             {
-                initHelper.m_fltRegs |= regMask;
+                initHelper.m_zeroFltRegs |= regMask;
             }
         }
         else
@@ -7780,13 +7780,13 @@ void PrologInitHelper::ZeroStack(regNumber initReg, bool* pInitRegZeroed) const
 
 void PrologInitHelper::ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) const
 {
-    if (m_intRegs != RBM_NONE)
+    if (m_zeroIntRegs != RBM_NONE)
     {
         regMaskTP regMask = 0x1;
 
         for (regNumber reg = REG_INT_FIRST; reg <= REG_INT_LAST; reg = REG_NEXT(reg), regMask <<= 1)
         {
-            if ((regMask & m_intRegs) != RBM_NONE)
+            if ((regMask & m_zeroIntRegs) != RBM_NONE)
             {
                 // Check if we have already zeroed this register
                 if ((reg == initReg) && *pInitRegZeroed)
@@ -7805,10 +7805,10 @@ void PrologInitHelper::ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) co
         }
     }
 
-    if ((m_fltRegs != RBM_NONE) || (m_dblRegs != RBM_NONE))
+    if ((m_zeroFltRegs != RBM_NONE) || (m_zeroDblRegs != RBM_NONE))
     {
         // If initReg is not in initInitRegs then we will use REG_SCRATCH
-        if ((genRegMask(initReg) & m_intRegs) == RBM_NONE)
+        if ((genRegMask(initReg) & m_zeroIntRegs) == RBM_NONE)
         {
             initReg         = REG_SCRATCH;
             *pInitRegZeroed = false;
@@ -7824,7 +7824,7 @@ void PrologInitHelper::ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) co
         }
 #endif // _TARGET_ARM_
 
-        m_codeGen->genZeroInitFltRegs(m_fltRegs, m_dblRegs, initReg);
+        m_codeGen->genZeroInitFltRegs(m_zeroFltRegs, m_zeroDblRegs, initReg);
     }
 }
 }
@@ -7978,7 +7978,7 @@ void CodeGen::genFnProlog()
     else
 #endif // _TARGET_XARCH_
     {
-        tempMask = initHelper.GetIntRegs() & ~excludeMask & ~regSet.rsMaskResvd;
+        tempMask = initHelper.GetZeroingIntRegs() & ~excludeMask & ~regSet.rsMaskResvd;
 
         if (tempMask != RBM_NONE)
         {
