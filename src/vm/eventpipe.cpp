@@ -716,11 +716,14 @@ bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackC
 
     stackContents.Reset();
 
+    bool gcOnTransitions = GC_ON_TRANSITIONS(FALSE);                // dont do GC for GCStress 3
+
     StackWalkAction swaRet = pThread->StackWalkFrames(
         (PSTACKWALKFRAMESCALLBACK)&StackWalkCallback,
         &stackContents,
         ALLOW_ASYNC_STACK_WALK | FUNCTIONSONLY | HANDLESKIPPEDFRAMES | ALLOW_INVALID_OBJECTS);
 
+    GC_ON_TRANSITIONS(gcOnTransitions);
     return ((swaRet == SWA_DONE) || (swaRet == SWA_CONTINUE));
 }
 
