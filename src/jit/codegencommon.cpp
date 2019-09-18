@@ -7677,8 +7677,8 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
             continue;
         }
 
-        signed int loOffs = varDsc->lvStkOffs;
-        signed int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
+        int loOffs = varDsc->lvStkOffs;
+        int hiOffs = varDsc->lvStkOffs + compiler->lvaLclSize(varNum);
 
         if (varDsc->lvIsInReg())
         {
@@ -7739,8 +7739,8 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
             continue;
         }
 
-        signed int loOffs = tempThis->tdTempOffs();
-        signed int hiOffs = loOffs + TARGET_POINTER_SIZE;
+        int loOffs = tempThis->tdTempOffs();
+        int hiOffs = loOffs + TARGET_POINTER_SIZE;
 
         // If there is a frame pointer used, due to frame pointer chaining it will point to the stored value of the
         // previous frame pointer. Thus, stkOffs can't be zero.
