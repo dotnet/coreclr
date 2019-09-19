@@ -304,7 +304,7 @@
     IL_00a1:  add
     IL_00a2:  stloc.3
     IL_00a3:  ldloc.3
-    IL_00a4:  ldc.i4.s   60
+    IL_00a4:  ldc.i4.s   30
     IL_00a6:  blt.s      IL_008b
 
     IL_00a8:  ldloc.0
