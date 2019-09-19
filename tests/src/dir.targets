@@ -113,7 +113,9 @@
           Condition="'$(GenerateRunScript)' != 'false' And ('$(_WillCLRTestProjectBuild)' == 'true')"
           DependsOnTargets="GenerateExecutionScriptsInternal" />
 
-  <Target Name="CopyNativeProjectBinaries" Condition="'$(CopyNativeProjectBinaries)' == 'true'">
+  <Target Name="CopyNativeProjectBinaries">
+     <Message Importance="High" Text="CNPB: $(NativeProjectOutputFolder); Disable: $(DisableProjectBuild); Will: $(_WillCLRTestProjectBuild); Copy: $(CopyNativeProjectBinaries)" />
+
      <ItemGroup>
         <NativeProjectBinaries Condition="'$(RunningOnUnix)' != 'true'" Include="$(NativeProjectOutputFolder)\**\*.*" />
 
