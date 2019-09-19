@@ -28,7 +28,7 @@ jobs:
       archType: arm
       osGroup: Linux
       container:
-        image: ubuntu-16.04-cross-14.04-23cacb0-20190814211620
+        image: ubuntu-16.04-cross-14.04-23cacb0-20190919190059
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -50,7 +50,7 @@ jobs:
       archType: arm64
       osGroup: Linux
       container:
-        image: ubuntu-16.04-cross-arm64-cfdd435-20190814211620
+        image: ubuntu-16.04-cross-arm64-cfdd435-20190919190059
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
@@ -95,7 +95,7 @@ jobs:
       osGroup: Linux
       osSubgroup: _musl
       container:
-        image: ubuntu-16.04-cross-arm64-alpine-406629a-20190814211620
+        image: ubuntu-16.04-cross-arm64-alpine-406629a-20190919190059
         registry: mcr
       helixQueues:
       - ${{ if eq(variables['System.TeamProject'], 'public') }}:
