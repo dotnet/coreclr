@@ -554,7 +554,6 @@ typedef SHash<ILCodeVersioningStateHashTraits> ILCodeVersioningStateHash;
 class CodeVersionManager
 {
     friend class ILCodeVersion;
-    friend class PublishMethodTableHolder;
 
 public:
     CodeVersionManager();

@@ -1177,7 +1177,7 @@ public:
     bool IsVersionableWithPrecode()
     {
         WRAPPER_NO_CONTRACT;
-        return (IsEligibleForTieredCompilation() || IsEligibleForReJIT()) && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+        return IsVersionable() && !Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
     // True iff all calls to the method should go through a backpatchable vtable slot or through a FuncPtrStub. This versioning
@@ -1186,7 +1186,7 @@ public:
     bool IsVersionableWithVtableSlotBackpatch()
     {
         WRAPPER_NO_CONTRACT;
-        return (IsEligibleForTieredCompilation() || IsEligibleForReJIT()) && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
+        return IsVersionable() && Helper_IsEligibleForVersioningWithVtableSlotBackpatch();
     }
 
     bool IsEligibleForReJIT()
@@ -1199,7 +1199,7 @@ public:
 
             // Previously we didn't support these methods because of functional requirements for
             // jumpstamps, keeping this in for back compat.
-            (IsIL() || IsNoMetadata()) &&
+            IsIL() &&
             !IsWrapperStub() &&
 
             // Functional requirement
