@@ -174,9 +174,7 @@ namespace Internal.JitInterface
             if (pMustExpand != null)
                 *pMustExpand = 0;
 
-#if !READYTORUN
             Debug.Assert(method.IsIntrinsic);
-#endif
 
             IntrinsicKey key = new IntrinsicKey();
             key.MethodName = method.Name;
