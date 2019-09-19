@@ -6976,8 +6976,7 @@ MethodTableBuilder::NeedsNativeCodeSlot(bmtMDMethod * pMDMethod)
         // Methods that are R2R need precode if ReJIT is enabled. Keep this in sync with MethodDesc::IsEligibleForReJIT()
         (ReJitManager::IsReJITEnabled() &&
 
-            (GetMethodClassification(pMDMethod->GetMethodType()) == mcIL
-                || GetMethodClassification(pMDMethod->GetMethodType()) == mcDynamic) &&
+            GetMethodClassification(pMDMethod->GetMethodType()) == mcIL &&
 
             !GetModule()->IsCollectible() &&
 
