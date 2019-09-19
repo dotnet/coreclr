@@ -7881,7 +7881,9 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
     callDispatcherNode->gtCallArgs = gtPrependNewCallArg(retAddrSlot, callDispatcherNode->gtCallArgs);
 
     if (origCall->gtType == TYP_VOID)
+    {
         return callDispatcherNode;
+    }
 
     assert(retVal != nullptr);
     GenTree* comma = gtNewOperNode(GT_COMMA, origCall->TypeGet(), callDispatcherNode, retVal);
@@ -7889,7 +7891,9 @@ GenTree* Compiler::fgCreateCallDispatcherAndGetResult(GenTreeCall*          orig
     // values in the process. Just avoid CSE'ing this tree entirely in that
     // case.
     if (origCall->HasMultiRegRetVal())
+    {
         comma->gtFlags |= GTF_DONT_CSE;
+    }
 
     return comma;
 }
