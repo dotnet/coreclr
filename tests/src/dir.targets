@@ -188,8 +188,8 @@
         <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))$(Configuration)\" Condition="'$(RunningOnUnix)' != 'true'" />
      </ItemGroup>
 
-    <Message Importance="High" Text= "Full native project references are :%(NativeProjectReferenceNormalized.Identity)" />
-    <Message Importance="High" Text= "Native binaries will be copied from :%(NativeProjectOutputFoldersToCopy.Identity)" />
+    <Message Text= "Full native project references are :%(NativeProjectReferenceNormalized.Identity)" />
+    <Message Text= "Native binaries will be copied from :%(NativeProjectOutputFoldersToCopy.Identity)" />
 
     <MSBuild Projects="$(MSBuildProjectFile)" Targets="CopyNativeProjectBinaries" Properties="NativeProjectOutputFolder=%(NativeProjectOutputFoldersToCopy.Identity)" Condition="'@(NativeProjectReference)' != ''" />
 
