@@ -77,7 +77,11 @@
     <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' != 'true'">true</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(BuildAllProjects)' == 'true' And '$(CLRTestPriority)' &lt;= '$(CLRTestPriorityToBuild)'">true</_WillCLRTestProjectBuild>
     <_WillCLRTestProjectBuild Condition="'$(DisableProjectBuild)' == 'true'">false</_WillCLRTestProjectBuild>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <CopyNativeProjectBinaries Condition="'$(_WillCLRTestProjectBuild)' != 'true'">false</CopyNativeProjectBinaries>
+    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == ''">true</CopyNativeProjectBinaries>
   </PropertyGroup>
     
   <!-- if we have determined that there is nothing to build, overwrite the build targets so that nothing happens -->
@@ -109,7 +113,7 @@
           Condition="'$(GenerateRunScript)' != 'false' And ('$(_WillCLRTestProjectBuild)' == 'true')"
           DependsOnTargets="GenerateExecutionScriptsInternal" />
 
-  <Target Name="CopyNativeProjectBinaries">
+  <Target Name="CopyNativeProjectBinaries" Condition="'$(CopyNativeProjectBinaries)' == 'true'">
      <ItemGroup>
         <NativeProjectBinaries Condition="'$(RunningOnUnix)' != 'true'" Include="$(NativeProjectOutputFolder)\**\*.*" />
 
