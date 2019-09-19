@@ -1923,6 +1923,84 @@ void CodeGen::genCodeForCpBlkHelper(GenTreeBlk* cpBlkNode)
     }
 }
 
+// Generate code for InitBlk by performing a loop unroll
+// Preconditions:
+//   a) Both the size and fill byte value are integer constants.
+//   b) The size of the struct to initialize is smaller than INITBLK_UNROLL_LIMIT bytes.
+void CodeGen::genCodeForInitBlkUnroll(GenTreeBlk* initBlkNode)
+{
+#ifndef _TARGET_ARM64_
+    NYI_ARM("genCodeForInitBlkUnroll");
+#else
+    // Make sure we got the arguments of the initblk/initobj operation in the right registers
+    unsigned size    = initBlkNode->Size();
+    GenTree* dstAddr = initBlkNode->Addr();
+    GenTree* initVal = initBlkNode->Data();
+    if (initVal->OperIsInitVal())
+    {
+        initVal = initVal->gtGetOp1();
+    }
+
+    assert(dstAddr->isUsedFromReg());
+    assert((initVal->isUsedFromReg() && !initVal->IsIntegralConst(0)) || initVal->IsIntegralConst(0));
+    assert(size != 0);
+    assert(size <= INITBLK_UNROLL_LIMIT);
+
+    emitter* emit = GetEmitter();
+
+    genConsumeOperands(initBlkNode);
+
+    if (initBlkNode->gtFlags & GTF_BLK_VOLATILE)
+    {
+        // issue a full memory barrier before a volatile initBlockUnroll operation
+        instGen_MemoryBarrier();
+    }
+
+    regNumber valReg = initVal->IsIntegralConst(0) ? REG_ZR : initVal->GetRegNum();
+
+    assert(!initVal->IsIntegralConst(0) || (valReg == REG_ZR));
+
+    unsigned offset = 0;
+
+    // Perform an unroll using stp.
+    if (size >= 2 * REGSIZE_BYTES)
+    {
+        // Determine how many 16 byte slots
+        size_t slots = size / (2 * REGSIZE_BYTES);
+
+        while (slots-- > 0)
+        {
+            emit->emitIns_R_R_R_I(INS_stp, EA_8BYTE, valReg, valReg, dstAddr->GetRegNum(), offset);
+            offset += (2 * REGSIZE_BYTES);
+        }
+    }
+
+    // Fill the remainder (15 bytes or less) if there's any.
+    if ((size & 0xf) != 0)
+    {
+        if ((size & 8) != 0)
+        {
+            emit->emitIns_R_R_I(INS_str, EA_8BYTE, valReg, dstAddr->GetRegNum(), offset);
+            offset += 8;
+        }
+        if ((size & 4) != 0)
+        {
+            emit->emitIns_R_R_I(INS_str, EA_4BYTE, valReg, dstAddr->GetRegNum(), offset);
+            offset += 4;
+        }
+        if ((size & 2) != 0)
+        {
+            emit->emitIns_R_R_I(INS_strh, EA_2BYTE, valReg, dstAddr->GetRegNum(), offset);
+            offset += 2;
+        }
+        if ((size & 1) != 0)
+        {
+            emit->emitIns_R_R_I(INS_strb, EA_1BYTE, valReg, dstAddr->GetRegNum(), offset);
+        }
+    }
+#endif // _TARGET_ARM64_
+}
+
 //----------------------------------------------------------------------------------
 // genCodeForCpBlkUnroll: Generates CpBlk code by performing a loop unroll
 //
