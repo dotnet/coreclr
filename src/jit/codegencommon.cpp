@@ -1654,12 +1654,10 @@ FOUND_AM:
     return true;
 }
 
-#ifdef DEBUG
 unsigned CodeGen::genGetInitStackLocalCount()
 {
     return genInitStkLclCnt;
 }
-#endif // DEBUG
 
 #ifdef _TARGET_ARMARCH_
 //------------------------------------------------------------------------
