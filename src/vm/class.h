@@ -1797,7 +1797,9 @@ public:
 
 
 public:
-    PTR_DictionaryLayout GetDictionaryLayout()
+    // This API is not multi-threaded safe: the dictionary layout pointer can be updated by another
+    // thread during a generic dictionary size expansion.
+    PTR_DictionaryLayout GetDictionaryLayout_Unsafe()
     {
         SUPPORTS_DAC;
         WRAPPER_NO_CONTRACT;

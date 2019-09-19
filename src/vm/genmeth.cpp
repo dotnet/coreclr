@@ -390,9 +390,19 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
 
             // Allocate space for the instantiation and dictionary
             infoSize = DictionaryLayout::GetFirstDictionaryBucketSize(methodInst.GetNumArgs(), pDL);
-            pInstOrPerInstInfo = (TypeHandle *) (void*) amt.Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(infoSize)));
+            pInstOrPerInstInfo = (TypeHandle*)(void*)amt.Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(infoSize)));
             for (DWORD i = 0; i < methodInst.GetNumArgs(); i++)
                 pInstOrPerInstInfo[i] = methodInst[i];
+
+            if (pDL != NULL && pDL->GetMaxSlots() > 0)
+            {
+                // Has to be at least larger than the first slots containing the instantiation arguments,
+                // and the slot with size information. Otherwise, we shouldn't really have a size slot
+                _ASSERTE(infoSize > (sizeof(TypeHandle*) * methodInst.GetNumArgs() + sizeof(ULONG_PTR*)));
+
+                UINT_PTR* pDictSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + methodInst.GetNumArgs();
+                *pDictSizeSlot = infoSize;
+            }
         }
 
         BOOL forComInterop = FALSE;
@@ -1438,7 +1448,9 @@ void InstantiatedMethodDesc::SetupGenericMethodDefinition(IMDInternalImport *pIM
     // the memory allocated for m_pMethInst will be freed if the declaring type fails to load
     m_pPerInstInfo.SetValue((Dictionary *) pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(dwAllocSize)));
 
-    TypeHandle * pInstDest = (TypeHandle *) IMD_GetMethodDictionaryNonNull();
+    // No lock needed here. This is actually a safe operation because dictionary on generic method definitions
+    // will never be expanded in size.
+    TypeHandle * pInstDest = (TypeHandle *) IMD_GetMethodDictionaryNonNull_Unsafe();
     for(unsigned int i = 0; i < numTyPars; i++)
     {
         hEnumTyPars.EnumNext(&tkTyPar);
@@ -1624,10 +1636,10 @@ void MethodDesc::PrepopulateDictionary(DataImage * image, BOOL nonExpansive)
     STANDARD_VM_CONTRACT;
 
      // Note the strong similarity to MethodTable::PrepopulateDictionary
-     if (GetMethodDictionary())
+     if (GetMethodDictionary_Unsafe())
      {
          LOG((LF_JIT, LL_INFO10000, "GENERICS: Prepopulating dictionary for MD %s\n",  this));
-         GetMethodDictionary()->PrepopulateDictionary(this, NULL, nonExpansive);
+         GetMethodDictionary_Unsafe()->PrepopulateDictionary(this, NULL, nonExpansive);
      }
 }
 
@@ -1702,6 +1714,21 @@ BOOL MethodDesc::SatisfiesMethodConstraints(TypeHandle thParent, BOOL fThrowIfNo
 
     }
     return TRUE;
+}
+
+DWORD InstantiatedMethodDesc::GetDictionarySlotsSize()
+{
+    CONTRACTL
+    {
+        PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
+    }
+    CONTRACTL_END
+
+    UINT_PTR* pDictionarySlots = (UINT_PTR*)IMD_GetMethodDictionary_Unsafe();
+    if (pDictionarySlots == NULL)
+        return 0;
+    UINT_PTR* pSizeSlot = pDictionarySlots + m_wNumGenericArgs;
+    return (DWORD)* pSizeSlot;
 }
 
 #endif // !DACCESS_COMPILE

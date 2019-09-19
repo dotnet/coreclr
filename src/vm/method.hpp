@@ -500,8 +500,10 @@ public:
     // Return a pointer to the method dictionary for an instantiated generic method
     // The initial slots in a method dictionary are the type arguments themselves
     // Return NULL if not an instantiated method
-    Dictionary* GetMethodDictionary();
-    DictionaryLayout* GetDictionaryLayout();
+    // These APIs are not multi-threaded safe: the dictionary and dictionary layout pointers
+    // can be updated by other threads during a dictionary size expansion.
+    Dictionary* GetMethodDictionary_Unsafe();
+    DictionaryLayout* GetDictionaryLayout_Unsafe();
 
     InstantiatedMethodDesc* AsInstantiatedMethodDesc() const;
 
@@ -3468,18 +3470,26 @@ public:
     Instantiation IMD_GetMethodInstantiation()
     {
         LIMITED_METHOD_DAC_CONTRACT;
-
-        return Instantiation(IMD_GetMethodDictionary()->GetInstantiation(), m_wNumGenericArgs);
+        
+        // No lock needed here. This is considered a safe operation here because in the case of a generic dictionary
+        // expansion, the values of the old dictionary slots are copied to the newly allocated dictionary, and the old
+        // dictionary is kept around, so whether IMD_GetMethodDictionary_Unsafe returns the new or old dictionaries, the
+        // values of the instantiation arguments will always be the same.
+        return Instantiation(IMD_GetMethodDictionary_Unsafe()->GetInstantiation(), m_wNumGenericArgs);
     }
 
-    PTR_Dictionary IMD_GetMethodDictionary()
+    PTR_Dictionary IMD_GetMethodDictionary_Unsafe()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
         return ReadPointerMaybeNull(this, &InstantiatedMethodDesc::m_pPerInstInfo);
     }
 
-    PTR_Dictionary IMD_GetMethodDictionaryNonNull()
+#ifndef DACCESS_COMPILE
+    DWORD GetDictionarySlotsSize();
+#endif
+
+    PTR_Dictionary IMD_GetMethodDictionaryNonNull_Unsafe()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 

@@ -6562,7 +6562,7 @@ void NativeImageDumper::MethodDescToString( PTR_MethodDesc md,
             {
                 PTR_InstantiatedMethodDesc imd(PTR_TO_TADDR(md));
                 unsigned numArgs = imd->m_wNumGenericArgs;
-                PTR_Dictionary dict(imd->IMD_GetMethodDictionary());
+                PTR_Dictionary dict(imd->IMD_GetMethodDictionary_Unsafe());
                 if( dict != NULL )
                 {
                     DictionaryToArgString( dict, numArgs, tempName );
@@ -6812,7 +6812,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
     if( !mt->IsCanonicalMethodTable() && CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(mt->GetCanonicalMethodTable())) )
     {
         /* REVISIT_TODO Wed 02/01/2006
-         * GetExtent requires the class in order to compute GetInstAndDictSize.
+         * GetExtent requires the class in order to compute GetInstAndDictSize_Unsafe.
          * If the EEClass isn't present, I cannot compute the size.  If we are
          * in this case, skip all of the generic dictionaries.
          */
@@ -6980,12 +6980,12 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
          * only print the last one, which is the one for this class).
          * cloned from Genericdict.cpp
          */
-        PTR_Dictionary currentDictionary(mt->GetDictionary());
+        PTR_Dictionary currentDictionary(mt->GetDictionary_Unsafe());
         if( currentDictionary != NULL )
         {
             PTR_DictionaryEntry entry(currentDictionary->EntryAddr(0));
-
-            PTR_DictionaryLayout layout( clazz->GetDictionaryLayout() );
+            
+            PTR_DictionaryLayout layout( clazz->GetDictionaryLayout_Unsafe() );
 
             DisplayStartStructure( "Dictionary",
                                    DPtrToPreferredAddr(currentDictionary),
@@ -7994,7 +7994,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
         }
         //now handle the contents of the m_pMethInst/m_pPerInstInfo union.
         unsigned numSlots = imd->m_wNumGenericArgs;
-        PTR_Dictionary inst(imd->IMD_GetMethodDictionary());
+        PTR_Dictionary inst(imd->IMD_GetMethodDictionary_Unsafe());
         unsigned dictSize;
         if( kind == InstantiatedMethodDesc::SharedMethodInstantiation )
         {
