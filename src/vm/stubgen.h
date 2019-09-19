@@ -349,7 +349,6 @@ public:
         sigData.AllocThrows(cbSig);
         memcpy(sigData.Ptr(), pSig, cbSig);
         return token;
-
     }
 
 protected:

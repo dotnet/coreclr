@@ -194,8 +194,7 @@ ILStubResolver::ResolveSignature(
     if (token == TOKEN_ILSTUB_TARGET_SIG)
         return m_pCompileTimeState->m_StubTargetMethodSig;
     
-    SigPointer sig = m_pCompileTimeState->m_tokenLookupMap.LookupSig(token);
-    return sig;
+    return m_pCompileTimeState->m_tokenLookupMap.LookupSig(token);
 }
 
 //---------------------------------------------------------------------------------------
