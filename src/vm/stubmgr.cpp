@@ -1087,7 +1087,7 @@ BOOL PrecodeStubManager::DoTraceStub(PCODE stubStartAddress,
     // MethodDesc. If, however, this is an IL method, then we are at risk to have another thread backpatch the call
     // here, so we'd miss if we patched the prestub. Therefore, we go right to the IL method and patch IL offset 0
     // by using TRACE_UNJITTED_METHOD.
-    if (!pMD->IsIL())
+    if (!pMD->IsIL() && !pMD->IsILStub())
     {
         trace->InitForStub(GetPreStubEntryPoint());
     }

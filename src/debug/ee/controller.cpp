@@ -5668,31 +5668,48 @@ bool DebuggerStepper::TrapStepInHelper(
     return false;
 }
 
-static bool IsTailCallDispatcher(const BYTE * pTargetIP)
-{
-    MethodDesc* tailCallDispatcher = TailCallHelp::GetTailCallDispatcherMD();
-    if (tailCallDispatcher == NULL)
-        return false;
-
-    MethodDesc* targetMD = MethodTable::GetMethodDescForSlotAddress((PCODE)pTargetIP);
-    return targetMD == tailCallDispatcher;
-}
-
+// Check whether a call to an IP will be a tailcall dispatched by first
+// returning. When a tailcall cannot be performed just with a jump instruction,
+// the code will be doing a regular call to a managed function called the
+// tailcall dispatcher. This functions dispatches tailcalls in a special way: if
+// there is a previous "tailcall aware" frame, then it will simply record the
+// next tailcall to perform and immediately return. Otherwise it will set up
+// such a tailcall aware frame and dispatch tailcalls. In the former case the
+// control flow will be a little peculiar in that the function will return
+// immediately, so we need special handling in the debugger for it. This
+// function detects that case to be used for those scenarios.
 static bool IsTailCallThatReturns(const BYTE * ip, ControllerStackInfo* info)
 {
-    if (!IsTailCallDispatcher(ip))
+    MethodDesc* pTailCallDispatcherMD = TailCallHelp::GetTailCallDispatcherMD();
+    if (pTailCallDispatcherMD == NULL)
+    {
         return false;
+    }
+
+    TraceDestination trace;
+    if (!g_pEEInterface->TraceStub(ip, &trace) || !g_pEEInterface->FollowTrace(&trace))
+    {
+        return false;
+    }
+
+    MethodDesc* pTargetMD =
+        trace.GetTraceType() == TRACE_UNJITTED_METHOD
+        ? trace.GetMethodDesc()
+        : g_pEEInterface->GetNativeCodeMethodDesc(trace.GetAddress());
+
+    if (pTargetMD != pTailCallDispatcherMD)
+    {
+        return false;
+    }
+
+    LOG((LF_CORDB, LL_INFO1000, "ITCTR: target %p is the tailcall dispatcher\n", ip));
 
     _ASSERTE(info->HasReturnFrame());
-    LOG((LF_CORDB,LL_INFO1000, "DS::TSOTCVH: target %p is the tailcall dispatcher\n", ip));
-
-    Thread* thread = GetThread();
     LPVOID retAddr = (LPVOID)GetControlPC(&info->m_returnFrame.registers);
-
-    TailCallTls* tls = thread->GetTailCallTls();
+    TailCallTls* tls = GetThread()->GetTailCallTls();
     LPVOID tailCallAwareRetAddr = tls->Frame->TailCallAwareReturnAddress;
 
-    LOG((LF_CORDB,LL_INFO1000, "DS::TSOTCVH: ret addr is %p, tailcall aware ret addr is %p\n",
+    LOG((LF_CORDB,LL_INFO1000, "ITCTR: ret addr is %p, tailcall aware ret addr is %p\n",
         retAddr, tailCallAwareRetAddr));
 
     return retAddr == tailCallAwareRetAddr;
@@ -6357,7 +6374,19 @@ void DebuggerStepper::TrapStepOut(ControllerStackInfo *info, bool fForceTraditio
         }
         else 
 #endif // FEATURE_MULTICASTSTUB_AS_IL
-        if (info->m_activeFrame.managed)
+        if (info->m_activeFrame.md != nullptr && info->m_activeFrame.md->IsILStub() &&
+            info->m_activeFrame.md->AsDynamicMethodDesc()->GetILStubResolver()->GetStubType() == ILStubResolver::TailCallCallTargetStub)
+        {
+            // Normally the stack trace would not include IL stubs, but we
+            // include this specific IL stub so that we can check if a call into
+            // the tailcall dispatcher will result in any user code being
+            // executed or will return and allow a previous tailcall dispatcher
+            // to deal with the tailcall. Thus we just skip that frame here.
+            LOG((LF_CORDB, LL_INFO10000,
+                 "DS::TSO: CallTailCallTarget frame.\n"));
+            continue;
+        }
+        else if (info->m_activeFrame.managed)
         {
             LOG((LF_CORDB, LL_INFO10000,
                  "DS::TSO: return frame is managed.\n"));
