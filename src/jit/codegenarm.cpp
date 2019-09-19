@@ -1756,7 +1756,7 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
         instGen_Set_Reg_To_Imm(EA_4BYTE, REG_ARG_0, (ssize_t)compiler->compProfilerMethHnd);
     }
 
-    genEmitHelperCall(CORINFO_HELP_PROF_FCN_LEAVE,
+    genEmitHelperCall(helper,
                       0,           // argSize
                       EA_UNKNOWN); // retSize
 
