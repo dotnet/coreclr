@@ -1066,7 +1066,7 @@ int LinearScan::BuildCall(GenTreeCall* call)
         // The return value will be on the X87 stack, and we will need to move it.
         dstCandidates = allRegs(registerType);
 #else  // !_TARGET_X86_
-        dstCandidates              = RBM_FLOATRET;
+        dstCandidates = RBM_FLOATRET;
 #endif // !_TARGET_X86_
     }
     else if (registerType == TYP_LONG)
@@ -1311,17 +1311,13 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
                 sizeRegMask    = RBM_RCX;
                 break;
 
-            case GenTreeBlk::BlkOpKindHelper:
 #ifdef _TARGET_AMD64_
+            case GenTreeBlk::BlkOpKindHelper:
                 dstAddrRegMask = RBM_ARG_0;
                 srcRegMask     = RBM_ARG_1;
                 sizeRegMask    = RBM_ARG_2;
-#else
-                dstAddrRegMask     = RBM_RDI;
-                srcRegMask         = RBM_RAX;
-                sizeRegMask        = RBM_RCX;
-#endif
                 break;
+#endif
 
             default:
                 unreached();
@@ -1379,17 +1375,13 @@ int LinearScan::BuildBlockStore(GenTreeBlk* blkNode)
                     sizeRegMask    = RBM_RCX;
                     break;
 
-                case GenTreeBlk::BlkOpKindHelper:
 #ifdef _TARGET_AMD64_
+                case GenTreeBlk::BlkOpKindHelper:
                     dstAddrRegMask = RBM_ARG_0;
                     srcRegMask     = RBM_ARG_1;
                     sizeRegMask    = RBM_ARG_2;
-#else
-                    dstAddrRegMask = RBM_RDI;
-                    srcRegMask     = RBM_RAX;
-                    sizeRegMask    = RBM_RCX;
-#endif
                     break;
+#endif
 
                 default:
                     unreached();
