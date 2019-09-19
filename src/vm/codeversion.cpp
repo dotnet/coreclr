@@ -1571,7 +1571,7 @@ HRESULT CodeVersionManager::SetActiveILCodeVersions(ILCodeVersion* pActiveVersio
     // looking for instantiations. The domain iterator lock is bigger than
     // the code version manager lock so we can't do this atomically. In one atomic
     // update the bookkeeping for IL versioning will happen and then in a second
-    // update the active native code versions will change/precodes
+    // update the active native code versions will change precodes
     // will update.
     //
     // Note: For all domains other than the shared AppDomain we could do this
