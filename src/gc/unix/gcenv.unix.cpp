@@ -942,6 +942,8 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
         return restricted_limit;
     }
 
+    // Get the physical memory size
+#if HAVE_SYSCONF && HAVE__SC_PHYS_PAGES
     long pages = sysconf(_SC_PHYS_PAGES);
     if (pages == -1) 
     {
@@ -955,14 +957,6 @@ uint64_t GCToOSInterface::GetPhysicalMemoryLimit(bool* is_restricted)
     }
 
     return pages * pageSize;
-}
-
-// Get total amount of physical memory in the system
-uint64_t GetTotalPhysicalMemory()
-{
-    // Get the physical memory size
-#if HAVE_SYSCONF && HAVE__SC_PHYS_PAGES
-    return sysconf( _SC_PHYS_PAGES ) * sysconf( _SC_PAGE_SIZE );
 #elif HAVE_SYSCTL
     int mib[3];
     mib[0] = CTL_HW;
@@ -973,6 +967,8 @@ uint64_t GetTotalPhysicalMemory()
     assert(rc == 0);
 
     return physical_memory;
+#else // HAVE_SYSCTL
+#error "Don't know how to get total physical memory on this platform"
 #endif // HAVE_SYSCTL
 }
 
@@ -1095,8 +1091,9 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
     if (memory_load != nullptr || available_physical != nullptr)
     {
         size_t used;
-        uint64_t total = GetPhysicalMemoryLimit();
-        if (total != 0)
+        bool isRestricted;
+        uint64_t total = GetPhysicalMemoryLimit(&isRestricted);
+        if (isRestricted)
         {
             // Get the physical memory in use - from it, we can get the physical memory available.
             // We do this only when we have the total physical memory available.
@@ -1113,7 +1110,6 @@ void GCToOSInterface::GetMemoryStatus(uint32_t* memory_load, uint64_t* available
             if (memory_load != NULL)
             {
                 uint32_t load = 0;
-                total = GetTotalPhysicalMemory();
                 if (total > available)
                 {
                     used = total - available;
