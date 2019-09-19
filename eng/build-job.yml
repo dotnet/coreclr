@@ -4,6 +4,7 @@ parameters:
   osGroup: ''
   osSubgroup: ''
   container: ''
+  testGroup: ''
   crossrootfsDir: ''
   timeoutInMinutes: ''
   signBinaries: false
