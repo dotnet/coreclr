@@ -7852,7 +7852,7 @@ void PrologInitHelper::ZeroRegisters(regNumber initReg, bool* pInitRegZeroed) co
 #ifdef _TARGET_ARM_
         // This is needed only for Arm since it can use a zero initialized int register
         // to initialize vfp registers.
-        if (!initRegZeroed)
+        if (!(*pInitRegZeroed))
         {
             m_codeGen->instGen_Set_Reg_To_Zero(EA_PTRSIZE, initReg);
             *pInitRegZeroed = true;
@@ -8461,7 +8461,7 @@ void CodeGen::genFnProlog()
 
     if (compiler->info.compIsVarArgs && compiler->lvaTable[argsStartVar].lvRefCnt() > 0)
     {
-        varDsc = &compiler->lvaTable[argsStartVar];
+        LclVarDsc* varDsc = compiler->lvaGetDesc(argsStartVar);
 
         noway_assert(compiler->info.compArgsCount > 0);
 
@@ -8475,7 +8475,7 @@ void CodeGen::genFnProlog()
         // EDX might actually be holding something here.  So make sure to only use EAX for this code
         // sequence.
 
-        LclVarDsc* lastArg = &compiler->lvaTable[compiler->info.compArgsCount - 1];
+        LclVarDsc* lastArg = compiler->lvaGetDesc(compiler->info.compArgsCount - 1);
         noway_assert(!lastArg->lvRegister);
         signed offset = lastArg->lvStkOffs;
         assert(offset != BAD_STK_OFFS);
