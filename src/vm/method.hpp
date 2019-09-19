@@ -502,8 +502,8 @@ public:
     // Return NULL if not an instantiated method
     // These APIs are not multi-threaded safe: the dictionary and dictionary layout pointers
     // can be updated by other threads during a dictionary size expansion.
-    Dictionary* GetMethodDictionary_Unsafe();
-    DictionaryLayout* GetDictionaryLayout_Unsafe();
+    Dictionary* GetMethodDictionary();
+    DictionaryLayout* GetDictionaryLayout();
 
     InstantiatedMethodDesc* AsInstantiatedMethodDesc() const;
 
@@ -3473,12 +3473,12 @@ public:
         
         // No lock needed here. This is considered a safe operation here because in the case of a generic dictionary
         // expansion, the values of the old dictionary slots are copied to the newly allocated dictionary, and the old
-        // dictionary is kept around, so whether IMD_GetMethodDictionary_Unsafe returns the new or old dictionaries, the
+        // dictionary is kept around, so whether IMD_GetMethodDictionary returns the new or old dictionaries, the
         // values of the instantiation arguments will always be the same.
-        return Instantiation(IMD_GetMethodDictionary_Unsafe()->GetInstantiation(), m_wNumGenericArgs);
+        return Instantiation(IMD_GetMethodDictionary()->GetInstantiation(), m_wNumGenericArgs);
     }
 
-    PTR_Dictionary IMD_GetMethodDictionary_Unsafe()
+    PTR_Dictionary IMD_GetMethodDictionary()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 
@@ -3489,7 +3489,7 @@ public:
     DWORD GetDictionarySlotsSize();
 #endif
 
-    PTR_Dictionary IMD_GetMethodDictionaryNonNull_Unsafe()
+    PTR_Dictionary IMD_GetMethodDictionaryNonNull()
     {
         LIMITED_METHOD_DAC_CONTRACT;
 

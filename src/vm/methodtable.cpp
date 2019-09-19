@@ -484,15 +484,15 @@ DWORD MethodTable::GetDictionarySlotsSize()
     }
     CONTRACTL_END
 
-    if (!HasPerInstInfo() || GetGenericsDictInfo()->m_wNumTyPars == 0 || GetClass()->GetDictionaryLayout_Unsafe() == NULL)
+    if (!HasPerInstInfo() || GetGenericsDictInfo()->m_wNumTyPars == 0 || GetClass()->GetDictionaryLayout() == NULL)
         return 0;
 
-    if (GetClass()->GetDictionaryLayout_Unsafe()->GetMaxSlots() == 0)
+    if (GetClass()->GetDictionaryLayout()->GetMaxSlots() == 0)
         return 0;
 
-    UINT_PTR* pDictionarySlots = (UINT_PTR*)GetPerInstInfo()[GetGenericsDictInfo()->m_wNumDicts - 1].GetValue();
-    UINT_PTR* pSizeSlot = pDictionarySlots + GetGenericsDictInfo()->m_wNumTyPars;
-    return (DWORD)* pSizeSlot;
+    ULONG_PTR* pDictionarySlots = (ULONG_PTR*)GetPerInstInfo()[GetGenericsDictInfo()->m_wNumDicts - 1].GetValue();
+    ULONG_PTR* pSizeSlot = pDictionarySlots + GetGenericsDictInfo()->m_wNumTyPars;
+    return (DWORD)(*pSizeSlot);
 }
 #endif // DACCESS_COMPILE
 
@@ -3991,7 +3991,7 @@ void MethodTable::PrepopulateDictionary(DataImage * image, BOOL nonExpansive)
 {
      STANDARD_VM_CONTRACT;
 
-     if (GetDictionary_Unsafe())
+     if (GetDictionary())
      {
          // We can only save elements of the dictionary if we are sure of its
          // layout, which means we must be either tightly-knit to the EEClass
@@ -4003,7 +4003,7 @@ void MethodTable::PrepopulateDictionary(DataImage * image, BOOL nonExpansive)
          if (!IsCanonicalMethodTable() && image->CanEagerBindToMethodTable(GetCanonicalMethodTable()))
          {
              LOG((LF_JIT, LL_INFO10000, "GENERICS: Prepopulating dictionary for MT %s\n",  GetDebugClassName()));
-             GetDictionary_Unsafe()->PrepopulateDictionary(NULL, this, nonExpansive);
+             GetDictionary()->PrepopulateDictionary(NULL, this, nonExpansive);
          }
      }
 }
@@ -4075,11 +4075,11 @@ void MethodTable::Save(DataImage *image, DWORD profilingFlags)
 
     // Be careful about calling DictionaryLayout::Trim - strict conditions apply.
     // See note on that method.
-    if (GetDictionary_Unsafe() &&
-        GetClass()->GetDictionaryLayout_Unsafe() &&
+    if (GetDictionary() &&
+        GetClass()->GetDictionaryLayout() &&
         image->CanEagerBindToMethodTable(GetCanonicalMethodTable()))
     {
-        GetClass()->GetDictionaryLayout_Unsafe()->Trim();
+        GetClass()->GetDictionaryLayout()->Trim();
     }
 
     // Set the "restore" flags. They may not have been set yet.
@@ -4241,7 +4241,7 @@ void MethodTable::Save(DataImage *image, DWORD profilingFlags)
         image->BindPointer(GetPerInstInfo(), pPerInstInfoNode, sizeof(GenericsDictInfo));
     }
 
-    Dictionary * pDictionary = GetDictionary_Unsafe();
+    Dictionary * pDictionary = GetDictionary();
     if (pDictionary != NULL)
     {
         BOOL fIsWriteable;
@@ -4255,7 +4255,7 @@ void MethodTable::Save(DataImage *image, DWORD profilingFlags)
             fIsWriteable = pDictionary->IsWriteable(image, canSaveSlots,
                                        GetNumGenericArgs(),
                                        GetModule(),
-                                       GetClass()->GetDictionaryLayout_Unsafe());
+                                       GetClass()->GetDictionaryLayout());
         }
         else
         {
@@ -4265,11 +4265,11 @@ void MethodTable::Save(DataImage *image, DWORD profilingFlags)
 
         if (!fIsWriteable)
         {
-            image->StoreInternedStructure(pDictionary, GetInstAndDictSize_Unsafe(), DataImage::ITEM_DICTIONARY);
+            image->StoreInternedStructure(pDictionary, GetInstAndDictSize(), DataImage::ITEM_DICTIONARY);
         }
         else
         {
-            image->StoreStructure(pDictionary, GetInstAndDictSize_Unsafe(), DataImage::ITEM_DICTIONARY_WRITEABLE);
+            image->StoreStructure(pDictionary, GetInstAndDictSize(), DataImage::ITEM_DICTIONARY_WRITEABLE);
         }
     }
 
@@ -4464,9 +4464,9 @@ BOOL MethodTable::ComputeNeedsRestoreWorker(DataImage *image, TypeHandleList *pV
     }
 
     // Now check if the dictionary (if any) owned by this methodtable needs a restore.
-    if (GetDictionary_Unsafe())
+    if (GetDictionary())
     {
-        if (GetDictionary_Unsafe()->ComputeNeedsRestore(image, pVisited, GetNumGenericArgs()))
+        if (GetDictionary()->ComputeNeedsRestore(image, pVisited, GetNumGenericArgs()))
         {
             UPDATE_RESTORE_REASON(GenericsDictionaryNeedsRestore);
             return TRUE;
@@ -4988,7 +4988,7 @@ void MethodTable::Fixup(DataImage *image)
     //
     // Fixup instantiation+dictionary for this method table (if any)
     //
-    if (GetDictionary_Unsafe())
+    if (GetDictionary())
     {
         LOG((LF_JIT, LL_INFO10000, "GENERICS: Fixup dictionary for MT %s\n",  GetDebugClassName()));
 
@@ -4997,12 +4997,12 @@ void MethodTable::Fixup(DataImage *image)
         BOOL canSaveSlots = !IsCanonicalMethodTable() && (image->GetModule() == GetCanonicalMethodTable()->GetLoaderModule());
 
         // See comment on Dictionary::Fixup
-        GetDictionary_Unsafe()->Fixup(image,
+        GetDictionary()->Fixup(image,
                                TRUE,
                                canSaveSlots,
                                GetNumGenericArgs(),
                                GetModule(),
-                               GetClass()->GetDictionaryLayout_Unsafe());
+                               GetClass()->GetDictionaryLayout());
     }
 
     // Fixup per-inst statics info
@@ -6137,7 +6137,7 @@ BOOL MethodTable::IsWinRTObjectType()
 //==========================================================================================
 // Return a pointer to the dictionary for an instantiated type
 // Return NULL if not instantiated
-PTR_Dictionary MethodTable::GetDictionary_Unsafe()
+PTR_Dictionary MethodTable::GetDictionary()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
@@ -9448,9 +9448,9 @@ MethodTable::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
         DacEnumMemoryRegion(dac_cast<TADDR>(GetPerInstInfo()) - sizeof(GenericsDictInfo), GetPerInstInfoSize() + sizeof(GenericsDictInfo));
     }
 
-    if (GetDictionary_Unsafe() != NULL)
+    if (GetDictionary() != NULL)
     {
-        DacEnumMemoryRegion(dac_cast<TADDR>(GetDictionary_Unsafe()), GetInstAndDictSize_Unsafe());
+        DacEnumMemoryRegion(dac_cast<TADDR>(GetDictionary()), GetInstAndDictSize());
     }
 
     VtableIndirectionSlotIterator it = IterateVtableIndirectionSlots();

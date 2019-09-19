@@ -283,7 +283,7 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
     // this rare race condition, right before registering this type for dictionary expansions, we will check that its
     // dictionary has enough slots to match its dictionary layout if it got updated.
     // See: Module::RecordTypeForDictionaryExpansion_Locked.
-    DWORD cbInstAndDict = pOldMT->GetInstAndDictSize_Unsafe();
+    DWORD cbInstAndDict = pOldMT->GetInstAndDictSize();
 
     // Allocate from the high frequence heap of the correct domain
     S_SIZE_T allocSize = safe_cbMT;
@@ -493,10 +493,10 @@ ClassLoader::CreateTypeHandleForNonCanonicalGenericInstantiation(
         pInstDest[iArg] = inst[iArg];
     }
 
-    if (cbInstAndDict != 0 && pOldMT->GetClass()->GetDictionaryLayout_Unsafe() != NULL && pOldMT->GetClass()->GetDictionaryLayout_Unsafe()->GetMaxSlots() > 0)
+    if (cbInstAndDict != 0 && pOldMT->GetClass()->GetDictionaryLayout() != NULL && pOldMT->GetClass()->GetDictionaryLayout()->GetMaxSlots() > 0)
     {
-        UINT_PTR* pDictionarySlots = (UINT_PTR*)pMT->GetPerInstInfo()[pOldMT->GetNumDicts() - 1].GetValue();
-        UINT_PTR* pSizeSlot = pDictionarySlots + ntypars;
+        ULONG_PTR* pDictionarySlots = (ULONG_PTR*)pMT->GetPerInstInfo()[pOldMT->GetNumDicts() - 1].GetValue();
+        ULONG_PTR* pSizeSlot = pDictionarySlots + ntypars;
         *pSizeSlot = cbInstAndDict;
     }
 

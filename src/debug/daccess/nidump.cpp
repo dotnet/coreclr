@@ -6562,7 +6562,7 @@ void NativeImageDumper::MethodDescToString( PTR_MethodDesc md,
             {
                 PTR_InstantiatedMethodDesc imd(PTR_TO_TADDR(md));
                 unsigned numArgs = imd->m_wNumGenericArgs;
-                PTR_Dictionary dict(imd->IMD_GetMethodDictionary_Unsafe());
+                PTR_Dictionary dict(imd->IMD_GetMethodDictionary());
                 if( dict != NULL )
                 {
                     DictionaryToArgString( dict, numArgs, tempName );
@@ -6812,7 +6812,7 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
     if( !mt->IsCanonicalMethodTable() && CORCOMPILE_IS_POINTER_TAGGED(PTR_TO_TADDR(mt->GetCanonicalMethodTable())) )
     {
         /* REVISIT_TODO Wed 02/01/2006
-         * GetExtent requires the class in order to compute GetInstAndDictSize_Unsafe.
+         * GetExtent requires the class in order to compute GetInstAndDictSize.
          * If the EEClass isn't present, I cannot compute the size.  If we are
          * in this case, skip all of the generic dictionaries.
          */
@@ -6980,19 +6980,19 @@ NativeImageDumper::DumpMethodTable( PTR_MethodTable mt, const char * name,
          * only print the last one, which is the one for this class).
          * cloned from Genericdict.cpp
          */
-        PTR_Dictionary currentDictionary(mt->GetDictionary_Unsafe());
+        PTR_Dictionary currentDictionary(mt->GetDictionary());
         if( currentDictionary != NULL )
         {
             PTR_DictionaryEntry entry(currentDictionary->EntryAddr(0));
             
-            PTR_DictionaryLayout layout( clazz->GetDictionaryLayout_Unsafe() );
+            PTR_DictionaryLayout layout( clazz->GetDictionaryLayout() );
 
             DisplayStartStructure( "Dictionary",
                                    DPtrToPreferredAddr(currentDictionary),
                                    //if there is a layout, use it to compute
                                    //the size, otherwise there is just the one
                                    //entry.
-                                   DictionaryLayout::GetFirstDictionaryBucketSize(mt->GetNumGenericArgs(), layout),
+                                   DictionaryLayout::GetDictionarySizeFromLayout(mt->GetNumGenericArgs(), layout),
                                    METHODTABLES );
 
             DisplayStartArrayWithOffset( m_pEntries, NULL, Dictionary,
@@ -7994,7 +7994,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
         }
         //now handle the contents of the m_pMethInst/m_pPerInstInfo union.
         unsigned numSlots = imd->m_wNumGenericArgs;
-        PTR_Dictionary inst(imd->IMD_GetMethodDictionary_Unsafe());
+        PTR_Dictionary inst(imd->IMD_GetMethodDictionary());
         unsigned dictSize;
         if( kind == InstantiatedMethodDesc::SharedMethodInstantiation )
         {
@@ -8018,7 +8018,7 @@ void NativeImageDumper::DumpMethodDesc( PTR_MethodDesc md, PTR_Module module )
             {
                 PTR_DictionaryLayout layout(wrapped->IsSharedByGenericMethodInstantiations()
                                             ? dac_cast<TADDR>(wrapped->GetDictLayoutRaw()) : NULL );
-                dictSize = DictionaryLayout::GetFirstDictionaryBucketSize(imd->GetNumGenericMethodArgs(),
+                dictSize = DictionaryLayout::GetDictionarySizeFromLayout(imd->GetNumGenericMethodArgs(), 
                                                                           layout);
             }
         }

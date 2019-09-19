@@ -10163,8 +10163,8 @@ MethodTableBuilder::SetupMethodTable2(
     EEClass *pClass = GetHalfBakedClass();
 
     DWORD cbDict = bmtGenerics->HasInstantiation()
-                   ?  DictionaryLayout::GetFirstDictionaryBucketSize(
-                          bmtGenerics->GetNumGenericArgs(), pClass->GetDictionaryLayout_Unsafe())
+                   ?  DictionaryLayout::GetDictionarySizeFromLayout(
+                          bmtGenerics->GetNumGenericArgs(), pClass->GetDictionaryLayout())
                    : 0;
 
 #ifdef FEATURE_COLLECTIBLE_TYPES
@@ -10462,10 +10462,10 @@ MethodTableBuilder::SetupMethodTable2(
             pInstDest[j] = inst[j];
         }
 
-        if (pClass->GetDictionaryLayout_Unsafe() != NULL && pClass->GetDictionaryLayout_Unsafe()->GetMaxSlots() > 0)
+        if (pClass->GetDictionaryLayout() != NULL && pClass->GetDictionaryLayout()->GetMaxSlots() > 0)
         {
-            UINT_PTR* pDictionarySlots = (UINT_PTR*)pMT->GetPerInstInfo()[bmtGenerics->numDicts - 1].GetValue();
-            UINT_PTR* pSizeSlot = pDictionarySlots + bmtGenerics->GetNumGenericArgs();
+            ULONG_PTR* pDictionarySlots = (ULONG_PTR*)pMT->GetPerInstInfo()[bmtGenerics->numDicts - 1].GetValue();
+            ULONG_PTR* pSizeSlot = pDictionarySlots + bmtGenerics->GetNumGenericArgs();
             *pSizeSlot = cbDict;
         }
     }

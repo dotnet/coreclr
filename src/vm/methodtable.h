@@ -2907,7 +2907,7 @@ public:
     //    Advantage: no need to deallocate when growing dictionaries.
     //    Disadvantage: more indirections required at run-time.)
     //
-    // The layout of dictionaries is determined by GetClass()->GetDictionaryLayout_Unsafe()
+    // The layout of dictionaries is determined by GetClass()->GetDictionaryLayout()
     // Thus the layout can vary between incompatible instantiations. This is sometimes useful because individual type
     // parameters may or may not be shared. For example, consider a two parameter class Dict<K,D>. In instantiations shared with
     // Dict<double,string> any reference to K is known at JIT-compile-time (it's double) but any token containing D
@@ -2973,7 +2973,7 @@ public:
     // If not instantiated, return NULL
     // This operation is not multi-threaded safe: other thread can update the 
     // dictionary pointer during a dictionary size expansion.
-    PTR_Dictionary GetDictionary_Unsafe();
+    PTR_Dictionary GetDictionary();
 
 #ifdef FEATURE_PREJIT
     //
@@ -4081,7 +4081,7 @@ private:
     // This operation is not multi-threaded safe: it uses the dictionary layout to compute
     // the size, and the dictionary layout can be updated by other threads in the case of a
     // generic dictionary size expansion.
-    inline DWORD GetInstAndDictSize_Unsafe();
+    inline DWORD GetInstAndDictSize();
 
 private:
     // Helper template to compute the offsets at compile time

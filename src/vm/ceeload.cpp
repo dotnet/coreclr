@@ -9023,7 +9023,7 @@ void Module::PlaceType(DataImage *image, TypeHandle th, DWORD profilingFlags)
                 }
             }
 
-            Dictionary * pDictionary = pMT->GetDictionary_Unsafe();
+            Dictionary * pDictionary = pMT->GetDictionary();
             if (pDictionary != NULL)
             {
                 BOOL fIsWriteable;
@@ -9037,7 +9037,7 @@ void Module::PlaceType(DataImage *image, TypeHandle th, DWORD profilingFlags)
                     fIsWriteable = pDictionary->IsWriteable(image, canSaveSlots,
                                            pMT->GetNumGenericArgs(),
                                            pMT->GetModule(),
-                                           pClass->GetDictionaryLayout_Unsafe());
+                                           pClass->GetDictionaryLayout());
                 }
                 else
                 {
@@ -9047,7 +9047,7 @@ void Module::PlaceType(DataImage *image, TypeHandle th, DWORD profilingFlags)
                 if (fIsWriteable)
                 {
                     image->PlaceStructureForAddress(pDictionary, CORCOMPILE_SECTION_HOT_WRITEABLE);
-                    image->PlaceStructureForAddress(pClass->GetDictionaryLayout_Unsafe(), CORCOMPILE_SECTION_WARM);
+                    image->PlaceStructureForAddress(pClass->GetDictionaryLayout(), CORCOMPILE_SECTION_WARM);
                 }
                 else
                 {
@@ -13250,10 +13250,10 @@ void Module::RecordTypeForDictionaryExpansion_Locked(MethodTable* pGenericParent
     }
     CONTRACTL_END
 
-    DictionaryLayout* pDictLayout = pDependencyMT->GetClass()->GetDictionaryLayout_Unsafe();
+    DictionaryLayout* pDictLayout = pDependencyMT->GetClass()->GetDictionaryLayout();
     if (pDictLayout != NULL && pDictLayout->GetMaxSlots() > 0)
     {
-        DWORD sizeFromDictLayout = DictionaryLayout::GetFirstDictionaryBucketSize(pDependencyMT->GetNumGenericArgs(), pDictLayout);
+        DWORD sizeFromDictLayout = DictionaryLayout::GetDictionarySizeFromLayout(pDependencyMT->GetNumGenericArgs(), pDictLayout);
         if (pDependencyMT->GetDictionarySlotsSize() != sizeFromDictLayout)
         {
             _ASSERT(pDependencyMT->GetDictionarySlotsSize() < sizeFromDictLayout);
@@ -13289,15 +13289,15 @@ void Module::RecordMethodForDictionaryExpansion_Locked(MethodDesc* pDependencyMD
     {
         GC_TRIGGERS;
         PRECONDITION(CheckPointer(pDependencyMD) && pDependencyMD->HasMethodInstantiation() && pDependencyMD->IsInstantiatingStub());
-        PRECONDITION(pDependencyMD->GetDictionaryLayout_Unsafe() != NULL && pDependencyMD->GetDictionaryLayout_Unsafe()->GetMaxSlots() > 0);
+        PRECONDITION(pDependencyMD->GetDictionaryLayout() != NULL && pDependencyMD->GetDictionaryLayout()->GetMaxSlots() > 0);
         PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
 
-    DictionaryLayout* pDictLayout = pDependencyMD->GetDictionaryLayout_Unsafe();
+    DictionaryLayout* pDictLayout = pDependencyMD->GetDictionaryLayout();
     InstantiatedMethodDesc* pIMDDependency = pDependencyMD->AsInstantiatedMethodDesc();
 
-    DWORD sizeFromDictLayout = DictionaryLayout::GetFirstDictionaryBucketSize(pDependencyMD->GetNumGenericMethodArgs(), pDictLayout);
+    DWORD sizeFromDictLayout = DictionaryLayout::GetDictionarySizeFromLayout(pDependencyMD->GetNumGenericMethodArgs(), pDictLayout);
     if (pIMDDependency->GetDictionarySlotsSize() != sizeFromDictLayout)
     {
         _ASSERT(pIMDDependency->GetDictionarySlotsSize() < sizeFromDictLayout);
@@ -13332,7 +13332,7 @@ void Module::ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* p
         STANDARD_VM_CHECK;
         INJECT_FAULT(ThrowOutOfMemory(););
         PRECONDITION(CheckPointer(pOldLayout) && CheckPointer(pNewLayout));
-        PRECONDITION(CheckPointer(pMT) && pMT->HasInstantiation() && pMT->GetClass()->GetDictionaryLayout_Unsafe() == pOldLayout);
+        PRECONDITION(CheckPointer(pMT) && pMT->HasInstantiation() && pMT->GetClass()->GetDictionaryLayout() == pOldLayout);
         PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
@@ -13340,8 +13340,8 @@ void Module::ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* p
     GCX_COOP();
 
     MethodTable* pCanonMT = pMT->GetCanonicalMethodTable();
-    DWORD oldInfoSize = DictionaryLayout::GetFirstDictionaryBucketSize(pMT->GetNumGenericArgs(), pOldLayout);
-    DWORD newInfoSize = DictionaryLayout::GetFirstDictionaryBucketSize(pMT->GetNumGenericArgs(), pNewLayout);
+    DWORD oldInfoSize = DictionaryLayout::GetDictionarySizeFromLayout(pMT->GetNumGenericArgs(), pOldLayout);
+    DWORD newInfoSize = DictionaryLayout::GetDictionarySizeFromLayout(pMT->GetNumGenericArgs(), pNewLayout);
 
     //
     // Dictionary expansion for types needs to be done in multiple steps, given how derived types do not directly embed dictionaries
@@ -13360,7 +13360,11 @@ void Module::ExpandTypeDictionaries_Locked(MethodTable* pMT, DictionaryLayout* p
     };
     StackSArray<NewDictionary> dictionaryUpdates;
 
+#ifdef _DEBUG
     auto expandPerInstInfos = [oldInfoSize, newInfoSize, &dictionaryUpdates](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTToUpdate)
+#else
+    auto expandPerInstInfos = [newInfoSize, &dictionaryUpdates](OBJECTREF obj, MethodTable* pMTKey, MethodTable* pMTToUpdate)
+#endif
     {
         if (!pMTToUpdate->HasSameTypeDefAs(pMTKey))
             return true;
@@ -13430,7 +13434,7 @@ void Module::ExpandMethodDictionaries_Locked(MethodDesc* pMD, DictionaryLayout* 
         INJECT_FAULT(ThrowOutOfMemory(););
         PRECONDITION(CheckPointer(pOldLayout) && CheckPointer(pNewLayout));
         PRECONDITION(CheckPointer(pMD));
-        PRECONDITION(pMD->HasMethodInstantiation() && pMD->GetDictionaryLayout_Unsafe() == pOldLayout);
+        PRECONDITION(pMD->HasMethodInstantiation() && pMD->GetDictionaryLayout() == pOldLayout);
         PRECONDITION(SystemDomain::SystemModule()->m_DictionaryCrst.OwnedByCurrentThread());
     }
     CONTRACTL_END
@@ -13446,8 +13450,8 @@ void Module::ExpandMethodDictionaries_Locked(MethodDesc* pMD, DictionaryLayout* 
     //
 
     MethodDesc* pCanonMD = pMD->IsInstantiatingStub() ? pMD->GetWrappedMethodDesc() : pMD;
-    DWORD oldInfoSize = DictionaryLayout::GetFirstDictionaryBucketSize(pMD->GetNumGenericMethodArgs(), pOldLayout);
-    DWORD newInfoSize = DictionaryLayout::GetFirstDictionaryBucketSize(pMD->GetNumGenericMethodArgs(), pNewLayout);
+    DWORD oldInfoSize = DictionaryLayout::GetDictionarySizeFromLayout(pMD->GetNumGenericMethodArgs(), pOldLayout);
+    DWORD newInfoSize = DictionaryLayout::GetDictionarySizeFromLayout(pMD->GetNumGenericMethodArgs(), pNewLayout);
 
     struct NewDictionary
     {
@@ -13456,7 +13460,11 @@ void Module::ExpandMethodDictionaries_Locked(MethodDesc* pMD, DictionaryLayout* 
     };
     StackSArray<NewDictionary> dictionaryUpdates;
 
+#ifdef _DEBUG
     auto lambda = [oldInfoSize, newInfoSize, &dictionaryUpdates](OBJECTREF obj, MethodDesc* pMDKey, MethodDesc* pMDToUpdate)
+#else
+    auto lambda = [newInfoSize, &dictionaryUpdates](OBJECTREF obj, MethodDesc* pMDKey, MethodDesc* pMDToUpdate)
+#endif
     {
         // Update m_pPerInstInfo for the pMethodDesc being visited here
         _ASSERTE(pMDToUpdate->IsInstantiatingStub() && pMDToUpdate->GetWrappedMethodDesc() == pMDKey);

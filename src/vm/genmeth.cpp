@@ -383,13 +383,13 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                     SString name;
                     TypeString::AppendMethodDebug(name, pGenericMDescInRepMT);
                     LOG((LF_JIT, LL_INFO1000, "GENERICS: Created new dictionary layout for dictionary of size %d for %S\n",
-                         DictionaryLayout::GetFirstDictionaryBucketSize(pGenericMDescInRepMT->GetNumGenericMethodArgs(), pDL), name.GetUnicode()));
+                         DictionaryLayout::GetDictionarySizeFromLayout(pGenericMDescInRepMT->GetNumGenericMethodArgs(), pDL), name.GetUnicode()));
                 }
 #endif // _DEBUG
             }
 
             // Allocate space for the instantiation and dictionary
-            infoSize = DictionaryLayout::GetFirstDictionaryBucketSize(methodInst.GetNumArgs(), pDL);
+            infoSize = DictionaryLayout::GetDictionarySizeFromLayout(methodInst.GetNumArgs(), pDL);
             pInstOrPerInstInfo = (TypeHandle*)(void*)amt.Track(pAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(infoSize)));
             for (DWORD i = 0; i < methodInst.GetNumArgs(); i++)
                 pInstOrPerInstInfo[i] = methodInst[i];
@@ -400,7 +400,7 @@ InstantiatedMethodDesc::NewInstantiatedMethodDesc(MethodTable *pExactMT,
                 // and the slot with size information. Otherwise, we shouldn't really have a size slot
                 _ASSERTE(infoSize > (sizeof(TypeHandle*) * methodInst.GetNumArgs() + sizeof(ULONG_PTR*)));
 
-                UINT_PTR* pDictSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + methodInst.GetNumArgs();
+                ULONG_PTR* pDictSizeSlot = ((ULONG_PTR*)pInstOrPerInstInfo) + methodInst.GetNumArgs();
                 *pDictSizeSlot = infoSize;
             }
         }
@@ -1448,9 +1448,7 @@ void InstantiatedMethodDesc::SetupGenericMethodDefinition(IMDInternalImport *pIM
     // the memory allocated for m_pMethInst will be freed if the declaring type fails to load
     m_pPerInstInfo.SetValue((Dictionary *) pamTracker->Track(pAllocator->GetLowFrequencyHeap()->AllocMem(dwAllocSize)));
 
-    // No lock needed here. This is actually a safe operation because dictionary on generic method definitions
-    // will never be expanded in size.
-    TypeHandle * pInstDest = (TypeHandle *) IMD_GetMethodDictionaryNonNull_Unsafe();
+    TypeHandle * pInstDest = (TypeHandle *) IMD_GetMethodDictionaryNonNull();
     for(unsigned int i = 0; i < numTyPars; i++)
     {
         hEnumTyPars.EnumNext(&tkTyPar);
@@ -1636,10 +1634,10 @@ void MethodDesc::PrepopulateDictionary(DataImage * image, BOOL nonExpansive)
     STANDARD_VM_CONTRACT;
 
      // Note the strong similarity to MethodTable::PrepopulateDictionary
-     if (GetMethodDictionary_Unsafe())
+     if (GetMethodDictionary())
      {
          LOG((LF_JIT, LL_INFO10000, "GENERICS: Prepopulating dictionary for MD %s\n",  this));
-         GetMethodDictionary_Unsafe()->PrepopulateDictionary(this, NULL, nonExpansive);
+         GetMethodDictionary()->PrepopulateDictionary(this, NULL, nonExpansive);
      }
 }
 
@@ -1724,11 +1722,11 @@ DWORD InstantiatedMethodDesc::GetDictionarySlotsSize()
     }
     CONTRACTL_END
 
-    UINT_PTR* pDictionarySlots = (UINT_PTR*)IMD_GetMethodDictionary_Unsafe();
+    ULONG_PTR* pDictionarySlots = (ULONG_PTR*)IMD_GetMethodDictionary();
     if (pDictionarySlots == NULL)
         return 0;
-    UINT_PTR* pSizeSlot = pDictionarySlots + m_wNumGenericArgs;
-    return (DWORD)* pSizeSlot;
+    ULONG_PTR* pSizeSlot = pDictionarySlots + m_wNumGenericArgs;
+    return (DWORD)(*pSizeSlot);
 }
 
 #endif // !DACCESS_COMPILE
