@@ -1705,66 +1705,65 @@ void CodeGen::genProfilingLeaveCallback(unsigned helper)
     //
     // In the following cases r0 doesn't contain a return value and hence need not be preserved before emitting Leave
     // callback.
-    bool     r0Trashed;
+    bool     r0InUse;
     emitAttr attr = EA_UNKNOWN;
 
     if (compiler->info.compRetType == TYP_VOID)
     {
-        r0Trashed = false;
+        r0InUse = false;
     }
     else if (varTypeIsFloating(compiler->info.compRetType) ||
              compiler->IsHfa(compiler->info.compMethodInfo->args.retTypeClass))
     {
-        r0Trashed = !compiler->info.compIsVarArgs && !compiler->opts.compUseSoftFP;
+        r0InUse = !compiler->info.compIsVarArgs && !compiler->opts.compUseSoftFP;
     }
     else
     {
-        r0Trashed = true;
+        r0InUse = true;
     }
 
-    if (r0Trashed)
+    if (r0InUse)
     {
-        // Has a return value and r0 is in use. For emitting Leave profiler callout we would need r0 for passing
-        // profiler handle. Therefore, r0 is moved to REG_PROFILER_RETURN_SCRATCH as per contract.
-        if (RBM_ARG_0 & gcInfo.gcRegGCrefSetCur)
+        if (varTypeIsGC(compiler->info.compRetType))
         {
-            attr = EA_GCREF;
-            gcInfo.gcMarkRegSetGCref(RBM_PROFILER_RET_SCRATCH);
-        }
-        else if (RBM_ARG_0 & gcInfo.gcRegByrefSetCur)
-        {
-            attr = EA_BYREF;
-            gcInfo.gcMarkRegSetByref(RBM_PROFILER_RET_SCRATCH);
+            attr = emitActualTypeSize(compiler->info.compRetType);
         }
         else
         {
-            attr = EA_4BYTE;
+            attr = EA_PTRSIZE;
         }
+    }
 
-        getEmitter()->emitIns_R_R(INS_mov, attr, REG_PROFILER_RET_SCRATCH, REG_ARG_0);
+    if (r0InUse)
+    {
+        // Has a return value and r0 is in use. For emitting Leave profiler callout we would need r0 for passing
+        // profiler handle. Therefore, r0 is moved to REG_PROFILER_RETURN_SCRATCH as per contract.
+        getEmitter()->emitIns_R_R(INS_mov, attr, REG_PROFILER_RET_SCRATCH, REG_R0);
+        genTransferRegGCState(REG_PROFILER_RET_SCRATCH, REG_R0);
         regSet.verifyRegUsed(REG_PROFILER_RET_SCRATCH);
-        gcInfo.gcMarkRegSetNpt(RBM_ARG_0);
     }
 
     if (compiler->compProfilerMethHndIndirected)
     {
-        getEmitter()->emitIns_R_AI(INS_ldr, EA_PTR_DSP_RELOC, REG_ARG_0, (ssize_t)compiler->compProfilerMethHnd);
-        regSet.verifyRegUsed(REG_ARG_0);
+        getEmitter()->emitIns_R_AI(INS_ldr, EA_PTR_DSP_RELOC, REG_R0, (ssize_t)compiler->compProfilerMethHnd);
     }
     else
     {
-        instGen_Set_Reg_To_Imm(EA_4BYTE, REG_ARG_0, (ssize_t)compiler->compProfilerMethHnd);
+        instGen_Set_Reg_To_Imm(EA_PTRSIZE, REG_R0, (ssize_t)compiler->compProfilerMethHnd);
     }
+
+    gcInfo.gcMarkRegSetNpt(RBM_R0);
+    regSet.verifyRegUsed(REG_R0);
 
     genEmitHelperCall(helper,
                       0,           // argSize
                       EA_UNKNOWN); // retSize
 
     // Restore state that existed before profiler callback
-    if (r0Trashed)
+    if (r0InUse)
     {
-        getEmitter()->emitIns_R_R(INS_mov, attr, REG_ARG_0, REG_PROFILER_RET_SCRATCH);
-        regSet.verifyRegUsed(REG_ARG_0);
+        getEmitter()->emitIns_R_R(INS_mov, attr, REG_R0, REG_PROFILER_RET_SCRATCH);
+        genTransferRegGCState(REG_R0, REG_PROFILER_RET_SCRATCH);
         gcInfo.gcMarkRegSetNpt(RBM_PROFILER_RET_SCRATCH);
     }
 }
