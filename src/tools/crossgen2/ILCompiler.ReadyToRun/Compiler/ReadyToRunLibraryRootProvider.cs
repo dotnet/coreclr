@@ -38,7 +38,7 @@ namespace ILCompiler
                             continue;
                         }
 
-                        if (method.IsMethodDefinition)
+                        if (method.IsMethodDefinition && method.HasInstantiation)
                         {
                             continue;
                         }
