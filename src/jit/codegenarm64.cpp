@@ -2485,46 +2485,6 @@ void CodeGen::genCodeForDivMod(GenTreeOp* tree)
     }
 }
 
-// Generate code for a load pair from some address + offset
-//   base: tree node which can be either a local address or arbitrary node
-//   offset: distance from the base from which to load
-void CodeGen::genCodeForLoadPairOffset(regNumber dst, regNumber dst2, GenTree* base, unsigned offset)
-{
-    emitter* emit = GetEmitter();
-
-    if (base->OperIsLocalAddr())
-    {
-        if (base->gtOper == GT_LCL_FLD_ADDR)
-            offset += base->gtLclFld.gtLclOffs;
-
-        emit->emitIns_R_R_S_S(INS_ldp, EA_8BYTE, EA_8BYTE, dst, dst2, base->gtLclVarCommon.GetLclNum(), offset);
-    }
-    else
-    {
-        emit->emitIns_R_R_R_I(INS_ldp, EA_8BYTE, dst, dst2, base->GetRegNum(), offset);
-    }
-}
-
-// Generate code for a store pair to some address + offset
-//   base: tree node which can be either a local address or arbitrary node
-//   offset: distance from the base from which to load
-void CodeGen::genCodeForStorePairOffset(regNumber src, regNumber src2, GenTree* base, unsigned offset)
-{
-    emitter* emit = GetEmitter();
-
-    if (base->OperIsLocalAddr())
-    {
-        if (base->gtOper == GT_LCL_FLD_ADDR)
-            offset += base->gtLclFld.gtLclOffs;
-
-        emit->emitIns_S_S_R_R(INS_stp, EA_8BYTE, EA_8BYTE, src, src2, base->gtLclVarCommon.GetLclNum(), offset);
-    }
-    else
-    {
-        emit->emitIns_R_R_R_I(INS_stp, EA_8BYTE, src, src2, base->GetRegNum(), offset);
-    }
-}
-
 // Generate code for CpObj nodes wich copy structs that have interleaved
 // GC pointers.
 // For this case we'll generate a sequence of loads/stores in the case of struct
