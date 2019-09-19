@@ -80,6 +80,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
+    <_CopyNativeProjectBinaries>$(CopyNativeProjectBinaries)</_CopyNativeProjectBinaries>
     <_CopyNativeProjectBinaries Condition="'$(_WillCLRTestProjectBuild)' != 'true'">false</_CopyNativeProjectBinaries>
     <_CopyNativeProjectBinaries Condition="'$(_CopyNativeProjectBinaries)' == ''">true</_CopyNativeProjectBinaries>
   </PropertyGroup>
@@ -113,7 +114,9 @@
           Condition="'$(GenerateRunScript)' != 'false' And ('$(_WillCLRTestProjectBuild)' == 'true')"
           DependsOnTargets="GenerateExecutionScriptsInternal" />
 
-  <Target Name="CopyNativeProjectBinaries">
+  <Target Name="CopyNativeProjectBinaries"
+      Condition="'$(_CopyNativeProjectBinaries)' == 'true'">
+
      <Message Importance="High" Text="CNPB: $(NativeProjectOutputFolder); Disable: $(DisableProjectBuild); Will: $(_WillCLRTestProjectBuild); Copy: $(_CopyNativeProjectBinaries)" />
 
      <ItemGroup>
@@ -184,7 +187,7 @@
   </Target>
 
   <Target Name="ConsolidateNativeProjectReference"
-          Condition="'$(CopyNativeProjectBinaries)' == 'true'"
+          Condition="'$(_CopyNativeProjectBinaries)' == 'true'"
           BeforeTargets="Build" >
      <ItemGroup Condition="'@(NativeProjectReferenceNormalized)' != ''">
         <NativeProjectOutputFoldersToCopy Include="$([System.String]::Copy('%(NativeProjectReferenceNormalized.RelativeDir)').Replace($(SourceDir),$(__NativeTestIntermediatesDir)\src\))" Condition="'$(RunningOnUnix)' == 'true'" />
