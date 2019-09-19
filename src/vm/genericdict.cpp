@@ -85,9 +85,12 @@ DictionaryLayout::GetFirstDictionaryBucketSize(
     PRECONDITION(numGenericArgs > 0);
     PRECONDITION(CheckPointer(pDictLayout, NULL_OK));
 
-    DWORD bytes = numGenericArgs * sizeof(TypeHandle);
+    DWORD bytes = numGenericArgs * sizeof(TypeHandle);          // Slots for instantiation arguments
     if (pDictLayout != NULL)
-        bytes += pDictLayout->m_numSlots * sizeof(void*);
+    {
+        bytes += sizeof(ULONG_PTR*);                            // Slot for dictionary size
+        bytes += pDictLayout->m_numSlots * sizeof(void*);       // Slots for diciontary slots based on a dictionary layout
+    }
 
     return bytes;
 }
@@ -133,8 +136,8 @@ BOOL DictionaryLayout::FindTokenWorker(LoaderAllocator*                 pAllocat
     CONTRACTL_END
 
     // First slots contain the type parameters
-    _ASSERTE(FitsIn<WORD>(numGenericArgs + scanFromSlot));
-    WORD slot = static_cast<WORD>(numGenericArgs + scanFromSlot);
+    _ASSERTE(FitsIn<WORD>(numGenericArgs + 1 + scanFromSlot));
+    WORD slot = static_cast<WORD>(numGenericArgs + 1 + scanFromSlot);
 
 #if _DEBUG
     if (scanFromSlot > 0)
@@ -273,7 +276,7 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
         pNewDictionaryLayout->m_slots[iSlot] = pCurrentDictLayout->m_slots[iSlot];
 
     WORD layoutSlotIndex = pCurrentDictLayout->m_numSlots;
-    WORD slot = static_cast<WORD>(numGenericArgs) + layoutSlotIndex;
+    WORD slot = static_cast<WORD>(numGenericArgs) + 1 + layoutSlotIndex;
 
     PVOID pResultSignature = pSigBuilder == NULL ? pSig : CreateSignatureWithSlotData(pSigBuilder, pAllocator, slot);
     *EnsureWritablePages(&(pNewDictionaryLayout->m_slots[layoutSlotIndex].m_signature)) = pResultSignature;
@@ -312,18 +315,18 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
 
     DWORD cbSig = -1;
     pSig = pSigBuilder != NULL ? (BYTE*)pSigBuilder->GetSignature(&cbSig) : pSig;
-    if (FindTokenWorker(pAllocator, pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, 0, FALSE))
+    if (FindTokenWorker(pAllocator, pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout_Unsafe(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, 0, FALSE))
         return TRUE;
 
     CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
-        if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, *pSlotOut, TRUE))
+        if (FindTokenWorker(pMT->GetLoaderAllocator(), pMT->GetNumGenericArgs(), pMT->GetClass()->GetDictionaryLayout_Unsafe(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, *pSlotOut, TRUE))
             return TRUE;
         
 
 #ifndef CROSSGEN_COMPILE
-        DictionaryLayout* pOldLayout = pMT->GetClass()->GetDictionaryLayout();
+        DictionaryLayout* pOldLayout = pMT->GetClass()->GetDictionaryLayout_Unsafe();
         DictionaryLayout* pNewLayout = ExpandDictionaryLayout(pAllocator, pOldLayout, pMT->GetNumGenericArgs(), pSigBuilder, pSig, nFirstOffset, signatureSource, pResult, pSlotOut);
         if (pNewLayout == NULL)
         {
@@ -372,17 +375,17 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
 
     DWORD cbSig = -1;
     pSig = pSigBuilder != NULL ? (BYTE*)pSigBuilder->GetSignature(&cbSig) : pSig;
-    if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, 0, FALSE))
+    if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout_Unsafe(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, 0, FALSE))
         return TRUE;
 
     CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
     {
         // Try again under lock in case another thread already expanded the dictionaries or filled an empty slot
-        if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, *pSlotOut, TRUE))
+        if (FindTokenWorker(pAllocator, pMD->GetNumGenericMethodArgs(), pMD->GetDictionaryLayout_Unsafe(), pSigBuilder, pSig, cbSig, nFirstOffset, signatureSource, pResult, pSlotOut, *pSlotOut, TRUE))
             return TRUE;
 
 #ifndef CROSSGEN_COMPILE
-        DictionaryLayout* pOldLayout = pMD->GetDictionaryLayout();
+        DictionaryLayout* pOldLayout = pMD->GetDictionaryLayout_Unsafe();
         DictionaryLayout* pNewLayout = ExpandDictionaryLayout(pAllocator, pOldLayout, pMD->GetNumGenericMethodArgs(), pSigBuilder, pSig, nFirstOffset, signatureSource, pResult, pSlotOut);
         if (pNewLayout == NULL)
         {
@@ -892,7 +895,7 @@ Dictionary::PopulateEntry(
         CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
 
         // MethodTable is expected to be normalized
-        Dictionary* pDictionary = pMT->GetDictionary();
+        Dictionary* pDictionary = pMT->GetDictionary_Unsafe();
         _ASSERTE(pDictionary == pMT->GetPerInstInfo()[dictionaryIndex].GetValueMaybeNull());
 #endif
     }
@@ -1375,7 +1378,7 @@ Dictionary::PopulateEntry(
             // Lock is needed because dictionary pointers can get updated during dictionary size expansion
             CrstHolder ch(&SystemDomain::SystemModule()->m_DictionaryCrst);
 
-            Dictionary* pDictionary = pMT != NULL ? pMT->GetDictionary() : pMD->GetMethodDictionary();
+            Dictionary* pDictionary = pMT != NULL ? pMT->GetDictionary_Unsafe() : pMD->GetMethodDictionary_Unsafe();
 
             *EnsureWritablePages(pDictionary->GetSlotAddr(0, slotIndex)) = result;
             *ppSlot = pDictionary->GetSlotAddr(0, slotIndex);
@@ -1395,7 +1398,7 @@ Dictionary::PrepopulateDictionary(
 {
     STANDARD_VM_CONTRACT;
 
-    DictionaryLayout * pDictLayout = (pMT != NULL) ? pMT->GetClass()->GetDictionaryLayout() : pMD->GetDictionaryLayout();
+    DictionaryLayout * pDictLayout = (pMT != NULL) ? pMT->GetClass()->GetDictionaryLayout_Unsafe() : pMD->GetDictionaryLayout_Unsafe();
     DWORD numGenericArgs = (pMT != NULL) ? pMT->GetNumGenericArgs() : pMD->GetNumGenericMethodArgs();
 
     if (pDictLayout != NULL)

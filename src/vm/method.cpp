@@ -2396,18 +2396,18 @@ void MethodDesc::Reset()
 }
 
 //*******************************************************************************
-Dictionary* MethodDesc::GetMethodDictionary()
+Dictionary* MethodDesc::GetMethodDictionary_Unsafe()
 {
     WRAPPER_NO_CONTRACT;
 
     return
         (GetClassification() == mcInstantiated)
-        ? (Dictionary*) (AsInstantiatedMethodDesc()->IMD_GetMethodDictionary())
+        ? (Dictionary*) (AsInstantiatedMethodDesc()->IMD_GetMethodDictionary_Unsafe())
         : NULL;
 }
 
 //*******************************************************************************
-DictionaryLayout* MethodDesc::GetDictionaryLayout()
+DictionaryLayout* MethodDesc::GetDictionaryLayout_Unsafe()
 {
     WRAPPER_NO_CONTRACT;
 
@@ -2646,10 +2646,10 @@ void MethodDesc::Save(DataImage *image)
         }
     }
     
-    if (GetMethodDictionary())
+    if (GetMethodDictionary_Unsafe())
     {
-        DWORD cBytes = DictionaryLayout::GetFirstDictionaryBucketSize(GetNumGenericMethodArgs(), GetDictionaryLayout());
-        void* pBytes = GetMethodDictionary()->AsPtr();
+        DWORD cBytes = DictionaryLayout::GetFirstDictionaryBucketSize(GetNumGenericMethodArgs(), GetDictionaryLayout_Unsafe());
+        void* pBytes = GetMethodDictionary_Unsafe()->AsPtr();
 
         LOG((LF_ZAP, LL_INFO10000, "    MethodDesc::Save dictionary size %d\n", cBytes));
         image->StoreStructure(pBytes, cBytes,
@@ -2928,9 +2928,9 @@ BOOL MethodDesc::ComputeNeedsRestore(DataImage *image, TypeHandleList *pVisited,
                 return TRUE;
         }
 
-        if (GetMethodDictionary())
+        if (GetMethodDictionary_Unsafe())
         {
-            if (GetMethodDictionary()->ComputeNeedsRestore(image, pVisited, GetNumGenericMethodArgs()))
+            if (GetMethodDictionary_Unsafe()->ComputeNeedsRestore(image, pVisited, GetNumGenericMethodArgs()))
                 return TRUE;
         }
     }
@@ -3355,14 +3355,14 @@ MethodDesc::Fixup(
                 image->FixupTypeHandlePointer(pInst, &pInst[j]);
             }
         }
-        else if (GetMethodDictionary())
+        else if (GetMethodDictionary_Unsafe())
         {
             LOG((LF_JIT, LL_INFO10000, "GENERICS: Fixup dictionary for MD %s\n",
                 m_pszDebugMethodName ? m_pszDebugMethodName : "<no-name>"));
             BOOL canSaveInstantiation = TRUE;
             if (IsGenericMethodDefinition() && !IsTypicalMethodDefinition())
             {
-                if (GetMethodDictionary()->ComputeNeedsRestore(image, NULL, GetNumGenericMethodArgs()))
+                if (GetMethodDictionary_Unsafe()->ComputeNeedsRestore(image, NULL, GetNumGenericMethodArgs()))
                 {
                     _ASSERTE(needsRestore);
                     canSaveInstantiation = FALSE;
@@ -3396,12 +3396,12 @@ MethodDesc::Fixup(
                 pIMD->IMD_IsWrapperStubWithInstantiations() &&
                 image->CanEagerBindToMethodDesc(pIMD->IMD_GetWrappedMethodDesc());
 
-            GetMethodDictionary()->Fixup(image,
+            GetMethodDictionary_Unsafe()->Fixup(image,
                                          canSaveInstantiation,
                                          canSaveSlots,
                                          GetNumGenericMethodArgs(), 
                                          GetModule(),
-                                         GetDictionaryLayout());
+                                         GetDictionaryLayout_Unsafe());
         }
 
         if (needsRestore)
@@ -3997,9 +3997,9 @@ void MethodDesc::CheckRestore(ClassLoadLevel level)
                 Module::RestoreMethodDescPointer(&pIMD->m_pWrappedMethodDesc);
 
             // Finally restore the dictionary itself (including instantiation)
-            if (GetMethodDictionary())
+            if (GetMethodDictionary_Unsafe())
             {
-                GetMethodDictionary()->Restore(GetNumGenericMethodArgs(), level);
+                GetMethodDictionary_Unsafe()->Restore(GetNumGenericMethodArgs(), level);
             }
 #else
             ClassLoader::EnsureLoaded(TypeHandle(GetMethodTable()), level);
