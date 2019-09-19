@@ -93,7 +93,6 @@ class DictionaryLayout;
 typedef DPTR(DictionaryLayout) PTR_DictionaryLayout;
 
 // Number of slots to initially allocate in a generic method dictionary layout.
-// Also the number of additional slots to add to an existing dictionary layout when expanding its size
 #if _DEBUG
 #define NUM_DICTIONARY_SLOTS 1  // Smaller number to stress the dictionary expansion logic
 #else
@@ -145,9 +144,9 @@ public:
     // Create an initial dictionary layout with a single bucket containing numSlots slots
     static DictionaryLayout* Allocate(WORD numSlots, LoaderAllocator *pAllocator, AllocMemTracker *pamTracker);
 
-    // Bytes used for the first bucket of this dictionary, which might be stored inline in
+    // Bytes used for this dictionary, which might be stored inline in
     // another structure (e.g. MethodTable)
-    static DWORD GetFirstDictionaryBucketSize(DWORD numGenericArgs, PTR_DictionaryLayout pDictLayout);
+    static DWORD GetDictionarySizeFromLayout(DWORD numGenericArgs, PTR_DictionaryLayout pDictLayout);
 
     static BOOL FindToken(MethodTable*                      pMT,
                           LoaderAllocator*                  pAllocator,

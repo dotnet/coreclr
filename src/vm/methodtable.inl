@@ -1254,14 +1254,14 @@ inline DWORD MethodTable::GetInterfaceMapSize()
 //==========================================================================================
 // These are the generic dictionaries themselves and are come after
 //  the interface map.  In principle they need not be inline in the method table.
-inline DWORD MethodTable::GetInstAndDictSize_Unsafe()
+inline DWORD MethodTable::GetInstAndDictSize()
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
     if (!HasInstantiation())
         return 0;
     else
-        return DictionaryLayout::GetFirstDictionaryBucketSize(GetNumGenericArgs(), GetClass()->GetDictionaryLayout_Unsafe());
+        return DictionaryLayout::GetDictionarySizeFromLayout(GetNumGenericArgs(), GetClass()->GetDictionaryLayout());
 }
 
 //==========================================================================================

@@ -902,7 +902,7 @@ ClassLoader::LoadExactParentAndInterfacesTransitively(MethodTable *pMT)
     }
 
 
-    /*if (pParentMT != NULL && pParentMT->HasPerInstInfo())
+    if (pParentMT != NULL && pParentMT->HasPerInstInfo())
     {
         // Copy down all inherited dictionary pointers which we
         // could not embed.
@@ -915,7 +915,7 @@ ClassLoader::LoadExactParentAndInterfacesTransitively(MethodTable *pMT)
                 pMT->GetPerInstInfo()[iDict].SetValueMaybeNull(pParentMT->GetPerInstInfo()[iDict].GetValueMaybeNull());
             }
         }
-    }*/
+    }
 
 #ifdef FEATURE_PREJIT
     // Restore action, not in MethodTable::Restore because we may have had approx parents at that point
@@ -1016,7 +1016,7 @@ void ClassLoader::RecordDependenciesForDictionaryExpansion(MethodTable* pMT)
         MethodTable* pParentMT = pMT->GetParentMethodTable();
         if (pParentMT != NULL && pParentMT->HasPerInstInfo())
         {
-            // Copy down all inherited dictionary pointers which we could not embed.
+            // Copy/update down all inherited dictionary pointers which we could not embed.
             // This step has to be done under the dictionary lock, to prevent other threads from making updates
             // the the dictionaries of the parent types while we're also copying them over to the derived type here.
 
@@ -2803,7 +2803,7 @@ void EEClass::Save(DataImage *image, MethodTable *pMT)
     }
 
     // Save dictionary layout information
-    DictionaryLayout *pDictLayout = GetDictionaryLayout_Unsafe();
+    DictionaryLayout *pDictLayout = GetDictionaryLayout();
     if (pMT->IsSharedByGenericInstantiations() && pDictLayout != NULL)
     {
         pDictLayout->Save(image);
@@ -2922,7 +2922,7 @@ void EEClass::Fixup(DataImage *image, MethodTable *pMT)
     }
 #endif // FEATURE_COMINTEROP
 
-    DictionaryLayout *pDictLayout = GetDictionaryLayout_Unsafe();
+    DictionaryLayout *pDictLayout = GetDictionaryLayout();
     if (pDictLayout != NULL)
     {
         pDictLayout->Fixup(image, FALSE);
