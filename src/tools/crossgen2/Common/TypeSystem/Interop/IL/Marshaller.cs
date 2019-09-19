@@ -1453,9 +1453,14 @@ namespace Internal.TypeSystem.Interop
         protected override void TransformNativeToManaged(ILCodeStream codeStream)
         {
             ILEmitter emitter = _ilCodeStreams.Emitter;
-            var helper = Context.GetHelperEntryPoint("InteropHelpers", "UnicodeBufferToString");
+            var charPtrConstructor = Context.GetWellKnownType(WellKnownType.String).GetMethod(".ctor",
+                new MethodSignature(
+                    MethodSignatureFlags.None, 0, Context.GetWellKnownType(WellKnownType.Void),
+                        new TypeDesc[] {
+                            Context.GetWellKnownType(WellKnownType.Char).MakePointerType() }
+                        ));
             LoadNativeValue(codeStream);
-            codeStream.Emit(ILOpcode.call, emitter.NewToken(helper));
+            codeStream.Emit(ILOpcode.newobj, emitter.NewToken(charPtrConstructor));
             StoreManagedValue(codeStream);
         }
 
@@ -1472,7 +1477,7 @@ namespace Internal.TypeSystem.Interop
 
                 LoadNativeValue(codeStream);
                 codeStream.Emit(ILOpcode.call, emitter.NewToken(
-                                    Context.GetHelperEntryPoint("InteropHelpers", "CoTaskMemFree")));
+                                    InteropTypes.GetMarshal(Context).GetKnownMethod("FreeCoTaskMem", null)));
 
                 codeStream.EmitLabel(lNullCheck);
             }

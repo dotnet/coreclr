@@ -40,6 +40,11 @@ namespace Internal.TypeSystem.Interop
             return context.SystemModule.GetKnownType("System.Runtime.InteropServices", "PInvokeMarshal");
         }
 
+        public static MetadataType GetMarshal(TypeSystemContext context)
+        {
+            return context.SystemModule.GetKnownType("System.Runtime.InteropServices", "Marshal");
+        }
+
         public static MetadataType GetStubHelpers(TypeSystemContext context)
         {
             return context.SystemModule.GetKnownType("System.StubHelpers", "StubHelpers");
