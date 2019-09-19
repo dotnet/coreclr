@@ -2854,6 +2854,7 @@ public:
     int gtGetLclVarName(unsigned lclNum, char* buf, unsigned buf_remaining);
     char* gtGetLclVarName(unsigned lclNum);
     void gtDispLclVar(unsigned varNum, bool padForBiggestDisp = true);
+    void gtDispStmt(Statement* stmt, const char* msg = nullptr);
     void gtDispBlockStmts(BasicBlock* block);
     void gtGetArgMsg(GenTreeCall* call, GenTree* arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
     void gtGetLateArgMsg(GenTreeCall* call, GenTree* arg, int argNum, int listCount, char* bufp, unsigned bufLength);
@@ -2960,7 +2961,8 @@ public:
     }
 
     bool     lvaTrackedFixed; // true: We cannot add new 'tracked' variable
-    unsigned lvaCount;        // total number of locals
+    unsigned lvaCount;        // total number of locals, which includes function arguments,
+                              // special arguments, IL local variables, and JIT temporary variables
 
     unsigned   lvaRefCount; // total number of references to locals
     LclVarDsc* lvaTable;    // variable descriptor table
@@ -7355,9 +7357,13 @@ public:
     VARSET_TP compCurLife;     // current live variables
     GenTree*  compCurLifeTree; // node after which compCurLife has been computed
 
+    // Compare the given "newLife" with last set of live variables and update
+    // codeGen "gcInfo", siScopes, "regSet" with the new variable's homes/liveness.
     template <bool ForCodeGen>
     void compChangeLife(VARSET_VALARG_TP newLife);
 
+    // Update the GC's masks, register's masks and reports change on variable's homes given a set of
+    // current live variables if changes have happened since "compCurLife".
     template <bool ForCodeGen>
     inline void compUpdateLife(VARSET_VALARG_TP newLife);
 
@@ -8602,6 +8608,13 @@ public:
     {
         return tree->gtTreeID;
     }
+
+    static void printStmtID(Statement* stmt)
+    {
+        assert(stmt != nullptr);
+        printf(FMT_STMT, stmt->GetID());
+    }
+
     static void printTreeID(GenTree* tree)
     {
         if (tree == nullptr)
@@ -8741,6 +8754,7 @@ public:
         const char* compMethodName;
         const char* compClassName;
         const char* compFullName;
+        double      compPerfScore;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -8937,14 +8951,12 @@ public:
 #ifdef DEBUG
     static unsigned s_compMethodsCount; // to produce unique label names
     unsigned        compGenTreeID;
+    unsigned        compStatementID;
     unsigned        compBasicBlockID;
 #endif
 
     BasicBlock* compCurBB;   // the current basic block in process
     Statement*  compCurStmt; // the current statement in process
-#ifdef DEBUG
-    unsigned compCurStmtNum; // to give all statements an increasing StmtNum when printing dumps
-#endif
 
     //  The following is used to create the 'method JIT info' block.
     size_t compInfoBlkSize;
@@ -10572,6 +10584,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 void cBlock(Compiler* comp, BasicBlock* block);
 void cBlocks(Compiler* comp);
 void cBlocksV(Compiler* comp);
+void cStmt(Compiler* comp, Statement* statement);
 void cTree(Compiler* comp, GenTree* tree);
 void cTrees(Compiler* comp);
 void cEH(Compiler* comp);
@@ -10588,6 +10601,7 @@ void cCVarSet(Compiler* comp, VARSET_VALARG_TP vars);
 void cFuncIR(Compiler* comp);
 void cBlockIR(Compiler* comp, BasicBlock* block);
 void cLoopIR(Compiler* comp, Compiler::LoopDsc* loop);
+void cStmtIR(Compiler* comp, Statement* stmt);
 void cTreeIR(Compiler* comp, GenTree* tree);
 int cTreeTypeIR(Compiler* comp, GenTree* tree);
 int cTreeKindsIR(Compiler* comp, GenTree* tree);
