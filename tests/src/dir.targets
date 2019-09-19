@@ -80,8 +80,8 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <CopyNativeProjectBinaries Condition="'$(_WillCLRTestProjectBuild)' != 'true'">false</CopyNativeProjectBinaries>
-    <CopyNativeProjectBinaries Condition="'$(CopyNativeProjectBinaries)' == ''">true</CopyNativeProjectBinaries>
+    <_CopyNativeProjectBinaries Condition="'$(_WillCLRTestProjectBuild)' != 'true'">false</_CopyNativeProjectBinaries>
+    <_CopyNativeProjectBinaries Condition="'$(_CopyNativeProjectBinaries)' == ''">true</_CopyNativeProjectBinaries>
   </PropertyGroup>
     
   <!-- if we have determined that there is nothing to build, overwrite the build targets so that nothing happens -->
@@ -114,7 +114,7 @@
           DependsOnTargets="GenerateExecutionScriptsInternal" />
 
   <Target Name="CopyNativeProjectBinaries">
-     <Message Importance="High" Text="CNPB: $(NativeProjectOutputFolder); Disable: $(DisableProjectBuild); Will: $(_WillCLRTestProjectBuild); Copy: $(CopyNativeProjectBinaries)" />
+     <Message Importance="High" Text="CNPB: $(NativeProjectOutputFolder); Disable: $(DisableProjectBuild); Will: $(_WillCLRTestProjectBuild); Copy: $(_CopyNativeProjectBinaries)" />
 
      <ItemGroup>
         <NativeProjectBinaries Condition="'$(RunningOnUnix)' != 'true'" Include="$(NativeProjectOutputFolder)\**\*.*" />
