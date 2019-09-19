@@ -1106,10 +1106,6 @@ typedef unsigned char   regNumberSmall;
   #define RBM_PROFILER_ENTER_ARG           RBM_R0
   #define REG_PROFILER_RET_SCRATCH         REG_R2
   #define RBM_PROFILER_RET_SCRATCH         RBM_R2
-  #define RBM_PROFILER_RET_USED            (RBM_R0 | RBM_R1 | RBM_R2)
-  #define REG_PROFILER_JMP_ARG             REG_R0
-  #define RBM_PROFILER_JMP_USED            RBM_R0
-  #define RBM_PROFILER_TAIL_USED           (RBM_R0 | RBM_R12 | RBM_LR)
   
   // The registers trashed by profiler enter/leave/tailcall hook
   // See vm\arm\asmhelpers.asm for more details.
