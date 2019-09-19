@@ -7601,8 +7601,8 @@ private:
         , m_poisonIntRegs(RBM_NONE)
         , m_poisonFltRegs(RBM_NONE)
         , m_poisonDblRegs(RBM_NONE)
-        , m_poisoning(false)
-        , m_preciseInit(false)
+        , m_poisoning(true)
+        , m_preciseStackInit(true)
         , m_poisoningLocs(compiler->getAllocatorDebugOnly())
         , m_preciseZeroingLocs(compiler->getAllocatorDebugOnly())
 #endif
@@ -7615,6 +7615,8 @@ private:
 #ifdef DEBUG
     void PoisonStack() const;
     void PoisonRegisters() const;
+
+    void RecordVarPoisoning(LclVarDsc* varDsc, unsigned varNum);
 #endif // DEBUG
 
     void RecordStackInit(int low, int high DEBUGARG(bool poison));
@@ -7638,7 +7640,7 @@ private:
     regMaskTP m_poisonDblRegs;
 
     bool m_poisoning;
-    bool m_preciseInit;
+    bool m_preciseStackInit;
 
     typedef jitstd::pair<int, int> StackLocation;
     typedef jitstd::vector<StackLocation> StackLocations;
@@ -7692,6 +7694,12 @@ PrologInitHelper PrologInitHelper::GetPrologInitHelper(CodeGen* codeGen, Compile
 
         if (!varDsc->lvMustInit)
         {
+#ifdef DEBUG
+            if (initHelper.m_poisoning)
+            {
+                initHelper.RecordVarPoisoning(varDsc, varNum);
+            }
+#endif // DEBUG
             continue;
         }
 
@@ -7863,6 +7871,49 @@ void PrologInitHelper::PoisonStack() const
 void PrologInitHelper::PoisonRegisters() const
 {
 }
+
+void PrologInitHelper::RecordVarPoisoning(LclVarDsc* varDsc, unsigned varNum)
+{
+    assert(!varDsc->lvMustInit);
+    if (varDsc->lvIsInReg())
+    {
+        regMaskTP regMask = genRegMask(varDsc->lvRegNum);
+        if (!varDsc->IsFloatRegType())
+        {
+            m_poisonIntRegs |= regMask;
+
+            if (varTypeIsMultiReg(varDsc))
+            {
+                if (varDsc->lvOtherReg != REG_STK)
+                {
+                    m_poisonIntRegs |= genRegMask(varDsc->lvOtherReg);
+                }
+                else
+                {
+                    // Upper DWORD is on the stack, and needs to be initialized.
+                    int loOffs = varDsc->lvStkOffs + sizeof(int);
+                    int hiOffs = varDsc->lvStkOffs + m_compiler->lvaLclSize(varNum);
+                    RecordStackInit(loOffs, hiOffs DEBUGARG(false));
+                }
+            }
+        }
+        else if (varDsc->TypeGet() == TYP_DOUBLE)
+        {
+            m_poisonDblRegs |= regMask;
+        }
+        else
+        {
+            m_poisonFltRegs |= regMask;
+        }
+    }
+    else
+    {
+        int loOffs = varDsc->lvStkOffs;
+        int hiOffs = varDsc->lvStkOffs + m_compiler->lvaLclSize(varNum);
+        RecordStackInit(loOffs, hiOffs, true);
+    }
+}
+
 #endif // DEBUG
 
 void PrologInitHelper::RecordStackInit(int low, int high DEBUGARG(bool poisonThisInterval))
@@ -7889,7 +7940,7 @@ void PrologInitHelper::RecordStackInit(int low, int high DEBUGARG(bool poisonThi
         StackLocation sl(low, high);
         m_poisoningLocs.push_back(sl);
     }
-    else if (m_preciseInit)
+    else if (m_preciseStackInit)
     {
         StackLocation sl(low, high);
         m_preciseZeroingLocs.push_back(sl);
