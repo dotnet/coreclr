@@ -5668,6 +5668,11 @@ bool DebuggerStepper::TrapStepInHelper(
     return false;
 }
 
+static bool IsTailCallJitHelper(const BYTE * ip)
+{
+    return TailCallStubManager::IsTailCallJitHelper(ip);
+}
+
 // Check whether a call to an IP will be a tailcall dispatched by first
 // returning. When a tailcall cannot be performed just with a jump instruction,
 // the code will be doing a regular call to a managed function called the
@@ -5932,11 +5937,16 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
 #endif
                     // At this point, we know that the call/branch target is not
                     // in the current method. The possible cases is that this is
-                    // a jump or a tailcall-via-helper. Such a tailcall might
-                    // execute by first returning to some IL stubs in which case
-                    // a step over should be changed to a step out to the
-                    // previous user function.
-                    if ((fIsJump && !fCallingIntoFunclet) || IsTailCallThatReturns(walker.GetNextIP(), info))
+                    // a jump or a tailcall-via-helper. There are two separate
+                    // tailcalling mechanisms: on x86 we use a JIT helper which
+                    // will look like a regular call and which won't return, so
+                    // a step over becomes a step out. On other platforms we use
+                    // a separate mechanism that will perform a tailcall by
+                    // returning to an IL stub first. A step over in this case
+                    // is done by stepping out to the previous user function
+                    // (non IL stub).
+                    if ((fIsJump && !fCallingIntoFunclet) || IsTailCallJitHelper(walker.GetNextIP()) || 
+                        IsTailCallThatReturns(walker.GetNextIP(), info))
                     {
                         // A step-over becomes a step-out for a tail call.
                         if (!in)
@@ -6082,7 +6092,7 @@ bool DebuggerStepper::TrapStep(ControllerStackInfo *info, bool in)
                 return true;
             }
 
-            if (IsTailCallThatReturns(walker.GetNextIP(), info))
+            if (IsTailCallJitHelper(walker.GetNextIP()) || IsTailCallThatReturns(walker.GetNextIP(), info))
             {
                 if (!in)
                 {

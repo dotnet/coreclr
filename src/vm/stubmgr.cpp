@@ -2365,7 +2365,7 @@ void TailCallStubManager::Init()
     StubManager::AddStubManager(new TailCallStubManager());
 }
 
-bool TailCallStubManager::IsTailCallStubHelper(PCODE code)
+bool TailCallStubManager::IsTailCallJitHelper(PCODE code)
 {
     LIMITED_METHOD_CONTRACT;
 
@@ -2381,7 +2381,7 @@ BOOL TailCallStubManager::CheckIsStub_Internal(PCODE stubStartAddress)
     bool fIsStub = false;
 
 #if !defined(DACCESS_COMPILE)
-    fIsStub = IsTailCallStubHelper(stubStartAddress);
+    fIsStub = IsTailCallJitHelper(stubStartAddress);
 #endif // !DACCESS_COMPILE
 
     return fIsStub;
