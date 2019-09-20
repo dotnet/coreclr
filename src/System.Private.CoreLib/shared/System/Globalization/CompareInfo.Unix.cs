@@ -372,7 +372,8 @@ namespace System.Globalization
                 }
 
                 return -1;
-                InteropCall:
+
+            InteropCall:
                 if (fromBeginning)
                     return Interop.Globalization.IndexOf(_sortHandle, b, target.Length, a, source.Length, options, matchLengthPtr);
                 else
@@ -450,6 +451,7 @@ namespace System.Globalization
                 }
 
                 return -1;
+
             InteropCall:
                 if (fromBeginning)
                     return Interop.Globalization.IndexOf(_sortHandle, b, target.Length, a, source.Length, options, matchLengthPtr);
