@@ -32,6 +32,7 @@ namespace ReadyToRun.SuperIlc
                         CpaotDirectory(),
                         Crossgen(),
                         NoJit(),
+                        Exe(),
                         NoExe(),
                         NoEtw(),
                         NoCleanup(),
@@ -46,6 +47,8 @@ namespace ReadyToRun.SuperIlc
                         CompilationTimeoutMinutes(),
                         ExecutionTimeoutMinutes(),
                         R2RDumpPath(),
+                        MeasurePerf(),
+                        InputFileSearchString(),
                     },
                     handler: CommandHandler.Create<BuildOptions>(CompileDirectoryCommand.CompileDirectory));
 
@@ -59,6 +62,7 @@ namespace ReadyToRun.SuperIlc
                         CpaotDirectory(),
                         Crossgen(),
                         NoJit(),
+                        Exe(),
                         NoExe(),
                         NoEtw(),
                         NoCleanup(),
@@ -95,7 +99,7 @@ namespace ReadyToRun.SuperIlc
                     handler: CommandHandler.Create<BuildOptions>(CompileNugetCommand.CompileNuget));
 
             Command CompileCrossgenRsp() =>
-                new Command("compile-crossgen-rsp", "Use existing Crossgen .rsp file(s) to build assmeblies, optionally rewriting base paths",
+                new Command("compile-crossgen-rsp", "Use existing Crossgen .rsp file(s) to build assemblies, optionally rewriting base paths",
                     new Option[]
                     {
                         InputDirectory(),
@@ -135,11 +139,14 @@ namespace ReadyToRun.SuperIlc
             Option NoJit() =>
                 new Option(new[] { "--nojit" }, "Don't run tests in JITted mode", new Argument<bool>());
 
-            Option NoEtw() =>
-                new Option(new[] { "--noetw" }, "Don't capture jitted methods using ETW", new Argument<bool>());
+            Option Exe() =>
+                new Option(new[] { "--exe" }, "Don't compile tests, just execute them", new Argument<bool>());
 
             Option NoExe() =>
                 new Option(new[] { "--noexe" }, "Compilation-only mode (don't execute the built apps)", new Argument<bool>());
+
+            Option NoEtw() =>
+                new Option(new[] { "--noetw" }, "Don't capture jitted methods using ETW", new Argument<bool>());
 
             Option NoCleanup() =>
                 new Option(new[] { "--nocleanup" }, "Don't clean up compilation artifacts after test runs", new Argument<bool>());
@@ -182,6 +189,12 @@ namespace ReadyToRun.SuperIlc
 
             Option RewriteNewPath() =>
                 new Option(new [] { "--rewrite-new-path" }, "Path substring to use instead", new Argument<DirectoryInfo[]>(){ Arity = ArgumentArity.ZeroOrMore });
+
+            Option MeasurePerf() =>
+                new Option(new[] { "--measure-perf" }, "Print out compilation time", new Argument<bool>());
+
+            Option InputFileSearchString() =>
+                new Option(new[] { "--input-file-search-string", "-input-file" }, "Search string for input files in the input directory", new Argument<string>());
 
             //
             // compile-nuget specific options

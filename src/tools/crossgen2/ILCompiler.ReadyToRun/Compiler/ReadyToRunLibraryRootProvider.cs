@@ -37,6 +37,12 @@ namespace ILCompiler
                         {
                             continue;
                         }
+
+                        if (method.IsMethodDefinition)
+                        {
+                            continue;
+                        }
+
                         bool containsSignatureVariables = false;
                         foreach (TypeDesc t in method.Instantiation)
                         {
@@ -99,9 +105,6 @@ namespace ILCompiler
                     continue;
 
                 if (method.IsInternalCall)
-                    continue;
-
-                if (method.IsAggressiveOptimization)
                     continue;
 
                 try

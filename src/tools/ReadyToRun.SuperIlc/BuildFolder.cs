@@ -123,7 +123,7 @@ namespace ReadyToRun.SuperIlc
             string scriptExtension = (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ".cmd" : ".sh");
 
             // Copy unmanaged files (runtime, native dependencies, resources, etc)
-            foreach (string file in Directory.EnumerateFiles(inputDirectory))
+            foreach (string file in Directory.EnumerateFiles(inputDirectory, options.InputFileSearchString ?? "*"))
             {
                 bool isManagedAssembly = ComputeManagedAssemblies.IsManaged(file);
                 if (isManagedAssembly)
@@ -153,10 +153,13 @@ namespace ReadyToRun.SuperIlc
             foreach (CompilerRunner runner in compilerRunners)
             {
                 string runnerOutputPath = runner.GetOutputPath(outputRoot);
-                runnerOutputPath.RecreateDirectory();
-                foreach (string file in passThroughFiles)
+                if (!options.Exe)
                 {
-                    File.Copy(file, Path.Combine(runnerOutputPath, Path.GetFileName(file)));
+                    runnerOutputPath.RecreateDirectory();
+                    foreach (string file in passThroughFiles)
+                    {
+                        File.Copy(file, Path.Combine(runnerOutputPath, Path.GetFileName(file)));
+                    }
                 }
             }
 

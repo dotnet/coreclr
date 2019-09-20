@@ -206,6 +206,8 @@ void CodeGen::genCodeForBBlist()
 
         compiler->m_pLinearScan->recordVarLocationsAtStartOfBB(block);
 
+        // Updating variable liveness after last instruction of previous block was emitted
+        // and before first of the current block is emitted
         genUpdateLife(block->bbLiveIn);
 
         // Even if liveness didn't change, we need to update the registers containing GC references.
@@ -224,8 +226,7 @@ void CodeGen::genCodeForBBlist()
         unsigned        varIndex = 0;
         while (iter.NextElem(&varIndex))
         {
-            unsigned   varNum = compiler->lvaTrackedToVarNum[varIndex];
-            LclVarDsc* varDsc = &(compiler->lvaTable[varNum]);
+            LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(varIndex);
 
             if (varDsc->lvIsInReg())
             {
@@ -322,15 +323,15 @@ void CodeGen::genCodeForBBlist()
         }
 #endif
 
+        // Tell everyone which basic block we're working on
+
+        compiler->compCurBB = block;
+
         block->bbEmitCookie = nullptr;
 
-        if (block->bbFlags & (BBF_JMP_TARGET | BBF_HAS_LABEL))
-        {
-            /* Mark a label and update the current set of live GC refs */
-
-            block->bbEmitCookie = getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,
-                                                             gcInfo.gcRegByrefSetCur, FALSE);
-        }
+        // If this block is a jump target or it requires a label then set 'needLabel' to true,
+        //
+        bool needLabel = (block->bbFlags & (BBF_JMP_TARGET | BBF_HAS_LABEL)) != 0;
 
         if (block == compiler->fgFirstColdBlock)
         {
@@ -343,6 +344,33 @@ void CodeGen::genCodeForBBlist()
             // We should never have a block that falls through into the Cold section
             noway_assert(!block->bbPrev->bbFallsThrough());
 
+            needLabel = true;
+        }
+
+#if defined(DEBUG) || defined(LATE_DISASM)
+        // We also want to start a new Instruction group by calling emitAddLabel below,
+        // when we need accurate bbWeights for this block in the emitter.  We force this
+        // whenever our previous block was a BBJ_COND and it has a different weight than us.
+        //
+        // Note: We need to have set compCurBB before calling emitAddLabel
+        //
+        if ((block->bbPrev != nullptr) && (block->bbPrev->bbJumpKind == BBJ_COND) &&
+            (block->bbWeight != block->bbPrev->bbWeight))
+        {
+            needLabel = true;
+        }
+#endif // DEBUG || LATE_DISASM
+
+        if (needLabel)
+        {
+            // Mark a label and update the current set of live GC refs
+
+            block->bbEmitCookie = getEmitter()->emitAddLabel(gcInfo.gcVarPtrSetCur, gcInfo.gcRegGCrefSetCur,
+                                                             gcInfo.gcRegByrefSetCur, FALSE);
+        }
+
+        if (block == compiler->fgFirstColdBlock)
+        {
             // We require the block that starts the Cold section to have a label
             noway_assert(block->bbEmitCookie);
             getEmitter()->emitSetFirstColdIGCookie(block->bbEmitCookie);
@@ -353,10 +381,6 @@ void CodeGen::genCodeForBBlist()
         SetStackLevel(0);
         genAdjustStackLevel(block);
         savedStkLvl = genStackLevel;
-
-        /* Tell everyone which basic block we're working on */
-
-        compiler->compCurBB = block;
 
         // Needed when jitting debug code
         siBeginBlock(block);
@@ -563,8 +587,7 @@ void CodeGen::genCodeForBBlist()
         bool            foundMismatchedRegVar = false;
         while (mismatchLiveVarIter.NextElem(&mismatchLiveVarIndex))
         {
-            unsigned   varNum = compiler->lvaTrackedToVarNum[mismatchLiveVarIndex];
-            LclVarDsc* varDsc = compiler->lvaTable + varNum;
+            LclVarDsc* varDsc = compiler->lvaGetDescByTrackedIndex(mismatchLiveVarIndex);
             if (varDsc->lvIsRegCandidate())
             {
                 if (!foundMismatchedRegVar)
@@ -572,7 +595,7 @@ void CodeGen::genCodeForBBlist()
                     JITDUMP("Mismatched live reg vars after BB%02u:", block->bbNum);
                     foundMismatchedRegVar = true;
                 }
-                JITDUMP(" V%02u", varNum);
+                JITDUMP(" V%02u", compiler->lvaTrackedIndexToLclNum(mismatchLiveVarIndex));
             }
         }
         if (foundMismatchedRegVar)
@@ -742,7 +765,8 @@ void CodeGen::genCodeForBBlist()
 
     } //------------------ END-FOR each block of the method -------------------
 
-    /* Nothing is live at this point */
+    // There could be variables alive at this point. For example see lvaKeepAliveAndReportThis.
+    // This call is for cleaning the GC refs
     genUpdateLife(VarSetOps::MakeEmpty(compiler));
 
     /* Finalize the spill  tracking logic */
@@ -1796,7 +1820,7 @@ void CodeGen::genConsumeBlockOp(GenTreeBlk* blkNode, regNumber dstReg, regNumber
 
 //-------------------------------------------------------------------------
 // genProduceReg: do liveness update for register produced by the current
-// node in codegen.
+// node in codegen after code has been emitted for it.
 //
 // Arguments:
 //     tree   -  Gentree node
@@ -1901,6 +1925,7 @@ void CodeGen::genProduceReg(GenTree* tree)
         }
     }
 
+    // Updating variable liveness after instruction was emitted
     genUpdateLife(tree);
 
     // If we've produced a register, mark it as a pointer, as needed.

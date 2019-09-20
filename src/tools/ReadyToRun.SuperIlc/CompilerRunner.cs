@@ -28,13 +28,11 @@ namespace ReadyToRun.SuperIlc
         public const int R2RDumpTimeoutMilliseconds = 60 * 1000;
 
         protected readonly BuildOptions _options;
-        protected readonly string _compilerPath;
         protected readonly IEnumerable<string> _referenceFolders;
 
-        public CompilerRunner(BuildOptions options, string compilerFolder, IEnumerable<string> referenceFolders)
+        public CompilerRunner(BuildOptions options, IEnumerable<string> referenceFolders)
         {
             _options = options;
-            _compilerPath = compilerFolder;
             _referenceFolders = referenceFolders;
         }
 
@@ -44,6 +42,7 @@ namespace ReadyToRun.SuperIlc
 
         public string CompilerName => Index.ToString();
 
+        protected abstract string CompilerRelativePath { get;  }
         protected abstract string CompilerFileName { get; }
         protected abstract IEnumerable<string> BuildCommandLineArguments(string assemblyFileName, string outputFileName);
 
@@ -57,7 +56,7 @@ namespace ReadyToRun.SuperIlc
             CreateResponseFile(responseFile, commandLineArgs);
 
             ProcessParameters processParameters = new ProcessParameters();
-            processParameters.ProcessPath = Path.Combine(_compilerPath, CompilerFileName);
+            processParameters.ProcessPath = Path.Combine(_options.CoreRootDirectory.FullName, CompilerRelativePath, CompilerFileName);
             processParameters.Arguments = $"@{responseFile}";
             if (_options.CompilationTimeoutMinutes != 0)
             {
@@ -179,6 +178,7 @@ namespace ReadyToRun.SuperIlc
             }
 
             processParameters.InputFileName = scriptToRun;
+            processParameters.OutputFileName = scriptToRun;
             processParameters.LogPath = scriptToRun + ".log";
             processParameters.EnvironmentOverrides["CORE_ROOT"] = _options.CoreRootOutputPath(Index, isFramework: false);
             return processParameters;
@@ -191,6 +191,7 @@ namespace ReadyToRun.SuperIlc
             processParameters.ProcessPath = _options.CoreRunPath(Index, isFramework: false);
             processParameters.Arguments = exeToRun;
             processParameters.InputFileName = exeToRun;
+            processParameters.OutputFileName = exeToRun;
             processParameters.LogPath = exeToRun + ".log";
             processParameters.ExpectedExitCode = 100;
             return processParameters;
@@ -220,7 +221,7 @@ namespace ReadyToRun.SuperIlc
 
         // <input>\a.dll -> <output>\a.dll
         public string GetOutputFileName(string outputRoot, string fileName) =>
-            Path.Combine(GetOutputPath(outputRoot), $"{Path.GetFileName(fileName)}");
+            Path.Combine(GetOutputPath(outputRoot), Path.GetFileName(fileName));
 
         public string GetResponseFileName(string outputRoot, string assemblyFileName) =>
             Path.Combine(GetOutputPath(outputRoot), Path.GetFileName(assemblyFileName) + ".rsp");

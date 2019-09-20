@@ -61,15 +61,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL Linux)
 
     # Detect Linux ID
     if(DEFINED CLR_CMAKE_LINUX_ID)
-        if(CLR_CMAKE_LINUX_ID STREQUAL ubuntu)
-            set(CLR_CMAKE_TARGET_UBUNTU_LINUX 1)
-        elseif(CLR_CMAKE_LINUX_ID STREQUAL tizen)
+        if(CLR_CMAKE_LINUX_ID STREQUAL tizen)
             set(CLR_CMAKE_TARGET_TIZEN_LINUX 1)
         elseif(CLR_CMAKE_LINUX_ID STREQUAL alpine)
             set(CLR_CMAKE_PLATFORM_ALPINE_LINUX 1)
-        endif()
-        if(CLR_CMAKE_LINUX_ID STREQUAL ubuntu)
-            set(CLR_CMAKE_PLATFORM_UBUNTU_LINUX 1)
         endif()
     endif(DEFINED CLR_CMAKE_LINUX_ID)
 endif(CMAKE_SYSTEM_NAME STREQUAL Linux)
@@ -247,12 +242,6 @@ if (WIN32)
 
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /DEBUG /PDBCOMPRESS")
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /STACK:1572864")
-
-  # Temporarily disable incremental link due to incremental linking CFG bug crashing crossgen.
-  # See https://github.com/dotnet/coreclr/issues/12592
-  # This has been fixed in VS 2017 Update 5 but we're keeping this around until everyone is off
-  # the versions that have the bug. The bug manifests itself as a bad crash.
-  set(NO_INCREMENTAL_LINKER_FLAGS "/INCREMENTAL:NO")
 
   # Debug build specific flags
   set(CMAKE_SHARED_LINKER_FLAGS_DEBUG "/NOVCFEATURE ${NO_INCREMENTAL_LINKER_FLAGS}")

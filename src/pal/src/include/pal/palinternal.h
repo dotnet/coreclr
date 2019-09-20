@@ -206,7 +206,6 @@ function_name() to call the system's implementation
 #define srand DUMMY_srand
 #define atoi DUMMY_atoi
 #define atof DUMMY_atof
-#define tm PAL_tm
 #define size_t DUMMY_size_t
 #define time_t PAL_time_t
 #define va_list DUMMY_va_list
@@ -326,13 +325,6 @@ function_name() to call the system's implementation
 #undef va_copy
 #endif
 
-
-#ifdef _VAC_
-#define wchar_16 wchar_t
-#else
-#define wchar_t wchar_16
-#endif // _VAC_
-
 #define ptrdiff_t PAL_ptrdiff_t
 #define intptr_t PAL_intptr_t
 #define uintptr_t PAL_uintptr_t
@@ -419,7 +411,6 @@ function_name() to call the system's implementation
 #undef qsort
 #undef bsearch
 #undef time
-#undef tm
 #undef FILE
 #undef fclose
 #undef fopen
@@ -511,7 +502,6 @@ function_name() to call the system's implementation
 #undef open
 #undef glob
 
-#undef wchar_t
 #undef ptrdiff_t
 #undef intptr_t
 #undef uintptr_t
@@ -584,7 +574,6 @@ function_name() to call the system's implementation
 #undef siglongjmp
 
 #undef _SIZE_T_DEFINED
-#undef _WCHAR_T_DEFINED
 
 #define _DONT_USE_CTYPE_INLINE_
 #if HAVE_RUNETYPE_H

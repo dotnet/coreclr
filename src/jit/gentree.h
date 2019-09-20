@@ -304,7 +304,7 @@ public:
 class GenTreeUseEdgeIterator;
 class GenTreeOperandIterator;
 
-struct GenTreeStmt;
+struct Statement;
 
 /*****************************************************************************/
 
@@ -2977,14 +2977,14 @@ struct GenTreeBox : public GenTreeUnOp
     }
     // This is the statement that contains the assignment tree when the node is an inlined GT_BOX on a value
     // type
-    GenTreeStmt* gtAsgStmtWhenInlinedBoxValue;
+    Statement* gtAsgStmtWhenInlinedBoxValue;
     // And this is the statement that copies from the value being boxed to the box payload
-    GenTreeStmt* gtCopyStmtWhenInlinedBoxValue;
+    Statement* gtCopyStmtWhenInlinedBoxValue;
 
-    GenTreeBox(var_types    type,
-               GenTree*     boxOp,
-               GenTreeStmt* asgStmtWhenInlinedBoxValue,
-               GenTreeStmt* copyStmtWhenInlinedBoxValue)
+    GenTreeBox(var_types  type,
+               GenTree*   boxOp,
+               Statement* asgStmtWhenInlinedBoxValue,
+               Statement* copyStmtWhenInlinedBoxValue)
         : GenTreeUnOp(GT_BOX, type, boxOp)
         , gtAsgStmtWhenInlinedBoxValue(asgStmtWhenInlinedBoxValue)
         , gtCopyStmtWhenInlinedBoxValue(copyStmtWhenInlinedBoxValue)
@@ -5129,8 +5129,13 @@ struct GenTreeILOffset : public GenTree
 #endif
 };
 
-struct GenTreeStmt
+// We use the following format when printing the Statement number: Statement->GetID()
+// This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
+#define FMT_STMT "STMT%05u"
+
+struct Statement
 {
+public:
     GenTree*       gtStmtExpr;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
     InlineContext* gtInlineContext; // The inline context for this statement.
@@ -5138,18 +5143,22 @@ struct GenTreeStmt
 
 #ifdef DEBUG
     IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
+
+private:
+    unsigned m_stmtID;
 #endif
 
-    __declspec(property(get = getNextStmt)) GenTreeStmt* gtNextStmt;
+public:
+    __declspec(property(get = getNextStmt)) Statement* gtNextStmt;
 
-    __declspec(property(get = getPrevStmt)) GenTreeStmt* gtPrevStmt;
+    __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
 
-    GenTreeStmt* gtNext;
-    GenTreeStmt* gtPrev;
+    Statement* gtNext;
+    Statement* gtPrev;
 
     bool compilerAdded;
 
-    GenTreeStmt* getNextStmt()
+    Statement* getNextStmt()
     {
         if (gtNext == nullptr)
         {
@@ -5161,7 +5170,7 @@ struct GenTreeStmt
         }
     }
 
-    GenTreeStmt* getPrevStmt()
+    Statement* getPrevStmt()
     {
         if (gtPrev == nullptr)
         {
@@ -5173,13 +5182,14 @@ struct GenTreeStmt
         }
     }
 
-    GenTreeStmt(GenTree* expr, IL_OFFSETX offset)
+    Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_stmtID(stmtID)
 #endif
         , gtNext(nullptr)
         , gtPrev(nullptr)
@@ -5187,7 +5197,10 @@ struct GenTreeStmt
     {
     }
 
-    bool IsPhiDefnStmt();
+    bool IsPhiDefnStmt()
+    {
+        return gtStmtExpr->IsPhiDefn();
+    }
 
     unsigned char GetCostSz() const
     {
@@ -5197,6 +5210,59 @@ struct GenTreeStmt
     unsigned char GetCostEx() const
     {
         return gtStmtExpr->GetCostEx();
+    }
+
+#ifdef DEBUG
+    unsigned GetID() const
+    {
+        return m_stmtID;
+    }
+#endif
+};
+
+class StatementIterator
+{
+    Statement* m_stmt;
+
+public:
+    StatementIterator(Statement* stmt) : m_stmt(stmt)
+    {
+    }
+
+    Statement* operator*() const
+    {
+        return m_stmt;
+    }
+
+    StatementIterator& operator++()
+    {
+        m_stmt = m_stmt->gtNext;
+        return *this;
+    }
+
+    bool operator!=(const StatementIterator& i) const
+    {
+        return m_stmt != i.m_stmt;
+    }
+};
+
+class StatementList
+{
+    Statement* m_stmts;
+
+public:
+    StatementList(Statement* stmts) : m_stmts(stmts)
+    {
+    }
+
+    StatementIterator begin() const
+    {
+        return StatementIterator(m_stmts);
+    }
+
+    StatementIterator end() const
+    {
+        return StatementIterator(nullptr);
     }
 };
 
