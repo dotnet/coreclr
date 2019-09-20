@@ -1857,6 +1857,7 @@ void Lowering::LowerFastTailCall(GenTreeCall* call)
     assert((comp->info.compFlags & CORINFO_FLG_SYNCH) == 0); // tail calls from synchronized methods
     assert(!comp->opts.compNeedSecurityCheck);               // tail call from methods that need security check
     assert(!call->IsUnmanaged());                            // tail calls to unamanaged methods
+    assert(!comp->compLocallocUsed);
 
 #ifdef _TARGET_AMD64_
     assert(!comp->getNeedsGSSecurityCookie()); // jit64 compat: tail calls from methods that need GS check
