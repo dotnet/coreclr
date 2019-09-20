@@ -4997,7 +4997,7 @@ Statement* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, Statement* stm
 
     // Check if propagation removed statements starting from current stmt.
     // If so, advance to the next good statement.
-    Statement* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->getNextStmt();
+    Statement* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->GetNextStmt();
     return nextStmt;
 }
 
@@ -5039,7 +5039,7 @@ void Compiler::optAssertionPropMain()
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->getNextStmt();
+                stmt = stmt->GetNextStmt();
                 continue;
             }
             else
@@ -5050,7 +5050,7 @@ void Compiler::optAssertionPropMain()
                 // Propagation resulted in removal of the remaining stmts, perform it.
                 if (fgRemoveRestOfBlock)
                 {
-                    stmt = stmt->getNextStmt();
+                    stmt = stmt->GetNextStmt();
                     continue;
                 }
 
@@ -5069,7 +5069,7 @@ void Compiler::optAssertionPropMain()
             }
 
             // Advance the iterator
-            stmt = stmt->getNextStmt();
+            stmt = stmt->GetNextStmt();
         }
     }
 
@@ -5142,7 +5142,7 @@ void Compiler::optAssertionPropMain()
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->getNextStmt();
+                stmt = stmt->GetNextStmt();
                 continue;
             }
 
@@ -5197,8 +5197,8 @@ void Compiler::optAssertionPropMain()
 
             // Check if propagation removed statements starting from current stmt.
             // If so, advance to the next good statement.
-            Statement* nextStmt = (prevStmt == nullptr) ? block->firstStmt() : prevStmt->getNextStmt();
-            stmt                = (stmt == nextStmt) ? stmt->getNextStmt() : nextStmt;
+            Statement* nextStmt = (prevStmt == nullptr) ? block->firstStmt() : prevStmt->GetNextStmt();
+            stmt                = (stmt == nextStmt) ? stmt->GetNextStmt() : nextStmt;
         }
         optAssertionPropagatedCurrentStmt = false; // clear it back as we are done with stmts.
     }
