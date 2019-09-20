@@ -352,7 +352,7 @@ PCODE MethodDesc::PrepareILBasedCode(PrepareCodeConfig* pConfig)
     if (pConfig->MayUsePrecompiledCode())
     {
 #ifdef FEATURE_READYTORUN
-        if (this->IsDynamicMethod() && GetLoaderModule()->IsSystem() && MayUsePrecompiledILStub())
+        if (this->IsDynamicMethod() && MayUsePrecompiledILStub())
         {
             DynamicMethodDesc *stubMethodDesc = this->AsDynamicMethodDesc();
             if (stubMethodDesc->IsILStub() && stubMethodDesc->IsPInvokeStub())

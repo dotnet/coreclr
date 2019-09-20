@@ -102,12 +102,6 @@ namespace Internal.IL
                         return result;
                 }
 
-                // PInvoke precompilation is limited to the system module for now
-                if (method.IsPInvoke && ecmaMethod.Module == ecmaMethod.Context.SystemModule)
-                {
-                    return PInvokeILEmitter.EmitIL(method);
-                }
-
                 MethodIL methodIL = EcmaMethodIL.Create(ecmaMethod);
                 if (methodIL != null)
                     return methodIL;

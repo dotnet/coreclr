@@ -95,12 +95,9 @@ namespace Internal.IL.Stubs
 
             callsiteSetupCodeStream.Emit(ILOpcode.call, emitter.NewToken(
                             stubHelpersType.GetKnownMethod("GetStubContext", null)));
-
-            callsiteSetupCodeStream.EmitLdc(0x48); // offsetof(NDirectMethodDesc, ndirect.m_pWriteableData)
-            callsiteSetupCodeStream.Emit(ILOpcode.add);
-            callsiteSetupCodeStream.Emit(ILOpcode.ldind_i);
-            callsiteSetupCodeStream.Emit(ILOpcode.ldind_i);
-
+            callsiteSetupCodeStream.Emit(ILOpcode.call, emitter.NewToken(
+                            stubHelpersType.GetKnownMethod("GetNDirectTarget", null)));
+            
             MethodSignatureFlags unmanagedCallConv = _importMetadata.Flags.UnmanagedCallingConvention;
 
             MethodSignature nativeSig = new MethodSignature(
