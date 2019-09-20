@@ -14,10 +14,15 @@ function(get_compile_definitions DefinitionName)
     get_directory_property(COMPILE_DEFINITIONS_LIST COMPILE_DEFINITIONS)
 
     foreach(DEFINITION IN LISTS COMPILE_DEFINITIONS_LIST)
-        if (${DEFINITION} MATCHES "^\\$<\\$<CONFIG:([^>]+)>:([^>]+)>$")
+        if (${DEFINITION} MATCHES "^\\$<(.+):([^>]+)>?$")
             # The entries that contain generator expressions must have the -D inside of the
             # expression. So we transform e.g. $<$<CONFIG:Debug>:_DEBUG> to $<$<CONFIG:Debug>:-D_DEBUG>
-            set(DEFINITION "$<$<CONFIG:${CMAKE_MATCH_1}>:-D${CMAKE_MATCH_2}>")
+
+            # If we have a list of entries in the generator expression, we need to allow the entry to not end with '>' since the '>' will be in another entry.
+            set(DEFINITION "$<${CMAKE_MATCH_1}:-D${CMAKE_MATCH_2}>")
+        elseif(${DEFINITION} MATCHES "([^>]+)>$")
+            # This entry is the last in a list nested within a generator expression.
+            set(DEFINITION "-D${CMAKE_MATCH_1}")
         else()
             set(DEFINITION -D${DEFINITION})
         endif()
