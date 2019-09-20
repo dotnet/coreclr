@@ -2434,9 +2434,7 @@ struct GenTreeFieldList : public GenTree
 
     Use* gtUses;
 
-    // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-    // TYP_INT or the type of the first field is used instead to match the old implementation.
-    GenTreeFieldList() : GenTree(GT_FIELD_LIST, TYP_INT), gtUses(nullptr)
+    GenTreeFieldList() : GenTree(GT_FIELD_LIST, TYP_STRUCT), gtUses(nullptr)
     {
         SetContained();
     }
@@ -2459,8 +2457,8 @@ struct GenTreeFieldList : public GenTree
     //
     static bool Equals(GenTreeFieldList* list1, GenTreeFieldList* list2)
     {
-        // TODO-Cleanup: The list type is actually ignored. It should always be TYP_STRUCT
-        // but instead instead it is the type of the first field in the list.
+        assert(list1->TypeGet() == TYP_STRUCT);
+        assert(list2->TypeGet() == TYP_STRUCT);
 
         UseIterator i1   = list1->Uses().begin();
         UseIterator end1 = list1->Uses().end();

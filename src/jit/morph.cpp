@@ -3936,9 +3936,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
             fieldList->gtUses->SetNext(
                 new (this, CMK_ASTNode)
                     GenTreeFieldList::Use(argx->gtOp.gtOp2, OFFSETOF__CORINFO_TypedReference__type, TYP_I_IMPL));
-            // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-            // The type of the first field is used instead to match the old implementation.
-            fieldList->gtType = fieldList->gtUses->GetType();
             fieldList->gtFlags |=
                 (fieldList->gtUses->GetNode()->gtFlags | fieldList->gtUses->GetNext()->GetNode()->gtFlags) &
                 GTF_ALL_EFFECT;
@@ -4036,10 +4033,6 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
 
                     tail = &((*tail)->NextRef());
                 }
-
-                // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-                // The type of the first field is used instead to match the old implementation.
-                fieldList->gtType = fieldList->gtUses->GetType();
             }
         }
 #endif // _TARGET_X86_
@@ -4596,9 +4589,6 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
                     newArg->gtUses = new (this, CMK_ASTNode) GenTreeFieldList::Use(loLclVar, 0, loType);
                     newArg->gtUses->SetNext(new (this, CMK_ASTNode)
                                                 GenTreeFieldList::Use(hiLclVar, TARGET_POINTER_SIZE, hiType));
-                    // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-                    // The type of the first field is used instead to match the old implementation.
-                    newArg->gtType = newArg->gtUses->GetType();
                 }
             }
         }
@@ -4743,10 +4733,6 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
                 tail                = &((*tail)->NextRef());
                 offset += elemSize;
             }
-
-            // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-            // The type of the first field is used instead to match the old implementation.
-            newArg->gtType = newArg->AsFieldList()->gtUses->GetType();
         }
         // Are we passing a GT_OBJ struct?
         //
@@ -4801,10 +4787,6 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
                 tail  = (&(*tail)->NextRef());
                 offset += elemSize;
             }
-
-            // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-            // The type of the first field is used instead to match the old implementation.
-            newArg->gtType = newArg->AsFieldList()->gtUses->GetType();
         }
     }
 
@@ -4872,9 +4854,6 @@ GenTreeFieldList* Compiler::fgMorphLclArgToFieldlist(GenTreeLclVarCommon* lcl)
         tail  = &((*tail)->NextRef());
         fieldLclNum++;
     }
-    // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-    // The type of the first field is used instead to match the old implementation.
-    newArg->gtType = newArg->gtUses->GetType();
     return newArg;
 }
 

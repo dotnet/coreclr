@@ -5420,7 +5420,7 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
             assert(curArgTabEntry != nullptr);
             assert(size == (curArgTabEntry->numSlots * TARGET_POINTER_SIZE));
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
-            if (source->TypeGet() == TYP_STRUCT)
+            if (!source->OperIs(GT_FIELD_LIST) && (source->TypeGet() == TYP_STRUCT))
             {
                 GenTreeObj* obj      = source->AsObj();
                 unsigned    argBytes = roundUp(obj->GetLayout()->GetSize(), TARGET_POINTER_SIZE);

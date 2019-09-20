@@ -719,9 +719,6 @@ GenTree* DecomposeLongs::DecomposeFieldList(GenTreeFieldList* fieldList, GenTree
     hiUse->SetNext(loUse->GetNext());
     loUse->SetNext(hiUse);
 
-    // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-    // The type of the first field is used instead to match the old implementation.
-    fieldList->gtType = TYP_INT;
     return fieldList->gtNext;
 }
 

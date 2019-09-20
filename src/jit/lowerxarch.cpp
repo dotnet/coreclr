@@ -408,12 +408,14 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 //
 void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
 {
-#ifdef _TARGET_X86_
-    if (putArgStk->gtOp1->gtOper == GT_FIELD_LIST)
+    GenTree* src = putArgStk->gtGetOp1();
+
+    if (src->OperIs(GT_FIELD_LIST))
     {
+#ifdef _TARGET_X86_
         putArgStk->gtPutArgStkKind = GenTreePutArgStk::Kind::Invalid;
 
-        GenTreeFieldList* fieldList = putArgStk->gtOp1->AsFieldList();
+        GenTreeFieldList* fieldList = src->AsFieldList();
 
         // The code generator will push these fields in reverse order by offset. Reorder the list here s.t. the order
         // of uses is visible to LSRA.
@@ -458,13 +460,7 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
         // the maximum size of a field list grows significantly, we will need to reevaluate it.
         assert(fieldCount <= 8);
 
-        if (head != fieldList->gtUses)
-        {
-            fieldList->gtUses = head;
-            // TODO-Cleanup: It would make more sense for GT_FIELD_LIST's type to be TYP_STRUCT.
-            // The type of the first field is used instead to match the old implementation.
-            fieldList->gtType = head->GetType();
-        }
+        fieldList->gtUses = head;
 
         // Now that the fields have been sorted, the kind of code we will generate.
         bool     allFieldsAreSlots = true;
@@ -533,11 +529,9 @@ void Lowering::LowerPutArgStk(GenTreePutArgStk* putArgStk)
         {
             putArgStk->gtPutArgStkKind = GenTreePutArgStk::Kind::Push;
         }
+#endif // _TARGET_X86_
         return;
     }
-#endif // _TARGET_X86_
-
-    GenTree* src = putArgStk->gtOp1;
 
 #ifdef FEATURE_PUT_STRUCT_ARG_STK
     if (src->TypeGet() != TYP_STRUCT)
