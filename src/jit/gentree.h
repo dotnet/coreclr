@@ -3700,6 +3700,7 @@ struct GenTreeCall final : public GenTree
 #define GTF_CALL_M_NONVIRT_SAME_THIS     0x00000080 // GT_CALL -- callee "this" pointer is
                                                     // equal to caller this pointer (only for GTF_CALL_NONVIRT)
 #define GTF_CALL_M_FRAME_VAR_DEATH       0x00000100 // GT_CALL -- the compLvFrameListRoot variable dies here (last use)
+#define GTF_CALL_M_TAILCALL_VIA_JIT_HELPER 0x00000200 // GT_CALL -- call is a tail call dispatched via tail call JIT helper. Only used on x86.
 
 #if FEATURE_TAILCALL_OPT
 #define GTF_CALL_M_IMPLICIT_TAILCALL     0x00000400 // GT_CALL -- call is an opportunistic
@@ -3842,10 +3843,26 @@ struct GenTreeCall final : public GenTree
         return IsTailPrefixedCall() || IsImplicitTailCall();
     }
 
+    // Check whether this is a tailcall dispatched via JIT helper. We only use
+    // this mechanism on x86 as it is faster than our other more general
+    // tailcall mechanism.
+    bool IsTailCallViaJitHelper() const
+    {
+#ifdef _TARGET_X86_
+        return IsTailCall() && (gtCallMoreFlags & GTF_CALL_M_TAILCALL_VIA_JIT_HELPER);
+#else
+        return false;
+#endif
+    }
+
 #if FEATURE_FASTTAILCALL
     bool IsFastTailCall() const
     {
+#ifdef _TARGET_X86_
+        return IsTailCall() && !(gtCallMoreFlags & GTF_CALL_M_TAILCALL_VIA_JIT_HELPER);
+#else
         return IsTailCall();
+#endif
     }
 #else  // !FEATURE_FASTTAILCALL
     bool IsFastTailCall() const

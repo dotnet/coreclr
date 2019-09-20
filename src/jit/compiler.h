@@ -5426,9 +5426,11 @@ public:
 
 private:
     GenTree* fgMorphField(GenTree* tree, MorphAddrContext* mac);
-    bool fgCanFastTailCall(GenTreeCall* call, const char** failReason);
+    bool     fgCanFastTailCall(GenTreeCall* call, const char** failReason);
     bool     fgCheckStmtAfterTailCall();
-    GenTree* fgMorphTailCallViaHelper(GenTreeCall* call, CORINFO_TAILCALL_HELP& help);
+    GenTree* fgMorphTailCallViaHelp(GenTreeCall* call, CORINFO_TAILCALL_HELP& help);
+    bool     fgCanTailCallViaJitHelper();
+    void     fgMorphTailCallViaJitHelper(GenTreeCall* call);
     GenTree* fgCreateCallDispatcherAndGetResult(GenTreeCall*          origCall,
                                                 CORINFO_METHOD_HANDLE callTargetStubHnd,
                                                 CORINFO_METHOD_HANDLE dispatcherHnd);
