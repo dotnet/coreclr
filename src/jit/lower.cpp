@@ -2231,7 +2231,6 @@ GenTree* Lowering::LowerTailCallViaJitHelper(GenTreeCall* call, GenTree* callTar
     return result;
 }
 
-
 #ifndef _TARGET_64BIT_
 //------------------------------------------------------------------------
 // Lowering::DecomposeLongCompare: Decomposes a TYP_LONG compare node.
@@ -3032,7 +3031,7 @@ GenTree* Lowering::LowerDelegateInvoke(GenTreeCall* call)
     GenTree* thisArgNode;
     if (call->IsTailCallViaJitHelper())
     {
-        const unsigned argNum = 0;
+        const unsigned argNum          = 0;
         fgArgTabEntry* thisArgTabEntry = comp->gtArgEntryByArgNum(call, argNum);
         thisArgNode                    = thisArgTabEntry->node;
     }

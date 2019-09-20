@@ -7389,7 +7389,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     bool        canFastTailCall = fgCanFastTailCall(call, &failReason);
 
     CORINFO_TAILCALL_HELP tailCallHelp;
-    bool tailCallViaJitHelper = false; 
+    bool                  tailCallViaJitHelper = false;
     if (!canFastTailCall)
     {
         if (call->IsImplicitTailCall())
@@ -7409,7 +7409,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         // We do not currently handle non-standard args except for VSD stubs.
         if (!call->IsVirtualStub() && call->HasNonStandardAddedArgs(this))
         {
-            failTailCall("Method with non-standard args passed in callee trash register cannot be tail called via helper");
+            failTailCall(
+                "Method with non-standard args passed in callee trash register cannot be tail called via helper");
             return nullptr;
         }
 
@@ -7432,7 +7433,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             }
 
             if (!info.compCompHnd->getTailCallHelp(targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELP_FLAGS)flags,
-                                                &tailCallHelp))
+                                                   &tailCallHelp))
             {
                 failTailCall("Tail call help not available");
                 return nullptr;
@@ -15913,7 +15914,8 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             //   - a tail call dispatched via runtime help (IL stubs), in which
             //   case there will not be any tailcall and the block will be ending
             //   with BBJ_RETURN (as normal control flow)
-            noway_assert((call->IsFastTailCall() && (compCurBB->bbJumpKind == BBJ_RETURN) && (compCurBB->bbFlags & BBF_HAS_JMP)) ||
+            noway_assert((call->IsFastTailCall() && (compCurBB->bbJumpKind == BBJ_RETURN) &&
+                          (compCurBB->bbFlags & BBF_HAS_JMP)) ||
                          (call->IsTailCallViaJitHelper() && (compCurBB->bbJumpKind == BBJ_THROW)) ||
                          (!call->IsTailCall() && (compCurBB->bbJumpKind == BBJ_RETURN)));
         }

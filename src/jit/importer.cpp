@@ -7863,8 +7863,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
 #ifdef UNIX_X86_ABI
     if (call->gtCall.callInfo == nullptr)
     {
-        call->gtCall.callInfo  = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
-        *call->gtCall.callInfo = *callInfo;
+        call->gtCall.callInfo      = new (this, CMK_CorCallInfo) CORINFO_CALL_INFO;
+        *call->gtCall.callInfo     = *callInfo;
         call->gtCall.callInfo->sig = *sig;
     }
 #endif // UNIX_X86_ABI

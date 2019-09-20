@@ -5344,7 +5344,6 @@ void CodeGen::genCallInstruction(GenTreeCall* call)
         }
     }
 
-
     // Consume all the arg regs
     for (GenTreeCall::Use& use : call->LateArgs())
     {
