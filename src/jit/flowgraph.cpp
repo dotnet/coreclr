@@ -3968,7 +3968,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             Statement* stmt = top->firstStmt();
             while (stmt->gtNext)
             {
-                stmt = stmt->gtNextStmt;
+                stmt = stmt->getNextStmt();
             }
             fgRemoveStmt(top, stmt);
             fgInsertStmtAtEnd(bottom, stmt);
@@ -9438,7 +9438,7 @@ BasicBlock* Compiler::fgSplitBlockAfterStatement(BasicBlock* curr, Statement* st
 
     if (stmt != nullptr)
     {
-        newBlock->bbStmtList = stmt->gtNextStmt;
+        newBlock->bbStmtList = stmt->getNextStmt();
         if (newBlock->bbStmtList != nullptr)
         {
             newBlock->bbStmtList->gtPrev = curr->bbStmtList->gtPrev;
@@ -10044,7 +10044,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         }
         else
         {
-            block->bbStmtList         = firstStmt->gtNextStmt;
+            block->bbStmtList         = firstStmt->getNextStmt();
             block->bbStmtList->gtPrev = firstStmt->gtPrev;
         }
     }
@@ -23012,7 +23012,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
     // Split statements between topBlock and bottomBlock.
     // First figure out bottomBlock_Begin
     Statement* bottomBlock_Begin;
-    bottomBlock_Begin = stmtAfter->gtNextStmt;
+    bottomBlock_Begin = stmtAfter->getNextStmt();
 
     if (topBlock->bbStmtList == nullptr)
     {
@@ -23245,7 +23245,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     BasicBlock*  block        = inlineInfo->iciBlock;
     Statement*   callStmt     = inlineInfo->iciStmt;
     IL_OFFSETX   callILOffset = callStmt->gtStmtILoffsx;
-    Statement*   postStmt     = callStmt->gtNextStmt;
+    Statement*   postStmt     = callStmt->getNextStmt();
     Statement*   afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
     Statement*   newStmt      = nullptr;
     GenTreeCall* call         = inlineInfo->iciCall->AsCall();
@@ -23601,7 +23601,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     // Update any newly added statements with the appropriate context.
     InlineContext* context = callStmt->gtInlineContext;
     assert(context != nullptr);
-    for (Statement* addedStmt = callStmt->gtNextStmt; addedStmt != postStmt; addedStmt = addedStmt->gtNextStmt)
+    for (Statement* addedStmt = callStmt->getNextStmt(); addedStmt != postStmt; addedStmt = addedStmt->getNextStmt())
     {
         assert(addedStmt->gtInlineContext == nullptr);
         addedStmt->gtInlineContext = context;

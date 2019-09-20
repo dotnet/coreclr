@@ -5149,8 +5149,6 @@ private:
 #endif
 
 public:
-    __declspec(property(get = getNextStmt)) Statement* gtNextStmt;
-
     __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
 
     Statement* gtNext;
