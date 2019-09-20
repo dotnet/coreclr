@@ -365,10 +365,6 @@ namespace System.Globalization
                             *matchLengthPtr = target.Length;
                         return i;
                     }
-
-                    // The match can be affected by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
-                    if (*(a + sourceIndex) >= 0x80)
-                        goto InteropCall;
                 }
 
                 return -1;
@@ -444,10 +440,6 @@ namespace System.Globalization
                             *matchLengthPtr = target.Length;
                         return i;
                     }
-
-                    // The match can be affected by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
-                    if (*(a + sourceIndex) >= 0x80)
-                        goto InteropCall;
                 }
 
                 return -1;
@@ -571,7 +563,7 @@ namespace System.Globalization
                     length--;
                 }
 
-                // The match can be affected by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
+                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
 
                 if (source.Length < prefix.Length)
                 {
@@ -624,7 +616,7 @@ namespace System.Globalization
                     length--;
                 }
 
-                // The match can be affected by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
+                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
 
                 if (source.Length < prefix.Length)
                 {
@@ -713,7 +705,7 @@ namespace System.Globalization
                     length--;
                 }
 
-                // The match can be affected by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
+                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
 
                 if (source.Length < suffix.Length)
                 {
@@ -766,7 +758,7 @@ namespace System.Globalization
                     length--;
                 }
 
-                // The match can be affected by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
+                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
 
                 if (source.Length < suffix.Length)
                 {
