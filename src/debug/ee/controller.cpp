@@ -5670,7 +5670,7 @@ bool DebuggerStepper::TrapStepInHelper(
 
 static bool IsTailCallJitHelper(const BYTE * ip)
 {
-    return TailCallStubManager::IsTailCallJitHelper(ip);
+    return TailCallStubManager::IsTailCallJitHelper(reinterpret_cast<PCODE>(ip));
 }
 
 // Check whether a call to an IP will be a tailcall dispatched by first
