@@ -6107,6 +6107,77 @@ void* MethodContext::repGetTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfo
     return result;
 }
 
+void MethodContext::recGetTailCallHelp(
+    CORINFO_METHOD_HANDLE hTarget,
+    CORINFO_SIG_INFO* callSiteSig,
+    CORINFO_GET_TAILCALL_HELP_FLAGS flags,
+    CORINFO_TAILCALL_HELP* pResult)
+{
+    if (GetTailCallHelp == nullptr)
+        GetTailCallHelp = new LightWeightMap<Agnostic_GetTailCallHelp, Agnostic_CORINFO_TAILCALL_HELP>();
+
+    Agnostic_GetTailCallHelp key;
+    ZeroMemory(&key, sizeof(Agnostic_GetTailCallHelp));
+
+    key.hTarget = (DWORDLONG)hTarget;
+    key.callSiteSig = SpmiRecordsHelper::StoreAgnostic_CORINFO_SIG_INFO(*callSiteSig, GetTailCallHelp);
+    key.flags = (DWORD)flags;
+
+    Agnostic_CORINFO_TAILCALL_HELP value;
+    ZeroMemory(&value, sizeof(Agnostic_CORINFO_TAILCALL_HELP));
+
+    value.result = pResult != nullptr;
+    if (pResult != nullptr)
+    {
+        value.flags = (DWORD)pResult->flags;
+        value.hStoreArgs = (DWORDLONG)pResult->hStoreArgs;
+        value.hCallTarget = (DWORDLONG)pResult->hCallTarget;
+        value.hDispatcher = (DWORDLONG)pResult->hDispatcher;
+    }
+    GetTailCallHelp->Add(key, value);
+    DEBUG_REC(dmpGetTailCallHelp(key, value));
+}
+void MethodContext::dmpGetTailCallHelp(const Agnostic_GetTailCallHelp& key, const Agnostic_CORINFO_TAILCALL_HELP& value)
+{
+    printf("GetTailCallHelp key hTarget-%016llX sig%s flg-%08X",
+        key.hTarget,
+        SpmiDumpHelper::DumpAgnostic_CORINFO_SIG_INFO(key.callSiteSig).c_str(),
+        key.flags);
+    printf(", value result-%s flg-%08X hStoreArgs-%016llX hCallTarget-%016llX hDispatcher-%016llX",
+        value.result ? "true" : "false",
+        value.flags,
+        value.hStoreArgs,
+        value.hCallTarget,
+        value.hDispatcher);
+}
+bool MethodContext::repGetTailCallHelp(
+    CORINFO_METHOD_HANDLE hTarget,
+    CORINFO_SIG_INFO* callSiteSig,
+    CORINFO_GET_TAILCALL_HELP_FLAGS flags,
+    CORINFO_TAILCALL_HELP* pResult)
+{
+    AssertCodeMsg(GetTailCallHelp != nullptr, EXCEPTIONCODE_MC, "Didn't find anything for ...");
+
+    Agnostic_GetTailCallHelp key;
+    ZeroMemory(&key, sizeof(Agnostic_GetTailCallHelp));
+    key.hTarget = (DWORDLONG)hTarget;
+    key.callSiteSig = SpmiRecordsHelper::RestoreAgnostic_CORINFO_SIG_INFO(*callSiteSig, GetTailCallHelp);
+    key.flags = (DWORD)flags;
+
+    AssertCodeMsg(GetTailCallHelp->GetIndex(key) != -1, EXCEPTIONCODE_MC, "Didn't find %016llX",
+                  (DWORDLONG)hTarget);
+    Agnostic_CORINFO_TAILCALL_HELP value = GetTailCallHelp->Get(key);
+    if (!value.result)
+        return false;
+
+    pResult->flags = (CORINFO_TAILCALL_HELP_FLAGS)value.flags;
+    pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)value.hStoreArgs;
+    pResult->hCallTarget = (CORINFO_METHOD_HANDLE)value.hCallTarget;
+    pResult->hDispatcher = (CORINFO_METHOD_HANDLE)value.hDispatcher;
+    DEBUG_REP(dmpGetTailCallHelp(key, value));
+    return true;
+}
+
 void MethodContext::recGetMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod, mdMethodDef result)
 {
     if (GetMethodDefFromMethod == nullptr)

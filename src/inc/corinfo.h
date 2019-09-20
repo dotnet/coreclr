@@ -3274,8 +3274,7 @@ public:
         CORINFO_GET_TAILCALL_HELP_FLAGS flags,
 
         // The resulting help.
-        CORINFO_TAILCALL_HELP* pResult)
-    { return false; }
+        CORINFO_TAILCALL_HELP* pResult) = 0;
 
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
     virtual bool convertPInvokeCalliToCall(

@@ -1617,6 +1617,16 @@ void* MyICJI::getTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfoHelperTail
     return jitInstance->mc->repGetTailCallCopyArgsThunk(pSig, flags);
 }
 
+bool MyICJI::getTailCallHelp(
+        CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_SIG_INFO* callSiteSig,
+        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
+        CORINFO_TAILCALL_HELP* pResult)
+{
+    jitInstance->mc->cr->AddCall("getTailCallHelp");
+    return jitInstance->mc->repGetTailCallHelp(hTarget, callSiteSig, flags, pResult);
+}
+
 bool MyICJI::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN* pResolvedToken, bool fMustConvert)
 {
     jitInstance->mc->cr->AddCall("convertPInvokeCalliToCall");

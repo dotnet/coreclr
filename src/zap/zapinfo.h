@@ -360,6 +360,12 @@ public:
                       CORINFO_SIG_INFO       *pSig,
                       CorInfoHelperTailCallSpecialHandling flags);
 
+    virtual bool getTailCallHelp(
+        CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_SIG_INFO* callSiteSig,
+        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
+        CORINFO_TAILCALL_HELP* pResult);
+
     bool convertPInvokeCalliToCall(
                       CORINFO_RESOLVED_TOKEN * pResolvedToken,
                       bool fMustConvert);

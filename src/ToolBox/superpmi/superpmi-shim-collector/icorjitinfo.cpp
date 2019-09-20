@@ -1947,6 +1947,21 @@ void* interceptor_ICJI::getTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfo
     return result;
 }
 
+bool interceptor_ICJI::getTailCallHelp(
+        CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_SIG_INFO* callSiteSig,
+        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
+        CORINFO_TAILCALL_HELP* pResult)
+{
+    mc->cr->AddCall("getTailCallHelp");
+    bool result = original_ICorJitInfo->getTailCallHelp(hTarget, callSiteSig, flags, pResult);
+    if (result)
+        mc->recGetTailCallHelp(hTarget, callSiteSig, flags, pResult);
+    else
+        mc->recGetTailCallHelp(hTarget, callSiteSig, flags, nullptr);
+    return result;
+}
+
 // Stuff directly on ICorJitInfo
 
 // Returns extended flags for a particular compilation instance.
