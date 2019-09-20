@@ -154,9 +154,6 @@
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinhandler/*">
             <Issue>times out</Issue>
         </ExcludeList>
-        <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/Tailcall/TailcallVerifyWithPrefix/*">
-            <Issue>arm32 does not support implicit tailcalls</Issue>
-        </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/tracing/tracevalidation/inducedgc/inducedgc/*">
             <Issue>times out</Issue>
         </ExcludeList>
@@ -183,6 +180,9 @@
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/jit64/eh/FinallyExec/nonlocalexitinroot/*">
             <Issue>times out</Issue>
+        </ExcludeList>
+        <ExcludeList Include="$(XunitTestBinBase)/JIT/opt/Tailcall/TailcallVerifyWithPrefix/*">
+            <Issue>arm32 does not support implicit tailcalls</Issue>
         </ExcludeList>
         <ExcludeList Include="$(XunitTestBinBase)/JIT/Directed/arglist/vararg/*">
             <Issue>Needs triage</Issue>
