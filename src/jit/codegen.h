@@ -419,7 +419,7 @@ protected:
 
 #ifdef PROFILING_SUPPORTED
     void genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed);
-    void genProfilingLeaveCallback(unsigned helper = CORINFO_HELP_PROF_FCN_LEAVE);
+    void genProfilingLeaveCallback(unsigned helper);
 #endif // PROFILING_SUPPORTED
 
     void genPrologPadForReJit();

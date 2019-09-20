@@ -379,8 +379,7 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     // Save the stack usage information
     // We can get register usage information using codeGen->intRegState and
     // codeGen->floatRegState
-    info.compArgStackSize     = varDscInfo->stackArgSize;
-    info.compHasMultiSlotArgs = varDscInfo->hasMultiSlotStruct;
+    info.compArgStackSize = varDscInfo->stackArgSize;
 #endif // FEATURE_FASTTAILCALL
 
     // The total argument size must be aligned.
@@ -853,8 +852,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
-                    varDscInfo->hasMultiSlotStruct = true;
+                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
                 }
             }
 #elif defined(UNIX_AMD64_ABI)
@@ -865,9 +863,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
                 if (structDesc.eightByteCount >= 2)
                 {
-                    secondEightByteType            = GetEightByteType(structDesc, 1);
-                    secondAllocatedRegArgNum       = varDscInfo->allocRegArg(secondEightByteType, 1);
-                    varDscInfo->hasMultiSlotStruct = true;
+                    secondEightByteType      = GetEightByteType(structDesc, 1);
+                    secondAllocatedRegArgNum = varDscInfo->allocRegArg(secondEightByteType, 1);
                 }
 
                 if (secondEightByteType != TYP_UNDEF)
@@ -1007,11 +1004,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif // _TARGET_XXX_
 
 #if FEATURE_FASTTAILCALL
-            if (cSlots > 1)
-            {
-                varDscInfo->hasMultiSlotStruct = true;
-            }
-
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += roundUp(argSize, TARGET_POINTER_SIZE);
 #endif // FEATURE_FASTTAILCALL
         }
@@ -1105,6 +1098,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
             // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
@@ -1174,6 +1168,7 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
             // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
