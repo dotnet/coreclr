@@ -6800,7 +6800,7 @@ void Compiler::optHoistLoopBlocks(unsigned loopNum, ArrayStack<BasicBlock*>* blo
             if (m_compiler->vnStore->IsVNConstant(vn))
             {
                 // It is unsafe to allow a GT_CLS_VAR that has been assigned a constant.
-                // The logic in optVNIsLoopInvariant woudl consider it to be loop-invariant, even
+                // The logic in optVNIsLoopInvariant would consider it to be loop-invariant, even
                 // if the assignment of the constant to the GT_CLS_VAR was inside the loop.
                 //
                 if (tree->OperIs(GT_CLS_VAR))
