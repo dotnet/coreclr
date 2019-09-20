@@ -716,7 +716,10 @@ bool EventPipe::WalkManagedStackForThread(Thread *pThread, StackContents &stackC
 
     stackContents.Reset();
 
-    bool gcOnTransitions = GC_ON_TRANSITIONS(FALSE);                // dont do GC for GCStress 3
+    // Before we call into StackWalkFrames we need to mark GC_ON_TRANSITIONS as FALSE
+    // because under GCStress runs (GCStress=0x3), a GC will be triggered for every transition,
+    // which will cause the GC to try to walk the stack while we are in the middle of walking the stack.
+    bool gcOnTransitions = GC_ON_TRANSITIONS(FALSE);
 
     StackWalkAction swaRet = pThread->StackWalkFrames(
         (PSTACKWALKFRAMESCALLBACK)&StackWalkCallback,
