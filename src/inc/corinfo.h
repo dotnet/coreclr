@@ -218,7 +218,7 @@ TODO: Talk about initializing strutures before use
 #endif
 
 
-SELECTANY const GUID JITEEVersionIdentifier = { /* 108808E4-71B3-4573-8371-323323C4FB80 */
+SELECTANY const GUID JITEEVersionIdentifier = { /* 108808e4-71b3-4573-8371-323323c4fb80 */
     0x108808e4,
     0x71b3,
     0x4573,

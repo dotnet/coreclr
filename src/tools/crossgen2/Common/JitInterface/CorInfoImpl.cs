@@ -2689,6 +2689,13 @@ namespace Internal.JitInterface
             return null;
         }
 
+        private bool getTailCallHelp(CORINFO_METHOD_STRUCT_* hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELP_FLAGS fLAGS, ref CORINFO_TAILCALL_HELP pResult)
+        {
+            // Slow tailcalls are not supported yet
+            // https://github.com/dotnet/corert/issues/1683
+            return false;
+        }
+
         private void* getMemoryManager()
         {
             // This method is completely handled by the C++ wrapper to the JIT-EE interface,
