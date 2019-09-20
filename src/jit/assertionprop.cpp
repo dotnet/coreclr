@@ -2108,6 +2108,13 @@ void Compiler::optAssertionGen(GenTree* tree)
             {
                 //  Retrieve the 'this' arg
                 GenTree* thisArg = gtGetThisArg(tree->AsCall());
+                if (thisArg == nullptr)
+                {
+                    // For tail calls we lose the this pointer in the argument list but that's OK because a null check
+                    // was made explicit, so we get the assertion when we walk the GT_IND in the argument list.
+                    noway_assert(tree->gtCall.IsTailCall());
+                    break;
+                }
                 noway_assert(thisArg != nullptr);
                 assertionInfo = optCreateAssertion(thisArg, nullptr, OAK_NOT_EQUAL);
             }

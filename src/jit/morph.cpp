@@ -7406,6 +7406,13 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(call->IsTailPrefixedCall());
         assert(call->callInfo != nullptr);
 
+        // We do not currently handle non-standard args except for VSD stubs.
+        if (!call->IsVirtualStub() && call->HasNonStandardAddedArgs(this))
+        {
+            failTailCall("Method with non-standard args passed in callee trash register cannot be tail called via helper");
+            return nullptr;
+        }
+
         // On x86 we have a faster mechanism than the general one which we use
         // in almost all cases.
         if (fgCanTailCallViaJitHelper())
@@ -7475,6 +7482,11 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     compTailCallUsed = true;
     // This will prevent inlining this call.
     call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL;
+    if (tailCallViaJitHelper)
+    {
+        call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_VIA_JIT_HELPER;
+    }
+
 #if FEATURE_TAILCALL_OPT
     if (fastTailCallToLoop)
     {
@@ -7489,11 +7501,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
 #if FEATURE_TAILCALL_OPT
     call->gtCallMoreFlags &= ~GTF_CALL_M_IMPLICIT_TAILCALL;
 #endif
-
-    if (tailCallViaJitHelper)
-    {
-        call->gtCallMoreFlags |= GTF_CALL_M_TAILCALL_VIA_JIT_HELPER;
-    }
 
 #ifdef DEBUG
     if (verbose)
@@ -15874,12 +15881,27 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
         // Has fgMorphStmt been sneakily changed ?
 
-        if (stmt->gtStmtExpr != tree)
+        if (stmt->gtStmtExpr != tree || block != compCurBB)
         {
-            /* This must be tailcall. Ignore 'morph' and carry on with
-               the tail-call node */
+            if (stmt->gtStmtExpr != tree)
+            {
+                /* This must be tailcall. Ignore 'morph' and carry on with
+                the tail-call node */
 
-            morph = stmt->gtStmtExpr;
+                morph = stmt->gtStmtExpr;
+            }
+            else
+            {
+                /* This must be a tailcall that caused a GCPoll to get
+                injected. We haven't actually morphed the call yet
+                but the flag still got set, clear it here...  */
+                CLANG_FORMAT_COMMENT_ANCHOR;
+
+#ifdef DEBUG
+                morph->gtDebugFlags &= ~GTF_DEBUG_NODE_MORPHED;
+#endif
+            }
+
             noway_assert(compTailCallUsed);
             noway_assert(morph->gtOper == GT_CALL);
             GenTreeCall* call = morph->AsCall();
