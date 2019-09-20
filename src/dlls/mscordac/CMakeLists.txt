@@ -1,4 +1,3 @@
-include(${CLR_DIR}/dac.cmake)
 add_definitions(-DFEATURE_NO_HOST)
 
 set(CLR_DAC_SOURCES
@@ -102,6 +101,8 @@ endif(CLR_CMAKE_PLATFORM_DARWIN)
 _add_library(mscordacobj OBJECT mscordac.cpp)
 
 add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
+
+set_target_properties(mscordacobj mscordaccore PROPERTIES DAC_COMPONENT TRU)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
     add_dependencies(mscordaccore lib_redefines_inc)

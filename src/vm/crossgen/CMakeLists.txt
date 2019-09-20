@@ -1,5 +1,3 @@
-include(${CLR_DIR}/crossgen.cmake)
-
 set(VM_CROSSGEN_SOURCES
   ../appdomain.cpp
   ../array.cpp
@@ -266,3 +264,4 @@ endif (CLR_CMAKE_PLATFORM_LINUX)
 
 add_library_clr(cee_crossgen ${VM_CROSSGEN_SOURCES})
 add_dependencies(cee_crossgen eventing_headers)
+set_target_properties(cee_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)

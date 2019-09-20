@@ -1,5 +1,3 @@
-include(${CLR_DIR}/crossgen.cmake)
-
 set(ZAP_SOURCES
     ../svcworker.cpp
     ../zapper.cpp
@@ -52,6 +50,7 @@ if (WIN32)
 endif(WIN32)
 
 add_library_clr(corzap_crossgen STATIC ${ZAP_SOURCES})
+set_target_properties(corzap_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
 
 if(FEATURE_MERGE_JIT_AND_ENGINE)
   target_link_libraries(corzap_crossgen clrjit_crossgen)

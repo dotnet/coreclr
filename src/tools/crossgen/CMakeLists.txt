@@ -1,7 +1,5 @@
 project(crossgen)
 
-include(${CLR_DIR}/crossgen.cmake)
-
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 include_directories(../util)
 include_directories(../../pal/prebuilt/corerror)
@@ -23,6 +21,7 @@ add_executable_clr(crossgen
   ${crossgen_SOURCES}
   ${crossgen_RESOURCES}
 )
+set_target_properties(crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
 
 if(FEATURE_MERGE_JIT_AND_ENGINE)
     set(CLRJIT_CROSSGEN clrjit_crossgen)

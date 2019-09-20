@@ -1,4 +1,3 @@
-include(${CLR_DIR}/crossgen.cmake)
 include(../../md_wks.cmake)
 
 add_precompiled_header(external.h ../external.cpp MDHOTDATA_SOURCES)
@@ -8,3 +7,4 @@ if (WIN32)
 endif (WIN32)
 
 add_library_clr(mdhotdata_crossgen ${MDHOTDATA_SOURCES})
+set_target_properties(mdhotdata_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)

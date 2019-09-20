@@ -14,6 +14,11 @@ function(get_compile_definitions DefinitionName)
     get_directory_property(COMPILE_DEFINITIONS_LIST COMPILE_DEFINITIONS)
 
     foreach(DEFINITION IN LISTS COMPILE_DEFINITIONS_LIST)
+        # If there is a definition that uses the $<TARGET_PROPERTY:prop> generator expression
+        # we need to remove it since that generator expression is only valid on binary targets.
+        # Assume that the value is OFF.
+        string(REGEX REPLACE "\\$<TARGET_PROPERTY:[^,>]+>" "OFF" DEFINITION "${DEFINITION}")
+
         if (${DEFINITION} MATCHES "^\\$<(.+):([^>]+)>?$")
             # The entries that contain generator expressions must have the -D inside of the
             # expression. So we transform e.g. $<$<CONFIG:Debug>:_DEBUG> to $<$<CONFIG:Debug>:-D_DEBUG>
