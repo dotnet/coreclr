@@ -173,7 +173,6 @@ $cmake_command \
   "-DCMAKE_OBJDUMP=$gcc_objdump" \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
-  "-DCLR_CMAKE_COMPILER=GNU" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   "-DCMAKE_INSTALL_PREFIX=$__CMakeBinDir" \
   $cmake_extra_defines \

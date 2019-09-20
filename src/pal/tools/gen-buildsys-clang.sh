@@ -168,7 +168,6 @@ $cmake_command \
   "-DCMAKE_BUILD_TYPE=$buildtype" \
   "-DCLR_CMAKE_ENABLE_CODE_COVERAGE=$code_coverage" \
   "-DCMAKE_INSTALL_PREFIX=$__CMakeBinDir" \
-  "-DCLR_CMAKE_COMPILER=Clang" \
   "-DCMAKE_USER_MAKE_RULES_OVERRIDE=" \
   $cmake_extra_defines \
   $__UnprocessedCMakeArgs \
