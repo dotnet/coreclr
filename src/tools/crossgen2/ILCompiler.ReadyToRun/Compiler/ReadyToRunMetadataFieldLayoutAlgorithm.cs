@@ -211,6 +211,59 @@ namespace ILCompiler
                     typeOffsets: typeOffsets);
             }
 
+            private void GetElementTypeInfoGeneric(
+                EcmaModule module,
+                FieldDesc fieldDesc,
+                EntityHandle valueTypeHandle,
+                bool moduleLayout,
+                ref int alignment,
+                ref int size,
+                ref bool isGcPointerField,
+                ref bool isGcBoxedField)
+            {
+                TypeDesc fieldType = fieldDesc.FieldType;
+
+                if (fieldType.IsPrimitive)
+                {
+                    size = fieldType.GetElementSize().AsInt;
+                    alignment = size;
+                }
+                else if (fieldType.IsValueType)
+                {
+                    if (IsTypeByRefLike(valueTypeHandle, module.MetadataReader))
+                    {
+                        ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadGeneral, fieldDesc.OwningType);
+                    }
+                    if (moduleLayout && fieldType.GetTypeDefinition() is EcmaType ecmaType && ecmaType.EcmaModule != module)
+                    {
+                        // Allocate pessimistic non-GC area for cross-module fields as that's what CoreCLR does
+                        // <a href="https://github.com/dotnet/coreclr/blob/659af58047a949ed50d11101708538d2e87f2568/src/vm/ceeload.cpp#L2124">here</a>
+                        alignment = TargetDetails.MaximumPrimitiveSize;
+                        size = TargetDetails.MaximumPrimitiveSize;
+                        isGcBoxedField = true;
+                    }
+                    else if (fieldType.IsEnum)
+                    {
+                        size = fieldType.UnderlyingType.GetElementSize().AsInt;
+                        alignment = size;
+                        isGcBoxedField = false;
+                    }
+                    else
+                    {
+                        // All struct statics are boxed in CoreCLR
+                        isGcBoxedField = true;
+                    }
+                }
+                else if (fieldType.IsByRef || fieldType.IsByRefLike || fieldType.IsByReferenceOfT)
+                {
+                    ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadGeneral, fieldDesc.OwningType);
+                }
+                else
+                {
+                    isGcPointerField = true;
+                }
+            }
+
             private void GetElementTypeInfo(
                 EcmaModule module, 
                 FieldDesc fieldDesc,
@@ -266,6 +319,9 @@ namespace ILCompiler
                         break;
 
                     case CorElementType.ELEMENT_TYPE_VAR:
+                        GetElementTypeInfoGeneric(module, fieldDesc, valueTypeHandle, moduleLayout, ref alignment, ref size, ref isGcPointerField, ref isGcBoxedField);
+                        break;
+
                     case CorElementType.ELEMENT_TYPE_MVAR:
                     case CorElementType.ELEMENT_TYPE_STRING:
                     case CorElementType.ELEMENT_TYPE_SZARRAY:
