@@ -775,7 +775,7 @@ namespace System.Globalization
                 return true;
 
             InteropCall:
-                return Interop.Globalization.EndsWith(_sortHandle, b - length + 1, length, a - length + 1, length, options);
+                return Interop.Globalization.EndsWith(_sortHandle, bp, suffix.Length, ap, source.Length, options);
             }
         }
 
