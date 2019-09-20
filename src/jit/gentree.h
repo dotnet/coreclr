@@ -5156,7 +5156,7 @@ public:
 
     bool compilerAdded;
 
-    Statement* getNextStmt()
+    Statement* GetNextStmt()
     {
         if (gtNext == nullptr)
         {
