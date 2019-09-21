@@ -675,8 +675,8 @@ namespace System.Globalization
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(suffix))
             {
-                char* a = ap + source.Length - length - 1;
-                char* b = bp + suffix.Length - length - 1;
+                char* a = ap + source.Length - length;
+                char* b = bp + suffix.Length - length;
 
                 while (length != 0)
                 {
@@ -739,8 +739,8 @@ namespace System.Globalization
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(suffix))
             {
-                char* a = ap + source.Length - length - 1;
-                char* b = bp + suffix.Length - length - 1;
+                char* a = ap + source.Length - length;
+                char* b = bp + suffix.Length - length;
 
                 while (length != 0)
                 {
