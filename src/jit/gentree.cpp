@@ -1053,9 +1053,8 @@ void GenTreeCall::ReplaceCallOperand(GenTree** useEdge, GenTree* replacement)
         {
             assert((replacement->gtFlags & GTF_LATE_ARG) == 0);
 
-            fgArgTabEntry* fp = Compiler::gtArgEntryByNode(this, originalOperand);
-            assert(fp->node == originalOperand);
-            fp->node = replacement;
+            fgArgTabEntry* fp = Compiler::gtArgEntryByNode(this, replacement);
+            assert(fp->GetNode() == replacement);
         }
     }
 }
@@ -6215,7 +6214,7 @@ fgArgTabEntry* Compiler::gtArgEntryByNode(GenTreeCall* call, GenTree* node)
     {
         curArgTabEntry = argTable[i];
 
-        if (curArgTabEntry->node == node)
+        if (curArgTabEntry->GetNode() == node)
         {
             return curArgTabEntry;
         }
@@ -8056,7 +8055,7 @@ GenTree* Compiler::gtGetThisArg(GenTreeCall* call)
     {
         unsigned       argNum          = 0;
         fgArgTabEntry* thisArgTabEntry = gtArgEntryByArgNum(call, argNum);
-        GenTree*       result          = thisArgTabEntry->node;
+        GenTree*       result          = thisArgTabEntry->GetNode();
 
         // Assert if we used DEBUG_DESTROY_NODE.
         assert(result->gtOper != GT_COUNT);
