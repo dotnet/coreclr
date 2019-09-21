@@ -169,7 +169,7 @@ namespace ReadyToRun.SuperIlc
                     foreach (CompilerRunner runner in _compilerRunners)
                     {
                         ProcessInfo runnerProcess = compilation[(int)runner.Index];
-                        if (runnerProcess == null)
+                        if (runnerProcess == null || runnerProcess.IsEmpty)
                         {
                             // No runner process
                         }
@@ -1195,7 +1195,7 @@ namespace ReadyToRun.SuperIlc
                             foreach (CompilerRunner runner in _compilerRunners)
                             {
                                 ProcessInfo compilationProcess = compilation[(int)runner.Index];
-                                if (compilationProcess != null)
+                                if (compilationProcess != null && !compilationProcess.IsEmpty)
                                 {
                                     string log = $"\nCOMPILE {runner.CompilerName}:{compilationProcess.Parameters.InputFileName}";
                                     StreamWriter runnerLog = perRunnerLog[(int)runner.Index];
