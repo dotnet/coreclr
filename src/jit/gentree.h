@@ -3407,11 +3407,11 @@ struct GenTreeCall final : public GenTree
         }
     };
 
-    GenTree* gtCallObjp;     // The instance argument ('this' pointer)
-    Use*     gtCallArgs;     // The list of arguments in original evaluation order
-    Use*     gtCallLateArgs; // On x86:     The register arguments in an optimal order
-                             // On ARM/x64: - also includes any outgoing arg space arguments
-                             //             - that were evaluated into a temp LclVar
+    Use* gtCallThisArg;  // The instance argument ('this' pointer)
+    Use* gtCallArgs;     // The list of arguments in original evaluation order
+    Use* gtCallLateArgs; // On x86:     The register arguments in an optimal order
+                         // On ARM/x64: - also includes any outgoing arg space arguments
+                         //             - that were evaluated into a temp LclVar
     fgArgInfo* fgArgInfo;
 
     UseList Args()

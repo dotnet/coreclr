@@ -1491,9 +1491,9 @@ GenTree* Lowering::LowerFloatArgReg(GenTree* arg, regNumber regNum)
 void Lowering::LowerArgsForCall(GenTreeCall* call)
 {
     JITDUMP("objp:\n======\n");
-    if (call->gtCallObjp)
+    if (call->gtCallThisArg != nullptr)
     {
-        LowerArg(call, &call->gtCallObjp);
+        LowerArg(call, &call->gtCallThisArg->NodeRef());
     }
 
     JITDUMP("\nargs:\n======\n");
@@ -5429,9 +5429,9 @@ void Lowering::CheckCallArg(GenTree* arg)
 //
 void Lowering::CheckCall(GenTreeCall* call)
 {
-    if (call->gtCallObjp != nullptr)
+    if (call->gtCallThisArg != nullptr)
     {
-        CheckCallArg(call->gtCallObjp);
+        CheckCallArg(call->gtCallThisArg->GetNode());
     }
 
     for (GenTreeCall::Use& use : call->Args())

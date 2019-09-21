@@ -10151,9 +10151,9 @@ public:
             {
                 GenTreeCall* const call = node->AsCall();
 
-                if (call->gtCallObjp != nullptr)
+                if (call->gtCallThisArg != nullptr)
                 {
-                    result = WalkTree(&call->gtCallObjp, call);
+                    result = WalkTree(&call->gtCallThisArg->NodeRef(), call);
                     if (result == fgWalkResult::WALK_ABORT)
                     {
                         return result;
