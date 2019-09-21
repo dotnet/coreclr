@@ -5,6 +5,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Intrinsics.X86;
+using Arm64Base = System.Runtime.Intrinsics.Arm.Arm64.Base;
 
 using Internal.Runtime.CompilerServices;
 
@@ -53,6 +54,10 @@ namespace System.Numerics
                 // LZCNT contract is 0->32
                 return (int)Lzcnt.LeadingZeroCount(value);
             }
+            else if (Arm64Base.IsSupported)
+            {
+                return Arm64Base.LeadingZeroCount(value);
+            }
 
             // Unguarded fallback contract is 0->31
             if (value == 0)
@@ -76,6 +81,10 @@ namespace System.Numerics
             {
                 // LZCNT contract is 0->64
                 return (int)Lzcnt.X64.LeadingZeroCount(value);
+            }
+            else if (Arm64Base.IsSupported)
+            {
+                return Arm64Base.LeadingZeroCount(value);
             }
 
             uint hi = (uint)(value >> 32);
