@@ -926,128 +926,66 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
     argTableSize = oldArgInfo->argTableSize;
     argsComplete = false;
     argTable     = nullptr;
-    if (argTableSize > 0)
-    {
-        argTable = new (compiler, CMK_fgArgInfoPtrArr) fgArgTabEntry*[argTableSize];
-        for (unsigned inx = 0; inx < argTableSize; inx++)
-        {
-            argTable[inx] = nullptr;
-        }
-    }
 
     assert(oldArgInfo->argsComplete);
 
-    GenTreeCall::Use* newArgs = newCall->gtCallArgs;
-    GenTreeCall::Use* oldArgs = oldCall->gtCallArgs;
-
-    if (newCall->gtCallThisArg != nullptr)
+    if (argTableSize > 0)
     {
-        // If we have a this arg make it appear as if it's
-        // a part of the args list to keep things simpler.
-        newCall->gtCallThisArg->SetNext(newArgs);
-        oldCall->gtCallThisArg->SetNext(oldArgs);
-        newArgs = newCall->gtCallThisArg;
-        oldArgs = oldCall->gtCallThisArg;
-    }
+        argTable = new (compiler, CMK_fgArgInfoPtrArr) fgArgTabEntry*[argTableSize];
 
-    GenTree*          newCurr;
-    GenTree*          oldCurr;
-    GenTreeCall::Use* newParent   = nullptr;
-    GenTreeCall::Use* oldParent   = nullptr;
-    fgArgTabEntry**   oldArgTable = oldArgInfo->argTable;
-    bool              scanRegArgs = false;
-
-    while (newArgs != nullptr)
-    {
-        /* Get hold of the next argument values for the oldCall and newCall */
-
-        newCurr   = newArgs->GetNode();
-        oldCurr   = oldArgs->GetNode();
-        newParent = newArgs;
-        oldParent = oldArgs;
-        newArgs   = newArgs->GetNext();
-        oldArgs   = oldArgs->GetNext();
-
-        fgArgTabEntry* oldArgTabEntry = nullptr;
-        fgArgTabEntry* newArgTabEntry = nullptr;
-
-        for (unsigned inx = 0; inx < argTableSize; inx++)
+        // Copy the old arg entries
+        for (unsigned i = 0; i < argTableSize; i++)
         {
-            oldArgTabEntry = oldArgTable[inx];
-
-            if (oldArgTabEntry->use == oldParent)
-            {
-                assert((oldParent == nullptr) == (newParent == nullptr));
-
-                // We have found the matching "parent" field in oldArgTabEntry
-
-                newArgTabEntry = new (compiler, CMK_fgArgInfo) fgArgTabEntry;
-
-                // First block copy all fields
-                //
-                *newArgTabEntry = *oldArgTabEntry;
-
-                // Then update all GenTree* fields in the newArgTabEntry
-                //
-                newArgTabEntry->use = newParent;
-
-                if (oldArgTabEntry->lateUse != nullptr)
-                {
-                    newArgTabEntry->lateUse = nullptr;
-                    scanRegArgs             = true;
-                }
-
-                // Now initialize the proper element in the argTable array
-                //
-                argTable[inx] = newArgTabEntry;
-                break;
-            }
+            argTable[i] = new (compiler, CMK_fgArgInfo) fgArgTabEntry(*oldArgInfo->argTable[i]);
         }
-        // We should have found the matching oldArgTabEntry and created the newArgTabEntry
-        //
-        assert(newArgTabEntry != nullptr);
-    }
 
-    if (scanRegArgs)
-    {
-        newArgs = newCall->gtCallLateArgs;
-        oldArgs = oldCall->gtCallLateArgs;
-
-        while (newArgs != nullptr)
+        // The copied arg entries contain pointers to old uses, they need
+        // to be updated to point to new uses.
+        if (newCall->gtCallThisArg != nullptr)
         {
-            /* Get hold of the next argument values for the oldCall and newCall */
-
-            newParent = newArgs;
-            newArgs   = newArgs->GetNext();
-
-            oldParent = oldArgs;
-            oldArgs   = oldArgs->GetNext();
-
-            fgArgTabEntry* oldArgTabEntry = nullptr;
-            fgArgTabEntry* newArgTabEntry = nullptr;
-
-            for (unsigned inx = 0; inx < argTableSize; inx++)
+            for (unsigned i = 0; i < argTableSize; i++)
             {
-                oldArgTabEntry = oldArgTable[inx];
-
-                if (oldArgTabEntry->lateUse == oldParent)
+                if (argTable[i]->use == oldCall->gtCallThisArg)
                 {
-                    newArgTabEntry = argTable[inx];
-                    assert(newArgTabEntry != nullptr);
-                    assert(newArgTabEntry->lateUse == nullptr);
-                    newArgTabEntry->lateUse = newParent;
+                    argTable[i]->use = newCall->gtCallThisArg;
                     break;
                 }
             }
         }
-    }
 
-    // Reset gtCallThisArg's next pointer to avoid confusion. Ideally the this
-    // arg would be part of the normal call arg list to avoid this acrobatics.
-    if (newCall->gtCallThisArg != nullptr)
-    {
-        newCall->gtCallThisArg->SetNext(nullptr);
-        oldCall->gtCallThisArg->SetNext(nullptr);
+        GenTreeCall::UseIterator newUse    = newCall->Args().begin();
+        GenTreeCall::UseIterator newUseEnd = newCall->Args().end();
+        GenTreeCall::UseIterator oldUse    = oldCall->Args().begin();
+        GenTreeCall::UseIterator oldUseEnd = newCall->Args().end();
+
+        for (; newUse != newUseEnd; ++newUse, ++oldUse)
+        {
+            for (unsigned i = 0; i < argTableSize; i++)
+            {
+                if (argTable[i]->use == &(*oldUse))
+                {
+                    argTable[i]->use = &(*newUse);
+                    break;
+                }
+            }
+        }
+
+        newUse    = newCall->LateArgs().begin();
+        newUseEnd = newCall->LateArgs().end();
+        oldUse    = oldCall->LateArgs().begin();
+        oldUseEnd = newCall->LateArgs().end();
+
+        for (; newUse != newUseEnd; ++newUse, ++oldUse)
+        {
+            for (unsigned i = 0; i < argTableSize; i++)
+            {
+                if (argTable[i]->lateUse == &(*oldUse))
+                {
+                    argTable[i]->lateUse = &(*newUse);
+                    break;
+                }
+            }
+        }
     }
 
     argCount     = oldArgInfo->argCount;
