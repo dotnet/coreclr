@@ -3042,9 +3042,10 @@ GenTree* Lowering::LowerDirectCall(GenTreeCall* call)
     switch (accessType)
     {
         case IAT_VALUE:
-            // Non-virtual direct call to known address
-            // For helper based tailcall the target address is passed as an
-            // arg to the store args stub so we want a node for it.
+            // Non-virtual direct call to known address.
+            // For JIT helper based tailcall (only used on x86) the target
+            // address is passed as an arg to the helper so we want a node for
+            // it.
             if (!IsCallTargetInRange(addr) || call->IsTailCallViaJitHelper())
             {
                 result = AddrGen(addr);
