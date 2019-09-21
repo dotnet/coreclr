@@ -1333,8 +1333,7 @@ struct fgArgTabEntry
 {
     GenTree* node;         // Initially points to `use`'s node, but if the argument is replaced with an GT_ASG or
                            // placeholder it will point at the actual argument node in the gtCallLateArgs list.
-    GenTreeCall::Use* use; // Points at the GenTreeCall::Use in the gtCallArgs for this argument
-                           // or nullptr for the `this` argument which does not have a corresponding GenTreeCall::Use.
+    GenTreeCall::Use* use; // Points to the argument's GenTreeCall::Use in gtCallArgs or gtCallThisArg.
 
     unsigned argNum; // The original argument number, also specifies the required argument evaluation order from the IL
 
@@ -2596,7 +2595,6 @@ public:
     static fgArgTabEntry* gtArgEntryByNode(GenTreeCall* call, GenTree* node);
     fgArgTabEntry* gtArgEntryByLateArgIndex(GenTreeCall* call, unsigned lateArgInx);
     static GenTree* gtArgNodeByLateArgInx(GenTreeCall* call, unsigned lateArgInx);
-    bool gtArgIsThisPtr(fgArgTabEntry* argEntry);
 
     GenTree* gtNewAssignNode(GenTree* dst, GenTree* src);
 

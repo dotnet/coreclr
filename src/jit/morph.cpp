@@ -937,28 +937,17 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
 
     assert(oldArgInfo->argsComplete);
 
-    // We create local, artificial GenTreeArgLists that includes the gtCallThisArg node, if that exists, as first
-    // argument,
-    // so we can iterate over these argument lists more uniformly.
-    // Need to provide a temporary non-null first arguments to these constructors: if we use them, we'll replace them
-    GenTreeCall::Use* newArgs;
-    GenTreeCall::Use  newArgObjp(newCall, newCall->gtCallArgs);
-    GenTreeCall::Use* oldArgs;
-    GenTreeCall::Use  oldArgObjp(oldCall, oldCall->gtCallArgs);
+    GenTreeCall::Use* newArgs = newCall->gtCallArgs;
+    GenTreeCall::Use* oldArgs = oldCall->gtCallArgs;
 
-    if (newCall->gtCallThisArg == nullptr)
+    if (newCall->gtCallThisArg != nullptr)
     {
-        assert(oldCall->gtCallThisArg == nullptr);
-        newArgs = newCall->gtCallArgs;
-        oldArgs = oldCall->gtCallArgs;
-    }
-    else
-    {
-        assert(oldCall->gtCallThisArg != nullptr);
-        newArgObjp.SetNode(newCall->gtCallThisArg->GetNode());
-        newArgs = &newArgObjp;
-        oldArgObjp.SetNode(oldCall->gtCallThisArg->GetNode());
-        oldArgs = &oldArgObjp;
+        // If we have a this arg make it appear as if it's
+        // a part of the args list to keep things simpler.
+        newCall->gtCallThisArg->SetNext(newArgs);
+        oldCall->gtCallThisArg->SetNext(oldArgs);
+        newArgs = newCall->gtCallThisArg;
+        oldArgs = oldCall->gtCallThisArg;
     }
 
     GenTree*          newCurr;
@@ -972,19 +961,12 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
     {
         /* Get hold of the next argument values for the oldCall and newCall */
 
-        newCurr = newArgs->GetNode();
-        oldCurr = oldArgs->GetNode();
-        if (newArgs != &newArgObjp)
-        {
-            newParent = newArgs;
-            oldParent = oldArgs;
-        }
-        else
-        {
-            assert(newParent == nullptr && oldParent == nullptr);
-        }
-        newArgs = newArgs->GetNext();
-        oldArgs = oldArgs->GetNext();
+        newCurr   = newArgs->GetNode();
+        oldCurr   = oldArgs->GetNode();
+        newParent = newArgs;
+        oldParent = oldArgs;
+        newArgs   = newArgs->GetNext();
+        oldArgs   = oldArgs->GetNext();
 
         fgArgTabEntry* oldArgTabEntry = nullptr;
         fgArgTabEntry* newArgTabEntry = nullptr;
@@ -1077,6 +1059,14 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
                 }
             }
         }
+    }
+
+    // Reset gtCallThisArg's next pointer to avoid confusion. Ideally the this
+    // arg would be part of the normal call arg list to avoid this acrobatics.
+    if (newCall->gtCallThisArg != nullptr)
+    {
+        newCall->gtCallThisArg->SetNext(nullptr);
+        oldCall->gtCallThisArg->SetNext(nullptr);
     }
 
     argCount     = oldArgInfo->argCount;
@@ -1247,11 +1237,7 @@ void fgArgInfo::UpdateRegArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
            (!isLateArg && ((node->gtFlags & GTF_LATE_ARG) == 0)));
 
     assert(curArgTabEntry->numRegs != 0);
-
-    if (curArgTabEntry->use != nullptr)
-    {
-        assert(curArgTabEntry->use->GetNode() == node);
-    }
+    assert(curArgTabEntry->use->GetNode() == node);
 
     if (curArgTabEntry->node != node)
     {
@@ -1290,7 +1276,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
     assert((isLateArg && ((node->gtFlags & GTF_LATE_ARG) != 0)) ||
            (!isLateArg && ((node->gtFlags & GTF_LATE_ARG) == 0)));
 
-    noway_assert(curArgTabEntry->use != nullptr);
+    noway_assert(curArgTabEntry->use != callTree->gtCallThisArg);
     assert((curArgTabEntry->regNum == REG_STK) || curArgTabEntry->isSplit);
     assert(curArgTabEntry->use->GetNode() == node);
     nextSlotNum = (unsigned)roundUp(nextSlotNum, curArgTabEntry->alignment);
@@ -1380,6 +1366,7 @@ void fgArgInfo::SplitArg(unsigned argNum, unsigned numRegs, unsigned numSlots)
 //
 void fgArgInfo::EvalToTmp(fgArgTabEntry* curArgTabEntry, unsigned tmpNum, GenTree* newNode)
 {
+    assert(curArgTabEntry->use != callTree->gtCallThisArg);
     assert(curArgTabEntry->use->GetNode() == newNode);
 
     curArgTabEntry->node   = newNode;
@@ -2410,21 +2397,8 @@ void fgArgInfo::EvalArgsToTemps()
 
         if (setupArg != nullptr)
         {
-            if (curArgTabEntry->use != nullptr)
-            {
-                GenTreeCall::Use* use = curArgTabEntry->use;
-                /* a normal argument from the list */
-                noway_assert(use->GetNode() == argx);
-
-                use->SetNode(setupArg);
-            }
-            else
-            {
-                // must be the "this" arg
-                noway_assert(callTree->AsCall()->gtCallThisArg->GetNode() == argx);
-
-                callTree->AsCall()->gtCallThisArg->SetNode(setupArg);
-            }
+            noway_assert(curArgTabEntry->use->GetNode() == argx);
+            curArgTabEntry->use->SetNode(setupArg);
         }
 
         /* deferred arg goes into the late argument list */
@@ -2926,9 +2900,9 @@ void Compiler::fgInitArgInfo(GenTreeCall* call)
         assert(varTypeIsGC(argx) || (argx->gtType == TYP_I_IMPL));
 
         // This is a register argument - put it in the table.
-        call->fgArgInfo->AddRegArg(argIndex, argx, nullptr, genMapIntRegArgNumToRegNum(intArgRegNum), 1, 1, false,
-                                   callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(0)
-                                       UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
+        call->fgArgInfo->AddRegArg(argIndex, argx, call->gtCallThisArg, genMapIntRegArgNumToRegNum(intArgRegNum), 1, 1,
+                                   false, callIsVararg UNIX_AMD64_ABI_ONLY_ARG(REG_STK) UNIX_AMD64_ABI_ONLY_ARG(0)
+                                              UNIX_AMD64_ABI_ONLY_ARG(0) UNIX_AMD64_ABI_ONLY_ARG(nullptr));
 
         intArgRegNum++;
 #ifdef WINDOWS_AMD64_ABI

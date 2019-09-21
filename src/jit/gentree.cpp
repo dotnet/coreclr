@@ -6219,19 +6219,9 @@ fgArgTabEntry* Compiler::gtArgEntryByNode(GenTreeCall* call, GenTree* node)
         {
             return curArgTabEntry;
         }
-        else if (curArgTabEntry->use != nullptr)
+        else if (curArgTabEntry->use->GetNode() == node)
         {
-            if (curArgTabEntry->use->GetNode() == node)
-            {
-                return curArgTabEntry;
-            }
-        }
-        else // (curArgTabEntry->parent == NULL)
-        {
-            if ((call->gtCallThisArg != nullptr) && (call->gtCallThisArg->GetNode() == node))
-            {
-                return curArgTabEntry;
-            }
+            return curArgTabEntry;
         }
     }
     noway_assert(!"gtArgEntryByNode: node not found");
@@ -6292,15 +6282,6 @@ GenTree* Compiler::gtArgNodeByLateArgInx(GenTreeCall* call, unsigned lateArgInx)
     }
     noway_assert(argx != nullptr);
     return argx;
-}
-
-/*****************************************************************************
- *
- *  Given an fgArgTabEntry*, return true if it is the 'this' pointer argument.
- */
-bool Compiler::gtArgIsThisPtr(fgArgTabEntry* argEntry)
-{
-    return (argEntry->use == nullptr);
 }
 
 /*****************************************************************************
@@ -11359,7 +11340,7 @@ void Compiler::gtGetLateArgMsg(
     else
 #endif
     {
-        if (gtArgIsThisPtr(curArgTabEntry))
+        if (curArgTabEntry->use == call->gtCallThisArg)
         {
             sprintf_s(bufp, bufLength, "this in %s%c", compRegVarName(argReg), 0);
         }
