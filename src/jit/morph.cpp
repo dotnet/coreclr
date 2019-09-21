@@ -7302,9 +7302,6 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             return nullptr;
         }
 
-        // If this needs helper then make sure we can
-        // get the store args stub. Do this last as the runtime will likely be
-        // required to generate these.
         assert(call->IsTailPrefixedCall());
         assert(call->callInfo != nullptr);
 
@@ -7324,6 +7321,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         }
         else
         {
+            // Make sure we can get the helpers. We do this last as the runtime
+            // will likely be required to generate these.
             CORINFO_METHOD_HANDLE targetMethHnd = call->callInfo->hMethod;
             CORINFO_SIG_INFO*     callSiteSig   = &call->callInfo->sig;
             unsigned              flags         = 0;
