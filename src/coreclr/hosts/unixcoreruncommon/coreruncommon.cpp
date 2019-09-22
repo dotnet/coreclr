@@ -291,6 +291,30 @@ const char* GetEnvValueBoolean(const char* envVariable)
     return (std::strcmp(envValue, "1") == 0 || strcasecmp(envValue, "true") == 0) ? "true" : "false";
 }
 
+static void *TryLoadHostPolicy(const char *hostPolicyPath)
+{
+#if defined(__APPLE__)
+    static const char LibrarySuffix[] = ".dylib";
+#else // Various Linux-related OS-es
+    static const char LibrarySuffix[] = ".so";
+#endif
+
+    size_t hostPolicyPathLength = sizeof(char) * strlen(hostPolicyPath);
+    const size_t SuffixLengthIncludingTerminatingZero = sizeof(LibrarySuffix);
+    char *hostPolicyCompletePath = (char *)malloc(hostPolicyPathLength + SuffixLengthIncludingTerminatingZero);
+    memcpy(hostPolicyCompletePath, hostPolicyPath, hostPolicyPathLength);
+    memcpy(hostPolicyCompletePath + hostPolicyPathLength, LibrarySuffix, SuffixLengthIncludingTerminatingZero);
+
+    void *libraryPtr = dlopen(hostPolicyCompletePath, RTLD_LAZY);
+    if (libraryPtr == nullptr)
+    {
+        fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", hostPolicyCompletePath, dlerror());
+    }
+
+    free(hostPolicyCompletePath);
+    return libraryPtr;
+}
+
 int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
@@ -359,10 +383,9 @@ int ExecuteManagedAssembly(
     char* mockHostpolicyPath = getenv("MOCK_HOSTPOLICY");
     if (mockHostpolicyPath)
     {
-        hostpolicyLib = dlopen(mockHostpolicyPath, RTLD_LAZY);
+        hostpolicyLib = TryLoadHostPolicy(mockHostpolicyPath);
         if (hostpolicyLib == nullptr)
         {
-            fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", mockHostpolicyPath, dlerror());
             return -1;
         }
     }

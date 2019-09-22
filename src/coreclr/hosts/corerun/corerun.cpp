@@ -457,45 +457,10 @@ bool TryLoadHostPolicy(StackSString& hostPolicyPath)
     {
         return true;
     }
-
-    // Use proper prefix / extension for the host policy dynamic library
-#if defined(_WINNT_)
-    static const WCHAR LibraryPrefix[] = L"";
-    static const WCHAR LibrarySuffix[] = L".dll";
-    static const WCHAR PathSeparator = L'\\';
-#elif defined(__APPLE__)
-    static const WCHAR LibraryPrefix[] = u"lib";
-    static const WCHAR LibrarySuffix[] = u".dylib";
-    static const WCHAR PathSeparator = u'/';
-#else // Various Linux-related OS-es
-    static const WCHAR LibraryPrefix[] = u"lib";
-    static const WCHAR LibrarySuffix[] = u".so";
-    static const WCHAR PathSeparator = u'/';
-#endif
-    
-    SString::CIterator fileNamePos = hostPolicyPath.End();
-    if (hostPolicyPath.FindBack(fileNamePos, PathSeparator))
-    {
-        ++fileNamePos;
-    }
-    else
-    {
-        fileNamePos = hostPolicyPath.Begin();
-    }
-    
-    StackSString hostPolicyCompletePath(hostPolicyPath, hostPolicyPath.Begin(), fileNamePos);
-    hostPolicyCompletePath.Append(LibraryPrefix);
-    while (fileNamePos != hostPolicyPath.End())
-    {
-        hostPolicyCompletePath.Append(*fileNamePos);
-        ++fileNamePos;
-    }
-    hostPolicyCompletePath.Append(LibrarySuffix);
-
     // Check if a hostpolicy exists and if it does, load it.
-    if (INVALID_FILE_ATTRIBUTES != ::GetFileAttributesW(hostPolicyCompletePath.GetUnicode()))
+    if (INVALID_FILE_ATTRIBUTES != ::GetFileAttributesW(hostPolicyPath.GetUnicode()))
     {
-        hMod = ::LoadLibraryExW(hostPolicyCompletePath.GetUnicode(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+        hMod = ::LoadLibraryExW(hostPolicyPath.GetUnicode(), nullptr, LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
     }
 
     return hMod != nullptr;
