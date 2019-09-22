@@ -459,18 +459,18 @@ bool TryLoadHostPolicy(StackSString& hostPolicyPath)
     }
 
     // Use proper prefix / extension for the host policy dynamic library
-#if defined(__APPLE__)
-    static const WCHAR LibraryPrefix[] = u"lib";
-    static const WCHAR LibrarySuffix[] = u".dylib";
-    static const WCHAR PathSeparator = u'/';
-#elif defined(__linux__) || defined(__FreeBSD__) || defined(__NetBSD__)
-    static const WCHAR LibraryPrefix[] = u"lib";
-    static const WCHAR LibrarySuffix[] = u".so";
-    static const WCHAR PathSeparator = u'/';
-#else
+#if defined(_WINNT_)
     static const WCHAR LibraryPrefix[] = L"";
     static const WCHAR LibrarySuffix[] = L".dll";
     static const WCHAR PathSeparator = L'\\';
+#elif defined(__APPLE__)
+    static const WCHAR LibraryPrefix[] = u"lib";
+    static const WCHAR LibrarySuffix[] = u".dylib";
+    static const WCHAR PathSeparator = u'/';
+#else // Various Linux-related OS-es
+    static const WCHAR LibraryPrefix[] = u"lib";
+    static const WCHAR LibrarySuffix[] = u".so";
+    static const WCHAR PathSeparator = u'/';
 #endif
     
     SString::CIterator fileNamePos = hostPolicyPath.End();
