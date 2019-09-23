@@ -607,6 +607,8 @@ An example (the numbers are made up to keep it simple)
 */
 static int32_t GetCollationElementMask(UColAttributeValue strength)
 {
+    assert(strength >= UCOL_SECONDARY);
+
     switch (strength)
     {
         case UCOL_PRIMARY:
@@ -618,52 +620,56 @@ static int32_t GetCollationElementMask(UColAttributeValue strength)
     }
 }
 
-static int32_t inline GetNextNonIgnorableCharacter(UCollationElements* pIterator, UErrorCode* pErrorCode)
-{
-    int32_t result = UCOL_IGNORABLE;
-
-    do
-    {
-        result = ucol_next(pIterator, pErrorCode);
-    }
-    while (result == UCOL_IGNORABLE); // SimpleStartsWith_Iterators checks for error
-
-    return result;
-}
-
 static int32_t SimpleStartsWith_Iterators(UCollationElements* pPatternIterator, UCollationElements* pSourceIterator, UColAttributeValue strength)
 {
+    assert(strength >= UCOL_SECONDARY);
+
     UErrorCode errorCode = U_ZERO_ERROR;
+    int32_t movePattern = TRUE, moveSource = TRUE;
+    int32_t patternElement = UCOL_IGNORABLE, sourceElement = UCOL_IGNORABLE;
 
     int32_t collationElementMask = GetCollationElementMask(strength);
 
     while (TRUE)
     {
-        int32_t patternItem = GetNextNonIgnorableCharacter(pPatternIterator, &errorCode);
-        if (!U_SUCCESS(errorCode))
+        if (movePattern)
         {
-            return FALSE;
+            patternElement = ucol_next(pPatternIterator, &errorCode);
         }
-
-        int32_t sourceItem = GetNextNonIgnorableCharacter(pSourceIterator, &errorCode);
-        if (!U_SUCCESS(errorCode))
+        if (moveSource)
         {
-            return FALSE;
+            sourceElement = ucol_next(pSourceIterator, &errorCode);
         }
+        movePattern = TRUE; moveSource = TRUE;
 
-        if (patternItem == UCOL_NULLORDER)
+        if (patternElement == UCOL_NULLORDER)
         {
-            if (strength >= UCOL_SECONDARY && sourceItem != UCOL_NULLORDER)
+            if (sourceElement == UCOL_NULLORDER)
             {
-                if (((sourceItem & UCOL_PRIMARYORDERMASK) == 0) && (sourceItem & UCOL_SECONDARYORDERMASK) != 0)
-                {
-                    return FALSE; // the next non-ignorable character in source text is a combining character
-                }
+                return TRUE; // source is equal to pattern, we have reached both ends at the same time
             }
-
-            return TRUE;
+            else if (sourceElement == UCOL_IGNORABLE)
+            {
+                return TRUE; // the next character in source is an ignorable character, an example: "o\u0000".StartsWith("o")
+            }
+            else if (((sourceElement & UCOL_PRIMARYORDERMASK) == 0) && (sourceElement & UCOL_SECONDARYORDERMASK) != 0)
+            {
+                return FALSE; // the next character in source text is a combining character, an example: "o\u0308".StartsWith("o")
+            }
+            else
+            {
+                return TRUE;
+            }
         }
-        else if ((patternItem & collationElementMask) != (sourceItem & collationElementMask))
+        else if (patternElement == UCOL_IGNORABLE)
+        {
+            moveSource = FALSE;
+        }
+        else if (sourceElement == UCOL_IGNORABLE)
+        {
+            movePattern = FALSE;
+        }
+        else if ((patternElement & collationElementMask) != (sourceElement & collationElementMask))
         {
             return FALSE;
         }
