@@ -390,14 +390,22 @@ namespace System.Globalization
                 char* a = ap;
                 char* b = bp;
 
-                if (target.Length > source.Length)
-                    goto InteropCall;
-
                 for (int j = 0; j < target.Length; j++)
                 {
                     char targetChar = *(b + j);
                     if (targetChar >= 0x80 || HighCharTable[targetChar])
                         goto InteropCall;
+                }
+
+                if (target.Length > source.Length)
+                {
+                    for (int k = 0; k < source.Length; k++)
+                    {
+                        char targetChar = *(a + k);
+                        if (targetChar >= 0x80 || HighCharTable[targetChar])
+                            goto InteropCall;
+                    }
+                    return -1;
                 }
 
                 int startIndex, endIndex, jump;
@@ -555,15 +563,22 @@ namespace System.Globalization
                     if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
                     if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
 
-                    if (charA != charB)
-                        return false;
+                    if (charA == charB)
+                    {
+                        a++; b++;
+                        length--;
+                        continue;
+                    }
 
-                    // Next char
-                    a++; b++;
-                    length--;
+                    // The match may be affected by special character. Verify that the following character is regular ASCII.
+                    if (a < ap + source.Length - 1 && *(a + 1) >= 0x80)
+                        goto InteropCall;
+                    if (b < bp + prefix.Length - 1 && *(b + 1) >= 0x80)
+                        goto InteropCall;
+                    return false;
                 }
 
-                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
+                // The match may be affected by special character. Verify that the following character is regular ASCII.
 
                 if (source.Length < prefix.Length)
                 {
@@ -608,15 +623,22 @@ namespace System.Globalization
                     if (charA >= 0x80 || charB >= 0x80 || HighCharTable[charA] || HighCharTable[charB])
                         goto InteropCall;
 
-                    if (charA != charB)
-                        return false;
+                    if (charA == charB)
+                    {
+                        a++; b++;
+                        length--;
+                        continue;
+                    }
 
-                    // Next char
-                    a++; b++;
-                    length--;
+                    // The match may be affected by special character. Verify that the following character is regular ASCII.
+                    if (a < ap + source.Length - 1 && *(a + 1) >= 0x80)
+                        goto InteropCall;
+                    if (b < bp + prefix.Length - 1 && *(b + 1) >= 0x80)
+                        goto InteropCall;
+                    return false;
                 }
 
-                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
+                // The match may be affected by special character. Verify that the following character is regular ASCII.
 
                 if (source.Length < prefix.Length)
                 {
@@ -675,8 +697,8 @@ namespace System.Globalization
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(suffix))
             {
-                char* a = ap + source.Length - length;
-                char* b = bp + suffix.Length - length;
+                char* a = ap + source.Length - 1;
+                char* b = bp + suffix.Length - 1;
 
                 while (length != 0)
                 {
@@ -688,7 +710,7 @@ namespace System.Globalization
 
                     if (charA == charB)
                     {
-                        a++; b++;
+                        a--; b--;
                         length--;
                         continue;
                     }
@@ -697,29 +719,17 @@ namespace System.Globalization
                     if ((uint)(charA - 'a') <= (uint)('z' - 'a')) charA -= 0x20;
                     if ((uint)(charB - 'a') <= (uint)('z' - 'a')) charB -= 0x20;
 
-                    if (charA != charB)
-                        return false;
+                    if (charA == charB)
+                    {
+                        a--; b--;
+                        length--;
+                        continue;
+                    }
 
-                    // Next char
-                    a++; b++;
-                    length--;
-                }
-
-                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
-
-                if (source.Length < suffix.Length)
-                {
-                    if (*b >= 0x80)
-                        goto InteropCall;
                     return false;
                 }
 
-                if (source.Length > suffix.Length)
-                {
-                    if (*a >= 0x80)
-                        goto InteropCall;
-                }
-                return true;
+                return (source.Length >= suffix.Length);
 
             InteropCall:
                 return Interop.Globalization.EndsWith(_sortHandle, bp, suffix.Length, ap, source.Length, options);
@@ -739,8 +749,8 @@ namespace System.Globalization
             fixed (char* ap = &MemoryMarshal.GetReference(source))
             fixed (char* bp = &MemoryMarshal.GetReference(suffix))
             {
-                char* a = ap + source.Length - length;
-                char* b = bp + suffix.Length - length;
+                char* a = ap + source.Length - 1;
+                char* b = bp + suffix.Length - 1;
 
                 while (length != 0)
                 {
@@ -750,29 +760,17 @@ namespace System.Globalization
                     if (charA >= 0x80 || charB >= 0x80 || HighCharTable[charA] || HighCharTable[charB])
                         goto InteropCall;
 
-                    if (charA != charB)
-                        return false;
+                    if (charA == charB)
+                    {
+                        a--; b--;
+                        length--;
+                        continue;
+                    }
 
-                    // Next char
-                    a++; b++;
-                    length--;
-                }
-
-                // The match can be invalidated by following NonSpacingMark, etc. Verify that the character following the match is regular ASCII.
-
-                if (source.Length < suffix.Length)
-                {
-                    if (*b >= 0x80)
-                        goto InteropCall;
                     return false;
                 }
 
-                if (source.Length > suffix.Length)
-                {
-                    if (*a >= 0x80)
-                        goto InteropCall;
-                }
-                return true;
+                return (source.Length >= suffix.Length);
 
             InteropCall:
                 return Interop.Globalization.EndsWith(_sortHandle, bp, suffix.Length, ap, source.Length, options);
