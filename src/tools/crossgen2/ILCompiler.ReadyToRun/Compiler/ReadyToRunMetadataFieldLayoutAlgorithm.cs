@@ -216,17 +216,26 @@ namespace ILCompiler
                 FieldDesc fieldDesc,
                 EntityHandle valueTypeHandle,
                 bool moduleLayout,
-                ref int alignment,
-                ref int size,
-                ref bool isGcPointerField,
-                ref bool isGcBoxedField)
+                out int alignment,
+                out int size,
+                out bool isGcPointerField,
+                out bool isGcBoxedField)
             {
+                alignment = 1;
+                size = 0;
+                isGcPointerField = false;
+                isGcBoxedField = false;
+
                 TypeDesc fieldType = fieldDesc.FieldType;
 
-                if (fieldType.IsPrimitive)
+                if (fieldType.IsPrimitive || fieldType.IsFunctionPointer || fieldType.IsPointer)
                 {
                     size = fieldType.GetElementSize().AsInt;
                     alignment = size;
+                }
+                else if (fieldType.IsByRef || fieldType.IsByRefLike || fieldType.IsByReferenceOfT)
+                {
+                    ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadGeneral, fieldDesc.OwningType);
                 }
                 else if (fieldType.IsValueType)
                 {
@@ -253,10 +262,6 @@ namespace ILCompiler
                         // All struct statics are boxed in CoreCLR
                         isGcBoxedField = true;
                     }
-                }
-                else if (fieldType.IsByRef || fieldType.IsByRefLike || fieldType.IsByReferenceOfT)
-                {
-                    ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadGeneral, fieldDesc.OwningType);
                 }
                 else
                 {
@@ -319,9 +324,6 @@ namespace ILCompiler
                         break;
 
                     case CorElementType.ELEMENT_TYPE_VAR:
-                        GetElementTypeInfoGeneric(module, fieldDesc, valueTypeHandle, moduleLayout, ref alignment, ref size, ref isGcPointerField, ref isGcBoxedField);
-                        break;
-
                     case CorElementType.ELEMENT_TYPE_MVAR:
                     case CorElementType.ELEMENT_TYPE_STRING:
                     case CorElementType.ELEMENT_TYPE_SZARRAY:
@@ -432,8 +434,16 @@ namespace ILCompiler
 
                         GetFieldElementTypeAndValueTypeHandle(in fieldDef, module.MetadataReader, out corElementType, out valueTypeHandle);
 
-                        GetElementTypeInfo(module, field, valueTypeHandle, corElementType, pointerSize, moduleLayout: false,
-                            out alignment, out size, out isGcPointerField, out isGcBoxedField);
+                        if (defType.HasInstantiation)
+                        {
+                            GetElementTypeInfoGeneric(module, field, valueTypeHandle, moduleLayout: false,
+                                out alignment, out size, out isGcPointerField, out isGcBoxedField);
+                        }
+                        else
+                        {
+                            GetElementTypeInfo(module, field, valueTypeHandle, corElementType, pointerSize, moduleLayout: false,
+                                out alignment, out size, out isGcPointerField, out isGcBoxedField);
+                        }
                         if (isGcPointerField)
                         {
                             gcPointerCount[index]++;
@@ -502,8 +512,16 @@ namespace ILCompiler
 
                         GetFieldElementTypeAndValueTypeHandle(in fieldDef, module.MetadataReader, out corElementType, out valueTypeHandle);
 
-                        GetElementTypeInfo(module, field, valueTypeHandle, corElementType, pointerSize, moduleLayout: false,
-                            out alignment, out size, out isGcPointerField, out isGcBoxedField);
+                        if (defType.HasInstantiation)
+                        {
+                            GetElementTypeInfoGeneric(module, field, valueTypeHandle, moduleLayout: false,
+                                out alignment, out size, out isGcPointerField, out isGcBoxedField);
+                        }
+                        else
+                        {
+                            GetElementTypeInfo(module, field, valueTypeHandle, corElementType, pointerSize, moduleLayout: false,
+                                out alignment, out size, out isGcPointerField, out isGcBoxedField);
+                        }
 
                         LayoutInt offset = LayoutInt.Zero;
 
