@@ -73,7 +73,7 @@ The same applies to some return buffers. See `MethodTable::IsStructRequiringStac
 
 NOTE: This optimization is now disabled for all platforms (`IsStructRequiringStackAllocRetBuf()` always returns FALSE).
 
-ARM64-only: When a method returns a structure that are greater than 16 bytes the caller reserves a return buffer of sufficient size and alignment to hold the result. The address of the buffer is passed as an argument to the method in `R8` (defined in the JIT as `REG_ARG_RET_BUFF`). The callee isn't required to preserve the value stored in `R8`.
+ARM64-only: When a method returns a structure that is larger than 16 bytes the caller reserves a return buffer of sufficient size and alignment to hold the result. The address of the buffer is passed as an argument to the method in `R8` (defined in the JIT as `REG_ARG_RET_BUFF`). The callee isn't required to preserve the value stored in `R8`.
 
 ## Hidden parameters
 
