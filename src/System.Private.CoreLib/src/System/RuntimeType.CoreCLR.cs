@@ -2052,7 +2052,7 @@ namespace System
             {
                 if ((bindingFlags & BindingFlags.IgnoreCase) != 0)
                 {
-                    name = name.ToLower(CultureInfo.InvariantCulture);
+                    name = name.ToLowerInvariant();
                     ignoreCase = true;
                     listType = MemberListType.CaseInsensitive;
                 }
@@ -2108,7 +2108,7 @@ namespace System
             string name, bool prefixLookup)
         {
             Debug.Assert(memberInfo != null);
-            Debug.Assert(name is null || (bindingFlags & BindingFlags.IgnoreCase) == 0 || (name.ToLower(CultureInfo.InvariantCulture).Equals(name)));
+            Debug.Assert(name is null || (bindingFlags & BindingFlags.IgnoreCase) == 0 || (name.ToLowerInvariant().Equals(name)));
 
             // Filter by Public & Private
             if (isPublic)
