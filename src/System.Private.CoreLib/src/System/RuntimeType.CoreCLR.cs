@@ -4162,7 +4162,7 @@ namespace System
             return ret;
         }
 
-        private void WrapArgsForInvokeCall(object[] aArgs, int[] aArgsWrapperTypes)
+        private static void WrapArgsForInvokeCall(object[] aArgs, int[] aArgsWrapperTypes)
         {
             int cArgs = aArgs.Length;
             for (int i = 0; i < cArgs; i++)
@@ -4262,7 +4262,7 @@ namespace System
         }
 
         private static OleAutBinder? s_ForwardCallBinder;
-        private OleAutBinder ForwardCallBinder => s_ForwardCallBinder ??= new OleAutBinder();
+        private static OleAutBinder ForwardCallBinder => s_ForwardCallBinder ??= new OleAutBinder();
 
         [Flags]
         private enum DispatchWrapperType : int
