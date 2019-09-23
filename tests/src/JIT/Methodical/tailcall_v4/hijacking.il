@@ -122,12 +122,13 @@
     IL_006e:  stfld      valuetype ForceHelper* ForceHelper::me
     IL_0073:  ldarg.0
     IL_0074:  ldarg.1
-    IL_0075:  tail. call       instance void Repro::TailHelper2(valuetype ForceHelper)
-    IL_007a:  ret
+    IL_0075:  ldarg.1
+    IL_0076:  tail. call       instance void Repro::TailHelper2(valuetype ForceHelper, valuetype ForceHelper)
+    IL_007b:  ret
   } // end of method Repro::TailHelper1
 
   .method private hidebysig instance void 
-          TailHelper2(valuetype ForceHelper h) cil managed
+          TailHelper2(valuetype ForceHelper h, valuetype ForceHelper h2) cil managed
   {
     // Code size       123 (0x7b)
     .maxstack  3
