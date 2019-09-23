@@ -20,6 +20,8 @@ Instead of using total code size as the metric it is better to have the JIT prod
 This new dynamic execution cost of the method is called the "Perf Score" of the method.
 The "jit-analyze" tool would also be changed so that instead of using code size it would use the Perf Score to determine the list of methods to display.
 
+When making a Perf change that impacts a Benchmark, you should verify that both the computed Perf Score and the benchmarks execution time improve in a similar way.
+
 ## Implementation details:
 It is a very hard problem to get a highly accurate value for what the actual dynamic execution cost of a method is on a particular CPU.
 The difficulty occurs because all modern hardware executes instructions using a superscalar architecture.
@@ -58,9 +60,3 @@ We do this as follows:
 
 ### Follow on work
 I will modify the "jit-analyze" tool to use the Perf Score to identify the methods that have the largest regressions and improvements.
-
-
-
-
-
-
