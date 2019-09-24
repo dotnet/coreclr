@@ -684,8 +684,6 @@ namespace System
                     return "arrayIndex";
                 case ExceptionArgument.year:
                     return "year";
-                case ExceptionArgument.separator:
-                    return "separator";
                 default:
                     Debug.Fail("The enum value is not defined, please check the ExceptionArgument Enum.");
                     return "";
@@ -836,10 +834,6 @@ namespace System
                     return SR.Rank_MultiDimNotSupported;
                 case ExceptionResource.Arg_TypeNotSupported:
                     return SR.Arg_TypeNotSupported;
-                case ExceptionResource.ArgumentOutOfRange_Utf16SurrogatesDisallowed:
-                    return SR.ArgumentOutOfRange_Utf16SurrogatesDisallowed;
-                case ExceptionResource.Argument_CannotBeEmptySpan:
-                    return SR.Argument_CannotBeEmptySpan;
                 default:
                     Debug.Fail("The enum value is not defined, please check the ExceptionResource Enum.");
                     return "";
@@ -937,7 +931,6 @@ namespace System
         elementType,
         arrayIndex,
         year,
-        separator,
     }
 
     //
@@ -1009,7 +1002,5 @@ namespace System
         NotSupported_FixedSizeCollection,
         Rank_MultiDimNotSupported,
         Arg_TypeNotSupported,
-        ArgumentOutOfRange_Utf16SurrogatesDisallowed,
-        Argument_CannotBeEmptySpan,
     }
 }

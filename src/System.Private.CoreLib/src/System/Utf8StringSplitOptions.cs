@@ -4,6 +4,9 @@
 
 namespace System
 {
+    // TODO_UTF8STRING: This should be removed and we should use regular StringSplitOptions
+    // once a 'TrimEntries' flag gets added to the type.
+
     [Flags]
     public enum Utf8StringSplitOptions
     {

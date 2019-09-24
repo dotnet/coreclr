@@ -218,26 +218,6 @@ namespace Internal.Runtime.CompilerServices
         }
 
         /// <summary>
-        /// Returns <see langword="true"/> iff <paramref name="source"/> is a null reference.
-        /// </summary>
-        /// <remarks>
-        /// This check is conceptually similar to "(void*)(&amp;source) == nullptr".
-        /// </remarks>
-        [Intrinsic]
-        [NonVersionable]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool IsNull<T>(ref T source)
-        {
-            throw new PlatformNotSupportedException();
-
-            // ldarg.0
-            // ldc.i4.0
-            // conv.u
-            // ceq
-            // ret
-        }
-
-        /// <summary>
         /// Initializes a block of memory at the given location with a given initial value
         /// without assuming architecture dependent alignment of the address.
         /// </summary>
