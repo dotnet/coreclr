@@ -847,7 +847,7 @@ void LinearScan::setBlockSequence()
                     assert(!"Switch with single successor");
                 }
             }
-            if (((predBlock->bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || hasUniquePred && predBlock->hasEHFlowOut())
+            if (((predBlock->bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (hasUniquePred && predBlock->hasEHFlowOut()))
             {
                 // Treat this as having incomding EH flow, since we can't insert resolution moves into
                 // the ALWAYS block of a BBCallAlwaysPair, and a unique pred with an EH out edge won't
