@@ -146,9 +146,7 @@ namespace System.Reflection
                     SR.Format(SR.Argument_InvalidToken, tk, this));
 
             int tkDeclaringType;
-            string fieldName;
-
-            fieldName = MetadataImport.GetName(tk).ToString();
+            string fieldName = MetadataImport.GetName(tk).ToString();
             tkDeclaringType = MetadataImport.GetParentToken(tk);
 
             Type declaringType = ResolveType(tkDeclaringType, genericTypeArguments, genericMethodArguments);

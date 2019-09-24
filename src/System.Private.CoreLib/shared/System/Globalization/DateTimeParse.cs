@@ -502,10 +502,9 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             // The hour/minute offset for timezone.
             int hourOffset;
             int minuteOffset = 0;
-            DTSubString sub;
 
             // Consume the +/- character that has already been read
-            sub = str.GetSubString();
+            DTSubString sub = str.GetSubString();
             if (sub.length != 1)
             {
                 return false;

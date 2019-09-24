@@ -2260,8 +2260,7 @@ namespace System.Globalization
                 {
                     for (int i = 1; i <= 13; i++)
                     {
-                        string str;
-                        str = InternalGetMonthName(i, MonthNameStyles.LeapYear, false);
+                        string str = InternalGetMonthName(i, MonthNameStyles.LeapYear, false);
                         InsertHash(temp, str, TokenType.MonthToken, i);
                     }
                 }
@@ -2324,11 +2323,10 @@ namespace System.Globalization
                 // Add invariant month names and day names.
                 for (int i = 1; i <= 12; i++)
                 {
-                    string str;
                     // We have to call public methods here to work with inherited DTFI.
                     // Insert the month name first, so that they are at the front of abbreviated
                     // month names.
-                    str = InvariantInfo.GetMonthName(i);
+                    string str = InvariantInfo.GetMonthName(i);
                     InsertHash(temp, str, TokenType.MonthToken, i);
                     str = InvariantInfo.GetAbbreviatedMonthName(i);
                     InsertHash(temp, str, TokenType.MonthToken, i);

@@ -652,11 +652,8 @@ namespace System.Reflection.Emit
                 if (baseType == null && Assembly is AssemblyBuilder)
                 {
                     // now goto Assembly level to find the type.
-                    int size;
-                    List<ModuleBuilder> modList;
-
-                    modList = ContainingAssemblyBuilder._assemblyData._moduleBuilderList;
-                    size = modList.Count;
+                    List<ModuleBuilder> modList = ContainingAssemblyBuilder._assemblyData._moduleBuilderList;
+                    int size = modList.Count;
                     for (int i = 0; i < size && baseType == null; i++)
                     {
                         ModuleBuilder mBuilder = modList[i];

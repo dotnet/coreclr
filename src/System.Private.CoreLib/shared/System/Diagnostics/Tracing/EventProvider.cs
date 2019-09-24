@@ -1179,9 +1179,7 @@ namespace System.Diagnostics.Tracing
             int dataCount,
             IntPtr data)
         {
-            WriteEventErrorCode status;
-
-            status = m_eventProvider.EventWriteTransfer(
+            WriteEventErrorCode status = m_eventProvider.EventWriteTransfer(
                 m_regHandle,
                 in eventDescriptor,
                 eventHandle,

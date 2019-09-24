@@ -243,9 +243,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 
@@ -349,9 +347,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 
@@ -465,9 +461,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 
@@ -591,9 +585,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 
@@ -727,9 +719,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 
@@ -873,9 +863,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 
@@ -1034,9 +1022,7 @@ namespace System
                 throw new ArgumentException(SR.Format(SR.ArgumentException_TupleIncorrectType, GetType()), nameof(other));
             }
 
-            int c = 0;
-
-            c = comparer.Compare(m_Item1, objTuple.m_Item1);
+            int c = comparer.Compare(m_Item1, objTuple.m_Item1);
 
             if (c != 0) return c;
 

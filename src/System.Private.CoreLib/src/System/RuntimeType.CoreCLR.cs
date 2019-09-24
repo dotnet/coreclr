@@ -905,8 +905,7 @@ namespace System
 
                             if (filter.RequiresStringComparison())
                             {
-                                MdUtf8String name;
-                                name = scope.GetName(tkField);
+                                MdUtf8String name = scope.GetName(tkField);
 
                                 if (!filter.Match(name))
                                     continue;
@@ -1141,8 +1140,7 @@ namespace System
 
                         if (filter.RequiresStringComparison())
                         {
-                            MdUtf8String name;
-                            name = scope.GetName(tkEvent);
+                            MdUtf8String name = scope.GetName(tkEvent);
 
                             if (!filter.Match(name))
                                 continue;
@@ -1258,8 +1256,7 @@ namespace System
                                 continue;
                             }
 
-                            MdUtf8String name;
-                            name = declaringType.GetRuntimeModule().MetadataImport.GetName(tkProperty);
+                            MdUtf8String name = declaringType.GetRuntimeModule().MetadataImport.GetName(tkProperty);
 
                             if (!filter.Match(name))
                                 continue;

@@ -366,8 +366,7 @@ namespace System
 
                     if (constraint.IsGenericParameter)
                     {
-                        GenericParameterAttributes special;
-                        special = constraint.GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
+                        GenericParameterAttributes special = constraint.GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
 
                         if ((special & GenericParameterAttributes.ReferenceTypeConstraint) == 0 &&
                             (special & GenericParameterAttributes.NotNullableValueTypeConstraint) == 0)
@@ -379,8 +378,7 @@ namespace System
 
                 if (baseType == ObjectType)
                 {
-                    GenericParameterAttributes special;
-                    special = GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
+                    GenericParameterAttributes special = GenericParameterAttributes & GenericParameterAttributes.SpecialConstraintMask;
                     if ((special & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)
                         baseType = ValueType;
                 }

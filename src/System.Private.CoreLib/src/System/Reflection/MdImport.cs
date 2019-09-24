@@ -310,8 +310,7 @@ namespace System.Reflection
         public string? GetDefaultValue(int mdToken, out long value, out int length, out CorElementType corElementType)
         {
             int _corElementType;
-            string? stringVal;
-            stringVal = _GetDefaultValue(m_metadataImport2, mdToken, out value, out length, out _corElementType);
+            string? stringVal = _GetDefaultValue(m_metadataImport2, mdToken, out value, out length, out _corElementType);
             corElementType = (CorElementType)_corElementType;
             return stringVal;
         }

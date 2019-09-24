@@ -11,9 +11,7 @@ namespace System.Reflection
             CorElementType corElementType = 0;
             long buffer = 0;
             int length;
-            string? stringVal;
-
-            stringVal = scope.GetDefaultValue(token, out buffer, out length, out corElementType);
+            string? stringVal = scope.GetDefaultValue(token, out buffer, out length, out corElementType);
 
             RuntimeType fieldType = fieldTypeHandle.GetRuntimeType();
 

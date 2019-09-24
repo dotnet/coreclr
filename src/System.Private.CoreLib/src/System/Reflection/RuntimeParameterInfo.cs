@@ -242,8 +242,7 @@ namespace System.Reflection
                 {
                     if (!MdToken.IsNullToken(m_tkParamDef))
                     {
-                        string name;
-                        name = m_scope.GetName(m_tkParamDef).ToString();
+                        string name = m_scope.GetName(m_tkParamDef).ToString();
                         NameImpl = name;
                     }
 
