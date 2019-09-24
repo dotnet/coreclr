@@ -2501,11 +2501,7 @@ namespace System.Globalization
             int remaining = str.Length - str.Index;
             int i = 0;
 
-            TokenHashValue[]? hashTable = _dtfiTokenHash;
-            if (hashTable == null)
-            {
-                hashTable = CreateTokenHashTable();
-            }
+            TokenHashValue[] hashTable = _dtfiTokenHash ?? CreateTokenHashTable();
             do
             {
                 value = hashTable[hashcode];

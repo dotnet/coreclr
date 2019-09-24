@@ -1278,18 +1278,15 @@ namespace System
 
                             // The inheritance of properties are defined by the inheritance of their
                             // getters and setters.
+                            //
                             // A property on a base type is "overriden" by a property on a sub type
                             // if the getter/setter of the latter occupies the same vtable slot as
                             // the getter/setter of the former.
+                            //
+                            // We only need to examine the setter if a getter doesn't exist.
+                            // It is not logical for the getter to be virtual but not the setter.
 
-                            MethodInfo? associateMethod = propertyInfo.GetGetMethod();
-                            if (associateMethod == null)
-                            {
-                                // We only need to examine the setter if a getter doesn't exist.
-                                // It is not logical for the getter to be virtual but not the setter.
-                                associateMethod = propertyInfo.GetSetMethod();
-                            }
-
+                            MethodInfo? associateMethod = propertyInfo.GetGetMethod() ?? propertyInfo.GetSetMethod();
                             if (associateMethod != null)
                             {
                                 int slot = RuntimeMethodHandle.GetSlot((RuntimeMethodInfo)associateMethod);
@@ -1299,8 +1296,8 @@ namespace System
                                     Debug.Assert(associateMethod.IsVirtual);
                                     if (usedSlots[slot])
                                         continue;
-                                    else
-                                        usedSlots[slot] = true;
+
+                                    usedSlots[slot] = true;
                                 }
                             }
                             #endregion
@@ -3546,13 +3543,8 @@ namespace System
 
             if (name.Length == 0 || name.Equals(@"[DISPID=0]"))
             {
-                name = GetDefaultMemberName()!;
-
-                if (name == null)
-                {
-                    // in InvokeMember we always pretend there is a default member if none is provided and we make it ToString
-                    name = "ToString";
-                }
+                // in InvokeMember we always pretend there is a default member if none is provided and we make it ToString
+                name = (GetDefaultMemberName()!) ?? "ToString";
             }
 
             // GetField or SetField

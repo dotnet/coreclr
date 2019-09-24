@@ -97,18 +97,7 @@ namespace System
                 }
             }
 
-            public TimeZoneInfo Local
-            {
-                get
-                {
-                    TimeZoneInfo? timeZone = _localTimeZone;
-                    if (timeZone == null)
-                    {
-                        timeZone = CreateLocal();
-                    }
-                    return timeZone;
-                }
-            }
+            public TimeZoneInfo Local => _localTimeZone ?? CreateLocal();
 
             /// <summary>
             /// Helper function that returns the corresponding DateTimeKind for this TimeZoneInfo.

@@ -579,21 +579,11 @@ namespace System.Reflection
             return ret!;
         }
 
-        internal RuntimeType[] GetGenericArgumentsInternal()
-        {
-            return RuntimeMethodHandle.GetMethodInstantiationInternal(this);
-        }
+        internal RuntimeType[] GetGenericArgumentsInternal() =>
+            RuntimeMethodHandle.GetMethodInstantiationInternal(this);
 
-        public override Type[] GetGenericArguments()
-        {
-            Type[] types = RuntimeMethodHandle.GetMethodInstantiationPublic(this);
-
-            if (types == null)
-            {
-                types = Array.Empty<Type>();
-            }
-            return types;
-        }
+        public override Type[] GetGenericArguments() =>
+            RuntimeMethodHandle.GetMethodInstantiationPublic(this) ?? Array.Empty<Type>();
 
         public override MethodInfo GetGenericMethodDefinition()
         {

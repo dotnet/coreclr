@@ -317,13 +317,8 @@ namespace System.Resources
             Debug.Assert(satellite != null, "satellite shouldn't be null; check caller");
             Debug.Assert(fileName != null, "fileName shouldn't be null; check caller");
 
-            Stream? stream = satellite.GetManifestResourceStream(_mediator.LocationInfo!, fileName);
-            if (stream == null)
-            {
-                stream = CaseInsensitiveManifestResourceStreamLookup(satellite, fileName);
-            }
-
-            return stream;
+            return satellite.GetManifestResourceStream(_mediator.LocationInfo!, fileName) ??
+                CaseInsensitiveManifestResourceStreamLookup(satellite, fileName);
         }
 
         // Looks up a .resources file in the assembly manifest using
