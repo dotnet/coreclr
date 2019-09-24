@@ -58,7 +58,7 @@ namespace System.Reflection
                 IList<CustomAttributeTypedArgument> array = (IList<CustomAttributeTypedArgument>)Value!;
 
                 Type elementType = ArgumentType.GetElementType()!;
-                string result = string.Format(@"new {0}[{1}] {{ ", elementType.IsEnum ? elementType.FullName : elementType.Name, array.Count);
+                string result = string.Format("new {0}[{1}] {{ ", elementType.IsEnum ? elementType.FullName : elementType.Name, array.Count);
 
                 for (int i = 0; i < array.Count; i++)
                 {

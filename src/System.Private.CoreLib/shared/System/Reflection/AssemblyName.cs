@@ -480,7 +480,7 @@ namespace System.Reflection
         private const short c_MaxUnicodeCharsReallocate = 40;
         private const short c_MaxUTF_8BytesPerUnicodeChar = 4;
         private const short c_EncodedCharsPerByte = 3;
-        private const string RFC3986ReservedMarks = @":/?#[]@!$&'()*+,;=";
-        private const string RFC3986UnreservedMarks = @"-._~";
+        private const string RFC3986ReservedMarks = ":/?#[]@!$&'()*+,;=";
+        private const string RFC3986UnreservedMarks = "-._~";
     }
 }

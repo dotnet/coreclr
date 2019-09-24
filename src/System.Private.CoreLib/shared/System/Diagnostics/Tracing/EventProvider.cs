@@ -598,7 +598,7 @@ namespace System.Diagnostics.Tracing
                 if (IntPtr.Size == 8)
                     regKey = @"Software\Wow6432Node" + regKey;
                 else
-                    regKey = @"Software" + regKey;
+                    regKey = "Software" + regKey;
 
                 string valueName = "ControllerData_Session_" + etwSessionId.ToString(CultureInfo.InvariantCulture);
 

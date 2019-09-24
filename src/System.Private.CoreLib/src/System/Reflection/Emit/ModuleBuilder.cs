@@ -635,7 +635,7 @@ namespace System.Reflection.Emit
                 parameters = null;
             }
 
-            baseName = baseName.Replace(@"\\", @"\").Replace(@"\[", @"[").Replace(@"\*", @"*").Replace(@"\&", @"&");
+            baseName = baseName.Replace(@"\\", @"\").Replace(@"\[", "[").Replace(@"\*", "*").Replace(@"\&", "&");
 
             if (parameters != null)
             {
