@@ -707,7 +707,7 @@ namespace System.Reflection.Emit
 
             // Allocate the new array.
             if (argCount < 0x7F)
-                newSigSize += 1;
+                newSigSize++;
             else if (argCount < 0x3FFF)
                 newSigSize += 2;
             else
@@ -828,7 +828,7 @@ namespace System.Reflection.Emit
 
             // Add one if the sig is done.
             if (m_sigDone)
-                HashCode += 1;
+                HashCode++;
 
             // Then add the hash code of all the arguments.
             for (int i = 0; i < m_currSig; i++)

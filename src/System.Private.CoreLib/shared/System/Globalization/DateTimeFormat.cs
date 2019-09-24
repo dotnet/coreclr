@@ -1143,7 +1143,7 @@ namespace System
                 }
                 else if (kind == DateTimeKind.Utc)
                 {
-                    charsRequired += 1;
+                    charsRequired++;
                 }
             }
             else

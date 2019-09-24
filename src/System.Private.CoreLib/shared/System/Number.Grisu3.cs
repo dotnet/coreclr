@@ -514,7 +514,7 @@ namespace System
                 // We don't have any guarantees that 2^numberBits <= number
                 if (number < power)
                 {
-                    exponentGuess -= 1;
+                    exponentGuess--;
                     power = s_SmallPowersOfTen[exponentGuess];
                 }
 

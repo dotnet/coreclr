@@ -128,7 +128,7 @@ namespace System.Diagnostics.Tracing
                 {
                     metadata[pos] = current;
                 }
-                pos += 1;
+                pos++;
             }
             while (more);
         }

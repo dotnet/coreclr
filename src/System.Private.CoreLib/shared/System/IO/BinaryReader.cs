@@ -378,7 +378,7 @@ namespace System.IO
                     // For custom decoders, assume that the decoder has pending state.
                     if (decoder == null || decoder.HasState)
                     {
-                        numBytes -= 1;
+                        numBytes--;
 
                         // The worst case is charsRemaining = 2 and UTF32Decoder holding onto 3 pending bytes. We need to read just
                         // one byte in this case.

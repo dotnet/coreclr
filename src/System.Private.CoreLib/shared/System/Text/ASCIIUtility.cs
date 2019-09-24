@@ -1575,7 +1575,7 @@ namespace System.Text
                 }
 
                 pUtf16Buffer[currentOffset] = (char)asciiData;
-                currentOffset += 1;
+                currentOffset++;
             }
 
         Finish:
@@ -1591,7 +1591,7 @@ namespace System.Text
             while (((byte)asciiData & 0x80) == 0)
             {
                 pUtf16Buffer[currentOffset] = (char)(byte)asciiData;
-                currentOffset += 1;
+                currentOffset++;
                 asciiData >>= 8;
             }
 

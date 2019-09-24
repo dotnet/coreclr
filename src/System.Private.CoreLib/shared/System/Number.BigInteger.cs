@@ -416,7 +416,7 @@ namespace System
                     Debug.Assert((resultIndex == largeLength) && (largeLength < MaxBlockCount));
 
                     result._blocks[resultIndex] = 1;
-                    result._length += 1;
+                    result._length++;
                 }
             }
 
@@ -1150,8 +1150,8 @@ namespace System
                 if (carry != 0)
                 {
                     Debug.Assert(unchecked((uint)(_length)) + 1 <= MaxBlockCount);
-                    _blocks[index] = (uint)(carry);
-                    _length += 1;
+                    _blocks[index] = (uint)carry;
+                    _length++;
                 }
             }
 

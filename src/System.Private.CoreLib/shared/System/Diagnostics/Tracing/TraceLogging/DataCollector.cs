@@ -258,7 +258,7 @@ namespace System.Diagnostics.Tracing
         internal void BeginBuffered()
         {
             this.ScalarsEnd();
-            this.bufferNesting += 1;
+            this.bufferNesting++;
         }
 
         /// <summary>
@@ -266,7 +266,7 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         internal void EndBuffered()
         {
-            this.bufferNesting -= 1;
+            this.bufferNesting--;
 
             if (this.bufferNesting == 0)
             {

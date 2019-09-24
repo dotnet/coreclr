@@ -32,7 +32,7 @@ namespace System.Buffers.Text
                 }
                 else if (kind == DateTimeKind.Utc)
                 {
-                    bytesRequired += 1;
+                    bytesRequired++;
                 }
             }
             else
