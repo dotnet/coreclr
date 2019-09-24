@@ -6,6 +6,8 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using Internal.Runtime.CompilerServices;
 
@@ -19,6 +21,9 @@ namespace System
         IEquatable<Utf8String>
 #nullable restore
     {
+        // For values beyond U+FFFF, it's 4 UTF-8 bytes per 2 UTF-16 chars (2:1 ratio)
+        private const int MAX_UTF8_BYTES_PER_UTF16_CHAR = 3;
+
         /*
          * STATIC FIELDS
          */
@@ -55,7 +60,7 @@ namespace System
         /// <summary>
         /// Projects a <see cref="Utf8String"/> instance as a <see cref="ReadOnlySpan{Char8}"/>.
         /// </summary>
-        public static implicit operator ReadOnlySpan<Char8>(Utf8String? value) => value.AsSpan();
+        public static implicit operator ReadOnlySpan<Char8>(Utf8String? value) => MemoryMarshal.Cast<byte, Char8>(value.AsSpan().Bytes);
 
         /// <summary>
         /// Projects a <see cref="Utf8String"/> instance as a <see cref="Utf8Span"/>.
