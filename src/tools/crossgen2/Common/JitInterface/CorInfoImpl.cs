@@ -2693,7 +2693,7 @@ namespace Internal.JitInterface
         {
             // Slow tailcalls are not supported yet
             // https://github.com/dotnet/corert/issues/1683
-            return false;
+            throw new NotImplementedException(nameof(getTailCallHelpers));
         }
 
         private void* getMemoryManager()

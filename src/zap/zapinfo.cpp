@@ -1742,6 +1742,7 @@ bool ZapInfo::getTailCallHelpers(
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPER_INFO* pResult)
 {
+    ThrowHR(E_NOTIMPL);
     return false;
 }
 
