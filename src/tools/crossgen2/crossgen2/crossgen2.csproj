@@ -8,6 +8,7 @@
     <TargetFramework>netcoreapp3.0</TargetFramework>
     <NoWarn>8002,NU1701</NoWarn>
     <Platforms>x64;x86</Platforms>
+    <OutputPath>$(BinDir)/crossgen2</OutputPath>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
   </PropertyGroup>
 
