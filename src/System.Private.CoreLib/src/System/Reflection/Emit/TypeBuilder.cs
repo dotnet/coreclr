@@ -1669,7 +1669,7 @@ namespace System.Reflection.Emit
             CheckContext(type);
             CheckContext(requiredCustomModifiers);
 
-            if (m_enumUnderlyingType == null && IsEnum == true)
+            if (m_enumUnderlyingType == null && IsEnum)
             {
                 if ((attributes & FieldAttributes.Static) == 0)
                 {

@@ -77,7 +77,7 @@ namespace System.Threading
                         if (ValidHandle())
                         {
                             result = UnregisterWaitNative(GetHandle(), waitObject?.SafeWaitHandle);
-                            if (result == true)
+                            if (result)
                             {
                                 if (bReleaseNeeded)
                                 {

@@ -64,7 +64,7 @@ namespace System.Reflection
 
                     position--;
 
-                    if (fetchReturnParameter == true && position == -1)
+                    if (fetchReturnParameter && position == -1)
                     {
                         // more than one return parameter?
                         if (returnParameter != null)

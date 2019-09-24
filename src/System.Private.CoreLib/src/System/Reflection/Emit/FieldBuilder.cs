@@ -76,7 +76,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (m_typeBuilder.m_isHiddenGlobalType == true)
+                if (m_typeBuilder.m_isHiddenGlobalType)
                     return null;
 
                 return m_typeBuilder;
@@ -87,7 +87,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (m_typeBuilder.m_isHiddenGlobalType == true)
+                if (m_typeBuilder.m_isHiddenGlobalType)
                     return null;
 
                 return m_typeBuilder;

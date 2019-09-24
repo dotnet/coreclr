@@ -648,7 +648,7 @@ namespace System
                                         (methodAttributes & MethodAttributes.Virtual) != 0 ||
                                         RuntimeMethodHandle.GetDeclaringType(methodHandle) != declaringType);
 
-                                    if (overrides[methodSlot] == true)
+                                    if (overrides[methodSlot])
                                         continue;
 
                                     overrides[methodSlot] = true;
@@ -1297,7 +1297,7 @@ namespace System
                                 if (slot < numVirtuals)
                                 {
                                     Debug.Assert(associateMethod.IsVirtual);
-                                    if (usedSlots[slot] == true)
+                                    if (usedSlots[slot])
                                         continue;
                                     else
                                         usedSlots[slot] = true;
@@ -2143,7 +2143,7 @@ namespace System
             }
 
             // Filter by name wrt prefixLookup and implicitly by case sensitivity
-            if (prefixLookup == true)
+            if (prefixLookup)
             {
                 if (!FilterApplyPrefixLookup(memberInfo, name!, (bindingFlags & BindingFlags.IgnoreCase) != 0))
                     return false;
@@ -2881,7 +2881,7 @@ namespace System
                         if (ReferenceEquals(fieldInfo.DeclaringType, match.DeclaringType))
                             throw new AmbiguousMatchException(SR.Arg_AmbiguousMatchException);
 
-                        if ((match.DeclaringType!.IsInterface == true) && (fieldInfo.DeclaringType!.IsInterface == true))
+                        if ((match.DeclaringType!.IsInterface) && (fieldInfo.DeclaringType!.IsInterface))
                             multipleStaticFieldMatches = true;
                     }
 

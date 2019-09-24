@@ -277,7 +277,7 @@ namespace System.Reflection.Emit
             }
             else if (con is ConstructorOnTypeBuilderInstantiation conOnTypeBuilderInst)
             {
-                if (usingRef == true) throw new InvalidOperationException();
+                if (usingRef) throw new InvalidOperationException();
 
                 tr = GetTypeTokenInternal(con.DeclaringType!).Token;
                 mr = GetMemberRef(con.DeclaringType!.Module, tr, conOnTypeBuilderInst.MetadataTokenInternal);
@@ -971,7 +971,7 @@ namespace System.Reflection.Emit
             // This method will define an initialized Data in .sdata.
             // We will create a fake TypeDef to represent the data with size. This TypeDef
             // will be the signature for the Field.
-            if (_moduleData._hasGlobalBeenCreated == true)
+            if (_moduleData._hasGlobalBeenCreated)
             {
                 throw new InvalidOperationException(SR.InvalidOperation_GlobalsHaveBeenCreated);
             }
@@ -1187,7 +1187,7 @@ namespace System.Reflection.Emit
                     throw new InvalidOperationException(SR.InvalidOperation_CannotImportGlobalFromDifferentModule);
                 }
 
-                if (declaringType.IsArray == true)
+                if (declaringType.IsArray)
                 {
                     // use reflection to build signature to work around the E_T_VAR problem in EEClass
                     ParameterInfo[] paramInfo = method.GetParameters();

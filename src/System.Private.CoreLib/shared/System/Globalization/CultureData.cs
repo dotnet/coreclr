@@ -334,7 +334,7 @@ namespace System.Globalization
             // Not found in the hash table, look it up the hard way
 
             // If not a valid mapping from the registry we'll have to try the hard coded table
-            if (retVal == null || (retVal.IsNeutralCulture == true))
+            if (retVal == null || retVal.IsNeutralCulture)
             {
                 // Not a valid mapping, try the hard coded table
                 string? name;
@@ -346,7 +346,7 @@ namespace System.Globalization
             }
 
             // If not found in the hard coded table we'll have to find a culture that works for us
-            if (!GlobalizationMode.Invariant && (retVal == null || (retVal.IsNeutralCulture == true)))
+            if (!GlobalizationMode.Invariant && (retVal == null || retVal.IsNeutralCulture))
             {
                 retVal = GetCultureDataFromRegionName(cultureName);
             }

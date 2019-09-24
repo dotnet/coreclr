@@ -921,7 +921,7 @@ namespace System
             }
             else
             {
-                return (p1Less == true) ? 1 : 2;
+                return p1Less ? 1 : 2;
             }
         }
 

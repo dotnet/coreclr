@@ -479,7 +479,7 @@ namespace System.Reflection.Emit
         {
             get
             {
-                if (m_containingType.m_isHiddenGlobalType == true)
+                if (m_containingType.m_isHiddenGlobalType)
                     return null;
                 return m_containingType;
             }
