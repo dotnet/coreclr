@@ -204,14 +204,9 @@ namespace System.IO
         }
 
         #region Task based Async APIs
-        public virtual Task<string?> ReadLineAsync()
-        {
-            return Task<string?>.Factory.StartNew(state =>
-            {
-                return ((TextReader)state!).ReadLine();
-            },
-            this, CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
-        }
+        public virtual Task<string?> ReadLineAsync() =>
+            Task<string?>.Factory.StartNew(state => ((TextReader)state!).ReadLine(), this,
+                CancellationToken.None, TaskCreationOptions.DenyChildAttach, TaskScheduler.Default);
 
         public virtual async Task<string> ReadToEndAsync()
         {
