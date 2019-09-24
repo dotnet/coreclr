@@ -107,15 +107,6 @@ jobs:
     - name: binTestsPath
       value: '$(Build.SourcesDirectory)/bin/tests'
 
-    - name: testRootFolderPath
-      value: '$(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)'
-
-    - name: microsoftNetSdkIlFolderPath
-      value: $(Build.SourcesDirectory)/.packages/microsoft.net.sdk.il
-      
-    - name: microsoftNetSdkIlArtifactName
-      value: 'MicrosoftNetSdkIlPackage-$(artifactRootName)'
-
     - name: archiveExtension
       value: '.tar.gz'
     - name: archiveType
