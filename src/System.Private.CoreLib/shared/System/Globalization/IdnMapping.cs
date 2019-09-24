@@ -358,7 +358,7 @@ namespace System.Globalization
                 for (basicCount = iAfterLastDot; basicCount < iNextDot; basicCount++)
                 {
                     // Can't be lonely surrogate because it would've thrown in normalization
-                    Debug.Assert(char.IsLowSurrogate(unicode, basicCount) == false, "[IdnMapping.punycode_encode]Unexpected low surrogate");
+                    Debug.Assert(!char.IsLowSurrogate(unicode, basicCount), "[IdnMapping.punycode_encode]Unexpected low surrogate");
 
                     // Double check our bidi rules
                     BidiCategory testBidi = CharUnicodeInfo.GetBidiCategory(unicode, basicCount);

@@ -15,7 +15,7 @@ namespace System.Reflection
 
             RuntimeType fieldType = fieldTypeHandle.GetRuntimeType();
 
-            if (fieldType.IsEnum && raw == false)
+            if (fieldType.IsEnum && !raw)
             {
                 // NOTE: Unlike in `TypeBuilder.SetConstantValue`, if `fieldType` describes
                 // a nullable enum type `Nullable<TEnum>`, we do not unpack it to `TEnum` to

@@ -33,7 +33,7 @@ namespace System.Resources
 
             string? startingCulture = culture?.Name;
 
-            if (_PRIInitialized == false)
+            if (!_PRIInitialized)
             {
                 // Always throw if we did not fully succeed in initializing the WinRT Resource Manager.
 
@@ -122,9 +122,9 @@ namespace System.Resources
         // Throws MissingManifestResourceException and WinRT HResults
         private void SetUapConfiguration()
         {
-            Debug.Assert(_useUapResourceManagement == false); // Only this function writes to this member
+            Debug.Assert(!_useUapResourceManagement); // Only this function writes to this member
             Debug.Assert(_WinRTResourceManager == null); // Only this function writes to this member
-            Debug.Assert(_PRIInitialized == false); // Only this function writes to this member
+            Debug.Assert(!_PRIInitialized); // Only this function writes to this member
             Debug.Assert(_PRIExceptionInfo == null); // Only this function writes to this member
 
 #if FEATURE_APPX

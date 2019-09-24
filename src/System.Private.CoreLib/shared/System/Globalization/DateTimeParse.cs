@@ -662,7 +662,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     {
                         if (str.Index < str.Length - 1)
                         {
-                            if (false == HandleTimeZone(ref str, ref result))
+                            if (!HandleTimeZone(ref str, ref result))
                             {
                                 LexTraceExit("0020 (value like \"12:01\" or \"12:\" followed by a non-TZ number", dps);
                                 return false;
@@ -794,7 +794,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                             }
                             if (dps == DS.T_NNt || dps == DS.T_Nt)
                             {
-                                if (false == HandleTimeZone(ref str, ref result))
+                                if (!HandleTimeZone(ref str, ref result))
                                 {
                                     LexTraceExit("0070 (HandleTimeZone returned false)", dps);
                                     return false;

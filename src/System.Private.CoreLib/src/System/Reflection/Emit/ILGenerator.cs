@@ -538,7 +538,7 @@ namespace System.Reflection.Emit
 
             // Pop the this parameter if the method is non-static and the
             // instruction is not newobj.
-            if (!(methodInfo is SymbolMethod) && methodInfo.IsStatic == false && !opcode.Equals(OpCodes.Newobj))
+            if (!(methodInfo is SymbolMethod) && !methodInfo.IsStatic && !opcode.Equals(OpCodes.Newobj))
                 stackchange--;
             // Pop the optional parameters off the stack.
             if (optionalParameterTypes != null)

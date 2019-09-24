@@ -1561,7 +1561,7 @@ namespace System.Reflection
             // re-architect the PCA product logic and test cases -- you've been warned!
             Debug.Assert(pca.BaseType == typeof(Attribute), "Pseudo CA Error");
             AttributeUsageAttribute usage = CustomAttribute.GetAttributeUsage(pca);
-            Debug.Assert(usage.Inherited == false, "Pseudo CA Error");
+            Debug.Assert(!usage.Inherited, "Pseudo CA Error");
             // AllowMultiple is true for TypeForwardedToAttribute
             // Debug.Assert(usage.AllowMultiple == false, "Pseudo CA Error");
         }

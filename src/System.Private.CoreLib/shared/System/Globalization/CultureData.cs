@@ -352,7 +352,7 @@ namespace System.Globalization
             }
 
             // If we found one we can use, then cache it for next time
-            if (retVal != null && (retVal.IsNeutralCulture == false))
+            if (retVal != null && !retVal.IsNeutralCulture)
             {
                 // first add it to the cache
                 lock (s_lock)

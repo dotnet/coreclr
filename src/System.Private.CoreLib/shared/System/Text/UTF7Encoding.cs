@@ -574,7 +574,7 @@ namespace System.Text
                 bitCount = decoder.bitCount;
                 firstByte = decoder.firstByte;
 
-                Debug.Assert(firstByte == false || decoder.bitCount <= 0,
+                Debug.Assert(!firstByte || decoder.bitCount <= 0,
                     "[UTF7Encoding.GetChars]If remembered bits, then first byte flag shouldn't be set");
             }
 

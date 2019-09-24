@@ -328,9 +328,9 @@ namespace System.Text
                 if (bytes >= byteEnd)
                 {
                     // didn't use this char, we'll throw or use buffer
-                    Debug.Assert(fallbackBuffer == null || fallbackBuffer.bFallingBack == false,
+                    Debug.Assert(fallbackBuffer == null || !fallbackBuffer.bFallingBack,
                         "[Latin1Encoding.GetBytes]Expected fallback to have throw initially if insufficient space");
-                    if (fallbackBuffer == null || fallbackBuffer.bFallingBack == false)
+                    if (fallbackBuffer == null || !fallbackBuffer.bFallingBack)
                     {
                         Debug.Assert(chars > charStart,
                             "[Latin1Encoding.GetBytes]Expected chars to have advanced (fallback case)");

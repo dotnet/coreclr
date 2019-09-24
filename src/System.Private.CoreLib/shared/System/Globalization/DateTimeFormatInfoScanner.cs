@@ -212,7 +212,7 @@ namespace System.Globalization
                     return;
                 }
 
-                if (KnownWords.TryGetValue(str, out _) == false)
+                if (!KnownWords.TryGetValue(str, out _))
                 {
                     m_dateWords ??= new List<string>();
 

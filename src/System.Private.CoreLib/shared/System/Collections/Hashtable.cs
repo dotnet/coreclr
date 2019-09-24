@@ -1455,7 +1455,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (_current == false)
+                    if (!_current)
                         throw new InvalidOperationException(SR.InvalidOperation_EnumNotStarted);
                     return _currentKey!;
                 }
@@ -1485,7 +1485,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (_current == false)
+                    if (!_current)
                         throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     return new DictionaryEntry(_currentKey!, _currentValue);
                 }
@@ -1495,7 +1495,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (_current == false)
+                    if (!_current)
                         throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
 
                     if (_getObjectRetType == Keys)
@@ -1511,7 +1511,7 @@ namespace System.Collections
             {
                 get
                 {
-                    if (_current == false)
+                    if (!_current)
                         throw new InvalidOperationException(SR.InvalidOperation_EnumOpCantHappen);
                     return _currentValue;
                 }

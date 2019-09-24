@@ -1357,7 +1357,7 @@ namespace System.Text
                 if (_chars != null)
                 {
                     char* pTemp = _chars;
-                    if (_fallbackBuffer.InternalFallback(byteBuffer, _bytes, ref _chars) == false)
+                    if (!_fallbackBuffer.InternalFallback(byteBuffer, _bytes, ref _chars))
                     {
                         // Throw maybe
                         _bytes -= byteBuffer.Length;                             // Didn't use how many ever bytes we're falling back

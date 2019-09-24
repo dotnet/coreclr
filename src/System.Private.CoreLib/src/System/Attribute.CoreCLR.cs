@@ -243,7 +243,7 @@ namespace System
             {
                 Type objType = objAttr[i]!.GetType();
                 AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
-                if (attribUsage.AllowMultiple == false)
+                if (!attribUsage.AllowMultiple)
                     disAllowMultiple.Add(objType);
             }
 
@@ -272,9 +272,9 @@ namespace System
                     Type objType = objAttr[i]!.GetType();
                     AttributeUsageAttribute attribUsage = InternalGetAttributeUsage(objType);
 
-                    if ((attribUsage.Inherited) && (disAllowMultiple.Contains(objType) == false))
+                    if ((attribUsage.Inherited) && (!disAllowMultiple.Contains(objType)))
                     {
-                        if (attribUsage.AllowMultiple == false)
+                        if (!attribUsage.AllowMultiple)
                             disAllowMultiple.Add(objType);
                         count++;
                     }

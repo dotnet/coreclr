@@ -268,7 +268,7 @@ namespace System.Reflection.Emit
 
             if (con is ConstructorBuilder conBuilder)
             {
-                if (usingRef == false && conBuilder.Module.Equals(this))
+                if (!usingRef && conBuilder.Module.Equals(this))
                     return conBuilder.GetToken();
 
                 // constructor is defined in a different module
@@ -282,7 +282,7 @@ namespace System.Reflection.Emit
                 tr = GetTypeTokenInternal(con.DeclaringType!).Token;
                 mr = GetMemberRef(con.DeclaringType!.Module, tr, conOnTypeBuilderInst.MetadataTokenInternal);
             }
-            else if (con is RuntimeConstructorInfo rtCon && con.ReflectedType!.IsArray == false)
+            else if (con is RuntimeConstructorInfo rtCon && !con.ReflectedType!.IsArray)
             {
                 // constructor is not a dynamic field
                 // We need to get the TypeRef tokens

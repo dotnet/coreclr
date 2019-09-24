@@ -72,7 +72,7 @@ namespace System.Reflection
 
                         returnParameter = new RuntimeParameterInfo(sig, scope, tkParamDef, position, attr, member);
                     }
-                    else if (fetchReturnParameter == false && position >= 0)
+                    else if (!fetchReturnParameter && position >= 0)
                     {
                         // position beyong sigArgCount?
                         if (position >= sigArgCount)

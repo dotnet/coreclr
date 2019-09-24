@@ -2706,7 +2706,7 @@ namespace System.Diagnostics.Tracing
                     // interpret perEventSourceSessionId's sign, and adjust perEventSourceSessionId to
                     // represent 0-based positive values
                     bool bSessionEnable = (commandArgs.perEventSourceSessionId >= 0);
-                    if (commandArgs.perEventSourceSessionId == 0 && commandArgs.enable == false)
+                    if (commandArgs.perEventSourceSessionId == 0 && !commandArgs.enable)
                         bSessionEnable = false;
 
                     if (commandArgs.listener == null)
