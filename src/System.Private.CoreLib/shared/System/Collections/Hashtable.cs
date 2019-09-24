@@ -962,7 +962,7 @@ namespace System.Collections
             uint seed = (uint)hashcode;
             uint incr = unchecked((uint)(1 + ((seed * HashHelpers.HashPrime) % ((uint)newBuckets.Length - 1))));
             int bucketNumber = (int)(seed % (uint)newBuckets.Length);
-            do
+            while (true)
             {
                 if ((newBuckets[bucketNumber].key == null) || (newBuckets[bucketNumber].key == _buckets))
                 {
@@ -978,7 +978,7 @@ namespace System.Collections
                     _occupancy++;
                 }
                 bucketNumber = (int)(((long)bucketNumber + incr) % (uint)newBuckets.Length);
-            } while (true);
+            }
         }
 
         // Removes an entry from this hashtable. If an entry with the specified
