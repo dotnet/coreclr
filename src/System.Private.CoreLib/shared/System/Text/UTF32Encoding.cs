@@ -41,11 +41,9 @@ namespace System.Text
         private readonly bool _isThrowException = false;
         private readonly bool _bigEndian = false;
 
-
         public UTF32Encoding() : this(false, true)
         {
         }
-
 
         public UTF32Encoding(bool bigEndian, bool byteOrderMark) :
             base(bigEndian ? 12001 : 12000)
@@ -53,7 +51,6 @@ namespace System.Text
             _bigEndian = bigEndian;
             _emitUTF32ByteOrderMark = byteOrderMark;
         }
-
 
         public UTF32Encoding(bool bigEndian, bool byteOrderMark, bool throwOnInvalidCharacters) :
             this(bigEndian, byteOrderMark)
@@ -79,7 +76,6 @@ namespace System.Text
                 this.decoderFallback = new DecoderReplacementFallback("\xFFFD");
             }
         }
-
 
         // The following methods are copied from EncodingNLS.cs.
         // Unfortunately EncodingNLS.cs is internal and we're public, so we have to re-implement them here.
@@ -949,7 +945,6 @@ namespace System.Text
                     continue;
                 }
 
-
                 // Ok, we have something we can add to our output
                 if (iChar >= 0x10000)
                 {
@@ -1051,7 +1046,6 @@ namespace System.Text
             return (int)(chars - charStart);
         }
 
-
         private uint GetSurrogate(char cHigh, char cLow)
         {
             return (((uint)cHigh - 0xD800) * 0x400) + ((uint)cLow - 0xDC00) + 0x10000;
@@ -1067,18 +1061,15 @@ namespace System.Text
             return (char)((iChar - 0x10000) % 0x400 + 0xDC00);
         }
 
-
         public override Decoder GetDecoder()
         {
             return new UTF32Decoder(this);
         }
 
-
         public override Encoder GetEncoder()
         {
             return new EncoderNLS(this);
         }
-
 
         public override int GetMaxByteCount(int charCount)
         {
@@ -1100,7 +1091,6 @@ namespace System.Text
 
             return (int)byteCount;
         }
-
 
         public override int GetMaxCharCount(int byteCount)
         {
@@ -1129,7 +1119,6 @@ namespace System.Text
 
             return (int)charCount;
         }
-
 
         public override byte[] GetPreamble()
         {
@@ -1167,7 +1156,6 @@ namespace System.Text
 
             return false;
         }
-
 
         public override int GetHashCode()
         {

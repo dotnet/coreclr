@@ -124,7 +124,6 @@ namespace System.Text
         {
         }
 
-
         protected Encoding(int codePage)
         {
             // Validate code page
@@ -394,7 +393,6 @@ namespace System.Text
             }
         }
 
-
         // True if and only if the encoding is used for display by browsers clients.
 
         public virtual bool IsBrowserDisplay
@@ -437,7 +435,6 @@ namespace System.Text
             }
         }
 
-
         // True if and only if the encoding is used for saving documents by mail and
         // news clients
 
@@ -457,7 +454,6 @@ namespace System.Text
 
         public virtual bool IsSingleByte => false;
 
-
         public EncoderFallback EncoderFallback
         {
             get => encoderFallback;
@@ -473,7 +469,6 @@ namespace System.Text
             }
         }
 
-
         public DecoderFallback DecoderFallback
         {
             get => decoderFallback;
@@ -488,7 +483,6 @@ namespace System.Text
                 decoderFallback = value;
             }
         }
-
 
         public virtual object Clone()
         {
@@ -840,7 +834,6 @@ namespace System.Text
         public abstract int GetChars(byte[] bytes, int byteIndex, int byteCount,
                                        char[] chars, int charIndex);
 
-
         // We expect this to be the workhorse for NLS Encodings, but for existing
         // ones we need a working (if slow) default implementation)
         //
@@ -924,7 +917,6 @@ namespace System.Text
                 return string.CreateStringFromEncoding(bytesPtr, bytes.Length, this);
             }
         }
-
 
         // Returns the code page identifier of this encoding. The returned value is
         // an integer between 0 and 65535 if the encoding has a code page

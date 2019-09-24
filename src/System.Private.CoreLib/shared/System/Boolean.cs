@@ -34,7 +34,6 @@ namespace System
         //
         internal const int False = 0;
 
-
         //
         // Internal Constants are real consts for performance.
         //
@@ -46,7 +45,6 @@ namespace System
         // The internal string representation of false.
         //
         internal const string FalseLiteral = "False";
-
 
         //
         // Public Constants
@@ -304,7 +302,6 @@ namespace System
         {
             return TypeCode.Boolean;
         }
-
 
         bool IConvertible.ToBoolean(IFormatProvider? provider)
         {

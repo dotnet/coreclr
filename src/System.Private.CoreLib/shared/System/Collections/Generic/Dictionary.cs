@@ -572,7 +572,6 @@ namespace System.Collections.Generic
                     }
                     collisionCount++;
                 } while (true);
-
             }
 
             bool updateFreeList = false;

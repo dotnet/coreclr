@@ -135,7 +135,6 @@ namespace System
             (uint)value._value;
 #endif
 
-
         [Intrinsic]
         [NonVersionable]
         public static unsafe explicit operator ulong(UIntPtr value) =>

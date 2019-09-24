@@ -84,7 +84,6 @@ namespace System
                 if ((_fileName == null) &&
                     (HResult == HResults.COR_E_EXCEPTION))
                     _message = SR.Arg_BadImageFormatException;
-
                 else
                     _message = FileLoadException.FormatFileLoadExceptionMessage(_fileName, HResult);
             }

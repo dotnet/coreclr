@@ -192,7 +192,6 @@ namespace System.IO
             }
         }
 
-
         public virtual byte[] GetBuffer()
         {
             if (!_exposable)
@@ -547,7 +546,6 @@ namespace System.IO
                 return Task.FromException(ex);
             }
         }
-
 
         public override long Seek(long offset, SeekOrigin loc)
         {

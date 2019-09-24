@@ -439,7 +439,6 @@ namespace System
             return false;
         }
 
-
         //
         //  FormatCustomized
         //
@@ -775,7 +774,6 @@ namespace System
             return result;
         }
 
-
         // output the 'z' famliy of formats, which output a the offset from UTC, e.g. "-07:30"
         private static void FormatCustomizedTimeZone(DateTime dateTime, TimeSpan offset, int tokenLen, bool timeOnly, StringBuilder result)
         {
@@ -936,7 +934,6 @@ namespace System
             }
             return realFormat;
         }
-
 
         // Expand a pre-defined format string (like "D" for long date) to the real format that
         // we are going to use in the date time parsing.

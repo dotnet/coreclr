@@ -262,7 +262,6 @@ namespace System
             return CheckSeparator(CharUnicodeInfo.GetUnicodeCategory(c));
         }
 
-
         /*===================================IsUpper====================================
         **Arguments: c -- the characater to be checked.
         **Returns:  True if c is an uppercase character.
@@ -295,7 +294,6 @@ namespace System
         {
             return IsInRange(uc, UnicodeCategory.ConnectorPunctuation, UnicodeCategory.OtherPunctuation);
         }
-
 
         /*================================IsPunctuation=================================
         **Arguments: c -- the characater to be checked.
@@ -353,13 +351,11 @@ namespace System
             return CultureInfo.CurrentCulture.TextInfo.ToUpper(c);
         }
 
-
         // Converts a character to upper-case for invariant culture.
         public static char ToUpperInvariant(char c)
         {
             return CultureInfo.InvariantCulture.TextInfo.ToUpper(c);
         }
-
 
         /*===================================ToLower====================================
         **
@@ -384,13 +380,11 @@ namespace System
             return CultureInfo.CurrentCulture.TextInfo.ToLower(c);
         }
 
-
         // Converts a character to lower-case for invariant culture.
         public static char ToLowerInvariant(char c)
         {
             return CultureInfo.InvariantCulture.TextInfo.ToLower(c);
         }
-
 
         //
         // IConvertible implementation
@@ -399,7 +393,6 @@ namespace System
         {
             return TypeCode.Char;
         }
-
 
         bool IConvertible.ToBoolean(IFormatProvider? provider)
         {
@@ -500,7 +493,6 @@ namespace System
             }
             return CharUnicodeInfo.GetUnicodeCategory(s, index) == UnicodeCategory.Control;
         }
-
 
         public static bool IsDigit(string s, int index)
         {
@@ -634,7 +626,6 @@ namespace System
             return CheckPunctuation(CharUnicodeInfo.GetUnicodeCategory(s, index));
         }
 
-
         /*================================= CheckSeparator ============================
         ** Check if the specified UnicodeCategory belongs to the seprator categories.
         ==============================================================================*/
@@ -728,7 +719,6 @@ namespace System
             return CheckSymbol(CharUnicodeInfo.GetUnicodeCategory(s, index));
         }
 
-
         public static bool IsUpper(string s, int index)
         {
             if (s == null)
@@ -804,7 +794,6 @@ namespace System
             }
             return CharUnicodeInfo.GetNumericValue(s, index);
         }
-
 
         /*================================= IsHighSurrogate ============================
          ** Check if a char is a high surrogate.
@@ -887,8 +876,6 @@ namespace System
         // Plane 16 contains 0x100000 ~ 0x10ffff.
         internal const int UNICODE_PLANE16_END = 0x10ffff;
 
-
-
         /*================================= ConvertFromUtf32 ============================
          ** Convert an UTF32 value into a surrogate pair.
          ==============================================================================*/
@@ -902,7 +889,6 @@ namespace System
 
             return Rune.UnsafeCreate((uint)utf32).ToString();
         }
-
 
         /*=============================ConvertToUtf32===================================
         ** Convert a surrogate pair to UTF32 value

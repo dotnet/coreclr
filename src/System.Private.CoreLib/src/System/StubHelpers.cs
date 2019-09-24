@@ -463,9 +463,7 @@ namespace System.StubHelpers
         }
     }  // class WSTRBufferMarshaler
 
-
 #if FEATURE_COMINTEROP
-
 
     [StructLayout(LayoutKind.Sequential)]
     internal struct DateTimeNative
@@ -497,7 +495,6 @@ namespace System.StubHelpers
     }  // class DateTimeOffsetMarshaler
 
 #endif  // FEATURE_COMINTEROP
-
 
 #if FEATURE_COMINTEROP
     internal static class HStringMarshaler
@@ -1255,7 +1252,6 @@ namespace System.StubHelpers
         {
             retObj = ConvertToManaged<T>(pNative);
         }
-
 
         internal static T? ConvertToManaged<T>(IntPtr pNative) where T : struct
         {

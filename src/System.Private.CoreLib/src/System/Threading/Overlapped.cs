@@ -50,7 +50,6 @@ namespace System.Threading
             helper._ioCompletionCallback(helper._errorCode, helper._numBytes, helper._pNativeOverlapped);
         }
 
-
         // call back helper
         internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
@@ -81,7 +80,6 @@ namespace System.Threading
     }
 
     #endregion class _IOCompletionCallback
-
 
     #region class OverlappedData
 
@@ -149,7 +147,6 @@ namespace System.Threading
     }
 
     #endregion class OverlappedData
-
 
     #region class Overlapped
 

@@ -61,7 +61,6 @@ namespace System.IO
                 if ((FileName == null) &&
                     (HResult == System.HResults.COR_E_EXCEPTION))
                     _message = SR.IO_FileNotFound;
-
                 else if (FileName != null)
                     _message = FileLoadException.FormatFileLoadExceptionMessage(FileName, HResult);
             }

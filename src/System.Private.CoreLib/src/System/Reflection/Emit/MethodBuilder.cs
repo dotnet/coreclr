@@ -205,7 +205,6 @@ namespace System.Reflection.Emit
                 throw new InvalidOperationException(SR.InvalidOperation_OpenLocalVariableScope);
             }
 
-
             m_ubBody = il.BakeByteArray();
 
             m_mdMethodFixups = il.GetTokenFixups();
@@ -251,7 +250,6 @@ namespace System.Reflection.Emit
                     }
                 }
             }
-
 
             m_bIsBaked = true;
 
@@ -581,7 +579,6 @@ namespace System.Reflection.Emit
             return MethodBuilderInstantiation.MakeGenericMethod(this, typeArguments);
         }
 
-
         public GenericTypeParameterBuilder[] DefineGenericParameters(params string[] names)
         {
             if (names == null)
@@ -730,7 +727,6 @@ namespace System.Reflection.Emit
             m_parameterTypeOptionalCustomModifiers = parameterTypeOptionalCustomModifiers;
         }
 
-
         public ParameterBuilder DefineParameter(int position, ParameterAttributes attributes, string? strParamName)
         {
             if (position < 0)
@@ -796,7 +792,6 @@ namespace System.Reflection.Emit
             }
         }
 
-
         public bool InitLocals
         {
             // Property is set to true if user wishes to have zero initialized stack frame for this method. Default to false.
@@ -810,7 +805,6 @@ namespace System.Reflection.Emit
         }
 
         public string Signature => GetMethodSignature().ToString();
-
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {

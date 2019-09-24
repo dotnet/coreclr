@@ -134,7 +134,6 @@ namespace System.IO
             }
         }
 
-
         // Writes a character to the text stream. This default method is empty,
         // but descendant classes can override the method to provide the
         // appropriate functionality.
@@ -342,7 +341,6 @@ namespace System.IO
         {
             Write(string.Format(FormatProvider, format, arg));
         }
-
 
         // Writes a line terminator to the text stream. The default line terminator
         // is Environment.NewLine, but this value can be changed by setting the NewLine property.

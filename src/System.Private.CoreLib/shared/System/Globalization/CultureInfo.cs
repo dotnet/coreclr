@@ -750,7 +750,6 @@ namespace System.Globalization
             return Name.GetHashCode() + CompareInfo.GetHashCode();
         }
 
-
         /// <summary>
         /// Implements object.ToString(). Returns the name of the CultureInfo,
         /// eg. "de-DE_phoneb", "en-US", or "fj-FJ".
@@ -1077,7 +1076,6 @@ namespace System.Globalization
 
             return newInfo;
         }
-
 
         public bool IsReadOnly => _isReadOnly;
 

@@ -199,7 +199,6 @@ namespace System.Globalization
         ////////////////////////////////////////////////////////////////////////
         private static void CheckSpecialCalendar(ref CalendarId calendar, ref string localeName)
         {
-
             // Gregorian-US isn't always available in the OS, however it is the same for all locales
             switch (calendar)
             {

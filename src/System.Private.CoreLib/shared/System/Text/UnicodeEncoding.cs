@@ -37,14 +37,12 @@ namespace System.Text
         {
         }
 
-
         public UnicodeEncoding(bool bigEndian, bool byteOrderMark)
             : base(bigEndian ? 1201 : 1200)  // Set the data item.
         {
             this.bigEndian = bigEndian;
             this.byteOrderMark = byteOrderMark;
         }
-
 
         public UnicodeEncoding(bool bigEndian, bool byteOrderMark, bool throwOnInvalidBytes)
             : this(bigEndian, byteOrderMark)
@@ -531,7 +529,6 @@ namespace System.Text
                         continue;
                     }
 
-
                     // Its a low surrogate
                     if (charLeftOver == 0)
                     {
@@ -655,7 +652,6 @@ namespace System.Text
             char charLeftOver = (char)0;
             char ch;
             bool wasHereBefore = false;
-
 
             byte* byteEnd = bytes + byteCount;
             char* charEnd = chars + charCount;
@@ -1759,18 +1755,15 @@ namespace System.Text
             return (int)(chars - charStart);
         }
 
-
         public override System.Text.Encoder GetEncoder()
         {
             return new EncoderNLS(this);
         }
 
-
         public override System.Text.Decoder GetDecoder()
         {
             return new UnicodeEncoding.Decoder(this);
         }
-
 
         public override byte[] GetPreamble()
         {
@@ -1813,7 +1806,6 @@ namespace System.Text
             return (int)byteCount;
         }
 
-
         public override int GetMaxCharCount(int byteCount)
         {
             if (byteCount < 0)
@@ -1835,7 +1827,6 @@ namespace System.Text
 
             return (int)charCount;
         }
-
 
         public override bool Equals(object? value)
         {

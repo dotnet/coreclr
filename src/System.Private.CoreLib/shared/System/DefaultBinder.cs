@@ -89,7 +89,6 @@ namespace System
             }
 #endregion
 
-
             // Find the method that matches...
             int CurIdx = 0;
             bool defaultValueBinding = ((bindingAttr & BindingFlags.OptionalParamBinding) != 0);
@@ -427,7 +426,6 @@ namespace System
 
             return candidates[currentMin]!;
         }
-
 
         // Given a set of fields that match the base criteria, select a field.
         // if value is null then we have no way to select a field
@@ -973,7 +971,6 @@ namespace System
                     c2 = c2.GetElementType()!;
                 }
             }
-
 
             if (c1.IsPrimitive && c2.IsPrimitive)
             {

@@ -53,13 +53,10 @@ namespace System
                 {
                     if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_PTR)
                         type = type.MakePointerType();
-
                     else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_BYREF)
                         type = type.MakeByRefType();
-
                     else if ((CorElementType)Marshal.ReadInt32((IntPtr)arModifiers, i * sizeof(int)) == CorElementType.ELEMENT_TYPE_SZARRAY)
                         type = type.MakeArrayType();
-
                     else
                         type = type.MakeArrayType(Marshal.ReadInt32((IntPtr)arModifiers, ++i * sizeof(int)));
                 }
@@ -75,7 +72,6 @@ namespace System
         public static bool operator !=(RuntimeTypeHandle left, object? right) => !left.Equals(right);
 
         public static bool operator !=(object? left, RuntimeTypeHandle right) => !right.Equals(left);
-
 
         // This is the RuntimeType for the type
         internal RuntimeType m_type;
@@ -1457,7 +1453,6 @@ namespace System
         internal extern Type[] GetCustomModifiers(int position, bool required);
         #endregion
     }
-
 
     internal abstract class Resolver
     {

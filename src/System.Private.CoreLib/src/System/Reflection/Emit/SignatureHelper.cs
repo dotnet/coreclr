@@ -699,9 +699,6 @@ namespace System.Reflection.Emit
             return m_signature;
         }
 
-
-
-
         internal byte[] InternalGetSignatureArray()
         {
             int argCount = m_argCount;

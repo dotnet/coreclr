@@ -50,7 +50,6 @@ namespace System
                 return new EmptyReadOnlyDictionaryInternal();
             else
                 return new ListDictionaryInternal();
-
         }
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -243,7 +242,6 @@ namespace System
             _stackTrace = null;
             _stackTraceString = null;
         }
-
 
         // This is the object against which a lock will be taken
         // when attempt to restore the EDI. Since its static, its possible

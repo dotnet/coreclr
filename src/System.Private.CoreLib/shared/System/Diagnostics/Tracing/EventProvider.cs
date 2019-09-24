@@ -215,7 +215,6 @@ namespace System.Diagnostics.Tracing
             // We solve by Unregistering after releasing the EventListenerLock.
             if (registrationHandle != 0)
                 EventUnregister(registrationHandle);
-
         }
 
         /// <summary>
@@ -399,7 +398,6 @@ namespace System.Diagnostics.Tracing
                     if ((idx = IndexOfSessionInList(liveSessionList, s.etwSessionId)) < 0 ||
                         (liveSessionList![idx].sessionIdBit != s.sessionIdBit))
                         changedSessionList.Add(Tuple.Create(s, false));
-
                 }
             }
             // next look for sessions that were created since the last callback  (or have changed)
@@ -666,7 +664,6 @@ namespace System.Diagnostics.Tracing
             if ((level <= m_level) ||
                 (m_level == 0))
             {
-
                 //
                 // Check if Keyword is enabled
                 //
@@ -1196,7 +1193,6 @@ namespace System.Diagnostics.Tracing
 
             return true;
         }
-
 
         // These are look-alikes to the Manifest based ETW OS APIs that have been shimmed to work
         // either with Manifest ETW or Classic ETW (if Manifest based ETW is not available).

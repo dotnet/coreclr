@@ -214,6 +214,5 @@ namespace System.Runtime.CompilerServices
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private static extern object GetUninitializedObjectInternal(Type type);
-
     }
 }

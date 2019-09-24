@@ -37,7 +37,6 @@ namespace System.Globalization
         internal static readonly FormatLiterals PositiveInvariantFormatLiterals = TimeSpanFormat.FormatLiterals.InitInvariant(isNegative: false);
         internal static readonly FormatLiterals NegativeInvariantFormatLiterals = TimeSpanFormat.FormatLiterals.InitInvariant(isNegative: true);
 
-
         /// <summary>Main method called from TimeSpan.ToString.</summary>
         internal static string Format(TimeSpan value, string? format, IFormatProvider? formatProvider)
         {

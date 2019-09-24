@@ -112,9 +112,6 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern Type GetTypeFromHandle(RuntimeTypeHandle handle);
 
-
-
-
 #if FEATURE_COMINTEROP
         internal bool IsWindowsRuntimeObject
         {
@@ -125,7 +122,6 @@ namespace System
         {
             get { return IsExportedToWindowsRuntimeImpl(); }
         }
-
 
         // Protected routine to determine if this class represents a Windows Runtime object
         internal virtual bool IsWindowsRuntimeObjectImpl()

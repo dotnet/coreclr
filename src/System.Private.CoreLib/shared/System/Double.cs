@@ -317,8 +317,6 @@ namespace System
             return Number.ParseDouble(s, style, NumberFormatInfo.GetInstance(provider));
         }
 
-
-
         public static bool TryParse(string? s, out double result)
         {
             if (s == null)

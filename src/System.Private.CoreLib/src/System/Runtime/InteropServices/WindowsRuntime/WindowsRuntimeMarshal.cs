@@ -619,7 +619,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                         removeMethod(token);
                     }
 
-
                     throw;
                 }
             }
@@ -804,7 +803,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 CallRemoveMethods(removeMethod, tokensToRemove);
                 Log("[WinRT_Eventing] Finished removing all events for instance = " + instanceKey + "\n");
             }
-
 
             internal class ReaderWriterLockTimedOutException : ApplicationException
             {
@@ -1205,7 +1203,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
             return activationFactory;
         }
 
-
 #endif // FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 
         //
@@ -1292,7 +1289,6 @@ namespace System.Runtime.InteropServices.WindowsRuntime
         /// </summary>
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern int GetHRForException(Exception e);
-
 
 #if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
         [MethodImpl(MethodImplOptions.InternalCall)]

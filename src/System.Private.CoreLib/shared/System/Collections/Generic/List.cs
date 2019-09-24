@@ -605,7 +605,6 @@ namespace System.Collections.Generic
             return list;
         }
 
-
         // Returns the index of the first occurrence of a given value in a range of
         // this list. The list is searched forwards from beginning to end.
         // The elements of the list are compared to the given value using the

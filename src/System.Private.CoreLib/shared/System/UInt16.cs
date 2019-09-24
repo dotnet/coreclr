@@ -20,7 +20,6 @@ namespace System
         public const ushort MaxValue = (ushort)0xFFFF;
         public const ushort MinValue = 0;
 
-
         // Compares this object to another object, returning an integer that
         // indicates the relationship.
         // Returns a value less than zero if this  object
@@ -77,7 +76,6 @@ namespace System
             return Number.FormatUInt32(m_value, null, provider);
         }
 
-
         public string ToString(string? format)
         {
             return Number.FormatUInt32(m_value, format, null);
@@ -107,7 +105,6 @@ namespace System
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Parse((ReadOnlySpan<char>)s, style, NumberFormatInfo.CurrentInfo);
         }
-
 
         [CLSCompliant(false)]
         public static ushort Parse(string s, IFormatProvider? provider)

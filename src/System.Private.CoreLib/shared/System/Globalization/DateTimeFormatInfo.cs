@@ -213,7 +213,6 @@ namespace System.Globalization
             return abbreviatedMonthNames;
         }
 
-
         /// <summary>
         /// Create an array of string which contains the month names.
         /// </summary>
@@ -228,7 +227,6 @@ namespace System.Globalization
                 "[DateTimeFormatInfo.GetMonthNames] Expected 12 or 13 month names in a year");
             return monthNames;
         }
-
 
         // Invariant DateTimeFormatInfo doesn't have user-overriden values
         // Default calendar is gregorian
@@ -383,7 +381,6 @@ namespace System.Globalization
                 amDesignator = value;
             }
         }
-
 
         public Calendar Calendar
         {
@@ -1069,7 +1066,6 @@ namespace System.Globalization
                     dateTimeOffsetPattern = foundZ ?
                         ShortDatePattern + " " + LongTimePattern :
                         ShortDatePattern + " " + LongTimePattern + " zzz";
-
                 }
                 return dateTimeOffsetPattern;
             }
@@ -2499,7 +2495,6 @@ namespace System.Globalization
                     }
                 }
             }
-
 
             int hashcode = ch % TOKEN_HASH_SIZE;
             int hashProbe = 1 + ch % SECOND_PRIME;

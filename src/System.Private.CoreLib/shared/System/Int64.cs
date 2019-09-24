@@ -118,7 +118,6 @@ namespace System
             return Number.ParseInt64(s, NumberStyles.Integer, NumberFormatInfo.GetInstance(provider));
         }
 
-
         // Parses a long from a String in the given style.  If
         // a NumberFormatInfo isn't specified, the current culture's
         // NumberFormatInfo is assumed.

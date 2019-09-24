@@ -170,7 +170,6 @@ namespace System.Globalization
         private const int c_skew = 38;
         private const int c_damp = 700;
 
-
         // Legal "dot" separators (i.e: . in www.microsoft.com)
         private static readonly char[] s_dotSeparators = { '.', '\u3002', '\uFF0E', '\uFF61' };
 

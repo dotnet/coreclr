@@ -173,7 +173,6 @@ namespace System
             throw new ArgumentException(SR.Arg_MustBeSingle);
         }
 
-
         public int CompareTo(float value)
         {
             if (m_value < value) return -1;
@@ -358,7 +357,6 @@ namespace System
         {
             return TypeCode.Single;
         }
-
 
         bool IConvertible.ToBoolean(IFormatProvider? provider)
         {

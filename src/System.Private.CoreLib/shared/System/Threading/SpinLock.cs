@@ -419,7 +419,6 @@ namespace System.Threading
                 throw new LockRecursionException(SR.SpinLock_TryEnter_LockRecursionException);
             }
 
-
             SpinWait spinner = new SpinWait();
 
             // Loop until the lock has been successfully acquired or, if specified, the timeout expires.
@@ -636,7 +635,6 @@ namespace System.Threading
                     }
                 }
             }
-
 
             /// <summary>
             ///  Gets whether the lock is currently held by any thread or not.

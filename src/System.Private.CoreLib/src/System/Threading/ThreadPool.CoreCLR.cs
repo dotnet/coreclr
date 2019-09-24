@@ -370,7 +370,6 @@ namespace System.Threading
              RegisteredWaitHandle registeredWaitHandle
              );
 
-
         [Obsolete("ThreadPool.BindHandle(IntPtr) has been deprecated.  Please use ThreadPool.BindHandle(SafeHandle) instead.", false)]
         public static bool BindHandle(IntPtr osHandle)
         {

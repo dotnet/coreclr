@@ -45,7 +45,6 @@ namespace System.Text
 
         private const int UTF7_CODEPAGE = 65000;
 
-
         public UTF7Encoding()
             : this(false)
         {
@@ -718,18 +717,15 @@ namespace System.Text
             return buffer.Count;
         }
 
-
         public override System.Text.Decoder GetDecoder()
         {
             return new UTF7Encoding.Decoder(this);
         }
 
-
         public override System.Text.Encoder GetEncoder()
         {
             return new UTF7Encoding.Encoder(this);
         }
-
 
         public override int GetMaxByteCount(int charCount)
         {
@@ -761,7 +757,6 @@ namespace System.Text
 
             return (int)byteCount;
         }
-
 
         public override int GetMaxCharCount(int byteCount)
         {

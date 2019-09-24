@@ -828,7 +828,6 @@ namespace System.Text.Unicode
             }
         }
 
-
         /// <summary>
         /// Given a DWORD which represents a buffer of 2 packed UTF-16 values in machine endianess,
         /// converts the first UTF-16 value to its 3-byte UTF-8 representation and writes the

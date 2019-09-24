@@ -31,19 +31,16 @@ namespace System.Reflection
         ExplicitThis = 0x40,  // This parameter is explicitly in the signature
     }
 
-
     [Flags]
     internal enum PInvokeAttributes
     {
         NoMangle = 0x0001,
-
 
         CharSetMask = 0x0006,
         CharSetNotSpec = 0x0000,
         CharSetAnsi = 0x0002,
         CharSetUnicode = 0x0004,
         CharSetAuto = 0x0006,
-
 
         BestFitUseAssem = 0x0000,
         BestFitEnabled = 0x0010,
@@ -67,7 +64,6 @@ namespace System.Reflection
         MaxValue = 0xFFFF,
     }
 
-
     [Flags]
     internal enum MethodSemanticsAttributes
     {
@@ -78,7 +74,6 @@ namespace System.Reflection
         RemoveOn = 0x0010,
         Fire = 0x0020,
     }
-
 
     internal enum MetadataTokenType
     {
@@ -132,7 +127,6 @@ namespace System.Reflection
                 }
             }
         }
-
     }
 
     internal struct MetadataToken
@@ -154,7 +148,6 @@ namespace System.Reflection
         }
 
         public static bool IsNullToken(int token) => (token & 0x00FFFFFF) == 0;
-
 
         public MetadataToken(int token) { Value = token; }
 
@@ -426,7 +419,6 @@ namespace System.Reflection
             _GetScopeProps(m_metadataImport2, out mvid);
         }
 
-
         public ConstArray GetMethodSignature(MetadataToken token)
         {
             if (token.IsMemberRef)
@@ -571,7 +563,6 @@ namespace System.Reflection
         }
         #endregion
     }
-
 
     internal class MetadataException : Exception
     {

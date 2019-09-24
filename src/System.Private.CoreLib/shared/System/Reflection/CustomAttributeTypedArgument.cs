@@ -45,19 +45,14 @@ namespace System.Reflection
 
             if (ArgumentType.IsEnum)
                 return string.Format(typed ? "{0}" : "({1}){0}", Value, ArgumentType.FullName);
-
             else if (Value == null)
                 return string.Format(typed ? "null" : "({0})null", ArgumentType.Name);
-
             else if (ArgumentType == typeof(string))
                 return string.Format("\"{0}\"", Value);
-
             else if (ArgumentType == typeof(char))
                 return string.Format("'{0}'", Value);
-
             else if (ArgumentType == typeof(Type))
                 return string.Format("typeof({0})", ((Type)Value!).FullName);
-
             else if (ArgumentType.IsArray)
             {
                 IList<CustomAttributeTypedArgument> array = (IList<CustomAttributeTypedArgument>)Value!;

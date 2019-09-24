@@ -491,7 +491,6 @@ namespace System.Globalization
             return iTemp;
         }
 
-
         // Context for EnumCalendarInfoExEx callback.
         private struct EnumLocaleData
         {

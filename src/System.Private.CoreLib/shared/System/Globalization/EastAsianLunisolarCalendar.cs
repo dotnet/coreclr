@@ -25,7 +25,6 @@ namespace System.Globalization
         {
             CheckTicksRange(time.Ticks);
 
-
             TimeToLunar(time, out int year, out _, out _);
             return ((year - 4) % 60) + 1;
         }

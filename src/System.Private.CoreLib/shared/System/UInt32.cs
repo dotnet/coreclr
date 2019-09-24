@@ -20,7 +20,6 @@ namespace System
         public const uint MaxValue = (uint)0xffffffff;
         public const uint MinValue = 0U;
 
-
         // Compares this object to another object, returning an integer that
         // indicates the relationship.
         // Returns a value less than zero if this  object
@@ -116,7 +115,6 @@ namespace System
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             return Number.ParseUInt32(s, style, NumberFormatInfo.CurrentInfo);
         }
-
 
         [CLSCompliant(false)]
         public static uint Parse(string s, IFormatProvider? provider)

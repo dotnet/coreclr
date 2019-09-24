@@ -120,7 +120,6 @@ namespace System.Globalization
             _isReadOnly = readOnly;
         }
 
-
         /// <summary>
         /// Returns the string used to separate items in a list.
         /// </summary>

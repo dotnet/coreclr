@@ -475,7 +475,6 @@ namespace System.Reflection.Emit
             if (fullname[0] == '\0')
                 throw new ArgumentException(SR.Argument_IllegalName, nameof(fullname));
 
-
             if (fullname.Length > 1023)
                 throw new ArgumentException(SR.Argument_TypeNameTooLong, nameof(fullname));
 
@@ -1136,7 +1135,6 @@ namespace System.Reflection.Emit
             }
         }
 
-
         public GenericTypeParameterBuilder[] DefineGenericParameters(params string[] names)
         {
             if (names == null)
@@ -1158,7 +1156,6 @@ namespace System.Reflection.Emit
 
             return m_inst;
         }
-
 
         public override Type MakeGenericType(params Type[] typeArguments)
         {
@@ -1731,7 +1728,6 @@ namespace System.Reflection.Emit
             return DefineProperty(name, attributes, callingConvention, returnType, null, null, parameterTypes, null, null);
         }
 
-
         public PropertyBuilder DefineProperty(string name, PropertyAttributes attributes,
             Type returnType, Type[]? returnTypeRequiredCustomModifiers, Type[]? returnTypeOptionalCustomModifiers,
             Type[]? parameterTypes, Type[][]? parameterTypeRequiredCustomModifiers, Type[][]? parameterTypeOptionalCustomModifiers)
@@ -2121,7 +2117,6 @@ namespace System.Reflection.Emit
                 return m_tdType;
             }
         }
-
 
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute)
         {

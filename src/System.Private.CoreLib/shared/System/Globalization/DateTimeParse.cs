@@ -114,7 +114,6 @@ namespace System
             }
         }
 
-
         internal static DateTime ParseExactMultiple(ReadOnlySpan<char> s, string[] formats,
                                                 DateTimeFormatInfo dtfi, DateTimeStyles style, out TimeSpan offset)
         {
@@ -150,7 +149,6 @@ namespace System
             offset = TimeSpan.Zero;
             return false;
         }
-
 
         internal static bool TryParseExactMultiple(ReadOnlySpan<char> s, string?[]? formats,
                                                    DateTimeFormatInfo dtfi, DateTimeStyles style, out DateTime result)
@@ -262,7 +260,6 @@ namespace System
             PM = 1,
         }
 
-
         ////////////////////////////////////////////////////////////////////////////
         //
         // DateTime parsing state enumeration (DS.*)
@@ -299,7 +296,6 @@ namespace System
 
             T_Nt = 18,          // have num followed by time separator
             T_NNt = 19,       // have two numbers followed by time separator
-
 
             ERROR = 20,
 
@@ -437,7 +433,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
 
             return true;
         }
-
 
         //
         // Check the word at the current index to see if it matches GMT name or Zulu name.
@@ -1927,7 +1922,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             return false;
         }
 
-
         private static bool GetDayOfYMN(ref DateTimeResult result, ref DateTimeRawInfo raw)
         {
             if ((result.flags & ParseFlags.HaveDate) != 0)
@@ -2460,7 +2454,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
         }
 
-
         internal static bool TryParse(ReadOnlySpan<char> s, DateTimeFormatInfo dtfi, DateTimeStyles styles, out DateTime result)
         {
             DateTimeResult resultData = new DateTimeResult();       // The buffer to store the parsing result.
@@ -2493,7 +2486,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             offset = TimeSpan.Zero;
             return false;
         }
-
 
         //
         // This is the real method to do the parsing work.
@@ -2743,7 +2735,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             return true;
         }
 
-
         // Handles time zone adjustments and sets DateTimeKind values as required by the styles
         private static bool DetermineTimeZoneAdjustments(ref DateTimeResult result, DateTimeStyles styles, bool bTimeOnly)
         {
@@ -2882,7 +2873,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
 
             return true;
         }
-
 
         //
         // Adjust the specified time to universal time based on the supplied timezone.
@@ -3087,7 +3077,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
             return true;
         }
-
 
         ////////////////////////////////////////////////////////////////////////
         //
@@ -3726,7 +3715,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     return false;
                 }
             }
-
 
             if ((result.Year == -1) || (result.Month == -1) || (result.Day == -1))
             {
@@ -4466,9 +4454,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             return true;
         }
 
-
-
-
         /*=================================DoStrictParse==================================
         **Action: Do DateTime parsing using the format in formatParam.
         **Returns: The parsed DateTime.
@@ -4647,7 +4632,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 }
             }
 
-
             // Check if the parsed string only contains hour/minute/second values.
             bTimeOnly = (result.Year == -1 && result.Month == -1 && result.Day == -1);
             if (!CheckDefaultDateTime(ref result, ref parseInfo.calendar, styles))
@@ -4694,7 +4678,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     return false;
                 }
             }
-
 
             if (!DetermineTimeZoneAdjustments(ref result, styles, bTimeOnly))
             {
@@ -5197,7 +5180,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             const int MaxLineLength = 55;
             const int NewLinePadding = 20;
 
-
             // invariant: strs.Length >= 2
             StringBuilder buffer = new StringBuilder();
             buffer.Append(Hex(strs[0]));
@@ -5272,7 +5254,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
         private static bool _tracingEnabled = false;
 #endif // _LOGGING
     }
-
 
     //
     // This is a string parsing helper which wraps a String object.
@@ -5357,7 +5338,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
             return false;
         }
-
 
         // Used by DateTime.Parse() to get the next token.
         internal void GetRegularToken(out TokenType tokenType, out int tokenValue, DateTimeFormatInfo dtfi)
@@ -5532,7 +5512,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     }
                     // Advance our target string
                     targetPosition = wsIndex + 1;
-
 
                     // Skip past multiple whitespace
                     while (thisPosition < Value.Length && char.IsWhiteSpace(Value[thisPosition]))
@@ -6114,7 +6093,6 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
         JapaneseEraToken = 13,   // Era name for JapaneseCalendar
         TEraToken = 14,   // Era name for TaiwanCalendar
         IgnorableSymbol = 15,   // A separator like "," that is equivalent to whitespace
-
 
         // Separator tokens.
         SEP_Unk = 0x100,         // Unknown separator.

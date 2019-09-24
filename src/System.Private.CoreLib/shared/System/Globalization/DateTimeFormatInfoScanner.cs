@@ -370,7 +370,6 @@ namespace System.Globalization
             }
         }
 
-
         //
         // Flag used to trace the date patterns (yy/yyyyy/M/MM/MMM/MMM/d/dd) that we have seen.
         //
@@ -385,7 +384,6 @@ namespace System.Globalization
 
         // Check if we have found all of the year/month/day pattern.
         private FoundDatePattern _ymdFlags = FoundDatePattern.None;
-
 
         ////////////////////////////////////////////////////////////////////////////
         //
@@ -539,7 +537,6 @@ namespace System.Globalization
             return result;
         }
 
-
         ////////////////////////////////////////////////////////////////////////////
         //
         // Scan the month names to see if genitive month names are used, and return
@@ -598,7 +595,6 @@ namespace System.Globalization
                 FORMATFLAGS.UseHebrewParsing | FORMATFLAGS.UseLeapYearMonth : 0;
         }
 
-
         //-----------------------------------------------------------------------------
         // EqualStringArrays
         //      compares two string arrays and return true if all elements of the first
@@ -656,7 +652,6 @@ namespace System.Globalization
 
             return false;
         }
-
 
         ////////////////////////////////////////////////////////////////////////////
         //

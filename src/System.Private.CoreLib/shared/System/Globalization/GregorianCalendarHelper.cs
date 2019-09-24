@@ -104,7 +104,6 @@ namespace System.Globalization
         internal EraInfo[] m_EraInfo;
         internal int[]? m_eras = null;
 
-
         // Construct an instance of gregorian calendar.
         internal GregorianCalendarHelper(Calendar cal, EraInfo[] eraInfo)
         {
@@ -324,7 +323,6 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(null, SR.ArgumentOutOfRange_BadHourMinuteSecond);
         }
 
-
         internal void CheckTicksRange(long ticks)
         {
             if (ticks < m_Cal.MinSupportedDateTime.Ticks || ticks > m_Cal.MaxSupportedDateTime.Ticks)
@@ -478,7 +476,6 @@ namespace System.Globalization
             }
             throw new ArgumentOutOfRangeException(nameof(time), SR.ArgumentOutOfRange_Era);
         }
-
 
         public int[] Eras
         {
@@ -634,7 +631,6 @@ namespace System.Globalization
             // can call GetYear() that exceeds the supported range of the Gregorian-based calendars.
             return GregorianCalendar.GetDefaultInstance().GetWeekOfYear(time, rule, firstDayOfWeek);
         }
-
 
         public int ToFourDigitYear(int year, int twoDigitYearMax)
         {

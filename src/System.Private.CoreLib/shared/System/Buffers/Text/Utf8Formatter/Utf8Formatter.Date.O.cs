@@ -92,7 +92,6 @@ namespace System.Buffers.Text
                 destination[30] = Utf8Constants.Colon;
                 FormattingHelpers.WriteTwoDecimalDigits((uint)offset.Hours, destination, 28);
                 destination[27] = sign;
-
             }
             else if (kind == DateTimeKind.Utc)
             {

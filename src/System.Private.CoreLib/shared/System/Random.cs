@@ -152,7 +152,6 @@ namespace System
         // Public Instance Methods
         //
 
-
         /*=====================================Next=====================================
         **Returns: An int [0..int.MaxValue)
         **Arguments: None
@@ -183,7 +182,6 @@ namespace System
             return d;
         }
 
-
         /*=====================================Next=====================================
         **Returns: An int [minvalue..maxvalue)
         **Arguments: minValue -- the least legal value for the Random number.
@@ -208,7 +206,6 @@ namespace System
             }
         }
 
-
         /*=====================================Next=====================================
         **Returns: An int [0..maxValue)
         **Arguments: maxValue -- One more than the greatest legal return value.
@@ -223,7 +220,6 @@ namespace System
             return (int)(Sample() * maxValue);
         }
 
-
         /*=====================================Next=====================================
         **Returns: A double [0..1)
         **Arguments: None
@@ -233,7 +229,6 @@ namespace System
         {
             return Sample();
         }
-
 
         /*==================================NextBytes===================================
         **Action:  Fills the byte array with random bytes [0..0x7f].  The entire array is filled.

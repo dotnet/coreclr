@@ -184,7 +184,6 @@ using System.Text;
 using System.Threading;
 using Microsoft.Reflection;
 
-
 #if ES_BUILD_STANDALONE
 namespace Microsoft.Diagnostics.Tracing
 #else
@@ -228,7 +227,6 @@ namespace System.Diagnostics.Tracing
     /// </remarks>
     public partial class EventSource : IDisposable
     {
-
 #if FEATURE_EVENTSOURCE_XPLAT
 #pragma warning disable CA1823 // field is used to keep listener alive
         private static readonly EventListener? persistent_Xplat_Listener = XplatEventLogger.InitializePersistentListener();
@@ -1250,7 +1248,6 @@ namespace System.Diagnostics.Tracing
                                                                     m_eventData[eventId].Tags,
                                                                     m_eventData[eventId].Parameters);
                                 Interlocked.CompareExchange(ref m_eventData[eventId].TraceLoggingEventTypes, tlet, null);
-
                             }
                             EventSourceOptions opt = new EventSourceOptions
                             {
@@ -1949,7 +1946,6 @@ namespace System.Diagnostics.Tracing
                                                                     EventTags.None,
                                                                     m_eventData[eventId].Parameters);
                                 Interlocked.CompareExchange(ref m_eventData[eventId].TraceLoggingEventTypes, tlet, null);
-
                             }
                             // TODO: activity ID support
                             EventSourceOptions opt = new EventSourceOptions
@@ -2294,7 +2290,6 @@ namespace System.Diagnostics.Tracing
                 }
             }
             return true;
-
         }
         [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
         private void ThrowEventSourceException(string? eventName, Exception? innerEx = null)
@@ -3348,7 +3343,6 @@ namespace System.Diagnostics.Tracing
                                             string.Compare(startEventMetadata.Name, 0, taskName, 0, taskName.Length) == 0 &&
                                             string.Compare(startEventMetadata.Name, taskName.Length, s_ActivityStartSuffix, 0, Math.Max(startEventMetadata.Name.Length - taskName.Length, s_ActivityStartSuffix.Length)) == 0)
                                         {
-
                                             // Make the stop event match the start event
                                             eventAttribute.Task = (EventTask)startEventMetadata.Descriptor.Task;
                                             noTask = false;
@@ -4210,7 +4204,6 @@ namespace System.Diagnostics.Tracing
             this.EventWritten?.Invoke(this, eventData);
         }
 
-
 #region private
         /// <summary>
         /// This routine adds newEventSource to the global list of eventSources, it also assigns the
@@ -4240,7 +4233,6 @@ namespace System.Diagnostics.Tracing
                     AppContext.ProcessExit += DisposeOnShutdown;
 #endif
                 }
-
 
                 // Periodically search the list for existing entries to reuse, this avoids
                 // unbounded memory use if we keep recycling eventSources (an unlikely thing).
@@ -4498,7 +4490,6 @@ namespace System.Diagnostics.Tracing
                     s_CreatingListener = false;
                 }
             }
-
         }
 
         // Instance fields
@@ -4703,7 +4694,6 @@ namespace System.Diagnostics.Tracing
                 // do the lazy init if you know it is contract based (EventID >= 0)
                 if (EventId >= 0 && m_payloadNames == null)
                 {
-
                     var names = new List<string>();
                     Debug.Assert(m_eventSource.m_eventData != null);
                     foreach (ParameterInfo parameter in m_eventSource.m_eventData[EventId].Parameters)
@@ -4804,7 +4794,6 @@ namespace System.Diagnostics.Tracing
             }
             internal set => m_message = value;
         }
-
 
 #if FEATURE_MANAGED_ETW_CHANNELS
         /// <summary>
@@ -5147,7 +5136,6 @@ namespace System.Diagnostics.Tracing
         /// </summary>
         Disable = -3
     }
-
 
 #region private classes
 
@@ -5619,7 +5607,6 @@ namespace System.Diagnostics.Tracing
 
         private string CreateManifestString()
         {
-
 #if FEATURE_MANAGED_ETW_CHANNELS
             // Write out the channels
             if (channelTab != null)
@@ -5688,7 +5675,6 @@ namespace System.Diagnostics.Tracing
             // Write out the tasks
             if (taskTab != null)
             {
-
                 sb.Append(" <tasks>").AppendLine();
                 var sortedTasks = new List<int>(taskTab.Keys);
                 sortedTasks.Sort();

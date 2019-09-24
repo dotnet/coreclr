@@ -472,7 +472,6 @@ namespace System.Security
 
                     sb.Append(str, newIndex, index - newIndex);
                     sb.Append(GetUnescapeSequence(str, index, out newIndex)); // updates the newIndex too
-
                 }
             }
             while (true);

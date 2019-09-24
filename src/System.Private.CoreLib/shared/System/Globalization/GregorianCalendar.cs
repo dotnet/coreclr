@@ -443,7 +443,6 @@ namespace System.Globalization
 
         private const int DefaultTwoDigitYearMax = 2029;
 
-
         public override int TwoDigitYearMax
         {
             get

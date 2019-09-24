@@ -1916,7 +1916,6 @@ namespace System
                     SR.Format(SR.Argument_NeverValidGenericArgument, type));
         }
 
-
         internal static void SanityCheckGenericArguments(RuntimeType[] genericArguments, RuntimeType[] genericParamters)
         {
             if (genericArguments == null)
@@ -2096,7 +2095,6 @@ namespace System
             return true;
         }
 
-
         // Used by FilterApplyType to perform all the filtering based on name and BindingFlags
         private static bool FilterApplyBase(
             MemberInfo memberInfo, BindingFlags bindingFlags, bool isPublic, bool isNonProtectedInternal, bool isStatic,
@@ -2172,7 +2170,6 @@ namespace System
             return true;
         }
 
-
         // Used by GetInterface and GetNestedType(s) which don't need parameter type filtering.
         private static bool FilterApplyType(
             Type type, BindingFlags bindingFlags, string name, bool prefixLookup, string? ns)
@@ -2190,7 +2187,6 @@ namespace System
 
             return true;
         }
-
 
         private static bool FilterApplyMethodInfo(
             RuntimeMethodInfo method, BindingFlags bindingFlags, CallingConventions callConv, Type[]? argumentTypes)
@@ -2479,7 +2475,6 @@ namespace System
             return candidates;
         }
 
-
         private ListBuilder<PropertyInfo> GetPropertyCandidates(
             string? name, BindingFlags bindingAttr, Type[]? types, bool allowPrefixLookup)
         {
@@ -2762,7 +2757,6 @@ namespace System
             return binder.SelectMethod(bindingAttr, candidates.ToArray(), types, modifiers) as MethodInfo;
         }
 
-
         protected override ConstructorInfo? GetConstructorImpl(
             BindingFlags bindingAttr, Binder? binder, CallingConventions callConvention,
             Type[] types, ParameterModifier[]? modifiers)
@@ -2789,7 +2783,6 @@ namespace System
             binder ??= DefaultBinder;
             return binder.SelectMethod(bindingAttr, candidates.ToArray(), types, modifiers) as ConstructorInfo;
         }
-
 
         protected override PropertyInfo? GetPropertyImpl(
             string name, BindingFlags bindingAttr, Binder? binder, Type? returnType, Type[]? types, ParameterModifier[]? modifiers)
@@ -2827,7 +2820,6 @@ namespace System
             binder ??= DefaultBinder;
             return binder.SelectProperty(bindingAttr, candidates.ToArray(), returnType, types, modifiers);
         }
-
 
         public override EventInfo? GetEvent(string name, BindingFlags bindingAttr)
         {
@@ -3515,7 +3507,6 @@ namespace System
                 if ((bindingFlags & BindingFlags.PutRefDispProperty) != 0 && (bindingFlags & ClassicBindingMask & ~BindingFlags.PutRefDispProperty) != 0)
                     throw new ArgumentException(SR.Arg_COMPropSetPut, nameof(bindingFlags));
 
-
                 if (name == null)
                     throw new ArgumentNullException(nameof(name));
 
@@ -3789,7 +3780,6 @@ namespace System
                     finalist.GetParametersNoCopy().Length == 0 &&
                     (bindingFlags & BindingFlags.OptionalParamBinding) == 0)
                 {
-
                     return finalist.Invoke(target, bindingFlags, binder, providedArgs, culture);
                 }
 

@@ -383,7 +383,6 @@ namespace System
             long serializedTicks = 0;
             ulong serializedDateData = 0;
 
-
             // Get the data
             SerializationInfoEnumerator enumerator = info.GetEnumerator();
             while (enumerator.MoveNext())
@@ -1432,7 +1431,6 @@ namespace System
 
         public static bool operator >=(DateTime t1, DateTime t2) => t1.InternalTicks >= t2.InternalTicks;
 
-
         // Returns a string array containing all of the known date and time options for the
         // current culture.  The strings returned are properly formatted date and
         // time strings for the current instance of DateTime.
@@ -1448,7 +1446,6 @@ namespace System
         {
             return DateTimeFormat.GetAllDateTimes(this, DateTimeFormatInfo.GetInstance(provider));
         }
-
 
         // Returns a string array containing all of the date and time options for the
         // given format format and current culture.  The strings returned are properly formatted date and
@@ -1474,7 +1471,6 @@ namespace System
         {
             return TypeCode.DateTime;
         }
-
 
         bool IConvertible.ToBoolean(IFormatProvider? provider)
         {

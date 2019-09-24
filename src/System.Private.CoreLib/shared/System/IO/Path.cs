@@ -713,7 +713,6 @@ namespace System.IO
 
             fixed (char* f = &MemoryMarshal.GetReference(first), s = &MemoryMarshal.GetReference(second), t = &MemoryMarshal.GetReference(third), u = &MemoryMarshal.GetReference(fourth))
             {
-
 #if MS_IO_REDIST
                 return StringExtensions.Create(
 #else

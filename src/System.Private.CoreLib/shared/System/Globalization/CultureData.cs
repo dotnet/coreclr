@@ -496,7 +496,6 @@ namespace System.Globalization
             invariant._saShortTimes = new string[] { "HH:mm", "hh:mm tt", "H:mm", "h:mm tt" }; // short time format
             invariant._saDurationFormats = new string[] { "HH:mm:ss" };                             // time duration format
 
-
             // Calendar specific data
             invariant._iFirstDayOfWeek = 0;                      // first day of week
             invariant._iFirstWeekOfYear = 0;                      // first week of year
@@ -1428,7 +1427,6 @@ namespace System.Globalization
                 return _sNativeCurrency;
             }
         }
-
 
         /// <summary>
         /// (user can override) monetary grouping of digits

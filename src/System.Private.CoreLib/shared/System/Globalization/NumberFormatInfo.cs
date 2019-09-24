@@ -55,7 +55,6 @@ namespace System.Globalization
         internal string _percentSymbol = "%";
         internal string _perMilleSymbol = "\u2030";
 
-
         internal string[] _nativeDigits = { "0", "1", "2", "3", "4", "5", "6", "7", "8", "9" };
 
         internal int _numberDecimalDigits = 2;
@@ -233,7 +232,6 @@ namespace System.Globalization
             return n;
         }
 
-
         public int CurrencyDecimalDigits
         {
             get => _currencyDecimalDigits;
@@ -290,7 +288,6 @@ namespace System.Globalization
             }
         }
 
-
         public int[] CurrencyGroupSizes
         {
             get => (int[])_currencyGroupSizes.Clone();
@@ -327,7 +324,6 @@ namespace System.Globalization
             }
         }
 
-
         public int[] PercentGroupSizes
         {
             get => (int[])_percentGroupSizes.Clone();
@@ -345,7 +341,6 @@ namespace System.Globalization
             }
         }
 
-
         public string CurrencyGroupSeparator
         {
             get => _currencyGroupSeparator;
@@ -356,7 +351,6 @@ namespace System.Globalization
                 _currencyGroupSeparator = value;
             }
         }
-
 
         public string CurrencySymbol
         {
@@ -623,7 +617,6 @@ namespace System.Globalization
             }
         }
 
-
         public string PercentDecimalSeparator
         {
             get => _percentDecimalSeparator;
@@ -635,7 +628,6 @@ namespace System.Globalization
             }
         }
 
-
         public string PercentGroupSeparator
         {
             get => _percentGroupSeparator;
@@ -646,7 +638,6 @@ namespace System.Globalization
                 _percentGroupSeparator = value;
             }
         }
-
 
         public string PercentSymbol
         {
@@ -662,7 +653,6 @@ namespace System.Globalization
                 _percentSymbol = value;
             }
         }
-
 
         public string PerMilleSymbol
         {

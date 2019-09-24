@@ -174,7 +174,6 @@ namespace System.Reflection
         }
         #endregion
 
-
         #region MemberInfo Overrides
         public override string Name => RuntimeMethodHandle.GetName(this);
         public override MemberTypes MemberType => MemberTypes.Constructor;

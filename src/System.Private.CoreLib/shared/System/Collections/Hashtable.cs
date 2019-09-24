@@ -220,7 +220,6 @@ namespace System.Collections
             }
         }
 
-
         protected IEqualityComparer? EqualityComparer => _keycomparer;
 
         // Note: this constructor is a bogus constructor that does nothing
@@ -505,8 +504,6 @@ namespace System.Collections
             return false;
         }
 
-
-
         // Checks if this hashtable contains an entry with the given value. The
         // values of the entries of the hashtable are compared to the given value
         // using the Object.Equals method. This method performs a linear
@@ -611,7 +608,6 @@ namespace System.Collections
             return array;
         }
 
-
         // Copies the values of this hashtable to a given array starting at a given
         // index. This method is used by the implementation of the CopyTo method in
         // the ValueCollection class.
@@ -645,7 +641,6 @@ namespace System.Collections
 
                 uint seed;
                 uint incr;
-
 
                 // Take a snapshot of buckets, in case another thread does a resize
                 bucket[] lbuckets = _buckets;
@@ -1428,7 +1423,6 @@ namespace System.Collections
             }
         }
 
-
         // Implements an enumerator for a hashtable. The enumerator uses the
         // internal version number of the hashtable to ensure that no modifications
         // are made to the hashtable while an enumeration is in progress.
@@ -1496,7 +1490,6 @@ namespace System.Collections
                     return new DictionaryEntry(_currentKey!, _currentValue);
                 }
             }
-
 
             public virtual object? Current
             {

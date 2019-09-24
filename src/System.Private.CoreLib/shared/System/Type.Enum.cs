@@ -100,7 +100,6 @@ namespace System
             return names;
         }
 
-
         // Returns the enum values as an object array.
         private Array GetEnumRawConstantValues()
         {

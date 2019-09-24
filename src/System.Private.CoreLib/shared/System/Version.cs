@@ -61,7 +61,6 @@ namespace System
             if (build < 0)
                 throw new ArgumentOutOfRangeException(nameof(build), SR.ArgumentOutOfRange_Version);
 
-
             _Major = major;
             _Minor = minor;
             _Build = build;
