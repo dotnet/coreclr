@@ -307,11 +307,7 @@ namespace System.IO
                     return new string(_charBuffer, 0, charsRead);
                 }
 
-                if (sb == null)
-                {
-                    sb = StringBuilderCache.Acquire(stringLength); // Actual string length in chars may be smaller.
-                }
-
+                sb ??= StringBuilderCache.Acquire(stringLength); // Actual string length in chars may be smaller.
                 sb.Append(_charBuffer, 0, charsRead);
                 currPos += n;
             } while (currPos < stringLength);

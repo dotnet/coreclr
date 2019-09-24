@@ -266,17 +266,12 @@ namespace System.Text
         //
         public static Encoding GetEncoding(string name)
         {
-            Encoding? baseEncoding = EncodingProvider.GetEncodingFromProvider(name);
-            if (baseEncoding != null)
-                return baseEncoding;
-
-            //
             // NOTE: If you add a new encoding that can be requested by name, be sure to
             // add the corresponding item in EncodingTable.
             // Otherwise, the code below will throw exception when trying to call
             // EncodingTable.GetCodePageFromName().
-            //
-            return GetEncoding(EncodingTable.GetCodePageFromName(name));
+            return EncodingProvider.GetEncodingFromProvider(name) ??
+                GetEncoding(EncodingTable.GetCodePageFromName(name));
         }
 
         // Returns an Encoding object for a given name or a given code page value.
@@ -284,29 +279,18 @@ namespace System.Text
         public static Encoding GetEncoding(string name,
             EncoderFallback encoderFallback, DecoderFallback decoderFallback)
         {
-            Encoding? baseEncoding = EncodingProvider.GetEncodingFromProvider(name, encoderFallback, decoderFallback);
-            if (baseEncoding != null)
-                return baseEncoding;
-
-            //
             // NOTE: If you add a new encoding that can be requested by name, be sure to
             // add the corresponding item in EncodingTable.
             // Otherwise, the code below will throw exception when trying to call
             // EncodingTable.GetCodePageFromName().
-            //
-            return GetEncoding(EncodingTable.GetCodePageFromName(name), encoderFallback, decoderFallback);
+            return EncodingProvider.GetEncodingFromProvider(name, encoderFallback, decoderFallback) ??
+                GetEncoding(EncodingTable.GetCodePageFromName(name), encoderFallback, decoderFallback);
         }
 
         // Return a list of all EncodingInfo objects describing all of our encodings
-        public static EncodingInfo[] GetEncodings()
-        {
-            return EncodingTable.GetEncodings();
-        }
+        public static EncodingInfo[] GetEncodings() => EncodingTable.GetEncodings();
 
-        public virtual byte[] GetPreamble()
-        {
-            return Array.Empty<byte>();
-        }
+        public virtual byte[] GetPreamble() => Array.Empty<byte>();
 
         public virtual ReadOnlySpan<byte> Preamble => GetPreamble();
 

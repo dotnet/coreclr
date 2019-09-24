@@ -1358,24 +1358,14 @@ namespace System
                 #region NonPrivate Members
                 internal T[] GetMemberList(MemberListType listType, string? name, CacheType cacheType)
                 {
-                    T[]? list;
-
                     // name can be null only when listType falls into default case
                     switch (listType)
                     {
                         case MemberListType.CaseSensitive:
-                            list = m_csMemberInfos[name!];
-                            if (list != null)
-                                return list;
-
-                            return Populate(name, listType, cacheType);
+                            return m_csMemberInfos[name!] ?? Populate(name, listType, cacheType);
 
                         case MemberListType.CaseInsensitive:
-                            list = m_cisMemberInfos[name!];
-                            if (list != null)
-                                return list;
-
-                            return Populate(name, listType, cacheType);
+                            return m_cisMemberInfos[name!] ?? Populate(name, listType, cacheType);
 
                         default:
                             Debug.Assert(listType == MemberListType.All);

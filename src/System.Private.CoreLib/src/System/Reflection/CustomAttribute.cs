@@ -1460,10 +1460,7 @@ namespace System.Reflection
                 attributeUsageAttribute = new AttributeUsageAttribute(targets, allowMultiple, inherited);
             }
 
-            if (attributeUsageAttribute == null)
-                return AttributeUsageAttribute.Default;
-
-            return attributeUsageAttribute;
+            return attributeUsageAttribute ?? AttributeUsageAttribute.Default;
         }
         #endregion
 
