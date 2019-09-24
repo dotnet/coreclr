@@ -476,17 +476,7 @@ namespace System.Globalization
             }
         }
 
-        private CalendarId[] OptionalCalendars
-        {
-            get
-            {
-                if (optionalCalendars == null)
-                {
-                    optionalCalendars = _cultureData.CalendarIds;
-                }
-                return optionalCalendars;
-            }
-        }
+        private CalendarId[] OptionalCalendars => optionalCalendars ??= _cultureData.CalendarIds;
 
         /// <summary>
         /// Get the era value by parsing the name of the era.
@@ -545,17 +535,7 @@ namespace System.Globalization
             return -1;
         }
 
-        internal string[] EraNames
-        {
-            get
-            {
-                if (m_eraNames == null)
-                {
-                    m_eraNames = _cultureData.EraNames(Calendar.ID);
-                }
-                return m_eraNames;
-            }
-        }
+        internal string[] EraNames => m_eraNames ??= _cultureData.EraNames(Calendar.ID);
 
         /// <summary>
         /// Get the name of the era for the specified era value.
@@ -583,11 +563,7 @@ namespace System.Globalization
         {
             get
             {
-                if (m_abbrevEraNames == null)
-                {
-                    m_abbrevEraNames = _cultureData.AbbrevEraNames(Calendar.ID);
-                }
-                return m_abbrevEraNames;
+                return m_abbrevEraNames ?? (m_abbrevEraNames = _cultureData.AbbrevEraNames(Calendar.ID));
             }
         }
 
@@ -602,10 +578,12 @@ namespace System.Globalization
                 // return the full era name.
                 return GetEraName(era);
             }
+
             if (era == Calendar.CurrentEra)
             {
                 era = Calendar.CurrentEraValue;
             }
+
             if ((--era) < m_abbrevEraNames!.Length && (era >= 0))
             {
                 return m_abbrevEraNames[era];
@@ -721,15 +699,7 @@ namespace System.Globalization
 
         public string FullDateTimePattern
         {
-            get
-            {
-                if (fullDateTimePattern == null)
-                {
-                    fullDateTimePattern = LongDatePattern + " " + LongTimePattern;
-                }
-                return fullDateTimePattern;
-            }
-
+            get => fullDateTimePattern ??= LongDatePattern + " " + LongTimePattern;
             set
             {
                 if (IsReadOnly)
@@ -753,17 +723,7 @@ namespace System.Globalization
         /// </summary>
         public string LongDatePattern
         {
-            get
-            {
-                // Initialize our long date pattern from the 1st array value if not set
-                if (longDatePattern == null)
-                {
-                    // Initialize our data
-                    longDatePattern = UnclonedLongDatePatterns[0];
-                }
-
-                return longDatePattern;
-            }
+            get => longDatePattern ??= UnclonedLongDatePatterns[0]; // initialize from the 1st array value if not set
             set
             {
                 if (IsReadOnly)
@@ -795,17 +755,7 @@ namespace System.Globalization
         /// </summary>
         public string LongTimePattern
         {
-            get
-            {
-                // Initialize our long time pattern from the 1st array value if not set
-                if (longTimePattern == null)
-                {
-                    // Initialize our data
-                    longTimePattern = UnclonedLongTimePatterns[0];
-                }
-
-                return longTimePattern;
-            }
+            get => longTimePattern ??= UnclonedLongTimePatterns[0]; // initialize from the 1st array value if not set
             set
             {
                 if (IsReadOnly)
@@ -902,14 +852,7 @@ namespace System.Globalization
         {
             get
             {
-                // Initialize our short date pattern from the 1st array value if not set
-                if (shortDatePattern == null)
-                {
-                    // Initialize our data
-                    shortDatePattern = UnclonedShortDatePatterns[0];
-                }
-
-                return shortDatePattern;
+                return shortDatePattern ??= UnclonedShortDatePatterns[0]; // initialize from the 1st array value if not set
             }
             set
             {
@@ -944,16 +887,7 @@ namespace System.Globalization
         /// </summary>
         public string ShortTimePattern
         {
-            get
-            {
-                // Initialize our short time pattern from the 1st array value if not set
-                if (shortTimePattern == null)
-                {
-                    // Initialize our data
-                    shortTimePattern = UnclonedShortTimePatterns[0];
-                }
-                return shortTimePattern;
-            }
+            get => shortTimePattern ??= UnclonedShortTimePatterns[0]; // initialize from the 1st array value if not set
             set
             {
                 if (IsReadOnly)
@@ -984,34 +918,14 @@ namespace System.Globalization
         /// We put this internal property here so that we can avoid doing the
         /// concatation every time somebody asks for the general format.
         /// </summary>
-        internal string GeneralShortTimePattern
-        {
-            get
-            {
-                if (generalShortTimePattern == null)
-                {
-                    generalShortTimePattern = ShortDatePattern + " " + ShortTimePattern;
-                }
-                return generalShortTimePattern;
-            }
-        }
+        internal string GeneralShortTimePattern => generalShortTimePattern ??= ShortDatePattern + " " + ShortTimePattern;
 
         /// <summary>
         /// Return the pattern for 'g' general format: shortDate + Long time.
         /// We put this internal property here so that we can avoid doing the
         /// concatation every time somebody asks for the general format.
         /// </summary>
-        internal string GeneralLongTimePattern
-        {
-            get
-            {
-                if (generalLongTimePattern == null)
-                {
-                    generalLongTimePattern = ShortDatePattern + " " + LongTimePattern;
-                }
-                return generalLongTimePattern;
-            }
-        }
+        internal string GeneralLongTimePattern => generalLongTimePattern ??= ShortDatePattern + " " + LongTimePattern;
 
         /// Return the default pattern DateTimeOffset : shortDate + long time + time zone offset.
         /// This is used by DateTimeFormat.cs to get the pattern for short Date + long time +  time zone offset
@@ -1113,16 +1027,7 @@ namespace System.Globalization
         /// </summary>
         public string YearMonthPattern
         {
-            get
-            {
-                // Initialize our year/month pattern from the 1st array value if not set
-                if (yearMonthPattern == null)
-                {
-                    // Initialize our data
-                    yearMonthPattern = UnclonedYearMonthPatterns[0];
-                }
-                return yearMonthPattern;
-            }
+            get => yearMonthPattern ??= UnclonedYearMonthPatterns[0]; // initialize from the 1st array value if not set
             set
             {
                 if (IsReadOnly)
