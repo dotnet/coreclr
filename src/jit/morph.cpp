@@ -7333,8 +7333,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
                 flags |= CORINFO_TAILCALL_IS_CALLVIRT;
             }
 
-            if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags,
-                                                      &tailCallHelperInfo))
+            if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, callSiteSig,
+                                                      (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelperInfo))
             {
                 failTailCall("Tail call help not available");
                 return nullptr;
