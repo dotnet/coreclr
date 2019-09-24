@@ -3031,9 +3031,11 @@ GenTreeCC* Lowering::LowerNodeCC(GenTree* node, GenCondition condition)
     {
         if (next->OperIs(GT_JTRUE))
         {
-            // This should always be true, otherwise it means that JTRUE's relop is somewhere
-            // before `node` and that shouldn't happen. Still, if it happens it's not our problem,
-            // it simply means that `node` isn't used and we don't have to do anything.
+            // If the instruction immediately following 'relop', i.e. 'next' is a conditional branch,
+            // it should always have 'relop' as its 'op1'. If it doesn't, then we have improperly
+            // constructed IL (the setting of a condition code should always immediately precede its
+            // use, since the JIT doesn't track dataflow for condition codes). Still, if it happens
+            // it's not our problem, it simply means that `node` is not used and can be removed.
             if (next->AsUnOp()->gtGetOp1() == relop)
             {
                 assert(relop->OperIsCompare());

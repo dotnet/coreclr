@@ -876,8 +876,18 @@ void Lowering::LowerHWIntrinsicCC(GenTreeHWIntrinsic* node, NamedIntrinsic newIn
         case NI_SSE_UCOMISS:
         case NI_SSE2_COMISD:
         case NI_SSE2_UCOMISD:
-            // Using the preferred condition saves a branch so it's probably better
-            // to always use it, even if that means loosing containment.
+            // In some cases we can generate better code if we swap the operands:
+            //   - If the condition is not one of the "preferred" floating point conditions we can swap
+            //     the operands and change the condition to avoid generating an extra JP/JNP branch.
+            //   - If the first operand can be contained but the second cannot, we can swap operands in
+            //     order to be able to contain the first operand and avoid the need for a temp reg.
+            // We can't handle both situations at the same time and since an extra branch is likely to
+            // be worse than an extra temp reg (x64 has a reasonable number of XMM registers) we'll favor
+            // the branch case:
+            //   - If the condition is not preferred then swap, even if doing this will later prevent
+            //     containment.
+            //   - Allow swapping for containment purposes only if this doesn't result in a non-"preferred"
+            //     condition being generated.
             if ((cc != nullptr) && cc->gtCondition.PreferSwap())
             {
                 swapOperands = true;
