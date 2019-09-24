@@ -472,7 +472,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                     // because the total token list count has dropped to 0 and we don't have any events subscribed
                     Debug.Assert(s_eventRegistrations != null);
 
-                    Log("[WinRT_Eventing] Removing " + _key + " from cache" + "\n");
+                    Log("[WinRT_Eventing] Removing " + _key + " from cache\n");
                     s_eventRegistrations.Remove(_key);
                     Log("[WinRT_Eventing] s_eventRegistrations size = " + s_eventRegistrations.Count + "\n");
                 }
@@ -662,7 +662,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                             return null;
                         }
 
-                        Log("[WinRT_Eventing] Adding (" + instance + "," + removeMethod.Method + ") into cache" + "\n");
+                        Log("[WinRT_Eventing] Adding (" + instance + "," + removeMethod.Method + ") into cache\n");
 
                         eventCacheEntry = new EventCacheEntry();
                         eventCacheEntry.registrationTable = new ConditionalWeakTable<object, EventRegistrationTokenListWithCount>();

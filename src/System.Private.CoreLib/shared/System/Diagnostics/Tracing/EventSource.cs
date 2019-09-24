@@ -5721,7 +5721,7 @@ namespace System.Diagnostics.Tracing
                     if (!anyValuesWritten)
                     {
                         sb.Append("   <map value=\"0x0\"");
-                        WriteMessageAttrib(sb, "map", enumType.Name + "." + "None", "None");
+                        WriteMessageAttrib(sb, "map", enumType.Name + ".None", "None");
                         sb.Append("/>").AppendLine();
                     }
                     sb.Append("  </").Append(mapKind).Append(">").AppendLine();

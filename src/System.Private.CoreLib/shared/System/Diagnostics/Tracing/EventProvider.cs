@@ -596,7 +596,7 @@ namespace System.Diagnostics.Tracing
 #if (!ES_BUILD_PCL && !ES_BUILD_PN && PLATFORM_WINDOWS)
                 string regKey = @"\Microsoft\Windows\CurrentVersion\Winevt\Publishers\{" + m_providerId + "}";
                 if (IntPtr.Size == 8)
-                    regKey = @"Software" + @"\Wow6432Node" + regKey;
+                    regKey = @"Software\Wow6432Node" + regKey;
                 else
                     regKey = @"Software" + regKey;
 
