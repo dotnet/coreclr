@@ -284,7 +284,7 @@ namespace System
         {
             if (IsLatin1(c))
             {
-                return (Latin1CharInfo[c] & IsUpperCaseLetterFlag) != 0;
+                return (Latin1CharInfo[c] & IsLowerCaseLetterFlag) != 0;
             }
             return (CharUnicodeInfo.GetUnicodeCategory(c) == UnicodeCategory.LowercaseLetter);
         }
