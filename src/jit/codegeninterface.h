@@ -316,7 +316,7 @@ public:
     TempDsc* getSpillTempDsc(GenTree* tree);
 
 public:
-    emitter* getEmitter() const
+    emitter* GetEmitter() const
     {
         return m_cgEmitter;
     }
@@ -359,12 +359,12 @@ public:
     }
 
 #ifdef _TARGET_ARMARCH_
-    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
-    bool getHasTailCalls()
+
+    bool GetHasTailCalls()
     {
         return m_cgHasTailCalls;
     }
-    void setHasTailCalls(bool value)
+    void SetHasTailCalls(bool value)
     {
         m_cgHasTailCalls = value;
     }

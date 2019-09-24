@@ -445,10 +445,6 @@ public:
 #define MAX_COST UCHAR_MAX
 #define IND_COST_EX 3 // execution cost for an indirection
 
-    __declspec(property(get = GetCostEx)) unsigned char gtCostEx; // estimate of expression execution cost
-
-    __declspec(property(get = GetCostSz)) unsigned char gtCostSz; // estimate of expression code size cost
-
     unsigned char GetCostEx() const
     {
         assert(gtCostsInitialized);
@@ -480,8 +476,8 @@ public:
     {
         // If the 'tree' costs aren't initialized, we'll hit an assert below.
         INDEBUG(gtCostsInitialized = tree->gtCostsInitialized;)
-        _gtCostEx = tree->gtCostEx;
-        _gtCostSz = tree->gtCostSz;
+        _gtCostEx = tree->GetCostEx();
+        _gtCostSz = tree->GetCostSz();
     }
 
     // Same as CopyCosts, but avoids asserts if the costs we are copying have not been initialized.
@@ -2869,7 +2865,6 @@ public:
     {
         return _gtSsaNum;
     }
-    __declspec(property(get = GetSsaNum)) unsigned gtSsaNum;
 
     void SetSsaNum(unsigned ssaNum)
     {
@@ -2878,7 +2873,7 @@ public:
 
     bool HasSsaName()
     {
-        return (gtSsaNum != SsaConfig::RESERVED_SSA_NUM);
+        return (GetSsaNum() != SsaConfig::RESERVED_SSA_NUM);
     }
 
 #if DEBUGGABLE_GENTREE
@@ -5149,8 +5144,6 @@ private:
 #endif
 
 public:
-    __declspec(property(get = getNextStmt)) Statement* gtNextStmt;
-
     __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
 
     Statement* gtNext;
@@ -5158,7 +5151,7 @@ public:
 
     bool compilerAdded;
 
-    Statement* getNextStmt()
+    Statement* GetNextStmt()
     {
         if (gtNext == nullptr)
         {

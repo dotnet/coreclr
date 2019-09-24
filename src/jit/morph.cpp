@@ -1573,7 +1573,7 @@ void fgArgInfo::ArgsComplete()
                 // We call gtPrepareCost to measure the cost of evaluating this tree
                 compiler->gtPrepareCost(argx);
 
-                if (isMultiRegArg && (argx->gtCostEx > (6 * IND_COST_EX)))
+                if (isMultiRegArg && (argx->GetCostEx() > (6 * IND_COST_EX)))
                 {
                     // Spill multireg struct arguments that are expensive to evaluate twice
                     curArgTabEntry->needTmp = true;
@@ -1973,10 +1973,10 @@ void fgArgInfo::SortArgs()
                         compiler->gtPrepareCost(argx);
                     }
 
-                    if (argx->gtCostEx > expensiveArgCost)
+                    if (argx->GetCostEx() > expensiveArgCost)
                     {
                         // Remember this arg as the most expensive one that we have yet seen
-                        expensiveArgCost     = argx->gtCostEx;
+                        expensiveArgCost     = argx->GetCostEx();
                         expensiveArg         = curInx;
                         expensiveArgTabEntry = curArgTabEntry;
                     }
@@ -6962,55 +6962,18 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
     fgInitArgInfo(callee);
     fgArgInfo* argInfo = callee->fgArgInfo;
 
-    // Count user args while tracking whether any of them has a larger than one
-    // stack slot sized requirement. This requirement is required to support
-    // lowering the fast tail call, which, currently only supports copying
-    // stack slot arguments which have only one stack slot.
-    //
-    // For each struct arg, determine whether the argument would have  > 1 stack
-    // slot if on the stack. If it has > 1 stack slot we will not fastTailCall.
-    // This is an implementation limitation of LowerFastTailCall that is tracked by:
-    // https://github.com/dotnet/coreclr/issues/12644.
-
-    bool   hasLargerThanOneStackSlotSizedStruct = false;
-    bool   hasNonEnregisterableStructs          = false;
-    bool   hasByrefParameter                    = false;
-    size_t calleeStackSize                      = 0;
-    size_t callerStackSize                      = info.compArgStackSize;
+    bool   hasByrefParameter  = false;
+    size_t calleeArgStackSize = 0;
+    size_t callerArgStackSize = info.compArgStackSize;
 
     for (unsigned index = 0; index < argInfo->ArgCount(); ++index)
     {
         fgArgTabEntry* arg = argInfo->GetArgEntry(index, false);
 
-        unsigned argStackSize     = arg->stackSize();
-        unsigned argFloatRegCount = arg->floatRegCount();
-        unsigned argIntRegCount   = arg->intRegCount();
+        calleeArgStackSize += arg->stackSize();
 
-#if !defined(FEATURE_ARG_SPLIT)
-        if (argStackSize > 0)
-        {
-            assert(argFloatRegCount == 0 && argIntRegCount == 0);
-        }
-#endif // !defined(FEATURE_ARG_SPLIT)
-
-        unsigned countRegistersUsedForArg = argIntRegCount + argFloatRegCount;
-
-        calleeStackSize += argStackSize;
-
-        // This exists to account for special case situations where we will not
-        // fast tail call.
         if (arg->isStruct)
         {
-            if (argStackSize > 0)
-            {
-                hasNonEnregisterableStructs = true;
-            }
-
-            if (countRegistersUsedForArg > 1)
-            {
-                hasLargerThanOneStackSlotSizedStruct = true;
-            }
-
             // Byref struct arguments are not allowed to fast tail call as the information
             // of the caller's stack is lost when the callee is compiled.
             if (arg->passedByRef)
@@ -7055,7 +7018,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
                 printf("Will not fast tailcall (%s)", thisFailReason);
             }
 
-            printf(" (CallerStackSize: %d, CalleeStackSize: %d)\n\n", callerStackSize, calleeStackSize);
+            printf(" (CallerArgStackSize: %d, CalleeArgStackSize: %d)\n\n", callerArgStackSize, calleeArgStackSize);
         }
         else
         {
@@ -7068,9 +7031,6 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
                 JITDUMP("[Fast tailcall decision]: Will not fast tailcall (%s)\n", thisFailReason);
             }
         }
-#else
-        (void)this;
-        (void)callee;
 #endif // DEBUG
     };
 
@@ -7089,7 +7049,7 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
 #if (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
     if (info.compIsVarArgs || callee->IsVarargs())
     {
-        reportFastTailCallDecision("Fast tail calls with varargs are not supported");
+        reportFastTailCallDecision("Fast tail calls with varargs not supported on Windows ARM/ARM64");
         return false;
     }
 #endif // (defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM_)) || defined(_TARGET_WINDOWS_) && defined(_TARGET_ARM64_))
@@ -7105,83 +7065,25 @@ bool Compiler::fgCanFastTailCall(GenTreeCall* callee, const char** failReason)
         }
     }
 
-    const unsigned maxRegArgs            = MAX_REG_ARG;
-    hasLargerThanOneStackSlotSizedStruct = hasLargerThanOneStackSlotSizedStruct || info.compHasMultiSlotArgs;
-
-    bool hasStackArgs = false;
-    if (callerStackSize > 0 || calleeStackSize > 0)
-    {
-        hasStackArgs = true;
-    }
-
+    // For Windows some struct parameters are copied on the local frame
+    // and then passed by reference. We cannot fast tail call in these situation
+    // as we need to keep our frame around.
     if (hasByrefParameter)
     {
         reportFastTailCallDecision("Callee has a byref parameter");
         return false;
     }
 
-// If we reached here means that callee has only those argument types which can be passed in
-// a register and if passed on stack will occupy exactly one stack slot in out-going arg area.
-// If we are passing args on stack for the callee and it has a larger stack size than
-// the caller, then fast tail call cannot be performed.
-//
-// Note that the GC'ness of on stack args need not match since the arg setup area is marked
-// as non-interruptible for fast tail calls.
-
-#ifdef WINDOWS_AMD64_ABI
-    // x64 Windows: If we have stack args then make sure the callee's incoming
-    // arguments is less than the caller's
-    if (hasStackArgs && (calleeStackSize > callerStackSize))
+    // For a fast tail call the caller will use its incoming arg stack space to place
+    // arguments, so if the callee requires more arg stack space than is available here
+    // the fast tail call cannot be performed. This is common to all platforms.
+    // Note that the GC'ness of on stack args need not match since the arg setup area is marked
+    // as non-interruptible for fast tail calls.
+    if (calleeArgStackSize > callerArgStackSize)
     {
         reportFastTailCallDecision("Not enough incoming arg space");
         return false;
     }
-
-#elif (defined(_TARGET_AMD64_) && defined(UNIX_AMD64_ABI)) || defined(_TARGET_ARM64_)
-
-    // For unix Amd64 and Arm64 check to see if all arguments for the callee
-    // and caller are passing in registers. If not, ensure that the outgoing argument stack size
-    // requirement for the callee is less than or equal to the caller's entire stack frame usage.
-    //
-    // Also, in the case that we have to pass arguments on the stack make sure
-    // that we are not dealing with structs that are >8 bytes.
-
-    // Either the caller or callee has a >8 and <=16 byte struct and arguments that has to go on the stack. Do not
-    // fastTailCall.
-    //
-    // When either the caller or callee have multi-stlot stack arguments we cannot safely
-    // shuffle arguments in LowerFastTailCall. See https://github.com/dotnet/coreclr/issues/12468.
-    if (hasLargerThanOneStackSlotSizedStruct && calleeStackSize > 0)
-    {
-        reportFastTailCallDecision(
-            "Caller or callee has multi-slot arg and callee takes stack args (unsupported scenario)");
-        return false;
-    }
-
-    if (hasNonEnregisterableStructs)
-    {
-        reportFastTailCallDecision("Callee has non-enregisterable struct arg (unsupported scenario)");
-        return false;
-    }
-
-    // TODO-AMD64-Unix
-    // TODO-ARM64
-    //
-    // LowerFastTailCall currently assumes nCalleeArgs <= nCallerArgs. This is
-    // not true in many cases on x64 linux, remove this pessimization when
-    // LowerFastTailCall is fixed. See https://github.com/dotnet/coreclr/issues/12468
-    // for more information.
-    if (hasStackArgs && (calleeStackSize > callerStackSize))
-    {
-        reportFastTailCallDecision("Not enough incoming arg space");
-        return false;
-    }
-
-#else
-
-    NYI("fastTailCall not supported on this Architecture.");
-
-#endif //  WINDOWS_AMD64_ABI
 
     reportFastTailCallDecision(nullptr);
     return true;
@@ -7596,12 +7498,12 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         assert(treeWithCall == call);
     }
 #endif
-    Statement* nextMorphStmt = fgMorphStmt->gtNextStmt;
+    Statement* nextMorphStmt = fgMorphStmt->GetNextStmt();
     // Remove all stmts after the call.
     while (nextMorphStmt != nullptr)
     {
         Statement* stmtToRemove = nextMorphStmt;
-        nextMorphStmt           = stmtToRemove->gtNextStmt;
+        nextMorphStmt           = stmtToRemove->GetNextStmt();
         fgRemoveStmt(compCurBB, stmtToRemove);
     }
 
@@ -11408,7 +11310,20 @@ GenTree* Compiler::fgMorphSmpOp(GenTree* tree, MorphAddrContext* mac)
             break;
 
         case GT_DIV:
-
+            // Replace "val / dcon" with "val * (1.0 / dcon)" if dcon is a power of two.
+            // Powers of two within range are always exactly represented,
+            // so multiplication by the reciprocal is safe in this scenario
+            if (op2->IsCnsFltOrDbl())
+            {
+                double divisor = op2->AsDblCon()->gtDconVal;
+                if (((typ == TYP_DOUBLE) && FloatingPointUtils::hasPreciseReciprocal(divisor)) ||
+                    ((typ == TYP_FLOAT) && FloatingPointUtils::hasPreciseReciprocal(forceCastToFloat(divisor))))
+                {
+                    oper = GT_MUL;
+                    tree->ChangeOper(oper);
+                    op2->AsDblCon()->gtDconVal = 1.0 / divisor;
+                }
+            }
 #ifndef _TARGET_64BIT_
             if (typ == TYP_LONG)
             {
@@ -15566,7 +15481,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(cons
     }
 
     // Or this is the last statement of a conditional branch that was just folded?
-    if (!removedStmt && (stmt->getNextStmt() == nullptr) && !fgRemoveRestOfBlock)
+    if (!removedStmt && (stmt->GetNextStmt() == nullptr) && !fgRemoveRestOfBlock)
     {
         if (fgFoldConditional(block))
         {
@@ -15649,7 +15564,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
     Statement* stmt = block->firstStmt();
     GenTree*   prev = nullptr;
-    for (; stmt != nullptr; prev = stmt->gtStmtExpr, stmt = stmt->gtNextStmt)
+    for (; stmt != nullptr; prev = stmt->gtStmtExpr, stmt = stmt->GetNextStmt())
     {
         if (fgRemoveRestOfBlock)
         {
@@ -15697,7 +15612,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             morph = stmt->gtStmtExpr;
             noway_assert(compTailCallUsed);
             noway_assert((morph->gtOper == GT_CALL) && morph->AsCall()->IsTailCall());
-            noway_assert(stmt->gtNextStmt == nullptr);
+            noway_assert(stmt->GetNextStmt() == nullptr);
 
             GenTreeCall* call = morph->AsCall();
             // Could either be
@@ -15721,7 +15636,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
 
             noway_assert(compTailCallUsed);
             noway_assert((tree->gtOper == GT_CALL) && tree->AsCall()->IsTailCall());
-            noway_assert(stmt->gtNextStmt == nullptr);
+            noway_assert(stmt->GetNextStmt() == nullptr);
 
             GenTreeCall* call = morph->AsCall();
 
@@ -15984,7 +15899,7 @@ void Compiler::fgMorphBlocks()
 
                         // This block must be ending with a GT_RETURN
                         noway_assert(lastStmt != nullptr);
-                        noway_assert(lastStmt->getNextStmt() == nullptr);
+                        noway_assert(lastStmt->GetNextStmt() == nullptr);
                         noway_assert(ret != nullptr);
 
                         // GT_RETURN must have non-null operand as the method is returning the value assigned to
@@ -16021,7 +15936,7 @@ void Compiler::fgMorphBlocks()
                     {
                         // This block ends with a GT_RETURN
                         noway_assert(lastStmt != nullptr);
-                        noway_assert(lastStmt->getNextStmt() == nullptr);
+                        noway_assert(lastStmt->GetNextStmt() == nullptr);
 
                         // Must be a void GT_RETURN with null operand; delete it as this block branches to oneReturn
                         // block
@@ -18763,7 +18678,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
     var_types  simdType             = getSIMDTypeForSize(simdSize);
     int        assignmentsCount     = simdSize / genTypeSize(baseType) - 1;
     int        remainingAssignments = assignmentsCount;
-    Statement* curStmt              = stmt->getNextStmt();
+    Statement* curStmt              = stmt->GetNextStmt();
     Statement* lastStmt             = stmt;
 
     while (curStmt != nullptr && remainingAssignments > 0)
@@ -18786,7 +18701,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
         prevRHS = curRHS;
 
         lastStmt = curStmt;
-        curStmt  = curStmt->getNextStmt();
+        curStmt  = curStmt->GetNextStmt();
     }
 
     if (remainingAssignments > 0)
@@ -18810,7 +18725,7 @@ bool Compiler::fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* 
 
     for (int i = 0; i < assignmentsCount; i++)
     {
-        fgRemoveStmt(block, stmt->getNextStmt());
+        fgRemoveStmt(block, stmt->GetNextStmt());
     }
 
     GenTree* copyBlkDst = createAddressNodeForSIMDInit(originalLHS, simdSize);
@@ -18879,7 +18794,7 @@ Statement* SkipNopStmts(Statement* stmt)
 {
     while ((stmt != nullptr) && !stmt->IsNothingNode())
     {
-        stmt = stmt->gtNextStmt;
+        stmt = stmt->GetNextStmt();
     }
     return stmt;
 }
@@ -18904,7 +18819,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
     // the call.
     Statement* callStmt = fgMorphStmt;
 
-    Statement* nextMorphStmt = callStmt->gtNextStmt;
+    Statement* nextMorphStmt = callStmt->GetNextStmt();
 
 #if !defined(FEATURE_CORECLR) && defined(_TARGET_AMD64_)
     // Legacy Jit64 Compat:
@@ -18946,7 +18861,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
             }
             noway_assert(isSideEffectFree);
 
-            nextMorphStmt = popStmt->gtNextStmt;
+            nextMorphStmt = popStmt->GetNextStmt();
         }
 
         // Next skip any GT_NOP nodes after the pop
@@ -18969,7 +18884,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
             GenTree*   retExpr = retStmt->gtStmtExpr;
             noway_assert(retExpr->gtOper == GT_RETURN);
 
-            nextMorphStmt = retStmt->gtNextStmt;
+            nextMorphStmt = retStmt->GetNextStmt();
         }
         else
         {
@@ -18991,7 +18906,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
                 unsigned dstLclNum  = moveExpr->gtGetOp1()->AsLclVarCommon()->gtLclNum;
                 callResultLclNumber = dstLclNum;
 
-                nextMorphStmt = moveStmt->gtNextStmt;
+                nextMorphStmt = moveStmt->GetNextStmt();
             }
             if (nextMorphStmt != nullptr)
 #endif
@@ -19009,7 +18924,7 @@ bool Compiler::fgCheckStmtAfterTailCall()
 
                 noway_assert(callResultLclNumber == treeWithLcl->AsLclVarCommon()->gtLclNum);
 
-                nextMorphStmt = retStmt->gtNextStmt;
+                nextMorphStmt = retStmt->GetNextStmt();
             }
         }
     }

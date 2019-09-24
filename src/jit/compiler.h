@@ -2682,7 +2682,7 @@ public:
 
     // Returns "true" iff the complexity (not formally defined, but first interpretation
     // is #of nodes in subtree) of "tree" is greater than "limit".
-    // (This is somewhat redundant with the "gtCostEx/gtCostSz" fields, but can be used
+    // (This is somewhat redundant with the "GetCostEx()/GetCostSz()" fields, but can be used
     // before they have been set.)
     bool gtComplexityExceeds(GenTree** tree, unsigned limit);
 
@@ -7251,10 +7251,9 @@ public:
     // convenience and backward compatibility, but the properties can only be set by invoking
     // the setter on CodeGenContext directly.
 
-    __declspec(property(get = getEmitter)) emitter* genEmitter;
-    emitter* getEmitter() const
+    emitter* GetEmitter() const
     {
-        return codeGen->getEmitter();
+        return codeGen->GetEmitter();
     }
 
     bool isFramePointerUsed() const
@@ -7273,14 +7272,14 @@ public:
     }
 
 #ifdef _TARGET_ARMARCH_
-    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
-    bool getHasTailCalls()
+
+    bool GetHasTailCalls()
     {
-        return codeGen->hasTailCalls;
+        return codeGen->GetHasTailCalls();
     }
-    void setHasTailCalls(bool value)
+    void SetHasTailCalls(bool value)
     {
-        codeGen->setHasTailCalls(value);
+        codeGen->SetHasTailCalls(value);
     }
 #endif // _TARGET_ARMARCH_
 
@@ -8791,9 +8790,8 @@ public:
         unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
 
 #if FEATURE_FASTTAILCALL
-        size_t compArgStackSize;     // Incoming argument stack size in bytes
-        bool   compHasMultiSlotArgs; // Caller has >8 byte sized struct parameter
-#endif                               // FEATURE_FASTTAILCALL
+        size_t compArgStackSize; // Incoming argument stack size in bytes
+#endif                           // FEATURE_FASTTAILCALL
 
         unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
         int compTypeCtxtArg; // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
