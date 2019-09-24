@@ -4163,7 +4163,7 @@ namespace System
                             isString = true;
                             break;
                         default:
-                            Debug.Assert(false, "[RuntimeType.WrapArgsForInvokeCall]Invalid safe array wrapper type specified.");
+                            Debug.Fail("[RuntimeType.WrapArgsForInvokeCall]Invalid safe array wrapper type specified.");
                             break;
                     }
 
@@ -4220,7 +4220,7 @@ namespace System
                             aArgs[i] = new BStrWrapper((string)aArgs[i]);
                             break;
                         default:
-                            Debug.Assert(false, "[RuntimeType.WrapArgsForInvokeCall]Invalid wrapper type specified.");
+                            Debug.Fail("[RuntimeType.WrapArgsForInvokeCall]Invalid wrapper type specified.");
                             break;
                     }
                 }
