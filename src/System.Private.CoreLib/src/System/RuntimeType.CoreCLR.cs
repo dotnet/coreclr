@@ -1734,7 +1734,7 @@ namespace System
 
             RuntimeType[]? methodInstantiation = null;
 
-            reflectedType ??= declaredType as RuntimeType;
+            reflectedType ??= declaredType;
 
             if (reflectedType != declaredType && !reflectedType.IsSubclassOf(declaredType))
             {
