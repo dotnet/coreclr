@@ -1334,8 +1334,7 @@ namespace System.Diagnostics.Tracing
                     {
                         SendManifest(m_rawManifest);
                     }
-                    catch (Exception)
-                    { }           // If it fails, simply give up.
+                    catch { } // If it fails, simply give up.
                     m_eventSourceEnabled = false;
                 }
                 if (m_etwProvider != null)
@@ -3814,7 +3813,7 @@ namespace System.Diagnostics.Tracing
                 WriteEventString(EventLevel.LogAlways, -1, msg);
                 WriteStringToAllListeners("EventSourceMessage", msg);
             }
-            catch (Exception) { }      // If we fail during last chance logging, well, we have to give up....
+            catch { }      // If we fail during last chance logging, well, we have to give up....
         }
 
         private EventSourceSettings ValidateSettings(EventSourceSettings settings)

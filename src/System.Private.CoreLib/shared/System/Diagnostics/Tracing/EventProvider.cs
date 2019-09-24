@@ -333,7 +333,7 @@ namespace System.Diagnostics.Tracing
                 if (!skipFinalOnControllerCommand)
                     OnControllerCommand(command, args, 0, 0);
             }
-            catch (Exception)
+            catch
             {
                 // We want to ignore any failures that happen as a result of turning on this provider as to
                 // not crash the app.

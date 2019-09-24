@@ -828,7 +828,7 @@ namespace System.Globalization
                                 _sLocalizedDisplayName = GetLanguageDisplayName(Name);
                             }
                         }
-                        catch (Exception)
+                        catch
                         {
                             // do nothing
                         }
@@ -1056,7 +1056,7 @@ namespace System.Globalization
                     {
                         _sLocalizedCountry = GetRegionDisplayName(TwoLetterISOCountryName);
                     }
-                    catch (Exception)
+                    catch
                     {
                         // do nothing. we'll fallback
                     }
