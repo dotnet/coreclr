@@ -4278,10 +4278,10 @@ namespace System
     internal readonly unsafe struct MdUtf8String
     {
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern unsafe bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
+        private static extern bool EqualsCaseInsensitive(void* szLhs, void* szRhs, int cSz);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern unsafe uint HashCaseInsensitive(void* sz, int cSz);
+        private static extern uint HashCaseInsensitive(void* sz, int cSz);
 
         private readonly byte* m_pStringHeap;        // This is the raw UTF8 string.
         private readonly int m_StringHeapByteLength;
@@ -4301,7 +4301,7 @@ namespace System
             m_pStringHeap = pStringBytes;
         }
 
-        internal unsafe MdUtf8String(byte* pUtf8String, int cUtf8String)
+        internal MdUtf8String(byte* pUtf8String, int cUtf8String)
         {
             m_pStringHeap = pUtf8String;
             m_StringHeapByteLength = cUtf8String;
