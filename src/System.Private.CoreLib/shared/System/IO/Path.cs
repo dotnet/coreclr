@@ -499,7 +499,7 @@ namespace System.IO
             for (int i = 0; i < paths.Length; i++)
             {
                 string? path = paths[i];
-                if (path == null || path.Length == 0)
+                if (string.IsNullOrEmpty(path))
                 {
                     continue;
                 }
@@ -934,6 +934,6 @@ namespace System.IO
         /// Returns true if the path ends in a directory separator.
         /// </summary>
         public static bool EndsInDirectorySeparator(string path)
-              => path != null && path.Length > 0 && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
+              => !string.IsNullOrEmpty(path) && PathInternal.IsDirectorySeparator(path[path.Length - 1]);
     }
 }

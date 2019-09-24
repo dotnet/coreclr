@@ -90,7 +90,7 @@ namespace System.Resources
 #if FEATURE_APPX
             // Check to see if the assembly is under PLATFORM_RESOURCE_ROOTS. If it is, then we should use satellite assembly lookup for it.
             string? platformResourceRoots = (string?)AppContext.GetData("PLATFORM_RESOURCE_ROOTS");
-            if ((platformResourceRoots != null) && (platformResourceRoots != string.Empty))
+            if (!string.IsNullOrEmpty(platformResourceRoots))
             {
                 string resourceAssemblyPath = resourcesAssembly.Location;
 

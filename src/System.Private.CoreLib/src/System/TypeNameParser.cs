@@ -182,7 +182,7 @@ namespace System
 
         private static Assembly? ResolveAssembly(string asmName, Func<AssemblyName, Assembly?>? assemblyResolver, bool throwOnError, ref StackCrawlMark stackMark)
         {
-            Debug.Assert(asmName != null && asmName.Length > 0);
+            Debug.Assert(!string.IsNullOrEmpty(asmName));
 
             Assembly? assembly = null;
 

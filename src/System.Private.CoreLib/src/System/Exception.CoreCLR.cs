@@ -234,7 +234,7 @@ namespace System
 
             string? tmpStackTraceString = StackTrace;
 
-            if (tmpStackTraceString != null && tmpStackTraceString.Length > 0)
+            if (!string.IsNullOrEmpty(tmpStackTraceString))
             {
                 _remoteStackTraceString = tmpStackTraceString + Environment.NewLine;
             }

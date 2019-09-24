@@ -2600,10 +2600,11 @@ namespace System.Globalization
         private void InsertHash(TokenHashValue[] hashTable, string str, TokenType tokenType, int tokenValue)
         {
             // The month of the 13th month is allowed to be null, so make sure that we ignore null value here.
-            if (str == null || str.Length == 0)
+            if (string.IsNullOrEmpty(str))
             {
                 return;
             }
+
             TokenHashValue value;
             int i = 0;
             // If there is whitespace characters in the beginning and end of the string, trim them since whitespaces are skipped by
@@ -2617,6 +2618,7 @@ namespace System.Globalization
                     return;
                 }
             }
+
             char ch = Culture.TextInfo.ToLower(str[0]);
             int hashcode = ch % TOKEN_HASH_SIZE;
             int hashProbe = 1 + ch % SECOND_PRIME;

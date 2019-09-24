@@ -2344,7 +2344,7 @@ namespace System.Globalization
             // Clean up a few odd values
 
             // Windows usually returns an empty positive sign, but we like it to be "+"
-            if (nfi._positiveSign == null || nfi._positiveSign.Length == 0)
+            if (string.IsNullOrEmpty(nfi._positiveSign))
             {
                 nfi._positiveSign = "+";
             }
@@ -2352,7 +2352,7 @@ namespace System.Globalization
             // Special case for Italian.  The currency decimal separator in the control panel is the empty string. When the user
             // specifies C4 as the currency format, this results in the number apparently getting multiplied by 10000 because the
             // decimal point doesn't show up.  We'll just hack this here because our default currency format will never use nfi.
-            if (nfi._currencyDecimalSeparator == null || nfi._currencyDecimalSeparator.Length == 0)
+            if (string.IsNullOrEmpty(nfi._currencyDecimalSeparator))
             {
                 nfi._currencyDecimalSeparator = nfi._numberDecimalSeparator;
             }

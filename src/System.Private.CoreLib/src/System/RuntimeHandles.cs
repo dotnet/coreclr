@@ -421,7 +421,7 @@ namespace System
                                                   AssemblyLoadContext assemblyLoadContext,
                                                   bool loadTypeFromPartialName)
         {
-            if (name == null || name.Length == 0)
+            if (string.IsNullOrEmpty(name))
             {
                 if (throwOnError)
                     throw new TypeLoadException(SR.Arg_TypeLoadNullStr);
@@ -446,7 +446,7 @@ namespace System
 
         internal static RuntimeType GetTypeByNameUsingCARules(string name, RuntimeModule scope)
         {
-            if (name == null || name.Length == 0)
+            if (string.IsNullOrEmpty(name))
                 throw new ArgumentException(null, nameof(name));
 
             RuntimeType type = null!;

@@ -286,7 +286,7 @@ namespace System
                 {
                     T[] list;
 
-                    if (name == null || name.Length == 0 ||
+                    if (string.IsNullOrEmpty(name) ||
                         (cacheType == CacheType.Constructor && name[0] != '.' && name[0] != '*'))
                     {
                         list = GetListByName(null, 0, null, 0, listType, cacheType);

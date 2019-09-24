@@ -95,7 +95,7 @@ namespace System
         {
             string s = GetType().ToString() + ": " + Message;
 
-            if (_fileName != null && _fileName.Length != 0)
+            if (!string.IsNullOrEmpty(_fileName))
                 s += Environment.NewLine + SR.Format(SR.IO_FileName_Name, _fileName);
 
             if (InnerException != null)
