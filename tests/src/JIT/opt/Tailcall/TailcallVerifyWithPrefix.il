@@ -6,12 +6,23 @@
 
 // Metadata version: v2.0.50727
 .module extern kernel32
+.module extern libc
 
 .assembly extern mscorlib { }
 .assembly extern System.Console
 {
   .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
   .ver 4:0:0:0
+}
+.assembly extern System.Runtime
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:2:1:0
+}
+.assembly extern System.Runtime.Extensions
+{
+  .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A )
+  .ver 4:2:1:0
 }
 .assembly extern System.Threading.Thread
 {
@@ -10166,6 +10177,29 @@
 
 } // end of class TailcallVerify.Win32Interop
 
+.class private auto ansi beforefieldinit TailcallVerify.UnixInterop
+       extends [System.Runtime]System.Object
+{
+  .method public hidebysig static pinvokeimpl("libc" as "printf" winapi) 
+          void  Callee(string format) cil managed preservesig
+  {
+  }
+  .method public hidebysig static pinvokeimpl("libc" winapi) 
+          void  printf(string format) cil managed preservesig
+  {
+  }
+  .method public hidebysig specialname rtspecialname 
+          instance void  .ctor() cil managed
+  {
+    // Code size       7 (0x7)
+    .maxstack  8
+    IL_0000:  ldarg.0
+    IL_0001:  call       instance void [System.Runtime]System.Object::.ctor()
+    IL_0006:  ret
+  } // end of method TailcallVerify.UnixInterop::.ctor
+
+} // end of class TailcallVerify.UnixInterop
+
 .class private auto ansi beforefieldinit TailcallVerify.Condition19
        extends [mscorlib]System.Object
 {
@@ -10261,20 +10295,29 @@
   {
     // Code size       43 (0x2b)
     .maxstack  8
-    IL_0000:  ldc.i4.0
-    IL_0001:  call       void TailcallVerify.Win32Interop::Sleep(int32)
-    IL_0006:  ldstr      "result: "
-    IL_000b:  call       int32 [mscorlib]System.Runtime.InteropServices.Marshal::GetLastWin32Error()
-    IL_0010:  box        [mscorlib]System.Int32
-    IL_0015:  call       string [mscorlib]System.String::Concat(object,
+    IL_0000:  call       class [System.Runtime.Extensions]System.OperatingSystem [System.Runtime.Extensions]System.Environment::get_OSVersion()
+    IL_0005:  callvirt   instance valuetype [System.Runtime.Extensions]System.PlatformID [System.Runtime.Extensions]System.OperatingSystem::get_Platform()
+    IL_000a:  ldc.i4.2
+    IL_000b:  bne.un.s   IL_UNIX
+
+    IL_000d:  ldc.i4.0
+    IL_000e:  call       void TailcallVerify.Win32Interop::Sleep(int32)
+              ldstr      "result: "
+              call       int32 [mscorlib]System.Runtime.InteropServices.Marshal::GetLastWin32Error()
+              box        [mscorlib]System.Int32
+              call       string [mscorlib]System.String::Concat(object,
                                                                 object)
-    IL_001a:  call       void [System.Console]System.Console::WriteLine(string)
-    IL_001f:  ldc.i4.1
-    IL_0020:  volatile.
-    IL_0022:  ldsfld     int32 modreq([mscorlib]System.Runtime.CompilerServices.IsVolatile) TailcallVerify.Condition19::zero
-    IL_0027:  div
-    IL_0028:  starg.s    i
-    IL_002a:  ret
+              call       void [System.Console]System.Console::WriteLine(string)
+              br.s       IL_AFTER
+
+    IL_UNIX:  ldstr      "Hello"
+              call       void TailcallVerify.UnixInterop::printf(string)
+    IL_AFTER: ldc.i4.1
+              volatile.
+              ldsfld     int32 modreq([mscorlib]System.Runtime.CompilerServices.IsVolatile) TailcallVerify.Condition19::zero
+              div
+              starg.s    i
+              ret
   } // end of method Condition19::Callee1
 
   .method public hidebysig static int32  Test2() cil managed nooptimization
@@ -10365,8 +10408,19 @@
                                                                 object)
     IL_0042:  call       void [System.Console]System.Console::WriteLine(string)
     IL_0047:  ldc.i4.0
-    IL_0048:  tail. call       void TailcallVerify.Win32Interop::Callee(int32)
-    IL_004d:  ret
+
+              call       class [System.Runtime.Extensions]System.OperatingSystem [System.Runtime.Extensions]System.Environment::get_OSVersion()
+              callvirt   instance valuetype [System.Runtime.Extensions]System.PlatformID [System.Runtime.Extensions]System.OperatingSystem::get_Platform()
+              ldc.i4.2
+              bne.un.s   IL_UNIX
+
+              ldc.i4.0
+              tail. call       void TailcallVerify.Win32Interop::Callee(int32)
+              ret
+
+    IL_UNIX:  ldstr      "Hello"
+              tail. call       void TailcallVerify.UnixInterop::Callee(string)
+              ret
   } // end of method Condition19::Caller2
 
   .method public hidebysig specialname rtspecialname 
