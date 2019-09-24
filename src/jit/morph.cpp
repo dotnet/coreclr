@@ -7291,7 +7291,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     bool        canFastTailCall = fgCanFastTailCall(call, &failReason);
 
     CORINFO_TAILCALL_HELPERS tailCallHelpers;
-    bool                         tailCallViaJitHelper = false;
+    bool                     tailCallViaJitHelper = false;
     if (!canFastTailCall)
     {
         if (call->IsImplicitTailCall())
