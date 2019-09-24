@@ -963,7 +963,7 @@ namespace Internal.JitInterface
     }
 
     // Flags passed from runtime to JIT.
-    public enum CORINFO_TAILCALL_HELPER_INFO_FLAGS
+    public enum CORINFO_TAILCALL_HELPERS_FLAGS
     {
         // The StoreArgs stub needs to be passed the target function pointer as the
         // first argument.
@@ -971,9 +971,9 @@ namespace Internal.JitInterface
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct CORINFO_TAILCALL_HELPER_INFO
+    public unsafe struct CORINFO_TAILCALL_HELPERS
     {
-        CORINFO_TAILCALL_HELPER_INFO_FLAGS flags;
+        CORINFO_TAILCALL_HELPERS_FLAGS flags;
         CORINFO_METHOD_STRUCT_*     hStoreArgs;
         CORINFO_METHOD_STRUCT_*     hCallTarget;
         CORINFO_METHOD_STRUCT_*     hDispatcher;

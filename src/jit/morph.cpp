@@ -7290,7 +7290,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     const char* failReason      = nullptr;
     bool        canFastTailCall = fgCanFastTailCall(call, &failReason);
 
-    CORINFO_TAILCALL_HELPER_INFO tailCallHelperInfo;
+    CORINFO_TAILCALL_HELPERS tailCallHelperInfo;
     bool                         tailCallViaJitHelper = false;
     if (!canFastTailCall)
     {
@@ -7481,7 +7481,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     GenTree* result;
     if (!canFastTailCall && !tailCallViaJitHelper)
     {
-        // For tailcall via CORINFO_TAILCALL_HELPER_INFO we transform into regular
+        // For tailcall via CORINFO_TAILCALL_HELPERS we transform into regular
         // calls with (to the JIT) regular control flow so we do not need to do
         // much special handling.
         result = fgMorphTailCallViaHelpers(call, tailCallHelperInfo);
@@ -7624,7 +7624,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  * whenever the call node returns a value. If the call node does not return a
  * value the last comma will not be there.
  */
-GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL_HELPER_INFO& help)
+GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL_HELPERS& help)
 {
     JITDUMP("fgMorphTailCallViaHelpers (before):\n");
     DISPTREE(call);

@@ -1354,7 +1354,7 @@ bool interceptor_ICJI::getTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
-        CORINFO_TAILCALL_HELPER_INFO* pResult)
+        CORINFO_TAILCALL_HELPERS* pResult)
 {
     return original_ICorJitInfo->getTailCallHelpers(hTarget, callSiteSig, flags, pResult);
 }

@@ -1865,16 +1865,16 @@ enum CORINFO_GET_TAILCALL_HELPERS_FLAGS
 };
 
 // Flags passed from runtime to JIT.
-enum CORINFO_TAILCALL_HELPER_INFO_FLAGS
+enum CORINFO_TAILCALL_HELPERS_FLAGS
 {
     // The StoreArgs stub needs to be passed the target function pointer as the
     // first argument.
     CORINFO_TAILCALL_STORE_TARGET = 0x00000001,
 };
 
-struct CORINFO_TAILCALL_HELPER_INFO
+struct CORINFO_TAILCALL_HELPERS
 {
-    CORINFO_TAILCALL_HELPER_INFO_FLAGS flags;
+    CORINFO_TAILCALL_HELPERS_FLAGS flags;
     CORINFO_METHOD_HANDLE       hStoreArgs;
     CORINFO_METHOD_HANDLE       hCallTarget;
     CORINFO_METHOD_HANDLE       hDispatcher;
@@ -3274,7 +3274,7 @@ public:
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
 
         // The resulting help.
-        CORINFO_TAILCALL_HELPER_INFO* pResult) = 0;
+        CORINFO_TAILCALL_HELPERS* pResult) = 0;
 
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
     virtual bool convertPInvokeCalliToCall(

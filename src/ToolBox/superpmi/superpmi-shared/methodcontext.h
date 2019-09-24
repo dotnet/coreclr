@@ -449,7 +449,7 @@ public:
         Agnostic_CORINFO_SIG_INFO callSiteSig;
         DWORD flags;
     };
-    struct Agnostic_CORINFO_TAILCALL_HELPER_INFO
+    struct Agnostic_CORINFO_TAILCALL_HELPERS
     {
         bool result;
         DWORD flags;
@@ -1308,13 +1308,13 @@ public:
         CORINFO_METHOD_HANDLE hTarget,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
-        CORINFO_TAILCALL_HELPER_INFO* pResult);
-    void dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPER_INFO& value);
+        CORINFO_TAILCALL_HELPERS* pResult);
+    void dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPERS& value);
     bool repGetTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
-        CORINFO_TAILCALL_HELPER_INFO* pResult);
+        CORINFO_TAILCALL_HELPERS* pResult);
 
     void recGetMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod, mdMethodDef result);
     void dmpGetMethodDefFromMethod(DWORDLONG key, DWORD value);
