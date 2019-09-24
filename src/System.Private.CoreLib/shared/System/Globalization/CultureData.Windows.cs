@@ -727,7 +727,7 @@ namespace System.Globalization
 
                 for (int i = 0; i < context.strings.Count; i++)
                 {
-                    if (string.Compare(context.strings[i], _sWindowsName, StringComparison.OrdinalIgnoreCase) == 0)
+                    if (string.Equals(context.strings[i], _sWindowsName, StringComparison.OrdinalIgnoreCase))
                         return true;
                 }
 
