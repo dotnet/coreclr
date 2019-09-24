@@ -13945,11 +13945,11 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
     return ftn;
 }
 
-bool CEEInfo::getTailCallHelp(
+bool CEEInfo::getTailCallHelpers(
     CORINFO_METHOD_HANDLE hTarget,
     CORINFO_SIG_INFO* callSiteSig,
-    CORINFO_GET_TAILCALL_HELP_FLAGS flags,
-    CORINFO_TAILCALL_HELP* pResult)
+    CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
+    CORINFO_TAILCALL_HELPER_INFO* pResult)
 {
     CONTRACTL {
         THROWS;
@@ -13985,7 +13985,7 @@ bool CEEInfo::getTailCallHelp(
         outFlags |= CORINFO_TAILCALL_STORE_TARGET;
     }
 
-    pResult->flags = (CORINFO_TAILCALL_HELP_FLAGS)outFlags;
+    pResult->flags = (CORINFO_TAILCALL_HELPER_INFO_FLAGS)outFlags;
     pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
     pResult->hCallTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
     pResult->hDispatcher = (CORINFO_METHOD_HANDLE)TailCallHelp::GetOrCreateTailCallDispatcherMD();

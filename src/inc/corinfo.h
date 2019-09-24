@@ -1858,23 +1858,23 @@ struct CORINFO_EE_INFO
 };
 
 // Flags passed from JIT to runtime.
-enum CORINFO_GET_TAILCALL_HELP_FLAGS
+enum CORINFO_GET_TAILCALL_HELPERS_FLAGS
 {
     // The callsite is a callvirt instruction.
     CORINFO_TAILCALL_IS_CALLVIRT = 0x00000001,
 };
 
 // Flags passed from runtime to JIT.
-enum CORINFO_TAILCALL_HELP_FLAGS
+enum CORINFO_TAILCALL_HELPER_INFO_FLAGS
 {
     // The StoreArgs stub needs to be passed the target function pointer as the
     // first argument.
     CORINFO_TAILCALL_STORE_TARGET = 0x00000001,
 };
 
-struct CORINFO_TAILCALL_HELP
+struct CORINFO_TAILCALL_HELPER_INFO
 {
-    CORINFO_TAILCALL_HELP_FLAGS flags;
+    CORINFO_TAILCALL_HELPER_INFO_FLAGS flags;
     CORINFO_METHOD_HANDLE       hStoreArgs;
     CORINFO_METHOD_HANDLE       hCallTarget;
     CORINFO_METHOD_HANDLE       hDispatcher;
@@ -3262,7 +3262,7 @@ public:
                     ) = 0;
 
     // Obtain tailcall help for the specified call site.
-    virtual bool getTailCallHelp(
+    virtual bool getTailCallHelpers(
 
         // Target method being called. Can be null if this is calli.
         CORINFO_METHOD_HANDLE hTarget,
@@ -3271,10 +3271,10 @@ public:
         CORINFO_SIG_INFO* callSiteSig,
 
         // Flags for the tailcall site.
-        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
+        CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
 
         // The resulting help.
-        CORINFO_TAILCALL_HELP* pResult) = 0;
+        CORINFO_TAILCALL_HELPER_INFO* pResult) = 0;
 
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
     virtual bool convertPInvokeCalliToCall(

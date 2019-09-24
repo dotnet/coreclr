@@ -956,14 +956,14 @@ namespace Internal.JitInterface
     }
 
     // Flags passed from JIT to runtime.
-    public enum CORINFO_GET_TAILCALL_HELP_FLAGS
+    public enum CORINFO_GET_TAILCALL_HELPERS_FLAGS
     {
         // The callsite is a callvirt instruction.
         CORINFO_TAILCALL_IS_CALLVIRT = 0x00000001,
     }
 
     // Flags passed from runtime to JIT.
-    public enum CORINFO_TAILCALL_HELP_FLAGS
+    public enum CORINFO_TAILCALL_HELPER_INFO_FLAGS
     {
         // The StoreArgs stub needs to be passed the target function pointer as the
         // first argument.
@@ -971,9 +971,9 @@ namespace Internal.JitInterface
     }
 
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct CORINFO_TAILCALL_HELP
+    public unsafe struct CORINFO_TAILCALL_HELPER_INFO
     {
-        CORINFO_TAILCALL_HELP_FLAGS flags;
+        CORINFO_TAILCALL_HELPER_INFO_FLAGS flags;
         CORINFO_METHOD_STRUCT_*     hStoreArgs;
         CORINFO_METHOD_STRUCT_*     hCallTarget;
         CORINFO_METHOD_STRUCT_*     hDispatcher;

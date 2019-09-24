@@ -330,7 +330,7 @@ namespace Internal.JitInterface
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
         delegate void* __getTailCallCopyArgsThunk(IntPtr _this, IntPtr* ppException, CORINFO_SIG_INFO* pSig, CorInfoHelperTailCallSpecialHandling flags);
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
-        [return: MarshalAs(UnmanagedType.I1)]delegate bool __getTailCallHelp(IntPtr _this, IntPtr* ppException, CORINFO_METHOD_STRUCT_* hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELP_FLAGS flags, ref CORINFO_TAILCALL_HELP pResult);
+        [return: MarshalAs(UnmanagedType.I1)]delegate bool __getTailCallHelpers(IntPtr _this, IntPtr* ppException, CORINFO_METHOD_STRUCT_* hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, ref CORINFO_TAILCALL_HELPER_INFO pResult);
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
         [return: MarshalAs(UnmanagedType.I1)]delegate bool __convertPInvokeCalliToCall(IntPtr _this, IntPtr* ppException, ref CORINFO_RESOLVED_TOKEN pResolvedToken, [MarshalAs(UnmanagedType.I1)]bool mustConvert);
         [UnmanagedFunctionPointerAttribute(default(CallingConvention))]
@@ -2562,12 +2562,12 @@ namespace Internal.JitInterface
             }
         }
 
-        [return: MarshalAs(UnmanagedType.I1)]static bool _getTailCallHelp(IntPtr thisHandle, IntPtr* ppException, CORINFO_METHOD_STRUCT_* hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELP_FLAGS flags, ref CORINFO_TAILCALL_HELP pResult)
+        [return: MarshalAs(UnmanagedType.I1)]static bool _getTailCallHelpers(IntPtr thisHandle, IntPtr* ppException, CORINFO_METHOD_STRUCT_* hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, ref CORINFO_TAILCALL_HELPER_INFO pResult)
         {
             var _this = GetThis(thisHandle);
             try
             {
-                return _this.getTailCallHelp(hTarget, callSiteSig, flags, ref pResult);
+                return _this.getTailCallHelpers(hTarget, callSiteSig, flags, ref pResult);
             }
             catch (Exception ex)
             {
@@ -3329,7 +3329,7 @@ namespace Internal.JitInterface
             var d158 = new __getTailCallCopyArgsThunk(_getTailCallCopyArgsThunk);
             callbacks[158] = Marshal.GetFunctionPointerForDelegate(d158);
             delegates[158] = d158;
-            var d159 = new __getTailCallHelp(_getTailCallHelp);
+            var d159 = new __getTailCallHelpers(_getTailCallHelpers);
             callbacks[159] = Marshal.GetFunctionPointerForDelegate(d159);
             delegates[159] = d159;
             var d160 = new __convertPInvokeCalliToCall(_convertPInvokeCalliToCall);

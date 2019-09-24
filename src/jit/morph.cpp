@@ -7290,8 +7290,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     const char* failReason      = nullptr;
     bool        canFastTailCall = fgCanFastTailCall(call, &failReason);
 
-    CORINFO_TAILCALL_HELP tailCallHelp;
-    bool                  tailCallViaJitHelper = false;
+    CORINFO_TAILCALL_HELPER_INFO tailCallHelperInfo;
+    bool                         tailCallViaJitHelper = false;
     if (!canFastTailCall)
     {
         if (call->IsImplicitTailCall())
@@ -7333,8 +7333,8 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
                 flags |= CORINFO_TAILCALL_IS_CALLVIRT;
             }
 
-            if (!info.compCompHnd->getTailCallHelp(targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELP_FLAGS)flags,
-                                                   &tailCallHelp))
+            if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, callSiteSig, (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags,
+                                                      &tailCallHelperInfo))
             {
                 failTailCall("Tail call help not available");
                 return nullptr;
@@ -7481,10 +7481,10 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     GenTree* result;
     if (!canFastTailCall && !tailCallViaJitHelper)
     {
-        // For tailcall via CORINFO_TAILCALL_HELP we transform into regular
+        // For tailcall via CORINFO_TAILCALL_HELPER_INFO we transform into regular
         // calls with (to the JIT) regular control flow so we do not need to do
         // much special handling.
-        result = fgMorphTailCallViaHelp(call, tailCallHelp);
+        result = fgMorphTailCallViaHelpers(call, tailCallHelperInfo);
     }
     else
     {
@@ -7624,9 +7624,9 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
  * whenever the call node returns a value. If the call node does not return a
  * value the last comma will not be there.
  */
-GenTree* Compiler::fgMorphTailCallViaHelp(GenTreeCall* call, CORINFO_TAILCALL_HELP& help)
+GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL_HELPER_INFO& help)
 {
-    JITDUMP("fgMorphTailCallViaHelp (before):\n");
+    JITDUMP("fgMorphTailCallViaHelpers (before):\n");
     DISPTREE(call);
 
     // TODO: Some comments (check old document and see what still applies)
@@ -7771,7 +7771,7 @@ GenTree* Compiler::fgMorphTailCallViaHelp(GenTreeCall* call, CORINFO_TAILCALL_HE
 
     finalTree = fgMorphTree(finalTree);
 
-    JITDUMP("fgMorphTailCallViaHelp (after):\n");
+    JITDUMP("fgMorphTailCallViaHelpers (after):\n");
     DISPTREE(finalTree);
     return finalTree;
 }

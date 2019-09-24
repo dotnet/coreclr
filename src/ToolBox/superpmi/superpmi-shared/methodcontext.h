@@ -443,13 +443,13 @@ public:
         Agnostic_CORINFO_SIG_INFO Sig;
         DWORD                     flags;
     };
-    struct Agnostic_GetTailCallHelp
+    struct Agnostic_GetTailCallHelpers
     {
         DWORDLONG hTarget;
         Agnostic_CORINFO_SIG_INFO callSiteSig;
         DWORD flags;
     };
-    struct Agnostic_CORINFO_TAILCALL_HELP
+    struct Agnostic_CORINFO_TAILCALL_HELPER_INFO
     {
         bool result;
         DWORD flags;
@@ -1304,17 +1304,17 @@ public:
     void dmpGetTailCallCopyArgsThunk(const Agnostic_GetTailCallCopyArgsThunk& key, DWORDLONG value);
     void* repGetTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfoHelperTailCallSpecialHandling flags);
 
-    void recGetTailCallHelp(
+    void recGetTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
         CORINFO_SIG_INFO* callSiteSig,
-        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
-        CORINFO_TAILCALL_HELP* pResult);
-    void dmpGetTailCallHelp(const Agnostic_GetTailCallHelp& key, const Agnostic_CORINFO_TAILCALL_HELP& value);
-    bool repGetTailCallHelp(
+        CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
+        CORINFO_TAILCALL_HELPER_INFO* pResult);
+    void dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPER_INFO& value);
+    bool repGetTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
         CORINFO_SIG_INFO* callSiteSig,
-        CORINFO_GET_TAILCALL_HELP_FLAGS flags,
-        CORINFO_TAILCALL_HELP* pResult);
+        CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
+        CORINFO_TAILCALL_HELPER_INFO* pResult);
 
     void recGetMethodDefFromMethod(CORINFO_METHOD_HANDLE hMethod, mdMethodDef result);
     void dmpGetMethodDefFromMethod(DWORDLONG key, DWORD value);
@@ -1496,7 +1496,7 @@ enum mcPackets
     Packet_GetSecurityPrologHelper                       = 85,
     Packet_GetSharedCCtorHelper                          = 86,
     Packet_GetTailCallCopyArgsThunk                      = 87,
-    Packet_GetTailCallHelp                               = 175, // Added 09/20/19
+    Packet_GetTailCallHelpers                               = 175, // Added 09/20/19
     Packet_GetThreadTLSIndex                             = 88,
     Packet_GetTokenTypeAsHandle                          = 89,
     Packet_GetTypeForBox                                 = 90,
