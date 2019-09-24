@@ -7290,7 +7290,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
     const char* failReason      = nullptr;
     bool        canFastTailCall = fgCanFastTailCall(call, &failReason);
 
-    CORINFO_TAILCALL_HELPERS tailCallHelperInfo;
+    CORINFO_TAILCALL_HELPERS tailCallHelpers;
     bool                         tailCallViaJitHelper = false;
     if (!canFastTailCall)
     {
@@ -7334,7 +7334,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
             }
 
             if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, callSiteSig,
-                                                      (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelperInfo))
+                                                      (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelpers))
             {
                 failTailCall("Tail call help not available");
                 return nullptr;
@@ -7484,7 +7484,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         // For tailcall via CORINFO_TAILCALL_HELPERS we transform into regular
         // calls with (to the JIT) regular control flow so we do not need to do
         // much special handling.
-        result = fgMorphTailCallViaHelpers(call, tailCallHelperInfo);
+        result = fgMorphTailCallViaHelpers(call, tailCallHelpers);
     }
     else
     {
