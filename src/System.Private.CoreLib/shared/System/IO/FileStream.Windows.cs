@@ -1405,7 +1405,6 @@ namespace System.IO
                         switch (readAwaitable._errorCode)
                         {
                             case 0: // success
-                                Debug.Assert(readAwaitable._numBytes >= 0, $"Expected non-negative numBytes, got {readAwaitable._numBytes}");
                                 break;
                             case ERROR_BROKEN_PIPE: // logically success with 0 bytes read (write end of pipe closed)
                             case ERROR_HANDLE_EOF:  // logically success with 0 bytes read (read at end of file)
