@@ -299,19 +299,15 @@ static void *TryLoadHostPolicy(const char *hostPolicyPath)
     static const char LibrarySuffix[] = ".so";
 #endif
 
-    size_t hostPolicyPathLength = sizeof(char) * strlen(hostPolicyPath);
-    const size_t SuffixLengthIncludingTerminatingZero = sizeof(LibrarySuffix);
-    char *hostPolicyCompletePath = (char *)malloc(hostPolicyPathLength + SuffixLengthIncludingTerminatingZero);
-    memcpy(hostPolicyCompletePath, hostPolicyPath, hostPolicyPathLength);
-    memcpy(hostPolicyCompletePath + hostPolicyPathLength, LibrarySuffix, SuffixLengthIncludingTerminatingZero);
+    std::string hostPolicyCompletePath(hostPolicyPath);
+    hostPolicyCompletePath.append(LibrarySuffix);
 
-    void *libraryPtr = dlopen(hostPolicyCompletePath, RTLD_LAZY);
+    void *libraryPtr = dlopen(hostPolicyCompletePath.c_str(), RTLD_LAZY);
     if (libraryPtr == nullptr)
     {
-        fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", hostPolicyCompletePath, dlerror());
+        fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", hostPolicyCompletePath.c_str(), dlerror());
     }
 
-    free(hostPolicyCompletePath);
     return libraryPtr;
 }
 
