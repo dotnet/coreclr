@@ -21,7 +21,6 @@ REM x gets the next argument, and y gets all remaining arguments after the first
 FOR /f "tokens=1*" %%x IN ("%*") DO (
     set param=%%x
     if /i "!param!" == "-p"                     (set __MSBuildArgs=!__MSBuildArgs! .\build.proj /p:RestoreDuringBuild=true /t:Sync)
-    if /i "!param!" == "-ab"                    (set __MSBuildArgs=!__MSBuildArgs! .\src\syncAzure.proj)
     if /i "!param:~0,14!" == "-AzureAccount="   (set v=!param:~14!&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccountName=!v!)
     if /i "!param:~0,12!" == "-AzureToken="     (set v=!param:~12!&set __MSBuildArgs=!__MSBuildArgs! /p:CloudDropAccessToken=!v!)
     if /i "!param:~0,12!" == "-BuildMajor="     (set v=!param:~12!&set __MSBuildArgs=!__MSBuildArgs! /p:BuildNumberMajor=!v!)
