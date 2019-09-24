@@ -7261,7 +7261,6 @@ public:
         return codeGen->isFramePointerUsed();
     }
 
-
     bool GetInterruptible()
     {
         return codeGen->GetInterruptible();

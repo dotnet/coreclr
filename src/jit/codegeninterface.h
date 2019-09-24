@@ -348,7 +348,6 @@ public:
     // is to be fully interruptible.
     //
 public:
-
     bool GetInterruptible()
     {
         return m_cgInterruptible;
