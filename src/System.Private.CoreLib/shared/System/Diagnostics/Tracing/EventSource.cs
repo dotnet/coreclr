@@ -1777,14 +1777,7 @@ namespace System.Diagnostics.Tracing
             else if (dataType == typeof(bool))
             {
                 // The manifest defines a bool as a 32bit type (WIN32 BOOL), not 1 bit as CLR Does.
-                if (*((int*)dataPointer) == 1)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return *((int*)dataPointer) == 1;
             }
             else if (dataType == typeof(Guid))
             {

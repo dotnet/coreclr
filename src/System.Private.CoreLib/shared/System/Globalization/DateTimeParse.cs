@@ -3071,11 +3071,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
 
             result.parsedDate = time;
-            if (!DetermineTimeZoneAdjustments(ref result, styles, false))
-            {
-                return false;
-            }
-            return true;
+            return DetermineTimeZoneAdjustments(ref result, styles, false);
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -4679,11 +4675,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 }
             }
 
-            if (!DetermineTimeZoneAdjustments(ref result, styles, bTimeOnly))
-            {
-                return false;
-            }
-            return true;
+            return DetermineTimeZoneAdjustments(ref result, styles, bTimeOnly);
         }
 
         private static bool ParseFormatR(ReadOnlySpan<char> source, ref ParsingInfo parseInfo, ref DateTimeResult result)
