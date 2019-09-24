@@ -7168,7 +7168,6 @@
     IL_003d:  call       string [mscorlib]System.String::Concat(object,
                                                                 object)
     IL_0042:  call       void [System.Console]System.Console::WriteLine(string)
-    IL_0047:  ldc.i4.0
 
               call       class [System.Runtime.Extensions]System.OperatingSystem [System.Runtime.Extensions]System.Environment::get_OSVersion()
               callvirt   instance valuetype [System.Runtime.Extensions]System.PlatformID [System.Runtime.Extensions]System.OperatingSystem::get_Platform()
