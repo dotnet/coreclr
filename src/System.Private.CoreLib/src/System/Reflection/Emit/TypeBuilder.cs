@@ -1452,7 +1452,7 @@ namespace System.Reflection.Emit
             ThrowIfCreated();
 
             // change the attributes and the class constructor's name
-            MethodAttributes attr = MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.SpecialName;
+            const MethodAttributes attr = MethodAttributes.Private | MethodAttributes.Static | MethodAttributes.SpecialName;
 
             ConstructorBuilder constBuilder = new ConstructorBuilder(
                 ConstructorInfo.TypeConstructorName, attr, CallingConventions.Standard, null, m_module, this);

@@ -409,7 +409,7 @@ namespace System.Threading
         {
             Debug.Assert(IsThreadOwnerTrackingEnabled);
 
-            int lockUnowned = 0;
+            const int LockUnowned = 0;
             // We are using thread IDs to mark ownership. Snap the thread ID and check for recursion.
             // We also must or the ID enablement bit, to ensure we propagate when we CAS it in.
             int newOwner = Environment.CurrentManagedThreadId;
@@ -431,9 +431,9 @@ namespace System.Threading
 
                 // Test before trying to CAS, to avoid acquiring the line exclusively unnecessarily.
 
-                if (_owner == lockUnowned)
+                if (_owner == LockUnowned)
                 {
-                    if (CompareExchange(ref _owner, newOwner, lockUnowned, ref lockTaken) == lockUnowned)
+                    if (CompareExchange(ref _owner, newOwner, LockUnowned, ref lockTaken) == LockUnowned)
                     {
                         return;
                     }

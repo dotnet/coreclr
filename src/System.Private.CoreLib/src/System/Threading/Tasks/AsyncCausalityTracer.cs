@@ -49,7 +49,7 @@ namespace System.Threading.Tasks
             if (!Environment.IsWinRTSupported) return;
 
             // COM Class Id
-            string ClassId = "Windows.Foundation.Diagnostics.AsyncCausalityTracer";
+            const string ClassId = "Windows.Foundation.Diagnostics.AsyncCausalityTracer";
 
             // COM Interface GUID  {50850B26-267E-451B-A890-AB6A370245EE}
             Guid guid = new Guid(0x50850B26, 0x267E, 0x451B, 0xA8, 0x90, 0XAB, 0x6A, 0x37, 0x02, 0x45, 0xEE);

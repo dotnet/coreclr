@@ -425,14 +425,14 @@ namespace System
             uint totalDigits = (uint)(number.DigitsCount);
             uint integerDigitsMissing = positiveExponent - integerDigitsPresent;
 
-            uint integerFirstIndex = 0;
+            const uint IntegerFirstIndex = 0;
             uint integerLastIndex = integerDigitsPresent;
 
             uint fractionalFirstIndex = integerLastIndex;
             uint fractionalLastIndex = totalDigits;
 
             // First, we accumulate the integer part of the mantissa into a big_integer:
-            AccumulateDecimalDigitsIntoBigInteger(ref number, integerFirstIndex, integerLastIndex, out BigInteger integerValue);
+            AccumulateDecimalDigitsIntoBigInteger(ref number, IntegerFirstIndex, integerLastIndex, out BigInteger integerValue);
 
             if (integerDigitsMissing > 0)
             {

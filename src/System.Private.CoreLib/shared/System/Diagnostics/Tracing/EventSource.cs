@@ -2156,7 +2156,7 @@ namespace System.Diagnostics.Tracing
 #if FEATURE_MANAGED_ETW
             if (m_etwProvider != null)
             {
-                string eventName = "EventSourceMessage";
+                const string EventName = "EventSourceMessage";
                 if (SelfDescribingEvents)
                 {
                     EventSourceOptions opt = new EventSourceOptions
@@ -2165,8 +2165,8 @@ namespace System.Diagnostics.Tracing
                         Level = level
                     };
                     var msg = new { message = msgString };
-                    var tlet = new TraceLoggingEventTypes(eventName, EventTags.None, new Type[] { msg.GetType() });
-                    WriteMultiMergeInner(eventName, ref opt, tlet, null, null, msg);
+                    var tlet = new TraceLoggingEventTypes(EventName, EventTags.None, new Type[] { msg.GetType() });
+                    WriteMultiMergeInner(EventName, ref opt, tlet, null, null, msg);
                 }
                 else
                 {
@@ -2175,7 +2175,7 @@ namespace System.Diagnostics.Tracing
                     if (m_rawManifest == null && m_outOfBandMessageCount == 1)
                     {
                         ManifestBuilder manifestBuilder = new ManifestBuilder(Name, Guid, Name, null, EventManifestOptions.None);
-                        manifestBuilder.StartEvent(eventName, new EventAttribute(0) { Level = EventLevel.LogAlways, Task = (EventTask)0xFFFE });
+                        manifestBuilder.StartEvent(EventName, new EventAttribute(0) { Level = EventLevel.LogAlways, Task = (EventTask)0xFFFE });
                         manifestBuilder.AddEventParameter(typeof(string), "message");
                         manifestBuilder.EndEvent();
                         SendManifest(manifestBuilder.CreateManifest());
@@ -3832,7 +3832,7 @@ namespace System.Diagnostics.Tracing
 
         private EventSourceSettings ValidateSettings(EventSourceSettings settings)
         {
-            EventSourceSettings evtFormatMask = EventSourceSettings.EtwManifestEventFormat |
+            const EventSourceSettings evtFormatMask = EventSourceSettings.EtwManifestEventFormat |
                                 EventSourceSettings.EtwSelfDescribingEventFormat;
             if ((settings & evtFormatMask) == evtFormatMask)
             {
@@ -5636,7 +5636,7 @@ namespace System.Diagnostics.Tracing
                     ChannelInfo channelInfo = kvpair.Value;
 
                     string? channelType = null;
-                    string elementName = "channel";
+                    const string ElementName = "channel";
                     bool enabled = false;
                     string? fullName = null;
 #if FEATURE_ADVANCED_MANAGED_ETW_CHANNELS
@@ -5663,10 +5663,10 @@ namespace System.Diagnostics.Tracing
 
                     fullName ??= providerName + "/" + channelInfo.Name;
 
-                    sb.Append("  <").Append(elementName);
+                    sb.Append("  <").Append(ElementName);
                     sb.Append(" chid=\"").Append(channelInfo.Name).Append("\"");
                     sb.Append(" name=\"").Append(fullName).Append("\"");
-                    if (elementName == "channel")   // not applicable to importChannels.
+                    if (ElementName == "channel")   // not applicable to importChannels.
                     {
                         Debug.Assert(channelInfo.Name != null);
                         WriteMessageAttrib(sb, "channel", channelInfo.Name, null);

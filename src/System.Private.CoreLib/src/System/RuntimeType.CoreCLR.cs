@@ -559,8 +559,7 @@ namespace System
                             #region Calculate Binding Flags
                             bool isPublic = (methodAttributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public;
                             bool isStatic = (methodAttributes & MethodAttributes.Static) != 0;
-                            bool isInherited = false;
-                            BindingFlags bindingFlags = FilterPreCalculate(isPublic, isInherited, isStatic);
+                            BindingFlags bindingFlags = FilterPreCalculate(isPublic, isInherited: false, isStatic);
                             #endregion
 
                             // get the unboxing stub or instantiating stub if needed
@@ -729,8 +728,7 @@ namespace System
                         #region Calculate Binding Flags
                         bool isPublic = (methodAttributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public;
                         bool isStatic = (methodAttributes & MethodAttributes.Static) != 0;
-                        bool isInherited = false;
-                        BindingFlags bindingFlags = FilterPreCalculate(isPublic, isInherited, isStatic);
+                        BindingFlags bindingFlags = FilterPreCalculate(isPublic, isInherited: false, isStatic);
                         #endregion
 
                         // get the unboxing stub or instantiating stub if needed
@@ -2186,9 +2184,8 @@ namespace System
             Debug.Assert(type is RuntimeType);
 
             bool isPublic = type.IsNestedPublic || type.IsPublic;
-            bool isStatic = false;
 
-            if (!FilterApplyBase(type, bindingFlags, isPublic, type.IsNestedAssembly, isStatic, name, prefixLookup))
+            if (!FilterApplyBase(type, bindingFlags, isPublic, type.IsNestedAssembly, isStatic: false, name, prefixLookup))
                 return false;
 
             if (ns != null && ns != type.Namespace)

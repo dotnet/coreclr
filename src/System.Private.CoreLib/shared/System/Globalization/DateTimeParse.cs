@@ -5195,8 +5195,8 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 return Hex(strs[0]);
 
             int curLineLength = 0;
-            int maxLineLength = 55;
-            int newLinePadding = 20;
+            const int MaxLineLength = 55;
+            const int NewLinePadding = 20;
 
 
             // invariant: strs.Length >= 2
@@ -5209,11 +5209,11 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             {
                 s = Hex(strs[i]);
 
-                if (s.Length > maxLineLength || (curLineLength + s.Length + 2) > maxLineLength)
+                if (s.Length > MaxLineLength || (curLineLength + s.Length + 2) > MaxLineLength)
                 {
                     buffer.Append(',');
                     buffer.Append(Environment.NewLine);
-                    buffer.Append(' ', newLinePadding);
+                    buffer.Append(' ', NewLinePadding);
                     curLineLength = 0;
                 }
                 else
@@ -5227,10 +5227,10 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
 
             buffer.Append(',');
             s = Hex(strs[strs.Length - 1]);
-            if (s.Length > maxLineLength || (curLineLength + s.Length + 6) > maxLineLength)
+            if (s.Length > MaxLineLength || (curLineLength + s.Length + 6) > MaxLineLength)
             {
                 buffer.Append(Environment.NewLine);
-                buffer.Append(' ', newLinePadding);
+                buffer.Append(' ', NewLinePadding);
             }
             else
             {
