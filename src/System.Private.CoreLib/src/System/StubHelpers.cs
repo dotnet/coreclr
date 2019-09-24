@@ -742,7 +742,7 @@ namespace System.StubHelpers
             }
         }
 
-        internal static unsafe void ConvertContentsToNative_Nullable<T>(ref Nullable<T>[]? managedArray, IntPtr pNativeHome)
+        internal static unsafe void ConvertContentsToNative_Nullable<T>(ref T?[]? managedArray, IntPtr pNativeHome)
             where T : struct
         {
             if (managedArray != null)
@@ -809,7 +809,7 @@ namespace System.StubHelpers
             }
         }
 
-        internal static unsafe void ConvertContentsToManaged_Nullable<T>(ref Nullable<T>[]? managedArray, IntPtr pNativeHome)
+        internal static unsafe void ConvertContentsToManaged_Nullable<T>(ref T?[]? managedArray, IntPtr pNativeHome)
             where T : struct
         {
             if (managedArray != null)
@@ -1238,7 +1238,7 @@ namespace System.StubHelpers
 #if FEATURE_COMINTEROP
     internal static class NullableMarshaler
     {
-        internal static IntPtr ConvertToNative<T>(ref Nullable<T> pManaged) where T : struct
+        internal static IntPtr ConvertToNative<T>(ref T? pManaged) where T : struct
         {
             if (pManaged.HasValue)
             {
@@ -1251,22 +1251,22 @@ namespace System.StubHelpers
             }
         }
 
-        internal static void ConvertToManagedRetVoid<T>(IntPtr pNative, ref Nullable<T> retObj) where T : struct
+        internal static void ConvertToManagedRetVoid<T>(IntPtr pNative, ref T? retObj) where T : struct
         {
             retObj = ConvertToManaged<T>(pNative);
         }
 
 
-        internal static Nullable<T> ConvertToManaged<T>(IntPtr pNative) where T : struct
+        internal static T? ConvertToManaged<T>(IntPtr pNative) where T : struct
         {
             if (pNative != IntPtr.Zero)
             {
                 object wrapper = InterfaceMarshaler.ConvertToManagedWithoutUnboxing(pNative);
-                return (Nullable<T>)CLRIReferenceImpl<T>.UnboxHelper(wrapper);
+                return (T?)CLRIReferenceImpl<T>.UnboxHelper(wrapper);
             }
             else
             {
-                return new Nullable<T>();
+                return default;
             }
         }
     }  // class NullableMarshaler
