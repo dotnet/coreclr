@@ -6876,6 +6876,10 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
     {
         printf(" exact");
     }
+    if (varDsc->lvLiveInOutOfHndlr)
+    {
+        printf(" EH-live");
+    }
 #ifndef _TARGET_64BIT_
     if (varDsc->lvStructDoubleAlign)
         printf(" double-align");

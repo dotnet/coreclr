@@ -270,7 +270,7 @@ struct insGroup
 #define IGF_UPD_ISZ 0x0080        // some instruction sizes updated
 #define IGF_PLACEHOLDER 0x0100    // this is a placeholder group, to be filled in later
 #define IGF_EXTEND 0x0200         // this block is conceptually an extension of the previous block
-                                  // and inherits GC live register sets from it.
+                                  // and the emitter should continue to track GC info as if there was no new block.
 
 // Mask of IGF_* flags that should be propagated to new blocks when they are created.
 // This allows prologs and epilogs to be any number of IGs, but still be
@@ -1809,8 +1809,9 @@ private:
     // and registers.  The "isFinallyTarget" parameter indicates that the current location is
     // the start of a basic block that is returned to after a finally clause in non-exceptional execution.
     void* emitAddLabel(VARSET_VALARG_TP GCvars, regMaskTP gcrefRegs, regMaskTP byrefRegs, BOOL isFinallyTarget = FALSE);
-    // Same as above, except the label is added and is conceptually "inline" in the current block.
-    // Thus it inherits GC live sets from the current block.
+    // Same as above, except the label is added and is conceptually "inline" in
+    // the current block. Thus it extends the previous block and the emitter
+    // continues to track GC info as if there was no label.
     void* emitAddInlineLabel();
 
 #ifdef _TARGET_ARMARCH_
