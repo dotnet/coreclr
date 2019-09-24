@@ -4983,7 +4983,7 @@ Statement* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, Statement* stm
     }
 
     // Preserve the prev link before the propagation and morph.
-    Statement* prev = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
+    Statement* prev = (stmt == block->firstStmt()) ? nullptr : stmt->GetPrevStmt();
 
     // Perform VN based assertion prop first, in case we don't find
     // anything in assertion gen.
@@ -5150,7 +5150,7 @@ void Compiler::optAssertionPropMain()
 
             // Preserve the prev link before the propagation and morph, to check if propagation
             // removes the current stmt.
-            Statement* prevStmt = (stmt == block->firstStmt()) ? nullptr : stmt->getPrevStmt();
+            Statement* prevStmt = (stmt == block->firstStmt()) ? nullptr : stmt->GetPrevStmt();
 
             optAssertionPropagatedCurrentStmt = false; // set to true if a assertion propagation took place
                                                        // and thus we must morph, set order, re-link

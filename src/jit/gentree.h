@@ -5314,8 +5314,6 @@ private:
 #endif
 
 public:
-    __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
-
     Statement* gtNext;
     Statement* gtPrev;
 
@@ -5323,26 +5321,12 @@ public:
 
     Statement* GetNextStmt()
     {
-        if (gtNext == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return gtNext;
-        }
+        return gtNext;
     }
 
-    Statement* getPrevStmt()
+    Statement* GetPrevStmt()
     {
-        if (gtPrev == nullptr)
-        {
-            return nullptr;
-        }
-        else
-        {
-            return gtPrev;
-        }
+        return gtPrev;
     }
 
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))

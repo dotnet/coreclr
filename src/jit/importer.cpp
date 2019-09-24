@@ -679,7 +679,7 @@ Statement* Compiler::impExtractLastStmt()
     assert(impLastStmt != nullptr);
 
     Statement* stmt = impLastStmt;
-    impLastStmt     = impLastStmt->gtPrevStmt;
+    impLastStmt     = impLastStmt->GetPrevStmt();
     if (impLastStmt == nullptr)
     {
         impStmtList = nullptr;
@@ -705,7 +705,7 @@ inline void Compiler::impInsertStmtBefore(Statement* stmt, Statement* stmtBefore
     }
     else
     {
-        Statement* stmtPrev = stmtBefore->getPrevStmt();
+        Statement* stmtPrev = stmtBefore->GetPrevStmt();
         stmt->gtPrev        = stmtPrev;
         stmtPrev->gtNext    = stmt;
     }

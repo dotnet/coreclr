@@ -624,7 +624,7 @@ void Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
     if (firstStmt != nullptr)
     {
         // There is at least one statement already.
-        Statement* lastStmt = firstStmt->getPrevStmt();
+        Statement* lastStmt = firstStmt->GetPrevStmt();
         noway_assert(lastStmt != nullptr && lastStmt->GetNextStmt() == nullptr);
 
         // Append the statement after the last one.
@@ -841,7 +841,7 @@ Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAft
     noway_assert(stmtAfter);
     noway_assert(stmtList);
 
-    Statement* stmtLast = stmtList->getPrevStmt(); // Last statement in a non-empty list, circular in the gtPrev list.
+    Statement* stmtLast = stmtList->GetPrevStmt(); // Last statement in a non-empty list, circular in the gtPrev list.
     noway_assert(stmtLast);
     noway_assert(stmtLast->gtNext == nullptr);
 
@@ -10055,9 +10055,9 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
     }
     else // The statement is in the middle.
     {
-        assert(stmt->gtPrevStmt != nullptr && stmt->gtNext != nullptr);
+        assert(stmt->GetPrevStmt() != nullptr && stmt->gtNext != nullptr);
 
-        Statement* prev = stmt->gtPrevStmt;
+        Statement* prev = stmt->GetPrevStmt();
 
         prev->gtNext         = stmt->gtNext;
         stmt->gtNext->gtPrev = prev;
@@ -10322,7 +10322,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
         // Does the second have any phis?
         if (bNextFirst != nullptr && bNextFirst != bNextNonPhi1)
         {
-            Statement* bNextLast = bNextFirst->gtPrevStmt;
+            Statement* bNextLast = bNextFirst->GetPrevStmt();
             assert(bNextLast->gtNext == nullptr);
 
             // Does "blk" have phis?
@@ -10334,11 +10334,11 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 Statement* blkLastPhi;
                 if (blkNonPhi1 != nullptr)
                 {
-                    blkLastPhi = blkNonPhi1->gtPrevStmt;
+                    blkLastPhi = blkNonPhi1->GetPrevStmt();
                 }
                 else
                 {
-                    blkLastPhi = blkFirst->gtPrevStmt;
+                    blkLastPhi = blkFirst->GetPrevStmt();
                 }
 
                 blkLastPhi->gtNext = bNextFirst;
@@ -10348,11 +10348,11 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 Statement* bNextLastPhi = nullptr;
                 if (bNextNonPhi1 != nullptr)
                 {
-                    bNextLastPhi = bNextNonPhi1->gtPrevStmt;
+                    bNextLastPhi = bNextNonPhi1->GetPrevStmt();
                 }
                 else
                 {
-                    bNextLastPhi = bNextFirst->gtPrevStmt;
+                    bNextLastPhi = bNextFirst->GetPrevStmt();
                 }
 
                 bNextLastPhi->gtNext = blkNonPhi1;
@@ -10378,19 +10378,19 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 if (blkFirst != nullptr) // If "block" has no statements, fusion will work fine...
                 {
                     // First, bNextPhis at start of block.
-                    Statement* blkLast = blkFirst->gtPrevStmt;
+                    Statement* blkLast = blkFirst->GetPrevStmt();
                     block->bbStmtList  = bNextFirst;
                     // Now, rest of "block" (if it exists) after last phi of "bNext".
                     Statement* bNextLastPhi = nullptr;
                     if (bNextNonPhi1 != nullptr)
                     {
                         // There is a first non phi, so the last phi is before it.
-                        bNextLastPhi = bNextNonPhi1->gtPrevStmt;
+                        bNextLastPhi = bNextNonPhi1->GetPrevStmt();
                     }
                     else
                     {
                         // All the statements are phi defns, so the last one is the prev of the first.
-                        bNextLastPhi = bNextFirst->gtPrevStmt;
+                        bNextLastPhi = bNextFirst->GetPrevStmt();
                     }
                     bNextFirst->gtPrev   = blkLast;
                     bNextLastPhi->gtNext = blkFirst;
@@ -23063,7 +23063,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         // This is the normal case where both blocks should contain at least one statement.
         Statement* topBlock_Begin = topBlock->firstStmt();
         noway_assert(topBlock_Begin != nullptr);
-        Statement* topBlock_End = bottomBlock_Begin->gtPrevStmt;
+        Statement* topBlock_End = bottomBlock_Begin->GetPrevStmt();
         noway_assert(topBlock_End != nullptr);
         Statement* bottomBlock_End = topBlock->lastStmt();
         noway_assert(bottomBlock_End != nullptr);

@@ -960,7 +960,7 @@ bool Compiler::optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTes
     {
         // Get the previous statement to get the def (rhs) of Vtmp to see
         // if the "test" is evaluated into Vtmp.
-        Statement* prevStmt = testStmt->getPrevStmt();
+        Statement* prevStmt = testStmt->GetPrevStmt();
         if (prevStmt == nullptr)
         {
             return false;
@@ -1042,7 +1042,7 @@ bool Compiler::optExtractInitTestIncr(
 
     // Check if we have the incr stmt before the test stmt, if we don't,
     // check if incr is part of the loop "top".
-    Statement* incrStmt = testStmt->getPrevStmt();
+    Statement* incrStmt = testStmt->GetPrevStmt();
     if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->gtStmtExpr) == BAD_VAR_NUM)
     {
         if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->gtPrev == nullptr)
@@ -1072,7 +1072,7 @@ bool Compiler::optExtractInitTestIncr(
         return false;
     }
 
-    Statement* initStmt = phdrStmt->getPrevStmt();
+    Statement* initStmt = phdrStmt->GetPrevStmt();
     noway_assert(initStmt != nullptr && (initStmt->gtNext == nullptr));
 
     // If it is a duplicated loop condition, skip it.
@@ -1094,7 +1094,7 @@ bool Compiler::optExtractInitTestIncr(
 #endif // DEBUG
         if (doGetPrev)
         {
-            initStmt = initStmt->getPrevStmt();
+            initStmt = initStmt->GetPrevStmt();
         }
         noway_assert(initStmt != nullptr);
     }
@@ -3610,7 +3610,7 @@ void Compiler::optUnrollLoops()
 
         Statement* testStmt = bottom->lastStmt();
         noway_assert((testStmt != nullptr) && (testStmt->gtNext == nullptr));
-        Statement* incrStmt = testStmt->gtPrevStmt;
+        Statement* incrStmt = testStmt->GetPrevStmt();
         noway_assert(incrStmt != nullptr);
 
         if (initStmt->compilerAdded)
@@ -3619,7 +3619,7 @@ void Compiler::optUnrollLoops()
             noway_assert(initStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
             dupCond  = true;
-            initStmt = initStmt->gtPrevStmt;
+            initStmt = initStmt->GetPrevStmt();
             noway_assert(initStmt != nullptr);
         }
         else
@@ -3852,12 +3852,12 @@ void Compiler::optUnrollLoops()
             {
                 Statement* preHeaderStmt = head->firstStmt();
                 noway_assert(preHeaderStmt != nullptr);
-                testStmt = preHeaderStmt->gtPrevStmt;
+                testStmt = preHeaderStmt->GetPrevStmt();
 
                 noway_assert((testStmt != nullptr) && (testStmt->gtNext == nullptr));
                 noway_assert(testStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
-                initStmt = testStmt->gtPrevStmt;
+                initStmt = testStmt->GetPrevStmt();
                 noway_assert((initStmt != nullptr) && (initStmt->gtNext == testStmt));
 
                 initStmt->gtNext      = nullptr;
@@ -4011,7 +4011,7 @@ static Statement* optFindLoopTermTest(BasicBlock* bottom)
 
     assert(testStmt != nullptr);
 
-    Statement* result = testStmt->getPrevStmt();
+    Statement* result = testStmt->GetPrevStmt();
 
 #ifdef DEBUG
     while (testStmt->gtNext != nullptr)

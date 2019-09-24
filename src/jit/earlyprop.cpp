@@ -607,7 +607,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                 // Then walk the statement list in reverse execution order
                                                 // until we get to the statement containing the null check.
                                                 // We only need to check the side effects at the root of each statement.
-                                                Statement* curStmt = compCurStmt->getPrevStmt();
+                                                Statement* curStmt = compCurStmt->GetPrevStmt();
                                                 currentTree        = curStmt->gtStmtExpr;
                                                 while (canRemoveNullCheck && (currentTree != defParent))
                                                 {
@@ -618,7 +618,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                                     }
                                                     else
                                                     {
-                                                        curStmt = curStmt->getPrevStmt();
+                                                        curStmt = curStmt->GetPrevStmt();
                                                         assert(curStmt != nullptr);
                                                         currentTree = curStmt->gtStmtExpr;
                                                     }

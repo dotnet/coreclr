@@ -2616,7 +2616,7 @@ void Compiler::fgInterBlockLocalVarLiveness()
                 noway_assert(nextStmt != nullptr);
 
                 compCurStmt = nextStmt;
-                nextStmt    = nextStmt->getPrevStmt();
+                nextStmt    = nextStmt->GetPrevStmt();
 
                 /* Compute the liveness for each tree node in the statement */
                 bool stmtInfoDirty = false;
