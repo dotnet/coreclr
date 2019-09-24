@@ -380,7 +380,7 @@ namespace System.Runtime.InteropServices
                 return size;
             }
 
-            return (uint)(((size + 3) & (~3)));
+            return (uint)((size + 3) & (~3));
         }
 
         /// <summary>

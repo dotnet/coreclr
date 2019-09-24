@@ -250,7 +250,7 @@ namespace System.Globalization
                 // If necessary, make sure its a valid std3 character
                 if (bUseStd3)
                 {
-                    ValidateStd3(unicode[i], (i == iLastDot + 1));
+                    ValidateStd3(unicode[i], i == iLastDot + 1);
                 }
             }
 
@@ -524,8 +524,8 @@ namespace System.Globalization
         private static void ValidateStd3(char c, bool bNextToDot)
         {
             // Check for illegal characters
-            if ((c <= ',' || c == '/' || (c >= ':' && c <= '@') ||      // Lots of characters not allowed
-                (c >= '[' && c <= '`') || (c >= '{' && c <= (char)0x7F)) ||
+            if (c <= ',' || c == '/' || (c >= ':' && c <= '@') ||      // Lots of characters not allowed
+                (c >= '[' && c <= '`') || (c >= '{' && c <= (char)0x7F) ||
                 (c == '-' && bNextToDot))
                 throw new ArgumentException(SR.Format(SR.Argument_IdnBadStd3, c), nameof(c));
         }
@@ -708,7 +708,7 @@ namespace System.Globalization
                         i %= (output.Length - iOutputAfterLastDot - numSurrogatePairs + 1);
 
                         // Make sure n is legal
-                        if ((n < 0 || n > 0x10ffff) || (n >= 0xD800 && n <= 0xDFFF))
+                        if (n < 0 || n > 0x10ffff || (n >= 0xD800 && n <= 0xDFFF))
                             throw new ArgumentException(SR.Argument_IdnBadPunycode, nameof(ascii));
 
                         // insert n at position i of the output:  Really tricky if we have surrogates

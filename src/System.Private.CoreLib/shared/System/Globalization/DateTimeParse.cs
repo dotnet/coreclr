@@ -483,7 +483,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 decimalBase *= 0.1;
                 digits++;
             }
-            return (digits > 0);
+            return digits > 0;
         }
 
         /*=================================ParseTimeZone==========================
@@ -573,7 +573,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
         // This is the helper function to handle timezone in string in the format like +/-0800
         private static bool HandleTimeZone(ref __DTString str, ref DateTimeResult result)
         {
-            if ((str.Index < str.Length - 1))
+            if (str.Index < str.Length - 1)
             {
                 char nextCh = str.Value[str.Index];
                 // Skip whitespace, but don't update the index unless we find a time zone marker
@@ -650,7 +650,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     //  "11:22:33.1234" or "11:22:33-08".
                     if (dps == DS.T_NNt)
                     {
-                        if ((str.Index < str.Length - 1))
+                        if (str.Index < str.Length - 1)
                         {
                             char nextCh = str.Value[str.Index];
                             if (nextCh == '.')
@@ -665,7 +665,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     }
                     if (dps == DS.T_NNt || dps == DS.T_Nt)
                     {
-                        if ((str.Index < str.Length - 1))
+                        if (str.Index < str.Length - 1)
                         {
                             if (false == HandleTimeZone(ref str, ref result))
                             {
@@ -1203,7 +1203,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                             return false;
                         }
                     }
-                    else if ((!char.IsWhiteSpace(ch)))
+                    else if (!char.IsWhiteSpace(ch))
                     {
                         // Anything other than whitespace outside hashes is invalid
                         if (!foundStart || foundEnd)
@@ -1524,17 +1524,17 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
 
         private static bool SetDateMDY(ref DateTimeResult result, int month, int day, int year)
         {
-            return (SetDateYMD(ref result, year, month, day));
+            return SetDateYMD(ref result, year, month, day);
         }
 
         private static bool SetDateDMY(ref DateTimeResult result, int day, int month, int year)
         {
-            return (SetDateYMD(ref result, year, month, day));
+            return SetDateYMD(ref result, year, month, day);
         }
 
         private static bool SetDateYDM(ref DateTimeResult result, int year, int day, int month)
         {
-            return (SetDateYMD(ref result, year, month, day));
+            return SetDateYMD(ref result, year, month, day);
         }
 
         private static void GetDefaultYear(ref DateTimeResult result, ref DateTimeStyles styles)
@@ -2586,7 +2586,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                             // Consider this as ISO 8601 format:
                             // "yyyy-MM-dd'T'HH:mm:ss"                 1999-10-31T02:00:00
                             TPTraceExit("0020", dps);
-                            return (ParseISO8601(ref raw, ref str, styles, ref result));
+                            return ParseISO8601(ref raw, ref str, styles, ref result);
                         }
                         else
                         {
@@ -2817,9 +2817,9 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
 
             if ((styles & DateTimeStyles.AdjustToUniversal) != 0)
             {
-                return (AdjustTimeZoneToUniversal(ref result));
+                return AdjustTimeZoneToUniversal(ref result);
             }
-            return (AdjustTimeZoneToLocal(ref result, bTimeOnly));
+            return AdjustTimeZoneToLocal(ref result, bTimeOnly);
         }
 
         // Apply validation and adjustments specific to DateTimeOffset
@@ -3206,7 +3206,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             }
 
             result /= TimeSpanParse.Pow10(digitLen);
-            return (digitLen == maxDigitLen);
+            return digitLen == maxDigitLen;
         }
 
         /*=================================ParseSign==================================
@@ -3849,7 +3849,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             //
             // Expand the pre-defined format character to the real format from DateTimeFormatInfo.
             //
-            return (DateTimeFormat.GetRealFormat(format, dtfi));
+            return DateTimeFormat.GetRealFormat(format, dtfi);
         }
 
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -4036,7 +4036,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 case 'h':
                     parseInfo.fUseHour12 = true;
                     tokenLen = format.GetRepeatCount();
-                    if (!ParseDigits(ref str, (tokenLen < 2 ? 1 : 2), out tempHour))
+                    if (!ParseDigits(ref str, tokenLen < 2 ? 1 : 2, out tempHour))
                     {
                         result.SetBadDateTimeFailure();
                         return false;
@@ -4048,7 +4048,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     break;
                 case 'H':
                     tokenLen = format.GetRepeatCount();
-                    if (!ParseDigits(ref str, (tokenLen < 2 ? 1 : 2), out tempHour))
+                    if (!ParseDigits(ref str, tokenLen < 2 ? 1 : 2, out tempHour))
                     {
                         result.SetBadDateTimeFailure();
                         return false;
@@ -4060,7 +4060,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     break;
                 case 'm':
                     tokenLen = format.GetRepeatCount();
-                    if (!ParseDigits(ref str, (tokenLen < 2 ? 1 : 2), out tempMinute))
+                    if (!ParseDigits(ref str, tokenLen < 2 ? 1 : 2, out tempMinute))
                     {
                         result.SetBadDateTimeFailure();
                         return false;
@@ -4072,7 +4072,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                     break;
                 case 's':
                     tokenLen = format.GetRepeatCount();
-                    if (!ParseDigits(ref str, (tokenLen < 2 ? 1 : 2), out tempSecond))
+                    if (!ParseDigits(ref str, tokenLen < 2 ? 1 : 2, out tempSecond))
                     {
                         result.SetBadDateTimeFailure();
                         return false;
@@ -4657,7 +4657,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
 
             if (!bTimeOnly && dtfi.HasYearMonthAdjustment)
             {
-                if (!dtfi.YearMonthAdjustment(ref result.Year, ref result.Month, ((result.flags & ParseFlags.ParsedMonthName) != 0)))
+                if (!dtfi.YearMonthAdjustment(ref result.Year, ref result.Month, (result.flags & ParseFlags.ParsedMonthName) != 0))
                 {
                     result.SetFailure(ParseFailureKind.FormatBadDateTimeCalendar, nameof(SR.Format_BadDateTimeCalendar));
                     return false;
@@ -5439,7 +5439,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 while (++Index < Length)
                 {
                     m_current = Value[Index];
-                    if (!(char.IsWhiteSpace(m_current)))
+                    if (!char.IsWhiteSpace(m_current))
                     {
                         goto Start;
                     }
@@ -5461,7 +5461,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             if (!SkipWhiteSpaceCurrent())
             {
                 // Reach the end of the string.
-                return (TokenType.SEP_End);
+                return TokenType.SEP_End;
             }
             if (!DateTimeParse.IsDigit(m_current))
             {
@@ -5478,7 +5478,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 // separator token.
                 tokenType = TokenType.SEP_Space;
             }
-            return (tokenType);
+            return tokenType;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -5642,7 +5642,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
                 }
             }
 
-            return (result);
+            return result;
         }
 
         //
@@ -5663,7 +5663,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             // So the following GetNext() opeartion will get
             // the next character to be parsed.
             Index = pos - 1;
-            return (repeatCount);
+            return repeatCount;
         }
 
         // Return false when end of string is encountered or a non-digit character is found.
@@ -5678,7 +5678,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
         internal char GetChar()
         {
             Debug.Assert(Index >= 0 && Index < Length, "Index >= 0 && Index < len");
-            return (Value[Index]);
+            return Value[Index];
         }
 
         //
@@ -5688,7 +5688,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
         {
             Debug.Assert(Index >= 0 && Index < Length, "Index >= 0 && Index < len");
             Debug.Assert(DateTimeParse.IsDigit(Value[Index]), "IsDigit(Value[Index])");
-            return (Value[Index] - '0');
+            return Value[Index] - '0';
         }
 
         //

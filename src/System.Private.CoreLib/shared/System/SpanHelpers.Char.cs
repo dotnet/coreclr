@@ -1053,15 +1053,15 @@ namespace System
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint GetCharVectorSpanLength(nint offset, nint length)
-            => ((length - offset) & ~(Vector<ushort>.Count - 1));
+            => (length - offset) & ~(Vector<ushort>.Count - 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint GetCharVector128SpanLength(nint offset, nint length)
-            => ((length - offset) & ~(Vector128<ushort>.Count - 1));
+            => (length - offset) & ~(Vector128<ushort>.Count - 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static nint GetCharVector256SpanLength(nint offset, nint length)
-            => ((length - offset) & ~(Vector256<ushort>.Count - 1));
+            => (length - offset) & ~(Vector256<ushort>.Count - 1);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static unsafe nint UnalignedCountVector(ref char searchSpace)

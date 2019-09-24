@@ -136,7 +136,7 @@ namespace System
 
         public virtual bool IsDaylightSavingTime(DateTime time)
         {
-            return (IsDaylightSavingTime(time, GetDaylightChanges(time.Year)));
+            return IsDaylightSavingTime(time, GetDaylightChanges(time.Year));
         }
 
         // Check if the specified time is in a daylight saving time.  Allows the user to

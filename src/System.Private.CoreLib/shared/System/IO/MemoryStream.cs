@@ -208,7 +208,7 @@ namespace System.IO
                 return false;
             }
 
-            buffer = new ArraySegment<byte>(_buffer, offset: _origin, count: (_length - _origin));
+            buffer = new ArraySegment<byte>(_buffer, offset: _origin, count: _length - _origin);
             return true;
         }
 

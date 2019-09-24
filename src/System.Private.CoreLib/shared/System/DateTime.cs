@@ -424,7 +424,7 @@ namespace System
 
         internal long InternalTicks => (long)(_dateData & TicksMask);
 
-        private ulong InternalKind => (_dateData & FlagsMask);
+        private ulong InternalKind => _dateData & FlagsMask;
 
         // Returns the DateTime resulting from adding the given
         // TimeSpan to this DateTime.
@@ -1106,7 +1106,7 @@ namespace System
         public static DateTime Parse(string s)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return (DateTimeParse.Parse(s, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None));
+            return DateTimeParse.Parse(s, DateTimeFormatInfo.CurrentInfo, DateTimeStyles.None);
         }
 
         // Constructs a DateTime from a string. The string must specify a
@@ -1116,14 +1116,14 @@ namespace System
         public static DateTime Parse(string s, IFormatProvider? provider)
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return (DateTimeParse.Parse(s, DateTimeFormatInfo.GetInstance(provider), DateTimeStyles.None));
+            return DateTimeParse.Parse(s, DateTimeFormatInfo.GetInstance(provider), DateTimeStyles.None);
         }
 
         public static DateTime Parse(string s, IFormatProvider? provider, DateTimeStyles styles)
         {
             DateTimeFormatInfo.ValidateStyles(styles, nameof(styles));
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
-            return (DateTimeParse.Parse(s, DateTimeFormatInfo.GetInstance(provider), styles));
+            return DateTimeParse.Parse(s, DateTimeFormatInfo.GetInstance(provider), styles);
         }
 
         public static DateTime Parse(ReadOnlySpan<char> s, IFormatProvider? provider = null, DateTimeStyles styles = DateTimeStyles.None)
@@ -1140,7 +1140,7 @@ namespace System
         {
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
-            return (DateTimeParse.ParseExact(s, format, DateTimeFormatInfo.GetInstance(provider), DateTimeStyles.None));
+            return DateTimeParse.ParseExact(s, format, DateTimeFormatInfo.GetInstance(provider), DateTimeStyles.None);
         }
 
         // Constructs a DateTime from a string. The string must specify a
@@ -1152,7 +1152,7 @@ namespace System
             DateTimeFormatInfo.ValidateStyles(style, nameof(style));
             if (s == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.s);
             if (format == null) ThrowHelper.ThrowArgumentNullException(ExceptionArgument.format);
-            return (DateTimeParse.ParseExact(s, format, DateTimeFormatInfo.GetInstance(provider), style));
+            return DateTimeParse.ParseExact(s, format, DateTimeFormatInfo.GetInstance(provider), style);
         }
 
         public static DateTime ParseExact(ReadOnlySpan<char> s, ReadOnlySpan<char> format, IFormatProvider? provider, DateTimeStyles style = DateTimeStyles.None)
@@ -1438,7 +1438,7 @@ namespace System
         // time strings for the current instance of DateTime.
         public string[] GetDateTimeFormats()
         {
-            return (GetDateTimeFormats(CultureInfo.CurrentCulture));
+            return GetDateTimeFormats(CultureInfo.CurrentCulture);
         }
 
         // Returns a string array containing all of the known date and time options for the
@@ -1446,7 +1446,7 @@ namespace System
         // time strings for the current instance of DateTime.
         public string[] GetDateTimeFormats(IFormatProvider? provider)
         {
-            return (DateTimeFormat.GetAllDateTimes(this, DateTimeFormatInfo.GetInstance(provider)));
+            return DateTimeFormat.GetAllDateTimes(this, DateTimeFormatInfo.GetInstance(provider));
         }
 
 
@@ -1455,7 +1455,7 @@ namespace System
         // time strings for the current instance of DateTime.
         public string[] GetDateTimeFormats(char format)
         {
-            return (GetDateTimeFormats(format, CultureInfo.CurrentCulture));
+            return GetDateTimeFormats(format, CultureInfo.CurrentCulture);
         }
 
         // Returns a string array containing all of the date and time options for the
@@ -1463,7 +1463,7 @@ namespace System
         // time strings for the current instance of DateTime.
         public string[] GetDateTimeFormats(char format, IFormatProvider? provider)
         {
-            return (DateTimeFormat.GetAllDateTimes(this, format, DateTimeFormatInfo.GetInstance(provider)));
+            return DateTimeFormat.GetAllDateTimes(this, format, DateTimeFormatInfo.GetInstance(provider));
         }
 
         //

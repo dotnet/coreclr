@@ -268,7 +268,7 @@ namespace System
                 ulong[] ulValues = Enum.InternalGetValues(this);
                 ulong ulValue = Enum.ToUInt64(value);
 
-                return (Array.BinarySearch(ulValues, ulValue) >= 0);
+                return Array.BinarySearch(ulValues, ulValue) >= 0;
             }
             else
             {

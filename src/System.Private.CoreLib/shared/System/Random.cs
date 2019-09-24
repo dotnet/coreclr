@@ -88,7 +88,7 @@ namespace System
         {
             // Including this division at the end gives us significantly improved
             // random number distribution.
-            return (InternalSample() * (1.0 / MBIG));
+            return InternalSample() * (1.0 / MBIG);
         }
 
         private int InternalSample()
@@ -200,7 +200,7 @@ namespace System
             long range = (long)maxValue - minValue;
             if (range <= int.MaxValue)
             {
-                return ((int)(Sample() * range) + minValue);
+                return (int)(Sample() * range) + minValue;
             }
             else
             {

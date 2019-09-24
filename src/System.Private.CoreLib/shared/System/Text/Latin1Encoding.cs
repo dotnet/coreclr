@@ -54,7 +54,7 @@ namespace System.Text
             else
                 fallback = this.EncoderFallback as EncoderReplacementFallback;
 
-            if ((fallback != null && fallback.MaxCharCount == 1)/* || bIsBestFit*/)
+            if (fallback != null && fallback.MaxCharCount == 1/* || bIsBestFit*/)
             {
                 // Replacement fallback encodes surrogate pairs as two ?? (or two whatever), so return size is always
                 // same as input size.
@@ -67,7 +67,7 @@ namespace System.Text
                 if (charLeftOver > 0)
                     charCount++;
 
-                return (charCount);
+                return charCount;
             }
 
             // Count is more complicated if you have a funky fallback
@@ -461,7 +461,7 @@ namespace System.Text
             // Also some letters like 0x00A8 (spacing diarisis) have compatibility decompositions, so false for KD & KC.
 
             // Only true for form C.
-            return (form == NormalizationForm.FormC);
+            return form == NormalizationForm.FormC;
         }
         // Since our best fit table is small we'll hard code it
         internal override char[] GetBestFitUnicodeToBytesData()

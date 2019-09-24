@@ -66,7 +66,7 @@ namespace System
         // From System.Web.Util.HashCodeCombiner
         internal static int CombineHashCodes(int h1, int h2)
         {
-            return (((h1 << 5) + h1) ^ h2);
+            return ((h1 << 5) + h1) ^ h2;
         }
 
         internal static int CombineHashCodes(int h1, int h2, int h3)

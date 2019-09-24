@@ -232,7 +232,7 @@ namespace System.Globalization
 
         private static bool CallGetCalendarInfoEx(string? localeName, CalendarId calendar, uint calType, out int data)
         {
-            return (Interop.Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType | CAL_RETURN_NUMBER, IntPtr.Zero, 0, out data) != 0);
+            return Interop.Kernel32.GetCalendarInfoEx(localeName, (uint)calendar, IntPtr.Zero, calType | CAL_RETURN_NUMBER, IntPtr.Zero, 0, out data) != 0;
         }
 
         private static unsafe bool CallGetCalendarInfoEx(string localeName, CalendarId calendar, uint calType, out string data)
@@ -293,7 +293,7 @@ namespace System.Globalization
             context.userOverride = null;
             context.strings = new List<string>();
             // First call GetLocaleInfo if necessary
-            if (((lcType != 0) && ((lcType & CAL_NOUSEROVERRIDE) == 0)) &&
+            if ((lcType != 0) && ((lcType & CAL_NOUSEROVERRIDE) == 0) &&
                 // Get user locale, see if it matches localeName.
                 // Note that they should match exactly, including letter case
                 GetUserDefaultLocaleName() == localeName)

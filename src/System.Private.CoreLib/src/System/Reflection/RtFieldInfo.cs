@@ -57,7 +57,7 @@ namespace System.Reflection
             }
 
             // must be last to avoid threading problems
-            return (m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED);
+            return m_invocationFlags = invocationFlags | INVOCATION_FLAGS.INVOCATION_FLAGS_INITIALIZED;
         }
         #endregion
 
@@ -235,7 +235,7 @@ namespace System.Reflection
         [MethodImpl(MethodImplOptions.NoInlining)]
         private RuntimeType InitializeFieldType()
         {
-            return (m_fieldType = new Signature(this, m_declaringType).FieldType);
+            return m_fieldType = new Signature(this, m_declaringType).FieldType;
         }
 
         public override Type[] GetRequiredCustomModifiers()

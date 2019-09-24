@@ -35,14 +35,14 @@ namespace System
             }
             if (value is ushort)
             {
-                return ((int)m_value - (int)(((ushort)value).m_value));
+                return (int)m_value - (int)(((ushort)value).m_value);
             }
             throw new ArgumentException(SR.Arg_MustBeUInt16);
         }
 
         public int CompareTo(ushort value)
         {
-            return ((int)m_value - (int)value);
+            return (int)m_value - (int)value;
         }
 
         public override bool Equals(object? obj)

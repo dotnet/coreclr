@@ -25,7 +25,7 @@ namespace System.Reflection.Emit
 
             if (obj is InternalModuleBuilder)
             {
-                return ((object)this == obj);
+                return (object)this == obj;
             }
 
             return obj.Equals(this);

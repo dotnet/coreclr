@@ -101,7 +101,7 @@ namespace System
 
                 // Keep the error object alive so that user could retrieve error information
                 // using Data["RestrictedErrorReference"]
-                dict.Add("__RestrictedErrorObject", (restrictedErrorObject == null ? null : new __RestrictedErrorObject(restrictedErrorObject)));
+                dict.Add("__RestrictedErrorObject", restrictedErrorObject == null ? null : new __RestrictedErrorObject(restrictedErrorObject));
                 dict.Add("__HasRestrictedLanguageErrorObject", hasrestrictedLanguageErrorObject);
             }
         }
@@ -299,7 +299,7 @@ namespace System
         // exception, just before the exception is "rethrown".
         internal void RestoreDispatchState(in DispatchState dispatchState)
         {
-            bool fCanProcessException = !(IsImmutableAgileException(this));
+            bool fCanProcessException = !IsImmutableAgileException(this);
             // Restore only for non-preallocated exceptions
             if (fCanProcessException)
             {

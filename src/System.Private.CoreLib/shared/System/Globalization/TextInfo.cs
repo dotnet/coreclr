@@ -855,11 +855,11 @@ namespace System.Globalization
 
         private static bool IsLetterCategory(UnicodeCategory uc)
         {
-            return (uc == UnicodeCategory.UppercaseLetter
+            return uc == UnicodeCategory.UppercaseLetter
                  || uc == UnicodeCategory.LowercaseLetter
                  || uc == UnicodeCategory.TitlecaseLetter
                  || uc == UnicodeCategory.ModifierLetter
-                 || uc == UnicodeCategory.OtherLetter);
+                 || uc == UnicodeCategory.OtherLetter;
         }
 
         // A dummy struct that is used for 'ToUpper' in generic parameters

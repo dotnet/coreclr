@@ -16,7 +16,7 @@ namespace System
             {
                 if (this is RuntimeType rt)
                     return RuntimeTypeHandle.IsInterface(rt);
-                return ((GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface);
+                return (GetAttributeFlagsImpl() & TypeAttributes.ClassSemanticsMask) == TypeAttributes.Interface;
             }
         }
 

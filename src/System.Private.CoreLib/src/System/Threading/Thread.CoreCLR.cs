@@ -276,7 +276,7 @@ namespace System.Threading
         public static bool Yield() => YieldInternal() != Interop.BOOL.FALSE;
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static Thread InitializeCurrentThread() => (t_currentThread = GetCurrentThreadNative());
+        private static Thread InitializeCurrentThread() => t_currentThread = GetCurrentThreadNative();
 
         [MethodImpl(MethodImplOptions.InternalCall), ReliabilityContract(Consistency.WillNotCorruptState, Cer.MayFail)]
         private static extern Thread GetCurrentThreadNative();
@@ -532,7 +532,7 @@ namespace System.Threading
                 return RefreshCurrentProcessorId();
             }
 
-            return (currentProcessorIdCache >> ProcessorIdCacheShift);
+            return currentProcessorIdCache >> ProcessorIdCacheShift;
         }
 
         internal void ResetThreadPoolThread()

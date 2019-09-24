@@ -909,11 +909,11 @@ namespace System.StubHelpers
             IsBestFit = 0x000000FF
         }
 
-        private static bool IsIn(int dwFlags) { return ((dwFlags & (int)AsAnyFlags.In) != 0); }
-        private static bool IsOut(int dwFlags) { return ((dwFlags & (int)AsAnyFlags.Out) != 0); }
-        private static bool IsAnsi(int dwFlags) { return ((dwFlags & (int)AsAnyFlags.IsAnsi) != 0); }
-        private static bool IsThrowOn(int dwFlags) { return ((dwFlags & (int)AsAnyFlags.IsThrowOn) != 0); }
-        private static bool IsBestFit(int dwFlags) { return ((dwFlags & (int)AsAnyFlags.IsBestFit) != 0); }
+        private static bool IsIn(int dwFlags) => (dwFlags & (int)AsAnyFlags.In) != 0;
+        private static bool IsOut(int dwFlags) => (dwFlags & (int)AsAnyFlags.Out) != 0;
+        private static bool IsAnsi(int dwFlags) => (dwFlags & (int)AsAnyFlags.IsAnsi) != 0;
+        private static bool IsThrowOn(int dwFlags) => (dwFlags & (int)AsAnyFlags.IsThrowOn) != 0;
+        private static bool IsBestFit(int dwFlags) => (dwFlags & (int)AsAnyFlags.IsBestFit) != 0;
 
         internal AsAnyMarshaler(IntPtr pvArrayMarshaler)
         {

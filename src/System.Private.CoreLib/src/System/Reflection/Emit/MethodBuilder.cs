@@ -412,7 +412,7 @@ namespace System.Reflection.Emit
 
         internal bool IsTypeCreated()
         {
-            return (m_containingType != null && m_containingType.IsCreated());
+            return m_containingType != null && m_containingType.IsCreated();
         }
 
         internal TypeBuilder GetTypeBuilder()
@@ -433,7 +433,7 @@ namespace System.Reflection.Emit
             {
                 return false;
             }
-            if (!(this.m_strName.Equals(((MethodBuilder)obj).m_strName)))
+            if (!this.m_strName.Equals(((MethodBuilder)obj).m_strName))
             {
                 return false;
             }

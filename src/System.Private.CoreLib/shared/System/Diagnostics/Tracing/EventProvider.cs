@@ -313,7 +313,7 @@ namespace System.Diagnostics.Tracing
                         }
 
                         // execute OnControllerCommand once for every session that has changed.
-                        OnControllerCommand(command, args, (bEnabling ? sessionChanged : -sessionChanged), etwSessionId);
+                        OnControllerCommand(command, args, bEnabling ? sessionChanged : -sessionChanged, etwSessionId);
                     }
                 }
                 else if (controlCode == Interop.Advapi32.EVENT_CONTROL_CODE_DISABLE_PROVIDER)
@@ -850,7 +850,7 @@ namespace System.Diagnostics.Tracing
                 // WIN32 Bool is 4 bytes
                 dataDescriptor->Size = 4;
                 int* intptr = (int*)dataBuffer;
-                if (((bool)data))
+                if ((bool)data)
                 {
                     *intptr = 1;
                 }

@@ -569,7 +569,7 @@ namespace System
 
                     if (pCls.IsPrimitive)
                     {
-                        if (!(type.UnderlyingSystemType.IsRuntimeImplemented()) ||
+                        if (!type.UnderlyingSystemType.IsRuntimeImplemented() ||
                             !CanChangePrimitive(type.UnderlyingSystemType, pCls.UnderlyingSystemType))
                             break;
                     }
@@ -657,7 +657,7 @@ namespace System
 
                         if (pCls.IsPrimitive)
                         {
-                            if (!(indexes[j].UnderlyingSystemType.IsRuntimeImplemented()) ||
+                            if (!indexes[j].UnderlyingSystemType.IsRuntimeImplemented() ||
                                 !CanChangePrimitive(indexes[j].UnderlyingSystemType, pCls.UnderlyingSystemType))
                                 break;
                         }
@@ -675,7 +675,7 @@ namespace System
                     {
                         if (candidates[i].PropertyType.IsPrimitive)
                         {
-                            if (!(returnType.UnderlyingSystemType.IsRuntimeImplemented()) ||
+                            if (!returnType.UnderlyingSystemType.IsRuntimeImplemented() ||
                                 !CanChangePrimitive(returnType.UnderlyingSystemType, candidates[i].PropertyType.UnderlyingSystemType))
                                 continue;
                         }

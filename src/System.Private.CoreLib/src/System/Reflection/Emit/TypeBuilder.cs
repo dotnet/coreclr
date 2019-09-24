@@ -595,7 +595,7 @@ namespace System.Reflection.Emit
                 valueClassType.CreateType();
             }
 
-            fdBuilder = DefineField(name, valueClassType, (attributes | FieldAttributes.Static));
+            fdBuilder = DefineField(name, valueClassType, attributes | FieldAttributes.Static);
 
             // now we need to set the RVA
             fdBuilder.SetData(data, size);

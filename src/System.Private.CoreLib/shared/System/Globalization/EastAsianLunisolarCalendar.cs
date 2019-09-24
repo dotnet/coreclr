@@ -469,7 +469,7 @@ namespace System.Globalization
             DateTime dt = LunarToTime(time, y, m, d);
 
             CheckAddResult(dt.Ticks, MinSupportedDateTime, MaxSupportedDateTime);
-            return (dt);
+            return dt;
         }
 
         public override DateTime AddYears(DateTime time, int years)

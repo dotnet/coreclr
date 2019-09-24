@@ -843,7 +843,7 @@ namespace System.Diagnostics.Tracing
         {
             if ('0' <= c && c <= '9')
             {
-                return (c - '0');
+                return c - '0';
             }
             if ('a' <= c)
             {
@@ -851,7 +851,7 @@ namespace System.Diagnostics.Tracing
             }
             if ('A' <= c && c <= 'F')
             {
-                return (c - 'A' + 10);
+                return c - 'A' + 10;
             }
 
             throw new ArgumentException(SR.Format(SR.EventSource_BadHexDigit, c), "traits");

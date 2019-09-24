@@ -138,34 +138,34 @@ namespace System
         internal static bool IsByRef(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_BYREF);
+            return corElemType == CorElementType.ELEMENT_TYPE_BYREF;
         }
 
         internal static bool IsPointer(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_PTR);
+            return corElemType == CorElementType.ELEMENT_TYPE_PTR;
         }
 
         internal static bool IsArray(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY);
+            return corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY;
         }
 
         internal static bool IsSZArray(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
-            return (corElemType == CorElementType.ELEMENT_TYPE_SZARRAY);
+            return corElemType == CorElementType.ELEMENT_TYPE_SZARRAY;
         }
 
         internal static bool HasElementType(RuntimeType type)
         {
             CorElementType corElemType = GetCorElementType(type);
 
-            return ((corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY) // IsArray
+            return corElemType == CorElementType.ELEMENT_TYPE_ARRAY || corElemType == CorElementType.ELEMENT_TYPE_SZARRAY // IsArray
                    || (corElemType == CorElementType.ELEMENT_TYPE_PTR)                                          // IsPointer
-                   || (corElemType == CorElementType.ELEMENT_TYPE_BYREF));                                      // IsByRef
+                   || (corElemType == CorElementType.ELEMENT_TYPE_BYREF);                                      // IsByRef
         }
 
         internal static IntPtr[]? CopyRuntimeTypeHandles(RuntimeTypeHandle[]? inHandles, out int length)

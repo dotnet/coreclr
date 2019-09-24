@@ -2537,7 +2537,7 @@ namespace System
                     outChars[j] = base64[(inData[i] & 0xfc) >> 2];
                     outChars[j + 1] = base64[((inData[i] & 0x03) << 4) | ((inData[i + 1] & 0xf0) >> 4)];
                     outChars[j + 2] = base64[((inData[i + 1] & 0x0f) << 2) | ((inData[i + 2] & 0xc0) >> 6)];
-                    outChars[j + 3] = base64[(inData[i + 2] & 0x3f)];
+                    outChars[j + 3] = base64[inData[i + 2] & 0x3f];
                     j += 4;
                 }
 

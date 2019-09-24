@@ -734,7 +734,7 @@ namespace System.Reflection.Emit
                 temp[sigCopyIndex++] = (byte)((argCount >> 24) | 0xC0);
                 temp[sigCopyIndex++] = (byte)((argCount >> 16) & 0xFF);
                 temp[sigCopyIndex++] = (byte)((argCount >> 8) & 0xFF);
-                temp[sigCopyIndex++] = (byte)((argCount) & 0xFF);
+                temp[sigCopyIndex++] = (byte)(argCount & 0xFF);
             }
             else
                 throw new ArgumentException(SR.Argument_LargeInteger);

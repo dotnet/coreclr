@@ -363,7 +363,7 @@ namespace System.Runtime.InteropServices.WindowsRuntime
 
                 public bool Equals(EventCacheKey other)
                 {
-                    return (object.Equals(target, other.target) && object.Equals(method, other.method));
+                    return object.Equals(target, other.target) && object.Equals(method, other.method);
                 }
 
                 public int GetHashCode(EventCacheKey key)

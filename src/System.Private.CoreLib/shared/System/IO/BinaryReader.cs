@@ -193,7 +193,7 @@ namespace System.IO
 
                     if (_stream.CanSeek)
                     {
-                        _stream.Seek((posSav - _stream.Position), SeekOrigin.Current);
+                        _stream.Seek(posSav - _stream.Position, SeekOrigin.Current);
                     }
                     // else - we can't do much here
 

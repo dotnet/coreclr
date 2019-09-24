@@ -806,7 +806,7 @@ namespace System
                 Debug.Assert(unchecked((uint)(maxResultLength)) <= MaxBlockCount);
 
                 // Zero out result internal blocks.
-                Buffer.ZeroMemory((byte*)(result.GetBlocksPointer()), (maxResultLength * sizeof(uint)));
+                Buffer.ZeroMemory((byte*)(result.GetBlocksPointer()), maxResultLength * sizeof(uint));
 
                 int smallIndex = 0;
                 int resultStartIndex = 0;
@@ -991,7 +991,7 @@ namespace System
                 {
                     ref uint lhsValue = ref lhs._blocks[lhsStartIndex + i];
 
-                    ulong digit = (lhsValue + carry) + rhs._blocks[i];
+                    ulong digit = lhsValue + carry + rhs._blocks[i];
                     lhsValue = unchecked((uint)digit);
                     carry = digit >> 32;
                 }
@@ -1034,7 +1034,7 @@ namespace System
                 int lhsLength = lhs._length - lhsStartIndex;
                 int rhsLength = rhs._length;
 
-                Debug.Assert((lhsLength) >= 0);
+                Debug.Assert(lhsLength >= 0);
                 Debug.Assert(rhsLength >= 0);
                 Debug.Assert(lhsLength >= rhsLength);
                 Debug.Assert(q <= uint.MaxValue);
@@ -1085,7 +1085,7 @@ namespace System
                     return;
                 }
 
-                Buffer.ZeroMemory((byte*)(GetBlocksPointer() + _length), ((blockCount - 1) * sizeof(uint)));
+                Buffer.ZeroMemory((byte*)(GetBlocksPointer() + _length), (blockCount - 1) * sizeof(uint));
                 _length += (int)(blockCount);
                 _blocks[_length - 1] = blockValue;
             }
@@ -1189,7 +1189,7 @@ namespace System
             public void SetValue(ref BigInteger rhs)
             {
                 int rhsLength = rhs._length;
-                Buffer.Memcpy((byte*)(GetBlocksPointer()), (byte*)(rhs.GetBlocksPointer()), (rhsLength * sizeof(uint)));
+                Buffer.Memcpy((byte*)(GetBlocksPointer()), (byte*)(rhs.GetBlocksPointer()), rhsLength * sizeof(uint));
                 _length = rhsLength;
             }
 
@@ -1229,7 +1229,7 @@ namespace System
                     _length += (int)(blocksToShift);
 
                     // Zero the remaining low blocks
-                    Buffer.ZeroMemory((byte*)(GetBlocksPointer()), (blocksToShift * sizeof(uint)));
+                    Buffer.ZeroMemory((byte*)(GetBlocksPointer()), blocksToShift * sizeof(uint));
                 }
                 else
                 {
@@ -1262,7 +1262,7 @@ namespace System
                     _blocks[writeIndex - 1] = block << (int)(remainingBitsToShift);
 
                     // Zero the remaining low blocks
-                    Buffer.ZeroMemory((byte*)(GetBlocksPointer()), (blocksToShift * sizeof(uint)));
+                    Buffer.ZeroMemory((byte*)(GetBlocksPointer()), blocksToShift * sizeof(uint));
 
                     // Check if the terminating block has no set bits
                     if (_blocks[_length - 1] == 0)

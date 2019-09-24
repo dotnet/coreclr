@@ -92,7 +92,7 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(chars), SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - index < count)
                 throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCountBuffer);
@@ -184,10 +184,10 @@ namespace System.Text
         {
             // Validate parameters
             if (chars == null || bytes == null)
-                throw new ArgumentNullException((chars == null ? nameof(chars) : nameof(bytes)), SR.ArgumentNull_Array);
+                throw new ArgumentNullException(chars == null ? nameof(chars) : nameof(bytes), SR.ArgumentNull_Array);
 
             if (charIndex < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((charIndex < 0 ? nameof(charIndex) : nameof(charCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(charIndex < 0 ? nameof(charIndex) : nameof(charCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (chars.Length - charIndex < charCount)
                 throw new ArgumentOutOfRangeException(nameof(chars), SR.ArgumentOutOfRange_IndexCountBuffer);
@@ -219,7 +219,7 @@ namespace System.Text
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
             if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             return GetBytes(chars, charCount, bytes, byteCount, null);
         }
@@ -239,7 +239,7 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - index < count)
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
@@ -283,7 +283,7 @@ namespace System.Text
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
             if (byteIndex < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(byteIndex < 0 ? nameof(byteIndex) : nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - byteIndex < byteCount)
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
@@ -315,7 +315,7 @@ namespace System.Text
                 throw new ArgumentNullException(bytes == null ? nameof(bytes) : nameof(chars), SR.ArgumentNull_Array);
 
             if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             return GetChars(bytes, byteCount, chars, charCount, null);
         }
@@ -335,7 +335,7 @@ namespace System.Text
                 throw new ArgumentNullException(nameof(bytes), SR.ArgumentNull_Array);
 
             if (index < 0 || count < 0)
-                throw new ArgumentOutOfRangeException((index < 0 ? nameof(index) : nameof(count)), SR.ArgumentOutOfRange_NeedNonNegNum);
+                throw new ArgumentOutOfRangeException(index < 0 ? nameof(index) : nameof(count), SR.ArgumentOutOfRange_NeedNonNegNum);
 
             if (bytes.Length - index < count)
                 throw new ArgumentOutOfRangeException(nameof(bytes), SR.ArgumentOutOfRange_IndexCountBuffer);
@@ -1880,7 +1880,7 @@ namespace System.Text
             }
 
             // Anything left in our decoder?
-            internal override bool HasState => (this.lastByte != -1 || this.lastChar != '\0');
+            internal override bool HasState => this.lastByte != -1 || this.lastChar != '\0';
         }
     }
 }

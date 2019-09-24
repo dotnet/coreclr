@@ -40,7 +40,7 @@ namespace System
 
         internal bool IsUnmanagedFunctionPtr()
         {
-            return (_invocationCount == (IntPtr)(-1));
+            return _invocationCount == (IntPtr)(-1);
         }
 
         internal bool InvocationListLogicallyNull()
@@ -328,7 +328,7 @@ namespace System
         {
             for (int i = 0; i < count; i++)
             {
-                if (!(a[start + i].Equals(b[i])))
+                if (!a[start + i].Equals(b[i]))
                     return false;
             }
             return true;

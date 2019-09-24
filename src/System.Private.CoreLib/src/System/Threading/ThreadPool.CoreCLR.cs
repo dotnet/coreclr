@@ -202,7 +202,7 @@ namespace System.Threading
             // Note: this function may incorrectly return false due to TickCount overflow
             // if work item execution took around a multiple of 2^32 milliseconds (~49.7 days),
             // which is improbable.
-            return ((uint)(Environment.TickCount - startTickCount) < DispatchQuantum);
+            return (uint)(Environment.TickCount - startTickCount) < DispatchQuantum;
         }
 
         public static bool SetMaxThreads(int workerThreads, int completionPortThreads)

@@ -73,7 +73,7 @@ namespace System
         // The absolute value of the int contained.
         public override int GetHashCode()
         {
-            return ((int)m_value);
+            return (int)m_value;
         }
 
         // The base 10 representation of the number with no extra padding.

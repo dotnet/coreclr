@@ -424,7 +424,7 @@ namespace System.Threading
         {
             Debug.Assert(ThreadPoolWorkQueueThreadLocals.threadLocals == null);
 
-            return (ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this));
+            return ThreadPoolWorkQueueThreadLocals.threadLocals = new ThreadPoolWorkQueueThreadLocals(this);
         }
 
         internal void EnsureThreadRequested()

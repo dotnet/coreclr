@@ -606,8 +606,8 @@ namespace System.Threading.Tasks
                 // we need to proactively cancel it, because it may never execute to transition itself.
                 // The only way to accomplish this is to register a callback on the CT.
                 // We exclude Promise tasks from this, because TaskCompletionSource needs to fully control the inner tasks's lifetime (i.e. not allow external cancellations)
-                if ((((InternalTaskOptions)Options &
-                    (InternalTaskOptions.QueuedByRuntime | InternalTaskOptions.PromiseTask | InternalTaskOptions.LazyCancellation)) == 0))
+                if (((InternalTaskOptions)Options &
+                    (InternalTaskOptions.QueuedByRuntime | InternalTaskOptions.PromiseTask | InternalTaskOptions.LazyCancellation)) == 0)
                 {
                     if (cancellationToken.IsCancellationRequested)
                     {
@@ -1498,7 +1498,7 @@ namespace System.Threading.Tasks
         /// </remarks>
         public bool IsFaulted =>
             // Faulted is "king" -- if that bit is present (regardless of other bits), we are faulted.
-            ((m_stateFlags & TASK_STATE_FAULTED) != 0);
+            (m_stateFlags & TASK_STATE_FAULTED) != 0;
 
         /// <summary>
         /// The captured execution context for the current task to run inside
@@ -2776,7 +2776,7 @@ namespace System.Threading.Tasks
             {
                 Task? currentTask = Task.InternalCurrent;
                 log.TaskWaitBegin(
-                    (currentTask != null ? currentTask.m_taskScheduler!.Id : TaskScheduler.Default.Id), (currentTask != null ? currentTask.Id : 0),
+                    currentTask != null ? currentTask.m_taskScheduler!.Id : TaskScheduler.Default.Id, currentTask != null ? currentTask.Id : 0,
                     this.Id, TplEventSource.TaskWaitBehavior.Synchronous, 0);
             }
 
@@ -3005,7 +3005,7 @@ namespace System.Threading.Tasks
             if (tse != null)
                 throw tse;
             else
-                return (mustCleanup);
+                return mustCleanup;
         }
 
         // Breaks out logic for recording a cancellation request

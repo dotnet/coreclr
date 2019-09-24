@@ -390,7 +390,7 @@ namespace System
             // currently the Kind should always be Unspecified, but there is always the possibility that a future version
             // of DateTimeOffset overloads the Kind field
             //
-            (ClockDateTime == other.ClockDateTime && Offset == other.Offset && ClockDateTime.Kind == other.ClockDateTime.Kind);
+            ClockDateTime == other.ClockDateTime && Offset == other.Offset && ClockDateTime.Kind == other.ClockDateTime.Kind;
 
         // Compares two DateTimeOffset values for equality. Returns true if
         // the two DateTimeOffset values are equal, or false if they are

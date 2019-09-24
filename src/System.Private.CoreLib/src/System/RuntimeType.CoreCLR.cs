@@ -2154,7 +2154,7 @@ namespace System
             if (((bindingFlags & BindingFlags.DeclaredOnly) == 0) &&        // DeclaredOnly not present
                  isInherited &&                                            // Is inherited Member
 
-                (isNonProtectedInternal) &&                                 // Is non-protected internal member
+                isNonProtectedInternal &&                                 // Is non-protected internal member
                 ((bindingFlags & BindingFlags.NonPublic) != 0) &&           // BindingFlag.NonPublic present
 
                 (!isStatic) &&                                              // Is instance member

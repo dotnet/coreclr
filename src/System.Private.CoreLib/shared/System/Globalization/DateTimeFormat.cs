@@ -228,7 +228,7 @@ namespace System
             Debug.Assert(dayOfWeek >= 0 && dayOfWeek <= 6, "dayOfWeek >= 0 && dayOfWeek <= 6");
             if (repeat == 3)
             {
-                return (dtfi.GetAbbreviatedDayName((DayOfWeek)dayOfWeek));
+                return dtfi.GetAbbreviatedDayName((DayOfWeek)dayOfWeek);
             }
             // Call dtfi.GetDayName() here, instead of accessing DayNames property, because we don't
             // want a clone of DayNames, which will hurt perf.
@@ -282,7 +282,7 @@ namespace System
             if (dtfi.Calendar.IsLeapYear(dtfi.Calendar.GetYear(time)))
             {
                 // This month is in a leap year
-                return dtfi.InternalGetMonthName(month, MonthNameStyles.LeapYear, (repeatCount == 3));
+                return dtfi.InternalGetMonthName(month, MonthNameStyles.LeapYear, repeatCount == 3);
             }
             // This is in a regular year.
             if (month >= 7)
@@ -291,9 +291,9 @@ namespace System
             }
             if (repeatCount == 3)
             {
-                return (dtfi.GetAbbreviatedMonthName(month));
+                return dtfi.GetAbbreviatedMonthName(month);
             }
-            return (dtfi.GetMonthName(month));
+            return dtfi.GetMonthName(month);
         }
 
         //
@@ -352,7 +352,7 @@ namespace System
             //
             // Return the character count including the begin/end quote characters and enclosed string.
             //
-            return (pos - beginPos);
+            return pos - beginPos;
         }
 
         //
@@ -364,9 +364,9 @@ namespace System
         {
             if (pos >= format.Length - 1)
             {
-                return (-1);
+                return -1;
             }
-            return ((int)format[pos + 1]);
+            return (int)format[pos + 1];
         }
 
         //
@@ -567,7 +567,7 @@ namespace System
                         }
                         else
                         {
-                            result.Append((dateTime.Hour < 12 ? dtfi.AMDesignator : dtfi.PMDesignator));
+                            result.Append(dateTime.Hour < 12 ? dtfi.AMDesignator : dtfi.PMDesignator);
                         }
                         break;
                     case 'd':
@@ -746,7 +746,7 @@ namespace System
                         nextChar = ParseNextChar(format, i);
                         if (nextChar >= 0)
                         {
-                            result.Append(((char)nextChar));
+                            result.Append((char)nextChar);
                             tokenLen = 2;
                         }
                         else

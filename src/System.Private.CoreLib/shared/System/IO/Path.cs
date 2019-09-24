@@ -780,7 +780,7 @@ namespace System.IO
             // Consume 3 MSB bits of b2, 1 MSB bit of b3, b4
             b2 >>= 5;
 
-            Debug.Assert(((b2 & 0xF8) == 0), "Unexpected set bits");
+            Debug.Assert((b2 & 0xF8) == 0, "Unexpected set bits");
 
             if ((b3 & 0x80) != 0)
                 b2 |= 0x08;

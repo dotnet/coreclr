@@ -303,7 +303,7 @@ namespace System.Collections
                         current = current.next;
                     }
                 }
-                return (current != null);
+                return current != null;
             }
 
             public void Reset()
@@ -416,7 +416,7 @@ namespace System.Collections
                             current = current.next;
                         }
                     }
-                    return (current != null);
+                    return current != null;
                 }
 
                 public void Reset()

@@ -575,7 +575,7 @@ namespace System.Threading
                 {
                     throw new InvalidOperationException(SR.SpinLock_IsHeldByCurrentThread);
                 }
-                return ((_owner & (~LOCK_ID_DISABLE_MASK)) == Environment.CurrentManagedThreadId);
+                return (_owner & (~LOCK_ID_DISABLE_MASK)) == Environment.CurrentManagedThreadId;
             }
         }
 

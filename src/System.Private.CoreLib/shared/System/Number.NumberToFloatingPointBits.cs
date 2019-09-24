@@ -241,7 +241,7 @@ namespace System
             Debug.Assert((mantissa & ~info.DenormalMantissaMask) == 0);
             Debug.Assert((shiftedExponent & ~(((1UL << info.ExponentBits) - 1) << info.DenormalMantissaBits)) == 0); // exponent fits in its place
 
-            return (shiftedExponent | mantissa);
+            return shiftedExponent | mantissa;
         }
 
         private static ulong ConvertBigIntegerToFloatingPointBits(ref BigInteger value, in FloatingPointInfo info, uint integerBitsOfPrecision, bool hasNonZeroFractionalPart)

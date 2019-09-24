@@ -1359,7 +1359,7 @@ namespace System.Globalization
                     "[DateTimeFormatInfo.InternalGetLeapYearMonthNames] Expepcted 13 leap year month names");
             }
 
-            return (leapYearMonthNames);
+            return leapYearMonthNames;
         }
 
         public string GetAbbreviatedDayName(DayOfWeek dayofweek)
@@ -2357,7 +2357,7 @@ namespace System.Globalization
 
                 _dtfiTokenHash = temp;
             }
-            return (temp);
+            return temp;
         }
 
         private void AddMonthNames(TokenHashValue[] temp, ReadOnlySpan<char> monthPostfix = default)
@@ -2446,7 +2446,7 @@ namespace System.Globalization
 
         private static bool IsHebrewChar(char ch)
         {
-            return (ch >= '\x0590' && ch <= '\x05ff');
+            return ch >= '\x0590' && ch <= '\x05ff';
         }
 
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
@@ -2536,7 +2536,7 @@ namespace System.Globalization
                         {
                             // Check word boundary. The next character should NOT be a letter.
                             char nextCh = str.Value[nextCharIndex];
-                            compareStrings = !(char.IsLetter(nextCh)) || IsAllowedJapaneseTokenFollowedByNonSpaceLetter(value.tokenString, nextCh);
+                            compareStrings = !char.IsLetter(nextCh) || IsAllowedJapaneseTokenFollowedByNonSpaceLetter(value.tokenString, nextCh);
                         }
                     }
 

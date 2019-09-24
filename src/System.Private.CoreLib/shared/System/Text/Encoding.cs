@@ -191,7 +191,7 @@ namespace System.Text
         {
             if (srcEncoding == null || dstEncoding == null)
             {
-                throw new ArgumentNullException((srcEncoding == null ? nameof(srcEncoding) : nameof(dstEncoding)),
+                throw new ArgumentNullException(srcEncoding == null ? nameof(srcEncoding) : nameof(dstEncoding),
                     SR.ArgumentNull_Array);
             }
             if (bytes == null)
@@ -501,7 +501,7 @@ namespace System.Text
 
         public bool IsReadOnly
         {
-            get => (_isReadOnly);
+            get => _isReadOnly;
             private protected set => _isReadOnly = value;
         }
 
@@ -722,7 +722,7 @@ namespace System.Text
                     SR.ArgumentNull_Array);
 
             if (charCount < 0 || byteCount < 0)
-                throw new ArgumentOutOfRangeException((charCount < 0 ? nameof(charCount) : nameof(byteCount)),
+                throw new ArgumentOutOfRangeException(charCount < 0 ? nameof(charCount) : nameof(byteCount),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // Get the char array to convert
@@ -868,7 +868,7 @@ namespace System.Text
                     SR.ArgumentNull_Array);
 
             if (byteCount < 0 || charCount < 0)
-                throw new ArgumentOutOfRangeException((byteCount < 0 ? nameof(byteCount) : nameof(charCount)),
+                throw new ArgumentOutOfRangeException(byteCount < 0 ? nameof(byteCount) : nameof(charCount),
                     SR.ArgumentOutOfRange_NeedNonNegNum);
 
             // Get the byte array to convert
@@ -1318,7 +1318,7 @@ namespace System.Text
             internal unsafe bool MoreData => _bytes < _byteEnd;
 
             // Do we have count more bytes?
-            internal unsafe bool EvenMoreData(int count) => (_bytes <= _byteEnd - count);
+            internal unsafe bool EvenMoreData(int count) => _bytes <= _byteEnd - count;
 
             // GetNextByte shouldn't be called unless the caller's already checked more data or even more data,
             // but we'll double check just to make sure.

@@ -442,12 +442,12 @@ namespace System.Globalization
             // None of these cases make any sense
             if (win32Str == null || win32Str.Length == 0)
             {
-                return (new int[] { 3 });
+                return new int[] { 3 };
             }
 
             if (win32Str[0] == '0')
             {
-                return (new int[] { 0 });
+                return new int[] { 0 };
             }
 
             // Since its in n;n;n;n;n format, we can always get the length quickly
@@ -455,7 +455,7 @@ namespace System.Globalization
             if (win32Str[^1] == '0')
             {
                 // Trailing 0 gets dropped. 1;0 -> 1
-                values = new int[(win32Str.Length / 2)];
+                values = new int[win32Str.Length / 2];
             }
             else
             {
@@ -476,7 +476,7 @@ namespace System.Globalization
                 values[j] = (int)(win32Str[i] - '0');
             }
 
-            return (values);
+            return values;
         }
 
         private static int ConvertFirstDayOfWeekMonToSun(int iTemp)

@@ -1643,7 +1643,7 @@ namespace System.Diagnostics.Tracing
             {
                 for (int i = 16; i != 80; i++)
                 {
-                    this.w[i] = BitOperations.RotateLeft((this.w[i - 3] ^ this.w[i - 8] ^ this.w[i - 14] ^ this.w[i - 16]), 1);
+                    this.w[i] = BitOperations.RotateLeft(this.w[i - 3] ^ this.w[i - 8] ^ this.w[i - 14] ^ this.w[i - 16], 1);
                 }
 
                 unchecked
@@ -3637,7 +3637,7 @@ namespace System.Diagnostics.Tracing
                     // This is OK for Start events because we have special logic to assign the task to a prefix derived from the event name
                     // But all other cases we want to catch the omission.
                     var autoAssignedTask = (EventTask)(0xFFFE - evtId);
-                    if ((eventAttribute.Opcode != EventOpcode.Start && eventAttribute.Opcode != EventOpcode.Stop) && eventAttribute.Task == autoAssignedTask)
+                    if (eventAttribute.Opcode != EventOpcode.Start && eventAttribute.Opcode != EventOpcode.Stop && eventAttribute.Task == autoAssignedTask)
                         failure = true;
                 }
                 if (failure)
@@ -4391,7 +4391,7 @@ namespace System.Diagnostics.Tracing
                 foreach (WeakReference<EventSource> eventSourceRef in s_EventSources)
                 {
                     id++;
-                    if (!(eventSourceRef.TryGetTarget(out EventSource? eventSource)))
+                    if (!eventSourceRef.TryGetTarget(out EventSource? eventSource))
                         continue;
                     Debug.Assert(eventSource.m_id == id, "Unexpected event source ID.");
 

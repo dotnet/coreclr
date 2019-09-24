@@ -293,7 +293,7 @@ namespace System.Globalization
 
         public int[] CurrencyGroupSizes
         {
-            get => ((int[])_currencyGroupSizes.Clone());
+            get => (int[])_currencyGroupSizes.Clone();
             set
             {
                 if (value == null)
@@ -311,7 +311,7 @@ namespace System.Globalization
 
         public int[] NumberGroupSizes
         {
-            get => ((int[])_numberGroupSizes.Clone());
+            get => (int[])_numberGroupSizes.Clone();
             set
             {
                 if (value == null)
@@ -330,7 +330,7 @@ namespace System.Globalization
 
         public int[] PercentGroupSizes
         {
-            get => ((int[])_percentGroupSizes.Clone());
+            get => (int[])_percentGroupSizes.Clone();
             set
             {
                 if (value == null)

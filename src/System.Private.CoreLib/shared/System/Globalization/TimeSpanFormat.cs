@@ -480,7 +480,7 @@ namespace System.Globalization
                         nextChar = DateTimeFormat.ParseNextChar(format, i);
                         if (nextChar >= 0)
                         {
-                            result.Append(((char)nextChar));
+                            result.Append((char)nextChar);
                             tokenLen = 2;
                         }
                         else

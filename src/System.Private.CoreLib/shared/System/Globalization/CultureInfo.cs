@@ -331,7 +331,7 @@ namespace System.Globalization
             }
 
             // In the most common case, they've given us a specific culture, so we'll just return that.
-            if (!(culture.IsNeutralCulture))
+            if (!culture.IsNeutralCulture)
             {
                 return culture;
             }

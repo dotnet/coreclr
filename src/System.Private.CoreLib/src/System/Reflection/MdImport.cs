@@ -158,7 +158,7 @@ namespace System.Reflection
 
         public MetadataToken(int token) { Value = token; }
 
-        public bool IsGlobalTypeDefToken => (Value == 0x02000001);
+        public bool IsGlobalTypeDefToken => Value == 0x02000001;
         public MetadataTokenType TokenType => (MetadataTokenType)(Value & 0xFF000000);
         public bool IsTypeRef => TokenType == MetadataTokenType.TypeRef;
         public bool IsTypeDef => TokenType == MetadataTokenType.TypeDef;

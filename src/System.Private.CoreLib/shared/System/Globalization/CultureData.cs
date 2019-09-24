@@ -1922,7 +1922,7 @@ namespace System.Globalization
                     _iReadingLayout = GetLocaleInfo(LocaleNumberData.ReadingLayout);
                 }
 
-                return (_iReadingLayout);
+                return _iReadingLayout;
             }
         }
 

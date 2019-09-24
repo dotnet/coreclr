@@ -1064,7 +1064,7 @@ namespace System.Collections.Generic
             {
                 ThrowHelper.ThrowArgumentNullException(ExceptionArgument.key);
             }
-            return (key is TKey);
+            return key is TKey;
         }
 
         void IDictionary.Add(object key, object? value)

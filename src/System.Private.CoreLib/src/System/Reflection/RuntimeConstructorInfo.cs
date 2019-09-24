@@ -320,7 +320,7 @@ namespace System.Reflection
 
         public override bool IsSecurityTransparent => false;
 
-        public override bool ContainsGenericParameters => (DeclaringType != null && DeclaringType.ContainsGenericParameters);
+        public override bool ContainsGenericParameters => DeclaringType != null && DeclaringType.ContainsGenericParameters;
         #endregion
 
         #region ConstructorInfo Overrides

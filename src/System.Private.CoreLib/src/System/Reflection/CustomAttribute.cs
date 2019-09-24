@@ -1316,7 +1316,7 @@ namespace System.Reflection
             attributeType = (decoratedModule.ResolveType(scope.GetParentToken(caCtorToken), null, null) as RuntimeType)!;
 
             // Test attribute type against user provided attribute type filter
-            if (!(attributeFilterType.IsAssignableFrom(attributeType)))
+            if (!attributeFilterType.IsAssignableFrom(attributeType))
                 return false;
 
             // Ensure if attribute type must be inheritable that it is inheritable

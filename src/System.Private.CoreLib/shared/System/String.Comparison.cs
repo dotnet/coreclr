@@ -645,11 +645,11 @@ namespace System
             {
                 case StringComparison.CurrentCulture:
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(this, value, GetCaseCompareOfComparisonCulture(comparisonType)) == 0;
 
                 case StringComparison.InvariantCulture:
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CompareInfo.Invariant.Compare(this, value, GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
+                    return CompareInfo.Invariant.Compare(this, value, GetCaseCompareOfComparisonCulture(comparisonType)) == 0;
 
                 case StringComparison.Ordinal:
                     if (this.Length != value.Length)
@@ -702,11 +702,11 @@ namespace System
             {
                 case StringComparison.CurrentCulture:
                 case StringComparison.CurrentCultureIgnoreCase:
-                    return (CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
+                    return CultureInfo.CurrentCulture.CompareInfo.Compare(a, b, GetCaseCompareOfComparisonCulture(comparisonType)) == 0;
 
                 case StringComparison.InvariantCulture:
                 case StringComparison.InvariantCultureIgnoreCase:
-                    return (CompareInfo.Invariant.Compare(a, b, GetCaseCompareOfComparisonCulture(comparisonType)) == 0);
+                    return CompareInfo.Invariant.Compare(a, b, GetCaseCompareOfComparisonCulture(comparisonType)) == 0;
 
                 case StringComparison.Ordinal:
                     if (a.Length != b.Length)
