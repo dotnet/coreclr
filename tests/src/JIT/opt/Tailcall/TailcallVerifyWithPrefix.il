@@ -1501,21 +1501,9 @@
     IL_010f:  ldloc.s    '<>g__initLocal0'
     IL_0111:  ldstr      "Condition13.Test1"
     IL_0116:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
-    IL_011b:  ldloc.s    '<>g__initLocal0'
-    IL_011d:  ldstr      "Condition21.Test1"
-    IL_0122:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
-    IL_0127:  ldloc.s    '<>g__initLocal0'
-    IL_0129:  ldstr      "Condition21.Test2"
-    IL_012e:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
     IL_0133:  ldloc.s    '<>g__initLocal0'
     IL_0135:  ldstr      "Condition21.Test3"
     IL_013a:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
-    IL_013f:  ldloc.s    '<>g__initLocal0'
-    IL_0141:  ldstr      "Condition21.Test4"
-    IL_0146:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
-    IL_014b:  ldloc.s    '<>g__initLocal0'
-    IL_014d:  ldstr      "Condition21.Test5"
-    IL_0152:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
     IL_0157:  ldloc.s    '<>g__initLocal0'
     IL_0159:  ldstr      "Condition21.Test6"
     IL_015e:  callvirt   instance void class [mscorlib]System.Collections.Generic.List`1<string>::Add(!0)
@@ -2335,38 +2323,10 @@
     IL_060a:  ldloc.0
     IL_060b:  call       bool [mscorlib]System.String::op_Equality(string,
                                                                    string)
-    IL_0610:  brfalse.s  IL_061c
+    IL_0610:  brfalse.s  IL_065c
 
     IL_0612:  call       int32 TailcallVerify.Condition20::Test1()
     IL_0617:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_061c:  ldloc.1
-    IL_061d:  ldstr      "Condition21.Test1"
-    IL_0622:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0627:  brtrue.s   IL_0632
-
-    IL_0629:  ldloc.1
-    IL_062a:  ldloc.0
-    IL_062b:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0630:  brfalse.s  IL_063c
-
-    IL_0632:  call       int32 TailcallVerify.Condition21::Test1()
-    IL_0637:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_063c:  ldloc.1
-    IL_063d:  ldstr      "Condition21.Test2"
-    IL_0642:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0647:  brtrue.s   IL_0652
-
-    IL_0649:  ldloc.1
-    IL_064a:  ldloc.0
-    IL_064b:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0650:  brfalse.s  IL_065c
-
-    IL_0652:  call       int32 TailcallVerify.Condition21::Test2()
-    IL_0657:  call       void TailcallVerify.Program::set_Result(int32)
     IL_065c:  ldloc.1
     IL_065d:  ldstr      "Condition21.Test3"
     IL_0662:  call       bool [mscorlib]System.String::op_Equality(string,
@@ -2377,38 +2337,10 @@
     IL_066a:  ldloc.0
     IL_066b:  call       bool [mscorlib]System.String::op_Equality(string,
                                                                    string)
-    IL_0670:  brfalse.s  IL_067c
+    IL_0670:  brfalse.s  IL_06bc
 
     IL_0672:  call       int32 TailcallVerify.Condition21::Test3()
     IL_0677:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_067c:  ldloc.1
-    IL_067d:  ldstr      "Condition21.Test4"
-    IL_0682:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0687:  brtrue.s   IL_0692
-
-    IL_0689:  ldloc.1
-    IL_068a:  ldloc.0
-    IL_068b:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0690:  brfalse.s  IL_069c
-
-    IL_0692:  call       int32 TailcallVerify.Condition21::Test4()
-    IL_0697:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_069c:  ldloc.1
-    IL_069d:  ldstr      "Condition21.Test5"
-    IL_06a2:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_06a7:  brtrue.s   IL_06b2
-
-    IL_06a9:  ldloc.1
-    IL_06aa:  ldloc.0
-    IL_06ab:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_06b0:  brfalse.s  IL_06bc
-
-    IL_06b2:  call       int32 TailcallVerify.Condition21::Test5()
-    IL_06b7:  call       void TailcallVerify.Program::set_Result(int32)
     IL_06bc:  ldloc.1
     IL_06bd:  ldstr      "Condition21.Test6"
     IL_06c2:  call       bool [mscorlib]System.String::op_Equality(string,
@@ -2433,52 +2365,10 @@
     IL_06ea:  ldloc.0
     IL_06eb:  call       bool [mscorlib]System.String::op_Equality(string,
                                                                    string)
-    IL_06f0:  brfalse.s  IL_06fc
+    IL_06f0:  brfalse.s  IL_075c
 
     IL_06f2:  call       int32 TailcallVerify.Condition21::Test7()
     IL_06f7:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_06fc:  ldloc.1
-    IL_06fd:  ldstr      "Condition22.Test1"
-    IL_0702:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0707:  brtrue.s   IL_0712
-
-    IL_0709:  ldloc.1
-    IL_070a:  ldloc.0
-    IL_070b:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0710:  brfalse.s  IL_071c
-
-    IL_0712:  call       int32 TailcallVerify.Condition22::Test1()
-    IL_0717:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_071c:  ldloc.1
-    IL_071d:  ldstr      "Condition22.Test2"
-    IL_0722:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0727:  brtrue.s   IL_0732
-
-    IL_0729:  ldloc.1
-    IL_072a:  ldloc.0
-    IL_072b:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0730:  brfalse.s  IL_073c
-
-    IL_0732:  call       int32 TailcallVerify.Condition22::Test2()
-    IL_0737:  call       void TailcallVerify.Program::set_Result(int32)
-    IL_073c:  ldloc.1
-    IL_073d:  ldstr      "Condition22.Test3"
-    IL_0742:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0747:  brtrue.s   IL_0752
-
-    IL_0749:  ldloc.1
-    IL_074a:  ldloc.0
-    IL_074b:  call       bool [mscorlib]System.String::op_Equality(string,
-                                                                   string)
-    IL_0750:  brfalse.s  IL_075c
-
-    IL_0752:  call       int32 TailcallVerify.Condition22::Test3()
-    IL_0757:  call       void TailcallVerify.Program::set_Result(int32)
     IL_075c:  ldloc.1
     IL_075d:  ldstr      "Condition22.Test4"
     IL_0762:  call       bool [mscorlib]System.String::op_Equality(string,
@@ -2520,22 +2410,6 @@
     .entrypoint
     .maxstack  1
 
-    // Disable tests intending to test tail.call,pop,ret sequence.
-    //ldstr      "Condition1.Test1"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-    //ldstr      "Condition1.Test2"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-    //ldstr      "Condition1.Test3"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-    //ldstr      "Condition2.Test1"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-    //ldstr      "Condition2.Test2"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
     ldstr      "Condition3.Test1"
     call       int32 TailcallVerify.Program::Run(string)
     pop
@@ -2602,20 +2476,6 @@
     ldstr      "Condition7.Test4"
     call       int32 TailcallVerify.Program::Run(string)      
     pop	
-
-    // Condition8 tests use varargs calling conventions.
-    // The lines below should be uncommented when/if CoreCLR starts
-    // supporting varargs.
-    //ldstr      "Condition8.Test1"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-    //ldstr      "Condition8.Test2"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-    //ldstr      "Condition8.Test3"
-    //call       int32 TailcallVerify.Program::Run(string)
-    //pop
-
     ldstr      "Condition9.Test1"
     call       int32 TailcallVerify.Program::Run(string)
     pop
