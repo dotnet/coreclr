@@ -6007,7 +6007,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
             printf("\n***** " FMT_BB ", " FMT_STMT "(after)\n", blk->bbNum, stmt->GetID());
             gtDispTree(stmt->gtStmtExpr);
             printf("\n");
-            if (stmt->gtNext)
+            if (stmt->GetNextStmt() != nullptr)
             {
                 printf("---------\n");
             }

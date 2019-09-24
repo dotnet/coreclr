@@ -14894,7 +14894,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
         Statement* lastStmt = block->lastStmt();
 
-        noway_assert(lastStmt->gtNext == nullptr);
+        noway_assert(lastStmt->GetNextStmt() == nullptr);
 
         if (lastStmt->gtStmtExpr->gtOper == GT_CALL)
         {
@@ -15102,7 +15102,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
         Statement* lastStmt = block->lastStmt();
 
-        noway_assert(lastStmt->gtNext == nullptr);
+        noway_assert(lastStmt->GetNextStmt() == nullptr);
 
         if (lastStmt->gtStmtExpr->gtOper == GT_CALL)
         {
@@ -15324,7 +15324,7 @@ bool Compiler::fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(cons
     if (fgRemoveRestOfBlock)
     {
         // Remove the rest of the stmts in the block
-        for (Statement* removeStmt : StatementList(stmt->gtNext))
+        for (Statement* removeStmt : StatementList(stmt->GetNextStmt()))
         {
             fgRemoveStmt(block, removeStmt);
         }
@@ -15538,7 +15538,7 @@ void Compiler::fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw)
             Statement* first = block->firstStmt();
             noway_assert(first);
             Statement* lastStmt = block->lastStmt();
-            noway_assert(lastStmt && lastStmt->gtNext == nullptr);
+            noway_assert(lastStmt && lastStmt->GetNextStmt() == nullptr);
             GenTree* last = lastStmt->gtStmtExpr;
 
             if (((block->bbJumpKind == BBJ_COND) && (last->gtOper == GT_JTRUE)) ||

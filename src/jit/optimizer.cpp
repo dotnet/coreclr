@@ -1032,7 +1032,7 @@ bool Compiler::optExtractInitTestIncr(
     // and the loop termination test.
     noway_assert(bottom->bbStmtList != nullptr);
     Statement* testStmt = bottom->lastStmt();
-    noway_assert(testStmt != nullptr && testStmt->gtNext == nullptr);
+    noway_assert(testStmt != nullptr && testStmt->GetNextStmt() == nullptr);
 
     Statement* newTestStmt;
     if (optIsLoopTestEvalIntoTemp(testStmt, &newTestStmt))
@@ -1073,7 +1073,7 @@ bool Compiler::optExtractInitTestIncr(
     }
 
     Statement* initStmt = phdrStmt->GetPrevStmt();
-    noway_assert(initStmt != nullptr && (initStmt->gtNext == nullptr));
+    noway_assert(initStmt != nullptr && (initStmt->GetNextStmt() == nullptr));
 
     // If it is a duplicated loop condition, skip it.
     if (initStmt->compilerAdded)
@@ -3606,10 +3606,10 @@ void Compiler::optUnrollLoops()
 
         // Locate/initialize the increment/test statements.
         Statement* initStmt = head->lastStmt();
-        noway_assert((initStmt != nullptr) && (initStmt->gtNext == nullptr));
+        noway_assert((initStmt != nullptr) && (initStmt->GetNextStmt() == nullptr));
 
         Statement* testStmt = bottom->lastStmt();
-        noway_assert((testStmt != nullptr) && (testStmt->gtNext == nullptr));
+        noway_assert((testStmt != nullptr) && (testStmt->GetNextStmt() == nullptr));
         Statement* incrStmt = testStmt->GetPrevStmt();
         noway_assert(incrStmt != nullptr);
 
@@ -3854,13 +3854,13 @@ void Compiler::optUnrollLoops()
                 noway_assert(preHeaderStmt != nullptr);
                 testStmt = preHeaderStmt->GetPrevStmt();
 
-                noway_assert((testStmt != nullptr) && (testStmt->gtNext == nullptr));
+                noway_assert((testStmt != nullptr) && (testStmt->GetNextStmt() == nullptr));
                 noway_assert(testStmt->gtStmtExpr->gtOper == GT_JTRUE);
 
                 initStmt = testStmt->GetPrevStmt();
-                noway_assert((initStmt != nullptr) && (initStmt->gtNext == testStmt));
+                noway_assert((initStmt != nullptr) && (initStmt->GetNextStmt() == testStmt));
 
-                initStmt->gtNext      = nullptr;
+                initStmt->SetNextStmt(nullptr);
                 preHeaderStmt->gtPrev = initStmt;
                 head->bbJumpKind      = BBJ_NONE;
                 head->bbFlags &= ~BBF_NEEDS_GCPOLL;
@@ -4014,7 +4014,7 @@ static Statement* optFindLoopTermTest(BasicBlock* bottom)
     Statement* result = testStmt->GetPrevStmt();
 
 #ifdef DEBUG
-    while (testStmt->gtNext != nullptr)
+    while (testStmt->GetNextStmt() != nullptr)
     {
         testStmt = testStmt->GetNextStmt();
     }
@@ -6227,9 +6227,9 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
         /* append after last statement */
 
         Statement* lastStmt = preHead->lastStmt();
-        assert(lastStmt->gtNext == nullptr);
+        assert(lastStmt->GetNextStmt() == nullptr);
 
-        lastStmt->gtNext  = hoistStmt;
+        lastStmt->SetNextStmt(hoistStmt);
         hoistStmt->gtPrev = lastStmt;
         firstStmt->gtPrev = hoistStmt;
     }
@@ -6241,7 +6241,7 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
         hoistStmt->gtPrev   = hoistStmt;
     }
 
-    hoistStmt->gtNext = nullptr;
+    hoistStmt->SetNextStmt(nullptr);
 
 #ifdef DEBUG
     if (verbose)

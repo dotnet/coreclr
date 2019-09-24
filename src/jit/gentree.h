@@ -5313,18 +5313,24 @@ private:
     unsigned m_stmtID;
 #endif
 
+    Statement* m_next;
+
 public:
-    Statement* gtNext;
     Statement* gtPrev;
 
     bool compilerAdded;
 
-    Statement* GetNextStmt()
+    Statement* GetNextStmt() const
     {
-        return gtNext;
+        return m_next;
     }
 
-    Statement* GetPrevStmt()
+    void SetNextStmt(Statement* nextStmt)
+    {
+        m_next = nextStmt;
+    }
+
+    Statement* GetPrevStmt() const
     {
         return gtPrev;
     }
@@ -5338,13 +5344,13 @@ public:
         , gtStmtLastILoffs(BAD_IL_OFFSET)
         , m_stmtID(stmtID)
 #endif
-        , gtNext(nullptr)
+        , m_next(nullptr)
         , gtPrev(nullptr)
         , compilerAdded(false)
     {
     }
 
-    bool IsPhiDefnStmt()
+    bool IsPhiDefnStmt() const
     {
         return gtStmtExpr->IsPhiDefn();
     }
@@ -5383,7 +5389,7 @@ public:
 
     StatementIterator& operator++()
     {
-        m_stmt = m_stmt->gtNext;
+        m_stmt = m_stmt->GetNextStmt();
         return *this;
     }
 

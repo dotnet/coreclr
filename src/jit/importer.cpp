@@ -659,8 +659,8 @@ inline void Compiler::impAppendStmt(Statement* stmt)
     else
     {
         // Append the expression statement to the existing list.
-        impLastStmt->gtNext = stmt;
-        stmt->gtPrev        = impLastStmt;
+        impLastStmt->SetNextStmt(stmt);
+        stmt->gtPrev = impLastStmt;
     }
     impLastStmt = stmt;
 }
@@ -707,9 +707,9 @@ inline void Compiler::impInsertStmtBefore(Statement* stmt, Statement* stmtBefore
     {
         Statement* stmtPrev = stmtBefore->GetPrevStmt();
         stmt->gtPrev        = stmtPrev;
-        stmtPrev->gtNext    = stmt;
+        stmtPrev->SetNextStmt(stmt);
     }
-    stmt->gtNext       = stmtBefore;
+    stmt->SetNextStmt(stmtBefore);
     stmtBefore->gtPrev = stmt;
 }
 
@@ -9291,9 +9291,9 @@ void Compiler::impImportLeave(BasicBlock* block)
 
                 if (endCatches)
                 {
-                    lastStmt            = gtNewStmt(endCatches);
-                    endLFinStmt->gtNext = lastStmt;
-                    lastStmt->gtPrev    = endLFinStmt;
+                    lastStmt = gtNewStmt(endCatches);
+                    endLFinStmt->SetNextStmt(lastStmt);
+                    lastStmt->gtPrev = endLFinStmt;
                 }
                 else
                 {
@@ -9382,9 +9382,9 @@ void Compiler::impImportLeave(BasicBlock* block)
 
         if (endCatches)
         {
-            lastStmt            = gtNewStmt(endCatches);
-            endLFinStmt->gtNext = lastStmt;
-            lastStmt->gtPrev    = endLFinStmt;
+            lastStmt = gtNewStmt(endCatches);
+            endLFinStmt->SetNextStmt(lastStmt);
+            lastStmt->gtPrev = endLFinStmt;
         }
         else
         {

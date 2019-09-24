@@ -4519,7 +4519,7 @@ ASSERT_TP* Compiler::optComputeAssertionGen()
                 if (tree->gtOper == GT_JTRUE)
                 {
                     // A GT_TRUE is always the last node in a tree, so we can break here
-                    assert((tree->gtNext == nullptr) && (stmt->gtNext == nullptr));
+                    assert((tree->gtNext == nullptr) && (stmt->GetNextStmt() == nullptr));
                     jtrue = tree;
                     break;
                 }
@@ -5159,7 +5159,7 @@ void Compiler::optAssertionPropMain()
                 if (tree->OperIs(GT_JTRUE))
                 {
                     // A GT_TRUE is always the last node in a tree, so we can break here
-                    assert((tree->gtNext == nullptr) && (stmt->gtNext == nullptr));
+                    assert((tree->gtNext == nullptr) && (stmt->GetNextStmt() == nullptr));
                     break;
                 }
 
