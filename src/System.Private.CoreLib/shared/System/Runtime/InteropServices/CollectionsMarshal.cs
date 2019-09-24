@@ -17,12 +17,5 @@ namespace System.Runtime.InteropServices
         /// </summary>
         public static Span<T> AsSpan<T>(List<T> list)
             => new Span<T>(list._items, 0, list._size);
-
-        /// <summary>
-        /// Get a <see cref="ReadOnlySpan{T}"/> view over a <see cref="List{T}"/>'s data.
-        /// Items should not be added or removed from the <see cref="List{T}"/> while the <see cref="ReadOnlySpan{T}"/> is in use.
-        /// </summary>
-        public static ReadOnlySpan<T> AsReadOnlySpan<T>(List<T> list)
-            => new ReadOnlySpan<T>(list._items, 0, list._size);
     }
 }
