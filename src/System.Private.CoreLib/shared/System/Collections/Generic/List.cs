@@ -165,6 +165,8 @@ namespace System.Collections.Generic
             }
         }
 
+        internal Span<T> AsSpan() => new Span<T>(_items, 0, _size);
+
         private static bool IsCompatibleObject(object? value)
         {
             // Non-null values are fine.  Only accept nulls if T is a class or Nullable<U>.
