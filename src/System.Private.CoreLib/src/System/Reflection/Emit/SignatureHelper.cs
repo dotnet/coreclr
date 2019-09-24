@@ -84,7 +84,6 @@ namespace System.Reflection.Emit
 
         public static SignatureHelper GetMethodSigHelper(Module? mod, CallingConvention unmanagedCallConv, Type? returnType)
         {
-            SignatureHelper sigHelp;
             MdSigCallingConvention intCall;
 
             returnType ??= typeof(void);
@@ -110,9 +109,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_UnknownUnmanagedCallConv, nameof(unmanagedCallConv));
             }
 
-            sigHelp = new SignatureHelper(mod, intCall, returnType, null, null);
-
-            return sigHelp;
+            return new SignatureHelper(mod, intCall, returnType, null, null);
         }
 
         public static SignatureHelper GetLocalVarSigHelper()

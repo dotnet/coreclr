@@ -290,20 +290,16 @@ namespace System.Resources
                 args[1] = assembly;
                 try
                 {
-                    ResourceSet? rs = null;
                     // Add in a check for a constructor taking in an assembly first.
                     try
                     {
-                        rs = (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args)!;
-                        return rs;
+                        return (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args)!;
                     }
                     catch (MissingMethodException) { }
 
                     args = new object[1];
                     args[0] = store;
-                    rs = (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args)!;
-
-                    return rs;
+                    return (ResourceSet)Activator.CreateInstance(_mediator.UserResourceSet, args)!;
                 }
                 catch (MissingMethodException e)
                 {
