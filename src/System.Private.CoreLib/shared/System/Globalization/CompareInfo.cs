@@ -1122,7 +1122,7 @@ namespace System.Globalization
             }
         }
 
-        internal int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal static int IndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
             if (!ignoreCase)
             {
@@ -1347,7 +1347,7 @@ namespace System.Globalization
             return LastIndexOfCore(source, value, startIndex, count, options);
         }
 
-        internal int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
+        internal static int LastIndexOfOrdinal(string source, string value, int startIndex, int count, bool ignoreCase)
         {
             if (GlobalizationMode.Invariant)
             {

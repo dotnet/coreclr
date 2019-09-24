@@ -328,7 +328,7 @@ void GenTree::InitNodeSize()
     static_assert_no_msg(sizeof(GenTreeDynBlk)       <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeRetExpr)      <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeILOffset)     <= TREE_NODE_SZ_SMALL);
-    static_assert_no_msg(sizeof(GenTreeStmt)         <= TREE_NODE_SZ_LARGE); // *** large node
+    static_assert_no_msg(sizeof(Statement)         <= TREE_NODE_SZ_LARGE); // *** large node
     static_assert_no_msg(sizeof(GenTreeClsVar)       <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreeArgPlace)     <= TREE_NODE_SZ_SMALL);
     static_assert_no_msg(sizeof(GenTreePhiArg)       <= TREE_NODE_SZ_SMALL);
@@ -569,7 +569,7 @@ void Compiler::fgWalkAllTreesPre(fgWalkPreFn* visitor, void* pCallBackData)
 {
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             fgWalkTreePre(&stmt->gtStmtExpr, visitor, pCallBackData);
         }
@@ -2440,8 +2440,8 @@ unsigned Compiler::gtSetListOrder(GenTree* list, bool isListCallArgs, bool callA
                     level = nxtlvl;
                 }
             }
-            costEx += next->gtCostEx;
-            costSz += next->gtCostSz;
+            costEx += next->GetCostEx();
+            costSz += next->GetCostSz();
         }
 
         GenTree* op1 = list->gtOp.gtOp1;
@@ -2483,15 +2483,15 @@ unsigned Compiler::gtSetListOrder(GenTree* list, bool isListCallArgs, bool callA
             }
         }
 
-        if (op1->gtCostEx != 0)
+        if (op1->GetCostEx() != 0)
         {
-            costEx += op1->gtCostEx;
+            costEx += op1->GetCostEx();
             costEx += (callArgsInRegs || !isListCallArgs) ? 0 : IND_COST_EX;
         }
 
-        if (op1->gtCostSz != 0)
+        if (op1->GetCostSz() != 0)
         {
-            costSz += op1->gtCostSz;
+            costSz += op1->GetCostSz();
 #ifdef _TARGET_XARCH_
             if (callArgsInRegs) // push is smaller than mov to reg
 #endif
@@ -2524,15 +2524,15 @@ unsigned Compiler::gtSetCallArgsOrder(const GenTreeCall::UseList& args, bool lat
             level = argLevel;
         }
 
-        if (argNode->gtCostEx != 0)
+        if (argNode->GetCostEx() != 0)
         {
-            costEx += argNode->gtCostEx;
+            costEx += argNode->GetCostEx();
             costEx += lateArgs ? 0 : IND_COST_EX;
         }
 
-        if (argNode->gtCostSz != 0)
+        if (argNode->GetCostSz() != 0)
         {
-            costSz += argNode->gtCostSz;
+            costSz += argNode->GetCostSz();
 #ifdef _TARGET_XARCH_
             if (lateArgs) // push is smaller than mov to reg
 #endif
@@ -2680,7 +2680,7 @@ GenTree* Compiler::gtWalkOpEffectiveVal(GenTree* op)
 
 /*****************************************************************************
  *
- *  Given a tree, set the gtCostEx and gtCostSz fields which
+ *  Given a tree, set the GetCostEx and GetCostSz() fields which
  *  are used to measure the relative costs of the codegen of the tree
  *
  */
@@ -2840,15 +2840,15 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
         unsigned addrmodeCount = 0;
         if (base)
         {
-            *pCostEx += base->gtCostEx;
-            *pCostSz += base->gtCostSz;
+            *pCostEx += base->GetCostEx();
+            *pCostSz += base->GetCostSz();
             addrmodeCount++;
         }
 
         if (idx)
         {
-            *pCostEx += idx->gtCostEx;
-            *pCostSz += idx->gtCostSz;
+            *pCostEx += idx->GetCostEx();
+            *pCostSz += idx->GetCostSz();
             addrmodeCount++;
         }
 
@@ -2890,7 +2890,7 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
             {
                 // decrement the gtCosts for the interior GT_ADD or GT_LSH node by the remaining
                 // addrmodeCount
-                tmp->SetCosts(tmp->gtCostEx - addrmodeCount, tmp->gtCostSz - addrmodeCount);
+                tmp->SetCosts(tmp->GetCostEx() - addrmodeCount, tmp->GetCostSz() - addrmodeCount);
 
                 addrmodeCount--;
                 if (addrmodeCount > 0)
@@ -2927,8 +2927,8 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
 #elif defined _TARGET_ARM_
         if (base)
         {
-            *pCostEx += base->gtCostEx;
-            *pCostSz += base->gtCostSz;
+            *pCostEx += base->GetCostEx();
+            *pCostSz += base->GetCostSz();
             if ((base->gtOper == GT_LCL_VAR) && ((idx == NULL) || (cns == 0)))
             {
                 *pCostSz -= 1;
@@ -2937,8 +2937,8 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
 
         if (idx)
         {
-            *pCostEx += idx->gtCostEx;
-            *pCostSz += idx->gtCostSz;
+            *pCostEx += idx->GetCostEx();
+            *pCostSz += idx->GetCostSz();
             if (mul > 0)
             {
                 *pCostSz += 2;
@@ -2966,14 +2966,14 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
 #elif defined _TARGET_ARM64_
         if (base)
         {
-            *pCostEx += base->gtCostEx;
-            *pCostSz += base->gtCostSz;
+            *pCostEx += base->GetCostEx();
+            *pCostSz += base->GetCostSz();
         }
 
         if (idx)
         {
-            *pCostEx += idx->gtCostEx;
-            *pCostSz += idx->gtCostSz;
+            *pCostEx += idx->GetCostEx();
+            *pCostSz += idx->GetCostSz();
         }
 
         if (cns != 0)
@@ -3140,8 +3140,8 @@ bool Compiler::gtMarkAddrMode(GenTree* addr, int* pCostEx, int* pCostSz, var_typ
  *  the number, the higher is the tree's resources requirement).
  *
  *  This function sets:
- *      1. gtCostEx to the execution complexity estimate
- *      2. gtCostSz to the code size estimate
+ *      1. GetCostEx() to the execution complexity estimate
+ *      2. GetCostSz() to the code size estimate
  *      3. Sometimes sets GTF_ADDRMODE_NO_CSE on nodes in the tree.
  *      4. DEBUG-only: clears GTF_DEBUG_NODE_MORPHED.
  */
@@ -3567,8 +3567,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     if (op1->OperGet() == GT_IND)
                     {
                         GenTree* indOp1 = op1->gtOp.gtOp1;
-                        costEx          = indOp1->gtCostEx;
-                        costSz          = indOp1->gtCostSz;
+                        costEx          = indOp1->GetCostEx();
+                        costSz          = indOp1->GetCostSz();
                     }
                     break;
 
@@ -3699,8 +3699,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                         // Indirection of a CNS_INT, subtract 1 from costEx
                         // makes costEx 3 for x86 and 4 for amd64
                         //
-                        costEx += (op1->gtCostEx - 1);
-                        costSz += op1->gtCostSz;
+                        costEx += (op1->GetCostEx() - 1);
+                        costSz += op1->GetCostSz();
                         goto DONE;
                     }
 #endif
@@ -3709,8 +3709,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 default:
                     break;
             }
-            costEx += op1->gtCostEx;
-            costSz += op1->gtCostSz;
+            costEx += op1->GetCostEx();
+            costSz += op1->GetCostSz();
             goto DONE;
         }
 
@@ -3835,8 +3835,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 level = gtSetEvalOrder(op2);
 
                 /* GT_COMMA cost is the sum of op1 and op2 costs */
-                costEx = (op1->gtCostEx + op2->gtCostEx);
-                costSz = (op1->gtCostSz + op2->gtCostSz);
+                costEx = (op1->GetCostEx() + op2->GetCostEx());
+                costSz = (op1->GetCostSz() + op2->GetCostSz());
 
                 goto DONE;
 
@@ -3854,8 +3854,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     level += 1;
                 }
 
-                costEx = op1->gtCostEx + op2->gtCostEx;
-                costSz = op1->gtCostSz + op2->gtCostSz;
+                costEx = op1->GetCostEx() + op2->GetCostEx();
+                costSz = op1->GetCostSz() + op2->GetCostSz();
 
                 goto DONE;
 
@@ -3878,8 +3878,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                     lvl2 = gtSetEvalOrder(op2);
 
                     /* Assignment to an enregistered LCL_VAR */
-                    costEx = op2->gtCostEx;
-                    costSz = max(3, op2->gtCostSz); // 3 is an estimate for a reg-reg assignment
+                    costEx = op2->GetCostEx();
+                    costSz = max(3, op2->GetCostSz()); // 3 is an estimate for a reg-reg assignment
                     goto DONE_OP1_AFTER_COST;
                 }
                 goto DONE_OP1;
@@ -3901,8 +3901,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         assert(lvlb >= 0);
         lvl2 = gtSetEvalOrder(op2) + lvlb;
 
-        costEx += (op1->gtCostEx + op2->gtCostEx);
-        costSz += (op1->gtCostSz + op2->gtCostSz);
+        costEx += (op1->GetCostEx() + op2->GetCostEx());
+        costSz += (op1->GetCostSz() + op2->GetCostSz());
 
     DONE_OP1_AFTER_COST:
 
@@ -4220,8 +4220,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 {
                     level = lvl2;
                 }
-                costEx += thisVal->gtCostEx;
-                costSz += thisVal->gtCostSz + 1;
+                costEx += thisVal->GetCostEx();
+                costSz += thisVal->GetCostSz() + 1;
             }
 
             /* Evaluate the arguments, right to left */
@@ -4263,8 +4263,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 {
                     level = lvl2;
                 }
-                costEx += indirect->gtCostEx + IND_COST_EX;
-                costSz += indirect->gtCostSz;
+                costEx += indirect->GetCostEx() + IND_COST_EX;
+                costSz += indirect->GetCostSz();
             }
             else
             {
@@ -4308,8 +4308,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         case GT_ARR_ELEM:
 
             level  = gtSetEvalOrder(tree->gtArrElem.gtArrObj);
-            costEx = tree->gtArrElem.gtArrObj->gtCostEx;
-            costSz = tree->gtArrElem.gtArrObj->gtCostSz;
+            costEx = tree->gtArrElem.gtArrObj->GetCostEx();
+            costSz = tree->gtArrElem.gtArrObj->GetCostSz();
 
             unsigned dim;
             for (dim = 0; dim < tree->gtArrElem.gtArrRank; dim++)
@@ -4319,8 +4319,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 {
                     level = lvl2;
                 }
-                costEx += tree->gtArrElem.gtArrInds[dim]->gtCostEx;
-                costSz += tree->gtArrElem.gtArrInds[dim]->gtCostSz;
+                costEx += tree->gtArrElem.gtArrInds[dim]->GetCostEx();
+                costSz += tree->gtArrElem.gtArrInds[dim]->GetCostSz();
             }
 
             level += tree->gtArrElem.gtArrRank;
@@ -4330,16 +4330,16 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
 
         case GT_ARR_OFFSET:
             level  = gtSetEvalOrder(tree->gtArrOffs.gtOffset);
-            costEx = tree->gtArrOffs.gtOffset->gtCostEx;
-            costSz = tree->gtArrOffs.gtOffset->gtCostSz;
+            costEx = tree->gtArrOffs.gtOffset->GetCostEx();
+            costSz = tree->gtArrOffs.gtOffset->GetCostSz();
             lvl2   = gtSetEvalOrder(tree->gtArrOffs.gtIndex);
             level  = max(level, lvl2);
-            costEx += tree->gtArrOffs.gtIndex->gtCostEx;
-            costSz += tree->gtArrOffs.gtIndex->gtCostSz;
+            costEx += tree->gtArrOffs.gtIndex->GetCostEx();
+            costSz += tree->gtArrOffs.gtIndex->GetCostSz();
             lvl2  = gtSetEvalOrder(tree->gtArrOffs.gtArrObj);
             level = max(level, lvl2);
-            costEx += tree->gtArrOffs.gtArrObj->gtCostEx;
-            costSz += tree->gtArrOffs.gtArrObj->gtCostSz;
+            costEx += tree->gtArrOffs.gtArrObj->GetCostEx();
+            costSz += tree->gtArrOffs.gtArrObj->GetCostSz();
             break;
 
         case GT_PHI:
@@ -4348,8 +4348,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 lvl2 = gtSetEvalOrder(use.GetNode());
                 // PHI args should always have cost 0 and level 0
                 assert(lvl2 == 0);
-                assert(use.GetNode()->gtCostEx == 0);
-                assert(use.GetNode()->gtCostSz == 0);
+                assert(use.GetNode()->GetCostEx() == 0);
+                assert(use.GetNode()->GetCostSz() == 0);
             }
             // Give it a level of 2, just to be sure that it's greater than the LHS of
             // the parent assignment and the PHI gets evaluated first in linear order.
@@ -4362,21 +4362,21 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
         case GT_CMPXCHG:
 
             level  = gtSetEvalOrder(tree->gtCmpXchg.gtOpLocation);
-            costSz = tree->gtCmpXchg.gtOpLocation->gtCostSz;
+            costSz = tree->gtCmpXchg.gtOpLocation->GetCostSz();
 
             lvl2 = gtSetEvalOrder(tree->gtCmpXchg.gtOpValue);
             if (level < lvl2)
             {
                 level = lvl2;
             }
-            costSz += tree->gtCmpXchg.gtOpValue->gtCostSz;
+            costSz += tree->gtCmpXchg.gtOpValue->GetCostSz();
 
             lvl2 = gtSetEvalOrder(tree->gtCmpXchg.gtOpComparand);
             if (level < lvl2)
             {
                 level = lvl2;
             }
-            costSz += tree->gtCmpXchg.gtOpComparand->gtCostSz;
+            costSz += tree->gtCmpXchg.gtOpComparand->GetCostSz();
 
             costEx = MAX_COST; // Seriously, what could be more expensive than lock cmpxchg?
             costSz += 5;       // size of lock cmpxchg [reg+C], reg
@@ -4394,16 +4394,16 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             costSz = 7; // jump to cold section
 
             level = gtSetEvalOrder(tree->gtBoundsChk.gtIndex);
-            costEx += tree->gtBoundsChk.gtIndex->gtCostEx;
-            costSz += tree->gtBoundsChk.gtIndex->gtCostSz;
+            costEx += tree->gtBoundsChk.gtIndex->GetCostEx();
+            costSz += tree->gtBoundsChk.gtIndex->GetCostSz();
 
             lvl2 = gtSetEvalOrder(tree->gtBoundsChk.gtArrLen);
             if (level < lvl2)
             {
                 level = lvl2;
             }
-            costEx += tree->gtBoundsChk.gtArrLen->gtCostEx;
-            costSz += tree->gtBoundsChk.gtArrLen->gtCostSz;
+            costEx += tree->gtBoundsChk.gtArrLen->GetCostEx();
+            costSz += tree->gtBoundsChk.gtArrLen->GetCostSz();
 
             break;
 
@@ -4417,13 +4417,13 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             {
                 lvl2  = gtSetEvalOrder(tree->gtDynBlk.Data());
                 level = max(level, lvl2);
-                costEx += tree->gtDynBlk.Data()->gtCostEx;
-                costSz += tree->gtDynBlk.Data()->gtCostSz;
+                costEx += tree->gtDynBlk.Data()->GetCostEx();
+                costSz += tree->gtDynBlk.Data()->GetCostSz();
             }
             lvl2               = gtSetEvalOrder(tree->gtDynBlk.Addr());
             level              = max(level, lvl2);
-            costEx             = tree->gtDynBlk.Addr()->gtCostEx;
-            costSz             = tree->gtDynBlk.Addr()->gtCostSz;
+            costEx             = tree->gtDynBlk.Addr()->GetCostEx();
+            costSz             = tree->gtDynBlk.Addr()->GetCostSz();
             unsigned sizeLevel = gtSetEvalOrder(tree->gtDynBlk.gtDynamicSize);
 
             // Determine whether the size node should be evaluated first.
@@ -4459,8 +4459,8 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
                 }
             }
             level = max(level, sizeLevel);
-            costEx += tree->gtDynBlk.gtDynamicSize->gtCostEx;
-            costSz += tree->gtDynBlk.gtDynamicSize->gtCostSz;
+            costEx += tree->gtDynBlk.gtDynamicSize->GetCostEx();
+            costSz += tree->gtDynBlk.gtDynamicSize->GetCostSz();
         }
         break;
 
@@ -4469,16 +4469,16 @@ unsigned Compiler::gtSetEvalOrder(GenTree* tree)
             costSz = 9; // jump to cold section
 
             level = gtSetEvalOrder(tree->AsIndexAddr()->Index());
-            costEx += tree->AsIndexAddr()->Index()->gtCostEx;
-            costSz += tree->AsIndexAddr()->Index()->gtCostSz;
+            costEx += tree->AsIndexAddr()->Index()->GetCostEx();
+            costSz += tree->AsIndexAddr()->Index()->GetCostSz();
 
             lvl2 = gtSetEvalOrder(tree->AsIndexAddr()->Arr());
             if (level < lvl2)
             {
                 level = lvl2;
             }
-            costEx += tree->AsIndexAddr()->Arr()->gtCostEx;
-            costSz += tree->AsIndexAddr()->Arr()->gtCostSz;
+            costEx += tree->AsIndexAddr()->Arr()->GetCostEx();
+            costSz += tree->AsIndexAddr()->Arr()->GetCostSz();
             break;
 
         default:
@@ -7728,7 +7728,7 @@ GenTreeCall* Compiler::gtCloneCandidateCall(GenTreeCall* call)
 //    but this method will sequence 'replacementTree', and insert it into the
 //    proper place in the statement sequence.
 
-GenTree* Compiler::gtReplaceTree(GenTreeStmt* stmt, GenTree* tree, GenTree* replacementTree)
+GenTree* Compiler::gtReplaceTree(Statement* stmt, GenTree* tree, GenTree* replacementTree)
 {
     assert(fgStmtListThreaded);
     assert(tree != nullptr);
@@ -7817,7 +7817,7 @@ GenTree* Compiler::gtReplaceTree(GenTreeStmt* stmt, GenTree* tree, GenTree* repl
 // Note: If tree's order hasn't been established, the method updates side effect
 //       flags on all statement's nodes.
 
-void Compiler::gtUpdateSideEffects(GenTreeStmt* stmt, GenTree* tree)
+void Compiler::gtUpdateSideEffects(Statement* stmt, GenTree* tree)
 {
     if (fgStmtListThreaded)
     {
@@ -7852,7 +7852,7 @@ void Compiler::gtUpdateTreeAncestorsSideEffects(GenTree* tree)
 // Arguments:
 //    stmt            - The statement to update side effects on
 
-void Compiler::gtUpdateStmtSideEffects(GenTreeStmt* stmt)
+void Compiler::gtUpdateStmtSideEffects(Statement* stmt)
 {
     fgWalkTree(&stmt->gtStmtExpr, fgUpdateSideEffectsPre, fgUpdateSideEffectsPost);
 }
@@ -9449,7 +9449,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
         printf("N%03u ", tree->gtSeqNum);
         if (tree->gtCostsInitialized)
         {
-            printf("(%3u,%3u) ", tree->gtCostEx, tree->gtCostSz);
+            printf("(%3u,%3u) ", tree->GetCostEx(), tree->GetCostSz());
         }
         else
         {
@@ -9492,7 +9492,7 @@ void Compiler::gtDispNode(GenTree* tree, IndentStack* indentStack, __in __in_z _
 
         if (tree->gtCostsInitialized)
         {
-            printf("(%3u,%3u) ", tree->gtCostEx, tree->gtCostSz);
+            printf("(%3u,%3u) ", tree->GetCostEx(), tree->GetCostSz());
         }
         else
         {
@@ -10209,7 +10209,7 @@ void Compiler::gtDispConst(GenTree* tree)
         case GT_CNS_INT:
             if (tree->IsIconHandle(GTF_ICON_STR_HDL))
             {
-                const wchar_t* str = eeGetCPString(tree->gtIntCon.gtIconVal);
+                const WCHAR* str = eeGetCPString(tree->gtIntCon.gtIconVal);
                 if (str != nullptr)
                 {
                     printf(" 0x%X \"%S\"", dspPtr(tree->gtIntCon.gtIconVal), str);
@@ -10426,11 +10426,11 @@ void Compiler::gtDispLeaf(GenTree* tree, IndentStack* indentStack)
                 if (tree->gtFlags & GTF_VAR_USEASG)
                 {
                     assert(tree->gtFlags & GTF_VAR_DEF);
-                    printf("ud:%d->%d", tree->gtLclVarCommon.gtSsaNum, GetSsaNumForLocalVarDef(tree));
+                    printf("ud:%d->%d", tree->gtLclVarCommon.GetSsaNum(), GetSsaNumForLocalVarDef(tree));
                 }
                 else
                 {
-                    printf("%s:%d", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
+                    printf("%s:%d", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.GetSsaNum());
                 }
             }
 
@@ -11468,24 +11468,58 @@ void Compiler::gtDispArgList(GenTreeCall* call, IndentStack* indentStack)
     }
 }
 
-//------------------------------------------------------------------------
-// gtDispArgList: Dump the tree for a call arg list
+// gtDispStmt: Print a statement to jitstdout.
 //
 // Arguments:
-//    tree         - The call for which 'arg' is an argument
-//    indentStack  - the specification for the current level of indentation & arcs
+//    stmt - the statement to be printed;
+//    msg  - an additional message to print before the statement.
 //
-// Return Value:
-//    None.
-//
-// Assumptions:
-//    'tree' must be a GT_LIST node
-
-void Compiler::gtDispStmtList(GenTreeStmt* stmts, IndentStack* indentStack /* = nullptr */)
+void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
 {
-    for (GenTreeStmt* stmt = stmts; stmt != nullptr; stmt = stmt->getNextStmt())
+    if (opts.compDbgInfo)
     {
-        gtDispTree(stmt->gtStmtExpr, indentStack);
+        if (msg != nullptr)
+        {
+            printf("%s ", msg);
+        }
+        printStmtID(stmt);
+        IL_OFFSETX firstILOffsx = stmt->gtStmtILoffsx;
+        printf(" (IL ");
+        if (firstILOffsx == BAD_IL_OFFSET)
+        {
+            printf("  ???");
+        }
+        else
+        {
+            printf("0x%03X", jitGetILoffs(firstILOffsx));
+        }
+        printf("...");
+
+        IL_OFFSET lastILOffs = stmt->gtStmtLastILoffs;
+        if (lastILOffs == BAD_IL_OFFSET)
+        {
+            printf("  ???");
+        }
+        else
+        {
+            printf("0x%03X", lastILOffs);
+        }
+        printf(")\n");
+    }
+    gtDispTree(stmt->gtStmtExpr);
+}
+
+//------------------------------------------------------------------------
+// gtDispBlockStmts: dumps all statements inside `block`.
+//
+// Arguments:
+//    block - the block to display statements for.
+//
+void Compiler::gtDispBlockStmts(BasicBlock* block)
+{
+    for (Statement* stmt : block->Statements())
+    {
+        gtDispStmt(stmt);
         printf("\n");
     }
 }
@@ -12697,15 +12731,15 @@ GenTree* Compiler::gtTryRemoveBoxUpstreamEffects(GenTree* op, BoxRemovalOptions 
     assert(op->IsBoxedValue());
 
     // grab related parts for the optimization
-    GenTreeBox*  box      = op->AsBox();
-    GenTreeStmt* asgStmt  = box->gtAsgStmtWhenInlinedBoxValue;
-    GenTreeStmt* copyStmt = box->gtCopyStmtWhenInlinedBoxValue;
+    GenTreeBox* box      = op->AsBox();
+    Statement*  asgStmt  = box->gtAsgStmtWhenInlinedBoxValue;
+    Statement*  copyStmt = box->gtCopyStmtWhenInlinedBoxValue;
 
     JITDUMP("gtTryRemoveBoxUpstreamEffects: %s to %s of BOX (valuetype)"
-            " [%06u] (assign/newobj [%06u] copy [%06u])\n",
+            " [%06u] (assign/newobj " FMT_STMT " copy " FMT_STMT "\n",
             (options == BR_DONT_REMOVE) ? "checking if it is possible" : "attempting",
             (options == BR_MAKE_LOCAL_COPY) ? "make local unboxed version" : "remove side effects", dspTreeID(op),
-            dspTreeID(asgStmt->gtStmtExpr), dspTreeID(copyStmt->gtStmtExpr));
+            asgStmt->GetID(), copyStmt->GetID());
 
     // If we don't recognize the form of the assign, bail.
     GenTree* asg = asgStmt->gtStmtExpr;
@@ -13085,7 +13119,7 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
     {
         const unsigned thisTmp     = lvaGrabTemp(true DEBUGARG("Enum:HasFlag this temp"));
         GenTree*       thisAsg     = gtNewTempAssign(thisTmp, thisVal);
-        GenTreeStmt*   thisAsgStmt = thisOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
+        Statement*     thisAsgStmt = thisOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
         thisAsgStmt->gtStmtExpr    = thisAsg;
         thisValOpt                 = gtNewLclvNode(thisTmp, type);
     }
@@ -13101,7 +13135,7 @@ GenTree* Compiler::gtOptimizeEnumHasFlag(GenTree* thisOp, GenTree* flagOp)
     {
         const unsigned flagTmp     = lvaGrabTemp(true DEBUGARG("Enum:HasFlag flag temp"));
         GenTree*       flagAsg     = gtNewTempAssign(flagTmp, flagVal);
-        GenTreeStmt*   flagAsgStmt = flagOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
+        Statement*     flagAsgStmt = flagOp->AsBox()->gtCopyStmtWhenInlinedBoxValue;
         flagAsgStmt->gtStmtExpr    = flagAsg;
         flagValOpt                 = gtNewLclvNode(flagTmp, type);
         flagValOptCopy             = gtNewLclvNode(flagTmp, type);
@@ -14564,7 +14598,7 @@ DONE:
 //    May set compFloatingPointUsed.
 
 GenTree* Compiler::gtNewTempAssign(
-    unsigned tmp, GenTree* val, GenTreeStmt** pAfterStmt, IL_OFFSETX ilOffset, BasicBlock* block)
+    unsigned tmp, GenTree* val, Statement** pAfterStmt, IL_OFFSETX ilOffset, BasicBlock* block)
 {
     // Self-assignment is a nop.
     if (val->OperGet() == GT_LCL_VAR && val->gtLclVarCommon.gtLclNum == tmp)
@@ -15285,7 +15319,7 @@ static Compiler::fgWalkResult gtFindLinkCB(GenTree** pTree, Compiler::fgWalkData
     return Compiler::WALK_CONTINUE;
 }
 
-Compiler::FindLinkData Compiler::gtFindLink(GenTreeStmt* stmt, GenTree* node)
+Compiler::FindLinkData Compiler::gtFindLink(Statement* stmt, GenTree* node)
 {
     FindLinkData data = {node, nullptr, nullptr};
 
@@ -15519,12 +15553,6 @@ bool GenTree::IsPhiDefn()
                ((OperGet() == GT_STORE_LCL_VAR) && (gtOp.gtOp1 != nullptr) && (gtOp.gtOp1->OperGet() == GT_PHI));
     assert(!res || OperGet() == GT_STORE_LCL_VAR || gtOp.gtOp1->OperGet() == GT_LCL_VAR);
     return res;
-}
-
-bool GenTreeStmt::IsPhiDefnStmt()
-{
-    GenTree* asg = gtStmtExpr;
-    return asg->IsPhiDefn();
 }
 
 // IsPartialLclFld: Check for a GT_LCL_FLD whose type is a different size than the lclVar.
@@ -17869,6 +17897,8 @@ bool GenTree::isContainableHWIntrinsic() const
         case NI_SSE2_LoadVector128:
         case NI_AVX_LoadAlignedVector256:
         case NI_AVX_LoadVector256:
+        case NI_AVX_ExtractVector128:
+        case NI_AVX2_ExtractVector128:
         {
             return true;
         }

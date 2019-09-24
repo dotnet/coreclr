@@ -17,6 +17,7 @@ namespace ReadyToRun.SuperIlc
             var parser = new CommandLineBuilder()
                 .AddCommand(CompileFolder())
                 .AddCommand(CompileSubtree())
+                .AddCommand(CompileFramework())
                 .AddCommand(CompileNugetPackages())
                 .AddCommand(CompileCrossgenRsp());
 
@@ -47,6 +48,8 @@ namespace ReadyToRun.SuperIlc
                         CompilationTimeoutMinutes(),
                         ExecutionTimeoutMinutes(),
                         R2RDumpPath(),
+                        MeasurePerf(),
+                        InputFileSearchString(),
                     },
                     handler: CommandHandler.Create<BuildOptions>(CompileDirectoryCommand.CompileDirectory));
 
@@ -78,6 +81,26 @@ namespace ReadyToRun.SuperIlc
                     },
                     handler: CommandHandler.Create<BuildOptions>(CompileSubtreeCommand.CompileSubtree));
 
+            Command CompileFramework() =>
+                new Command("compile-framework", "Compile managed framework assemblies in Core_Root",
+                    new Option[]
+                    {
+                            CoreRootDirectory(),
+                            Crossgen(),
+                            NoCleanup(),
+                            DegreeOfParallelism(),
+                            Sequential(),
+                            Release(),
+                            LargeBubble(),
+                            ReferencePath(),
+                            IssuesPath(),
+                            CompilationTimeoutMinutes(),
+                            R2RDumpPath(),
+                            MeasurePerf(),
+                            InputFileSearchString(),
+                    },
+                    handler: CommandHandler.Create<BuildOptions>(CompileFrameworkCommand.CompileFramework));
+
             Command CompileNugetPackages() =>
                 new Command("compile-nuget", "Restore a list of Nuget packages into an empty console app, publish, and optimize with Crossgen / CPAOT",
                     new Option[]
@@ -97,7 +120,7 @@ namespace ReadyToRun.SuperIlc
                     handler: CommandHandler.Create<BuildOptions>(CompileNugetCommand.CompileNuget));
 
             Command CompileCrossgenRsp() =>
-                new Command("compile-crossgen-rsp", "Use existing Crossgen .rsp file(s) to build assmeblies, optionally rewriting base paths",
+                new Command("compile-crossgen-rsp", "Use existing Crossgen .rsp file(s) to build assemblies, optionally rewriting base paths",
                     new Option[]
                     {
                         InputDirectory(),
@@ -187,6 +210,12 @@ namespace ReadyToRun.SuperIlc
 
             Option RewriteNewPath() =>
                 new Option(new [] { "--rewrite-new-path" }, "Path substring to use instead", new Argument<DirectoryInfo[]>(){ Arity = ArgumentArity.ZeroOrMore });
+
+            Option MeasurePerf() =>
+                new Option(new[] { "--measure-perf" }, "Print out compilation time", new Argument<bool>());
+
+            Option InputFileSearchString() =>
+                new Option(new[] { "--input-file-search-string", "-input-file" }, "Search string for input files in the input directory", new Argument<string>());
 
             //
             // compile-nuget specific options

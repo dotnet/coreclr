@@ -275,7 +275,7 @@ int __cdecl Compiler::optCSEcostCmpEx(const void* op1, const void* op2)
 
     int diff;
 
-    diff = (int)(exp2->gtCostEx - exp1->gtCostEx);
+    diff = (int)(exp2->GetCostEx() - exp1->GetCostEx());
 
     if (diff != 0)
     {
@@ -319,7 +319,7 @@ int __cdecl Compiler::optCSEcostCmpSz(const void* op1, const void* op2)
 
     int diff;
 
-    diff = (int)(exp2->gtCostSz - exp1->gtCostSz);
+    diff = (int)(exp2->GetCostSz() - exp1->GetCostSz());
 
     if (diff != 0)
     {
@@ -394,7 +394,7 @@ void Compiler::optValnumCSE_Init()
 //          we return that index.  There currently is a limit on the number of CSEs
 //          that we can have of MAX_CSE_CNT (64)
 //
-unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt)
+unsigned Compiler::optValnumCSE_Index(GenTree* tree, Statement* stmt)
 {
     unsigned key;
     unsigned hash;
@@ -591,7 +591,7 @@ unsigned Compiler::optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt)
             printf("\nCSE candidate #%02u, vn=", CSEindex);
             vnPrint(key, 0);
             printf(" cseMask=%s in " FMT_BB ", [cost=%2u, size=%2u]: \n", genES2str(cseTraits, tempMask),
-                   compCurBB->bbNum, tree->gtCostEx, tree->gtCostSz);
+                   compCurBB->bbNum, tree->GetCostEx(), tree->GetCostSz());
             gtDispTree(tree);
         }
 #endif // DEBUG
@@ -622,7 +622,7 @@ unsigned Compiler::optValnumCSE_Locate()
         noway_assert((block->bbFlags & (BBF_VISITED | BBF_MARKED)) == 0);
 
         /* Walk the statement trees in this basic block */
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
             /* We walk the tree in the forwards direction (bottom up) */
             bool stmtHasArrLenCandidate = false;
@@ -1007,7 +1007,7 @@ void Compiler::optValnumCSE_Availablity()
 
         // Walk the statement trees in this basic block
 
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
             // We walk the tree in the forwards direction (bottom up)
 
@@ -1576,15 +1576,15 @@ public:
         {
             if (m_context->CodeOptKind() == Compiler::SMALL_CODE)
             {
-                m_Cost     = Expr()->gtCostSz;      // the estimated code size
-                m_Size     = Expr()->gtCostSz;      // always the gtCostSz
+                m_Cost     = Expr()->GetCostSz();   // the estimated code size
+                m_Size     = Expr()->GetCostSz();   // always the GetCostSz()
                 m_defCount = m_CseDsc->csdDefCount; // def count
                 m_useCount = m_CseDsc->csdUseCount; // use count (excluding the implicit uses at defs)
             }
             else
             {
-                m_Cost     = Expr()->gtCostEx;      // the estimated execution cost
-                m_Size     = Expr()->gtCostSz;      // always the gtCostSz
+                m_Cost     = Expr()->GetCostEx();   // the estimated execution cost
+                m_Size     = Expr()->GetCostSz();   // always the GetCostSz()
                 m_defCount = m_CseDsc->csdDefWtCnt; // weighted def count
                 m_useCount = m_CseDsc->csdUseWtCnt; // weighted use count (excluding the implicit uses at defs)
             }
@@ -2129,9 +2129,9 @@ public:
         do
         {
             /* Process the next node in the list */
-            GenTree*     exp  = lst->tslTree;
-            GenTreeStmt* stmt = lst->tslStmt;
-            BasicBlock*  blk  = lst->tslBlock;
+            GenTree*    exp  = lst->tslTree;
+            Statement*  stmt = lst->tslStmt;
+            BasicBlock* blk  = lst->tslBlock;
 
             /* Advance to the next node in the list */
             lst = lst->tslNext;
@@ -2375,12 +2375,12 @@ public:
             if (link == nullptr)
             {
                 printf("\ngtFindLink failed: stm=");
-                Compiler::printTreeID(stmt->gtStmtExpr);
+                Compiler::printStmtID(stmt);
                 printf(", exp=");
                 Compiler::printTreeID(exp);
                 printf("\n");
                 printf("stm =");
-                m_pCompiler->gtDispTree(stmt->gtStmtExpr);
+                m_pCompiler->gtDispStmt(stmt);
                 printf("\n");
                 printf("exp =");
                 m_pCompiler->gtDispTree(exp);
@@ -2605,11 +2605,11 @@ bool Compiler::optIsCSEcandidate(GenTree* tree)
     unsigned cost;
     if (compCodeOpt() == SMALL_CODE)
     {
-        cost = tree->gtCostSz;
+        cost = tree->GetCostSz();
     }
     else
     {
-        cost = tree->gtCostEx;
+        cost = tree->GetCostEx();
     }
 
     /* Don't bother if the potential savings are very low */
@@ -2888,7 +2888,7 @@ void Compiler::optCleanupCSEs()
         block->bbFlags &= ~(BBF_VISITED | BBF_MARKED);
 
         // Walk the statement trees in this basic block.
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
             // We must clear the gtCSEnum field.
             for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
@@ -2914,9 +2914,8 @@ void Compiler::optEnsureClearCSEInfo()
         assert((block->bbFlags & (BBF_VISITED | BBF_MARKED)) == 0);
 
         // Initialize 'stmt' to the first non-Phi statement
-        GenTreeStmt* stmt = block->FirstNonPhiDef();
         // Walk the statement trees in this basic block
-        for (; stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
             for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
             {

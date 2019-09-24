@@ -378,8 +378,7 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     // Save the stack usage information
     // We can get register usage information using codeGen->intRegState and
     // codeGen->floatRegState
-    info.compArgStackSize     = varDscInfo->stackArgSize;
-    info.compHasMultiSlotArgs = varDscInfo->hasMultiSlotStruct;
+    info.compArgStackSize = varDscInfo->stackArgSize;
 #endif // FEATURE_FASTTAILCALL
 
     // The total argument size must be aligned.
@@ -852,8 +851,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
-                    varDscInfo->hasMultiSlotStruct = true;
+                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
                 }
             }
 #elif defined(UNIX_AMD64_ABI)
@@ -864,9 +862,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
                 if (structDesc.eightByteCount >= 2)
                 {
-                    secondEightByteType            = GetEightByteType(structDesc, 1);
-                    secondAllocatedRegArgNum       = varDscInfo->allocRegArg(secondEightByteType, 1);
-                    varDscInfo->hasMultiSlotStruct = true;
+                    secondEightByteType      = GetEightByteType(structDesc, 1);
+                    secondAllocatedRegArgNum = varDscInfo->allocRegArg(secondEightByteType, 1);
                 }
 
                 if (secondEightByteType != TYP_UNDEF)
@@ -1006,11 +1003,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif // _TARGET_XXX_
 
 #if FEATURE_FASTTAILCALL
-            if (cSlots > 1)
-            {
-                varDscInfo->hasMultiSlotStruct = true;
-            }
-
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += roundUp(argSize, TARGET_POINTER_SIZE);
 #endif // FEATURE_FASTTAILCALL
         }
@@ -1104,6 +1097,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
             // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
@@ -1173,6 +1167,7 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
             // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
@@ -3527,7 +3522,7 @@ var_types LclVarDsc::lvaArgType()
 //     Verifies that local accesses are consistenly typed.
 //     Verifies that casts remain in bounds.
 
-void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stmt, bool isRecompute)
+void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt, bool isRecompute)
 {
     const BasicBlock::weight_t weight = block->getBBWeight(this);
 
@@ -3774,9 +3769,9 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     class MarkLocalVarsVisitor final : public GenTreeVisitor<MarkLocalVarsVisitor>
     {
     private:
-        BasicBlock*  m_block;
-        GenTreeStmt* m_stmt;
-        bool         m_isRecompute;
+        BasicBlock* m_block;
+        Statement*  m_stmt;
+        bool        m_isRecompute;
 
     public:
         enum
@@ -3784,7 +3779,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
             DoPreOrder = true,
         };
 
-        MarkLocalVarsVisitor(Compiler* compiler, BasicBlock* block, GenTreeStmt* stmt, bool isRecompute)
+        MarkLocalVarsVisitor(Compiler* compiler, BasicBlock* block, Statement* stmt, bool isRecompute)
             : GenTreeVisitor<MarkLocalVarsVisitor>(compiler), m_block(block), m_stmt(stmt), m_isRecompute(isRecompute)
         {
         }
@@ -3799,10 +3794,10 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     JITDUMP("\n*** %s local variables in block " FMT_BB " (weight=%s)\n", isRecompute ? "recomputing" : "marking",
             block->bbNum, refCntWtd2str(block->getBBWeight(this)));
 
-    for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+    for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
     {
         MarkLocalVarsVisitor visitor(this, block, stmt, isRecompute);
-        DISPTREE(stmt->gtStmtExpr);
+        DISPSTMT(stmt);
         visitor.WalkTree(&stmt->gtStmtExpr, nullptr);
     }
 }
@@ -6852,6 +6847,10 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
     if (varDsc->lvClassIsExact)
     {
         printf(" exact");
+    }
+    if (varDsc->lvLiveInOutOfHndlr)
+    {
+        printf(" EH-live");
     }
 #ifndef _TARGET_64BIT_
     if (varDsc->lvStructDoubleAlign)

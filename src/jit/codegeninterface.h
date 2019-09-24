@@ -277,7 +277,7 @@ public:
 #endif // !DOUBLE_ALIGN
 
 #ifdef DEBUG
-    // The following is used to make sure the value of 'genInterruptible' isn't
+    // The following is used to make sure the value of 'GetInterruptible()' isn't
     // changed after it's been used by any logic that depends on its value.
 public:
     bool isGCTypeFixed()
@@ -316,7 +316,7 @@ public:
     TempDsc* getSpillTempDsc(GenTree* tree);
 
 public:
-    emitter* getEmitter() const
+    emitter* GetEmitter() const
     {
         return m_cgEmitter;
     }
@@ -348,23 +348,22 @@ public:
     // is to be fully interruptible.
     //
 public:
-    __declspec(property(get = getInterruptible, put = setInterruptible)) bool genInterruptible;
-    bool getInterruptible()
+    bool GetInterruptible()
     {
         return m_cgInterruptible;
     }
-    void setInterruptible(bool value)
+    void SetInterruptible(bool value)
     {
         m_cgInterruptible = value;
     }
 
 #ifdef _TARGET_ARMARCH_
-    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
-    bool getHasTailCalls()
+
+    bool GetHasTailCalls()
     {
         return m_cgHasTailCalls;
     }
-    void setHasTailCalls(bool value)
+    void SetHasTailCalls(bool value)
     {
         m_cgHasTailCalls = value;
     }
@@ -378,7 +377,7 @@ private:
 
     //  The following will be set to true if we've determined that we need to
     //  generate a full-blown pointer register map for the current method.
-    //  Currently it is equal to (genInterruptible || !isFramePointerUsed())
+    //  Currently it is equal to (GetInterruptible() || !isFramePointerUsed())
     //  (i.e. We generate the full-blown map for EBP-less methods and
     //        for fully interruptible methods)
     //

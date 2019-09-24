@@ -1537,10 +1537,10 @@ size_t GCInfo::gcInfoBlockHdrSave(
     header->prologSize = static_cast<unsigned char>(prologSize);
     assert(FitsIn<unsigned char>(epilogSize));
     header->epilogSize  = static_cast<unsigned char>(epilogSize);
-    header->epilogCount = compiler->getEmitter()->emitGetEpilogCnt();
-    if (header->epilogCount != compiler->getEmitter()->emitGetEpilogCnt())
+    header->epilogCount = compiler->GetEmitter()->emitGetEpilogCnt();
+    if (header->epilogCount != compiler->GetEmitter()->emitGetEpilogCnt())
         IMPL_LIMITATION("emitGetEpilogCnt() does not fit in InfoHdr::epilogCount");
-    header->epilogAtEnd = compiler->getEmitter()->emitHasEpilogEnd();
+    header->epilogAtEnd = compiler->GetEmitter()->emitHasEpilogEnd();
 
     if (compiler->codeGen->regSet.rsRegsModified(RBM_EDI))
         header->ediSaved = 1;
@@ -1549,7 +1549,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
     if (compiler->codeGen->regSet.rsRegsModified(RBM_EBX))
         header->ebxSaved = 1;
 
-    header->interruptible = compiler->codeGen->genInterruptible;
+    header->interruptible = compiler->codeGen->GetInterruptible();
 
     if (!compiler->isFramePointerUsed())
     {
@@ -1612,11 +1612,11 @@ size_t GCInfo::gcInfoBlockHdrSave(
     if (compiler->info.compFlags & CORINFO_FLG_SYNCH)
     {
         assert(compiler->syncStartEmitCookie != NULL);
-        header->syncStartOffset = compiler->getEmitter()->emitCodeOffset(compiler->syncStartEmitCookie, 0);
+        header->syncStartOffset = compiler->GetEmitter()->emitCodeOffset(compiler->syncStartEmitCookie, 0);
         assert(header->syncStartOffset != INVALID_SYNC_OFFSET);
 
         assert(compiler->syncEndEmitCookie != NULL);
-        header->syncEndOffset = compiler->getEmitter()->emitCodeOffset(compiler->syncEndEmitCookie, 0);
+        header->syncEndOffset = compiler->GetEmitter()->emitCodeOffset(compiler->syncEndEmitCookie, 0);
         assert(header->syncEndOffset != INVALID_SYNC_OFFSET);
 
         assert(header->syncStartOffset < header->syncEndOffset);
@@ -1745,7 +1745,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
             gcEpilogTable      = mask ? dest : NULL;
             gcEpilogPrevOffset = 0;
 
-            size_t sz = compiler->getEmitter()->emitGenEpilogLst(gcRecordEpilog, this);
+            size_t sz = compiler->GetEmitter()->emitGenEpilogLst(gcRecordEpilog, this);
 
             /* Add the size of the epilog table to the total size */
 
@@ -1758,7 +1758,7 @@ size_t GCInfo::gcInfoBlockHdrSave(
 
     if (mask)
     {
-        if (compiler->codeGen->genInterruptible)
+        if (compiler->codeGen->GetInterruptible())
         {
             genMethodICnt++;
         }
@@ -2450,7 +2450,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
     lastOffset = 0;
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->GetInterruptible())
     {
 #ifdef _TARGET_X86_
         assert(compiler->genFullPtrRegMap);
@@ -2784,7 +2784,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         dest -= mask;
         totalSize++;
     }
-    else if (compiler->isFramePointerUsed()) // genInterruptible is false
+    else if (compiler->isFramePointerUsed()) // GetInterruptible() is false
     {
 #ifdef _TARGET_X86_
         /*
@@ -3071,7 +3071,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
         dest -= mask;
         totalSize++;
     }
-    else // genInterruptible is false and we have an EBP-less frame
+    else // GetInterruptible() is false and we have an EBP-less frame
     {
         assert(compiler->genFullPtrRegMap);
 
@@ -3079,7 +3079,7 @@ size_t GCInfo::gcMakeRegPtrTable(BYTE* dest, int mask, const InfoHdr& header, un
 
         regPtrDsc*       genRegPtrTemp;
         regNumber        thisRegNum = regNumber(0);
-        PendingArgsStack pasStk(compiler->getEmitter()->emitMaxStackDepth, compiler);
+        PendingArgsStack pasStk(compiler->GetEmitter()->emitMaxStackDepth, compiler);
 
         /* Walk the list of pointer register/argument entries */
 
@@ -3931,7 +3931,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 
         // A VM requirement due to how the decoder works (it ignores partially interruptible frames when
         // an exception has escaped, but the VM requires the security object to live on).
-        assert(compiler->codeGen->genInterruptible);
+        assert(compiler->codeGen->GetInterruptible());
 
         // The lv offset is FP-relative, and the using code expects caller-sp relative, so translate.
         // The normal GC lifetime reporting mechanisms will report a proper lifetime to the GC.
@@ -3963,7 +3963,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 #endif // FEATURE_EH_FUNCLETS
 
 #ifdef _TARGET_ARMARCH_
-    if (compiler->codeGen->hasTailCalls)
+    if (compiler->codeGen->GetHasTailCalls())
     {
         gcInfoEncoderWithLog->SetHasTailCalls();
     }
@@ -3976,7 +3976,7 @@ void GCInfo::gcInfoBlockHdrSave(GcInfoEncoder* gcInfoEncoder, unsigned methodSiz
 
 #if DISPLAY_SIZES
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->GetInterruptible())
     {
         genMethodICnt++;
     }
@@ -4275,7 +4275,7 @@ void GCInfo::gcMakeRegPtrTable(
      **************************************************************************
      */
 
-    if (compiler->codeGen->genInterruptible)
+    if (compiler->codeGen->GetInterruptible())
     {
         assert(compiler->genFullPtrRegMap);
 
@@ -4369,7 +4369,7 @@ void GCInfo::gcMakeRegPtrTable(
             // Currently just prologs and epilogs.
 
             InterruptibleRangeReporter reporter(prologSize, gcInfoEncoderWithLog);
-            compiler->getEmitter()->emitGenNoGCLst(reporter);
+            compiler->GetEmitter()->emitGenNoGCLst(reporter);
             prologSize = reporter.prevStart;
 
             // Report any remainder
@@ -4379,7 +4379,7 @@ void GCInfo::gcMakeRegPtrTable(
             }
         }
     }
-    else if (compiler->isFramePointerUsed()) // genInterruptible is false, and we're using EBP as a frame pointer.
+    else if (compiler->isFramePointerUsed()) // GetInterruptible() is false, and we're using EBP as a frame pointer.
     {
         assert(compiler->genFullPtrRegMap == false);
 
@@ -4485,7 +4485,7 @@ void GCInfo::gcMakeRegPtrTable(
             gcInfoEncoderWithLog->DefineCallSites(pCallSites, pCallSiteSizes, numCallSites);
         }
     }
-    else // genInterruptible is false and we have an EBP-less frame
+    else // GetInterruptible() is false and we have an EBP-less frame
     {
         assert(compiler->genFullPtrRegMap);
 
@@ -4745,7 +4745,7 @@ void GCInfo::gcInfoRecordGCStackArgLive(GcInfoEncoder* gcInfoEncoder, MakeRegPtr
     assert(genStackPtr->rpdArgTypeGet() == rpdARG_PUSH);
 
     // We only need to report these when we're doing fuly-interruptible
-    assert(compiler->codeGen->genInterruptible);
+    assert(compiler->codeGen->GetInterruptible());
 
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
@@ -4782,7 +4782,7 @@ void GCInfo::gcInfoRecordGCStackArgsDead(GcInfoEncoder* gcInfoEncoder,
     // earlier, as going dead after the call.
 
     // We only need to report these when we're doing fuly-interruptible
-    assert(compiler->codeGen->genInterruptible);
+    assert(compiler->codeGen->GetInterruptible());
 
     GCENCODER_WITH_LOGGING(gcInfoEncoderWithLog, gcInfoEncoder);
 
