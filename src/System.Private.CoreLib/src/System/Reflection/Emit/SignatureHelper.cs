@@ -523,7 +523,7 @@ namespace System.Reflection.Emit
                 throw new ArgumentException(SR.Argument_LargeInteger);
             }
 
-            rid = (rid << 2);
+            rid <<= 2;
 
             // TypeDef is encoded with low bits 00
             // TypeRef is encoded with low bits 01

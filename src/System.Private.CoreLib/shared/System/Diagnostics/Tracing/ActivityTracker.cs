@@ -501,7 +501,7 @@ namespace System.Diagnostics.Tracing
                             break;
                         }
                         *ptr++ = (byte)id;
-                        id = (id >> 8);
+                        id >>= 8;
                         --len;
                     }
                 }

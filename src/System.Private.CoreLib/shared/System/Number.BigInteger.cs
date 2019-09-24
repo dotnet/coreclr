@@ -561,7 +561,7 @@ namespace System
                     if (shiftLeft > 0)
                     {
                         divHi = (divHi << shiftLeft) | (divLo >> shiftRight);
-                        divLo = (divLo << shiftLeft);
+                        divLo <<= shiftLeft;
 
                         if (rhsLength > 2)
                         {
@@ -583,7 +583,7 @@ namespace System
                         if (shiftLeft > 0)
                         {
                             valHi = (valHi << shiftLeft) | (valLo >> shiftRight);
-                            valLo = (valLo << shiftLeft);
+                            valLo <<= shiftLeft;
 
                             if (i > 2)
                             {
