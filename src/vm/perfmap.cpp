@@ -11,6 +11,7 @@
 #include "perfmap.h"
 #include "perfinfo.h"
 #include "pal.h"
+#include "perfjitdump.h"
 
 // The code addresses are actually native image offsets during crossgen. Print
 // them as 32-bit numbers for consistent output when cross-targeting and to
@@ -50,6 +51,9 @@ void PerfMap::Initialize()
         {
             s_ShowOptimizationTiers = true;
         }
+#ifndef CROSSGEN_COMPILE
+        PerfJitDump::Start();
+#endif
     }
 }
 
@@ -60,6 +64,9 @@ void PerfMap::Destroy()
 
     if (s_Current != nullptr)
     {
+#ifndef CROSSGEN_COMPILE
+        PerfJitDump::Finish();
+#endif
         delete s_Current;
         s_Current = nullptr;
     }
@@ -183,24 +190,23 @@ void PerfMap::LogMethod(MethodDesc * pMethod, PCODE pCode, size_t codeSize, cons
     EX_TRY
     {
         // Get the full method signature.
-        SString fullMethodSignature;
-        pMethod->GetFullMethodInfo(fullMethodSignature);
+        SString name;
+        pMethod->GetFullMethodInfo(name);
 
         // Build the map file line.
         StackScratchBuffer scratch;
-        SString line;
-        line.Printf(FMT_CODE_ADDR " %x %s", pCode, codeSize, fullMethodSignature.GetANSI(scratch));
         if (optimizationTier != nullptr && s_ShowOptimizationTiers)
         {
-            line.AppendPrintf("[%s]\n", optimizationTier);
+            name.AppendPrintf("[%s]", optimizationTier);
         }
-        else
-        {
-            line.Append(W('\n'));
-        }
+        SString line;
+        line.Printf(FMT_CODE_ADDR " %x %s\n", pCode, codeSize, name.GetANSI(scratch));
 
         // Write the line.
         WriteLine(line);
+#ifndef CROSSGEN_COMPILE
+        PerfJitDump::LogMethod((void*)pCode, codeSize, name.GetANSI(scratch));
+#endif
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
@@ -282,15 +288,21 @@ void PerfMap::LogStubs(const char* stubType, const char* stubOwner, PCODE pCode,
         }
         if(!stubType)
         {
-            stubOwner = "?";
+            stubType = "?";
         }
 
         // Build the map file line.
+        StackScratchBuffer scratch;
+        SString name;
+        name.Printf("stub<%d> %s<%s>", ++(s_Current->m_StubsMapped), stubType, stubOwner);
         SString line;
-        line.Printf(FMT_CODE_ADDR " %x stub<%d> %s<%s>\n", pCode, codeSize, ++(s_Current->m_StubsMapped), stubType, stubOwner);
+        line.Printf(FMT_CODE_ADDR " %x %s\n", pCode, codeSize, name.GetANSI(scratch));
 
         // Write the line.
         s_Current->WriteLine(line);
+#ifndef CROSSGEN_COMPILE
+        PerfJitDump::LogMethod((void*)pCode, codeSize, name.GetANSI(scratch));
+#endif
     }
     EX_CATCH{} EX_END_CATCH(SwallowAllExceptions);
 }
