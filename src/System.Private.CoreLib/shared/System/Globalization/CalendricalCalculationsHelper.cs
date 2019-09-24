@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 namespace System.Globalization
 {
-    internal class CalendricalCalculationsHelper
+    internal static class CalendricalCalculationsHelper
     {
         private const double FullCircleOfArc = 360.0; // 360.0;
         private const int HalfCircleOfArc = 180;

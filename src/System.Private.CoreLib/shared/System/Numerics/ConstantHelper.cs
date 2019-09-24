@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 
 namespace System.Numerics
 {
-    internal class ConstantHelper
+    internal static class ConstantHelper
     {
         [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
         public static byte GetByteWithAllBitsSet()
