@@ -422,7 +422,7 @@ namespace System.Threading
             SpinWait spinner = new SpinWait();
 
             // Loop until the lock has been successfully acquired or, if specified, the timeout expires.
-            do
+            while (true)
             {
                 // We failed to get the lock, either from the fast route or the last iteration
                 // and the timeout hasn't expired; spin once and try again.
@@ -444,7 +444,7 @@ namespace System.Threading
                 {
                     return;
                 }
-            } while (true);
+            }
         }
 
         /// <summary>

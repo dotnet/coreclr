@@ -687,7 +687,7 @@ namespace System.Threading.Tasks
         private bool AtomicStateUpdateSlow(int newBits, int illegalBits)
         {
             int flags = m_stateFlags;
-            do
+            while (true)
             {
                 if ((flags & illegalBits) != 0) return false;
                 int oldFlags = Interlocked.CompareExchange(ref m_stateFlags, flags | newBits, flags);
@@ -696,13 +696,13 @@ namespace System.Threading.Tasks
                     return true;
                 }
                 flags = oldFlags;
-            } while (true);
+            }
         }
 
         internal bool AtomicStateUpdate(int newBits, int illegalBits, ref int oldFlags)
         {
             int flags = oldFlags = m_stateFlags;
-            do
+            while (true)
             {
                 if ((flags & illegalBits) != 0) return false;
                 oldFlags = Interlocked.CompareExchange(ref m_stateFlags, flags | newBits, flags);
@@ -711,7 +711,7 @@ namespace System.Threading.Tasks
                     return true;
                 }
                 flags = oldFlags;
-            } while (true);
+            }
         }
 
         /// <summary>
