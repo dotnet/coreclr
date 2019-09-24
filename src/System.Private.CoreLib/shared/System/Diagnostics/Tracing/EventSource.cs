@@ -5307,7 +5307,7 @@ namespace System.Diagnostics.Tracing
 
             string symbolsName = providerName.Replace("-", "").Replace('.', '_');  // Period and - are illegal replace them.
             sb.Append("\" symbol=\"").Append(symbolsName);
-            sb.Append("\">").AppendLine();
+            sb.AppendLine("\">");
         }
 
         public void AddOpcode(string name, int value)
@@ -5477,7 +5477,7 @@ namespace System.Diagnostics.Tracing
         public void AddEventParameter(Type type, string name)
         {
             if (numParams == 0)
-                templates.Append("  <template tid=\"").Append(eventName).Append("Args\">").AppendLine();
+                templates.Append("  <template tid=\"").Append(eventName).AppendLine("Args\">");
             if (type == typeof(byte[]))
             {
                 // mark this index as "extraneous" (it has no parallel in the managed signature)
@@ -5487,7 +5487,7 @@ namespace System.Diagnostics.Tracing
 
                 // add an extra field to the template representing the length of the binary blob
                 numParams++;
-                templates.Append("   <data name=\"").Append(name).Append("Size\" inType=\"win:UInt32\"/>").AppendLine();
+                templates.Append("   <data name=\"").Append(name).AppendLine("Size\" inType=\"win:UInt32\"/>");
             }
             numParams++;
             templates.Append("   <data name=\"").Append(name).Append("\" inType=\"").Append(GetTypeName(type)).Append("\"");
@@ -5507,7 +5507,7 @@ namespace System.Diagnostics.Tracing
                     mapsTab.Add(type.Name, type);        // Remember that we need to dump the type enumeration
             }
 
-            templates.Append("/>").AppendLine();
+            templates.AppendLine("/>");
         }
         public void EndEvent()
         {
@@ -5515,10 +5515,10 @@ namespace System.Diagnostics.Tracing
 
             if (numParams > 0)
             {
-                templates.Append("  </template>").AppendLine();
+                templates.AppendLine("  </template>");
                 events.Append(" template=\"").Append(eventName).Append("Args\"");
             }
-            events.Append("/>").AppendLine();
+            events.AppendLine("/>");
 
             if (byteArrArgIndices != null)
                 perEventByteArrayArgIndices[eventName] = byteArrArgIndices;
@@ -5604,7 +5604,7 @@ namespace System.Diagnostics.Tracing
             // Write out the channels
             if (channelTab != null)
             {
-                sb.Append(" <channels>").AppendLine();
+                sb.AppendLine(" <channels>");
                 var sortedChannels = new List<KeyValuePair<int, ChannelInfo>>();
                 foreach (KeyValuePair<int, ChannelInfo> p in channelTab) { sortedChannels.Add(p); }
                 sortedChannels.Sort((p1, p2) => -Comparer<ulong>.Default.Compare(p1.Value.Keywords, p2.Value.Keywords));
@@ -5659,36 +5659,36 @@ namespace System.Diagnostics.Tracing
                             sb.Append(" isolation=\"").Append(isolation).Append("\"");
 #endif
                     }
-                    sb.Append("/>").AppendLine();
+                    sb.AppendLine("/>");
                 }
-                sb.Append(" </channels>").AppendLine();
+                sb.AppendLine(" </channels>");
             }
 #endif
 
             // Write out the tasks
             if (taskTab != null)
             {
-                sb.Append(" <tasks>").AppendLine();
+                sb.AppendLine(" <tasks>");
                 var sortedTasks = new List<int>(taskTab.Keys);
                 sortedTasks.Sort();
                 foreach (int task in sortedTasks)
                 {
                     sb.Append("  <task");
                     WriteNameAndMessageAttribs(sb, "task", taskTab[task]);
-                    sb.Append(" value=\"").Append(task).Append("\"/>").AppendLine();
+                    sb.Append(" value=\"").Append(task).AppendLine("\"/>");
                 }
-                sb.Append(" </tasks>").AppendLine();
+                sb.AppendLine(" </tasks>");
             }
 
             // Write out the maps
             if (mapsTab != null)
             {
-                sb.Append(" <maps>").AppendLine();
+                sb.AppendLine(" <maps>");
                 foreach (Type enumType in mapsTab.Values)
                 {
                     bool isbitmap = EventSource.GetCustomAttributeHelper(enumType, typeof(FlagsAttribute), flags) != null;
                     string mapKind = isbitmap ? "bitMap" : "valueMap";
-                    sb.Append("  <").Append(mapKind).Append(" name=\"").Append(enumType.Name).Append("\">").AppendLine();
+                    sb.Append("  <").Append(mapKind).Append(" name=\"").Append(enumType.Name).AppendLine("\">");
 
                     // write out each enum value
                     FieldInfo[] staticFields = enumType.GetFields(BindingFlags.DeclaredOnly | BindingFlags.Public | BindingFlags.Static);
@@ -5711,7 +5711,7 @@ namespace System.Diagnostics.Tracing
                                 continue;
                             sb.Append("   <map value=\"0x").Append(hexValue.ToString("x", CultureInfo.InvariantCulture)).Append("\"");
                             WriteMessageAttrib(sb, "map", enumType.Name + "." + staticField.Name, staticField.Name);
-                            sb.Append("/>").AppendLine();
+                            sb.AppendLine("/>");
                             anyValuesWritten = true;
                         }
                     }
@@ -5722,45 +5722,45 @@ namespace System.Diagnostics.Tracing
                     {
                         sb.Append("   <map value=\"0x0\"");
                         WriteMessageAttrib(sb, "map", enumType.Name + ".None", "None");
-                        sb.Append("/>").AppendLine();
+                        sb.AppendLine("/>");
                     }
-                    sb.Append("  </").Append(mapKind).Append(">").AppendLine();
+                    sb.Append("  </").Append(mapKind).AppendLine(">");
                 }
-                sb.Append(" </maps>").AppendLine();
+                sb.AppendLine(" </maps>");
             }
 
             // Write out the opcodes
-            sb.Append(" <opcodes>").AppendLine();
+            sb.AppendLine(" <opcodes>");
             var sortedOpcodes = new List<int>(opcodeTab.Keys);
             sortedOpcodes.Sort();
             foreach (int opcode in sortedOpcodes)
             {
                 sb.Append("  <opcode");
                 WriteNameAndMessageAttribs(sb, "opcode", opcodeTab[opcode]);
-                sb.Append(" value=\"").Append(opcode).Append("\"/>").AppendLine();
+                sb.Append(" value=\"").Append(opcode).AppendLine("\"/>");
             }
-            sb.Append(" </opcodes>").AppendLine();
+            sb.AppendLine(" </opcodes>");
 
             // Write out the keywords
             if (keywordTab != null)
             {
-                sb.Append(" <keywords>").AppendLine();
+                sb.AppendLine(" <keywords>");
                 var sortedKeywords = new List<ulong>(keywordTab.Keys);
                 sortedKeywords.Sort();
                 foreach (ulong keyword in sortedKeywords)
                 {
                     sb.Append("  <keyword");
                     WriteNameAndMessageAttribs(sb, "keyword", keywordTab[keyword]);
-                    sb.Append(" mask=\"0x").Append(keyword.ToString("x", CultureInfo.InvariantCulture)).Append("\"/>").AppendLine();
+                    sb.Append(" mask=\"0x").Append(keyword.ToString("x", CultureInfo.InvariantCulture)).AppendLine("\"/>");
                 }
-                sb.Append(" </keywords>").AppendLine();
+                sb.AppendLine(" </keywords>");
             }
 
-            sb.Append(" <events>").AppendLine();
+            sb.AppendLine(" <events>");
             sb.Append(events);
-            sb.Append(" </events>").AppendLine();
+            sb.AppendLine(" </events>");
 
-            sb.Append(" <templates>").AppendLine();
+            sb.AppendLine(" <templates>");
             if (templates.Length > 0)
             {
                 sb.Append(templates);
@@ -5769,16 +5769,16 @@ namespace System.Diagnostics.Tracing
             {
                 // Work around a cornercase ETW issue where a manifest with no templates causes
                 // ETW events to not get sent to their associated channel.
-                sb.Append("    <template tid=\"_empty\"></template>").AppendLine();
+                sb.AppendLine("    <template tid=\"_empty\"></template>");
             }
-            sb.Append(" </templates>").AppendLine();
+            sb.AppendLine(" </templates>");
 
-            sb.Append("</provider>").AppendLine();
-            sb.Append("</events>").AppendLine();
-            sb.Append("</instrumentation>").AppendLine();
+            sb.AppendLine("</provider>");
+            sb.AppendLine("</events>");
+            sb.AppendLine("</instrumentation>");
 
             // Output the localization information.
-            sb.Append("<localization>").AppendLine();
+            sb.AppendLine("<localization>");
 
             List<CultureInfo> cultures = (resources != null && (flags & EventManifestOptions.AllCultures) != 0) ?
                 GetSupportedCultures() :
@@ -5790,18 +5790,18 @@ namespace System.Diagnostics.Tracing
 
             foreach (CultureInfo ci in cultures)
             {
-                sb.Append(" <resources culture=\"").Append(ci.Name).Append("\">").AppendLine();
-                sb.Append("  <stringTable>").AppendLine();
+                sb.Append(" <resources culture=\"").Append(ci.Name).AppendLine("\">");
+                sb.AppendLine("  <stringTable>");
 
                 foreach (string stringKey in sortedStrings)
                 {
                     string? val = GetLocalizedMessage(stringKey, ci, etwFormat: true);
-                    sb.Append("   <string id=\"").Append(stringKey).Append("\" value=\"").Append(val).Append("\"/>").AppendLine();
+                    sb.Append("   <string id=\"").Append(stringKey).Append("\" value=\"").Append(val).AppendLine("\"/>");
                 }
-                sb.Append("  </stringTable>").AppendLine();
-                sb.Append(" </resources>").AppendLine();
+                sb.AppendLine("  </stringTable>");
+                sb.AppendLine(" </resources>");
             }
-            sb.Append("</localization>").AppendLine();
+            sb.AppendLine("</localization>");
             sb.AppendLine("</instrumentationManifest>");
             return sb.ToString();
         }
