@@ -3682,7 +3682,8 @@ private:
                                                              MethodDesc* pGenericMDescInRepMT,
                                                              MethodDesc* pSharedMDescForStub,
                                                              Instantiation methodInst,
-                                                             BOOL getSharedNotStub);
+                                                             BOOL getSharedNotStub,
+                                                             BOOL recordForDictionaryExpansion);
 
 };
 

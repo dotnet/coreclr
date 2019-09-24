@@ -347,9 +347,6 @@ BOOL DictionaryLayout::FindToken(MethodTable*                       pMT,
         // First, expand the PerInstInfo dictionaries on types that were using the dictionary layout that just got expanded, and expand their slots
         pMT->GetModule()->ExpandTypeDictionaries_Locked(pMT, pOldLayout, pNewLayout);
 
-        // Ensure no other thread uses old dictionary pointers
-        FlushProcessWriteBuffers();
-
         // Finally, update the dictionary layout pointer after all dictionaries of instantiated types have expanded, so that subsequent calls to 
         // DictionaryLayout::FindToken can use this. It is important to update the dictionary layout at the very last step, otherwise some other threads
         // can start using newly added dictionary layout slots on types where the PerInstInfo hasn't expanded yet, and cause runtime failures.
@@ -405,9 +402,6 @@ BOOL DictionaryLayout::FindToken(MethodDesc*                        pMD,
 
         // First, expand the PerInstInfo dictionaries on methods that were using the dictionary layout that just got expanded, and expand their slots
         pMD->GetModule()->ExpandMethodDictionaries_Locked(pMD, pOldLayout, pNewLayout);
-
-        // Ensure no other thread uses old dictionary pointers
-        FlushProcessWriteBuffers();
 
         // Finally, update the dictionary layout pointer after all dictionaries of instantiated methods have expanded, so that subsequent calls to 
         // DictionaryLayout::FindToken can use this. It is important to update the dictionary layout at the very last step, otherwise some other threads
