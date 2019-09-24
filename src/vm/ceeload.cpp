@@ -12864,6 +12864,16 @@ idMethodSpec Module::LogInstantiatedMethod(const MethodDesc * md, ULONG flagNum)
     {
         CONTRACT_VIOLATION(ThrowsViolation|FaultViolation|GCViolation);
 
+        if (!m_tokenProfileData) 
+        { 
+            CreateProfilingData(); 
+        } 
+
+        if (!m_tokenProfileData) 
+        { 
+            return idMethodSpecNil; 
+        } 
+
         // get data
         SigBuilder sigBuilder;
 

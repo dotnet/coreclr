@@ -345,6 +345,26 @@ namespace
     }
 }
 
+static void *TryLoadHostPolicy(const char *hostPolicyPath)
+{
+#if defined(__APPLE__)
+    static const char LibrarySuffix[] = ".dylib";
+#else // Various Linux-related OS-es
+    static const char LibrarySuffix[] = ".so";
+#endif
+
+    std::string hostPolicyCompletePath(hostPolicyPath);
+    hostPolicyCompletePath.append(LibrarySuffix);
+
+    void *libraryPtr = dlopen(hostPolicyCompletePath.c_str(), RTLD_LAZY);
+    if (libraryPtr == nullptr)
+    {
+        fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", hostPolicyCompletePath.c_str(), dlerror());
+    }
+
+    return libraryPtr;
+}
+
 int ExecuteManagedAssembly(
             const char* currentExeAbsolutePath,
             const char* clrFilesAbsolutePath,
@@ -404,10 +424,9 @@ int ExecuteManagedAssembly(
     char* mockHostpolicyPath = getenv("MOCK_HOSTPOLICY");
     if (mockHostpolicyPath)
     {
-        hostpolicyLib = dlopen(mockHostpolicyPath, RTLD_LAZY);
+        hostpolicyLib = TryLoadHostPolicy(mockHostpolicyPath);
         if (hostpolicyLib == nullptr)
         {
-            fprintf(stderr, "Failed to load mock hostpolicy at path '%s'. Error: %s", mockHostpolicyPath, dlerror());
             return -1;
         }
     }
