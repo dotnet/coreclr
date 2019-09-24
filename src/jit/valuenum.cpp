@@ -7123,7 +7123,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
 
                         assert(rhsVNPair.GetLiberal() != ValueNumStore::NoVN);
 
-                        lhs->gtVNPair                                                 = rhsVNPair;
+                        lhs->gtVNPair                                                    = rhsVNPair;
                         lvaTable[lcl->GetLclNum()].GetPerSsaData(lclDefSsaNum)->m_vnPair = rhsVNPair;
 
 #ifdef DEBUG
@@ -7191,7 +7191,8 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                             {
                                 // We don't know what field this represents.  Assign a new VN to the whole variable
                                 // (since we may be writing to an unknown portion of it.)
-                                newLhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lvaGetActualType(lclFld->GetLclNum())));
+                                newLhsVNPair.SetBoth(
+                                    vnStore->VNForExpr(compCurBB, lvaGetActualType(lclFld->GetLclNum())));
                             }
                             else
                             {

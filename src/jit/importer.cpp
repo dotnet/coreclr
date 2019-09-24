@@ -2555,7 +2555,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
 #if defined(JIT32_GCENCODER)
     const bool forceInsertNewBlock = isSingleBlockFilter || compStressCompile(STRESS_CATCH_ARG, 5);
 #else
-    const bool forceInsertNewBlock                                     = compStressCompile(STRESS_CATCH_ARG, 5);
+    const bool forceInsertNewBlock                                        = compStressCompile(STRESS_CATCH_ARG, 5);
 #endif // defined(JIT32_GCENCODER)
 
     /* Spill GT_CATCH_ARG to a temp if there are jumps to the beginning of the handler */
@@ -8336,7 +8336,8 @@ var_types Compiler::impImportCall(OPCODE                  opcode,
                 }
 
                 assert(newobjThis->gtOper == GT_LCL_VAR);
-                impPushOnStack(gtNewLclvNode(newobjThis->gtLclVarCommon.GetLclNum(), TYP_REF), typeInfo(TI_REF, clsHnd));
+                impPushOnStack(gtNewLclvNode(newobjThis->gtLclVarCommon.GetLclNum(), TYP_REF),
+                               typeInfo(TI_REF, clsHnd));
             }
         }
         return callRetTyp;

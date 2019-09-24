@@ -969,7 +969,8 @@ void CodeGen::genUnspillRegIfNeeded(GenTree* tree)
                 assert(!varTypeIsGC(varDsc));
                 var_types spillType = genActualType(varDsc->lvType);
                 unspillTree->gtType = spillType;
-                inst_RV_TT(ins_Load(spillType, compiler->isSIMDTypeLocalAligned(lcl->GetLclNum())), dstReg, unspillTree);
+                inst_RV_TT(ins_Load(spillType, compiler->isSIMDTypeLocalAligned(lcl->GetLclNum())), dstReg,
+                           unspillTree);
                 unspillTree->gtType = treeType;
             }
             else

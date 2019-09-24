@@ -1937,7 +1937,8 @@ void Compiler::JitTestCheckSSA()
             {
                 printf("  Node: ");
                 printTreeID(lcl);
-                printf(", SSA name = <%d, %d> -- SSA name class %d.\n", lcl->GetLclNum(), lcl->GetSsaNum(), tlAndN.m_num);
+                printf(", SSA name = <%d, %d> -- SSA name class %d.\n", lcl->GetLclNum(), lcl->GetSsaNum(),
+                       tlAndN.m_num);
             }
             SSAName ssaNm;
             if (labelToSSA->Lookup(tlAndN.m_num, &ssaNm))
@@ -1954,7 +1955,8 @@ void Compiler::JitTestCheckSSA()
                 if (tlAndN.m_num != num2)
                 {
                     printf("Node: ");
-                    printTreeID(lcl);                    printf(", SSA name = <%d, %d> was declared in SSA name class %d,\n", lcl->GetLclNum(),
+                    printTreeID(lcl);
+                    printf(", SSA name = <%d, %d> was declared in SSA name class %d,\n", lcl->GetLclNum(),
                            lcl->GetSsaNum(), tlAndN.m_num);
                     printf(
                         "but this SSA name <%d,%d> has already been associated with a different SSA name class: %d.\n",

@@ -3828,7 +3828,8 @@ inline bool Compiler::impIsThis(GenTree* obj)
     }
     else
     {
-        return ((obj != nullptr) && (obj->gtOper == GT_LCL_VAR) && lvaIsOriginalThisArg(obj->gtLclVarCommon.GetLclNum()));
+        return ((obj != nullptr) && (obj->gtOper == GT_LCL_VAR) &&
+                lvaIsOriginalThisArg(obj->gtLclVarCommon.GetLclNum()));
     }
 }
 
