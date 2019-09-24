@@ -380,8 +380,10 @@ struct LsraBlockInfo
     // 0 for fgFirstBB.
     unsigned int         predBBNum;
     BasicBlock::weight_t weight;
-    bool                 hasCriticalInEdge;
-    bool                 hasCriticalOutEdge;
+    bool                 hasCriticalInEdge : 8;
+    bool                 hasCriticalOutEdge : 8;
+    bool                 hasEHBoundaryIn : 8;
+    bool                 hasEHBoundaryOut : 8;
 
 #if TRACK_LSRA_STATS
     // Per block maintained LSRA statistics.
@@ -1059,7 +1061,19 @@ private:
                              LsraLocation* nextRefLocationPtr,
                              RegisterType  regType);
     void freeRegister(RegRecord* physRegRecord);
-    void freeRegisters(regMaskTP regsToFree);
+
+    struct RegsToFree
+    {
+        regMaskTP current;
+        regMaskTP delayed;
+
+        bool isEmpty()
+        {
+            return current == RBM_NONE && delayed == RBM_NONE;
+        }
+        void updateRegs(Interval* interval, RefPosition* refPosition, regMaskTP regMask);
+    };
+    void freeRegisters(RegsToFree& regsToFree);
 
     // Get the type that this tree defines.
     var_types getDefType(GenTree* tree)
@@ -1464,6 +1478,9 @@ private:
     VARSET_TP splitOrSpilledVars;
     // Set of floating point variables to consider for callee-save registers.
     VARSET_TP fpCalleeSaveCandidateVars;
+    // Set of variables exposed on EH flow edges.
+    VARSET_TP exceptVars;
+
 #if FEATURE_PARTIAL_SIMD_CALLEE_SAVE
 #if defined(_TARGET_AMD64_)
     static bool varTypeNeedsPartialCalleeSave(var_types type)

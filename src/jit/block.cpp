@@ -1374,6 +1374,50 @@ BasicBlock* Compiler::bbNewBasicBlock(BBjumpKinds jumpKind)
     return block;
 }
 
+//------------------------------------------------------------------------
+// blockHasEHFlowIn: Determine if this block has incoming exception flow.
+//
+// Arguments:
+//    block   - the BasicBlock
+//
+// Return Value:
+//    True iff the block is the target of an EH edge; false otherwise
+//
+bool BasicBlock::hasEHFlowIn()
+{
+#if FEATURE_EH_FUNCLETS
+    return ((bbCatchTyp != BBCT_NONE) || (bbFlags & BBF_FUNCLET_BEG));
+#else  // !FEATURE_EH_FUNCLETS
+    return (bbCatchTyp != BBCT_NONE);
+#endif // !FEATURE_EH_FUNCLETS
+}
+
+//------------------------------------------------------------------------
+// blockHasEHFlowOut: Determine if this block ends in exception flow.
+//
+// Arguments:
+//    block   - the BasicBlock
+//
+// Return Value:
+//    True iff the block ends in exception flow; false otherwise
+//
+bool BasicBlock::hasEHFlowOut()
+{
+    // If a predecessor is marked BBF_KEEP_BBJ_ALWAYS, then we must keep all live incoming
+    // vars on the stack.
+    if (((bbFlags & BBF_KEEP_BBJ_ALWAYS) != 0) || (bbJumpKind == BBJ_EHFILTERRET) || (bbJumpKind == BBJ_EHFINALLYRET))
+    {
+        return true;
+    }
+#if FEATURE_EH_FUNCLETS
+    if (bbJumpKind == BBJ_EHCATCHRET)
+    {
+        return true;
+    }
+#endif // FEATURE_EH_FUNCLETS
+    return false;
+}
+
 //------------------------------------------------------------------------------
 // DisplayStaticSizes: display various static sizes of the BasicBlock data structure.
 //
