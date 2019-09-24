@@ -5314,10 +5314,9 @@ private:
 #endif
 
     Statement* m_next;
+    Statement* m_prev;
 
 public:
-    Statement* gtPrev;
-
     bool compilerAdded;
 
     Statement* GetNextStmt() const
@@ -5332,7 +5331,12 @@ public:
 
     Statement* GetPrevStmt() const
     {
-        return gtPrev;
+        return m_prev;
+    }
+
+    void SetPrevStmt(Statement* prevStmt)
+    {
+        m_prev = prevStmt;
     }
 
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
@@ -5345,7 +5349,7 @@ public:
         , m_stmtID(stmtID)
 #endif
         , m_next(nullptr)
-        , gtPrev(nullptr)
+        , m_prev(nullptr)
         , compilerAdded(false)
     {
     }

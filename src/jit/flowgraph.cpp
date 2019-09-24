@@ -560,17 +560,17 @@ void Compiler::fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt)
         if (firstStmt != nullptr)
         {
             // There is at least one statement already.
-            Statement* lastStmt = firstStmt->gtPrev;
+            Statement* lastStmt = firstStmt->GetPrevStmt();
             noway_assert(lastStmt != nullptr && lastStmt->GetNextStmt() == nullptr);
 
             // Insert the statement in front of the first one.
-            firstStmt->gtPrev = stmt;
-            stmt->gtPrev      = lastStmt;
+            firstStmt->SetPrevStmt(stmt);
+            stmt->SetPrevStmt(lastStmt);
         }
         else
         {
             // The block was completely empty.
-            stmt->gtPrev = stmt;
+            stmt->SetPrevStmt(stmt);
         }
     }
     else
@@ -629,14 +629,14 @@ void Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
 
         // Append the statement after the last one.
         lastStmt->SetNextStmt(stmt);
-        stmt->gtPrev      = lastStmt;
-        firstStmt->gtPrev = stmt;
+        stmt->SetPrevStmt(lastStmt);
+        firstStmt->SetPrevStmt(stmt);
     }
     else
     {
         // The block is completely empty.
         block->bbStmtList = stmt;
-        stmt->gtPrev      = stmt;
+        stmt->SetPrevStmt(stmt);
     }
 }
 
@@ -679,7 +679,7 @@ void Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
         noway_assert(firstStmt != nullptr);
         Statement* lastStmt = block->lastStmt();
         noway_assert(lastStmt != nullptr && lastStmt->GetNextStmt() == nullptr);
-        Statement* insertionPoint = lastStmt->gtPrev;
+        Statement* insertionPoint = lastStmt->GetPrevStmt();
 
 #if DEBUG
         if (block->bbJumpKind == BBJ_COND)
@@ -705,20 +705,20 @@ void Compiler::fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt)
 
         // Append 'stmt' before 'lastStmt'.
         stmt->SetNextStmt(lastStmt);
-        lastStmt->gtPrev = stmt;
+        lastStmt->SetPrevStmt(stmt);
 
         if (firstStmt == lastStmt)
         {
             // There is only one stmt in the block.
             block->bbStmtList = stmt;
-            stmt->gtPrev      = lastStmt;
+            stmt->SetPrevStmt(lastStmt);
         }
         else
         {
             // Append 'stmt' after 'insertionPoint'.
             noway_assert(insertionPoint != nullptr && (insertionPoint->GetNextStmt() == lastStmt));
             insertionPoint->SetNextStmt(stmt);
-            stmt->gtPrev = insertionPoint;
+            stmt->SetPrevStmt(insertionPoint);
         }
     }
     else
@@ -766,21 +766,21 @@ void Compiler::fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, S
     {
         // Ok, we want to insert after the last statement of the block.
         stmt->SetNextStmt(nullptr);
-        stmt->gtPrev = insertionPoint;
+        stmt->SetPrevStmt(insertionPoint);
 
         insertionPoint->SetNextStmt(stmt);
 
         // Update the backward link of the first statement of the block
         // to point to the new last statement.
-        assert(block->bbStmtList->gtPrev == insertionPoint);
-        block->bbStmtList->gtPrev = stmt;
+        assert(block->bbStmtList->GetPrevStmt() == insertionPoint);
+        block->bbStmtList->SetPrevStmt(stmt);
     }
     else
     {
         stmt->SetNextStmt(insertionPoint->GetNextStmt());
-        stmt->gtPrev = insertionPoint;
+        stmt->SetPrevStmt(insertionPoint);
 
-        insertionPoint->GetNextStmt()->gtPrev = stmt;
+        insertionPoint->GetNextStmt()->SetPrevStmt(stmt);
         insertionPoint->SetNextStmt(stmt);
     }
 }
@@ -809,18 +809,18 @@ void Compiler::fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, 
         Statement* last  = block->lastStmt();
 
         stmt->SetNextStmt(first);
-        stmt->gtPrev = last;
+        stmt->SetPrevStmt(last);
 
         block->bbStmtList = stmt;
-        first->gtPrev     = stmt;
+        first->SetPrevStmt(stmt);
     }
     else
     {
         stmt->SetNextStmt(insertionPoint);
-        stmt->gtPrev = insertionPoint->gtPrev;
+        stmt->SetPrevStmt(insertionPoint->GetPrevStmt());
 
-        insertionPoint->gtPrev->SetNextStmt(stmt);
-        insertionPoint->gtPrev = stmt;
+        insertionPoint->GetPrevStmt()->SetNextStmt(stmt);
+        insertionPoint->SetPrevStmt(stmt);
     }
 }
 
@@ -838,11 +838,12 @@ void Compiler::fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, 
 Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAfter, Statement* stmtList)
 {
     // Currently we can handle when stmtAfter and stmtList are non-NULL. This makes everything easy.
-    noway_assert(stmtAfter);
-    noway_assert(stmtList);
+    noway_assert(stmtAfter != nullptr);
+    noway_assert(stmtList != nullptr);
 
-    Statement* stmtLast = stmtList->GetPrevStmt(); // Last statement in a non-empty list, circular in the gtPrev list.
-    noway_assert(stmtLast);
+    // Last statement in a non-empty list, circular in the GetPrevStmt() list.
+    Statement* stmtLast = stmtList->GetPrevStmt();
+    noway_assert(stmtLast != nullptr);
     noway_assert(stmtLast->GetNextStmt() == nullptr);
 
     Statement* stmtNext = stmtAfter->GetNextStmt();
@@ -850,19 +851,19 @@ Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAft
     if (stmtNext == nullptr)
     {
         stmtAfter->SetNextStmt(stmtList);
-        stmtList->gtPrev          = stmtAfter;
-        block->bbStmtList->gtPrev = stmtLast;
+        stmtList->SetPrevStmt(stmtAfter);
+        block->bbStmtList->SetPrevStmt(stmtLast);
     }
     else
     {
         stmtAfter->SetNextStmt(stmtList);
-        stmtList->gtPrev = stmtAfter;
+        stmtList->SetPrevStmt(stmtAfter);
 
         stmtLast->SetNextStmt(stmtNext);
-        stmtNext->gtPrev = stmtLast;
+        stmtNext->SetPrevStmt(stmtLast);
     }
 
-    noway_assert(block->bbStmtList == nullptr || block->bbStmtList->gtPrev->GetNextStmt() == nullptr);
+    noway_assert(block->bbStmtList == nullptr || block->bbStmtList->GetPrevStmt()->GetNextStmt() == nullptr);
 
     return stmtLast;
 }
@@ -9441,9 +9442,9 @@ BasicBlock* Compiler::fgSplitBlockAfterStatement(BasicBlock* curr, Statement* st
         newBlock->bbStmtList = stmt->GetNextStmt();
         if (newBlock->bbStmtList != nullptr)
         {
-            newBlock->bbStmtList->gtPrev = curr->bbStmtList->gtPrev;
+            newBlock->bbStmtList->SetPrevStmt(curr->bbStmtList->GetPrevStmt());
         }
-        curr->bbStmtList->gtPrev = stmt;
+        curr->bbStmtList->SetPrevStmt(stmt);
         stmt->SetNextStmt(nullptr);
 
         // Update the IL offsets of the blocks to match the split.
@@ -10026,7 +10027,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
     }
 #endif // DEBUG
 
-    if (opts.compDbgCode && stmt->gtPrev != stmt && stmt->gtStmtILoffsx != BAD_IL_OFFSET)
+    if (opts.compDbgCode && stmt->GetPrevStmt() != stmt && stmt->gtStmtILoffsx != BAD_IL_OFFSET)
     {
         /* TODO: For debuggable code, should we remove significant
            statement boundaries. Or should we leave a GT_NO_OP in its place? */
@@ -10044,14 +10045,14 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         }
         else
         {
-            block->bbStmtList         = firstStmt->GetNextStmt();
-            block->bbStmtList->gtPrev = firstStmt->gtPrev;
+            block->bbStmtList = firstStmt->GetNextStmt();
+            block->bbStmtList->SetPrevStmt(firstStmt->GetPrevStmt());
         }
     }
     else if (stmt == block->lastStmt()) // Is it the last statement in the list?
     {
-        stmt->gtPrev->SetNextStmt(nullptr);
-        block->bbStmtList->gtPrev = stmt->gtPrev;
+        stmt->GetPrevStmt()->SetNextStmt(nullptr);
+        block->bbStmtList->SetPrevStmt(stmt->GetPrevStmt());
     }
     else // The statement is in the middle.
     {
@@ -10060,7 +10061,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         Statement* prev = stmt->GetPrevStmt();
 
         prev->SetNextStmt(stmt->GetNextStmt());
-        stmt->GetNextStmt()->gtPrev = prev;
+        stmt->GetNextStmt()->SetPrevStmt(prev);
     }
 
     noway_assert(!optValnumCSE_phase);
@@ -10342,7 +10343,7 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 }
 
                 blkLastPhi->SetNextStmt(bNextFirst);
-                bNextFirst->gtPrev = blkLastPhi;
+                bNextFirst->SetPrevStmt(blkLastPhi);
 
                 // Now, rest of "block" after last phi of "bNext".
                 Statement* bNextLastPhi = nullptr;
@@ -10358,19 +10359,19 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 bNextLastPhi->SetNextStmt(blkNonPhi1);
                 if (blkNonPhi1 != nullptr)
                 {
-                    blkNonPhi1->gtPrev = bNextLastPhi;
+                    blkNonPhi1->SetPrevStmt(bNextLastPhi);
                 }
                 else
                 {
                     // block has no non phis, so make the last statement be the last added phi.
-                    blkFirst->gtPrev = bNextLastPhi;
+                    blkFirst->SetPrevStmt(bNextLastPhi);
                 }
 
                 // Now update the bbStmtList of "bNext".
                 bNext->bbStmtList = bNextNonPhi1;
                 if (bNextNonPhi1 != nullptr)
                 {
-                    bNextNonPhi1->gtPrev = bNextLast;
+                    bNextNonPhi1->SetPrevStmt(bNextLast);
                 }
             }
             else
@@ -10392,14 +10393,14 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                         // All the statements are phi defns, so the last one is the prev of the first.
                         bNextLastPhi = bNextFirst->GetPrevStmt();
                     }
-                    bNextFirst->gtPrev = blkLast;
+                    bNextFirst->SetPrevStmt(blkLast);
                     bNextLastPhi->SetNextStmt(blkFirst);
-                    blkFirst->gtPrev = bNextLastPhi;
+                    blkFirst->SetPrevStmt(bNextLastPhi);
                     // Now update the bbStmtList of "bNext"
                     bNext->bbStmtList = bNextNonPhi1;
                     if (bNextNonPhi1 != nullptr)
                     {
-                        bNextNonPhi1->gtPrev = bNextLast;
+                        bNextNonPhi1->SetPrevStmt(bNextLast);
                     }
                 }
             }
@@ -10423,8 +10424,8 @@ void Compiler::fgCompactBlocks(BasicBlock* block, BasicBlock* bNext)
                 /* append list2 to list 1 */
 
                 stmtLast1->SetNextStmt(stmtList2);
-                stmtList2->gtPrev = stmtLast1;
-                stmtList1->gtPrev = stmtLast2;
+                stmtList2->SetPrevStmt(stmtLast1);
+                stmtList1->SetPrevStmt(stmtLast2);
             }
         }
         else
@@ -10743,7 +10744,7 @@ void Compiler::fgUnreachableBlock(BasicBlock* block)
         {
             if (firstNonPhi != nullptr)
             {
-                firstNonPhi->gtPrev = block->lastStmt();
+                firstNonPhi->SetPrevStmt(block->lastStmt());
             }
             block->bbStmtList = firstNonPhi;
         }
@@ -14954,8 +14955,8 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
             newStmtList = stmt;
         }
 
-        stmt->gtPrev = newLastStmt;
-        newLastStmt  = stmt;
+        stmt->SetPrevStmt(newLastStmt);
+        newLastStmt = stmt;
     }
 
     // Get to the condition node from the statement tree.
@@ -14977,14 +14978,14 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
     if (lastStmt != nullptr)
     {
         Statement* stmt = bJump->firstStmt();
-        stmt->gtPrev    = newLastStmt;
+        stmt->SetPrevStmt(newLastStmt);
         lastStmt->SetNextStmt(newStmtList);
-        newStmtList->gtPrev = lastStmt;
+        newStmtList->SetPrevStmt(lastStmt);
     }
     else
     {
-        bJump->bbStmtList   = newStmtList;
-        newStmtList->gtPrev = newLastStmt;
+        bJump->bbStmtList = newStmtList;
+        newStmtList->SetPrevStmt(newLastStmt);
     }
 
     //
@@ -19176,14 +19177,14 @@ void Compiler::fgSetBlockOrder(BasicBlock* block)
         if (block->bbStmtList == stmt)
         {
             /* first statement in the list */
-            assert(stmt->gtPrev->GetNextStmt() == nullptr);
+            assert(stmt->GetPrevStmt()->GetNextStmt() == nullptr);
         }
         else
         {
-            assert(stmt->gtPrev->GetNextStmt() == stmt);
+            assert(stmt->GetPrevStmt()->GetNextStmt() == stmt);
         }
 
-        assert(stmt->GetNextStmt()->gtPrev == stmt);
+        assert(stmt->GetNextStmt()->GetPrevStmt() == stmt);
 #endif // DEBUG
     }
 }
@@ -21696,23 +21697,23 @@ void Compiler::fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees)
     for (Statement* stmt : block->Statements())
     {
         // Verify that bbStmtList is threaded correctly.
-        // Note that for the statements list, the gtPrev list is circular.
+        // Note that for the statements list, the GetPrevStmt() list is circular.
         // The GetNextStmt() list is not: GetNextStmt() of the last statement in a block is nullptr.
 
-        noway_assert(stmt->gtPrev);
+        noway_assert(stmt->GetPrevStmt() != nullptr);
 
         if (stmt == block->bbStmtList)
         {
-            noway_assert(stmt->gtPrev->GetNextStmt() == nullptr);
+            noway_assert(stmt->GetPrevStmt()->GetNextStmt() == nullptr);
         }
         else
         {
-            noway_assert(stmt->gtPrev->GetNextStmt() == stmt);
+            noway_assert(stmt->GetPrevStmt()->GetNextStmt() == stmt);
         }
 
         if (stmt->GetNextStmt() != nullptr)
         {
-            noway_assert(stmt->GetNextStmt()->gtPrev == stmt);
+            noway_assert(stmt->GetNextStmt()->GetPrevStmt() == stmt);
         }
         else
         {
@@ -23072,11 +23073,11 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         topBlock_End->SetNextStmt(nullptr);
 
         // Fix up all the pointers.
-        topBlock->bbStmtList         = topBlock_Begin;
-        topBlock->bbStmtList->gtPrev = topBlock_End;
+        topBlock->bbStmtList = topBlock_Begin;
+        topBlock->bbStmtList->SetPrevStmt(topBlock_End);
 
-        bottomBlock->bbStmtList         = bottomBlock_Begin;
-        bottomBlock->bbStmtList->gtPrev = bottomBlock_End;
+        bottomBlock->bbStmtList = bottomBlock_Begin;
+        bottomBlock->bbStmtList->SetPrevStmt(bottomBlock_End);
     }
 
     //

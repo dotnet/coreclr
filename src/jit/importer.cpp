@@ -426,7 +426,7 @@ inline void Compiler::impEndTreeList(BasicBlock* block, Statement* firstStmt, St
 {
     /* Make the list circular, so that we can easily walk it backwards */
 
-    firstStmt->gtPrev = lastStmt;
+    firstStmt->SetPrevStmt(lastStmt);
 
     /* Store the tree list in the basic block */
 
@@ -660,7 +660,7 @@ inline void Compiler::impAppendStmt(Statement* stmt)
     {
         // Append the expression statement to the existing list.
         impLastStmt->SetNextStmt(stmt);
-        stmt->gtPrev = impLastStmt;
+        stmt->SetPrevStmt(impLastStmt);
     }
     impLastStmt = stmt;
 }
@@ -706,11 +706,11 @@ inline void Compiler::impInsertStmtBefore(Statement* stmt, Statement* stmtBefore
     else
     {
         Statement* stmtPrev = stmtBefore->GetPrevStmt();
-        stmt->gtPrev        = stmtPrev;
+        stmt->SetPrevStmt(stmtPrev);
         stmtPrev->SetNextStmt(stmt);
     }
     stmt->SetNextStmt(stmtBefore);
-    stmtBefore->gtPrev = stmt;
+    stmtBefore->SetPrevStmt(stmt);
 }
 
 /*****************************************************************************
@@ -9293,7 +9293,7 @@ void Compiler::impImportLeave(BasicBlock* block)
                 {
                     lastStmt = gtNewStmt(endCatches);
                     endLFinStmt->SetNextStmt(lastStmt);
-                    lastStmt->gtPrev = endLFinStmt;
+                    lastStmt->SetPrevStmt(endLFinStmt);
                 }
                 else
                 {
@@ -9384,7 +9384,7 @@ void Compiler::impImportLeave(BasicBlock* block)
         {
             lastStmt = gtNewStmt(endCatches);
             endLFinStmt->SetNextStmt(lastStmt);
-            lastStmt->gtPrev = endLFinStmt;
+            lastStmt->SetPrevStmt(endLFinStmt);
         }
         else
         {

@@ -1045,7 +1045,7 @@ bool Compiler::optExtractInitTestIncr(
     Statement* incrStmt = testStmt->GetPrevStmt();
     if (incrStmt == nullptr || optIsLoopIncrTree(incrStmt->gtStmtExpr) == BAD_VAR_NUM)
     {
-        if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->gtPrev == nullptr)
+        if (top == nullptr || top->bbStmtList == nullptr || top->bbStmtList->GetPrevStmt() == nullptr)
         {
             return false;
         }
@@ -1084,7 +1084,7 @@ bool Compiler::optExtractInitTestIncr(
         {
             // Previous optimization passes may have inserted compiler-generated
             // statements other than duplicated loop conditions.
-            doGetPrev = (initStmt->gtPrev != nullptr);
+            doGetPrev = (initStmt->GetPrevStmt() != nullptr);
         }
         else
         {
@@ -3861,8 +3861,8 @@ void Compiler::optUnrollLoops()
                 noway_assert((initStmt != nullptr) && (initStmt->GetNextStmt() == testStmt));
 
                 initStmt->SetNextStmt(nullptr);
-                preHeaderStmt->gtPrev = initStmt;
-                head->bbJumpKind      = BBJ_NONE;
+                preHeaderStmt->SetPrevStmt(initStmt);
+                head->bbJumpKind = BBJ_NONE;
                 head->bbFlags &= ~BBF_NEEDS_GCPOLL;
             }
             else
@@ -6230,15 +6230,15 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
         assert(lastStmt->GetNextStmt() == nullptr);
 
         lastStmt->SetNextStmt(hoistStmt);
-        hoistStmt->gtPrev = lastStmt;
-        firstStmt->gtPrev = hoistStmt;
+        hoistStmt->SetPrevStmt(lastStmt);
+        firstStmt->SetPrevStmt(hoistStmt);
     }
     else
     {
         /* Empty pre-header - store the single statement in the block */
 
         preHead->bbStmtList = hoistStmt;
-        hoistStmt->gtPrev   = hoistStmt;
+        hoistStmt->SetPrevStmt(hoistStmt);
     }
 
     hoistStmt->SetNextStmt(nullptr);
@@ -8881,7 +8881,7 @@ void Compiler::optOptimizeBools()
             /* The second block must contain a single statement */
 
             Statement* s2 = b2->firstStmt();
-            if (s2->gtPrev != s2)
+            if (s2->GetPrevStmt() != s2)
             {
                 continue;
             }

@@ -14890,7 +14890,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
 
     if (block->bbJumpKind == BBJ_COND)
     {
-        noway_assert(block->bbStmtList != nullptr && block->bbStmtList->gtPrev != nullptr);
+        noway_assert(block->bbStmtList != nullptr && block->bbStmtList->GetPrevStmt() != nullptr);
 
         Statement* lastStmt = block->lastStmt();
 
@@ -15098,7 +15098,7 @@ bool Compiler::fgFoldConditional(BasicBlock* block)
     }
     else if (block->bbJumpKind == BBJ_SWITCH)
     {
-        noway_assert(block->bbStmtList != nullptr && block->bbStmtList->gtPrev != nullptr);
+        noway_assert(block->bbStmtList != nullptr && block->bbStmtList->GetPrevStmt() != nullptr);
 
         Statement* lastStmt = block->lastStmt();
 
