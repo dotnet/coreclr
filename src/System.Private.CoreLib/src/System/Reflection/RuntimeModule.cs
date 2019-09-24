@@ -26,7 +26,7 @@ namespace System.Reflection
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetFullyQualifiedName(QCallModule module, StringHandleOnStack retString);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern RuntimeType[] GetTypes(RuntimeModule module);
 
         internal RuntimeType[] GetDefinedTypes()
@@ -34,7 +34,7 @@ namespace System.Reflection
             return GetTypes(GetNativeHandle());
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsResource(RuntimeModule module);
         #endregion
 

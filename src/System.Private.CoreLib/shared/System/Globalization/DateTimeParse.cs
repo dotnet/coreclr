@@ -3836,7 +3836,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             return DateTimeFormat.GetRealFormat(format, dtfi);
         }
 
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static bool ParseJapaneseEraStart(ref __DTString str, DateTimeFormatInfo dtfi)
         {
             // ParseJapaneseEraStart will be called when parsing the year number. We can have dates which not listing

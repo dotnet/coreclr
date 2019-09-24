@@ -2350,7 +2350,7 @@ namespace System.Globalization
             return ch >= '\x0590' && ch <= '\x05ff';
         }
 
-        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsAllowedJapaneseTokenFollowedByNonSpaceLetter(string tokenString, char nextCh)
         {
             // Allow the parser to recognize the case when having some date part followed by JapaneseEraStart "\u5143"

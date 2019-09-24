@@ -245,7 +245,7 @@ namespace System.Threading
         // Invoked by VM. Helper method to get a logical thread ID for StringBuilder (for
         // correctness) and for FileStream's async code path (for perf, to avoid creating
         // a Thread instance).
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IntPtr InternalGetCurrentThread();
 
         /// <summary>
@@ -317,7 +317,7 @@ namespace System.Threading
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void InformThreadNameChange(ThreadHandle t, string? name, int len);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern DeserializationTracker GetThreadDeserializationTracker(ref StackCrawlMark stackMark);
 
         /// <summary>Returns true if the thread has been started and is not dead.</summary>

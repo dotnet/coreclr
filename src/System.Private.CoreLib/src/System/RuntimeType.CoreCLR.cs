@@ -3146,19 +3146,19 @@ namespace System
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern void GetGUID(ref Guid result);
 
 #if FEATURE_COMINTEROP
         internal override bool IsWindowsRuntimeObjectImpl() => IsWindowsRuntimeObjectType(this);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsWindowsRuntimeObjectType(RuntimeType type);
 
 #if FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
         internal override bool IsExportedToWindowsRuntimeImpl() => IsTypeExportedToWindowsRuntime(this);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsTypeExportedToWindowsRuntime(RuntimeType type);
 #endif // FEATURE_COMINTEROP_WINRT_MANAGED_ACTIVATION
 #endif // FEATURE_COMINTEROP

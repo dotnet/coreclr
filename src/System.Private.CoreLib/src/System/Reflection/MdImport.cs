@@ -223,7 +223,7 @@ namespace System.Reflection
         #endregion
 
         #region Static Members
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetMarshalAs(IntPtr pNativeType, int cNativeType, out int unmanagedType, out int safeArraySubType, out string? safeArrayUserDefinedSubType,
             out int arraySubType, out int sizeParamIndex, out int sizeConst, out string? marshalType, out string? marshalCookie,
             out int iidParamIndex);
@@ -260,7 +260,7 @@ namespace System.Reflection
         #endregion
 
         #region FCalls
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _Enum(IntPtr scope, int type, int parent, out MetadataEnumResult result);
 
         public void Enum(MetadataTokenType type, int parent, out MetadataEnumResult result)
@@ -298,7 +298,7 @@ namespace System.Reflection
             Enum(MetadataTokenType.Event, mdTypeDef, out result);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern string? _GetDefaultValue(IntPtr scope, int mdToken, out long value, out int length, out int corElementType);
         public string? GetDefaultValue(int mdToken, out long value, out int length, out CorElementType corElementType)
         {
@@ -308,7 +308,7 @@ namespace System.Reflection
             return stringVal;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetUserString(IntPtr scope, int mdToken, void** name, out int length);
         public unsafe string? GetUserString(int mdToken)
         {
@@ -321,7 +321,7 @@ namespace System.Reflection
                 null;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetName(IntPtr scope, int mdToken, void** name);
         public unsafe MdUtf8String GetName(int mdToken)
         {
@@ -331,7 +331,7 @@ namespace System.Reflection
             return new MdUtf8String(name);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetNamespace(IntPtr scope, int mdToken, void** namesp);
         public unsafe MdUtf8String GetNamespace(int mdToken)
         {
@@ -341,7 +341,7 @@ namespace System.Reflection
             return new MdUtf8String(namesp);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetEventProps(IntPtr scope, int mdToken, void** name, out int eventAttributes);
         public unsafe void GetEventProps(int mdToken, out void* name, out EventAttributes eventAttributes)
         {
@@ -352,7 +352,7 @@ namespace System.Reflection
             eventAttributes = (EventAttributes)_eventAttributes;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetFieldDefProps(IntPtr scope, int mdToken, out int fieldAttributes);
         public void GetFieldDefProps(int mdToken, out FieldAttributes fieldAttributes)
         {
@@ -361,7 +361,7 @@ namespace System.Reflection
             fieldAttributes = (FieldAttributes)_fieldAttributes;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetPropertyProps(IntPtr scope,
             int mdToken, void** name, out int propertyAttributes, out ConstArray signature);
         public unsafe void GetPropertyProps(int mdToken, out void* name, out PropertyAttributes propertyAttributes, out ConstArray signature)
@@ -373,7 +373,7 @@ namespace System.Reflection
             propertyAttributes = (PropertyAttributes)_propertyAttributes;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetParentToken(IntPtr scope,
             int mdToken, out int tkParent);
         public int GetParentToken(int tkToken)
@@ -383,7 +383,7 @@ namespace System.Reflection
             return tkParent;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetParamDefProps(IntPtr scope,
             int parameterToken, out int sequence, out int attributes);
         public void GetParamDefProps(int parameterToken, out int sequence, out ParameterAttributes attributes)
@@ -395,7 +395,7 @@ namespace System.Reflection
             attributes = (ParameterAttributes)_attributes;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetGenericParamProps(IntPtr scope,
             int genericParameter,
             out int flags);
@@ -409,7 +409,7 @@ namespace System.Reflection
             attributes = (GenericParameterAttributes)_attributes;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetScopeProps(IntPtr scope,
             out Guid mvid);
 
@@ -427,7 +427,7 @@ namespace System.Reflection
             return GetSigOfMethodDef(token);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetSigOfMethodDef(IntPtr scope,
             int methodToken,
             ref ConstArray signature);
@@ -441,7 +441,7 @@ namespace System.Reflection
             return signature;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetSignatureFromToken(IntPtr scope,
             int methodToken,
             ref ConstArray signature);
@@ -455,7 +455,7 @@ namespace System.Reflection
             return signature;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetMemberRefProps(IntPtr scope,
             int memberTokenRef,
             out ConstArray signature);
@@ -468,7 +468,7 @@ namespace System.Reflection
             return signature;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetCustomAttributeProps(IntPtr scope,
             int customAttributeToken,
             out int constructorToken,
@@ -483,7 +483,7 @@ namespace System.Reflection
                 out constructorToken, out signature);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetClassLayout(IntPtr scope,
             int typeTokenDef, out int packSize, out int classSize);
         public void GetClassLayout(
@@ -494,7 +494,7 @@ namespace System.Reflection
             _GetClassLayout(m_metadataImport2, typeTokenDef, out packSize, out classSize);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _GetFieldOffset(IntPtr scope,
             int typeTokenDef, int fieldTokenDef, out int offset);
         public bool GetFieldOffset(
@@ -505,7 +505,7 @@ namespace System.Reflection
             return _GetFieldOffset(m_metadataImport2, typeTokenDef, fieldTokenDef, out offset);
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetSigOfFieldDef(IntPtr scope,
             int fieldToken,
             ref ConstArray fieldMarshal);
@@ -519,7 +519,7 @@ namespace System.Reflection
             return fieldMarshal;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void _GetFieldMarshal(IntPtr scope,
             int fieldToken,
             ref ConstArray fieldMarshal);
@@ -533,7 +533,7 @@ namespace System.Reflection
             return fieldMarshal;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern unsafe void _GetPInvokeMap(IntPtr scope,
             int token,
             out int attributes,
@@ -555,7 +555,7 @@ namespace System.Reflection
             attributes = (PInvokeAttributes)_attributes;
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool _IsValidToken(IntPtr scope, int token);
         public bool IsValidToken(int token)
         {

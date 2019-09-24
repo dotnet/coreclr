@@ -87,7 +87,7 @@ namespace System.Threading.Tasks
         //
         // The TraceXXX methods should be called only if LoggingOn property returned true
         //
-        [MethodImplAttribute(MethodImplOptions.NoInlining)] // Tracking is slow path. Disable inlining for it.
+        [MethodImpl(MethodImplOptions.NoInlining)] // Tracking is slow path. Disable inlining for it.
         internal static void TraceOperationCreation(Task task, string operationName)
         {
             try
@@ -105,7 +105,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceOperationCompletion(Task task, AsyncCausalityStatus status)
         {
             try
@@ -123,7 +123,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceOperationRelation(Task task, CausalityRelation relation)
         {
             try
@@ -141,7 +141,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceSynchronousWorkStart(Task task, CausalitySynchronousWork work)
         {
             try
@@ -159,7 +159,7 @@ namespace System.Threading.Tasks
             }
         }
 
-        [MethodImplAttribute(MethodImplOptions.NoInlining)]
+        [MethodImpl(MethodImplOptions.NoInlining)]
         internal static void TraceSynchronousWorkCompletion(CausalitySynchronousWork work)
         {
             try

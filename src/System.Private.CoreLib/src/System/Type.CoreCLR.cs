@@ -136,10 +136,10 @@ namespace System
         }
 #endif // FEATURE_COMINTEROP
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator ==(Type? left, Type? right);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         public static extern bool operator !=(Type? left, Type? right);
 
         // Exists to faciliate code sharing between CoreCLR and CoreRT.

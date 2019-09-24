@@ -111,7 +111,7 @@ namespace System
         //
         // Native Methods
         //
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal extern void SetFieldsObject(object val);
 
         //
@@ -363,7 +363,7 @@ namespace System
         }
 
         // This routine will return an boxed enum.
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private extern object BoxEnum();
 
         // Helper code for marshaling managed objects to VARIANT's (we use

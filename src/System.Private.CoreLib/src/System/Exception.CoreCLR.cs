@@ -52,7 +52,7 @@ namespace System
                 return new ListDictionaryInternal();
         }
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern bool IsImmutableAgileException(Exception e);
 
 #if FEATURE_COMINTEROP
@@ -122,7 +122,7 @@ namespace System
         }
 #endif // FEATURE_COMINTEROP
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern IRuntimeMethodInfo GetMethodFromStackTrace(object stackTrace);
 
         private MethodBase? GetExceptionMethodFromStackTrace()
@@ -251,22 +251,22 @@ namespace System
         // matches precisely.
         private static readonly object s_DispatchStateLock = new object();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void PrepareForForeignExceptionRaise();
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern void GetStackTracesDeepCopy(Exception exception, out object currentStackTrace, out object dynamicMethodArray);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern void SaveStackTracesFromDeepCopy(Exception exception, object? currentStackTrace, object? dynamicMethodArray);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object CopyStackTrace(object currentStackTrace);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern object CopyDynamicMethods(object currentDynamicMethods);
 
-        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+        [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern uint GetExceptionCount();
 
         internal static object? DeepCopyStackTrace(object? currentStackTrace)
