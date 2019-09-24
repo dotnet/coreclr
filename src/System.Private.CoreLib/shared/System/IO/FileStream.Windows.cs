@@ -1498,7 +1498,7 @@ namespace System.IO
             internal object CancellationLock => this;
 
             /// <summary>Initialize the awaitable.</summary>
-            internal unsafe AsyncCopyToAwaitable(FileStream fileStream)
+            internal AsyncCopyToAwaitable(FileStream fileStream)
             {
                 _fileStream = fileStream;
             }
@@ -1513,7 +1513,7 @@ namespace System.IO
             }
 
             /// <summary>Overlapped callback: store the results, then invoke the continuation delegate.</summary>
-            internal static unsafe void IOCallback(uint errorCode, uint numBytes, NativeOverlapped* pOVERLAP)
+            internal static void IOCallback(uint errorCode, uint numBytes, NativeOverlapped* pOVERLAP)
             {
                 var awaitable = (AsyncCopyToAwaitable?)ThreadPoolBoundHandle.GetNativeOverlappedState(pOVERLAP);
                 Debug.Assert(awaitable != null);

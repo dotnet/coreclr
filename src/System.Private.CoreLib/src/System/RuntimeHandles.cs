@@ -1079,7 +1079,7 @@ namespace System
         internal static extern string GetName(RtFieldInfo field);
 
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
-        private static extern unsafe void* _GetUtf8Name(RuntimeFieldHandleInternal field);
+        private static extern void* _GetUtf8Name(RuntimeFieldHandleInternal field);
 
         internal static MdUtf8String GetUtf8Name(RuntimeFieldHandleInternal field) { return new MdUtf8String(_GetUtf8Name(field)); }
 
@@ -1335,10 +1335,10 @@ namespace System
         }
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern unsafe void GetPEKind(QCallModule handle, int* peKind, int* machine);
+        private static extern void GetPEKind(QCallModule handle, int* peKind, int* machine);
 
         // making this internal, used by Module.GetPEKind
-        internal static unsafe void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
+        internal static void GetPEKind(RuntimeModule module, out PortableExecutableKinds peKind, out ImageFileMachine machine)
         {
             int lKind, lMachine;
             GetPEKind(JitHelpers.GetQCallModuleOnStack(ref module), &lKind, &lMachine);

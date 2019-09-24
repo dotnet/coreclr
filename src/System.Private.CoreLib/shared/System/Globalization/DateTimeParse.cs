@@ -5883,8 +5883,7 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
     //
     // The buffer to store temporary parsing information.
     //
-    internal
-    unsafe struct DateTimeRawInfo
+    internal unsafe struct DateTimeRawInfo
     {
         private int* num;
         internal int numCount;
@@ -5906,11 +5905,13 @@ new DS[] { DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR, 
             fraction = -1;
             num = numberBuffer;
         }
-        internal unsafe void AddNumber(int value)
+
+        internal void AddNumber(int value)
         {
             num[numCount++] = value;
         }
-        internal unsafe int GetNumber(int index)
+
+        internal int GetNumber(int index)
         {
             return num[index];
         }

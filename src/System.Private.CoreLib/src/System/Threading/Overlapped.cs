@@ -51,7 +51,7 @@ namespace System.Threading
         }
 
         // call back helper
-        internal static unsafe void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
+        internal static void PerformIOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pNativeOverlapped)
         {
             do
             {
@@ -102,7 +102,7 @@ namespace System.Threading
         internal ref int OffsetHigh => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->OffsetHigh : ref _offsetHigh;
         internal ref IntPtr EventHandle => ref (_pNativeOverlapped != null) ? ref _pNativeOverlapped->EventHandle : ref _eventHandle;
 
-        internal unsafe NativeOverlapped* Pack(IOCompletionCallback? iocb, object? userData)
+        internal NativeOverlapped* Pack(IOCompletionCallback? iocb, object? userData)
         {
             if (_pNativeOverlapped != null)
             {
@@ -122,7 +122,7 @@ namespace System.Threading
             return AllocateNativeOverlapped();
         }
 
-        internal unsafe NativeOverlapped* UnsafePack(IOCompletionCallback? iocb, object? userData)
+        internal NativeOverlapped* UnsafePack(IOCompletionCallback? iocb, object? userData)
         {
             if (_pNativeOverlapped != null)
             {

@@ -974,7 +974,7 @@ namespace System
                 }
             }
 
-            private static unsafe uint AddDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs)
+            private static uint AddDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs)
             {
                 int lhsLength = lhs._length;
                 int rhsLength = rhs._length;
@@ -1029,7 +1029,7 @@ namespace System
                 return false;
             }
 
-            private static unsafe uint SubtractDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs, ulong q)
+            private static uint SubtractDivisor(ref BigInteger lhs, int lhsStartIndex, ref BigInteger rhs, ulong q)
             {
                 int lhsLength = lhs._length - lhsStartIndex;
                 int rhsLength = rhs._length;

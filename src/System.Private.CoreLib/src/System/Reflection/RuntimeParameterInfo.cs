@@ -12,14 +12,14 @@ namespace System.Reflection
     internal sealed unsafe class RuntimeParameterInfo : ParameterInfo
     {
         #region Static Members
-        internal static unsafe ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
+        internal static ParameterInfo[] GetParameters(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
             return GetParameters(method, member, sig, out _, false);
         }
 
-        internal static unsafe ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
+        internal static ParameterInfo GetReturnParameter(IRuntimeMethodInfo method, MemberInfo member, Signature sig)
         {
             Debug.Assert(method is RuntimeMethodInfo || method is RuntimeConstructorInfo);
 
@@ -28,7 +28,7 @@ namespace System.Reflection
             return returnParameter;
         }
 
-        internal static unsafe ParameterInfo[] GetParameters(
+        internal static ParameterInfo[] GetParameters(
             IRuntimeMethodInfo methodHandle, MemberInfo member, Signature sig, out ParameterInfo? returnParameter, bool fetchReturnParameter)
         {
             returnParameter = null;

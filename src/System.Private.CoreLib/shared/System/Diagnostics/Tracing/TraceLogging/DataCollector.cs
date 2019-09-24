@@ -148,7 +148,7 @@ namespace System.Diagnostics.Tracing
             }
         }
 
-        internal unsafe void AddNullTerminatedString(string? value)
+        internal void AddNullTerminatedString(string? value)
         {
             // Treat null strings as empty strings.
             if (value == null)

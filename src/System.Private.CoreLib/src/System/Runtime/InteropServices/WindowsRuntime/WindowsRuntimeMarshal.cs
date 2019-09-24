@@ -1046,12 +1046,9 @@ namespace System.Runtime.InteropServices.WindowsRuntime
                 return string.Empty;
             }
 
-            unsafe
-            {
-                uint length;
-                char* rawBuffer = UnsafeNativeMethods.WindowsGetStringRawBuffer(hstring, &length);
-                return new string(rawBuffer, 0, checked((int)length));
-            }
+            uint length;
+            char* rawBuffer = UnsafeNativeMethods.WindowsGetStringRawBuffer(hstring, &length);
+            return new string(rawBuffer, 0, checked((int)length));
         }
 
         internal static Exception GetExceptionForHR(int hresult, Exception? innerException, string? messageResource)

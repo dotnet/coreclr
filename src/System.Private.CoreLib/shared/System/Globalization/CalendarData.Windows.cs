@@ -318,11 +318,8 @@ namespace System.Globalization
                 }
             }
 
-            unsafe
-            {
-                // Now call the enumeration API. Work is done by our callback function
-                Interop.Kernel32.EnumCalendarInfoExEx(EnumCalendarInfoCallback, localeName, (uint)calendar, null, calType, Unsafe.AsPointer(ref context));
-            }
+            // Now call the enumeration API. Work is done by our callback function
+            Interop.Kernel32.EnumCalendarInfoExEx(EnumCalendarInfoCallback, localeName, (uint)calendar, null, calType, Unsafe.AsPointer(ref context));
 
             // Now we have a list of data, fail if we didn't find anything.
             Debug.Assert(context.strings != null);
