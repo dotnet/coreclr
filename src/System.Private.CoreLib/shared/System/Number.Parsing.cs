@@ -26,7 +26,7 @@ namespace System
     // specified. Note, however, that the Parse methods do not accept
     // NaNs or Infinities.
 
-    internal partial class Number
+    internal static partial class Number
     {
         private const int Int32Precision = 10;
         private const int UInt32Precision = Int32Precision;
