@@ -369,11 +369,11 @@ bool ObjectAllocator::MorphAllocObjNodes()
                 assert(basicBlockHasNewObj);
                 //------------------------------------------------------------------------
                 // We expect the following expression tree at this point
-                //  *  STMT      void
-                //  |  /--*  ALLOCOBJ  ref
-                //  |  |  \--*  CNS_INT(h) long
-                //  \--*  ASG       ref
-                //     \--*  LCL_VAR   ref
+                //  STMTx (IL 0x... ???)
+                //    * ASG       ref
+                //    +--*  LCL_VAR   ref
+                //    \--*  ALLOCOBJ  ref
+                //       \--*  CNS_INT(h) long
                 //------------------------------------------------------------------------
 
                 GenTree* op1 = stmtExpr->gtGetOp1();
@@ -516,10 +516,10 @@ unsigned int ObjectAllocator::MorphAllocObjNodeIntoStackAlloc(GenTreeAllocObj* a
         unsigned int structSize = comp->lvaTable[lclNum].lvSize();
 
         //------------------------------------------------------------------------
-        // *  STMT      void
-        // |  /--*  CNS_INT   int    0
-        // \--*  ASG       struct (init)
-        //    \--*  LCL_VAR   struct
+        // STMTx (IL 0x... ???)
+        //   *  ASG       struct (init)
+        //   +--*  LCL_VAR   struct
+        //   \--*  CNS_INT   int    0
         //------------------------------------------------------------------------
 
         GenTree*   tree        = comp->gtNewLclvNode(lclNum, TYP_STRUCT);
@@ -533,12 +533,12 @@ unsigned int ObjectAllocator::MorphAllocObjNodeIntoStackAlloc(GenTreeAllocObj* a
     }
 
     //------------------------------------------------------------------------
-    // *  STMT      void
-    // |  /--*  CNS_INT(h) long
-    // \--*  ASG       long
-    //    \--*  FIELD     long   #PseudoField:0x0
-    //       \--*  ADDR      byref
-    //          \--*  LCL_VAR   struct
+    // STMTx (IL 0x... ???)
+    //   * ASG       long
+    //   +--*  FIELD     long   #PseudoField:0x0
+    //   |  \--*  ADDR      byref
+    //   |     \--*  LCL_VAR   struct
+    //   \--*  CNS_INT(h) long
     //------------------------------------------------------------------------
 
     // Create a local representing the object

@@ -14526,10 +14526,10 @@ void Compiler::impImportBlockCode(BasicBlock* block)
 #ifndef _TARGET_64BIT_
                     // In UWP6.0 and beyond (post-.NET Core 2.0), we decided to let this cast from int to long be
                     // generated for ARM as well as x86, so the following IR will be accepted:
-                    //     *  STMT      void
-                    //         |  /--*  CNS_INT   int    2
-                    //         \--*  ASG       long
-                    //            \--*  CLS_VAR   long
+                    // STMTx (IL 0x... ???)
+                    //   *  ASG long
+                    //   +--*  CLS_VAR   long
+                    //   \--*  CNS_INT   int    2
 
                     if ((op1->TypeGet() != op2->TypeGet()) && op2->OperIsConst() && varTypeIsIntOrI(op2->TypeGet()) &&
                         varTypeIsLong(op1->TypeGet()))

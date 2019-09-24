@@ -8236,23 +8236,23 @@ bool Compiler::optIdentifyLoopOptInfo(unsigned loopNum, LoopCloneContext* contex
 //
 //  TODO-CQ: CLONE: After morph make sure this method extracts values before morph.
 //
-//  [000024] ------------              *  STMT      void(IL 0x007...0x00C)
-//  [000021] a--XG+------              |     /--*  IND       int
-//  [000045] -----+------              |     |  |     /--*  CNS_INT   long   16 Fseq[#FirstElem]
-//  [000046] -----+------              |     |  |  /--*  ADD       long
-//  [000043] -----+-N----              |     |  |  |  |  /--*  CNS_INT   long   2
-//  [000044] -----+------              |     |  |  |  \--*  LSH       long
-//  [000042] -----+------              |     |  |  |     \--*  CAST      long < -int
-//  [000039] i----+------              |     |  |  |        \--*  LCL_VAR   int    V04 loc0
-//  [000047] -----+------              |     |  \--*  ADD       byref
-//  [000038] -----+------              |     |     \--*  LCL_VAR   ref    V00 arg0
-//  [000048] ---XG+------              |  /--*  COMMA     int
-//  [000041] ---X-+------              |  |  \--*  ARR_BOUNDS_CHECK_Rng void
-//  [000020] -----+------              |  |     +--*  LCL_VAR   int    V04 loc0
-//  [000040] ---X-+------              |  |     \--*  ARR_LENGTH int
-//  [000019] -----+------              |  |        \--*  LCL_VAR   ref    V00 arg0
-//  [000023] -A-XG+------              \--*  ASG       int
-//  [000022] D----+-N----                 \--*  LCL_VAR   int    V06 tmp1
+//  STMT      void(IL 0x007...0x00C)
+//  [000023] -A-XG+------              *  ASG       int
+//  [000022] D----+-N----              +--*  LCL_VAR   int    V06 tmp1
+//  [000048] ---XG+------              \--*  COMMA     int
+//  [000041] ---X-+------                 +--*  ARR_BOUNDS_CHECK_Rng void
+//  [000020] -----+------                 |  +--*  LCL_VAR   int    V04 loc0
+//  [000040] ---X-+------                 |  \--*  ARR_LENGTH int
+//  [000019] -----+------                 |     \--*  LCL_VAR   ref    V00 arg0
+//  [000021] a--XG+------                 \--*  IND       int
+//  [000047] -----+------                    \--*  ADD       byref
+//  [000038] -----+------                       +--*  LCL_VAR   ref    V00 arg0
+//  [000046] -----+------                       \--*  ADD       long
+//  [000044] -----+------                          +--*  LSH       long
+//  [000042] -----+------                          |  +--*  CAST      long < -int
+//  [000039] i----+------                          |  |  \--*  LCL_VAR   int    V04 loc0
+//  [000043] -----+-N----                          |  \--*  CNS_INT   long   2
+//  [000045] -----+------                          \--*  CNS_INT   long   16 Fseq[#FirstElem]
 
 bool Compiler::optExtractArrIndex(GenTree* tree, ArrIndex* result, unsigned lhsNum)
 {
