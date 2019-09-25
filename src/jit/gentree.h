@@ -5306,11 +5306,10 @@ public:
     InlineContext* gtInlineContext; // The inline context for this statement.
     IL_OFFSETX     gtStmtILoffsx;   // instr offset (if available)
 
-#ifdef DEBUG
-    IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
-
 private:
-    unsigned m_stmtID;
+#ifdef DEBUG
+    IL_OFFSET m_lastILOffset; // instr offset at end of stmt
+    unsigned  m_stmtID;
 #endif
 
     Statement* m_next;
@@ -5339,13 +5338,26 @@ public:
         m_prev = prevStmt;
     }
 
+#ifdef DEBUG
+
+    IL_OFFSET GetLastILOffset() const
+    {
+        return m_lastILOffset;
+    }
+
+    void SetLastILOffset(IL_OFFSET lastILOffset)
+    {
+        m_lastILOffset = lastILOffset;
+    }
+#endif // DEBUG
+
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
-        , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_lastILOffset(BAD_IL_OFFSET)
         , m_stmtID(stmtID)
 #endif
         , m_next(nullptr)

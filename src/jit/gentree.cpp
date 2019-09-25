@@ -11613,7 +11613,7 @@ void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
         }
         printf("...");
 
-        IL_OFFSET lastILOffs = stmt->gtStmtLastILoffs;
+        IL_OFFSET lastILOffs = stmt->GetLastILOffset();
         if (lastILOffs == BAD_IL_OFFSET)
         {
             printf("  ???");
