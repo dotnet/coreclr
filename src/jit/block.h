@@ -41,7 +41,7 @@ typedef BitVec          ASSERT_TP;
 typedef BitVec_ValArg_T ASSERT_VALARG_TP;
 typedef BitVec_ValRet_T ASSERT_VALRET_TP;
 
-// We use the following format when print the BasicBlock number: bbNum
+// We use the following format when printing the BasicBlock number: bbNum
 // This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
 #define FMT_BB "BB%02u"
 
@@ -743,16 +743,14 @@ struct BasicBlock : private LIR::Range
         return bbRefs;
     }
 
-    __declspec(property(get = getBBTreeList, put = setBBTreeList)) GenTree* bbTreeList; // the body of the block.
-
     Statement* bbStmtList;
 
-    GenTree* getBBTreeList() const
+    GenTree* GetFirstLIRNode() const
     {
         return m_firstNode;
     }
 
-    void setBBTreeList(GenTree* tree)
+    void SetFirstLIRNode(GenTree* tree)
     {
         m_firstNode = tree;
     }
@@ -1036,8 +1034,6 @@ struct BasicBlock : private LIR::Range
 #ifdef DEBUG
     unsigned        bbTgtStkDepth; // Native stack depth on entry (for throw-blocks)
     static unsigned s_nMaxTrees;   // The max # of tree nodes in any BB
-
-    unsigned bbStmtNum; // The statement number of the first stmt in this block
 
     // This is used in integrity checks.  We semi-randomly pick a traversal stamp, label all blocks
     // in the BB list with that stamp (in this field); then we can tell if (e.g.) predecessors are

@@ -378,8 +378,7 @@ void Compiler::lvaInitArgs(InitVarDscInfo* varDscInfo)
     // Save the stack usage information
     // We can get register usage information using codeGen->intRegState and
     // codeGen->floatRegState
-    info.compArgStackSize     = varDscInfo->stackArgSize;
-    info.compHasMultiSlotArgs = varDscInfo->hasMultiSlotStruct;
+    info.compArgStackSize = varDscInfo->stackArgSize;
 #endif // FEATURE_FASTTAILCALL
 
     // The total argument size must be aligned.
@@ -852,8 +851,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 varDsc->lvArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum, TYP_I_IMPL);
                 if (cSlots == 2)
                 {
-                    varDsc->lvOtherArgReg          = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
-                    varDscInfo->hasMultiSlotStruct = true;
+                    varDsc->lvOtherArgReg = genMapRegArgNumToRegNum(firstAllocatedRegArgNum + 1, TYP_I_IMPL);
                 }
             }
 #elif defined(UNIX_AMD64_ABI)
@@ -864,9 +862,8 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
                 // If there is a second eightbyte, get a register for it too and map the arg to the reg number.
                 if (structDesc.eightByteCount >= 2)
                 {
-                    secondEightByteType            = GetEightByteType(structDesc, 1);
-                    secondAllocatedRegArgNum       = varDscInfo->allocRegArg(secondEightByteType, 1);
-                    varDscInfo->hasMultiSlotStruct = true;
+                    secondEightByteType      = GetEightByteType(structDesc, 1);
+                    secondAllocatedRegArgNum = varDscInfo->allocRegArg(secondEightByteType, 1);
                 }
 
                 if (secondEightByteType != TYP_UNDEF)
@@ -1006,11 +1003,7 @@ void Compiler::lvaInitUserArgs(InitVarDscInfo* varDscInfo)
 #endif // _TARGET_XXX_
 
 #if FEATURE_FASTTAILCALL
-            if (cSlots > 1)
-            {
-                varDscInfo->hasMultiSlotStruct = true;
-            }
-
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += roundUp(argSize, TARGET_POINTER_SIZE);
 #endif // FEATURE_FASTTAILCALL
         }
@@ -1104,6 +1097,7 @@ void Compiler::lvaInitGenericsCtxt(InitVarDscInfo* varDscInfo)
             // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
@@ -1173,6 +1167,7 @@ void Compiler::lvaInitVarArgsHandle(InitVarDscInfo* varDscInfo)
             // returns false.
             varDsc->lvOnFrame = true;
 #if FEATURE_FASTTAILCALL
+            varDsc->lvStkOffs = varDscInfo->stackArgSize;
             varDscInfo->stackArgSize += TARGET_POINTER_SIZE;
 #endif // FEATURE_FASTTAILCALL
         }
@@ -3601,7 +3596,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
 
                     NOT_BOOL:
 
-                        lclNum = op1->gtLclVarCommon.gtLclNum;
+                        lclNum = op1->gtLclVarCommon.GetLclNum();
                         noway_assert(lclNum < lvaCount);
 
                         lvaTable[lclNum].lvIsBoolean = false;
@@ -3620,7 +3615,7 @@ void Compiler::lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt,
     /* This must be a local variable reference */
 
     assert((tree->gtOper == GT_LCL_VAR) || (tree->gtOper == GT_LCL_FLD));
-    unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
+    unsigned lclNum = tree->gtLclVarCommon.GetLclNum();
 
     noway_assert(lclNum < lvaCount);
     LclVarDsc* varDsc = lvaTable + lclNum;
@@ -3802,7 +3797,7 @@ void Compiler::lvaMarkLocalVars(BasicBlock* block, bool isRecompute)
     for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
     {
         MarkLocalVarsVisitor visitor(this, block, stmt, isRecompute);
-        DISPTREE(stmt->gtStmtExpr);
+        DISPSTMT(stmt);
         visitor.WalkTree(&stmt->gtStmtExpr, nullptr);
     }
 }
@@ -4069,7 +4064,7 @@ void Compiler::lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers)
                     case GT_STORE_LCL_VAR:
                     case GT_STORE_LCL_FLD:
                     {
-                        const unsigned lclNum = node->AsLclVarCommon()->gtLclNum;
+                        const unsigned lclNum = node->AsLclVarCommon()->GetLclNum();
                         lvaTable[lclNum].incRefCnts(weight, this);
                         break;
                     }
@@ -6853,6 +6848,10 @@ void Compiler::lvaDumpEntry(unsigned lclNum, FrameLayoutState curState, size_t r
     {
         printf(" exact");
     }
+    if (varDsc->lvLiveInOutOfHndlr)
+    {
+        printf(" EH-live");
+    }
 #ifndef _TARGET_64BIT_
     if (varDsc->lvStructDoubleAlign)
         printf(" double-align");
@@ -7256,7 +7255,7 @@ Compiler::fgWalkResult Compiler::lvaStressLclFldCB(GenTree** pTree, fgWalkData* 
     Compiler* pComp      = ((lvaStressLclFldArgs*)data->pCallbackData)->m_pCompiler;
     bool      bFirstPass = ((lvaStressLclFldArgs*)data->pCallbackData)->m_bFirstPass;
     noway_assert(lcl->gtOper == GT_LCL_VAR);
-    unsigned   lclNum = lcl->gtLclVarCommon.gtLclNum;
+    unsigned   lclNum = lcl->gtLclVarCommon.GetLclNum();
     var_types  type   = lcl->TypeGet();
     LclVarDsc* varDsc = &pComp->lvaTable[lclNum];
 

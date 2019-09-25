@@ -31,7 +31,7 @@ Compiler::fgWalkResult Compiler::optAddCopiesCallback(GenTree** pTree, fgWalkDat
         GenTree*  op1  = tree->gtOp.gtOp1;
         Compiler* comp = data->compiler;
 
-        if ((op1->gtOper == GT_LCL_VAR) && (op1->gtLclVarCommon.gtLclNum == comp->optAddCopyLclNum))
+        if ((op1->gtOper == GT_LCL_VAR) && (op1->gtLclVarCommon.GetLclNum() == comp->optAddCopyLclNum))
         {
             comp->optAddCopyAsgnNode = tree;
             return WALK_ABORT;
@@ -450,7 +450,7 @@ void Compiler::optAddCopies()
             GenTree* op1  = tree->gtOp.gtOp1;
 
             noway_assert(tree && op1 && tree->OperIs(GT_ASG) && (op1->gtOper == GT_LCL_VAR) &&
-                         (op1->gtLclVarCommon.gtLclNum == lclNum));
+                         (op1->gtLclVarCommon.GetLclNum() == lclNum));
 
             /* Assign the old expression into the new temp */
 
@@ -886,7 +886,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
             goto DONE_ASSERTION; // Don't make an assertion
         }
 
-        unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
+        unsigned lclNum = op1->gtLclVarCommon.GetLclNum();
         noway_assert(lclNum < lvaCount);
         LclVarDsc* lclVar = &lvaTable[lclNum];
 
@@ -965,7 +965,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
     //
     else if (op1->gtOper == GT_LCL_VAR)
     {
-        unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
+        unsigned lclNum = op1->gtLclVarCommon.GetLclNum();
         noway_assert(lclNum < lvaCount);
         LclVarDsc* lclVar = &lvaTable[lclNum];
 
@@ -1138,7 +1138,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
                         goto DONE_ASSERTION; // Don't make an assertion
                     }
 
-                    unsigned lclNum2 = op2->gtLclVarCommon.gtLclNum;
+                    unsigned lclNum2 = op2->gtLclVarCommon.GetLclNum();
                     noway_assert(lclNum2 < lvaCount);
                     LclVarDsc* lclVar2 = &lvaTable[lclNum2];
 
@@ -1278,7 +1278,7 @@ AssertionIndex Compiler::optCreateAssertion(GenTree*         op1,
         //
         if (op1->gtOper == GT_LCL_VAR)
         {
-            unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
+            unsigned lclNum = op1->gtLclVarCommon.GetLclNum();
             noway_assert(lclNum < lvaCount);
 
             //  If the local variable is not in SSA then bail
@@ -2593,7 +2593,7 @@ GenTree* Compiler::optConstantAssertionProp(AssertionDsc* curAssertion,
                                             GenTree*      tree,
                                             Statement* stmt DEBUGARG(AssertionIndex index))
 {
-    unsigned lclNum = tree->gtLclVarCommon.gtLclNum;
+    unsigned lclNum = tree->gtLclVarCommon.GetLclNum();
 
     if (lclNumIsCSE(lclNum))
     {
@@ -3238,9 +3238,9 @@ GenTree* Compiler::optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, Gen
         if (verbose)
         {
             printf("\nVN relop based copy assertion prop in " FMT_BB ":\n", compCurBB->bbNum);
-            printf("Assertion index=#%02u: V%02d.%02d %s V%02d.%02d\n", index, op1->gtLclVar.gtLclNum,
-                   op1->gtLclVar.gtSsaNum, (curAssertion->assertionKind == OAK_EQUAL) ? "==" : "!=",
-                   op2->gtLclVar.gtLclNum, op2->gtLclVar.gtSsaNum);
+            printf("Assertion index=#%02u: V%02d.%02d %s V%02d.%02d\n", index, op1->gtLclVar.GetLclNum(),
+                   op1->gtLclVar.GetSsaNum(), (curAssertion->assertionKind == OAK_EQUAL) ? "==" : "!=",
+                   op2->gtLclVar.GetLclNum(), op2->gtLclVar.GetSsaNum());
             gtDispTree(tree, nullptr, nullptr, true);
         }
 #endif
@@ -3326,7 +3326,7 @@ GenTree* Compiler::optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenT
     }
 
     // Find an equal or not equal assertion about op1 var.
-    unsigned lclNum = op1->gtLclVarCommon.gtLclNum;
+    unsigned lclNum = op1->gtLclVarCommon.GetLclNum();
     noway_assert(lclNum < lvaCount);
     AssertionIndex index = optLocalAssertionIsEqualOrNotEqual(op1Kind, lclNum, op2Kind, cnsVal, assertions);
 
@@ -3425,7 +3425,7 @@ GenTree* Compiler::optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* t
     AssertionIndex index = optAssertionIsSubrange(lcl, fromType, toType, assertions);
     if (index != NO_ASSERTION_INDEX)
     {
-        LclVarDsc* varDsc = &lvaTable[lcl->gtLclVarCommon.gtLclNum];
+        LclVarDsc* varDsc = &lvaTable[lcl->gtLclVarCommon.GetLclNum()];
         if (varDsc->lvNormalizeOnLoad() || varTypeIsLong(varDsc->TypeGet()))
         {
             // For normalize on load variables it must be a narrowing cast to remove
@@ -4894,7 +4894,7 @@ Compiler::fgWalkResult Compiler::optVNConstantPropCurStmt(BasicBlock* block, Sta
     optAssertionProp_Update(newTree, tree, stmt);
 
     JITDUMP("After constant propagation on [%06u]:\n", tree->gtTreeID);
-    DBEXEC(VERBOSE, gtDispTree(stmt->gtStmtExpr));
+    DBEXEC(VERBOSE, gtDispStmt(stmt));
 
     return WALK_SKIP_SUBTREES;
 }
@@ -4999,7 +4999,7 @@ Statement* Compiler::optVNAssertionPropCurStmt(BasicBlock* block, Statement* stm
 
     // Check if propagation removed statements starting from current stmt.
     // If so, advance to the next good statement.
-    Statement* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->getNextStmt();
+    Statement* nextStmt = (prev == nullptr) ? block->firstStmt() : prev->GetNextStmt();
     return nextStmt;
 }
 
@@ -5041,7 +5041,7 @@ void Compiler::optAssertionPropMain()
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->getNextStmt();
+                stmt = stmt->GetNextStmt();
                 continue;
             }
             else
@@ -5052,7 +5052,7 @@ void Compiler::optAssertionPropMain()
                 // Propagation resulted in removal of the remaining stmts, perform it.
                 if (fgRemoveRestOfBlock)
                 {
-                    stmt = stmt->getNextStmt();
+                    stmt = stmt->GetNextStmt();
                     continue;
                 }
 
@@ -5071,7 +5071,7 @@ void Compiler::optAssertionPropMain()
             }
 
             // Advance the iterator
-            stmt = stmt->getNextStmt();
+            stmt = stmt->GetNextStmt();
         }
     }
 
@@ -5144,7 +5144,7 @@ void Compiler::optAssertionPropMain()
             if (fgRemoveRestOfBlock)
             {
                 fgRemoveStmt(block, stmt);
-                stmt = stmt->getNextStmt();
+                stmt = stmt->GetNextStmt();
                 continue;
             }
 
@@ -5163,9 +5163,9 @@ void Compiler::optAssertionPropMain()
                     break;
                 }
 
-                JITDUMP("Propagating %s assertions for " FMT_BB ", stmt [%06d], tree [%06d], tree -> %d\n",
-                        BitVecOps::ToString(apTraits, assertions), block->bbNum, dspTreeID(stmt->gtStmtExpr),
-                        dspTreeID(tree), tree->GetAssertionInfo().GetAssertionIndex());
+                JITDUMP("Propagating %s assertions for " FMT_BB ", stmt " FMT_STMT ", tree [%06d], tree -> %d\n",
+                        BitVecOps::ToString(apTraits, assertions), block->bbNum, stmt->GetID(), dspTreeID(tree),
+                        tree->GetAssertionInfo().GetAssertionIndex());
 
                 GenTree* newTree = optAssertionProp(assertions, tree, stmt);
                 if (newTree)
@@ -5189,7 +5189,7 @@ void Compiler::optAssertionPropMain()
                 if (verbose)
                 {
                     printf("Re-morphing this stmt:\n");
-                    gtDispTree(stmt->gtStmtExpr);
+                    gtDispStmt(stmt);
                     printf("\n");
                 }
 #endif
@@ -5199,8 +5199,8 @@ void Compiler::optAssertionPropMain()
 
             // Check if propagation removed statements starting from current stmt.
             // If so, advance to the next good statement.
-            Statement* nextStmt = (prevStmt == nullptr) ? block->firstStmt() : prevStmt->getNextStmt();
-            stmt                = (stmt == nextStmt) ? stmt->getNextStmt() : nextStmt;
+            Statement* nextStmt = (prevStmt == nullptr) ? block->firstStmt() : prevStmt->GetNextStmt();
+            stmt                = (stmt == nextStmt) ? stmt->GetNextStmt() : nextStmt;
         }
         optAssertionPropagatedCurrentStmt = false; // clear it back as we are done with stmts.
     }

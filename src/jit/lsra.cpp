@@ -181,7 +181,7 @@ unsigned LinearScan::getWeight(RefPosition* refPos)
             // Tracked locals: use weighted ref cnt as the weight of the
             // ref position.
             GenTreeLclVarCommon* lclCommon = treeNode->AsLclVarCommon();
-            LclVarDsc*           varDsc    = &(compiler->lvaTable[lclCommon->gtLclNum]);
+            LclVarDsc*           varDsc    = &(compiler->lvaTable[lclCommon->GetLclNum()]);
             weight                         = varDsc->lvRefCntWtd();
             if (refPos->getInterval()->isSpilled)
             {
@@ -5852,7 +5852,7 @@ void LinearScan::allocateRegisters()
     }
 
 #ifdef JIT32_GCENCODER
-    // For the JIT32_GCENCODER, when lvaKeepAliveAndReportThis is true, we must either keep this "this" pointer
+    // For the JIT32_GCENCODER, when lvaKeepAliveAndReportThis is true, we must either keep the "this" pointer
     // in the same register for the entire method, or keep it on the stack. Rather than imposing this constraint
     // as we allocate, we will force all refs to the stack if it is split or spilled.
     if (enregisterLocalVars && compiler->lvaKeepAliveAndReportThis())
@@ -7835,7 +7835,7 @@ void LinearScan::handleOutgoingCriticalEdges(BasicBlock* block)
             if (op1->IsLocal())
             {
                 GenTreeLclVarCommon* lcl = op1->AsLclVarCommon();
-                jcmpLocalVarDsc          = &compiler->lvaTable[lcl->gtLclNum];
+                jcmpLocalVarDsc          = &compiler->lvaTable[lcl->GetLclNum()];
             }
         }
     }
@@ -8174,6 +8174,11 @@ void LinearScan::resolveEdges()
                 }
                 SplitEdgeInfo info = {predBBNum, succBBNum};
                 getSplitBBNumToTargetBBNumMap()->Set(block->bbNum, info);
+
+                // Set both the live-in and live-out to the live-in of the successor (by construction liveness
+                // doesn't change in a split block).
+                VarSetOps::Assign(compiler, block->bbLiveIn, succBlock->bbLiveIn);
+                VarSetOps::Assign(compiler, block->bbLiveOut, succBlock->bbLiveIn);
             }
         }
     }
@@ -9164,7 +9169,7 @@ void LinearScan::lsraDispNode(GenTree* tree, LsraTupleDumpMode mode, bool hasDes
     unsigned   varNum = UINT_MAX;
     if (tree->IsLocal())
     {
-        varNum = tree->gtLclVarCommon.gtLclNum;
+        varNum = tree->gtLclVarCommon.GetLclNum();
         varDsc = &(compiler->lvaTable[varNum]);
         if (varDsc->lvLRACandidate)
         {
@@ -10645,8 +10650,8 @@ void LinearScan::verifyResolutionMove(GenTree* resolutionMove, LsraLocation curr
         GenTreeLclVarCommon* right         = dst->gtGetOp2()->AsLclVarCommon();
         regNumber            leftRegNum    = left->gtRegNum;
         regNumber            rightRegNum   = right->gtRegNum;
-        LclVarDsc*           leftVarDsc    = compiler->lvaTable + left->gtLclNum;
-        LclVarDsc*           rightVarDsc   = compiler->lvaTable + right->gtLclNum;
+        LclVarDsc*           leftVarDsc    = compiler->lvaTable + left->GetLclNum();
+        LclVarDsc*           rightVarDsc   = compiler->lvaTable + right->GetLclNum();
         Interval*            leftInterval  = getIntervalForLocalVar(leftVarDsc->lvVarIndex);
         Interval*            rightInterval = getIntervalForLocalVar(rightVarDsc->lvVarIndex);
         assert(leftInterval->physReg == leftRegNum && rightInterval->physReg == rightRegNum);

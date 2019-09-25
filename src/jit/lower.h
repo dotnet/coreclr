@@ -130,6 +130,7 @@ private:
     GenTree* OptimizeConstCompare(GenTree* cmp);
     GenTree* LowerCompare(GenTree* cmp);
     GenTree* LowerJTrue(GenTreeOp* jtrue);
+    GenTreeCC* LowerNodeCC(GenTree* node, GenCondition condition);
     void LowerJmpMethod(GenTree* jmp);
     void LowerRet(GenTree* ret);
     GenTree* LowerDelegateInvoke(GenTreeCall* call);
@@ -138,6 +139,10 @@ private:
     GenTree* LowerNonvirtPinvokeCall(GenTreeCall* call);
     GenTree* LowerTailCallViaHelper(GenTreeCall* callNode, GenTree* callTarget);
     void LowerFastTailCall(GenTreeCall* callNode);
+    void RehomeArgForFastTailCall(unsigned int lclNum,
+                                  GenTree*     insertTempBefore,
+                                  GenTree*     lookForUsesStart,
+                                  GenTreeCall* callNode);
     void InsertProfTailCallHook(GenTreeCall* callNode, GenTree* insertionPoint);
     GenTree* LowerVirtualVtableCall(GenTreeCall* call);
     GenTree* LowerVirtualStubCall(GenTreeCall* call);
@@ -305,6 +310,7 @@ private:
 #endif // FEATURE_SIMD
 #ifdef FEATURE_HW_INTRINSICS
     void LowerHWIntrinsic(GenTreeHWIntrinsic* node);
+    void LowerHWIntrinsicCC(GenTreeHWIntrinsic* node, NamedIntrinsic newIntrinsicId, GenCondition condition);
 #endif // FEATURE_HW_INTRINSICS
 
     // Utility functions

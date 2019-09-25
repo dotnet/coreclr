@@ -692,7 +692,7 @@ bool LinearScan::isContainableMemoryOp(GenTree* node)
         {
             return true;
         }
-        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->gtLclNum];
+        LclVarDsc* varDsc = &compiler->lvaTable[node->AsLclVar()->GetLclNum()];
         return varDsc->lvDoNotEnregister;
     }
     return false;
@@ -1568,7 +1568,7 @@ void LinearScan::buildRefPositionsForNode(GenTree* tree, BasicBlock* block, Lsra
         // address computation. In this case we need to check whether it is a last use.
         if (tree->IsLocal() && ((tree->gtFlags & GTF_VAR_DEATH) != 0))
         {
-            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
+            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
             if (isCandidateVar(varDsc))
             {
                 assert(varDsc->lvTracked);
@@ -1717,7 +1717,7 @@ void LinearScan::buildPhysRegRecords()
 //
 BasicBlock* getNonEmptyBlock(BasicBlock* block)
 {
-    while (block != nullptr && block->bbTreeList == nullptr)
+    while (block != nullptr && block->GetFirstLIRNode() == nullptr)
     {
         BasicBlock* nextBlock = block->bbNext;
         // Note that here we use the version of NumSucc that does not take a compiler.
@@ -1729,7 +1729,7 @@ BasicBlock* getNonEmptyBlock(BasicBlock* block)
         // assert( block->GetSucc(0) == nextBlock);
         block = nextBlock;
     }
-    assert(block != nullptr && block->bbTreeList != nullptr);
+    assert(block != nullptr && block->GetFirstLIRNode() != nullptr);
     return block;
 }
 
@@ -2079,7 +2079,7 @@ void LinearScan::buildIntervals()
         {
             JITDUMP("\n\nSetting " FMT_BB " as the predecessor for determining incoming variable registers of " FMT_BB
                     "\n",
-                    block->bbNum, predBlock->bbNum);
+                    predBlock->bbNum, block->bbNum);
             assert(predBlock->bbNum <= bbNumMaxBeforeResolution);
             blockInfo[block->bbNum].predBBNum = predBlock->bbNum;
         }
@@ -2896,7 +2896,7 @@ int LinearScan::BuildStoreLoc(GenTreeLclVarCommon* storeLoc)
     GenTree*     op1 = storeLoc->gtGetOp1();
     int          srcCount;
     RefPosition* singleUseRef = nullptr;
-    LclVarDsc*   varDsc       = &compiler->lvaTable[storeLoc->gtLclNum];
+    LclVarDsc*   varDsc       = &compiler->lvaTable[storeLoc->GetLclNum()];
 
 // First, define internal registers.
 #ifdef FEATURE_SIMD

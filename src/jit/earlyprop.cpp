@@ -188,7 +188,7 @@ void Compiler::optEarlyProp()
         for (Statement* stmt = block->firstStmt(); stmt != nullptr;)
         {
             // Preserve the next link before the propagation and morph.
-            Statement* next = stmt->gtNextStmt;
+            Statement* next = stmt->GetNextStmt();
 
             compCurStmt = stmt;
 
@@ -336,7 +336,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("optEarlyProp Rewriting " FMT_BB "\n", compCurBB->bbNum);
-            gtDispTree(compCurStmt->gtStmtExpr);
+            gtDispStmt(compCurStmt);
             printf("\n");
         }
 #endif
@@ -368,7 +368,7 @@ GenTree* Compiler::optEarlyPropRewriteTree(GenTree* tree)
         if (verbose)
         {
             printf("to\n");
-            gtDispTree(compCurStmt->gtStmtExpr);
+            gtDispStmt(compCurStmt);
             printf("\n");
         }
 #endif
@@ -573,7 +573,7 @@ void Compiler::optFoldNullCheck(GenTree* tree)
                                 {
                                     GenTree* additionNode = defRHS->gtGetOp2();
                                     if ((additionNode->gtGetOp1()->OperGet() == GT_LCL_VAR) &&
-                                        (additionNode->gtGetOp1()->gtLclVarCommon.gtLclNum == nullCheckLclNum))
+                                        (additionNode->gtGetOp1()->gtLclVarCommon.GetLclNum() == nullCheckLclNum))
                                     {
                                         GenTree* offset = additionNode->gtGetOp2();
                                         if (offset->IsCnsIntOrI())
