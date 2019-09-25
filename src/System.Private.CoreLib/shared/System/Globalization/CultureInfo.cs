@@ -673,7 +673,7 @@ namespace System.Globalization
         /// Gets the CompareInfo for this culture.
         /// </summary>
         public virtual CompareInfo CompareInfo => _compareInfo ??=
-            // Since CompareInfo's don't have any overrideable properties, get the CompareInfo from	
+            // Since CompareInfo's don't have any overrideable properties, get the CompareInfo from
             // the Non-Overridden CultureInfo so that we only create one CompareInfo per culture
             (UseUserOverride ? GetCultureInfo(_name).CompareInfo : new CompareInfo(this));
 

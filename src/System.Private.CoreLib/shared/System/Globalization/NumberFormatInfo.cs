@@ -188,7 +188,7 @@ namespace System.Globalization
         /// Used by FromString methods.
         /// </summary>
         public static NumberFormatInfo InvariantInfo => s_invariantInfo ??=
-            // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can	
+            // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can
             // be thrown out of a .cctor stack that will need this.
             new NumberFormatInfo { _isReadOnly = true };
 
