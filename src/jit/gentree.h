@@ -5302,9 +5302,9 @@ struct Statement
 {
 public:
     GenTree* gtStmtExpr; // root of the expression tree
-    GenTree* gtStmtList; // first node (for forward walks)
 
 private:
+    GenTree*       m_treeList;      // first node (for forward walks)
     InlineContext* m_inlineContext; // The inline context for this statement.
 
     IL_OFFSETX m_ILOffsetX; // instr offset (if available)
@@ -5338,6 +5338,16 @@ public:
     void SetPrevStmt(Statement* prevStmt)
     {
         m_prev = prevStmt;
+    }
+
+    GenTree* GetTreeList() const
+    {
+        return m_treeList;
+    }
+
+    void SetTreeList(GenTree* treeHead)
+    {
+        m_treeList = treeHead;
     }
 
     InlineContext* GetInlineContext() const
@@ -5385,7 +5395,7 @@ public:
 
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
-        , gtStmtList(nullptr)
+        , m_treeList(nullptr)
         , m_inlineContext(nullptr)
         , m_ILOffsetX(offset)
 #ifdef DEBUG

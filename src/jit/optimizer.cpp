@@ -7670,7 +7670,7 @@ void Compiler::optComputeLoopSideEffectsOfBlock(BasicBlock* blk)
     // Now iterate over the remaining statements, and their trees.
     for (Statement* stmt : StatementList(blk->FirstNonPhiDef()))
     {
-        for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
+        for (GenTree* tree = stmt->GetTreeList(); tree != nullptr; tree = tree->gtNext)
         {
             genTreeOps oper = tree->OperGet();
 

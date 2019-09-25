@@ -244,7 +244,7 @@ void Rationalizer::SanityCheck()
         {
             ValidateStatement(statement, block);
 
-            for (GenTree* tree = statement->gtStmtList; tree; tree = tree->gtNext)
+            for (GenTree* tree = statement->GetTreeList(); tree; tree = tree->gtNext)
             {
                 // QMARK nodes should have been removed before this phase.
                 assert(tree->OperGet() != GT_QMARK);
@@ -935,12 +935,12 @@ void Rationalizer::DoPhase()
 
         for (Statement* statement : StatementList(firstStatement))
         {
-            assert(statement->gtStmtList != nullptr);
-            assert(statement->gtStmtList->gtPrev == nullptr);
+            assert(statement->GetTreeList() != nullptr);
+            assert(statement->GetTreeList()->gtPrev == nullptr);
             assert(statement->gtStmtExpr != nullptr);
             assert(statement->gtStmtExpr->gtNext == nullptr);
 
-            BlockRange().InsertAtEnd(LIR::Range(statement->gtStmtList, statement->gtStmtExpr));
+            BlockRange().InsertAtEnd(LIR::Range(statement->GetTreeList(), statement->gtStmtExpr));
 
             // If this statement has correct offset information, change it into an IL offset
             // node and insert it into the LIR.
@@ -949,7 +949,7 @@ void Rationalizer::DoPhase()
                 assert(!statement->IsPhiDefnStmt());
                 GenTreeILOffset* ilOffset = new (comp, GT_IL_OFFSET)
                     GenTreeILOffset(statement->GetILOffsetX() DEBUGARG(statement->GetLastILOffset()));
-                BlockRange().InsertBefore(statement->gtStmtList, ilOffset);
+                BlockRange().InsertBefore(statement->GetTreeList(), ilOffset);
             }
 
             m_block = block;

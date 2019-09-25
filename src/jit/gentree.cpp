@@ -7866,8 +7866,8 @@ GenTree* Compiler::gtReplaceTree(Statement* stmt, GenTree* tree, GenTree* replac
         {
             // Update the linear oder start of "stmt" if treeFirstNode
             // appears to have replaced the original first node.
-            assert(treeFirstNode == stmt->gtStmtList);
-            stmt->gtStmtList = fgGetFirstNode(replacementTree);
+            assert(treeFirstNode == stmt->GetTreeList());
+            stmt->SetTreeList(fgGetFirstNode(replacementTree));
         }
 
         if (treeNextNode != nullptr)
