@@ -725,8 +725,6 @@ public:
 
     /////////////////////
 
-
-
     regNumber GetArgInitReg() const
     {
         return (regNumber)_lvArgInitReg;
