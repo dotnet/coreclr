@@ -5301,11 +5301,12 @@ struct GenTreeILOffset : public GenTree
 struct Statement
 {
 public:
-    GenTree*       gtStmtExpr;      // root of the expression tree
-    GenTree*       gtStmtList;      // first node (for forward walks)
-    InlineContext* gtInlineContext; // The inline context for this statement.
+    GenTree* gtStmtExpr; // root of the expression tree
+    GenTree* gtStmtList; // first node (for forward walks)
 
 private:
+    InlineContext* m_inlineContext; // The inline context for this statement.
+
     IL_OFFSETX m_ILOffsetX; // instr offset (if available)
 
 #ifdef DEBUG
@@ -5318,9 +5319,7 @@ private:
 
     bool m_compilerAdded;
 
-
 public:
-
     Statement* GetNextStmt() const
     {
         return m_next;
@@ -5339,6 +5338,16 @@ public:
     void SetPrevStmt(Statement* prevStmt)
     {
         m_prev = prevStmt;
+    }
+
+    InlineContext* GetInlineContext() const
+    {
+        return m_inlineContext;
+    }
+
+    void SetInlineContext(InlineContext* inlineContext)
+    {
+        m_inlineContext = inlineContext;
     }
 
     IL_OFFSETX GetILOffsetX() const
@@ -5377,7 +5386,7 @@ public:
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
-        , gtInlineContext(nullptr)
+        , m_inlineContext(nullptr)
         , m_ILOffsetX(offset)
 #ifdef DEBUG
         , m_lastILOffset(BAD_IL_OFFSET)
