@@ -1446,7 +1446,6 @@ public:
 #endif
     }
 
-
     bool GetIsVararg()
     {
 #ifdef FEATURE_VARARG

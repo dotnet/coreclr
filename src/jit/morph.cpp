@@ -4531,7 +4531,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
         && !fgEntryPtr->GetIsVararg()
 #endif // !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-        )
+            )
     {
         elemType  = hfaType;
         elemSize  = genTypeSize(elemType);
@@ -4643,7 +4643,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
             && !fgEntryPtr->GetIsVararg()
 #endif // !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-            )
+                )
         {
             // We have a HFA struct.
             // Note that GetHfaType may not be the same as elemType, since TYP_SIMD8 is handled the same as TYP_DOUBLE.
@@ -4698,7 +4698,7 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
                                                                 && !fgEntryPtr->GetIsVararg()
 #endif // !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-                                                                ))
+                                                                    ))
         {
             // See if we have two promoted fields that start at offset 0 and 8?
             unsigned loVarNum = lvaGetFieldLocal(varDsc, 0);
