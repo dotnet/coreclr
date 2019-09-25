@@ -1,7 +1,8 @@
+// Licensed to the .NET Foundation under one or more agreements.
+// The .NET Foundation licenses this file to you under the MIT license.
+// See the LICENSE file in the project root for more information.
 
-//  Microsoft (R) .NET Framework IL Disassembler.  Version 4.5.30319.0
-
-
+// See more_tailcalls.cs for the source of this IL.
 
 // Metadata version: v4.0.30319
 .assembly extern System.Runtime
@@ -44,14 +45,14 @@
   .ver 1:0:0:0
 }
 .module example1.dll
-// MVID: {f362de53-d5b2-47e7-ad23-b4dfe7d0e576}
+// MVID: {d297947d-0d42-4f5f-a026-33cccfd04656}
 .custom instance void [System.Runtime]System.Security.UnverifiableCodeAttribute::.ctor() = ( 01 00 00 00 ) 
 .imagebase 0x00400000
 .file alignment 0x00000200
 .stackreserve 0x00100000
 .subsystem 0x0003       // WINDOWS_CUI
 .corflags 0x00000001    //  ILONLY
-// Image base: 0x00007F145D4B1000
+// Image base: 0x00007F4743A10000
 
 
 // =============== CLASS MEMBERS DECLARATION ===================
@@ -274,48 +275,52 @@
                                  !!T expected,
                                  string name) cil managed
     {
-      // Code size       94 (0x5e)
+      // Code size       105 (0x69)
       .maxstack  4
       .locals init (class [System.Runtime.Extensions]System.Diagnostics.Stopwatch V_0,
                !!T V_1)
-      IL_0000:  call       class [System.Runtime.Extensions]System.Diagnostics.Stopwatch [System.Runtime.Extensions]System.Diagnostics.Stopwatch::StartNew()
-      IL_0005:  stloc.0
-      IL_0006:  ldarg.1
-      IL_0007:  callvirt   instance !0 class [System.Runtime]System.Func`1<!!T>::Invoke()
-      IL_000c:  stloc.1
-      IL_000d:  ldloc.0
-      IL_000e:  callvirt   instance void [System.Runtime.Extensions]System.Diagnostics.Stopwatch::Stop()
-      IL_0013:  ldloca.s   V_1
-      IL_0015:  ldarg.2
-      IL_0016:  box        !!T
-      IL_001b:  constrained. !!T
-      IL_0021:  callvirt   instance bool [System.Runtime]System.Object::Equals(object)
-      IL_0026:  brfalse.s  IL_003f
+      IL_0000:  ldstr      "{0}: "
+      IL_0005:  ldarg.3
+      IL_0006:  call       void [System.Console]System.Console::Write(string,
+                                                                      object)
+      IL_000b:  call       class [System.Runtime.Extensions]System.Diagnostics.Stopwatch [System.Runtime.Extensions]System.Diagnostics.Stopwatch::StartNew()
+      IL_0010:  stloc.0
+      IL_0011:  ldarg.1
+      IL_0012:  callvirt   instance !0 class [System.Runtime]System.Func`1<!!T>::Invoke()
+      IL_0017:  stloc.1
+      IL_0018:  ldloc.0
+      IL_0019:  callvirt   instance void [System.Runtime.Extensions]System.Diagnostics.Stopwatch::Stop()
+      IL_001e:  ldloca.s   V_1
+      IL_0020:  ldarg.2
+      IL_0021:  box        !!T
+      IL_0026:  constrained. !!T
+      IL_002c:  callvirt   instance bool [System.Runtime]System.Object::Equals(object)
+      IL_0031:  brfalse.s  IL_004a
 
-      IL_0028:  ldstr      "{0}: OK in {1} ms"
-      IL_002d:  ldarg.3
-      IL_002e:  ldloc.0
-      IL_002f:  callvirt   instance int64 [System.Runtime.Extensions]System.Diagnostics.Stopwatch::get_ElapsedMilliseconds()
-      IL_0034:  box        [System.Runtime]System.Int64
-      IL_0039:  call       void [System.Console]System.Console::WriteLine(string,
+      IL_0033:  ldstr      "OK in {1} ms"
+      IL_0038:  ldarg.3
+      IL_0039:  ldloc.0
+      IL_003a:  callvirt   instance int64 [System.Runtime.Extensions]System.Diagnostics.Stopwatch::get_ElapsedMilliseconds()
+      IL_003f:  box        [System.Runtime]System.Int64
+      IL_0044:  call       void [System.Console]System.Console::WriteLine(string,
                                                                           object,
                                                                           object)
-      IL_003e:  ret
+      IL_0049:  ret
 
-      IL_003f:  ldstr      "{0}: FAIL (expected {1}, got {2})"
-      IL_0044:  ldarg.3
-      IL_0045:  ldarg.2
-      IL_0046:  box        !!T
-      IL_004b:  ldloc.1
-      IL_004c:  box        !!T
-      IL_0051:  call       void [System.Console]System.Console::WriteLine(string,
+      IL_004a:  ldstr      "FAIL (expected {1}, got {2})"
+      IL_004f:  ldarg.3
+      IL_0050:  ldarg.2
+      IL_0051:  box        !!T
+      IL_0056:  ldloc.1
+      IL_0057:  box        !!T
+      IL_005c:  call       void [System.Console]System.Console::WriteLine(string,
                                                                           object,
                                                                           object,
                                                                           object)
-      IL_0056:  ldarg.0
-      IL_0057:  ldc.i4.0
-      IL_0058:  stfld      bool Program/'<>c__DisplayClass5_0'::result
-      IL_005d:  ret
+      IL_0061:  ldarg.0
+      IL_0062:  ldc.i4.0
+      IL_0063:  stfld      bool Program/'<>c__DisplayClass5_0'::result
+      IL_0068:  ret
     } // end of method '<>c__DisplayClass5_0'::'<Main>g__Test|0'
 
     .method assembly hidebysig instance void 
@@ -471,7 +476,7 @@
       .maxstack  8
       IL_0000:  ldarg.0
       IL_0001:  ldfld      class [System.Runtime]System.Func`3<int32,int32,!0> class Program/'<>c__DisplayClass5_1`1'<!T>::f
-      IL_0006:  ldc.i4     0x989680
+      IL_0006:  ldc.i4     0xf4240
       IL_000b:  ldc.i4.0
       IL_000c:  callvirt   instance !2 class [System.Runtime]System.Func`3<int32,int32,!T>::Invoke(!0,
                                                                                                    !1)
@@ -541,7 +546,7 @@
       IL_0000:  ldloca.s   V_0
       IL_0002:  initobj    InstanceValueType
       IL_0008:  ldloca.s   V_0
-      IL_000a:  ldc.i4     0x989680
+      IL_000a:  ldc.i4     0xf4240
       IL_000f:  call       instance void InstanceValueType::CountUp(int32)
       IL_0014:  ldloc.0
       IL_0015:  ldfld      int32 InstanceValueType::Count
@@ -553,7 +558,7 @@
     {
       // Code size       17 (0x11)
       .maxstack  8
-      IL_0000:  ldc.i4     0x989680
+      IL_0000:  ldc.i4     0xf4240
       IL_0005:  ldc.i4.0
       IL_0006:  newobj     instance void HeapInt::.ctor(int32)
       IL_000b:  call       int32 Program::CountUpHeap(int32,
@@ -570,7 +575,7 @@
       IL_0000:  ldc.i4.1
       IL_0001:  newarr     [System.Runtime]System.Int32
       IL_0006:  stloc.0
-      IL_0007:  ldc.i4     0x989680
+      IL_0007:  ldc.i4     0xf4240
       IL_000c:  ldloc.0
       IL_000d:  ldc.i4.0
       IL_000e:  ldelema    [System.Runtime]System.Int32
@@ -744,7 +749,7 @@
              valuetype S32 V_10)
     IL_0000:  newobj     instance void Program/'<>c__DisplayClass5_0'::.ctor()
     IL_0005:  stloc.0
-    IL_0006:  ldc.i4     0x989680
+    IL_0006:  ldc.i4     0xf4240
     IL_000b:  stloc.1
     IL_000c:  ldloca.s   V_2
     IL_000e:  initobj    S32
@@ -1033,7 +1038,7 @@
                                                                                          native int)
     IL_02a9:  dup
     IL_02aa:  stsfld     class [System.Runtime]System.Func`1<int32> Program/'<>c'::'<>9__5_3'
-    IL_02af:  ldc.i4     0x989680
+    IL_02af:  ldc.i4     0xf4240
     IL_02b4:  ldstr      "Value type instance call"
     IL_02b9:  callvirt   instance void Program/'<>c__DisplayClass5_0'::'<Main>g__Test|0'<int32>(class [System.Runtime]System.Func`1<!!0>,
                                                                                                 !!0,
@@ -1060,7 +1065,7 @@
                                                                                          native int)
     IL_02f4:  dup
     IL_02f5:  stsfld     class [System.Runtime]System.Func`1<int32> Program/'<>c'::'<>9__5_5'
-    IL_02fa:  ldc.i4     0x989680
+    IL_02fa:  ldc.i4     0xf4240
     IL_02ff:  ldstr      "Count up with heap int"
     IL_0304:  callvirt   instance void Program/'<>c__DisplayClass5_0'::'<Main>g__Test|0'<int32>(class [System.Runtime]System.Func`1<!!0>,
                                                                                                 !!0,
@@ -1077,7 +1082,7 @@
                                                                                          native int)
     IL_0323:  dup
     IL_0324:  stsfld     class [System.Runtime]System.Func`1<int32> Program/'<>c'::'<>9__5_6'
-    IL_0329:  ldc.i4     0x989680
+    IL_0329:  ldc.i4     0xf4240
     IL_032e:  ldstr      "Count up with byref to heap"
     IL_0333:  callvirt   instance void Program/'<>c__DisplayClass5_0'::'<Main>g__Test|0'<int32>(class [System.Runtime]System.Func`1<!!0>,
                                                                                                 !!0,
@@ -3476,7 +3481,6 @@
   } // end of method GenInterfaceImpl`2::.ctor
 
 } // end of class GenInterfaceImpl`2
-
 
 // =============================================================
 
