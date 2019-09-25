@@ -5562,7 +5562,7 @@
               call       void [System.Console]System.Console::WriteLine(string)
               br.s       IL_AFTER
 
-    IL_UNIX:  ldstr      "Hello"
+    IL_UNIX:  ldstr      "Hello\n"
               call       void TailcallVerify.UnixInterop::printf(string)
     IL_AFTER: ldc.i4.1
               volatile.
@@ -5669,7 +5669,7 @@
               tail. call       void TailcallVerify.Win32Interop::Callee(int32)
               ret
 
-    IL_UNIX:  ldstr      "Hello"
+    IL_UNIX:  ldstr      "Hello\n"
               tail. call       void TailcallVerify.UnixInterop::Callee(string)
               ret
   } // end of method Condition19::Caller2
