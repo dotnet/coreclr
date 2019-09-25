@@ -2115,7 +2115,6 @@ void Compiler::optAssertionGen(GenTree* tree)
                     noway_assert(tree->gtCall.IsTailCall());
                     break;
                 }
-                noway_assert(thisArg != nullptr);
                 assertionInfo = optCreateAssertion(thisArg, nullptr, OAK_NOT_EQUAL);
             }
             break;
