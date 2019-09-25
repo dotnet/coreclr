@@ -689,26 +689,19 @@ namespace Internal.JitInterface
                 // and we might not have set the bit in the code above.
                 result |= CorInfoFlag.CORINFO_FLG_FINAL;
             }
-            
+
             // Check for hardware intrinsics
             if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
             {
+#if !READYTORUN
                 // Do not report the get_IsSupported method as an intrinsic - RyuJIT would expand it to
                 // a constant depending on the code generation flags passed to it, but we would like to
                 // do a dynamic check instead.
                 if (!HardwareIntrinsicHelpers.IsIsSupportedMethod(method)
-#if !READYTORUN
-                    || HardwareIntrinsicHelpers.IsKnownSupportedIntrinsicAtCompileTime(method)
+                    || HardwareIntrinsicHelpers.IsKnownSupportedIntrinsicAtCompileTime(method))
 #endif
-                   )
                 {
                     result |= CorInfoFlag.CORINFO_FLG_JIT_INTRINSIC;
-                }
-                else
-                {
-#if READYTORUN
-                    result |= CorInfoFlag.CORINFO_FLG_DONT_INLINE;
-#endif
                 }
             }
 
