@@ -8,7 +8,6 @@ namespace
 {
     HRESULT InvokeDelegate(IDispatch* dele, VARIANT* pResult)
     {
-        VariantInit(pResult);
         HRESULT hr;
         BSTR bstrName = SysAllocString(L"DynamicInvoke");
         DISPID dispid = 0;
@@ -28,6 +27,7 @@ namespace
         }
 
         DISPPARAMS params = { NULL, NULL, 0, 0 };
+        VariantInit(pResult);
         hr = dele->Invoke(
             dispid,
             IID_NULL,
