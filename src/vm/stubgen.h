@@ -754,7 +754,6 @@ public:
     void EmitSTOBJ      (int token);
     void EmitSTSFLD     (int token);
     void EmitSUB        ();
-    void EmitTAIL       ();
     void EmitTHROW      ();
 
     // Overloads to simplify common usage patterns

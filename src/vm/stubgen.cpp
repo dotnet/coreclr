@@ -1795,11 +1795,6 @@ void ILCodeStream::EmitSUB()
     WRAPPER_NO_CONTRACT;
     Emit(CEE_SUB, -1, 0);
 }
-void ILCodeStream::EmitTAIL()
-{
-    WRAPPER_NO_CONTRACT;
-    Emit(CEE_TAILCALL, 0, 0);
-}
 void ILCodeStream::EmitTHROW()
 {
     WRAPPER_NO_CONTRACT;
