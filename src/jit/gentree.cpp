@@ -11601,7 +11601,7 @@ void Compiler::gtDispStmt(Statement* stmt, const char* msg /* = nullptr */)
             printf("%s ", msg);
         }
         printStmtID(stmt);
-        IL_OFFSETX firstILOffsx = stmt->gtStmtILoffsx;
+        IL_OFFSETX firstILOffsx = stmt->GetILOffsetX();
         printf(" (IL ");
         if (firstILOffsx == BAD_IL_OFFSET)
         {

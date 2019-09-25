@@ -624,7 +624,7 @@ inline void Compiler::impAppendStmt(Statement* stmt, unsigned chkLevel)
     /* Once we set impCurStmtOffs in an appended tree, we are ready to
        report the following offsets. So reset impCurStmtOffs */
 
-    if (impLastStmt->gtStmtILoffsx == impCurStmtOffs)
+    if (impLastStmt->GetILOffsetX() == impCurStmtOffs)
     {
         impCurStmtOffsSet(BAD_IL_OFFSET);
     }
@@ -2656,7 +2656,7 @@ inline void Compiler::impCurStmtOffsSet(IL_OFFSET offs)
     if (compIsForInlining())
     {
         Statement* callStmt = impInlineInfo->iciStmt;
-        impCurStmtOffs      = callStmt->gtStmtILoffsx;
+        impCurStmtOffs      = callStmt->GetILOffsetX();
     }
     else
     {

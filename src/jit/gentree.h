@@ -5304,9 +5304,10 @@ public:
     GenTree*       gtStmtExpr;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
     InlineContext* gtInlineContext; // The inline context for this statement.
-    IL_OFFSETX     gtStmtILoffsx;   // instr offset (if available)
 
 private:
+    IL_OFFSETX m_ILOffsetX; // instr offset (if available)
+
 #ifdef DEBUG
     IL_OFFSET m_lastILOffset; // instr offset at end of stmt
     unsigned  m_stmtID;
@@ -5338,6 +5339,16 @@ public:
         m_prev = prevStmt;
     }
 
+    IL_OFFSETX GetILOffsetX() const
+    {
+        return m_ILOffsetX;
+    }
+
+    void SetILOffsetX(IL_OFFSETX offsetX)
+    {
+        m_ILOffsetX = offsetX;
+    }
+
 #ifdef DEBUG
 
     IL_OFFSET GetLastILOffset() const
@@ -5355,7 +5366,7 @@ public:
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
-        , gtStmtILoffsx(offset)
+        , m_ILOffsetX(offset)
 #ifdef DEBUG
         , m_lastILOffset(BAD_IL_OFFSET)
         , m_stmtID(stmtID)

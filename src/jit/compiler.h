@@ -2649,7 +2649,7 @@ public:
     Statement* gtCloneStmt(Statement* stmt)
     {
         GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
-        return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
+        return gtNewStmt(exprClone, stmt->GetILOffsetX());
     }
 
     // Internal helper for cloning a call

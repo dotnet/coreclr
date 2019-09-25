@@ -3914,7 +3914,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             if (nextStmt != nullptr)
             {
                 // Is it possible for gtNextStmt to be NULL?
-                newStmt->gtStmtILoffsx = nextStmt->gtStmtILoffsx;
+                newStmt->SetILOffsetX(nextStmt->GetILOffsetX());
             }
         }
 
@@ -9333,9 +9333,9 @@ IL_OFFSET Compiler::fgFindBlockILOffset(BasicBlock* block)
 
     for (Statement* stmt : block->Statements())
     {
-        if (stmt->gtStmtILoffsx != BAD_IL_OFFSET)
+        if (stmt->GetILOffsetX() != BAD_IL_OFFSET)
         {
-            return jitGetILoffs(stmt->gtStmtILoffsx);
+            return jitGetILoffs(stmt->GetILOffsetX());
         }
     }
 
@@ -10027,7 +10027,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
     }
 #endif // DEBUG
 
-    if (opts.compDbgCode && stmt->GetPrevStmt() != stmt && stmt->gtStmtILoffsx != BAD_IL_OFFSET)
+    if (opts.compDbgCode && stmt->GetPrevStmt() != stmt && stmt->GetILOffsetX() != BAD_IL_OFFSET)
     {
         /* TODO: For debuggable code, should we remove significant
            statement boundaries. Or should we leave a GT_NO_OP in its place? */
@@ -23094,9 +23094,9 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
         block->copyEHRegion(iciBlock);
         block->bbFlags |= iciBlock->bbFlags & BBF_BACKWARD_JUMP;
 
-        if (iciStmt->gtStmtILoffsx != BAD_IL_OFFSET)
+        if (iciStmt->GetILOffsetX() != BAD_IL_OFFSET)
         {
-            block->bbCodeOffs    = jitGetILoffs(iciStmt->gtStmtILoffsx);
+            block->bbCodeOffs    = jitGetILoffs(iciStmt->GetILOffsetX());
             block->bbCodeOffsEnd = block->bbCodeOffs + 1; // TODO: is code size of 1 some magic number for inlining?
         }
         else
@@ -23258,7 +23258,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 {
     BasicBlock*  block        = inlineInfo->iciBlock;
     Statement*   callStmt     = inlineInfo->iciStmt;
-    IL_OFFSETX   callILOffset = callStmt->gtStmtILoffsx;
+    IL_OFFSETX   callILOffset = callStmt->GetILOffsetX();
     Statement*   postStmt     = callStmt->GetNextStmt();
     Statement*   afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
     Statement*   newStmt      = nullptr;
@@ -23689,7 +23689,7 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
     JITDUMP("fgInlineAppendStatements: nulling out gc ref inlinee locals.\n");
 
     Statement*           callStmt          = inlineInfo->iciStmt;
-    IL_OFFSETX           callILOffset      = callStmt->gtStmtILoffsx;
+    IL_OFFSETX           callILOffset      = callStmt->GetILOffsetX();
     CORINFO_METHOD_INFO* InlineeMethodInfo = InlineeCompiler->info.compMethodInfo;
     const unsigned       lclCnt            = InlineeMethodInfo->locals.numArgs;
     InlLclVarInfo*       lclVarInfo        = inlineInfo->lclVarInfo;

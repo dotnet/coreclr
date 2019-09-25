@@ -7827,7 +7827,7 @@ void Compiler::fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCa
     // Transform recursive tail call into a loop.
 
     Statement* earlyArgInsertionPoint = lastStmt;
-    IL_OFFSETX callILOffset           = lastStmt->gtStmtILoffsx;
+    IL_OFFSETX callILOffset           = lastStmt->GetILOffsetX();
 
     // Hoist arg setup statement for the 'this' argument.
     GenTreeCall::Use* thisArg = recursiveTailCall->gtCallThisArg;
@@ -8147,7 +8147,7 @@ GenTree* Compiler::fgMorphCall(GenTreeCall* call)
             assg = fgMorphTree(assg);
 
             // Create the assignment statement and insert it before the current statement.
-            Statement* assgStmt = gtNewStmt(assg, compCurStmt->gtStmtILoffsx);
+            Statement* assgStmt = gtNewStmt(assg, compCurStmt->GetILOffsetX());
             fgInsertStmtBefore(compCurBB, compCurStmt, assgStmt);
 
             // Return the temp.
@@ -15719,7 +15719,7 @@ void Compiler::fgMorphBlocks()
                         noway_assert(ret->gtGetOp1() != nullptr);
 
                         Statement* pAfterStatement = lastStmt;
-                        IL_OFFSETX offset          = lastStmt->gtStmtILoffsx;
+                        IL_OFFSETX offset          = lastStmt->GetILOffsetX();
                         GenTree*   tree =
                             gtNewTempAssign(genReturnLocal, ret->gtGetOp1(), &pAfterStatement, offset, block);
                         if (tree->OperIsCopyBlkOp())
@@ -16218,23 +16218,23 @@ void Compiler::fgExpandQmarkForCastInstOf(BasicBlock* block, Statement* stmt)
 
     // Append cond1 as JTRUE to cond1Block
     GenTree*   jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, condExpr);
-    Statement* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    Statement* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->GetILOffsetX());
     fgInsertStmtAtEnd(cond1Block, jmpStmt);
 
     // Append cond2 as JTRUE to cond2Block
     jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, cond2Expr);
-    jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    jmpStmt = fgNewStmtFromTree(jmpTree, stmt->GetILOffsetX());
     fgInsertStmtAtEnd(cond2Block, jmpStmt);
 
     // AsgBlock should get tmp = op1 assignment.
     trueExpr            = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), trueExpr);
-    Statement* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
+    Statement* trueStmt = fgNewStmtFromTree(trueExpr, stmt->GetILOffsetX());
     fgInsertStmtAtEnd(asgBlock, trueStmt);
 
     // Since we are adding helper in the JTRUE false path, reverse the cond2 and add the helper.
     gtReverseCond(cond2Expr);
     GenTree*   helperExpr = gtNewTempAssign(dst->AsLclVarCommon()->GetLclNum(), true2Expr);
-    Statement* helperStmt = fgNewStmtFromTree(helperExpr, stmt->gtStmtILoffsx);
+    Statement* helperStmt = fgNewStmtFromTree(helperExpr, stmt->GetILOffsetX());
     fgInsertStmtAtEnd(helperBlock, helperStmt);
 
     // Finally remove the nested qmark stmt.
@@ -16433,7 +16433,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, Statement* stmt)
     }
 
     GenTree*   jmpTree = gtNewOperNode(GT_JTRUE, TYP_VOID, qmark->gtGetOp1());
-    Statement* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->gtStmtILoffsx);
+    Statement* jmpStmt = fgNewStmtFromTree(jmpTree, stmt->GetILOffsetX());
     fgInsertStmtAtEnd(condBlock, jmpStmt);
 
     // Remove the original qmark statement.
@@ -16459,7 +16459,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, Statement* stmt)
         {
             trueExpr = gtNewTempAssign(lclNum, trueExpr);
         }
-        Statement* trueStmt = fgNewStmtFromTree(trueExpr, stmt->gtStmtILoffsx);
+        Statement* trueStmt = fgNewStmtFromTree(trueExpr, stmt->GetILOffsetX());
         fgInsertStmtAtEnd(thenBlock, trueStmt);
     }
 
@@ -16470,7 +16470,7 @@ void Compiler::fgExpandQmarkStmt(BasicBlock* block, Statement* stmt)
         {
             falseExpr = gtNewTempAssign(lclNum, falseExpr);
         }
-        Statement* falseStmt = fgNewStmtFromTree(falseExpr, stmt->gtStmtILoffsx);
+        Statement* falseStmt = fgNewStmtFromTree(falseExpr, stmt->GetILOffsetX());
         fgInsertStmtAtEnd(elseBlock, falseStmt);
     }
 
