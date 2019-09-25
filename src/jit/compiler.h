@@ -1394,7 +1394,6 @@ public:
         return isLate;
     }
 
-
     unsigned GetLateArgInx()
     {
         assert(isLateArg());

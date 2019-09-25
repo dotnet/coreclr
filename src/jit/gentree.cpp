@@ -11647,7 +11647,8 @@ void Compiler::gtDispLIRNode(GenTree* node, const char* prefixMsg /* = nullptr *
                         }
                         else
                         {
-                            gtGetLateArgMsg(call, operand, curArgTabEntry->GetLateArgInx(), listIndex, buf, sizeof(buf));
+                            gtGetLateArgMsg(call, operand, curArgTabEntry->GetLateArgInx(), listIndex, buf,
+                                            sizeof(buf));
                         }
 
                         displayOperand(operand, buf, operandArc, indentStack, prefixIndent);

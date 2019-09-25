@@ -1110,21 +1110,21 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned          argNum,
     // may actually be less.
     curArgTabEntry->setRegNum(0, regNum);
 
-    curArgTabEntry->argNum     = argNum;
-    curArgTabEntry->node       = node;
-    curArgTabEntry->argType    = node->TypeGet();
-    curArgTabEntry->use        = use;
-    curArgTabEntry->slotNum    = 0;
-    curArgTabEntry->numRegs    = numRegs;
-    curArgTabEntry->numSlots   = 0;
-    curArgTabEntry->alignment  = alignment;
+    curArgTabEntry->argNum    = argNum;
+    curArgTabEntry->node      = node;
+    curArgTabEntry->argType   = node->TypeGet();
+    curArgTabEntry->use       = use;
+    curArgTabEntry->slotNum   = 0;
+    curArgTabEntry->numRegs   = numRegs;
+    curArgTabEntry->numSlots  = 0;
+    curArgTabEntry->alignment = alignment;
     curArgTabEntry->SetLateArgInx(UINT_MAX);
-    curArgTabEntry->tmpNum     = BAD_VAR_NUM;
-    curArgTabEntry->isSplit    = false;
-    curArgTabEntry->isTmp      = false;
-    curArgTabEntry->needTmp    = false;
-    curArgTabEntry->needPlace  = false;
-    curArgTabEntry->processed  = false;
+    curArgTabEntry->tmpNum    = BAD_VAR_NUM;
+    curArgTabEntry->isSplit   = false;
+    curArgTabEntry->isTmp     = false;
+    curArgTabEntry->needTmp   = false;
+    curArgTabEntry->needPlace = false;
+    curArgTabEntry->processed = false;
 #ifdef FEATURE_HFA
     curArgTabEntry->_hfaElemKind = HFA_ELEM_NONE;
 #endif
@@ -1198,15 +1198,15 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned          argNum,
     curArgTabEntry->structIntRegs   = 0;
     curArgTabEntry->structFloatRegs = 0;
 #endif // defined(UNIX_AMD64_ABI)
-    curArgTabEntry->numSlots   = numSlots;
-    curArgTabEntry->alignment  = alignment;
+    curArgTabEntry->numSlots  = numSlots;
+    curArgTabEntry->alignment = alignment;
     curArgTabEntry->SetLateArgInx(UINT_MAX);
-    curArgTabEntry->tmpNum     = BAD_VAR_NUM;
-    curArgTabEntry->isSplit    = false;
-    curArgTabEntry->isTmp      = false;
-    curArgTabEntry->needTmp    = false;
-    curArgTabEntry->needPlace  = false;
-    curArgTabEntry->processed  = false;
+    curArgTabEntry->tmpNum    = BAD_VAR_NUM;
+    curArgTabEntry->isSplit   = false;
+    curArgTabEntry->isTmp     = false;
+    curArgTabEntry->needTmp   = false;
+    curArgTabEntry->needPlace = false;
+    curArgTabEntry->processed = false;
 #ifdef FEATURE_HFA
     curArgTabEntry->_hfaElemKind = HFA_ELEM_NONE;
 #endif
@@ -2441,7 +2441,7 @@ void fgArgInfo::EvalArgsToTemps()
             tmpRegArgNext = tmpRegArgNext->GetNext();
         }
 
-        curArgTabEntry->node       = defArg;
+        curArgTabEntry->node = defArg;
         curArgTabEntry->SetLateArgInx(regArgInx++);
     }
 
