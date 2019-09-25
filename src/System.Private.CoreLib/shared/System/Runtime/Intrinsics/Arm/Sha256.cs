@@ -15,7 +15,7 @@ namespace System.Runtime.Intrinsics.Arm
     {
         internal Sha256() { }
 
-        public static bool IsSupported { get => IsSupported; }
+        public static new bool IsSupported { get => IsSupported; }
 
         /// <summary>
         /// uint32x4_t vsha256hq_u32 (uint32x4_t hash_abcd, uint32x4_t hash_efgh, uint32x4_t wk)

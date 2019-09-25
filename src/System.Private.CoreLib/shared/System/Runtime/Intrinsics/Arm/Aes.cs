@@ -15,7 +15,7 @@ namespace System.Runtime.Intrinsics.Arm
     {
         internal Aes() { }
 
-        public static bool IsSupported { get => IsSupported; }
+        public static new bool IsSupported { get => IsSupported; }
 
         /// <summary>
         /// uint8x16_t vaesdq_u8 (uint8x16_t data, uint8x16_t key)

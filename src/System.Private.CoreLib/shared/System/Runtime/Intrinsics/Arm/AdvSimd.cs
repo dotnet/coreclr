@@ -15,11 +15,11 @@ namespace System.Runtime.Intrinsics.Arm
     {
         internal AdvSimd() { }
 
-        public static bool IsSupported { get => IsSupported; }
+        public static new bool IsSupported { get => IsSupported; }
 
         public abstract class Arm64 : ArmBase.Arm64
         {
-            public static bool IsSupported { get => IsSupported; }
+            public static new bool IsSupported { get => IsSupported; }
 
             /// <summary>
             /// float64x2_t vabsq_f64 (float64x2_t a)

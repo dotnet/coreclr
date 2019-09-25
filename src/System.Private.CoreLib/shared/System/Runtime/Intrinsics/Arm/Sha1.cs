@@ -15,7 +15,7 @@ namespace System.Runtime.Intrinsics.Arm
     {
         internal Sha1() { }
 
-        public static bool IsSupported { get => IsSupported; }
+        public static new bool IsSupported { get => IsSupported; }
 
         /// <summary>
         /// uint32_t vsha1h_u32 (uint32_t hash_e)
