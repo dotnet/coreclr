@@ -337,8 +337,7 @@ static PCCOR_SIGNATURE PrettyPrintType(
                     {   
                         appendStrNumW(out, lowerBounds[i]);
                         appendStrW(out, W("..."));
-                        if (sizes[i] != 0)  
-                            appendStrNumW(out, lowerBounds[i] + sizes[i] + 1);
+                        appendStrNumW(out, lowerBounds[i] + sizes[i] + 1);
                     }   
                     if (i < rank-1) 
                         appendStrW(out, W(","));
