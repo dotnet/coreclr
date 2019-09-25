@@ -5316,8 +5316,10 @@ private:
     Statement* m_next;
     Statement* m_prev;
 
+    bool m_compilerAdded;
+
+
 public:
-    bool compilerAdded;
 
     Statement* GetNextStmt() const
     {
@@ -5362,6 +5364,16 @@ public:
     }
 #endif // DEBUG
 
+    bool IsCompilerAdded() const
+    {
+        return m_compilerAdded;
+    }
+
+    void SetCompilerAdded()
+    {
+        m_compilerAdded = true;
+    }
+
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
@@ -5373,7 +5385,7 @@ public:
 #endif
         , m_next(nullptr)
         , m_prev(nullptr)
-        , compilerAdded(false)
+        , m_compilerAdded(false)
     {
     }
 

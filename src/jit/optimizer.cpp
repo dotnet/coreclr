@@ -1076,7 +1076,7 @@ bool Compiler::optExtractInitTestIncr(
     noway_assert(initStmt != nullptr && (initStmt->GetNextStmt() == nullptr));
 
     // If it is a duplicated loop condition, skip it.
-    if (initStmt->compilerAdded)
+    if (initStmt->IsCompilerAdded())
     {
         bool doGetPrev = true;
 #ifdef DEBUG
@@ -3613,7 +3613,7 @@ void Compiler::optUnrollLoops()
         Statement* incrStmt = testStmt->GetPrevStmt();
         noway_assert(incrStmt != nullptr);
 
-        if (initStmt->compilerAdded)
+        if (initStmt->IsCompilerAdded())
         {
             /* Must be a duplicated loop condition */
             noway_assert(initStmt->gtStmtExpr->gtOper == GT_JTRUE);
@@ -4248,7 +4248,7 @@ void Compiler::fgOptWhileLoop(BasicBlock* block)
 
     Statement* copyOfCondStmt = fgNewStmtAtEnd(block, condTree);
 
-    copyOfCondStmt->compilerAdded = true;
+    copyOfCondStmt->SetCompilerAdded();
 
     if (opts.compDbgInfo)
     {
@@ -6216,7 +6216,7 @@ void Compiler::optPerformHoistExpr(GenTree* origExpr, unsigned lnum)
     hoist     = fgMorphTree(hoist);
 
     Statement* hoistStmt     = gtNewStmt(hoist);
-    hoistStmt->compilerAdded = true;
+    hoistStmt->SetCompilerAdded();
 
     /* simply append the statement at the end of the preHead's list */
 
