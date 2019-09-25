@@ -207,10 +207,8 @@ namespace System.Reflection
             if (obj.IsNull)
                 throw new ArgumentException(SR.Arg_TypedReference_Null);
 
-            {
-                // Passing TypedReference by reference is easier to make correct in native code
-                RuntimeFieldHandle.SetValueDirect(this, (RuntimeType)FieldType, &obj, value, (RuntimeType?)DeclaringType);
-            }
+            // Passing TypedReference by reference is easier to make correct in native code
+            RuntimeFieldHandle.SetValueDirect(this, (RuntimeType)FieldType, &obj, value, (RuntimeType?)DeclaringType);
         }
 
         public override RuntimeFieldHandle FieldHandle => new RuntimeFieldHandle(this);
