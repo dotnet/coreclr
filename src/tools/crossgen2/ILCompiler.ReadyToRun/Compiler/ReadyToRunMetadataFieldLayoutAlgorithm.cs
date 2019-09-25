@@ -315,6 +315,9 @@ namespace ILCompiler
 
             public FieldAndOffset[] GetOrAddDynamicLayout(DefType defType, ModuleFieldLayout moduleFieldLayout)
             {
+                lock (this)
+                {
+
                 FieldAndOffset[] fieldsForType;
                 if (!moduleFieldLayout.TryGetDynamicLayout(defType, out fieldsForType))
                 {
@@ -342,6 +345,7 @@ namespace ILCompiler
                     moduleFieldLayout.AddDynamicLayout(defType, fieldsForType);
                 }
                 return fieldsForType;
+                }
             }
 
             public FieldAndOffset[] CalculateTypeLayout(DefType defType, EcmaModule module, in OffsetsForType offsetsForType)

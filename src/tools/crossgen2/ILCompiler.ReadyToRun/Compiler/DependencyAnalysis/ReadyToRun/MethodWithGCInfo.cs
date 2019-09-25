@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-
+using System.Threading;
 using ILCompiler.DependencyAnalysis;
 
 using Internal.JitInterface;
@@ -22,6 +22,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         public SignatureContext SignatureContext { get; }
 
         private ObjectData _methodCode;
+        private int _compilationStarted;
         private FrameInfo[] _frameInfos;
         private byte[] _gcInfo;
         private ObjectData _ehInfo;
@@ -34,12 +35,18 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             GCInfoNode = new MethodGCInfoNode(this);
             _method = methodDesc;
             SignatureContext = signatureContext;
+            _compilationStarted = 0;
         }
 
         public void SetCode(ObjectData data)
         {
             Debug.Assert(_methodCode == null);
             _methodCode = data;
+        }
+
+        public bool CanStartCompilation()
+        {
+            return Interlocked.CompareExchange(ref _compilationStarted, 1, 0) == 0;
         }
 
         public MethodDesc Method => _method;

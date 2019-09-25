@@ -3,6 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Reflection.Metadata;
@@ -25,9 +26,9 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         /// Reverse lookup table mapping external types to reference tokens in the input modules. The table
         /// gets lazily initialized as various tokens are resolved in CorInfoImpl.
         /// </summary>
-        private readonly Dictionary<EcmaType, ModuleToken> _typeToRefTokens = new Dictionary<EcmaType, ModuleToken>();
+        private readonly ConcurrentDictionary<EcmaType, ModuleToken> _typeToRefTokens = new ConcurrentDictionary<EcmaType, ModuleToken>();
 
-        private readonly Dictionary<FieldDesc, ModuleToken> _fieldToRefTokens = new Dictionary<FieldDesc, ModuleToken>();
+        private readonly ConcurrentDictionary<FieldDesc, ModuleToken> _fieldToRefTokens = new ConcurrentDictionary<FieldDesc, ModuleToken>();
 
         private readonly CompilationModuleGroup _compilationModuleGroup;
 
@@ -162,7 +163,13 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 canonField = _typeSystemContext.GetFieldForInstantiatedType(field.GetTypicalFieldDefinition(), (InstantiatedType)owningCanonType);
             }
 
-            _fieldToRefTokens[canonField] = token;
+            //if (!_fieldToRefTokens.TryAdd(canonField, token))
+            //{
+            //    if (!_fieldToRefTokens[canonField].Equals(token))
+            //        throw new InvalidOperationException($"Already added token for field {canonField.Name}");
+            //}
+            _fieldToRefTokens.TryAdd(canonField, token);
+
             switch (token.TokenType)
             {
                 case CorTokenType.mdtMemberRef:
@@ -197,7 +204,12 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 // Don't store typespec tokens where a generic parameter resolves to the type in question
                 if (token.TokenType == CorTokenType.mdtTypeDef || token.TokenType == CorTokenType.mdtTypeRef)
                 {
-                    _typeToRefTokens[ecmaType] = token;
+                    //if (!_typeToRefTokens.TryAdd(ecmaType, token))
+                    //{
+                    //    if (!_typeToRefTokens[ecmaType].Equals(token))
+                    //        throw new InvalidOperationException($"Already added token for type {ecmaType.Name}");
+                    //}
+                    _typeToRefTokens.TryAdd(ecmaType, token);
                 }
             }
             else if (!specialTypeFound)

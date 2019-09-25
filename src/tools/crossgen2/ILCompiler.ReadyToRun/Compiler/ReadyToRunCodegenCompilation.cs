@@ -14,6 +14,7 @@ using Internal.TypeSystem;
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
+using System.Threading.Tasks;
 
 namespace ILCompiler
 {
@@ -176,17 +177,11 @@ namespace ILCompiler
         /// </summary>
         private readonly string _inputFilePath;
 
-        /// <summary>
-        /// JIT interface implementation.
-        /// </summary>
-        private readonly CorInfoImpl _corInfo;
-
-        private bool _resilient;
-
         public new ReadyToRunCodegenNodeFactory NodeFactory { get; }
 
         public ReadyToRunSymbolNodeFactory SymbolNodeFactory { get; }
 
+        private bool _resilient;
         internal ReadyToRunCodegenCompilation(
             DependencyAnalyzerBase<NodeFactory> dependencyGraph,
             ReadyToRunCodegenNodeFactory nodeFactory,
@@ -206,7 +201,6 @@ namespace ILCompiler
             _jitConfigProvider = configProvider;
 
             _inputFilePath = inputFilePath;
-            _corInfo = new CorInfoImpl(this, _jitConfigProvider);
         }
 
         public override void Compile(string outputFile)
@@ -238,57 +232,63 @@ namespace ILCompiler
 
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
+            List<Task> tasks = new List<Task>();
             foreach (DependencyNodeCore<NodeFactory> dependency in obj)
             {
-                var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
-                if (methodCodeNodeNeedingCode == null)
+                tasks.Add(Task.Factory.StartNew(() =>
                 {
-                    // To compute dependencies of the shadow method that tracks dictionary
-                    // dependencies we need to ensure there is code for the canonical method body.
-                    var dependencyMethod = (ShadowConcreteMethodNode)dependency;
-                    methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
-                }
+                    var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
+                    if (methodCodeNodeNeedingCode == null)
+                    {
+                        // To compute dependencies of the shadow method that tracks dictionary
+                        // dependencies we need to ensure there is code for the canonical method body.
+                        var dependencyMethod = (ShadowConcreteMethodNode)dependency;
+                        methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
+                    }
 
-                // We might have already compiled this method.
-                if (methodCodeNodeNeedingCode.StaticDependenciesAreComputed)
-                    continue;
+                    // We might have already compiled this method.
+                    if (!methodCodeNodeNeedingCode.CanStartCompilation())
+                        return;
 
-                MethodDesc method = methodCodeNodeNeedingCode.Method;
-                if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
-                {
-                    // Don't drill into methods defined outside of this version bubble
-                    continue;
-                }
+                    MethodDesc method = methodCodeNodeNeedingCode.Method;
+                    if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
+                    {
+                        // Don't drill into methods defined outside of this version bubble
+                        return;
+                    }
 
-                if (Logger.IsVerbose)
-                {
-                    string methodName = method.ToString();
-                    Logger.Writer.WriteLine("Compiling " + methodName);
-                }
+                    if (Logger.IsVerbose)
+                    {
+                        string methodName = method.ToString();
+                        Logger.Writer.WriteLine("Compiling " + methodName);
+                    }
 
-                try
-                {
-                    PerfEventSource.Log.JitStart();
-                    _corInfo.CompileMethod(methodCodeNodeNeedingCode);
-                }
-                catch (TypeSystemException ex)
-                {
-                    // If compilation fails, don't emit code for this method. It will be Jitted at runtime
-                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because: {ex.Message}");
-                }
-                catch (RequiresRuntimeJitException ex)
-                {
-                    Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
-                }
-                catch (CodeGenerationFailedException ex) when (_resilient)
-                {
-                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
-                }
-                finally
-                {
-                    PerfEventSource.Log.JitStop();
-                }
+                    try
+                    {
+                        PerfEventSource.Log.JitStart();
+                        CorInfoImpl corInfo = new CorInfoImpl(this, _jitConfigProvider);
+                        corInfo.CompileMethod(methodCodeNodeNeedingCode);
+                    }
+                    catch (TypeSystemException ex)
+                    {
+                        // If compilation fails, don't emit code for this method. It will be Jitted at runtime
+                        Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because: {ex.Message}");
+                    }
+                    catch (RequiresRuntimeJitException ex)
+                    {
+                        Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                    }
+                    catch (CodeGenerationFailedException ex) when (_resilient)
+                    {
+                        Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                    }
+                    finally
+                    {
+                        PerfEventSource.Log.JitStop();
+                    }
+                }));
             }
+            Task.WaitAll(tasks.ToArray());
         }
 
         public ISymbolNode GetFieldRvaData(FieldDesc field) => NodeFactory.CopiedFieldRva(field);
