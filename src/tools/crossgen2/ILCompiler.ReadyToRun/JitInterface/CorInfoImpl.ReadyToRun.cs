@@ -150,14 +150,16 @@ namespace Internal.JitInterface
 
         private bool ShouldSkipCompilation(IMethodNode methodCodeNodeNeedingCode)
         {
-            if (methodCodeNodeNeedingCode.Method.IsAggressiveOptimization)
+            MethodDesc method = methodCodeNodeNeedingCode.Method;
+            if (method.IsAggressiveOptimization)
             {
                 return true;
             }
-            if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(methodCodeNodeNeedingCode.Method) && HardwareIntrinsicHelpers.IsIsSupportedMethod(methodCodeNodeNeedingCode.Method))
+            if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method) && HardwareIntrinsicHelpers.IsIsSupportedMethod(method))
             {
                 return true;
             }
+            Console.WriteLine("Andrew said we should be compiling: " + method.ToString());
             return false;
         }
 

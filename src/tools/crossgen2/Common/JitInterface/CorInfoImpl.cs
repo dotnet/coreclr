@@ -689,7 +689,7 @@ namespace Internal.JitInterface
                 // and we might not have set the bit in the code above.
                 result |= CorInfoFlag.CORINFO_FLG_FINAL;
             }
-
+            
             // Check for hardware intrinsics
             if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
             {
@@ -898,13 +898,8 @@ namespace Internal.JitInterface
                 CORJIT_FLAGS flags = default(CORJIT_FLAGS);
                 getJitFlags(ref flags, (uint)sizeof(CORJIT_FLAGS));
 
-#if READYTORUN
-                if (((DefType)type).InstanceFieldSize.IsIndeterminate)
-                {
-                    throw new RequiresRuntimeJitException("Ooops");
-                }
-#endif
                 Debug.Assert(!_simdHelper.IsVectorOfT(type)
+                    || ((DefType)type).InstanceFieldSize.IsIndeterminate /* This would happen in the ReadyToRun case */
                     || ((DefType)type).InstanceFieldSize.AsInt == GetMaxIntrinsicSIMDVectorLength(_jit, &flags));
 #endif
 
