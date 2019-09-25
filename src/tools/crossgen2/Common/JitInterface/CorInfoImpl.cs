@@ -55,6 +55,11 @@ namespace Internal.JitInterface
 
         private ExceptionDispatchInfo _lastException;
 
+        private static bool s_jitRegistered = RegisterJITModule();
+
+        [DllImport("clrjitilc")]
+        private extern static IntPtr PAL_RegisterModule([MarshalAs(UnmanagedType.LPUTF8Str)] string moduleName);
+
         [DllImport("clrjitilc", CallingConvention=CallingConvention.StdCall)] // stdcall in CoreCLR!
         private extern static IntPtr jitStartup(IntPtr host);
 
@@ -109,12 +114,26 @@ namespace Internal.JitInterface
 
         private readonly UnboxingMethodDescFactory _unboxingThunkFactory;
 
+        private static bool RegisterJITModule()
+        {
+            if ((Environment.OSVersion.Platform == PlatformID.Unix) || (Environment.OSVersion.Platform == PlatformID.MacOSX))
+            {
+                return PAL_RegisterModule("libclrjitilc.so") != (IntPtr)1;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
         public CorInfoImpl(JitConfigProvider jitConfig)
         {
             //
             // Global initialization
             //
             _jitConfig = jitConfig;
+            if (!s_jitRegistered)
+                throw new IOException("Failed to register JIT");
 
             jitStartup(GetJitHost(_jitConfig.UnmanagedInstance));
 
@@ -2389,30 +2408,6 @@ namespace Internal.JitInterface
         private void ThrowExceptionForHelper(ref CORINFO_HELPER_DESC throwHelper)
         { throw new NotImplementedException("ThrowExceptionForHelper"); }
 
-        private uint SizeOfPInvokeTransitionFrame
-        {
-            get
-            {
-                // struct PInvokeTransitionFrame:
-                // #ifdef _TARGET_ARM_
-                //  m_ChainPointer
-                // #endif
-                //  m_RIP
-                //  m_FramePointer
-                //  m_pThread
-                //  m_Flags + align (no align for ARM64 that has 64 bit m_Flags)
-                //  m_PreserverRegs - RSP
-                //      No need to save other preserved regs because of the JIT ensures that there are
-                //      no live GC references in callee saved registers around the PInvoke callsite.
-                int size = 5 * this.PointerSize;
-
-                if (_compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.ARM)
-                    size += this.PointerSize; // m_ChainPointer
-
-                return (uint)size;
-            }
-        }
-
         private void getEEInfo(ref CORINFO_EE_INFO pEEInfoOut)
         {
             pEEInfoOut = new CORINFO_EE_INFO();
@@ -2426,7 +2421,7 @@ namespace Internal.JitInterface
 
             int pointerSize = this.PointerSize;
 
-            pEEInfoOut.inlinedCallFrameInfo.size = this.SizeOfPInvokeTransitionFrame;
+            pEEInfoOut.inlinedCallFrameInfo.size = (uint)SizeOfPInvokeTransitionFrame;
 
             pEEInfoOut.offsetOfDelegateInstance = (uint)pointerSize;            // Delegate::m_firstParameter
             pEEInfoOut.offsetOfDelegateFirstTarget = OffsetOfDelegateFirstTarget;

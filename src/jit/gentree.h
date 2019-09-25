@@ -304,7 +304,7 @@ public:
 class GenTreeUseEdgeIterator;
 class GenTreeOperandIterator;
 
-struct GenTreeStmt;
+struct Statement;
 
 /*****************************************************************************/
 
@@ -445,10 +445,6 @@ public:
 #define MAX_COST UCHAR_MAX
 #define IND_COST_EX 3 // execution cost for an indirection
 
-    __declspec(property(get = GetCostEx)) unsigned char gtCostEx; // estimate of expression execution cost
-
-    __declspec(property(get = GetCostSz)) unsigned char gtCostSz; // estimate of expression code size cost
-
     unsigned char GetCostEx() const
     {
         assert(gtCostsInitialized);
@@ -480,8 +476,8 @@ public:
     {
         // If the 'tree' costs aren't initialized, we'll hit an assert below.
         INDEBUG(gtCostsInitialized = tree->gtCostsInitialized;)
-        _gtCostEx = tree->gtCostEx;
-        _gtCostSz = tree->gtCostSz;
+        _gtCostEx = tree->GetCostEx();
+        _gtCostSz = tree->GetCostSz();
     }
 
     // Same as CopyCosts, but avoids asserts if the costs we are copying have not been initialized.
@@ -2869,7 +2865,6 @@ public:
     {
         return _gtSsaNum;
     }
-    __declspec(property(get = GetSsaNum)) unsigned gtSsaNum;
 
     void SetSsaNum(unsigned ssaNum)
     {
@@ -2878,7 +2873,7 @@ public:
 
     bool HasSsaName()
     {
-        return (gtSsaNum != SsaConfig::RESERVED_SSA_NUM);
+        return (GetSsaNum() != SsaConfig::RESERVED_SSA_NUM);
     }
 
 #if DEBUGGABLE_GENTREE
@@ -2977,14 +2972,14 @@ struct GenTreeBox : public GenTreeUnOp
     }
     // This is the statement that contains the assignment tree when the node is an inlined GT_BOX on a value
     // type
-    GenTreeStmt* gtAsgStmtWhenInlinedBoxValue;
+    Statement* gtAsgStmtWhenInlinedBoxValue;
     // And this is the statement that copies from the value being boxed to the box payload
-    GenTreeStmt* gtCopyStmtWhenInlinedBoxValue;
+    Statement* gtCopyStmtWhenInlinedBoxValue;
 
-    GenTreeBox(var_types    type,
-               GenTree*     boxOp,
-               GenTreeStmt* asgStmtWhenInlinedBoxValue,
-               GenTreeStmt* copyStmtWhenInlinedBoxValue)
+    GenTreeBox(var_types  type,
+               GenTree*   boxOp,
+               Statement* asgStmtWhenInlinedBoxValue,
+               Statement* copyStmtWhenInlinedBoxValue)
         : GenTreeUnOp(GT_BOX, type, boxOp)
         , gtAsgStmtWhenInlinedBoxValue(asgStmtWhenInlinedBoxValue)
         , gtCopyStmtWhenInlinedBoxValue(copyStmtWhenInlinedBoxValue)
@@ -5113,11 +5108,11 @@ struct GenTreeILOffset : public GenTree
     IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
 #endif
 
-    GenTreeILOffset(IL_OFFSETX offset)
+    GenTreeILOffset(IL_OFFSETX offset DEBUGARG(IL_OFFSET lastOffset = BAD_IL_OFFSET))
         : GenTree(GT_IL_OFFSET, TYP_VOID)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
-        , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , gtStmtLastILoffs(lastOffset)
 #endif
     {
     }
@@ -5129,8 +5124,13 @@ struct GenTreeILOffset : public GenTree
 #endif
 };
 
-struct GenTreeStmt
+// We use the following format when printing the Statement number: Statement->GetID()
+// This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
+#define FMT_STMT "STMT%05u"
+
+struct Statement
 {
+public:
     GenTree*       gtStmtExpr;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
     InlineContext* gtInlineContext; // The inline context for this statement.
@@ -5138,18 +5138,20 @@ struct GenTreeStmt
 
 #ifdef DEBUG
     IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
+
+private:
+    unsigned m_stmtID;
 #endif
 
-    __declspec(property(get = getNextStmt)) GenTreeStmt* gtNextStmt;
+public:
+    __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
 
-    __declspec(property(get = getPrevStmt)) GenTreeStmt* gtPrevStmt;
-
-    GenTreeStmt* gtNext;
-    GenTreeStmt* gtPrev;
+    Statement* gtNext;
+    Statement* gtPrev;
 
     bool compilerAdded;
 
-    GenTreeStmt* getNextStmt()
+    Statement* GetNextStmt()
     {
         if (gtNext == nullptr)
         {
@@ -5161,7 +5163,7 @@ struct GenTreeStmt
         }
     }
 
-    GenTreeStmt* getPrevStmt()
+    Statement* getPrevStmt()
     {
         if (gtPrev == nullptr)
         {
@@ -5173,13 +5175,14 @@ struct GenTreeStmt
         }
     }
 
-    GenTreeStmt(GenTree* expr, IL_OFFSETX offset)
+    Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_stmtID(stmtID)
 #endif
         , gtNext(nullptr)
         , gtPrev(nullptr)
@@ -5187,7 +5190,10 @@ struct GenTreeStmt
     {
     }
 
-    bool IsPhiDefnStmt();
+    bool IsPhiDefnStmt()
+    {
+        return gtStmtExpr->IsPhiDefn();
+    }
 
     unsigned char GetCostSz() const
     {
@@ -5197,6 +5203,59 @@ struct GenTreeStmt
     unsigned char GetCostEx() const
     {
         return gtStmtExpr->GetCostEx();
+    }
+
+#ifdef DEBUG
+    unsigned GetID() const
+    {
+        return m_stmtID;
+    }
+#endif
+};
+
+class StatementIterator
+{
+    Statement* m_stmt;
+
+public:
+    StatementIterator(Statement* stmt) : m_stmt(stmt)
+    {
+    }
+
+    Statement* operator*() const
+    {
+        return m_stmt;
+    }
+
+    StatementIterator& operator++()
+    {
+        m_stmt = m_stmt->gtNext;
+        return *this;
+    }
+
+    bool operator!=(const StatementIterator& i) const
+    {
+        return m_stmt != i.m_stmt;
+    }
+};
+
+class StatementList
+{
+    Statement* m_stmts;
+
+public:
+    StatementList(Statement* stmts) : m_stmts(stmts)
+    {
+    }
+
+    StatementIterator begin() const
+    {
+        return StatementIterator(m_stmts);
+    }
+
+    StatementIterator end() const
+    {
+        return StatementIterator(nullptr);
     }
 };
 
@@ -5863,8 +5922,8 @@ struct GenCondition
         C    = Unsigned | S,    // = 14
         NC   = Unsigned | NS,   // = 15
                                 
-        FEQ  = Float | EQ,      // = 16
-        FNE  = Float | NE,      // = 17
+        FEQ  = Float | 0,       // = 16
+        FNE  = Float | 1,       // = 17
         FLT  = Float | SLT,     // = 18
         FLE  = Float | SLE,     // = 19
         FGE  = Float | SGE,     // = 20

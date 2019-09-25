@@ -777,26 +777,24 @@ namespace System.Globalization
         {
             get
             {
-                CultureTypes types = 0;
+                CultureTypes types = _cultureData.IsNeutralCulture ?
+                    CultureTypes.NeutralCultures :
+                    CultureTypes.SpecificCultures;
 
-                if (_cultureData.IsNeutralCulture)
+                if (_cultureData.IsWin32Installed)
                 {
-                    types |= CultureTypes.NeutralCultures;
-                }
-                else
-                {
-                    types |= CultureTypes.SpecificCultures;
+                    types |= CultureTypes.InstalledWin32Cultures;
                 }
 
-                types |= _cultureData.IsWin32Installed ? CultureTypes.InstalledWin32Cultures : 0;
+                if (_cultureData.IsSupplementalCustomCulture)
+                {
+                    types |= CultureTypes.UserCustomCulture;
+                }
 
-                // Disable  warning 618: System.Globalization.CultureTypes.FrameworkCultures' is obsolete
-#pragma warning disable 618
-                types |= _cultureData.IsFramework ? CultureTypes.FrameworkCultures : 0;
-#pragma warning restore 618
-
-                types |= _cultureData.IsSupplementalCustomCulture ? CultureTypes.UserCustomCulture : 0;
-                types |= _cultureData.IsReplacementCulture ? CultureTypes.ReplacementCultures | CultureTypes.UserCustomCulture : 0;
+                if (_cultureData.IsReplacementCulture)
+                {
+                    types |= CultureTypes.ReplacementCultures;
+                }
 
                 return types;
             }
@@ -1012,7 +1010,15 @@ namespace System.Globalization
                 ci._textInfo = (TextInfo)_textInfo.Clone();
             }
 
-            if (_calendar != null)
+            if (_dateTimeInfo != null && _dateTimeInfo.Calendar == _calendar)
+            {
+                // Usually when we access CultureInfo.DateTimeFormat first time, we create the DateTimeFormatInfo object
+                // using CultureInfo.Calendar. i.e. CultureInfo.DateTimeInfo.Calendar == CultureInfo.calendar.
+                // When cloning CultureInfo, if we know it's still the case that CultureInfo.DateTimeInfo.Calendar == CultureInfo.calendar
+                // then we can keep the same behavior for the cloned object and no need to create another calendar object.
+                ci._calendar = ci.DateTimeFormat.Calendar;
+            }
+            else if (_calendar != null)
             {
                 ci._calendar = (Calendar)_calendar.Clone();
             }

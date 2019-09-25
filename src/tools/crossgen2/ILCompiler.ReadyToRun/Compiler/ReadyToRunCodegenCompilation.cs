@@ -11,7 +11,6 @@ using Internal.IL;
 using Internal.IL.Stubs;
 using Internal.JitInterface;
 using Internal.TypeSystem;
-using Internal.TypeSystem.Ecma;
 
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysis.ReadyToRun;
@@ -193,6 +192,8 @@ namespace ILCompiler
         /// </summary>
         private readonly CorInfoImpl _corInfo;
 
+        private bool _resilient;
+
         public new ReadyToRunCodegenNodeFactory NodeFactory { get; }
 
         public ReadyToRunSymbolNodeFactory SymbolNodeFactory { get; }
@@ -206,9 +207,11 @@ namespace ILCompiler
             DevirtualizationManager devirtualizationManager,
             JitConfigProvider configProvider,
             string inputFilePath,
-            IEnumerable<ModuleDesc> modulesBeingInstrumented)
+            IEnumerable<ModuleDesc> modulesBeingInstrumented,
+            bool resilient)
             : base(dependencyGraph, nodeFactory, roots, ilProvider, devirtualizationManager, modulesBeingInstrumented, logger)
         {
+            _resilient = resilient;
             NodeFactory = nodeFactory;
             SymbolNodeFactory = new ReadyToRunSymbolNodeFactory(nodeFactory);
             _jitConfigProvider = configProvider;
@@ -226,8 +229,10 @@ namespace ILCompiler
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
 
+                PerfEventSource.Log.EmittingStart();
                 NodeFactory.SetMarkingComplete();
                 ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
+                PerfEventSource.Log.EmittingStop();
             }
         }
 
@@ -274,6 +279,7 @@ namespace ILCompiler
 
                 try
                 {
+                    PerfEventSource.Log.JitStart();
                     _corInfo.CompileMethod(methodCodeNodeNeedingCode);
                 }
                 catch (TypeSystemException ex)
@@ -284,6 +290,14 @@ namespace ILCompiler
                 catch (RequiresRuntimeJitException ex)
                 {
                     Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                }
+                catch (CodeGenerationFailedException ex) when (_resilient)
+                {
+                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                }
+                finally
+                {
+                    PerfEventSource.Log.JitStop();
                 }
             }
         }
