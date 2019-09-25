@@ -17,7 +17,8 @@ namespace System.Runtime.Intrinsics.Arm
 
         public static new bool IsSupported { get => IsSupported; }
 
-        public abstract class Arm64 : ArmBase.Arm64
+        [Intrinsic]
+        public new abstract class Arm64 : ArmBase.Arm64
         {
             public static new bool IsSupported { get => IsSupported; }
 
