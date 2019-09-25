@@ -258,6 +258,7 @@ namespace System.Runtime.Intrinsics.Arm
         /// uint8x8_t vld1_u8 (uint8_t const * ptr)
         ///   A32: VLD1.8 Dd, [Rn]
         ///   A64: LD1 Vt.8B, [Xn]
+        /// </summary>
         public static unsafe Vector64<byte> LoadVector64(byte* address) => LoadVector64(address);
 
         /// <summary>
