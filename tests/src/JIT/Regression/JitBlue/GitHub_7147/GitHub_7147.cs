@@ -64,11 +64,6 @@ namespace N
                 // This is the correct result -- i / y should be evaluated and
                 // raise this exception (before c.f raises nulllref).
             }
-            catch
-            {
-                // Any exception other than DivideByZero is a failure
-                errors |= 2;
-            }
 #endif
 
             try
@@ -82,11 +77,6 @@ namespace N
             {
                 // This is the correct result -- x / y should be evaluated and
                 // raise this exception (before c.f raises nulllref).
-            }
-            catch
-            {
-                // Any exception other than DivideByZero is a failure
-                errors |= 8;
             }
 
             return 100 + errors;
