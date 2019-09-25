@@ -2,13 +2,13 @@
 <Project>
   <PropertyGroup>
     <!-- The .NET Core product branding version -->
-    <ProductVersion>3.0.0</ProductVersion>
+    <ProductVersion>3.0.1</ProductVersion>
     <!-- File version numbers -->
     <MajorVersion>4</MajorVersion>
     <MinorVersion>7</MinorVersion>
     <!-- Always use shipping version instead of dummy versions -->
     <DotNetUseShippingVersions>true</DotNetUseShippingVersions>
-    <PreReleaseVersionLabel>rc2</PreReleaseVersionLabel>
+    <PreReleaseVersionLabel>servicing</PreReleaseVersionLabel>
     <!-- Opt-in/out repo features -->
     <UsingToolIbcOptimization>true</UsingToolIbcOptimization>
     <UsingToolMicrosoftNetCompilers>true</UsingToolMicrosoftNetCompilers>
