@@ -107,9 +107,9 @@ namespace
         uint64_t timestamp;
     };
 
-    struct JitCoreLoadRecord
+    struct JitCodeLoadRecord
     {
-        JitCoreLoadRecord() :
+        JitCodeLoadRecord() :
             pid(getpid()),
             tid(syscall(SYS_gettid))
         {
@@ -179,16 +179,16 @@ struct PerfJitDumpState
 
             size_t symbolLen = strlen(symbol);
 
-            JitCoreLoadRecord record;
+            JitCodeLoadRecord record;
 
             record.vma = (uint64_t) pCode;
             record.code_addr = (uint64_t) pCode;
             record.code_size = codeSize;
             record.code_index = ++codeIndex;
-            record.header.total_size = sizeof(JitCoreLoadRecord) + symbolLen + 1 + codeSize;
+            record.header.total_size = sizeof(JitCodeLoadRecord) + symbolLen + 1 + codeSize;
             record.header.timestamp = GetTimeStampNS();
 
-            write(fd, &record, sizeof(JitCoreLoadRecord));
+            write(fd, &record, sizeof(JitCodeLoadRecord));
 
             write(fd, symbol, symbolLen + 1);
 
