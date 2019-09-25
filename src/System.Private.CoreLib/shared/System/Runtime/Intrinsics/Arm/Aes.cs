@@ -11,7 +11,7 @@ namespace System.Runtime.Intrinsics.Arm
     /// </summary>
     [Intrinsic]
     [CLSCompliant(false)]
-    public abstract class Aes
+    public abstract class Aes : ArmBase
     {
         internal Aes() { }
 

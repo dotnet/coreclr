@@ -11,7 +11,7 @@ namespace System.Runtime.Intrinsics.Arm
     /// This class provides access to the ARM SHA1 hardware instructions via intrinsics
     /// </summary>
     [CLSCompliant(false)]
-    public abstract class Sha1
+    public abstract class Sha1 : ArmBase
     {
         internal Sha1() { }
 

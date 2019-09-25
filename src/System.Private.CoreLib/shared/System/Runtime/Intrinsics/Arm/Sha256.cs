@@ -11,7 +11,7 @@ namespace System.Runtime.Intrinsics.Arm
     /// </summary>
     [Intrinsic]
     [CLSCompliant(false)]
-    public abstract class Sha256
+    public abstract class Sha256 : ArmBase
     {
         internal Sha256() { }
 

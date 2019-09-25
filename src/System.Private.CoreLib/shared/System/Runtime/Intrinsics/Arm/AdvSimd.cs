@@ -11,13 +11,13 @@ namespace System.Runtime.Intrinsics.Arm
     /// </summary>
     [Intrinsic]
     [CLSCompliant(false)]
-    public abstract class AdvSimd
+    public abstract class AdvSimd : ArmBase
     {
         internal AdvSimd() { }
 
         public static bool IsSupported { get => IsSupported; }
 
-        public abstract class Arm64
+        public abstract class Arm64 : ArmBase.Arm64
         {
             public static bool IsSupported { get => IsSupported; }
 

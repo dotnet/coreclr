@@ -10,13 +10,13 @@ namespace System.Runtime.Intrinsics.Arm
     /// This class provides access to the ARM AdvSIMD hardware instructions via intrinsics
     /// </summary>
     [CLSCompliant(false)]
-    public abstract class AdvSimd
+    public abstract class AdvSimd : ArmBase
     {
         internal AdvSimd() { }
 
         public static bool IsSupported { [Intrinsic] get { return false; } }
 
-        public abstract class Arm64
+        public abstract class Arm64 : ArmBase.Arm64
         {
             internal Arm64() { }
 

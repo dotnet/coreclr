@@ -11,7 +11,7 @@ namespace System.Runtime.Intrinsics.Arm
     /// This class provides access to the ARM AES hardware instructions via intrinsics
     /// </summary>
     [CLSCompliant(false)]
-    public abstract class Aes
+    public abstract class Aes : ArmBase
     {
         internal Aes() { }
 
