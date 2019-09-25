@@ -568,7 +568,7 @@ void InlineContext::DumpXml(FILE* file, unsigned indent)
 //   stmt          - statement containing the call (if known)
 //   description   - string describing the context of the decision
 
-InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, GenTreeStmt* stmt, const char* description)
+InlineResult::InlineResult(Compiler* compiler, GenTreeCall* call, Statement* stmt, const char* description)
     : m_RootCompiler(nullptr)
     , m_Policy(nullptr)
     , m_Call(call)
@@ -1197,7 +1197,7 @@ InlineContext* InlineStrategy::NewRoot()
 InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
 {
     InlineContext* calleeContext = new (m_Compiler, CMK_Inlining) InlineContext(this);
-    GenTreeStmt*   stmt          = inlineInfo->iciStmt;
+    Statement*     stmt          = inlineInfo->iciStmt;
     BYTE*          calleeIL      = inlineInfo->inlineCandidateInfo->methInfo.ILCode;
     unsigned       calleeILSize  = inlineInfo->inlineCandidateInfo->methInfo.ILCodeSize;
     InlineContext* parentContext = stmt->gtInlineContext;
@@ -1259,7 +1259,7 @@ InlineContext* InlineStrategy::NewSuccess(InlineInfo* inlineInfo)
 // Return Value:
 //    A new InlineContext for diagnostic purposes
 
-InlineContext* InlineStrategy::NewFailure(GenTreeStmt* stmt, InlineResult* inlineResult)
+InlineContext* InlineStrategy::NewFailure(Statement* stmt, InlineResult* inlineResult)
 {
     // Check for a parent context first. We should now have a parent
     // context for all statements.
@@ -1723,7 +1723,7 @@ bool InlineStrategy::IsNoInline(ICorJitInfo* info, CORINFO_METHOD_HANDLE method)
 #if defined(DEBUG) || defined(INLINE_DATA)
 
     static ConfigMethodRange range;
-    const wchar_t*           noInlineRange = JitConfig.JitNoInlineRange();
+    const WCHAR*             noInlineRange = JitConfig.JitNoInlineRange();
 
     if (noInlineRange == nullptr)
     {
@@ -1734,7 +1734,7 @@ bool InlineStrategy::IsNoInline(ICorJitInfo* info, CORINFO_METHOD_HANDLE method)
     // number of spaces in our config string to see if there are
     // more. Number of ranges we need is 2x that value.
     unsigned entryCount = 1;
-    for (const wchar_t* p = noInlineRange; *p != 0; p++)
+    for (const WCHAR* p = noInlineRange; *p != 0; p++)
     {
         if (*p == L' ')
         {

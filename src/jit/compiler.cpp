@@ -240,7 +240,7 @@ void Compiler::compDspSrcLinesByNativeIP(UNATIVE_OFFSET curIP)
 
     if (nextMappingDsc)
     {
-        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(genEmitter);
+        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(GetEmitter());
 
         if (offset <= curIP)
         {
@@ -2334,10 +2334,10 @@ void Compiler::compSetProcessor()
     {
         if (canUseVexEncoding())
         {
-            codeGen->getEmitter()->SetUseVEXEncoding(true);
+            codeGen->GetEmitter()->SetUseVEXEncoding(true);
             // Assume each JITted method does not contain AVX instruction at first
-            codeGen->getEmitter()->SetContainsAVX(false);
-            codeGen->getEmitter()->SetContains256bitAVX(false);
+            codeGen->GetEmitter()->SetContainsAVX(false);
+            codeGen->GetEmitter()->SetContains256bitAVX(false);
         }
     }
 #endif // _TARGET_XARCH_
@@ -2576,7 +2576,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
         // First, initialize the AltJitExcludeAssemblies list, but only do it once.
         if (!s_pAltJitExcludeAssembliesListInitialized)
         {
-            const wchar_t* wszAltJitExcludeAssemblyList = JitConfig.AltJitExcludeAssemblies();
+            const WCHAR* wszAltJitExcludeAssemblyList = JitConfig.AltJitExcludeAssemblies();
             if (wszAltJitExcludeAssemblyList != nullptr)
             {
                 // NOTE: The Assembly name list is allocated in the process heap, not in the no-release heap, which is
@@ -3119,7 +3119,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
             // Setup assembly name list for disassembly, if not already set up.
             if (!s_pJitDisasmIncludeAssembliesListInitialized)
             {
-                const wchar_t* assemblyNameList = JitConfig.JitDisasmAssemblies();
+                const WCHAR* assemblyNameList = JitConfig.JitDisasmAssemblies();
                 if (assemblyNameList != nullptr)
                 {
                     s_pJitDisasmIncludeAssembliesList = new (HostAllocator::getHostAllocator())
@@ -3260,7 +3260,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
     // Read function list, if not already read, and there exists such a list.
     if (!s_pJitFunctionFileInitialized)
     {
-        const wchar_t* functionFileName = JitConfig.JitFunctionFile();
+        const WCHAR* functionFileName = JitConfig.JitFunctionFile();
         if (functionFileName != nullptr)
         {
             s_pJitMethodSet =
@@ -3338,7 +3338,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 #endif // PROFILING_SUPPORTED
 
 #if FEATURE_TAILCALL_OPT
-    const wchar_t* strTailCallOpt = JitConfig.TailCallOpt();
+    const WCHAR* strTailCallOpt = JitConfig.TailCallOpt();
     if (strTailCallOpt != nullptr)
     {
         opts.compTailCallOpt = (UINT)_wtoi(strTailCallOpt) != 0;
@@ -3489,7 +3489,7 @@ void Compiler::compInitOptions(JitFlags* jitFlags)
 
         if (jitFlags->IsSet(JitFlags::JIT_FLAG_BBOPT) && fgHaveProfileData())
         {
-            printf("OPTIONS: using real profile data\n");
+            printf("OPTIONS: optimized using profile data\n");
         }
 
         if (fgProfileData_ILSizeMismatch)
@@ -3587,11 +3587,11 @@ bool Compiler::compStressCompile(compStressArea stressArea, unsigned weight)
         return false;
     }
 
-    bool           doStress = false;
-    const wchar_t* strStressModeNames;
+    bool         doStress = false;
+    const WCHAR* strStressModeNames;
 
     // Does user explicitly prevent using this STRESS_MODE through the command line?
-    const wchar_t* strStressModeNamesNot = JitConfig.JitStressModeNamesNot();
+    const WCHAR* strStressModeNamesNot = JitConfig.JitStressModeNamesNot();
     if ((strStressModeNamesNot != nullptr) &&
         (wcsstr(strStressModeNamesNot, s_compStressModeNames[stressArea]) != nullptr))
     {
@@ -4249,7 +4249,7 @@ void Compiler::compFunctionTraceStart()
         {
             printf("  ");
         }
-        printf("{ Start Jitting %s (MethodHash=%08x)\n", info.compFullName,
+        printf("{ Start Jitting Method %d %s (MethodHash=%08x)\n", Compiler::jitTotalMethodCompiled, info.compFullName,
                info.compMethodHash()); /* } editor brace matching workaround for this printf */
     }
 #endif // DEBUG
@@ -4273,7 +4273,7 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
             printf("  ");
         }
         /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
+        printf("} Jitted Method %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
                DBG_ADDR(methodCodePtr), info.compFullName, methodCodeSize,
                isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""), opts.altJit ? " altjit" : "");
     }
@@ -4692,7 +4692,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
         compCycleEstimate = 0;
         for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
         {
-            for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+            for (Statement* stmt : block->Statements())
             {
                 compSizeEstimate += stmt->GetCostSz();
                 compCycleEstimate += stmt->GetCostEx();
@@ -4755,7 +4755,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     EndPhase(PHASE_LINEAR_SCAN);
 
     // Copied from rpPredictRegUse()
-    genFullPtrRegMap = (codeGen->genInterruptible || !codeGen->isFramePointerUsed());
+    genFullPtrRegMap = (codeGen->GetInterruptible() || !codeGen->isFramePointerUsed());
 
 #ifdef DEBUG
     fgDebugCheckLinks();
@@ -4823,7 +4823,7 @@ void Compiler::ResetOptAnnotations()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -5173,7 +5173,8 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
     info.compClassName  = getAllocator(CMK_DebugOnly).allocate<char>(len);
     strcpy_s((char*)info.compClassName, len, classNamePtr);
 
-    info.compFullName = eeGetMethodFullName(methodHnd);
+    info.compFullName  = eeGetMethodFullName(methodHnd);
+    info.compPerfScore = 0.0;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #ifdef DEBUG
@@ -5308,7 +5309,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
         /* Tell the emitter that we're done with this function */
 
-        genEmitter->emitEndCG();
+        GetEmitter()->emitEndCG();
 
     DoneCleanUp:
         compDone();
@@ -5758,6 +5759,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     // Reset node and block ID counter
     compGenTreeID    = 0;
+    compStatementID  = 0;
     compBasicBlockID = 0;
 #endif
 
@@ -5765,7 +5767,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     if (!compIsForInlining())
     {
-        codeGen->getEmitter()->emitBegCG(this, compHnd);
+        codeGen->GetEmitter()->emitBegCG(this, compHnd);
     }
 
     info.compIsStatic = (info.compFlags & CORINFO_FLG_STATIC) != 0;
@@ -5945,7 +5947,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     if (compIsForInlining())
     {
-        compGenTreeID = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compGenTreeID   = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compStatementID = impInlineInfo->InlinerCompiler->compStatementID;
     }
 #endif
 
@@ -5955,6 +5958,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     if (compIsForInlining())
     {
         impInlineInfo->InlinerCompiler->compGenTreeID    = compGenTreeID;
+        impInlineInfo->InlinerCompiler->compStatementID  = compStatementID;
         impInlineInfo->InlinerCompiler->compBasicBlockID = compBasicBlockID;
     }
 #endif
@@ -6856,7 +6860,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->GetNextStmt())
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -6987,7 +6991,7 @@ void Compiler::compCallArgStats()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt : block->Statements())
         {
             for (GenTree* call = stmt->gtStmtList; call != nullptr; call = call->gtNext)
             {
@@ -8014,8 +8018,7 @@ void dumpConvertedVarSet(Compiler* comp, VARSET_VALARG_TP vars)
     unsigned        varIndex = 0;
     while (iter.NextElem(&varIndex))
     {
-        unsigned varNum = comp->lvaTrackedToVarNum[varIndex];
-        assert(varNum < comp->lvaCount);
+        unsigned varNum    = comp->lvaTrackedIndexToLclNum(varIndex);
         pVarNumSet[varNum] = 1; // This varNum is in the set
     }
 
@@ -8118,6 +8121,13 @@ void cBlocksV(Compiler* comp)
     static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
     printf("===================================================================== *BlocksV %u\n", sequenceNumber++);
     comp->fgDispBasicBlocks(true);
+}
+
+void cStmt(Compiler* comp, Statement* statement)
+{
+    static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
+    printf("===================================================================== *Stmt %u\n", sequenceNumber++);
+    comp->gtDispStmt(statement, ">>>");
 }
 
 void cTree(Compiler* comp, GenTree* tree)
@@ -8341,10 +8351,10 @@ void dBlockList(BasicBlockList* list)
 // Trees, Stmts, and/or Blocks using id or bbNum.
 // That can be used in watch window or as a way to get address of fields for data break points.
 
-GenTree*     dbTree;
-GenTreeStmt* dbStmt;
-BasicBlock*  dbTreeBlock;
-BasicBlock*  dbBlock;
+GenTree*    dbTree;
+Statement*  dbStmt;
+BasicBlock* dbTreeBlock;
+BasicBlock* dbBlock;
 
 // Debug APIs for finding Trees, Stmts, and/or Blocks.
 // As a side effect, they set the debug variables above.
@@ -8389,7 +8399,7 @@ GenTree* dFindTree(unsigned id)
 
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             tree = dFindTree(stmt->gtStmtExpr, id);
             if (tree != nullptr)
@@ -8403,7 +8413,7 @@ GenTree* dFindTree(unsigned id)
     return nullptr;
 }
 
-GenTreeStmt* dFindStmt(unsigned id)
+Statement* dFindStmt(unsigned id)
 {
     Compiler*   comp = JitTls::GetCompiler();
     BasicBlock* block;
@@ -8413,7 +8423,7 @@ GenTreeStmt* dFindStmt(unsigned id)
     unsigned stmtId = 0;
     for (block = comp->fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             stmtId++;
             if (stmtId == id)
@@ -8606,13 +8616,13 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
     if (!block->IsLIR())
     {
-        for (GenTreeStmt* stmt = block->firstStmt(); stmt; stmt = stmt->gtNextStmt)
+        for (Statement* stmt : block->Statements())
         {
             // Print current stmt.
 
             if (trees)
             {
-                cTree(comp, stmt->gtStmtExpr);
+                cStmt(comp, stmt);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8626,7 +8636,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt->gtStmtExpr);
+                cStmtIR(comp, stmt);
             }
 
             if (!noStmts && !trees)
@@ -8637,7 +8647,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        for (GenTree* node = block->bbTreeList; node != nullptr; node = node->gtNext)
+        for (GenTree* node = block->GetFirstLIRNode(); node != nullptr; node = node->gtNext)
         {
             cNodeIR(comp, node);
         }
@@ -9437,11 +9447,11 @@ int cSsaNumIR(Compiler* comp, GenTree* tree)
         if (tree->gtFlags & GTF_VAR_USEASG)
         {
             assert(tree->gtFlags & GTF_VAR_DEF);
-            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.gtSsaNum, comp->GetSsaNumForLocalVarDef(tree));
+            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.GetSsaNum(), comp->GetSsaNumForLocalVarDef(tree));
         }
         else
         {
-            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
+            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.GetSsaNum());
         }
     }
 
@@ -9681,7 +9691,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
             const char* className;
             const char* fieldName;
             const char* methodName;
-            const wchar_t* str;
+            const WCHAR* str;
 
             switch (tree->GetIconHandleFlag())
             {
@@ -10636,6 +10646,16 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
 
     printf("\n");
+}
+
+void cStmtIR(Compiler* comp, Statement* stmt)
+{
+    cTreeIR(comp, stmt->gtStmtExpr);
+    if (!comp->dumpIRNoStmts)
+    {
+        dTabStopIR(0, COLUMN_OPCODE);
+        Compiler::printStmtID(stmt);
+    }
 }
 
 /*****************************************************************************

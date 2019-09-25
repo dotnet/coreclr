@@ -856,9 +856,9 @@ private:
 
 public:
 #if ASSERTION_PROP
-    BlockSet     lvRefBlks;          // Set of blocks that contain refs
-    GenTreeStmt* lvDefStmt;          // Pointer to the statement with the single definition
-    void         lvaDisqualifyVar(); // Call to disqualify a local variable from use in optAddCopies
+    BlockSet   lvRefBlks;          // Set of blocks that contain refs
+    Statement* lvDefStmt;          // Pointer to the statement with the single definition
+    void       lvaDisqualifyVar(); // Call to disqualify a local variable from use in optAddCopies
 #endif
     var_types TypeGet() const
     {
@@ -2444,7 +2444,7 @@ public:
     */
 
     // Functions to create nodes
-    GenTreeStmt* gtNewStmt(GenTree* expr = nullptr, IL_OFFSETX offset = BAD_IL_OFFSET);
+    Statement* gtNewStmt(GenTree* expr = nullptr, IL_OFFSETX offset = BAD_IL_OFFSET);
 
     // For unary opers.
     GenTree* gtNewOperNode(genTreeOps oper, var_types type, GenTree* op1, bool doSimplifications = TRUE);
@@ -2604,11 +2604,11 @@ public:
 
     GenTree* gtNewAssignNode(GenTree* dst, GenTree* src);
 
-    GenTree* gtNewTempAssign(unsigned      tmp,
-                             GenTree*      val,
-                             GenTreeStmt** pAfterStmt = nullptr,
-                             IL_OFFSETX    ilOffset   = BAD_IL_OFFSET,
-                             BasicBlock*   block      = nullptr);
+    GenTree* gtNewTempAssign(unsigned    tmp,
+                             GenTree*    val,
+                             Statement** pAfterStmt = nullptr,
+                             IL_OFFSETX  ilOffset   = BAD_IL_OFFSET,
+                             BasicBlock* block      = nullptr);
 
     GenTree* gtNewRefCOMfield(GenTree*                objPtr,
                               CORINFO_RESOLVED_TOKEN* pResolvedToken,
@@ -2653,7 +2653,7 @@ public:
         return gtCloneExpr(tree, addFlags, varNum, varVal, varNum, varVal);
     }
 
-    GenTreeStmt* gtCloneStmt(GenTreeStmt* stmt)
+    Statement* gtCloneStmt(Statement* stmt)
     {
         GenTree* exprClone = gtCloneExpr(stmt->gtStmtExpr);
         return gtNewStmt(exprClone, stmt->gtStmtILoffsx);
@@ -2668,13 +2668,13 @@ public:
     // Create copy of an inline or guarded devirtualization candidate tree.
     GenTreeCall* gtCloneCandidateCall(GenTreeCall* call);
 
-    GenTree* gtReplaceTree(GenTreeStmt* stmt, GenTree* tree, GenTree* replacementTree);
+    GenTree* gtReplaceTree(Statement* stmt, GenTree* tree, GenTree* replacementTree);
 
-    void gtUpdateSideEffects(GenTreeStmt* stmt, GenTree* tree);
+    void gtUpdateSideEffects(Statement* stmt, GenTree* tree);
 
     void gtUpdateTreeAncestorsSideEffects(GenTree* tree);
 
-    void gtUpdateStmtSideEffects(GenTreeStmt* stmt);
+    void gtUpdateStmtSideEffects(Statement* stmt);
 
     void gtUpdateNodeSideEffects(GenTree* tree);
 
@@ -2682,7 +2682,7 @@ public:
 
     // Returns "true" iff the complexity (not formally defined, but first interpretation
     // is #of nodes in subtree) of "tree" is greater than "limit".
-    // (This is somewhat redundant with the "gtCostEx/gtCostSz" fields, but can be used
+    // (This is somewhat redundant with the "GetCostEx()/GetCostSz()" fields, but can be used
     // before they have been set.)
     bool gtComplexityExceeds(GenTree** tree, unsigned limit);
 
@@ -2719,7 +2719,7 @@ public:
 
     unsigned gtSetEvalOrder(GenTree* tree);
 
-    void gtSetStmtInfo(GenTreeStmt* stmt);
+    void gtSetStmtInfo(Statement* stmt);
 
     // Returns "true" iff "node" has any of the side effects in "flags".
     bool gtNodeHasSideEffects(GenTree* node, unsigned flags);
@@ -2854,7 +2854,8 @@ public:
     int gtGetLclVarName(unsigned lclNum, char* buf, unsigned buf_remaining);
     char* gtGetLclVarName(unsigned lclNum);
     void gtDispLclVar(unsigned varNum, bool padForBiggestDisp = true);
-    void gtDispStmtList(GenTreeStmt* stmts, IndentStack* indentStack = nullptr);
+    void gtDispStmt(Statement* stmt, const char* msg = nullptr);
+    void gtDispBlockStmts(BasicBlock* block);
     void gtGetArgMsg(GenTreeCall* call, GenTree* arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
     void gtGetLateArgMsg(GenTreeCall* call, GenTree* arg, int argNum, int listCount, char* bufp, unsigned bufLength);
     void gtDispArgList(GenTreeCall* call, IndentStack* indentStack);
@@ -2892,7 +2893,7 @@ public:
         GenTree*  parent;
     };
 
-    FindLinkData gtFindLink(GenTreeStmt* stmt, GenTree* node);
+    FindLinkData gtFindLink(Statement* stmt, GenTree* node);
     bool gtHasCatchArg(GenTree* tree);
 
     typedef ArrayStack<GenTree*> GenTreeStack;
@@ -2939,9 +2940,6 @@ public:
                                     //   but its field locals depend on its parent struct local.
     };
 
-    static int __cdecl RefCntCmp(const void* op1, const void* op2);
-    static int __cdecl WtdRefCntCmp(const void* op1, const void* op2);
-
     /*****************************************************************************/
 
     enum FrameLayoutState
@@ -2963,15 +2961,14 @@ public:
     }
 
     bool     lvaTrackedFixed; // true: We cannot add new 'tracked' variable
-    unsigned lvaCount;        // total number of locals
+    unsigned lvaCount;        // total number of locals, which includes function arguments,
+                              // special arguments, IL local variables, and JIT temporary variables
 
     unsigned   lvaRefCount; // total number of references to locals
     LclVarDsc* lvaTable;    // variable descriptor table
     unsigned   lvaTableCnt; // lvaTable size (>= lvaCount)
 
-    LclVarDsc** lvaRefSorted; // table sorted by refcount
-
-    unsigned short lvaTrackedCount;       // actual # of locals being tracked
+    unsigned lvaTrackedCount;             // actual # of locals being tracked
     unsigned lvaTrackedCountInSizeTUnits; // min # of size_t's sufficient to hold a bit for all the locals being tracked
 
 #ifdef DEBUG
@@ -2992,6 +2989,7 @@ public:
     }
 
     // reverse map of tracked number to var number
+    unsigned  lvaTrackedToVarNumSize;
     unsigned* lvaTrackedToVarNum;
 
 #if DOUBLE_ALIGN
@@ -3204,6 +3202,19 @@ public:
         return &lvaTable[lclVar->GetLclNum()];
     }
 
+    unsigned lvaTrackedIndexToLclNum(unsigned trackedIndex)
+    {
+        assert(trackedIndex < lvaTrackedCount);
+        unsigned lclNum = lvaTrackedToVarNum[trackedIndex];
+        assert(lclNum < lvaCount);
+        return lclNum;
+    }
+
+    LclVarDsc* lvaGetDescByTrackedIndex(unsigned trackedIndex)
+    {
+        return lvaGetDesc(lvaTrackedIndexToLclNum(trackedIndex));
+    }
+
     unsigned lvaLclSize(unsigned varNum);
     unsigned lvaLclExactSize(unsigned varNum);
 
@@ -3213,9 +3224,7 @@ public:
     unsigned lvaGrabTemps(unsigned cnt DEBUGARG(const char* reason));
     unsigned lvaGrabTempWithImplicitUse(bool shortLifetime DEBUGARG(const char* reason));
 
-    void lvaSortOnly();
     void lvaSortByRefCount();
-    void lvaDumpRefCounts();
 
     void lvaMarkLocalVars(); // Local variable ref-counting
     void lvaComputeRefCounts(bool isRecompute, bool setSlotNumbers);
@@ -3223,7 +3232,7 @@ public:
 
     void lvaAllocOutgoingArgSpaceVar(); // Set up lvaOutgoingArgSpaceVar
 
-    VARSET_VALRET_TP lvaStmtLclMask(GenTreeStmt* stmt);
+    VARSET_VALRET_TP lvaStmtLclMask(Statement* stmt);
 
 #ifdef DEBUG
     struct lvaStressLclFldArgs
@@ -3447,7 +3456,7 @@ public:
 protected:
     //---------------- Local variable ref-counting ----------------------------
 
-    void lvaMarkLclRefs(GenTree* tree, BasicBlock* block, GenTreeStmt* stmt, bool isRecompute);
+    void lvaMarkLclRefs(GenTree* tree, BasicBlock* block, Statement* stmt, bool isRecompute);
     bool IsDominatedByExceptionalEntry(BasicBlock* block);
     void SetVolatileHint(LclVarDsc* varDsc);
 
@@ -3694,8 +3703,8 @@ protected:
 
     //----------------- Manipulating the trees and stmts ----------------------
 
-    GenTreeStmt* impStmtList; // Statements for the BB being imported.
-    GenTreeStmt* impLastStmt; // The last statement for the current BB.
+    Statement* impStmtList; // Statements for the BB being imported.
+    Statement* impLastStmt; // The last statement for the current BB.
 
 public:
     enum
@@ -3705,46 +3714,46 @@ public:
     };
 
     void impBeginTreeList();
-    void impEndTreeList(BasicBlock* block, GenTreeStmt* firstStmt, GenTreeStmt* lastStmt);
+    void impEndTreeList(BasicBlock* block, Statement* firstStmt, Statement* lastStmt);
     void impEndTreeList(BasicBlock* block);
-    void impAppendStmtCheck(GenTreeStmt* stmt, unsigned chkLevel);
-    void impAppendStmt(GenTreeStmt* stmt, unsigned chkLevel);
-    void impAppendStmt(GenTreeStmt* stmt);
-    void impInsertStmtBefore(GenTreeStmt* stmt, GenTreeStmt* stmtBefore);
-    GenTreeStmt* impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset);
-    void impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, GenTreeStmt* stmtBefore);
-    void impAssignTempGen(unsigned      tmp,
-                          GenTree*      val,
-                          unsigned      curLevel,
-                          GenTreeStmt** pAfterStmt = nullptr,
-                          IL_OFFSETX    ilOffset   = BAD_IL_OFFSET,
-                          BasicBlock*   block      = nullptr);
+    void impAppendStmtCheck(Statement* stmt, unsigned chkLevel);
+    void impAppendStmt(Statement* stmt, unsigned chkLevel);
+    void impAppendStmt(Statement* stmt);
+    void impInsertStmtBefore(Statement* stmt, Statement* stmtBefore);
+    Statement* impAppendTree(GenTree* tree, unsigned chkLevel, IL_OFFSETX offset);
+    void impInsertTreeBefore(GenTree* tree, IL_OFFSETX offset, Statement* stmtBefore);
+    void impAssignTempGen(unsigned    tmp,
+                          GenTree*    val,
+                          unsigned    curLevel,
+                          Statement** pAfterStmt = nullptr,
+                          IL_OFFSETX  ilOffset   = BAD_IL_OFFSET,
+                          BasicBlock* block      = nullptr);
     void impAssignTempGen(unsigned             tmpNum,
                           GenTree*             val,
                           CORINFO_CLASS_HANDLE structHnd,
                           unsigned             curLevel,
-                          GenTreeStmt**        pAfterStmt = nullptr,
+                          Statement**          pAfterStmt = nullptr,
                           IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                           BasicBlock*          block      = nullptr);
 
-    GenTreeStmt* impExtractLastStmt();
+    Statement* impExtractLastStmt();
     GenTree* impCloneExpr(GenTree*             tree,
                           GenTree**            clone,
                           CORINFO_CLASS_HANDLE structHnd,
                           unsigned             curLevel,
-                          GenTreeStmt** pAfterStmt DEBUGARG(const char* reason));
+                          Statement** pAfterStmt DEBUGARG(const char* reason));
     GenTree* impAssignStruct(GenTree*             dest,
                              GenTree*             src,
                              CORINFO_CLASS_HANDLE structHnd,
                              unsigned             curLevel,
-                             GenTreeStmt**        pAfterStmt = nullptr,
+                             Statement**          pAfterStmt = nullptr,
                              IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                              BasicBlock*          block      = nullptr);
     GenTree* impAssignStructPtr(GenTree*             dest,
                                 GenTree*             src,
                                 CORINFO_CLASS_HANDLE structHnd,
                                 unsigned             curLevel,
-                                GenTreeStmt**        pAfterStmt = nullptr,
+                                Statement**          pAfterStmt = nullptr,
                                 IL_OFFSETX           ilOffset   = BAD_IL_OFFSET,
                                 BasicBlock*          block      = nullptr);
 
@@ -3814,8 +3823,8 @@ private:
     bool        impNestedStackSpill;
 
     // For displaying instrs with generated native code (-n:B)
-    GenTreeStmt* impLastILoffsStmt; // oldest stmt added for which we did not gtStmtLastILoffs
-    void         impNoteLastILoffs();
+    Statement* impLastILoffsStmt; // oldest stmt added for which we did not gtStmtLastILoffs
+    void       impNoteLastILoffs();
 #endif
 
     /* IL offset of the stmt currently being imported. It gets set to
@@ -4394,7 +4403,7 @@ public:
     void fgMorphStmts(BasicBlock* block, bool* lnot, bool* loadw);
     void fgMorphBlocks();
 
-    bool fgMorphBlockStmt(BasicBlock* block, GenTreeStmt* stmt DEBUGARG(const char* msg));
+    bool fgMorphBlockStmt(BasicBlock* block, Statement* stmt DEBUGARG(const char* msg));
 
     void fgSetOptions();
 
@@ -4409,18 +4418,18 @@ public:
 
     BasicBlock* fgSplitBlockAtBeginning(BasicBlock* curr);
     BasicBlock* fgSplitBlockAtEnd(BasicBlock* curr);
-    BasicBlock* fgSplitBlockAfterStatement(BasicBlock* curr, GenTreeStmt* stmt);
+    BasicBlock* fgSplitBlockAfterStatement(BasicBlock* curr, Statement* stmt);
     BasicBlock* fgSplitBlockAfterNode(BasicBlock* curr, GenTree* node); // for LIR
     BasicBlock* fgSplitEdge(BasicBlock* curr, BasicBlock* succ);
 
-    GenTreeStmt* fgNewStmtFromTree(GenTree* tree, BasicBlock* block, IL_OFFSETX offs);
-    GenTreeStmt* fgNewStmtFromTree(GenTree* tree);
-    GenTreeStmt* fgNewStmtFromTree(GenTree* tree, BasicBlock* block);
-    GenTreeStmt* fgNewStmtFromTree(GenTree* tree, IL_OFFSETX offs);
+    Statement* fgNewStmtFromTree(GenTree* tree, BasicBlock* block, IL_OFFSETX offs);
+    Statement* fgNewStmtFromTree(GenTree* tree);
+    Statement* fgNewStmtFromTree(GenTree* tree, BasicBlock* block);
+    Statement* fgNewStmtFromTree(GenTree* tree, IL_OFFSETX offs);
 
     GenTree* fgGetTopLevelQmark(GenTree* expr, GenTree** ppDst = nullptr);
-    void fgExpandQmarkForCastInstOf(BasicBlock* block, GenTreeStmt* stmt);
-    void fgExpandQmarkStmt(BasicBlock* block, GenTreeStmt* stmt);
+    void fgExpandQmarkForCastInstOf(BasicBlock* block, Statement* stmt);
+    void fgExpandQmarkStmt(BasicBlock* block, Statement* stmt);
     void fgExpandQmarkNodes();
 
     void fgMorph();
@@ -4972,9 +4981,9 @@ public:
 
     void fgRemoveEmptyBlocks();
 
-    void fgRemoveStmt(BasicBlock* block, GenTreeStmt* stmt);
+    void fgRemoveStmt(BasicBlock* block, Statement* stmt);
 
-    bool fgCheckRemoveStmt(BasicBlock* block, GenTreeStmt* stmt);
+    bool fgCheckRemoveStmt(BasicBlock* block, Statement* stmt);
 
     void fgCreateLoopPreHeader(unsigned lnum);
 
@@ -5100,7 +5109,7 @@ public:
     void fgTableDispBasicBlock(BasicBlock* block, int ibcColWidth = 0);
     void fgDispBasicBlocks(BasicBlock* firstBlock, BasicBlock* lastBlock, bool dumpTrees);
     void fgDispBasicBlocks(bool dumpTrees = false);
-    void fgDumpStmtTree(GenTreeStmt* stmt, unsigned bbNum);
+    void fgDumpStmtTree(Statement* stmt, unsigned bbNum);
     void fgDumpBlock(BasicBlock* block);
     void fgDumpTrees(BasicBlock* firstBlock, BasicBlock* lastBlock);
 
@@ -5111,7 +5120,7 @@ public:
     void fgDebugCheckBlockLinks();
     void fgDebugCheckLinks(bool morphTrees = false);
     void fgDebugCheckStmtsList(BasicBlock* block, bool morphTrees);
-    void fgDebugCheckNodeLinks(BasicBlock* block, GenTreeStmt* stmt);
+    void fgDebugCheckNodeLinks(BasicBlock* block, Statement* stmt);
     void fgDebugCheckNodesUniqueness();
 
     void fgDebugCheckFlags(GenTree* tree);
@@ -5254,29 +5263,27 @@ public:
 
 #ifdef DEBUG
 public:
-    static bool fgBlockContainsStatementBounded(BasicBlock*  block,
-                                                GenTreeStmt* stmt,
-                                                bool         answerOnBoundExceeded = true);
+    static bool fgBlockContainsStatementBounded(BasicBlock* block, Statement* stmt, bool answerOnBoundExceeded = true);
 #endif
 
 public:
-    GenTreeStmt* fgInsertStmtAtEnd(BasicBlock* block, GenTreeStmt* stmt);
-    GenTreeStmt* fgNewStmtAtEnd(BasicBlock* block, GenTree* tree);
+    void fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt);
+    Statement* fgNewStmtAtEnd(BasicBlock* block, GenTree* tree);
 
 private:
-    GenTreeStmt* fgInsertStmtNearEnd(BasicBlock* block, GenTreeStmt* stmt);
-    GenTreeStmt* fgNewStmtNearEnd(BasicBlock* block, GenTree* tree);
+    void fgInsertStmtNearEnd(BasicBlock* block, Statement* stmt);
+    Statement* fgNewStmtNearEnd(BasicBlock* block, GenTree* tree);
 
-    GenTreeStmt* fgInsertStmtAtBeg(BasicBlock* block, GenTreeStmt* stmt);
-    GenTreeStmt* fgNewStmtAtBeg(BasicBlock* block, GenTree* tree);
+    void fgInsertStmtAtBeg(BasicBlock* block, Statement* stmt);
+    Statement* fgNewStmtAtBeg(BasicBlock* block, GenTree* tree);
 
-    GenTreeStmt* fgInsertStmtAfter(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
+    void fgInsertStmtAfter(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
 
-public: // Used by linear scan register allocation
-    GenTreeStmt* fgInsertStmtBefore(BasicBlock* block, GenTreeStmt* insertionPoint, GenTreeStmt* stmt);
+public:
+    void fgInsertStmtBefore(BasicBlock* block, Statement* insertionPoint, Statement* stmt);
 
 private:
-    GenTreeStmt* fgInsertStmtListAfter(BasicBlock* block, GenTreeStmt* stmtAfter, GenTreeStmt* stmtList);
+    Statement* fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAfter, Statement* stmtList);
 
     //                  Create a new temporary variable to hold the result of *ppTree,
     //                  and transform the graph accordingly.
@@ -5297,7 +5304,7 @@ private:
     GenTree* fgSetTreeSeq(GenTree* tree, GenTree* prev = nullptr, bool isLIR = false);
     void fgSetTreeSeqHelper(GenTree* tree, bool isLIR);
     void fgSetTreeSeqFinish(GenTree* tree, bool isLIR);
-    void fgSetStmtSeq(GenTreeStmt* stmt);
+    void fgSetStmtSeq(Statement* stmt);
     void fgSetBlockOrder(BasicBlock* block);
 
     //------------------------- Morphing --------------------------------------
@@ -5389,12 +5396,12 @@ private:
                                     bool       ignoreUsedInSIMDIntrinsic = false);
     GenTree* fgMorphFieldAssignToSIMDIntrinsicSet(GenTree* tree);
     GenTree* fgMorphFieldToSIMDIntrinsicGet(GenTree* tree);
-    bool fgMorphCombineSIMDFieldAssignments(BasicBlock* block, GenTreeStmt* stmt);
-    void impMarkContiguousSIMDFieldAssignments(GenTreeStmt* stmt);
+    bool fgMorphCombineSIMDFieldAssignments(BasicBlock* block, Statement* stmt);
+    void impMarkContiguousSIMDFieldAssignments(Statement* stmt);
 
     // fgPreviousCandidateSIMDFieldAsgStmt is only used for tracking previous simd field assignment
     // in function: Complier::impMarkContiguousSIMDFieldAssignments.
-    GenTreeStmt* fgPreviousCandidateSIMDFieldAsgStmt;
+    Statement* fgPreviousCandidateSIMDFieldAsgStmt;
 
 #endif // FEATURE_SIMD
     GenTree* fgMorphArrayIndex(GenTree* tree);
@@ -5418,24 +5425,24 @@ public:
 
 private:
     GenTree* fgMorphField(GenTree* tree, MorphAddrContext* mac);
-    bool fgCanFastTailCall(GenTreeCall* call);
+    bool fgCanFastTailCall(GenTreeCall* call, const char** failReason);
     bool fgCheckStmtAfterTailCall();
     void fgMorphTailCallViaHelper(GenTreeCall* call, void* pfnCopyArgs);
     GenTree* fgMorphPotentialTailCall(GenTreeCall* call);
     GenTree* fgGetStubAddrArg(GenTreeCall* call);
     void fgMorphRecursiveFastTailCallIntoLoop(BasicBlock* block, GenTreeCall* recursiveTailCall);
-    GenTreeStmt* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
-                                                       fgArgTabEntry* argTabEntry,
-                                                       BasicBlock*    block,
-                                                       IL_OFFSETX     callILOffset,
-                                                       GenTreeStmt*   tmpAssignmentInsertionPoint,
-                                                       GenTreeStmt*   paramAssignmentInsertionPoint);
+    Statement* fgAssignRecursiveCallArgToCallerParam(GenTree*       arg,
+                                                     fgArgTabEntry* argTabEntry,
+                                                     BasicBlock*    block,
+                                                     IL_OFFSETX     callILOffset,
+                                                     Statement*     tmpAssignmentInsertionPoint,
+                                                     Statement*     paramAssignmentInsertionPoint);
     static int fgEstimateCallStackSize(GenTreeCall* call);
     GenTree* fgMorphCall(GenTreeCall* call);
     void fgMorphCallInline(GenTreeCall* call, InlineResult* result);
     void fgMorphCallInlineHelper(GenTreeCall* call, InlineResult* result);
 #if DEBUG
-    void fgNoteNonInlineCandidate(GenTreeStmt* stmt, GenTreeCall* call);
+    void fgNoteNonInlineCandidate(Statement* stmt, GenTreeCall* call);
     static fgWalkPreFn fgFindNonInlineCandidate;
 #endif
     GenTree* fgOptimizeDelegateConstructor(GenTreeCall*            call,
@@ -5471,7 +5478,7 @@ private:
 #endif
     void fgMorphTreeDone(GenTree* tree, GenTree* oldTree = nullptr DEBUGARG(int morphNum = 0));
 
-    GenTreeStmt* fgMorphStmt;
+    Statement* fgMorphStmt;
 
     unsigned fgGetBigOffsetMorphingTemp(var_types type); // We cache one temp per type to be
                                                          // used when morphing big offset.
@@ -5556,8 +5563,8 @@ private:
     unsigned fgCheckInlineDepthAndRecursion(InlineInfo* inlineInfo);
     void fgInvokeInlineeCompiler(GenTreeCall* call, InlineResult* result);
     void fgInsertInlineeBlocks(InlineInfo* pInlineInfo);
-    GenTreeStmt* fgInlinePrependStatements(InlineInfo* inlineInfo);
-    void fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, GenTreeStmt* stmt);
+    Statement* fgInlinePrependStatements(InlineInfo* inlineInfo);
+    void fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* block, Statement* stmt);
 
 #if FEATURE_MULTIREG_RET
     GenTree* fgGetStructAsStructPtr(GenTree* tree);
@@ -5640,7 +5647,7 @@ private:
 public:
     void optInit();
 
-    void optRemoveRangeCheck(GenTree* tree, GenTreeStmt* stmt);
+    void optRemoveRangeCheck(GenTree* tree, Statement* stmt);
     bool optIsRangeCheckRemovable(GenTree* tree);
 
 protected:
@@ -6013,7 +6020,7 @@ protected:
 
     void optUpdateLoopsBeforeRemoveBlock(BasicBlock* block, bool skipUnmarkLoop = false);
 
-    bool optIsLoopTestEvalIntoTemp(GenTreeStmt* testStmt, GenTreeStmt** newTestStmt);
+    bool optIsLoopTestEvalIntoTemp(Statement* testStmt, Statement** newTestStmt);
     unsigned optIsLoopIncrTree(GenTree* incr);
     bool optCheckIterInLoopTest(unsigned loopInd, GenTree* test, BasicBlock* from, BasicBlock* to, unsigned iterVar);
     bool optComputeIterInfo(GenTree* incr, BasicBlock* from, BasicBlock* to, unsigned* pIterVar);
@@ -6132,7 +6139,7 @@ protected:
     {
         treeStmtLst* tslNext;
         GenTree*     tslTree;  // tree node
-        GenTreeStmt* tslStmt;  // statement containing the tree
+        Statement*   tslStmt;  // statement containing the tree
         BasicBlock*  tslBlock; // block containing the statement
     };
 
@@ -6153,9 +6160,9 @@ protected:
         unsigned csdDefWtCnt; // weighted def count
         unsigned csdUseWtCnt; // weighted use count  (excluding the implicit uses at defs)
 
-        GenTree*     csdTree;  // treenode containing the 1st occurance
-        GenTreeStmt* csdStmt;  // stmt containing the 1st occurance
-        BasicBlock*  csdBlock; // block containing the 1st occurance
+        GenTree*    csdTree;  // treenode containing the 1st occurance
+        Statement*  csdStmt;  // stmt containing the 1st occurance
+        BasicBlock* csdBlock; // block containing the 1st occurance
 
         treeStmtLst* csdTreeList; // list of matching tree nodes: head
         treeStmtLst* csdTreeLast; // list of matching tree nodes: tail
@@ -6226,7 +6233,7 @@ public:
 
 protected:
     void     optValnumCSE_Init();
-    unsigned optValnumCSE_Index(GenTree* tree, GenTreeStmt* stmt);
+    unsigned optValnumCSE_Index(GenTree* tree, Statement* stmt);
     unsigned optValnumCSE_Locate();
     void     optValnumCSE_InitDataFlow();
     void     optValnumCSE_DataFlow();
@@ -6293,7 +6300,7 @@ public:
     VARSET_TP optCopyPropKillSet;
 
     // Copy propagation functions.
-    void optCopyProp(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
+    void optCopyProp(BasicBlock* block, Statement* stmt, GenTree* tree, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyPropPopStacks(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     void optBlockCopyProp(BasicBlock* block, LclNumToGenTreePtrStack* curSsaName);
     bool optIsSsaLocal(GenTree* tree);
@@ -6671,8 +6678,8 @@ protected:
     AssertionIndex optMaxAssertionCount;
 
 public:
-    void optVnNonNullPropCurStmt(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree);
-    fgWalkResult optVNConstantPropCurStmt(BasicBlock* block, GenTreeStmt* stmt, GenTree* tree);
+    void optVnNonNullPropCurStmt(BasicBlock* block, Statement* stmt, GenTree* tree);
+    fgWalkResult optVNConstantPropCurStmt(BasicBlock* block, Statement* stmt, GenTree* tree);
     GenTree* optVNConstantPropOnJTrue(BasicBlock* block, GenTree* test);
     GenTree* optVNConstantPropOnTree(BasicBlock* block, GenTree* tree);
     GenTree* optExtractSideEffListFromConst(GenTree* tree);
@@ -6696,8 +6703,8 @@ public:
 #endif
 
     // Assertion prop data flow functions.
-    void         optAssertionPropMain();
-    GenTreeStmt* optVNAssertionPropCurStmt(BasicBlock* block, GenTreeStmt* stmt);
+    void       optAssertionPropMain();
+    Statement* optVNAssertionPropCurStmt(BasicBlock* block, Statement* stmt);
     bool optIsTreeKnownIntValue(bool vnBased, GenTree* tree, ssize_t* pConstant, unsigned* pIconFlags);
     ASSERT_TP* optInitAssertionDataflowFlags();
     ASSERT_TP* optComputeAssertionGen();
@@ -6752,23 +6759,23 @@ public:
     bool optAssertionProp_LclVarTypeCheck(GenTree* tree, LclVarDsc* lclVarDsc, LclVarDsc* copyVarDsc);
     GenTree* optCopyAssertionProp(AssertionDsc* curAssertion,
                                   GenTree*      tree,
-                                  GenTreeStmt* stmt DEBUGARG(AssertionIndex index));
+                                  Statement* stmt DEBUGARG(AssertionIndex index));
     GenTree* optConstantAssertionProp(AssertionDsc* curAssertion,
                                       GenTree*      tree,
-                                      GenTreeStmt* stmt DEBUGARG(AssertionIndex index));
+                                      Statement* stmt DEBUGARG(AssertionIndex index));
 
     // Assertion propagation functions.
-    GenTree* optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
+    GenTree* optAssertionProp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp_LclVar(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp_Ind(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp_Cast(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call, Statement* stmt);
+    GenTree* optAssertionProp_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp_Comma(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
     GenTree* optAssertionProp_BndsChk(ASSERT_VALARG_TP assertions, GenTree* tree);
-    GenTree* optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, GenTreeStmt* stmt);
-    GenTree* optAssertionProp_Update(GenTree* newTree, GenTree* tree, GenTreeStmt* stmt);
+    GenTree* optAssertionPropGlobal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionPropLocal_RelOp(ASSERT_VALARG_TP assertions, GenTree* tree, Statement* stmt);
+    GenTree* optAssertionProp_Update(GenTree* newTree, GenTree* tree, Statement* stmt);
     GenTree* optNonNullAssertionProp_Call(ASSERT_VALARG_TP assertions, GenTreeCall* call);
 
     // Implied assertion functions.
@@ -6794,8 +6801,8 @@ public:
     {
         LoopCloneContext* context;
         unsigned          loopNum;
-        GenTreeStmt*      stmt;
-        LoopCloneVisitorInfo(LoopCloneContext* context, unsigned loopNum, GenTreeStmt* stmt)
+        Statement*        stmt;
+        LoopCloneVisitorInfo(LoopCloneContext* context, unsigned loopNum, Statement* stmt)
             : context(context), loopNum(loopNum), stmt(nullptr)
         {
         }
@@ -6813,7 +6820,7 @@ public:
     bool optCanCloneLoops();
 
 #ifdef DEBUG
-    void optDebugLogLoopCloning(BasicBlock* block, GenTreeStmt* insertBefore);
+    void optDebugLogLoopCloning(BasicBlock* block, Statement* insertBefore);
 #endif
     void optPerformStaticOptimizations(unsigned loopNum, LoopCloneContext* context DEBUGARG(bool fastPath));
     bool optComputeDerefConditions(unsigned loopNum, LoopCloneContext* context);
@@ -6861,7 +6868,7 @@ private:
     LinearScanInterface* m_pLinearScan; // Linear Scan allocator
 
     /* raIsVarargsStackArg is called by raMaskStkVars and by
-       lvaSortByRefCount.  It identifies the special case
+       lvaComputeRefCounts.  It identifies the special case
        where a varargs function has a parameter passed on the
        stack, other than the special varargs handle.  Such parameters
        require special treatment, because they cannot be tracked
@@ -7174,7 +7181,7 @@ public:
     const char* eeGetFieldName(CORINFO_FIELD_HANDLE fieldHnd, const char** classNamePtr = nullptr);
 
 #if defined(DEBUG)
-    const wchar_t* eeGetCPString(size_t stringHandle);
+    const WCHAR* eeGetCPString(size_t stringHandle);
 #endif
 
     const char* eeGetClassName(CORINFO_CLASS_HANDLE clsHnd);
@@ -7244,10 +7251,9 @@ public:
     // convenience and backward compatibility, but the properties can only be set by invoking
     // the setter on CodeGenContext directly.
 
-    __declspec(property(get = getEmitter)) emitter* genEmitter;
-    emitter* getEmitter() const
+    emitter* GetEmitter() const
     {
-        return codeGen->getEmitter();
+        return codeGen->GetEmitter();
     }
 
     bool isFramePointerUsed() const
@@ -7255,25 +7261,24 @@ public:
         return codeGen->isFramePointerUsed();
     }
 
-    __declspec(property(get = getInterruptible, put = setInterruptible)) bool genInterruptible;
-    bool getInterruptible()
+    bool GetInterruptible()
     {
-        return codeGen->genInterruptible;
+        return codeGen->GetInterruptible();
     }
-    void setInterruptible(bool value)
+    void SetInterruptible(bool value)
     {
-        codeGen->setInterruptible(value);
+        codeGen->SetInterruptible(value);
     }
 
 #ifdef _TARGET_ARMARCH_
-    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
-    bool getHasTailCalls()
+
+    bool GetHasTailCalls()
     {
-        return codeGen->hasTailCalls;
+        return codeGen->GetHasTailCalls();
     }
-    void setHasTailCalls(bool value)
+    void SetHasTailCalls(bool value)
     {
-        codeGen->setHasTailCalls(value);
+        codeGen->SetHasTailCalls(value);
     }
 #endif // _TARGET_ARMARCH_
 
@@ -7342,9 +7347,13 @@ public:
     VARSET_TP compCurLife;     // current live variables
     GenTree*  compCurLifeTree; // node after which compCurLife has been computed
 
+    // Compare the given "newLife" with last set of live variables and update
+    // codeGen "gcInfo", siScopes, "regSet" with the new variable's homes/liveness.
     template <bool ForCodeGen>
     void compChangeLife(VARSET_VALARG_TP newLife);
 
+    // Update the GC's masks, register's masks and reports change on variable's homes given a set of
+    // current live variables if changes have happened since "compCurLife".
     template <bool ForCodeGen>
     inline void compUpdateLife(VARSET_VALARG_TP newLife);
 
@@ -8589,6 +8598,13 @@ public:
     {
         return tree->gtTreeID;
     }
+
+    static void printStmtID(Statement* stmt)
+    {
+        assert(stmt != nullptr);
+        printf(FMT_STMT, stmt->GetID());
+    }
+
     static void printTreeID(GenTree* tree)
     {
         if (tree == nullptr)
@@ -8727,6 +8743,7 @@ public:
         const char* compMethodName;
         const char* compClassName;
         const char* compFullName;
+        double      compPerfScore;
 #endif // defined(DEBUG) || defined(LATE_DISASM)
 
 #if defined(DEBUG) || defined(INLINE_DATA)
@@ -8772,9 +8789,8 @@ public:
         unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
 
 #if FEATURE_FASTTAILCALL
-        size_t compArgStackSize;     // Incoming argument stack size in bytes
-        bool   compHasMultiSlotArgs; // Caller has >8 byte sized struct parameter
-#endif                               // FEATURE_FASTTAILCALL
+        size_t compArgStackSize; // Incoming argument stack size in bytes
+#endif                           // FEATURE_FASTTAILCALL
 
         unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
         int compTypeCtxtArg; // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
@@ -8922,14 +8938,12 @@ public:
 #ifdef DEBUG
     static unsigned s_compMethodsCount; // to produce unique label names
     unsigned        compGenTreeID;
+    unsigned        compStatementID;
     unsigned        compBasicBlockID;
 #endif
 
-    BasicBlock*  compCurBB;   // the current basic block in process
-    GenTreeStmt* compCurStmt; // the current statement in process
-#ifdef DEBUG
-    unsigned compCurStmtNum; // to give all statements an increasing StmtNum when printing dumps
-#endif
+    BasicBlock* compCurBB;   // the current basic block in process
+    Statement*  compCurStmt; // the current statement in process
 
     //  The following is used to create the 'method JIT info' block.
     size_t compInfoBlkSize;
@@ -10557,6 +10571,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 void cBlock(Compiler* comp, BasicBlock* block);
 void cBlocks(Compiler* comp);
 void cBlocksV(Compiler* comp);
+void cStmt(Compiler* comp, Statement* statement);
 void cTree(Compiler* comp, GenTree* tree);
 void cTrees(Compiler* comp);
 void cEH(Compiler* comp);
@@ -10573,6 +10588,7 @@ void cCVarSet(Compiler* comp, VARSET_VALARG_TP vars);
 void cFuncIR(Compiler* comp);
 void cBlockIR(Compiler* comp, BasicBlock* block);
 void cLoopIR(Compiler* comp, Compiler::LoopDsc* loop);
+void cStmtIR(Compiler* comp, Statement* stmt);
 void cTreeIR(Compiler* comp, GenTree* tree);
 int cTreeTypeIR(Compiler* comp, GenTree* tree);
 int cTreeKindsIR(Compiler* comp, GenTree* tree);
@@ -10623,7 +10639,7 @@ void dFormatIR();
 
 GenTree* dFindTree(GenTree* tree, unsigned id);
 GenTree* dFindTree(unsigned id);
-GenTreeStmt* dFindStmt(unsigned id);
+Statement* dFindStmt(unsigned id);
 BasicBlock* dFindBlock(unsigned bbNum);
 
 #endif // DEBUG
