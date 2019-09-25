@@ -559,13 +559,7 @@ namespace System.Globalization
             throw new ArgumentOutOfRangeException(nameof(era), era, SR.ArgumentOutOfRange_InvalidEraValue);
         }
 
-        internal string[] AbbreviatedEraNames
-        {
-            get
-            {
-                return m_abbrevEraNames ?? (m_abbrevEraNames = _cultureData.AbbrevEraNames(Calendar.ID));
-            }
-        }
+        internal string[] AbbreviatedEraNames => m_abbrevEraNames ??= _cultureData.AbbrevEraNames(Calendar.ID);
 
         /// <remarks>
         /// Era names are 1 indexed

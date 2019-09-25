@@ -609,7 +609,7 @@ namespace System.Globalization
         /// Returns the full name of the CultureInfo. The name is in format like
         /// "en-US" This version does NOT include sort information in the name.
         /// </summary>
-        public virtual string Name => _nonSortName ??= _cultureData.Name ?? string.Empty;
+        public virtual string Name => _nonSortName ??= (_cultureData.Name ?? string.Empty);
 
         /// <summary>
         /// This one has the sort information (ie: de-DE_phoneb)
@@ -672,8 +672,10 @@ namespace System.Globalization
         /// <summary>
         /// Gets the CompareInfo for this culture.
         /// </summary>
-        public virtual CompareInfo CompareInfo => _compareInfo
-            ??= (UseUserOverride ? GetCultureInfo(_name).CompareInfo : new CompareInfo(this));
+        public virtual CompareInfo CompareInfo => _compareInfo ??=
+            // Since CompareInfo's don't have any overrideable properties, get the CompareInfo from	
+            // the Non-Overridden CultureInfo so that we only create one CompareInfo per culture
+            (UseUserOverride ? GetCultureInfo(_name).CompareInfo : new CompareInfo(this));
 
         /// <summary>
         /// Gets the TextInfo for this culture.

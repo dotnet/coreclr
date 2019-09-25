@@ -187,7 +187,10 @@ namespace System.Globalization
         /// supported and constant irrespective of the current culture.
         /// Used by FromString methods.
         /// </summary>
-        public static NumberFormatInfo InvariantInfo => s_invariantInfo ??= new NumberFormatInfo { _isReadOnly = true };
+        public static NumberFormatInfo InvariantInfo => s_invariantInfo ??=
+            // Lazy create the invariant info. This cannot be done in a .cctor because exceptions can	
+            // be thrown out of a .cctor stack that will need this.
+            new NumberFormatInfo { _isReadOnly = true };
 
         public static NumberFormatInfo GetInstance(IFormatProvider? formatProvider)
         {
