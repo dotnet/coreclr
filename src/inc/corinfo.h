@@ -1875,9 +1875,9 @@ enum CORINFO_TAILCALL_HELPERS_FLAGS
 struct CORINFO_TAILCALL_HELPERS
 {
     CORINFO_TAILCALL_HELPERS_FLAGS flags;
-    CORINFO_METHOD_HANDLE       hStoreArgs;
-    CORINFO_METHOD_HANDLE       hCallTarget;
-    CORINFO_METHOD_HANDLE       hDispatcher;
+    CORINFO_METHOD_HANDLE          hStoreArgs;
+    CORINFO_METHOD_HANDLE          hCallTarget;
+    CORINFO_METHOD_HANDLE          hDispatcher;
 };
 
 // This is used to indicate that a finally has been called 
