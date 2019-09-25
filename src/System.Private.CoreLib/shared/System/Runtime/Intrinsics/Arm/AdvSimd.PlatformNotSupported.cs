@@ -259,102 +259,119 @@ namespace System.Runtime.Intrinsics.Arm
         /// uint8x8_t vld1_u8 (uint8_t const * ptr)
         ///   A32: VLD1.8 Dd, [Rn]
         ///   A64: LD1 Vt.8B, [Xn]
+        /// </summary>
         public static unsafe Vector64<byte> LoadVector64(byte* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int16x4_t vld1_s16 (int16_t const * ptr)
         ///   A32: VLD1.16 Dd, [Rn]
         ///   A64: LD1 Vt.4H, [Xn]
+        /// </summary>
         public static unsafe Vector64<short> LoadVector64(short* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int32x2_t vld1_s32 (int32_t const * ptr)
         ///   A32: VLD1.32 Dd, [Rn]
         ///   A64: LD1 Vt.2S, [Xn]
+        /// </summary>
         public static unsafe Vector64<int> LoadVector64(int* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int8x8_t vld1_s8 (int8_t const * ptr)
         ///   A32: VLD1.8 Dd, [Rn]
         ///   A64: LD1 Vt.8B, [Xn]
+        /// </summary>
         public static unsafe Vector64<sbyte> LoadVector64(sbyte* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// float32x2_t vld1_f32 (float32_t const * ptr)
         ///   A32: VLD1.32 Dd, [Rn]
         ///   A64: LD1 Vt.2S, [Xn]
+        /// </summary>
         public static unsafe Vector64<float> LoadVector64(float* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// uint16x4_t vld1_u16 (uint16_t const * ptr)
         ///   A32: VLD1.16 Dd, [Rn]
         ///   A64: LD1 Vt.4H, [Xn]
+        /// </summary>
         public static unsafe Vector64<ushort> LoadVector64(ushort* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// uint32x2_t vld1_u32 (uint32_t const * ptr)
         ///   A32: VLD1.32 Dd, [Rn]
         ///   A64: LD1 Vt.2S, [Xn]
+        /// </summary>
         public static unsafe Vector64<uint> LoadVector64(uint* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// uint8x16_t vld1q_u8 (uint8_t const * ptr)
         ///   A32: VLD1.8 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.16B, [Xn]
+        /// </summary>
         public static unsafe Vector128<byte> LoadVector128(byte* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// float64x2_t vld1q_f64 (float64_t const * ptr)
         ///   A32: VLD1.64 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.2D, [Xn]
+        /// </summary>
         public static unsafe Vector128<double> LoadVector128(double* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int16x8_t vld1q_s16 (int16_t const * ptr)
         ///   A32: VLD1.16 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.8H, [Xn]
+        /// </summary>
         public static unsafe Vector128<short> LoadVector128(short* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int32x4_t vld1q_s32 (int32_t const * ptr)
         ///   A32: VLD1.32 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.4S, [Xn]
+        /// </summary>
         public static unsafe Vector128<int> LoadVector128(int* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int64x2_t vld1q_s64 (int64_t const * ptr)
         ///   A32: VLD1.64 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.2D, [Xn]
+        /// </summary>
         public static unsafe Vector128<long> LoadVector128(long* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// int8x16_t vld1q_s8 (int8_t const * ptr)
         ///   A32: VLD1.8 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.16B, [Xn]
+        /// </summary>
         public static unsafe Vector128<sbyte> LoadVector128(sbyte* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// float32x4_t vld1q_f32 (float32_t const * ptr)
         ///   A32: VLD1.32 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.4S, [Xn]
+        /// </summary>
         public static unsafe Vector128<float> LoadVector128(float* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// uint16x8_t vld1q_s16 (uint16_t const * ptr)
         ///   A32: VLD1.16 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.8H, [Xn]
+        /// </summary>
         public static unsafe Vector128<ushort> LoadVector128(ushort* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// uint32x4_t vld1q_s32 (uint32_t const * ptr)
         ///   A32: VLD1.32 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.4S, [Xn]
+        /// </summary>
         public static unsafe Vector128<uint> LoadVector128(uint* address) { throw new PlatformNotSupportedException(); }
 
         /// <summary>
         /// uint64x2_t vld1q_u64 (uint64_t const * ptr)
         ///   A32: VLD1.64 Dd, Dd+1, [Rn]
         ///   A64: LD1 Vt.2D, [Xn]
+        /// </summary>
         public static unsafe Vector128<ulong> LoadVector128(ulong* address) { throw new PlatformNotSupportedException(); }
     }
 }
