@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
+using System.Runtime.InteropServices;
 
 namespace TestLibrary
 {
@@ -10,17 +10,15 @@ namespace TestLibrary
     {
         public static string GetStandardNativeLibraryFileName(string simpleName)
         {
-            switch (Environment.OSVersion.Platform)
+            if (Utilities.IsWindows)
             {
-                case PlatformID.Win32NT:
-                    return simpleName + ".dll";
-
-                case PlatformID.MacOSX:
-                    return "lib" + simpleName + ".dylib";
-
-                default:
-                    return "lib" + simpleName + ".so";
+                return simpleName + ".dll";
             }
+            if (Utilities.IsMacOSX)
+            {
+                return "lib" + simpleName + ".dylib";
+            }
+            return "lib" + simpleName + ".so";
         }
     }
 }
