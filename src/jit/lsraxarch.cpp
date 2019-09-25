@@ -1562,9 +1562,6 @@ int LinearScan::BuildPutArgStk(GenTreePutArgStk* putArgStk)
 
     ClassLayout* layout = src->AsObj()->GetLayout();
 
-    // If we have a buffer between XMM_REGSIZE_BYTES and CPBLK_UNROLL_LIMIT bytes, we'll use SSE2.
-    // Structs and buffer with sizes <= CPBLK_UNROLL_LIMIT bytes are occurring in more than 95% of
-    // our framework assemblies, so this is the main code generation scheme we'll use.
     ssize_t size = putArgStk->gtNumSlots * TARGET_POINTER_SIZE;
     switch (putArgStk->gtPutArgStkKind)
     {
