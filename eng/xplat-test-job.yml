@@ -5,6 +5,7 @@ parameters:
   osSubgroup: ''
   managedTestBuildOsGroup: ''
   managedTestBuildOsSubgroup: ''
+  managedTestBuildArchType: ''
   name: ''
   helixType: '(unspecified)'
   container: ''
@@ -57,23 +58,29 @@ jobs:
     - name: nativeRootFolderPath
       value: $(binTestsPath)/$(osGroup).$(archType).$(buildConfigUpper)
 
-    - name: testArtifactName
-      value: Tests
+    - name: testArtifactNameR2RPart
+      value: ''
 
     - ${{ if eq(parameters.readyToRun, true) }}:
-      - name: testArtifactName
-        value: $(testArtifactName)_r2r
+      - name: testArtifactNameR2RPart
+        value: '_r2r'
+
+    - name: testArtifactNameCoreFxPart
+      value: ''
 
     - ${{ if eq(parameters.corefxTests, true) }}:
-      - name: testArtifactName
-        value: $(testArtifactName)_corefx
+      - name: testArtifactNameCoreFxPart
+        value: '_corefx'
 
-    - name: testArtifactName
-      value: $(testArtifactName)_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_$(archType)_$(buildConfig)
+    - name: testArtifactNameTestGroupPart
+      value: ''
 
     - ${{ if ne(parameters.testGroup, '') }}:
       - name: testArtifactName
-        value: $(testArtifactName)_$(testGroup)
+        value: _$(testGroup)
+
+    - name: testArtifactName
+      value: Tests$(testArtifactNameR2RPart)$(testArtifactNameCoreFxPart)_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.managedTestBuildArchType }}_$(buildConfig)$(testArtifactNameTestGroupPart)
 
     - name: testNativeArtifactName
       value: 'NativeTestComponents_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'
@@ -91,13 +98,13 @@ jobs:
       value: $(Build.SourcesDirectory)/.packages/microsoft.net.sdk.il
 
     - name: microsoftNetSdkIlArtifactName
-      value: 'MicrosoftNetSdkIlPackage_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_$(archType)_$(buildConfig)'
+      value: 'MicrosoftNetSdkIlPackage_${{ parameters.managedTestBuildOsGroup }}${{ parameters.managedTestBuildOsSubgroup }}_${{ parameters.managedTestBuildArchType }}_$(buildConfig)'
 
     - name: productBuildArtifactName
-      value: 'BinDir_${{ parameters.osGroup }}${{ parameters.osSugbroup }}_${{ parameters.archType }}_${{ parameters.buildConfig }}'
+      value: 'BinDir_$(osGroup)$(osSubgroup)_$(archType)_$(buildConfig)'
 
     - name: productBuildRootFolderPath
-      value: '$(Build.SourcesDirectory)/bin/Product/${{ parameters.osGroup }}.${{ parameters.archType }}.${{ parameters.buildConfig }}'
+      value: '$(Build.SourcesDirectory)/bin/Product/$(osGroup).$(archType).$(buildConfigUpper)'
 
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
       - name: archiveExtension

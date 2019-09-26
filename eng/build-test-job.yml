@@ -30,6 +30,7 @@ jobs:
     osSubgroup: ${{ parameters.osSubgroup }}
     managedTestBuildOsGroup: ${{ parameters.osGroup }}
     managedTestBuildOsSubgroup: ${{ parameters.osSubgroup }}
+    managedTestBuildArchType: ${{ parameters.archType }}
     container: ${{ parameters.container }}
     testGroup: ${{ parameters.testGroup }}
     readyToRun: ${{ parameters.readyToRun }}
