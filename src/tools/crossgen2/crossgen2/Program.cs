@@ -228,7 +228,7 @@ namespace ILCompiler
             }
 
             PerfEventSource.Log.CompilationStart();
-            PerfEventSource.Log.LoadingStart();
+            PerfEventSource.Log.LoadingPhaseStart();
             //
             // Initialize type system context
             //
@@ -396,7 +396,7 @@ namespace ILCompiler
 
             ICompilation compilation = builder.ToCompilation();
 
-            PerfEventSource.Log.LoadingStop();
+            PerfEventSource.Log.LoadingPhaseStop();
             compilation.Compile(_outputFilePath);
             PerfEventSource.Log.CompilationStop();
 

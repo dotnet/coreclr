@@ -14,14 +14,14 @@ namespace ILCompiler
     public class PerfEventSource : EventSource
     {
         [Event(1, Level = EventLevel.Informational)]
-        public void LoadingStart() { WriteEvent(1); }
+        public void LoadingPhaseStart() { WriteEvent(1); }
         [Event(2, Level = EventLevel.Informational)]
-        public void LoadingStop() { WriteEvent(2); }
+        public void LoadingPhaseStop() { WriteEvent(2); }
 
         [Event(3, Level = EventLevel.Informational)]
-        public void EmittingStart() { WriteEvent(3); }
+        public void EmittingPhaseStart() { WriteEvent(3); }
         [Event(4, Level = EventLevel.Informational)]
-        public void EmittingStop() { WriteEvent(4); }
+        public void EmittingPhaseStop() { WriteEvent(4); }
 
         [Event(5, Level = EventLevel.Informational)]
         public void CompilationStart() { WriteEvent(5); }
@@ -29,9 +29,14 @@ namespace ILCompiler
         public void CompilationStop() { WriteEvent(6); }
 
         [Event(7, Level = EventLevel.Informational)]
-        public void JitStart() { WriteEvent(7); }
+        public void JitSectionStart() { WriteEvent(7); }
         [Event(8, Level = EventLevel.Informational)]
-        public void JitStop() { WriteEvent(8); }
+        public void JitSectionStop() { WriteEvent(8); }
+
+        [Event(9, Level = EventLevel.Informational)]
+        public void JitMethodStart() { WriteEvent(9); }
+        [Event(10, Level = EventLevel.Informational)]
+        public void JitMethodStop() { WriteEvent(10); }
 
         public static PerfEventSource Log = new PerfEventSource();
     }

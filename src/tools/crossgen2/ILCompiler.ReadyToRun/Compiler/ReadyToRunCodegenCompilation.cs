@@ -213,10 +213,10 @@ namespace ILCompiler
                 _dependencyGraph.ComputeMarkedNodes();
                 var nodes = _dependencyGraph.MarkedNodeList;
 
-                PerfEventSource.Log.EmittingStart();
+                PerfEventSource.Log.EmittingPhaseStart();
                 NodeFactory.SetMarkingComplete();
                 ReadyToRunObjectWriter.EmitObject(inputPeReader, outputFile, nodes, NodeFactory);
-                PerfEventSource.Log.EmittingStop();
+                PerfEventSource.Log.EmittingPhaseStop();
             }
         }
 
@@ -233,6 +233,7 @@ namespace ILCompiler
 
         protected override void ComputeDependencyNodeDependencies(List<DependencyNodeCore<NodeFactory>> obj)
         {
+            PerfEventSource.Log.JitSectionStart();
             List<Task> tasks = new List<Task>();
             foreach (DependencyNodeCore<NodeFactory> dependency in obj)
             {
@@ -266,7 +267,7 @@ namespace ILCompiler
 
                     try
                     {
-                        PerfEventSource.Log.JitStart();
+                        PerfEventSource.Log.JitMethodStart();
                         CorInfoImpl corInfo = new CorInfoImpl(this, _jitConfigProvider);
                         corInfo.CompileMethod(methodCodeNodeNeedingCode);
                     }
@@ -285,11 +286,12 @@ namespace ILCompiler
                     }
                     finally
                     {
-                        PerfEventSource.Log.JitStop();
+                        PerfEventSource.Log.JitMethodStop();
                     }
                 }));
             }
             Task.WaitAll(tasks.ToArray());
+            PerfEventSource.Log.JitSectionStop();
         }
 
         public ISymbolNode GetFieldRvaData(FieldDesc field) => NodeFactory.CopiedFieldRva(field);
