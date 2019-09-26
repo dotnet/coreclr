@@ -159,7 +159,6 @@ namespace Internal.JitInterface
             {
                 return true;
             }
-            Console.WriteLine("Andrew said we should be compiling: " + method.ToString());
             return false;
         }
 
