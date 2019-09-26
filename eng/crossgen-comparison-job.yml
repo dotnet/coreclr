@@ -14,7 +14,7 @@ parameters:
 ### crossgen matches that of native, e.g. arm-hosted-arm-targeting, crossgen.
 
 jobs:
-- template: xplat-job.yml
+- template: xplat-test-job.yml
   parameters:
     buildConfig: ${{ parameters.buildConfig }}
     archType: ${{ parameters.archType }}
