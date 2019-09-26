@@ -153,6 +153,30 @@ function(add_precompiled_header header cppFile targetSources)
   endif(MSVC)
 endfunction()
 
+function(target_precompile_header targetName header)
+  if(MSVC)
+    get_filename_component(PCH_NAME ${header} NAME_WE)
+    # We need to use the $<TARGET_PROPERTY:NAME> generator here instead of the ${targetName} variable since
+    # CMake evaluates source file properties once per directory. If we just use ${targetName}, we end up sharing
+    # the same PCH between targets, which doesn't work.
+    set(precompiledBinary "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/${PCH_NAME}.$<TARGET_PROPERTY:NAME>.pch")
+    set(pchSourceFile "${CMAKE_CURRENT_BINARY_DIR}/${PCH_NAME}.${targetName}.cpp")
+
+    file(GENERATE OUTPUT ${pchSourceFile} CONTENT "#include \"${header}\"")
+
+    set_source_files_properties(${pchSourceFile}
+                                PROPERTIES COMPILE_FLAGS "/Yc\"${header}\" /Fp\"${precompiledBinary}\""
+                                            OBJECT_OUTPUTS "${precompiledBinary}"
+                                            INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+    get_target_property(TARGET_SOURCES ${targetName} SOURCES)
+    set_source_files_properties(${TARGET_SOURCES}
+                                PROPERTIES COMPILE_FLAGS "/Yu\"${header}\" /Fp\"${precompiledBinary}\""
+                                            OBJECT_DEPENDS "${precompiledBinary}")
+    # Add pchSourceFile to targetName target
+    target_sources(${targetName} PRIVATE ${pchSourceFile})
+  endif(MSVC)
+endfunction()
+
 function(strip_symbols targetName outputFilename)
   if (CLR_CMAKE_PLATFORM_UNIX)
     if (STRIP_SYMBOLS)

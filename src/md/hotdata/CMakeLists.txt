@@ -25,9 +25,22 @@ set(MDHOTDATA_HEADERS
 convert_to_absolute_path(MDHOTDATA_HEADERS ${MDHOTDATA_HEADERS})
 convert_to_absolute_path(MDHOTDATA_SOURCES ${MDHOTDATA_SOURCES})
 
-add_subdirectory(dac)
-add_subdirectory(full)
-add_subdirectory(crossgen)
+if (WIN32)
+    list(APPEND MDHOTDATA_SOURCES ${MDHOTDATA_HEADERS})
+endif (WIN32)
+
+add_library_clr(mdhotdata_dac ${MDHOTDATA_SOURCES})
+set_target_properties(mdhotdata_dac PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(mdhotdata_dac external.h)
+
+add_library_clr(mdhotdata_full ${MDHOTDATA_SOURCES})
+target_precompile_header(mdhotdata_full external.h)
+
+add_library_clr(mdhotdata_crossgen ${MDHOTDATA_SOURCES})
+set_target_properties(mdhotdata_crossgen PROPERTIES CROSSGEN_COMPONENT TRUE)
+target_precompile_header(mdhotdata_crossgen external.h)
+
 if(WIN32)
-  add_subdirectory(full-staticcrt)
+  add_library_clr(mdhotdata-staticcrt ${MDHOTDATA_SOURCES})
+  target_precompile_header(mdhotdata-staticcrt external.h)
 endif(WIN32)

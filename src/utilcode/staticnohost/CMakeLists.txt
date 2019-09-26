@@ -8,7 +8,7 @@ if(CLR_CMAKE_PLATFORM_UNIX)
   target_link_libraries(utilcodestaticnohost  nativeresourcestring)
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-target_compile_definitions(utilcode_dac PRIVATE SELF_NO_HOST)
+target_compile_definitions(utilcodestaticnohost PRIVATE SELF_NO_HOST)
 
 if(WIN32)
     target_compile_definitions(utilcodestaticnohost PRIVATE _CRTIMP=) # use static version of crt
