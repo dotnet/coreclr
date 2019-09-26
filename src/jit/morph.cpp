@@ -7756,7 +7756,7 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
             newArgSlot = &(*newArgSlot)->NextRef();
         }
 
-        *newArgSlot = new (this, CMK_ASTNode) GenTreeCall::Use(target, nullptr);
+        *newArgSlot = gtNewCallArgs(target);
 
         call->fgArgInfo = nullptr;
     }
