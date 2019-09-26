@@ -156,7 +156,7 @@
     IL_002e:  ldarga.s   h
     IL_0030:  conv.u
     IL_0031:  ldarga.s   h
-    IL_0033:  ldfld      valuetype ForceHelper* ForceHelper::me
+    IL_0033:  ldfld      valuetype ForceHelper* ForceHelper::me2
     IL_0038:  beq.s      IL_0073
 
     IL_003a:  ldarga.s   h
