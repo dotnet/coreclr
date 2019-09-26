@@ -48,11 +48,8 @@ struct ArgBufferValue
     TypeHandle TyHnd;
     unsigned int Offset;
 
-    ArgBufferValue(
-        TypeHandle tyHnd = TypeHandle(),
-        unsigned int offset = 0)
-        : TyHnd(tyHnd)
-        , Offset(offset)
+    ArgBufferValue(TypeHandle tyHnd = TypeHandle(), unsigned int offset = 0)
+        : TyHnd(tyHnd), Offset(offset)
     {
     }
 };
@@ -368,12 +365,13 @@ void TailCallHelp::LayOutArgBuffer(
 {
     unsigned int offs = 0;
 
-    if (storeTarget)
+    auto addValue = [&](TypeHandle th)
     {
-        layout->TargetAddressOffset = offs;
-        layout->HasTargetAddress = true;
-        offs += TARGET_POINTER_SIZE;
-    }
+        unsigned int alignment = CEEInfo::getClassAlignmentRequirementStatic(th);
+        offs = AlignUp(offs, alignment);
+        layout->Values.Append(ArgBufferValue(th, offs));
+        offs += th.GetSize();
+    };
 
     // User args
     if (callSiteSig.HasThis())
@@ -389,8 +387,7 @@ void TailCallHelp::LayOutArgBuffer(
             thisHnd = TypeHandle(g_pObjectClass);
         }
 
-        layout->Values.Append(ArgBufferValue(thisHnd, offs));
-        offs += TARGET_POINTER_SIZE;
+        addValue(thisHnd);
     }
 
     auto addGenCtx = [&]()
@@ -399,10 +396,7 @@ void TailCallHelp::LayOutArgBuffer(
             return;
 
         layout->GenericContextIndex = static_cast<int>(layout->Values.GetCount());
-
-        TypeHandle nativeIntHnd = TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I));
-        layout->Values.Append(ArgBufferValue(nativeIntHnd, offs));
-        offs += TARGET_POINTER_SIZE;
+        addValue(TypeHandle(MscorlibBinder::GetElementType(ELEMENT_TYPE_I)));
     };
 
     // Generic context comes before args on all platforms except X86.
@@ -416,17 +410,20 @@ void TailCallHelp::LayOutArgBuffer(
     {
         TypeHandle tyHnd = callSiteSig.GetLastTypeHandleThrowing();
         tyHnd = NormalizeSigType(tyHnd);
-        unsigned int alignment = CEEInfo::getClassAlignmentRequirementStatic(tyHnd);
-        offs = AlignUp(offs, alignment);
-
-        layout->Values.Append(ArgBufferValue(tyHnd, offs));
-
-        offs += tyHnd.GetSize();
+        addValue(tyHnd);
     }
 
 #ifdef _TARGET_X86_
     addGenCtx();
 #endif
+
+    if (storeTarget)
+    {
+        offs = AlignUp(offs, TARGET_POINTER_SIZE);
+        layout->TargetAddressOffset = offs;
+        layout->HasTargetAddress = true;
+        offs += TARGET_POINTER_SIZE;
+    }
 
     layout->Size = offs;
 }
@@ -575,12 +572,6 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     };
 
     unsigned int argIndex = 0;
-    if (info.ArgBufLayout.HasTargetAddress)
-    {
-        emitOffs(info.ArgBufLayout.TargetAddressOffset);
-        pCode->EmitLDARG(argIndex++);
-        pCode->EmitSTIND_I();
-    }
 
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
@@ -590,6 +581,13 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
         emitOffs(arg.Offset);
         pCode->EmitLDARG(argIndex++);
         EmitStoreTyHnd(pCode, arg.TyHnd);
+    }
+
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        emitOffs(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitLDARG(argIndex++);
+        pCode->EmitSTIND_I();
     }
 
     pCode->EmitRET();
@@ -628,25 +626,25 @@ void TailCallHelp::CreateStoreArgsStubSig(
     sig->AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
 
     ULONG paramCount = 0;
+    paramCount += info.ArgBufLayout.Values.GetCount();
     if (info.ArgBufLayout.HasTargetAddress)
     {
         paramCount++;
     }
-    paramCount += info.ArgBufLayout.Values.GetCount();
     
     sig->AppendData(paramCount);
 
     sig->AppendElementType(ELEMENT_TYPE_VOID);
 
-    if (info.ArgBufLayout.HasTargetAddress)
-    {
-        sig->AppendElementType(ELEMENT_TYPE_I);
-    }
-
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
         const ArgBufferValue& val = info.ArgBufLayout.Values[i];
         AppendTypeHandle(*sig, val.TyHnd);
+    }
+
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        sig->AppendElementType(ELEMENT_TYPE_I);
     }
 
 #ifdef _DEBUG
@@ -693,16 +691,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         }
     };
 
-    DWORD targetAddrLcl;
-    if (info.ArgBufLayout.HasTargetAddress)
-    {
-        targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
-
-        emitOffs(info.ArgBufLayout.TargetAddressOffset);
-        pCode->EmitLDIND_I();
-        pCode->EmitSTLOC(targetAddrLcl);
-    }
-
     StackSArray<DWORD> argLocals;
     for (COUNT_T i = 0; i < info.ArgBufLayout.Values.GetCount(); i++)
     {
@@ -714,6 +702,16 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
         emitOffs(arg.Offset);
         EmitLoadTyHnd(pCode, arg.TyHnd);
         pCode->EmitSTLOC(argLcl);
+    }
+
+    DWORD targetAddrLcl;
+    if (info.ArgBufLayout.HasTargetAddress)
+    {
+        targetAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
+
+        emitOffs(info.ArgBufLayout.TargetAddressOffset);
+        pCode->EmitLDIND_I();
+        pCode->EmitSTLOC(targetAddrLcl);
     }
 
     // RuntimeHelpers.FreeTailCallArgBuffer();

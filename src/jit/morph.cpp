@@ -7738,10 +7738,8 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
         {
             noway_assert(call->gtCallAddr != nullptr);
 
-            // Normally this would be evaluated last, however we are putting it
-            // as the first arg in the arg list. Luckily import already spills
-            // this aggressively so we just assert that it is side effect free.
-            noway_assert(!(call->gtCallAddr->gtFlags & GTF_SIDE_EFFECT));
+            // The target is the last argument and thus evaluation order is
+            // preserved.
             target           = call->gtCallAddr;
             call->gtCallAddr = nullptr;
         }
@@ -7751,7 +7749,15 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
             target = fgGetDirectCallTargetAddress(call);
         }
 
-        call->gtCallArgs = gtPrependNewCallArg(target, call->gtCallArgs);
+        // Insert target as last arg
+        GenTreeCall::Use** newArgSlot = &call->gtCallArgs;
+        while (*newArgSlot != nullptr)
+        {
+            newArgSlot = &(*newArgSlot)->NextRef();
+        }
+
+        *newArgSlot = new (this, CMK_ASTNode) GenTreeCall::Use(target, nullptr);
+
         call->fgArgInfo  = nullptr;
     }
 
