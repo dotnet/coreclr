@@ -40,7 +40,7 @@ namespace bundle
         void read(void* dest, int64_t len)
         {
             bounds_check(len);
-            memcpy(dest, m_ptr, len);
+            memcpy(dest, m_ptr, (size_t)len);
             m_ptr += len;
         }
 
