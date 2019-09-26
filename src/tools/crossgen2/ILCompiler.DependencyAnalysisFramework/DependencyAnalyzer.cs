@@ -250,7 +250,7 @@ namespace ILCompiler.DependencyAnalysisFramework
 
         public override void ComputeMarkedNodes()
         {
-            PerfEventSource.Log.GraphProcessingStart();
+            PerfEventSource.Log.GraphProcessingPhaseStart();
             if (_markingCompleted)
                 return;
 
@@ -278,7 +278,7 @@ namespace ILCompiler.DependencyAnalysisFramework
             _markedNodesFinal = _markedNodes.ToImmutableArray();
             _markedNodes = null;
             _markingCompleted = true;
-            PerfEventSource.Log.GraphProcessingStop();
+            PerfEventSource.Log.GraphProcessingPhaseStop();
         }
 
         private bool AddToMarkStack(DependencyNodeCore<DependencyContextType> node, string reason, DependencyNodeCore<DependencyContextType> reason1, DependencyNodeCore<DependencyContextType> reason2)

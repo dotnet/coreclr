@@ -14,9 +14,9 @@ namespace ILCompiler.DependencyAnalysisFramework
     class PerfEventSource : EventSource
     {
         [Event(1001, Level = EventLevel.Informational)]
-        public void GraphProcessingStart() { WriteEvent(1001); }
+        public void GraphProcessingPhaseStart() { WriteEvent(1001); }
         [Event(1002, Level = EventLevel.Informational)]
-        public void GraphProcessingStop() { WriteEvent(1002); }
+        public void GraphProcessingPhaseStop() { WriteEvent(1002); }
 
         [Event(1003, Level = EventLevel.Informational)]
         public void DependencyAnalysisStart() { WriteEvent(1003); }
