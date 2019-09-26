@@ -177,11 +177,12 @@ namespace ILCompiler
         /// </summary>
         private readonly string _inputFilePath;
 
+        private bool _resilient;
+
         public new ReadyToRunCodegenNodeFactory NodeFactory { get; }
 
         public ReadyToRunSymbolNodeFactory SymbolNodeFactory { get; }
 
-        private bool _resilient;
         internal ReadyToRunCodegenCompilation(
             DependencyAnalyzerBase<NodeFactory> dependencyGraph,
             ReadyToRunCodegenNodeFactory nodeFactory,
