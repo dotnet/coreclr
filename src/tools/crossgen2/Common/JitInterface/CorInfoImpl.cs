@@ -2490,6 +2490,34 @@ namespace Internal.JitInterface
             return (byte*)GetPin(StringToUTF8(method.Name));
         }
 
+        private String getMethodNameFromMetadataImpl(MethodDesc method, out string className, out string namespaceName, out string enclosingClassName)
+        {
+            string result = null;
+            className = null;
+            namespaceName = null;
+            enclosingClassName = null;
+
+            result = method.Name;
+
+            MetadataType owningType = method.OwningType as MetadataType;
+            if (owningType != null)
+            {
+                className = owningType.Name;
+                namespaceName = owningType.Namespace;
+
+                // Query enclosingClassName when the method is in a nested class
+                // and get the namespace of enclosing classes (nested class's namespace is empty)
+                var containingType = owningType.ContainingType;
+                if (containingType != null)
+                {
+                    enclosingClassName = containingType.Name;
+                    namespaceName = containingType.Namespace;
+                }
+            }
+
+            return result;
+        }
+
         private byte* getMethodNameFromMetadata(CORINFO_METHOD_STRUCT_* ftn, byte** className, byte** namespaceName, byte** enclosingClassName)
         {
             MethodDesc method = HandleToObject(ftn);
@@ -2499,24 +2527,8 @@ namespace Internal.JitInterface
             string namespaceResult = null;
             string enclosingResult = null;
 
-            result = method.Name;
+            result = getMethodNameFromMetadataImpl(method, out classResult, out namespaceResult, out enclosingResult);
 
-            MetadataType owningType = method.OwningType as MetadataType;
-            if (owningType != null)
-            {
-                classResult = owningType.Name;
-                namespaceResult = owningType.Namespace;
-
-                // Query enclosingClassName when the method is in a nested class
-                // and get the namespace of enclosing classes (nested class's namespace is empty)
-                var containingType = owningType.ContainingType;
-                if (containingType != null)
-                {
-                    enclosingResult = containingType.Name;
-                    namespaceResult = containingType.Namespace;
-                }
-            }
-            
             if (className != null)
                 *className = classResult != null ? (byte*)GetPin(StringToUTF8(classResult)) : null;
             if (namespaceName != null)

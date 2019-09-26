@@ -806,7 +806,8 @@ namespace Internal.JitInterface
             out TypeDesc exactType,
             out MethodDesc callerMethod,
             out EcmaModule callerModule,
-            out bool useInstantiatingStub)
+            out bool useInstantiatingStub,
+            out MethodDesc pResultHmethodDesc)
         {
 #if DEBUG
             // In debug, write some bogus data to the struct to ensure we have filled everything
@@ -1140,6 +1141,7 @@ namespace Internal.JitInterface
             }
 
             pResult->hMethod = ObjectToHandle(methodToDescribe);
+            pResultHmethodDesc = methodToDescribe;
 
             // TODO: access checks
             pResult->accessAllowed = CorInfoIsAccessAllowedResult.CORINFO_ACCESS_ALLOWED;
@@ -1152,45 +1154,7 @@ namespace Internal.JitInterface
             Get_CORINFO_SIG_INFO(methodToDescribe, &pResult->sig, useInstantiatingStub);
         }
 
-        private int strcmp(byte* pStr1, string s)
-        {
-            byte* pStr2 = (byte*)GetPin(StringToUTF8(s));
-            while (true)
-            {
-                byte c1 = *pStr1;
-                byte c2 = *pStr2;
-                if (c1 == 0)
-                {
-                    if (c2 == 0)
-                    {
-                        return 0;
-                    }
-                    else
-                    {
-                        return -1;
-                    }
-                }
-                else if (c2 == 0)
-                {
-                    return 1;
-                }
-                else if (c1 > c2)
-                {
-                    return 1;
-                }
-                else if (c2 > c1)
-                {
-                    return -1;
-                }
-                else
-                {
-                    pStr1++;
-                    pStr2++;
-                }
-            }
-        }
-
-        private uint FilterNamedIntrinsicMethodAttribs(uint attribs, CORINFO_METHOD_STRUCT_* ftn)
+        private uint FilterNamedIntrinsicMethodAttribs(uint attribs, MethodDesc method)
         {
             bool _TARGET_X86_ = _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X86;
             bool _TARGET_AMD64_ = _compilation.TypeSystemContext.Target.Architecture == TargetArchitecture.X64;
@@ -1199,27 +1163,27 @@ namespace Internal.JitInterface
             if ((attribs & (uint)CorInfoFlag.CORINFO_FLG_JIT_INTRINSIC) != 0)
             {
                 // Figure out which intrinsic we are dealing with.
-                byte* namespaceName;
-                byte* className;
-                byte* enclosingClassName;
-                byte* methodName = this.getMethodNameFromMetadata(ftn, &className, &namespaceName, &enclosingClassName);
-                
+                string namespaceName;
+                string className;
+                string enclosingClassName;
+                string methodName = this.getMethodNameFromMetadataImpl(method, out className, out namespaceName, out enclosingClassName);
+
                 // Is this the get_IsSupported method that checks whether intrinsic is supported?
-                bool fIsGetIsSupportedMethod   = strcmp(methodName, "get_IsSupported") == 0;
-                bool fIsPlatformHWIntrinsic    = false;
-                bool fIsHWIntrinsic            = false;
+                bool fIsGetIsSupportedMethod = string.Equals(methodName, "get_IsSupported");
+                bool fIsPlatformHWIntrinsic = false;
+                bool fIsHWIntrinsic = false;
                 bool fTreatAsRegularMethodCall = false;
 
                 if (_TARGET_X86_ || _TARGET_AMD64_)
                 {
-                    fIsPlatformHWIntrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.X86") == 0;
+                    fIsPlatformHWIntrinsic = string.Equals(namespaceName, "System.Runtime.Intrinsics.X86");
                 }
                 else if (_TARGET_ARM64_)
                 {
-                    fIsPlatformHWIntrinsic = strcmp(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64") == 0;
+                    fIsPlatformHWIntrinsic = string.Equals(namespaceName, "System.Runtime.Intrinsics.Arm.Arm64");
                 }
 
-                fIsHWIntrinsic = fIsPlatformHWIntrinsic || (strcmp(namespaceName, "System.Runtime.Intrinsics") == 0);
+                fIsHWIntrinsic = fIsPlatformHWIntrinsic || (string.Equals(namespaceName, "System.Runtime.Intrinsics"));
 
                 // By default, we want to treat the get_IsSupported method for platform specific HWIntrinsic ISAs as
                 // method calls. This will be modified as needed below based on what ISAs are considered baseline.
@@ -1238,19 +1202,19 @@ namespace Internal.JitInterface
                     if (fIsPlatformHWIntrinsic)
                     {
                         // Simplify the comparison logic by grabbing the name of the ISA
-                        byte* isaName = (enclosingClassName == null) ? className : enclosingClassName;
-                        if ((strcmp(isaName, "Sse") == 0) || (strcmp(isaName, "Sse2") == 0))
+                        string isaName = (enclosingClassName == null) ? className : enclosingClassName;
+                        if ((string.Equals(isaName, "Sse")) || (string.Equals(isaName, "Sse2")))
                         {
-                            if ((enclosingClassName == null) || (strcmp(className, "X64") == 0))
+                            if ((enclosingClassName == null) || (string.Equals(className, "X64")))
                             {
                                 // If it's anything related to Sse/Sse2, we can expand unconditionally since this is
                                 // a baseline requirement of CoreCLR.
                                 fTreatAsRegularMethodCall = false;
                             }
                         }
-                        else if ((strcmp(className, "Avx") == 0) || (strcmp(className, "Fma") == 0) || (strcmp(className, "Avx2") == 0) || (strcmp(className, "Bmi1") == 0) || (strcmp(className, "Bmi2") == 0))
+                        else if ((string.Equals(className, "Avx")) || (string.Equals(className, "Fma")) || (string.Equals(className, "Avx2")) || (string.Equals(className, "Bmi1")) || (string.Equals(className, "Bmi2")))
                         {
-                            if ((enclosingClassName == null) || (strcmp(className, "X64") == 0))
+                            if ((enclosingClassName == null) || (string.Equals(className, "X64")))
                             {
                                 // If it is the get_IsSupported method for an ISA which requires the VEX
                                 // encoding we want to expand unconditionally. This will force those code
@@ -1264,14 +1228,14 @@ namespace Internal.JitInterface
                             }
                         }
                     }
-                    else if (strcmp(namespaceName, "System") == 0)
+                    else if (string.Equals(namespaceName, "System"))
                     {
-                        if ((strcmp(className, "Math") == 0) || (strcmp(className, "MathF") == 0))
+                        if ((string.Equals(className, "Math")) || (string.Equals(className, "MathF")))
                         {
                             // These are normally handled via the SSE4.1 instructions ROUNDSS/ROUNDSD.
                             // However, we don't know the ISAs the target machine supports so we should
                             // fallback to the method call implementation instead.
-                            fTreatAsRegularMethodCall = strcmp(methodName, "Round") == 0;
+                            fTreatAsRegularMethodCall = string.Equals(methodName, "Round");
                         }
                     }
                 }
@@ -1295,6 +1259,7 @@ namespace Internal.JitInterface
             MethodDesc callerMethod;
             EcmaModule callerModule;
             bool useInstantiatingStub;
+            MethodDesc pResultHmethodDesc;
             ceeInfoGetCallInfo(
                 ref pResolvedToken, 
                 pConstrainedResolvedToken, 
@@ -1308,9 +1273,10 @@ namespace Internal.JitInterface
                 out exactType,
                 out callerMethod,
                 out callerModule,
-                out useInstantiatingStub);
-            
-            pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, pResult->hMethod);
+                out useInstantiatingStub,
+                out pResultHmethodDesc);
+
+            pResult->methodFlags = FilterNamedIntrinsicMethodAttribs(pResult->methodFlags, pResultHmethodDesc);
 
             if (pResult->thisTransform == CORINFO_THIS_TRANSFORM.CORINFO_BOX_THIS)
             {
