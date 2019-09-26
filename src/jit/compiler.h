@@ -725,8 +725,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetArgInitReg, put = SetArgInitReg)) regNumber lvArgInitReg;
-
     regNumber GetArgInitReg() const
     {
         return (regNumber)_lvArgInitReg;
@@ -1394,13 +1392,12 @@ public:
         return isLate;
     }
 
-    __declspec(property(get = getLateArgInx, put = setLateArgInx)) unsigned lateArgInx;
-    unsigned getLateArgInx()
+    unsigned GetLateArgInx()
     {
         assert(isLateArg());
         return _lateArgInx;
     }
-    void setLateArgInx(unsigned inx)
+    void SetLateArgInx(unsigned inx)
     {
         _lateArgInx = inx;
     }
@@ -1446,8 +1443,7 @@ public:
 #endif
     }
 
-    __declspec(property(get = getIsVararg, put = setIsVararg)) bool isVararg;
-    bool getIsVararg()
+    bool GetIsVararg()
     {
 #ifdef FEATURE_VARARG
         return _isVararg;
@@ -1455,7 +1451,7 @@ public:
         return false;
 #endif
     }
-    void setIsVararg(bool value)
+    void SetIsVararg(bool value)
     {
 #ifdef FEATURE_VARARG
         _isVararg = value;
@@ -7261,14 +7257,13 @@ public:
         return codeGen->isFramePointerUsed();
     }
 
-    __declspec(property(get = getInterruptible, put = setInterruptible)) bool genInterruptible;
-    bool getInterruptible()
+    bool GetInterruptible()
     {
-        return codeGen->genInterruptible;
+        return codeGen->GetInterruptible();
     }
-    void setInterruptible(bool value)
+    void SetInterruptible(bool value)
     {
-        codeGen->setInterruptible(value);
+        codeGen->SetInterruptible(value);
     }
 
 #ifdef _TARGET_ARMARCH_
@@ -7752,7 +7747,7 @@ private:
     // type of an arg node is TYP_BYREF and a local node is TYP_SIMD or TYP_STRUCT.
     bool isSIMDTypeLocal(GenTree* tree)
     {
-        return tree->OperIsLocal() && lvaTable[tree->AsLclVarCommon()->gtLclNum].lvSIMDType;
+        return tree->OperIsLocal() && lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
     }
 
     // Returns true if the lclVar is an opaque SIMD type.
@@ -7776,7 +7771,7 @@ private:
                     return varTypeIsSIMD(tree->gtGetOp1());
 
                 case GT_LCL_VAR_ADDR:
-                    return lvaTable[tree->AsLclVarCommon()->gtLclNum].lvSIMDType;
+                    return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
 
                 default:
                     return isSIMDTypeLocal(tree);
@@ -7799,7 +7794,7 @@ private:
     {
         if (isSIMDTypeLocal(tree))
         {
-            return lvaTable[tree->AsLclVarCommon()->gtLclNum].lvBaseType;
+            return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvBaseType;
         }
 
         return TYP_UNKNOWN;
@@ -8149,7 +8144,7 @@ private:
     // Is this Local node a SIMD local?
     bool lclVarIsSIMDType(GenTreeLclVarCommon* lclVarTree)
     {
-        return lclVarIsSIMDType(lclVarTree->gtLclNum);
+        return lclVarIsSIMDType(lclVarTree->GetLclNum());
     }
 
     // Returns true if the TYP_SIMD locals on stack are aligned at their

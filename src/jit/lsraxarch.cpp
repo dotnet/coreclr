@@ -92,8 +92,8 @@ int LinearScan::BuildNode(GenTree* tree)
             // use lvLRACandidate here instead.
             if (tree->IsRegOptional())
             {
-                if (!compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum].lvTracked ||
-                    compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum].lvDoNotEnregister)
+                if (!compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvTracked ||
+                    compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvDoNotEnregister)
                 {
                     tree->ClearRegOptional();
                     tree->SetContained();
@@ -113,7 +113,7 @@ int LinearScan::BuildNode(GenTree* tree)
             // is processed, unless this is marked "isLocalDefUse" because it is a stack-based argument
             // to a call or an orphaned dead node.
             //
-            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->gtLclNum];
+            LclVarDsc* const varDsc = &compiler->lvaTable[tree->AsLclVarCommon()->GetLclNum()];
             if (isCandidateVar(varDsc))
             {
                 return 0;
@@ -2433,20 +2433,6 @@ int LinearScan::BuildHWIntrinsic(GenTreeHWIntrinsic* intrinsicTree)
                 }
 
                 buildUses = false;
-                break;
-            }
-
-            case NI_SSE_CompareScalarOrderedEqual:
-            case NI_SSE_CompareScalarUnorderedEqual:
-            case NI_SSE_CompareScalarOrderedNotEqual:
-            case NI_SSE_CompareScalarUnorderedNotEqual:
-            case NI_SSE2_CompareScalarOrderedEqual:
-            case NI_SSE2_CompareScalarUnorderedEqual:
-            case NI_SSE2_CompareScalarOrderedNotEqual:
-            case NI_SSE2_CompareScalarUnorderedNotEqual:
-            {
-                buildInternalIntRegisterDefForNode(intrinsicTree, allByteRegs());
-                setInternalRegsDelayFree = true;
                 break;
             }
 

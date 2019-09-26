@@ -7639,7 +7639,7 @@ GenTree* Compiler::fgDoNormalizeOnStore(GenTree* tree)
             // Small-typed arguments and aliased locals are normalized on load.
             // Other small-typed locals are normalized on store.
             // If it is an assignment to one of the latter, insert the cast on RHS
-            unsigned   varNum = op1->gtLclVarCommon.gtLclNum;
+            unsigned   varNum = op1->gtLclVarCommon.GetLclNum();
             LclVarDsc* varDsc = &lvaTable[varNum];
 
             if (varDsc->lvNormalizeOnStore())
@@ -7767,7 +7767,7 @@ inline void Compiler::fgMarkLoopHead(BasicBlock* block)
 
     /* Have we decided to generate fully interruptible code already? */
 
-    if (genInterruptible)
+    if (GetInterruptible())
     {
 #ifdef DEBUG
         if (verbose)
@@ -7848,7 +7848,7 @@ inline void Compiler::fgMarkLoopHead(BasicBlock* block)
     // only enable fully interruptible code for if we're hijacking.
     if (GCPOLL_NONE == opts.compGCPollType)
     {
-        genInterruptible = true;
+        SetInterruptible(true);
     }
 }
 
@@ -9845,7 +9845,7 @@ VARSET_VALRET_TP Compiler::fgGetVarBits(GenTree* tree)
 
     assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD);
 
-    unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
+    unsigned int lclNum = tree->gtLclVarCommon.GetLclNum();
     LclVarDsc*   varDsc = lvaTable + lclNum;
     if (varDsc->lvTracked)
     {
@@ -11002,11 +11002,11 @@ void Compiler::fgUnlinkRange(BasicBlock* bBeg, BasicBlock* bEnd)
 
 void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
 {
-    BasicBlock* bPrev = block->bbPrev;
-
     /* The block has to be either unreachable or empty */
 
     PREFIX_ASSUME(block != nullptr);
+
+    BasicBlock* bPrev = block->bbPrev;
 
     JITDUMP("fgRemoveBlock " FMT_BB "\n", block->bbNum);
 
@@ -19008,11 +19008,11 @@ void Compiler::fgSetBlockOrder()
                 // DDB 204533:
                 // The GC encoding for fully interruptible methods does not
                 // support more than 1023 pushed arguments, so we can't set
-                // genInterruptible here when we have 1024 or more pushed args
+                // SetInterruptible() here when we have 1024 or more pushed args
                 //
                 if (compCanEncodePtrArgCntMax())
                 {
-                    genInterruptible = true;
+                    SetInterruptible(true);
                 }
                 break;
             }
@@ -19045,7 +19045,7 @@ void Compiler::fgSetBlockOrder()
             // loop.  Thus we need to either add a poll, or make the method
             // fully interruptible.  I chose the later because that's what
             // JIT64 does.
-            genInterruptible = true;
+            SetInterruptible(true);
         }
 #endif // !JIT32_GCENCODER
 #endif // FEATURE_FASTTAILCALL
@@ -22270,7 +22270,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTree* tree, GenTree* child, CORINFO
         // If it is a multireg return on x64/ux, the local variable should be marked as lvIsMultiRegRet
         if (child->AsCall()->HasMultiRegRetVal())
         {
-            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
             lvaTable[lclNum].lvIsMultiRegRet = true;
         }
         return;
@@ -22603,7 +22603,7 @@ Compiler::fgWalkResult Compiler::fgLateDevirtualization(GenTree** pTree, fgWalkD
 
         if ((lhs->OperGet() == GT_LCL_VAR) && (lhs->TypeGet() == TYP_REF))
         {
-            const unsigned lclNum = lhs->gtLclVarCommon.gtLclNum;
+            const unsigned lclNum = lhs->gtLclVarCommon.GetLclNum();
             LclVarDsc*     lcl    = comp->lvaGetDesc(lclNum);
 
             if (lcl->lvSingleDef)
