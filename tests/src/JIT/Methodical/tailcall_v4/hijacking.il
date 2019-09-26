@@ -96,7 +96,7 @@
 
     IL_003a:  ldarga.s   h
     IL_003c:  ldfld      int64 ForceHelper::counter
-    IL_0041:  ldc.i4.1
+    IL_0041:  ldc.i4.3
     IL_0042:  conv.i8
     IL_0043:  ble.s      IL_0069
 
@@ -161,7 +161,7 @@
 
     IL_003a:  ldarga.s   h
     IL_003c:  ldfld      int64 ForceHelper::counter
-    IL_0041:  ldc.i4.1
+    IL_0041:  ldc.i4.3
     IL_0042:  conv.i8
     IL_0043:  ble.s      IL_0069
 
