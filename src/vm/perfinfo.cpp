@@ -47,7 +47,7 @@ void PerfInfo::LogImage(PEFile* pFile, WCHAR* guid)
     }
 
     SIZE_T baseAddr = 0;
-    if (pFile->HasOpenedILimage())
+    if (pFile->IsILImageReadyToRun())
     {
         PEImageLayout *pLoadedLayout = pFile->GetLoaded();
         if (pLoadedLayout)
