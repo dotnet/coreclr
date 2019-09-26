@@ -455,9 +455,6 @@ build_CoreLib()
             cp "$__BinDir/libclrjit.so" "$__BinDir/crossgen2/libclrjitilc.so"
             cp "$__BinDir/libjitinterface.so" "$__BinDir/crossgen2/libjitinterface.so"
         fi
-        echo "Publishing tibcmgr for $__DistroRid"
-        "$__ProjectRoot/dotnet.sh" publish --self-contained -r $__DistroRid -c $__BuildType -o "$__BinDir/tibcmgr" "$__ProjectRoot/src/tools/crossgen2/tibcmgr/tibcmgr.csproj"
-        rm $__BinDir/tibcmgr/tibcmgr.runtimeconfig.json
     fi
 
     local __CoreLibILDir=$__BinDir/IL
