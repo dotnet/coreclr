@@ -2930,7 +2930,7 @@ void Compiler::optCleanupCSEs()
         for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
             // We must clear the gtCSEnum field.
-            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->GetRootTree(); tree; tree = tree->gtPrev)
             {
                 tree->gtCSEnum = NO_CSE;
             }
@@ -2956,7 +2956,7 @@ void Compiler::optEnsureClearCSEInfo()
         // Walk the statement trees in this basic block
         for (Statement* stmt : StatementList(block->FirstNonPhiDef()))
         {
-            for (GenTree* tree = stmt->gtStmtExpr; tree; tree = tree->gtPrev)
+            for (GenTree* tree = stmt->GetRootTree(); tree; tree = tree->gtPrev)
             {
                 assert(tree->gtCSEnum == NO_CSE);
             }

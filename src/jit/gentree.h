@@ -5301,7 +5301,7 @@ struct GenTreeILOffset : public GenTree
 struct Statement
 {
 public:
-    GenTree* gtStmtExpr; // root of the expression tree
+    GenTree* m_rootTree; // root of the expression tree
 
 private:
     GenTree*       m_treeList;      // first node (for forward walks)
@@ -5338,6 +5338,21 @@ public:
     void SetPrevStmt(Statement* prevStmt)
     {
         m_prev = prevStmt;
+    }
+
+    GenTree* GetRootTree() const
+    {
+        return m_rootTree;
+    }
+
+    GenTree** GetRootTreePointer()
+    {
+        return &m_rootTree;
+    }
+
+    void SetRootTree(GenTree* rootTree)
+    {
+        m_rootTree = rootTree;
     }
 
     GenTree* GetTreeList() const
@@ -5394,7 +5409,7 @@ public:
     }
 
     Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
-        : gtStmtExpr(expr)
+        : m_rootTree(expr)
         , m_treeList(nullptr)
         , m_inlineContext(nullptr)
         , m_ILOffsetX(offset)
@@ -5410,17 +5425,17 @@ public:
 
     bool IsPhiDefnStmt() const
     {
-        return gtStmtExpr->IsPhiDefn();
+        return m_rootTree->IsPhiDefn();
     }
 
     unsigned char GetCostSz() const
     {
-        return gtStmtExpr->GetCostSz();
+        return m_rootTree->GetCostSz();
     }
 
     unsigned char GetCostEx() const
     {
-        return gtStmtExpr->GetCostEx();
+        return m_rootTree->GetCostEx();
     }
 
 #ifdef DEBUG

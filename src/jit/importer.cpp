@@ -491,7 +491,7 @@ inline void Compiler::impAppendStmtCheck(Statement* stmt, unsigned chkLevel)
         return;
     }
 
-    GenTree* tree = stmt->gtStmtExpr;
+    GenTree* tree = stmt->GetRootTree();
 
     // Calls can only be appended if there are no GTF_GLOB_EFFECT on the stack
 
@@ -554,7 +554,7 @@ inline void Compiler::impAppendStmt(Statement* stmt, unsigned chkLevel)
         /* If the statement being appended has any side-effects, check the stack
            to see if anything needs to be spilled to preserve correct ordering. */
 
-        GenTree* expr  = stmt->gtStmtExpr;
+        GenTree* expr  = stmt->GetRootTree();
         unsigned flags = expr->gtFlags & GTF_GLOB_EFFECT;
 
         // Assignment to (unaliased) locals don't count as a side-effect as
@@ -2527,7 +2527,7 @@ BasicBlock* Compiler::impPushCatchArgOnStack(BasicBlock* hndBlk, CORINFO_CLASS_H
 
         if (stmt != nullptr)
         {
-            GenTree* tree = stmt->gtStmtExpr;
+            GenTree* tree = stmt->GetRootTree();
             assert(tree != nullptr);
 
             if ((tree->gtOper == GT_ASG) && (tree->gtOp.gtOp1->gtOper == GT_LCL_VAR) &&
@@ -3073,7 +3073,7 @@ GenTree* Compiler::impInitializeArrayIntrinsic(CORINFO_SIG_INFO* sig)
     // We start by looking at the last statement, making sure it's an assignment, and
     // that the target of the assignment is the array passed to InitializeArray.
     //
-    GenTree* arrayAssignment = impLastStmt->gtStmtExpr;
+    GenTree* arrayAssignment = impLastStmt->GetRootTree();
     if ((arrayAssignment->gtOper != GT_ASG) || (arrayAssignment->gtOp.gtOp1->gtOper != GT_LCL_VAR) ||
         (arrayLocalNode->gtOper != GT_LCL_VAR) ||
         (arrayAssignment->gtOp.gtOp1->gtLclVarCommon.GetLclNum() != arrayLocalNode->gtLclVarCommon.GetLclNum()))
@@ -17017,7 +17017,7 @@ SPILLSTACK:
 
                 addStmt = impExtractLastStmt();
 
-                assert(addStmt->gtStmtExpr->gtOper == GT_JTRUE);
+                assert(addStmt->GetRootTree()->gtOper == GT_JTRUE);
 
                 /* Note if the next block has more than one ancestor */
 
@@ -17058,7 +17058,7 @@ SPILLSTACK:
                 unsigned     jmpCnt;
 
                 addStmt = impExtractLastStmt();
-                assert(addStmt->gtStmtExpr->gtOper == GT_SWITCH);
+                assert(addStmt->GetRootTree()->gtOper == GT_SWITCH);
 
                 jmpCnt = block->bbJumpSwt->bbsCount;
                 jmpTab = block->bbJumpSwt->bbsDstTab;
@@ -17209,9 +17209,9 @@ SPILLSTACK:
                are spilling to the temps already used by a previous block),
                we need to spill addStmt */
 
-            if (addStmt != nullptr && !newTemps && gtHasRef(addStmt->gtStmtExpr, tempNum, false))
+            if (addStmt != nullptr && !newTemps && gtHasRef(addStmt->GetRootTree(), tempNum, false))
             {
-                GenTree* addTree = addStmt->gtStmtExpr;
+                GenTree* addTree = addStmt->GetRootTree();
 
                 if (addTree->gtOper == GT_JTRUE)
                 {
@@ -19463,7 +19463,7 @@ BOOL Compiler::impInlineIsGuaranteedThisDerefBeforeAnySideEffects(GenTree*      
 
     for (Statement* stmt : StatementList(impStmtList))
     {
-        GenTree* expr = stmt->gtStmtExpr;
+        GenTree* expr = stmt->GetRootTree();
         if (GTF_GLOBALLY_VISIBLE_SIDE_EFFECTS(expr->gtFlags))
         {
             return FALSE;
