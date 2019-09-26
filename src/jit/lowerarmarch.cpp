@@ -242,7 +242,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         }
 
 #ifdef _TARGET_ARM64_
-        if ((size != 0) && (size <= INITBLK_UNROLL_LIMIT) && src->IsCnsIntOrI())
+        if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= INITBLK_UNROLL_LIMIT) && src->OperIs(GT_CNS_INT))
         {
             blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
 
@@ -307,7 +307,7 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         {
             assert(blkNode->OperIs(GT_STORE_BLK, GT_STORE_DYN_BLK));
 
-            if ((size != 0) && (size <= CPBLK_UNROLL_LIMIT))
+            if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= CPBLK_UNROLL_LIMIT))
             {
                 blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
             }

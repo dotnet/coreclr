@@ -154,16 +154,6 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             src = src->AsUnOp()->gtGetOp1();
         }
 
-        // If we have an InitBlk with constant block size we can optimize several ways:
-        // a) If the size is smaller than a small memory page but larger than INITBLK_UNROLL_LIMIT bytes
-        //    we use rep stosb since this reduces the register pressure in LSRA and we have
-        //    roughly the same performance as calling the helper.
-        // b) If the size is <= INITBLK_UNROLL_LIMIT bytes and the fill byte is a constant,
-        //    we can speed this up by unrolling the loop using SSE2 stores.  The reason for
-        //    this threshold is because our last investigation (Fall 2013), more than 95% of initblks
-        //    in our framework assemblies are actually <= INITBLK_UNROLL_LIMIT bytes size, so this is the
-        //    preferred code sequence for the vast majority of cases.
-
         if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= INITBLK_UNROLL_LIMIT))
         {
             if (!src->OperIs(GT_CNS_INT))
@@ -290,34 +280,24 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
         {
             assert(blkNode->OperIs(GT_STORE_BLK, GT_STORE_DYN_BLK));
 
-            if ((!blkNode->OperIs(GT_STORE_DYN_BLK)) && (size <= CPBLK_UNROLL_LIMIT))
+            if (!blkNode->OperIs(GT_STORE_DYN_BLK) && (size <= CPBLK_UNROLL_LIMIT))
             {
-                // If we have a buffer between XMM_REGSIZE_BYTES and CPBLK_UNROLL_LIMIT bytes, we'll use SSE2.
-                // Structs and buffer with sizes <= CPBLK_UNROLL_LIMIT bytes are occurring in more than 95% of
-                // our framework assemblies, so this is the main code generation scheme we'll use.
-                if (size != 0)
+                blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
+
+                // If src or dst are on stack, we don't have to generate the address
+                // into a register because it's just some constant+SP.
+                if (src->OperIs(GT_IND))
                 {
-                    blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindUnroll;
-
-                    // If src or dst are on stack, we don't have to generate the address
-                    // into a register because it's just some constant+SP.
-                    if (src->OperIs(GT_IND))
+                    GenTree* srcAddr = src->AsIndir()->Addr();
+                    if (srcAddr->OperIsLocalAddr())
                     {
-                        GenTree* srcAddr = src->AsIndir()->Addr();
-                        if (srcAddr->OperIsLocalAddr())
-                        {
-                            srcAddr->SetContained();
-                        }
-                    }
-
-                    if (dstAddr->OperIsLocalAddr())
-                    {
-                        dstAddr->SetContained();
+                        srcAddr->SetContained();
                     }
                 }
-                else
+
+                if (dstAddr->OperIsLocalAddr())
                 {
-                    blkNode->gtBlkOpKind = GenTreeBlk::BlkOpKindRepInstr;
+                    dstAddr->SetContained();
                 }
             }
             else
