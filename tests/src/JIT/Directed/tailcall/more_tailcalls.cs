@@ -51,6 +51,7 @@ internal class Program
     private static readonly IntPtr s_calcStaticCalliOther;
     private static readonly IntPtr s_calcStaticCalliRetbuf;
     private static readonly IntPtr s_calcStaticCalliRetbufOther;
+    private static readonly IntPtr s_emptyCalliOther;
     
     static Program()
     {
@@ -62,11 +63,14 @@ internal class Program
         IL.Pop(out IntPtr calcStaticCalliRetbuf);
         IL.Emit.Ldftn(new MethodRef(typeof(Program), nameof(CalcStaticCalliRetbufOther)));
         IL.Pop(out IntPtr calcStaticCalliRetbufOther);
+        IL.Emit.Ldftn(new MethodRef(typeof(Program), nameof(EmptyCalliOther)));
+        IL.Pop(out IntPtr emptyCalliOther);
 
         s_calcStaticCalli = calcStaticCalli;
         s_calcStaticCalliOther = calcStaticCalliOther;
         s_calcStaticCalliRetbuf = calcStaticCalliRetbuf;
         s_calcStaticCalliRetbufOther = calcStaticCalliRetbufOther;
+        s_emptyCalliOther = emptyCalliOther;
     }
 
     private static int Main()
@@ -137,6 +141,7 @@ internal class Program
         TestCalc(CalcStaticCalliRetbuf, expectedS32, "Static calli retbuf");
         TestCalc(new Instance().CalcInstanceCalli, expected, "Instance calli");
         TestCalc(new Instance().CalcInstanceCalliRetbuf, expectedS32, "Instance calli retbuf");
+        Test(() => EmptyCalli(), "Empty calli", "Static calli without args");
         Test(() => { var v = new InstanceValueType(); v.CountUp(countUpIters); return v.Count; }, countUpIters, "Value type instance call");
         Test(() => new Instance().GC("2", 3, "4", 5, "6", "7", "8", 9, ref ten), "2 3 4 5 6 7 8 9 10", "Instance with GC");
         Test(() => CountUpHeap(countUpIters, new HeapInt(0)), countUpIters, "Count up with heap int");
@@ -355,6 +360,24 @@ internal class Program
         IL.Emit.Tail();
         IL.Emit.Calli(new StandAloneMethodSig(CallingConventions.Standard, typeof(int), typeof(int), typeof(int)));
         return IL.Return<int>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string EmptyCalli()
+    {
+        // Force helper-based tailcall out of this function by stackallocing
+        Span<int> values = stackalloc int[Environment.TickCount < 0 ? 30 : 40];
+
+        IL.Push(s_emptyCalliOther);
+        IL.Emit.Tail();
+        IL.Emit.Calli(new StandAloneMethodSig(CallingConventions.Standard, typeof(string)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string EmptyCalliOther()
+    {
+        return "Empty calli";
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
