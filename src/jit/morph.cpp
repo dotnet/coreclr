@@ -7758,7 +7758,7 @@ GenTree* Compiler::fgMorphTailCallViaHelpers(GenTreeCall* call, CORINFO_TAILCALL
 
         *newArgSlot = new (this, CMK_ASTNode) GenTreeCall::Use(target, nullptr);
 
-        call->fgArgInfo  = nullptr;
+        call->fgArgInfo = nullptr;
     }
 
     // This is now a direct call to the store args stub and not a tailcall.
