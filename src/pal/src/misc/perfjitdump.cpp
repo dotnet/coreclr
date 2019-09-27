@@ -35,11 +35,7 @@ namespace
 {
     enum
     {
-#ifdef BIGENDIAN
-        JIT_DUMP_MAGIC = 0x4454694A,
-#else
         JIT_DUMP_MAGIC = 0x4A695444,
-#endif
         JIT_DUMP_VERSION = 1,
 
 #if defined(_X86_)
