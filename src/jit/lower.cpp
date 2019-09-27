@@ -241,12 +241,8 @@ GenTree* Lowering::LowerNode(GenTree* node)
         case GT_STORE_BLK:
         case GT_STORE_OBJ:
         case GT_STORE_DYN_BLK:
-        {
-            GenTreeBlk* blkNode = node->AsBlk();
-            TryCreateAddrMode(LIR::Use(BlockRange(), &blkNode->Addr(), blkNode), false);
-            LowerBlockStore(blkNode);
-        }
-        break;
+            LowerBlockStore(node->AsBlk());
+            break;
 
         case GT_LCLHEAP:
             ContainCheckLclHeap(node->AsOp());

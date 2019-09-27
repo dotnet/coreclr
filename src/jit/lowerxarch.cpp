@@ -142,6 +142,8 @@ void Lowering::LowerStoreIndir(GenTreeIndir* node)
 //
 void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
 {
+    TryCreateAddrMode(LIR::Use(BlockRange(), &blkNode->Addr(), blkNode), false);
+
     GenTree* dstAddr = blkNode->Addr();
     GenTree* src     = blkNode->Data();
     unsigned size    = blkNode->Size();
