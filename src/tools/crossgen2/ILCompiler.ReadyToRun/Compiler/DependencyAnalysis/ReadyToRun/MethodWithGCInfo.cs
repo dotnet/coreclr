@@ -44,9 +44,9 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             _methodCode = data;
         }
 
-        public bool CanStartCompilation()
+        public bool AlreadyStartedCompilation()
         {
-            return Interlocked.CompareExchange(ref _compilationStarted, 1, 0) == 0;
+            return Interlocked.CompareExchange(ref _compilationStarted, 1, 0) == 1;
         }
 
         public MethodDesc Method => _method;

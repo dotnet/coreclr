@@ -15,6 +15,8 @@ using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysis.ReadyToRun;
 using ILCompiler.DependencyAnalysisFramework;
 using System.Threading.Tasks;
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace ILCompiler
 {
@@ -235,62 +237,59 @@ namespace ILCompiler
         {
             PerfEventSource.Log.JitSectionStart();
             List<Task> tasks = new List<Task>();
-            foreach (DependencyNodeCore<NodeFactory> dependency in obj)
+            ConditionalWeakTable<Thread, CorInfoImpl> cwt = new ConditionalWeakTable<Thread, CorInfoImpl>();
+            Parallel.ForEach(obj, dependency =>
             {
-                tasks.Add(Task.Factory.StartNew(() =>
+                var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
+                if (methodCodeNodeNeedingCode == null)
                 {
-                    var methodCodeNodeNeedingCode = dependency as MethodWithGCInfo;
-                    if (methodCodeNodeNeedingCode == null)
-                    {
-                        // To compute dependencies of the shadow method that tracks dictionary
-                        // dependencies we need to ensure there is code for the canonical method body.
-                        var dependencyMethod = (ShadowConcreteMethodNode)dependency;
-                        methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
-                    }
+                    // To compute dependencies of the shadow method that tracks dictionary
+                    // dependencies we need to ensure there is code for the canonical method body.
+                    var dependencyMethod = (ShadowConcreteMethodNode)dependency;
+                    methodCodeNodeNeedingCode = (MethodWithGCInfo)dependencyMethod.CanonicalMethodNode;
+                }
 
-                    // We might have already compiled this method.
-                    if (!methodCodeNodeNeedingCode.CanStartCompilation())
-                        return;
+                // We might have already compiled this method.
+                if (methodCodeNodeNeedingCode.AlreadyStartedCompilation())
+                    return;
 
-                    MethodDesc method = methodCodeNodeNeedingCode.Method;
-                    if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
-                    {
-                        // Don't drill into methods defined outside of this version bubble
-                        return;
-                    }
+                MethodDesc method = methodCodeNodeNeedingCode.Method;
+                if (!NodeFactory.CompilationModuleGroup.ContainsMethodBody(method, unboxingStub: false))
+                {
+                    // Don't drill into methods defined outside of this version bubble
+                    return;
+                }
 
-                    if (Logger.IsVerbose)
-                    {
-                        string methodName = method.ToString();
-                        Logger.Writer.WriteLine("Compiling " + methodName);
-                    }
+                if (Logger.IsVerbose)
+                {
+                    string methodName = method.ToString();
+                    Logger.Writer.WriteLine("Compiling " + methodName);
+                }
 
-                    try
-                    {
-                        PerfEventSource.Log.JitMethodStart();
-                        CorInfoImpl corInfo = new CorInfoImpl(this, _jitConfigProvider);
-                        corInfo.CompileMethod(methodCodeNodeNeedingCode);
-                    }
-                    catch (TypeSystemException ex)
-                    {
-                        // If compilation fails, don't emit code for this method. It will be Jitted at runtime
-                        Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because: {ex.Message}");
-                    }
-                    catch (RequiresRuntimeJitException ex)
-                    {
-                        Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
-                    }
-                    catch (CodeGenerationFailedException ex) when (_resilient)
-                    {
-                        Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
-                    }
-                    finally
-                    {
-                        PerfEventSource.Log.JitMethodStop();
-                    }
-                }));
-            }
-            Task.WaitAll(tasks.ToArray());
+                try
+                {
+                    PerfEventSource.Log.JitMethodStart();
+                    CorInfoImpl corInfoImpl = cwt.GetValue(Thread.CurrentThread, thread => new CorInfoImpl(this, _jitConfigProvider));
+                    corInfoImpl.CompileMethod(methodCodeNodeNeedingCode);
+                }
+                catch (TypeSystemException ex)
+                {
+                    // If compilation fails, don't emit code for this method. It will be Jitted at runtime
+                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because: {ex.Message}");
+                }
+                catch (RequiresRuntimeJitException ex)
+                {
+                    Logger.Writer.WriteLine($"Info: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                }
+                catch (CodeGenerationFailedException ex) when (_resilient)
+                {
+                    Logger.Writer.WriteLine($"Warning: Method `{method}` was not compiled because `{ex.Message}` requires runtime JIT");
+                }
+                finally
+                {
+                    PerfEventSource.Log.JitMethodStop();
+                }
+            });
             PerfEventSource.Log.JitSectionStop();
         }
 
