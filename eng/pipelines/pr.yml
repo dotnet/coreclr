@@ -7,147 +7,540 @@ pr:
 - release/3.0
 - release/3.1
 
-jobs:
-#
-# Checkout repository
-#
-- template: /eng/checkout-job.yml
+stages:
+
+# There are two separate checkout stages: one for Unix-like systems, and one for Windows.
+# With the exception of the archiving format, these stages are mostly the same.  All other
+# build stages depend on these two stages.
+
+- stage: unix_checkout
+  displayName: Checkout (unix)
+  dependsOn: []
+  jobs:
+  - job: checkout
+    pool:
+      ${{ if eq(variables['System.TeamProject'], 'public') }}:
+        vmImage: ubuntu-latest
+      ${{ if ne(variables['System.TeamProject'], 'public') }}:
+        name: NetCoreInternal-Pool
+        queue: BuildPool.Ubuntu.1604.Amd64
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 1
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        displayName: GIT Repository (unix)
+        rootFolder: $(Build.SourcesDirectory)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/repo_unix.tar.gz
+        archiveType: tar
+        tarCompression: gz
+        artifactName: repo_unix
+
+- stage: windows_checkout
+  displayName: Checkout (windows)
+  dependsOn: []
+  jobs:
+  - job: checkout
+    pool:
+      ${{ if eq(variables['System.TeamProject'], 'public') }}:
+        vmImage: windows-latest
+      ${{ if ne(variables['System.TeamProject'], 'public') }}:
+        name: NetCoreInternal-Pool
+        queue: BuildPool.Windows.10.Amd64.VS2017
+    steps:
+    - checkout: self
+      clean: true
+      fetchDepth: 1
+    - template: /eng/upload-artifact-step.yml
+      parameters:
+        displayName: GIT Repository (windows)
+        rootFolder: $(Build.SourcesDirectory)
+        includeRootFolder: false
+        archiveFile: $(Build.StagingDirectory)/repo_windows.zip
+        archiveType: zip
+        tarCompression: ''
+        artifactName: repo_windows
 
 #
-# Debug builds
+# Checked builds for Unix-like systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: debug
-    platforms:
-    - Windows_NT_x64
-    - Windows_NT_x86
-    jobParameters:
-      testGroup: innerloop
+
+- stage: build_Linux_arm_checked
+  displayName: Linux arm checked (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_arm
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_Linux_arm64_checked
+  displayName: Linux arm64 checked (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_arm64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_OSX_x64_checked
+  displayName: OSX x64 checked (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - OSX_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_Linux_x64_checked
+  displayName: Linux x64 checked (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_Linux_musl_x64_checked
+  displayName: Linux_musl x64 checked (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_musl_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
 
 #
-# Checked builds
+# Release builds for Unix-like systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_arm
-    - Windows_NT_arm64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    jobParameters:
-      testGroup: innerloop
+
+- stage: build_Linux_arm64_release
+  displayName: Linux arm64 release (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_arm64
+      stagedBuild: true
+      buildConfig: release
+      jobTemplate: build-job.yml
+
+- stage: build_Linux_musl_x64_release
+  displayName: Linux_musl x64 release (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_musl_x64
+      stagedBuild: true
+      buildConfig: release
+      jobTemplate: build-job.yml
+
+
+- stage: build_Linux_rhel6_x64_release
+  displayName: Linux_rhel6 x64 release (build)
+  dependsOn: unix_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_rhel6_x64
+      stagedBuild: true
+      buildConfig: release
+      jobTemplate: build-job.yml
 
 #
-# Release builds
+# Checked builds for Windows systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: build-job.yml
-    buildConfig: release
-    platforms:
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_rhel6_x64
-    - Windows_NT_arm
-    - Windows_NT_arm64
-    - Windows_NT_x64
-    jobParameters:
-      testGroup: innerloop
+
+- stage: build_Windows_NT_arm_checked
+  displayName: Windows_NT arm checked (build)
+  dependsOn: windows_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_arm
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_Windows_NT_arm64_checked
+  displayName: Windows_NT arm64 checked (build)
+  dependsOn: windows_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_arm64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_Windows_NT_x86_checked
+  displayName: Windows_NT x86 checked (build)
+  dependsOn: windows_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x86
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
+
+- stage: build_Windows_NT_x64_checked
+  displayName: Windows_NT x64 checked (build)
+  dependsOn: windows_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: build-job.yml
 
 #
-# Checked test builds
+# Debug builds for Windows systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm
-    - Linux_arm64
-    - Linux_musl_x64
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_arm
-    - Windows_NT_arm64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
+
+- stage: build_Windows_NT_x86_debug
+  displayName: Windows_NT x86 debug (build)
+  dependsOn: windows_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x86
+      stagedBuild: true
+      buildConfig: debug
+      jobTemplate: build-job.yml
+
+- stage: build_Windows_NT_x64_debug
+  displayName: Windows_NT x64 debug (build)
+  dependsOn: windows_checkout
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x64
+      stagedBuild: true
+      buildConfig: debug
+      jobTemplate: build-job.yml
 
 #
-# ReadyToRun test jobs
+# Checked tests for Unix-like systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - OSX_x64
-    - Windows_NT_x64
-    - Windows_NT_x86
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      readyToRun: true
-      displayNameArgs: R2R
+
+- stage: test_Linux_arm_checked
+  dependsOn: build_Linux_arm_checked
+  displayName: Linux arm checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_arm
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+  - job: build_Linux_arm_checked
+  - template: /eng/platform-matrix.yml
+    parameters:
+      jobTemplate: crossgen-comparison-job.yml
+      stagedBuild: true
+      buildConfig: checked
+      platforms:
+      - Linux_arm
+      helixQueueGroup: pr
+
+- stage: test_Linux_arm64_checked
+  dependsOn: build_Linux_arm64_checked
+  displayName: Linux arm64 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_arm64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+
+- stage: test_Linux_x64_checked
+  dependsOn: build_Linux_x64_checked
+  displayName: Linux x64 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+  - template: /eng/platform-matrix.yml
+    parameters:
+      jobTemplate: format-job.yml
+      stagedBuild: true
+      platforms:
+      - Linux_x64
+
+- stage: test_Linux_musl_x64_checked
+  dependsOn: build_Linux_musl_x64_checked
+  displayName: Linux_musl x64 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_musl_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+
+- stage: test_OSX_x64_checked
+  dependsOn: build_OSX_x64_checked
+  displayName: OSX x64 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - OSX_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
 
 #
-# CoreFX test runs against CoreCLR
+# Checked tests (with CoreFX tests) for Unix-like systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_x64
-    - Windows_NT_x64
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
-      corefxTests: true
-      displayNameArgs: CoreFX
+
+- stage: test_Linux_x64_checked_CoreFX
+  dependsOn: build_Linux_x64_checked
+  displayName: Linux x64 checked CoreFX (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+        corefxTests: true
+        displayNameArgs: CoreFX
+      helixQueueGroup: pr
+
 
 #
-# Crossgen-comparison jobs
+# Release tests for Unix-like systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: crossgen-comparison-job.yml
-    buildConfig: checked
-    platforms:
-    - Linux_arm
-    helixQueueGroup: pr
+
+- stage: test_Linux_musl_x64_release
+  dependsOn: build_Linux_musl_x64_release
+  displayName: Linux_musl x64 release (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_musl_x64
+      stagedBuild: true
+      buildConfig: release
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
 
 #
-# Release test builds
+# Checked tests (with R2R tests) for Unix-like systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: test-job.yml
-    buildConfig: release
-    platforms:
-    - Linux_musl_x64
-    helixQueueGroup: pr
-    jobParameters:
-      testGroup: innerloop
+
+- stage: test_Linux_x64_checked_R2R
+  dependsOn: build_Linux_x64_checked
+  displayName: Linux x64 checked R2R (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Linux_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+        readyToRun: true
+        displayNameArgs: R2R
+      helixQueueGroup: pr
+
+
+- stage: test_OSX_x64_checked_R2R
+  dependsOn: build_OSX_x64_checked
+  displayName: OSX x64 checked R2R (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - OSX_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+        readyToRun: true
+        displayNameArgs: R2R
+      helixQueueGroup: pr
 
 #
-# Formatting
+# Test for Windows systems
 #
-- template: /eng/platform-matrix.yml
-  parameters:
-    jobTemplate: format-job.yml
-    platforms:
-    - Linux_x64
 
+- stage: test_Windows_NT_arm_checked
+  dependsOn: build_Windows_NT_arm_checked
+  displayName: Windows_NT arm checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_arm
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+
+- stage: test_Windows_NT_arm64_checked
+  dependsOn: build_Windows_NT_arm64_checked
+  displayName: Windows_NT arm64 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_arm64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+
+- stage: test_Windows_NT_x64_checked
+  dependsOn: build_Windows_NT_x64_checked
+  displayName: Windows_NT x64 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+
+- stage: test_Windows_NT_x86_checked
+  dependsOn: build_Windows_NT_x86_checked
+  displayName: Windows_NT x86 checked (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x86
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+      helixQueueGroup: pr
+
+#
+# Checked tests (with CoreFX tests) for Windows systems
+#
+
+- stage: test_Windows_NT_x64_checked_CoreFX
+  dependsOn: build_Windows_NT_x64_checked
+  displayName: Windows_NT x64 checked CoreFX (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+        corefxTests: true
+        displayNameArgs: CoreFX
+      helixQueueGroup: pr
+
+#
+# Checked tests (with R2R tests) for Windows systems
+#
+
+- stage: test_Windows_NT_x86_checked_R2R
+  dependsOn: build_Windows_NT_x86_checked
+  displayName: Windows_NT x86 checked R2R (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x86
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+        readyToRun: true
+        displayNameArgs: R2R
+      helixQueueGroup: pr
+
+- stage: test_Windows_NT_x64_checked_R2R
+  dependsOn: build_Windows_NT_x64_checked
+  displayName: Windows_NT x64 checked R2R (test)
+  jobs:
+  - template: /eng/platform-matrix.yml
+    parameters:
+      platforms:
+      - Windows_NT_x64
+      stagedBuild: true
+      buildConfig: checked
+      jobTemplate: test-job.yml
+      jobParameters:
+        testGroup: innerloop
+        readyToRun: true
+        displayNameArgs: R2R
+      helixQueueGroup: pr
