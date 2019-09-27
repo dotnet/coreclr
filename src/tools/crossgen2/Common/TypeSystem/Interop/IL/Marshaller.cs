@@ -1533,7 +1533,14 @@ namespace Internal.TypeSystem.Interop
         protected override void TransformNativeToManaged(ILCodeStream codeStream)
         {
             ILEmitter emitter = _ilCodeStreams.Emitter;
+
+#if READYTORUN
+            var ansiToString =
+                Context.SystemModule.GetKnownType("System.StubHelpers", "AnsiBSTRMarshaler")
+                .GetKnownMethod("ConvertToManaged", null);
+#else
             var ansiToString = Context.GetHelperEntryPoint("InteropHelpers", "AnsiStringToString");
+#endif
             LoadNativeValue(codeStream);
             codeStream.Emit(ILOpcode.call, emitter.NewToken(ansiToString));
             StoreManagedValue(codeStream);
