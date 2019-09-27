@@ -2708,7 +2708,7 @@ namespace Internal.JitInterface
             return null;
         }
 
-        private bool getTailCallHelpers(CORINFO_METHOD_STRUCT_* hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS fLAGS, ref CORINFO_TAILCALL_HELPERS pResult)
+        private bool getTailCallHelpers(CORINFO_METHOD_STRUCT_* hTarget, CORINFO_CONTEXT_STRUCT* hContext, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS fLAGS, ref CORINFO_TAILCALL_HELPERS pResult)
         {
             // Slow tailcalls are not supported yet
             // https://github.com/dotnet/corert/issues/1683
