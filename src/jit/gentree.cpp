@@ -1088,6 +1088,106 @@ bool GenTreeCall::AreArgsComplete() const
     return false;
 }
 
+//--------------------------------------------------------------------------
+// Equals: Check if 2 CALL nodes are equal.
+//
+// Arguments:
+//    c1 - The first call node
+//    c2 - The second call node
+//
+// Return Value:
+//    true if the 2 CALL nodes have the same type and operands
+//
+bool GenTreeCall::Equals(GenTreeCall* c1, GenTreeCall* c2)
+{
+    assert(c1->OperGet() == c2->OperGet());
+
+    if (c1->TypeGet() != c2->TypeGet())
+    {
+        return false;
+    }
+
+    if (c1->gtCallType != c2->gtCallType)
+    {
+        return false;
+    }
+
+    if (c1->gtCallType != CT_INDIRECT)
+    {
+        if (c1->gtCallMethHnd != c2->gtCallMethHnd)
+        {
+            return false;
+        }
+
+#ifdef FEATURE_READYTORUN_COMPILER
+        if (c1->gtEntryPoint.addr != c2->gtEntryPoint.addr)
+        {
+            return false;
+        }
+#endif
+    }
+    else
+    {
+        if (!Compare(c1->gtCallAddr, c2->gtCallAddr))
+        {
+            return false;
+        }
+    }
+
+    if ((c1->gtCallThisArg != nullptr) != (c2->gtCallThisArg != nullptr))
+    {
+        return false;
+    }
+
+    if ((c1->gtCallThisArg != nullptr) && !Compare(c1->gtCallThisArg->GetNode(), c2->gtCallThisArg->GetNode()))
+    {
+        return false;
+    }
+
+    GenTreeCall::UseIterator i1   = c1->Args().begin();
+    GenTreeCall::UseIterator end1 = c1->Args().end();
+    GenTreeCall::UseIterator i2   = c2->Args().begin();
+    GenTreeCall::UseIterator end2 = c2->Args().end();
+
+    for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
+    {
+        if (!Compare(i1->GetNode(), i2->GetNode()))
+        {
+            return false;
+        }
+    }
+
+    if ((i1 != end1) || (i2 != end2))
+    {
+        return false;
+    }
+
+    i1   = c1->LateArgs().begin();
+    end1 = c1->LateArgs().end();
+    i2   = c2->LateArgs().begin();
+    end2 = c2->LateArgs().end();
+
+    for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
+    {
+        if (!Compare(i1->GetNode(), i2->GetNode()))
+        {
+            return false;
+        }
+    }
+
+    if ((i1 != end1) || (i2 != end2))
+    {
+        return false;
+    }
+
+    if (!Compare(c1->gtControlExpr, c2->gtControlExpr))
+    {
+        return false;
+    }
+
+    return true;
+}
+
 #if !defined(FEATURE_PUT_STRUCT_ARG_STK)
 unsigned GenTreePutArgStk::getArgSize()
 {
@@ -1412,89 +1512,7 @@ AGAIN:
             return true;
 
         case GT_CALL:
-
-            if (op1->gtCall.gtCallType != op2->gtCall.gtCallType)
-            {
-                return false;
-            }
-
-            if (op1->gtCall.gtCallType != CT_INDIRECT)
-            {
-                if (op1->gtCall.gtCallMethHnd != op2->gtCall.gtCallMethHnd)
-                {
-                    return false;
-                }
-
-#ifdef FEATURE_READYTORUN_COMPILER
-                if (op1->gtCall.gtEntryPoint.addr != op2->gtCall.gtEntryPoint.addr)
-                {
-                    return false;
-                }
-#endif
-            }
-            else
-            {
-                if (!Compare(op1->gtCall.gtCallAddr, op2->gtCall.gtCallAddr))
-                {
-                    return false;
-                }
-            }
-
-            if ((op1->AsCall()->gtCallThisArg != nullptr) != (op2->AsCall()->gtCallThisArg != nullptr))
-            {
-                return false;
-            }
-
-            if ((op1->AsCall()->gtCallThisArg != nullptr) &&
-                !Compare(op1->AsCall()->gtCallThisArg->GetNode(), op2->AsCall()->gtCallThisArg->GetNode()))
-            {
-                return false;
-            }
-
-            {
-                GenTreeCall::UseIterator i1   = op1->AsCall()->Args().begin();
-                GenTreeCall::UseIterator end1 = op1->AsCall()->Args().end();
-                GenTreeCall::UseIterator i2   = op2->AsCall()->Args().begin();
-                GenTreeCall::UseIterator end2 = op2->AsCall()->Args().end();
-
-                for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
-                {
-                    if (!Compare(i1->GetNode(), i2->GetNode()))
-                    {
-                        return false;
-                    }
-                }
-
-                if ((i1 != end1) || (i2 != end2))
-                {
-                    return false;
-                }
-
-                i1   = op1->AsCall()->LateArgs().begin();
-                end1 = op1->AsCall()->LateArgs().end();
-                i2   = op2->AsCall()->LateArgs().begin();
-                end2 = op2->AsCall()->LateArgs().end();
-
-                for (; (i1 != end1) && (i2 != end2); ++i1, ++i2)
-                {
-                    if (!Compare(i1->GetNode(), i2->GetNode()))
-                    {
-                        return false;
-                    }
-                }
-
-                if ((i1 != end1) || (i2 != end2))
-                {
-                    return false;
-                }
-            }
-
-            if (!Compare(op1->AsCall()->gtControlExpr, op2->AsCall()->gtControlExpr))
-            {
-                return false;
-            }
-
-            return true;
+            return GenTreeCall::Equals(op1->AsCall(), op2->AsCall());
 
         case GT_ARR_ELEM:
 
