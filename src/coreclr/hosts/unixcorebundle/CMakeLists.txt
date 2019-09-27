@@ -1,7 +1,9 @@
 project(corebundle)
 
-include_directories(./bundle)
+include_directories(../bundle)
 include_directories(../unixcoreruncommon)
+
+include(../bundle/CMakeLists.txt)
 
 add_compile_options(-fPIE)
 
@@ -13,31 +15,13 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--gc-sections")
 
 set(COREBUNDLE_SOURCES
     corebundle.cpp
-    ./bundle/file_entry.cpp
-    ./bundle/header.cpp
-    ./bundle/manifest.cpp
-    ./bundle/marker.cpp
-    ./bundle/pal.cpp
-    ./bundle/reader.cpp
-    ./bundle/runner.cpp
-    ./bundle/trace.cpp
-    ./bundle/utils.cpp
     ../unixcoreruncommon/coreruncommon.cpp
+    ${Bundle_Unix_SOURCES}
 )
 
 set(HEADERS
-    ./bundle/error_codes.h
-    ./bundle/file_entry.h
-    ./bundle/file_type.h
-    ./bundle/header.h
-    ./bundle/manifest.h
-    ./bundle/marker.h
-    ./bundle/pal.h
-    ./bundle/reader.h
-    ./bundle/runner.h
-    ./bundle/trace.h
-    ./bundle/utils.h
     ../unixcoreruncommon/coreruncommon.h
+    ${Bundle_HEADERS}
 )
 
 _add_executable(corebundle

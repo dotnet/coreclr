@@ -4,7 +4,6 @@
 
 #include <memory>
 #include "runner.h"
-#include "trace.h"
 #include "header.h"
 #include "marker.h"
 #include "manifest.h"
@@ -17,25 +16,20 @@ void runner_t::map_host()
 
     if (m_bundle_map == nullptr)
     {
-        trace::error(_X("Failure processing application bundle."));
-        trace::error(_X("Couldn't memory map the bundle file for reading."));
         throw StatusCode::BundleExtractionIOError;
     }
 }
 
 void runner_t::unmap_host()
 {
-    if (!pal::unmap_file(m_bundle_map, m_bundle_length))
-    {
-        trace::warning(_X("Failed to unmap bundle after extraction."));
-    }
+    pal::unmap_file(m_bundle_map, m_bundle_length);
 }
 
 bool runner_t::probe(const char *relative_path, int64_t *size, int64_t *offset)
 {
     for (file_entry_t& entry : m_manifest.files)
     {
-        if (entry.relative_path() == relative_path)
+        if (pal::pathcmp(entry.relative_path().c_str(), relative_path) == 0)
         {
             *size = entry.size();
             *offset = entry.offset();
