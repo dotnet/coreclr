@@ -71,8 +71,6 @@ elseif(CLR_CMAKE_PLATFORM_UNIX)
 
 endif(WIN32)
 
-add_precompiled_header(stdafx.h stdafx.cpp CORDBDI_SOURCES)
-
 if (WIN32)
     convert_to_absolute_path(CORDBDI_HEADERS ${CORDBDI_HEADERS})
     list(APPEND CORDBDI_SOURCES ${CORDBDI_HEADERS})
@@ -81,4 +79,5 @@ endif (WIN32)
 list(APPEND CORDBDI_SOURCES ${CORDBDI_SOURCES_ASM_FILE})
 
 add_library_clr(cordbdi STATIC ${CORDBDI_SOURCES})
+target_precompile_header(cordbdi stdafx.h)
 add_dependencies(cordbdi eventing_headers)

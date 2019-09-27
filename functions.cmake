@@ -213,9 +213,16 @@ function(target_precompile_header targetName header)
                                             OBJECT_OUTPUTS "${precompiledBinary}"
                                             INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
     get_target_property(TARGET_SOURCES ${targetName} SOURCES)
-    set_source_files_properties(${TARGET_SOURCES}
-                                PROPERTIES COMPILE_FLAGS "/Yu\"${header}\" /Fp\"${precompiledBinary}\""
-                                            OBJECT_DEPENDS "${precompiledBinary}")
+
+    foreach (SOURCE ${TARGET_SOURCES})
+      get_source_file_property(SOURCE_LANG ${SOURCE} LANGUAGE)
+      if (("${SOURCE_LANG}" STREQUAL "C") OR ("${SOURCE_LANG}" STREQUAL "CXX"))
+        set_source_files_properties(${SOURCE}
+          PROPERTIES COMPILE_FLAGS "/Yu\"${header}\" /Fp\"${precompiledBinary}\""
+                      OBJECT_DEPENDS "${precompiledBinary}")
+      endif()
+    endforeach()
+
     # Add pchSourceFile to targetName target
     target_sources(${targetName} PRIVATE ${pchSourceFile})
   endif(MSVC)

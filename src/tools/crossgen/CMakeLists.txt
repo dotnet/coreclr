@@ -66,7 +66,7 @@ else()
 
 endif(CLR_CMAKE_PLATFORM_UNIX)
 
-add_subdirectory(../../zap/crossgen ../../zap/crossgen)
+add_subdirectory(../../zap ../../zap)
 add_subdirectory(../../vm/crossgen ../../vm/crossgen)
 add_subdirectory(../../vm/crossgen_mscorlib ../../vm/crossgen_mscorlib)
 

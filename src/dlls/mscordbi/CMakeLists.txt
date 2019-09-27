@@ -19,9 +19,7 @@ if(CLR_CMAKE_PLATFORM_LINUX)
     list(APPEND MSCORDBI_SOURCES ${PAL_REDEFINES_FILE})
 endif(CLR_CMAKE_PLATFORM_LINUX)
 
-if(WIN32)
-    add_precompiled_header(stdafx.h stdafx.cpp MSCORDBI_SOURCES)
-    
+if(WIN32)    
     add_definitions(-DFX_VER_INTERNALNAME_STR=mscordbi.dll)
 
     list(APPEND MSCORDBI_SOURCES
@@ -58,6 +56,7 @@ if(CLR_CMAKE_PLATFORM_DARWIN)
 endif(CLR_CMAKE_PLATFORM_DARWIN)
 
 add_library_clr(mscordbi SHARED ${MSCORDBI_SOURCES})
+target_precompile_header(mscordbi stdafx.h)
 
 if(CLR_CMAKE_PLATFORM_UNIX)
     add_custom_target(mscordbi_exports DEPENDS ${EXPORTS_FILE})

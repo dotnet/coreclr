@@ -35,10 +35,9 @@ include_directories(${ARCH_SOURCES_DIR})
 
 convert_to_absolute_path(DACCESS_SOURCES ${DACCESS_SOURCES})
 
-add_precompiled_header(stdafx.h stdafx.cpp DACCESS_SOURCES)
-
 add_library_clr(daccess ${DACCESS_SOURCES})
 set_target_properties(daccess PROPERTIES DAC_COMPONENT TRUE)
+target_precompile_header(daccess stdafx.h)
 
 add_dependencies(daccess eventing_headers)
 

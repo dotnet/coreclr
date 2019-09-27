@@ -1,9 +1,5 @@
 
 if (WIN32)
-  add_precompiled_header(common.h ../common.cpp VM_SOURCES_WKS)
-  # mscorlib.cpp does not compile with precompiled header file
-  set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-") 
-
   # asm files require preprocessing using cl.exe on arm32 and arm64
   if(CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
     preprocess_compile_asm(ASM_FILES ${VM_SOURCES_WKS_ARCH_ASM} OUTPUT_OBJECTS VM_WKS_ARCH_ASM_OBJECTS)
@@ -13,6 +9,11 @@ if (WIN32)
 endif (WIN32)
 
 add_library_clr(cee_wks ${VM_SOURCES_WKS} ${VM_SOURCES_WKS_ARCH_ASM})
+target_precompile_header(cee_wks common.h)
+if (MSVC)
+    # mscorlib.cpp does not compile with precompiled header file
+    set_source_files_properties(../mscorlib.cpp PROPERTIES COMPILE_FLAGS "/Y-")
+endif()
 add_dependencies(cee_wks eventing_headers)
 
 if (WIN32)
