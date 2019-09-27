@@ -507,8 +507,8 @@ void RangeCheck::SetDef(UINT64 hash, Location* loc)
     Location* loc2;
     if (m_pDefTable->Lookup(hash, &loc2))
     {
-        JITDUMP("Already have " FMT_BB ", [%06d], [%06d] for hash => %0I64X", loc2->block->bbNum,
-                Compiler::dspTreeID(loc2->stmt->gtStmtExpr), Compiler::dspTreeID(loc2->tree), hash);
+        JITDUMP("Already have " FMT_BB ", " FMT_STMT ", [%06d] for hash => %0I64X", loc2->block->bbNum,
+                loc2->stmt->GetID(), Compiler::dspTreeID(loc2->tree), hash);
         assert(false);
     }
 #endif
@@ -524,7 +524,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
         return;
     }
 
-    if (lcl->gtSsaNum == SsaConfig::RESERVED_SSA_NUM)
+    if (lcl->GetSsaNum() == SsaConfig::RESERVED_SSA_NUM)
     {
         return;
     }
@@ -540,7 +540,7 @@ void RangeCheck::MergeEdgeAssertions(GenTreeLclVarCommon* lcl, ASSERT_VALARG_TP 
         Limit      limit(Limit::keUndef);
         genTreeOps cmpOper = GT_NONE;
 
-        LclSsaVarDsc* ssaData     = m_pCompiler->lvaTable[lcl->gtLclNum].GetPerSsaData(lcl->gtSsaNum);
+        LclSsaVarDsc* ssaData     = m_pCompiler->lvaTable[lcl->GetLclNum()].GetPerSsaData(lcl->GetSsaNum());
         ValueNum      normalLclVN = m_pCompiler->vnStore->VNConservativeNormalValue(ssaData->m_vnPair);
 
         // Current assertion is of the form (i < len - cns) != 0

@@ -240,7 +240,7 @@ void Compiler::compDspSrcLinesByNativeIP(UNATIVE_OFFSET curIP)
 
     if (nextMappingDsc)
     {
-        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(genEmitter);
+        UNATIVE_OFFSET offset = nextMappingDsc->ipmdNativeLoc.CodeOffset(GetEmitter());
 
         if (offset <= curIP)
         {
@@ -2334,10 +2334,10 @@ void Compiler::compSetProcessor()
     {
         if (canUseVexEncoding())
         {
-            codeGen->getEmitter()->SetUseVEXEncoding(true);
+            codeGen->GetEmitter()->SetUseVEXEncoding(true);
             // Assume each JITted method does not contain AVX instruction at first
-            codeGen->getEmitter()->SetContainsAVX(false);
-            codeGen->getEmitter()->SetContains256bitAVX(false);
+            codeGen->GetEmitter()->SetContainsAVX(false);
+            codeGen->GetEmitter()->SetContains256bitAVX(false);
         }
     }
 #endif // _TARGET_XARCH_
@@ -4249,7 +4249,7 @@ void Compiler::compFunctionTraceStart()
         {
             printf("  ");
         }
-        printf("{ Start Jitting %s (MethodHash=%08x)\n", info.compFullName,
+        printf("{ Start Jitting Method %d %s (MethodHash=%08x)\n", Compiler::jitTotalMethodCompiled, info.compFullName,
                info.compMethodHash()); /* } editor brace matching workaround for this printf */
     }
 #endif // DEBUG
@@ -4273,7 +4273,7 @@ void Compiler::compFunctionTraceEnd(void* methodCodePtr, ULONG methodCodeSize, b
             printf("  ");
         }
         /* { editor brace-matching workaround for following printf */
-        printf("} Jitted Entry %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
+        printf("} Jitted Method %03x at" FMT_ADDR "method %s size %08x%s%s\n", Compiler::jitTotalMethodCompiled,
                DBG_ADDR(methodCodePtr), info.compFullName, methodCodeSize,
                isNYI ? " NYI" : (compIsForImportOnly() ? " import only" : ""), opts.altJit ? " altjit" : "");
     }
@@ -4755,7 +4755,7 @@ void Compiler::compCompile(void** methodCodePtr, ULONG* methodCodeSize, JitFlags
     EndPhase(PHASE_LINEAR_SCAN);
 
     // Copied from rpPredictRegUse()
-    genFullPtrRegMap = (codeGen->genInterruptible || !codeGen->isFramePointerUsed());
+    genFullPtrRegMap = (codeGen->GetInterruptible() || !codeGen->isFramePointerUsed());
 
 #ifdef DEBUG
     fgDebugCheckLinks();
@@ -5309,7 +5309,7 @@ int Compiler::compCompile(CORINFO_METHOD_HANDLE methodHnd,
 
         /* Tell the emitter that we're done with this function */
 
-        genEmitter->emitEndCG();
+        GetEmitter()->emitEndCG();
 
     DoneCleanUp:
         compDone();
@@ -5759,6 +5759,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     // Reset node and block ID counter
     compGenTreeID    = 0;
+    compStatementID  = 0;
     compBasicBlockID = 0;
 #endif
 
@@ -5766,7 +5767,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
 
     if (!compIsForInlining())
     {
-        codeGen->getEmitter()->emitBegCG(this, compHnd);
+        codeGen->GetEmitter()->emitBegCG(this, compHnd);
     }
 
     info.compIsStatic = (info.compFlags & CORINFO_FLG_STATIC) != 0;
@@ -5946,7 +5947,8 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     }
     if (compIsForInlining())
     {
-        compGenTreeID = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compGenTreeID   = impInlineInfo->InlinerCompiler->compGenTreeID;
+        compStatementID = impInlineInfo->InlinerCompiler->compStatementID;
     }
 #endif
 
@@ -5956,6 +5958,7 @@ int Compiler::compCompileHelper(CORINFO_MODULE_HANDLE            classPtr,
     if (compIsForInlining())
     {
         impInlineInfo->InlinerCompiler->compGenTreeID    = compGenTreeID;
+        impInlineInfo->InlinerCompiler->compStatementID  = compStatementID;
         impInlineInfo->InlinerCompiler->compBasicBlockID = compBasicBlockID;
     }
 #endif
@@ -6857,7 +6860,7 @@ Compiler::NodeToIntMap* Compiler::FindReachableNodesInNodeTestData()
 
     for (BasicBlock* block = fgFirstBB; block != nullptr; block = block->bbNext)
     {
-        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->getNextStmt())
+        for (Statement* stmt = block->FirstNonPhiDef(); stmt != nullptr; stmt = stmt->GetNextStmt())
         {
             for (GenTree* tree = stmt->gtStmtList; tree != nullptr; tree = tree->gtNext)
             {
@@ -8120,6 +8123,13 @@ void cBlocksV(Compiler* comp)
     comp->fgDispBasicBlocks(true);
 }
 
+void cStmt(Compiler* comp, Statement* statement)
+{
+    static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
+    printf("===================================================================== *Stmt %u\n", sequenceNumber++);
+    comp->gtDispStmt(statement, ">>>");
+}
+
 void cTree(Compiler* comp, GenTree* tree)
 {
     static unsigned sequenceNumber = 0; // separate calls with a number to indicate this function has been called
@@ -8612,7 +8622,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
 
             if (trees)
             {
-                cTree(comp, stmt->gtStmtExpr);
+                cStmt(comp, stmt);
                 printf("\n");
                 printf("=====================================================================\n");
             }
@@ -8626,7 +8636,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
             }
             else
             {
-                cTreeIR(comp, stmt->gtStmtExpr);
+                cStmtIR(comp, stmt);
             }
 
             if (!noStmts && !trees)
@@ -8637,7 +8647,7 @@ void cBlockIR(Compiler* comp, BasicBlock* block)
     }
     else
     {
-        for (GenTree* node = block->bbTreeList; node != nullptr; node = node->gtNext)
+        for (GenTree* node = block->GetFirstLIRNode(); node != nullptr; node = node->gtNext)
         {
             cNodeIR(comp, node);
         }
@@ -9437,11 +9447,11 @@ int cSsaNumIR(Compiler* comp, GenTree* tree)
         if (tree->gtFlags & GTF_VAR_USEASG)
         {
             assert(tree->gtFlags & GTF_VAR_DEF);
-            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.gtSsaNum, comp->GetSsaNumForLocalVarDef(tree));
+            chars += printf("<u:%d><d:%d>", tree->gtLclVarCommon.GetSsaNum(), comp->GetSsaNumForLocalVarDef(tree));
         }
         else
         {
-            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.gtSsaNum);
+            chars += printf("<%s:%d>", (tree->gtFlags & GTF_VAR_DEF) ? "d" : "u", tree->gtLclVarCommon.GetSsaNum());
         }
     }
 
@@ -9542,7 +9552,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_VAR:
         case GT_LCL_VAR_ADDR:
         case GT_STORE_LCL_VAR:
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->gtLclVarCommon.GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
@@ -9606,7 +9616,7 @@ int cLeafIR(Compiler* comp, GenTree* tree)
         case GT_LCL_FLD_ADDR:
         case GT_STORE_LCL_FLD:
 
-            lclNum = tree->gtLclVarCommon.gtLclNum;
+            lclNum = tree->gtLclVarCommon.GetLclNum();
             comp->gtGetLclVarNameInfo(lclNum, &ilKind, &ilName, &ilNum);
             if (ilName != nullptr)
             {
@@ -10636,6 +10646,16 @@ void cNodeIR(Compiler* comp, GenTree* tree)
     }
 
     printf("\n");
+}
+
+void cStmtIR(Compiler* comp, Statement* stmt)
+{
+    cTreeIR(comp, stmt->gtStmtExpr);
+    if (!comp->dumpIRNoStmts)
+    {
+        dTabStopIR(0, COLUMN_OPCODE);
+        Compiler::printStmtID(stmt);
+    }
 }
 
 /*****************************************************************************

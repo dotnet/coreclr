@@ -625,7 +625,7 @@ void Compiler::fgInsertStmtAtEnd(BasicBlock* block, Statement* stmt)
     {
         // There is at least one statement already.
         Statement* lastStmt = firstStmt->getPrevStmt();
-        noway_assert(lastStmt != nullptr && lastStmt->getNextStmt() == nullptr);
+        noway_assert(lastStmt != nullptr && lastStmt->GetNextStmt() == nullptr);
 
         // Append the statement after the last one.
         lastStmt->gtNext  = stmt;
@@ -845,7 +845,7 @@ Statement* Compiler::fgInsertStmtListAfter(BasicBlock* block, Statement* stmtAft
     noway_assert(stmtLast);
     noway_assert(stmtLast->gtNext == nullptr);
 
-    Statement* stmtNext = stmtAfter->getNextStmt();
+    Statement* stmtNext = stmtAfter->GetNextStmt();
 
     if (stmtNext == nullptr)
     {
@@ -3909,7 +3909,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             //
             //  More formally, if control flow targets an instruction, that instruction must be the
             //  start of a new sequence point.
-            Statement* nextStmt = newStmt->getNextStmt();
+            Statement* nextStmt = newStmt->GetNextStmt();
             if (nextStmt != nullptr)
             {
                 // Is it possible for gtNext to be NULL?
@@ -3968,7 +3968,7 @@ bool Compiler::fgCreateGCPoll(GCPollType pollType, BasicBlock* block)
             Statement* stmt = top->firstStmt();
             while (stmt->gtNext)
             {
-                stmt = stmt->gtNextStmt;
+                stmt = stmt->GetNextStmt();
             }
             fgRemoveStmt(top, stmt);
             fgInsertStmtAtEnd(bottom, stmt);
@@ -7639,7 +7639,7 @@ GenTree* Compiler::fgDoNormalizeOnStore(GenTree* tree)
             // Small-typed arguments and aliased locals are normalized on load.
             // Other small-typed locals are normalized on store.
             // If it is an assignment to one of the latter, insert the cast on RHS
-            unsigned   varNum = op1->gtLclVarCommon.gtLclNum;
+            unsigned   varNum = op1->gtLclVarCommon.GetLclNum();
             LclVarDsc* varDsc = &lvaTable[varNum];
 
             if (varDsc->lvNormalizeOnStore())
@@ -7767,7 +7767,7 @@ inline void Compiler::fgMarkLoopHead(BasicBlock* block)
 
     /* Have we decided to generate fully interruptible code already? */
 
-    if (genInterruptible)
+    if (GetInterruptible())
     {
 #ifdef DEBUG
         if (verbose)
@@ -7848,7 +7848,7 @@ inline void Compiler::fgMarkLoopHead(BasicBlock* block)
     // only enable fully interruptible code for if we're hijacking.
     if (GCPOLL_NONE == opts.compGCPollType)
     {
-        genInterruptible = true;
+        SetInterruptible(true);
     }
 }
 
@@ -9438,7 +9438,7 @@ BasicBlock* Compiler::fgSplitBlockAfterStatement(BasicBlock* curr, Statement* st
 
     if (stmt != nullptr)
     {
-        newBlock->bbStmtList = stmt->gtNextStmt;
+        newBlock->bbStmtList = stmt->GetNextStmt();
         if (newBlock->bbStmtList != nullptr)
         {
             newBlock->bbStmtList->gtPrev = curr->bbStmtList->gtPrev;
@@ -9540,8 +9540,8 @@ BasicBlock* Compiler::fgSplitBlockAtBeginning(BasicBlock* curr)
 
     if (curr->IsLIR())
     {
-        newBlock->bbTreeList = curr->bbTreeList;
-        curr->bbTreeList     = nullptr;
+        newBlock->SetFirstLIRNode(curr->GetFirstLIRNode());
+        curr->SetFirstLIRNode(nullptr);
     }
     else
     {
@@ -9845,7 +9845,7 @@ VARSET_VALRET_TP Compiler::fgGetVarBits(GenTree* tree)
 
     assert(tree->gtOper == GT_LCL_VAR || tree->gtOper == GT_LCL_FLD);
 
-    unsigned int lclNum = tree->gtLclVarCommon.gtLclNum;
+    unsigned int lclNum = tree->gtLclVarCommon.GetLclNum();
     LclVarDsc*   varDsc = lvaTable + lclNum;
     if (varDsc->lvTracked)
     {
@@ -10021,7 +10021,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         stmt->gtStmtExpr->gtOper != GT_NOP) // Don't print if it is a GT_NOP. Too much noise from the inliner.
     {
         printf("\nRemoving statement ");
-        gtDispTree(stmt->gtStmtExpr);
+        gtDispStmt(stmt);
         printf(" in " FMT_BB " as useless:\n", block->bbNum);
     }
 #endif // DEBUG
@@ -10044,7 +10044,7 @@ void Compiler::fgRemoveStmt(BasicBlock* block, Statement* stmt)
         }
         else
         {
-            block->bbStmtList         = firstStmt->gtNextStmt;
+            block->bbStmtList         = firstStmt->GetNextStmt();
             block->bbStmtList->gtPrev = firstStmt->gtPrev;
         }
     }
@@ -11002,11 +11002,11 @@ void Compiler::fgUnlinkRange(BasicBlock* bBeg, BasicBlock* bEnd)
 
 void Compiler::fgRemoveBlock(BasicBlock* block, bool unreachable)
 {
-    BasicBlock* bPrev = block->bbPrev;
-
     /* The block has to be either unreachable or empty */
 
     PREFIX_ASSUME(block != nullptr);
+
+    BasicBlock* bPrev = block->bbPrev;
 
     JITDUMP("fgRemoveBlock " FMT_BB "\n", block->bbNum);
 
@@ -14833,7 +14833,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
         /* We call gtPrepareCost to measure the cost of duplicating this tree */
         gtPrepareCost(expr);
 
-        estDupCostSz += expr->gtCostSz;
+        estDupCostSz += expr->GetCostSz();
     }
 
     bool                 allProfileWeightsAreValid = false;
@@ -15056,7 +15056,7 @@ bool Compiler::fgOptimizeBranch(BasicBlock* bJump)
         printf("\nfgOptimizeBranch added these statements(s) at the end of " FMT_BB ":\n", bJump->bbNum);
         for (Statement* stmt : StatementList(newStmtList))
         {
-            gtDispTree(stmt->gtStmtExpr);
+            gtDispStmt(stmt);
         }
         printf("\nfgOptimizeBranch changed block " FMT_BB " from BBJ_ALWAYS to BBJ_COND.\n", bJump->bbNum);
 
@@ -18527,7 +18527,7 @@ BasicBlock* Compiler::fgRngChkTarget(BasicBlock* block, SpecialCodeKind kind)
         printf("*** Computing fgRngChkTarget for block " FMT_BB "\n", block->bbNum);
         if (!block->IsLIR())
         {
-            gtDispTree(compCurStmt->gtStmtExpr);
+            gtDispStmt(compCurStmt);
         }
     }
 #endif // DEBUG
@@ -19008,11 +19008,11 @@ void Compiler::fgSetBlockOrder()
                 // DDB 204533:
                 // The GC encoding for fully interruptible methods does not
                 // support more than 1023 pushed arguments, so we can't set
-                // genInterruptible here when we have 1024 or more pushed args
+                // SetInterruptible() here when we have 1024 or more pushed args
                 //
                 if (compCanEncodePtrArgCntMax())
                 {
-                    genInterruptible = true;
+                    SetInterruptible(true);
                 }
                 break;
             }
@@ -19045,7 +19045,7 @@ void Compiler::fgSetBlockOrder()
             // loop.  Thus we need to either add a poll, or make the method
             // fully interruptible.  I chose the later because that's what
             // JIT64 does.
-            genInterruptible = true;
+            SetInterruptible(true);
         }
 #endif // !JIT32_GCENCODER
 #endif // FEATURE_FASTTAILCALL
@@ -19260,7 +19260,7 @@ unsigned Compiler::fgGetCodeEstimate(BasicBlock* block)
         }
         else
         {
-            // We could walk the tree to find out the real gtCostSz,
+            // We could walk the tree to find out the real GetCostSz(),
             // but just using MAX_COST for this trees code size works OK
             costSz += cost;
         }
@@ -20520,23 +20520,17 @@ void Compiler::fgDispBasicBlocks(bool dumpTrees)
     fgDispBasicBlocks(fgFirstBB, nullptr, dumpTrees);
 }
 
-/*****************************************************************************/
-//  Increment the stmtNum and dump the tree using gtDispTree
+//------------------------------------------------------------------------
+// fgDumpStmtTree: dump the statement and the basic block number.
+//
+// Arguments:
+//    stmt  - the statement to dump;
+//    bbNum - the basic block number to dump.
 //
 void Compiler::fgDumpStmtTree(Statement* stmt, unsigned bbNum)
 {
-    compCurStmtNum++; // Increment the current stmtNum
-
-    printf("\n***** " FMT_BB ", stmt %d\n", bbNum, compCurStmtNum);
-
-    if (fgOrder == FGOrderLinear || opts.compDbgInfo)
-    {
-        gtDispTree(stmt->gtStmtExpr);
-    }
-    else
-    {
-        gtDispTree(stmt->gtStmtExpr);
-    }
+    printf("\n***** " FMT_BB "\n", bbNum);
+    gtDispStmt(stmt);
 }
 
 //------------------------------------------------------------------------
@@ -20555,10 +20549,6 @@ void Compiler::fgDumpBlock(BasicBlock* block)
         for (Statement* stmt : block->Statements())
         {
             fgDumpStmtTree(stmt, block->bbNum);
-            if (stmt == block->firstStmt())
-            {
-                block->bbStmtNum = compCurStmtNum; // Set the block->bbStmtNum
-            }
         }
     }
     else
@@ -20572,13 +20562,10 @@ void Compiler::fgDumpBlock(BasicBlock* block)
 //
 void Compiler::fgDumpTrees(BasicBlock* firstBlock, BasicBlock* lastBlock)
 {
-    compCurStmtNum = 0; // Reset the current stmtNum
-
-    /* Walk the basic blocks */
+    // Walk the basic blocks.
 
     // Note that typically we have already called fgDispBasicBlocks()
-    //  so we don't need to print the preds and succs again here
-    //
+    // so we don't need to print the preds and succs again here.
     for (BasicBlock* block = firstBlock; block; block = block->bbNext)
     {
         fgDumpBlock(block);
@@ -21088,7 +21075,7 @@ void Compiler::fgDebugCheckBBlist(bool checkBBNum /* = false */, bool checkBBRef
     // Make sure the one return BB is not changed.
     if (genReturnBB != nullptr)
     {
-        assert(genReturnBB->bbTreeList != nullptr || genReturnBB->bbStmtList != nullptr);
+        assert(genReturnBB->GetFirstLIRNode() != nullptr || genReturnBB->bbStmtList != nullptr);
     }
 
     // The general encoder/decoder (currently) only reports "this" as a generics context as a stack location,
@@ -22283,7 +22270,7 @@ void Compiler::fgAttachStructInlineeToAsg(GenTree* tree, GenTree* child, CORINFO
         // If it is a multireg return on x64/ux, the local variable should be marked as lvIsMultiRegRet
         if (child->AsCall()->HasMultiRegRetVal())
         {
-            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.gtLclNum;
+            unsigned lclNum                  = tree->gtOp.gtOp1->gtLclVarCommon.GetLclNum();
             lvaTable[lclNum].lvIsMultiRegRet = true;
         }
         return;
@@ -22616,7 +22603,7 @@ Compiler::fgWalkResult Compiler::fgLateDevirtualization(GenTree** pTree, fgWalkD
 
         if ((lhs->OperGet() == GT_LCL_VAR) && (lhs->TypeGet() == TYP_REF))
         {
-            const unsigned lclNum = lhs->gtLclVarCommon.gtLclNum;
+            const unsigned lclNum = lhs->gtLclVarCommon.GetLclNum();
             LclVarDsc*     lcl    = comp->lvaGetDesc(lclNum);
 
             if (lcl->lvSingleDef)
@@ -22984,11 +22971,11 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
                 {
                     do
                     {
-                        currentDumpStmt = currentDumpStmt->getNextStmt();
+                        currentDumpStmt = currentDumpStmt->GetNextStmt();
 
                         printf("\n");
 
-                        gtDispTree(currentDumpStmt->gtStmtExpr);
+                        gtDispStmt(currentDumpStmt);
                         printf("\n");
 
                     } while (currentDumpStmt != stmtAfter);
@@ -23025,7 +23012,7 @@ void Compiler::fgInsertInlineeBlocks(InlineInfo* pInlineInfo)
     // Split statements between topBlock and bottomBlock.
     // First figure out bottomBlock_Begin
     Statement* bottomBlock_Begin;
-    bottomBlock_Begin = stmtAfter->gtNextStmt;
+    bottomBlock_Begin = stmtAfter->GetNextStmt();
 
     if (topBlock->bbStmtList == nullptr)
     {
@@ -23258,7 +23245,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     BasicBlock*  block        = inlineInfo->iciBlock;
     Statement*   callStmt     = inlineInfo->iciStmt;
     IL_OFFSETX   callILOffset = callStmt->gtStmtILoffsx;
-    Statement*   postStmt     = callStmt->gtNextStmt;
+    Statement*   postStmt     = callStmt->GetNextStmt();
     Statement*   afterStmt    = callStmt; // afterStmt is the place where the new statements should be inserted after.
     Statement*   newStmt      = nullptr;
     GenTreeCall* call         = inlineInfo->iciCall->AsCall();
@@ -23375,7 +23362,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #ifdef DEBUG
                     if (verbose)
                     {
-                        gtDispTree(afterStmt->gtStmtExpr);
+                        gtDispStmt(afterStmt);
                     }
 #endif // DEBUG
                 }
@@ -23496,7 +23483,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #ifdef DEBUG
                         if (verbose)
                         {
-                            gtDispTree(afterStmt->gtStmtExpr);
+                            gtDispStmt(afterStmt);
                         }
 #endif // DEBUG
                     }
@@ -23604,7 +23591,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
 #ifdef DEBUG
                 if (verbose)
                 {
-                    gtDispTree(afterStmt->gtStmtExpr);
+                    gtDispStmt(afterStmt);
                 }
 #endif // DEBUG
             }
@@ -23614,7 +23601,7 @@ Statement* Compiler::fgInlinePrependStatements(InlineInfo* inlineInfo)
     // Update any newly added statements with the appropriate context.
     InlineContext* context = callStmt->gtInlineContext;
     assert(context != nullptr);
-    for (Statement* addedStmt = callStmt->gtNextStmt; addedStmt != postStmt; addedStmt = addedStmt->gtNextStmt)
+    for (Statement* addedStmt = callStmt->GetNextStmt(); addedStmt != postStmt; addedStmt = addedStmt->GetNextStmt())
     {
         assert(addedStmt->gtInlineContext == nullptr);
         addedStmt->gtInlineContext = context;
@@ -23752,7 +23739,7 @@ void Compiler::fgInlineAppendStatements(InlineInfo* inlineInfo, BasicBlock* bloc
 #ifdef DEBUG
         if (verbose)
         {
-            gtDispTree(nullStmt->gtStmtExpr);
+            gtDispStmt(nullStmt);
         }
 #endif // DEBUG
     }

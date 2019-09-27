@@ -219,7 +219,12 @@ protected:
 
     BasicBlock* genCreateTempLabel();
 
+private:
+    void genLogLabel(BasicBlock* bb);
+
+protected:
     void genDefineTempLabel(BasicBlock* label);
+    void genDefineInlineTempLabel(BasicBlock* label);
 
     void genAdjustSP(target_ssize_t delta);
 
@@ -414,7 +419,7 @@ protected:
 
 #ifdef PROFILING_SUPPORTED
     void genProfilingEnterCallback(regNumber initReg, bool* pInitRegZeroed);
-    void genProfilingLeaveCallback(unsigned helper = CORINFO_HELP_PROF_FCN_LEAVE);
+    void genProfilingLeaveCallback(unsigned helper);
 #endif // PROFILING_SUPPORTED
 
     void genPrologPadForReJit();
@@ -979,7 +984,7 @@ protected:
 #ifdef FEATURE_HW_INTRINSICS
     void genHWIntrinsic(GenTreeHWIntrinsic* node);
 #if defined(_TARGET_XARCH_)
-    void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
+    void genHWIntrinsic_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr, regNumber reg, GenTree* rmOp);
     void genHWIntrinsic_R_RM_I(GenTreeHWIntrinsic* node, instruction ins, int8_t ival);
     void genHWIntrinsic_R_R_RM(GenTreeHWIntrinsic* node, instruction ins, emitAttr attr);
     void genHWIntrinsic_R_R_RM(
@@ -1248,7 +1253,7 @@ protected:
         {
             return false;
         }
-        const LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.gtLclNum];
+        const LclVarDsc* varDsc = &compiler->lvaTable[tree->gtLclVarCommon.GetLclNum()];
         return (varDsc->lvIsRegCandidate());
     }
 

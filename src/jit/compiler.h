@@ -725,8 +725,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetArgInitReg, put = SetArgInitReg)) regNumber lvArgInitReg;
-
     regNumber GetArgInitReg() const
     {
         return (regNumber)_lvArgInitReg;
@@ -1394,13 +1392,12 @@ public:
         return isLate;
     }
 
-    __declspec(property(get = getLateArgInx, put = setLateArgInx)) unsigned lateArgInx;
-    unsigned getLateArgInx()
+    unsigned GetLateArgInx()
     {
         assert(isLateArg());
         return _lateArgInx;
     }
-    void setLateArgInx(unsigned inx)
+    void SetLateArgInx(unsigned inx)
     {
         _lateArgInx = inx;
     }
@@ -1446,8 +1443,7 @@ public:
 #endif
     }
 
-    __declspec(property(get = getIsVararg, put = setIsVararg)) bool isVararg;
-    bool getIsVararg()
+    bool IsVararg()
     {
 #ifdef FEATURE_VARARG
         return _isVararg;
@@ -1455,7 +1451,7 @@ public:
         return false;
 #endif
     }
-    void setIsVararg(bool value)
+    void SetIsVararg(bool value)
     {
 #ifdef FEATURE_VARARG
         _isVararg = value;
@@ -1521,7 +1517,6 @@ public:
         return (TARGET_POINTER_SIZE * this->numSlots);
     }
 
-    __declspec(property(get = GetHfaType)) var_types hfaType;
     var_types GetHfaType()
     {
 #ifdef FEATURE_HFA
@@ -1645,7 +1640,7 @@ public:
         {
 #ifdef _TARGET_ARM_
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
-            if (hfaType == TYP_DOUBLE)
+            if (GetHfaType() == TYP_DOUBLE)
             {
                 assert(!isSplit);
                 size <<= 1;
@@ -1653,13 +1648,13 @@ public:
 #elif defined(_TARGET_ARM64_)
             // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size,
             // or if they are SIMD16 vector hfa regs we have to double the size.
-            if (hfaType == TYP_FLOAT)
+            if (GetHfaType() == TYP_FLOAT)
             {
                 // Round up in case of odd HFA count.
                 size = (size + 1) >> 1;
             }
 #ifdef FEATURE_SIMD
-            else if (hfaType == TYP_SIMD16)
+            else if (GetHfaType() == TYP_SIMD16)
             {
                 size <<= 1;
             }
@@ -1683,7 +1678,7 @@ public:
 
         regNumber argReg = getRegNum(0);
 #ifdef _TARGET_ARM_
-        unsigned int regSize = (hfaType == TYP_DOUBLE) ? 2 : 1;
+        unsigned int regSize = (GetHfaType() == TYP_DOUBLE) ? 2 : 1;
 #else
         unsigned int regSize = 1;
 #endif
@@ -2682,7 +2677,7 @@ public:
 
     // Returns "true" iff the complexity (not formally defined, but first interpretation
     // is #of nodes in subtree) of "tree" is greater than "limit".
-    // (This is somewhat redundant with the "gtCostEx/gtCostSz" fields, but can be used
+    // (This is somewhat redundant with the "GetCostEx()/GetCostSz()" fields, but can be used
     // before they have been set.)
     bool gtComplexityExceeds(GenTree** tree, unsigned limit);
 
@@ -2854,6 +2849,7 @@ public:
     int gtGetLclVarName(unsigned lclNum, char* buf, unsigned buf_remaining);
     char* gtGetLclVarName(unsigned lclNum);
     void gtDispLclVar(unsigned varNum, bool padForBiggestDisp = true);
+    void gtDispStmt(Statement* stmt, const char* msg = nullptr);
     void gtDispBlockStmts(BasicBlock* block);
     void gtGetArgMsg(GenTreeCall* call, GenTree* arg, unsigned argNum, int listCount, char* bufp, unsigned bufLength);
     void gtGetLateArgMsg(GenTreeCall* call, GenTree* arg, int argNum, int listCount, char* bufp, unsigned bufLength);
@@ -7250,10 +7246,9 @@ public:
     // convenience and backward compatibility, but the properties can only be set by invoking
     // the setter on CodeGenContext directly.
 
-    __declspec(property(get = getEmitter)) emitter* genEmitter;
-    emitter* getEmitter() const
+    emitter* GetEmitter() const
     {
-        return codeGen->getEmitter();
+        return codeGen->GetEmitter();
     }
 
     bool isFramePointerUsed() const
@@ -7261,25 +7256,24 @@ public:
         return codeGen->isFramePointerUsed();
     }
 
-    __declspec(property(get = getInterruptible, put = setInterruptible)) bool genInterruptible;
-    bool getInterruptible()
+    bool GetInterruptible()
     {
-        return codeGen->genInterruptible;
+        return codeGen->GetInterruptible();
     }
-    void setInterruptible(bool value)
+    void SetInterruptible(bool value)
     {
-        codeGen->setInterruptible(value);
+        codeGen->SetInterruptible(value);
     }
 
 #ifdef _TARGET_ARMARCH_
-    __declspec(property(get = getHasTailCalls, put = setHasTailCalls)) bool hasTailCalls;
-    bool getHasTailCalls()
+
+    bool GetHasTailCalls()
     {
-        return codeGen->hasTailCalls;
+        return codeGen->GetHasTailCalls();
     }
-    void setHasTailCalls(bool value)
+    void SetHasTailCalls(bool value)
     {
-        codeGen->setHasTailCalls(value);
+        codeGen->SetHasTailCalls(value);
     }
 #endif // _TARGET_ARMARCH_
 
@@ -7752,7 +7746,7 @@ private:
     // type of an arg node is TYP_BYREF and a local node is TYP_SIMD or TYP_STRUCT.
     bool isSIMDTypeLocal(GenTree* tree)
     {
-        return tree->OperIsLocal() && lvaTable[tree->AsLclVarCommon()->gtLclNum].lvSIMDType;
+        return tree->OperIsLocal() && lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
     }
 
     // Returns true if the lclVar is an opaque SIMD type.
@@ -7776,7 +7770,7 @@ private:
                     return varTypeIsSIMD(tree->gtGetOp1());
 
                 case GT_LCL_VAR_ADDR:
-                    return lvaTable[tree->AsLclVarCommon()->gtLclNum].lvSIMDType;
+                    return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvSIMDType;
 
                 default:
                     return isSIMDTypeLocal(tree);
@@ -7799,7 +7793,7 @@ private:
     {
         if (isSIMDTypeLocal(tree))
         {
-            return lvaTable[tree->AsLclVarCommon()->gtLclNum].lvBaseType;
+            return lvaTable[tree->AsLclVarCommon()->GetLclNum()].lvBaseType;
         }
 
         return TYP_UNKNOWN;
@@ -8149,7 +8143,7 @@ private:
     // Is this Local node a SIMD local?
     bool lclVarIsSIMDType(GenTreeLclVarCommon* lclVarTree)
     {
-        return lclVarIsSIMDType(lclVarTree->gtLclNum);
+        return lclVarIsSIMDType(lclVarTree->GetLclNum());
     }
 
     // Returns true if the TYP_SIMD locals on stack are aligned at their
@@ -8599,6 +8593,13 @@ public:
     {
         return tree->gtTreeID;
     }
+
+    static void printStmtID(Statement* stmt)
+    {
+        assert(stmt != nullptr);
+        printf(FMT_STMT, stmt->GetID());
+    }
+
     static void printTreeID(GenTree* tree)
     {
         if (tree == nullptr)
@@ -8783,9 +8784,8 @@ public:
         unsigned  compArgsCount;     // Number of arguments (incl. implicit and     hidden)
 
 #if FEATURE_FASTTAILCALL
-        size_t compArgStackSize;     // Incoming argument stack size in bytes
-        bool   compHasMultiSlotArgs; // Caller has >8 byte sized struct parameter
-#endif                               // FEATURE_FASTTAILCALL
+        size_t compArgStackSize; // Incoming argument stack size in bytes
+#endif                           // FEATURE_FASTTAILCALL
 
         unsigned compRetBuffArg; // position of hidden return param var (0, 1) (BAD_VAR_NUM means not present);
         int compTypeCtxtArg; // position of hidden param for type context for generic code (CORINFO_CALLCONV_PARAMTYPE)
@@ -8933,14 +8933,12 @@ public:
 #ifdef DEBUG
     static unsigned s_compMethodsCount; // to produce unique label names
     unsigned        compGenTreeID;
+    unsigned        compStatementID;
     unsigned        compBasicBlockID;
 #endif
 
     BasicBlock* compCurBB;   // the current basic block in process
     Statement*  compCurStmt; // the current statement in process
-#ifdef DEBUG
-    unsigned compCurStmtNum; // to give all statements an increasing StmtNum when printing dumps
-#endif
 
     //  The following is used to create the 'method JIT info' block.
     size_t compInfoBlkSize;
@@ -10568,6 +10566,7 @@ XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 void cBlock(Compiler* comp, BasicBlock* block);
 void cBlocks(Compiler* comp);
 void cBlocksV(Compiler* comp);
+void cStmt(Compiler* comp, Statement* statement);
 void cTree(Compiler* comp, GenTree* tree);
 void cTrees(Compiler* comp);
 void cEH(Compiler* comp);
@@ -10584,6 +10583,7 @@ void cCVarSet(Compiler* comp, VARSET_VALARG_TP vars);
 void cFuncIR(Compiler* comp);
 void cBlockIR(Compiler* comp, BasicBlock* block);
 void cLoopIR(Compiler* comp, Compiler::LoopDsc* loop);
+void cStmtIR(Compiler* comp, Statement* stmt);
 void cTreeIR(Compiler* comp, GenTree* tree);
 int cTreeTypeIR(Compiler* comp, GenTree* tree);
 int cTreeKindsIR(Compiler* comp, GenTree* tree);

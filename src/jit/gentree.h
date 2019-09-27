@@ -445,10 +445,6 @@ public:
 #define MAX_COST UCHAR_MAX
 #define IND_COST_EX 3 // execution cost for an indirection
 
-    __declspec(property(get = GetCostEx)) unsigned char gtCostEx; // estimate of expression execution cost
-
-    __declspec(property(get = GetCostSz)) unsigned char gtCostSz; // estimate of expression code size cost
-
     unsigned char GetCostEx() const
     {
         assert(gtCostsInitialized);
@@ -480,8 +476,8 @@ public:
     {
         // If the 'tree' costs aren't initialized, we'll hit an assert below.
         INDEBUG(gtCostsInitialized = tree->gtCostsInitialized;)
-        _gtCostEx = tree->gtCostEx;
-        _gtCostSz = tree->gtCostSz;
+        _gtCostEx = tree->GetCostEx();
+        _gtCostSz = tree->GetCostSz();
     }
 
     // Same as CopyCosts, but avoids asserts if the costs we are copying have not been initialized.
@@ -2857,7 +2853,6 @@ public:
     {
         return _gtLclNum;
     }
-    __declspec(property(get = GetLclNum)) unsigned gtLclNum;
 
     void SetLclNum(unsigned lclNum)
     {
@@ -2869,7 +2864,6 @@ public:
     {
         return _gtSsaNum;
     }
-    __declspec(property(get = GetSsaNum)) unsigned gtSsaNum;
 
     void SetSsaNum(unsigned ssaNum)
     {
@@ -2878,7 +2872,7 @@ public:
 
     bool HasSsaName()
     {
-        return (gtSsaNum != SsaConfig::RESERVED_SSA_NUM);
+        return (GetSsaNum() != SsaConfig::RESERVED_SSA_NUM);
     }
 
 #if DEBUGGABLE_GENTREE
@@ -5129,8 +5123,13 @@ struct GenTreeILOffset : public GenTree
 #endif
 };
 
+// We use the following format when printing the Statement number: Statement->GetID()
+// This define is used with string concatenation to put this in printf format strings  (Note that %u means unsigned int)
+#define FMT_STMT "STMT%05u"
+
 struct Statement
 {
+public:
     GenTree*       gtStmtExpr;      // root of the expression tree
     GenTree*       gtStmtList;      // first node (for forward walks)
     InlineContext* gtInlineContext; // The inline context for this statement.
@@ -5138,10 +5137,12 @@ struct Statement
 
 #ifdef DEBUG
     IL_OFFSET gtStmtLastILoffs; // instr offset at end of stmt
+
+private:
+    unsigned m_stmtID;
 #endif
 
-    __declspec(property(get = getNextStmt)) Statement* gtNextStmt;
-
+public:
     __declspec(property(get = getPrevStmt)) Statement* gtPrevStmt;
 
     Statement* gtNext;
@@ -5149,7 +5150,7 @@ struct Statement
 
     bool compilerAdded;
 
-    Statement* getNextStmt()
+    Statement* GetNextStmt()
     {
         if (gtNext == nullptr)
         {
@@ -5173,13 +5174,14 @@ struct Statement
         }
     }
 
-    Statement(GenTree* expr, IL_OFFSETX offset)
+    Statement(GenTree* expr, IL_OFFSETX offset DEBUGARG(unsigned stmtID))
         : gtStmtExpr(expr)
         , gtStmtList(nullptr)
         , gtInlineContext(nullptr)
         , gtStmtILoffsx(offset)
 #ifdef DEBUG
         , gtStmtLastILoffs(BAD_IL_OFFSET)
+        , m_stmtID(stmtID)
 #endif
         , gtNext(nullptr)
         , gtPrev(nullptr)
@@ -5201,6 +5203,13 @@ struct Statement
     {
         return gtStmtExpr->GetCostEx();
     }
+
+#ifdef DEBUG
+    unsigned GetID() const
+    {
+        return m_stmtID;
+    }
+#endif
 };
 
 class StatementIterator
@@ -5912,8 +5921,8 @@ struct GenCondition
         C    = Unsigned | S,    // = 14
         NC   = Unsigned | NS,   // = 15
                                 
-        FEQ  = Float | EQ,      // = 16
-        FNE  = Float | NE,      // = 17
+        FEQ  = Float | 0,       // = 16
+        FNE  = Float | 1,       // = 17
         FLT  = Float | SLT,     // = 18
         FLE  = Float | SLE,     // = 19
         FGE  = Float | SGE,     // = 20

@@ -5816,15 +5816,11 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 {
     compCurBB = blk;
 
-#ifdef DEBUG
-    compCurStmtNum = blk->bbStmtNum - 1; // Set compCurStmtNum
-#endif
-
     Statement* stmt = blk->firstStmt();
 
     // First: visit phi's.  If "newVNForPhis", give them new VN's.  If not,
     // first check to see if all phi args have the same value.
-    for (; (stmt != nullptr) && stmt->IsPhiDefnStmt(); stmt = stmt->getNextStmt())
+    for (; (stmt != nullptr) && stmt->IsPhiDefnStmt(); stmt = stmt->GetNextStmt())
     {
         GenTree* asg = stmt->gtStmtExpr;
         assert(asg->OperIs(GT_ASG));
@@ -5989,13 +5985,12 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
     }
 
     // Now iterate over the remaining statements, and their trees.
-    for (; stmt != nullptr; stmt = stmt->getNextStmt())
+    for (; stmt != nullptr; stmt = stmt->GetNextStmt())
     {
 #ifdef DEBUG
-        compCurStmtNum++;
         if (verbose)
         {
-            printf("\n***** " FMT_BB ", stmt %d (before)\n", blk->bbNum, compCurStmtNum);
+            printf("\n***** " FMT_BB ", " FMT_STMT "(before)\n", blk->bbNum, stmt->GetID());
             gtDispTree(stmt->gtStmtExpr);
             printf("\n");
         }
@@ -6009,7 +6004,7 @@ void Compiler::fgValueNumberBlock(BasicBlock* blk)
 #ifdef DEBUG
         if (verbose)
         {
-            printf("\n***** " FMT_BB ", stmt %d (after)\n", blk->bbNum, compCurStmtNum);
+            printf("\n***** " FMT_BB ", " FMT_STMT "(after)\n", blk->bbNum, stmt->GetID());
             gtDispTree(stmt->gtStmtExpr);
             printf("\n");
             if (stmt->gtNext)
@@ -6447,7 +6442,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree)
                 }
 #endif // DEBUG
             }
-            else if (lvaVarAddrExposed(lclVarTree->gtLclNum))
+            else if (lvaVarAddrExposed(lclVarTree->GetLclNum()))
             {
                 fgMutateAddressExposedLocal(tree DEBUGARG("INITBLK - address-exposed local"));
             }
@@ -6489,7 +6484,7 @@ void Compiler::fgValueNumberBlockAssignment(GenTree* tree)
 
                 if (lhs->IsLocalExpr(this, &lclVarTree, &lhsFldSeq))
                 {
-                    noway_assert(lclVarTree->gtLclNum == lhsLclNum);
+                    noway_assert(lclVarTree->GetLclNum() == lhsLclNum);
                 }
                 else
                 {
@@ -6748,7 +6743,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
             case GT_LCL_VAR:
             {
                 GenTreeLclVarCommon* lcl    = tree->AsLclVarCommon();
-                unsigned             lclNum = lcl->gtLclNum;
+                unsigned             lclNum = lcl->GetLclNum();
                 LclVarDsc*           varDsc = &lvaTable[lclNum];
 
                 // Do we have a Use (read) of the LclVar?
@@ -6771,7 +6766,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                         lclNum = varDsc->lvFieldLclStart;
                     }
 
-                    if (lcl->gtSsaNum == SsaConfig::RESERVED_SSA_NUM)
+                    if (lcl->GetSsaNum() == SsaConfig::RESERVED_SSA_NUM)
                     {
                         // Not an SSA variable.
 
@@ -6792,7 +6787,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     }
                     else
                     {
-                        ValueNumPair wholeLclVarVNP = varDsc->GetPerSsaData(lcl->gtSsaNum)->m_vnPair;
+                        ValueNumPair wholeLclVarVNP = varDsc->GetPerSsaData(lcl->GetSsaNum())->m_vnPair;
 
                         // Check for mismatched LclVar size
                         //
@@ -6874,10 +6869,10 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                     // This flag propagates to the "local" on the RHS.  So we'll assume that this is correct,
                     // and treat it as a def (to a new, unique VN).
                     //
-                    if (lcl->gtSsaNum != SsaConfig::RESERVED_SSA_NUM)
+                    if (lcl->GetSsaNum() != SsaConfig::RESERVED_SSA_NUM)
                     {
                         ValueNum uniqVN = vnStore->VNForExpr(compCurBB, lcl->TypeGet());
-                        varDsc->GetPerSsaData(lcl->gtSsaNum)->m_vnPair.SetBoth(uniqVN);
+                        varDsc->GetPerSsaData(lcl->GetSsaNum())->m_vnPair.SetBoth(uniqVN);
                     }
 
                     lcl->gtVNPair = ValueNumPair(); // Avoid confusion -- we don't set the VN of a lcl being defined.
@@ -7128,8 +7123,8 @@ void Compiler::fgValueNumberTree(GenTree* tree)
 
                         assert(rhsVNPair.GetLiberal() != ValueNumStore::NoVN);
 
-                        lhs->gtVNPair                                                 = rhsVNPair;
-                        lvaTable[lcl->gtLclNum].GetPerSsaData(lclDefSsaNum)->m_vnPair = rhsVNPair;
+                        lhs->gtVNPair                                                    = rhsVNPair;
+                        lvaTable[lcl->GetLclNum()].GetPerSsaData(lclDefSsaNum)->m_vnPair = rhsVNPair;
 
 #ifdef DEBUG
                         if (verbose)
@@ -7145,7 +7140,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                         }
 #endif // DEBUG
                     }
-                    else if (lvaVarAddrExposed(lcl->gtLclNum))
+                    else if (lvaVarAddrExposed(lcl->GetLclNum()))
                     {
                         // We could use MapStore here and MapSelect on reads of address-exposed locals
                         // (using the local nums as selectors) to get e.g. propagation of values
@@ -7196,7 +7191,8 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                             {
                                 // We don't know what field this represents.  Assign a new VN to the whole variable
                                 // (since we may be writing to an unknown portion of it.)
-                                newLhsVNPair.SetBoth(vnStore->VNForExpr(compCurBB, lvaGetActualType(lclFld->gtLclNum)));
+                                newLhsVNPair.SetBoth(
+                                    vnStore->VNForExpr(compCurBB, lvaGetActualType(lclFld->GetLclNum())));
                             }
                             else
                             {
@@ -7229,7 +7225,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                         }
 #endif // DEBUG
                     }
-                    else if (lvaVarAddrExposed(lclFld->gtLclNum))
+                    else if (lvaVarAddrExposed(lclFld->GetLclNum()))
                     {
                         // This side-effects ByrefExposed.  Just use a new opaque VN.
                         // As with GT_LCL_VAR, we could probably use MapStore here and MapSelect at corresponding
@@ -7539,7 +7535,7 @@ void Compiler::fgValueNumberTree(GenTree* tree)
                             GenTreeLclVarCommon* lclVarTree = nullptr;
                             bool                 isLocal    = tree->DefinesLocal(this, &lclVarTree);
 
-                            if (isLocal && lvaVarAddrExposed(lclVarTree->gtLclNum))
+                            if (isLocal && lvaVarAddrExposed(lclVarTree->GetLclNum()))
                             {
                                 // Store to address-exposed local; need to record the effect on ByrefExposed.
                                 // We could use MapStore here and MapSelect on reads of address-exposed locals
