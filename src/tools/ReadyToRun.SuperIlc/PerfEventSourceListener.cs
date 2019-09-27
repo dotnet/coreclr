@@ -160,7 +160,7 @@ public sealed class PerfEventSourceListener
         writer.WriteLine($"Added {nodesAddedToMarkStack / _totalRealRuns} nodes to mark stack");
         writer.WriteLine($"Dependency analysis time: {_dependencyAnalysisMsec / _totalRealRuns:F2} ms");
         writer.WriteLine($"Wall clock JIT time: {_jitMsec / _totalRealRuns:F2} ms");
-        writer.WriteLine($"Total JIT time: {_totalJitMsec / _totalRealRuns:F2} ms");
+        writer.WriteLine($"Total JIT time: {_totalJitMsec / _totalRealRuns:F2} ms (sum of all threads)");
         writer.WriteLine($"{_methodsJitted/ _totalRealRuns} methods JITed");
         writer.Indent--;
 

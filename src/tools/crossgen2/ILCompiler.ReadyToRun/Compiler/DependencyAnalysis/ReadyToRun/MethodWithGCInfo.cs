@@ -6,7 +6,6 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading;
-using ILCompiler.DependencyAnalysis;
 
 using Internal.JitInterface;
 using Internal.Text;
