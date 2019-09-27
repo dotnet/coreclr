@@ -26,10 +26,14 @@ namespace Internal.TypeSystem.Interop
                     return new AnsiStringMarshaller();
                 case MarshallerKind.UTF8String:
                     return new UTF8StringMarshaller();
+                case MarshallerKind.SafeHandle:
+                    return new SafeHandleMarshaller();
                 case MarshallerKind.UnicodeString:
                     return new UnicodeStringMarshaller();
                 case MarshallerKind.VoidReturn:
                     return new VoidReturnMarshaller();
+                case MarshallerKind.FunctionPointer:
+                    return new DelegateMarshaller();
                 default:
                     // ensures we don't throw during create marshaller. We will throw NSE
                     // during EmitIL which will be handled.
