@@ -1507,13 +1507,25 @@ namespace Internal.TypeSystem.Interop
             //
             // ANSI marshalling. Allocate a byte array, copy characters
             //
-            var stringToAnsi = Context.GetHelperEntryPoint("InteropHelpers", "StringToAnsiString");
+            
+#if READYTORUN
+            var stringToAnsi =
+                Context.SystemModule.GetKnownType("System.StubHelpers", "AnsiBSTRMarshaler")
+                .GetKnownMethod("ConvertToNative", null);
+            int flags = (PInvokeFlags.BestFitMapping ? 0x1 : 0)
+                | (PInvokeFlags.ThrowOnUnmappableChar ? 0x100 : 0);
+            codeStream.EmitLdc(flags);
             LoadManagedValue(codeStream);
+            codeStream.Emit(ILOpcode.call, emitter.NewToken(stringToAnsi));
+#else
+            LoadManagedValue(codeStream);
+            var stringToAnsi = Context.GetHelperEntryPoint("InteropHelpers", "StringToAnsiString");
 
             codeStream.Emit(PInvokeFlags.BestFitMapping ? ILOpcode.ldc_i4_1 : ILOpcode.ldc_i4_0);
             codeStream.Emit(PInvokeFlags.ThrowOnUnmappableChar ? ILOpcode.ldc_i4_1 : ILOpcode.ldc_i4_0);
 
             codeStream.Emit(ILOpcode.call, emitter.NewToken(stringToAnsi));
+#endif
 
             StoreNativeValue(codeStream);
         }
@@ -1530,6 +1542,13 @@ namespace Internal.TypeSystem.Interop
         protected override void EmitCleanupManaged(ILCodeStream codeStream)
         {
             var emitter = _ilCodeStreams.Emitter;
+#if READYTORUN
+            MethodDesc clearNative =
+                Context.SystemModule.GetKnownType("System.StubHelpers", "AnsiBSTRMarshaler")
+                .GetKnownMethod("ClearNative", null);
+            LoadNativeValue(codeStream);
+            codeStream.Emit(ILOpcode.call, emitter.NewToken(clearNative));
+#else
             var lNullCheck = emitter.NewCodeLabel();
 
             // Check for null array
@@ -1541,6 +1560,7 @@ namespace Internal.TypeSystem.Interop
                                 Context.GetHelperEntryPoint("InteropHelpers", "CoTaskMemFree")));
 
             codeStream.EmitLabel(lNullCheck);
+#endif
         }
     }
 

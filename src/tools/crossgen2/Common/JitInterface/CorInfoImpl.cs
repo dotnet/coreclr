@@ -756,6 +756,15 @@ namespace Internal.JitInterface
         {
             MethodDesc callerMethod = HandleToObject(callerHnd);
             MethodDesc calleeMethod = HandleToObject(calleeHnd);
+
+#if READYTORUN
+            // IL stubs don't inline well
+            if (calleeMethod.IsPInvoke)
+            {
+                return CorInfoInline.INLINE_NEVER;
+            }
+#endif
+
             if (_compilation.CanInline(callerMethod, calleeMethod))
             {
                 // No restrictions on inlining
