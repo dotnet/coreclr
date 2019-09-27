@@ -75,7 +75,7 @@ struct TailCallInfo
 {
     MethodDesc* Caller;
     MethodDesc* Callee;
-    LoaderAllocator* LoaderAlloc;
+    PTR_LoaderAllocator LoaderAllocator;
     MetaSig* CallSiteSig;
     bool CallSiteIsVirtual;
     TypeHandle RetTyHnd;
@@ -85,12 +85,12 @@ struct TailCallInfo
 
     TailCallInfo(
         MethodDesc* pCallerMD, MethodDesc* pCalleeMD,
-        LoaderAllocator* loaderAlloc,
+        PTR_LoaderAllocator pLoaderAllocator,
         MetaSig* callSiteSig, bool callSiteIsVirtual,
         TypeHandle retTyHnd)
         : Caller(pCallerMD)
         , Callee(pCalleeMD)
-        , LoaderAlloc(loaderAlloc)
+        , LoaderAllocator(pLoaderAllocator)
         , CallSiteSig(callSiteSig)
         , CallSiteIsVirtual(callSiteIsVirtual)
         , RetTyHnd(retTyHnd)
@@ -339,13 +339,13 @@ void TailCallHelp::CreateTailCallHelperStubs(
     // We 'attach' the tailcall stub to the target method except for the case of
     // calli (where the callee MD will be null). We do not reuse stubs for calli
     // tailcalls as those are presumably very rare and not worth the trouble.
-    LoaderAllocator* loaderAlloc =
+    LoaderAllocator* pLoaderAllocator =
         pCalleeMD == NULL
         ? pCallerMD->GetLoaderAllocator()
         : pCalleeMD->GetLoaderAllocator();
 
     TypeHandle retTyHnd = NormalizeSigType(callSiteSig.GetRetTypeHandleThrowing());
-    TailCallInfo info(pCallerMD, pCalleeMD, loaderAlloc, &callSiteSig, virt, retTyHnd);
+    TailCallInfo info(pCallerMD, pCalleeMD, pLoaderAllocator, &callSiteSig, virt, retTyHnd);
 
     bool hasGenericContext = pCalleeMD != NULL && pCalleeMD->RequiresInstArg();
     LayOutArgBuffer(callSiteSig, pCalleeMD, *storeArgsNeedsTarget, hasGenericContext, &info.ArgBufLayout);
@@ -529,7 +529,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
 
     DWORD cbSig;
     PCCOR_SIGNATURE pSig = AllocateSignature(
-        info.LoaderAlloc, sigBuilder, &cbSig);
+        info.LoaderAllocator, sigBuilder, &cbSig);
 
     SigTypeContext emptyCtx;
 
@@ -549,7 +549,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     {
         DWORD gcDescLen;
         PVOID gcDesc = info.GCRefMapBuilder.GetBlob(&gcDescLen);
-        pGcDesc = AllocateBlob(info.LoaderAlloc, gcDesc, gcDescLen);
+        pGcDesc = AllocateBlob(info.LoaderAllocator, gcDesc, gcDescLen);
     }
 
     pCode->EmitLDC(info.ArgBufLayout.Size);
@@ -592,7 +592,7 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
     Module* pLoaderModule = info.Caller->GetLoaderModule();
     MethodDesc* pStoreArgsMD =
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
-            info.LoaderAlloc,
+            info.LoaderAllocator,
             pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
             ILSTUB_TAILCALL_STOREARGS,
             info.Caller->GetModule(),
@@ -657,7 +657,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     CreateCallTargetStubSig(info, &sigBuilder);
 
     DWORD cbSig;
-    PCCOR_SIGNATURE pSig = AllocateSignature(info.LoaderAlloc, sigBuilder, &cbSig);
+    PCCOR_SIGNATURE pSig = AllocateSignature(info.LoaderAllocator, sigBuilder, &cbSig);
 
     SigTypeContext emptyCtx;
 
@@ -807,7 +807,7 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
     Module* pLoaderModule = info.Caller->GetLoaderModule();
     MethodDesc* pCallTargetMD =
         ILStubCache::CreateAndLinkNewILStubMethodDesc(
-            info.LoaderAlloc,
+            info.LoaderAllocator,
             pLoaderModule->GetILStubCache()->GetOrCreateStubMethodTable(pLoaderModule),
             ILSTUB_TAILCALL_CALLTARGET,
             info.Caller->GetModule(),
@@ -905,16 +905,16 @@ void TailCallHelp::AppendTypeHandle(SigBuilder& builder, TypeHandle th)
     builder.AppendPointer(th.AsPtr());
 }
 
-PCCOR_SIGNATURE TailCallHelp::AllocateSignature(LoaderAllocator* alloc, SigBuilder& sig, DWORD* sigLen)
+PCCOR_SIGNATURE TailCallHelp::AllocateSignature(LoaderAllocator* pLoaderAlloc, SigBuilder& sig, DWORD* sigLen)
 {
     PCCOR_SIGNATURE pBuilderSig = (PCCOR_SIGNATURE)sig.GetSignature(sigLen);
-    return (PCCOR_SIGNATURE)AllocateBlob(alloc, pBuilderSig, *sigLen);
+    return (PCCOR_SIGNATURE)AllocateBlob(pLoaderAlloc, pBuilderSig, *sigLen);
 }
 
-void* TailCallHelp::AllocateBlob(LoaderAllocator* alloc, const void* blob, size_t blobLen)
+void* TailCallHelp::AllocateBlob(LoaderAllocator* pLoaderAllocator, const void* blob, size_t blobLen)
 {
     AllocMemTracker pamTracker;
-    PVOID newBlob = pamTracker.Track(alloc->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(blobLen)));
+    PVOID newBlob = pamTracker.Track(pLoaderAllocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(blobLen)));
     memcpy(newBlob, blob, blobLen);
 
     pamTracker.SuppressRelease();
