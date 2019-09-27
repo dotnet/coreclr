@@ -41,15 +41,8 @@ namespace ILCompiler.DependencyAnalysis
         public ReadyToRunSymbolNodeFactory(ReadyToRunCodegenNodeFactory codegenNodeFactory)
         {
             _codegenNodeFactory = codegenNodeFactory;
-            CreateSymbolNodeCaches();
-        }
 
-        private SignatureContext GetSignatureContext()
-        {
-            return _codegenNodeFactory.InputModuleContext;
-        }
-        private void CreateSymbolNodeCaches()
-        {
+            // Node caches
             _importStrings = new NodeCache<ModuleToken, ISymbolNode>(key =>
             {
                 return new StringImport(_codegenNodeFactory.StringImports, key, GetSignatureContext());
@@ -59,7 +52,7 @@ namespace ILCompiler.DependencyAnalysis
 
             _fieldAddressCache = new NodeCache<FieldDesc, ISymbolNode>(fieldDesc =>
             {
-                
+
                 return new DelayLoadHelperImport(
                     _codegenNodeFactory,
                     _codegenNodeFactory.HelperImports,
@@ -147,14 +140,19 @@ namespace ILCompiler.DependencyAnalysis
             });
         }
 
-        private NodeCache<ModuleToken, ISymbolNode> _importStrings;
+        private SignatureContext GetSignatureContext()
+        {
+            return _codegenNodeFactory.InputModuleContext;
+        }
+
+        private readonly NodeCache<ModuleToken, ISymbolNode> _importStrings;
 
         public ISymbolNode StringLiteral(ModuleToken token, SignatureContext signatureContext)
         {
             return _importStrings.GetOrAdd(token);
         }
 
-        private NodeCache<Tuple<ReadyToRunHelperId, object>, ISymbolNode> _r2rHelpers;
+        private readonly NodeCache<Tuple<ReadyToRunHelperId, object>, ISymbolNode> _r2rHelpers;
 
         public ISymbolNode CreateReadyToRunHelper(Tuple<ReadyToRunHelperId, object> tuple)
         {
@@ -343,28 +341,28 @@ namespace ILCompiler.DependencyAnalysis
                     signatureContext));
         }
 
-        private NodeCache<FieldDesc, ISymbolNode> _fieldAddressCache;
+        private readonly NodeCache<FieldDesc, ISymbolNode> _fieldAddressCache;
 
         public ISymbolNode FieldAddress(FieldDesc fieldDesc, SignatureContext signatureContext)
         {
             return _fieldAddressCache.GetOrAdd(fieldDesc);
         }
 
-        private NodeCache<FieldDesc, ISymbolNode> _fieldOffsetCache;
+        private readonly NodeCache<FieldDesc, ISymbolNode> _fieldOffsetCache;
 
         public ISymbolNode FieldOffset(FieldDesc fieldDesc, SignatureContext signatureContext)
         {
             return _fieldOffsetCache.GetOrAdd(fieldDesc);
         }
 
-        private NodeCache<TypeDesc, ISymbolNode> _fieldBaseOffsetCache;
+        private readonly NodeCache<TypeDesc, ISymbolNode> _fieldBaseOffsetCache;
 
         public ISymbolNode FieldBaseOffset(TypeDesc typeDesc, SignatureContext signatureContext)
         {
             return _fieldBaseOffsetCache.GetOrAdd(typeDesc);
         }
 
-        private NodeCache<MethodAndCallSite, ISymbolNode> _interfaceDispatchCells = new NodeCache<MethodAndCallSite, ISymbolNode>();
+        private readonly NodeCache<MethodAndCallSite, ISymbolNode> _interfaceDispatchCells = new NodeCache<MethodAndCallSite, ISymbolNode>();
 
         public ISymbolNode InterfaceDispatchCell(MethodWithToken method, SignatureContext signatureContext, bool isUnboxingStub, string callSite)
         {
@@ -372,7 +370,7 @@ namespace ILCompiler.DependencyAnalysis
             return _interfaceDispatchCells.GetOrAdd(cellKey);
         }
 
-        private NodeCache<TypeAndMethod, ISymbolNode> _delegateCtors = new NodeCache<TypeAndMethod, ISymbolNode>();
+        private readonly NodeCache<TypeAndMethod, ISymbolNode> _delegateCtors = new NodeCache<TypeAndMethod, ISymbolNode>();
 
         public ISymbolNode DelegateCtor(TypeDesc delegateType, MethodWithToken method, SignatureContext signatureContext)
         {
@@ -461,7 +459,7 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private NodeCache<GenericLookupKey, ISymbolNode> _genericLookupHelpers;
+        private readonly NodeCache<GenericLookupKey, ISymbolNode> _genericLookupHelpers;
 
         public ISymbolNode GenericLookupHelper(
             CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind,
@@ -580,7 +578,7 @@ namespace ILCompiler.DependencyAnalysis
             return _genericLookupHelpers.GetOrAdd(key);
         }
 
-        private NodeCache<MethodWithToken, ISymbolNode> _indirectPInvokeTargetNodes = new NodeCache<MethodWithToken, ISymbolNode>();
+        private readonly NodeCache<MethodWithToken, ISymbolNode> _indirectPInvokeTargetNodes = new NodeCache<MethodWithToken, ISymbolNode>();
 
         public ISymbolNode GetIndirectPInvokeTargetNode(MethodWithToken methodWithToken, SignatureContext signatureContext)
         {

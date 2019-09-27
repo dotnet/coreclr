@@ -162,7 +162,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 canonField = _typeSystemContext.GetFieldForInstantiatedType(field.GetTypicalFieldDefinition(), (InstantiatedType)owningCanonType);
             }
 
-            _fieldToRefTokens.TryAdd(canonField, token);
+            _fieldToRefTokens[canonField] = token;
 
             switch (token.TokenType)
             {
@@ -198,7 +198,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 // Don't store typespec tokens where a generic parameter resolves to the type in question
                 if (token.TokenType == CorTokenType.mdtTypeDef || token.TokenType == CorTokenType.mdtTypeRef)
                 {
-                    _typeToRefTokens.TryAdd(ecmaType, token);
+                    _typeToRefTokens[ecmaType] = token;
                 }
             }
             else if (!specialTypeFound)
