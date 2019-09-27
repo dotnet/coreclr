@@ -1352,11 +1352,12 @@ void* interceptor_ICJI::getTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfo
 
 bool interceptor_ICJI::getTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_CONTEXT_HANDLE hContext,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult)
 {
-    return original_ICorJitInfo->getTailCallHelpers(hTarget, callSiteSig, flags, pResult);
+    return original_ICorJitInfo->getTailCallHelpers(hTarget, hContext, callSiteSig, flags, pResult);
 }
 
 // Stuff directly on ICorJitInfo

@@ -821,12 +821,14 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             &emptyCtx,
             &sl);
 
+#ifndef CROSSGEN_COMPILE
+    JitILStub(pCallTargetMD);
+#endif
+
+
 #ifdef _DEBUG
-    StackSString ilStub;
-    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-    StackScratchBuffer ssb;
     LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: CallTarget IL created\n"));
-    LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
+    sl.LogILStub(CORJIT_FLAGS());
 #endif
 
     return pCallTargetMD;

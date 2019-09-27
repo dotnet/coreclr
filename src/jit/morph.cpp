@@ -7329,9 +7329,10 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
         {
             // Make sure we can get the helpers. We do this last as the runtime
             // will likely be required to generate these.
-            CORINFO_METHOD_HANDLE targetMethHnd = call->callInfo->hMethod;
-            CORINFO_SIG_INFO*     callSiteSig   = &call->callInfo->sig;
-            unsigned              flags         = 0;
+            CORINFO_METHOD_HANDLE  targetMethHnd = call->callInfo->hMethod;
+            CORINFO_CONTEXT_HANDLE contextHnd    = call->callInfo->contextHandle;
+            CORINFO_SIG_INFO*      callSiteSig   = &call->callInfo->sig;
+            unsigned               flags         = 0;
             if ((call->callInfo->kind == CORINFO_VIRTUALCALL_VTABLE) ||
                 (call->callInfo->kind == CORINFO_VIRTUALCALL_STUB) ||
                 (call->callInfo->kind == CORINFO_VIRTUALCALL_LDVIRTFTN))
@@ -7339,7 +7340,7 @@ GenTree* Compiler::fgMorphPotentialTailCall(GenTreeCall* call)
                 flags |= CORINFO_TAILCALL_IS_CALLVIRT;
             }
 
-            if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, callSiteSig,
+            if (!info.compCompHnd->getTailCallHelpers(targetMethHnd, contextHnd, callSiteSig,
                                                       (CORINFO_GET_TAILCALL_HELPERS_FLAGS)flags, &tailCallHelpers))
             {
                 failTailCall("Tail call help not available");

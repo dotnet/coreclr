@@ -3267,6 +3267,9 @@ public:
         // Target method being called. Can be null if this is calli.
         CORINFO_METHOD_HANDLE hTarget,
 
+        // Context of the call. Can be null.
+        CORINFO_CONTEXT_HANDLE hContext,
+
         // Call site signature. Necessary for calli and varargs.
         CORINFO_SIG_INFO* callSiteSig,
 

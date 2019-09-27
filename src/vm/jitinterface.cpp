@@ -13947,6 +13947,7 @@ void* CEEInfo::getTailCallCopyArgsThunk(CORINFO_SIG_INFO       *pSig,
 
 bool CEEInfo::getTailCallHelpers(
     CORINFO_METHOD_HANDLE hTarget,
+    CORINFO_CONTEXT_HANDLE hContext,
     CORINFO_SIG_INFO* callSiteSig,
     CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
     CORINFO_TAILCALL_HELPERS* pResult)
@@ -13959,13 +13960,38 @@ bool CEEInfo::getTailCallHelpers(
 
     JIT_TO_EE_TRANSITION();
 
+    MethodDesc* pTargetMD = (MethodDesc*)hTarget;
+
+    // We do not want to request the JIT to give us back the target function
+    // pointer for methods where we would use VSD to invoke them. This is
+    // usually not problematic except for shared non-generic methods in generic
+    // interfaces. For
+    // interface IFoo<T> { void M(); }
+    // a call like
+    // tail. callvirt IFoo<Object>::M
+    // will show up here with the target MD being the function IFoo<__Canon>::M
+    // and the context being IFoo<Object>. We create the MD IFoo<Object>::M here
+    // to be able to express the call in the IL stubs created below.
+    if (pTargetMD != nullptr && !pTargetMD->HasMethodInstantiation() && pTargetMD->IsInterface())
+    {
+        TypeHandle ownerClsHnd = GetTypeFromContext(hContext);
+        MethodTable* pOwnerMT = ownerClsHnd.GetMethodTable();
+
+        pTargetMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
+            pTargetMD,
+            pOwnerMT,
+            FALSE,
+            Instantiation(),
+            FALSE,
+            TRUE);
+    }
+
     SigTypeContext typeCtx;
     GetTypeContext(&callSiteSig->sigInst, &typeCtx);
 
     MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
 
-    _ASSERTE(callSiteSig->hasTypeArg() ==
-             (hTarget != nullptr && ((MethodDesc*)hTarget)->RequiresInstArg()));
+    _ASSERTE(callSiteSig->hasTypeArg() == (pTargetMD != nullptr && pTargetMD->RequiresInstArg()));
 
     bool isCallvirt = (flags & CORINFO_TAILCALL_IS_CALLVIRT) != 0;
 
@@ -13974,7 +14000,7 @@ bool CEEInfo::getTailCallHelpers(
     bool needsTarget;
 
     TailCallHelp::CreateTailCallHelperStubs(
-        m_pMethodBeingCompiled, (MethodDesc*)hTarget,
+        m_pMethodBeingCompiled, pTargetMD,
         msig, isCallvirt,
         &pStoreArgsMD, &needsTarget,
         &pCallTargetMD);

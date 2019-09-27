@@ -1949,16 +1949,17 @@ void* interceptor_ICJI::getTailCallCopyArgsThunk(CORINFO_SIG_INFO* pSig, CorInfo
 
 bool interceptor_ICJI::getTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_CONTEXT_HANDLE hContext,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult)
 {
     mc->cr->AddCall("getTailCallHelpers");
-    bool result = original_ICorJitInfo->getTailCallHelpers(hTarget, callSiteSig, flags, pResult);
+    bool result = original_ICorJitInfo->getTailCallHelpers(hTarget, hContext, callSiteSig, flags, pResult);
     if (result)
-        mc->recGetTailCallHelpers(hTarget, callSiteSig, flags, pResult);
+        mc->recGetTailCallHelpers(hTarget, hContext, callSiteSig, flags, pResult);
     else
-        mc->recGetTailCallHelpers(hTarget, callSiteSig, flags, nullptr);
+        mc->recGetTailCallHelpers(hTarget, hContext, callSiteSig, flags, nullptr);
     return result;
 }
 

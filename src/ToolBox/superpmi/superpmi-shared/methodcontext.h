@@ -446,6 +446,7 @@ public:
     struct Agnostic_GetTailCallHelpers
     {
         DWORDLONG hTarget;
+        DWORDLONG hContext;
         Agnostic_CORINFO_SIG_INFO callSiteSig;
         DWORD flags;
     };
@@ -1306,12 +1307,14 @@ public:
 
     void recGetTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_CONTEXT_HANDLE hContext,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult);
     void dmpGetTailCallHelpers(const Agnostic_GetTailCallHelpers& key, const Agnostic_CORINFO_TAILCALL_HELPERS& value);
     bool repGetTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_CONTEXT_HANDLE hContext,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult);

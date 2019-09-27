@@ -362,6 +362,7 @@ public:
 
     virtual bool getTailCallHelpers(
         CORINFO_METHOD_HANDLE hTarget,
+        CORINFO_CONTEXT_HANDLE hContext,
         CORINFO_SIG_INFO* callSiteSig,
         CORINFO_GET_TAILCALL_HELPERS_FLAGS flags,
         CORINFO_TAILCALL_HELPERS* pResult);

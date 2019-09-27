@@ -324,7 +324,7 @@ FUNCTIONS
     CORINFO_METHOD_HANDLE GetDelegateCtor(CORINFO_METHOD_HANDLE  methHnd, CORINFO_CLASS_HANDLE   clsHnd, CORINFO_METHOD_HANDLE  targetMethodHnd, DelegateCtorArgs *     pCtorData);
     void MethodCompileComplete(CORINFO_METHOD_HANDLE methHnd);
     void* getTailCallCopyArgsThunk (CORINFO_SIG_INFO       *pSig, CorInfoHelperTailCallSpecialHandling flags);
-    bool getTailCallHelpers(CORINFO_METHOD_HANDLE hTarget, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, CORINFO_TAILCALL_HELPERS* pResult);
+    bool getTailCallHelpers(CORINFO_METHOD_HANDLE hTarget, CORINFO_CONTEXT_HANDLE hContext, CORINFO_SIG_INFO* callSiteSig, CORINFO_GET_TAILCALL_HELPERS_FLAGS flags, CORINFO_TAILCALL_HELPERS* pResult);
     bool convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool mustConvert);
     [ManualNativeWrapper] IEEMemoryManager* getMemoryManager();
     void allocMem(        ULONG               hotCodeSize,    ULONG               coldCodeSize,     ULONG               roDataSize,             ULONG               xcptnsCount,            CorJitAllocMemFlag  flag,        void**             hotCodeBlock,           void**             coldCodeBlock,          void**             roDataBlock             );
