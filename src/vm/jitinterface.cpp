@@ -13958,68 +13958,75 @@ bool CEEInfo::getTailCallHelpers(
         MODE_PREEMPTIVE;
     } CONTRACTL_END;
 
+    bool success = false;
+
     JIT_TO_EE_TRANSITION();
 
     MethodDesc* pTargetMD = (MethodDesc*)hTarget;
-
-    // We do not want to request the JIT to give us back the target function
-    // pointer for methods where we would use VSD to invoke them. This is
-    // usually not problematic except for shared non-generic methods in generic
-    // interfaces. For
-    // interface IFoo<T> { void M(); }
-    // a call like
-    // tail. callvirt IFoo<Object>::M
-    // will show up here with the target MD being the function IFoo<__Canon>::M
-    // and the context being IFoo<Object>. We create the MD IFoo<Object>::M here
-    // to be able to express the call in the IL stubs created below.
-    if (pTargetMD != nullptr && !pTargetMD->HasMethodInstantiation() &&
-        pTargetMD->IsInterface() && pTargetMD->IsAbstract())
+    // We currently do not handle generating the proper call to managed varargs
+    // method.
+    if (!pTargetMD->IsVarArg())
     {
-        TypeHandle ownerClsHnd = GetTypeFromContext(hContext);
-        MethodTable* pOwnerMT = ownerClsHnd.GetMethodTable();
+        // We do not want to request the JIT to give us back the target function
+        // pointer for methods where we would use VSD to invoke them. This is
+        // usually not problematic except for shared non-generic methods in generic
+        // interfaces. For
+        // interface IFoo<T> { void M(); }
+        // a call like
+        // tail. callvirt IFoo<Object>::M
+        // will show up here with the target MD being the function IFoo<__Canon>::M
+        // and the context being IFoo<Object>. We create the MD IFoo<Object>::M here
+        // to be able to express the call in the IL stubs created below.
+        if (pTargetMD != nullptr && !pTargetMD->HasMethodInstantiation() &&
+            pTargetMD->IsInterface() && pTargetMD->IsAbstract())
+        {
+            TypeHandle ownerClsHnd = GetTypeFromContext(hContext);
+            MethodTable* pOwnerMT = ownerClsHnd.GetMethodTable();
 
-        pTargetMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
-            pTargetMD,
-            pOwnerMT,
-            FALSE,
-            Instantiation(),
-            FALSE,
-            TRUE);
+            pTargetMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                pTargetMD,
+                pOwnerMT,
+                FALSE,
+                Instantiation(),
+                FALSE,
+                TRUE);
+        }
+
+        SigTypeContext typeCtx;
+        GetTypeContext(&callSiteSig->sigInst, &typeCtx);
+
+        MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
+
+        _ASSERTE(callSiteSig->hasTypeArg() == (pTargetMD != nullptr && pTargetMD->RequiresInstArg()));
+
+        bool isCallvirt = (flags & CORINFO_TAILCALL_IS_CALLVIRT) != 0;
+
+        MethodDesc* pStoreArgsMD;
+        MethodDesc* pCallTargetMD;
+        bool needsTarget;
+
+        TailCallHelp::CreateTailCallHelperStubs(
+            m_pMethodBeingCompiled, pTargetMD,
+            msig, isCallvirt,
+            &pStoreArgsMD, &needsTarget,
+            &pCallTargetMD);
+
+        unsigned outFlags = 0;
+        if (needsTarget)
+        {
+            outFlags |= CORINFO_TAILCALL_STORE_TARGET;
+        }
+
+        pResult->flags = (CORINFO_TAILCALL_HELPERS_FLAGS)outFlags;
+        pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
+        pResult->hCallTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
+        pResult->hDispatcher = (CORINFO_METHOD_HANDLE)TailCallHelp::GetOrCreateTailCallDispatcherMD();
+        success = true;
     }
-
-    SigTypeContext typeCtx;
-    GetTypeContext(&callSiteSig->sigInst, &typeCtx);
-
-    MetaSig msig(callSiteSig->pSig, callSiteSig->cbSig, GetModule(callSiteSig->scope), &typeCtx);
-
-    _ASSERTE(callSiteSig->hasTypeArg() == (pTargetMD != nullptr && pTargetMD->RequiresInstArg()));
-
-    bool isCallvirt = (flags & CORINFO_TAILCALL_IS_CALLVIRT) != 0;
-
-    MethodDesc* pStoreArgsMD;
-    MethodDesc* pCallTargetMD;
-    bool needsTarget;
-
-    TailCallHelp::CreateTailCallHelperStubs(
-        m_pMethodBeingCompiled, pTargetMD,
-        msig, isCallvirt,
-        &pStoreArgsMD, &needsTarget,
-        &pCallTargetMD);
-
-    unsigned outFlags = 0;
-    if (needsTarget)
-    {
-        outFlags |= CORINFO_TAILCALL_STORE_TARGET;
-    }
-
-    pResult->flags = (CORINFO_TAILCALL_HELPERS_FLAGS)outFlags;
-    pResult->hStoreArgs = (CORINFO_METHOD_HANDLE)pStoreArgsMD;
-    pResult->hCallTarget = (CORINFO_METHOD_HANDLE)pCallTargetMD;
-    pResult->hDispatcher = (CORINFO_METHOD_HANDLE)TailCallHelp::GetOrCreateTailCallDispatcherMD();
 
     EE_TO_JIT_TRANSITION();
 
-    return true;
+    return success;
 }
 
 bool CEEInfo::convertPInvokeCalliToCall(CORINFO_RESOLVED_TOKEN * pResolvedToken, bool fMustConvert)
