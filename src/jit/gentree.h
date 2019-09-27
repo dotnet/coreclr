@@ -3317,6 +3317,7 @@ struct GenTreeCall final : public GenTree
     public:
         Use(GenTree* node, Use* next = nullptr) : m_node(node), m_next(next)
         {
+            assert(node != nullptr);
         }
 
         GenTree*& NodeRef()
@@ -3326,6 +3327,7 @@ struct GenTreeCall final : public GenTree
 
         GenTree* GetNode() const
         {
+            assert(m_node != nullptr);
             return m_node;
         }
 
