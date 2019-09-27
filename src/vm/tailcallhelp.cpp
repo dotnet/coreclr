@@ -306,11 +306,8 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
             &sl);
 
 #ifdef _DEBUG
-    StackSString ilStub;
-    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-    StackScratchBuffer ssb;
     LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: DispatchTailCalls IL created\n"));
-    LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
+    sl.LogILStub(CORJIT_FLAGS());
 #endif
 
     // We might waste a MethodDesc here if we lose the race, but that is very
@@ -604,11 +601,8 @@ MethodDesc* TailCallHelp::CreateStoreArgsStub(TailCallInfo& info)
             &sl);
 
 #ifdef _DEBUG
-    StackSString ilStub;
-    sl.LogILStub(CORJIT_FLAGS(), &ilStub);
-    StackScratchBuffer ssb;
     LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: StoreArgs IL created\n"));
-    LOG((LF_STUBS, LL_INFO1000, "%s\n\n", ilStub.GetUTF8(ssb)));
+    sl.LogILStub(CORJIT_FLAGS());
 #endif
 
     return pStoreArgsMD;
@@ -820,11 +814,6 @@ MethodDesc* TailCallHelp::CreateCallTargetStub(const TailCallInfo& info)
             pSig, cbSig,
             &emptyCtx,
             &sl);
-
-#ifndef CROSSGEN_COMPILE
-    JitILStub(pCallTargetMD);
-#endif
-
 
 #ifdef _DEBUG
     LOG((LF_STUBS, LL_INFO1000, "TAILCALLHELP: CallTarget IL created\n"));
