@@ -205,32 +205,6 @@ void CodeGen::genEmitGSCookieCheck(bool pushReg)
         regGSCheck     = REG_EAX;
         regMaskGSCheck = RBM_EAX;
 #else  // !_TARGET_X86_
-        // Tail calls from methods that need GS check:  We need to preserve registers while
-        // emitting GS cookie check for a tail prefixed call or a jmp. To emit GS cookie
-        // check, we might need a register. This won't be an issue for jmp calls for the
-        // reason mentioned below (see comment starting with "Jmp Calls:").
-        //
-        // The following are the possible solutions in case of tail prefixed calls:
-        // 1) Use R11 - ignore tail prefix on calls that need to pass a param in R11 when
-        //    present in methods that require GS cookie check.  Rest of the tail calls that
-        //    do not require R11 will be honored.
-        // 2) Internal register - GT_CALL node reserves an internal register and emits GS
-        //    cookie check as part of tail call codegen. GenExitCode() needs to special case
-        //    fast tail calls implemented as epilog+jmp or such tail calls should always get
-        //    dispatched via helper.
-        // 3) Materialize GS cookie check as a separate node hanging off GT_CALL node in
-        //    right execution order during rationalization.
-        //
-        // There are two calls that use R11: VSD and calli pinvokes with cookie param. Tail
-        // prefix on pinvokes is ignored.  That is, options 2 and 3 will allow tail prefixed
-        // VSD calls from methods that need GS check.
-        //
-        // Tail prefixed calls: Right now for Jit64 compat, method requiring GS cookie check
-        // ignores tail prefix.  In future, if we intend to support tail calls from such a method,
-        // consider one of the options mentioned above.  For now adding an assert that we don't
-        // expect to see a tail call in a method that requires GS check.
-        noway_assert(!compiler->compTailCallUsed);
-
         // Jmp calls: specify method handle using which JIT queries VM for its entry point
         // address and hence it can neither be a VSD call nor PInvoke calli with cookie
         // parameter.  Therefore, in case of jmp calls it is safe to use R11.
