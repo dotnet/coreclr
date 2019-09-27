@@ -1,6 +1,5 @@
 
 if (WIN32)
-  # asm files require preprocessing using cl.exe on arm32 and arm64
   if(CLR_CMAKE_PLATFORM_ARCH_ARM OR CLR_CMAKE_PLATFORM_ARCH_ARM64)
     preprocess_compile_asm(ASM_FILES ${VM_SOURCES_WKS_ARCH_ASM} OUTPUT_OBJECTS VM_WKS_ARCH_ASM_OBJECTS)
     list(APPEND VM_SOURCES_WKS_ARCH_ASM ${VM_WKS_ARCH_ASM_OBJECTS})
