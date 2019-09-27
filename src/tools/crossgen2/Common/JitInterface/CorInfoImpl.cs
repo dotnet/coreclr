@@ -710,11 +710,6 @@ namespace Internal.JitInterface
             return (uint)result;
         }
 
-        private uint getMethodAttribs(CORINFO_METHOD_STRUCT_* ftn)
-        {
-            return getMethodAttribsInternal(HandleToObject(ftn));
-        }
-
         private void setMethodAttribs(CORINFO_METHOD_STRUCT_* ftn, CorInfoMethodRuntimeFlags attribs)
         {
             // TODO: Inlining

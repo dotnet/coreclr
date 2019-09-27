@@ -155,7 +155,7 @@ namespace Internal.JitInterface
             {
                 return true;
             }
-            if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method) && HardwareIntrinsicHelpers.IsIsSupportedMethod(method))
+            if (HardwareIntrinsicHelpers.IsHardwareIntrinsic(method))
             {
                 return true;
             }
@@ -1152,6 +1152,14 @@ namespace Internal.JitInterface
 
             pResult->methodFlags = getMethodAttribsInternal(methodToDescribe);
             Get_CORINFO_SIG_INFO(methodToDescribe, &pResult->sig, useInstantiatingStub);
+        }
+
+        private uint getMethodAttribs(CORINFO_METHOD_STRUCT_* ftn)
+        {
+            MethodDesc method = HandleToObject(ftn);
+            uint attribs = getMethodAttribsInternal(method);
+            attribs = FilterNamedIntrinsicMethodAttribs(attribs, method);
+            return attribs;
         }
 
         private uint FilterNamedIntrinsicMethodAttribs(uint attribs, MethodDesc method)
