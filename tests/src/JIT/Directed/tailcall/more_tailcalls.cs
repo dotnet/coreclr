@@ -119,6 +119,8 @@ internal class Program
         GenInstance<string, int> g = new GenInstance<string, int>();
         IGenInterface<string, int> ig = new GenInterfaceImpl<string, int>();
         IGenInterface<string, object> ig2 = new GenInterfaceImpl<string, object>();
+        GenAbstractImpl<string> ga1 = new GenAbstractImpl<string>();
+        GenAbstractImpl<int> ga2 = new GenAbstractImpl<int>();
 
         long expectedI8 = (long)(((ulong)(uint)expected << 32) | (uint)expected);
         S16 expectedS16 = new S16 { A = expected, B = expected, };
@@ -163,6 +165,12 @@ internal class Program
             "System.String System.Int32 System.String System.Object a 5 c d", "Interface generic 4");
         Test(() => GenInterfaceForwardNone("a", "b", 5, "d", ig2),
              "System.String System.Object System.Int32 System.Object a b 5 d", "Interface generic 0");
+        Test(() => GenInterfaceForward2("a", "b", ig2),
+             "System.String System.Object a b", "Interface generic without generics on method");
+        Test(() => GenAbstractFString(ga1), "System.String System.Object", "Abstract generic with generic on method 1");
+        Test(() => GenAbstractFInt(ga2), "System.Int32 System.Object", "Abstract generic with generic on method 2");
+        Test(() => GenAbstractGString(ga1), "System.String", "Abstract generic without generic on method 1");
+        Test(() => GenAbstractGInt(ga2), "System.Int32", "Abstract generic without generic on method 2");
 
         if (result)
             Console.WriteLine("All tailcall-via-help succeeded");
@@ -574,6 +582,54 @@ internal class Program
         IL.Push(d);
         IL.Emit.Tail();
         IL.Emit.Callvirt(new MethodRef(typeof(IGenInterface<string, object>), nameof(IGenInterface<string, object>.F)).MakeGenericMethod(typeof(int), typeof(object)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string GenInterfaceForward2(string a, object b, IGenInterface<string, object> igen)
+    {
+        IL.Push(igen);
+        IL.Push(new S32());
+        IL.Push(a);
+        IL.Push(b);
+        IL.Emit.Tail();
+        IL.Emit.Callvirt(new MethodRef(typeof(IGenInterface<string, object>), nameof(IGenInterface<string, object>.G)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string GenAbstractFString(GenAbstract<string> ga)
+    {
+        IL.Push(ga);
+        IL.Emit.Tail();
+        IL.Emit.Callvirt(new MethodRef(typeof(GenAbstract<string>), nameof(GenAbstract<string>.F)).MakeGenericMethod(typeof(object)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string GenAbstractGString(GenAbstract<string> ga)
+    {
+        IL.Push(ga);
+        IL.Emit.Tail();
+        IL.Emit.Callvirt(new MethodRef(typeof(GenAbstract<string>), nameof(GenAbstract<string>.G)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string GenAbstractFInt(GenAbstract<int> ga)
+    {
+        IL.Push(ga);
+        IL.Emit.Tail();
+        IL.Emit.Callvirt(new MethodRef(typeof(GenAbstract<int>), nameof(GenAbstract<int>.F)).MakeGenericMethod(typeof(object)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string GenAbstractGInt(GenAbstract<int> ga)
+    {
+        IL.Push(ga);
+        IL.Emit.Tail();
+        IL.Emit.Callvirt(new MethodRef(typeof(GenAbstract<int>), nameof(GenAbstract<int>.G)));
         return IL.Return<string>();
     }
 }
@@ -1015,11 +1071,30 @@ class GenInstance<T1, T2>
 
 interface IGenInterface<T1, T2>
 {
-    public string F<T3, T4>(S32 s, T1 a, T2 b, T3 c, T4 d);
+    string F<T3, T4>(S32 s, T1 a, T2 b, T3 c, T4 d);
+    string G(S32 s, T1 a, T2 b);
 }
 
 class GenInterfaceImpl<T1, T2> : IGenInterface<T1, T2>
 {
     public string F<T3, T4>(S32 s, T1 a, T2 b, T3 c, T4 d)
         => $"{typeof(T1).FullName} {typeof(T2).FullName} {typeof(T3).FullName} {typeof(T4).FullName} {a} {b} {c} {d}";
+
+    public string G(S32 s, T1 a, T2 b)
+        => $"{typeof(T1).FullName} {typeof(T2).FullName} {a} {b}";
+}
+
+abstract class GenAbstract<T1>
+{
+    public abstract string F<T2>();
+    public abstract string G();
+}
+
+class GenAbstractImpl<T1> : GenAbstract<T1>
+{
+    public override string F<T2>()
+        => $"{typeof(T1).FullName} {typeof(T2).FullName}";
+
+    public override string G()
+        => $"{typeof(T1).FullName}";
 }
