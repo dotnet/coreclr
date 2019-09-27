@@ -1618,4 +1618,212 @@ namespace Internal.TypeSystem.Interop
             codeStream.EmitLabel(lNullCheck);
         }
     }
+
+    class SafeHandleMarshaller : Marshaller
+    {
+        private void AllocSafeHandle(ILCodeStream codeStream)
+        {
+            var ctor = ManagedType.GetParameterlessConstructor();
+            if (ctor == null)
+            {
+                var emitter = _ilCodeStreams.Emitter;
+
+                MethodSignature ctorSignature = new MethodSignature(0, 0, Context.GetWellKnownType(WellKnownType.Void),
+                      new TypeDesc[] {
+#if !READYTORUN
+                          Context.GetWellKnownType(WellKnownType.String)
+#endif
+                      });
+                MethodDesc exceptionCtor = InteropTypes.GetMissingMemberException(Context).GetKnownMethod(".ctor", ctorSignature);
+
+#if !READYTORUN // In ReadyToRun we cannot make new string literals out of thin air
+                string name = ((MetadataType)ManagedType).Name;
+                codeStream.Emit(ILOpcode.ldstr, emitter.NewToken(String.Format("'{0}' does not have a default constructor. Subclasses of SafeHandle must have a default constructor to support marshaling a Windows HANDLE into managed code.", name)));
+#endif
+                codeStream.Emit(ILOpcode.newobj, emitter.NewToken(exceptionCtor));
+                codeStream.Emit(ILOpcode.throw_);
+                
+                // This is unreachable, but it maintains invariants about stack height prescribed by ECMA-335
+                codeStream.Emit(ILOpcode.ldnull);
+                return;
+            }
+
+            codeStream.Emit(ILOpcode.newobj, _ilCodeStreams.Emitter.NewToken(ctor));
+        }
+
+        protected override void EmitMarshalReturnValueManagedToNative()
+        {
+            ILEmitter emitter = _ilCodeStreams.Emitter;
+            ILCodeStream marshallingCodeStream = _ilCodeStreams.MarshallingCodeStream;
+            ILCodeStream returnValueMarshallingCodeStream = _ilCodeStreams.ReturnValueMarshallingCodeStream;
+
+            SetupArgumentsForReturnValueMarshalling();
+
+            AllocSafeHandle(marshallingCodeStream);
+            StoreManagedValue(marshallingCodeStream);
+
+            StoreNativeValue(returnValueMarshallingCodeStream);
+
+            LoadManagedValue(returnValueMarshallingCodeStream);
+            LoadNativeValue(returnValueMarshallingCodeStream);
+            returnValueMarshallingCodeStream.Emit(ILOpcode.call, emitter.NewToken(
+               InteropTypes.GetSafeHandle(Context).GetKnownMethod("SetHandle", null)));
+        }
+
+        protected override void EmitMarshalArgumentManagedToNative()
+        {
+            ILEmitter emitter = _ilCodeStreams.Emitter;
+            ILCodeStream marshallingCodeStream = _ilCodeStreams.MarshallingCodeStream;
+            ILCodeStream callsiteCodeStream = _ilCodeStreams.CallsiteSetupCodeStream;
+            ILCodeStream unmarshallingCodeStream = _ilCodeStreams.UnmarshallingCodestream;
+
+            SetupArguments();
+
+            if (IsManagedByRef && In)
+            {
+                PropagateFromByRefArg(marshallingCodeStream, _managedHome);
+            }
+
+            var safeHandleType = InteropTypes.GetSafeHandle(Context);
+
+            if (In)
+            {
+                if (IsManagedByRef)
+                    PropagateFromByRefArg(marshallingCodeStream, _managedHome);
+
+                var vAddRefed = emitter.NewLocal(Context.GetWellKnownType(WellKnownType.Boolean));
+                LoadManagedValue(marshallingCodeStream);
+                marshallingCodeStream.EmitLdLoca(vAddRefed);
+                marshallingCodeStream.Emit(ILOpcode.call, emitter.NewToken(
+                    safeHandleType.GetKnownMethod("DangerousAddRef",
+                        new MethodSignature(0, 0, Context.GetWellKnownType(WellKnownType.Void),
+                            new TypeDesc[] { Context.GetWellKnownType(WellKnownType.Boolean).MakeByRefType() }))));
+
+                LoadManagedValue(marshallingCodeStream);
+                marshallingCodeStream.Emit(ILOpcode.call, emitter.NewToken(
+                    safeHandleType.GetKnownMethod("DangerousGetHandle",
+                        new MethodSignature(0, 0, Context.GetWellKnownType(WellKnownType.IntPtr), TypeDesc.EmptyTypes))));
+                StoreNativeValue(marshallingCodeStream);
+
+                // TODO: This should be inside finally block and only executed if the handle was addrefed
+                // https://github.com/dotnet/corert/issues/6075
+                LoadManagedValue(unmarshallingCodeStream);
+                unmarshallingCodeStream.Emit(ILOpcode.call, emitter.NewToken(
+                    safeHandleType.GetKnownMethod("DangerousRelease",
+                        new MethodSignature(0, 0, Context.GetWellKnownType(WellKnownType.Void), TypeDesc.EmptyTypes))));
+            }
+
+            if (Out && IsManagedByRef)
+            {
+                // 1) If this is an output parameter we need to preallocate a SafeHandle to wrap the new native handle value. We
+                //    must allocate this before the native call to avoid a failure point when we already have a native resource
+                //    allocated. We must allocate a new SafeHandle even if we have one on input since both input and output native
+                //    handles need to be tracked and released by a SafeHandle.
+                // 2) Initialize a local IntPtr that will be passed to the native call. 
+                // 3) After the native call, the new handle value is written into the output SafeHandle and that SafeHandle
+                //    is propagated back to the caller.
+                var vSafeHandle = emitter.NewLocal(ManagedType);
+                AllocSafeHandle(marshallingCodeStream);
+                marshallingCodeStream.EmitStLoc(vSafeHandle);
+
+                var lSkipPropagation = emitter.NewCodeLabel();
+                if (In)
+                {
+                    // Propagate the value only if it has changed
+                    ILLocalVariable vOriginalValue = emitter.NewLocal(NativeType);
+                    LoadNativeValue(marshallingCodeStream);
+                    marshallingCodeStream.EmitStLoc(vOriginalValue);
+
+                    unmarshallingCodeStream.EmitLdLoc(vOriginalValue);
+                    LoadNativeValue(unmarshallingCodeStream);
+                    unmarshallingCodeStream.Emit(ILOpcode.beq, lSkipPropagation);
+                }
+
+                unmarshallingCodeStream.EmitLdLoc(vSafeHandle);
+                LoadNativeValue(unmarshallingCodeStream);
+                unmarshallingCodeStream.Emit(ILOpcode.call, emitter.NewToken(
+                    safeHandleType.GetKnownMethod("SetHandle",
+                        new MethodSignature(0, 0, Context.GetWellKnownType(WellKnownType.Void),
+                            new TypeDesc[] { Context.GetWellKnownType(WellKnownType.IntPtr) }))));
+
+                unmarshallingCodeStream.EmitLdArg(Index - 1);
+                unmarshallingCodeStream.EmitLdLoc(vSafeHandle);
+                unmarshallingCodeStream.EmitStInd(ManagedType);
+
+                unmarshallingCodeStream.EmitLabel(lSkipPropagation);
+            }
+
+            LoadNativeArg(callsiteCodeStream);
+        }
+
+        protected override void EmitMarshalArgumentNativeToManaged()
+        {
+            throw new NotSupportedException();
+        }
+
+        protected override void EmitMarshalElementNativeToManaged()
+        {
+            throw new NotSupportedException();
+        }
+
+        protected override void EmitMarshalElementManagedToNative()
+        {
+            throw new NotSupportedException();
+        }
+
+        protected override void EmitMarshalFieldManagedToNative()
+        {
+            throw new NotSupportedException();
+        }
+
+        protected override void EmitMarshalFieldNativeToManaged()
+        {
+            throw new NotSupportedException();
+        }
+    }
+
+    class DelegateMarshaller : Marshaller
+    {
+        protected override void AllocAndTransformManagedToNative(ILCodeStream codeStream)
+        {
+            LoadManagedValue(codeStream);
+
+            codeStream.Emit(ILOpcode.call, _ilCodeStreams.Emitter.NewToken(
+                InteropTypes.GetMarshal(Context).GetKnownMethod("GetFunctionPointerForDelegate",
+                new MethodSignature(MethodSignatureFlags.Static, 0, Context.GetWellKnownType(WellKnownType.IntPtr),
+                    new TypeDesc[] { Context.GetWellKnownType(WellKnownType.MulticastDelegate).BaseType }
+                ))));
+
+            StoreNativeValue(codeStream);
+        }
+
+        protected override void TransformNativeToManaged(ILCodeStream codeStream)
+        {
+            LoadNativeValue(codeStream);
+
+            TypeDesc systemType = Context.SystemModule.GetKnownType("System", "Type");
+
+            codeStream.Emit(ILOpcode.ldtoken, _ilCodeStreams.Emitter.NewToken(ManagedType));
+            codeStream.Emit(ILOpcode.call, _ilCodeStreams.Emitter.NewToken(systemType.GetKnownMethod("GetTypeFromHandle", null)));
+
+            codeStream.Emit(ILOpcode.call, _ilCodeStreams.Emitter.NewToken(
+                InteropTypes.GetMarshal(Context).GetKnownMethod("GetDelegateForFunctionPointer",
+                new MethodSignature(MethodSignatureFlags.Static, 0, Context.GetWellKnownType(WellKnownType.MulticastDelegate).BaseType,
+                    new TypeDesc[] { Context.GetWellKnownType(WellKnownType.IntPtr), systemType }
+                ))));
+
+            StoreManagedValue(codeStream);
+        }
+
+        protected override void EmitCleanupManaged(ILCodeStream codeStream)
+        {
+            if (In
+                && MarshalDirection == MarshalDirection.Forward
+                && MarshallerType == MarshallerType.Argument)
+            {
+                LoadManagedValue(codeStream);
+                codeStream.Emit(ILOpcode.call, _ilCodeStreams.Emitter.NewToken(InteropTypes.GetGC(Context).GetKnownMethod("KeepAlive", null)));
+            }
+        }
+    }
 }
