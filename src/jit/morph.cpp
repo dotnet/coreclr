@@ -819,7 +819,7 @@ void fgArgTabEntry::Dump()
     printf(", align=%u", alignment);
     if (isLateArg())
     {
-        printf(", lateArgInx=%u", lateArgInx);
+        printf(", lateArgInx=%u", GetLateArgInx());
     }
     if (isSplit)
     {
@@ -1110,28 +1110,28 @@ fgArgTabEntry* fgArgInfo::AddRegArg(unsigned          argNum,
     // may actually be less.
     curArgTabEntry->setRegNum(0, regNum);
 
-    curArgTabEntry->argNum     = argNum;
-    curArgTabEntry->node       = node;
-    curArgTabEntry->argType    = node->TypeGet();
-    curArgTabEntry->use        = use;
-    curArgTabEntry->slotNum    = 0;
-    curArgTabEntry->numRegs    = numRegs;
-    curArgTabEntry->numSlots   = 0;
-    curArgTabEntry->alignment  = alignment;
-    curArgTabEntry->lateArgInx = UINT_MAX;
-    curArgTabEntry->tmpNum     = BAD_VAR_NUM;
-    curArgTabEntry->isSplit    = false;
-    curArgTabEntry->isTmp      = false;
-    curArgTabEntry->needTmp    = false;
-    curArgTabEntry->needPlace  = false;
-    curArgTabEntry->processed  = false;
+    curArgTabEntry->argNum    = argNum;
+    curArgTabEntry->node      = node;
+    curArgTabEntry->argType   = node->TypeGet();
+    curArgTabEntry->use       = use;
+    curArgTabEntry->slotNum   = 0;
+    curArgTabEntry->numRegs   = numRegs;
+    curArgTabEntry->numSlots  = 0;
+    curArgTabEntry->alignment = alignment;
+    curArgTabEntry->SetLateArgInx(UINT_MAX);
+    curArgTabEntry->tmpNum    = BAD_VAR_NUM;
+    curArgTabEntry->isSplit   = false;
+    curArgTabEntry->isTmp     = false;
+    curArgTabEntry->needTmp   = false;
+    curArgTabEntry->needPlace = false;
+    curArgTabEntry->processed = false;
 #ifdef FEATURE_HFA
     curArgTabEntry->_hfaElemKind = HFA_ELEM_NONE;
 #endif
     curArgTabEntry->isBackFilled  = false;
     curArgTabEntry->isNonStandard = false;
     curArgTabEntry->isStruct      = isStruct;
-    curArgTabEntry->isVararg      = isVararg;
+    curArgTabEntry->SetIsVararg(isVararg);
 
     hasRegArgs = true;
     AddArg(curArgTabEntry);
@@ -1198,22 +1198,22 @@ fgArgTabEntry* fgArgInfo::AddStkArg(unsigned          argNum,
     curArgTabEntry->structIntRegs   = 0;
     curArgTabEntry->structFloatRegs = 0;
 #endif // defined(UNIX_AMD64_ABI)
-    curArgTabEntry->numSlots   = numSlots;
-    curArgTabEntry->alignment  = alignment;
-    curArgTabEntry->lateArgInx = UINT_MAX;
-    curArgTabEntry->tmpNum     = BAD_VAR_NUM;
-    curArgTabEntry->isSplit    = false;
-    curArgTabEntry->isTmp      = false;
-    curArgTabEntry->needTmp    = false;
-    curArgTabEntry->needPlace  = false;
-    curArgTabEntry->processed  = false;
+    curArgTabEntry->numSlots  = numSlots;
+    curArgTabEntry->alignment = alignment;
+    curArgTabEntry->SetLateArgInx(UINT_MAX);
+    curArgTabEntry->tmpNum    = BAD_VAR_NUM;
+    curArgTabEntry->isSplit   = false;
+    curArgTabEntry->isTmp     = false;
+    curArgTabEntry->needTmp   = false;
+    curArgTabEntry->needPlace = false;
+    curArgTabEntry->processed = false;
 #ifdef FEATURE_HFA
     curArgTabEntry->_hfaElemKind = HFA_ELEM_NONE;
 #endif
     curArgTabEntry->isBackFilled  = false;
     curArgTabEntry->isNonStandard = false;
     curArgTabEntry->isStruct      = isStruct;
-    curArgTabEntry->isVararg      = isVararg;
+    curArgTabEntry->SetIsVararg(isVararg);
 
     hasStackArgs = true;
     AddArg(curArgTabEntry);
@@ -1257,7 +1257,7 @@ void fgArgInfo::UpdateRegArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
         if (reMorphing)
         {
             // Find the arg in the late args list.
-            GenTree* argx = Compiler::gtArgNodeByLateArgInx(callTree, curArgTabEntry->lateArgInx);
+            GenTree* argx = Compiler::gtArgNodeByLateArgInx(callTree, curArgTabEntry->GetLateArgInx());
             if (curArgTabEntry->node != argx)
             {
                 curArgTabEntry->node = argx;
@@ -1301,7 +1301,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
         if (isLateArg)
         {
             GenTree* argx       = nullptr;
-            unsigned lateArgInx = curArgTabEntry->lateArgInx;
+            unsigned lateArgInx = curArgTabEntry->GetLateArgInx();
 
             // Traverse the late argument list to find this argument so that we can update it.
             unsigned listInx = 0;
@@ -1316,7 +1316,7 @@ void fgArgInfo::UpdateStkArg(fgArgTabEntry* curArgTabEntry, GenTree* node, bool 
                 listInx++;
             }
             assert(listInx == lateArgInx);
-            assert(lateArgInx == curArgTabEntry->lateArgInx);
+            assert(lateArgInx == curArgTabEntry->GetLateArgInx());
 
             if (curArgTabEntry->node != argx)
             {
@@ -2080,7 +2080,7 @@ GenTree* Compiler::fgMakeTmpArgNode(fgArgTabEntry* curArgTabEntry)
         {
             CORINFO_CLASS_HANDLE clsHnd = varDsc->lvVerTypeInfo.GetClassHandle();
             var_types            structBaseType =
-                getPrimitiveTypeForStruct(lvaLclExactSize(tmpVarNum), clsHnd, curArgTabEntry->isVararg);
+                getPrimitiveTypeForStruct(lvaLclExactSize(tmpVarNum), clsHnd, curArgTabEntry->IsVararg());
 
             if (structBaseType != TYP_UNKNOWN)
             {
@@ -2123,7 +2123,7 @@ GenTree* Compiler::fgMakeTmpArgNode(fgArgTabEntry* curArgTabEntry)
 #if FEATURE_MULTIREG_ARGS
 #ifdef _TARGET_ARM64_
             assert(varTypeIsStruct(type));
-            if (lvaIsMultiregStruct(varDsc, curArgTabEntry->isVararg))
+            if (lvaIsMultiregStruct(varDsc, curArgTabEntry->IsVararg()))
             {
                 // ToDo-ARM64: Consider using:  arg->ChangeOper(GT_LCL_FLD);
                 // as that is how UNIX_AMD64_ABI works.
@@ -2288,7 +2288,7 @@ void fgArgInfo::EvalArgsToTemps()
                             unsigned             structSize = varDsc->lvExactSize;
 
                             scalarType =
-                                compiler->getPrimitiveTypeForStruct(structSize, clsHnd, curArgTabEntry->isVararg);
+                                compiler->getPrimitiveTypeForStruct(structSize, clsHnd, curArgTabEntry->IsVararg());
                         }
 #endif // _TARGET_ARMARCH_ || defined (UNIX_AMD64_ABI)
                     }
@@ -2441,8 +2441,8 @@ void fgArgInfo::EvalArgsToTemps()
             tmpRegArgNext = tmpRegArgNext->GetNext();
         }
 
-        curArgTabEntry->node       = defArg;
-        curArgTabEntry->lateArgInx = regArgInx++;
+        curArgTabEntry->node = defArg;
+        curArgTabEntry->SetLateArgInx(regArgInx++);
     }
 
 #ifdef DEBUG
@@ -3771,7 +3771,7 @@ GenTreeCall* Compiler::fgMorphArgs(GenTreeCall* call)
         }
 
         // Get information about this argument.
-        var_types hfaType            = argEntry->hfaType;
+        var_types hfaType            = argEntry->GetHfaType();
         bool      isHfaArg           = (hfaType != TYP_UNDEF);
         bool      isHfaRegArg        = argEntry->isHfaRegArg;
         unsigned  hfaSlots           = argEntry->numRegs;
@@ -4340,7 +4340,7 @@ void Compiler::fgMorphMultiregStructArgs(GenTreeCall* call)
             {
                 if (fgEntryPtr->isHfaArg)
                 {
-                    var_types hfaType = fgEntryPtr->hfaType;
+                    var_types hfaType = fgEntryPtr->GetHfaType();
                     unsigned  structSize;
                     if (argx->OperIs(GT_OBJ))
                     {
@@ -4526,12 +4526,12 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
     unsigned  elemSize                = 0;
     var_types type[MAX_ARG_REG_COUNT] = {}; // TYP_UNDEF = 0
 
-    hfaType = fgEntryPtr->hfaType;
+    hfaType = fgEntryPtr->GetHfaType();
     if (varTypeIsValidHfaType(hfaType)
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-        && !fgEntryPtr->isVararg
+        && !fgEntryPtr->IsVararg()
 #endif // !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-        )
+            )
     {
         elemType  = hfaType;
         elemSize  = genTypeSize(elemType);
@@ -4641,9 +4641,9 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
         // This local variable must match the layout of the 'objClass' type exactly
         if (varDsc->lvIsHfa()
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-            && !fgEntryPtr->isVararg
+            && !fgEntryPtr->IsVararg()
 #endif // !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-            )
+                )
         {
             // We have a HFA struct.
             // Note that GetHfaType may not be the same as elemType, since TYP_SIMD8 is handled the same as TYP_DOUBLE.
@@ -4696,9 +4696,9 @@ GenTree* Compiler::fgMorphMultiregStructArg(GenTree* arg, fgArgTabEntry* fgEntry
         // TODO-ARM64-CQ: Support struct promoted HFA types here
         if (varDsc->lvPromoted && (varDsc->lvFieldCnt == 2) && (!varDsc->lvIsHfa()
 #if !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-                                                                && !fgEntryPtr->isVararg
+                                                                && !fgEntryPtr->IsVararg()
 #endif // !defined(_HOST_UNIX_) && defined(_TARGET_ARM64_)
-                                                                ))
+                                                                    ))
         {
             // See if we have two promoted fields that start at offset 0 and 8?
             unsigned loVarNum = lvaGetFieldLocal(varDsc, 0);

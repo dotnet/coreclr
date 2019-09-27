@@ -725,8 +725,6 @@ public:
 
     /////////////////////
 
-    __declspec(property(get = GetArgInitReg, put = SetArgInitReg)) regNumber lvArgInitReg;
-
     regNumber GetArgInitReg() const
     {
         return (regNumber)_lvArgInitReg;
@@ -1394,13 +1392,12 @@ public:
         return isLate;
     }
 
-    __declspec(property(get = getLateArgInx, put = setLateArgInx)) unsigned lateArgInx;
-    unsigned getLateArgInx()
+    unsigned GetLateArgInx()
     {
         assert(isLateArg());
         return _lateArgInx;
     }
-    void setLateArgInx(unsigned inx)
+    void SetLateArgInx(unsigned inx)
     {
         _lateArgInx = inx;
     }
@@ -1446,8 +1443,7 @@ public:
 #endif
     }
 
-    __declspec(property(get = getIsVararg, put = setIsVararg)) bool isVararg;
-    bool getIsVararg()
+    bool IsVararg()
     {
 #ifdef FEATURE_VARARG
         return _isVararg;
@@ -1455,7 +1451,7 @@ public:
         return false;
 #endif
     }
-    void setIsVararg(bool value)
+    void SetIsVararg(bool value)
     {
 #ifdef FEATURE_VARARG
         _isVararg = value;
@@ -1521,7 +1517,6 @@ public:
         return (TARGET_POINTER_SIZE * this->numSlots);
     }
 
-    __declspec(property(get = GetHfaType)) var_types hfaType;
     var_types GetHfaType()
     {
 #ifdef FEATURE_HFA
@@ -1645,7 +1640,7 @@ public:
         {
 #ifdef _TARGET_ARM_
             // We counted the number of regs, but if they are DOUBLE hfa regs we have to double the size.
-            if (hfaType == TYP_DOUBLE)
+            if (GetHfaType() == TYP_DOUBLE)
             {
                 assert(!isSplit);
                 size <<= 1;
@@ -1653,13 +1648,13 @@ public:
 #elif defined(_TARGET_ARM64_)
             // We counted the number of regs, but if they are FLOAT hfa regs we have to halve the size,
             // or if they are SIMD16 vector hfa regs we have to double the size.
-            if (hfaType == TYP_FLOAT)
+            if (GetHfaType() == TYP_FLOAT)
             {
                 // Round up in case of odd HFA count.
                 size = (size + 1) >> 1;
             }
 #ifdef FEATURE_SIMD
-            else if (hfaType == TYP_SIMD16)
+            else if (GetHfaType() == TYP_SIMD16)
             {
                 size <<= 1;
             }
@@ -1683,7 +1678,7 @@ public:
 
         regNumber argReg = getRegNum(0);
 #ifdef _TARGET_ARM_
-        unsigned int regSize = (hfaType == TYP_DOUBLE) ? 2 : 1;
+        unsigned int regSize = (GetHfaType() == TYP_DOUBLE) ? 2 : 1;
 #else
         unsigned int regSize = 1;
 #endif
