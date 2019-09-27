@@ -13972,7 +13972,8 @@ bool CEEInfo::getTailCallHelpers(
     // will show up here with the target MD being the function IFoo<__Canon>::M
     // and the context being IFoo<Object>. We create the MD IFoo<Object>::M here
     // to be able to express the call in the IL stubs created below.
-    if (pTargetMD != nullptr && !pTargetMD->HasMethodInstantiation() && pTargetMD->IsInterface())
+    if (pTargetMD != nullptr && !pTargetMD->HasMethodInstantiation() &&
+        pTargetMD->IsInterface() && pTargetMD->IsAbstract())
     {
         TypeHandle ownerClsHnd = GetTypeFromContext(hContext);
         MethodTable* pOwnerMT = ownerClsHnd.GetMethodTable();

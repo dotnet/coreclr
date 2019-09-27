@@ -331,10 +331,13 @@ void TailCallHelp::CreateTailCallHelperStubs(
 
     // There are two cases where we will need the tailcalling site to pass us the target:
     // * It was a calli, for obvious reasons
-    // * The target is generic (in which case it might depend on type parameters
-    // in the caller). Since the CallTarget stub is non-generic we cannot
-    // express a call to it in IL.
-    *storeArgsNeedsTarget = pCalleeMD == NULL || callSiteSig.IsGenericMethod();
+    // * The target is generic _or_ requires a generic context. We cannot
+    // express calls that depend on generic type params in CallTarget since it
+    // is not generic. In addition the JIT will pass us the generic context in
+    // the latter case so we need to make sure we do not end up with two generic
+    // contexts, and the easiest way is just to take the target address from the
+    // JIT.
+    *storeArgsNeedsTarget = pCalleeMD == NULL || pCalleeMD->RequiresInstArg() || callSiteSig.IsGenericMethod();
 
     // We 'attach' the tailcall stub to the target method except for the case of
     // calli (where the callee MD will be null). We do not reuse stubs for calli
