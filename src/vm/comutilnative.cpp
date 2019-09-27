@@ -254,7 +254,7 @@ FCIMPL3(VOID, ExceptionNative::SaveStackTracesFromDeepCopy, Object* pExceptionOb
     }
     else
     {
-        gc.refException->SetNullStackTrace();
+        gc.refException->SetStackTrace(NULL, NULL);
     }
 
     HELPER_METHOD_FRAME_END();
