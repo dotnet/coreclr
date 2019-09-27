@@ -153,12 +153,12 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
 
 static void ScanTailCallArgBufferRoots(Thread* pThread, promote_func* fn, ScanContext* sc)
 {
-    TailCallTls* tls = pThread->GetTailCallTls();
-    if (tls->ArgBufferGCDesc == NULL)
+    void* gcDesc;
+    char* argBuffer = pThread->GetTailCallTls()->GetArgBuffer(&gcDesc);
+    if (gcDesc == NULL)
         return;
 
-    TADDR argBuffer = (TADDR)tls->ArgBuffer;
-    GCRefMapDecoder decoder(static_cast<PTR_BYTE>(tls->ArgBufferGCDesc));
+    GCRefMapDecoder decoder(static_cast<PTR_BYTE>(gcDesc));
     while (!decoder.AtEnd())
     {
         int pos = decoder.CurrentPos();

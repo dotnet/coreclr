@@ -975,24 +975,33 @@ EXTERN_C void STDCALL OnHijackWorker(HijackArgs * pArgs);
 class BaseStackGuard;
 #endif
 
-// Note: Layout of this must match similarly named structures in jithelpers.cs.
-// TODO: Drop 'new' prefix
-struct NewTailCallFrame
+struct PortableTailCallFrame
 {
-    NewTailCallFrame* Prev;
+    PortableTailCallFrame* Prev;
     void* TailCallAwareReturnAddress;
     void* NextCall;
 };
 
-// First field of this structure must be the frame.
-struct TailCallTls
+class TailCallTls
 {
-    NewTailCallFrame* Frame;
-    char* ArgBuffer;
-    size_t ArgBufferSize;
-    void* ArgBufferGCDesc;
+    friend class MscorlibBinder;
 
+    PortableTailCallFrame* m_frame;
+    char* m_argBuffer;
+    size_t m_argBufferSize;
+    void* m_argBufferGCDesc;
+    char m_argBufferInline[64];
+
+public:
     TailCallTls();
+    void* AllocArgBuffer(size_t size, void* gcDesc);
+    void FreeArgBuffer();
+    char* GetArgBuffer(void** gcDesc)
+    {
+        *gcDesc = m_argBufferGCDesc;
+        return m_argBuffer;
+    }
+    PortableTailCallFrame* GetFrame() { return m_frame; }
 };
 
 // #ThreadClass
@@ -4367,7 +4376,6 @@ private:
 
 private:
     TailCallTls m_tailCallTls;
-    char m_inlineTailCallArgBuffer[64];
 
 public:
     TailCallTls* GetTailCallTls() { return &m_tailCallTls; }
@@ -4382,8 +4390,6 @@ public:
 
         return *retAddrSlot;
     }
-    void* AllocTailCallArgBuffer(size_t size, void* gcDesc);
-    void FreeTailCallArgBuffer();
 
 #ifdef _DEBUG
 private:

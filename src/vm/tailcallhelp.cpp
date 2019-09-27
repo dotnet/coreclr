@@ -19,14 +19,14 @@ FCIMPL2(void*, TailCallHelp::AllocTailCallArgBuffer, INT32 size, void* gcDesc)
 
     _ASSERTE(size >= 0);
 
-    return GetThread()->AllocTailCallArgBuffer(static_cast<size_t>(size), gcDesc);
+    return GetThread()->GetTailCallTls()->AllocArgBuffer(static_cast<size_t>(size), gcDesc);
 }
 FCIMPLEND
 
 FCIMPL0(void, TailCallHelp::FreeTailCallArgBuffer)
 {
     FCALL_CONTRACT;
-    GetThread()->FreeTailCallArgBuffer();
+    GetThread()->GetTailCallTls()->FreeArgBuffer();
 }
 FCIMPLEND
 
@@ -114,14 +114,14 @@ MethodDesc* TailCallHelp::GetTailCallDispatcherMD()
 // {
 //     IntPtr callersRetAddr;
 //     TailCallTls* tls = GetTailCallInfo(callersRetAddrSlot, &callersRetAddr);
-//     TailCallFrame* prevFrame = tls->Frame;
+//     PortableTailCallFrame* prevFrame = tls->Frame;
 //     if (callersRetAddr == prevFrame->TailCallAwareReturnAddress)
 //     {
 //         prevFrame->NextCall = callTarget;
 //         return;
 //     }
 //
-//     TailCallFrame newFrame;
+//     PortableTailCallFrame newFrame;
 //     newFrame.Prev = prevFrame;
 //
 //     try
@@ -178,7 +178,7 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
     DWORD retAddrLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     DWORD tlsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     DWORD prevFrameLcl = pCode->NewLocal(ELEMENT_TYPE_I);
-    TypeHandle frameTyHnd = MscorlibBinder::GetClass(CLASS__TAIL_CALL_FRAME);
+    TypeHandle frameTyHnd = MscorlibBinder::GetClass(CLASS__PORTABLE_TAIL_CALL_FRAME);
     DWORD newFrameEntryLcl = pCode->NewLocal(LocalDesc(frameTyHnd));
     DWORD argsLcl = pCode->NewLocal(ELEMENT_TYPE_I);
     ILCodeLabel* noUnwindLbl = pCode->NewCodeLabel();
@@ -199,13 +199,13 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
     // if (retAddr != prevFrame.TailCallAwareReturnAddress) goto noUnwindLbl;
     pCode->EmitLDLOC(retAddrLcl);
     pCode->EmitLDLOC(prevFrameLcl);
-    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__TAILCALL_AWARE_RETURN_ADDRESS);
+    pCode->EmitLDFLD(FIELD__PORTABLE_TAIL_CALL_FRAME__TAILCALL_AWARE_RETURN_ADDRESS);
     pCode->EmitBNE_UN(noUnwindLbl);
 
     // prevFrame->NextCall = callTarget;
     pCode->EmitLDLOC(prevFrameLcl);
     pCode->EmitLDARG(ARG_CALL_TARGET);
-    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
+    pCode->EmitSTFLD(FIELD__PORTABLE_TAIL_CALL_FRAME__NEXT_CALL);
 
     // return;
     pCode->EmitRET();
@@ -216,7 +216,7 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
     // newFrameEntry.Prev = prevFrame;
     pCode->EmitLDLOCA(newFrameEntryLcl);
     pCode->EmitLDLOC(prevFrameLcl);
-    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__PREV);
+    pCode->EmitSTFLD(FIELD__PORTABLE_TAIL_CALL_FRAME__PREV);
 
     // try {
     pCode->BeginTryBlock();
@@ -233,7 +233,7 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
     pCode->EmitLDLOCA(newFrameEntryLcl);
     pCode->EmitLDC(0);
     pCode->EmitCONV_I();
-    pCode->EmitSTFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
+    pCode->EmitSTFLD(FIELD__PORTABLE_TAIL_CALL_FRAME__NEXT_CALL);
 
     SigBuilder calliSig;
     calliSig.AppendByte(IMAGE_CEE_CS_CALLCONV_DEFAULT);
@@ -256,7 +256,7 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
 
     // TailCallAwareReturnAddress
     pCode->EmitLDLOCA(newFrameEntryLcl);
-    pCode->EmitLDFLDA(FIELD__TAIL_CALL_FRAME__TAILCALL_AWARE_RETURN_ADDRESS);
+    pCode->EmitLDFLDA(FIELD__PORTABLE_TAIL_CALL_FRAME__TAILCALL_AWARE_RETURN_ADDRESS);
 
     // callTarget
     pCode->EmitLDARG(ARG_CALL_TARGET);
@@ -265,7 +265,7 @@ MethodDesc* TailCallHelp::GetOrCreateTailCallDispatcherMD()
 
     // callTarget = newFrameEntry.NextCall;
     pCode->EmitLDLOC(newFrameEntryLcl);
-    pCode->EmitLDFLD(FIELD__TAIL_CALL_FRAME__NEXT_CALL);
+    pCode->EmitLDFLD(FIELD__PORTABLE_TAIL_CALL_FRAME__NEXT_CALL);
     pCode->EmitSTARG(ARG_CALL_TARGET);
 
     // } while (callTarget != IntPtr.Zero);

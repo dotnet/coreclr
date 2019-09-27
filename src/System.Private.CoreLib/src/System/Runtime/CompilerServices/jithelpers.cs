@@ -7,9 +7,10 @@
 //    Low-level Jit Helpers
 ////////////////////////////////////////////////////////////////////////////////
 
-using System.Threading;
 using Internal.Runtime.CompilerServices;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace System.Runtime.CompilerServices
 {
@@ -100,21 +101,23 @@ namespace System.Runtime.CompilerServices
         public byte Data;
     }
 
-    // Helper structs used for tail calls via helper. Must match layout defined
-    // in tailcallhelp.cpp.
-    internal unsafe struct TailCallFrame
+    // Helper structs used for tail calls via helper.
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe struct PortableTailCallFrame
     {
-        public TailCallFrame* Prev;
+        public PortableTailCallFrame* Prev;
         public IntPtr TailCallAwareReturnAddress;
         public IntPtr NextCall;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct TailCallTls
     {
-        public TailCallFrame* Frame;
+        public PortableTailCallFrame* Frame;
         public IntPtr ArgBuffer;
-        public IntPtr ArgBufferSize;
-        public IntPtr ArgBufferGCDesc;
+        private IntPtr _argBufferSize;
+        private IntPtr _argBufferGCDesc;
+        private fixed byte _argBufferInline[64];
     }
 
     internal static unsafe class JitHelpers
