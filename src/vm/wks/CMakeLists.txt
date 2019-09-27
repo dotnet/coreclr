@@ -51,31 +51,6 @@ add_dependencies(cee_wks eventing_headers)
 if (WIN32)
 
   if(NOT CLR_CMAKE_PLATFORM_ARCH_ARM AND NOT CLR_CMAKE_PLATFORM_ARCH_ARM64)
-    # Get the current list of definitions
-    get_compile_definitions(DEFINITIONS)
-
-    get_directory_property(COMPILE_DEFINITIONS_LIST COMPILE_DEFINITIONS)
-
-    # Extract the definitions for the ASM code. Since there is a bug in the cmake that prevents us from
-    # using the generator expressions, we split the definitions into lists based on the configuration.
-    foreach(DEFINITION IN LISTS COMPILE_DEFINITIONS_LIST)
-        if (${DEFINITION} MATCHES "^\\$<\\$<CONFIG:([^>]+)>:([^>]+)>$")
-            # The entry contains generator expression, so insert the definition into a definitions list
-            # corresponding to the config
-            string(TOUPPER ${CMAKE_MATCH_1} CONFIG)
-            set(ASM_DEFINITIONS_${CONFIG} ${ASM_DEFINITIONS_${CONFIG}} ${CMAKE_MATCH_2}) 
-        else()
-            list(APPEND ASM_DEFINITIONS ${DEFINITION})        
-        endif()
-    endforeach()
-
-    # Add defines for the ASM. Unfortunately setting it on the target is ignored for asm by the cmake, so we have
-    # to set it on the sources.
-    set_property(SOURCE ${VM_SOURCES_WKS_ARCH_ASM} PROPERTY COMPILE_DEFINITIONS ${ASM_DEFINITIONS})
-    foreach(CONFIG IN LISTS CMAKE_CONFIGURATION_TYPES)
-        string(TOUPPER ${CONFIG} CONFIG)
-        set_property(SOURCE ${VM_SOURCES_WKS_ARCH_ASM} PROPERTY COMPILE_DEFINITIONS_${CONFIG} ${ASM_DEFINITIONS_${CONFIG}})
-    endforeach()
 
     if (CLR_CMAKE_PLATFORM_ARCH_I386)
         set_source_files_properties(${VM_SOURCES_WKS_ARCH_ASM} PROPERTIES COMPILE_FLAGS "/Zm /safeseh")
@@ -87,6 +62,8 @@ if (WIN32)
         message(FATAL_ERROR "POWERSHELL not found")
     endif()
 
+    # Get the current list of definitions
+    get_compile_definitions(DEFINITIONS)
     add_custom_command(
         OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/AsmConstants.inc"
         DEPENDS ${VM_DIR}/${ARCH_SOURCES_DIR}/asmconstants.h

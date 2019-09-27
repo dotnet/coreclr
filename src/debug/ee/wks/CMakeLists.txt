@@ -42,13 +42,9 @@ if (WIN32)
       list (APPEND ASM_OPTIONS /safeseh)
     endif (CLR_CMAKE_PLATFORM_ARCH_I386)
 
-    # Need to compile asm file using custom command as include directories are not provided to asm compiler
-    add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dbghelpers.obj
-                       COMMAND ${CMAKE_ASM_MASM_COMPILER} ${ASM_INCLUDE_DIRECTORIES} ${ASM_DEFINITIONS} ${ASM_OPTIONS} /Fo${CMAKE_CURRENT_BINARY_DIR}/dbghelpers.obj /Ta${ASM_FILE}
-                       DEPENDS ${ASM_FILE}
-                       COMMENT "Compiling dbghelpers.asm")
-
-    add_library_clr(cordbee_wks ${CORDBEE_SOURCES_WKS} ${CMAKE_CURRENT_BINARY_DIR}/dbghelpers.obj)
+    set_source_files_properties(${ASM_FILE} PROPERTIES COMPILE_OPTIONS "${ASM_OPTIONS}")
+    
+    add_library_clr(cordbee_wks ${CORDBEE_SOURCES_WKS} ${ASM_FILE})
 
   endif()
 
