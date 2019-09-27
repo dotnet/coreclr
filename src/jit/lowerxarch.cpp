@@ -228,6 +228,8 @@ void Lowering::LowerBlockStore(GenTreeBlk* blkNode)
             // Sometimes the GT_IND type is a non-struct type and then GT_IND lowering may contain the
             // address, not knowing that GT_IND is part of a block op that has containment restrictions.
             src->AsIndir()->Addr()->ClearContained();
+
+            TryCreateAddrMode(LIR::Use(BlockRange(), &src->AsIndir()->Addr(), src), false);
         }
 
         if (blkNode->OperIs(GT_STORE_OBJ))

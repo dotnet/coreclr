@@ -106,12 +106,21 @@ GenTree* Lowering::LowerNode(GenTree* node)
     switch (node->gtOper)
     {
         case GT_IND:
-            TryCreateAddrMode(LIR::Use(BlockRange(), &node->AsOp()->gtOp1, node), true);
-            ContainCheckIndir(node->AsIndir());
+            // Leave struct typed indirs alone, they only appear as the source of
+            // block copy operations and LowerBlockStore will handle those.
+            if (node->TypeGet() != TYP_STRUCT)
+            {
+                // TODO-Cleanup: We're passing isContainable = true but ContainCheckIndir rejects
+                // address containment in some cases so we end up creating trivial (reg + offfset)
+                // or (reg + reg) LEAs that are not necessary.
+                TryCreateAddrMode(LIR::Use(BlockRange(), &node->AsIndir()->Addr(), node), true);
+                ContainCheckIndir(node->AsIndir());
+            }
             break;
 
         case GT_STOREIND:
-            TryCreateAddrMode(LIR::Use(BlockRange(), &node->AsOp()->gtOp1, node), true);
+            assert(node->TypeGet() != TYP_STRUCT);
+            TryCreateAddrMode(LIR::Use(BlockRange(), &node->AsStoreInd()->Addr(), node), true);
             if (!comp->codeGen->gcInfo.gcIsWriteBarrierStoreIndNode(node))
             {
                 LowerStoreIndir(node->AsIndir());
@@ -4372,14 +4381,14 @@ bool Lowering::AreSourcesPossiblyModifiedLocals(GenTree* addr, GenTree* base, Ge
 //    addressing mode and transform them to a GT_LEA
 //
 // Arguments:
-//    use:     the use of the address we want to transform
-//    isIndir: true if this addressing mode is the child of an indir
+//    use - the use of the address we want to transform
+//    isContainable - true if this addressing mode can be contained
 //
 // Returns:
 //    The created LEA node or the original address node if an LEA could
 //    not be formed.
 //
-GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
+GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isContainable)
 {
     GenTree* addr   = use.Def();
     GenTree* base   = nullptr;
@@ -4387,34 +4396,6 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
     unsigned scale  = 0;
     ssize_t  offset = 0;
     bool     rev    = false;
-
-    // TODO-1stClassStructs: This logic is here to preserve prior behavior. Note that previously
-    // block ops were not considered for addressing modes, but an add under it may have been.
-    // This should be replaced with logic that more carefully determines when an addressing mode
-    // would be beneficial for a block op.
-    if (isIndir)
-    {
-        GenTree* indir = use.User();
-        if (indir->TypeGet() == TYP_STRUCT)
-        {
-            isIndir = false;
-        }
-        else if (varTypeIsStruct(indir))
-        {
-            // We can have an indirection on the rhs of a block copy (it is the source
-            // object). This is not a "regular" indirection.
-            // (Note that the user check could be costly.)
-            LIR::Use indirUse;
-            if (BlockRange().TryGetUse(indir, &indirUse) && indirUse.User()->OperIsIndir())
-            {
-                isIndir = false;
-            }
-            else
-            {
-                isIndir = !indir->OperIsBlk();
-            }
-        }
-    }
 
     // Find out if an addressing mode can be constructed
     bool doAddrMode = comp->codeGen->genCreateAddrMode(addr,   // address
@@ -4432,7 +4413,7 @@ GenTree* Lowering::TryCreateAddrMode(LIR::Use&& use, bool isIndir)
         scale = 1;
     }
 
-    if (!isIndir)
+    if (!isContainable)
     {
         // this is just a reg-const add
         if (index == nullptr)
