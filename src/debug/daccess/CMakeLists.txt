@@ -38,7 +38,7 @@ convert_to_absolute_path(DACCESS_SOURCES ${DACCESS_SOURCES})
 add_precompiled_header(stdafx.h stdafx.cpp DACCESS_SOURCES)
 
 add_library_clr(daccess ${DACCESS_SOURCES})
-set_target_properties(daccess PROPERTIES DAC_COMPONENT TRU)
+set_target_properties(daccess PROPERTIES DAC_COMPONENT TRUE)
 
 add_dependencies(daccess eventing_headers)
 

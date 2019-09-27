@@ -102,7 +102,7 @@ _add_library(mscordacobj OBJECT mscordac.cpp)
 
 add_library_clr(mscordaccore SHARED ${CLR_DAC_SOURCES} $<TARGET_OBJECTS:mscordacobj>)
 
-set_target_properties(mscordacobj mscordaccore PROPERTIES DAC_COMPONENT TRU)
+set_target_properties(mscordacobj mscordaccore PROPERTIES DAC_COMPONENT TRUE)
 
 if(CLR_CMAKE_PLATFORM_LINUX)
     add_dependencies(mscordaccore lib_redefines_inc)

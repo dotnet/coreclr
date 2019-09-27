@@ -6,5 +6,5 @@ if (WIN32)
 endif (WIN32)
 
 add_library_clr(cordbee_dac ${CORDBEE_SOURCES_DAC})
-set_target_properties(cordbee_dac PROPERTIES DAC_COMPONENT TRU)
+set_target_properties(cordbee_dac PROPERTIES DAC_COMPONENT TRUE)
 add_dependencies(cordbee_dac eventing_headers)
