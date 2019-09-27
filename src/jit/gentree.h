@@ -3372,6 +3372,11 @@ struct GenTreeCall final : public GenTree
             return m_use;
         }
 
+        Use* GetUse() const
+        {
+            return m_use;
+        }
+
         UseIterator& operator++()
         {
             m_use = m_use->GetNext();

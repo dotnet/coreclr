@@ -962,9 +962,9 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
         {
             for (unsigned i = 0; i < argTableSize; i++)
             {
-                if (argTable[i]->use == &(*oldUse))
+                if (argTable[i]->use == oldUse.GetUse())
                 {
-                    argTable[i]->use = &(*newUse);
+                    argTable[i]->use = newUse.GetUse();
                     break;
                 }
             }
@@ -979,9 +979,9 @@ fgArgInfo::fgArgInfo(GenTreeCall* newCall, GenTreeCall* oldCall)
         {
             for (unsigned i = 0; i < argTableSize; i++)
             {
-                if (argTable[i]->lateUse == &(*oldUse))
+                if (argTable[i]->lateUse == oldUse.GetUse())
                 {
-                    argTable[i]->lateUse = &(*newUse);
+                    argTable[i]->lateUse = newUse.GetUse();
                     break;
                 }
             }
