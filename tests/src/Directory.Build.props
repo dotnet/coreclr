@@ -147,7 +147,4 @@
     <NuGetTargetMoniker>.NETCoreApp,Version=v5.0</NuGetTargetMoniker>
     <NuGetTargetMonikerShort>netcoreapp5.0</NuGetTargetMonikerShort>
   </PropertyGroup>
-
-  <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
-
 </Project>
