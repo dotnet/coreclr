@@ -72,10 +72,11 @@ jobs:
       unixManagedTestBuildArchType: 'x64'
 
     ${{ if eq(parameters.windowsX86, true) }}:
-      windowsManagedTestBuildArchType: 'x86'
+      windows32bitManagedTestBuildArchType: 'x86'
     ${{ if and(ne(parameters.windowsX86, true), eq(parameters.windowsArm, true)) }}:
-      windowsManagedTestBuildArchType: 'arm'
-    ${{ if and(ne(parameters.windowsX86, true), ne(parameters.windowsArm, true), eq(parameters.windowsX64, true)) }}:
-      windowsManagedTestBuildArchType: 'x64'
-    ${{ if and(ne(parameters.windowsX86, true), ne(parameters.windowsArm, true), ne(parameters.windowsX64, true), eq(parameters.windowsArm64, true)) }}:
-      windowsManagedTestBuildArchType: 'arm64'
+      windows32bitManagedTestBuildArchType: 'arm'
+
+    ${{ if eq(parameters.windowsX64, true) }}:
+      windows64bitManagedTestBuildArchType: 'x64'
+    ${{ if and(ne(parameters.windowsX64, true), eq(parameters.windowsArm64, true)) }}:
+      windows64bitManagedTestBuildArchType: 'arm64'
