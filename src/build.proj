@@ -12,6 +12,7 @@
     <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/r2rdump/R2RDump.csproj" />
     <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/ReadyToRun.SuperIlc/ReadyToRun.SuperIlc.csproj" />
     <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/crossgen2/crossgen2/crossgen2.csproj" />
+    <ProjectReference Condition="'$(BuildManagedTools)' == 'true'" Include="tools/crossgen2/tibcmgr/tibcmgr.csproj" />
     <ProjectReference Include="System.Private.CoreLib\System.Private.CoreLib.csproj" />
   </ItemGroup>
 

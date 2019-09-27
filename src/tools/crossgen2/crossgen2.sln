@@ -11,6 +11,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ILCompiler.ReadyToRun", "IL
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ILCompiler.TypeSystem.ReadyToRun", "ILCompiler.TypeSystem.ReadyToRun\ILCompiler.TypeSystem.ReadyToRun.csproj", "{751583CD-E880-49E1-B3E2-8B1990114CAC}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "tibcmgr", "tibcmgr\tibcmgr.csproj", "{89105FB5-C270-4D59-B8A9-7D628113F41D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -51,6 +53,14 @@ Global
 		{751583CD-E880-49E1-B3E2-8B1990114CAC}.Release|x64.Build.0 = Release|x64
 		{751583CD-E880-49E1-B3E2-8B1990114CAC}.Release|x86.ActiveCfg = Release|x86
 		{751583CD-E880-49E1-B3E2-8B1990114CAC}.Release|x86.Build.0 = Release|x86
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Debug|x64.ActiveCfg = Debug|x64
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Debug|x64.Build.0 = Debug|x64
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Debug|x86.ActiveCfg = Debug|x86
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Debug|x86.Build.0 = Debug|x86
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Release|x64.ActiveCfg = Release|x64
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Release|x64.Build.0 = Release|x64
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Release|x86.ActiveCfg = Release|x86
+		{89105FB5-C270-4D59-B8A9-7D628113F41D}.Release|x86.Build.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -17,7 +17,7 @@ using ILCompiler.Win32Resources;
 
 namespace ILCompiler.IBC
 {
-    internal class IBCProfileParser
+    public class IBCProfileParser
     {
         private readonly List<ModuleDesc> _possibleReferenceModules;
 
@@ -39,6 +39,11 @@ namespace ILCompiler.IBC
                 return EmptyProfileData.Singleton;
             }
 
+            return ParseIBCDataFromByteArray(ecmaModule, ibcDataSection);
+        }
+
+        public ProfileData ParseIBCDataFromByteArray(EcmaModule ecmaModule, byte[] ibcDataSection)
+        {
             var reader = new IBCDataReader();
             int pos = 0;
             bool basicBlocksOnly = false;
@@ -89,7 +94,8 @@ namespace ILCompiler.IBC
                     // scenarioMask will be 0 in unprocessed or V1 IBC data.
                     if (scenarioMask == 0)
                     {
-                        throw new NotImplementedException();
+                        // TODO Compute RunOnce and RunNever from basic block data
+                        scenarioMask = scenarioMaskIfMissing;
                         /*                        Debug.Assert(fullScenarioMask == 1, "Token entry not owned by one scenario");
                                                 // We have to compute the RunOnceMethod and RunNeverMethod flags.
                                                 entry.Flags = result.GetFlags(entry.Flags, section, entry.Token);
@@ -279,7 +285,7 @@ namespace ILCompiler.IBC
 
             var typeEntry = (BlobEntry.ExternalTypeEntry)externalTypeDefBlob;
 
-            string typeNamespace = null;
+            string typeNamespace = "";
             string typeName = Encoding.UTF8.GetString(typeEntry.Name, 0, typeEntry.Name.Length - 1 /* these strings are null terminated */);
             TypeDefinitionHandle enclosingType = default;
             if (!Cor.Macros.IsNilToken(typeEntry.NamespaceToken))
