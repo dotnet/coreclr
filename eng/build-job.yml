@@ -5,6 +5,7 @@ parameters:
   osSubgroup: ''
   container: ''
   testGroup: ''
+  crossgenFramework: false
   crossrootfsDir: ''
   timeoutInMinutes: ''
   signBinaries: false
@@ -84,6 +85,11 @@ jobs:
     - ${{ if and(eq(parameters.buildConfig, 'Release'), and(eq(parameters.osGroup, 'Windows_NT'), not(or(eq(parameters.archType, 'arm64'), eq(parameters.archType, 'arm'))))) }}:
       - name: enforcePgoArg
         value: '-enforcepgo'
+    - name: crossgenArg
+      value: ''
+    - ${{ if eq(parameters.crossgenFramework, true) }}:
+      - name: crossgenArg
+        value: 'crossgen'
 
     steps:
 
@@ -127,12 +133,12 @@ jobs:
       - script: set __TestIntermediateDir=int&&build.cmd $(buildConfig) $(archType) -ci -skiptests -skipbuildpackages $(officialBuildIdArg) $(ibcOptimizeArg) $(enforcePgoArg)
         displayName: Build product
 
-    # Build native test components and crossgen the framework assemblies
+    # Build native test components and optionally crossgen the framework assemblies
     - ${{ if ne(parameters.osGroup, 'Windows_NT') }}:
-      - script: ./build-test.sh skipmanaged crossgen $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
+      - script: ./build-test.sh skipmanaged $(crossgenArg) $(buildConfig) $(archType) $(crossArg) $(priorityArg) $(clangArg)
         displayName: Build native test components
     - ${{ if eq(parameters.osGroup, 'Windows_NT') }}:
-      - script: build-test.cmd skipmanaged crossgen $(buildConfig) $(archType) $(priorityArg)
+      - script: build-test.cmd skipmanaged $(crossgenArg) $(buildConfig) $(archType) $(priorityArg)
         displayName: Build native test components
 
     # Sign on Windows
