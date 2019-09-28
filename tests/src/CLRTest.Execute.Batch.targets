@@ -272,8 +272,12 @@ if defined DoLink (
 ]]>
           </BatchLinkerTestCleanupCmds>
       </PropertyGroup>
-      <PropertyGroup>      
-      <_CLRTestRunFile Condition="'$(CLRTestIsHosted)'=='true'">"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
+      <PropertyGroup Condition="'$(CLRTestIsHosted)'=='true'">
+          <_CLRTestRunFile>"%CORE_ROOT%\corerun.exe"</_CLRTestRunFile>
+          <_CLRTestRunFile Condition="'$(RunCrossGen)' == 'true'">"%CORE_ROOT%\Crossgen-ret.out\corerun.exe"</_CLRTestRunFile>
+          <_CLRTestRunFile Condition="'$(RunCrossGen2)' == 'true'">"%CORE_ROOT%\CPAOT-ret.out\corerun.exe"</_CLRTestRunFile>
+      </PropertyGroup>
+      <PropertyGroup>
       <BatchCopyCoreShimLocalCmds Condition="'$(CLRTestScriptLocalCoreShim)' == 'true'"><![CDATA[
 REM Local CoreShim requested - see MSBuild property 'CLRTestScriptLocalCoreShim'
 ECHO Copying '%CORE_ROOT%\CoreShim.dll'...

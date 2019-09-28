@@ -13,6 +13,7 @@ parameters:
   crossrootfsDir: ''
   corefxTests: false
   readyToRun: false
+  crossgen2: false
   stagedBuild: false
 
   # arcade-specific parameters
@@ -49,6 +50,15 @@ jobs:
     gatherAssetManifests: ${{ parameters.gatherAssetManifests }}
   
     variables:
+    - name: crossgenArg
+      value: ''
+    - ${{ if eq(parameters.readyToRun, true) }}:
+      - name: crossgenArg
+        value: 'crossgen'
+      - ${{ if eq(parameters.crossgen2, true) }}:
+        - name: crossgenArg
+          value: 'crossgen2'
+
     - name: binTestsPath
       value: $(Build.SourcesDirectory)/bin/tests
 

@@ -9,6 +9,7 @@ parameters:
   container: ''
   testGroup: ''
   readyToRun: false
+  crossgen2: false
   helixQueues: ''
   # If true, run the corefx tests instead of the coreclr ones
   corefxTests: false
@@ -34,6 +35,7 @@ jobs:
     container: ${{ parameters.container }}
     testGroup: ${{ parameters.testGroup }}
     readyToRun: ${{ parameters.readyToRun }}
+    crossgen2: ${{ parameters.crossgen2 }}
     corefxTests: ${{ parameters.corefxTests }}
     stagedBuild: ${{ parameters.stagedBuild }}
     helixType: 'build/tests/'

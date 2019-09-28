@@ -54,6 +54,7 @@ set __SkipNative=
 set __RuntimeId=
 set __TargetsWindows=1
 set __DoCrossgen=
+set __DoCrossgen2=
 set __CopyNativeTestBinaries=0
 set __CopyNativeProjectsAfterCombinedTestBuild=true
 set __SkipGenerateLayout=0
@@ -93,6 +94,7 @@ if /i "%1" == "buildtesthostonly"     (set __SkipNative=1&set __SkipManaged=1&se
 if /i "%1" == "buildagainstpackages"  (echo error: Remove /BuildAgainstPackages switch&&exit /b1)
 if /i "%1" == "skiprestorepackages"   (set __SkipRestorePackages=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "crossgen"              (set __DoCrossgen=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
+if /i "%1" == "crossgen2"             (set __DoCrossgen2=1&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "runtimeid"             (set __RuntimeId=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
 if /i "%1" == "targetsNonWindows"     (set __TargetsWindows=0&set processedArgs=!processedArgs! %1&shift&goto Arg_Loop)
 if /i "%1" == "Exclude"               (set __Exclude=%2&set processedArgs=!processedArgs! %1 %2&shift&shift&goto Arg_Loop)
@@ -507,12 +509,23 @@ REM ============================================================================
 
 set __CrossgenArg = ""
 if defined __DoCrossgen (
-    set __CrossgenArg="/p:Crossgen=true"
     if "%__TargetsWindows%" == "1" (
         echo %__MsgPrefix%Running crossgen on framework assemblies
-        call :PrecompileFX
+        call :PrecompileFX --nocrossgen2 --crossgen
     ) else (
         echo "%__MsgPrefix%Crossgen only supported on Windows, for now"
+    )
+)
+
+if defined __DoCrossgen2 (
+    echo %__MsgPrefix%Running crossgen2 on framework assemblies
+    if "%__BuildArch%" == "x64" (
+        rem Crossgen2 currently only works on x64
+        call :PrecompileFX
+    ) else (
+        rem For architectures not yet supported by Crossgen2, just copy around the IL bits
+        mkdir %CORE_ROOT%\Tests\Core_Root\CPAOT-ret.out
+        xcopy /s /e %CORE_ROOT%\Tests\Core_Root\*.* %CORE_ROOT%\Tests\Core_Root\CPAOT-ret.out\
     )
 )
 
@@ -584,45 +597,16 @@ echo See: https://github.com/dotnet/coreclr/blob/master/Documentation/project-do
 exit /b 1
 
 :PrecompileFX
-for %%F in (%CORE_ROOT%\*.dll) do call :PrecompileAssembly "%%F" %%~nF%%~xF
-exit /b 0
-
-REM Compile the managed assemblies in Core_ROOT before running the tests
-:PrecompileAssembly
-
-REM Skip mscorlib since it is already precompiled.
-if /I "%2" == "mscorlib.dll" exit /b 0
-if /I "%2" == "mscorlib.ni.dll" exit /b 0
-REM don't precompile anything from CoreCLR
-if /I exist %CORE_ROOT_STAGE%\%2 exit /b 0
-
-REM Don't precompile xunit.* files
-echo "%2" | findstr /b "xunit." >nul && (
+set FrameworkCmd=call "%__ProjectDir%\dotnet.cmd" %CORE_ROOT%\ReadyToRun.SuperIlc\ReadyToRun.SuperIlc.dll compile-framework
+set FrameworkCmd=%FrameworkCmd% -cr %CORE_ROOT% %*
+set FrameworkCmd=%FrameworkCmd% --release
+set FrameworkCmd=%FrameworkCmd% --large-bubble
+echo Compiling framework: %FrameworkCmd%
+%FrameworkCmd%
+if "%ERRORLEVEL%" == "0" (
+  echo Successfully precompiled framework
   exit /b 0
+) else (
+  echo Failed precompiling framework
 )
-
-set __CrossgenExe="%CORE_ROOT_STAGE%\crossgen.exe"
-if /i "%__BuildArch%" == "arm" ( set __CrossgenExe="%CORE_ROOT_STAGE%\x86\crossgen.exe" )
-if /i "%__BuildArch%" == "arm64" ( set __CrossgenExe="%CORE_ROOT_STAGE%\x64\crossgen.exe" )
-
-"%__CrossgenExe%" /Platform_Assemblies_Paths "%CORE_ROOT%" /in "%1" /out "%CORE_ROOT%/temp.ni.dll" >nul 2>nul
-set /a __exitCode = %errorlevel%
-if "%__exitCode%" == "-2146230517" (
-    echo %2 is not a managed assembly.
-    exit /b 0
-)
-
-if %__exitCode% neq 0 (
-    echo Unable to precompile %2, Exit Code is %__exitCode%
-    exit /b 0
-)
-
-REM Delete original .dll & replace it with the Crossgened .dll
-del %1
-ren "%CORE_ROOT%\temp.ni.dll" %2
-
-echo Successfully precompiled %2
-exit /b 0
-
-:Exit_Failure
-exit /b 1
+exit /b %ERRORLEVEL%

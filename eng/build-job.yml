@@ -5,7 +5,8 @@ parameters:
   osSubgroup: ''
   container: ''
   testGroup: ''
-  crossgenFramework: false
+  readyToRun: false
+  crossgen2: false
   crossrootfsDir: ''
   timeoutInMinutes: ''
   signBinaries: false
@@ -21,8 +22,11 @@ jobs:
     osGroup: ${{ parameters.osGroup }}
     osSubgroup: ${{ parameters.osSubgroup }}
     helixType: 'build/product/'
-    enableMicrobuild: true
+    testGroup: ${{ parameters.testGroup }}
     stagedBuild: ${{ parameters.stagedBuild }}
+    readyToRun: ${{ parameters.readyToRun }}
+    crossgen2: ${{ parameters.crossgen2 }}
+    enableMicrobuild: true
 
     # Compute job name from template parameters
     name: ${{ format('build_{0}{1}_{2}_{3}', parameters.osGroup, parameters.osSubgroup, parameters.archType, parameters.buildConfig) }}
@@ -85,11 +89,6 @@ jobs:
     - ${{ if and(eq(parameters.buildConfig, 'Release'), and(eq(parameters.osGroup, 'Windows_NT'), not(or(eq(parameters.archType, 'arm64'), eq(parameters.archType, 'arm'))))) }}:
       - name: enforcePgoArg
         value: '-enforcepgo'
-    - name: crossgenArg
-      value: ''
-    - ${{ if eq(parameters.crossgenFramework, true) }}:
-      - name: crossgenArg
-        value: 'crossgen'
 
     steps:
 

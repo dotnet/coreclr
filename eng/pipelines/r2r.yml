@@ -20,7 +20,7 @@ jobs:
     - Windows_NT_x86
     jobParameters:
       testGroup: outerloop
-      crossgenFramework: true
+      readyToRun: true
 
 - template: /eng/platform-matrix.yml
   parameters:
