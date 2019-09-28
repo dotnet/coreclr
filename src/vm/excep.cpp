@@ -2542,7 +2542,7 @@ void StackTraceInfo::SaveStackTrace(BOOL bAllowAllocMem, OBJECTHANDLE hThrowable
                     }
                 }
 
-                ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTrace(gc.stackTrace, gc.dynamicMethodsArray);
+                ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTrace(&gc.stackTrace, gc.dynamicMethodsArray);
                 
                 // Update _stackTraceString field.
                 ((EXCEPTIONREF)ObjectFromHandle(hThrowable))->SetStackTraceString(NULL);
