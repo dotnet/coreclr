@@ -745,8 +745,7 @@ static HRESULT PrettyPrintTypeA(
                     {
                          appendStrNumA(out, lowerBounds[i]);
                          IfFailGo(appendStrA(out, "..."));
-                         if (sizes[i] != 0)
-                             appendStrNumA(out, lowerBounds[i] + sizes[i] + 1);
+                         appendStrNumA(out, lowerBounds[i] + sizes[i] + 1);
                     }
                     if (i < rank-1) 
                         IfFailGo(appendStrA(out, ","));
