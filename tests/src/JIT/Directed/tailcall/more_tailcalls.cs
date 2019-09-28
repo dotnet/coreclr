@@ -161,8 +161,10 @@ internal class Program
              "System.String System.Int32 System.Object System.String a 5 b c", "Instance generic 4");
         Test(() => g.VirtForward<object, string>("a", 5, "b", "c"),
              "System.String System.Int32 System.Object System.String a 5 b c", "Virtual instance generic 4");
-        Test(() => GenInterfaceForward<string, int, string, object>("a", 5, "c", "d", ig),
+        Test(() => GenInterfaceForwardF<string, int, string, object>("a", 5, "c", "d", ig),
             "System.String System.Int32 System.String System.Object a 5 c d", "Interface generic 4");
+        Test(() => GenInterfaceForwardG<string, int>("a", 5, ig),
+            "System.String System.Int32 a 5", "Interface generic forward G");
         Test(() => GenInterfaceForwardNone("a", "b", 5, "d", ig2),
              "System.String System.Object System.Int32 System.Object a b 5 d", "Interface generic 0");
         Test(() => GenInterfaceForward2("a", "b", ig2),
@@ -558,7 +560,7 @@ internal class Program
         => $"{typeof(T1).FullName} {typeof(T2).FullName} {a} {b}";
 
     [MethodImpl(MethodImplOptions.NoInlining)]
-    private static string GenInterfaceForward<T1, T2, T3, T4>(T1 a, T2 b, T3 c, T4 d, IGenInterface<T1, T2> igen)
+    private static string GenInterfaceForwardF<T1, T2, T3, T4>(T1 a, T2 b, T3 c, T4 d, IGenInterface<T1, T2> igen)
     {
         IL.Push(igen);
         IL.Push(new S32());
@@ -568,6 +570,18 @@ internal class Program
         IL.Push(d);
         IL.Emit.Tail();
         IL.Emit.Callvirt(new MethodRef(typeof(IGenInterface<T1, T2>), nameof(IGenInterface<T1, T2>.F)).MakeGenericMethod(typeof(T3), typeof(T4)));
+        return IL.Return<string>();
+    }
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static string GenInterfaceForwardG<T1, T2>(T1 a, T2 b, IGenInterface<T1, T2> igen)
+    {
+        IL.Push(igen);
+        IL.Push(new S32());
+        IL.Push(a);
+        IL.Push(b);
+        IL.Emit.Tail();
+        IL.Emit.Callvirt(new MethodRef(typeof(IGenInterface<T1, T2>), nameof(IGenInterface<T1, T2>.G)));
         return IL.Return<string>();
     }
 
