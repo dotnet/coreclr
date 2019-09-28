@@ -522,10 +522,12 @@ namespace System
             if (format == null)
                 throw new ArgumentNullException(nameof(format));
 
-            return StringBuilderCache.GetStringAndRelease(
-                StringBuilderCache
-                    .Acquire(format.Length + args.Length * 8)
-                    .AppendFormatHelper(provider, format, args));
+            ValueStringBuilder sb = new ValueStringBuilder(format.Length + args.Length * 8);
+            sb.AppendFormatHelper(provider, format, args);
+
+            string returnValue = sb.ToString();
+            sb.Dispose();
+            return returnValue;
         }
 
         public string Insert(int startIndex, string value)

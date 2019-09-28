@@ -194,10 +194,8 @@ namespace System.Diagnostics
         /// </summary>
         internal string ToString(TraceFormat traceFormat)
         {
-            string wordAt = SR.Word_At;
+            string word_At = SR.Word_At;
             string inFileLineNum = SR.StackTrace_InFileLineNumber;
-
-            string? wordAtFormatted = null;
 
             bool fFirstFrame = true;
             ValueStringBuilder sb = new ValueStringBuilder(256);
@@ -214,9 +212,7 @@ namespace System.Diagnostics
                     else
                         sb.Append(Environment.NewLine);
 
-                    sb.Append("   ");
-                    sb.Append(wordAt);
-                    sb.Append(' ');
+                    sb.AppendFormat(CultureInfo.InvariantCulture, "   {0} ", word_At);
 
                     bool isAsync = false;
                     Type? declaringType = mb.DeclaringType;
@@ -322,7 +318,7 @@ namespace System.Diagnostics
                         {
                             // tack on " in c:\tmp\MyFile.cs:line 5"
                             sb.Append(' ');
-                            sb.Append(string.Format(CultureInfo.InvariantCulture, inFileLineNum, fileName, sf.GetFileLineNumber()));
+                            sb.AppendFormat(CultureInfo.InvariantCulture, inFileLineNum, fileName, sf.GetFileLineNumber());
                         }
                     }
 
