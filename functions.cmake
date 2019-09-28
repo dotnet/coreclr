@@ -231,15 +231,7 @@ endfunction()
 function(strip_symbols targetName outputFilename)
   if (CLR_CMAKE_PLATFORM_UNIX)
     if (STRIP_SYMBOLS)
-
-      # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
-      # generator expression doesn't work correctly returning the wrong path and on
-      # the newer cmake versions the LOCATION property isn't supported anymore.
-      if (CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-          set(strip_source_file $<TARGET_FILE:${targetName}>)
-      else()
-          get_property(strip_source_file TARGET ${targetName} PROPERTY LOCATION)
-      endif()
+      set(strip_source_file $<TARGET_FILE:${targetName}>)
 
       if (CMAKE_SYSTEM_NAME STREQUAL Darwin)
         set(strip_destination_file ${strip_source_file}.dwarf)
@@ -275,17 +267,13 @@ function(install_clr targetName)
   list(FIND CLR_CROSS_COMPONENTS_LIST ${targetName} INDEX)
   if (NOT DEFINED CLR_CROSS_COMPONENTS_LIST OR NOT ${INDEX} EQUAL -1)
     strip_symbols(${targetName} strip_destination_file)
-    # On the older version of cmake (2.8.12) used on Ubuntu 14.04 the TARGET_FILE
-    # generator expression doesn't work correctly returning the wrong path and on
-    # the newer cmake versions the LOCATION property isn't supported anymore.
-    if(CMAKE_VERSION VERSION_EQUAL 3.0 OR CMAKE_VERSION VERSION_GREATER 3.0)
-       set(install_source_file $<TARGET_FILE:${targetName}>)
-    else()
-        get_property(install_source_file TARGET ${targetName} PROPERTY LOCATION)
-    endif()
 
-    install(PROGRAMS ${install_source_file} DESTINATION .)
+    # We don't need to install the export libraries for our DLLs
+    # since they won't be directly linked against.
+    install(PROGRAMS $<TARGET_FILE:${targetName}> DESTINATION .)
     if(WIN32)
+        # We can't use the $<TARGET_PDB_FILE> generator expression here since
+        # the generator expression isn't supported on resource DLLs.
         install(FILES ${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${targetName}.pdb DESTINATION PDB)
     else()
         install(FILES ${strip_destination_file} DESTINATION .)
