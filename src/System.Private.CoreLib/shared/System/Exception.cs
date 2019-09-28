@@ -139,6 +139,7 @@ namespace System
                 sb.AppendLine();
                 sb.Append(InnerExceptionPrefix);
                 sb.AppendLine(_innerException.ToString());
+                sb.Append("   ");
                 sb.Append(SR.Exception_EndOfInnerExceptionStack);
             }
 
