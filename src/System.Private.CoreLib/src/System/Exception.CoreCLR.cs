@@ -285,7 +285,7 @@ namespace System
             }
         }
 
-        // Returns the lock, falling back to the static lock if the Exception is uninitalized (very rare).
+        // Returns the lock, falling back to the static lock if the Exception is uninitialized (very rare).
         private object StackTraceLock => _stackTraceLock ?? s_stackTraceLock;
 
         // This is invoked by ExceptionDispatchInfo.Throw to restore the exception stack trace, corresponding to the original throw of the
@@ -335,7 +335,7 @@ namespace System
             }
         }
 
-        // This is the static object against which a lock will be taken when the Exception is uninitalized (constructor not called).
+        // This is the static object against which a lock will be taken when the Exception is uninitialized (constructor not called).
         private static readonly object s_stackTraceLock = new object();
 
         private MethodBase? _exceptionMethod;  // Needed for serialization.
