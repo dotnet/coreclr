@@ -4,6 +4,7 @@
 
 using System.Collections;
 using System.Runtime.Serialization;
+using System.Text;
 
 namespace System
 {
@@ -119,27 +120,35 @@ namespace System
 
         public override string ToString()
         {
-            string s = GetClassName();
+            // StackTrace uses the ThreadStatic StringBuilderCache, so get it first so usages don't overlap
+            string? stackTrace = StackTrace;
+
+            StringBuilder sb = StringBuilderCache.Acquire();
+
+            sb.Append(GetClassName());
 
             string? message = Message;
             if (!string.IsNullOrEmpty(message))
             {
-                s += ": " + message;
+                sb.Append(": ");
+                sb.Append(message);
             }
 
             if (_innerException != null)
             {
-                s = s + Environment.NewLine + InnerExceptionPrefix + _innerException.ToString() + Environment.NewLine +
-                "   " + SR.Exception_EndOfInnerExceptionStack;
+                sb.AppendLine();
+                sb.Append(InnerExceptionPrefix);
+                sb.AppendLine(_innerException.ToString());
+                sb.Append(SR.Exception_EndOfInnerExceptionStack);
             }
 
-            string? stackTrace = StackTrace;
             if (stackTrace != null)
             {
-                s += Environment.NewLine + stackTrace;
+                sb.AppendLine();
+                sb.Append(stackTrace);
             }
 
-            return s;
+            return StringBuilderCache.GetStringAndRelease(sb);
         }
 
         protected event EventHandler<SafeSerializationEventArgs>? SerializeObjectState

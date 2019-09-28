@@ -198,7 +198,7 @@ namespace System.Diagnostics
             string inFileLineNum = SR.StackTrace_InFileLineNumber;
 
             bool fFirstFrame = true;
-            StringBuilder sb = new StringBuilder(255);
+            StringBuilder sb = StringBuilderCache.Acquire(255);
             for (int iFrameIndex = 0; iFrameIndex < _numOfFrames; iFrameIndex++)
             {
                 StackFrame? sf = GetFrame(iFrameIndex);
@@ -329,7 +329,7 @@ namespace System.Diagnostics
             if (traceFormat == TraceFormat.TrailingNewLine)
                 sb.Append(Environment.NewLine);
 
-            return sb.ToString();
+            return StringBuilderCache.GetStringAndRelease(sb);
         }
 #endif // !CORERT
 
