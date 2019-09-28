@@ -2506,7 +2506,7 @@ public:
         return _xptrs;
     }
 
-    void SetStackTrace(StackTraceArray const * stackTrace, PTRARRAYREF dynamicMethodArray);
+    void SetStackTrace(I1ARRAYREF stackTrace, PTRARRAYREF dynamicMethodArray);
 
 #ifdef DACCESS_COMPILE
     I1ARRAYREF GetStackTraceArrayObject() const

@@ -354,6 +354,12 @@ BaseBucketParamsManager::BaseBucketParamsManager(GenericModeBlock* pGenericModeB
     INDEBUG(m_countParamsLogged = 0);
     
     ZeroMemory(pGenericModeBlock, sizeof(GenericModeBlock));
+
+    EECodeInfo codeInfo(initialFaultingPc);
+    if (codeInfo.IsValid())
+    {
+        m_pFaultingMD = codeInfo.GetMethodDesc();
+    }
 }
 
 BaseBucketParamsManager::~BaseBucketParamsManager()

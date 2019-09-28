@@ -250,7 +250,7 @@ FCIMPL3(VOID, ExceptionNative::SaveStackTracesFromDeepCopy, Object* pExceptionOb
     if (gc.stackTrace.Size() > 0)
     {
         // Save the stacktrace details in the exception under a lock
-        gc.refException->SetStackTrace(&gc.stackTrace, gc.dynamicMethodsArray);
+        gc.refException->SetStackTrace(gc.stackTrace.Get(), gc.dynamicMethodsArray);
     }
     else
     {
