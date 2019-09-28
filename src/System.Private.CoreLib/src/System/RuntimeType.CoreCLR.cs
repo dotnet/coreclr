@@ -2405,12 +2405,10 @@ namespace System
 
         internal IRuntimeMethodInfo? GetDefaultConstructor()
         {
+            const BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
+
             RuntimeConstructorInfo[] cache = Cache.GetConstructorList(MemberListType.All, null);
 
-            if (cache.Length == 0)
-                return null;
-
-            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
             for (int i = 0; i < cache.Length; i++)
             {
                 RuntimeConstructorInfo constructorInfo = cache[i];
