@@ -2403,6 +2403,33 @@ namespace System
             return Cache.GetDefaultMemberName();
         }
 
+        internal IRuntimeMethodInfo? GetDefaultConstructor()
+        {
+            RuntimeConstructorInfo[] cache = Cache.GetConstructorList(MemberListType.All, null);
+
+            if (cache.Length == 0)
+                return null;
+
+            BindingFlags bindingFlags = BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic;
+            for (int i = 0; i < cache.Length; i++)
+            {
+                RuntimeConstructorInfo constructorInfo = cache[i];
+                BindingFlags methodFlags = constructorInfo.BindingFlags;
+
+                if ((bindingFlags & methodFlags) != methodFlags)
+                {
+                    continue;
+                }
+
+                ParameterInfo[] parameters = constructorInfo.GetParametersNoCopy();
+                if (parameters == null || parameters.Length == 0)
+                {
+                    return constructorInfo;
+                }
+            }
+
+            return null;
+        }
         #endregion
 
         #region Type Overrides

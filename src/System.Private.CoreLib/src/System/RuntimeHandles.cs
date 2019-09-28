@@ -396,17 +396,6 @@ namespace System
         internal static extern IRuntimeMethodInfo GetDeclaringMethod(RuntimeType type);
 
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
-        private static extern void GetDefaultConstructor(QCallTypeHandle handle, ObjectHandleOnStack method);
-
-        internal IRuntimeMethodInfo? GetDefaultConstructor()
-        {
-            IRuntimeMethodInfo? ctor = null;
-            RuntimeTypeHandle nativeHandle = GetNativeHandle();
-            GetDefaultConstructor(JitHelpers.GetQCallTypeHandleOnStack(ref nativeHandle), JitHelpers.GetObjectHandleOnStack(ref ctor));
-            return ctor;
-        }
-
-        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         private static extern void GetTypeByName(string name, bool throwOnError, bool ignoreCase, StackCrawlMarkHandle stackMark,
             ObjectHandleOnStack assemblyLoadContext,
             bool loadTypeFromPartialName, ObjectHandleOnStack type, ObjectHandleOnStack keepalive);

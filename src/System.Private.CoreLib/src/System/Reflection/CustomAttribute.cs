@@ -1352,8 +1352,7 @@ namespace System.Reflection
             else
             {
                 // Resolve method ctor token from decorated decoratedModule scope
-                ctor = attributeType.GetTypeHandleInternal().GetDefaultConstructor();
-
+                ctor = attributeType.GetDefaultConstructor();
                 if (ctor == null && !attributeType.IsValueType)
                     throw new MissingMethodException(".ctor");
             }

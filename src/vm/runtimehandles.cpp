@@ -1169,33 +1169,6 @@ MethodDesc* QCALLTYPE RuntimeTypeHandle::GetInterfaceMethodImplementation(QCall:
     END_QCALL;
     
     return pResult;
-    }
-    
-void QCALLTYPE RuntimeTypeHandle::GetDefaultConstructor(QCall::TypeHandle pTypeHandle, QCall::ObjectHandleOnStack retMethod)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-    
-    MethodDesc* pCtor = NULL;
-    
-    TypeHandle typeHandle = pTypeHandle.AsTypeHandle();
-
-    if (!typeHandle.IsTypeDesc())
-    {
-        MethodTable* pMethodTable = typeHandle.AsMethodTable();
-        if (pMethodTable->HasDefaultConstructor())
-            pCtor = pMethodTable->GetDefaultConstructor();
-    }
-
-    if (pCtor != NULL)
-    {
-        GCX_COOP();
-        retMethod.Set(pCtor->GetStubMethodInfo());
-    }
-    END_QCALL;
-
-    return;
 }
 
 FCIMPL1(ReflectMethodObject*, RuntimeTypeHandle::GetDeclaringMethod, ReflectClassBaseObject *pTypeUNSAFE) {
