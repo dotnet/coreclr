@@ -120,10 +120,25 @@ namespace System
 
         public override string ToString()
         {
-            // StackTrace uses the ThreadStatic StringBuilderCache, so get it first so usages don't overlap
+            // Get the lengths of the StackTrace and _innerException first so we know how large to make the ValueStringBuilder
             string? stackTrace = StackTrace;
+            string? innerException = null;
+            if (_innerException != null)
+            {
+                innerException = _innerException.ToString();
+            }
 
-            StringBuilder sb = StringBuilderCache.Acquire();
+            int initialLength = 128;
+            if (stackTrace != null)
+            {
+                initialLength += stackTrace.Length;
+            }
+            if (innerException != null)
+            {
+                initialLength += innerException.Length;
+            }
+
+            ValueStringBuilder sb = new ValueStringBuilder(initialLength);
 
             sb.Append(GetClassName());
 
@@ -134,22 +149,25 @@ namespace System
                 sb.Append(message);
             }
 
-            if (_innerException != null)
+            if (innerException != null)
             {
-                sb.AppendLine();
+                sb.Append(Environment.NewLine);
                 sb.Append(InnerExceptionPrefix);
-                sb.AppendLine(_innerException.ToString());
+                sb.Append(innerException);
+                sb.Append(Environment.NewLine);
                 sb.Append("   ");
                 sb.Append(SR.Exception_EndOfInnerExceptionStack);
             }
 
             if (stackTrace != null)
             {
-                sb.AppendLine();
+                sb.Append(Environment.NewLine);
                 sb.Append(stackTrace);
             }
 
-            return StringBuilderCache.GetStringAndRelease(sb);
+            string returnValue = sb.ToString();
+            sb.Dispose();
+            return returnValue;
         }
 
         protected event EventHandler<SafeSerializationEventArgs>? SerializeObjectState

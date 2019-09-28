@@ -194,11 +194,13 @@ namespace System.Diagnostics
         /// </summary>
         internal string ToString(TraceFormat traceFormat)
         {
-            string word_At = SR.Word_At;
+            string wordAt = SR.Word_At;
             string inFileLineNum = SR.StackTrace_InFileLineNumber;
 
+            string? wordAtFormatted = null;
+
             bool fFirstFrame = true;
-            StringBuilder sb = StringBuilderCache.Acquire(255);
+            ValueStringBuilder sb = new ValueStringBuilder(256);
             for (int iFrameIndex = 0; iFrameIndex < _numOfFrames; iFrameIndex++)
             {
                 StackFrame? sf = GetFrame(iFrameIndex);
@@ -212,7 +214,9 @@ namespace System.Diagnostics
                     else
                         sb.Append(Environment.NewLine);
 
-                    sb.AppendFormat(CultureInfo.InvariantCulture, "   {0} ", word_At);
+                    sb.Append("   ");
+                    sb.Append(wordAt);
+                    sb.Append(' ');
 
                     bool isAsync = false;
                     Type? declaringType = mb.DeclaringType;
@@ -289,7 +293,11 @@ namespace System.Diagnostics
                                 typeName = pi[j].ParameterType.Name;
                             sb.Append(typeName);
                             sb.Append(' ');
-                            sb.Append(pi[j].Name);
+                            string? piName = pi[j].Name;
+                            if (piName != null)
+                            {
+                                sb.Append(piName);
+                            }
                         }
                         sb.Append(')');
                     }
@@ -299,7 +307,8 @@ namespace System.Diagnostics
                         // Append original method name e.g. +MoveNext()
                         sb.Append('+');
                         sb.Append(methodName);
-                        sb.Append('(').Append(')');
+                        sb.Append('(');
+                        sb.Append(')');
                     }
 
                     // source location printing
@@ -313,7 +322,7 @@ namespace System.Diagnostics
                         {
                             // tack on " in c:\tmp\MyFile.cs:line 5"
                             sb.Append(' ');
-                            sb.AppendFormat(CultureInfo.InvariantCulture, inFileLineNum, fileName, sf.GetFileLineNumber());
+                            sb.Append(string.Format(CultureInfo.InvariantCulture, inFileLineNum, fileName, sf.GetFileLineNumber()));
                         }
                     }
 
@@ -329,7 +338,9 @@ namespace System.Diagnostics
             if (traceFormat == TraceFormat.TrailingNewLine)
                 sb.Append(Environment.NewLine);
 
-            return StringBuilderCache.GetStringAndRelease(sb);
+            string returnValue = sb.ToString();
+            sb.Dispose();
+            return returnValue;
         }
 #endif // !CORERT
 
