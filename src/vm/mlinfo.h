@@ -742,18 +742,9 @@ enum ArrayMarshalInfoFlags
     amiSafeArraySubTypeExplicitlySpecified      = 0x0010
 };
 
-<<<<<<< HEAD
 #define IsAMIRuntime(flags) ((flags) & amiRuntime)
-#define IsAMIExport(flags) ((flags) & (amiExport32Bit | amiExport64Bit))
-#define IsAMIExport32Bit(flags) ((flags) & amiExport32Bit)
-#define IsAMIExport64Bit(flags) ((flags) & amiExport64Bit)
 #define IsAMIPtr(flags) ((flags) & amiIsPtr)
 #define IsAMISafeArraySubTypeExplicitlySpecified(flags) ((flags) & amiSafeArraySubTypeExplicitlySpecified)
-=======
-#define IsAMIRuntime(flags) (flags & amiRuntime)
-#define IsAMIPtr(flags) (flags & amiIsPtr)
-#define IsAMISafeArraySubTypeExplicitlySpecified(flags) (flags & amiSafeArraySubTypeExplicitlySpecified)
->>>>>>> master
 //
 // Helper classes to determine the marshalling information for arrays.
 //
