@@ -26,16 +26,25 @@ namespace System.Collections.Generic
 
             s.Append('[');
 
+            string? str;
             if (key != null)
             {
-                s.Append(key.ToString());
+                str = key.ToString();
+                if (str != null)
+                {
+                    s.Append(str);
+                }
             }
 
             s.Append(", ");
 
             if (value != null)
             {
-                s.Append(value.ToString());
+                str = value.ToString();
+                if (str != null)
+                {
+                    s.Append(str);
+                }
             }
 
             s.Append(']');

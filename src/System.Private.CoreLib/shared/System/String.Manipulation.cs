@@ -199,7 +199,10 @@ namespace System
                     Span<char> initialBuffer = stackalloc char[64];
                     var result = new ValueStringBuilder(initialBuffer);
 
-                    result.Append(firstString);
+                    if (firstString != null)
+                    {
+                        result.Append(firstString);
+                    }
 
                     do
                     {
@@ -207,7 +210,11 @@ namespace System
 
                         if (currentValue != null)
                         {
-                            result.Append(currentValue.ToString());
+                            string? str = currentValue.ToString();
+                            if (str != null)
+                            {
+                                result.Append(str);
+                            }
                         }
                     }
                     while (en.MoveNext());
@@ -236,11 +243,19 @@ namespace System
 
                 Span<char> initialBuffer = stackalloc char[64];
                 var result = new ValueStringBuilder(initialBuffer);
-                result.Append(firstValue);
+
+                if (firstValue != null)
+                {
+                    result.Append(firstValue);
+                }
 
                 do
                 {
-                    result.Append(en.Current);
+                    string? str = en.Current;
+                    if (str != null)
+                    {
+                        result.Append(str);
+                    }
                 }
                 while (en.MoveNext());
 
@@ -655,14 +670,36 @@ namespace System
                 Span<char> initialBuffer = stackalloc char[64];
                 var result = new ValueStringBuilder(initialBuffer);
 
-                result.Append(firstValue);
-
-                do
+                if (firstValue != null)
                 {
-                    result.Append(separator);
-                    result.Append(en.Current);
+                    result.Append(firstValue);
                 }
-                while (en.MoveNext());
+
+                if (separator is null)
+                {
+                    do
+                    {
+                        string? str = en.Current;
+                        if (str != null)
+                        {
+                            result.Append(str);
+                        }
+                    }
+                    while (en.MoveNext());
+                }
+                else
+                {
+                    do
+                    {
+                        result.Append(separator);
+                        string? str = en.Current;
+                        if (str != null)
+                        {
+                            result.Append(str);
+                        }
+                    }
+                    while (en.MoveNext());
+                }
 
                 return result.ToString();
             }
@@ -702,7 +739,10 @@ namespace System
             Span<char> initialBuffer = stackalloc char[64];
             var result = new ValueStringBuilder(initialBuffer);
 
-            result.Append(firstString);
+            if (firstString != null)
+            {
+                result.Append(firstString);
+            }
 
             for (int i = 1; i < values.Length; i++)
             {
@@ -710,7 +750,11 @@ namespace System
                 object? value = values[i];
                 if (value != null)
                 {
-                    result.Append(value.ToString());
+                    string? str = value.ToString();
+                    if (str != null)
+                    {
+                        result.Append(str);
+                    }
                 }
             }
 
@@ -752,7 +796,10 @@ namespace System
                 Span<char> initialBuffer = stackalloc char[64];
                 var result = new ValueStringBuilder(initialBuffer);
 
-                result.Append(firstString);
+                if (firstString != null)
+                {
+                    result.Append(firstString);
+                }
 
                 do
                 {
@@ -761,7 +808,11 @@ namespace System
                     result.Append(separator, separatorLength);
                     if (currentValue != null)
                     {
-                        result.Append(currentValue.ToString());
+                        string? str = currentValue.ToString();
+                        if (str != null)
+                        {
+                            result.Append(str);
+                        }
                     }
                 }
                 while (en.MoveNext());

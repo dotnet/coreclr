@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-#nullable enable
-
 namespace System.Text
 {
     internal ref partial struct ValueStringBuilder
@@ -54,7 +52,11 @@ namespace System.Text
             }
             else
             {
-                Append(value.ToString());
+                string? s = value.ToString();
+                if (s != null)
+                {
+                    Append(s);
+                }
             }
         }
 
