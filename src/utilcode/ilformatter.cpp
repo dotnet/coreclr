@@ -276,6 +276,7 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
                 setTarget(target, stackDepth()-1);
                 *out << "IL_"; out->hex(static_cast<unsigned __int64>(target), 4, OutString::zeroFill);
                 *out << ' ';
+                }
             } break;
         case InlinePhi: {
             unsigned count = arg.phi.count;
@@ -283,6 +284,7 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
             for (i = 0; i < count; i++) {
                 *out << GET_UNALIGNED_VAL32(&arg.phi.vars[i]);
                 *out << ' ';
+                }
             } break;
         default:
             _ASSERTE(!"BadType");
