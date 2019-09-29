@@ -334,9 +334,7 @@ namespace System.Diagnostics
             if (traceFormat == TraceFormat.TrailingNewLine)
                 sb.Append(Environment.NewLine);
 
-            string returnValue = sb.ToString();
-            sb.Dispose();
-            return returnValue;
+            return sb.ToString();
         }
 #endif // !CORERT
 

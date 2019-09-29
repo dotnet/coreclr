@@ -165,9 +165,7 @@ namespace System
                 sb.Append(stackTrace);
             }
 
-            string returnValue = sb.ToString();
-            sb.Dispose();
-            return returnValue;
+            return sb.ToString();
         }
 
         protected event EventHandler<SafeSerializationEventArgs>? SerializeObjectState

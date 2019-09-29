@@ -159,7 +159,8 @@ namespace System
 
                     // Create the StringBuilder, add the chars we've already enumerated,
                     // add the rest, and then get the resulting string.
-                    StringBuilder result = StringBuilderCache.Acquire();
+                    Span<char> initialBuffer = stackalloc char[64];
+                    var result = new ValueStringBuilder(initialBuffer);
                     result.Append(c); // first value
                     do
                     {
@@ -167,7 +168,7 @@ namespace System
                         result.Append(c);
                     }
                     while (en.MoveNext());
-                    return StringBuilderCache.GetStringAndRelease(result);
+                    return result.ToString();
                 }
             }
             else
@@ -195,7 +196,8 @@ namespace System
                         return firstString ?? string.Empty;
                     }
 
-                    StringBuilder result = StringBuilderCache.Acquire();
+                    Span<char> initialBuffer = stackalloc char[64];
+                    var result = new ValueStringBuilder(initialBuffer);
 
                     result.Append(firstString);
 
@@ -210,7 +212,7 @@ namespace System
                     }
                     while (en.MoveNext());
 
-                    return StringBuilderCache.GetStringAndRelease(result);
+                    return result.ToString();
                 }
             }
         }
@@ -232,7 +234,8 @@ namespace System
                     return firstValue ?? string.Empty;
                 }
 
-                StringBuilder result = StringBuilderCache.Acquire();
+                Span<char> initialBuffer = stackalloc char[64];
+                var result = new ValueStringBuilder(initialBuffer);
                 result.Append(firstValue);
 
                 do
@@ -241,7 +244,7 @@ namespace System
                 }
                 while (en.MoveNext());
 
-                return StringBuilderCache.GetStringAndRelease(result);
+                return result.ToString();
             }
         }
 
@@ -522,12 +525,13 @@ namespace System
             if (format == null)
                 throw new ArgumentNullException(nameof(format));
 
-            ValueStringBuilder sb = new ValueStringBuilder(format.Length + args.Length * 8);
+            Span<char> initialBuffer = stackalloc char[64];
+            var sb = new ValueStringBuilder(initialBuffer);
+
+            sb.EnsureCapacity(format.Length + args.Length * 8);
             sb.AppendFormatHelper(provider, format, args);
 
-            string returnValue = sb.ToString();
-            sb.Dispose();
-            return returnValue;
+            return sb.ToString();
         }
 
         public string Insert(int startIndex, string value)
@@ -648,7 +652,9 @@ namespace System
                 }
 
                 // Null separator and values are handled by the StringBuilder
-                StringBuilder result = StringBuilderCache.Acquire();
+                Span<char> initialBuffer = stackalloc char[64];
+                var result = new ValueStringBuilder(initialBuffer);
+
                 result.Append(firstValue);
 
                 do
@@ -658,7 +664,7 @@ namespace System
                 }
                 while (en.MoveNext());
 
-                return StringBuilderCache.GetStringAndRelease(result);
+                return result.ToString();
             }
         }
 
@@ -693,7 +699,9 @@ namespace System
                 return firstString ?? string.Empty;
             }
 
-            StringBuilder result = StringBuilderCache.Acquire();
+            Span<char> initialBuffer = stackalloc char[64];
+            var result = new ValueStringBuilder(initialBuffer);
+
             result.Append(firstString);
 
             for (int i = 1; i < values.Length; i++)
@@ -706,7 +714,7 @@ namespace System
                 }
             }
 
-            return StringBuilderCache.GetStringAndRelease(result);
+            return result.ToString();
         }
 
         private static unsafe string JoinCore<T>(char* separator, int separatorLength, IEnumerable<T> values)
@@ -741,7 +749,8 @@ namespace System
                     return firstString ?? string.Empty;
                 }
 
-                StringBuilder result = StringBuilderCache.Acquire();
+                Span<char> initialBuffer = stackalloc char[64];
+                var result = new ValueStringBuilder(initialBuffer);
 
                 result.Append(firstString);
 
@@ -757,7 +766,7 @@ namespace System
                 }
                 while (en.MoveNext());
 
-                return StringBuilderCache.GetStringAndRelease(result);
+                return result.ToString();
             }
         }
 
@@ -1005,7 +1014,9 @@ namespace System
             newValue ??= string.Empty;
 
             CultureInfo referenceCulture = culture ?? CultureInfo.CurrentCulture;
-            StringBuilder result = StringBuilderCache.Acquire();
+            Span<char> initialBuffer = stackalloc char[64];
+            var result = new ValueStringBuilder(initialBuffer);
+            result.EnsureCapacity(this.Length);
 
             int startIndex = 0;
             int index = 0;
@@ -1021,7 +1032,7 @@ namespace System
                 if (index >= 0)
                 {
                     // append the unmodified portion of string
-                    result.Append(this, startIndex, index - startIndex);
+                    result.Append(this.AsSpan(startIndex, index - startIndex));
 
                     // append the replacement
                     result.Append(newValue);
@@ -1034,16 +1045,16 @@ namespace System
                     // small optimization,
                     // if we have not done any replacements,
                     // we will return the original string
-                    StringBuilderCache.Release(result);
+                    result.Dispose();
                     return this;
                 }
                 else
                 {
-                    result.Append(this, startIndex, this.Length - startIndex);
+                    result.Append(this.AsSpan(startIndex, this.Length - startIndex));
                 }
             } while (index >= 0);
 
-            return StringBuilderCache.GetStringAndRelease(result);
+            return result.ToString();
         }
 
         // Replaces all instances of oldChar with newChar.

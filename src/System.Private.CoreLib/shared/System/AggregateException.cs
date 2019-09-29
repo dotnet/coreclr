@@ -415,7 +415,7 @@ namespace System
                     return base.Message;
                 }
 
-                StringBuilder sb = StringBuilderCache.Acquire();
+                ValueStringBuilder sb = new ValueStringBuilder();
                 sb.Append(base.Message);
                 sb.Append(' ');
                 for (int i = 0; i < m_innerExceptions.Count; i++)
@@ -425,7 +425,7 @@ namespace System
                     sb.Append(") ");
                 }
                 sb.Length--;
-                return StringBuilderCache.GetStringAndRelease(sb);
+                return sb.ToString();
             }
         }
 
