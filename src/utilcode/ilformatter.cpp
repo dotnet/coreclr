@@ -275,18 +275,14 @@ void ILFormatter::formatInstrArgs(OpInfo op, OpArgsVal arg, OutString* out, size
                 size_t target = curILOffset + GET_UNALIGNED_VAL32(&arg.switch_.targets[i]);
                 setTarget(target, stackDepth()-1);
                 *out << "IL_"; out->hex(static_cast<unsigned __int64>(target), 4, OutString::zeroFill);
-                if (i < count)
-                    *out << ' ';
-                }
+                *out << ' ';
             } break;
         case InlinePhi: {
             unsigned count = arg.phi.count;
             unsigned i;
             for (i = 0; i < count; i++) {
                 *out << GET_UNALIGNED_VAL32(&arg.phi.vars[i]);
-                if (i < count)
-                    *out << ' ';
-                }
+                *out << ' ';
             } break;
         default:
             _ASSERTE(!"BadType");
