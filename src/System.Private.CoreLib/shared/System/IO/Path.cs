@@ -861,7 +861,7 @@ namespace System.IO
             //  C:\Foo\Bar C:\Bar\Bar L3, S2 -> ..\..\Bar\Bar
             //  C:\Foo\Foo C:\Foo\Bar L7, S1 -> ..\Bar
 
-            Span<char> initialBuffer = stackalloc char[64];
+            Span<char> initialBuffer = stackalloc char[260];
             var sb = new ValueStringBuilder(initialBuffer);
             sb.EnsureCapacity(Math.Max(relativeTo.Length, path.Length));
 
